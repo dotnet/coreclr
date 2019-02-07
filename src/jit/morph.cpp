@@ -8258,21 +8258,32 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                 // Create a new temp.
                 unsigned tmpNum =
                     lvaGrabTemp(false DEBUGARG("Return value temp for multi-reg return (rejected tail call)."));
-                const bool unsafeValueClsCheck = false;
-                lvaSetStruct(tmpNum, call->gtRetClsHnd, unsafeValueClsCheck);
                 lvaTable[tmpNum].lvIsMultiRegRet = true;
 
-                // Create the assignment tree and morph it.
-                var_types structType = lvaTable[tmpNum].lvType;
-                GenTree*  dst        = gtNewLclvNode(tmpNum, structType);
-                GenTree*  assg       = fgMorphTree(gtNewAssignNode(dst, call));
+                GenTree* assg = nullptr;
+                if (varTypeIsStruct(callType))
+                {
+                    CORINFO_CLASS_HANDLE structHandle = call->gtRetClsHnd;
+                    assert(structHandle != NO_CLASS_HANDLE);
+                    const bool unsafeValueClsCheck = false;
+                    lvaSetStruct(tmpNum, structHandle, unsafeValueClsCheck);
+                    var_types structType = lvaTable[tmpNum].lvType;
+                    GenTree*  dst        = gtNewLclvNode(tmpNum, structType);
+                    assg                 = gtNewAssignNode(dst, call);
+                }
+                else
+                {
+                    assg = gtNewTempAssign(tmpNum, call);
+                }
+
+                assg = fgMorphTree(assg);
 
                 // Create the assignment statement and insert it before the current statement.
                 GenTree* assgStmt = gtNewStmt(assg, compCurStmt->AsStmt()->gtStmtILoffsx);
                 fgInsertStmtBefore(compCurBB, compCurStmt, assgStmt);
 
                 // Return the temp.
-                GenTree* result = gtNewLclvNode(tmpNum, structType);
+                GenTree* result = gtNewLclvNode(tmpNum, lvaTable[tmpNum].lvType);
                 result->gtFlags |= GTF_DONT_CSE;
 
 #ifdef DEBUG
