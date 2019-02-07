@@ -49,21 +49,15 @@ namespace System
                 return Bmi1.TrailingZeroCount(value);
             }
 
-            // Using deBruijn sequence, k=2, n=5 (2^5=32)
-            const uint deBruijn = 0b_0000_0111_0111_1100_1011_0101_0011_0001u; // 0x077CB531u
-            uint ix = (uint)((value & -value) * deBruijn) >> 27;
+            // Main code has behavior 0->0, so special-case in order to match intrinsic path 0->32
+            if (value == 0u)
+                return 32u;
+
+            // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
+            uint ix = (uint)((value & -value) * 0x077CB531u) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte tz = ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn);
-            uint count = Unsafe.AddByteOffset(ref tz, (IntPtr)ix);
-
-            // Above code has behavior 0->0, so special-case in order to match intrinsic path
-
-            // Branchless equivalent of: c32 = value == 0 ? 32 : 0
-            bool is0 = value == 0;
-            uint c32 = Unsafe.As<bool, byte>(ref is0) * 32u; // 0|1 x 32
-
-            return c32 + count;
+            return Unsafe.AddByteOffset(ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn), (IntPtr)ix);
         }
     }
 }
