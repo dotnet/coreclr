@@ -92,7 +92,6 @@ namespace System.Runtime.InteropServices
         // Collection of all ALCs used for COM activation. In the event we want to support
         // unloadable COM server ALCs, this will need to be changed.
         private static Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIgnoreCase);
-        private static readonly object s_AssemblyLoadContextsLock = new object();
 
         /// <summary>
         /// Entry point for unmanaged COM activation API from managed code
@@ -202,7 +201,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         {
             AssemblyLoadContext alc;
 
-            lock (s_AssemblyLoadContextsLock)
+            lock (s_AssemblyLoadContexts)
             {
                 if (!s_AssemblyLoadContexts.TryGetValue(assemblyPath, out alc))
                 {
