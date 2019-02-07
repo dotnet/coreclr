@@ -2555,6 +2555,12 @@ public:
     // Returns true iff the secondNode can be swapped with firstNode.
     bool gtCanSwapOrder(GenTree* firstNode, GenTree* secondNode);
 
+    // Given an address expression, compute its costs and addressing mode opportunities,
+    // and mark addressing mode candidates as GTF_DONT_CSE.
+    // TODO-Throughput - Consider actually instantiating these early, to avoid
+    // having to re-run the algorithm that looks for them (might also improve CQ).
+    bool gtMarkAddrMode(GenTree* addr, int* costEx, int* costSz, var_types type);
+
     unsigned gtSetEvalOrder(GenTree* tree);
 
     void gtSetStmtInfo(GenTree* stmt);
@@ -8480,6 +8486,12 @@ public:
         bool compTailCallLoopOpt;
 #endif
 
+#if defined(_TARGET_ARM64_)
+        // Decision about whether to save FP/LR registers with callee-saved registers (see
+        // COMPlus_JitSaveFpLrWithCalleSavedRegisters).
+        int compJitSaveFpLrWithCalleeSavedRegisters;
+#endif // defined(_TARGET_ARM64_)
+
 #ifdef ARM_SOFTFP
         static const bool compUseSoftFP = true;
 #else // !ARM_SOFTFP
@@ -8497,6 +8509,9 @@ public:
 #ifdef DEBUG
     static bool                s_pJitDisasmIncludeAssembliesListInitialized;
     static AssemblyNamesList2* s_pJitDisasmIncludeAssembliesList;
+
+    static bool       s_pJitFunctionFileInitialized;
+    static MethodSet* s_pJitMethodSet;
 #endif // DEBUG
 
 #ifdef DEBUG

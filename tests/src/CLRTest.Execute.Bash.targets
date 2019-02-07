@@ -79,6 +79,14 @@ then
   exit $(GCBashScriptExitCode)
 fi
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
+      <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(UnloadabilityIncompatible)' == 'true'"><![CDATA[
+$(BashCLRTestEnvironmentCompatibilityCheck)
+if [ ! -z "$__RunInUnloadableContext" ]
+then
+  echo SKIPPING EXECUTION BECAUSE the test is incompatible with unloadability
+  exit $(GCBashScriptExitCode)
+fi
+      ]]></BashCLRTestEnvironmentCompatibilityCheck>
       <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'">
     <![CDATA[
 $(BashCLRTestEnvironmentCompatibilityCheck)
@@ -114,7 +122,7 @@ echo BEGIN EXECUTION]]>
       </BashCLRTestExitCodePrep>
     
       <BashCLRTestArgPrep Condition=" '$(CLRTestExecutionArguments)'!='' ">
-<![CDATA[if [ -z ${CLRTestExecutionArguments+x} ]%3B then export CLRTestExecutionArguments='$(CLRTestExecutionArguments)'%3B fi]]>
+<![CDATA[if [ -z ${CLRTestExecutionArguments+x} ]%3B then CLRTestExecutionArguments=($(CLRTestExecutionArguments))%3B fi]]>
       </BashCLRTestArgPrep>
     
       <!-- By default, be prepared to do a full check -->
@@ -152,7 +160,7 @@ fi
         <HasParam>true</HasParam>
         <ParamText>=*</ParamText> <!-- Bash specific -->
         <ParamName>coreRootFullPath</ParamName>
-        <Command><![CDATA[        CORE_ROOT="${i#*=}"]]></Command>
+        <Command><![CDATA[        export CORE_ROOT="${i#*=}"]]></Command>
         <Description>Set CORE_ROOT to the specified value before running the test.</Description>
       </BashCLRTestExecutionScriptArgument>
     </ItemGroup>
@@ -255,8 +263,17 @@ $(BashCLRTestLaunchCmds)
 if [ ! -z ${RunCrossGen+x} ]%3B then
   TakeLock
 fi
-echo $_DebuggerFullPath $(_CLRTestRunFile) $ExePath $CLRTestExecutionArguments 
-$_DebuggerFullPath $(_CLRTestRunFile) $ExePath $CLRTestExecutionArguments 
+
+if [ ! -z "$CLRCustomTestLauncher" ];
+then
+    LAUNCHER="$CLRCustomTestLauncher $PWD/"
+else
+    LAUNCHER="$_DebuggerFullPath $(_CLRTestRunFile)"
+fi
+
+echo $LAUNCHER $ExePath %24(printf "'%s' " "${CLRTestExecutionArguments[@]}")
+$LAUNCHER $ExePath "${CLRTestExecutionArguments[@]}"
+
 CLRTestExitCode=$?
 if [ ! -z ${RunCrossGen+x} ]%3B then
   ReleaseLock
@@ -267,8 +284,8 @@ $(BashLinkerTestCleanupCmds)
 $(BashCLRTestLaunchCmds)
 echo export CDPATH="$%28dirname "$0")"
 export CDPATH="$%28dirname "$0")"
-echo /bin/sh $(InputAssemblyName) 
-/bin/sh $(InputAssemblyName)
+echo /usr/bin/env bash $(InputAssemblyName) %24(printf "'%s' " "${CLRTestExecutionArguments[@]}")
+/usr/bin/env bash $(InputAssemblyName) "${CLRTestExecutionArguments[@]}"
 CLRTestExitCode=$?
 CLRTestExpectedExitCode=0
       ]]></BashCLRTestLaunchCmds>
@@ -324,7 +341,7 @@ for i in "$@"
 %(Command)
         %3B%3B')
         *)
-        CLRTestExecutionArguments="$CLRTestExecutionArguments $i"
+        CLRTestExecutionArguments+=("${i}")
     esac
 done
 

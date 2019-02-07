@@ -751,6 +751,14 @@
                     "name": "System.Buffers.Text.Tests.ParserTests.TestParserDouble",
                     "reason": "https://github.com/dotnet/coreclr/pull/20707"
                 },
+                {
+                    "name": "System.Buffers.Text.Tests.FormatterTests.TestGFormatWithPrecisionNotSupported",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22434"
+                },
+                {
+                    "name": "System.Buffers.Text.Tests.FormatterTests.TestBadFormat",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22434"
+                },
             ]
         }
     },
@@ -1054,7 +1062,6 @@
                     "name": "System.Tests.TimeSpanTests.Parse",
                     "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/34561"
                 },
-                
                 {
                     "name": "System.Tests.SingleTests.Test_ToString",
                     "reason" : "https://github.com/dotnet/coreclr/pull/22040"
