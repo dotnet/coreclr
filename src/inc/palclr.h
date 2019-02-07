@@ -37,6 +37,14 @@
 #endif
 #endif
 
+#ifndef NOINLINE
+#ifdef _MSC_VER
+#define NOINLINE __declspec(noinline)
+#else
+#define NOINLINE __attribute__((noinline))
+#endif // !_MSC_VER
+#endif // !NOINLINE
+
 //
 // CPP_ASSERT() can be used within a class definition, to perform a
 // compile-time assertion involving private names within the class.

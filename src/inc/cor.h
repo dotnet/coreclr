@@ -2026,7 +2026,7 @@ typedef enum
 
 #ifndef DEBUG_NOINLINE
 #if defined(_DEBUG)
-#define DEBUG_NOINLINE __declspec(noinline)
+#define DEBUG_NOINLINE NOINLINE
 #else
 #define DEBUG_NOINLINE
 #endif
@@ -2034,7 +2034,7 @@ typedef enum
 
 #ifndef DBG_NOINLINE_X86__RET_INLINE
 #if defined(_DEBUG) && defined(_X86_)
-#define DBG_NOINLINE_X86__RET_INLINE __declspec(noinline)
+#define DBG_NOINLINE_X86__RET_INLINE NOINLINE
 #else
 #define DBG_NOINLINE_X86__RET_INLINE FORCEINLINE
 #endif

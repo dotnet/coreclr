@@ -144,7 +144,7 @@ typedef LPSTR   LPUTF8;
 
 #ifndef DEBUG_NOINLINE
 #if defined(_DEBUG)
-#define DEBUG_NOINLINE __declspec(noinline)
+#define DEBUG_NOINLINE NOINLINE
 #else
 #define DEBUG_NOINLINE
 #endif
@@ -153,7 +153,7 @@ typedef LPSTR   LPUTF8;
 #ifndef DBG_NOINLINE_X86__RET_INLINE
 #if defined(_DEBUG) && defined(_TARGET_X86_)
 // this exists to make scan work on x86. 
-#define DBG_NOINLINE_X86__RET_INLINE __declspec(noinline)
+#define DBG_NOINLINE_X86__RET_INLINE NOINLINE
 #else
 #define DBG_NOINLINE_X86__RET_INLINE FORCEINLINE
 #endif
