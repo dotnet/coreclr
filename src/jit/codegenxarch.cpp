@@ -3112,7 +3112,7 @@ void CodeGen::genCodeForCpBlkRepMovs(GenTreeBlk* cpBlkNode)
     else
 #endif
     {
-#ifdef _TARGET_AMD64_
+#ifdef _TARGET_X64_
         assert(size > CPBLK_UNROLL_LIMIT && size < CPBLK_MOVS_LIMIT);
 #else
         assert(size > CPBLK_UNROLL_LIMIT);
@@ -6429,11 +6429,9 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
 #ifdef _TARGET_64BIT_
             case GenIntCastDesc::ZERO_EXTEND_INT:
                 // We can skip emitting this zero extending move if the previous instruction zero extended implicitly
-                if ((srcReg == dstReg) && (emit->emitCurIGinsCnt > 0) && compiler->opts.OptimizationEnabled())
+                if ((srcReg == dstReg) && compiler->opts.OptimizationEnabled())
                 {
-                    emitter::instrDesc* prevInstr = emit->emitLastIns;
-                    assert(prevInstr != nullptr);
-                    canSkip = emit->doesZeroExtendingWrite(prevInstr, srcReg);
+                    canSkip = emit->AreUpper32BitsZero(srcReg);
                 }
 
                 ins     = INS_mov;
