@@ -1225,7 +1225,7 @@ HRESULT EEConfig::sync()
     fTieredCompilation_DisableTier0Jit =
         Configuration::GetKnobBooleanValue(
             W("System.Runtime.TieredCompilation.DisableTier0Jit"),
-            CLRConfig::EXTERNAL_TieredCompilation_DisableTier0Jit) != 0;
+            CLRConfig::UNSUPPORTED_TieredCompilation_DisableTier0Jit) != 0;
 
     fTieredCompilation_CallCounting = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_CallCounting) != 0;
     fTieredCompilation_OptimizeTier0 = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_OptimizeTier0) != 0;
