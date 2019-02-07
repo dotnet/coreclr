@@ -9,20 +9,15 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
   </PropertyGroup>
-  <PropertyGroup>
-    <DefineConstants Condition="$(OSGroup) == 'Windows_NT'">WINDOWS</DefineConstants>
-    <DefineConstants Condition="$(OSGroup) == 'OSX'">OSX</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyDependencyResolverTests.cs" />
-    <Compile Include="HostPolicyMock.cs" />
     <Compile Include="InvalidHostingTest.cs" />
     <Compile Include="NativeDependencyTests.cs" />
     <Compile Include="TestBase.cs" />
-    <Compile Include="XPlatformUtils.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="CMakeLists.txt" />
+    <ProjectReference Include="../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
+    <ProjectReference Include="../../Common/hostpolicymock/CMakeLists.txt" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
