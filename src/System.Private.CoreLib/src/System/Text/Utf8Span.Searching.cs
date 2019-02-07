@@ -53,7 +53,7 @@ namespace System.Text
             }
             else
             {
-                string.CheckStringComparison(comparisonType);
+                string.ThrowIfStringComparisonInvalid(comparisonType);
 
                 // Surrogate chars can't exist in well-formed UTF-8 data - bail immediately.
 
@@ -185,7 +185,7 @@ namespace System.Text
 
         private unsafe bool TryFind(Utf8Span value, StringComparison comparisonType, out Range range, bool fromBeginning)
         {
-            string.CheckStringComparison(comparisonType);
+            string.ThrowIfStringComparisonInvalid(comparisonType);
 
             if (value.IsEmpty)
             {
@@ -367,7 +367,7 @@ namespace System.Text
             }
             else
             {
-                string.CheckStringComparison(comparisonType);
+                string.ThrowIfStringComparisonInvalid(comparisonType);
 
                 // Surrogate chars can't exist in well-formed UTF-8 data - bail immediately.
 
