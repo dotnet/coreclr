@@ -5,6 +5,7 @@ set (PEDECODER_SOURCES
      ../../utilcode/pedecoder.cpp
      portable_pedecoder.cpp)
 
-add_library_clr(pedecoder STATIC ${PEDECODER_SOURCES})
+_add_library(pedecoder STATIC ${PEDECODER_SOURCES})
 
-install_clr(pedecoder)
+_install(TARGETS pedecoder DESTINATION lib)
+_install(FILES portable_pedecoder.h DESTINATION inc)
