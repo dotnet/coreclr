@@ -2059,7 +2059,7 @@ public:
 #endif // _DEBUG
 
     
-    virtual bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID)
+    bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override
     {
         if (IsOut(dwMarshalFlags) && !IsByref(dwMarshalFlags) && IsCLRToNative(dwMarshalFlags))
         {
