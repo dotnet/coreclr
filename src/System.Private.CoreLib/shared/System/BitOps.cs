@@ -221,11 +221,11 @@ namespace System
 
             // Using deBruijn sequence, k=2, n=5 (2^5=32)
             const uint deBruijn = 0b_0000_0111_1100_0100_1010_1100_1101_1101;
-            uint ix = (value * deBruijn) >> 27;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte lz = ref MemoryMarshal.GetReference(s_Log2DeBruijn);
-            return Unsafe.AddByteOffset(ref lz, (IntPtr)ix);
+            return Unsafe.AddByteOffset(
+                ref MemoryMarshal.GetReference(s_Log2DeBruijn), 
+                (IntPtr)((value * deBruijn) >> 27));
         }
 
         /// <summary>
@@ -241,8 +241,6 @@ namespace System
             // Assume we need only examine low-32
             var val = (uint)value;
             byte inc = 0;
-
-            // TODO: Remove branching
 
             // If high-32 is non-zero
             if (value > uint.MaxValue)
@@ -275,16 +273,15 @@ namespace System
         {
             if (Lzcnt.IsSupported)
             {
+                // Note that LZCNT contract specifies 0->32
                 return Lzcnt.LeadingZeroCount(value);
             }
 
-            // Return 32 for input 0, without branching.
-            //                                              0   1   2   N
-            bool is0 = value == 0; //                       T   F   F   F
-            uint inc = Unsafe.As<bool, byte>(ref is0); //   1   0   0   0
+            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
+            if (value == 0u)
+                return 32u;
 
-            uint log = Log2(value); //                      0   0   1   31
-            return 31u + inc - log; //                      32  31  30  0
+            return Log2(value);
         }
 
         /// <summary>
@@ -297,31 +294,34 @@ namespace System
         {
             if (Lzcnt.X64.IsSupported)
             {
+                // Note that LZCNT contract specifies 0->64
                 return (uint)Lzcnt.X64.LeadingZeroCount(value);
             }
 
+            // Main code has behavior 0->0, so special-case to match intrinsic path 0->64
+            if (value == 0u)
+                return 64u;
+
             // Use the 32-bit function twice.
-
-            uint hi = (uint)(value >> 32);
-            uint lo = (uint)value;
-
+            uint lz = (uint)(value >> 32); // hi
             if (Lzcnt.IsSupported)
             {
-                hi = Lzcnt.LeadingZeroCount(hi);
-                lo = Lzcnt.LeadingZeroCount(lo);
+                lz = Lzcnt.LeadingZeroCount(lz); // hi
+
+                // Use lo iff hi is 32 zeros
+                if (lz == 32u)
+                    lz += Lzcnt.LeadingZeroCount((uint)value); // lo
             }
             else
             {
-                hi = LeadingZeroCount(hi);
-                lo = LeadingZeroCount(lo);
+                lz = LeadingZeroCount(lz); // hi
+
+                // Use lo iff hi is 32 zeros
+                if (lz == 32u)
+                    lz += LeadingZeroCount((uint)value); // lo
             }
 
-            // Keep lo iff hi is 32 zeros
-            // Branchless equivalent of: lo *= (hi == 32 ? 1 : 0)
-            bool keepLo = hi == 32;
-            lo *= Unsafe.As<bool, byte>(ref keepLo); // lo x 0|1
-
-            return hi + lo;
+            return lz;
         }
 
         /* Legacy implementations
@@ -356,22 +356,25 @@ namespace System
                 return Bmi1.TrailingZeroCount(value);
             }
 
-            // Using deBruijn sequence, k=2, n=5 (2^5=32)
-            const uint deBruijn = 0b_0000_0111_0111_1100_1011_0101_0011_0001u; // 0x077CB531u
-            uint ix = (uint)((value & -value) * deBruijn) >> 27;
+            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
+            if (value == 0u)
+                return 32u;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            ref byte tz = ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn);
-            uint count = Unsafe.AddByteOffset(ref tz, (IntPtr)ix);
-
-            // Above code has behavior 0->0, so special-case in order to match intrinsic path
-
-            // Branchless equivalent of: c32 = value == 0 ? 32 : 0
-            bool is0 = value == 0;
-            uint c32 = (uint)Unsafe.As<bool, byte>(ref is0) * 32; // 0|1 x 32
-
-            return c32 + count;
+            return Unsafe.AddByteOffset(
+                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
+                // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
+                (IntPtr)(((uint)((value & -value) * 0x077CB531u)) >> 27));
         }
+
+        /// <summary>
+        /// Count the number of trailing zero bits in a mask.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint TrailingZeroCount(long value)
+            => TrailingZeroCount((ulong)value);
 
         /// <summary>
         /// Count the number of trailing zero bits in a mask.
@@ -383,41 +386,35 @@ namespace System
         {
             if (Bmi1.X64.IsSupported)
             {
+                // Note that TZCNT contract specifies 0->64
                 return (uint)Bmi1.X64.TrailingZeroCount(value);
             }
 
+            // Main code has behavior 0->0, so special-case to match intrinsic path 0->64
+            if (value == 0u)
+                return 64u;
+
             // Use the 32-bit function twice.
-
-            uint hi = (uint)(value >> 32);
-            uint lo = (uint)value;
-
+            uint tz = (uint)value; // lo
             if (Bmi1.IsSupported)
             {
-                hi = Bmi1.TrailingZeroCount(hi);
-                lo = Bmi1.TrailingZeroCount(lo);
+                tz = Bmi1.TrailingZeroCount(tz); // lo
+
+                // Use hi iff lo is 32 zeros
+                if (tz == 32u)
+                    tz += Bmi1.TrailingZeroCount((uint)(value >> 32)); // hi
             }
             else
             {
-                hi = TrailingZeroCount(hi);
-                lo = TrailingZeroCount(lo);
+                tz = TrailingZeroCount(tz); // lo
+
+                // Use hi iff lo is 32 zeros
+                if (tz == 32u)
+                    tz += TrailingZeroCount((uint)(value >> 32)); // hi
             }
 
-            // Keep hi iff lo is 32 zeros
-            // Branchless equivalent of: hi *= (lo == 32 ? 1 : 0)
-            bool keepHi = lo == 32;
-            hi *= Unsafe.As<bool, byte>(ref keepHi); // hi x 0|1
-
-            return lo + hi;
+            return tz;
         }
-
-        /// <summary>
-        /// Count the number of trailing zero bits in a mask.
-        /// Similar in behavior to the x86 instruction TZCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint TrailingZeroCount(long value)
-            => TrailingZeroCount((ulong)value);
 
         #endregion
 
