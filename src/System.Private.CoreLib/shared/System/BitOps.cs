@@ -281,7 +281,7 @@ namespace System
             if (value == 0u)
                 return 32u;
 
-            return Log2(value);
+            return 31u - Log2(value);
         }
 
         /// <summary>
