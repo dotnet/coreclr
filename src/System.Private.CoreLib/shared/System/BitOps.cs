@@ -89,10 +89,10 @@ namespace System
                 }
 
                 // Use the 32-bit function twice
-                int hi = (int)Popcnt.PopCount((uint)(value >> 32));
-                int lo = (int)Popcnt.PopCount((uint)value);
+                uint pc = Popcnt.PopCount((uint)value)
+                        + Popcnt.PopCount((uint)(value >> 32));
 
-                return hi + lo;
+                return (int)pc;
             }
 
             const ulong c0 = 0x_5555_5555_5555_5555;
@@ -224,7 +224,7 @@ namespace System
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
-                ref MemoryMarshal.GetReference(s_Log2DeBruijn), 
+                ref MemoryMarshal.GetReference(s_Log2DeBruijn),
                 (IntPtr)((value * deBruijn) >> 27));
         }
 

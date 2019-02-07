@@ -14,7 +14,7 @@ namespace System.Buffers
         {
             Debug.Assert(bufferSize >= 0);
             uint bits = ((uint)bufferSize - 1) >> 4;
-            return 32 - (int)BitOps.LeadingZeroCount(bits);
+            return 32 - BitOps.LeadingZeroCount(bits);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

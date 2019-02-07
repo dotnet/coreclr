@@ -547,7 +547,7 @@ PosRem:
                 if (hiRes > 2)
                 {
                     newScale = (int)hiRes * 32 - 64 - 1;
-                    newScale -= (int)BitOps.LeadingZeroCount(result[hiRes]);
+                    newScale -= BitOps.LeadingZeroCount(result[hiRes]);
 
                     // Multiply bit position by log10(2) to figure it's power of 10.
                     // We scale the log by 256.  log(2) = .30103, * 256 = 77.  Doing this
@@ -2019,7 +2019,7 @@ ReturnZero:
                     if (tmp == 0)
                         tmp = d2.Mid;
 
-                    curScale = (int)BitOps.LeadingZeroCount(tmp);
+                    curScale = BitOps.LeadingZeroCount(tmp);
 
                     // Shift both dividend and divisor left by curScale.
                     //
@@ -2300,7 +2300,7 @@ ThrowOverflow:
                 uint tmp = d2.High;
                 if (tmp == 0)
                     tmp = d2.Mid;
-                int shift = (int)BitOps.LeadingZeroCount(tmp);
+                int shift = BitOps.LeadingZeroCount(tmp);
 
                 Buf28 b;
                 _ = &b; // workaround for CS0165

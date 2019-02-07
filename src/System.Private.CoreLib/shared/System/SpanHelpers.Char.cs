@@ -828,12 +828,8 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundChar(ulong match)
         {
-            return (int)(BitOps.TrailingZeroCount(match) >> 4);
+            return BitOps.TrailingZeroCount(match) >> 4;
         }
-
-        private const ulong XorPowerOfTwoToHighChar = (0x03ul |
-                                                       0x02ul << 16 |
-                                                       0x01ul << 32) + 1;
 
         // Vector sub-search adapted from https://github.com/aspnet/KestrelHttpServer/pull/1138
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
