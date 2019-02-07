@@ -8,6 +8,7 @@ namespace System
     {
         internal const bool s_systemSupportsLeapSeconds = false;
 
+#if !CORECLR
         public static DateTime UtcNow
         {
             get
@@ -15,6 +16,7 @@ namespace System
                 return new DateTime(((ulong)(Interop.Sys.GetSystemTimeAsTicks() + UnixEpochTicks)) | KindUtc);
             }
         }
+#endif
 
         internal static DateTime FromFileTimeLeapSecondsAware(long fileTime) => default;
         internal static long ToFileTimeLeapSecondsAware(long ticks) => default;

@@ -31,8 +31,6 @@
 #include "array.h"
 #include "eepolicy.h"
 
-#ifndef FEATURE_PAL
-
 typedef void(WINAPI *pfnGetSystemTimeAsFileTime)(LPFILETIME lpSystemTimeAsFileTime);
 extern pfnGetSystemTimeAsFileTime g_pfnGetSystemTimeAsFileTime;
 
@@ -40,6 +38,7 @@ void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
 {
     pfnGetSystemTimeAsFileTime func = NULL;
 
+#ifndef FEATURE_PAL
     HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
     if (hKernel32 != NULL)
     {
@@ -73,6 +72,7 @@ void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
         }
     }
     if (func == NULL)
+#endif
     {
         func = &::GetSystemTimeAsFileTime;
     }
@@ -90,9 +90,16 @@ FCIMPL0(INT64, SystemNative::__GetSystemTimeAsFileTime)
     INT64 timestamp;
     g_pfnGetSystemTimeAsFileTime((FILETIME*)&timestamp);
 
+#if BIGENDIAN
+    timestamp = (INT64)(((UINT64)timestamp >> 32) | ((UINT64)timestamp << 32));
+#endif
+
     return timestamp;
 }
 FCIMPLEND;
+
+
+#ifndef FEATURE_PAL
 
 FCIMPL1(VOID, SystemNative::GetSystemTimeWithLeapSecondsHandling, FullSystemTime *time)
 {
