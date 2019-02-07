@@ -292,7 +292,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + (int)BitOps.TrailingZeroCount(matches);
                         }
                     }
 
