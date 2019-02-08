@@ -32,7 +32,7 @@ namespace System.Runtime
 
         public static GCLatencyMode LatencyMode
         {
-            get => GetLatencyMode();
+            get => GetGCLatencyMode();
             set
             {
                 if ((value < GCLatencyMode.Batch) ||
@@ -41,13 +41,13 @@ namespace System.Runtime
                     throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_Enum);
                 }
 
-                SetLatencyModeStatus status = SetLatencyMode(value);
+                SetLatencyModeStatus status = SetGCLatencyMode(value);
                 if (status == SetLatencyModeStatus.NoGCInProgress)
                 {
                     throw new InvalidOperationException(SR.InvalidOperation_SetLatencyModeNoGC);
                 }
 
-                Debug.Assert(status == SetLatencyModeStatus.Succeeded, $"Unexpected return value '{status}' from {nameof(SetLatencyMode)}.");
+                Debug.Assert(status == SetLatencyModeStatus.Succeeded, $"Unexpected return value '{status}' from {nameof(SetGCLatencyMode)}.");
             }
         }
 

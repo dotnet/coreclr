@@ -2,23 +2,28 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Runtime.CompilerServices;
+
 namespace System.Runtime
 {
     public static partial class GCSettings
     {
-        public static bool IsServerGC =>
-            GC.IsServerGC();
+        public static extern bool IsServerGC
+        {
+            [MethodImpl(MethodImplOptions.InternalCall)]
+            get;
+        }
 
-        private static GCLatencyMode GetLatencyMode() =>
-            (GCLatencyMode)GC.GetGCLatencyMode();
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern GCLatencyMode GetGCLatencyMode();
 
-        private static SetLatencyModeStatus SetLatencyMode(GCLatencyMode value) =>
-            (SetLatencyModeStatus)GC.SetGCLatencyMode((int)value);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern SetLatencyModeStatus SetGCLatencyMode(GCLatencyMode newLatencyMode);
 
-        private static GCLargeObjectHeapCompactionMode GetLOHCompactionMode() =>
-            (GCLargeObjectHeapCompactionMode)GC.GetLOHCompactionMode();
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern GCLargeObjectHeapCompactionMode GetLOHCompactionMode();
 
-        private static void SetLOHCompactionMode(GCLargeObjectHeapCompactionMode value) =>
-            GC.SetLOHCompactionMode((int)value);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern void SetLOHCompactionMode(GCLargeObjectHeapCompactionMode newLOHCompactionMode);
     }
 }
