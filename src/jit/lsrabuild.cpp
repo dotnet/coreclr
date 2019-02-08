@@ -1113,6 +1113,7 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
 // Arguments:
 //    tree       - the tree for which kill positions should be generated
 //    currentLoc - the location at which the kills should be added
+//    killMask   - The mask of registers killed by this node
 //
 // Return Value:
 //    true       - kills were inserted
@@ -1124,6 +1125,9 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
 //    the multiple defs for a regPair are in different locations.
 //    If we generate any kills, we will mark all currentLiveVars as being preferenced
 //    to avoid the killed registers.  This is somewhat conservative.
+//
+//    This method can add kills even if killMask is RBM_NONE, if this tree is one of the
+//    special cases that signals that we can't permit callee save registers to hold GC refs.
 
 bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLoc, regMaskTP killMask)
 {
@@ -2562,6 +2566,7 @@ void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCa
     bool      doLargeVectorRestore = false;
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
+    // Call this even when killMask is RBM_NONE, as we have to check for some special cases
     buildKillPositionsForNode(tree, currentLoc + 1, killMask);
 
     if (killMask != RBM_NONE)
