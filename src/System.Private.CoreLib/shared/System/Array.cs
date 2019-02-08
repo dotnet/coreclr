@@ -2150,9 +2150,6 @@ namespace System
 #endif // !CORERT
     }
 
-    // This is a normal generic Enumerator for SZ arrays. It doesn't have any of the "this" stuff
-    // that SZArrayHelper does.
-    //
     internal sealed class SZGenericArrayEnumerator<T> : IEnumerator<T>
     {
         private readonly T[] _array;
