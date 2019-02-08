@@ -2717,7 +2717,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
         if (compiler->info.compIsVarArgs)
         {
             // In case of a jmp call to a vararg method ensure only integer registers are passed.
-            assert(((genRegMask(argReg) & RBM_ARG_REGS) & REG_ARG_RET_BUFF) != RBM_NONE);
+            assert(((genRegMask(argReg) & (RBM_ARG_REGS | REG_ARG_RET_BUFF)) != RBM_NONE);
 
             fixedIntArgMask |= genRegMask(argReg);
 
