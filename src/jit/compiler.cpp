@@ -11114,11 +11114,11 @@ Compiler::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int off
 
     if (varDsc->lvIsInReg())
     {
-        fillRegisterVarLoc(varDsc, type, baseReg, offset, isFramePointerUsed);
+        siFillRegisterVarLoc(varDsc, type, baseReg, offset, isFramePointerUsed);
     }
     else
     {
-        fillStackVarLoc(varDsc, type, baseReg, offset, isFramePointerUsed);
+        siFillStackVarLoc(varDsc, type, baseReg, offset, isFramePointerUsed);
     }
 }
 
@@ -11137,7 +11137,7 @@ Compiler::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int off
 // Notes:
 //    The "varLoc" argument is filled depending of the "type" argument but as a VLT_STK... variation.
 //    "baseReg" and "offset" are used to indicate the position of the variable in the stack.
-void Compiler::siVarLoc::fillStackVarLoc(
+void Compiler::siVarLoc::siFillStackVarLoc(
     const LclVarDsc* varDsc, var_types type, regNumber baseReg, int offset, bool isFramePointerUsed)
 {
     assert(offset != BAD_STK_OFFS);
@@ -11222,7 +11222,7 @@ void Compiler::siVarLoc::fillStackVarLoc(
 // Notes:
 //    The "varLoc" argument is filled depending of the "type" argument but as a VLT_REG... variation.
 //    "baseReg" and "offset" are used .for not 64 bit and values that are splitted in two parts.
-void Compiler::siVarLoc::fillRegisterVarLoc(
+void Compiler::siVarLoc::siFillRegisterVarLoc(
     const LclVarDsc* varDsc, var_types type, regNumber baseReg, int offset, bool isFramePointerUsed)
 {
     switch (type)
