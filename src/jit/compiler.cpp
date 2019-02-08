@@ -11107,7 +11107,7 @@ bool Compiler::killGCRefs(GenTree* tree)
 //    The "baseReg" and "offset" cannot be obtained from "varDsc".
 //    It calls "fillRegisterVarLoc" or "fillStackVarLoc" depending on if the "varDsc" argument.
 //    "lvIsInReg", so their notes and assumptions are held.
-siVarLoc Compiler::getSiVarLoc(LclVarDsc* varDsc, regNumber baseReg, signed offset) const
+Compiler::siVarLoc Compiler::getSiVarLoc(LclVarDsc* varDsc, regNumber baseReg, signed offset) const
 {
     siVarLoc  varLoc;
     var_types type = genActualType(varDsc->TypeGet());
