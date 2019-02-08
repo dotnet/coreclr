@@ -1823,7 +1823,6 @@ public:
     void ShutdownAssemblies();
     void ShutdownFreeLoaderAllocators(BOOL bFromManagedCode);
     
-    void ReleaseDomainBoundInfo();
     void ReleaseFiles();
     
 

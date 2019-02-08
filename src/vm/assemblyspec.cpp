@@ -1223,27 +1223,6 @@ void AssemblySpecBindingCache::Clear()
     m_map.Clear();
 }
 
-void AssemblySpecBindingCache::OnAppDomainUnload()
-{
-    CONTRACTL
-    {
-        DESTRUCTOR_CHECK;
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    PtrHashMap::PtrIterator i = m_map.begin();
-    while (!i.end())
-    {
-        AssemblyBinding *b = (AssemblyBinding*) i.GetValue();
-        b->OnAppDomainUnload();
-
-        ++i;
-    }
-}
-
 void AssemblySpecBindingCache::Init(CrstBase *pCrst, LoaderHeap *pHeap)
 {
     WRAPPER_NO_CONTRACT;
@@ -1776,7 +1755,7 @@ BOOL AssemblySpecBindingCache::RemoveAssembly(DomainAssembly* pAssembly)
     while (!i.end())
     {
         AssemblyBinding* entry = (AssemblyBinding*)i.GetValue();
-        if (entry->GetAssembly() == pAssembly)
+        if (entry->GetAssembly() == pAssembly || entry->GetParentAssembly() == pAssembly)
         {
             UPTR key = i.GetKey();
             m_map.DeleteValue(key, entry);
