@@ -11,9 +11,9 @@
 #ifdef FEATURE_PERFTRACING
 
 #ifndef __llvm__
-__declspec(thread) ThreadEventBufferList ThreadEventBufferList::gCurrentThreadEventBufferList = { NULL };
+__declspec(thread) ThreadEventBufferList ThreadEventBufferList::gCurrentThreadEventBufferList;
 #else // !__llvm__
-thread_local ThreadEventBufferList ThreadEventBufferList::gCurrentThreadEventBufferList = { NULL };
+thread_local ThreadEventBufferList ThreadEventBufferList::gCurrentThreadEventBufferList;
 #endif // !__llvm__
 
 EventPipeBufferManager::EventPipeBufferManager()

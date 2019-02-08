@@ -21,16 +21,15 @@ class EventPipeBufferList;
 // when the thread dies so we can free EventPipeBufferList in the destructor.  
 class ThreadEventBufferList
 {
-public:
-
 #ifndef __llvm__
 __declspec(thread) static ThreadEventBufferList gCurrentThreadEventBufferList;
 #else // !__llvm__
 thread_local static ThreadEventBufferList gCurrentThreadEventBufferList;
 #endif // !__llvm__
-    EventPipeBufferList * m_pThreadEventBufferList;
+    EventPipeBufferList * m_pThreadEventBufferList = NULL;
     ~ThreadEventBufferList();
 
+public:
     static EventPipeBufferList* Get()
     {
         return gCurrentThreadEventBufferList.m_pThreadEventBufferList;
