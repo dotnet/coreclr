@@ -11085,3 +11085,231 @@ bool Compiler::killGCRefs(GenTree* tree)
     }
     return false;
 }
+
+//------------------------------------------------------------------------
+// getSiVarLoc: Returns a "siVarLoc" instance representing the place where the variable 
+// is given its description, "baseReg", and "offset" (if needed).
+//
+// Arguments:
+//    varDsc    - a "LclVarDsc *" to the variable it is desired to build the "siVarLoc".
+//    baseReg   - a "regNumber" use as a base for the offset.
+//    offset    - a signed amount of bytes distance from "baseReg" for the position of the variable.
+//
+// Return Value:
+//    A "siVarLoc" filled with the correct case struct fields for the variable, which could live
+//    in a register, an stack position, or a combination of both.
+//
+// Assumptions:
+//    No new memory is allocated on this method.
+//    No changes on "varDsc" are applied.
+//
+// Notes:
+//    The "baseReg" and "offset" cannot be obtained from "varDsc".
+//    It calls "fillRegisterVarLoc" or "fillStackVarLoc" depending on if the "varDsc" argument.
+//    "lvIsInReg", so their notes and assumptions are held.
+siVarLoc Compiler::getSiVarLoc(LclVarDsc* varDsc, regNumber baseReg, signed offset) const
+{
+    siVarLoc  varLoc;
+    var_types type = genActualType(varDsc->TypeGet());
+
+    if (varDsc->lvIsInReg())
+    {
+        fillRegisterVarLoc(varDsc, varLoc, type, baseReg, offset);
+    }
+    else
+    {
+        fillStackVarLoc(varDsc, varLoc, type, baseReg, offset);
+    }
+
+    return varLoc;
+}
+
+//------------------------------------------------------------------------
+// fillStackVarLoc: Fill "varLoc" argument indicating the stack position of the variable
+// using "LclVarDsc" and "baseReg"/"offset".
+//
+// Arguments:
+//    varDsc    - a "LclVarDsc *" to the variable it is desired to build the "siVarLoc".
+//    varLoc    - a "siVarLoc &" to fill with the data of the "varDsc".
+//    type      - a "var_types" which indicate the type of the variable.
+//    baseReg   - a "regNumber" use as a base for the offset.
+//    offset    - a signed amount of bytes distance from "baseReg" for the position of the variable.
+//
+// Assumptions:
+//    No new memory is allocated on this method.
+//    No changes on "varDsc" are applied.
+//
+// Notes:
+//    The "varLoc" argument is filled depending of the "type" argument but as a VLT_STK... variation.
+//    A Exception is thrown if type doesn't match with any of the listed on the switch.
+//    "baseReg" and "offset" are used to indicate the position of the variable in the stack.
+void Compiler::fillStackVarLoc(LclVarDsc* varDsc, siVarLoc& varLoc, var_types type, regNumber baseReg, signed offset) const
+{
+    assert(offset != BAD_STK_OFFS);
+
+    switch (type)
+    {
+        case TYP_INT:
+        case TYP_REF:
+        case TYP_BYREF:
+        case TYP_FLOAT:
+        case TYP_STRUCT:
+        case TYP_BLK: // Needed because of the TYP_BLK stress mode
+#ifdef FEATURE_SIMD
+        case TYP_SIMD8:
+        case TYP_SIMD12:
+        case TYP_SIMD16:
+        case TYP_SIMD32:
+#endif
+#ifdef _TARGET_64BIT_
+        case TYP_LONG:
+        case TYP_DOUBLE:
+#endif // _TARGET_64BIT_
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+            // In the AMD64 ABI we are supposed to pass a struct by reference when its
+            // size is not 1, 2, 4 or 8 bytes in size. During fgMorph, the compiler modifies
+            // the IR to comply with the ABI and therefore changes the type of the lclVar
+            // that holds the struct from TYP_STRUCT to TYP_BYREF but it gives us a hint that
+            // this is still a struct by setting the lvIsTemp flag.
+            // The same is true for ARM64 and structs > 16 bytes.
+            // (See Compiler::fgMarkImplicitByRefArgs in Morph.cpp for further detail)
+            // Now, the VM expects a special enum for these type of local vars: VLT_STK_BYREF
+            // to accomodate for this situation.
+            if (varDsc->lvType == TYP_BYREF && varDsc->lvIsTemp)
+            {
+                assert(varDsc->lvIsParam);
+                varLoc.vlType = VLT_STK_BYREF;
+            }
+            else
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+            {
+                varLoc.vlType = VLT_STK;
+            }
+            varLoc.vlStk.vlsBaseReg = baseReg;
+            varLoc.vlStk.vlsOffset  = offset;
+            if (!isFramePointerUsed() && varLoc.vlStk.vlsBaseReg == REG_SPBASE)
+            {
+                varLoc.vlStk.vlsBaseReg = (regNumber)ICorDebugInfo::REGNUM_AMBIENT_SP;
+            }
+            break;
+
+#ifndef _TARGET_64BIT_
+        case TYP_LONG:
+        case TYP_DOUBLE:
+            varLoc.vlType             = VLT_STK2;
+            varLoc.vlStk2.vls2BaseReg = baseReg;
+            varLoc.vlStk2.vls2Offset  = offset;
+            if (!isFramePointerUsed() && varLoc.vlStk2.vls2BaseReg == REG_SPBASE)
+            {
+                varLoc.vlStk2.vls2BaseReg = (regNumber)ICorDebugInfo::REGNUM_AMBIENT_SP;
+            }
+            break;
+#endif // !_TARGET_64BIT_
+
+        default:
+            noway_assert(!"Invalid type");
+    }
+}
+
+//------------------------------------------------------------------------
+// fillRegisterVarLoc: Fill "varLoc" argument indicating the register position of the variable
+// using "LclVarDsc" and "baseReg"/"offset" if it has a part in the stack (x64 bit float or long).
+//
+// Arguments:
+//    varDsc    - a "LclVarDsc *" to the variable it is desired to build the "siVarLoc".
+//    varLoc    - a "siVarLoc &" to fill with the data of the "varDsc".
+//    type      - a "var_types" which indicate the type of the variable.
+//    baseReg   - a "regNumber" use as a base for the offset.
+//    offset    - a signed amount of bytes distance from "baseReg" for the position of the variable.
+//
+// Assumptions:
+//    No new memory is allocated on this method.
+//    No changes on "varDsc" are applied.
+//
+// Notes:
+//    The "varLoc" argument is filled depending of the "type" argument but as a VLT_REG... variation.
+//    A Exception is thrown if type doesn't match with any of the listed on the switch.
+//    "baseReg" and "offset" are used .for not 64 bit and values that are splitted in two parts.
+void Compiler::fillRegisterVarLoc(LclVarDsc* varDsc, siVarLoc& varLoc, var_types type, regNumber baseReg, signed offset) const
+{
+    switch (type)
+    {
+        case TYP_INT:   
+        case TYP_REF:
+        case TYP_BYREF:
+#ifdef _TARGET_64BIT_
+        case TYP_LONG:
+#endif // _TARGET_64BIT_
+            varLoc.vlType       = VLT_REG;
+            varLoc.vlReg.vlrReg = varDsc->lvRegNum;
+            break;
+
+#ifndef _TARGET_64BIT_
+        case TYP_LONG:
+#if !CPU_HAS_FP_SUPPORT
+        case TYP_DOUBLE:
+#endif
+            if (varDsc->lvOtherReg != REG_STK)
+            {
+                varLoc.vlType            = VLT_REG_REG;
+                varLoc.vlRegReg.vlrrReg1 = varDsc->lvRegNum;
+                varLoc.vlRegReg.vlrrReg2 = varDsc->lvOtherReg;
+            }
+            else
+            {
+                varLoc.vlType                        = VLT_REG_STK;
+                varLoc.vlRegStk.vlrsReg              = varDsc->lvRegNum;
+                varLoc.vlRegStk.vlrsStk.vlrssBaseReg = baseReg;
+                if (!isFramePointerUsed() && varLoc.vlRegStk.vlrsStk.vlrssBaseReg == REG_SPBASE)
+                {
+                    varLoc.vlRegStk.vlrsStk.vlrssBaseReg = (regNumber)ICorDebugInfo::REGNUM_AMBIENT_SP;
+                }
+                varLoc.vlRegStk.vlrsStk.vlrssOffset = offset + sizeof(int);
+            }
+            break;
+#endif // !_TARGET_64BIT_
+
+#ifdef _TARGET_64BIT_
+        case TYP_FLOAT:
+        case TYP_DOUBLE:
+            // TODO-AMD64-Bug: ndp\clr\src\inc\corinfo.h has a definition of RegNum that only goes up to R15,
+            // so no XMM registers can get debug information.
+            varLoc.vlType       = VLT_REG_FP;
+            varLoc.vlReg.vlrReg = varDsc->lvRegNum;
+            break;
+
+#else // !_TARGET_64BIT_
+
+#if CPU_HAS_FP_SUPPORT
+        case TYP_FLOAT:
+        case TYP_DOUBLE:
+            if (isFloatRegType(type))
+            {
+                varLoc.vlType         = VLT_FPSTK;
+                varLoc.vlFPstk.vlfReg = varDsc->lvRegNum;
+            }
+            break;
+#endif // CPU_HAS_FP_SUPPORT
+
+#endif // !_TARGET_64BIT_
+
+#ifdef FEATURE_SIMD
+        case TYP_SIMD8:
+        case TYP_SIMD12:
+        case TYP_SIMD16:
+        case TYP_SIMD32:
+            varLoc.vlType = VLT_REG_FP;
+
+            // TODO-AMD64-Bug: ndp\clr\src\inc\corinfo.h has a definition of RegNum that only goes up to R15,
+            // so no XMM registers can get debug information.
+            //
+            // Note: Need to initialize vlrReg field, otherwise during jit dump hitting an assert
+            // in eeDispVar() --> getRegName() that regNumber is valid.
+            varLoc.vlReg.vlrReg = varDsc->lvRegNum;
+            break;
+#endif // FEATURE_SIMD
+
+        default:
+            noway_assert(!"Invalid type");
+    }
+}
