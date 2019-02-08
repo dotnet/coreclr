@@ -4,6 +4,8 @@
 
 namespace Activator
 {
+    using Internal.Runtime.InteropServices;
+
     using System;
     using System.IO;
     using System.Runtime.InteropServices;

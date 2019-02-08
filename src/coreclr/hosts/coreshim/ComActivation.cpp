@@ -55,7 +55,7 @@ STDAPI DllGetClassObject(
     GetClassFactoryForTypeInternal_ptr GetClassFactoryForTypeInternal;
     RETURN_IF_FAILED(inst->CreateDelegate(
         "System.Private.CoreLib",
-        "System.Runtime.InteropServices.ComActivator",
+        "Internal.Runtime.InteropServices.ComActivator",
         "GetClassFactoryForTypeInternal", (void**)&GetClassFactoryForTypeInternal));
 
     // Get assembly and type for activation
