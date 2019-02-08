@@ -2149,4 +2149,61 @@ namespace System
         }
 #endif // !CORERT
     }
+
+    // This is a normal generic Enumerator for SZ arrays. It doesn't have any of the "this" stuff
+    // that SZArrayHelper does.
+    //
+    internal sealed class SZGenericArrayEnumerator<T> : IEnumerator<T>
+    {
+        private readonly T[] _array;
+        private int _index;
+
+        // Array.Empty is intentionally omitted here, since we don't want to pay for generic instantiations that
+        // wouldn't have otherwise been used.
+        internal static readonly SZGenericArrayEnumerator<T> Empty = new SZGenericArrayEnumerator<T>(new T[0]);
+
+        internal SZGenericArrayEnumerator(T[] array)
+        {
+            Debug.Assert(array != null);
+
+            _array = array;
+            _index = -1;
+        }
+
+        public bool MoveNext()
+        {
+            int index = _index + 1;
+            if ((uint)index >= (uint)_array.Length)
+            {
+                _index = _array.Length;
+                return false;
+            }
+            _index = index;
+            return true;
+        }
+
+        public T Current
+        {
+            get
+            {
+                int index = _index;
+                T[] array = _array;
+
+                if ((uint)index >= (uint)array.Length)
+                {
+                    ThrowHelper.ThrowInvalidOperationException_EnumCurrent(index);
+                }
+
+                return array[index];
+            }
+        }
+
+        object IEnumerator.Current => Current;
+
+        void IEnumerator.Reset() => _index = -1;
+
+        public void Dispose()
+        {
+        }
+    }
 }
