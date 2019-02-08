@@ -124,7 +124,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Activator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppContext.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ArgIterator.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Array.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Array.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Attribute.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\BadImageFormatException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Buffer.cs" />
@@ -242,7 +242,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\RuntimeFeature.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\RuntimeHelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TypeDependencyAttribute.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\GcSettings.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\GCSettings.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumerable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CriticalHandle.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Expando\IExpando.cs" />
@@ -355,8 +355,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Variant.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
-    <Compile Include="$(BclSourcesRoot)\System\DateTime.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\DateTime.Unix.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
   </ItemGroup>

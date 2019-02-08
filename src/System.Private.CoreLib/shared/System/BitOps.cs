@@ -5,6 +5,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
+
 using Internal.Runtime.CompilerServices;
 
 // Some routines inspired by the Stanford Bit Twiddling Hacks by Sean Eron Anderson:
@@ -14,7 +15,7 @@ namespace System
 {
     internal static class BitOps
     {
-        // Magic C# optimization that directly wraps the data section of the dll (a bit like string constants)
+        // C# no-alloc optimization that directly wraps the data section of the dll (similar to string constants)
         // https://github.com/dotnet/roslyn/pull/24621
 
         private static ReadOnlySpan<byte> s_TrailingZeroCountDeBruijn => new byte[32]
@@ -334,7 +335,7 @@ namespace System
         #region TrailingZeroCount
 
         /// <summary>
-        /// Count the number of trailing zero bits in a mask.
+        /// Count the number of trailing zero bits in an integer value.
         /// Similar in behavior to the x86 instruction TZCNT.
         /// </summary>
         /// <param name="value">The value.</param>
@@ -343,7 +344,7 @@ namespace System
             => TrailingZeroCount((uint)value);
 
         /// <summary>
-        /// Count the number of trailing zero bits in a mask.
+        /// Count the number of trailing zero bits in an integer value.
         /// Similar in behavior to the x86 instruction TZCNT.
         /// </summary>
         /// <param name="value">The value.</param>
@@ -356,7 +357,7 @@ namespace System
                 return (int)Bmi1.TrailingZeroCount(value);
             }
 
-            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
+            // Main code has behavior 0->0, so special-case in order to match intrinsic path 0->32
             if (value == 0u)
                 return 32;
 
@@ -364,7 +365,7 @@ namespace System
             return Unsafe.AddByteOffset(
                 ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
-                (IntPtr)(((uint)((value & -value) * 0x077CB531u)) >> 27));
+                ((uint)((value & -value) * 0x077CB531u)) >> 27);
         }
 
         /// <summary>
