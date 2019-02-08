@@ -1248,7 +1248,3 @@ extern "C" DLL_EXPORT MultipleBools STDMETHODCALLTYPE GetBools(BOOL b1, BOOL b2)
 {
     return {b1, b2};
 }
-extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByValOverlappingLongFloat(OverlappingLongFloat str, LONG64 expected)
-{
-    return str.a == expected;
-}
