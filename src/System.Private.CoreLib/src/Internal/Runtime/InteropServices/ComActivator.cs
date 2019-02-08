@@ -7,10 +7,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
-using System.Threading;
 
-namespace System.Runtime.InteropServices
+//
+// Types in this file marked as 'public' are done so only to aid in
+// testing of functionality and should not be considered publicly consumable.
+//
+namespace Internal.Runtime.InteropServices
 {
     [ComImport]
     [ComVisible(false)]
