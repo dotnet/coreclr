@@ -6,7 +6,7 @@
 
   <!-- Environment properties -->
   <PropertyGroup>
-    <DefineConstants Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true'">REFERENCING_SYSTEMPRIVATECORELIB</DefineConstants>
+    <DefineConstants Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true'">$(DefineConstants);REFERENCING_SYSTEMPRIVATECORELIB</DefineConstants>
   </PropertyGroup>
 
   <!-- Add the CoreCLRTestLibrary dependency -->
