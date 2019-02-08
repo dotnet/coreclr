@@ -15,6 +15,33 @@
 
 class EventPipeBufferList;
 
+// This class is a TLS wrapper around a pointer to thread-specific EventPipeBufferList
+// The struct wrapper is present mainly because we need a way to free the EventPipeBufferList
+// when the thread that owns it dies. Placing this class as a TLS variable will call ~ThreadEventBufferList()
+// when the thread dies so we can free EventPipeBufferList in the destructor.  
+class ThreadEventBufferList
+{
+public:
+
+#ifndef __llvm__
+__declspec(thread) static ThreadEventBufferList gCurrentThreadEventBufferList;
+#else // !__llvm__
+thread_local static ThreadEventBufferList gCurrentThreadEventBufferList;
+#endif // !__llvm__
+    EventPipeBufferList * m_pThreadEventBufferList;
+    ~ThreadEventBufferList();
+
+    static EventPipeBufferList* Get()
+    {
+        return gCurrentThreadEventBufferList.m_pThreadEventBufferList;
+    }
+
+    static void Set(EventPipeBufferList * bl)
+    {
+        gCurrentThreadEventBufferList.m_pThreadEventBufferList = bl;
+    }
+};
+
 class EventPipeBufferManager
 {
 
@@ -186,10 +213,6 @@ public:
     bool EnsureConsistency();
 #endif // _DEBUG
 };
-
-EXTERN_C inline EventPipeBufferList* STDCALL GetThreadEventBufferList();
-EXTERN_C inline void STDCALL SetThreadEventBufferList(EventPipeBufferList* bl);
-
 
 
 #endif // FEATURE_PERFTRACING

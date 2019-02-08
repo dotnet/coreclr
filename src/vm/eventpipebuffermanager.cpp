@@ -10,6 +10,12 @@
 
 #ifdef FEATURE_PERFTRACING
 
+#ifndef __llvm__
+__declspec(thread) ThreadEventBufferList ThreadEventBufferList::gCurrentThreadEventBufferList = { NULL };
+#else // !__llvm__
+thread_local ThreadEventBufferList ThreadEventBufferList::gCurrentThreadEventBufferList = { NULL };
+#endif // !__llvm__
+
 EventPipeBufferManager::EventPipeBufferManager()
 {
     CONTRACTL
@@ -84,7 +90,7 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
     // Determine if the requesting thread has at least one buffer.
     // If not, we guarantee that each thread gets at least one (to prevent thrashing when the circular buffer size is too small).
     bool allocateNewBuffer = false;
-    EventPipeBufferList *pThreadBufferList = GetThreadEventBufferList();
+    EventPipeBufferList *pThreadBufferList = ThreadEventBufferList::Get();
 
     if(pThreadBufferList == NULL)
     {
@@ -101,7 +107,7 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
         }
 
         m_pPerThreadBufferList->InsertTail(pElem);
-        SetThreadEventBufferList(pThreadBufferList);
+        ThreadEventBufferList::Set(pThreadBufferList);
         allocateNewBuffer = true;
     }
 
@@ -329,7 +335,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     bool allocNewBuffer = false;
     EventPipeBuffer *pBuffer = NULL;
 
-    EventPipeBufferList *pThreadBufferList = GetThreadEventBufferList();
+    EventPipeBufferList *pThreadBufferList = ThreadEventBufferList::Get();
 
     if(pThreadBufferList == NULL)
     {
@@ -378,7 +384,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     if(allocNewBuffer && pBuffer != NULL)
     {
         // By this point, a new buffer list has been allocated so we should fetch it again before using it.
-        pThreadBufferList = GetThreadEventBufferList();
+        pThreadBufferList = ThreadEventBufferList::Get();
         // The event is still enabled.  Mark that the thread is now writing an event.
         pThreadBufferList->SetThreadEventWriteInProgress(true);
         allocNewBuffer = !pBuffer->WriteEvent(pEventThread, session, event, payload, pActivityId, pRelatedActivityId, pStack);
@@ -881,44 +887,13 @@ bool EventPipeBufferList::EnsureConsistency()
 }
 #endif // _DEBUG
 
-// This struct is a TLS wrapper around a pointer to thread-specific EventPipeBufferList
-// The struct wrapper is present mainly because we need a way to free the EventPipeBufferList
-// when the thread that owns it dies. Placing this struct as a TLS variable will call ~ThreadEventBufferList()
-// when the thread dies so we can free EventPipeBufferList in the destructor.  
-struct ThreadEventBufferList
+ThreadEventBufferList::~ThreadEventBufferList()
 {
-    EventPipeBufferList* m_pThreadEventBufferList;
-
-    ~ThreadEventBufferList()
-    {
-        // Before the thread dies, mark its buffers as no longer owned
-        // so that they can be cleaned up after the thread dies.
-        EventPipeBufferList *pList = GetThreadEventBufferList();
-        if (pList != NULL)
-            pList->SetOwnedByThread(false);
-    }
-};
-
-
-extern "C" {
-#ifndef __llvm__
-__declspec(thread) ThreadEventBufferList gCurrentThreadEventBufferList = { NULL };
-#else // !__llvm__
-thread_local ThreadEventBufferList gCurrentThreadEventBufferList = { NULL };
-#endif // !__llvm__
-} // extern "C"
-
-
-EXTERN_C inline EventPipeBufferList* STDCALL GetThreadEventBufferList()
-{
-    return gCurrentThreadEventBufferList.m_pThreadEventBufferList;
+    // Before the thread dies, mark its buffers as no longer owned
+    // so that they can be cleaned up after the thread dies.
+    // EventPipeBufferList *pList = GetThreadEventBufferList();
+    if (m_pThreadEventBufferList != NULL)
+        m_pThreadEventBufferList->SetOwnedByThread(false);
 }
-
-EXTERN_C inline void STDCALL SetThreadEventBufferList(EventPipeBufferList* bl)
-{
-    gCurrentThreadEventBufferList.m_pThreadEventBufferList = bl;
-}
-
-
 
 #endif // FEATURE_PERFTRACING
