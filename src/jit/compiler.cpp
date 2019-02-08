@@ -11123,7 +11123,7 @@ Compiler::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int off
 }
 
 //------------------------------------------------------------------------
-// fillStackVarLoc: Fill "varLoc" argument indicating the stack position of the variable
+// fillStackVarLoc: Fill "siVarLoc" struct indicating the stack position of the variable
 // using "LclVarDsc" and "baseReg"/"offset".
 //
 // Arguments:
@@ -11136,7 +11136,6 @@ Compiler::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int off
 //
 // Notes:
 //    The "varLoc" argument is filled depending of the "type" argument but as a VLT_STK... variation.
-//    A Exception is thrown if type doesn't match with any of the listed on the switch.
 //    "baseReg" and "offset" are used to indicate the position of the variable in the stack.
 void Compiler::siVarLoc::fillStackVarLoc(
     const LclVarDsc* varDsc, var_types type, regNumber baseReg, int offset, bool isFramePointerUsed)
@@ -11208,7 +11207,7 @@ void Compiler::siVarLoc::fillStackVarLoc(
 }
 
 //------------------------------------------------------------------------
-// fillRegisterVarLoc: Fill "varLoc" argument indicating the register position of the variable
+// fillRegisterVarLoc: Fill "siVarLoc" struct indicating the register position of the variable
 // using "LclVarDsc" and "baseReg"/"offset" if it has a part in the stack (x64 bit float or long).
 //
 // Arguments:
@@ -11222,7 +11221,6 @@ void Compiler::siVarLoc::fillStackVarLoc(
 //
 // Notes:
 //    The "varLoc" argument is filled depending of the "type" argument but as a VLT_REG... variation.
-//    A Exception is thrown if type doesn't match with any of the listed on the switch.
 //    "baseReg" and "offset" are used .for not 64 bit and values that are splitted in two parts.
 void Compiler::siVarLoc::fillRegisterVarLoc(
     const LclVarDsc* varDsc, var_types type, regNumber baseReg, int offset, bool isFramePointerUsed)
