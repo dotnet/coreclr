@@ -150,65 +150,12 @@ namespace Utility
     }
 }
 
-//
-// BEGIN hostpolicy mock
-//
-
-#define SHARED_API extern "C" __declspec(dllexport)
-
-using corehost_resolve_component_dependencies_result_fn = void(*)(
-    const WCHAR *assembly_paths,
-    const WCHAR *native_search_paths,
-    const WCHAR *resource_search_paths);
-
-SHARED_API int corehost_resolve_component_dependencies(
-    const WCHAR *component_main_assembly_path,
-    corehost_resolve_component_dependencies_result_fn result)
-{
-    return 0;
-}
-
-using corehost_error_writer_fn = void(*)(const WCHAR* message);
-
-SHARED_API corehost_error_writer_fn corehost_set_error_writer(corehost_error_writer_fn error_writer)
-{
-    return nullptr;
-}
-
-#undef SHARED_API
-
-//
-// END hostpolicy mock
-//
-
 HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ const WCHAR *path)
 {
     if (s_CoreClrInstance != nullptr)
     {
         *instance = s_CoreClrInstance;
         return S_FALSE;
-    }
-
-    // Since the CoreShim is being loaded, there is a chance the scenario depends on
-    // other aspects of the offical host platform (e.g. hostpolicy). Verify a hostpolicy
-    // is _not_ already loaded and if not, make a copy of CoreShim, rename it to
-    // hostpolicy and load it.
-    const WCHAR *hostpolicyName = W("hostpolicy.dll");
-    HMODULE hMod = ::GetModuleHandleW(hostpolicyName);
-    if (hMod == nullptr)
-    {
-        HRESULT hr;
-        std::wstring coreShimPath;
-        RETURN_IF_FAILED(Utility::GetCoreShimDirectory(coreShimPath));
-
-        std::wstring hostpolicyPath{ coreShimPath };
-        hostpolicyPath.append(hostpolicyName);
-        coreShimPath.append(W("CoreShim.dll"));
-
-        ::CopyFileW(coreShimPath.c_str(), hostpolicyPath.c_str(), FALSE);
-        hMod = ::LoadLibraryExW(hostpolicyPath.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-        if (hMod == nullptr)
-            return E_UNEXPECTED;
     }
 
     try
