@@ -6866,24 +6866,28 @@ public:
 
         bool vlIsInReg(regNumber reg);
         bool vlIsOnStk(regNumber reg, signed offset);
+
+        siVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int offset, bool isFramePointerUsed);
+        siVarLoc(){};
+
+    private:
+        // Fill "siVarLoc" properties indicating the register position of the variable
+        // using "LclVarDsc" and "baseReg"/"offset" if it has a part in the stack (x64 bit float or long).
+        void fillRegisterVarLoc(
+            const LclVarDsc* varDsc, var_types type, regNumber baseReg, int offset, bool isFramePointerUsed);
+
+        // Fill "siVarLoc" properties indicating the register position of the variable
+        // using "LclVarDsc" and "baseReg"/"offset" if it is a variable with part in a register and
+        // part in thestack
+        void fillStackVarLoc(
+            const LclVarDsc* varDsc, var_types type, regNumber baseReg, int offset, bool isFramePointerUsed);
     };
 
 private:
-
-    // Fill "varLoc" argument indicating the register position of the variable
-    // using "LclVarDsc" and "baseReg"/"offset" if it has a part in the stack (x64 bit float or long).
-    void fillRegisterVarLoc(LclVarDsc* varDsc, siVarLoc& varLoc, var_types type, regNumber baseReg, signed offset) const;
-
-    // Fill "varLoc" argument indicating the register position of the variable
-    // using "LclVarDsc" and "baseReg"/"offset" if it is a variable with part in a register and 
-    // part in thestack
-    void fillStackVarLoc(LclVarDsc* varDsc, siVarLoc& varLoc, var_types type, regNumber baseReg, signed offset) const;
-
 public:
-
-    // Returns a "siVarLoc" instance representing the place where the variable 
+    // Returns a "siVarLoc" instance representing the place where the variable
     // is given its description, "baseReg", and "offset" (if needed).
-    siVarLoc getSiVarLoc(LclVarDsc* varDsc, regNumber baseReg, signed offset) const;
+    siVarLoc getSiVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int offset) const;
 
     /*************************************************************************/
     // Get handles
