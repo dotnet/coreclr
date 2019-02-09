@@ -74,7 +74,6 @@ public:
     static FCDECL3(VOID, GCHandleInternalSet, OBJECTHANDLE handle, Object *obj, CLR_BOOL isPinned);
     static FCDECL4(Object*, GCHandleInternalCompareExchange, OBJECTHANDLE handle, Object *obj, Object* oldObj, CLR_BOOL isPinned);
     static FCDECL1(LPVOID, GCHandleInternalAddrOfPinnedObject, OBJECTHANDLE handle);
-    static FCDECL1(INT32, GCHandleInternalGetHandleType, OBJECTHANDLE handle);
 
     static FCDECL2(Object*, GetDelegateForFunctionPointerInternal, LPVOID FPtr, ReflectClassBaseObject* refTypeUNSAFE);
     static FCDECL1(LPVOID, GetFunctionPointerForDelegateInternal, Object* refDelegateUNSAFE);

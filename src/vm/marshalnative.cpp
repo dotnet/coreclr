@@ -676,15 +676,6 @@ FCIMPL1(LPVOID, MarshalNative::GCHandleInternalAddrOfPinnedObject, OBJECTHANDLE 
 }
 FCIMPLEND
 
-// Make sure the handle is accessible from the current domain.  (Throw if not.)
-FCIMPL1(INT32, MarshalNative::GCHandleInternalGetHandleType, OBJECTHANDLE handle)
-{
-    FCALL_CONTRACT;
-
-    return GCHandleUtilities::GetGCHandleManager()->HandleFetchType(handle);
-}
-FCIMPLEND
-
 //====================================================================
 // *** Interop Helpers ***
 //====================================================================

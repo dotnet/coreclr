@@ -307,6 +307,11 @@ namespace System
             throw new InvalidOperationException(SR.InvalidOperation_HandleIsNotInitialized);
         }
 
+        internal static void ThrowInvalidOperationException_HandleIsNotPinned()
+        {
+            throw new InvalidOperationException(SR.InvalidOperation_HandleIsNotPinned);
+        }
+
         internal static void ThrowArraySegmentCtorValidationFailedExceptions(Array array, int offset, int count)
         {
             throw GetArraySegmentCtorValidationFailedException(array, offset, count);
