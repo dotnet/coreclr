@@ -455,9 +455,6 @@ namespace System
 
             public static uint CountSignificantBits(uint value)
             {
-                // TODO: Check that this is the correct substitution
-                //return (value != 0) ? (1 + LogBase2(value)) : 0;
-
                 return 32u - (uint)BitOps.LeadingZeroCount(value);
             }
 
