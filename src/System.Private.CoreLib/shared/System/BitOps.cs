@@ -96,9 +96,7 @@ namespace System
             uint lo = (uint)value;
 
             if (lo == 0)
-            {
                 return 32 + TrailingZeroCount((uint)(value >> 32));
-            }
 
             return TrailingZeroCount(lo);
         }
@@ -125,7 +123,7 @@ namespace System
             if (value == 0u)
                 return 32;
 
-            return (int)(31u - Log2(value));
+            return 31 - Log2(value);
         }
 
         /// <summary>
@@ -146,7 +144,7 @@ namespace System
             if (value == 0u)
                 return 64;
 
-            return (int)(63u - Log2(value));
+            return 63 - Log2(value);
         }
 
         #endregion
@@ -182,9 +180,7 @@ namespace System
             uint hi = (uint)(value >> 32);
 
             if (hi != 0)
-            {
                 return 32 + Log2(hi);
-            }
 
             return Log2((uint)value);
         }
