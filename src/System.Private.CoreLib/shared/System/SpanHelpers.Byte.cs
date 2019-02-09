@@ -1587,14 +1587,6 @@ namespace System
             return 7 - (BitOps.LeadingZeroCount(match) >> 3);
         }
 
-        private const ulong XorPowerOfTwoToHighByte = (0x07ul |
-                                                       0x06ul << 8 |
-                                                       0x05ul << 16 |
-                                                       0x04ul << 24 |
-                                                       0x03ul << 32 |
-                                                       0x02ul << 40 |
-                                                       0x01ul << 48) + 1;
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe UIntPtr LoadUIntPtr(ref byte start, IntPtr offset)
             => Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.AddByteOffset(ref start, offset));
