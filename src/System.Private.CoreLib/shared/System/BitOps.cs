@@ -189,14 +189,15 @@ namespace System
         #region Log2
 
         /// <summary>
-        /// Returns the integer (floor) log of the specified value, base 2, without branching.
+        /// Returns the integer (floor) log of the specified value, base 2.
         /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
+        /// Does not incur branching.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint Log2(uint value)
         {
-            FoldTrailingOnes(ref value);
+            value = FoldTrailingOnes(value);
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
@@ -206,7 +207,7 @@ namespace System
         }
 
         /// <summary>
-        /// Returns the integer (floor) log of the specified value, base 2, without branching.
+        /// Returns the integer (floor) log of the specified value, base 2.
         /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
@@ -234,7 +235,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value to mutate.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void FoldTrailingOnes(ref uint value)
+        private static uint FoldTrailingOnes(uint value)
         {
             // byte#                         4          3   2  1
             //                       1000 0000  0000 0000  00 00
@@ -243,6 +244,8 @@ namespace System
             value |= value >> 04; // 1111 1111  0000 0000  00 00
             value |= value >> 08; // 1111 1111  1111 1111  00 00
             value |= value >> 16; // 1111 1111  1111 1111  FF FF
+
+            return value;
         }
 
         #endregion
