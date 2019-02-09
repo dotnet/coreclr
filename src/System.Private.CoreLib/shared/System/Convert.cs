@@ -2529,12 +2529,15 @@ namespace System
             int j = 0;
             const int stride = 4 * 3;
 
-            if (Ssse3.IsSupported && length > stride)
+            if (Ssse3.IsSupported && length > stride * 3)
             {
+                // Based on "Base64 encoding with SIMD instructions" article by Wojciech Muła	
+                // http://0x80.pl/notesen/2016-01-12-sse-base64-encoding.html
                 byte* outputBytes = (byte*)outChars;
 
                 Vector128<byte> shuffleMask = Vector128.Create((byte)
                     1, 0, 2, 1, 4, 3, 5, 4, 7, 6, 8, 7, 10, 9, 11, 10);
+
                 Vector128<byte> shiftLut = Vector128.Create(
                     (sbyte)'a' - 26, (sbyte)'0' - 52,
                     (sbyte)'0' - 52, (sbyte)'0' - 52,
