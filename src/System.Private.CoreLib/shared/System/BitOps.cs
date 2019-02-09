@@ -93,30 +93,14 @@ namespace System
                 return (int)Bmi1.X64.TrailingZeroCount(value);
             }
 
-            // Main code has behavior 0->0, so special-case to match intrinsic path 0->64
-            if (value == 0u)
-                return 64;
+            uint lo = (uint)value;
 
-            // Use the 32-bit function twice
-            uint tz = (uint)value; // lo
-            if (Bmi1.IsSupported)
+            if (lo == 0)
             {
-                tz = Bmi1.TrailingZeroCount(tz); // lo
-
-                // Use hi iff lo is 32 zeros
-                if (tz == 32u)
-                    tz += Bmi1.TrailingZeroCount((uint)(value >> 32)); // hi
-            }
-            else
-            {
-                tz = (uint)TrailingZeroCount(tz); // lo
-
-                // Use hi iff lo is 32 zeros
-                if (tz == 32u)
-                    tz += (uint)TrailingZeroCount((uint)(value >> 32)); // hi
+                return 32 + TrailingZeroCount((uint)(value >> 32));
             }
 
-            return (int)tz;
+            return TrailingZeroCount(lo);
         }
 
         #endregion
