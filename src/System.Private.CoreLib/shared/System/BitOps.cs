@@ -162,26 +162,7 @@ namespace System
             if (value == 0u)
                 return 64;
 
-            // Use the 32-bit function twice
-            uint lz = (uint)(value >> 32); // hi
-            if (Lzcnt.IsSupported)
-            {
-                lz = Lzcnt.LeadingZeroCount(lz); // hi
-
-                // Use lo iff hi is 32 zeros
-                if (lz == 32u)
-                    lz += Lzcnt.LeadingZeroCount((uint)value); // lo
-            }
-            else
-            {
-                lz = (uint)LeadingZeroCount(lz); // hi
-
-                // Use lo iff hi is 32 zeros
-                if (lz == 32u)
-                    lz += (uint)LeadingZeroCount((uint)value); // lo
-            }
-
-            return (int)lz;
+            return (int)(63u - Log2(value));
         }
 
         #endregion
