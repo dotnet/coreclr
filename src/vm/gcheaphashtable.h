@@ -65,7 +65,7 @@ struct GCHeapHashTraitsPointerToPointerList : public DefaultGCHeapHashTraits<sup
 template <class TRAITS>
 class GCHeapHash
 {
-    GCHEAPHASHOBJECTREF _gcHeap;
+    GCHEAPHASHOBJECTREF m_gcHeapHash;
 
     typedef typename TRAITS::THashArrayType THashArrayType;
     typedef INT32 count_t;
@@ -132,11 +132,11 @@ class GCHeapHash
     template<class TKey>
     void DeleteEntry(TKey *pKey);
 
-    GCHEAPHASHOBJECTREF GetGCHeapRef() { LIMITED_METHOD_CONTRACT; return _gcHeap; }
+    GCHEAPHASHOBJECTREF GetGCHeapRef() { LIMITED_METHOD_CONTRACT; return m_gcHeapHash; }
 
-    GCHeapHash(GCHEAPHASHOBJECTREF gcHeap) : _gcHeap(gcHeap) {}
-    GCHeapHash(OBJECTREF gcHeap) : _gcHeap((GCHEAPHASHOBJECTREF)gcHeap) {}
-    GCHeapHash() : _gcHeap((GCHEAPHASHOBJECTREF)TADDR(NULL)) {}
+    GCHeapHash(GCHEAPHASHOBJECTREF gcHeap) : m_gcHeapHash(gcHeap) {}
+    GCHeapHash(OBJECTREF gcHeap) : m_gcHeapHash((GCHEAPHASHOBJECTREF)gcHeap) {}
+    GCHeapHash() : m_gcHeapHash((GCHEAPHASHOBJECTREF)TADDR(NULL)) {}
 };
 
 #endif // GCHEAPHASHTABLE_H

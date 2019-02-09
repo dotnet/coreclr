@@ -96,13 +96,13 @@ struct KeyToValuesGCHeapHashTraits : public DefaultGCHeapHashTraits<true>
 //
 // BASIC STRUCTURE
 //
-// _keyToDependentTrackersHash - Hashtable of key -> (list of values in primary loader allocator,
+// m_keyToDependentTrackersHash - Hashtable of key -> (list of values in primary loader allocator,
 //                                                   hashtable of DependentTrackers)
 //
 //   For each key in the table, there is at list of values in the primary loader allocator,
 //   and optionally there may be a hashtable of dependent trackers
 //
-// _loaderAllocatorToDependentTrackerHash - Hashtable of LoaderAllocator to DependentTracker. Used to find
+// m_loaderAllocatorToDependentTrackerHash - Hashtable of LoaderAllocator to DependentTracker. Used to find
 // dependent trackers for insertion into per key sets.
 //
 // The DependentTracker is an object (with a finalizer) which is associated with a specific
@@ -110,7 +110,7 @@ struct KeyToValuesGCHeapHashTraits : public DefaultGCHeapHashTraits<true>
 // Values (for a specific LoaderAllocator). This dependent handle will keep that hashtable alive
 // as long as the associated LoaderAllocator is live.
 //
-// The DependentTracker hashes (both the _loaderAllocatorToDependentTrackerHash, and the per key hashes) are
+// The DependentTracker hashes (both the m_loaderAllocatorToDependentTrackerHash, and the per key hashes) are
 // implemented via a hashtable which is "self-cleaning". In particular as the hashtable is
 // walked for Add/Visit/Remove operations, if a DependentTracker is found which where the
 // DependentHandle has detected that the LoaderAllocator has been freed, then the entry in
@@ -179,9 +179,9 @@ private:
     static void DeleteEntryTracker(TKey key, LAHASHDEPENDENTHASHTRACKERREF trackerUnsafe);
 
 private:
-    LoaderAllocator *_pLoaderAllocator = 0;
-    OBJECTHANDLE _loaderAllocatorToDependentTrackerHash = 0;
-    OBJECTHANDLE _keyToDependentTrackersHash = 0;
+    LoaderAllocator *m_pLoaderAllocator = 0;
+    OBJECTHANDLE m_loaderAllocatorToDependentTrackerHash = 0;
+    OBJECTHANDLE m_keyToDependentTrackersHash = 0;
 };
 
 class CrossLoaderAllocatorHashSetup

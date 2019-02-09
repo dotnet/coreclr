@@ -187,17 +187,17 @@ void GCHeapHash<TRAITS>::Insert(TKey *pKey, const TValueSetter &valueSetter)
     CONTRACTL_END;
 
     count_t hash = CallHash(pKey);
-    count_t tableSize = _gcHeap->GetCapacity();
+    count_t tableSize = m_gcHeapHash->GetCapacity();
     count_t index = hash % tableSize; 
     count_t increment = 0; // delay computation
 
     while (TRUE)
     {
-        THashArrayType arr((THashArrayType)(_gcHeap)->GetData());
+        THashArrayType arr((THashArrayType)(m_gcHeapHash)->GetData());
 
         bool isNull = TRAITS::IsNull(arr, index);
         bool isDeleted = false;
-        if (!isNull && TRAITS::IsDeleted(arr, index, _gcHeap))
+        if (!isNull && TRAITS::IsDeleted(arr, index, m_gcHeapHash))
             isDeleted = true;
 
         if (isNull || isDeleted)
@@ -209,7 +209,7 @@ void GCHeapHash<TRAITS>::Insert(TKey *pKey, const TValueSetter &valueSetter)
                 COMPlusThrow(kIndexOutOfRangeException);
 
             valueSetter(arr, index);
-            _gcHeap->IncrementCount(isDeleted);
+            m_gcHeapHash->IncrementCount(isDeleted);
             return;
         }
     
@@ -233,15 +233,15 @@ void GCHeapHash<TRAITS>::CheckGrowth()
     }
     CONTRACTL_END;
 
-    count_t tableMax = (count_t) (_gcHeap->GetCapacity() * TRAITS::s_density_factor_numerator / TRAITS::s_density_factor_denominator);
-    if (_gcHeap->GetCount() == tableMax)
+    count_t tableMax = (count_t) (m_gcHeapHash->GetCapacity() * TRAITS::s_density_factor_numerator / TRAITS::s_density_factor_denominator);
+    if (m_gcHeapHash->GetCount() == tableMax)
         Grow();
     else
     {
-        tableMax = (count_t) (_gcHeap->GetCapacity() * TRAITS::s_densitywithdeletes_factor_numerator / TRAITS::s_densitywithdeletes_factor_denominator);
-        if ((_gcHeap->GetCount() + _gcHeap->GetDeletedCount()) >= tableMax)
+        tableMax = (count_t) (m_gcHeapHash->GetCapacity() * TRAITS::s_densitywithdeletes_factor_numerator / TRAITS::s_densitywithdeletes_factor_denominator);
+        if ((m_gcHeapHash->GetCount() + m_gcHeapHash->GetDeletedCount()) >= tableMax)
         {
-            THashArrayType newTable = TRAITS::AllocateArray(_gcHeap->GetCapacity());
+            THashArrayType newTable = TRAITS::AllocateArray(m_gcHeapHash->GetCapacity());
             ReplaceTable(newTable);
         }
     }
@@ -273,14 +273,14 @@ typename GCHeapHash<TRAITS>::THashArrayType GCHeapHash<TRAITS>::Grow_OnlyAllocat
     }
     CONTRACTL_END;
 
-    count_t newSize = (count_t) (_gcHeap->GetCount()
+    count_t newSize = (count_t) (m_gcHeapHash->GetCount()
                                 * TRAITS::s_growth_factor_numerator / TRAITS::s_growth_factor_denominator
                                 * TRAITS::s_density_factor_denominator / TRAITS::s_density_factor_numerator);
     if (newSize < TRAITS::s_minimum_allocation)
         newSize = TRAITS::s_minimum_allocation;
 
     // handle potential overflow
-    if (newSize < _gcHeap->GetCount())
+    if (newSize < m_gcHeapHash->GetCount())
         ThrowOutOfMemory();
 
     return TRAITS::AllocateArray(NextPrime(newSize));
@@ -358,15 +358,15 @@ void GCHeapHash<TRAITS>::ReplaceTable(THashArrayType newTable)
     GCPROTECT_BEGIN(newTable);
     {
         count_t newTableSize = (count_t)newTable->GetNumComponents();
-        count_t oldTableSize = _gcHeap->GetCapacity();
+        count_t oldTableSize = m_gcHeapHash->GetCapacity();
 
         // Move all entries over to the new table
-        count_t capacity = _gcHeap->GetCapacity();
+        count_t capacity = m_gcHeapHash->GetCapacity();
 
         for (count_t index = 0; index < capacity; ++index)
         {
-            THashArrayType arr((THashArrayType)(_gcHeap)->GetData());
-            if (!TRAITS::IsNull(arr, index) && !TRAITS::IsDeleted(arr, index, _gcHeap))
+            THashArrayType arr((THashArrayType)(m_gcHeapHash)->GetData());
+            if (!TRAITS::IsNull(arr, index) && !TRAITS::IsDeleted(arr, index, m_gcHeapHash))
             {
                 count_t hash = CallHash(arr, index);
                 count_t tableSize = (count_t)newTable->GetNumComponents();
@@ -378,7 +378,7 @@ void GCHeapHash<TRAITS>::ReplaceTable(THashArrayType newTable)
                 {
                     if (TRAITS::IsNull(newTable, newIndex))
                     {
-                        arr = (THashArrayType)(_gcHeap)->GetData();
+                        arr = (THashArrayType)(m_gcHeapHash)->GetData();
                         TRAITS::CopyValue(arr, index, newTable, newIndex);
                         break;
                     }
@@ -393,11 +393,11 @@ void GCHeapHash<TRAITS>::ReplaceTable(THashArrayType newTable)
             }
         }
 
-        _gcHeap->SetTable((BASEARRAYREF)newTable);
+        m_gcHeapHash->SetTable((BASEARRAYREF)newTable);
         
         // We've just copied the table to a new table. There are no deleted items as
         // we skipped them all, so reset the deleted count to zero
-        _gcHeap->SetDeletedCountToZero(); 
+        m_gcHeapHash->SetDeletedCountToZero(); 
     }
     GCPROTECT_END();
 }
@@ -408,12 +408,12 @@ bool GCHeapHash<TRAITS>::VisitAllEntryIndices(TVisitor &visitor)
 {
     WRAPPER_NO_CONTRACT;
 
-    count_t capacity = _gcHeap->GetCapacity();
+    count_t capacity = m_gcHeapHash->GetCapacity();
 
     for (count_t index = 0; index < capacity; ++index)
     {
-        THashArrayType arr((THashArrayType)(_gcHeap)->GetData());
-        if (!TRAITS::IsNull(arr, index) && !TRAITS::IsDeleted(arr, index, _gcHeap))
+        THashArrayType arr((THashArrayType)(m_gcHeapHash)->GetData());
+        if (!TRAITS::IsNull(arr, index) && !TRAITS::IsDeleted(arr, index, m_gcHeapHash))
         {
             if (!visitor(index))
                 return false;
@@ -453,25 +453,25 @@ INT32 GCHeapHash<TRAITS>::GetValueIndex(TKey *pKey)
     CONTRACTL_END;
 
     count_t hash = CallHash(pKey);
-    count_t tableSize = _gcHeap->GetCapacity();
+    count_t tableSize = m_gcHeapHash->GetCapacity();
 
     // If the table is empty, then there aren't any entries. Just return.
-    if (_gcHeap->GetCount() == 0)
+    if (m_gcHeapHash->GetCount() == 0)
         return -1;
 
     count_t index = hash % tableSize; 
     count_t increment = 0; // delay computation
 
-    THashArrayType arr((THashArrayType)(_gcHeap)->GetData());
+    THashArrayType arr((THashArrayType)(m_gcHeapHash)->GetData());
 
-    while (_gcHeap->GetCount() != 0) /* the TRAITS::IsDeleted function is allowed to reduce the count */
+    while (m_gcHeapHash->GetCount() != 0) /* the TRAITS::IsDeleted function is allowed to reduce the count */
     {
         if (TRAITS::IsNull(arr, index))
         {
             return -1;
         }
 
-        if (!TRAITS::IsDeleted(arr, index, _gcHeap) && TRAITS::DoesEntryMatchKey(arr, index, pKey))
+        if (!TRAITS::IsDeleted(arr, index, m_gcHeapHash) && TRAITS::DoesEntryMatchKey(arr, index, pKey))
         {
             return index;
         }
@@ -493,7 +493,7 @@ void GCHeapHash<TRAITS>::GetElement(INT32 index, TElement& foundElement)
 {
     WRAPPER_NO_CONTRACT;
 
-    TRAITS::GetElement(&_gcHeap, index, foundElement);
+    TRAITS::GetElement(&m_gcHeapHash, index, foundElement);
 }
 
     // Use this to update an value within the hashtable directly. 
@@ -503,7 +503,7 @@ template <class TRAITS>
 template<class TElement>
 void GCHeapHash<TRAITS>::SetElement(INT32 index, TElement& newElementValue)
 {
-    TRAITS::SetElement(&_gcHeap, index, newElementValue);
+    TRAITS::SetElement(&m_gcHeapHash, index, newElementValue);
 }
 
 template <class TRAITS>
@@ -521,8 +521,8 @@ void GCHeapHash<TRAITS>::DeleteEntry(TKey *pKey)
     INT32 index = GetValueIndex(pKey);
     if (index != -1)
     {
-        TRAITS::DeleteEntry(&_gcHeap, index);
-        _gcHeap->DecrementCount(true);
+        TRAITS::DeleteEntry(&m_gcHeapHash, index);
+        m_gcHeapHash->DecrementCount(true);
     }
 }
 
