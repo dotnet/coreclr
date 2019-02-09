@@ -10610,16 +10610,16 @@ void CodeGen::genSetScopeInfo()
             endOffs++;
         }
 
-        Compiler::siVarLoc varLoc;
+        siVarLoc varLoc;
 
         if (scopeP->scRegister)
         {
-            varLoc.vlType       = Compiler::VLT_REG;
+            varLoc.vlType       = VLT_REG;
             varLoc.vlReg.vlrReg = (regNumber)scopeP->u1.scRegNum;
         }
         else
         {
-            varLoc.vlType           = Compiler::VLT_STK;
+            varLoc.vlType           = VLT_STK;
             varLoc.vlStk.vlsBaseReg = (regNumber)scopeP->u2.scBaseReg;
             varLoc.vlStk.vlsOffset  = scopeP->u2.scOffset;
         }
@@ -10662,8 +10662,8 @@ void CodeGen::genSetScopeInfo()
         }
 
         // Now fill in the varLoc
-        LclVarDsc*         varDsc = compiler->lvaGetDesc(scopeL->scVarNum);
-        Compiler::siVarLoc varLoc = compiler->getSiVarLoc(varDsc, baseReg, offset);
+        LclVarDsc* varDsc = compiler->lvaGetDesc(scopeL->scVarNum);
+        siVarLoc   varLoc = compiler->getSiVarLoc(varDsc, baseReg, offset);
 
         genSetScopeInfo(psiScopeCnt + i, startOffs, endOffs - startOffs, scopeL->scVarNum, scopeL->scLVnum,
                         scopeL->scAvailable, varLoc);
@@ -10687,13 +10687,13 @@ void CodeGen::genSetScopeInfo()
 // Notes:
 //    Called for every scope info piece to record by the main genSetScopeInfo()
 
-void CodeGen::genSetScopeInfo(unsigned            which,
-                              UNATIVE_OFFSET      startOffs,
-                              UNATIVE_OFFSET      length,
-                              unsigned            varNum,
-                              unsigned            LVnum,
-                              bool                avail,
-                              Compiler::siVarLoc& varLoc)
+void CodeGen::genSetScopeInfo(unsigned       which,
+                              UNATIVE_OFFSET startOffs,
+                              UNATIVE_OFFSET length,
+                              unsigned       varNum,
+                              unsigned       LVnum,
+                              bool           avail,
+                              siVarLoc&      varLoc)
 {
     // We need to do some mapping while reporting back these variables.
 
@@ -10709,7 +10709,7 @@ void CodeGen::genSetScopeInfo(unsigned            which,
     if (compiler->info.compIsVarArgs && varNum != compiler->lvaVarargsHandleArg &&
         varNum < compiler->info.compArgsCount && !compiler->lvaTable[varNum].lvIsRegArg)
     {
-        noway_assert(varLoc.vlType == Compiler::VLT_STK || varLoc.vlType == Compiler::VLT_STK2);
+        noway_assert(varLoc.vlType == VLT_STK || varLoc.vlType == VLT_STK2);
 
         // All stack arguments (except the varargs handle) have to be
         // accessed via the varargs cookie. Discard generated info,
@@ -10734,7 +10734,7 @@ void CodeGen::genSetScopeInfo(unsigned            which,
         noway_assert(offset < stkArgSize);
         offset = stkArgSize - offset;
 
-        varLoc.vlType                   = Compiler::VLT_FIXED_VA;
+        varLoc.vlType                   = VLT_FIXED_VA;
         varLoc.vlFixedVarArg.vlfvOffset = offset;
     }
 
