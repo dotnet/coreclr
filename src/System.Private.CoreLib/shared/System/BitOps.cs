@@ -205,133 +205,6 @@ namespace System
 
         #endregion
 
-        #region Log2
-
-        // TODO: May belong in System.Math, in which case may need to name it Log2Int or Log2Floor
-        // to distinguish it from overloads accepting float/double
-
-        /// <summary>
-        /// Returns the integer (floor) log of the specified value, base 2, without branching.
-        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint Log2(uint value)
-        {
-            FoldTrailingOnes(ref value);
-
-            // Using deBruijn sequence, k=2, n=5 (2^5=32)
-            const uint deBruijn = 0b_0000_0111_1100_0100_1010_1100_1101_1101;
-
-            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            return Unsafe.AddByteOffset(
-                ref MemoryMarshal.GetReference(s_Log2DeBruijn),
-                (IntPtr)((value * deBruijn) >> 27));
-        }
-
-        /// <summary>
-        /// Returns the integer (floor) log of the specified value, base 2, without branching.
-        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint Log2(ulong value)
-        {
-            // We only have to count the low-32 or the high-32, depending on limits
-
-            // Assume we need only examine low-32
-            var val = (uint)value;
-            byte inc = 0;
-
-            // If high-32 is non-zero
-            if (value > uint.MaxValue)
-            {
-                // Then we need only examine high-32 (and add 32 to the result)
-                val = (uint)(value >> 32); // Use high-32 instead
-                inc = 32;
-            }
-
-            // Use low-32
-            return inc + Log2(val);
-        }
-
-        /* Legacy implementations
-        DONE https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
-        DONE https://github.com/dotnet/roslyn/blob/33a3a61d36ec3657dc4af5e630ca6593397e6bbf/src/Workspaces/Core/Portable/Shared/Utilities/IntegerUtilities.cs#L45
-        */
-
-        #endregion
-
-        #region LeadingZeroCount
-
-        /// <summary>
-        /// Count the number of leading zero bits in a mask.
-        /// Similar in behavior to the x86 instruction LZCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int LeadingZeroCount(uint value)
-        {
-            if (Lzcnt.IsSupported)
-            {
-                // Note that LZCNT contract specifies 0->32
-                return (int)Lzcnt.LeadingZeroCount(value);
-            }
-
-            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
-            if (value == 0u)
-                return 32;
-
-            return (int)(31u - Log2(value));
-        }
-
-        /// <summary>
-        /// Count the number of leading zero bits in a mask.
-        /// Similar in behavior to the x86 instruction LZCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int LeadingZeroCount(ulong value)
-        {
-            if (Lzcnt.X64.IsSupported)
-            {
-                // Note that LZCNT contract specifies 0->64
-                return (int)Lzcnt.X64.LeadingZeroCount(value);
-            }
-
-            // Main code has behavior 0->0, so special-case to match intrinsic path 0->64
-            if (value == 0u)
-                return 64;
-
-            // Use the 32-bit function twice.
-            uint lz = (uint)(value >> 32); // hi
-            if (Lzcnt.IsSupported)
-            {
-                lz = Lzcnt.LeadingZeroCount(lz); // hi
-
-                // Use lo iff hi is 32 zeros
-                if (lz == 32u)
-                    lz += Lzcnt.LeadingZeroCount((uint)value); // lo
-            }
-            else
-            {
-                lz = (uint)LeadingZeroCount(lz); // hi
-
-                // Use lo iff hi is 32 zeros
-                if (lz == 32u)
-                    lz += (uint)LeadingZeroCount((uint)value); // lo
-            }
-
-            return (int)lz;
-        }
-
-        /* Legacy implementations
-        DONE https://raw.githubusercontent.com/dotnet/corefx/151a6065fa8184feb1ac4a55c89752342ab7c3bb/src/Common/src/CoreLib/System/Decimal.DecCalc.cs
-        DONE https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
-        */
-
-        #endregion
-
         #region TrailingZeroCount
 
         /// <summary>
@@ -357,7 +230,7 @@ namespace System
                 return (int)Bmi1.TrailingZeroCount(value);
             }
 
-            // Main code has behavior 0->0, so special-case in order to match intrinsic path 0->32
+            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
             if (value == 0u)
                 return 32;
 
@@ -391,31 +264,107 @@ namespace System
                 return (int)Bmi1.X64.TrailingZeroCount(value);
             }
 
+            uint lo = (uint)value;
+
+            if (lo == 0)
+                return 32 + TrailingZeroCount((uint)(value >> 32));
+
+            return TrailingZeroCount(lo);
+        }
+
+        #endregion
+
+        #region LeadingZeroCount
+
+        /// <summary>
+        /// Count the number of leading zero bits in a mask.
+        /// Similar in behavior to the x86 instruction LZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int LeadingZeroCount(uint value)
+        {
+            if (Lzcnt.IsSupported)
+            {
+                // Note that LZCNT contract specifies 0->32
+                return (int)Lzcnt.LeadingZeroCount(value);
+            }
+
+            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
+            if (value == 0u)
+                return 32;
+
+            return 31 - Log2(value);
+        }
+
+        /// <summary>
+        /// Count the number of leading zero bits in a mask.
+        /// Similar in behavior to the x86 instruction LZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int LeadingZeroCount(ulong value)
+        {
+            if (Lzcnt.X64.IsSupported)
+            {
+                // Note that LZCNT contract specifies 0->64
+                return (int)Lzcnt.X64.LeadingZeroCount(value);
+            }
+
             // Main code has behavior 0->0, so special-case to match intrinsic path 0->64
             if (value == 0u)
                 return 64;
 
-            // Use the 32-bit function twice.
-            uint tz = (uint)value; // lo
-            if (Bmi1.IsSupported)
-            {
-                tz = Bmi1.TrailingZeroCount(tz); // lo
-
-                // Use hi iff lo is 32 zeros
-                if (tz == 32u)
-                    tz += Bmi1.TrailingZeroCount((uint)(value >> 32)); // hi
-            }
-            else
-            {
-                tz = (uint)TrailingZeroCount(tz); // lo
-
-                // Use hi iff lo is 32 zeros
-                if (tz == 32u)
-                    tz += (uint)TrailingZeroCount((uint)(value >> 32)); // hi
-            }
-
-            return (int)tz;
+            return 63 - Log2(value);
         }
+
+        /* Legacy implementations
+        DONE https://raw.githubusercontent.com/dotnet/corefx/151a6065fa8184feb1ac4a55c89752342ab7c3bb/src/Common/src/CoreLib/System/Decimal.DecCalc.cs
+        DONE https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
+        */
+
+        #endregion
+
+        #region Log2
+
+        /// <summary>
+        /// Returns the integer (floor) log of the specified value, base 2.
+        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
+        /// Does not incur branching.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Log2(uint value)
+        {
+            value = FoldTrailingOnes(value);
+
+            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+            return Unsafe.AddByteOffset(
+                // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
+                ref MemoryMarshal.GetReference(s_Log2DeBruijn),
+                (IntPtr)((value * 0x07C4ACDDu) >> 27));
+        }
+
+        /// <summary>
+        /// Returns the integer (floor) log of the specified value, base 2.
+        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Log2(ulong value)
+        {
+            uint hi = (uint)(value >> 32);
+
+            if (hi != 0)
+                return 32 + Log2(hi);
+
+            return Log2((uint)value);
+        }
+
+        /* Legacy implementations
+        DONE https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
+        DONE https://github.com/dotnet/roslyn/blob/33a3a61d36ec3657dc4af5e630ca6593397e6bbf/src/Workspaces/Core/Portable/Shared/Utilities/IntegerUtilities.cs#L45
+        */
 
         #endregion
 
@@ -625,10 +574,6 @@ namespace System
 
         #region Helpers
 
-        // Some of these helpers may be unnecessary depending on how JIT optimizes certain bool operations.
-
-        // TODO: Consider exposing as public - this code is duplicated surprisingly often
-
         /// <summary>
         /// Fills the trailing zeros in a mask with ones.
         /// For example, 00010010 becomes 00011111.
@@ -636,7 +581,7 @@ namespace System
         /// </summary>
         /// <param name="value">The value to mutate.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void FoldTrailingOnes(ref uint value)
+        private static uint FoldTrailingOnes(uint value)
         {
             // byte#                         4          3   2  1
             //                       1000 0000  0000 0000  00 00
@@ -645,6 +590,8 @@ namespace System
             value |= value >> 04; // 1111 1111  0000 0000  00 00
             value |= value >> 08; // 1111 1111  1111 1111  00 00
             value |= value >> 16; // 1111 1111  1111 1111  FF FF
+
+            return value;
         }
 
         #endregion
