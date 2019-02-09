@@ -311,11 +311,12 @@ namespace System
                 return (int)Lzcnt.X64.LeadingZeroCount(value);
             }
 
-            // Main code has behavior 0->0, so special-case to match intrinsic path 0->64
-            if (value == 0u)
-                return 64;
+            uint hi = (uint)(value >> 32);
 
-            return 63 - Log2(value);
+            if (hi == 0)
+                return 32 + LeadingZeroCount((uint)value);
+
+            return LeadingZeroCount(hi);
         }
 
         /* Legacy implementations
