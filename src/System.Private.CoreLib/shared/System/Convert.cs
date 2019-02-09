@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -12,6 +12,7 @@ using System.Runtime.Versioning;
 using System.Security;
 using System.Diagnostics;
 using System.Runtime.Intrinsics.X86;
+using System.Runtime.Intrinsics;
 
 namespace System
 {
@@ -2532,17 +2533,109 @@ namespace System
 
         private static unsafe int ConvertToBase64Array(char* outChars, byte* inData, int offset, int length, bool insertLineBreaks)
         {
+            int charcount = 0;
+            int i = offset;
+            int j = 0;
+            const int stride = 4 * 3;
+
+            if (Ssse3.IsSupported && length > stride)
+            {
+                byte* outputBytes = (byte*)outChars;
+
+                Vector128<byte> shuffleMask = Vector128.Create((byte)
+                    1, 0, 2, 1, 4, 3, 5, 4, 7, 6, 8, 7, 10, 9, 11, 10);
+                Vector128<byte> shiftLut = Vector128.Create(
+                    (sbyte)'a' - 26, (sbyte)'0' - 52,
+                    (sbyte)'0' - 52, (sbyte)'0' - 52,
+                    (sbyte)'0' - 52, (sbyte)'0' - 52,
+                    (sbyte)'0' - 52, (sbyte)'0' - 52,
+                    (sbyte)'0' - 52, (sbyte)'0' - 52,
+                    (sbyte)'0' - 52, (sbyte)'+' - 62,
+                    (sbyte)'/' - 63, (sbyte)'A', 0, 0).AsByte();
+
+                Vector128<byte> twoBytesStringMaskLo = Vector128.Create(
+                     0, 0x80, 1, 0x80,
+                     2, 0x80, 3, 0x80,
+                     4, 0x80, 5, 0x80,
+                     6, 0x80, 7, 0x80);
+
+                Vector128<byte>   tt0 = Vector128.Create(0x0fc0fc00).AsByte();
+                Vector128<ushort> tt1 = Vector128.Create(0x04000040).AsUInt16();
+                Vector128<byte>   tt2 = Vector128.Create(0x003f03f0).AsByte();
+                Vector128<ushort> tt3 = Vector128.Create(0x01000010).AsUInt16();
+                Vector128<byte>   tt5 = Vector128.Create((byte)51);
+                Vector128<sbyte>  tt7 = Vector128.Create((sbyte)26);
+                Vector128<byte>   tt8 = Vector128.Create((byte)13);
+
+                for (; i <= length - stride; i += stride)
+                {
+                    Vector128<byte> inputVector = Sse2.LoadVector128(inData + i);
+                    inputVector = Ssse3.Shuffle(inputVector, shuffleMask);
+
+                    // t0      = [0000cccc|cc000000|aaaaaa00|00000000]
+                    Vector128<byte> t0 = Sse2.And(inputVector, tt0);
+                    // t1      = [00000000|00cccccc|00000000|00aaaaaa]
+                    Vector128<byte> t1 = Sse2.MultiplyHigh(t0.AsUInt16(), tt1).AsByte();
+                    // t2      = [00000000|00dddddd|000000bb|bbbb0000]
+                    Vector128<byte> t2 = Sse2.And(inputVector, tt2);
+                    // t3      = [00dddddd|00000000|00bbbbbb|00000000]
+                    Vector128<byte> t3 = Sse2.MultiplyLow(t2.AsUInt16(), tt3).AsByte();
+                    // indices = [00dddddd|00cccccc|00bbbbbb|00aaaaaa] = t1 | t3
+                    Vector128<byte> indices = Sse2.Or(t1, t3);
+
+                    // lookup function
+                    Vector128<byte> result = Sse2.SubtractSaturate(indices, tt5);
+                    Vector128<sbyte> compareResult = Sse2.CompareGreaterThan(tt7, indices.AsSByte());
+                    result = Sse2.Or(result, Sse2.And(compareResult.AsByte(), tt8));
+                    result = Ssse3.Shuffle(shiftLut, result);
+                    result = Sse2.Add(result, indices);
+
+                    // save as two-bytes string, e.g.:
+                    // 1,2,3,4,5..16 => 1,0,2,0,3,0..16,0
+                    Sse2.Store(outputBytes + j, Ssse3.Shuffle(result, twoBytesStringMaskLo));
+                    j += Vector128<byte>.Count;
+
+                    // Do it for the second part of the vector (rotate it first in order to re-use asciiToStringMaskLo)
+                    result = Sse2.Shuffle(result.AsUInt32(), 0x4E /*_MM_SHUFFLE(1,0,3,2)*/).AsByte();
+                    result = Ssse3.Shuffle(result, twoBytesStringMaskLo);
+                    
+                    if (insertLineBreaks && (charcount += 16) >= base64LineBreakPosition)
+                    {
+                        // Normally we save 32 bytes per iteration 
+                        // but `insertLineBreaks` needs `\r\n` (4 bytes) between each 76*2=152 bytes. 152/32 = 4.75 (means not a multiply of 32)
+                        // we need to insert `\r\n` in the middle of Vector128<byte> somehow 
+                        // but the following code just saves a half of the vector, then appends `\r\n` manually
+                        // and the second part of the vector is ignored (this is why 'i' is decremented)
+                        charcount = 0;
+                        var shuffleResult = result.AsUInt64();
+                        Sse2.StoreLow((ulong*)(outputBytes + j), shuffleResult);
+                        j += Vector128<byte>.Count / 2;
+                        outputBytes[j++] = (byte)'\r';
+                        outputBytes[j++] = 0;
+                        outputBytes[j++] = (byte)'\n';
+                        outputBytes[j++] = 0;
+                        i -= stride / 4;
+                    }
+                    else
+                    {
+                        Sse2.Store(outputBytes + j, result);
+                        j += Vector128<byte>.Count;
+                    }
+                }
+                // SIMD-based algorithm used `j` to count bytes, the software fallback uses it count chars
+                j /= 2;
+
+                if (i == length)
+                    return j;
+            }
             int lengthmod3 = length % 3;
             int calcLength = offset + (length - lengthmod3);
-            int j = 0;
-            int charcount = 0;
             //Convert three bytes at a time to base64 notation.  This will consume 4 chars.
-            int i;
 
             // get a pointer to the base64Table to avoid unnecessary range checking
             fixed (char* base64 = &base64Table[0])
             {
-                for (i = offset; i < calcLength; i += 3)
+                for (; i < calcLength; i += 3)
                 {
                     if (insertLineBreaks)
                     {
