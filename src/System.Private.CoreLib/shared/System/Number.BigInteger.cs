@@ -463,17 +463,14 @@ namespace System
 
             public static uint CountSignificantBits(ulong value)
             {
-                // TODO: Check that this is the correct substitution
-                //uint upper = (uint)(value >> 32);
+                uint upper = (uint)(value >> 32);
 
-                //if (upper != 0)
-                //{
-                //    return 32 + CountSignificantBits(upper);
-                //}
+                if (upper != 0)
+                {
+                    return 32u + CountSignificantBits(upper);
+                }
 
-                //return CountSignificantBits((uint)(value));
-
-                return 64u - (uint)BitOps.LeadingZeroCount(value);
+                return CountSignificantBits((uint)value);
             }
 
             public static uint CountSignificantBits(ref BigInteger value)
