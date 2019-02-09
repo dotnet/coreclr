@@ -394,10 +394,9 @@ public:
     virtual const char* siStackVarName(size_t offs, size_t size, unsigned reg, unsigned stkOffs) = 0;
 #endif // LATE_DISASM
 
-    /* These are the different addressing modes used to access a local var.
-     * The JIT has to report the location of the locals back to the EE
-     * for debugging purposes.
-     */
+    // These are the different addressing modes used to access a local var.
+    // The JIT has to report the location of the locals back to the EE
+    // for debugging purposes.
     enum siVarLocType
     {
         VLT_REG,
