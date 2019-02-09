@@ -2424,17 +2424,8 @@ namespace System
                 fixed (byte* bytesPtr = &MemoryMarshal.GetReference(bytes))
                 fixed (char* charsPtr = result)
                 {
-                    if (Avx2.IsSupported && 
-                        bytes.Length >= 50 && // see https://github.com/dotnet/coreclr/pull/21833
-                        options == Base64FormattingOptions.None) //InsertLineBreaks is not supported yet
-                    {
-                        EncodeBase64Avx(bytesPtr, bytes.Length, (byte*)charsPtr, result.Length * 2);
-                    }
-                    else
-                    {
-                        int charsWritten = ConvertToBase64Array(charsPtr, bytesPtr, 0, bytes.Length, insertLineBreaks);
-                        Debug.Assert(result.Length == charsWritten, $"Expected {result.Length} == {charsWritten}");
-                    }
+                    int charsWritten = ConvertToBase64Array(charsPtr, bytesPtr, 0, bytes.Length, insertLineBreaks);
+                    Debug.Assert(result.Length == charsWritten, $"Expected {result.Length} == {charsWritten}");
                 }
             }
 
