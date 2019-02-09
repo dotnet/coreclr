@@ -111,7 +111,7 @@ namespace System.Diagnostics.Tracing
                 else if (parameterType == typeof(string))
                 {
                     // Try to find null terminator (0x00) from the byte span
-                    // NOTE: we do this by hand instead of using payload.IndexOf('\n') because payload may be unaligned due to 
+                    // NOTE: we do this by hand instead of using IndexOf because payload may be unaligned due to 
                     // mixture of different types being stored in the same buffer. (see eventpipe.cpp:CopyData)
                     int byteCount = -1;
                     for (int j = 1; j < payload.Length; j+=2)
@@ -131,7 +131,7 @@ namespace System.Diagnostics.Tracing
                     }
                     else
                     {
-                        charPayload = MemoryMarshal.Cast<byte, char>(payload.Slice(0, byteCount));
+                        charPayload = MemoryMarshal.Cast<byte, char>(payload.Slice(0, byteCount-2));
                         payload = payload.Slice(byteCount);
                     }
                     decodedFields[i] = BitConverter.IsLittleEndian ? new string(charPayload) : Encoding.Unicode.GetString(MemoryMarshal.Cast<char, byte>(charPayload));
