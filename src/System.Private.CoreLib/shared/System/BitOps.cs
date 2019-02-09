@@ -26,6 +26,16 @@ namespace System
             26, 12, 18, 06, 11, 05, 10, 09
         };
 
+        private static ReadOnlySpan<byte> s_Log2DeBruijn => new byte[32]
+        {
+            00, 09, 01, 10, 13, 21, 02, 29,
+            11, 14, 16, 18, 22, 25, 03, 30,
+            08, 12, 20, 28, 15, 17, 24, 07,
+            19, 27, 23, 06, 26, 05, 04, 31
+        };
+
+        #region TrailingZeroCount
+
         /// <summary>
         /// Count the number of trailing zero bits in an integer value.
         /// Similar in behavior to the x86 instruction TZCNT.
@@ -49,15 +59,192 @@ namespace System
                 return (int)Bmi1.TrailingZeroCount(value);
             }
 
-            // Main code has behavior 0->0, so special-case in order to match intrinsic path 0->32
+            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
             if (value == 0u)
                 return 32;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
-                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn), 
+                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
                 ((uint)((value & -value) * 0x077CB531u)) >> 27);
         }
+
+        /// <summary>
+        /// Count the number of trailing zero bits in a mask.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int TrailingZeroCount(long value)
+            => TrailingZeroCount((ulong)value);
+
+        /// <summary>
+        /// Count the number of trailing zero bits in a mask.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int TrailingZeroCount(ulong value)
+        {
+            if (Bmi1.X64.IsSupported)
+            {
+                // Note that TZCNT contract specifies 0->64
+                return (int)Bmi1.X64.TrailingZeroCount(value);
+            }
+
+            // Main code has behavior 0->0, so special-case to match intrinsic path 0->64
+            if (value == 0u)
+                return 64;
+
+            // Use the 32-bit function twice
+            uint tz = (uint)value; // lo
+            if (Bmi1.IsSupported)
+            {
+                tz = Bmi1.TrailingZeroCount(tz); // lo
+
+                // Use hi iff lo is 32 zeros
+                if (tz == 32u)
+                    tz += Bmi1.TrailingZeroCount((uint)(value >> 32)); // hi
+            }
+            else
+            {
+                tz = (uint)TrailingZeroCount(tz); // lo
+
+                // Use hi iff lo is 32 zeros
+                if (tz == 32u)
+                    tz += (uint)TrailingZeroCount((uint)(value >> 32)); // hi
+            }
+
+            return (int)tz;
+        }
+
+        #endregion
+
+        #region LeadingZeroCount
+
+        /// <summary>
+        /// Count the number of leading zero bits in a mask.
+        /// Similar in behavior to the x86 instruction LZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int LeadingZeroCount(uint value)
+        {
+            if (Lzcnt.IsSupported)
+            {
+                // Note that LZCNT contract specifies 0->32
+                return (int)Lzcnt.LeadingZeroCount(value);
+            }
+
+            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
+            if (value == 0u)
+                return 32;
+
+            return (int)(31u - Log2(value));
+        }
+
+        /// <summary>
+        /// Count the number of leading zero bits in a mask.
+        /// Similar in behavior to the x86 instruction LZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int LeadingZeroCount(ulong value)
+        {
+            if (Lzcnt.X64.IsSupported)
+            {
+                // Note that LZCNT contract specifies 0->64
+                return (int)Lzcnt.X64.LeadingZeroCount(value);
+            }
+
+            // Main code has behavior 0->0, so special-case to match intrinsic path 0->64
+            if (value == 0u)
+                return 64;
+
+            // Use the 32-bit function twice
+            uint lz = (uint)(value >> 32); // hi
+            if (Lzcnt.IsSupported)
+            {
+                lz = Lzcnt.LeadingZeroCount(lz); // hi
+
+                // Use lo iff hi is 32 zeros
+                if (lz == 32u)
+                    lz += Lzcnt.LeadingZeroCount((uint)value); // lo
+            }
+            else
+            {
+                lz = (uint)LeadingZeroCount(lz); // hi
+
+                // Use lo iff hi is 32 zeros
+                if (lz == 32u)
+                    lz += (uint)LeadingZeroCount((uint)value); // lo
+            }
+
+            return (int)lz;
+        }
+
+        #endregion
+
+        #region Log2
+
+        /// <summary>
+        /// Returns the integer (floor) log of the specified value, base 2, without branching.
+        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint Log2(uint value)
+        {
+            FoldTrailingOnes(ref value);
+
+            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+            return Unsafe.AddByteOffset(
+                // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
+                ref MemoryMarshal.GetReference(s_Log2DeBruijn),
+                (IntPtr)((value * 0x07C4ACDDu) >> 27));
+        }
+
+        /// <summary>
+        /// Returns the integer (floor) log of the specified value, base 2, without branching.
+        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint Log2(ulong value)
+        {
+            uint hi = (uint)(value >> 32);
+
+            if (hi != 0)
+            {
+                return 32u + Log2(hi);
+            }
+
+            return Log2((uint)value);
+        }
+
+        #endregion
+
+        #region Helpers
+
+        /// <summary>
+        /// Fills the trailing zeros in a mask with ones.
+        /// For example, 00010010 becomes 00011111.
+        /// Does not incur branching.
+        /// </summary>
+        /// <param name="value">The value to mutate.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void FoldTrailingOnes(ref uint value)
+        {
+            // byte#                         4          3   2  1
+            //                       1000 0000  0000 0000  00 00
+            value |= value >> 01; // 1100 0000  0000 0000  00 00
+            value |= value >> 02; // 1111 0000  0000 0000  00 00
+            value |= value >> 04; // 1111 1111  0000 0000  00 00
+            value |= value >> 08; // 1111 1111  1111 1111  00 00
+            value |= value >> 16; // 1111 1111  1111 1111  FF FF
+        }
+
+        #endregion
     }
 }
