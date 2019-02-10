@@ -2522,23 +2522,23 @@ namespace System
             }
         }      
 
-        internal static readonly Vector128<byte> s_base64ShuffleMask = Ssse3.IsSupported ? Vector128.Create((byte)
-            1, 0, 2, 1, 4, 3, 5, 4, 7, 6, 8, 7, 10, 9, 11, 10) : default;
+        internal static readonly Vector128<byte> s_base64ShuffleMask = Vector128.Create((byte)
+            1, 0, 2, 1, 4, 3, 5, 4, 7, 6, 8, 7, 10, 9, 11, 10);
 
-        internal static readonly Vector128<byte> s_base64ShiftLut = Ssse3.IsSupported ? Vector128.Create(
+        internal static readonly Vector128<byte> s_base64ShiftLut = Vector128.Create(
             (sbyte)'a' - 26, (sbyte)'0' - 52,
             (sbyte)'0' - 52, (sbyte)'0' - 52,
             (sbyte)'0' - 52, (sbyte)'0' - 52,
             (sbyte)'0' - 52, (sbyte)'0' - 52,
             (sbyte)'0' - 52, (sbyte)'0' - 52,
             (sbyte)'0' - 52, (sbyte)'+' - 62,
-            (sbyte)'/' - 63, (sbyte)'A', 0, 0).AsByte() : default;
+            (sbyte)'/' - 63, (sbyte)'A', 0, 0).AsByte();
 
-        internal static readonly Vector128<byte> s_base64TwoBytesStringMaskLo = Ssse3.IsSupported ? Vector128.Create(
+        internal static readonly Vector128<byte> s_base64TwoBytesStringMaskLo = Vector128.Create(
                 0, 0x80, 1, 0x80,
                 2, 0x80, 3, 0x80,
                 4, 0x80, 5, 0x80,
-                6, 0x80, 7, 0x80) : default;
+                6, 0x80, 7, 0x80);
 
         private static unsafe (int i, int j, int charcount) ConvertToBase64ArraySsse3(char* outChars, byte* inData, int length, int offset, bool insertLineBreaks)
         {
