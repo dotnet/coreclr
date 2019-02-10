@@ -14,7 +14,8 @@
 typedef wchar_t char_t;
 typedef std::wstring string_t;
 
-#if !defined _WIN64
+// Only create undecorated exports on Windows x86
+#if defined _X86_
 
 // Define undecorated exports to ease test set up from native code
 #pragma comment(linker, "/export:Set_corehost_resolve_component_dependencies_Callback=_Set_corehost_resolve_component_dependencies_Callback@4")
