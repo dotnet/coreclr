@@ -33,6 +33,6 @@ namespace System.Runtime.InteropServices
         private static extern void InternalSet(IntPtr handle, object value);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern object InternalCompareExchange(IntPtr handle, object value, object oldValue, bool isPinned);
+        internal static extern object InternalCompareExchange(IntPtr handle, object value, object oldValue);
     }
 }

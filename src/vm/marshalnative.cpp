@@ -604,21 +604,15 @@ FCIMPL2(VOID, MarshalNative::GCHandleInternalSet, OBJECTHANDLE handle, Object *o
 FCIMPLEND
 
 // Update the object referenced by a GC handle.
-FCIMPL4(Object*, MarshalNative::GCHandleInternalCompareExchange, OBJECTHANDLE handle, Object *obj, Object* oldObj, CLR_BOOL isPinned)
+FCIMPL3(Object*, MarshalNative::GCHandleInternalCompareExchange, OBJECTHANDLE handle, Object *obj, Object* oldObj)
 {
     FCALL_CONTRACT;
 
     OBJECTREF newObjref(obj);
     OBJECTREF oldObjref(oldObj);
     LPVOID ret = NULL;
-    HELPER_METHOD_FRAME_BEGIN_RET_NOPOLL();
-
-    if (isPinned)
-        ValidatePinnedObject(newObjref);
-
     // Update the stored object reference.
     ret = InterlockedCompareExchangeObjectInHandle(handle, newObjref, oldObjref);
-    HELPER_METHOD_FRAME_END_POLL();
     return (Object*)ret;
 }
 FCIMPLEND
