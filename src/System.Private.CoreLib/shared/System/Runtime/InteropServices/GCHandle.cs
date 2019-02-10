@@ -86,19 +86,22 @@ namespace System.Runtime.InteropServices
         {
             get
             {
-                ThrowIfInvalid();
-                return InternalGet(GetHandleValue());
+                IntPtr handle = m_handle;
+                ThrowIfInvalid(handle);
+
+                return InternalGet(GetHandleValue(handle));
             }
             set
             {
-                ThrowIfInvalid();
+                IntPtr handle = m_handle;
+                ThrowIfInvalid(handle);
 
-                if (IsPinned && !Marshal.IsPinnable(value))
+                if (IsPinned(handle) && !Marshal.IsPinnable(value))
                 {
                     ThrowHelper.ThrowArgumentException(ExceptionResource.ArgumentException_NotIsomorphic, ExceptionArgument.value);
                 }
 
-                InternalSet(GetHandleValue(), value);
+                InternalSet(GetHandleValue(handle), value);
             }
         }
 
@@ -110,15 +113,17 @@ namespace System.Runtime.InteropServices
         {
             // Check if the handle was not a pinned handle.
             // You can only get the address of pinned handles.
-            ThrowIfInvalid();
-            if (!IsPinned)
+            IntPtr handle = m_handle;
+            ThrowIfInvalid(handle);
+
+            if (!IsPinned(handle))
             {
                 ThrowHelper.ThrowInvalidOperationException_HandleIsNotPinned();
             }
 
             // Get the address.
 
-            object target = InternalGet(GetHandleValue());
+            object target = InternalGet(GetHandleValue(handle));
             if (target is null)
             {
                 return default;
@@ -169,14 +174,13 @@ namespace System.Runtime.InteropServices
 
         public static bool operator !=(GCHandle a, GCHandle b) => a.m_handle != b.m_handle;
 
-        private IntPtr GetHandleValue() => GetHandleValue(m_handle);
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static IntPtr GetHandleValue(IntPtr handle) => new IntPtr((nint)handle & ~(nint)1); // Remove Pin flag
 
-        private bool IsPinned => ((nint)m_handle & 1) != 0; // Check Pin flag
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsPinned(IntPtr handle) => ((nint)handle & 1) != 0; // Check Pin flag
 
-        private void ThrowIfInvalid() => ThrowIfInvalid(m_handle);
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void ThrowIfInvalid(IntPtr handle)
         {
             // Check if the handle was never initialized or was freed.
