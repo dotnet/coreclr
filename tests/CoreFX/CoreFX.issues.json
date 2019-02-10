@@ -816,6 +816,10 @@
             "classes": null,
             "methods": [
                 {
+                    "name": "System.Runtime.InteropServices.Tests.GCHandleTests.Alloc_InvalidPinnedObject_ThrowsArgumentException",
+                    "reason": "outdated"
+                },
+                {
                     "name": "System.Runtime.InteropServices.Tests.GetHINSTANCETests.GetHINSTANCE_NonRuntimeModule_ThrowsArgumentNullException",
                     "reason": "https://github.com/dotnet/coreclr/pull/30925"
                 },
