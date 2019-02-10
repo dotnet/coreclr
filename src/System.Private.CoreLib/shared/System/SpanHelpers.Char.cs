@@ -221,93 +221,202 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            fixed (char* pChars = &searchSpace)
+            nint offset = (nint)0;
+            nint lengthToExamine = length;
+
+            if (Avx2.IsSupported || Sse2.IsSupported)
             {
-                char* pCh = pChars;
-                char* pEndCh = pCh + length;
-
-                if (Vector.IsHardwareAccelerated && length >= Vector<ushort>.Count * 2)
+                // Avx2 branch also operates on Sse2 sizes, so check is combined.
+                if (length >= Vector128<byte>.Count * 2)
                 {
-                    // Figure out how many characters to read sequentially until we are vector aligned
-                    // This is equivalent to:
-                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
-                    //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
-                    const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
-                    length = (Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1);
+                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
                 }
-
-            SequentialScan:
-                while (length >= 4)
+            }
+            else if (Vector.IsHardwareAccelerated)
+            {
+                if (length >= Vector<ushort>.Count * 2)
                 {
-                    length -= 4;
-
-                    if (pCh[0] == value)
-                        goto Found;
-                    if (pCh[1] == value)
-                        goto Found1;
-                    if (pCh[2] == value)
-                        goto Found2;
-                    if (pCh[3] == value)
-                        goto Found3;
-
-                    pCh += 4;
+                    lengthToExamine = UnalignedCountVector(ref searchSpace);
                 }
+            }
 
-                while (length > 0)
+        SequentialScan:
+            while (lengthToExamine >= 4)
+            {
+                ref char current = ref Add(ref searchSpace, offset);
+                lengthToExamine -= 4;
+
+                if (value == current)
+                    goto Found;
+                if (value == Add(ref current, 1))
+                    goto Found1;
+                if (value == Add(ref current, 2))
+                    goto Found2;
+                if (value == Add(ref current, 3))
+                    goto Found3;
+
+                offset += 4;
+            }
+
+            while (lengthToExamine > 0)
+            {
+                lengthToExamine -= 1;
+
+                if (value == Add(ref searchSpace, offset))
+                    goto Found;
+
+                offset += 1;
+            }
+
+            // We get past SequentialScan only if IsHardwareAccelerated or intrinsic .IsSupported is true. However, we still have the redundant check to allow
+            // the JIT to see that the code is unreachable and eliminate it when the platform does not have hardware accelerated.
+            if (Avx2.IsSupported)
+            {
+                if (offset < length)
                 {
-                    length--;
-
-                    if (pCh[0] == value)
-                        goto Found;
-
-                    pCh++;
-                }
-
-                // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow
-                // the JIT to see that the code is unreachable and eliminate it when the platform does not have hardware accelerated.
-                if (Vector.IsHardwareAccelerated && pCh < pEndCh)
-                {
-                    // Get the highest multiple of Vector<ushort>.Count that is within the search space.
-                    // That will be how many times we iterate in the loop below.
-                    // This is equivalent to: length = Vector<ushort>.Count * ((int)(pEndCh - pCh) / Vector<ushort>.Count)
-                    length = (int)((pEndCh - pCh) & ~(Vector<ushort>.Count - 1));
-
-                    // Get comparison Vector
-                    Vector<ushort> vComparison = new Vector<ushort>(value);
-
-                    while (length > 0)
+                    if ((((nint)Unsafe.AsPointer(ref searchSpace) + (nint)offset) & (nint)(Vector256<ushort>.Count - 1)) != 0)
                     {
-                        // Using Unsafe.Read instead of ReadUnaligned since the search space is pinned and pCh is always vector aligned
-                        Debug.Assert(((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) == 0);
-                        Vector<ushort> vMatches = Vector.Equals(vComparison, Unsafe.Read<Vector<ushort>>(pCh));
-                        if (Vector<ushort>.Zero.Equals(vMatches))
+                        // Not currently aligned to Vector256 (is aligned to Vector128); this can cause a problem for searches
+                        // with no upper bound e.g. String.wcslen.
+                        // Start with a check on Vector128 to align to Vector256, before moving to processing Vector256.
+                        // This ensures we do not fault across memory pages while searching for an end of string.
+                        Vector128<ushort> values = Vector128.Create(value);
+                        Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as below
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search).AsByte());
+                        if (matches == 0)
                         {
-                            pCh += Vector<ushort>.Count;
-                            length -= Vector<ushort>.Count;
-                            continue;
+                            // Zero flags set so no matches
+                            offset += Vector128<ushort>.Count;
                         }
-                        // Find offset of first match
-                        return (int)(pCh - pChars) + LocateFirstFoundChar(vMatches);
+                        else
+                        {
+                            // Find bitflag offset of first match and add to current offset
+                            return (int)(offset + (BitOperations.TrailingZeroCount(matches) / sizeof(char)));
+                        }
                     }
 
-                    if (pCh < pEndCh)
+                    lengthToExamine = GetCharVector256SpanLength(offset, length);
+                    if (lengthToExamine > offset)
                     {
-                        length = (int)(pEndCh - pCh);
+                        Vector256<ushort> values = Vector256.Create(value);
+                        do
+                        {
+                            Vector256<ushort> search = LoadVector256(ref searchSpace, offset);
+                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values, search).AsByte());
+                            // Note that MoveMask has converted the equal vector elements into a set of bit flags,
+                            // So the bit position in 'matches' corresponds to the element offset.
+                            if (matches == 0)
+                            {
+                                // Zero flags set so no matches
+                                offset += Vector256<ushort>.Count;
+                                continue;
+                            }
+
+                            // Find bitflag offset of first match and add to current offset, 
+                            // flags are in bytes so divide for chars
+                            return (int)(offset + (BitOperations.TrailingZeroCount(matches) / sizeof(char)));
+                        } while (lengthToExamine > offset);
+                    }
+
+                    lengthToExamine = GetCharVector128SpanLength(offset, length);
+                    if (lengthToExamine > offset)
+                    {
+                        Vector128<ushort> values = Vector128.Create(value);
+                        Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as above
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search).AsByte());
+                        if (matches == 0)
+                        {
+                            // Zero flags set so no matches
+                            offset += Vector128<ushort>.Count;
+                        }
+                        else
+                        {
+                            // Find bitflag offset of first match and add to current offset, 
+                            // flags are in bytes so divide for chars
+                            return (int)(offset + (BitOperations.TrailingZeroCount(matches) / sizeof(char)));
+                        }
+                    }
+
+                    if (offset < length)
+                    {
+                        lengthToExamine = length - offset;
                         goto SequentialScan;
                     }
                 }
-
-                return -1;
-            Found3:
-                pCh++;
-            Found2:
-                pCh++;
-            Found1:
-                pCh++;
-            Found:
-                return (int)(pCh - pChars);
             }
+            else if (Sse2.IsSupported)
+            {
+                if (offset < length)
+                {
+                    lengthToExamine = GetCharVector128SpanLength(offset, length);
+
+                    Vector128<ushort> values = Vector128.Create(value);
+                    while (lengthToExamine > offset)
+                    {
+                        Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as above
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search).AsByte());
+                        if (matches == 0)
+                        {
+                            // Zero flags set so no matches
+                            offset += Vector128<ushort>.Count;
+                            continue;
+                        }
+
+                        // Find bitflag offset of first match and add to current offset, 
+                        // flags are in bytes so divide for chars
+                        return (int)(offset + (BitOperations.TrailingZeroCount(matches) / sizeof(char)));
+                    }
+
+                    if (offset < length)
+                    {
+                        lengthToExamine = length - offset;
+                        goto SequentialScan;
+                    }
+                }
+            }
+            else if (Vector.IsHardwareAccelerated)
+            {
+                if (offset < length)
+                {
+                    lengthToExamine = GetCharVectorSpanLength(offset, length);
+
+                    Vector<ushort> values = new Vector<ushort>(value);
+
+                    while (lengthToExamine > offset)
+                    {
+                        var matches = Vector.Equals(values, LoadVector(ref searchSpace, offset));
+                        if (Vector<ushort>.Zero.Equals(matches))
+                        {
+                            offset += Vector<ushort>.Count;
+                            continue;
+                        }
+
+                        // Find offset of first match
+                        return (int)(offset + LocateFirstFoundChar(matches));
+                    }
+
+                    if (offset < length)
+                    {
+                        lengthToExamine = length - offset;
+                        goto SequentialScan;
+                    }
+                }
+            }
+            return -1;
+        Found3:
+            return (int)(offset + 3);
+        Found2:
+            return (int)(offset + 2);
+        Found1:
+            return (int)(offset + 1);
+        Found:
+            return (int)(offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
