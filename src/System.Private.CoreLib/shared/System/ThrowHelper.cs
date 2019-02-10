@@ -117,12 +117,6 @@ namespace System
                                                     ExceptionResource.ArgumentOutOfRange_Count);
         }
 
-        internal static void ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum()
-        {
-            throw GetArgumentOutOfRangeException(ExceptionArgument.type,
-                                                    ExceptionResource.ArgumentOutOfRange_Enum);
-        }
-
         internal static void ThrowWrongKeyTypeArgumentException<T>(T key, Type targetType)
         {
             // Generic key to move the boxing to the right hand side of throw
@@ -731,8 +725,6 @@ namespace System
                     return SR.Rank_MultiDimNotSupported;
                 case ExceptionResource.Arg_TypeNotSupported:
                     return SR.Arg_TypeNotSupported;
-                case ExceptionResource.ArgumentException_NotIsomorphic:
-                    return SR.ArgumentException_NotIsomorphic;
                 default:
                     Debug.Assert(false,
                         "The enum value is not defined, please check the ExceptionResource Enum.");
@@ -891,6 +883,5 @@ namespace System
         NotSupported_FixedSizeCollection,
         Rank_MultiDimNotSupported,
         Arg_TypeNotSupported,
-        ArgumentException_NotIsomorphic,
     }
 }
