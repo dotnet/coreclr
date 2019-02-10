@@ -31,7 +31,7 @@ namespace System.Runtime.InteropServices
     public partial struct GCHandle
     {
         // The actual integer handle value that the EE uses internally.
-        private IntPtr m_handle;
+        private IntPtr _handle;
 
         // Allocate a handle storing the object and the type.
         private GCHandle(object value, GCHandleType type)
@@ -55,11 +55,11 @@ namespace System.Runtime.InteropServices
                 handle = (IntPtr)((nint)handle | 1);
             }
 
-            m_handle = handle;
+            _handle = handle;
         }
 
         // Used in the conversion functions below.
-        private GCHandle(IntPtr handle) => m_handle = handle;
+        private GCHandle(IntPtr handle) => _handle = handle;
 
         /// <summary>Creates a new GC handle for an object.</summary>
         /// <param name="value">The object that the GC handle is created for.</param>
@@ -76,7 +76,7 @@ namespace System.Runtime.InteropServices
         public void Free()
         {
             // Free the handle if it hasn't already been freed.
-            IntPtr handle = Interlocked.Exchange(ref m_handle, IntPtr.Zero);
+            IntPtr handle = Interlocked.Exchange(ref _handle, IntPtr.Zero);
             ThrowIfInvalid(handle);
             InternalFree(GetHandleValue(handle));
         }
@@ -86,14 +86,14 @@ namespace System.Runtime.InteropServices
         {
             get
             {
-                IntPtr handle = m_handle;
+                IntPtr handle = _handle;
                 ThrowIfInvalid(handle);
 
                 return InternalGet(GetHandleValue(handle));
             }
             set
             {
-                IntPtr handle = m_handle;
+                IntPtr handle = _handle;
                 ThrowIfInvalid(handle);
 
                 if (IsPinned(handle) && !Marshal.IsPinnable(value))
@@ -113,7 +113,7 @@ namespace System.Runtime.InteropServices
         {
             // Check if the handle was not a pinned handle.
             // You can only get the address of pinned handles.
-            IntPtr handle = m_handle;
+            IntPtr handle = _handle;
             ThrowIfInvalid(handle);
 
             if (!IsPinned(handle))
@@ -147,7 +147,7 @@ namespace System.Runtime.InteropServices
         }
 
         /// <summary>Determine whether this handle has been allocated or not.</summary>
-        public bool IsAllocated => m_handle != IntPtr.Zero;
+        public bool IsAllocated => _handle != IntPtr.Zero;
 
         /// <summary>
         /// Used to create a GCHandle from an int.  This is intended to
@@ -164,15 +164,15 @@ namespace System.Runtime.InteropServices
         /// <summary>Used to get the internal integer representation of the handle out.</summary>
         public static explicit operator IntPtr(GCHandle value) => ToIntPtr(value);
 
-        public static IntPtr ToIntPtr(GCHandle value) => value.m_handle;
+        public static IntPtr ToIntPtr(GCHandle value) => value._handle;
 
-        public override int GetHashCode() => m_handle.GetHashCode();
+        public override int GetHashCode() => _handle.GetHashCode();
 
-        public override bool Equals(object o) => o is GCHandle && m_handle == ((GCHandle)o).m_handle;
+        public override bool Equals(object o) => o is GCHandle && _handle == ((GCHandle)o)._handle;
 
-        public static bool operator ==(GCHandle a, GCHandle b) => a.m_handle == b.m_handle;
+        public static bool operator ==(GCHandle a, GCHandle b) => a._handle == b._handle;
 
-        public static bool operator !=(GCHandle a, GCHandle b) => a.m_handle != b.m_handle;
+        public static bool operator !=(GCHandle a, GCHandle b) => a._handle != b._handle;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static IntPtr GetHandleValue(IntPtr handle) => new IntPtr((nint)handle & ~(nint)1); // Remove Pin flag
