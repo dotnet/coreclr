@@ -549,6 +549,18 @@ void ValidatePinnedObject(OBJECTREF obj)
     COMPlusThrow(kArgumentException, IDS_EE_NOTISOMORPHIC);
 }
 
+NOINLINE static void FCDiagHandleCreated(OBJECTHANDLE handle)
+{
+    FC_INNER_PROLOG(MarshalNative::GCHandleInternalAlloc);
+
+    // Make the stack walkable for the profiler
+    HELPER_METHOD_FRAME_BEGIN_ATTRIB(Frame::FRAME_ATTR_EXACT_DEPTH | Frame::FRAME_ATTR_CAPTURE_DEPTH_2);
+    DiagHandleCreated(handle, ObjectFromHandle(handle));
+    HELPER_METHOD_FRAME_END();
+
+    FC_INNER_EPILOG();
+}
+
 FCIMPL2(LPVOID, MarshalNative::GCHandleInternalAlloc, Object *obj, int type)
 {
     FCALL_CONTRACT;
@@ -556,27 +568,46 @@ FCIMPL2(LPVOID, MarshalNative::GCHandleInternalAlloc, Object *obj, int type)
     OBJECTREF objRef(obj);
     OBJECTHANDLE hnd = 0;
 
-    HELPER_METHOD_FRAME_BEGIN_RET_NOPOLL();
-
     assert(type >= HNDTYPE_WEAK_SHORT && type <= HNDTYPE_WEAK_WINRT);
-    // Create the handle.
-    hnd = GetAppDomain()->CreateTypedHandle(objRef, static_cast<HandleType>(type));
 
-    HELPER_METHOD_FRAME_END_POLL();
+    hnd = GetAppDomain()->GetHandleStore()->CreateHandleOfType(OBJECTREFToObject(objRef), static_cast<HandleType>(type));
+    if (!hnd)
+    {
+        FCThrow(kOutOfMemoryException);
+    }
+
+    if (CORProfilerTrackGC())
+    {
+        FCDiagHandleCreated(hnd);
+    }
+
     return (LPVOID) hnd;
 }
 FCIMPLEND
+
+NOINLINE static void FCDiagHandleDestroyed(OBJECTHANDLE handle)
+{
+    FC_INNER_PROLOG(MarshalNative::GCHandleInternalFree);
+
+    // Make the stack walkable for the profiler
+    HELPER_METHOD_FRAME_BEGIN_ATTRIB(Frame::FRAME_ATTR_EXACT_DEPTH | Frame::FRAME_ATTR_CAPTURE_DEPTH_2);
+    DiagHandleDestroyed(handle);
+    HELPER_METHOD_FRAME_END();
+
+    FC_INNER_EPILOG();
+}
 
 // Free a GC handle.
 FCIMPL1(VOID, MarshalNative::GCHandleInternalFree, OBJECTHANDLE handle)
 {
     FCALL_CONTRACT;
-    
-    HELPER_METHOD_FRAME_BEGIN_0();
 
-    DestroyTypedHandle(handle);
+    if (CORProfilerTrackGC())
+    {
+        FC_INNER_RETURN_VOID(FCDiagHandleDestroyed(handle));
+    }
 
-    HELPER_METHOD_FRAME_END();
+    GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfUnknownType(handle);
 }
 FCIMPLEND
 
