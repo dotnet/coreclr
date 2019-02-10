@@ -2522,23 +2522,23 @@ namespace System
             }
         }      
 
-        internal static readonly Vector128<byte> base64ShuffleMask = Vector128.Create((byte)
-            1, 0, 2, 1, 4, 3, 5, 4, 7, 6, 8, 7, 10, 9, 11, 10);
+        internal static readonly Vector128<byte> s_base64ShuffleMask = Ssse3.IsSupported ? Vector128.Create((byte)
+            1, 0, 2, 1, 4, 3, 5, 4, 7, 6, 8, 7, 10, 9, 11, 10) : default;
 
-        internal static readonly Vector128<byte> base64ShiftLut = Vector128.Create(
+        internal static readonly Vector128<byte> s_base64ShiftLut = Ssse3.IsSupported ? Vector128.Create(
             (sbyte)'a' - 26, (sbyte)'0' - 52,
             (sbyte)'0' - 52, (sbyte)'0' - 52,
             (sbyte)'0' - 52, (sbyte)'0' - 52,
             (sbyte)'0' - 52, (sbyte)'0' - 52,
             (sbyte)'0' - 52, (sbyte)'0' - 52,
             (sbyte)'0' - 52, (sbyte)'+' - 62,
-            (sbyte)'/' - 63, (sbyte)'A', 0, 0).AsByte();
+            (sbyte)'/' - 63, (sbyte)'A', 0, 0).AsByte() : default;
 
-        internal static readonly Vector128<byte> base64TwoBytesStringMaskLo = Vector128.Create(
+        internal static readonly Vector128<byte> s_base64TwoBytesStringMaskLo = Ssse3.IsSupported ? Vector128.Create(
                 0, 0x80, 1, 0x80,
                 2, 0x80, 3, 0x80,
                 4, 0x80, 5, 0x80,
-                6, 0x80, 7, 0x80);
+                6, 0x80, 7, 0x80) : default;
 
         private static unsafe (int i, int j, int charcount) ConvertToBase64ArraySsse3(char* outChars, byte* inData, int length, int offset, bool insertLineBreaks)
         {
@@ -2560,7 +2560,7 @@ namespace System
             for (; i <= length - stride; i += stride)
             {
                 Vector128<byte> inputVector = Sse2.LoadVector128(inData + i);
-                inputVector = Ssse3.Shuffle(inputVector, base64ShuffleMask);
+                inputVector = Ssse3.Shuffle(inputVector, s_base64ShuffleMask);
 
                 // t0      = [0000cccc|cc000000|aaaaaa00|00000000]
                 Vector128<byte> t0 = Sse2.And(inputVector, tt0);
@@ -2577,17 +2577,17 @@ namespace System
                 Vector128<byte> result = Sse2.SubtractSaturate(indices, tt5);
                 Vector128<sbyte> compareResult = Sse2.CompareGreaterThan(tt7, indices.AsSByte());
                 result = Sse2.Or(result, Sse2.And(compareResult.AsByte(), tt8));
-                result = Ssse3.Shuffle(base64ShiftLut, result);
+                result = Ssse3.Shuffle(s_base64ShiftLut, result);
                 result = Sse2.Add(result, indices);
 
                 // save as two-bytes string, e.g.:
                 // 1,2,3,4,5..16 => 1,0,2,0,3,0..16,0
-                Sse2.Store(outputBytes + j, Ssse3.Shuffle(result, base64TwoBytesStringMaskLo));
+                Sse2.Store(outputBytes + j, Ssse3.Shuffle(result, s_base64TwoBytesStringMaskLo));
                 j += Vector128<byte>.Count;
 
                 // Do it for the second part of the vector (rotate it first in order to re-use asciiToStringMaskLo)
                 result = Sse2.Shuffle(result.AsUInt32(), 0x4E /*_MM_SHUFFLE(1,0,3,2)*/).AsByte();
-                result = Ssse3.Shuffle(result, base64TwoBytesStringMaskLo);
+                result = Ssse3.Shuffle(result, s_base64TwoBytesStringMaskLo);
                     
                 if (insertLineBreaks && (charcount += 16) >= base64LineBreakPosition)
                 {
