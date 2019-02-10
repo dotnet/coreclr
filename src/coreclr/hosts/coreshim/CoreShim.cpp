@@ -181,13 +181,15 @@ HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ cons
                 return E_UNEXPECTED;
 
             // Initialize the hostpolicy mock to a default state
-            using Set_corehost_resolve_component_dependencies_Values_fn = void(*)(
+            using Set_corehost_resolve_component_dependencies_Values_fn = void(STDMETHODCALLTYPE *)(
                 int returnValue,
                 const WCHAR *assemblyPaths,
                 const WCHAR *nativeSearchPaths,
                 const WCHAR *resourceSearchPaths);
             auto set_comp_depend_values = (Set_corehost_resolve_component_dependencies_Values_fn)
                 ::GetProcAddress(hMod, "Set_corehost_resolve_component_dependencies_Values");
+
+            assert(set_comp_depend_values != nullptr);
             set_comp_depend_values(0, W(""), W(""), W(""));
         }
     }
