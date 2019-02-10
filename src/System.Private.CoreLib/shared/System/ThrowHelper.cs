@@ -731,6 +731,8 @@ namespace System
                     return SR.Rank_MultiDimNotSupported;
                 case ExceptionResource.Arg_TypeNotSupported:
                     return SR.Arg_TypeNotSupported;
+                case ExceptionResource.ArgumentException_NotIsomorphic:
+                    return SR.ArgumentException_NotIsomorphic;
                 default:
                     Debug.Assert(false,
                         "The enum value is not defined, please check the ExceptionResource Enum.");
@@ -889,5 +891,6 @@ namespace System
         NotSupported_FixedSizeCollection,
         Rank_MultiDimNotSupported,
         Arg_TypeNotSupported,
+        ArgumentException_NotIsomorphic,
     }
 }

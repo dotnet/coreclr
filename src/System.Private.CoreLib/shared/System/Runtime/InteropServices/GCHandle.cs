@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Internal.Runtime.CompilerServices;
@@ -29,9 +30,6 @@ namespace System.Runtime.InteropServices
     [StructLayout(LayoutKind.Sequential)]
     public partial struct GCHandle
     {
-        // IMPORTANT: This must be kept in sync with the GCHandleType enum.
-        private const GCHandleType MaxHandleType = GCHandleType.Pinned;
-
         // The actual integer handle value that the EE uses internally.
         private IntPtr m_handle;
 
@@ -39,9 +37,14 @@ namespace System.Runtime.InteropServices
         private GCHandle(object value, GCHandleType type)
         {
             // Make sure the type parameter is within the valid range for the enum.
-            if ((uint)type > (uint)MaxHandleType)
+            if ((uint)type > (uint)GCHandleType.Pinned) // IMPORTANT: This must be kept in sync with the GCHandleType enum.
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum();
+            }
+
+            if (type == GCHandleType.Pinned && !Marshal.IsPinnable(value))
+            {
+                ThrowHelper.ThrowArgumentException(ExceptionResource.ArgumentException_NotIsomorphic, ExceptionArgument.value);
             }
 
             IntPtr handle = InternalAlloc(value, type);
@@ -89,10 +92,15 @@ namespace System.Runtime.InteropServices
             set
             {
                 ThrowIfInvalid();
-                InternalSet(GetHandleValue(), value, IsPinned);
+
+                if (IsPinned && !Marshal.IsPinnable(value))
+                {
+                    ThrowHelper.ThrowArgumentException(ExceptionResource.ArgumentException_NotIsomorphic, ExceptionArgument.value);
+                }
+
+                InternalSet(GetHandleValue(), value);
             }
         }
-
 
         /// <summary>
         /// Retrieve the address of an object in a Pinned handle.  This throws
@@ -109,7 +117,28 @@ namespace System.Runtime.InteropServices
             }
 
             // Get the address.
-            return InternalAddrOfPinnedObject(GetHandleValue());
+
+            object target = InternalGet(GetHandleValue());
+            if (target is null)
+            {
+                return default;
+            }
+
+            unsafe
+            {
+                if (RuntimeHelpers.ObjectHasComponentSize(target))
+                {
+                    if (target.GetType() == typeof(string))
+                    {
+                        return (IntPtr)Unsafe.AsPointer(ref Unsafe.As<string>(target).GetRawStringData());
+                    }
+
+                    Debug.Assert(target is Array);
+                    return (IntPtr)Unsafe.AsPointer(ref Unsafe.As<Array>(target).GetRawArrayData());
+                }
+
+                return (IntPtr)Unsafe.AsPointer(ref target.GetRawData());
+            }
         }
 
         /// <summary>Determine whether this handle has been allocated or not.</summary>
@@ -119,11 +148,7 @@ namespace System.Runtime.InteropServices
         /// Used to create a GCHandle from an int.  This is intended to
         /// be used with the reverse conversion.
         /// </summary>
-        public static explicit operator GCHandle(IntPtr value)
-        {
-            ThrowIfInvalid(value);
-            return new GCHandle(value);
-        }
+        public static explicit operator GCHandle(IntPtr value) => FromIntPtr(value);
 
         public static GCHandle FromIntPtr(IntPtr value)
         {
