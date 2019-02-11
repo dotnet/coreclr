@@ -30,7 +30,7 @@ manifestsToGenerate = {
 }
 
 providerNameToClassNameMap = {
-    "Microsoft-Windows-DotNETRuntime" : "RuntimeEventSource"
+    "Microsoft-Windows-DotNETRuntime" : "NativeRuntimeEventSource"
 }
 
 manifestTypeToCSharpTypeMap = {
