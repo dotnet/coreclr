@@ -6,15 +6,6 @@ using Internal.Runtime.CompilerServices;
 
 namespace System.Diagnostics.Tracing
 {
-    // To use the framework provider
-    // 
-    //     \\clrmain\tools\Perfmonitor /nokernel /noclr /provider:8E9F5090-2D75-4d03-8A81-E5AFBF85DAF1 start
-    //     Run run your app
-    //     \\clrmain\tools\Perfmonitor stop
-    //     \\clrmain\tools\Perfmonitor print
-    //
-    // This will produce an XML file, where each event is pretty-printed with all its arguments nicely parsed.
-    //
     [EventSource(Guid = "8E9F5090-2D75-4d03-8A81-E5AFBF85DAF1", Name = "System.Diagnostics.Eventing.FrameworkEventSource")]
     internal sealed class FrameworkEventSource : EventSource
     {
@@ -35,11 +26,6 @@ namespace System.Diagnostics.Tracing
         {
             /// <summary>Send / Receive - begin transfer/end transfer</summary>
             public const EventTask ThreadTransfer = (EventTask)3;
-        }
-
-        public static class Opcodes
-        {
-            public const EventOpcode ReceiveHandled = (EventOpcode)11;
         }
 
         // The FrameworkEventSource GUID is {8E9F5090-2D75-4d03-8A81-E5AFBF85DAF1}
@@ -101,27 +87,6 @@ namespace System.Diagnostics.Tracing
                     descrs[2].Reserved = 0;
                     WriteEventCore(eventId, 3, descrs);
                 }
-            }
-        }
-
-        // optimized for common signatures (used by the EndGetRequestStream event)
-        [NonEvent]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
-        private unsafe void WriteEvent(int eventId, long arg1, bool arg2, bool arg3)
-        {
-            if (IsEnabled())
-            {
-                EventSource.EventData* descrs = stackalloc EventSource.EventData[3];
-                descrs[0].DataPointer = (IntPtr)(&arg1);
-                descrs[0].Size = 8;
-                descrs[0].Reserved = 0;
-                descrs[1].DataPointer = (IntPtr)(&arg2);
-                descrs[1].Size = 4;
-                descrs[1].Reserved = 0;
-                descrs[2].DataPointer = (IntPtr)(&arg3);
-                descrs[2].Size = 4;
-                descrs[2].Reserved = 0;
-                WriteEventCore(eventId, 3, descrs);
             }
         }
 
