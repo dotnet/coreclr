@@ -13,7 +13,11 @@ set __ThisScriptDir="%~dp0"
 call "%__ThisScriptDir%"\setup_vs_tools.cmd
 if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
-if defined VS150COMNTOOLS (
+if defined VS160COMNTOOLS (
+    set "__VSToolsRoot=%VS160COMNTOOLS%"
+    set "__VCToolsRoot=%VS160COMNTOOLS%\..\..\VC\Auxiliary\Build"
+    set __VSVersion=vs2019
+) else if defined VS150COMNTOOLS (
     set "__VSToolsRoot=%VS150COMNTOOLS%"
     set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
     set __VSVersion=vs2017
@@ -1056,6 +1060,6 @@ at the install location of previous Visual Studio version. The workaround is to 
 of the previous version to "%VSINSTALLDIR%" and then build.
 REM DIA SDK not included in Express editions
 echo Visual Studio Express does not include the DIA SDK. ^
-You need Visual Studio 2015 or 2017 (Community is free).
+You need Visual Studio 2015, 2017, or 2019 (Community is free).
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1

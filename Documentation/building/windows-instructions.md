@@ -13,6 +13,7 @@ You must install several components to build the CoreCLR and CoreFX repos. These
 Visual Studio must be installed. Supported versions:
 - [Visual Studio 2015](https://www.visualstudio.com/vs/older-downloads/) (Community, Professional, Enterprise).  The community version is completely free.  
 - [Visual Studio 2017](https://www.visualstudio.com/downloads/) (Community, Professional, Enterprise).  The community version is completely free.  
+- [Visual Studio 2019 Preview](https://visualstudio.microsoft.com/vs/preview/) (Community, Professional, Enterprise).  The community version is completely free.  
 
 For Visual Studio 2015:
 * Ensure you have installed at least [Visual Studio 2015 Update 3](https://www.visualstudio.com/en-us/news/releasenotes/vs2015-update3-vs).
