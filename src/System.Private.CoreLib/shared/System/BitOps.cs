@@ -57,17 +57,18 @@ namespace System
                 return (int)Bmi1.TrailingZeroCount(value);
             }
 
-            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
-            if (value == 0u)
+            // Software fallback has behavior 0->0, so special-case to match intrinsic path 0->32
+            if (value == 0)
             {
                 return 32;
             }
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
-                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
-                (IntPtr)(((value & -value) * 0x077CB531u) >> 27));
+                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
+                // long -> IntPtr cast on 32-bit platforms is expensive - it does overflow checks not needed here
+                (IntPtr)(int)(((uint)((value & -value) * 0x077CB531u)) >> 27)); // shift over long also expensive on 32-bit
         }
 
         /// <summary>
@@ -117,7 +118,7 @@ namespace System
                 return (int)Lzcnt.LeadingZeroCount(value);
             }
 
-            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
+            // Software fallback has behavior 0->0, so special-case to match intrinsic path 0->32
             if (value == 0)
             {
                 return 32;
@@ -165,7 +166,8 @@ namespace System
             return Unsafe.AddByteOffset(
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
                 ref MemoryMarshal.GetReference(s_Log2DeBruijn),
-                (IntPtr)((value * 0x07C4ACDDu) >> 27));
+                // long -> IntPtr cast on 32-bit platforms is expensive - it does overflow checks not needed here
+                (IntPtr)(int)((value * 0x07C4ACDDu) >> 27));
         }
 
         /// <summary>
