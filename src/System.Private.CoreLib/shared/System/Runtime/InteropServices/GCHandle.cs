@@ -39,7 +39,7 @@ namespace System.Runtime.InteropServices
             // Make sure the type parameter is within the valid range for the enum.
             if ((uint)type > (uint)GCHandleType.Pinned) // IMPORTANT: This must be kept in sync with the GCHandleType enum.
             {
-                throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_Enum, nameof(type));
+                throw new ArgumentOutOfRangeException(nameof(type), SR.ArgumentOutOfRange_Enum);
             }
 
             if (type == GCHandleType.Pinned && !Marshal.IsPinnable(value))
