@@ -33,7 +33,6 @@ namespace System.Diagnostics.Tracing
 
         // optimized for common signatures (used by the ThreadTransferSend/Receive events)
         [NonEvent]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         private unsafe void WriteEvent(int eventId, long arg1, int arg2, string arg3, bool arg4, int arg5, int arg6)
         {
             if (IsEnabled())
@@ -67,7 +66,6 @@ namespace System.Diagnostics.Tracing
 
         // optimized for common signatures (used by the ThreadTransferSend/Receive events)
         [NonEvent]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         private unsafe void WriteEvent(int eventId, long arg1, int arg2, string arg3)
         {
             if (IsEnabled())
