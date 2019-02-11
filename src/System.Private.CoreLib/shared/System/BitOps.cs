@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 
-using Internal.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices; // Unsafe.AddByteOffset
 
 // Some routines inspired by the Stanford Bit Twiddling Hacks by Sean Eron Anderson:
 // http://graphics.stanford.edu/~seander/bithacks.html
@@ -67,7 +67,7 @@ namespace System
             return Unsafe.AddByteOffset(
                 ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
-                ((uint)((value & -value) * 0x077CB531u)) >> 27);
+                (IntPtr)(((value & -value) * 0x077CB531u) >> 27));
         }
 
         /// <summary>
