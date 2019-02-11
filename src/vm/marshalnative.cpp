@@ -549,16 +549,20 @@ void ValidatePinnedObject(OBJECTREF obj)
     COMPlusThrow(kArgumentException, IDS_EE_NOTISOMORPHIC);
 }
 
-NOINLINE static void FCDiagHandleCreated(OBJECTHANDLE handle)
+NOINLINE static OBJECTHANDLE FCDiagCreateHandle(OBJECTREF objRef, int type)
 {
+    OBJECTHANDLE hnd = NULL;
+
     FC_INNER_PROLOG(MarshalNative::GCHandleInternalAlloc);
 
     // Make the stack walkable for the profiler
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB(Frame::FRAME_ATTR_EXACT_DEPTH | Frame::FRAME_ATTR_CAPTURE_DEPTH_2);
-    DiagHandleCreated(handle, ObjectFromHandle(handle));
-    HELPER_METHOD_FRAME_END();
+    HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_NOPOLL(Frame::FRAME_ATTR_EXACT_DEPTH | Frame::FRAME_ATTR_CAPTURE_DEPTH_2);
+    hnd = GetAppDomain()->CreateTypedHandle(objRef, static_cast<HandleType>(type));
+    HELPER_METHOD_FRAME_END_POLL();
 
     FC_INNER_EPILOG();
+
+    return hnd;
 }
 
 FCIMPL2(LPVOID, MarshalNative::GCHandleInternalAlloc, Object *obj, int type)
@@ -566,32 +570,30 @@ FCIMPL2(LPVOID, MarshalNative::GCHandleInternalAlloc, Object *obj, int type)
     FCALL_CONTRACT;
 
     OBJECTREF objRef(obj);
-    OBJECTHANDLE hnd = 0;
 
     assert(type >= HNDTYPE_WEAK_SHORT && type <= HNDTYPE_WEAK_WINRT);
 
-    hnd = GetAppDomain()->GetHandleStore()->CreateHandleOfType(OBJECTREFToObject(objRef), static_cast<HandleType>(type));
+    if (CORProfilerTrackGC())
+    {
+        FC_INNER_RETURN(LPVOID, (LPVOID) FCDiagCreateHandle(objRef, type));
+    }
+
+    OBJECTHANDLE hnd = GetAppDomain()->GetHandleStore()->CreateHandleOfType(OBJECTREFToObject(objRef), static_cast<HandleType>(type));
     if (!hnd)
     {
         FCThrow(kOutOfMemoryException);
     }
-
-    if (CORProfilerTrackGC())
-    {
-        FCDiagHandleCreated(hnd);
-    }
-
     return (LPVOID) hnd;
 }
 FCIMPLEND
 
-NOINLINE static void FCDiagHandleDestroyed(OBJECTHANDLE handle)
+NOINLINE static void FCDiagDestroyHandle(OBJECTHANDLE handle)
 {
     FC_INNER_PROLOG(MarshalNative::GCHandleInternalFree);
 
     // Make the stack walkable for the profiler
     HELPER_METHOD_FRAME_BEGIN_ATTRIB(Frame::FRAME_ATTR_EXACT_DEPTH | Frame::FRAME_ATTR_CAPTURE_DEPTH_2);
-    DiagHandleDestroyed(handle);
+    DestroyTypedHandle(handle);
     HELPER_METHOD_FRAME_END();
 
     FC_INNER_EPILOG();
@@ -604,7 +606,7 @@ FCIMPL1(VOID, MarshalNative::GCHandleInternalFree, OBJECTHANDLE handle)
 
     if (CORProfilerTrackGC())
     {
-        FC_INNER_RETURN_VOID(FCDiagHandleDestroyed(handle));
+        FC_INNER_RETURN_VOID(FCDiagDestroyHandle(handle));
     }
 
     GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfUnknownType(handle);
