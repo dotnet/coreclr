@@ -12,13 +12,13 @@ namespace System.Diagnostics.Tracing
     [EventSource(Guid = "5E5BB766-BBFC-5662-0548-1D44FAD9BB56", Name = "Microsoft-Windows-DotNETRuntime")]
     internal sealed partial class NativeRuntimeEventSource : EventSource
     {
-        // The RuntimeEventSource GUID is {5e5bb766-bbfc-5662-0548-1d44fad9bb56}
+        // The NativeRuntimeEventSource GUID is {5e5bb766-bbfc-5662-0548-1d44fad9bb56}
         private NativeRuntimeEventSource() : base(new Guid(0x5e5bb766, 0xbbfc, 0x5662, 0x05, 0x48, 0x1d, 0x44, 0xfa, 0xd9, 0xbb, 0x56), "Microsoft-Windows-DotNETRuntime") { }
 
         /// <summary>
         /// Dispatch a single event with the specified event ID and payload.
         /// </summary>
-        /// <param name="eventID">The eventID corresponding to the event as defined in the auto-generated portion of the RuntimeEventSource class.</param>
+        /// <param name="eventID">The eventID corresponding to the event as defined in the auto-generated portion of the NativeRuntimeEventSource class.</param>
         /// <param name="payload">A span pointing to the data payload for the event.</param>
         [NonEvent]
         internal unsafe void ProcessEvent(uint eventID, uint osThreadID, DateTime timeStamp, Guid activityId, Guid childActivityId, ReadOnlySpan<Byte> payload)
