@@ -692,6 +692,10 @@
                 {
                     "name": "System.Drawing.Tests.IconTests.ExtractAssociatedIcon_InvalidFilePath_ThrowsArgumentException",
                     "reason": "https://github.com/dotnet/corefx/issues/34122"
+                },
+                {
+                    "name": "System.Drawing.Tests.FontTests.ToLogFont_DisposedGraphics_ThrowsArgumentException",
+                    "reason": "outdated"
                 }
             ]
         }
