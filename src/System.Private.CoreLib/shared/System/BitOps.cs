@@ -34,8 +34,6 @@ namespace System
             19, 27, 23, 06, 26, 05, 04, 31
         };
 
-        #region TrailingZeroCount
-
         /// <summary>
         /// Count the number of trailing zero bits in an integer value.
         /// Similar in behavior to the x86 instruction TZCNT.
@@ -61,7 +59,9 @@ namespace System
 
             // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
             if (value == 0u)
+            {
                 return 32;
+            }
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
@@ -96,14 +96,12 @@ namespace System
             uint lo = (uint)value;
 
             if (lo == 0)
+            {
                 return 32 + TrailingZeroCount((uint)(value >> 32));
+            }
 
             return TrailingZeroCount(lo);
         }
-
-        #endregion
-
-        #region LeadingZeroCount
 
         /// <summary>
         /// Count the number of leading zero bits in a mask.
@@ -120,8 +118,10 @@ namespace System
             }
 
             // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
-            if (value == 0u)
+            if (value == 0)
+            {
                 return 32;
+            }
 
             return 31 - Log2(value);
         }
@@ -143,14 +143,12 @@ namespace System
             uint hi = (uint)(value >> 32);
 
             if (hi == 0)
+            {
                 return 32 + LeadingZeroCount((uint)value);
+            }
 
             return LeadingZeroCount(hi);
         }
-
-        #endregion
-
-        #region Log2
 
         /// <summary>
         /// Returns the integer (floor) log of the specified value, base 2.
@@ -180,15 +178,13 @@ namespace System
         {
             uint hi = (uint)(value >> 32);
 
-            if (hi != 0)
-                return 32 + Log2(hi);
+            if (hi == 0)
+            {
+                return Log2((uint)value);
+            }
 
-            return Log2((uint)value);
+            return 32 + Log2(hi);
         }
-
-        #endregion
-
-        #region Helpers
 
         /// <summary>
         /// Fills the trailing zeros in a mask with ones.
@@ -209,7 +205,5 @@ namespace System
 
             return value;
         }
-
-        #endregion
     }
 }
