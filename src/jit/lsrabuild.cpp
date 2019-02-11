@@ -1327,9 +1327,8 @@ void LinearScan::buildInternalRegisterUses()
 VARSET_VALRET_TP
 LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation currentLoc, regMaskTP fpCalleeKillSet)
 {
-    assert(enregisterLocalVars);
     VARSET_TP liveLargeVectors(VarSetOps::MakeEmpty(compiler));
-    if (!VarSetOps::IsEmpty(compiler, largeVectorVars))
+    if (enregisterLocalVars && !VarSetOps::IsEmpty(compiler, largeVectorVars))
     {
         assert((fpCalleeKillSet & RBM_FLT_CALLEE_TRASH) != RBM_NONE);
         VarSetOps::AssignNoCopy(compiler, liveLargeVectors,
@@ -1350,19 +1349,19 @@ LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation current
             tempInterval->relatedInterval = varInterval->relatedInterval;
             varInterval->relatedInterval  = tempInterval;
         }
-        // For any non-lclVar intervals that are live at this point (i.e. in the DefList), we will also create
-        // a RefTypeUpperVectorSaveDef. For now these will all be spilled at this point, as we don't currently
-        // have a mechanism to communicate any non-lclVar intervals that need to be restored.
-        // TODO-CQ: Consider reworking this as part of addressing GitHub Issues #18144 and #17481.
-        for (RefInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;
-             listNode = listNode->Next())
+    }
+    // For any non-lclVar large vector intervals that are live at this point (i.e. in the DefList), we will also
+    // create a RefTypeUpperVectorSaveDef. For now these will all be spilled at this point, as we don't currently
+    // have a mechanism to communicate any non-lclVar intervals that need to be restored.
+    // TODO-CQ: Consider reworking this as part of addressing GitHub Issues #18144 and #17481.
+    for (RefInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;
+         listNode = listNode->Next())
+    {
+        var_types treeType = listNode->treeNode->TypeGet();
+        if (varTypeIsSIMD(treeType) && varTypeNeedsPartialCalleeSave(treeType))
         {
-            var_types treeType = listNode->treeNode->TypeGet();
-            if (varTypeIsSIMD(treeType) && varTypeNeedsPartialCalleeSave(treeType))
-            {
-                RefPosition* pos = newRefPosition(listNode->ref->getInterval(), currentLoc, RefTypeUpperVectorSaveDef,
-                                                  tree, RBM_FLT_CALLEE_SAVED);
-            }
+            RefPosition* pos = newRefPosition(listNode->ref->getInterval(), currentLoc, RefTypeUpperVectorSaveDef, tree,
+                                              RBM_FLT_CALLEE_SAVED);
         }
     }
     return liveLargeVectors;
@@ -1375,6 +1374,10 @@ LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation current
 //    tree       - The current node being handled
 //    currentLoc - The location of the current node
 //    liveLargeVectors - The set of lclVars needing restores (returned by buildUpperVectorSaveRefPositions)
+//
+// Notes:
+//    We only restore the upper vectors for local variables. Any large vector tree temps
+//    are always fully spilled at a call.
 //
 void LinearScan::buildUpperVectorRestoreRefPositions(GenTree*         tree,
                                                      LsraLocation     currentLoc,
@@ -2560,13 +2563,16 @@ void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCa
     {
         buildKillPositionsForNode(tree, currentLoc + 1, killMask);
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        if (enregisterLocalVars && ((killMask & RBM_FLT_CALLEE_TRASH) != RBM_NONE))
+        if ((killMask & RBM_FLT_CALLEE_TRASH) != RBM_NONE)
         {
             // Build RefPositions for saving any live large vectors.
             // This must be done after the kills, so that we know which large vectors are still live.
             VarSetOps::AssignNoCopy(compiler, liveLargeVectors,
                                     buildUpperVectorSaveRefPositions(tree, currentLoc + 1, killMask));
-            doLargeVectorRestore = true;
+            if (enregisterLocalVars && !VarSetOps::IsEmpty(compiler, liveLargeVectors))
+            {
+                doLargeVectorRestore = true;
+            }
         }
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     }
