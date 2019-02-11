@@ -62,6 +62,9 @@ extern "C" BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserv
 // we need to capture coreclr's hInstance before the C runtime initializes. This function
 // will capture hInstance, let the C runtime initialize and then invoke the "classic"
 // DllMain that initializes everything else.
+#ifdef FEATURE_PAL
+DLLEXPORT // For Win32 PAL LoadLibrary emulation
+#endif
 extern "C" BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
     STATIC_CONTRACT_NOTHROW;
@@ -115,8 +118,10 @@ extern "C" BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpRe
     return result;
 }
 
-extern "C"
-BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
+#ifdef FEATURE_PAL
+DLLEXPORT // For Win32 PAL LoadLibrary emulation
+#endif
+extern "C" BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
     STATIC_CONTRACT_NOTHROW;
 
@@ -221,7 +226,7 @@ HINSTANCE GetModuleInst()
 // %%Function: MetaDataGetDispenser
 // This function gets the Dispenser interface given the CLSID and REFIID.
 // ---------------------------------------------------------------------------
-STDAPI MetaDataGetDispenser(            // Return HRESULT
+DLLEXPORT STDAPI MetaDataGetDispenser(            // Return HRESULT
     REFCLSID    rclsid,                 // The class to desired.
     REFIID      riid,                   // Interface wanted on class factory.
     LPVOID FAR  *ppv)                   // Return interface pointer here.
@@ -251,7 +256,7 @@ ErrExit:
 // %%Function: GetMetaDataInternalInterface
 // This function gets the IMDInternalImport given the metadata on memory.
 // ---------------------------------------------------------------------------
-STDAPI  GetMetaDataInternalInterface(
+DLLEXPORT STDAPI  GetMetaDataInternalInterface(
     LPVOID      pData,                  // [IN] in memory metadata section
     ULONG       cbData,                 // [IN] size of the metadata section
     DWORD       flags,                  // [IN] MDInternal_OpenForRead or MDInternal_OpenForENC
@@ -280,7 +285,7 @@ STDAPI  GetMetaDataInternalInterface(
 // This function gets the internal scopeless interface given the public
 // scopeless interface.
 // ---------------------------------------------------------------------------
-STDAPI  GetMetaDataInternalInterfaceFromPublic(
+DLLEXPORT STDAPI  GetMetaDataInternalInterfaceFromPublic(
     IUnknown    *pv,                    // [IN] Given interface.
     REFIID      riid,                   // [IN] desired interface
     void        **ppv)                  // [OUT] returned interface
@@ -307,7 +312,7 @@ STDAPI  GetMetaDataInternalInterfaceFromPublic(
 // This function gets the public scopeless interface given the internal
 // scopeless interface.
 // ---------------------------------------------------------------------------
-STDAPI  GetMetaDataPublicInterfaceFromInternal(
+DLLEXPORT STDAPI  GetMetaDataPublicInterfaceFromInternal(
     void        *pv,                    // [IN] Given interface.
     REFIID      riid,                   // [IN] desired interface.
     void        **ppv)                  // [OUT] returned interface
