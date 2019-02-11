@@ -111,9 +111,9 @@ jobs:
     containerName: centos7_x64_build_image
     helixQueues:
       ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-        asString: 'Ubuntu.1804.Amd64.Open'
+        asString: 'Debian.9.Amd64.Open'
         asArray:
-        - Ubuntu.1804.Amd64.Open
+        - Debian.9.Amd64.Open
       ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
         asString: 'Debian.9.Amd64.Open,Ubuntu.1604.Amd64.Open,Ubuntu.1804.Amd64.Open,Centos.7.Amd64.Open,Fedora.28.Amd64.Open,RedHat.7.Amd64.Open'
         asArray:
