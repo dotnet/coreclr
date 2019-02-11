@@ -50,20 +50,20 @@ namespace System.Diagnostics.Tracing
         public ManagedRuntimeEventSource(): base(EventSourceSettings.EtwSelfDescribingEventFormat)
         {
             // TODO: These are all returning fake stuff now
-            _totalProcessTimeCounter = new EventCounter("Total Process Time", this, () => 1);
-            _workingSetCounter = new EventCounter("Working Set", this, () => 2);
-            _virtualMemorySizeCounter = new EventCounter("Virtual Memory Size", this, () => 3);
-            _handleCountCounter = new EventCounter("Handle Count", this, () => 4);
-            _threadCountCounter = new EventCounter("Thread Count", this, () => 5);
+            _totalProcessTimeCounter = new EventCounter("Total Process Time", this);
+            _workingSetCounter = new EventCounter("Working Set", this);
+            _virtualMemorySizeCounter = new EventCounter("Virtual Memory Size", this);
+            _handleCountCounter = new EventCounter("Handle Count", this);
+            _threadCountCounter = new EventCounter("Thread Count", this);
 
             // GC counters
-            _gcTotalMemoryCounter = new EventCounter("Total Memory by GC", this, () => GC.GetTotalMemory(false));
-            _gcGen0CollectionCounter = new EventCounter("Gen 0 GC Count", this, () => GC.CollectionCount(0));
-            _gcGen1CollectionCounter = new EventCounter("Gen 1 GC Count", this, () => GC.CollectionCount(1));
-            _gcGen2CollectionCounter = new EventCounter("Gen 2 GC Count", this, () => GC.CollectionCount(2));
+            _gcTotalMemoryCounter = new EventCounter("Total Memory by GC", this);
+            _gcGen0CollectionCounter = new EventCounter("Gen 0 GC Count", this);
+            _gcGen1CollectionCounter = new EventCounter("Gen 1 GC Count", this);
+            _gcGen2CollectionCounter = new EventCounter("Gen 2 GC Count", this);
 
             // TODO: Expose a managed API for computing this
-            _exceptionCounter = new EventCounter("Exception Count", this, () => 6);
+            _exceptionCounter = new EventCounter("Exception Count", this);
             
 
             // Initialize the timer, but don't set it to run.
@@ -82,20 +82,20 @@ namespace System.Diagnostics.Tracing
         public void UpdateAllCounters()
         {
             // Process level counters
-            _totalProcessTimeCounter.UpdateMetric();
-            _workingSetCounter.UpdateMetric();
-            _virtualMemorySizeCounter.UpdateMetric();
-            _handleCountCounter.UpdateMetric();
-            _threadCountCounter.UpdateMetric();
+            _totalProcessTimeCounter.WriteMetric(1);
+            _workingSetCounter.WriteMetric(2);
+            _virtualMemorySizeCounter.WriteMetric(3);
+            _handleCountCounter.WriteMetric(4);
+            _threadCountCounter.WriteMetric(5);
 
             // GC counters
-            _gcTotalMemoryCounter.UpdateMetric();
-            _gcGen0CollectionCounter.UpdateMetric();
-            _gcGen1CollectionCounter.UpdateMetric();
-            _gcGen2CollectionCounter.UpdateMetric();
+            _gcTotalMemoryCounter.WriteMetric(GC.GetTotalMemory(false));
+            _gcGen0CollectionCounter.WriteMetric(GC.CollectionCount(0));
+            _gcGen1CollectionCounter.WriteMetric(GC.CollectionCount(1));
+            _gcGen2CollectionCounter.WriteMetric(GC.CollectionCount(2));
 
             // Exception
-            _exceptionCounter.UpdateMetric();
+            _exceptionCounter.WriteMetric(6);
         }
 
         private void PollForCounterUpdate(object state)

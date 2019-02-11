@@ -63,6 +63,7 @@ namespace System.Diagnostics.Tracing
         private Timer m_timer;
         private string m_configFilePath;
         private bool m_configFileExists;
+        private static ManagedRuntimeEventSource m_ManagedRuntimeEventSource;
 
         // Initialization flag used to avoid initializing FrameworkEventSource on the startup path.
         internal static bool Initializing { get; private set; }
@@ -90,6 +91,8 @@ namespace System.Diagnostics.Tracing
                         s_controllerInstance = new EventPipeController();
                     }
                     // If enable is explicitly set to 0, then don't start the controller (to avoid overhead).
+
+                    m_ManagedRuntimeEventSource = new ManagedRuntimeEventSource();
                 }
             }
             catch { }
