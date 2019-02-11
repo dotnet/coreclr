@@ -6739,10 +6739,6 @@ private:
     */
 
 public:
-    // Returns a "siVarLoc" instance representing the place where the variable
-    // is given its description, "baseReg", and "offset" (if needed).
-    CodeGenInterface::siVarLoc getSiVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int offset) const;
-
     /*************************************************************************/
     // Get handles
 

@@ -10610,19 +10610,7 @@ void CodeGen::genSetScopeInfo()
             endOffs++;
         }
 
-        siVarLoc varLoc;
-
-        if (scopeP->scRegister)
-        {
-            varLoc.vlType       = VLT_REG;
-            varLoc.vlReg.vlrReg = (regNumber)scopeP->u1.scRegNum;
-        }
-        else
-        {
-            varLoc.vlType           = VLT_STK;
-            varLoc.vlStk.vlsBaseReg = (regNumber)scopeP->u2.scBaseReg;
-            varLoc.vlStk.vlsOffset  = scopeP->u2.scOffset;
-        }
+        siVarLoc varLoc = scopeP->getSiVarLoc();
 
         genSetScopeInfo(i, startOffs, endOffs - startOffs, varNum, scopeP->scLVnum, true, varLoc);
     }
@@ -10646,24 +10634,8 @@ void CodeGen::genSetScopeInfo()
 
         noway_assert(scopeL->scStartLoc != scopeL->scEndLoc);
 
-        // For stack vars, find the base register, and offset
-
-        regNumber baseReg;
-        signed    offset = compiler->lvaTable[scopeL->scVarNum].lvStkOffs;
-
-        if (!compiler->lvaTable[scopeL->scVarNum].lvFramePointerBased)
-        {
-            baseReg = REG_SPBASE;
-            offset += scopeL->scStackLevel;
-        }
-        else
-        {
-            baseReg = REG_FPBASE;
-        }
-
-        // Now fill in the varLoc
         LclVarDsc* varDsc = compiler->lvaGetDesc(scopeL->scVarNum);
-        siVarLoc   varLoc = compiler->getSiVarLoc(varDsc, baseReg, offset);
+        siVarLoc   varLoc = getSiVarLoc(varDsc, scopeL);
 
         genSetScopeInfo(psiScopeCnt + i, startOffs, endOffs - startOffs, scopeL->scVarNum, scopeL->scLVnum,
                         scopeL->scAvailable, varLoc);

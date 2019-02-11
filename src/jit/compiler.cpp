@@ -11085,25 +11085,3 @@ bool Compiler::killGCRefs(GenTree* tree)
     }
     return false;
 }
-
-//------------------------------------------------------------------------
-// getSiVarLoc: Returns a "siVarLoc" instance representing the place where the variable
-// is given its description, "baseReg", and "offset" (if needed).
-//
-// Arguments:
-//    varDsc    - a "LclVarDsc *" to the variable it is desired to build the "siVarLoc".
-//    baseReg   - a "regNumber" use as a base for the offset.
-//    offset    - a signed amount of bytes distance from "baseReg" for the position of the variable.
-//
-// Return Value:
-//    A "siVarLoc" filled with the correct case struct fields for the variable, which could live
-//    in a register, an stack position, or a combination of both.
-//
-// Notes:
-//    The "baseReg" and "offset" cannot be obtained from "varDsc".
-//    It calls "fillRegisterVarLoc" or "fillStackVarLoc" depending on if the "varDsc" argument.
-//    "lvIsInReg", so their notes and assumptions are held.
-CodeGenInterface::siVarLoc Compiler::getSiVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int offset) const
-{
-    return CodeGenInterface::siVarLoc(varDsc, baseReg, offset, isFramePointerUsed());
-}
