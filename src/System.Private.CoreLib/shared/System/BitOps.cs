@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 
-using Internal.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices; // Unsafe.AddByteOffset
 
 // Some routines inspired by the Stanford Bit Twiddling Hacks by Sean Eron Anderson:
 // http://graphics.stanford.edu/~seander/bithacks.html
@@ -49,7 +49,7 @@ namespace System
                 return (int)Bmi1.TrailingZeroCount(value);
             }
 
-            // Main code has behavior 0->0, so special-case in order to match intrinsic path 0->32
+            // Software fallback has behavior 0->0, so special-case in order to match intrinsic path 0->32
             if (value == 0u)
                 return 32;
 
@@ -127,5 +127,62 @@ namespace System
 
             return (int)count;
         }
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(long value)
+            => PopCount((ulong)value);
+
+        /// <summary>
+        /// Rotates the specified value right by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROR.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint RotateRight(uint value, int offset)
+            => (value >> offset) | (value << (32 - offset));
+
+        /// <summary>
+        /// Rotates the specified value right by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROR.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int RotateRight(int value, int offset)
+            => unchecked((int)RotateRight((uint)value, offset));
+
+        /// <summary>
+        /// Rotates the specified value left by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROL.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint RotateLeft(uint value, int offset)
+            => (value << offset) | (value >> (32 - offset));
+
+        /// <summary>
+        /// Rotates the specified value left by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROL.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int RotateLeft(int value, int offset)
+            => unchecked((int)RotateLeft((uint)value, offset));
     }
 }
