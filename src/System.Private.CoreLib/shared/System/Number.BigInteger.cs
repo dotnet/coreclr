@@ -560,7 +560,7 @@ namespace System
                     uint divLo = rhs._blocks[rhsLength - 2];
 
                     // We measure the leading zeros of the divisor
-                    int shiftLeft = (int)(LeadingZeroCount(divHi));
+                    int shiftLeft = BitOps.LeadingZeroCount(divHi);
                     int shiftRight = 32 - shiftLeft;
 
                     // And, we make sure the most significant bit is set
@@ -742,16 +742,6 @@ namespace System
                 }
 
                 return quotient;
-            }
-
-            public static uint LeadingZeroCount(uint value)
-            {
-                return (uint)BitOps.LeadingZeroCount(value);
-            }
-
-            public static uint LeadingZeroCount(ulong value)
-            {
-                return (uint)BitOps.LeadingZeroCount(value);
             }
 
             public static uint LogBase2(uint value)

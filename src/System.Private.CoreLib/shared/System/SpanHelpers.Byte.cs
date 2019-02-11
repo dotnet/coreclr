@@ -1576,16 +1576,32 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundByte(ulong match)
         {
-            // TODO: Arm variants
-            return BitOps.TrailingZeroCount(match) >> 3;
+            if (Bmi1.X64.IsSupported)
+            {
+                return (int)(Bmi1.X64.TrailingZeroCount(match) >> 3);
+            }
+            else
+            {
+                // Flag least significant power of two bit
+                var powerOfTwoFlag = match ^ (match - 1);
+                // Shift all powers of two into the high byte and extract
+                return (int)((powerOfTwoFlag * XorPowerOfTwoToHighByte) >> 57);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateLastFoundByte(ulong match)
         {
-            // TODO: Arm variants
             return 7 - (BitOps.LeadingZeroCount(match) >> 3);
         }
+
+        private const ulong XorPowerOfTwoToHighByte = (0x07ul |
+                                                       0x06ul << 8 |
+                                                       0x05ul << 16 |
+                                                       0x04ul << 24 |
+                                                       0x03ul << 32 |
+                                                       0x02ul << 40 |
+                                                       0x01ul << 48) + 1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe UIntPtr LoadUIntPtr(ref byte start, IntPtr offset)
