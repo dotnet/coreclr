@@ -55,9 +55,77 @@ namespace System
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
-                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn), 
+                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
-                ((uint)((value & -value) * 0x077CB531u)) >> 27);
+                (IntPtr)(((value & -value) * 0x077CB531u) >> 27));
+        }
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(uint value)
+        {
+            if (Popcnt.IsSupported)
+            {
+                return (int)Popcnt.PopCount(value);
+            }
+
+            uint count = value;
+
+            count -= (count >> 1) & 0x_5555_5555;
+            count = (count & 0x_3333_3333) 
+                + ((count >> 2) & 0x_3333_3333);
+            count = (count + (count >> 4)) & 0x_0F0F_0F0F;
+            count *= 0x_0101_0101;
+            count >>= 24;
+
+            return (int)count;
+        }
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(int value)
+            => PopCount((uint)value);
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(ulong value)
+        {
+            if (Popcnt.IsSupported)
+            {
+                if (Popcnt.X64.IsSupported)
+                {
+                    return (int)Popcnt.X64.PopCount(value);
+                }
+
+                // Use the 32-bit function twice
+                uint pc = Popcnt.PopCount((uint)value)
+                        + Popcnt.PopCount((uint)(value >> 32));
+
+                return (int)pc;
+            }
+
+            ulong count = value;
+
+            count -= (value >> 1) & 0x_5555_5555_5555_5555;
+            count = (count & 0x_3333_3333_3333_3333) 
+                + ((count >> 2) & 0x_3333_3333_3333_3333);
+            count = (count + (count >> 4)) & 0x_0F0F_0F0F_0F0F_0F0F;
+            count *= 0x_0101_0101_0101_0101;
+            count >>= 56;
+
+            return (int)count;
         }
     }
 }
