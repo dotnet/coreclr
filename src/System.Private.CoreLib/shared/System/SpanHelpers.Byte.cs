@@ -1576,7 +1576,6 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundByte(ulong match)
         {
-            // TODO: Arm variants
             if (Bmi1.X64.IsSupported)
             {
                 return (int)(Bmi1.X64.TrailingZeroCount(match) >> 3);
@@ -1593,22 +1592,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateLastFoundByte(ulong match)
         {
-            // TODO: Arm variants
-            if (Lzcnt.X64.IsSupported)
-            {
-                return 7 - (int)(Lzcnt.X64.LeadingZeroCount(match) >> 3);
-            }
-            else
-            {
-                // Find the most significant byte that has its highest bit set
-                int index = 7;
-                while ((long)match > 0)
-                {
-                    match = match << 8;
-                    index--;
-                }
-                return index;
-            }
+            return 7 - (BitOps.LeadingZeroCount(match) >> 3);
         }
 
         private const ulong XorPowerOfTwoToHighByte = (0x07ul |
