@@ -249,6 +249,9 @@ namespace System
             return (int)value;
         }
 
+        // RyuJIT optimizes this to use the ROL instruction
+        // https://github.com/dotnet/coreclr/pull/1830
+
         /// <summary>
         /// Returns the population count (number of bits set) of a mask.
         /// Similar in behavior to the x86 instruction POPCNT.
