@@ -8,9 +8,9 @@
     <UsingToolXliff>false</UsingToolXliff>
     <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
     <MicrosoftNetFrameworkReferenceAssembliesVersion>1.0.0-alpha-004</MicrosoftNetFrameworkReferenceAssembliesVersion>
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview.19106.8</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>3.0.0-preview.19106.8</MicrosoftNETCorePlatformsVersion>
-    <MicrosoftNETCoreAppVersion>3.0.0-preview-27406-8</MicrosoftNETCoreAppVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview.19111.7</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>3.0.0-preview.19111.7</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftNETCoreAppVersion>3.0.0-preview-27411-7</MicrosoftNETCoreAppVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>
