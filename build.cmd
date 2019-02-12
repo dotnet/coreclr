@@ -1059,3 +1059,4 @@ echo Visual Studio Express does not include the DIA SDK. ^
 You need Visual Studio 2017 or 2019 (Community is free).
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1
+
