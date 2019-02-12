@@ -17,10 +17,10 @@ namespace System.Diagnostics.Tracing
 {
 #if FEATURE_PERFTRACING
     /// <summary>
-    /// ManagedRuntimeEventSource is an EventSource that represents events emitted by the managed runtime.
+    /// RuntimeEventSource is an EventSource that represents events emitted by the managed runtime.
     /// </summary>
     [EventSource(Name = "System.Runtime")]
-    internal sealed class ManagedRuntimeEventSource : EventSource
+    internal sealed class RuntimeEventSource : EventSource
     {
         // Process-level EventCounters
         private EventCounter _totalProcessTimeCounter;
@@ -42,12 +42,9 @@ namespace System.Diagnostics.Tracing
 
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
 
-        // Defines the singleton instance for the Resources ETW provider
-        internal static ManagedRuntimeEventSource Log = new ManagedRuntimeEventSource();
-
         // Threads
         // TODO
-        public ManagedRuntimeEventSource(): base(EventSourceSettings.EtwSelfDescribingEventFormat)
+        public RuntimeEventSource(): base(EventSourceSettings.EtwSelfDescribingEventFormat)
         {
             // TODO: These are all returning fake stuff now
             _totalProcessTimeCounter = new EventCounter("Total Process Time", this);
