@@ -2289,22 +2289,23 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     genSetScopeInfo();
 
+
     if (compiler->verbose)
     {
-        // Printing information of variable change lifetime
-        JITDUMP("PRINTING REGISTER LIVE RANGES");
         unsigned   varNum;
         LclVarDsc* varDsc;
-        bool hasDumpedHistory = false;
+        // Printing information of variable change lifetime
+        JITDUMP("\n\n\n////////////////////////////////////////\n");
+        JITDUMP("////////////////////////////////////////\n\n\n");
+        JITDUMP("PRINTING REGISTER LIVE RANGES:\n");
         for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
         {
-            if (varDsc->hasBeenAlive())
-            {
-                JITDUMP("Var %d:\n", varNum);
-                varDsc->dumpAllRegisterLiveRangesForBlock(getEmitter());
-                varDsc->endBlockLiveRanges();
-            }
+            JITDUMP("Var %d:\n", varNum);
+            varDsc->dumpAllRegisterLiveRangesForBlock(getEmitter());
+            varDsc->destructRegisterLiveRanges();
         }
+        JITDUMP("\n\n\n////////////////////////////////////////\n");
+        JITDUMP("////////////////////////////////////////\n\n\n");
     }
     
 #ifdef LATE_DISASM

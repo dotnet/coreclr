@@ -325,7 +325,7 @@ public:
         {
             printf("NON_CLOSED_RANGE");
         }
-        printf(" );");
+        printf(" ]; ");
     }
 
     void dump(emitter *_emitter)
@@ -334,7 +334,11 @@ public:
         // this could be a non closed range so endEmitLocation could be a non valid emit Location
         // live -1 in case of not being defined
         UNATIVE_OFFSET endAssemblyOffset = endEmitLocation.Valid() ? endEmitLocation.CodeOffset(_emitter) : -1;
-        printf("%s [%d, %d) ", getRegName(registerNumber), startEmitLocation.CodeOffset(_emitter), endEmitLocation.CodeOffset(_emitter));;
+        printf("%s [%X-", getRegName(registerNumber), startEmitLocation.CodeOffset(_emitter));
+        startEmitLocation.Print();
+        printf(", %X-", endEmitLocation.CodeOffset(_emitter));
+        endEmitLocation.Print();
+        printf("] ");
     }
 };
 
@@ -350,14 +354,15 @@ struct LiveRangeBarrier
     {
         haveReadAtLeastOneOfBlock = false;
         beginLastBlock = list->end();
-    }
-        
+    }   
 
     void reset(LiveRangeList *list)
     {
+        noway_assert(haveReadAtLeastOneOfBlock);
         if (list->back().endEmitLocation.Valid())
         {
             // This live range has ended
+            // "beginLastBlock" will be updated on next call to "LclVarDsc::startLiveRangeFromEmitter"
             haveReadAtLeastOneOfBlock = false;
         }
         else
@@ -370,8 +375,6 @@ struct LiveRangeBarrier
         }
     }
 };
-
-//typedef JitHashTable<BasicBlock*, JitPtrKeyFuncs<BasicBlock>, VariableHomeList*> BasicBlockVariableHistory;
 
 class LclVarDsc
 {
@@ -395,18 +398,23 @@ public:
     {
     }
 
-    LiveRangeList *variableLiveRanges;
-    LiveRangeBarrier *variableLifeBarrier;
-    emitLocation lastBlockInitOffset;
+    LiveRangeList*    variableLiveRanges;
+    LiveRangeBarrier* variableLifeBarrier;
 
     // Initialize an empty list and a barrier pointing to its end
-    void initializeRegisterLiveRanges(CompAllocator allocator, emitter *_emitter) 
+    void initializeRegisterLiveRanges(CompAllocator allocator, emitter* _emitter)
     {
         variableLiveRanges = new LiveRangeList(allocator);
 
         variableLifeBarrier = new LiveRangeBarrier(variableLiveRanges);
+    }
 
-        lastBlockInitOffset.CaptureLocation(_emitter);
+    void destructRegisterLiveRanges()
+    {
+        delete variableLifeBarrier;
+        variableLifeBarrier = nullptr;
+        delete variableLiveRanges;
+        variableLiveRanges = nullptr;
     }
 
     // Modified the barrier to print on next block only just that changes
@@ -427,7 +435,8 @@ public:
         if (variableLifeBarrier->haveReadAtLeastOneOfBlock)
         {
             printf("[");
-            for (LiveRangeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end(); it++)
+            for (LiveRangeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end();
+                it++)
             {
                 it->dump();
             }
@@ -439,7 +448,7 @@ public:
         }
     }
 
-    void dumpAllRegisterLiveRangesForBlock(emitter *_emitter) const
+    void dumpAllRegisterLiveRangesForBlock(emitter* _emitter) const
     {
         if (variableLiveRanges->empty())
         {
@@ -456,10 +465,13 @@ public:
         }
     }
 
-    void endLiveRangeAtEmitter(emitter *_emitter) const
+    void endLiveRangeAtEmitter(emitter* _emitter) const
     {
         // There should some history for this var in this block
         noway_assert(hasBeenAlive());
+
+        // The last "LiveRange" hasn't been closed
+        noway_assert(variableLiveRanges->empty() || !variableLiveRanges->back().endEmitLocation.Valid());
 
         // Using [close, open) ranges so as to not compute the size of the last instruction
         variableLiveRanges->back().endEmitLocation.CaptureLocation(_emitter);
@@ -472,28 +484,34 @@ public:
         variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
         variableLifeBarrier->beginLastBlock = variableLiveRanges->backPosition();
     }
-    
+
     /*
-    *   Creates a new live range from in the given regsiterNumber from the assembly native offset of the emitter
-    */
-    void startLiveRangeFromEmitter(regNumber registerNumber, emitter *_emitter) const
+     *   Creates a new live range from in the given regsiterNumber from the assembly native offset of the emitter
+     */
+    void startLiveRangeFromEmitter(regNumber registerNumber, emitter* _emitter) const
     {
+        // Note: This assert is been hitting because are variables that became dead and started in the same block.
+        // Is this a bug in the LSRA?
+
         // Nothing should has been pushed before
-        noway_assert(!hasBeenAlive());
+        // noway_assert(!hasBeenAlive());
+
+        // Is the first "LiveRange" or the previous one has been closed
+        noway_assert(variableLiveRanges->empty() || variableLiveRanges->back().endEmitLocation.Valid());
 
         // Creates new live range with invalid end
-        variableLiveRanges->emplace_back(registerNumber, lastBlockInitOffset, emitLocation());
+        variableLiveRanges->emplace_back(registerNumber, emitLocation(), emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
 
         // Restart barrier so we can print from here
         setBarrierAtLastPositionInRegisterHistory();
     }
 
-    void UpdateRegisterHome(regNumber registerNumber, emitter *_emitter ) const
+    void UpdateRegisterHome(regNumber registerNumber, emitter* _emitter) const
     {
         // This variable is changing home so it has been started before during this block
         noway_assert(hasBeenAlive());
-        
+
         // If we are reporting again the same home, that means we are doing something twice?
         noway_assert(variableLiveRanges->back().registerNumber != registerNumber);
 
@@ -501,7 +519,7 @@ public:
         endLiveRangeAtEmitter(_emitter);
 
         // Open new live range with invalid end
-        variableLiveRanges->emplace_back(registerNumber, lastBlockInitOffset, emitLocation());
+        variableLiveRanges->emplace_back(registerNumber, emitLocation(), emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
     }
 

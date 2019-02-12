@@ -721,8 +721,17 @@ void CodeGen::genCodeForBBlist()
 
 #ifdef DEBUG
         bool hasDumpedHistory = false;
-        JITDUMP("Var History Dump for Block %d \n", blockNum);
 #endif
+        if (compiler->verbose)
+        {
+            JITDUMP("////////////////////////////////////////\n");
+            JITDUMP("////////////////////////////////////////\n");
+            JITDUMP("Var History Dump for Block %d \n", block->bbNum);
+        }
+
+        unsigned   varNum;
+        LclVarDsc* varDsc;
+
         for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
         {
             if (varDsc->hasBeenAlive())
@@ -741,9 +750,14 @@ void CodeGen::genCodeForBBlist()
         {
             JITDUMP("..None..\n");
         }
-        JITDUMP("End Generating code for Block %d \n", blockNum);
         compiler->compCurBB = nullptr;
 #endif
+        if (compiler->verbose)
+        {
+            JITDUMP("////////////////////////////////////////\n");
+            JITDUMP("////////////////////////////////////////\n");
+            JITDUMP("End Generating code for Block %d \n", block->bbNum);
+        }
 
     } //------------------ END-FOR each block of the method -------------------
 
