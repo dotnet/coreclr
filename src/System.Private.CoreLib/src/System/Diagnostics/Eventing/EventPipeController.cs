@@ -92,7 +92,7 @@ namespace System.Diagnostics.Tracing
                     }
                     // If enable is explicitly set to 0, then don't start the controller (to avoid overhead).
 
-                    m_ManagedRuntimeEventSource = new ManagedRuntimeEventSource();
+                    m_RuntimeEventSource = new RuntimeEventSource();
                 }
             }
             catch { }

@@ -44,36 +44,69 @@ namespace System.Diagnostics.Tracing
 
         // Threads
         // TODO
+
+        
         public RuntimeEventSource(): base(EventSourceSettings.EtwSelfDescribingEventFormat)
         {
-            // TODO: These are all returning fake stuff now
-            _totalProcessTimeCounter = new EventCounter("Total Process Time", this);
-            _workingSetCounter = new EventCounter("Working Set", this);
-            _virtualMemorySizeCounter = new EventCounter("Virtual Memory Size", this);
-            _handleCountCounter = new EventCounter("Handle Count", this);
-            _threadCountCounter = new EventCounter("Thread Count", this);
 
-            // GC counters
-            _gcTotalMemoryCounter = new EventCounter("Total Memory by GC", this);
-            _gcGen0CollectionCounter = new EventCounter("Gen 0 GC Count", this);
-            _gcGen1CollectionCounter = new EventCounter("Gen 1 GC Count", this);
-            _gcGen2CollectionCounter = new EventCounter("Gen 2 GC Count", this);
+        }
 
-            // TODO: Expose a managed API for computing this
-            _exceptionCounter = new EventCounter("Exception Count", this);
-            
+        protected override void OnEventCommand(System.Diagnostics.Tracing.EventCommandEventArgs command)
+        {
+            if (command.Command == EventCommand.Enable)
+            {
+                // TODO: These are all returning fake stuff now
+                _totalProcessTimeCounter = new EventCounter("Total Process Time", this);
+                _workingSetCounter = new EventCounter("Working Set", this);
+                _virtualMemorySizeCounter = new EventCounter("Virtual Memory Size", this);
+                _handleCountCounter = new EventCounter("Handle Count", this);
+                _threadCountCounter = new EventCounter("Thread Count", this);
 
-            // Initialize the timer, but don't set it to run.
-            // The timer will be set to run each time PollForTracingCommand is called.
-            m_timer = new Timer(
-                callback: new TimerCallback(PollForCounterUpdate),
-                state: null,
-                dueTime: Timeout.Infinite,
-                period: Timeout.Infinite,
-                flowExecutionContext: false);
+                // GC counters
+                _gcTotalMemoryCounter = new EventCounter("Total Memory by GC", this);
+                _gcGen0CollectionCounter = new EventCounter("Gen 0 GC Count", this);
+                _gcGen1CollectionCounter = new EventCounter("Gen 1 GC Count", this);
+                _gcGen2CollectionCounter = new EventCounter("Gen 2 GC Count", this);
 
-            // Trigger the first poll operation on the start-up path.
-            PollForCounterUpdate(null);
+                // TODO: Expose a managed API for computing this
+                _exceptionCounter = new EventCounter("Exception Count", this);
+                
+
+                // Initialize the timer, but don't set it to run.
+                // The timer will be set to run each time PollForTracingCommand is called.
+                m_timer = new Timer(
+                    callback: new TimerCallback(PollForCounterUpdate),
+                    state: null,
+                    dueTime: Timeout.Infinite,
+                    period: Timeout.Infinite,
+                    flowExecutionContext: false);
+
+                // Trigger the first poll operation on the start-up path.
+                PollForCounterUpdate(null);
+            }
+            else if (command.Command == EventCommand.Disable)
+            {
+                // Dispose counters when perfcounters are disabled
+
+                _totalProcessTimeCounter.Dispose();
+                _workingSetCounter.Dispose();
+                _virtualMemorySizeCounter.Dispose();
+                _handleCountCounter.Dispose();
+                _threadCountCounter.Dispose();
+
+                _gcTotalMemoryCounter.Dispose();
+                _gcGen0CollectionCounter.Dispose();
+                _gcGen1CollectionCounter.Dispose();
+                _gcGen2CollectionCounter.Dispose();
+
+                _exceptionCounter.Dispose();
+
+                if (m_timer != null)
+                {
+                    m_timer.Dispose();
+                    m_timer = null;
+                }
+            }
         }
 
         public void UpdateAllCounters()
