@@ -3698,9 +3698,10 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
     ContainCheckStoreIndir(storeGCState->AsIndir());
 
     // Indicate that codegen has switched this thread to preemptive GC.
-    // This doesn't generate any code, but impacts LSRA and gc reporting
+    // This tree node doesn't generate any code, but impacts LSRA and gc reporting.
+    // This tree node is simple so doesn't require sequencing.
     GenTree* preemptiveGCNode = new (comp, GT_START_PREEMPTGC) GenTree(GT_START_PREEMPTGC, TYP_VOID);
-    BlockRange().InsertBefore(insertBefore, LIR::SeqTree(comp, preemptiveGCNode));
+    BlockRange().InsertBefore(insertBefore, preemptiveGCNode);
 }
 
 //------------------------------------------------------------------------
