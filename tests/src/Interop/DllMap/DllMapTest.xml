@@ -1,0 +1,3 @@
+<configuration>
+    <dllmap  dll="OldLib" target="NewLib"/>
+</configuration>
