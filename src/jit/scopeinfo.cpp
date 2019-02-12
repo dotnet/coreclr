@@ -214,7 +214,7 @@ CodeGenInterface::siVarLoc CodeGen::getSiVarLoc(const LclVarDsc* varDsc, const s
 }
 
 //------------------------------------------------------------------------
-// fillStackVarLoc: Fill "siVarLoc" struct indicating the stack position of the variable
+// siFillStackVarLoc: Fill "siVarLoc" struct indicating the stack position of the variable
 // using "LclVarDsc" and "baseReg"/"offset".
 //
 // Arguments:
@@ -298,7 +298,7 @@ void CodeGenInterface::siVarLoc::siFillStackVarLoc(
 }
 
 //------------------------------------------------------------------------
-// fillRegisterVarLoc: Fill "siVarLoc" struct indicating the register position of the variable
+// siFillRegisterVarLoc: Fill "siVarLoc" struct indicating the register position of the variable
 // using "LclVarDsc" and "baseReg"/"offset" if it has a part in the stack (x64 bit float or long).
 //
 // Arguments:
