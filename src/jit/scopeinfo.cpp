@@ -58,22 +58,22 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "emit.h"
 #include "codegen.h"
 
-bool Compiler::siVarLoc::vlIsInReg(regNumber reg)
+bool CodeGenInterface::siVarLoc::vlIsInReg(regNumber reg)
 {
     switch (vlType)
     {
-        case VLT_REG:
+        case CodeGenInterface::VLT_REG:
             return (vlReg.vlrReg == reg);
-        case VLT_REG_REG:
+        case CodeGenInterface::VLT_REG_REG:
             return ((vlRegReg.vlrrReg1 == reg) || (vlRegReg.vlrrReg2 == reg));
-        case VLT_REG_STK:
+        case CodeGenInterface::VLT_REG_STK:
             return (vlRegStk.vlrsReg == reg);
-        case VLT_STK_REG:
+        case CodeGenInterface::VLT_STK_REG:
             return (vlStkReg.vlsrReg == reg);
 
-        case VLT_STK:
-        case VLT_STK2:
-        case VLT_FPSTK:
+        case CodeGenInterface::VLT_STK:
+        case CodeGenInterface::VLT_STK2:
+        case CodeGenInterface::VLT_FPSTK:
             return false;
 
         default:
@@ -82,35 +82,35 @@ bool Compiler::siVarLoc::vlIsInReg(regNumber reg)
     }
 }
 
-bool Compiler::siVarLoc::vlIsOnStk(regNumber reg, signed offset)
+bool CodeGenInterface::siVarLoc::vlIsOnStk(regNumber reg, signed offset)
 {
     regNumber actualReg;
 
     switch (vlType)
     {
 
-        case VLT_REG_STK:
+        case CodeGenInterface::VLT_REG_STK:
             actualReg = vlRegStk.vlrsStk.vlrssBaseReg;
             if ((int)actualReg == (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
             {
                 actualReg = REG_SPBASE;
             }
             return ((actualReg == reg) && (vlRegStk.vlrsStk.vlrssOffset == offset));
-        case VLT_STK_REG:
+        case CodeGenInterface::VLT_STK_REG:
             actualReg = vlStkReg.vlsrStk.vlsrsBaseReg;
             if ((int)actualReg == (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
             {
                 actualReg = REG_SPBASE;
             }
             return ((actualReg == reg) && (vlStkReg.vlsrStk.vlsrsOffset == offset));
-        case VLT_STK:
+        case CodeGenInterface::VLT_STK:
             actualReg = vlStk.vlsBaseReg;
             if ((int)actualReg == (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
             {
                 actualReg = REG_SPBASE;
             }
             return ((actualReg == reg) && (vlStk.vlsOffset == offset));
-        case VLT_STK2:
+        case CodeGenInterface::VLT_STK2:
             actualReg = vlStk2.vls2BaseReg;
             if ((int)actualReg == (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
             {
@@ -118,10 +118,10 @@ bool Compiler::siVarLoc::vlIsOnStk(regNumber reg, signed offset)
             }
             return ((actualReg == reg) && ((vlStk2.vls2Offset == offset) || (vlStk2.vls2Offset == (offset - 4))));
 
-        case VLT_REG:
-        case VLT_REG_FP:
-        case VLT_REG_REG:
-        case VLT_FPSTK:
+        case CodeGenInterface::VLT_REG:
+        case CodeGenInterface::VLT_REG_FP:
+        case CodeGenInterface::VLT_REG_REG:
+        case CodeGenInterface::VLT_FPSTK:
             return false;
 
         default:
@@ -349,23 +349,23 @@ void CodeGen::siInit()
     assert((unsigned)ICorDebugInfo::REGNUM_EDI == REG_EDI);
 #endif
 
-    assert((unsigned)ICorDebugInfo::VLT_REG == Compiler::VLT_REG);
-    assert((unsigned)ICorDebugInfo::VLT_STK == Compiler::VLT_STK);
-    assert((unsigned)ICorDebugInfo::VLT_REG_REG == Compiler::VLT_REG_REG);
-    assert((unsigned)ICorDebugInfo::VLT_REG_STK == Compiler::VLT_REG_STK);
-    assert((unsigned)ICorDebugInfo::VLT_STK_REG == Compiler::VLT_STK_REG);
-    assert((unsigned)ICorDebugInfo::VLT_STK2 == Compiler::VLT_STK2);
-    assert((unsigned)ICorDebugInfo::VLT_FPSTK == Compiler::VLT_FPSTK);
-    assert((unsigned)ICorDebugInfo::VLT_FIXED_VA == Compiler::VLT_FIXED_VA);
-    assert((unsigned)ICorDebugInfo::VLT_COUNT == Compiler::VLT_COUNT);
-    assert((unsigned)ICorDebugInfo::VLT_INVALID == Compiler::VLT_INVALID);
+    assert((unsigned)ICorDebugInfo::VLT_REG == CodeGenInterface::VLT_REG);
+    assert((unsigned)ICorDebugInfo::VLT_STK == CodeGenInterface::VLT_STK);
+    assert((unsigned)ICorDebugInfo::VLT_REG_REG == CodeGenInterface::VLT_REG_REG);
+    assert((unsigned)ICorDebugInfo::VLT_REG_STK == CodeGenInterface::VLT_REG_STK);
+    assert((unsigned)ICorDebugInfo::VLT_STK_REG == CodeGenInterface::VLT_STK_REG);
+    assert((unsigned)ICorDebugInfo::VLT_STK2 == CodeGenInterface::VLT_STK2);
+    assert((unsigned)ICorDebugInfo::VLT_FPSTK == CodeGenInterface::VLT_FPSTK);
+    assert((unsigned)ICorDebugInfo::VLT_FIXED_VA == CodeGenInterface::VLT_FIXED_VA);
+    assert((unsigned)ICorDebugInfo::VLT_COUNT == CodeGenInterface::VLT_COUNT);
+    assert((unsigned)ICorDebugInfo::VLT_INVALID == CodeGenInterface::VLT_INVALID);
 
     /* ICorDebugInfo::VarLoc and siVarLoc should overlap exactly as we cast
      * one to the other in eeSetLVinfo()
      * Below is a "required but not sufficient" condition
      */
 
-    assert(sizeof(ICorDebugInfo::VarLoc) == sizeof(Compiler::siVarLoc));
+    assert(sizeof(ICorDebugInfo::VarLoc) == sizeof(CodeGenInterface::siVarLoc));
 
     assert(compiler->opts.compScopeInfo);
 

@@ -548,13 +548,13 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     //-------------------------------------------------------------------------
     // scope info for the variables
 
-    void genSetScopeInfo(unsigned            which,
-                         UNATIVE_OFFSET      startOffs,
-                         UNATIVE_OFFSET      length,
-                         unsigned            varNum,
-                         unsigned            LVnum,
-                         bool                avail,
-                         Compiler::siVarLoc& loc);
+    void genSetScopeInfo(unsigned       which,
+                         UNATIVE_OFFSET startOffs,
+                         UNATIVE_OFFSET length,
+                         unsigned       varNum,
+                         unsigned       LVnum,
+                         bool           avail,
+                         siVarLoc&      loc);
 
     void genSetScopeInfo();
 
@@ -749,13 +749,13 @@ protected:
 
     struct TrnslLocalVarInfo
     {
-        unsigned           tlviVarNum;
-        unsigned           tlviLVnum;
-        VarName            tlviName;
-        UNATIVE_OFFSET     tlviStartPC;
-        size_t             tlviLength;
-        bool               tlviAvailable;
-        Compiler::siVarLoc tlviVarLoc;
+        unsigned       tlviVarNum;
+        unsigned       tlviLVnum;
+        VarName        tlviName;
+        UNATIVE_OFFSET tlviStartPC;
+        size_t         tlviLength;
+        bool           tlviAvailable;
+        siVarLoc       tlviVarLoc;
     };
 
     // Array of scopes of LocalVars in terms of native code

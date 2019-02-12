@@ -10610,16 +10610,16 @@ void CodeGen::genSetScopeInfo()
             endOffs++;
         }
 
-        Compiler::siVarLoc varLoc;
+        CodeGenInterface::siVarLoc varLoc;
 
         if (scopeP->scRegister)
         {
-            varLoc.vlType       = Compiler::VLT_REG;
+            varLoc.vlType       = VLT_REG;
             varLoc.vlReg.vlrReg = (regNumber)scopeP->u1.scRegNum;
         }
         else
         {
-            varLoc.vlType           = Compiler::VLT_STK;
+            varLoc.vlType           = VLT_STK;
             varLoc.vlStk.vlsBaseReg = (regNumber)scopeP->u2.scBaseReg;
             varLoc.vlStk.vlsOffset  = scopeP->u2.scOffset;
         }
@@ -10663,7 +10663,7 @@ void CodeGen::genSetScopeInfo()
 
         // Now fill in the varLoc
 
-        Compiler::siVarLoc varLoc;
+        CodeGenInterface::siVarLoc varLoc;
 
         // TODO-Review: This only works for always-enregistered variables. With LSRA, a variable might be in a register
         // for part of its lifetime, or in different registers for different parts of its lifetime.
@@ -10681,7 +10681,7 @@ void CodeGen::genSetScopeInfo()
                 case TYP_LONG:
 #endif // _TARGET_64BIT_
 
-                    varLoc.vlType       = Compiler::VLT_REG;
+                    varLoc.vlType       = VLT_REG;
                     varLoc.vlReg.vlrReg = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
                     break;
 
@@ -10693,13 +10693,13 @@ void CodeGen::genSetScopeInfo()
 
                     if (compiler->lvaTable[scopeL->scVarNum].lvOtherReg != REG_STK)
                     {
-                        varLoc.vlType            = Compiler::VLT_REG_REG;
+                        varLoc.vlType            = VLT_REG_REG;
                         varLoc.vlRegReg.vlrrReg1 = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
                         varLoc.vlRegReg.vlrrReg2 = compiler->lvaTable[scopeL->scVarNum].lvOtherReg;
                     }
                     else
                     {
-                        varLoc.vlType                        = Compiler::VLT_REG_STK;
+                        varLoc.vlType                        = VLT_REG_STK;
                         varLoc.vlRegStk.vlrsReg              = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
                         varLoc.vlRegStk.vlrsStk.vlrssBaseReg = baseReg;
                         if (!isFramePointerUsed() && varLoc.vlRegStk.vlrsStk.vlrssBaseReg == REG_SPBASE)
@@ -10717,7 +10717,7 @@ void CodeGen::genSetScopeInfo()
                 case TYP_DOUBLE:
                     // TODO-AMD64-Bug: ndp\clr\src\inc\corinfo.h has a definition of RegNum that only goes up to R15,
                     // so no XMM registers can get debug information.
-                    varLoc.vlType       = Compiler::VLT_REG_FP;
+                    varLoc.vlType       = VLT_REG_FP;
                     varLoc.vlReg.vlrReg = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
                     break;
 
@@ -10728,7 +10728,7 @@ void CodeGen::genSetScopeInfo()
                 case TYP_DOUBLE:
                     if (isFloatRegType(type))
                     {
-                        varLoc.vlType         = Compiler::VLT_FPSTK;
+                        varLoc.vlType         = VLT_FPSTK;
                         varLoc.vlFPstk.vlfReg = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
                     }
                     break;
@@ -10741,7 +10741,7 @@ void CodeGen::genSetScopeInfo()
                 case TYP_SIMD12:
                 case TYP_SIMD16:
                 case TYP_SIMD32:
-                    varLoc.vlType = Compiler::VLT_REG_FP;
+                    varLoc.vlType = VLT_REG_FP;
 
                     // TODO-AMD64-Bug: ndp\clr\src\inc\corinfo.h has a definition of RegNum that only goes up to R15,
                     // so no XMM registers can get debug information.
@@ -10791,12 +10791,12 @@ void CodeGen::genSetScopeInfo()
                     if (varDsc->lvType == TYP_BYREF && varDsc->lvIsTemp)
                     {
                         assert(varDsc->lvIsParam);
-                        varLoc.vlType = Compiler::VLT_STK_BYREF;
+                        varLoc.vlType = VLT_STK_BYREF;
                     }
                     else
 #endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
                     {
-                        varLoc.vlType = Compiler::VLT_STK;
+                        varLoc.vlType = VLT_STK;
                     }
                     varLoc.vlStk.vlsBaseReg = baseReg;
                     varLoc.vlStk.vlsOffset  = offset;
@@ -10809,7 +10809,7 @@ void CodeGen::genSetScopeInfo()
 #ifndef _TARGET_64BIT_
                 case TYP_LONG:
                 case TYP_DOUBLE:
-                    varLoc.vlType             = Compiler::VLT_STK2;
+                    varLoc.vlType             = VLT_STK2;
                     varLoc.vlStk2.vls2BaseReg = baseReg;
                     varLoc.vlStk2.vls2Offset  = offset;
                     if (!isFramePointerUsed() && varLoc.vlStk2.vls2BaseReg == REG_SPBASE)
@@ -10846,13 +10846,13 @@ void CodeGen::genSetScopeInfo()
 // Notes:
 //    Called for every scope info piece to record by the main genSetScopeInfo()
 
-void CodeGen::genSetScopeInfo(unsigned            which,
-                              UNATIVE_OFFSET      startOffs,
-                              UNATIVE_OFFSET      length,
-                              unsigned            varNum,
-                              unsigned            LVnum,
-                              bool                avail,
-                              Compiler::siVarLoc& varLoc)
+void CodeGen::genSetScopeInfo(unsigned                    which,
+                              UNATIVE_OFFSET              startOffs,
+                              UNATIVE_OFFSET              length,
+                              unsigned                    varNum,
+                              unsigned                    LVnum,
+                              bool                        avail,
+                              CodeGenInterface::siVarLoc& varLoc)
 {
     // We need to do some mapping while reporting back these variables.
 
@@ -10868,7 +10868,7 @@ void CodeGen::genSetScopeInfo(unsigned            which,
     if (compiler->info.compIsVarArgs && varNum != compiler->lvaVarargsHandleArg &&
         varNum < compiler->info.compArgsCount && !compiler->lvaTable[varNum].lvIsRegArg)
     {
-        noway_assert(varLoc.vlType == Compiler::VLT_STK || varLoc.vlType == Compiler::VLT_STK2);
+        noway_assert(varLoc.vlType == VLT_STK || varLoc.vlType == VLT_STK2);
 
         // All stack arguments (except the varargs handle) have to be
         // accessed via the varargs cookie. Discard generated info,
@@ -10893,7 +10893,7 @@ void CodeGen::genSetScopeInfo(unsigned            which,
         noway_assert(offset < stkArgSize);
         offset = stkArgSize - offset;
 
-        varLoc.vlType                   = Compiler::VLT_FIXED_VA;
+        varLoc.vlType                   = VLT_FIXED_VA;
         varLoc.vlFixedVarArg.vlfvOffset = offset;
     }
 
