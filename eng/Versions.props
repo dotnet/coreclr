@@ -8,14 +8,14 @@
     <UsingToolXliff>false</UsingToolXliff>
     <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
     <MicrosoftNetFrameworkReferenceAssembliesVersion>1.0.0-alpha-004</MicrosoftNetFrameworkReferenceAssembliesVersion>
-    <!-- Libs -->
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview.19106.8</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>3.0.0-preview.19106.8</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftNETCoreAppVersion>3.0.0-preview-27406-8</MicrosoftNETCoreAppVersion>
   </PropertyGroup>
+  <!--Package names-->
   <PropertyGroup>
-    <RestoreSources>
-      $(RestoreSources);
-      https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json;
-      https://dotnet.myget.org/F/symreader-converter/api/v3/index.json;
-      https:%2F%2Fdotnet.myget.org/F/symreader/api/v3/index.json
-    </RestoreSources>
+    <MicrosoftPrivateCoreFxNETCoreAppPackage>Microsoft.Private.CoreFx.NETCoreApp</MicrosoftPrivateCoreFxNETCoreAppPackage>
+    <MicrosoftNETCorePlatformsPackage>Microsoft.NETCore.Platforms</MicrosoftNETCorePlatformsPackage>
+    <MicrosoftNETCoreAppPackage>Microsoft.NETCore.App</MicrosoftNETCoreAppPackage>
   </PropertyGroup>
 </Project>
