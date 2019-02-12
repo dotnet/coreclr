@@ -8,6 +8,7 @@ using System.Text;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
+using TestLibrary;
 using TypeEquivalenceTypes;
 
 public class Simple
