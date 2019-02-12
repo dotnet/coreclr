@@ -155,6 +155,31 @@ CodeGenInterface::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg,
 }
 
 //------------------------------------------------------------------------
+// getSiVarLoc: Creates a "CodegenInterface::siVarLoc" instance from using the properties
+// of the "psiScope" instance.
+//
+// Notes:
+//    Called for every psiScope in "psiScopeList" codegen.h
+CodeGenInterface::siVarLoc CodeGen::psiScope::getSiVarLoc() const
+{
+    CodeGenInterface::siVarLoc varLoc;
+
+    if (scRegister)
+    {
+        varLoc.vlType       = VLT_REG;
+        varLoc.vlReg.vlrReg = (regNumber)u1.scRegNum;
+    }
+    else
+    {
+        varLoc.vlType           = VLT_STK;
+        varLoc.vlStk.vlsBaseReg = (regNumber)u2.scBaseReg;
+        varLoc.vlStk.vlsOffset  = u2.scOffset;
+    }
+
+    return varLoc;
+}
+
+//------------------------------------------------------------------------
 // getSiVarLoc: Returns a "siVarLoc" instance representing the place where the variable
 // is given its description, "baseReg", and "offset" (if needed).
 //

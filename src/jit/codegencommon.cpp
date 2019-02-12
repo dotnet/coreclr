@@ -10610,19 +10610,7 @@ void CodeGen::genSetScopeInfo()
             endOffs++;
         }
 
-        CodeGenInterface::siVarLoc varLoc;
-
-        if (scopeP->scRegister)
-        {
-            varLoc.vlType       = VLT_REG;
-            varLoc.vlReg.vlrReg = (regNumber)scopeP->u1.scRegNum;
-        }
-        else
-        {
-            varLoc.vlType           = VLT_STK;
-            varLoc.vlStk.vlsBaseReg = (regNumber)scopeP->u2.scBaseReg;
-            varLoc.vlStk.vlsOffset  = scopeP->u2.scOffset;
-        }
+        siVarLoc varLoc = scopeP->getSiVarLoc();
 
         genSetScopeInfo(i, startOffs, endOffs - startOffs, varNum, scopeP->scLVnum, true, varLoc);
     }

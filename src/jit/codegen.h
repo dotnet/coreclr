@@ -728,6 +728,10 @@ protected:
 
         psiScope* scPrev;
         psiScope* scNext;
+
+        // Returns a "siVarLoc" instance representing the place where the variable lives base on
+        // psiScope properties.
+        CodeGenInterface::siVarLoc getSiVarLoc() const;
     };
 
     psiScope psiOpenScopeList, psiScopeList, *psiOpenScopeLast, *psiScopeLast;
