@@ -73,6 +73,8 @@ LoaderAllocator::LoaderAllocator()
     m_pJumpStubCache = NULL;
     m_IsCollectible = false;
 
+    m_pMarshalingData = NULL;
+
 #ifdef FEATURE_COMINTEROP
     m_pComCallWrapperCache = NULL;
 #endif
@@ -200,7 +202,6 @@ BOOL LoaderAllocator::CheckAddReference_Unlocked(LoaderAllocator *pOtherLA)
     CONTRACTL
     {
         THROWS;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -235,7 +236,6 @@ BOOL LoaderAllocator::EnsureReference(LoaderAllocator *pOtherLA)
     CONTRACTL
     {
         THROWS;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -261,7 +261,6 @@ BOOL LoaderAllocator::EnsureInstantiation(Module *pDefiningModule, Instantiation
     CONTRACTL
     {
         THROWS;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -361,7 +360,6 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
     // List of LoaderAllocators being deleted
@@ -528,7 +526,6 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
     
@@ -875,7 +872,6 @@ OBJECTREF LoaderAllocator::GetHandleValue(LOADERHANDLE handle)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -1079,8 +1075,8 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     m_pDomain = pDomain;
 
     m_crstLoaderAllocator.Init(CrstLoaderAllocator, (CrstFlags)CRST_UNSAFE_COOPGC);
-#ifdef FEATURE_COMINTEROP
     m_InteropDataCrst.Init(CrstInteropData, CRST_REENTRANCY);
+#ifdef FEATURE_COMINTEROP
     m_ComCallWrapperCrst.Init(CrstCOMCallWrapper);
 #endif
 
@@ -1227,6 +1223,9 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     m_pPrecodeHeap = new (&m_PrecodeHeapInstance) CodeFragmentHeap(this, STUB_CODE_BLOCK_PRECODE);
 #endif
 
+    // Initialize the EE marshaling data to NULL.
+    m_pMarshalingData = NULL;
+
     // Set up the IL stub cache
     m_ILStubCache.Init(m_pHighFrequencyHeap);
 
@@ -1322,7 +1321,6 @@ void LoaderAllocator::Terminate()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
     } CONTRACTL_END;
 
     if (m_fTerminated)
@@ -1331,6 +1329,8 @@ void LoaderAllocator::Terminate()
     m_fTerminated = true;
 
     LOG((LF_CLASSLOADER, LL_INFO100, "Begin LoaderAllocator::Terminate for loader allocator %p\n", reinterpret_cast<void *>(static_cast<PTR_LoaderAllocator>(this))));
+
+    DeleteMarshalingData();
 
     if (m_fGCPressure)
     {
@@ -1559,7 +1559,6 @@ DispatchToken LoaderAllocator::TryLookupDispatchToken(UINT32 typeId, UINT32 slot
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
 #ifdef FAT_DISPATCH_TOKENS
@@ -1573,14 +1572,12 @@ DispatchToken LoaderAllocator::TryLookupDispatchToken(UINT32 typeId, UINT32 slot
             // exceptions and just return an invalid token, since this is
             EX_TRY
             {
-                BEGIN_SO_INTOLERANT_CODE(GetThread());
                 SimpleReadLockHolder rlock(m_pFatTokenSetLock);
                 if (m_pFatTokenSet != NULL)
                 {
                     DispatchTokenFat key(typeId, slotNumber);
                     pFat = m_pFatTokenSet->Lookup(&key);
                 }
-                END_SO_INTOLERANT_CODE;
             }
             EX_CATCH
             {
@@ -1631,6 +1628,50 @@ void LoaderAllocator::UninitVirtualCallStubManager()
 }
 
 #endif // !CROSSGEN_COMPILE
+
+EEMarshalingData *LoaderAllocator::GetMarshalingData()
+{
+    CONTRACT (EEMarshalingData*)
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
+        POSTCONDITION(CheckPointer(m_pMarshalingData));
+    }
+    CONTRACT_END;
+
+    if (!m_pMarshalingData)
+    {
+        // Take the lock
+        CrstHolder holder(&m_InteropDataCrst);
+
+        if (!m_pMarshalingData)
+        {
+            m_pMarshalingData = new (GetLowFrequencyHeap()) EEMarshalingData(this, &m_InteropDataCrst);
+        }
+    }
+
+    RETURN m_pMarshalingData;
+}
+
+void LoaderAllocator::DeleteMarshalingData()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // We are in shutdown - no need to take any lock
+    if (m_pMarshalingData)
+    {
+        delete m_pMarshalingData;
+        m_pMarshalingData = NULL;
+    }
+}
 
 #endif // !DACCESS_COMPILE
 
@@ -1900,7 +1941,6 @@ void AssemblyLoaderAllocator::ReleaseManagedAssemblyLoadContext()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 

@@ -65,7 +65,6 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
         INJECT_FAULT(ThrowOutOfMemory(););
     }
     CONTRACTL_END
@@ -123,7 +122,7 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
     // 
     {
         AllocMemTracker amt;
-        Precode* pNewPrecode = Precode::Allocate(type, pMD, pMD->GetLoaderAllocatorForCode(), &amt);
+        Precode* pNewPrecode = Precode::Allocate(type, pMD, pMD->GetLoaderAllocator(), &amt);
    
         if (target != NULL)
         {

@@ -51,11 +51,11 @@
 
 GVAL_IMPL_INIT(DWORD, g_fHostConfig, 0);
 
-#ifndef __llvm__
+#ifndef __GNUC__
 EXTERN_C __declspec(thread) ThreadLocalInfo gCurrentThreadInfo;
-#else // !__llvm__
+#else // !__GNUC__
 EXTERN_C __thread ThreadLocalInfo gCurrentThreadInfo;
-#endif // !__llvm__
+#endif // !__GNUC__
 #ifndef FEATURE_PAL
 EXTERN_C UINT32 _tls_index;
 #else // FEATURE_PAL
@@ -597,15 +597,8 @@ HRESULT ExecuteInAppDomainHelper(FExecuteInAppDomainCallback pCallback,
                                  void * cookie)
 {
     STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
-    HRESULT hr = S_OK;
-
-    BEGIN_SO_TOLERANT_CODE(GetThread());
-    hr = pCallback(cookie);
-    END_SO_TOLERANT_CODE;
-
-    return hr;
+    return pCallback(cookie);
 }
 
 HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
@@ -640,7 +633,7 @@ HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
     ENTER_DOMAIN_ID(ADID(dwAppDomainId))
     {
         // We are calling an unmanaged function pointer, either an unmanaged function, or a marshaled out delegate.
-        // The thread should be in preemptive mode, and SO_Tolerant.
+        // The thread should be in preemptive mode.
         GCX_PREEMP();
         hr=ExecuteInAppDomainHelper (pCallback, cookie);
     }
@@ -1178,6 +1171,7 @@ HRESULT CorRuntimeHostBase::EnumDomains(HDOMAINENUM *hEnum)
 #endif // FEATURE_COMINTEROP
 
 extern "C"
+DLLEXPORT
 HRESULT  GetCLRRuntimeHost(REFIID riid, IUnknown **ppUnk)
 {
     WRAPPER_NO_CONTRACT;
@@ -1194,7 +1188,6 @@ STDMETHODIMP CorHost2::UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone)
 STDMETHODIMP CorHost2::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDone, int *pLatchedExitCode)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     if (!m_fStarted)
         return HOST_E_INVALIDOPERATION;
@@ -1310,7 +1303,6 @@ ULONG CorRuntimeHostBase::AddRef()
     {
         WRAPPER(THROWS);
         WRAPPER(GC_TRIGGERS);
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     return InterlockedIncrement(&m_cRef);
@@ -1340,7 +1332,6 @@ HRESULT CorHost2::QueryInterface(REFIID riid, void **ppUnk)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;    // no global state updates that need guarding.
     }
     CONTRACTL_END;
 
@@ -1405,7 +1396,6 @@ HRESULT CorHost2::GetBucketParametersForCurrentException(BucketParameters *pPara
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -1430,13 +1420,11 @@ HRESULT CorHost2::CreateObject(REFIID riid, void **ppUnk)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW; );
     CorHost2 *pCorHost = new (nothrow) CorHost2();
     if (!pCorHost)
     {
@@ -1448,7 +1436,6 @@ HRESULT CorHost2::CreateObject(REFIID riid, void **ppUnk)
     if (FAILED(hr))
         delete pCorHost;
     }
-    END_SO_INTOLERANT_CODE;
     return (hr);
 }
 
@@ -1636,14 +1623,12 @@ public:
     virtual ULONG STDMETHODCALLTYPE AddRef(void)
     {
         LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
         return 1;
     }
 
     virtual ULONG STDMETHODCALLTYPE Release(void)
     {
         LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
         return 1;
     }
 
@@ -1651,7 +1636,6 @@ public:
                                                              void **ppvObject)
     {
         LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
         if (riid != IID_ICLRPolicyManager && riid != IID_IUnknown)
             return (E_NOINTERFACE);
 
@@ -1903,7 +1887,6 @@ HRESULT CCLRGCManager::_SetGCSegmentSize(SIZE_T SegmentSize)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -1929,7 +1912,6 @@ HRESULT CCLRGCManager::_SetGCMaxGen0Size(SIZE_T MaxGen0Size)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2086,7 +2068,6 @@ public:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;    // no global state updates
         }
         CONTRACTL_END;
 
@@ -2263,7 +2244,6 @@ HRESULT CCLRErrorReportingManager::QueryInterface(REFIID riid, void** ppUnk)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2689,7 +2669,6 @@ extern "C" IExecutionEngine * __stdcall IEE()
 HRESULT STDMETHODCALLTYPE CExecutionEngine::QueryInterface(REFIID id, void **pInterface)
 {
     LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     if (!pInterface)
         return E_POINTER;
@@ -2771,7 +2750,6 @@ void **CExecutionEngine::CheckThreadState(DWORD slot, BOOL force)
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     //<TODO> @TODO: Decide on an exception strategy for all the DLLs of the CLR, and then
     // enable all the exceptions out of this method.</TODO>
@@ -2799,9 +2777,6 @@ void **CExecutionEngine::CheckThreadState(DWORD slot, BOOL force)
             goto LError;
         }
         memset (pTlsInfo, 0, sizeof(ClrTlsInfo));
-        // We save the last intolerant marker on stack in this slot.  
-        // -1 is the larget unsigned number, and therefore our marker is always smaller than it.
-        pTlsInfo->data[TlsIdx_SOIntolerantTransitionHandler] = (void*)(-1);
     }
 
     if (!fInTls && pTlsInfo)
@@ -2825,7 +2800,7 @@ LError:
     }
     // If this is for the stack probe, and we failed to allocate memory for it, we won't
     // put in a guard page.
-    if (slot == TlsIdx_ClrDebugState || slot == TlsIdx_StackProbe)
+    if (slot == TlsIdx_ClrDebugState)
         return NULL;
 
     ThrowOutOfMemory();
@@ -2841,7 +2816,6 @@ void **CExecutionEngine::CheckThreadStateNoCreate(DWORD slot
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     // !!! This function is called during Thread::SwitchIn and SwitchOut
     // !!! It is extremely important that while executing this function, we will not
@@ -2865,7 +2839,6 @@ void CExecutionEngine::SetupTLSForThread(Thread *pThread)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_ANY;
 
 #ifdef STRESS_LOG
@@ -3000,7 +2973,6 @@ void FreeClrDebugState(LPVOID pTlsData);
 VOID STDMETHODCALLTYPE CExecutionEngine::TLS_AssociateCallback(DWORD slot, PTLS_CALLBACK_FUNCTION callback)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     CheckThreadState(slot);
 
@@ -3030,7 +3002,6 @@ LPVOID* STDMETHODCALLTYPE CExecutionEngine::TLS_GetDataBlock()
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     return CExecutionEngine::GetTlsData();
 }
@@ -3038,21 +3009,18 @@ LPVOID* STDMETHODCALLTYPE CExecutionEngine::TLS_GetDataBlock()
 LPVOID STDMETHODCALLTYPE CExecutionEngine::TLS_GetValue(DWORD slot)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EETlsGetValue(slot);
 }
 
 BOOL STDMETHODCALLTYPE CExecutionEngine::TLS_CheckValue(DWORD slot, LPVOID * pValue)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EETlsCheckValue(slot, pValue);
 }
 
 VOID STDMETHODCALLTYPE CExecutionEngine::TLS_SetValue(DWORD slot, LPVOID pData)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     EETlsSetValue(slot,pData);
 }
 
@@ -3060,7 +3028,6 @@ VOID STDMETHODCALLTYPE CExecutionEngine::TLS_SetValue(DWORD slot, LPVOID pData)
 VOID STDMETHODCALLTYPE CExecutionEngine::TLS_ThreadDetaching()
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     CExecutionEngine::ThreadDetaching(NULL);
 }
 
@@ -3086,26 +3053,19 @@ CRITSEC_COOKIE STDMETHODCALLTYPE CExecutionEngine::CreateLock(LPCSTR szTag, LPCS
 void STDMETHODCALLTYPE CExecutionEngine::DestroyLock(CRITSEC_COOKIE cookie)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     ::EEDeleteCriticalSection(cookie);
 }
 
 void STDMETHODCALLTYPE CExecutionEngine::AcquireLock(CRITSEC_COOKIE cookie)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-    BEGIN_SO_INTOLERANT_CODE(GetThread());
     ::EEEnterCriticalSection(cookie);
-    END_SO_INTOLERANT_CODE;
 }
 
 void STDMETHODCALLTYPE CExecutionEngine::ReleaseLock(CRITSEC_COOKIE cookie)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-    BEGIN_SO_INTOLERANT_CODE(GetThread());
     ::EELeaveCriticalSection(cookie);
-    END_SO_INTOLERANT_CODE;
 }
 
 // Locking routines supplied by the EE to the other DLLs of the CLR.  In a _DEBUG
@@ -3187,7 +3147,6 @@ EVENT_COOKIE STDMETHODCALLTYPE CExecutionEngine::CreateManualEvent(BOOL bInitial
 void STDMETHODCALLTYPE CExecutionEngine::CloseEvent(EVENT_COOKIE event)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     if (event) {
         CLREvent *pEvent = CookieToCLREvent(event);
         pEvent->CloseEvent();
@@ -3201,7 +3160,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrSetEvent(EVENT_COOKIE event)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3218,7 +3176,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrResetEvent(EVENT_COOKIE event)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3234,7 +3191,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::WaitForEvent(EVENT_COOKIE event,
                                                        BOOL bAlertable)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     if (event) {
         CLREvent *pEvent = CookieToCLREvent(event);
         return pEvent->Wait(dwMilliseconds,bAlertable);
@@ -3249,14 +3205,12 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::WaitForSingleObject(HANDLE handle,
                                                               DWORD dwMilliseconds)
 {
     STATIC_CONTRACT_WRAPPER;
-    STATIC_CONTRACT_SO_TOLERANT;
     return ::WaitForSingleObject(handle,dwMilliseconds);
 }
 
 static inline SEMAPHORE_COOKIE CLRSemaphoreToCookie(CLRSemaphore * pSemaphore)
 {
     LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     _ASSERTE((((uintptr_t) pSemaphore) & POISON_BITS) == 0);
 #ifdef _DEBUG
@@ -3287,7 +3241,6 @@ SEMAPHORE_COOKIE STDMETHODCALLTYPE CExecutionEngine::ClrCreateSemaphore(DWORD dw
         THROWS;
         MODE_ANY;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -3304,7 +3257,6 @@ void STDMETHODCALLTYPE CExecutionEngine::ClrCloseSemaphore(SEMAPHORE_COOKIE sema
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3321,7 +3273,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrReleaseSemaphore(SEMAPHORE_COOKIE se
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3334,7 +3285,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::ClrWaitForSemaphore(SEMAPHORE_COOKIE s
                                                               BOOL bAlertable)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     CLRSemaphore *pSemaphore = CookieToCLRSemaphore(semaphore);
     return pSemaphore->Wait(dwMilliseconds,bAlertable);
 }
@@ -3372,7 +3322,6 @@ MUTEX_COOKIE STDMETHODCALLTYPE CExecutionEngine::ClrCreateMutex(LPSECURITY_ATTRI
         NOTHROW;
         MODE_ANY;
         GC_NOTRIGGER;
-        SO_TOLERANT;    // we catch any erros and free the allocated memory
     }
     CONTRACTL_END;
 
@@ -3401,7 +3350,6 @@ void STDMETHODCALLTYPE CExecutionEngine::ClrCloseMutex(MUTEX_COOKIE mutex)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3416,7 +3364,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrReleaseMutex(MUTEX_COOKIE mutex)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3432,7 +3379,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::ClrWaitForMutex(MUTEX_COOKIE mutex,
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3444,8 +3390,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::ClrWaitForMutex(MUTEX_COOKIE mutex,
 DWORD STDMETHODCALLTYPE CExecutionEngine::ClrSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-
     return EESleepEx(dwMilliseconds,bAlertable);
 }
 #define ClrSleepEx EESleepEx
@@ -3454,7 +3398,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::ClrSleepEx(DWORD dwMilliseconds, BOOL 
 BOOL STDMETHODCALLTYPE CExecutionEngine::ClrAllocationDisallowed()
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEAllocationDisallowed();
 }
 #define ClrAllocationDisallowed EEAllocationDisallowed
@@ -3466,7 +3409,6 @@ LPVOID STDMETHODCALLTYPE CExecutionEngine::ClrVirtualAlloc(LPVOID lpAddress,
                                                            DWORD flProtect)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEVirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
 }
 #define ClrVirtualAlloc EEVirtualAlloc
@@ -3477,7 +3419,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrVirtualFree(LPVOID lpAddress,
                                                         DWORD dwFreeType)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEVirtualFree(lpAddress, dwSize, dwFreeType);
 }
 #define ClrVirtualFree EEVirtualFree
@@ -3488,7 +3429,6 @@ SIZE_T STDMETHODCALLTYPE CExecutionEngine::ClrVirtualQuery(LPCVOID lpAddress,
                                                            SIZE_T dwLength)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEVirtualQuery(lpAddress, lpBuffer, dwLength);
 }
 #define ClrVirtualQuery EEVirtualQuery
@@ -3507,7 +3447,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrVirtualProtect(LPVOID lpAddress,
                                                            PDWORD lpflOldProtect)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
    // Get the UEF installation details - we will use these to validate
    // that the calls to ClrVirtualProtect are not going to affect the UEF.
@@ -3623,7 +3562,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrVirtualProtect(LPVOID lpAddress,
 HANDLE STDMETHODCALLTYPE CExecutionEngine::ClrGetProcessHeap()
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEGetProcessHeap();
 }
 #define ClrGetProcessHeap EEGetProcessHeap
@@ -3632,7 +3570,6 @@ HANDLE STDMETHODCALLTYPE CExecutionEngine::ClrGetProcessHeap()
 HANDLE STDMETHODCALLTYPE CExecutionEngine::ClrGetProcessExecutableHeap()
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEGetProcessExecutableHeap();
 }
 #define ClrGetProcessExecutableHeap EEGetProcessExecutableHeap
@@ -3644,7 +3581,6 @@ HANDLE STDMETHODCALLTYPE CExecutionEngine::ClrHeapCreate(DWORD flOptions,
                                                          SIZE_T dwMaximumSize)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEHeapCreate(flOptions, dwInitialSize, dwMaximumSize);
 }
 #define ClrHeapCreate EEHeapCreate
@@ -3653,7 +3589,6 @@ HANDLE STDMETHODCALLTYPE CExecutionEngine::ClrHeapCreate(DWORD flOptions,
 BOOL STDMETHODCALLTYPE CExecutionEngine::ClrHeapDestroy(HANDLE hHeap)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEHeapDestroy(hHeap);
 }
 #define ClrHeapDestroy EEHeapDestroy
@@ -3664,13 +3599,6 @@ LPVOID STDMETHODCALLTYPE CExecutionEngine::ClrHeapAlloc(HANDLE hHeap,
                                                         SIZE_T dwBytes)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    // We need to guarentee a very small stack consumption in allocating.  And we can't allow
-    // an SO to happen while calling into the host.  This will force a hard SO which is OK because
-    // we shouldn't ever get this close inside the EE in SO-intolerant code, so this should
-    // only fail if we call directly in from outside the EE, such as the JIT.
-    MINIMAL_STACK_PROBE_CHECK_THREAD(GetThread());
 
     return EEHeapAlloc(hHeap, dwFlags, dwBytes);
 }
@@ -3682,7 +3610,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrHeapFree(HANDLE hHeap,
                                                      LPVOID lpMem)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEHeapFree(hHeap, dwFlags, lpMem);
 }
 #define ClrHeapFree EEHeapFree
@@ -3693,7 +3620,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrHeapValidate(HANDLE hHeap,
                                                          LPCVOID lpMem)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEHeapValidate(hHeap, dwFlags, lpMem);
 }
 #define ClrHeapValidate EEHeapValidate
@@ -3706,7 +3632,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrHeapValidate(HANDLE hHeap,
 void CExecutionEngine::GetLastThrownObjectExceptionFromThread(void **ppvException)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     // Cast to our real type.
     Exception **ppException = reinterpret_cast<Exception**>(ppvException);

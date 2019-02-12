@@ -2668,13 +2668,6 @@ BAILOUT:
     }
 #endif // JIT32_GCENCODER
 
-#if STACK_PROBES
-    if (compiler->opts.compNeedStackProbes)
-    {
-        genGenerateStackProbe();
-    }
-#endif
-
 #ifdef DEBUG
     // Update local variable to reflect the new stack pointer.
     if (compiler->opts.compStackCheckOnRet)
@@ -3119,7 +3112,7 @@ void CodeGen::genCodeForCpBlkRepMovs(GenTreeBlk* cpBlkNode)
     else
 #endif
     {
-#ifdef _TARGET_X64_
+#ifdef _TARGET_AMD64_
         assert(size > CPBLK_UNROLL_LIMIT && size < CPBLK_MOVS_LIMIT);
 #else
         assert(size > CPBLK_UNROLL_LIMIT);
@@ -4386,9 +4379,11 @@ void CodeGen::genCodeForLclAddr(GenTree* tree)
     regNumber targetReg  = tree->gtRegNum;
 
     // Address of a local var.
-    noway_assert(targetType == TYP_BYREF);
+    noway_assert((targetType == TYP_BYREF) || (targetType == TYP_I_IMPL));
 
-    inst_RV_TT(INS_lea, targetReg, tree, 0, EA_BYREF);
+    emitAttr size = emitTypeSize(targetType);
+
+    inst_RV_TT(INS_lea, targetReg, tree, 0, size);
     genProduceReg(tree);
 }
 
@@ -6403,6 +6398,7 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
 
     const regNumber srcReg = cast->gtGetOp1()->gtRegNum;
     const regNumber dstReg = cast->gtRegNum;
+    emitter*        emit   = getEmitter();
 
     assert(genIsValidIntReg(srcReg));
     assert(genIsValidIntReg(dstReg));
@@ -6418,6 +6414,7 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
     {
         instruction ins;
         unsigned    insSize;
+        bool        canSkip = false;
 
         switch (desc.ExtendKind())
         {
@@ -6431,6 +6428,12 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
                 break;
 #ifdef _TARGET_64BIT_
             case GenIntCastDesc::ZERO_EXTEND_INT:
+                // We can skip emitting this zero extending move if the previous instruction zero extended implicitly
+                if ((srcReg == dstReg) && compiler->opts.OptimizationEnabled())
+                {
+                    canSkip = emit->AreUpper32BitsZero(srcReg);
+                }
+
                 ins     = INS_mov;
                 insSize = 4;
                 break;
@@ -6441,12 +6444,20 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
 #endif
             default:
                 assert(desc.ExtendKind() == GenIntCastDesc::COPY);
+                assert(srcReg != dstReg);
                 ins     = INS_mov;
                 insSize = desc.ExtendSrcSize();
                 break;
         }
 
-        getEmitter()->emitIns_R_R(ins, EA_ATTR(insSize), dstReg, srcReg);
+        if (canSkip)
+        {
+            JITDUMP("\n -- suppressing emission as previous instruction already properly extends.\n");
+        }
+        else
+        {
+            emit->emitIns_R_R(ins, EA_ATTR(insSize), dstReg, srcReg);
+        }
     }
 
     genProduceReg(cast);
@@ -7028,7 +7039,7 @@ void CodeGen::genSSE2BitwiseOp(GenTree* treeNode)
     if (*bitMask == nullptr)
     {
         assert(cnsAddr != nullptr);
-        *bitMask = getEmitter()->emitAnyConst(cnsAddr, genTypeSize(targetType), dblAlign);
+        *bitMask = getEmitter()->emitAnyConst(cnsAddr, genTypeSize(targetType), emitDataAlignment::Preferred);
     }
 
     // We need an additional register for bitmask.

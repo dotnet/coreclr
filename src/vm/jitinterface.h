@@ -1333,7 +1333,6 @@ public:
     void ResetForJitRetry()
     {
         CONTRACTL {
-            SO_TOLERANT;
             NOTHROW;
             GC_NOTRIGGER;
         } CONTRACTL_END;
@@ -1706,11 +1705,6 @@ CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc   *pMD,
                                                Module *      pModule = NULL);
 
 void ClearJitGenericHandleCache(AppDomain *pDomain);
-
-class JitHelpers {
-public:
-    static FCDECL3(void, UnsafeSetArrayElement, PtrArray* pPtrArray, INT32 index, Object* object);
-};
 
 CORJIT_FLAGS GetDebuggerCompileFlags(Module* pModule, CORJIT_FLAGS flags);
 

@@ -141,6 +141,13 @@ function InitializeDotNetCli([bool]$install) {
   # It also ensures that VS msbuild will use the downloaded sdk targets.
   $env:PATH = "$dotnetRoot;$env:PATH"
 
+  if ($ci) {
+    # Make Sure that our bootstrapped dotnet cli is avaliable in future steps of the Azure Pipelines build
+    Write-Host "##vso[task.prependpath]$dotnetRoot"
+    Write-Host "##vso[task.setvariable variable=DOTNET_MULTILEVEL_LOOKUP]0"
+    Write-Host "##vso[task.setvariable variable=DOTNET_SKIP_FIRST_TIME_EXPERIENCE]1"
+  }
+
   return $global:_DotNetInstallDir = $dotnetRoot
 }
 
@@ -154,9 +161,10 @@ function GetDotNetInstallScript([string] $dotnetRoot) {
   return $installScript
 }
 
-function InstallDotNetSdk([string] $dotnetRoot, [string] $version) {
+function InstallDotNetSdk([string] $dotnetRoot, [string] $version, [string] $architecture = "") {
   $installScript = GetDotNetInstallScript $dotnetRoot
-  & $installScript -Version $version -InstallDir $dotnetRoot
+  $archArg = if ($architecture) { $architecture } else { "<auto>" }
+  & $installScript -Version $version -InstallDir $dotnetRoot -Architecture $archArg
   if ($lastExitCode -ne 0) {
     Write-Host "Failed to install dotnet cli (exit code '$lastExitCode')." -ForegroundColor Red
     ExitWithExitCode $lastExitCode
@@ -369,6 +377,11 @@ function GetNuGetPackageCachePath() {
   return $env:NUGET_PACKAGES
 }
 
+# Returns a full path to an Arcade SDK task project file.
+function GetSdkTaskProject([string]$taskName) {
+  return Join-Path (Split-Path (InitializeToolset) -Parent) "SdkTasks\$taskName.proj"
+}
+
 function InitializeToolset() {
   if (Test-Path variable:global:_ToolsetBuildProj) {
     return $global:_ToolsetBuildProj
@@ -387,7 +400,7 @@ function InitializeToolset() {
   }
 
   if (-not $restore) {
-    Write-Host  "Toolset version $toolsetVersion has not been restored."
+    Write-Host "Toolset version $toolsetVersion has not been restored." -ForegroundColor Red
     ExitWithExitCode 1
   }
 

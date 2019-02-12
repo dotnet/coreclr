@@ -299,11 +299,11 @@ bool Thread::DetectHandleILStubsForDebugger()
 }
 
 extern "C" {
-#ifndef __llvm__
+#ifndef __GNUC__
 __declspec(thread)
-#else // !__llvm__
+#else // !__GNUC__
 __thread 
-#endif // !__llvm__
+#endif // !__GNUC__
 ThreadLocalInfo gCurrentThreadInfo = 
                                               {
                                                   NULL,    // m_pThread
@@ -543,7 +543,6 @@ Thread* SetupThreadNoThrow(HRESULT *pHR)
 {
     CONTRACTL {
         NOTHROW;
-        SO_TOLERANT;
         if (GetThread()) {GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
     }
     CONTRACTL_END;
@@ -633,19 +632,12 @@ Thread* SetupThread(BOOL fInternal)
     CONTRACTL {
         THROWS;
         if (GetThread()) {GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     Thread* pThread;
     if ((pThread = GetThread()) != NULL)
         return pThread;
-
-#ifdef FEATURE_STACK_PROBE
-    RetailStackProbe(ADJUST_PROBE(DEFAULT_ENTRY_PROBE_AMOUNT), NULL);
-#endif //FEATURE_STACK_PROBE
-
-    CONTRACT_VIOLATION(SOToleranceViolation);
 
     // For interop debugging, we must mark that we're in a can't-stop region
     // b.c we may take Crsts here that may block the helper thread.
@@ -905,16 +897,6 @@ void DestroyThread(Thread *th)
 #endif // _TARGET_X86_
 #endif // WIN64EXCEPTIONS
 
-#ifdef FEATURE_PERFTRACING
-    // Before the thread dies, mark its buffers as no longer owned
-    // so that they can be cleaned up after the thread dies.
-    EventPipeBufferList *pBufferList = th->GetEventPipeBufferList();
-    if(pBufferList != NULL)
-    {
-        pBufferList->SetOwnedByThread(false);
-    }
-#endif // FEATURE_PERFTRACING
-
     if (g_fEEShutDown == 0) 
     {
         th->SetThreadState(Thread::TS_ReportDead);
@@ -934,9 +916,6 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
     // !!! and then GetThread()=NULL, and dtor of contract does not work any more.
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-
-    // @todo .  We need to probe here, but can't introduce destructors etc.
-    BEGIN_CONTRACT_VIOLATION(SOToleranceViolation);
 
     // Clear any outstanding stale EH state that maybe still active on the thread.
 #ifdef WIN64EXCEPTIONS
@@ -1008,8 +987,6 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
         ThreadStore::CheckForEEShutdown();
     }
 
-    END_CONTRACT_VIOLATION;
-
     HANDLE hThread = GetThreadHandle();
     SetThreadHandle (SWITCHOUT_HANDLE_VALUE);
     while (m_dwThreadHandleBeingUsed > 0)
@@ -1032,16 +1009,6 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
 #ifdef ENABLE_CONTRACTS_DATA
     m_pClrDebugState = NULL;
 #endif //ENABLE_CONTRACTS_DATA
-
-#ifdef FEATURE_PERFTRACING
-    // Before the thread dies, mark its buffers as no longer owned
-    // so that they can be cleaned up after the thread dies.
-    EventPipeBufferList *pBufferList = m_pEventPipeBufferList.Load();
-    if(pBufferList != NULL)
-    {
-        pBufferList->SetOwnedByThread(false);
-    }
-#endif // FEATURE_PERFTRACING
 
     FastInterlockOr((ULONG*)&m_State, (int) (Thread::TS_Detached | Thread::TS_ReportDead));
     // Do not touch Thread object any more.  It may be destroyed.
@@ -1467,8 +1434,6 @@ Thread::Thread()
     m_LastThrownObjectHandle = NULL;
     m_ltoIsUnhandled = FALSE;
 
-    m_AbortReason = NULL;
-
     m_debuggerFilterContext = NULL;
     m_debuggerCantStop = 0;
     m_fInteropDebuggingHijacked = FALSE;
@@ -1662,8 +1627,6 @@ Thread::Thread()
     m_pAllLoggedTypes = NULL;
 
 #ifdef FEATURE_PERFTRACING
-    m_pEventPipeBufferList = NULL;
-    m_eventWriteInProgress = false;
     memset(&m_activityId, 0, sizeof(m_activityId));
 #endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
@@ -1856,12 +1819,8 @@ BOOL Thread::HasStarted(BOOL bRequiresTSL)
     CONTRACTL {
         NOTHROW;
         DISABLED(GC_NOTRIGGER);
-        SO_TOLERANT;
     }
     CONTRACTL_END;
-
-    // @todo  need a probe that tolerates not having a thread setup at all
-    CONTRACT_VIOLATION(SOToleranceViolation);
 
     _ASSERTE(!m_fPreemptiveGCDisabled);     // can't use PreemptiveGCDisabled() here
 
@@ -2738,17 +2697,11 @@ void Thread::BaseCoUninitialize()
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_SO_INTOLERANT;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
 
     _ASSERTE(GetThread() == this);
 
-    BEGIN_SO_TOLERANT_CODE(this);
-    // BEGIN_SO_TOLERANT_CODE wraps a __try/__except around this call, so if the OS were to allow
-    // an exception to leak through to us, we'll catch it.
     ::CoUninitialize();
-    END_SO_TOLERANT_CODE;
-
 }// BaseCoUninitialize
 
 #ifdef FEATURE_COMINTEROP
@@ -2756,16 +2709,13 @@ void Thread::BaseWinRTUninitialize()
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_SO_INTOLERANT;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
 
     _ASSERTE(WinRTSupported());
     _ASSERTE(GetThread() == this);
     _ASSERTE(IsWinRTInitialized());
 
-    BEGIN_SO_TOLERANT_CODE(this);
     RoUninitialize();
-    END_SO_TOLERANT_CODE;
 }
 #endif // FEATURE_COMINTEROP
 
@@ -2995,10 +2945,9 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
 
     // The thread is no longer running.  It's important that we zero any general OBJECTHANDLE's
     // on this Thread object.  That's because we need the managed Thread object to be subject to
-    // GC and yet any HANDLE is opaque to the GC when it comes to collecting cycles.  If e.g. the
-    // Thread's AbortReason (which is an arbitrary object) contains transitively a reference back
-    // to the Thread, then we have an uncollectible cycle.  When the thread is executing, nothing
-    // can be collected anyway.  But now that we stop running the cycle concerns us.
+    // GC and yet any HANDLE is opaque to the GC when it comes to collecting cycles. When the
+    // thread is executing, nothing can be collected anyway.  But now that we stop running the
+    // cycle concerns us.
     //
     // It's important that we only use OBJECTHANDLE's that are retrievable while the thread is
     // still running.  That's what allows us to zero them here with impunity:
@@ -3010,11 +2959,6 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
 
         // Destroy the LastThrown handle (and anything that violates the above assert).
         SafeSetThrowables(NULL);
-
-        // Cleaning up the AbortReason is tricky, since the handle is only valid if the ADID is valid
-        // ...and we can only perform this operation if other threads aren't racing to update these
-        // values on our thread asynchronously.
-        ClearAbortReason();
 
         // Free all structures related to thread statics for this thread
         DeleteThreadStaticData();
@@ -3319,7 +3263,6 @@ DWORD MsgWaitHelper(int numWaiters, HANDLE* phEvent, BOOL bWaitAll, DWORD millis
     // The true contract for GC trigger should be the following.  But this puts a very strong restriction
     // on contract for functions that call EnablePreemptiveGC.
     //if (GetThread() && !ThreadStore::HoldingThreadStore(GetThread())) {GC_TRIGGERS;} else {GC_NOTRIGGER;}
-    STATIC_CONTRACT_SO_INTOLERANT;
     STATIC_CONTRACT_GC_TRIGGERS;
 
     DWORD flags = 0;
@@ -3331,7 +3274,6 @@ DWORD MsgWaitHelper(int numWaiters, HANDLE* phEvent, BOOL bWaitAll, DWORD millis
         _ASSERTE (g_fEEShutDown);
 
     DWORD lastError = 0;
-    BEGIN_SO_TOLERANT_CODE(pThread);
 
     // If we're going to pump, we cannot use WAIT_ALL.  That's because the wait would
     // only be satisfied if a message arrives while the handles are signalled.  If we
@@ -3379,32 +3321,12 @@ DWORD MsgWaitHelper(int numWaiters, HANDLE* phEvent, BOOL bWaitAll, DWORD millis
 
     lastError = ::GetLastError();
 
-    END_SO_TOLERANT_CODE;
-
-    // END_SO_TOLERANT_CODE overwrites lasterror.  Let's reset it.
     ::SetLastError(lastError);
 
     return dwReturn;
 }
 
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
-
-DWORD WaitForMultipleObjectsEx_SO_TOLERANT (DWORD nCount, HANDLE *lpHandles, BOOL bWaitAll,DWORD dwMilliseconds, BOOL bAlertable)
-{
-    STATIC_CONTRACT_SO_INTOLERANT;
-
-    DWORD dwRet = WAIT_FAILED;
-    DWORD lastError = 0;
-
-    BEGIN_SO_TOLERANT_CODE (GetThread ());
-    dwRet = ::WaitForMultipleObjectsEx (nCount, lpHandles, bWaitAll, dwMilliseconds, bAlertable);
-    lastError = ::GetLastError();
-    END_SO_TOLERANT_CODE;
-
-    // END_SO_TOLERANT_CODE overwrites lasterror.  Let's reset it.
-    ::SetLastError(lastError);
-    return dwRet;
-}
 
 //--------------------------------------------------------------------
 // Do appropriate wait based on apartment state (STA or MTA)
@@ -3414,7 +3336,6 @@ DWORD Thread::DoAppropriateAptStateWait(int numWaiters, HANDLE* pHandles, BOOL b
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -3431,7 +3352,7 @@ DWORD Thread::DoAppropriateAptStateWait(int numWaiters, HANDLE* pHandles, BOOL b
     }
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
-    return WaitForMultipleObjectsEx_SO_TOLERANT(numWaiters, pHandles, bWaitAll, timeout, alertable);
+    return WaitForMultipleObjectsEx(numWaiters, pHandles, bWaitAll, timeout, alertable);
 }
 
 // A helper called by our two flavors of DoAppropriateWaitWorker
@@ -4222,7 +4143,6 @@ void WINAPI Thread::UserInterruptAPC(ULONG_PTR data)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -4458,7 +4378,6 @@ void Thread::SetLastThrownObject(OBJECTREF throwable, BOOL isUnhandled)
         if ((throwable == NULL) || CLRException::IsPreallocatedExceptionObject(throwable)) NOTHROW; else THROWS; // From CreateHandle
         GC_NOTRIGGER;
         if (throwable == NULL) MODE_ANY; else MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -4497,11 +4416,7 @@ void Thread::SetLastThrownObject(OBJECTREF throwable, BOOL isUnhandled)
         }
         else
         {
-            BEGIN_SO_INTOLERANT_CODE(GetThread());
-            {
-                m_LastThrownObjectHandle = GetDomain()->CreateHandle(throwable);
-            }
-            END_SO_INTOLERANT_CODE;
+            m_LastThrownObjectHandle = GetDomain()->CreateHandle(throwable);
         }
 
         _ASSERTE(m_LastThrownObjectHandle != NULL);
@@ -4520,7 +4435,6 @@ void Thread::SetSOForLastThrownObject()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
@@ -4544,7 +4458,6 @@ OBJECTREF Thread::SafeSetLastThrownObject(OBJECTREF throwable)
         NOTHROW;
         GC_NOTRIGGER;
         if (throwable == NULL) MODE_ANY; else MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -4582,7 +4495,6 @@ OBJECTREF Thread::SafeSetThrowables(OBJECTREF throwable DEBUG_ARG(ThreadExceptio
         NOTHROW;
         GC_NOTRIGGER;
         if (throwable == NULL) MODE_ANY; else MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -4660,7 +4572,6 @@ void Thread::SetLastThrownObjectHandle(OBJECTHANDLE h)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -4684,7 +4595,6 @@ void Thread::SafeUpdateLastThrownObject(void)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -5043,7 +4953,6 @@ Thread::ApartmentState Thread::GetFinalApartment()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -5805,7 +5714,6 @@ Thread *ThreadStore::GetAllThreadList(Thread *cursor, ULONG mask, ULONG bits)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     SUPPORTS_DAC;
@@ -5835,7 +5743,6 @@ Thread *ThreadStore::GetThreadList(Thread *cursor)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     SUPPORTS_DAC;
@@ -5856,7 +5763,6 @@ Thread::ThreadState Thread::GetSnapshotState()
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -6081,13 +5987,10 @@ void Thread::HandleThreadInterrupt (BOOL fWaitForADUnload)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     // If we're waiting for shutdown, we don't want to abort/interrupt this thread
     if (HasThreadStateNC(Thread::TSNC_BlockedForShutdown))
         return;
-
-    BEGIN_SO_INTOLERANT_CODE(this);
 
     if ((m_UserInterrupt & TI_Abort) != 0)
     {
@@ -6102,7 +6005,6 @@ void Thread::HandleThreadInterrupt (BOOL fWaitForADUnload)
 
         COMPlusThrow(kThreadInterruptedException);
     }
-    END_SO_INTOLERANT_CODE;
 }
 
 #ifdef _DEBUG
@@ -6112,7 +6014,6 @@ void CleanStackForFastGCStress ()
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -6129,25 +6030,15 @@ void CleanStackForFastGCStress ()
 
 void Thread::ObjectRefFlush(Thread* thread)
 {
+    // this is debug only code, so no need to validate
+    STATIC_CONTRACT_NOTHROW;
+    STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_ENTRY_POINT;
 
-    BEGIN_PRESERVE_LAST_ERROR;
-
-    // The constructor and destructor of AutoCleanupSONotMainlineHolder (allocated by SO_NOT_MAINLINE_FUNCTION below)
-    // may trash the last error, so we need to save and restore last error here.  Also, we need to add a scope here
-    // because we can't let the destructor run after we call SetLastError().
-    {
-        // this is debug only code, so no need to validate
-        STATIC_CONTRACT_NOTHROW;
-        STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_ENTRY_POINT;
-
-        _ASSERTE(thread->PreemptiveGCDisabled());  // Should have been in managed code
-        memset(thread->dangerousObjRefs, 0, sizeof(thread->dangerousObjRefs));
-        thread->m_allObjRefEntriesBad = FALSE;
-        CLEANSTACKFORFASTGCSTRESS ();
-    }
-
-    END_PRESERVE_LAST_ERROR;
+    _ASSERTE(thread->PreemptiveGCDisabled());  // Should have been in managed code
+    memset(thread->dangerousObjRefs, 0, sizeof(thread->dangerousObjRefs));
+    thread->m_allObjRefEntriesBad = FALSE;
+    CLEANSTACKFORFASTGCSTRESS ();
 }
 #endif
 
@@ -6418,7 +6309,6 @@ BOOL Thread::UniqueStack(void* stackStart)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -6548,7 +6438,6 @@ void * Thread::GetStackLowerBound()
     // Called during fiber switch.  Can not have non-static contract.
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
 
  #ifndef FEATURE_PAL
    MEMORY_BASIC_INFORMATION lowerBoundMemInfo;
@@ -6585,7 +6474,6 @@ void *Thread::GetStackUpperBound()
     // Called during fiber switch.  Can not have non-static contract.
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     return ClrTeb::GetStackBase();
 }
@@ -6596,7 +6484,6 @@ BOOL Thread::SetStackLimits(SetStackLimitScope scope)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -6667,7 +6554,6 @@ HRESULT Thread::CLRSetThreadStackGuarantee(SetThreadStackGuaranteeScope fScope)
     {
         WRAPPER(NOTHROW);
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -6746,7 +6632,6 @@ UINT_PTR Thread::GetLastNormalStackAddress(UINT_PTR StackLimit)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -6832,7 +6717,6 @@ static void DebugLogStackRegionMBIs(UINT_PTR uLowAddress, UINT_PTR uHighAddress)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
@@ -6878,7 +6762,6 @@ void Thread::DebugLogStackMBIs()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
@@ -6962,7 +6845,6 @@ BOOL Thread::DoesRegionContainGuardPage(UINT_PTR uLowAddress, UINT_PTR uHighAddr
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
@@ -7023,7 +6905,6 @@ BOOL Thread::DetermineIfGuardPagePresent()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
@@ -7067,101 +6948,6 @@ UINT_PTR Thread::GetLastNormalStackAddress()
     return GetLastNormalStackAddress((UINT_PTR)m_CacheStackLimit);
 }
 
-
-#ifdef FEATURE_STACK_PROBE
-/*
- * CanResetStackTo
- *
- * Given a target stack pointer, this function will tell us whether or not we could restore the guard page if we
- * unwound the stack that far.
- *
- * Parameters:
- *  stackPointer -- stack pointer that we want to try to reset the thread's stack up to.
- *
- * Returns:
- *  TRUE if there's enough room to reset the stack, false otherwise.
- */
-BOOL Thread::CanResetStackTo(LPCVOID stackPointer)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    // How much space between the given stack pointer and the first guard page?
-    //
-    // This must be signed since the stack pointer might be in the guard region,
-    // which is at a lower address than GetLastNormalStackAddress will return.
-    INT_PTR iStackSpaceLeft = (INT_PTR)stackPointer - GetLastNormalStackAddress();
-    
-    // We need to have enough space to call back into the EE from the handler, so we use the twice the entry point amount.
-    // We need enough to do work and enough that partway through that work we won't probe and COMPlusThrowSO.
-
-    const INT_PTR iStackSizeThreshold        = (ADJUST_PROBE(DEFAULT_ENTRY_PROBE_AMOUNT * 2) * GetOsPageSize());
-
-    if (iStackSpaceLeft > iStackSizeThreshold)
-    {
-        return TRUE;
-    }
-    else
-    {
-        return FALSE;
-    }
-}
-
-/*
- * IsStackSpaceAvailable
- *
- * Given a number of stack pages, this function will tell us whether or not we have that much space
- * before the top of the stack. If we are in the guard region we must be already handling an SO,
- * so we report how much space is left in the guard region
- *
- * Parameters:
- *  numPages -- the number of pages that we need.  This can be a fractional amount.
- *
- * Returns:
- *  TRUE if there's that many pages of stack available
- */
-BOOL Thread::IsStackSpaceAvailable(float numPages)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    // How much space between the current stack pointer and the first guard page?
-    //
-    // This must be signed since the stack pointer might be in the guard region,
-    // which is at a lower address than GetLastNormalStackAddress will return.
-    float iStackSpaceLeft = static_cast<float>((INT_PTR)GetCurrentSP() - (INT_PTR)GetLastNormalStackAddress());
-
-    // If we have access to the stack guarantee (either in the guard region or we've tripped the guard page), then
-    // use that.
-    if ((iStackSpaceLeft/GetOsPageSize()) < numPages && !DetermineIfGuardPagePresent())
-    {    
-        UINT_PTR stackGuarantee = GetStackGuarantee();
-        // GetLastNormalStackAddress actually returns the 2nd to last stack page on the stack. We'll add that to our available
-        // amount of stack, in addition to any sort of stack guarantee we might have.
-        //
-        // All these values are OS supplied, and will never overflow. (If they do, that means the stack is on the order
-        // over GB, which isn't possible.
-        iStackSpaceLeft += stackGuarantee + GetOsPageSize();
-    }
-    if ((iStackSpaceLeft/GetOsPageSize()) < numPages)
-    {
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-#endif // FEATURE_STACK_PROBE
 
 /*
  * GetStackGuarantee
@@ -7214,7 +7000,6 @@ BOOL Thread::MarkPageAsGuard(UINT_PTR uGuardPageBase)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
@@ -7260,13 +7045,9 @@ VOID Thread::RestoreGuardPage()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
-
-    // Need a hard SO probe here.
-    CONTRACT_VIOLATION(SOToleranceViolation);
 
     BOOL bStackGuarded = DetermineIfGuardPagePresent();
 
@@ -8023,11 +7804,6 @@ static void ManagedThreadBase_DispatchMiddle(ManagedThreadCallState *pCallState)
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    // We have the probe outside the EX_TRY below since corresponding EX_CATCH
-    // also invokes SO_INTOLERANT code.
-    BEGIN_SO_INTOLERANT_CODE(GetThread());
 
     EX_TRY_CPP_ONLY
     {
@@ -8099,8 +7875,6 @@ static void ManagedThreadBase_DispatchMiddle(ManagedThreadCallState *pCallState)
         }
     }
     EX_END_CATCH(SwallowAllExceptions);
-
-    END_SO_INTOLERANT_CODE;
 }
 
 /*
@@ -8138,7 +7912,6 @@ static LONG ThreadBaseRedirectingFilter(PEXCEPTION_POINTERS pExceptionInfo, LPVO
     }
 
     LONG ret = -1;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return EXCEPTION_CONTINUE_SEARCH;);
 
     // This will invoke the swallowing filter. If that returns EXCEPTION_CONTINUE_SEARCH,
     // it will trigger unhandled exception processing.
@@ -8235,8 +8008,6 @@ static LONG ThreadBaseRedirectingFilter(PEXCEPTION_POINTERS pExceptionInfo, LPVO
         }
     }
 
-
-    END_SO_INTOLERANT_CODE;
     return ret;
 }
 
@@ -8690,7 +8461,6 @@ BOOL ThreadStore::HoldingThreadStore(Thread *pThread)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -8757,7 +8527,6 @@ INT32 Thread::ResetManagedThreadObjectInCoopMode(INT32 nPriority)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -8778,7 +8547,6 @@ BOOL Thread::IsRealThreadPoolResetNeeded()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     } 
     CONTRACTL_END;
 
@@ -8802,7 +8570,7 @@ void Thread::InternalReset(BOOL fNotFinalizerThread, BOOL fThreadObjectResetNeed
 {
     CONTRACTL {
         NOTHROW;
-        if(!fNotFinalizerThread || fThreadObjectResetNeeded) {GC_TRIGGERS;SO_INTOLERANT;} else {GC_NOTRIGGER;SO_TOLERANT;}        
+        if(!fNotFinalizerThread || fThreadObjectResetNeeded) {GC_TRIGGERS;} else {GC_NOTRIGGER;}        
     }
     CONTRACTL_END;
 
@@ -8855,11 +8623,9 @@ HRESULT Thread::Abort ()
     {
         NOTHROW;
         if (GetThread()) {GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW;);
     EX_TRY
     {
         UserAbort(TAR_Thread, EEPolicy::TA_Safe, INFINITE, Thread::UAC_Host);
@@ -8868,7 +8634,6 @@ HRESULT Thread::Abort ()
     {
     }
     EX_END_CATCH(SwallowAllExceptions);
-    END_SO_INTOLERANT_CODE;
 
     return S_OK;
 }
@@ -8879,11 +8644,8 @@ HRESULT Thread::RudeAbort()
     {
         NOTHROW;
         if (GetThread()) {GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
-        SO_TOLERANT;
     }
     CONTRACTL_END;
-
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
 
     EX_TRY
     {
@@ -8894,8 +8656,6 @@ HRESULT Thread::RudeAbort()
     }
     EX_END_CATCH(SwallowAllExceptions);
 
-    END_SO_INTOLERANT_CODE;
-
     return S_OK;
 }
 
@@ -8904,7 +8664,6 @@ HRESULT Thread::NeedsPriorityScheduling(BOOL *pbNeedsPriorityScheduling)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -8996,13 +8755,10 @@ void Thread::SetupThreadForHost()
     {
         THROWS;
         GC_TRIGGERS;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     _ASSERTE (GetThread() == this);
-    CONTRACT_VIOLATION(SOToleranceViolation);
-
 }
 
 
@@ -9010,7 +8766,6 @@ ETaskType GetCurrentTaskType()
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     ETaskType TaskType = TT_UNKNOWN;
     size_t type = (size_t)ClrFlsGetValue (TlsIdx_ThreadType);

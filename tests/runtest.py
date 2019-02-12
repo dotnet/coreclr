@@ -67,7 +67,6 @@ else:
     import urllib.request
 
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
-
 from coreclr_arguments import *
 
 ################################################################################
@@ -122,15 +121,17 @@ parser.add_argument("--gcsimulator", dest="gcsimulator", action="store_true", de
 parser.add_argument("--jitdisasm", dest="jitdisasm", action="store_true", default=False)
 parser.add_argument("--ilasmroundtrip", dest="ilasmroundtrip", action="store_true", default=False)
 parser.add_argument("--run_crossgen_tests", dest="run_crossgen_tests", action="store_true", default=False)
+parser.add_argument("--large_version_bubble", dest="large_version_bubble", action="store_true", default=False)
 parser.add_argument("--precompile_core_root", dest="precompile_core_root", action="store_true", default=False)
 parser.add_argument("--sequential", dest="sequential", action="store_true", default=False)
 
-parser.add_argument("--build_xunit_test_wrappers", dest="build_test_wrappers", action="store_true", default=False)
+parser.add_argument("--build_xunit_test_wrappers", dest="build_xunit_test_wrappers", action="store_true", default=False)
 parser.add_argument("--generate_layout", dest="generate_layout", action="store_true", default=False)
 parser.add_argument("--generate_layout_only", dest="generate_layout_only", action="store_true", default=False)
 parser.add_argument("--analyze_results_only", dest="analyze_results_only", action="store_true", default=False)
 parser.add_argument("--verbose", dest="verbose", action="store_true", default=False)
 parser.add_argument("--limited_core_dumps", dest="limited_core_dumps", action="store_true", default=False)
+parser.add_argument("--run_in_context", dest="run_in_context", action="store_true", default=False)
 
 # Only used on Unix
 parser.add_argument("-test_native_bin_location", dest="test_native_bin_location", nargs='?', default=None)
@@ -148,6 +149,25 @@ file_name_cache = defaultdict(lambda: None)
 ################################################################################
 # Classes
 ################################################################################
+
+class TempFile:
+    def __init__(self, extension):
+        self.file = None
+        self.file_name = None
+        self.extension = extension
+
+    def __enter__(self):
+        self.file = tempfile.NamedTemporaryFile(delete=False, suffix=self.extension)
+
+        self.file_name = self.file.name
+
+        return self.file_name
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            os.remove(self.file_name)
+        except:
+            print("Error failed to delete: {}.".format(self.file_name))
 
 class DebugEnv:
     def __init__(self, 
@@ -440,7 +460,7 @@ def create_and_use_test_env(_os, env, func):
 
     for key in env:
         value = env[key]
-        if "complus" in key.lower():
+        if "complus" in key.lower() or "superpmi" in key.lower():
             complus_vars[key] = value
 
     if len(list(complus_vars.keys())) > 0:
@@ -621,7 +641,14 @@ def call_msbuild(coreclr_repo_location,
     logs_dir = os.path.join(coreclr_repo_location, "bin", "Logs")
     if not os.path.isdir(logs_dir):
         os.makedirs(logs_dir)
-    
+
+    msbuild_debug_logs_dir = os.path.join(logs_dir, "MsbuildDebugLogs")
+    if not os.path.isdir(msbuild_debug_logs_dir):
+        os.makedirs(msbuild_debug_logs_dir)
+
+    # Set up the directory for MSBuild debug logs.
+    os.environ["MSBUILDDEBUGPATH"] = msbuild_debug_logs_dir
+
     command =   [dotnetcli_location,
                  "msbuild",
                  os.path.join(coreclr_repo_location, "tests", "runtest.proj"),
@@ -776,6 +803,12 @@ def setup_coredump_generation(host_os):
     else:
         print("CoreDump generation not enabled due to unsupported OS: %s" % host_os)
         return
+
+    if isinstance(coredump_pattern, bytes):
+        print("Binary data found. Decoding.")
+        coredump_pattern = coredump_pattern.decode('ascii')
+        
+    print("CoreDump Pattern: {}".format(coredump_pattern))
 
     # resource is only available on Unix platforms
     import resource
@@ -968,8 +1001,10 @@ def run_tests(host_os,
               is_ilasm=False,
               is_illink=False,
               run_crossgen_tests=False,
+              large_version_bubble=False,
               run_sequential=False,
-              limited_core_dumps=False):
+              limited_core_dumps=False,
+              run_in_context=False):
     """ Run the coreclr tests
     
     Args:
@@ -989,27 +1024,25 @@ def run_tests(host_os,
         run_crossgen_tests(bool)    :
         run_sequential(bool)        :
         limited_core_dumps(bool)    :
+        run_in_context(bool)        : run the tests in an unloadable AssemblyLoadContext
     """
 
     # Setup the dotnetcli location
     dotnetcli_location = os.path.join(coreclr_repo_location, "Tools", "dotnetcli", "dotnet%s" % (".exe" if host_os == "Windows_NT" else ""))
 
-    # Default timeout for unix is 15 minutes
-    print("Setting __TestTimeout=%s" % str(15*60*1000))
-    os.environ["__TestTimeout"] = str(15*60*1000) # 900,000 ms
+    # Set default per-test timeout to 15 minutes (in milliseconds).
+    per_test_timeout = 15*60*1000
 
     # Setup the environment
     if is_long_gc:
         print("Running Long GC Tests, extending timeout to 20 minutes.")
-        print("Setting __TestTimeout=%s" % str(20*60*1000))
-        os.environ["__TestTimeout"] = str(20*60*1000) # 1,200,000 ms
+        per_test_timeout = 20*60*1000
         print("Setting RunningLongGCTests=1")
         os.environ["RunningLongGCTests"] = "1"
     
     if is_gcsimulator:
         print("Running GCSimulator tests, extending timeout to one hour.")
-        print("Setting __TestTimeout=%s" % str(60*60*1000))
-        os.environ["__TestTimeout"] = str(60*60*1000) # 3,600,000 ms
+        per_test_timeout = 60*60*1000
         print("Setting RunningGCSimulatorTests=1")
         os.environ["RunningGCSimulatorTests"] = "1"
 
@@ -1028,15 +1061,29 @@ def run_tests(host_os,
         print("Setting RunCrossGen=true")
         os.environ["RunCrossGen"] = "true"
 
+    if large_version_bubble:
+        print("Large Version Bubble enabled")
+        os.environ["LargeVersionBubble"] = "true"
+
     if gc_stress:
         print("Running GCStress, extending timeout to 120 minutes.")
-        print("Setting __TestTimeout=%s" % str(120*60*1000))
-        os.environ["__TestTimeout"] = str(120*60*1000) # 1,800,000 ms
+        per_test_timeout = 120*60*1000
 
     if limited_core_dumps:
         setup_coredump_generation(host_os)
 
-    # Set Core_Root
+    if run_in_context:
+        print("Running test in an unloadable AssemblyLoadContext")
+        os.environ["CLRCustomTestLauncher"] = os.path.join(coreclr_repo_location, "tests", "scripts", "runincontext%s" % (".cmd" if host_os == "Windows_NT" else ".sh"))
+        os.environ["__RunInUnloadableContext"] = "1";
+        per_test_timeout = 20*60*1000
+
+    # Set __TestTimeout environment variable, which is the per-test timeout in milliseconds.
+    # This is read by the test wrapper invoker, in tests\src\Common\Coreclr.TestWrapper\CoreclrTestWrapperLib.cs.
+    print("Setting __TestTimeout=%s" % str(per_test_timeout))
+    os.environ["__TestTimeout"] = str(per_test_timeout)
+
+    # Set CORE_ROOT
     print("Setting CORE_ROOT=%s" % core_root)
     os.environ["CORE_ROOT"] = core_root
 
@@ -1113,9 +1160,12 @@ def setup_args(args):
         location using the build type and the arch.
     """
 
+    require_built_test_dir = not args.generate_layout_only and True
+    require_built_core_root = not args.generate_layout_only and True
+
     coreclr_setup_args = CoreclrArguments(args, 
-                                          require_built_test_dir=True, 
-                                          require_built_core_root=True, 
+                                          require_built_test_dir=require_built_test_dir, 
+                                          require_built_core_root=require_built_core_root, 
                                           require_built_product_dir=args.generate_layout_only)
 
     normal_location = os.path.join(coreclr_setup_args.bin_location, "tests", "%s.%s.%s" % (coreclr_setup_args.host_os, coreclr_setup_args.arch, coreclr_setup_args.build_type))
@@ -1167,9 +1217,123 @@ def setup_args(args):
                                       "Error setting test location.")
 
     coreclr_setup_args.verify(args,
-                              "generate_layout",
+                              "build_xunit_test_wrappers",
                               lambda arg: True,
-                              "Error setting generate_layout")
+                              "Error setting build_xunit_test_wrappers")
+
+    coreclr_setup_args.verify(args,
+                              "generate_layout_only",
+                              lambda arg: True,
+                              "Error setting generate_layout_only")
+
+    if coreclr_setup_args.generate_layout_only:
+        # Force generate_layout
+        coreclr_setup_args.verify(args,
+                                "generate_layout",
+                                lambda arg: True,
+                                "Error setting generate_layout",
+                                modify_arg=lambda arg: True)
+    
+    else:
+        coreclr_setup_args.verify(args,
+                                "generate_layout",
+                                lambda arg: True,
+                                "Error setting generate_layout")
+
+    coreclr_setup_args.verify(args,
+                              "test_env",
+                              lambda arg: True,
+                              "Error setting test_env")
+
+    coreclr_setup_args.verify(args,
+                              "analyze_results_only",
+                              lambda arg: True,
+                              "Error setting analyze_results_only")
+
+    coreclr_setup_args.verify(args,
+                              "crossgen_altjit",
+                              lambda arg: True,
+                              "Error setting crossgen_altjit")
+
+    coreclr_setup_args.verify(args,
+                              "altjit_arch",
+                              lambda arg: True,
+                              "Error setting altjit_arch")
+
+    coreclr_setup_args.verify(args,
+                              "rid",
+                              lambda arg: True,
+                              "Error setting rid")
+
+    coreclr_setup_args.verify(args,
+                              "il_link",
+                              lambda arg: True,
+                              "Error setting il_link")
+
+    coreclr_setup_args.verify(args,
+                              "long_gc",
+                              lambda arg: True,
+                              "Error setting long_gc")
+    
+    coreclr_setup_args.verify(args,
+                              "gcsimulator",
+                              lambda arg: True,
+                              "Error setting gcsimulator")
+    
+    coreclr_setup_args.verify(args,
+                              "jitdisasm",
+                              lambda arg: True,
+                              "Error setting jitdisasm")
+
+    coreclr_setup_args.verify(args,
+                              "ilasmroundtrip",
+                              lambda arg: True,
+                              "Error setting ilasmroundtrip")
+
+    coreclr_setup_args.verify(args,
+                              "large_version_bubble",
+                              lambda arg: True,
+                              "Error setting large_version_bubble")
+    
+    coreclr_setup_args.verify(args,
+                              "run_crossgen_tests",
+                              lambda arg: True,
+                              "Error setting run_crossgen_tests")
+
+    coreclr_setup_args.verify(args,
+                              "precompile_core_root",
+                              lambda arg: True,
+                              "Error setting precompile_core_root")
+
+    coreclr_setup_args.verify(args,
+                              "sequential",
+                              lambda arg: True,
+                              "Error setting sequential")
+    
+    coreclr_setup_args.verify(args,
+                              "build_xunit_test_wrappers",
+                              lambda arg: True,
+                              "Error setting build_xunit_test_wrappers")
+    
+    coreclr_setup_args.verify(args,
+                              "verbose",
+                              lambda arg: True,
+                              "Error setting verbose")
+
+    coreclr_setup_args.verify(args,
+                              "limited_core_dumps",
+                              lambda arg: True,
+                              "Error setting limited_core_dumps")
+    
+    coreclr_setup_args.verify(args,
+                              "test_native_bin_location",
+                              lambda arg: True,
+                              "Error setting test_native_bin_location")
+
+    coreclr_setup_args.verify(args,
+                              "run_in_context",
+                              lambda arg: True,
+                              "Error setting run_in_context")
 
     is_same_os = False
     is_same_arch = False
@@ -1207,16 +1371,7 @@ def setup_args(args):
     print("test_location            :%s" % coreclr_setup_args.test_location)
     print("test_native_bin_location :%s" % coreclr_setup_args.test_native_bin_location)
 
-    return (
-        coreclr_setup_args.host_os,
-        coreclr_setup_args.arch,
-        coreclr_setup_args.build_type,
-        coreclr_setup_args.coreclr_repo_location,
-        coreclr_setup_args.product_location,
-        coreclr_setup_args.core_root,
-        coreclr_setup_args.test_location,
-        coreclr_setup_args.test_native_bin_location
-    )
+    return coreclr_setup_args
 
 def setup_tools(host_os, coreclr_repo_location):
     """ Setup the tools for the repo
@@ -1446,9 +1601,17 @@ def setup_core_root(host_os,
     if host_os != "Windows_NT":
         os.environ["__DistroRid"] = "%s-%s" % ("osx" if sys.platform == "darwin" else "linux", arch)
 
-    command = [os.path.join(coreclr_repo_location, "run.%s" % ("cmd" if host_os == "Windows_NT" else "sh")),
-               "build",
-               "-Project=%s" % os.path.join(coreclr_repo_location, "tests", "build.proj")]
+    command = [dotnetcli_location, "msbuild", "/nologo", "/verbosity:minimal", "/clp:Summary",
+               "\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\""]
+
+    if host_os == "Windows_NT":
+        command += ["/nodeReuse:false"]
+
+    command += ["/p:RestoreDefaultOptimizationDataPackage=false",
+                "/p:PortableBuild=true",
+                "/p:UsePartialNGENOptimization=false",
+                "/maxcpucount",
+                os.path.join(coreclr_repo_location, "tests", "build.proj")]
 
     logs_dir = os.path.join(coreclr_repo_location, "bin", "Logs")
     if not os.path.isdir(logs_dir):
@@ -1459,25 +1622,17 @@ def setup_core_root(host_os,
     wrn_log = log_path + ".wrn"
     err_log = log_path + ".err"
 
-    msbuild_log_params = "/fileloggerparameters:\"Verbosity=normal;LogFile=%s\"" % build_log
-    msbuild_wrn_params = "/fileloggerparameters1:\"WarningsOnly;LogFile=%s\"" % wrn_log
-    msbuild_err_params = "/fileloggerparameters2:\"ErrorsOnly;LogFile=%s\"" % err_log
-
-    command += ["-MsBuildLog=%s" % msbuild_log_params,
-                "-MsBuildWrn=%s" % msbuild_wrn_params,
-                "-MsBuildErr=%s" % msbuild_err_params]
-
-    if host_os != "Windows_NT":
-        command = ["bash"] + command
-        command += ["-MsBuildEventLogging=\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\""]
+    command += ["/fileloggerparameters:\"Verbosity=normal;LogFile=%s\"" % build_log,
+                "/fileloggerparameters1:\"WarningsOnly;LogFile=%s\"" % wrn_log,
+                "/fileloggerparameters2:\"ErrorsOnly;LogFile=%s\"" % err_log]
 
     if g_verbose:
-        command += ["-verbose"]
+        command += ["/v:detailed"]
 
-    command += [ "-BatchRestorePackages",
-                 "-BuildType=%s" % build_type,
-                 "-BuildArch=%s" % arch,
-                 "-BuildOS=%s" % host_os]
+    command += ["/t:BatchRestorePackages",
+                "/p:__BuildType=%s" % build_type,
+                "/p:__BuildArch=%s" % arch,
+                "/p:__BuildOS=%s" % host_os]
 
     print("Restoring packages...")
     print(" ".join(command))
@@ -1494,7 +1649,7 @@ def setup_core_root(host_os,
         proc.kill()
         sys.exit(1)
 
-    if proc.returncode == 1:
+    if proc.returncode != 0:
         print("Error: package restore failed.")
         return False
 
@@ -1511,9 +1666,17 @@ def setup_core_root(host_os,
     os.environ["Core_Root"] = core_root
     os.environ["xUnitTestBinBase"] = os.path.dirname(os.path.dirname(core_root))
 
-    command = [os.path.join(coreclr_repo_location, "run.%s" % ("cmd" if host_os == "Windows_NT" else "sh")),
-               "build",
-               "-Project=%s" % os.path.join(coreclr_repo_location, "tests", "runtest.proj")]
+    command = [dotnetcli_location, "msbuild", "/nologo", "/verbosity:minimal", "/clp:Summary",
+               "\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\""]
+
+    if host_os == "Windows_NT":
+        command += ["/nodeReuse:false"]
+
+    command += ["/p:RestoreDefaultOptimizationDataPackage=false",
+                "/p:PortableBuild=true",
+                "/p:UsePartialNGENOptimization=false",
+                "/maxcpucount",
+                os.path.join(coreclr_repo_location, "tests", "runtest.proj")]
 
     logs_dir = os.path.join(coreclr_repo_location, "bin", "Logs")
     if not os.path.isdir(logs_dir):
@@ -1524,25 +1687,17 @@ def setup_core_root(host_os,
     wrn_log = log_path + ".wrn"
     err_log = log_path + ".err"
 
-    msbuild_log_params = "/fileloggerparameters:\"Verbosity=normal;LogFile=%s\"" % build_log
-    msbuild_wrn_params = "/fileloggerparameters1:\"WarningsOnly;LogFile=%s\"" % wrn_log
-    msbuild_err_params = "/fileloggerparameters2:\"ErrorsOnly;LogFile=%s\"" % err_log
-
-    command += ["-MsBuildLog=%s" % msbuild_log_params,
-                "-MsBuildWrn=%s" % msbuild_wrn_params,
-                "-MsBuildErr=%s" % msbuild_err_params]
-
-    if host_os != "Windows_NT":
-        command = ["bash"] + command
-        command += ["-MsBuildEventLogging=\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\""]
+    command += ["/fileloggerparameters:\"Verbosity=normal;LogFile=%s\"" % build_log,
+                "/fileloggerparameters1:\"WarningsOnly;LogFile=%s\"" % wrn_log,
+                "/fileloggerparameters2:\"ErrorsOnly;LogFile=%s\"" % err_log]
 
     if g_verbose:
-        command += ["-verbose"]
+        command += ["/v:detailed"]
 
-    command += [ "-testOverlay",
-                 "-BuildType=%s" % build_type,
-                 "-BuildArch=%s" % arch,
-                 "-BuildOS=%s" % host_os]
+    command += ["/t:CreateTestOverlay",
+                "/p:__BuildType=%s" % build_type,
+                "/p:__BuildArch=%s" % arch,
+                "/p:__BuildOS=%s" % host_os]
 
     print("")
     print("Creating Core_Root...")
@@ -1560,7 +1715,7 @@ def setup_core_root(host_os,
         proc.kill()
         sys.exit(1)
 
-    if proc.returncode == 1:
+    if proc.returncode != 0:
         print("Error: creating Core_Root failed.")
         return False
 
@@ -1618,7 +1773,7 @@ def setup_core_root(host_os,
         proc = subprocess.Popen(msbuild_command)
         proc.communicate()
 
-        if not proc.returncode == 0:
+        if proc.returncode != 0:
             print("Error: generating test host failed.")
             return False
 
@@ -1633,7 +1788,7 @@ def setup_core_root(host_os,
         proc = subprocess.Popen(msbuild_command)
         proc.communicate()
 
-        if proc.returncode == 1:
+        if proc.returncode != 0:
             print("Error: msbuild failed.")
             return False
 
@@ -1656,7 +1811,7 @@ def setup_core_root(host_os,
         proc = subprocess.Popen(msbuild_command)
         proc.communicate()
 
-        if proc.returncode == 1:
+        if proc.returncode != 0:
             print("Error: msbuild failed.")
             return False
 
@@ -1796,7 +1951,7 @@ def build_test_wrappers(host_os,
         proc.kill()
         sys.exit(1)
 
-    if proc.returncode == 1:
+    if proc.returncode != 0:
         print("Error: creating test wrappers failed.")
         return False
 
@@ -2091,18 +2246,25 @@ def print_summary(tests):
             # XUnit results are captured as escaped characters.
             test_output = test_output.replace("\\r", "\r")
             test_output = test_output.replace("\\n", "\n")
-
-            print(test_output)
             test_output = test_output.replace("/r", "\r")
             test_output = test_output.replace("/n", "\n")
+
+            # Replace CR/LF by just LF; Python "print", below, will map as necessary on the platform.
+            # If we don't do this, then Python on Windows will convert \r\n to \r\r\n on output.
+            test_output = test_output.replace("\r\n", "\n")
+
             unicode_output = None
             if sys.version_info < (3,0):
                 # Handle unicode characters in output in python2.*
-                unicode_output = unicode(test_output, "utf-8")
+                try:
+                    unicode_output = unicode(test_output, "utf-8")
+                except:
+                    print("Error: failed to convert Unicode output")
             else:
                 unicode_output = test_output
 
-            print(unicode_output)
+            if unicode_output is not None:
+                print(unicode_output)
             print("")
 
         print("")
@@ -2220,7 +2382,7 @@ def do_setup(host_os,
     # ExcludeList items in issues.targets for both build arch and altjit arch
     is_altjit_scenario = not args.altjit_arch is None
 
-    if unprocessed_args.build_test_wrappers:
+    if unprocessed_args.build_xunit_test_wrappers:
         build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
     elif build_info is None:
         build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
@@ -2243,8 +2405,10 @@ def do_setup(host_os,
                      is_ilasm=unprocessed_args.ilasmroundtrip,
                      is_illink=unprocessed_args.il_link, 
                      run_crossgen_tests=unprocessed_args.run_crossgen_tests,
+                     large_version_bubble=unprocessed_args.large_version_bubble,
                      run_sequential=unprocessed_args.sequential,
-                     limited_core_dumps=unprocessed_args.limited_core_dumps)
+                     limited_core_dumps=unprocessed_args.limited_core_dumps,
+                     run_in_context=unprocessed_args.run_in_context)
 
 ################################################################################
 # Main
@@ -2254,7 +2418,19 @@ def main(args):
     global g_verbose
     g_verbose = args.verbose
 
-    host_os, arch, build_type, coreclr_repo_location, product_location, core_root, test_location, test_native_bin_location = setup_args(args)
+    coreclr_setup_args = setup_args(args)
+    args = coreclr_setup_args
+
+    host_os, arch, build_type, coreclr_repo_location, product_location, core_root, test_location, test_native_bin_location = (
+        coreclr_setup_args.host_os,
+        coreclr_setup_args.arch,
+        coreclr_setup_args.build_type,
+        coreclr_setup_args.coreclr_repo_location,
+        coreclr_setup_args.product_location,
+        coreclr_setup_args.core_root,
+        coreclr_setup_args.test_location,
+        coreclr_setup_args.test_native_bin_location
+    )
 
     ret_code = 0
 

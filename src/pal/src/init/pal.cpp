@@ -153,7 +153,7 @@ int
 PALAPI
 PAL_Initialize(
     int argc,
-    const char *const argv[])
+    char *const argv[])
 {
     return Initialize(argc, argv, PAL_INITIALIZE);
 }
@@ -239,7 +239,7 @@ Abstract:
   real life scenarios work.
 
 --*/
-__attribute__((noinline,optnone))
+__attribute__((noinline,NOOPT_ATTRIBUTE))
 void
 EnsureStackSize(SIZE_T stackSize)
 {

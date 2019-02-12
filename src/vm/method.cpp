@@ -214,7 +214,6 @@ BaseDomain *MethodDesc::GetDomain()
         GC_NOTRIGGER;
         FORBID_FAULT;
         SUPPORTS_DAC;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -222,13 +221,6 @@ BaseDomain *MethodDesc::GetDomain()
 }
 
 #ifndef DACCESS_COMPILE
-
-//*******************************************************************************
-LoaderAllocator * MethodDesc::GetLoaderAllocatorForCode()
-{
-    return GetLoaderAllocator();
-}
-
 
 //*******************************************************************************
 LoaderAllocator * MethodDesc::GetDomainSpecificLoaderAllocator()
@@ -264,7 +256,6 @@ LPCUTF8 MethodDesc::GetName()
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS; // MethodImpl::FindMethodDesc can throw.
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }CONTRACTL_END;
 
@@ -284,17 +275,12 @@ LPCUTF8 MethodDesc::GetName()
     {
         // Get the metadata string name for this method
         LPCUTF8 result = NULL;
-        
-        // This probes only if we have a thread, in which case it is OK to throw the SO.
-        BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(COMPlusThrowSO());
-        
+
         if (FAILED(GetMDImport()->GetNameOfMethodDef(GetMemberDef(), &result)))
         {
             result = NULL;
         }
-        
-        END_SO_INTOLERANT_CODE;
-        
+
         return(result);
     }
 }
@@ -442,7 +428,6 @@ void MethodDesc::GetSig(PCCOR_SIGNATURE *ppSig, DWORD *pcSig)
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -486,7 +471,6 @@ void MethodDesc::GetSigFromMetadata(IMDInternalImport * importer,
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -537,7 +521,6 @@ PCODE MethodDesc::GetMethodEntryPoint()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -569,7 +552,6 @@ TADDR MethodDesc::GetAddrOfSlot()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -731,7 +713,6 @@ DWORD MethodDesc::GetNumGenericMethodArgs()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
         SUPPORTS_DAC;
     }
@@ -754,7 +735,6 @@ MethodTable * MethodDesc::GetExactDeclaringType(MethodTable * ownerOrSubType)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1136,7 +1116,6 @@ ULONG MethodDesc::GetRVA()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -1246,7 +1225,6 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -1396,7 +1374,6 @@ DWORD MethodDesc::GetAttrs() const
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END
     
@@ -1444,7 +1421,6 @@ Module* MethodDesc::GetZapModule()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -1503,7 +1479,6 @@ Module *MethodDesc::GetModule() const
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
     SUPPORTS_DAC;
 
     g_IBCLogger.LogMethodDescAccess(this);
@@ -1518,7 +1493,6 @@ Module *MethodDesc::GetModule_NoLogging() const
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
     SUPPORTS_DAC;
 
     MethodTable* pMT = GetMethodDescChunk()->GetMethodTable();
@@ -1799,7 +1773,6 @@ MethodDesc* MethodDesc::StripMethodInstantiation()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         POSTCONDITION(CheckPointer(RETVAL));
     }
     CONTRACT_END
@@ -2302,7 +2275,6 @@ BOOL MethodDesc::IsPointingToPrestub()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -4035,7 +4007,6 @@ MethodDesc* MethodDesc::GetMethodDescFromStubAddr(PCODE addr, BOOL fSpeculative 
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_TOLERANT;
     }
     CONTRACT_END;
 
@@ -4081,7 +4052,6 @@ TADDR MethodDesc::GetFixupList()
 //*******************************************************************************
 BOOL MethodDesc::IsRestored_NoLogging()
 {
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
@@ -4112,7 +4082,6 @@ BOOL MethodDesc::IsRestored_NoLogging()
 
 BOOL MethodDesc::IsRestored()
 {
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
@@ -4628,7 +4597,6 @@ PCODE MethodDesc::GetTemporaryEntryPoint()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -5613,7 +5581,6 @@ void MethodDesc::WalkValueTypeParameters(MethodTable *pMT, WalkValueTypeParamete
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -5679,7 +5646,6 @@ static void CheckForEquivalenceAndLoadType(Module *pModule, mdToken token, Modul
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 

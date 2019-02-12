@@ -81,9 +81,8 @@ private:
 void AcquireSafeHandleFromWaitHandle(WAITHANDLEREF wh)
 {
     CONTRACTL {
-        THROWS;    
-        GC_TRIGGERS;    
-        SO_INTOLERANT;    
+        THROWS;
+        GC_TRIGGERS; 
         MODE_COOPERATIVE;
         PRECONDITION(wh != NULL);
     } CONTRACTL_END;
@@ -97,9 +96,8 @@ void AcquireSafeHandleFromWaitHandle(WAITHANDLEREF wh)
 void ReleaseSafeHandleFromWaitHandle(WAITHANDLEREF wh)
 {
     CONTRACTL {
-        THROWS;    
-        GC_TRIGGERS;    
-        SO_TOLERANT;    
+        THROWS;
+        GC_TRIGGERS;
         MODE_COOPERATIVE;
         PRECONDITION(wh != NULL);
     } CONTRACTL_END;
@@ -311,5 +309,31 @@ FCIMPL5(INT32, WaitHandleNative::CorSignalAndWaitOneNative, SafeHandle* safeWait
 
     HELPER_METHOD_FRAME_END();
     return retVal;
+}
+FCIMPLEND
+
+FCIMPL3(DWORD, WaitHandleNative::WaitHelper, PTRArray *handleArrayUNSAFE, CLR_BOOL waitAll, DWORD millis)
+{
+    FCALL_CONTRACT;
+
+    DWORD ret = 0;
+
+    PTRARRAYREF handleArrayObj = (PTRARRAYREF) handleArrayUNSAFE;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(handleArrayObj);
+
+    CQuickArray<HANDLE> qbHandles;
+    int cHandles = handleArrayObj->GetNumComponents();
+
+    // Since DoAppropriateWait could cause a GC, we need to copy the handles to an unmanaged block
+    // of memory to ensure they aren't relocated during the call to DoAppropriateWait.
+    qbHandles.AllocThrows(cHandles);
+    memcpy(qbHandles.Ptr(), handleArrayObj->GetDataPtr(), cHandles * sizeof(HANDLE));
+
+    Thread * pThread = GetThread();
+    ret = pThread->DoAppropriateWait(cHandles, qbHandles.Ptr(), waitAll, millis, 
+                                     (WaitMode)(WaitMode_Alertable | WaitMode_IgnoreSyncCtx));
+    
+    HELPER_METHOD_FRAME_END();
+    return ret;
 }
 FCIMPLEND

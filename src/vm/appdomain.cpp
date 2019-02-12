@@ -143,7 +143,6 @@ BOOL CompareCLSID(UPTR u1, UPTR u2)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
@@ -711,8 +710,6 @@ BaseDomain::BaseDomain()
     m_handleStore = NULL;
 #endif
 
-    m_pMarshalingData = NULL;
-
 #ifdef FEATURE_COMINTEROP
     m_pMngStdInterfacesInfo = NULL;
     m_pWinRtBinder = NULL;
@@ -784,9 +781,6 @@ void BaseDomain::Init()
     // Has to switch thread to GC_NOTRIGGER while being held (see code:BaseDomain#AssemblyListLock)
     m_crstAssemblyList.Init(CrstAssemblyList, CrstFlags(
         CRST_GC_NOTRIGGER_WHEN_TAKEN | CRST_DEBUGGER_THREAD | CRST_TAKEN_DURING_SHUTDOWN));
-
-    // Initialize the EE marshaling data to NULL.
-    m_pMarshalingData = NULL;
 
 #ifdef FEATURE_COMINTEROP
     // Allocate the managed standard interfaces information.
@@ -1805,51 +1799,6 @@ OBJECTREF AppDomain::GetMissingObject()
 
 #ifndef DACCESS_COMPILE
 
-EEMarshalingData *BaseDomain::GetMarshalingData()
-{
-    CONTRACT (EEMarshalingData*)
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        POSTCONDITION(CheckPointer(m_pMarshalingData));
-    }
-    CONTRACT_END;
-
-    if (!m_pMarshalingData)
-    {
-        // Take the lock
-        CrstHolder holder(&m_InteropDataCrst);
-
-        if (!m_pMarshalingData)
-        {
-            LoaderHeap* pHeap = GetLoaderAllocator()->GetLowFrequencyHeap();
-            m_pMarshalingData = new (pHeap) EEMarshalingData(this, pHeap, &m_DomainCrst);
-        }
-    }
-
-    RETURN m_pMarshalingData;
-}
-
-void BaseDomain::DeleteMarshalingData()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // We are in shutdown - no need to take any lock
-    if (m_pMarshalingData)
-    {
-        delete m_pMarshalingData;
-        m_pMarshalingData = NULL;
-    }
-}
-
 #ifndef CROSSGEN_COMPILE
 
 STRINGREF *BaseDomain::IsStringInterned(STRINGREF *pString)
@@ -2820,7 +2769,6 @@ AppDomain *SystemDomain::GetAppDomainAtId(ADID index)
         if (!SystemDomain::IsUnderDomainLock() && !IsGCThread()) { MODE_COOPERATIVE;} else { DISABLED(MODE_ANY);}
 #endif
         GC_NOTRIGGER;
-        SO_TOLERANT;
         NOTHROW;
     }
     CONTRACTL_END;
@@ -3202,7 +3150,6 @@ StackWalkAction SystemDomain::CallersMethodCallbackWithStackMark(CrawlFrame* pCf
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_INTOLERANT;
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
@@ -3344,7 +3291,6 @@ StackWalkAction SystemDomain::CallersMethodCallbackWithStackMark(CrawlFrame* pCf
 StackWalkAction SystemDomain::CallersMethodCallback(CrawlFrame* pCf, VOID* data)
 {
     LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     MethodDesc *pFunc = pCf->GetFunction();
 
     /* We asked to be called back only for functions */
@@ -4789,7 +4735,6 @@ public:
     void Invoke()
     {
         WRAPPER_NO_CONTRACT;
-        STATIC_CONTRACT_SO_INTOLERANT;
         SetupThread();
         pThis->LoadDomainAssembly(pSpec, pFile, targetLevel);
     }
@@ -6252,10 +6197,6 @@ EndTry2:;
             }
 
             {
-                // This is not executed for SO exceptions so we need to disable the backout
-                // stack validation to prevent false violations from being reported.
-                DISABLE_BACKOUT_STACK_VALIDATION;
-
                 BOOL fFailure = PostBindResolveAssembly(pSpec, &NewSpec, ex->GetHR(), &pFailedSpec);
                 if (fFailure)
                 {
@@ -6803,7 +6744,6 @@ BOOL AppDomain::StopEEAndUnwindThreads(unsigned int retryCount, BOOL *pFMarkUnlo
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -6894,7 +6834,7 @@ BOOL AppDomain::StopEEAndUnwindThreads(unsigned int retryCount, BOOL *pFMarkUnlo
 #if _DEBUG_ADUNLOAD
             printf("AppDomain::UnwindThreads %x stopping %x with first frame %8.8p\n", GetThread()->GetThreadId(), pThread->GetThreadId(), pFrame);
 #endif
-            pThread->SetAbortRequest(EEPolicy::TA_V1Compatible);
+            pThread->SetAbortRequest(EEPolicy::TA_Safe);
         }
         TESTHOOKCALL(UnwindingThreads(GetId().m_dwId)) ;
     }
@@ -7146,11 +7086,9 @@ DWORD DomainLocalModule::GetClassFlags(MethodTable* pMT, DWORD iClassIndex /*=(D
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
-    {   // SO tolerance exception for debug-only assertion.
-        CONTRACT_VIOLATION(SOToleranceViolation);
+    {
         CONSISTENCY_CHECK(GetDomainFile()->GetModule() == pMT->GetModuleForStatics());
     }
 
@@ -7846,7 +7784,6 @@ UINT32 BaseDomain::LookupTypeID(PTR_MethodTable pMT)
 {
     CONTRACTL {
         NOTHROW;
-        SO_TOLERANT;
         WRAPPER(GC_TRIGGERS);
         PRECONDITION(pMT->GetDomain() == this);
     } CONTRACTL_END;
@@ -7858,7 +7795,6 @@ UINT32 BaseDomain::LookupTypeID(PTR_MethodTable pMT)
 PTR_MethodTable BaseDomain::LookupType(UINT32 id) {
     CONTRACTL {
         NOTHROW;
-        SO_TOLERANT;
         WRAPPER(GC_TRIGGERS);
         CONSISTENCY_CHECK(id != TYPE_ID_THIS_CLASS);
     } CONTRACTL_END;
@@ -7877,7 +7813,6 @@ void BaseDomain::RemoveTypesFromTypeIDMap(LoaderAllocator* pLoaderAllocator)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     m_typeIDMap.RemoveTypes(pLoaderAllocator);

@@ -727,7 +727,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     //
     // Arm64 (Build) -> arm64-cross-latest
     //       |-> os != "Windows_NT" && architecture == "arm64" && options['is_build_job'] == true
-    // Arm64 (Test) -> Helix Ubuntu.1604.Arm64.Open queue
+    // Arm64 (Test) -> Helix Ubuntu.1604.Arm64.Iron.Open queue
     //       |-> os != "Windows_NT" && architecture == "arm64"
     //
     // Note: we are no longer using Jenkins tags "arm64-huge-page-size", "arm64-small-page-size".
@@ -772,7 +772,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
                 if (architecture == 'arm64') {
                     assert os == 'Ubuntu16.04'
                     job.with {
-                        label('Ubuntu.1604.Arm64.Open')
+                        label('Ubuntu.1604.Arm64.Iron.Open')
                     }
                 }
                 else {
@@ -940,6 +940,12 @@ def static setJobTimeout(newJob, isPR, architecture, configuration, scenario, is
         }
         else if (isCoreFxScenario(scenario)) {
             timeout = 360
+            if (architecture == 'arm64') {
+                if (configuration == 'Checked' || configuration == 'Debug') {
+                    // ARM64 checked/debug is slow, see #17414.
+                    timeout *= 3;
+                }
+            }
         }
         else if (isJitStressScenario(scenario)) {
             timeout = 300
@@ -1562,6 +1568,15 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             if ((architecture == 'arm64') && isCoreFxScenario(scenario) && !isFlowJob) {
                 break
             }
+            // Windows arm64 corefx testing all fails due to time out, partially due to no parallelism
+            // in the test run harness. So don't create cron jobs for these. We could alternatively
+            // just increase the timeout, but we don't have enough Windows arm64 machines to
+            // take so much time running these. We also have Linux/arm64 corefx test coverage.
+            // It would be best to improve the runtime of the tests.
+            // See issue https://github.com/dotnet/coreclr/issues/21236.
+            if ((architecture == 'arm64') && isCoreFxScenario(scenario) && (os == 'Windows_NT')) {
+                break
+            }
             if (jobRequiresLimitedHardware(architecture, os)) {
                 if ((architecture == 'arm64') && (os == 'Ubuntu16.04')) {
                     // These jobs are very fast on Linux/arm64 hardware, so run them daily.
@@ -1922,19 +1937,20 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         needsTrigger = false
                         break
                     }
-
-                    switch (scenario) {
-                        case 'innerloop':
-                        case 'no_tiered_compilation_innerloop':
-                            if (configuration == 'Checked') {
-                                isDefaultTrigger = true
-                            }
-                            break
-                         case 'crossgen_comparison':
-                            if (os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release')) {
-                                isDefaultTrigger = true
-                            }
-                            break
+                    if (os == 'Ubuntu' && architecture == 'arm') {
+                        switch (scenario) {
+                            case 'innerloop':
+                            case 'no_tiered_compilation_innerloop':
+                                if (configuration == 'Checked') {
+                                    isDefaultTrigger = true
+                                }
+                                break
+                             case 'crossgen_comparison':
+                                if (configuration == 'Checked' || configuration == 'Release') {
+                                    isDefaultTrigger = true
+                                }
+                                break
+                        }
                     }
                     break
 
@@ -1951,12 +1967,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
                     switch (scenario) {
                         case 'innerloop':
-                            if (configuration == 'Debug') {
-                                // Add default PR trigger for Windows arm64 Debug builds. This is a build only -- no tests are run --
-                                // so the private test hardware is not used. Thus, it can be run by all users, not just arm64Users.
-                                // People in arm64Users will get both this and the Checked Build and Test job.
-                                isDefaultTrigger = true
-                            } else if (configuration == 'Checked') {
+                            if (configuration == 'Checked') {
                                 isDefaultTrigger = true
                                 isArm64PrivateJob = true
                             }
@@ -2251,6 +2262,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml', true)
                         }
                     }
+
+                    // Archive the logs, even if the build failed (which is when they are most interesting).
+                    Utilities.addArchival(newJob, "bin/Logs/*.log,bin/Logs/*.wrn,bin/Logs/*.err,bin/Logs/MsbuildDebugLogs/*", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                     break
                 case 'arm':
                 case 'arm64':
@@ -2300,6 +2314,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // Add archival.
                         Utilities.addArchival(newJob, "bin/Product/**,bin/tests/tests.zip", "bin/Product/**/.nuget/**")
                     }
+
+                    // Archive the logs, even if the build failed (which is when they are most interesting).
+                    Utilities.addArchival(newJob, "bin/Logs/*.log,bin/Logs/*.wrn,bin/Logs/*.err,bin/Logs/MsbuildDebugLogs/*", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                     break
                 default:
                     println("Unknown architecture: ${architecture}");
@@ -2421,6 +2438,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
                         }
                     }
+
+                    // Archive the logs, even if the build failed (which is when they are most interesting).
+                    Utilities.addArchival(newJob, "bin/Logs/*.log,bin/Logs/*.wrn,bin/Logs/*.err,bin/Logs/MsbuildDebugLogs/*", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                     break
                 case 'armem':
                     // Emulator cross builds for ARM runs on Tizen currently
@@ -2544,8 +2564,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addArchival(newJob, "${testArtifactsTgzFileName}", "")
                     }
 
-                    // Archive the build logs from both product and test builds.
-                    Utilities.addArchival(newJob, "bin/Logs/*.log,bin/Logs/*.wrn,bin/Logs/*.err", "")
+                    // Archive the logs, even if the build failed (which is when they are most interesting).
+                    Utilities.addArchival(newJob, "bin/Logs/*.log,bin/Logs/*.wrn,bin/Logs/*.err,bin/Logs/MsbuildDebugLogs/*", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
 
                     // We need to clean up the build machines; the docker build leaves newly built files with root permission, which
                     // the cleanup task in Jenkins can't remove.

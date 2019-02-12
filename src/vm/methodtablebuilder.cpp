@@ -502,8 +502,6 @@ MethodTableBuilder::ExpandApproxInheritedInterfaces(
 {
     STANDARD_VM_CONTRACT;
 
-    INTERIOR_STACK_PROBE(GetThread());
-
     // Expand interfaces in superclasses first.  Interfaces inherited from parents
     // must have identical indexes as in the parent.
     bmtRTType * pParentOfParent = pParentType->GetParentType();
@@ -550,8 +548,6 @@ MethodTableBuilder::ExpandApproxInheritedInterfaces(
     
     // Restore parent's substitution
     pParentType->SetSubstitution(parentSubstitution);
-    
-    END_INTERIOR_STACK_PROBE;
 } // MethodTableBuilder::ExpandApproxInheritedInterfaces
 
 //*******************************************************************************
@@ -1324,10 +1320,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
     bmtInternal->pType = new (GetStackingAllocator())
         bmtMDType(pParent, pModule, cl, bmtGenericsInfo->typeContext);
 
-    // put the interior stack probe after all the stack-allocted goop above.  We check compare our this pointer to the SP on
-    // the dtor to determine if we are being called on an EH path or not.
-    INTERIOR_STACK_PROBE_FOR(GetThread(), 8);
-
     // If not NULL, it means there are some by-value fields, and this contains an entry for each inst
 
 #ifdef _DEBUG 
@@ -1489,8 +1481,25 @@ MethodTableBuilder::BuildMethodTableThrowing(
         }
     }
 
+    // If this type is marked by [Intrinsic] attribute, it may be specially treated by the runtime/compiler
+    // SIMD types have [Intrinsic] attribute, for example
+    //
+    // We check this here fairly early to ensure other downstream checks on these types can be slightly more efficient.
+    if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
+    {
+        HRESULT hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(),
+            g_CompilerServicesIntrinsicAttribute,
+            NULL,
+            NULL);
+
+        if (hr == S_OK)
+        {
+            bmtProp->fIsIntrinsicType = true;
+        }
+    }
+
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
-    if (GetModule()->IsSystem() && !bmtGenerics->HasInstantiation())
+    if (bmtProp->fIsIntrinsicType && !bmtGenerics->HasInstantiation())
     {
         LPCUTF8 className;
         LPCUTF8 nameSpace;
@@ -1519,23 +1528,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
         }
     }
 #endif
-
-    // If this type is marked by [Intrinsic] attribute, it may be specially treated by the runtime/compiler
-    // Currently, only SIMD types have [Intrinsic] attribute
-    //
-    // We check this here fairly early to ensure other downstream checks on these types can be slightly more efficient.
-    if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
-    {
-        HRESULT hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(),
-            g_CompilerServicesIntrinsicAttribute,
-            NULL,
-            NULL);
-
-        if (hr == S_OK)
-        {
-            bmtProp->fIsIntrinsicType = true;
-        }
-    }
 
     // Com Import classes are special. These types must derive from System.Object,
     // and we then substitute the parent with System._ComObject.
@@ -2100,8 +2092,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #ifdef FEATURE_PREJIT
     _ASSERTE(pComputedPZM == Module::GetPreferredZapModuleForMethodTable(pMT));
 #endif // FEATURE_PREJIT
-
-    END_INTERIOR_STACK_PROBE;
 
     return GetHalfBakedMethodTable();
 } // MethodTableBuilder::BuildMethodTableThrowing
@@ -10787,6 +10777,8 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(bmtRTType *pDeclType,
     {
         bmtRTType * pCurItf = bmtInterface->pInterfaceMap[i].GetInterfaceType();
 
+        Module * pCurIntfModule = pCurItf->GetMethodTable()->GetModule();
+
         // Go over the methods on the interface
         MethodTable::IntroducedMethodIterator methIt(pCurItf->GetMethodTable());
         for (; methIt.IsValid(); methIt.Next())
@@ -10810,11 +10802,11 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(bmtRTType *pDeclType,
 
                 // Find out what interface this default implementation is implementing
                 mdToken tkParent;
-                IfFailThrow(GetModule()->GetMDImport()->GetParentToken(it.GetToken(), &tkParent));
+                IfFailThrow(pCurIntfModule->GetMDImport()->GetParentToken(it.GetToken(), &tkParent));
 
                 // We can only load the approximate interface at this point
                 MethodTable * pPotentialInterfaceMT = ClassLoader::LoadTypeDefOrRefOrSpecThrowing(
-                    GetModule(),
+                    pCurIntfModule,
                     tkParent,
                     &bmtGenerics->typeContext,
                     ClassLoader::ThrowIfNotFound,
@@ -10831,7 +10823,7 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(bmtRTType *pDeclType,
                         return TRUE;
 
                     // If this is generic, we need to compare under substitutions
-                    Substitution curItfSubs(tkParent, GetModule(), &pCurItf->GetSubstitution());
+                    Substitution curItfSubs(tkParent, pCurIntfModule, &pCurItf->GetSubstitution());
 
                     // Type Equivalence is not respected for this comparision as you can have multiple type equivalent interfaces on a class
                     TokenPairList newVisited = TokenPairList::AdjustForTypeEquivalenceForbiddenScope(NULL);
@@ -11883,7 +11875,6 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
     MethodTable * pMT = NULL;
 
     Thread * pThread = GetThread();
-    BEGIN_SO_INTOLERANT_CODE_FOR(pThread, DefaultEntryProbeAmount() * 2)
 
     MethodTable * pParentMethodTable = NULL;
     SigPointer    parentInst;
@@ -12203,6 +12194,5 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
         parentInst, 
         (WORD)cInterfaces);
 
-    END_SO_INTOLERANT_CODE;
     RETURN(TypeHandle(pMT));
 } // ClassLoader::CreateTypeHandleForTypeDefThrowing

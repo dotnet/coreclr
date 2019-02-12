@@ -26,6 +26,10 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include <errno.h> // For EINVAL
 #endif
 
+#ifndef DLLEXPORT
+#define DLLEXPORT
+#endif // !DLLEXPORT
+
 /*****************************************************************************/
 
 FILE* jitstdout = nullptr;
@@ -54,7 +58,7 @@ JitOptions jitOpts = {
 
 /*****************************************************************************/
 
-extern "C" void __stdcall jitStartup(ICorJitHost* jitHost)
+extern "C" DLLEXPORT void __stdcall jitStartup(ICorJitHost* jitHost)
 {
     if (g_jitInitialized)
     {
@@ -159,7 +163,11 @@ void jitShutdown(bool processIsTerminating)
 
 #ifndef FEATURE_MERGE_JIT_AND_ENGINE
 
-extern "C" BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID pvReserved)
+#ifdef FEATURE_PAL
+DLLEXPORT // For Win32 PAL LoadLibrary emulation
+#endif
+    extern "C" BOOL WINAPI
+    DllMain(HANDLE hInstance, DWORD dwReason, LPVOID pvReserved)
 {
     if (dwReason == DLL_PROCESS_ATTACH)
     {
@@ -182,7 +190,7 @@ HINSTANCE GetModuleInst()
     return (g_hInst);
 }
 
-extern "C" void __stdcall sxsJitStartup(CoreClrCallbacks const& cccallbacks)
+extern "C" DLLEXPORT void __stdcall sxsJitStartup(CoreClrCallbacks const& cccallbacks)
 {
 #ifndef SELF_NO_HOST
     InitUtilcode(cccallbacks);
@@ -207,7 +215,7 @@ void* __cdecl operator new(size_t, const CILJitSingletonAllocator&)
 
 ICorJitCompiler* g_realJitCompiler = nullptr;
 
-ICorJitCompiler* __stdcall getJit()
+DLLEXPORT ICorJitCompiler* __stdcall getJit()
 {
     if (ILJitter == nullptr)
     {

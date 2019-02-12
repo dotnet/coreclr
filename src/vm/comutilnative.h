@@ -80,8 +80,6 @@ public:
     // This method from one primitive array to another based
     //      upon an offset into each an a byte count.
     static FCDECL5(VOID, BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, int dstOffset, int count);
-    static FCDECL2(FC_UINT8_RET, GetByte, ArrayBase *arrayUNSAFE, INT32 index);
-    static FCDECL3(VOID, SetByte, ArrayBase *arrayUNSAFE, INT32 index, UINT8 bData);
     static FCDECL1(FC_BOOL_RET, IsPrimitiveTypeArray, ArrayBase *arrayUNSAFE);
     static FCDECL1(INT32, ByteLength, ArrayBase *arrayUNSAFE);
 
@@ -122,6 +120,7 @@ public:
     static FCDECL1(int,     WaitForFullGCComplete, int millisecondsTimeout);
     static FCDECL1(int,     GetGenerationWR, LPVOID handle);
     static FCDECL1(int,     GetGeneration, Object* objUNSAFE);
+    static FCDECL0(UINT64,  GetSegmentSize);
 
     static 
     INT64 QCALLTYPE GetTotalMemory();

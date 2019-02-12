@@ -454,7 +454,8 @@ void ZapInfo::CompileMethod()
 
         if (!(methodAttribs & CORINFO_FLG_NOSECURITYWRAP) || (methodAttribs & CORINFO_FLG_SECURITYCHECK))
         {
-            m_zapper->Warning(W("ReadyToRun: Methods with security checks not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Methods with security checks not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
     }
@@ -474,8 +475,6 @@ void ZapInfo::CompileMethod()
 #ifdef ALLOW_SXS_JIT_NGEN
     if (m_zapper->m_alternateJit)
     {
-        REMOVE_STACK_GUARD;
-
         res = m_zapper->m_alternateJit->compileMethod( this,
                                                      &m_currentMethodInfo,
                                                      CORJIT_FLAGS::CORJIT_FLAG_CALL_GETJITFLAGS,
@@ -491,8 +490,6 @@ void ZapInfo::CompileMethod()
 
     if (FAILED(res))
     {
-        REMOVE_STACK_GUARD;
-
         ICorJitCompiler * pCompiler = m_zapper->m_pJitCompiler;
         res = pCompiler->compileMethod(this,
                                     &m_currentMethodInfo,
@@ -1193,20 +1190,8 @@ void ZapInfo::setEHinfo(unsigned EHnumber,
     {
         ilClause->ClassToken = clause->ClassToken;
 
-        if (m_zapper->m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB) && (clause->ClassToken != 0))
+        if (ilClause->ClassToken != 0)
         {
-            // IL stub tokens are 'private' and do not resolve correctly in their parent module's metadata.
-
-            // Currently, the only place we are using a token here is for a COM-to-CLR exception-to-HRESULT
-            // mapping catch clause.  We want this catch clause to catch all exceptions, so we override the
-            // token to be mdTypeRefNil, which used by the EH system to mean catch(...)
-
-#ifdef _DEBUG
-            // The proper way to do this, should we ever want to support arbitrary types here, is to "pre-
-            // resolve" the token and store the TypeHandle in the clause.  But this requires additional 
-            // infrastructure to ensure the TypeHandle is saved and fixed-up properly.  For now, we will
-            // simply assert that the original type was System.Object.
-
             CORINFO_RESOLVED_TOKEN resolvedToken = { 0 };
             resolvedToken.tokenContext = MAKE_METHODCONTEXT(m_currentMethodInfo.ftn);
             resolvedToken.tokenScope = m_currentMethodInfo.scope;
@@ -1215,11 +1200,32 @@ void ZapInfo::setEHinfo(unsigned EHnumber,
 
             resolveToken(&resolvedToken);
 
-            CORINFO_CLASS_HANDLE systemObjectHandle = getBuiltinClass(CLASSID_SYSTEM_OBJECT);
-            _ASSERTE(systemObjectHandle == resolvedToken.hClass);
-#endif // _DEBUG
+            if (m_zapper->m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB))
+            {
+                // IL stub tokens are 'private' and do not resolve correctly in their parent module's metadata.
 
-            ilClause->ClassToken = mdTypeRefNil; 
+                // Currently, the only place we are using a token here is for a COM-to-CLR exception-to-HRESULT
+                // mapping catch clause.  We want this catch clause to catch all exceptions, so we override the
+                // token to be mdTypeRefNil, which used by the EH system to mean catch(...)
+#ifdef _DEBUG
+                // The proper way to do this, should we ever want to support arbitrary types here, is to "pre-
+                // resolve" the token and store the TypeHandle in the clause.  But this requires additional
+                // infrastructure to ensure the TypeHandle is saved and fixed-up properly.  For now, we will
+                // simply assert that the original type was System.Object.
+
+                CORINFO_CLASS_HANDLE systemObjectHandle = getBuiltinClass(CLASSID_SYSTEM_OBJECT);
+                _ASSERTE(systemObjectHandle == resolvedToken.hClass);
+#endif // _DEBUG
+                ilClause->ClassToken = mdTypeRefNil;
+            }
+            else
+            {
+                // For all clause types add fixup to ensure the types are loaded before the code of the method
+                // containing the catch blocks is executed. This ensures that a failure to load the types would
+                // not happen when the exception handling is in progress and it is looking for a catch handler.
+                // At that point, we could only fail fast.
+                classMustBeLoadedBeforeCodeIsRun(resolvedToken.hClass);
+            }
         }
     }
 
@@ -1741,7 +1747,8 @@ void * ZapInfo::getHelperFtn (CorInfoHelpFunc ftnNum, void **ppIndirection)
 
         if (helperNum == READYTORUN_HELPER_Invalid)
         {
-            m_zapper->Warning(W("ReadyToRun: JIT helper not supported: %S\n"), m_pEEJitInfo->getHelperName(ftnNum));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: JIT helper not supported: %S\n"), m_pEEJitInfo->getHelperName(ftnNum));
             ThrowHR(E_NOTIMPL);
         }
 
@@ -1899,7 +1906,8 @@ void ZapInfo::getFunctionEntryPoint(
     if (IsReadyToRunCompilation())
     {
         // READYTORUN: FUTURE: JIT still calls this for tail. and jmp instructions
-        m_zapper->Warning(W("ReadyToRun: Method entrypoint cannot be encoded\n"));
+        if (m_zapper->m_pOpt->m_verbose)
+            m_zapper->Warning(W("ReadyToRun: Method entrypoint cannot be encoded\n"));
         ThrowHR(E_NOTIMPL);
     }
 
@@ -2099,25 +2107,29 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
     {
         if (pResult->sig.isVarArg())
         {
-            m_zapper->Warning(W("ReadyToRun: VarArg methods not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: VarArg methods not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
 
         if (pResult->accessAllowed != CORINFO_ACCESS_ALLOWED)
         {
-            m_zapper->Warning(W("ReadyToRun: Runtime method access checks not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Runtime method access checks not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
 
         if (pResult->methodFlags & CORINFO_FLG_SECURITYCHECK)
         {
-            m_zapper->Warning(W("ReadyToRun: Methods with security checks not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Methods with security checks not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
 
         if (GetCompileInfo()->IsNativeCallableMethod(pResult->hMethod))
         {
-            m_zapper->Warning(W("ReadyToRun: References to methods with NativeCallableAttribute not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: References to methods with NativeCallableAttribute not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
     }
@@ -2866,7 +2878,8 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
     {
         if (pResult->accessAllowed != CORINFO_ACCESS_ALLOWED)
         {
-            m_zapper->Warning(W("ReadyToRun: Runtime field access checks not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Runtime field access checks not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
 
@@ -2887,7 +2900,8 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 
                         if (pResult->offset > eeInfo.maxUncheckedOffsetForNullObject / 2)
                         {
-                            m_zapper->Warning(W("ReadyToRun: Cross-module instance fields with large offsets not supported\n"));
+                            if (m_zapper->m_pOpt->m_verbose)
+                                m_zapper->Warning(W("ReadyToRun: Cross-module instance fields with large offsets not supported\n"));
                             ThrowHR(E_NOTIMPL);
                         }
                         pResult->offset = 0;
@@ -2914,7 +2928,8 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 
                         if (pResult->offset > eeInfo.maxUncheckedOffsetForNullObject / 2)
                         {
-                            m_zapper->Warning(W("ReadyToRun: Large objects crossing module boundaries not supported\n"));
+                            if (m_zapper->m_pOpt->m_verbose)
+                                m_zapper->Warning(W("ReadyToRun: Large objects crossing module boundaries not supported\n"));
                             ThrowHR(E_NOTIMPL);
                         }
                         _ASSERTE(pResult->offset >= dwBaseOffset);
@@ -2940,7 +2955,8 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 
         case CORINFO_FIELD_INSTANCE_HELPER:
         case CORINFO_FIELD_INSTANCE_ADDR_HELPER:
-            m_zapper->Warning(W("ReadyToRun: Special instance fields not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Special instance fields not supported\n"));
             ThrowHR(E_NOTIMPL);
             break;
 
@@ -3018,7 +3034,8 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
         case CORINFO_FIELD_STATIC_RVA_ADDRESS:       // RVA field at given address
             if (m_pEEJitInfo->getClassModule(pResolvedToken->hClass) != m_pImage->m_hModule)
             {
-                m_zapper->Warning(W("ReadyToRun: Cross-module RVA static fields not supported\n"));
+                if (m_zapper->m_pOpt->m_verbose)
+                    m_zapper->Warning(W("ReadyToRun: Cross-module RVA static fields not supported\n"));
                 ThrowHR(E_NOTIMPL);
             }
             break;
@@ -3026,7 +3043,8 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
         case CORINFO_FIELD_STATIC_ADDRESS:           // field at given address
         case CORINFO_FIELD_STATIC_ADDR_HELPER:       // static field accessed using address-of helper (argument is FieldDesc *)
         case CORINFO_FIELD_STATIC_TLS:
-            m_zapper->Warning(W("ReadyToRun: Rare kinds of static fields not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Rare kinds of static fields not supported\n"));
             ThrowHR(E_NOTIMPL);
             break;
 
@@ -3242,7 +3260,8 @@ CorInfoIsAccessAllowedResult ZapInfo::canAccessClass( CORINFO_RESOLVED_TOKEN * p
 #ifdef FEATURE_READYTORUN_COMPILER
     if (ret != CORINFO_ACCESS_ALLOWED)
     {
-        m_zapper->Warning(W("ReadyToRun: Runtime access checks not supported\n"));
+        if (m_zapper->m_pOpt->m_verbose)
+            m_zapper->Warning(W("ReadyToRun: Runtime access checks not supported\n"));
         ThrowHR(E_NOTIMPL);
     }
 #endif
@@ -3500,7 +3519,8 @@ bool ZapInfo::getReadyToRunHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken,
         else
         {
             // READYTORUN: FUTURE: Cross-module static cctor triggers
-            m_zapper->Warning(W("ReadyToRun: Cross-module static cctor triggers not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Cross-module static cctor triggers not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
         break;
@@ -3706,7 +3726,8 @@ bool ZapInfo::canTailCall(CORINFO_METHOD_HANDLE caller,
     {
         if (fIsTailPrefix)
         {
-            m_zapper->Warning(W("ReadyToRun: Explicit tailcalls not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Explicit tailcalls not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
 

@@ -1407,9 +1407,6 @@ private:
         //If module has default dll import search paths attribute
         DEFAULT_DLL_IMPORT_SEARCH_PATHS_STATUS      = 0x00000800,
 
-        //If attribute value has been cached before
-        NEUTRAL_RESOURCES_LANGUAGE_IS_CACHED = 0x00001000,
-
         //If m_MethodDefToPropertyInfoMap has been generated
         COMPUTED_METHODDEF_TO_PROPERTYINFO_MAP = 0x00002000,
 
@@ -1517,10 +1514,6 @@ private:
     ILStubCache                *m_pILStubCache;
 
     ULONG m_DefaultDllImportSearchPathsAttributeValue;
-
-     LPCUTF8 m_pszCultureName;
-     ULONG m_CultureNameLength;
-     INT16 m_FallbackLocation;
 
 #ifdef PROFILING_SUPPORTED_DATA 
      // a wrapper for the underlying PEFile metadata emitter which validates that the metadata edits being
@@ -2608,7 +2601,6 @@ public:
             GC_NOTRIGGER;
             SUPPORTS_DAC;
             CANNOT_TAKE_LOCK;
-            SO_TOLERANT;
         }
         CONTRACT_END;
 
@@ -2739,6 +2731,7 @@ public:
     BYTE *GetNativeFixupBlobData(RVA fixup);
 
     IMDInternalImport *GetNativeAssemblyImport(BOOL loadAllowed = TRUE);
+    IMDInternalImport *GetNativeAssemblyImportIfLoaded();
 
     BOOL FixupNativeEntry(CORCOMPILE_IMPORT_SECTION * pSection, SIZE_T fixupIndex, SIZE_T *fixup);
 
@@ -3175,12 +3168,6 @@ public:
     // instead of parsing the version themselves.
     //-----------------------------------------------------------------------------------------
     BOOL                    IsPreV4Assembly();
-
-
-    //-----------------------------------------------------------------------------------------
-    // Parse/Return NeutralResourcesLanguageAttribute if it exists (updates Module member variables at ngen time)
-    //-----------------------------------------------------------------------------------------
-    BOOL                    GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureNameLength, INT16 * fallbackLocation, BOOL cacheAttribute);
 
 protected:
 
