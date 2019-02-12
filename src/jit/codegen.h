@@ -554,7 +554,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                          unsigned       varNum,
                          unsigned       LVnum,
                          bool           avail,
-                         siVarLoc*      loc);
+                         siVarLoc*      varLoc);
 
     void genSetScopeInfo();
 
