@@ -6964,7 +6964,7 @@ public:
                      unsigned                          LVnum,
                      VarName                           namex,
                      bool                              avail,
-                     const CodeGenInterface::siVarLoc& loc);
+                     const CodeGenInterface::siVarLoc* loc);
     void eeSetLVdone();
 
 #ifdef DEBUG
