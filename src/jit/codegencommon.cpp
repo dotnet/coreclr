@@ -10653,8 +10653,8 @@ void CodeGen::genSetScopeInfo()
 //    length    - the length of this scope
 //    varNum    - the lclVar for this scope info
 //    LVnum
-//    avail
-//    varLoc
+//    avail     - a bool indicating if it has a home
+//    varLoc    - the position (reg or stack) of the variable
 //
 // Notes:
 //    Called for every scope info piece to record by the main genSetScopeInfo()
