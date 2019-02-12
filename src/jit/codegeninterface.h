@@ -514,6 +514,21 @@ public:
 
         bool vlIsInReg(regNumber reg);
         bool vlIsOnStk(regNumber reg, signed offset);
+
+        siVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int offset, bool isFramePointerUsed);
+        siVarLoc(){};
+
+    private:
+        // Fill "siVarLoc" properties indicating the register position of the variable
+        // using "LclVarDsc" and "baseReg"/"offset" if it has a part in the stack (x64 bit float or long).
+        void siFillRegisterVarLoc(
+            const LclVarDsc* varDsc, var_types type, regNumber baseReg, int offset, bool isFramePointerUsed);
+
+        // Fill "siVarLoc" properties indicating the register position of the variable
+        // using "LclVarDsc" and "baseReg"/"offset" if it is a variable with part in a register and
+        // part in thestack
+        void siFillStackVarLoc(
+            const LclVarDsc* varDsc, var_types type, regNumber baseReg, int offset, bool isFramePointerUsed);
     };
 
 #ifdef LATE_DISASM

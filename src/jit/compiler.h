@@ -7092,7 +7092,7 @@ public:
         return codeGen->getEmitter();
     }
 
-    bool isFramePointerUsed()
+    bool isFramePointerUsed() const
     {
         return codeGen->isFramePointerUsed();
     }

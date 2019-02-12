@@ -619,6 +619,10 @@ protected:
         siScope* scNext;
     };
 
+    // Returns a "siVarLoc" instance representing the place where the variable lives base on
+    // varDsc and scope description.
+    CodeGenInterface::siVarLoc getSiVarLoc(const LclVarDsc* varDsc, const siScope* scope) const;
+
     siScope siOpenScopeList, siScopeList, *siOpenScopeLast, *siScopeLast;
 
     unsigned siScopeCnt;
