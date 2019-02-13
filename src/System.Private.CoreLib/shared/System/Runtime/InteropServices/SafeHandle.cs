@@ -13,7 +13,7 @@ namespace System.Runtime.InteropServices
     // reliably guarantee handle release in the face of thread aborts.
 
     /// <summary>Represents a wrapper class for operating system handles.</summary>
-    public abstract partial class SafeHandle : CriticalFinalizerObject, IDisposable
+    public abstract class SafeHandle : CriticalFinalizerObject, IDisposable
     {
         // IMPORTANT:
         // - Do not add or rearrange fields as the EE depends on this layout,
@@ -26,7 +26,7 @@ namespace System.Runtime.InteropServices
         [SuppressMessage("Microsoft.Security", "CA2111:PointersShouldNotBeVisible")]
         protected IntPtr handle;
         /// <summary>Combined ref count and closed/disposed flags (so we can atomically modify them).</summary>
-        private volatile int _state = StateBits.RefCountOne; // Ref count 1 and not closed or disposed.
+        private volatile int _state;
         /// <summary>Whether we can release this handle.</summary>
         private readonly bool _ownsHandle;
         /// <summary>Whether constructor completed.</summary>
@@ -56,6 +56,7 @@ namespace System.Runtime.InteropServices
         protected SafeHandle(IntPtr invalidHandleValue, bool ownsHandle)
         {
             handle = invalidHandleValue;
+            _state = StateBits.RefCountOne; // Ref count 1 and not closed or disposed.
             _ownsHandle = ownsHandle;
 
             if (!ownsHandle)
