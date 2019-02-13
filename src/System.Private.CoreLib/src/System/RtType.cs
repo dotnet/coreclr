@@ -231,9 +231,6 @@ namespace System
 
                 internal MemberInfoCache(RuntimeTypeCache runtimeTypeCache)
                 {
-#if MDA_SUPPORTED
-                    Mda.MemberInfoCacheCreation();
-#endif
                     m_runtimeTypeCache = runtimeTypeCache;
                 }
 
@@ -2412,7 +2409,7 @@ namespace System
             if (cache == null)
             {
                 cache = new RuntimeTypeCache(this);
-                RuntimeTypeCache existingCache = (RuntimeTypeCache)GCHandle.InternalCompareExchange(m_cache, cache, null, false);
+                RuntimeTypeCache existingCache = (RuntimeTypeCache)GCHandle.InternalCompareExchange(m_cache, cache, null);
                 if (existingCache != null)
                     cache = existingCache;
             }
