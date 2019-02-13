@@ -15,7 +15,6 @@ using System.StubHelpers;
 
 namespace System.Diagnostics.Tracing
 {
-#if FEATURE_PERFTRACING
     /// <summary>
     /// RuntimeEventSource is an EventSource that represents events emitted by the managed runtime.
     /// </summary>
@@ -141,5 +140,4 @@ namespace System.Diagnostics.Tracing
             catch { }
         }
     }
-#endif // FEATURE_PERFTRACING
 }
