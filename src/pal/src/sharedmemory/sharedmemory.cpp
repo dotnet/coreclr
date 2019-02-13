@@ -315,7 +315,7 @@ SIZE_T SharedMemoryHelpers::GetFileSize(int fileDescriptor)
 void SharedMemoryHelpers::SetFileSize(int fileDescriptor, SIZE_T byteCount)
 {
     _ASSERTE(fileDescriptor != -1);
-    _ASSERTE(static_cast<off_t>(byteCount) == byteCount);
+    _ASSERTE((size_t)static_cast<off_t>(byteCount) == byteCount);
 
     while (true)
     {
@@ -395,7 +395,7 @@ void SharedMemoryHelpers::ReleaseFileLock(int fileDescriptor)
 
 void SharedMemoryHelpers::BuildSharedFilesPath(PathCharString& destination, const char *suffix, int suffixCharCount)
 {
-    _ASSERTE(strlen(suffix) == suffixCharCount);
+    _ASSERTE(strlen(suffix) == (size_t)suffixCharCount);
 
     VerifyStringOperation(destination.Set(*gSharedFilesPath));
     VerifyStringOperation(destination.Append(suffix, suffixCharCount));
