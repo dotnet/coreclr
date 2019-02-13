@@ -80,17 +80,17 @@ template <class TKey_, class TValue_>
 
     if (*pKeyValueStore == NULL)
     {
-        *pKeyValueStore = AllocatePrimitiveArray(ELEMENT_TYPE_I1, (value == NULL) ? sizeof(TKey) : sizeof(TKey) + sizeof(TValue), FALSE);
+        *pKeyValueStore = AllocatePrimitiveArray(ELEMENT_TYPE_I1, IsNull(value) ? sizeof(TKey) : sizeof(TKey) + sizeof(TValue), FALSE);
         updatedKeyValueStore = true;
         TKey* pKeyLoc = (TKey*)((I1ARRAYREF)*pKeyValueStore)->GetDirectPointerToNonObjectElements();
         *pKeyLoc = key;
-        if (value != NULL)
+        if (!IsNull(value))
         {
             TValue* pValueLoc = (TValue*)(((I1ARRAYREF)*pKeyValueStore)->GetDirectPointerToNonObjectElements() + sizeof(TKey));
             *pValueLoc = value;
         }
     }
-    else if (value != NULL)
+    else if (!IsNull(value))
     {
         DWORD entriesInArrayTotal;
         DWORD usedEntries = ComputeUsedEntries(pKeyValueStore, &entriesInArrayTotal);
@@ -373,7 +373,7 @@ void CrossLoaderAllocatorHash<TRAITS>::Add(TKey key, TValue value, LoaderAllocat
         if (index == -1)
         {
             addToKeyValuesHash = true;
-            TRAITS::AddToValuesInHeapMemory(&gc.keyValueStore, key, pLoaderAllocatorOfValue == m_pLoaderAllocator ? value : NULL);
+            TRAITS::AddToValuesInHeapMemory(&gc.keyValueStore, key, pLoaderAllocatorOfValue == m_pLoaderAllocator ? value : TRAITS::NullValue());
 
             if (pLoaderAllocatorOfValue != m_pLoaderAllocator)
             {

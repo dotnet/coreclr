@@ -16,7 +16,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EntryPointSlots
 
-// See comment at the top of methoddescbackpatchinfo.h for a description of this and related data structures
 class EntryPointSlots
 {
 public:
@@ -63,20 +62,19 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MethodDescBackpatchInfoTracker
 
-// See comment at the top of methoddescbackpatchinfo.h for a description of this and related data structures
 class MethodDescBackpatchInfoTracker
 {
 private:
     static CrstStatic s_lock;
 
-    // Contains information about slots associated with the MethodDesc that were recorded for backpatching. This field and its
-    // data is protected by s_lock.
     class BackpatchInfoTrackerHashTraits : public NoRemoveDefaultCrossLoaderAllocatorHashTraits<MethodDesc *, UINT_PTR>
     {
     };
 
     typedef CrossLoaderAllocatorHash<BackpatchInfoTrackerHashTraits> BackpatchInfoTrackerHash;
 
+    // Contains information about slots associated with the MethodDesc that were recorded for backpatching. This field and its
+    // data is protected by s_lock.
     BackpatchInfoTrackerHash m_backpatchInfoHash;
 
 #ifndef DACCESS_COMPILE

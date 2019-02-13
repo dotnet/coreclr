@@ -17,6 +17,9 @@ public:
     typedef TKey_ TKey;
     typedef TValue_ TValue;
 
+    static bool IsNull(const TValue &value) { return value == NULL; }
+    static TValue NullValue() { return NULL; }
+
 #ifndef DACCESS_COMPILE
     static void SetUsedEntries(TValue* pStartOfValuesData, DWORD entriesInArrayTotal, DWORD usedEntries);
     static bool AddToValuesInHeapMemory(OBJECTREF *pKeyValueStore, const TKey& key, const TValue& value);

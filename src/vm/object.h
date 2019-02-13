@@ -2926,7 +2926,12 @@ class LAHashKeyToTrackersObject : public Object
     friend class MscorlibBinder;
 
     public:
+    // _trackerOrTrackerSet is either a reference to a LAHashDependentHashTracker, or to a GCHeapHash of LAHashDependentHashTracker objects.
     OBJECTREF _trackerOrTrackerSet;
+    // _laLocalKeyValueStore holds an object that represents a Key value (which must always be valid for the lifetime of the 
+    // CrossLoaderAllocatorHeapHash, and the values which must also be valid for that entire lifetime. When a value might
+    // have a shorter lifetime it is accessed through the _trackerOrTrackerSet variable, which allows access to hashtables which
+    // are associated with that remote loaderallocator through a dependent handle, so that lifetime can be managed.
     OBJECTREF _laLocalKeyValueStore;
 };
 
