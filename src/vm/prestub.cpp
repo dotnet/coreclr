@@ -369,11 +369,27 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     {
         pCode = GetPrecompiledCode(pConfig);
     }
+
     if (pCode == NULL)
     {
+#ifdef FEATURE_TIERED_COMPILATION
+        if (g_pConfig->TieredCompilation_DisableTier0Jit() &&
+            IsEligibleForTieredCompilation() &&
+            pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTier0 &&
+            CallCounter::IsEligibleForTier0CallCounting(this))
+        {
+            GetCallCounter()->DisableTier0CallCounting(this);
+            pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTier1);
+        }
+#endif
+
         LOG((LF_CLASSLOADER, LL_INFO1000000,
             "    In PrepareILBasedCode, calling JitCompileCode\n"));
         pCode = JitCompileCode(pConfig);
+    }
+    else
+    {
+        DACNotifyCompilationFinished(this, pCode);
     }
 
     // Mark the code as hot in case the method ends up in the native image
@@ -397,6 +413,14 @@ PCODE MethodDesc::GetPrecompiledCode(PrepareCodeConfig* pConfig)
         pCode = GetPrecompiledR2RCode(pConfig);
         if (pCode != NULL)
         {
+            LOG((LF_ZAP, LL_INFO10000,
+                    "ZAP: Using R2R precompiled code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
+                    DBG_ADDR(pCode),
+                    m_pszDebugClassName,
+                    m_pszDebugMethodName,
+                    m_pszDebugMethodSignature,
+                    GetMemberDef()));
+
             pConfig->SetNativeCode(pCode, &pCode);
         }
     }
@@ -449,7 +473,7 @@ PCODE MethodDesc::GetPrecompiledNgenCode(PrepareCodeConfig* pConfig)
     if (pCode != NULL)
     {
         LOG((LF_ZAP, LL_INFO10000,
-            "ZAP: Using code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
+            "ZAP: Using NGEN precompiled code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
             DBG_ADDR(pCode),
             m_pszDebugClassName,
             m_pszDebugMethodName,
@@ -1797,13 +1821,12 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 #ifdef FEATURE_TIERED_COMPILATION
     BOOL fNeedsCallCounting = FALSE;
     TieredCompilationManager* pTieredCompilationManager = nullptr;
-    if (IsEligibleForTieredCompilation() && TieredCompilationManager::RequiresCallCounting(this))
+    if (IsEligibleForTieredCompilation() && CallCounter::IsEligibleForCallCounting(this))
     {
         pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
-        CallCounter * pCallCounter = GetCallCounter();
-        BOOL fWasPromotedToTier1 = FALSE;
-        pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToTier1);
-        fNeedsCallCounting = !fWasPromotedToTier1;
+        BOOL fWasPromotedToNextTier = FALSE;
+        GetCallCounter()->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToNextTier);
+        fNeedsCallCounting = !fWasPromotedToNextTier;
     }
 #endif
 
@@ -1821,7 +1844,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 #ifdef FEATURE_TIERED_COMPILATION
         if (pTieredCompilationManager != nullptr && fNeedsCallCounting && fCanBackpatchPrestub && pCode != NULL)
         {
-            pTieredCompilationManager->OnMethodCallCountingStoppedWithoutTier1Promotion(this);
+            pTieredCompilationManager->OnMethodCallCountingStoppedWithoutTierPromotion(this);
         }
 #endif
 
@@ -2357,7 +2380,11 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
             DispatchToken token;
             if (pMT->IsInterface() || MethodTable::VTableIndir_t::isRelative)
             {
-                token = pMT->GetLoaderAllocator()->GetDispatchToken(pMT->GetTypeID(), slot);
+                if (pMT->IsInterface())
+                    token = pMT->GetLoaderAllocator()->GetDispatchToken(pMT->GetTypeID(), slot);
+                else
+                    token = DispatchToken::CreateDispatchToken(slot);
+
                 StubCallSite callSite(pIndirection, pEMFrame->GetReturnAddress());
                 pCode = pMgr->ResolveWorker(&callSite, protectedObj, token, VirtualCallStubManager::SK_LOOKUP);
             }

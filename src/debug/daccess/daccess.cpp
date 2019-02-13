@@ -40,8 +40,10 @@ HINSTANCE g_thisModule;
 
 extern VOID STDMETHODCALLTYPE TLS_FreeMasterSlotIndex();
 
-EXTERN_C BOOL WINAPI
-DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
+#if FEATURE_PAL
+DLLEXPORT // For Win32 PAL LoadLibrary emulation
+#endif
+EXTERN_C BOOL WINAPI DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
 {
     static bool g_procInitialized = false;
 
@@ -7504,9 +7506,9 @@ STDAPI CLRDataAccessCreateInstance(ICLRDataTarget * pLegacyTarget,
 // This is the legacy entrypoint to DAC, used by dbgeng/dbghelp (windbg, SOS, watson, etc).
 //
 //----------------------------------------------------------------------------
-#ifdef __llvm__
+#ifdef __GNUC__
 __attribute__((used))
-#endif // __llvm__
+#endif // __GNUC__
 STDAPI
 CLRDataCreateInstance(REFIID iid,
                       ICLRDataTarget * pLegacyTarget,

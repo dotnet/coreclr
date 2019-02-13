@@ -1338,7 +1338,6 @@ typedef SafeHandle * SAFEHANDLEREF;
 
 
 
-#define SYNCCTXPROPS_REQUIRESWAITNOTIFICATION 0x1 // Keep in sync with SynchronizationContext.cs SynchronizationContextFlags
 class ThreadBaseObject;
 class SynchronizationContextObject: public Object
 {
@@ -1348,14 +1347,12 @@ private:
     // add or change these field you must also change the managed code so that
     // it matches these.  This is necessary so that the object is the proper
     // size. 
-    INT32 _props;
+    CLR_BOOL _requireWaitNotification;
 public:
-    BOOL IsWaitNotificationRequired()
+    BOOL IsWaitNotificationRequired() const
     {
         LIMITED_METHOD_CONTRACT;
-        if ((_props & SYNCCTXPROPS_REQUIRESWAITNOTIFICATION) != 0)
-            return TRUE;
-        return FALSE;
+        return _requireWaitNotification;
     }
 };
 
@@ -2090,27 +2087,10 @@ class SafeHandle : public Object
         return m_handle;
     }
 
-    BOOL OwnsHandle() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_ownsHandle;
-    }
-
-    static size_t GetHandleOffset() { LIMITED_METHOD_CONTRACT; return offsetof(SafeHandle, m_handle); }
-
     void AddRef();
     void Release(bool fDispose = false);
-    void Dispose();
     void SetHandle(LPVOID handle);
-
-    static FCDECL1(void, DisposeNative, SafeHandle* refThisUNSAFE);
-    static FCDECL1(void, Finalize, SafeHandle* refThisUNSAFE);
-    static FCDECL1(void, SetHandleAsInvalid, SafeHandle* refThisUNSAFE);
-    static FCDECL2(void, DangerousAddRef, SafeHandle* refThisUNSAFE, CLR_BOOL *pfSuccess);
-    static FCDECL1(void, DangerousRelease, SafeHandle* refThisUNSAFE);
 };
-
-// SAFEHANDLEREF defined above because CompressedStackObject needs it
 
 void AcquireSafeHandle(SAFEHANDLEREF* s);
 void ReleaseSafeHandle(SAFEHANDLEREF* s);

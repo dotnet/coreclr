@@ -19,9 +19,9 @@ jobs:
     containerName: ubuntu_1404_arm_cross_build_image
     helixQueues:
       ${{ if eq(variables['System.TeamProject'], 'public') }}:
-        asString: 'Ubuntu.1404.Arm32.Open'
-        asArray:
-        - Ubuntu.1404.Arm32.Open
+        # TODO: add Ubuntu.1404.Arm32.Open once Jenkins has been shutdown
+        asString: ''
+        asArray: []
       ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         # We don't have any Linux/arm32 internal Helix queues
         asString: ''
@@ -77,6 +77,27 @@ jobs:
         asArray:
         - Alpine.36.Amd64
         - Alpine.38.Amd64
+    ${{ insert }}: ${{ parameters.jobParameters }}
+
+# Linux musl arm64
+
+- template: ${{ parameters.jobTemplate }}
+  parameters:
+    buildConfig: ${{ parameters.buildConfig }}
+    archType: arm64
+    osGroup: Linux
+    osIdentifier: Linux_musl
+    containerName: musl_arm64_build_image
+    helixQueues:
+      ${{ if eq(variables['System.TeamProject'], 'public') }}:
+        # TODO: there are no Alpine arm64 queues https://github.com/dotnet/core-eng/issues/5206
+        asString: ''
+        asArray: []
+      ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+        # TODO: there are no Alpine arm64 queues https://github.com/dotnet/core-eng/issues/5206
+        asString: ''
+        asArray: []
+    crossrootfsDir: '/crossrootfs/arm64'
     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # RHEL 6
@@ -136,17 +157,20 @@ jobs:
 
 # FreeBSD
 
-- template: ${{ parameters.jobTemplate }}
-  parameters:
-    buildConfig: ${{ parameters.buildConfig }}
-    archType: x64
-    osGroup: FreeBSD
-    osIdentifier: FreeBSD
-    # There are no FreeBSD helix queues, so we don't run tests at the moment.
-    helixQueues:
-      asString: ''
-      asArray: []
-    ${{ insert }}: ${{ parameters.jobParameters }}
+# FreeBSD machines are currenrly offline. Re-enable in the official build when
+# the machines are healthy.
+
+# - template: ${{ parameters.jobTemplate }}
+#   parameters:
+#     buildConfig: ${{ parameters.buildConfig }}
+#     archType: x64
+#     osGroup: FreeBSD
+#     osIdentifier: FreeBSD
+#     # There are no FreeBSD helix queues, so we don't run tests at the moment.
+#     helixQueues:
+#       asString: ''
+#       asArray: []
+#     ${{ insert }}: ${{ parameters.jobParameters }}
 
 # macOS x64
 

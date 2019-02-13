@@ -15,12 +15,6 @@ using System.StubHelpers;
 
 using Internal.Runtime.CompilerServices;
 
-#if BIT64
-using nuint = System.UInt64;
-#else
-using nuint = System.UInt32;
-#endif // BIT64
-
 namespace System.Runtime.InteropServices
 {
     /// <summary>
@@ -35,15 +29,6 @@ namespace System.Runtime.InteropServices
         /// </summary>
         internal static Guid IID_IUnknown = new Guid(0, 0, 0, 0xC0, 0, 0, 0, 0, 0, 0, 0x46);
 #endif //FEATURE_COMINTEROP
-
-        private const int LMEM_FIXED = 0;
-        private const int LMEM_MOVEABLE = 2;
-
-        /// <summary>
-        /// Helper method to retrieve the system's maximum DBCS character size.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern int GetSystemMaxDBCSCharSize();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int SizeOfHelper(Type t, bool throwIfNotMarshalable);
@@ -71,29 +56,6 @@ namespace System.Runtime.InteropServices
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr OffsetOfHelper(IRuntimeFieldInfo f);
-
-        /// <summary>
-        /// IMPORTANT NOTICE: This method does not do any verification on the array.
-        /// It must be used with EXTREME CAUTION since passing in invalid index or
-        /// an array that is not pinned can cause unexpected results.
-        /// </summary>
-        public static unsafe IntPtr UnsafeAddrOfPinnedArrayElement(Array arr, int index)
-        {
-            if (arr == null)
-                throw new ArgumentNullException(nameof(arr));
-
-            void* pRawData = Unsafe.AsPointer(ref arr.GetRawArrayData());
-            return (IntPtr)((byte*)pRawData + (uint)index * (nuint)arr.GetElementSize());
-        }
-
-        public static unsafe IntPtr UnsafeAddrOfPinnedArrayElement<T>(T[] arr, int index)
-        {
-            if (arr == null)
-                throw new ArgumentNullException(nameof(arr));
-
-            void* pRawData = Unsafe.AsPointer(ref arr.GetRawSzArrayData());
-            return (IntPtr)((byte*)pRawData + (uint)index * (nuint)Unsafe.SizeOf<T>());
-        }
 
         public static byte ReadByte(object ptr, int ofs)
         {
@@ -307,7 +269,7 @@ namespace System.Runtime.InteropServices
             numBytes = new UIntPtr(unchecked((uint)cb.ToInt32()));
 #endif
 
-            IntPtr pNewMem = Win32Native.LocalAlloc_NoSafeHandle(LMEM_FIXED, unchecked(numBytes));
+            IntPtr pNewMem = Interop.Kernel32.LocalAlloc(Interop.Kernel32.LMEM_FIXED, unchecked(numBytes));
             if (pNewMem == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
@@ -320,7 +282,7 @@ namespace System.Runtime.InteropServices
         {
             if (!IsWin32Atom(hglobal))
             {
-                if (IntPtr.Zero != Win32Native.LocalFree(hglobal))
+                if (IntPtr.Zero != Interop.Kernel32.LocalFree(hglobal))
                 {
                     ThrowExceptionForHR(GetHRForLastWin32Error());
                 }
@@ -329,75 +291,13 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr ReAllocHGlobal(IntPtr pv, IntPtr cb)
         {
-            IntPtr pNewMem = Win32Native.LocalReAlloc(pv, cb, LMEM_MOVEABLE);
+            IntPtr pNewMem = Interop.Kernel32.LocalReAlloc(pv, cb, Interop.Kernel32.LMEM_MOVEABLE);
             if (pNewMem == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
             }
 
             return pNewMem;
-        }
-    
-        public static unsafe IntPtr StringToHGlobalAnsi(string s)
-        {
-            if (s == null)
-            {
-                return IntPtr.Zero;
-            }
-
-            long lnb = (s.Length + 1) * (long)SystemMaxDBCSCharSize;
-            int nb = (int)lnb;
-
-            // Overflow checking
-            if (nb != lnb)
-            {
-                throw new ArgumentOutOfRangeException(nameof(s));
-            }
-
-            UIntPtr len = new UIntPtr((uint)nb);
-            IntPtr hglobal = Win32Native.LocalAlloc_NoSafeHandle(LMEM_FIXED, len);
-            if (hglobal == IntPtr.Zero)
-            {
-                throw new OutOfMemoryException();
-            }
-
-            StringToAnsiString(s, (byte*)hglobal, nb);
-            return hglobal;
-        }
-
-        public static unsafe IntPtr StringToHGlobalUni(string s)
-        {
-            if (s == null)
-            {
-                return IntPtr.Zero;
-            }
-
-            int nb = (s.Length + 1) * 2;
-
-            // Overflow checking
-            if (nb < s.Length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(s));
-            }
-
-            UIntPtr len = new UIntPtr((uint)nb);
-            IntPtr hglobal = Win32Native.LocalAlloc_NoSafeHandle(LMEM_FIXED, len);
-            if (hglobal == IntPtr.Zero)
-            {
-                throw new OutOfMemoryException();
-            }
-
-            fixed (char* firstChar = s)
-            {
-                string.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
-            }
-            return hglobal;
-        }
-
-        public static IntPtr StringToHGlobalAuto(string s)
-        {
-            // Ansi platforms are no longer supported
-            return StringToHGlobalUni(s);
         }
 
 #if FEATURE_COMINTEROP
@@ -522,7 +422,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr AllocCoTaskMem(int cb)
         {
-            IntPtr pNewMem = Win32Native.CoTaskMemAlloc(new UIntPtr((uint)cb));
+            IntPtr pNewMem = Interop.Ole32.CoTaskMemAlloc(new UIntPtr((uint)cb));
             if (pNewMem == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
@@ -531,100 +431,17 @@ namespace System.Runtime.InteropServices
             return pNewMem;
         }
 
-        public static unsafe IntPtr StringToCoTaskMemUni(string s)
-        {
-            if (s == null)
-            {
-                return IntPtr.Zero;
-            }
-
-            int nb = (s.Length + 1) * 2;
-
-            // Overflow checking
-            if (nb < s.Length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(s));
-            }
-
-            IntPtr hglobal = Win32Native.CoTaskMemAlloc(new UIntPtr((uint)nb));
-            if (hglobal == IntPtr.Zero)
-            {
-                throw new OutOfMemoryException();
-            }
-
-            fixed (char* firstChar = s)
-            {
-                string.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
-            }
-            return hglobal;
-        }
-
-        public static unsafe IntPtr StringToCoTaskMemUTF8(string s)
-        {
-            if (s == null)
-            {
-                return IntPtr.Zero;
-            }
-
-            int nb = Encoding.UTF8.GetMaxByteCount(s.Length);
-            IntPtr pMem = Win32Native.CoTaskMemAlloc(new UIntPtr((uint)nb + 1));
-            if (pMem == IntPtr.Zero)
-            {
-                throw new OutOfMemoryException();
-            }
-
-            fixed (char* firstChar = s)
-            {
-                byte* pbMem = (byte*)pMem;
-                int nbWritten = Encoding.UTF8.GetBytes(firstChar, s.Length, pbMem, nb);
-                pbMem[nbWritten] = 0;
-            }
-            return pMem;
-        }
-
-        public static IntPtr StringToCoTaskMemAuto(string s)
-        {
-            // Ansi platforms are no longer supported
-            return StringToCoTaskMemUni(s);
-        }
-
-        public static unsafe IntPtr StringToCoTaskMemAnsi(string s)
-        {
-            if (s == null)
-            {
-                return IntPtr.Zero;
-            }
-
-            long lnb = (s.Length + 1) * (long)SystemMaxDBCSCharSize;
-            int nb = (int)lnb;
-
-            // Overflow checking
-            if (nb != lnb)
-            {
-                throw new ArgumentOutOfRangeException(nameof(s));
-            }
-
-            IntPtr hglobal = Win32Native.CoTaskMemAlloc(new UIntPtr((uint)nb));
-            if (hglobal == IntPtr.Zero)
-            {
-                throw new OutOfMemoryException();
-            }
-
-            StringToAnsiString(s, (byte*)hglobal, nb);
-            return hglobal;
-        }
-
         public static void FreeCoTaskMem(IntPtr ptr)
         {
             if (!IsWin32Atom(ptr))
             {
-                Win32Native.CoTaskMemFree(ptr);
+                Interop.Ole32.CoTaskMemFree(ptr);
             }
         }
 
         public static IntPtr ReAllocCoTaskMem(IntPtr pv, int cb)
         {
-            IntPtr pNewMem = Win32Native.CoTaskMemRealloc(pv, new UIntPtr((uint)cb));
+            IntPtr pNewMem = Interop.Ole32.CoTaskMemRealloc(pv, new UIntPtr((uint)cb));
             if (pNewMem == IntPtr.Zero && cb != 0)
             {
                 throw new OutOfMemoryException();
@@ -635,7 +452,7 @@ namespace System.Runtime.InteropServices
 
         internal static IntPtr AllocBSTR(int length)
         {
-            IntPtr bstr = Win32Native.SysAllocStringLen(null, length);
+            IntPtr bstr = Interop.OleAut32.SysAllocStringLen(null, length);
             if (bstr == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
@@ -647,7 +464,7 @@ namespace System.Runtime.InteropServices
         {
             if (!IsWin32Atom(ptr))
             {
-                Win32Native.SysFreeString(ptr);
+                Interop.OleAut32.SysFreeString(ptr);
             }
         }
 
@@ -664,7 +481,7 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentOutOfRangeException(nameof(s));
             }
 
-            IntPtr bstr = Win32Native.SysAllocStringLen(s, s.Length);
+            IntPtr bstr = Interop.OleAut32.SysAllocStringLen(s, s.Length);
             if (bstr == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
@@ -675,7 +492,7 @@ namespace System.Runtime.InteropServices
 
         public static string PtrToStringBSTR(IntPtr ptr)
         {
-            return PtrToStringUni(ptr, (int)Win32Native.SysStringLen(ptr));
+            return PtrToStringUni(ptr, (int)Interop.OleAut32.SysStringLen(ptr));
         }
 
 #if FEATURE_COMINTEROP

@@ -1,5 +1,4 @@
-
-project(System.Globalization.Native)
+project(System.Globalization.Native C)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -39,18 +38,19 @@ endif()
 include(configure.cmake)
 
 add_compile_options(-fPIC)
+add_compile_options(-Wno-incompatible-pointer-types-discards-qualifiers)
 
 set(NATIVEGLOBALIZATION_SOURCES
-    calendarData.cpp
-    casing.cpp
-    collation.cpp
-    idna.cpp
-    locale.cpp
-    localeNumberData.cpp
-    localeStringData.cpp
-    normalization.cpp
-    timeZoneInfo.cpp
-    icushim.cpp
+    pal_calendarData.c
+    pal_casing.c
+    pal_collation.c
+    pal_idna.c
+    pal_locale.c
+    pal_localeNumberData.c
+    pal_localeStringData.c
+    pal_normalization.c
+    pal_timeZoneInfo.c
+    pal_icushim.c
 )
 
 include_directories(${UTYPES_H})
@@ -97,4 +97,3 @@ verify_dependencies(
 # add the install targets
 install_clr(System.Globalization.Native)
 install(TARGETS System.Globalization.Native_Static DESTINATION .)
-

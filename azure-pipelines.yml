@@ -17,6 +17,9 @@ resources:
   - container: musl_x64_build_image
     image: microsoft/dotnet-buildtools-prereqs:alpine-3.6-WithNode-f4d3fe3-20181220200247
 
+  - container: musl_arm64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-alpine10fcdcf-20190208200917
+
   - container: centos7_x64_build_image
     image: microsoft/dotnet-buildtools-prereqs:centos-7-d485f41-20173404063424
 
@@ -137,7 +140,15 @@ jobs:
           asArray:
           - normal
           - no_tiered_compilation
-        timeoutInMinutes: 240
+        # "Total" includes building tests, waiting for a queue in Helix to become available, and running the tests.
+        # In case test-job.yml gets split into two separate jobs (e.g. build-test-job.yml and run-test.yml)
+        # this number should be adjusted accordingly.
+        timeoutTotalInMinutes: 240
+        # "PerCollection" is time needed for the "biggest" xUnit test collection to complete.
+        # In case xUnit test wrappers get refactored this number should also be adjusted.
+        timeoutPerTestCollectionInMinutes: 30
+        # "PerTest" corresponds to individual test running time (i.e. __TestTimeout).
+        timeoutPerTestInMinutes: 10
 
 # Pri1 (CI)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
@@ -152,9 +163,11 @@ jobs:
           asArray:
           - normal
           - no_tiered_compilation
-        timeoutInMinutes: 360
+        timeoutTotalInMinutes: 360
+        timeoutPerTestCollectionInMinutes: 60
+        timeoutPerTestInMinutes: 10
 
-# Pri1 crossgen (CI)
+# Pri1 ReadyToRun (CI)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
   - template: eng/platform-matrix.yml
     parameters:
@@ -162,13 +175,15 @@ jobs:
       buildConfig: checked
       jobParameters:
         priority: 1
-        crossgen: true
+        readyToRun: true
         scenarios:
           asString: 'normal,no_tiered_compilation'
           asArray:
           - normal
           - no_tiered_compilation
-        timeoutInMinutes: 360
+        timeoutTotalInMinutes: 360
+        timeoutPerTestCollectionInMinutes: 60
+        timeoutPerTestInMinutes: 10
 
 # Pri1 (Schedule, Manual)
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'Schedule', 'Manual')) }}:
@@ -179,7 +194,7 @@ jobs:
       jobParameters:
         priority: 1
         scenarios:
-          asString: 'normal,no_tiered_compilation,jitstress1,jitstress2,jitstress1_tiered,jitstress2_tiered'
+          asString: 'normal,no_tiered_compilation,jitstress1,jitstress2,jitstress1_tiered,jitstress2_tiered,jitstressregs1,jitstressregs2,jitstressregs3,jitstressregs4,jitstressregs8,jitstressregs0x10,jitstressregs0x80,jitstressregs0x1000,jitminopts'
           asArray:
           - normal
           - no_tiered_compilation
@@ -187,7 +202,20 @@ jobs:
           - jitstress2
           - jitstress1_tiered
           - jitstress2_tiered
-        timeoutInMinutes: 480
+          - jitstressregs1
+          - jitstressregs2
+          - jitstressregs3
+          - jitstressregs4
+          - jitstressregs8
+          - jitstressregs0x10
+          - jitstressregs0x80
+          - jitstressregs0x1000
+          - jitminopts
+        timeoutTotalInMinutes: 480
+        # TODO: Adjust this number as soon as we have more data on how long it takes to run these jobs in Helix.
+        timeoutPerTestCollectionInMinutes: 120
+        timeoutPerTestInMinutes: 30
+
 
 #
 # Release test builds
@@ -206,9 +234,11 @@ jobs:
           asArray:
           - normal
           - no_tiered_compilation
-        timeoutInMinutes: 360
+        timeoutTotalInMinutes: 360
+        timeoutPerTestCollectionInMinutes: 60
+        timeoutPerTestInMinutes: 10
 
-# Pri1 crossgen (Official Build)
+# Pri1 ReadyToRun (Official Build)
 - ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
   - template: eng/platform-matrix.yml
     parameters:
@@ -216,13 +246,15 @@ jobs:
       buildConfig: release
       jobParameters:
         priority: 1
-        crossgen: true
+        readyToRun: true
         scenarios:
           asString: 'normal,no_tiered_compilation'
           asArray:
           - normal
           - no_tiered_compilation
-        timeoutInMinutes: 360
+        timeoutTotalInMinutes: 360
+        timeoutPerTestCollectionInMinutes: 60
+        timeoutPerTestInMinutes: 10
 
 
 # Publish build information to Build Assets Registry
@@ -242,9 +274,9 @@ jobs:
       - build_Linux_arm_release
       - build_Linux_arm64_release
       - build_Linux_musl_x64_release
+      - build_Linux_musl_arm64_release
       - build_Linux_rhel6_x64_release
       - build_Linux_x64_release
-      - build_FreeBSD_x64_release
       - build_OSX_x64_release
       - build_Windows_NT_x64_release
       - build_Windows_NT_x86_release

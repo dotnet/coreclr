@@ -279,10 +279,6 @@ protected:
 
     void genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, regNumber tmpReg, bool* pTmpRegIsZero);
 
-#ifdef DEBUG
-    static void genCheckSPOffset(bool isRegsCountOdd, int spOffset, int slotSize);
-#endif // DEBUG
-
     // A simple struct to keep register pairs for prolog and epilog.
     struct RegPair
     {
@@ -305,12 +301,8 @@ protected:
 
     static int genGetSlotSizeForRegsInMask(regMaskTP regsMask);
 
-    void genSaveCalleeSavedRegisterGroup(regMaskTP regsMask,
-                                         int       spDelta,
-                                         int spOffset DEBUGARG(bool isRegsToSaveCountOdd));
-    void genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask,
-                                            int       spDelta,
-                                            int spOffset DEBUGARG(bool isRegsToRestoreCountOdd));
+    void genSaveCalleeSavedRegisterGroup(regMaskTP regsMask, int spDelta, int spOffset);
+    void genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask, int spDelta, int spOffset);
 
     void genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowestCalleeSavedOffset, int spDelta);
     void genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, int lowestCalleeSavedOffset, int spDelta);
@@ -515,6 +507,12 @@ protected:
     void genAmd64EmitterUnitTests();
 #endif
 
+#ifdef _TARGET_ARM64_
+    virtual void SetSaveFpLrWithAllCalleeSavedRegisters(bool value);
+    virtual bool IsSaveFpLrWithAllCalleeSavedRegisters();
+    bool         genSaveFpLrWithAllCalleeSavedRegisters;
+#endif // _TARGET_ARM64_
+
     //-------------------------------------------------------------------------
     //
     // End prolog/epilog generation
@@ -550,13 +548,13 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     //-------------------------------------------------------------------------
     // scope info for the variables
 
-    void genSetScopeInfo(unsigned            which,
-                         UNATIVE_OFFSET      startOffs,
-                         UNATIVE_OFFSET      length,
-                         unsigned            varNum,
-                         unsigned            LVnum,
-                         bool                avail,
-                         Compiler::siVarLoc& loc);
+    void genSetScopeInfo(unsigned       which,
+                         UNATIVE_OFFSET startOffs,
+                         UNATIVE_OFFSET length,
+                         unsigned       varNum,
+                         unsigned       LVnum,
+                         bool           avail,
+                         siVarLoc*      varLoc);
 
     void genSetScopeInfo();
 
@@ -620,6 +618,10 @@ protected:
         siScope* scPrev;
         siScope* scNext;
     };
+
+    // Returns a "siVarLoc" instance representing the place where the variable lives base on
+    // varDsc and scope description.
+    CodeGenInterface::siVarLoc getSiVarLoc(const LclVarDsc* varDsc, const siScope* scope) const;
 
     siScope siOpenScopeList, siScopeList, *siOpenScopeLast, *siScopeLast;
 
@@ -726,6 +728,10 @@ protected:
 
         psiScope* scPrev;
         psiScope* scNext;
+
+        // Returns a "siVarLoc" instance representing the place where the variable lives base on
+        // psiScope properties.
+        CodeGenInterface::siVarLoc getSiVarLoc() const;
     };
 
     psiScope psiOpenScopeList, psiScopeList, *psiOpenScopeLast, *psiScopeLast;
@@ -751,13 +757,13 @@ protected:
 
     struct TrnslLocalVarInfo
     {
-        unsigned           tlviVarNum;
-        unsigned           tlviLVnum;
-        VarName            tlviName;
-        UNATIVE_OFFSET     tlviStartPC;
-        size_t             tlviLength;
-        bool               tlviAvailable;
-        Compiler::siVarLoc tlviVarLoc;
+        unsigned       tlviVarNum;
+        unsigned       tlviLVnum;
+        VarName        tlviName;
+        UNATIVE_OFFSET tlviStartPC;
+        size_t         tlviLength;
+        bool           tlviAvailable;
+        siVarLoc       tlviVarLoc;
     };
 
     // Array of scopes of LocalVars in terms of native code
