@@ -178,7 +178,7 @@ namespace System
                 return 31 - (int)Lzcnt.LeadingZeroCount(value);
             }
 
-            // Already has contract 0->0
+            // Already has contract 0->0, without branching
             return Log2SoftwareFallback(value);
         }
 
@@ -192,13 +192,11 @@ namespace System
         {
             // No AggressiveInlining due to large method size
 
-            // byte#                         4          3   2  1
-            //                       1000 0000  0000 0000  00 00
-            value |= value >> 01; // 1100 0000  0000 0000  00 00
-            value |= value >> 02; // 1111 0000  0000 0000  00 00
-            value |= value >> 04; // 1111 1111  0000 0000  00 00
-            value |= value >> 08; // 1111 1111  1111 1111  00 00
-            value |= value >> 16; // 1111 1111  1111 1111  FF FF
+            value |= value >> 01;
+            value |= value >> 02;
+            value |= value >> 04;
+            value |= value >> 08;
+            value |= value >> 16;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
