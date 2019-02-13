@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 
-using Internal.Runtime.CompilerServices; // Unsafe.AddByteOffset
+using Internal.Runtime.CompilerServices;
 
 // Some routines inspired by the Stanford Bit Twiddling Hacks by Sean Eron Anderson:
 // http://graphics.stanford.edu/~seander/bithacks.html
@@ -154,13 +154,51 @@ namespace System
         /// <summary>
         /// Returns the integer (floor) log of the specified value, base 2.
         /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
-        /// Does not incur branching.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Log2(uint value)
         {
-            value = FoldTrailingOnes(value);
+            // value    lzcnt   actual  expected
+            // ..0000   32      0        0 (by convention, guard clause)
+            // ..0001   31      31-31    0
+            // ..0010   30      31-30    1
+            // 0010..    2      31-2    29
+            // 0100..    1      31-1    30
+            // 1000..    0      31-0    31
+            if (Lzcnt.IsSupported)
+            {
+                // Enforce conventional contract 0->0 (since Log(0) is undefined)
+                if (value == 0)
+                {
+                    return 0;
+                }
+
+                // Note that LZCNT contract specifies 0->32
+                return 31 - (int)Lzcnt.LeadingZeroCount(value);
+            }
+
+            // Already has contract 0->0
+            return Log2SoftwareFallback(value);
+        }
+
+        /// <summary>
+        /// Returns the integer (floor) log of the specified value, base 2.
+        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
+        /// Does not incur branching.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        private static int Log2SoftwareFallback(uint value)
+        {
+            // No AggressiveInlining due to large method size
+
+            // byte#                         4          3   2  1
+            //                       1000 0000  0000 0000  00 00
+            value |= value >> 01; // 1100 0000  0000 0000  00 00
+            value |= value >> 02; // 1111 0000  0000 0000  00 00
+            value |= value >> 04; // 1111 1111  0000 0000  00 00
+            value |= value >> 08; // 1111 1111  1111 1111  00 00
+            value |= value >> 16; // 1111 1111  1111 1111  FF FF
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
@@ -178,6 +216,18 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Log2(ulong value)
         {
+            if (Lzcnt.X64.IsSupported)
+            {
+                // Enforce conventional contract 0->0 (since Log(0) is undefined)
+                if (value == 0)
+                {
+                    return 0;
+                }
+
+                // Note that LZCNT contract specifies 0->64
+                return 63 - (int)Lzcnt.X64.LeadingZeroCount(value);
+            }
+
             uint hi = (uint)(value >> 32);
 
             if (hi == 0)
@@ -186,26 +236,6 @@ namespace System
             }
 
             return 32 + Log2(hi);
-        }
-
-        /// <summary>
-        /// Fills the trailing zeros in a mask with ones.
-        /// For example, 00010010 becomes 00011111.
-        /// Does not incur branching.
-        /// </summary>
-        /// <param name="value">The value to mutate.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint FoldTrailingOnes(uint value)
-        {
-            // byte#                         4          3   2  1
-            //                       1000 0000  0000 0000  00 00
-            value |= value >> 01; // 1100 0000  0000 0000  00 00
-            value |= value >> 02; // 1111 0000  0000 0000  00 00
-            value |= value >> 04; // 1111 1111  0000 0000  00 00
-            value |= value >> 08; // 1111 1111  1111 1111  00 00
-            value |= value >> 16; // 1111 1111  1111 1111  FF FF
-
-            return value;
         }
     }
 }

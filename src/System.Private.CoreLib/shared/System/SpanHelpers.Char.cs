@@ -874,7 +874,6 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateLastFoundChar(ulong match)
         {
-            // TODO: Arm variants
             return 3 - (BitOps.LeadingZeroCount(match) >> 4);
         }
     }

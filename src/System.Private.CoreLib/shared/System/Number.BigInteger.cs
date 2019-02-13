@@ -455,7 +455,7 @@ namespace System
 
             public static uint CountSignificantBits(uint value)
             {
-                return 32u - (uint)BitOps.LeadingZeroCount(value);
+                return 32 - (uint)BitOps.LeadingZeroCount(value);
             }
 
             public static uint CountSignificantBits(ulong value)
@@ -464,7 +464,7 @@ namespace System
 
                 if (upper != 0)
                 {
-                    return 32u + CountSignificantBits(upper);
+                    return 32 + CountSignificantBits(upper);
                 }
 
                 return CountSignificantBits((uint)value);
@@ -742,18 +742,6 @@ namespace System
                 }
 
                 return quotient;
-            }
-
-            public static uint LogBase2(uint value)
-            {
-                Debug.Assert(value != 0);
-                return (uint)BitOps.Log2(value);
-            }
-
-            public static uint LogBase2(ulong value)
-            {
-                Debug.Assert(value != 0);
-                return (uint)BitOps.Log2(value);
             }
 
             public static void Multiply(ref BigInteger lhs, uint value, ref BigInteger result)
