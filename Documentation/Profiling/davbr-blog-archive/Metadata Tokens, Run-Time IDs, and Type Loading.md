@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 10/17/2011*
 
 
 # Overview

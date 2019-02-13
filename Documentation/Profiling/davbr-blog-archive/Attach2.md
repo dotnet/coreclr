@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 1/18/2010*
 
 
 In a previous [post](Attach.md), I outlined to all you profiler writers how to modify your profiler so it can attach to running processes, and what sorts of limitations your profiler will have when it attaches.  In this post, I answer the question, “My profiler is attached.  What should it do next?”

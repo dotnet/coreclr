@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 3/6/2007*
 
 
 A frequent topic of discussion between those of us on the CLR Profiling API team at Microsoft and our customers is how to write a profiler that rewrites IL to do cool stuff. Unfortunately, there still is very little documentation on how to do this, and what documentation there is, is rather scattered. I'm not going to say anything new here. But I will try to bring together the scattered info into one place.

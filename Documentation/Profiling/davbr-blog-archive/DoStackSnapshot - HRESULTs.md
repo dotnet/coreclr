@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 10/17/2005*
 
 
 Generally, corerror.h tells you all you need to know about what kinds of HRESULTs to expect back from DoStackSnapshot.  However, there are some fringe cases where you can get back an HRESULT that's not as descriptive as you might like.

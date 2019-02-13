@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 12/29/2011*
 
 
 The docs for [GetObjectSize](http://msdn.microsoft.com/en-US/library/ms231885(v=VS.100).aspx) have recently been updated with this info, but I wanted to mention it here, too, to ensure you were aware of this information.

@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 1/28/2010*
 
 
 If you’re writing a profiler that you expect to run against CLR 2.0 or greater, you probably care about generics. Whether you're reporting call stacks or instrumenting code, it's possible the users of your profiler wrote some of that code using generic types. And if not, it's still quite likely they used generic types from libraries they depend on, such as those that ship with the .NET Framework. Reporting as much detail as you can, such as which type arguments were used to instantiate a generic type that appears in a call stack, can help your users diagnose their problems more effectively.

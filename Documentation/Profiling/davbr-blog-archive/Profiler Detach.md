@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 2/3/2010*
 
 
 I described how profilers may attach to already-running processes in other posts ([#1](Attach.md) and [#2](Attach2.md)).  In this post I’m writing about how profilers that are already loaded may detach from a running process before that process exits.  Like Profiler Attach, this is a new feature available starting with CLR V4.

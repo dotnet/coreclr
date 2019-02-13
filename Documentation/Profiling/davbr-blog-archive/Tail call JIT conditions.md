@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 6/20/2007*
 
 
 _Here are the full details I received from Grant Richins and Fei Chen when I asked how the JIT decides whether to employ the tail call optimization.  Note that these statements apply to the JITs as they were when Grant and Fei looked through the code base, and are prone to change at whim.  **You must not take dependencies on this behavior**. Use this information for your own personal entertainment only._

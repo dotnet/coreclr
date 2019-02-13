@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 6/20/2007*
 
 
 For most people the idea of entering or returning from a function seems straightforward. Your profiler's Enter hook is called at the beginning of a function, and its Leave hook is called just before the function returns. But the idea of a tail call and exactly what that means for the Profiling API is less straightforward.

@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 9/30/2009*
 
 
 MSDN defines “type forwarding” as moving “a type to another assembly without having to recompile applications that use the original assembly”.  In this post, I’ll talk about examining a particular type in Microsoft’s .NET Framework library that gets forwarded, how you can use type forwarding for your own types, and what type forwarding looks like to consumers of the profiling API.  For some more official background on type forwarding, visit the MSDN [topic](http://msdn.microsoft.com/en-us/library/ms404275(VS.100).aspx).  If you Bing type forwarding you’ll find many blogs that talk about it as well.  Yes, that’s right.  I used Bing as a verb.  Get used to it; Bing is awesome.

@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 12/23/2008*
 
 
 _What follows is a long-lost blog entry that_ [_Jonathan Keljo_](http://blogs.msdn.com/jkeljo) _had been working on.  I brushed off some of the dust and am posting it here for your enjoyment.  Thank you, Jonathan!_

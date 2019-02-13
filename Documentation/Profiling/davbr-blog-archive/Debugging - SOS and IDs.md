@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 12/18/2007*
 
 
 In this debugging post, I'll talk about the various IDs the profiling API exposes to your profiler, and how you can use SOS to give you more information about the IDs.  As usual, this post assumes you're using CLR 2.x.

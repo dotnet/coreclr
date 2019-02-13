@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 3/22/2007*
 
 
 The CLR Profiling API allows you to hook managed functions so that your profiler is called when a function is entered, returns, or exits via tailcall. We refer to these as Enter/Leave/Tailcall hooks, or “ELT” hooks. In this special multi-part investigative series, I will uncover the truth behind ELT. Today I'll write about some of the basics, NGEN, and a word on what we call "slow-path" vs. "fast-path".

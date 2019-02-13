@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 10/12/2011*
 
 This post is organized in chronological order, telling what your profiler should be doing at the following times in the process:
 

@@ -1,4 +1,4 @@
-// Adapted from an entry that appeared on David Broman's blog
+// This blog post originally appeared on David Broman's blog on 5/18/2006
 //
 // Parse the local variables signature for the method we're rewriting, create a
 // new localvar signature containing one new local, and return the 0-based

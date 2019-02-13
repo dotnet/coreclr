@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 12/29/2011*
 
 
 As mentioned in [this post](Debugging - SOS and IDs.md), ObjectIDs are really pointers to managed objects on the GC heap.  And as you know, objects get collected or move around on the heap during GCs.  So how do you safely work with ObjectIDs?

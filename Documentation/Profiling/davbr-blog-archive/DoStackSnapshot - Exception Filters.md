@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 10/10/2005*
 
 
 Believe it or not, my last (rather large) post on stack walking actually left out several miscellaneous details about using DoStackSnapshot.  I'll be posting those details separately.  We'll start off with some light reading on exception filters.  No deadlocks this time, I promise.

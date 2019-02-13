@@ -1,4 +1,4 @@
-*Adapted from an entry that appeared on David Broman's blog*
+*This blog post originally appeared on David Broman's blog on 10/24/2005*
 
 
 In my initial [post](DoStackSnapshot - Exception Filters.md) about DoStackSnapshot, I touched on how and when your profiler can "fill in the holes" by walking the unmanaged parts of the stack itself.  Doing this requires that your profiler have access to a register context at the top of the unmanaged block that you can use to begin your walk.  So it's quite reasonable for you to ask, "What registers will be valid in the context I receive in my StackSnapshotCallback call?"
