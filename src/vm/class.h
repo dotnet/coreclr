@@ -36,7 +36,7 @@
 #include "hash.h"
 #include "crst.h"
 #include "cgensys.h"
-#include "declsec.h"
+//#include "declsec.h"
 #ifdef FEATURE_COMINTEROP
 #include "stdinterfaces.h"
 #endif
