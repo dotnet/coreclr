@@ -497,7 +497,7 @@ void TieredCompilationManager::ResumeCountingCalls(MethodDesc* pMethodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);
-    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(pMethodDesc->MayHaveEntryPointSlotsToBackpatch());
 
     EX_TRY
     {
