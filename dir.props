@@ -6,6 +6,7 @@
 
   <PropertyGroup>
     <LangVersion>8.0</LangVersion>
+    <UseSharedCompilation>true</UseSharedCompilation>
   </PropertyGroup>
   
   <!--

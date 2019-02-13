@@ -854,8 +854,8 @@ if %__BuildPackages% EQU 1 (
     set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
     REM The conditions as to what to build are captured in the builds file.
-    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-      /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+    call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+      /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
       /p:UsePartialNGENOptimization=false /maxcpucount^
       %__SourceDir%\.nuget\packages.builds^
