@@ -13,6 +13,12 @@ using Internal.Runtime.CompilerServices;
 
 namespace System
 {
+    /// <summary>
+    /// Utility methods for intrinsic bit-twiddling operations.
+    /// The methods use hardware intrinsics when available on the underlying platform,
+    /// otherwise they use optimized software fallbacks.
+    /// Operations are all little-endian.
+    /// </summary>
     internal static class BitOps
     {
         // C# no-alloc optimization that directly wraps the data section of the dll (similar to string constants)
@@ -68,7 +74,7 @@ namespace System
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
                 ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
                 // long -> IntPtr cast on 32-bit platforms is expensive - it does overflow checks not needed here
-                (IntPtr)(int)(((uint)((value & -value) * 0x077CB531u)) >> 27)); // shift over long also expensive on 32-bit
+                (IntPtr)(((value & (uint)-value) * 0x077CB531u) >> 27)); // shift over long also expensive on 32-bit
         }
 
         /// <summary>
@@ -179,31 +185,25 @@ namespace System
             }
 
             // Already has contract 0->0, without branching
-            return Log2SoftwareFallback(value);
-        }
+            return Log2Fallback(value);
 
-        /// <summary>
-        /// Returns the integer (floor) log of the specified value, base 2.
-        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
-        /// Does not incur branching.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        private static int Log2SoftwareFallback(uint value)
-        {
-            // No AggressiveInlining due to large method size
+            int Log2Fallback(uint val)
+            {
+                // No AggressiveInlining due to large method size
 
-            value |= value >> 01;
-            value |= value >> 02;
-            value |= value >> 04;
-            value |= value >> 08;
-            value |= value >> 16;
+                val |= val >> 01;
+                val |= val >> 02;
+                val |= val >> 04;
+                val |= val >> 08;
+                val |= val >> 16;
 
-            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            return Unsafe.AddByteOffset(
-                // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
-                ref MemoryMarshal.GetReference(s_Log2DeBruijn),
-                // long -> IntPtr cast on 32-bit platforms is expensive - it does overflow checks not needed here
-                (IntPtr)(int)((value * 0x07C4ACDDu) >> 27));
+                // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+                return Unsafe.AddByteOffset(
+                    // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
+                    ref MemoryMarshal.GetReference(s_Log2DeBruijn),
+                    // long -> IntPtr cast on 32-bit platforms is expensive - it does overflow checks not needed here
+                    (IntPtr)(int)((val * 0x07C4ACDDu) >> 27));
+            }
         }
 
         /// <summary>
