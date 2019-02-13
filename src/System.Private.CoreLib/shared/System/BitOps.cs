@@ -235,5 +235,107 @@ namespace System
 
             return 32 + Log2(hi);
         }
+
+        /// <summary>
+        /// Rotates the specified value left by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROL.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint RotateLeft(uint value, int offset)
+            => (value << offset) | (value >> (32 - offset));
+
+        /// <summary>
+        /// Rotates the specified value left by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROL.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..63] is treated as congruent mod 64.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong RotateLeft(ulong value, int offset)
+            => (value << offset) | (value >> (64 - offset));
+
+        /// <summary>
+        /// Rotates the specified value right by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROR.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint RotateRight(uint value, int offset)
+            => (value >> offset) | (value << (32 - offset));
+
+        /// <summary>
+        /// Rotates the specified value right by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROR.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..63] is treated as congruent mod 64.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong RotateRight(ulong value, int offset)
+            => (value >> offset) | (value << (64 - offset));
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(uint value)
+        {
+            if (Popcnt.IsSupported)
+            {
+                return (int)Popcnt.PopCount(value);
+            }
+
+            value = value - ((value >> 1) & 0x_55555555u);
+            value = (value & 0x_33333333u) + ((value >> 2) & 0x_33333333u);
+            value = (value + (value >> 4)) & 0x_0F0F0F0Fu;
+            value = value * 0x_01010101u;
+            value = value >> 24;
+
+            return (int)value;
+        }
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(ulong value)
+        {
+            if (Popcnt.IsSupported)
+            {
+                if (Popcnt.X64.IsSupported)
+                {
+                    return (int)Popcnt.X64.PopCount(value);
+                }
+
+                // Use the 32-bit function twice
+                return (int)(Popcnt.PopCount((uint)value)
+                    + Popcnt.PopCount((uint)(value >> 32)));
+            }
+
+            //return PopCount((uint)value)
+            //    + PopCount((uint)(value >> 32));
+
+            value = value - ((value >> 1) & 0x_55555555_55555555ul);
+            value = (value & 0x_33333333_33333333ul) + ((value >> 2) & 0x_33333333_33333333ul);
+            value = (value + (value >> 4)) & 0x_0F0F0F0F_0F0F0F0Ful;
+            value = value * 0x_01010101_01010101ul;
+            value = value >> 56;
+
+            return (int)value;
+        }
     }
 }
