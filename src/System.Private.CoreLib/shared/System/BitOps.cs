@@ -130,7 +130,7 @@ namespace System
                 return 32;
             }
 
-            return 31 - Log2(value);
+            return 31 - Log2Fallback(value);
         }
 
         /// <summary>
@@ -186,24 +186,30 @@ namespace System
 
             // Already has contract 0->0, without branching
             return Log2Fallback(value);
+        }
 
-            int Log2Fallback(uint val)
-            {
-                // No AggressiveInlining due to large method size
+        /// <summary>
+        /// Returns the integer (floor) log of the specified value, base 2.
+        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
+        /// Does not directly use any hardware intrinsics.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        private static int Log2Fallback(uint value)
+        {
+            // No AggressiveInlining due to large method size
 
-                val |= val >> 01;
-                val |= val >> 02;
-                val |= val >> 04;
-                val |= val >> 08;
-                val |= val >> 16;
+            value |= value >> 01;
+            value |= value >> 02;
+            value |= value >> 04;
+            value |= value >> 08;
+            value |= value >> 16;
 
-                // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-                return Unsafe.AddByteOffset(
-                    // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
-                    ref MemoryMarshal.GetReference(s_Log2DeBruijn),
-                    // long -> IntPtr cast on 32-bit platforms is expensive - it does overflow checks not needed here
-                    (IntPtr)(int)((val * 0x07C4ACDDu) >> 27));
-            }
+            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+            return Unsafe.AddByteOffset(
+                // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
+                ref MemoryMarshal.GetReference(s_Log2DeBruijn),
+                // long -> IntPtr cast on 32-bit platforms is expensive - it does overflow checks not needed here
+                (IntPtr)(int)((value * 0x07C4ACDDu) >> 27));
         }
 
         /// <summary>
