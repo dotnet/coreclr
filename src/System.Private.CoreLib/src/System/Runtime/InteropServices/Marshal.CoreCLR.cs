@@ -422,7 +422,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr AllocCoTaskMem(int cb)
         {
-            IntPtr pNewMem = Interop.Kernel32.CoTaskMemAlloc(new UIntPtr((uint)cb));
+            IntPtr pNewMem = Interop.Ole32.CoTaskMemAlloc(new UIntPtr((uint)cb));
             if (pNewMem == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
@@ -435,13 +435,13 @@ namespace System.Runtime.InteropServices
         {
             if (!IsWin32Atom(ptr))
             {
-                Interop.Kernel32.CoTaskMemFree(ptr);
+                Interop.Ole32.CoTaskMemFree(ptr);
             }
         }
 
         public static IntPtr ReAllocCoTaskMem(IntPtr pv, int cb)
         {
-            IntPtr pNewMem = Interop.Kernel32.CoTaskMemRealloc(pv, new UIntPtr((uint)cb));
+            IntPtr pNewMem = Interop.Ole32.CoTaskMemRealloc(pv, new UIntPtr((uint)cb));
             if (pNewMem == IntPtr.Zero && cb != 0)
             {
                 throw new OutOfMemoryException();

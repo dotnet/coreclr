@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 internal partial class Interop
 {
-    internal partial class Kernel32
+    internal partial class Ole32
     {
         [DllImport(Libraries.Ole32)]
         internal static extern IntPtr CoTaskMemAlloc(UIntPtr cb);

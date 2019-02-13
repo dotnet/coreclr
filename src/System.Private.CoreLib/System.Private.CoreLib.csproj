@@ -276,8 +276,6 @@
     <Compile Include="$(BclSourcesRoot)\System\ValueType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReferenceOfT.cs" />
-    <Compile Include="shared\Interop\Windows\OleAut32\Interop.SysAllocStringByteLen.cs" />
-    <Compile Include="shared\Interop\Windows\Kernel32\Interop.CoTaskMemAlloc.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetCurrentProcessId.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetCurrentThreadId.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetStdHandle.cs" />
@@ -285,6 +283,8 @@
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.QueryUnbiasedInterruptTime.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.VerifyVersionExW.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.VerSetConditionMask.cs" />
+    <Compile Include="shared\Interop\Windows\Ole32\Interop.CoTaskMemAlloc.cs" />
+    <Compile Include="shared\Interop\Windows\OleAut32\Interop.SysAllocStringByteLen.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\XplatEventLogger.cs" Condition="'$(FeatureXplatEventSource)' == 'true'" />

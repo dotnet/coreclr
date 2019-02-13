@@ -113,7 +113,7 @@ namespace System.StubHelpers
 
         internal static void ClearNative(IntPtr pNative)
         {
-            Interop.Kernel32.CoTaskMemFree(pNative);
+            Interop.Ole32.CoTaskMemFree(pNative);
         }
     }  // class CSTRMarshaler
 
@@ -169,7 +169,7 @@ namespace System.StubHelpers
         {
             if (pNative != IntPtr.Zero)
             {
-                Interop.Kernel32.CoTaskMemFree(pNative);
+                Interop.Ole32.CoTaskMemFree(pNative);
             }
         }
     }
@@ -385,7 +385,7 @@ namespace System.StubHelpers
         {
             if (IntPtr.Zero != pNative)
             {
-                Interop.Kernel32.CoTaskMemFree((IntPtr)(((long)pNative) - sizeof(uint)));
+                Interop.Ole32.CoTaskMemFree((IntPtr)(((long)pNative) - sizeof(uint)));
             }
         }
     }  // class VBByValStrMarshaler
@@ -1221,7 +1221,7 @@ namespace System.StubHelpers
                     // this must happen regardless of BackPropAction
                     Marshal.DestroyStructure(pNativeHome, layoutType);
                 }
-                Interop.Kernel32.CoTaskMemFree(pNativeHome);
+                Interop.Ole32.CoTaskMemFree(pNativeHome);
             }
             StubHelpers.DestroyCleanupList(ref cleanupWorkList);
         }
