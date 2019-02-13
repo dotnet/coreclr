@@ -126,10 +126,6 @@ private:
     bool     genUseBlockInit;  // true if we plan to block-initialize the local stack frame
     unsigned genInitStkLclCnt; // The count of local variables that we need to zero init
 
-    //  Keeps track of how many bytes we've pushed on the processor's stack.
-    //
-    unsigned genStackLevel;
-
     void SubtractStackLevel(unsigned adjustment)
     {
         assert(genStackLevel >= adjustment);
@@ -160,6 +156,7 @@ private:
         genStackLevel = newStackLevel;
     }
 
+private:
     //-------------------------------------------------------------------------
 
     void genReportEH();
@@ -626,6 +623,7 @@ protected:
     // Returns a "siVarLoc" instance representing the place where the variable lives base on
     // varDsc and scope description.
     CodeGenInterface::siVarLoc getSiVarLoc(const LclVarDsc* varDsc, const siScope* scope) const;
+    //CodeGenInterface::siVarLoc getSiVarLoc(const LclVarDsc* varDsc, unsigned int stackLevel) const;
 
     siScope siOpenScopeList, siScopeList, *siOpenScopeLast, *siScopeLast;
 

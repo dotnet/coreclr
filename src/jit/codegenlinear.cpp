@@ -40,6 +40,8 @@ void CodeGen::genInitializeRegisterState()
 
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
+        varDsc->initializeRegisterLiveRanges(compiler->getAllocator());
+
         // Is this variable a parameter assigned to a register?
         if (!varDsc->lvIsParam || !varDsc->lvRegister)
         {
@@ -739,7 +741,7 @@ void CodeGen::genCodeForBBlist()
 #ifdef DEBUG
                 hasDumpedHistory = true;
                 JITDUMP("Var %d:\n", varNum);
-                varDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated();
+                varDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(this);
 #endif
                 varDsc->endBlockLiveRanges();
             }
@@ -846,7 +848,9 @@ void CodeGen::genSpillVar(GenTree* tree)
             VarSetOps::AddElemD(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex);
         }
 
-        varDsc->UpdateRegisterHome(REG_STK, getEmitter());
+        // Build the location of the variable
+        siVarLoc siVarLoc = CodeGenInterface::getSiVarLoc(varDsc, getCurrentStackLevel());
+        varDsc->UpdateRegisterHome(REG_STK, siVarLoc, getEmitter());
     }
 
     // Why is changing reg if spill was not needed?
@@ -1015,7 +1019,10 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             if ((unspillTree->gtFlags & GTF_SPILL) == 0)
             {
                 genUpdateVarReg(varDsc, tree);
-                varDsc->UpdateRegisterHome(varDsc->lvRegNum, getEmitter());
+
+                // Build the location of the variable
+                siVarLoc siVarLoc = CodeGenInterface::getSiVarLoc(varDsc, getCurrentStackLevel());
+                varDsc->UpdateRegisterHome(varDsc->lvRegNum, siVarLoc, getEmitter());
 #ifdef DEBUG
                 if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))
                 {

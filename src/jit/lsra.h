@@ -8,7 +8,7 @@
 
 #include "arraylist.h"
 #include "smallhash.h"
-
+#include "codegen.h"
 // Minor and forward-reference types
 class Interval;
 class RefPosition;

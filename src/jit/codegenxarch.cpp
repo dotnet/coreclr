@@ -4839,7 +4839,10 @@ void CodeGen::genRegCopy(GenTree* treeNode)
                     gcInfo.gcMarkRegSetNpt(genRegMask(op1->gtRegNum));
 
                     genUpdateVarReg(varDsc, treeNode);
-                    varDsc->UpdateRegisterHome(varDsc->lvRegNum, getEmitter());
+
+                    // Build siVarLoc for this variable
+                    CodeGenInterface::siVarLoc varLocation = CodeGenInterface::getSiVarLoc(varDsc, getCurrentStackLevel());
+                    varDsc->UpdateRegisterHome(varDsc->lvRegNum, varLocation, getEmitter());
 
                     // The new location is going live
                     genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));

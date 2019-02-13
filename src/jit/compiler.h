@@ -302,19 +302,24 @@ class VariableLiveRange
 public:
     emitLocation startEmitLocation;
     emitLocation endEmitLocation;
+    CodeGenInterface::siVarLoc varLocation;
     regNumber    registerNumber;
 
-    VariableLiveRange(regNumber registerNumber, emitLocation startEmitLocation, emitLocation endEmitLocation)
+    VariableLiveRange(regNumber registerNumber, CodeGenInterface::siVarLoc varLocation, emitLocation startEmitLocation, emitLocation endEmitLocation)
     {
+        this->varLocation = varLocation;
         this->registerNumber = registerNumber;
         this->startEmitLocation = startEmitLocation;
         this->endEmitLocation = endEmitLocation;
     }
 
     // Dump just the emitLocation as they are, we dont have generated the whole method yet
-    void dump()
+    void dump(const CodeGenInterface *codeGen) const
     {
-        printf("%s [", getRegName(registerNumber));
+        printf("%s ", getRegName(registerNumber));
+        printf(" Or ");
+        codeGen->dumpSiVarLoc(&varLocation);
+        printf(" [ ");
         startEmitLocation.Print();
         printf(", ");
         if (endEmitLocation.Valid())
@@ -328,13 +333,19 @@ public:
         printf(" ]; ");
     }
 
-    void dump(emitter *_emitter)
+    void dump(emitter *_emitter, const CodeGenInterface *codeGen) const
     {
         UNATIVE_OFFSET startAssemblyOffset = startEmitLocation.CodeOffset(_emitter);
         // this could be a non closed range so endEmitLocation could be a non valid emit Location
         // live -1 in case of not being defined
         UNATIVE_OFFSET endAssemblyOffset = endEmitLocation.Valid() ? endEmitLocation.CodeOffset(_emitter) : -1;
-        printf("%s [%X-", getRegName(registerNumber), startEmitLocation.CodeOffset(_emitter));
+        
+        //printf("%s [%X-", getRegName(registerNumber), startEmitLocation.CodeOffset(_emitter));
+        printf("%s ", getRegName(registerNumber));
+        printf(" Or ");
+        codeGen->dumpSiVarLoc(&varLocation);
+        printf(" [%X - ", startEmitLocation.CodeOffset(_emitter));
+
         startEmitLocation.Print();
         printf(", %X-", endEmitLocation.CodeOffset(_emitter));
         endEmitLocation.Print();
@@ -402,7 +413,7 @@ public:
     LiveRangeBarrier* variableLifeBarrier;
 
     // Initialize an empty list and a barrier pointing to its end
-    void initializeRegisterLiveRanges(CompAllocator allocator, emitter* _emitter)
+    void initializeRegisterLiveRanges(CompAllocator allocator)
     {
         variableLiveRanges = new LiveRangeList(allocator);
 
@@ -430,7 +441,7 @@ public:
         return variableLifeBarrier->haveReadAtLeastOneOfBlock;
     }
 
-    void dumpRegisterLiveRangesForBlockBeforeCodeGenerated() const
+    void dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface *codeGen) const
     {
         if (variableLifeBarrier->haveReadAtLeastOneOfBlock)
         {
@@ -438,7 +449,7 @@ public:
             for (LiveRangeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end();
                 it++)
             {
-                it->dump();
+                it->dump(codeGen);
             }
             printf("]\n");
         }
@@ -448,7 +459,7 @@ public:
         }
     }
 
-    void dumpAllRegisterLiveRangesForBlock(emitter* _emitter) const
+    void dumpAllRegisterLiveRangesForBlock(emitter* _emitter, const CodeGenInterface* codeGen) const
     {
         if (variableLiveRanges->empty())
         {
@@ -459,7 +470,7 @@ public:
             printf("[");
             for (LiveRangeList::iterator it = variableLiveRanges->begin(); it != variableLiveRanges->end(); it++)
             {
-                it->dump(_emitter);
+                it->dump(_emitter, codeGen);
             }
             printf("]\n");
         }
@@ -488,7 +499,7 @@ public:
     /*
      *   Creates a new live range from in the given regsiterNumber from the assembly native offset of the emitter
      */
-    void startLiveRangeFromEmitter(regNumber registerNumber, emitter* _emitter) const
+    void startLiveRangeFromEmitter(regNumber registerNumber, CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
     {
         // Note: This assert is been hitting because are variables that became dead and started in the same block.
         // Is this a bug in the LSRA?
@@ -500,14 +511,14 @@ public:
         noway_assert(variableLiveRanges->empty() || variableLiveRanges->back().endEmitLocation.Valid());
 
         // Creates new live range with invalid end
-        variableLiveRanges->emplace_back(registerNumber, emitLocation(), emitLocation());
+        variableLiveRanges->emplace_back(registerNumber, varLocation, emitLocation(), emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
 
         // Restart barrier so we can print from here
         setBarrierAtLastPositionInRegisterHistory();
     }
 
-    void UpdateRegisterHome(regNumber registerNumber, emitter* _emitter) const
+    void UpdateRegisterHome(regNumber registerNumber, CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
     {
         // This variable is changing home so it has been started before during this block
         noway_assert(hasBeenAlive());
@@ -519,7 +530,7 @@ public:
         endLiveRangeAtEmitter(_emitter);
 
         // Open new live range with invalid end
-        variableLiveRanges->emplace_back(registerNumber, emitLocation(), emitLocation());
+        variableLiveRanges->emplace_back(registerNumber, varLocation, emitLocation(), emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
     }
 

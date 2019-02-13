@@ -95,7 +95,11 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                 if (isBorn && varDsc->lvIsRegCandidate() && tree->gtHasReg())
                 {
                     compiler->codeGen->genUpdateVarReg(varDsc, tree);
-                    varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, compiler->getEmitter());
+
+                    // Build siVarLoc for this borning variable
+                    CodeGenInterface::siVarLoc varLocation = compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
+                    
+                    varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, varLocation, compiler->getEmitter());
                 }
                 if (varDsc->lvIsInReg() && tree->gtRegNum != REG_NA)
                 {
@@ -106,8 +110,11 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                 {
                     if (isBorn)
                     {
+                        // Build siVarLoc for this borning variable
+                        CodeGenInterface::siVarLoc varLocation = compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
+                        
                         // Its borning in stack
-                        varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, compiler->getEmitter());
+                        varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, varLocation, compiler->getEmitter());
                     }
                     // Its putting in stackVarDeltaSet the variable no matter if its living or dying
                     VarSetOps::AddElemD(compiler, stackVarDeltaSet, varDsc->lvVarIndex);
@@ -158,7 +165,11 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                                 if (isBorn)
                                 {
                                     compiler->codeGen->genUpdateVarReg(fldVarDsc, tree);
-                                    fldVarDsc->startLiveRangeFromEmitter(fldVarDsc->lvRegNum, compiler->getEmitter());
+
+                                    // Build siVarLoc for this borning variable
+                                    CodeGenInterface::siVarLoc varLocation = compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
+
+                                    fldVarDsc->startLiveRangeFromEmitter(fldVarDsc->lvRegNum, varLocation, compiler->getEmitter());
                                 }
                                 compiler->codeGen->genUpdateRegLife(fldVarDsc, isBorn, isDying DEBUGARG(tree));
                             }
@@ -183,7 +194,11 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                             {
                                 // should we include this var in newLife ?
                                 compiler->codeGen->genUpdateVarReg(fldVarDsc, tree);
-                                fldVarDsc->startLiveRangeFromEmitter(fldVarDsc->lvRegNum, compiler->getEmitter());
+
+                                // Build siVarLoc for this borning variable
+                                CodeGenInterface::siVarLoc varLocation = compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
+
+                                fldVarDsc->startLiveRangeFromEmitter(fldVarDsc->lvRegNum, varLocation, compiler->getEmitter());
                             }
                             compiler->codeGen->genUpdateRegLife(fldVarDsc, isBorn, isDying DEBUGARG(tree));
                         }

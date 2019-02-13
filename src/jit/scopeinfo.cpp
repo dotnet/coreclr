@@ -130,6 +130,82 @@ bool CodeGenInterface::siVarLoc::vlIsOnStk(regNumber reg, signed offset) const
     }
 }
 
+void CodeGenInterface::dumpSiVarLoc(const siVarLoc* varLoc) const
+{
+    switch (varLoc->vlType)
+    {
+    case VLT_REG:
+    case CodeGenInterface::VLT_REG_BYREF:
+    case CodeGenInterface::VLT_REG_FP:
+        printf("%s", getRegName(varLoc->vlReg.vlrReg));
+        if (varLoc->vlType == (ICorDebugInfo::VarLocType)CodeGenInterface::VLT_REG_BYREF)
+        {
+            printf(" byref");
+        }
+        break;
+
+    case CodeGenInterface::VLT_STK:
+    case CodeGenInterface::VLT_STK_BYREF:
+        if ((int)varLoc->vlStk.vlsBaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
+        {
+            printf("%s[%d] (1 slot)", getRegName(varLoc->vlStk.vlsBaseReg), varLoc->vlStk.vlsOffset);
+        }
+        else
+        {
+            printf(STR_SPBASE "'[%d] (1 slot)", varLoc->vlStk.vlsOffset);
+        }
+        if (varLoc->vlType == (ICorDebugInfo::VarLocType)CodeGenInterface::VLT_REG_BYREF)
+        {
+            printf(" byref");
+        }
+        break;
+
+#ifndef _TARGET_AMD64_
+    case CodeGenInterface::VLT_REG_REG:
+        printf("%s-%s", getRegName(varLoc->vlRegReg.vlrrReg1), getRegName(varLoc->vlRegReg.vlrrReg2));
+        break;
+
+    case CodeGenInterface::VLT_REG_STK:
+        if ((int)varLoc->vlRegStk.vlrsStk.vlrssBaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
+        {
+            printf("%s-%s[%d]", getRegName(varLoc->vlRegStk.vlrsReg),
+                getRegName(varLoc->vlRegStk.vlrsStk.vlrssBaseReg), varLoc->vlRegStk.vlrsStk.vlrssOffset);
+        }
+        else
+        {
+            printf("%s-" STR_SPBASE "'[%d]", getRegName(varLoc->vlRegStk.vlrsReg),
+                varLoc->vlRegStk.vlrsStk.vlrssOffset);
+        }
+        break;
+
+    case CodeGenInterface::VLT_STK_REG:
+        unreached(); // unexpected
+
+    case CodeGenInterface::VLT_STK2:
+        if ((int)varLoc->vlStk2.vls2BaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
+        {
+            printf("%s[%d] (2 slots)", getRegName(varLoc->vlStk2.vls2BaseReg), varLoc->vlStk2.vls2Offset);
+        }
+        else
+        {
+            printf(STR_SPBASE "'[%d] (2 slots)", varLoc->vlStk2.vls2Offset);
+        }
+        break;
+
+    case CodeGenInterface::VLT_FPSTK:
+        printf("ST(L-%d)", varLoc->vlFPstk.vlfReg);
+        break;
+
+    case CodeGenInterface::VLT_FIXED_VA:
+        printf("fxd_va[%d]", varLoc->vlFixedVarArg.vlfvOffset);
+        break;
+#endif // !_TARGET_AMD64_
+
+    default:
+        unreached(); // unexpected
+    }
+}
+
 //------------------------------------------------------------------------
 // siVarLoc: Non-empty constructor of siVarLoc struct
 // Arguments:
@@ -277,6 +353,37 @@ CodeGenInterface::siVarLoc CodeGen::getSiVarLoc(const LclVarDsc* varDsc, const s
     {
         baseReg = REG_SPBASE;
         offset += scope->scStackLevel;
+    }
+    else
+    {
+        baseReg = REG_FPBASE;
+    }
+
+    return CodeGenInterface::siVarLoc(varDsc, baseReg, offset, isFramePointerUsed());
+}
+
+//------------------------------------------------------------------------
+// getSiVarLoc: Returns a "siVarLoc" instance representing the place where the variable
+// is given its description, "baseReg", and "offset" (if needed).
+//
+// Arguments:
+//    varDsc       - a "LclVarDsc *" to the variable it is desired to build the "siVarLoc".
+//    stackLevel   - an unsinged int for stack variables when frame is not hold by ebp
+//
+// Return Value:
+//    A "siVarLoc" filled with the correct case struct fields for the variable, which could live
+//    in a register, an stack position, or a combination of both.
+CodeGenInterface::siVarLoc CodeGenInterface::getSiVarLoc(const LclVarDsc* varDsc, unsigned int stackLevel) const
+{
+    // For stack vars, find the base register, and offset
+
+    regNumber baseReg;
+    signed    offset = varDsc->lvStkOffs;
+
+    if (!varDsc->lvFramePointerBased)
+    {
+        baseReg = REG_SPBASE;
+        offset += stackLevel;
     }
     else
     {
