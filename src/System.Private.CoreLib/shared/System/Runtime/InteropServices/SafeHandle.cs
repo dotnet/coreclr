@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ConstrainedExecution;
 using System.Threading;
-using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices
 {
@@ -67,15 +66,15 @@ namespace System.Runtime.InteropServices
             _fullyInitialized = true;
         }
 
+#if !CORERT // CoreRT doesn't correctly support CriticalFinalizerObject
         ~SafeHandle()
         {
             if (_fullyInitialized)
             {
-                // Invoke Dispose(disposing: false).  Done indirectly via FinalizeCore
-                // to allow different runtimes to vary how it's invoked.
-                FinalizeCore();
+                Dispose(disposing: false);
             }
         }
+#endif
 
         protected void SetHandle(IntPtr handle) => this.handle = handle;
 
@@ -142,14 +141,6 @@ namespace System.Runtime.InteropServices
             // been requested in the same state field as the ref count and closed state.
 
             Debug.Assert(_fullyInitialized);
-            unsafe
-            {
-                // Validate the ref before incrementing the state.
-                if (Unsafe.AsPointer(ref success) == null)
-                {
-                    success = false; // will throw NullReferenceException, before we increment
-                }
-            }
 
             // Might have to perform the following steps multiple times due to
             // interference from other AddRef's and Release's.
@@ -163,7 +154,7 @@ namespace System.Runtime.InteropServices
                 oldState = _state;
                 if ((oldState & StateBits.Closed) != 0)
                 {
-                    ThrowHelper.ThrowObjectDisposedException(nameof(SafeHandle), ExceptionResource.ObjectDisposed_SafeHandleClosed);
+                    throw new ObjectDisposedException(nameof(SafeHandle), SR.ObjectDisposed_SafeHandleClosed);
                 }
 
                 // Not closed, let's propose an update (to the ref count, just add
@@ -216,7 +207,7 @@ namespace System.Runtime.InteropServices
                 // used).
                 if ((oldState & StateBits.RefCount) == 0)
                 {
-                    ThrowHelper.ThrowObjectDisposedException(nameof(SafeHandle), ExceptionResource.ObjectDisposed_SafeHandleClosed);
+                    throw new ObjectDisposedException(nameof(SafeHandle), SR.ObjectDisposed_SafeHandleClosed);
                 }
 
                 // If we're proposing a decrement to zero and the handle is not closed
