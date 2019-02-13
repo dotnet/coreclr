@@ -34,7 +34,7 @@ namespace System.Threading
 
         internal bool hasThreadAffinity;
 
-        protected static IntPtr InvalidHandle => new IntPtr(-1);
+        protected static readonly IntPtr InvalidHandle = new IntPtr(-1);
         private const int WAIT_OBJECT_0 = 0;
         private const int WAIT_ABANDONED = 0x80;
         private const int WAIT_FAILED = 0x7FFFFFFF;
