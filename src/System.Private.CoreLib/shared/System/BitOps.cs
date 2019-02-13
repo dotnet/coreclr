@@ -74,7 +74,7 @@ namespace System
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
                 ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
                 // long -> IntPtr cast on 32-bit platforms is expensive - it does overflow checks not needed here
-                (IntPtr)(((value & (uint)-value) * 0x077CB531u) >> 27)); // shift over long also expensive on 32-bit
+                (IntPtr)(int)(((value & (uint)-value) * 0x077CB531u) >> 27)); // shift over long also expensive on 32-bit
         }
 
         /// <summary>
@@ -130,7 +130,7 @@ namespace System
                 return 32;
             }
 
-            return 31 - Log2Fallback(value);
+            return 31 - Log2SoftwareFallback(value);
         }
 
         /// <summary>
@@ -185,16 +185,16 @@ namespace System
             }
 
             // Already has contract 0->0, without branching
-            return Log2Fallback(value);
+            return Log2SoftwareFallback(value);
         }
 
         /// <summary>
         /// Returns the integer (floor) log of the specified value, base 2.
         /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
-        /// Does not directly use any hardware intrinsics.
+        /// Does not directly use any hardware intrinsics, nor does it incur branching.
         /// </summary>
         /// <param name="value">The value.</param>
-        private static int Log2Fallback(uint value)
+        private static int Log2SoftwareFallback(uint value)
         {
             // No AggressiveInlining due to large method size
 
