@@ -9,11 +9,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // unregister the same delgate from the event at a later time.
     public struct EventRegistrationToken : IEquatable<EventRegistrationToken>
     {
-        internal readonly ulong _value;
+        private readonly ulong _value;
 
-        internal EventRegistrationToken(ulong value) => _value = value;
+        [CLSCompliant(false)]
+        public EventRegistrationToken(ulong value) => _value = value;
 
-        internal ulong Value => _value;
+        [CLSCompliant(false)]
+        public ulong Value => _value;
 
         public static bool operator ==(EventRegistrationToken left, EventRegistrationToken right) =>
             left.Equals(right);
