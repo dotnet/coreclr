@@ -2127,17 +2127,14 @@ typedef CriticalHandle * CRITICALHANDLEREF;
 // Base class for WaitHandle 
 class WaitHandleBase :public MarshalByRefObjectBaseObject
 {
-    friend class WaitHandleNative;
     friend class MscorlibBinder;
 
 public:
-    __inline LPVOID GetWaitHandle() {LIMITED_METHOD_CONTRACT; return m_handle;}
+    __inline LPVOID GetWaitHandle() {LIMITED_METHOD_CONTRACT; return m_safeHandle != NULL ? m_safeHandle->GetHandle() : INVALID_HANDLE_VALUE;}
     __inline SAFEHANDLEREF GetSafeHandle() {LIMITED_METHOD_CONTRACT; return m_safeHandle;}
 
 private:
     SAFEHANDLEREF   m_safeHandle;
-    LPVOID          m_handle;
-    CLR_BOOL        m_hasThreadAffinity;
 };
 
 #ifdef USE_CHECKED_OBJECTREFS

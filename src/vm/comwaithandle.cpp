@@ -235,10 +235,10 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAF
         WAITHANDLEREF waitObject = (WAITHANDLEREF) pWaitObjects->m_Array[i];
         _ASSERTE(waitObject != NULL);
 
-        //If the size of the array is 1 and m_handle is INVALID_HANDLE then WaitForMultipleObjectsEx will
+        //If the size of the array is 1 and handle is INVALID_HANDLE_VALUE then WaitForMultipleObjectsEx will
         //   return ERROR_INVALID_HANDLE but DoAppropriateWait will convert to WAIT_OBJECT_0.  i.e Success,
         //   this behavior seems wrong but someone explicitly coded that condition so it must have been for a reason.        
-        internalHandles[i] = waitObject->m_handle;
+        internalHandles[i] = waitObject->GetWaitHandle();
 
     }
 
