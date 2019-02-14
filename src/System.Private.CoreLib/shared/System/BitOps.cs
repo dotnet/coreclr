@@ -59,11 +59,11 @@ namespace System
         {
             if (Bmi1.IsSupported)
             {
-                // Note that TZCNT contract specifies 0->32
+                // TZCNT contract is 0->32
                 return (int)Bmi1.TrailingZeroCount(value);
             }
 
-            // Software fallback has behavior 0->0, so special-case to match intrinsic path 0->32
+            // Fallback contract is 0->0
             if (value == 0)
             {
                 return 32;
@@ -73,8 +73,8 @@ namespace System
             return Unsafe.AddByteOffset(
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
                 ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
-                // long -> IntPtr cast on 32-bit platforms is expensive - it does overflow checks not needed here
-                (IntPtr)(int)(((value & (uint)-value) * 0x077CB531u) >> 27)); // shift over long also expensive on 32-bit
+                // uint|long -> IntPtr cast on 32-bit platforms does expensive overflow checks not needed here
+                (IntPtr)(int)(((value & (uint)-(int)value) * 0x077CB531u) >> 27)); // Multiple casts generate optimal MSIL
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace System
         {
             if (Bmi1.X64.IsSupported)
             {
-                // Note that TZCNT contract specifies 0->64
+                // TZCNT contract is 0->64
                 return (int)Bmi1.X64.TrailingZeroCount(value);
             }
 
@@ -120,11 +120,11 @@ namespace System
         {
             if (Lzcnt.IsSupported)
             {
-                // Note that LZCNT contract specifies 0->32
+                // LZCNT contract is 0->32
                 return (int)Lzcnt.LeadingZeroCount(value);
             }
 
-            // Software fallback has behavior 0->0, so special-case to match intrinsic path 0->32
+            // Fallback contract is 0->31
             if (value == 0)
             {
                 return 32;
@@ -143,7 +143,7 @@ namespace System
         {
             if (Lzcnt.X64.IsSupported)
             {
-                // Note that LZCNT contract specifies 0->64
+                // LZCNT contract is 0->64
                 return (int)Lzcnt.X64.LeadingZeroCount(value);
             }
 
@@ -174,17 +174,17 @@ namespace System
             // 1000..    0      31-0    31
             if (Lzcnt.IsSupported)
             {
-                // Enforce conventional contract 0->0 (since Log(0) is undefined)
+                // Enforce conventional contract 0->0 (Log(0) is undefined)
                 if (value == 0)
                 {
                     return 0;
                 }
 
-                // Note that LZCNT contract specifies 0->32
+                // LZCNT contract is 0->32
                 return 31 - (int)Lzcnt.LeadingZeroCount(value);
             }
 
-            // Already has contract 0->0, without branching
+            // Fallback contract is 0->0
             return Log2SoftwareFallback(value);
         }
 
@@ -197,6 +197,7 @@ namespace System
         private static int Log2SoftwareFallback(uint value)
         {
             // No AggressiveInlining due to large method size
+            // Has conventional contract 0->0 (Log(0) is undefined)
 
             value |= value >> 01;
             value |= value >> 02;
@@ -208,7 +209,7 @@ namespace System
             return Unsafe.AddByteOffset(
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
                 ref MemoryMarshal.GetReference(s_Log2DeBruijn),
-                // long -> IntPtr cast on 32-bit platforms is expensive - it does overflow checks not needed here
+                // uint|long -> IntPtr cast on 32-bit platforms does expensive overflow checks not needed here
                 (IntPtr)(int)((value * 0x07C4ACDDu) >> 27));
         }
 
@@ -222,13 +223,13 @@ namespace System
         {
             if (Lzcnt.X64.IsSupported)
             {
-                // Enforce conventional contract 0->0 (since Log(0) is undefined)
+                // Enforce conventional contract 0->0 (Log(0) is undefined)
                 if (value == 0)
                 {
                     return 0;
                 }
 
-                // Note that LZCNT contract specifies 0->64
+                // LZCNT contract is 0->64
                 return 63 - (int)Lzcnt.X64.LeadingZeroCount(value);
             }
 
@@ -327,7 +328,6 @@ namespace System
                     return (int)Popcnt.X64.PopCount(value);
                 }
 
-                // Use the 32-bit function twice
                 return (int)(Popcnt.PopCount((uint)value)
                     + Popcnt.PopCount((uint)(value >> 32)));
             }
