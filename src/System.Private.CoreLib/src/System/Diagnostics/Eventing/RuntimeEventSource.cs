@@ -21,29 +21,26 @@ namespace System.Diagnostics.Tracing
     [EventSource(Name = "System.Runtime")]
     internal sealed class RuntimeEventSource : EventSource
     {
-        // Process-level EventCounters
-        private EventCounter _totalProcessTimeCounter;
-        private EventCounter _workingSetCounter;
-        private EventCounter _virtualMemorySizeCounter;
-        private EventCounter _handleCountCounter;
-        private EventCounter _threadCountCounter;
+        private EventCounter[] _counters;
 
-        // GC Counters
-        private EventCounter _gcTotalMemoryCounter;
-        private EventCounter _gcGen0CollectionCounter;
-        private EventCounter _gcGen1CollectionCounter;
-        private EventCounter _gcGen2CollectionCounter;
+        private enum Counter {
+            TotalProcessTime,
+            WorkingSet,
+            HandleCount,
+            ThreadCount,
+            GCHeapSize,
+            Gen0GCCount,
+            Gen1GCCount,
+            Gen2GCCount,
+            ExceptionCount
+        }
 
-        // Exception
-        private EventCounter _exceptionCounter;
-
-        private Timer m_timer;
+        private Timer _timer;
 
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
 
         // Threads
         // TODO
-
         
         public RuntimeEventSource(): base(EventSourceSettings.EtwSelfDescribingEventFormat)
         {
@@ -55,25 +52,26 @@ namespace System.Diagnostics.Tracing
             if (command.Command == EventCommand.Enable)
             {
                 // TODO: These are all returning fake stuff now
-                _totalProcessTimeCounter = new EventCounter("Total Process Time", this);
-                _workingSetCounter = new EventCounter("Working Set", this);
-                _virtualMemorySizeCounter = new EventCounter("Virtual Memory Size", this);
-                _handleCountCounter = new EventCounter("Handle Count", this);
-                _threadCountCounter = new EventCounter("Thread Count", this);
+                _counters = new EventCounter[] {
+                    // process info counters
+                    new EventCounter("Total Process Time", this),
+                    new EventCounter("Working Set", this),
+                    new EventCounter("Handle Count", this),
+                    new EventCounter("Thread Count", this),
 
-                // GC counters
-                _gcTotalMemoryCounter = new EventCounter("Total Memory by GC", this);
-                _gcGen0CollectionCounter = new EventCounter("Gen 0 GC Count", this);
-                _gcGen1CollectionCounter = new EventCounter("Gen 1 GC Count", this);
-                _gcGen2CollectionCounter = new EventCounter("Gen 2 GC Count", this);
+                    // GC info counters
+                    new EventCounter("Total Memory by GC", this),
+                    new EventCounter("Gen 0 GC Count", this),
+                    new EventCounter("Gen 1 GC Count", this),
+                    new EventCounter("Gen 2 GC Count", this),
 
-                // TODO: Expose a managed API for computing this
-                _exceptionCounter = new EventCounter("Exception Count", this);
-                
+                    // TODO: Expose a managed API for computing this
+                    new EventCounter("Exception Count", this)
+                };
 
                 // Initialize the timer, but don't set it to run.
                 // The timer will be set to run each time PollForTracingCommand is called.
-                m_timer = new Timer(
+                _timer = new Timer(
                     callback: new TimerCallback(PollForCounterUpdate),
                     state: null,
                     dueTime: Timeout.Infinite,
@@ -86,45 +84,35 @@ namespace System.Diagnostics.Tracing
             else if (command.Command == EventCommand.Disable)
             {
                 // Dispose counters when perfcounters are disabled
-
-                _totalProcessTimeCounter.Dispose();
-                _workingSetCounter.Dispose();
-                _virtualMemorySizeCounter.Dispose();
-                _handleCountCounter.Dispose();
-                _threadCountCounter.Dispose();
-
-                _gcTotalMemoryCounter.Dispose();
-                _gcGen0CollectionCounter.Dispose();
-                _gcGen1CollectionCounter.Dispose();
-                _gcGen2CollectionCounter.Dispose();
-
-                _exceptionCounter.Dispose();
-
-                if (m_timer != null)
+                for (int i = 0; i < _counters.Length; i++)
                 {
-                    m_timer.Dispose();
-                    m_timer = null;
+                    _counters[i] = null;
+                }
+
+                if (_timer != null)
+                {
+                    _timer.Dispose();
+                    _timer = null;
                 }
             }
         }
 
         public void UpdateAllCounters()
         {
-            // Process level counters
-            _totalProcessTimeCounter.WriteMetric(1);
-            _workingSetCounter.WriteMetric(2);
-            _virtualMemorySizeCounter.WriteMetric(3);
-            _handleCountCounter.WriteMetric(4);
-            _threadCountCounter.WriteMetric(5);
+            // TODO: These are all returning fake stuff for now
+            _counters[(int)Counter.TotalProcessTime].WriteMetric(1);
+            _counters[(int)Counter.WorkingSet].WriteMetric(2);
+            _counters[(int)Counter.HandleCount].WriteMetric(3);
+            _counters[(int)Counter.ThreadCount].WriteMetric(4);
 
             // GC counters
-            _gcTotalMemoryCounter.WriteMetric(GC.GetTotalMemory(false));
-            _gcGen0CollectionCounter.WriteMetric(GC.CollectionCount(0));
-            _gcGen1CollectionCounter.WriteMetric(GC.CollectionCount(1));
-            _gcGen2CollectionCounter.WriteMetric(GC.CollectionCount(2));
+            _counters[(int)Counter.GCHeapSize].WriteMetric(GC.GetTotalMemory(false));
+            _counters[(int)Counter.Gen0GCCount].WriteMetric(GC.CollectionCount(0));
+            _counters[(int)Counter.Gen1GCCount].WriteMetric(GC.CollectionCount(1));
+            _counters[(int)Counter.Gen2GCCount].WriteMetric(GC.CollectionCount(2));
 
             // Exception
-            _exceptionCounter.WriteMetric(6);
+            _counters[(int)Counter.ExceptionCount].WriteMetric(5);
         }
 
         private void PollForCounterUpdate(object state)
@@ -135,7 +123,7 @@ namespace System.Diagnostics.Tracing
                 UpdateAllCounters();
 
                 // Schedule the timer to run again.
-                m_timer.Change(EnabledPollingIntervalMilliseconds, Timeout.Infinite);
+                _timer.Change(EnabledPollingIntervalMilliseconds, Timeout.Infinite);
             }
             catch { }
         }
