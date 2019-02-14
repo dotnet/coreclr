@@ -58,6 +58,20 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "emit.h"
 #include "codegen.h"
 
+bool CodeGenInterface::siVarLoc::vlIsOnStack() const
+{
+    switch (vlType)
+    {
+        case CodeGenInterface::VLT_STK:
+        case CodeGenInterface::VLT_STK2:
+        case CodeGenInterface::VLT_FPSTK:
+            return true;
+        
+        default:
+            return false;
+    }
+}
+
 bool CodeGenInterface::siVarLoc::vlIsInReg(regNumber reg) const
 {
     switch (vlType)

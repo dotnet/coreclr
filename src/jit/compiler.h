@@ -316,6 +316,8 @@ public:
     // Dump just the emitLocation as they are, we dont have generated the whole method yet
     void dump(const CodeGenInterface *codeGen) const
     {
+        noway_assert(varLocation.vlIsInReg(registerNumber) || varLocation.vlIsOnStack());
+
         printf("%s ", getRegName(registerNumber));
         printf(" Or ");
         codeGen->dumpSiVarLoc(&varLocation);
@@ -335,6 +337,8 @@ public:
 
     void dump(emitter *_emitter, const CodeGenInterface *codeGen) const
     {
+        noway_assert(varLocation.vlIsInReg(registerNumber) || varLocation.vlIsOnStack());
+
         UNATIVE_OFFSET startAssemblyOffset = startEmitLocation.CodeOffset(_emitter);
         // this could be a non closed range so endEmitLocation could be a non valid emit Location
         // live -1 in case of not being defined
