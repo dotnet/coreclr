@@ -14,7 +14,7 @@ namespace System.Diagnostics.Tracing
     [EventSource(Name = "System.Runtime")]
     internal sealed class RuntimeEventSource : EventSource
     {
-        internal static RuntimeEventSource m_RuntimeEventSource;
+        private static RuntimeEventSource s_RuntimeEventSource;
         private EventCounter[] _counters;
 
         private enum Counter {
@@ -32,6 +32,11 @@ namespace System.Diagnostics.Tracing
         private Timer _timer;
 
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
+
+        public static void Initialize()
+        {
+            s_RuntimeEventSource = new RuntimeEventSource();
+        }
 
         // Threads
         // TODO
@@ -87,10 +92,7 @@ namespace System.Diagnostics.Tracing
                 // thread safety EventCounter provides to determine what kind of synchronization is needed here.
 
                 // Dispose counters when perfcounters are disabled
-                for (int i = 0; i < _counters.Length; i++)
-                {
-                    _counters[i] = null;
-                }
+                _counters = null;
 
                 if (_timer != null)
                 {
