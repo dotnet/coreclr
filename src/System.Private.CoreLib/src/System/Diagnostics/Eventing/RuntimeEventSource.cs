@@ -65,6 +65,10 @@ namespace System.Diagnostics.Tracing
 
                 // Initialize the timer, but don't set it to run.
                 // The timer will be set to run each time PollForTracingCommand is called.
+
+                // TODO: We might not need this timer once we are done settling upon a high-level design for
+                // what EventCounter is capable of doing. Once that decision is made, we might be able to 
+                // get rid of this.
                 _timer = new Timer(
                     callback: new TimerCallback(PollForCounterUpdate),
                     state: null,
@@ -77,6 +81,11 @@ namespace System.Diagnostics.Tracing
             }
             else if (command.Command == EventCommand.Disable)
             {
+
+                // TODO: There are some multi-threading issues where this can be modified from a OnEventCommand callback
+                // as well as a timer callback, so we need some kind of synchronization. We need to decide on what kind of 
+                // thread safety EventCounter provides to determine what kind of synchronization is needed here.
+
                 // Dispose counters when perfcounters are disabled
                 for (int i = 0; i < _counters.Length; i++)
                 {
@@ -111,6 +120,10 @@ namespace System.Diagnostics.Tracing
 
         private void PollForCounterUpdate(object state)
         {
+            // TODO: Need to confirm with vancem about how to do error-handling here. 
+            // This disables to timer from getting rescheduled to run, which may or may not be 
+            // what we eventually want. 
+
             // Make sure that any transient errors don't cause the listener thread to exit.
             try
             {
