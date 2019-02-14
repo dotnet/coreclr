@@ -5,13 +5,6 @@
 using System;
 using System.Threading;
 
-using System.Runtime.InteropServices;
-using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
-
-using System.Runtime.InteropServices.ComTypes;
-using System.StubHelpers;
-
 
 namespace System.Diagnostics.Tracing
 {
