@@ -11,11 +11,11 @@ namespace System.Globalization
     /// </summary>
     public partial class SortKey
     {
-        internal readonly string _localeName;
+        private readonly string _localeName;
 
         internal readonly CompareOptions _options;
-        internal readonly string _string;
-        internal readonly byte[] _keyData;
+        private readonly string _string;
+        private readonly byte[] _keyData;
 
         /// <summary>
         /// The following constructor is designed to be called from CompareInfo to get the 
@@ -48,9 +48,13 @@ namespace System.Globalization
         /// </summary>
         public static int Compare(SortKey sortkey1, SortKey sortkey2)
         {
-            if (sortkey1 == null || sortkey2 == null)
+            if (sortkey1 == null)
             {
-                throw new ArgumentNullException((sortkey1 == null ? nameof(sortkey1) : nameof(sortkey2)));
+                throw new ArgumentNullException(nameof(sortkey1));
+            }
+            if (sortkey2 == null)
+            {
+                throw new ArgumentNullException(nameof(sortkey2));
             }
 
             byte[] key1Data = sortkey1._keyData;

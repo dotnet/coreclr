@@ -39,7 +39,7 @@ namespace System.Globalization
         private readonly string _cultureName;
         private readonly CultureData _cultureData;
 
-        // // Name of the text info we're using (ie: _cultureData.STEXTINFO)
+        // // Name of the text info we're using (ie: _cultureData.TextInfoName)
         private readonly string _textInfoName;
 
         private Tristate _isAsciiCasingSameAsInvariant = Tristate.NotInitialized;
@@ -57,7 +57,7 @@ namespace System.Globalization
             // This is our primary data source, we don't need most of the rest of this
             _cultureData = cultureData;
             _cultureName = _cultureData.CultureName;
-            _textInfoName = _cultureData.STEXTINFO;
+            _textInfoName = _cultureData.TextInfoName;
 
             FinishInitialization();
         }
@@ -67,13 +67,13 @@ namespace System.Globalization
             throw new PlatformNotSupportedException();
         }
 
-        public virtual int ANSICodePage => _cultureData.IDEFAULTANSICODEPAGE;
+        public virtual int ANSICodePage => _cultureData.ANSICodePage;
 
-        public virtual int OEMCodePage => _cultureData.IDEFAULTOEMCODEPAGE;
+        public virtual int OEMCodePage => _cultureData.OEMCodePage;
 
-        public virtual int MacCodePage => _cultureData.IDEFAULTMACCODEPAGE;
+        public virtual int MacCodePage => _cultureData.MacCodePage;
 
-        public virtual int EBCDICCodePage => _cultureData.IDEFAULTEBCDICCODEPAGE;
+        public virtual int EBCDICCodePage => _cultureData.EBCDICCodePage;
 
         // Just use the LCID from our text info name
         public int LCID => CultureInfo.GetCultureInfo(_textInfoName).LCID;
@@ -129,7 +129,7 @@ namespace System.Globalization
         /// </summary>
         public virtual string ListSeparator
         {
-            get => _listSeparator ?? _cultureData.ListSeparator;
+            get => _listSeparator ?? (_listSeparator = _cultureData.ListSeparator);
             set
             {
                 if (value == null)

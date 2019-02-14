@@ -337,7 +337,7 @@ namespace System.Globalization
                 return culture;
             }
 
-            return new CultureInfo(culture._cultureData.SSPECIFICCULTURE);
+            return new CultureInfo(culture._cultureData.SpecificCultureName);
         }
 
         internal static bool VerifyCultureName(string cultureName, bool throwException)
@@ -589,7 +589,7 @@ namespace System.Globalization
                 if (_parent == null)
                 {
                     CultureInfo culture = null;
-                    string parentName = _cultureData.SPARENT;
+                    string parentName = _cultureData.ParentName;
 
                     if (string.IsNullOrEmpty(parentName))
                     {

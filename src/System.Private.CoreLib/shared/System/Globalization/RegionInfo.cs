@@ -130,29 +130,29 @@ namespace System.Globalization
         /// <summary>
         /// Returns the name of the region in English. (ie: United States)
         /// </summary>
-        public virtual string EnglishName => _cultureData.SENGCOUNTRY;
+        public virtual string EnglishName => _cultureData.EnglishCountryName;
 
         /// <summary>
         /// Returns the display name (localized) of the region. (ie: United States
         /// if the current UI language is en-US)
         /// </summary>
-        public virtual string DisplayName => _cultureData.SLOCALIZEDCOUNTRY;
+        public virtual string DisplayName => _cultureData.LocalizedCountryName;
 
         /// <summary>
         ///  Returns the native name of the region. (ie: Deutschland)
         ///  WARNING: You need a full locale name for this to make sense.
         /// </summary>
-        public virtual string NativeName => _cultureData.SNATIVECOUNTRY;
+        public virtual string NativeName => _cultureData.NativeCountryName;
 
         /// <summary>
         /// Returns the two letter ISO region name (ie: US)
         /// </summary>
-        public virtual string TwoLetterISORegionName => _cultureData.SISO3166CTRYNAME;
+        public virtual string TwoLetterISORegionName => _cultureData.TwoLetterISOCountryName;
 
         /// <summary>
         /// Returns the three letter ISO region name (ie: USA)
         /// </summary>
-        public virtual string ThreeLetterISORegionName => _cultureData.SISO3166CTRYNAME2;
+        public virtual string ThreeLetterISORegionName => _cultureData.ThreeLetterISOCountryName;
 
         /// <summary>
         /// Returns the three letter windows region name (ie: USA)

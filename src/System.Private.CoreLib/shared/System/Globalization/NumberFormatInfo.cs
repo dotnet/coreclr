@@ -4,6 +4,35 @@
 
 namespace System.Globalization
 {
+    /// <remarks>
+    /// Property             Default Description
+    /// PositiveSign           '+'   Character used to indicate positive values.
+    /// NegativeSign           '-'   Character used to indicate negative values.
+    /// NumberDecimalSeparator '.'   The character used as the decimal separator.
+    /// NumberGroupSeparator   ','   The character used to separate groups of
+    ///                              digits to the left of the decimal point.
+    /// NumberDecimalDigits    2     The default number of decimal places.
+    /// NumberGroupSizes       3     The number of digits in each group to the
+    ///                              left of the decimal point.
+    /// NaNSymbol             "NaN"  The string used to represent NaN values.
+    /// PositiveInfinitySymbol"Infinity" The string used to represent positive
+    ///                              infinities.
+    /// NegativeInfinitySymbol"-Infinity" The string used to represent negative
+    ///                              infinities.
+    ///
+    /// Property                  Default  Description
+    /// CurrencyDecimalSeparator  '.'      The character used as the decimal
+    ///                                    separator.
+    /// CurrencyGroupSeparator    ','      The character used to separate groups
+    ///                                    of digits to the left of the decimal
+    ///                                    point.
+    /// CurrencyDecimalDigits     2        The default number of decimal places.
+    /// CurrencyGroupSizes        3        The number of digits in each group to
+    ///                                    the left of the decimal point.
+    /// CurrencyPositivePattern   0        The format of positive values.
+    /// CurrencyNegativePattern   0        The format of negative values.
+    /// CurrencySymbol            "$"      String used as local monetary symbol.
+    /// </remarks>
     public sealed class NumberFormatInfo : IFormatProvider, ICloneable
     {
         private static volatile NumberFormatInfo s_invariantInfo;
@@ -17,7 +46,7 @@ namespace System.Globalization
         internal string _numberGroupSeparator = ",";
         internal string _currencyGroupSeparator = ",";
         internal string _currencyDecimalSeparator = ".";
-        internal string currencySymbol = "\x00a4";  // U+00a4 is the symbol for International Monetary Fund.
+        internal string _currencySymbol = "\x00a4";  // U+00a4 is the symbol for International Monetary Fund.
         internal string _nanSymbol = "NaN";
         internal string _positiveInfinitySymbol = "Infinity";
         internal string _negativeInfinitySymbol = "-Infinity";
@@ -31,11 +60,11 @@ namespace System.Globalization
 
         internal int _numberDecimalDigits = 2;
         internal int _currencyDecimalDigits = 2;
-        internal int currencyPositivePattern = 0;
+        internal int _currencyPositivePattern = 0;
         internal int _currencyNegativePattern = 0;
         internal int _numberNegativePattern = 1;
         internal int _percentPositivePattern = 0;
-        internal int percentNegativePattern = 0;
+        internal int _percentNegativePattern = 0;
         internal int _percentDecimalDigits = 2;
 
         internal int _digitSubstitution = (int)DigitShapes.None;
@@ -57,7 +86,7 @@ namespace System.Globalization
 
             if (decSep.Length == 0)
             {
-                throw new ArgumentException(SR.Argument_EmptyDecString);
+                throw new ArgumentException(SR.Argument_EmptyDecString, propertyName);
             }
         }
 
@@ -213,9 +242,11 @@ namespace System.Globalization
                 if (value < 0 || value > 99)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(CurrencyDecimalDigits),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 0, 99));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 0, 99));
                 }
+
                 VerifyWritable();
                 _currencyDecimalDigits = value;
             }
@@ -227,7 +258,7 @@ namespace System.Globalization
             set
             {
                 VerifyWritable();
-                VerifyDecimalSeparator(value, nameof(CurrencyDecimalSeparator));
+                VerifyDecimalSeparator(value, nameof(value));
                 _currencyDecimalSeparator = value;
             }
         }
@@ -329,7 +360,7 @@ namespace System.Globalization
 
         public string CurrencySymbol
         {
-            get => currencySymbol;
+            get => _currencySymbol;
             set
             {
                 if (value == null)
@@ -338,7 +369,7 @@ namespace System.Globalization
                 }
 
                 VerifyWritable();
-                currencySymbol = value;
+                _currencySymbol = value;
             }
         }
 
@@ -386,16 +417,15 @@ namespace System.Globalization
                 if (value < 0 || value > 15)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                value,
-                                SR.Format(SR.ArgumentOutOfRange_Range, 0, 15));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 0, 15));
                 }
 
                 VerifyWritable();
                 _currencyNegativePattern = value;
             }
         }
-
 
         public int NumberNegativePattern
         {
@@ -406,9 +436,9 @@ namespace System.Globalization
                 if (value < 0 || value > 4)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                value,
-                                SR.Format(SR.ArgumentOutOfRange_Range, 0, 4));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 0, 4));
                 }
 
                 VerifyWritable();
@@ -425,9 +455,9 @@ namespace System.Globalization
                 if (value < 0 || value > 3)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                value,
-                                SR.Format(SR.ArgumentOutOfRange_Range, 0, 3));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 0, 3));
                 }
 
                 VerifyWritable();
@@ -435,26 +465,24 @@ namespace System.Globalization
             }
         }
 
-
         public int PercentNegativePattern
         {
-            get => percentNegativePattern;
+            get => _percentNegativePattern;
             set
             {
                 // NOTENOTE: the range of value should correspond to posPercentFormats[] in vm\COMNumber.cpp.
                 if (value < 0 || value > 11)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                value,
-                                SR.Format(SR.ArgumentOutOfRange_Range, 0, 11));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 0, 11));
                 }
 
                 VerifyWritable();
-                percentNegativePattern = value;
+                _percentNegativePattern = value;
             }
         }
-
 
         public string NegativeInfinitySymbol
         {
@@ -470,7 +498,6 @@ namespace System.Globalization
                 _negativeInfinitySymbol = value;
             }
         }
-
 
         public string NegativeSign
         {
@@ -488,7 +515,6 @@ namespace System.Globalization
             }
         }
 
-
         public int NumberDecimalDigits
         {
             get => _numberDecimalDigits;
@@ -497,16 +523,15 @@ namespace System.Globalization
                 if (value < 0 || value > 99)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                value,
-                                SR.Format(SR.ArgumentOutOfRange_Range, 0, 99));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 0, 99));
                 }
 
                 VerifyWritable();
                 _numberDecimalDigits = value;
             }
         }
-
 
         public string NumberDecimalSeparator
         {
@@ -519,7 +544,6 @@ namespace System.Globalization
             }
         }
 
-
         public string NumberGroupSeparator
         {
             get => _numberGroupSeparator;
@@ -531,25 +555,23 @@ namespace System.Globalization
             }
         }
 
-
         public int CurrencyPositivePattern
         {
-            get => currencyPositivePattern;
+            get => _currencyPositivePattern;
             set
             {
                 if (value < 0 || value > 3)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                value,
-                                SR.Format(SR.ArgumentOutOfRange_Range, 0, 3));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 0, 3));
                 }
 
                 VerifyWritable();
-                currencyPositivePattern = value;
+                _currencyPositivePattern = value;
             }
         }
-
 
         public string PositiveInfinitySymbol
         {
@@ -565,7 +587,6 @@ namespace System.Globalization
                 _positiveInfinitySymbol = value;
             }
         }
-
 
         public string PositiveSign
         {
@@ -583,7 +604,6 @@ namespace System.Globalization
             }
         }
 
-
         public int PercentDecimalDigits
         {
             get => _percentDecimalDigits;
@@ -592,9 +612,9 @@ namespace System.Globalization
                 if (value < 0 || value > 99)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                value,
-                                SR.Format(SR.ArgumentOutOfRange_Range, 0, 99));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 0, 99));
                 }
 
                 VerifyWritable();

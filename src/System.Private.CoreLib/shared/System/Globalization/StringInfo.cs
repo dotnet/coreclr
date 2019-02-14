@@ -6,9 +6,11 @@ using System.Diagnostics;
 
 namespace System.Globalization
 {
+    /// <summary>
     /// This class defines behaviors specific to a writing system.
     /// A writing system is the collection of scripts and orthographic rules
     /// required to represent a language as text.
+    /// </summary>
     public class StringInfo
     {
         private string _str;
@@ -21,7 +23,7 @@ namespace System.Globalization
 
         public StringInfo(string value)
         {
-            String = value;
+            this.String = value;
         }
 
         public override bool Equals(object value)
@@ -66,14 +68,13 @@ namespace System.Globalization
             // If the string is empty, no sense going further. 
             if (Indexes == null)
             {
-                // Just decide which error to give depending on the param they gave us....
                 if (startingTextElement < 0)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(startingTextElement), SR.ArgumentOutOfRange_NeedPosNum);
+                    throw new ArgumentOutOfRangeException(nameof(startingTextElement), startingTextElement, SR.ArgumentOutOfRange_NeedPosNum);
                 }
                 else
                 {
-                    throw new ArgumentOutOfRangeException(nameof(startingTextElement), SR.Arg_ArgumentOutOfRangeException);
+                    throw new ArgumentOutOfRangeException(nameof(startingTextElement), startingTextElement, SR.Arg_ArgumentOutOfRangeException);
                 }
             }
 
@@ -84,19 +85,19 @@ namespace System.Globalization
         {
             if (startingTextElement < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(startingTextElement), SR.ArgumentOutOfRange_NeedPosNum);
+                throw new ArgumentOutOfRangeException(nameof(startingTextElement), startingTextElement, SR.ArgumentOutOfRange_NeedPosNum);
             }
             if (String.Length == 0 || startingTextElement >= Indexes.Length)
             {
-                throw new ArgumentOutOfRangeException(nameof(startingTextElement), SR.Arg_ArgumentOutOfRangeException);
+                throw new ArgumentOutOfRangeException(nameof(startingTextElement), startingTextElement, SR.Arg_ArgumentOutOfRangeException);
             }
             if (lengthInTextElements < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(lengthInTextElements), SR.ArgumentOutOfRange_NeedPosNum);
+                throw new ArgumentOutOfRangeException(nameof(lengthInTextElements), lengthInTextElements, SR.ArgumentOutOfRange_NeedPosNum);
             }
             if (startingTextElement > Indexes.Length - lengthInTextElements)
             {
-                throw new ArgumentOutOfRangeException(nameof(lengthInTextElements), SR.Arg_ArgumentOutOfRangeException);
+                throw new ArgumentOutOfRangeException(nameof(lengthInTextElements), lengthInTextElements, SR.Arg_ArgumentOutOfRangeException);
             }
 
             int start = Indexes[startingTextElement];
@@ -216,7 +217,7 @@ namespace System.Globalization
                     return string.Empty;
                 }
 
-                throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
+                throw new ArgumentOutOfRangeException(nameof(index), index, SR.ArgumentOutOfRange_Index);
             }
 
             int charLen;
@@ -237,9 +238,9 @@ namespace System.Globalization
             }
 
             int len = str.Length;
-            if (index < 0 || (index > len))
+            if (index < 0 || index > len)
             {
-                throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
+                throw new ArgumentOutOfRangeException(nameof(index), index, SR.ArgumentOutOfRange_Index);
             }
 
             return new TextElementEnumerator(str, index, len);
