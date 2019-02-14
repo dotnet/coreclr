@@ -16,6 +16,9 @@ namespace System.Collections
 
         public const int HashPrime = 101;
 
+        // must never be written to
+        internal static readonly int[] SizeOneIntArray = new int[1];
+
         // Table of prime numbers to use as hash table sizes. 
         // A typical resize algorithm would pick the smallest prime number in this array
         // that is larger than twice the previous capacity. 
