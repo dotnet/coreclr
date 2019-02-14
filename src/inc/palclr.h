@@ -37,6 +37,14 @@
 #endif
 #endif
 
+#ifndef NOTHROW_DECL
+#ifdef _MSC_VER
+#define NOTHROW_DECL __declspec(nothrow)
+#else
+#define NOTHROW_DECL __attribute__((nothrow))
+#endif // !_MSC_VER
+#endif // !NOTHROW_DECL
+
 #ifndef NOINLINE
 #ifdef _MSC_VER
 #define NOINLINE __declspec(noinline)
