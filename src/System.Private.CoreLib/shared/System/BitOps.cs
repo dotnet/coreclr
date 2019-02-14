@@ -341,8 +341,10 @@ namespace System
                     + Popcnt.PopCount((uint)(value >> 32)));
             }
 
-            //return PopCount((uint)value) + PopCount((uint)(value >> 32));
-
+#if BIT32
+            return PopCount((uint)value) // lo
+                + PopCount((uint)(value >> 32)); // hi
+#else
             return SoftwareFallback(value);
 
             int SoftwareFallback(ulong v) 
@@ -358,6 +360,7 @@ namespace System
 
                 return (int)v;
             }
+#endif
         }
     }
 }
