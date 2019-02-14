@@ -304,13 +304,18 @@ namespace System
                 return (int)Popcnt.PopCount(value);
             }
 
-            value = value - ((value >> 1) & 0x_55555555u);
-            value = (value & 0x_33333333u) + ((value >> 2) & 0x_33333333u);
-            value = (value + (value >> 4)) & 0x_0F0F0F0Fu;
-            value = value * 0x_01010101u;
-            value = value >> 24;
+            return SoftwareFallback(value);
 
-            return (int)value;
+            int SoftwareFallback(uint val)
+            {
+                val = val - ((val >> 1) & 0x_55555555u);
+                val = (val & 0x_33333333u) + ((val >> 2) & 0x_33333333u);
+                val = (val + (val >> 4)) & 0x_0F0F0F0Fu;
+                val = val * 0x_01010101u;
+                val = val >> 24;
+
+                return (int)val;
+            }
         }
 
         /// <summary>
@@ -335,13 +340,18 @@ namespace System
             //return PopCount((uint)value)
             //    + PopCount((uint)(value >> 32));
 
-            value = value - ((value >> 1) & 0x_55555555_55555555ul);
-            value = (value & 0x_33333333_33333333ul) + ((value >> 2) & 0x_33333333_33333333ul);
-            value = (value + (value >> 4)) & 0x_0F0F0F0F_0F0F0F0Ful;
-            value = value * 0x_01010101_01010101ul;
-            value = value >> 56;
+            return SoftwareFallback(value);
 
-            return (int)value;
+            int SoftwareFallback(ulong val) 
+            {
+                val = val - ((val >> 1) & 0x_55555555_55555555ul);
+                val = (val & 0x_33333333_33333333ul) + ((val >> 2) & 0x_33333333_33333333ul);
+                val = (val + (val >> 4)) & 0x_0F0F0F0F_0F0F0F0Ful;
+                val = val * 0x_01010101_01010101ul;
+                val = val >> 56;
+
+                return (int)val;
+            }
         }
     }
 }
