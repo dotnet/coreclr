@@ -14,6 +14,7 @@ namespace System.Diagnostics.Tracing
     [EventSource(Name = "System.Runtime")]
     internal sealed class RuntimeEventSource : EventSource
     {
+        internal static RuntimeEventSource m_RuntimeEventSource;
         private EventCounter[] _counters;
 
         private enum Counter {
