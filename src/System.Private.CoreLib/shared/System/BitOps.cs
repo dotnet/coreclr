@@ -330,12 +330,9 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int PopCount(ulong value)
         {
-            if (Popcnt.IsSupported)
+            if (Popcnt.X64.IsSupported)
             {
-                if (Popcnt.X64.IsSupported)
-                {
-                    return (int)Popcnt.X64.PopCount(value);
-                }
+                return (int)Popcnt.X64.PopCount(value);
             }
 
 #if BIT32
