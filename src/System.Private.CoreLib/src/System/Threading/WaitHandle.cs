@@ -131,16 +131,16 @@ namespace System.Threading
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread-safety.")]
         private bool WaitOne(long timeout, bool exitContext)
         {
-            return InternalWaitOne(_waitHandle, timeout, false, exitContext);
+            return InternalWaitOne(_waitHandle, timeout, exitContext);
         }
 
-        internal static bool InternalWaitOne(SafeHandle waitableSafeHandle, long millisecondsTimeout, bool hasThreadAffinity, bool exitContext)
+        internal static bool InternalWaitOne(SafeHandle waitableSafeHandle, long millisecondsTimeout, bool exitContext)
         {
             if (waitableSafeHandle == null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_Generic);
             }
-            int ret = WaitOneNative(waitableSafeHandle, (uint)millisecondsTimeout, hasThreadAffinity, exitContext);
+            int ret = WaitOneNative(waitableSafeHandle, (uint)millisecondsTimeout, exitContext);
 
             if (ret == WAIT_ABANDONED)
             {
@@ -159,7 +159,7 @@ namespace System.Threading
             }
 
             long timeout = -1;
-            int ret = WaitOneNative(_waitHandle, (uint)timeout, false, false);
+            int ret = WaitOneNative(_waitHandle, (uint)timeout, false);
             if (ret == WAIT_ABANDONED)
             {
                 ThrowAbandonedMutexException();
@@ -168,7 +168,7 @@ namespace System.Threading
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern int WaitOneNative(SafeHandle waitableSafeHandle, uint millisecondsTimeout, bool hasThreadAffinity, bool exitContext);
+        private static extern int WaitOneNative(SafeHandle waitableSafeHandle, uint millisecondsTimeout, bool exitContext);
 
         /*========================================================================
         ** Waits for signal from all the objects. 
@@ -372,7 +372,7 @@ namespace System.Threading
         ==================================================*/
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int SignalAndWaitOne(SafeWaitHandle waitHandleToSignal, SafeWaitHandle waitHandleToWaitOn, int millisecondsTimeout,
-                                            bool hasThreadAffinity, bool exitContext);
+                                            bool exitContext);
 
         public static bool SignalAndWait(
                                         WaitHandle toSignal,
@@ -416,8 +416,7 @@ namespace System.Threading
             }
 
             //NOTE: This API is not supporting Pause/Resume as it's not exposed in CoreCLR (not in WP or SL)
-            int ret = SignalAndWaitOne(toSignal._waitHandle, toWaitOn._waitHandle, millisecondsTimeout,
-                                false, exitContext);
+            int ret = SignalAndWaitOne(toSignal._waitHandle, toWaitOn._waitHandle, millisecondsTimeout, exitContext);
 
             if (WAIT_ABANDONED == ret)
             {
