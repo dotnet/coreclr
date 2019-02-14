@@ -318,8 +318,6 @@ public:
     {
         noway_assert(varLocation.vlIsInReg(registerNumber) || varLocation.vlIsOnStack());
 
-        printf("%s ", getRegName(registerNumber));
-        printf(" Or ");
         codeGen->dumpSiVarLoc(&varLocation);
         printf(" [ ");
         startEmitLocation.Print();
@@ -345,8 +343,6 @@ public:
         UNATIVE_OFFSET endAssemblyOffset = endEmitLocation.Valid() ? endEmitLocation.CodeOffset(_emitter) : -1;
         
         //printf("%s [%X-", getRegName(registerNumber), startEmitLocation.CodeOffset(_emitter));
-        printf("%s ", getRegName(registerNumber));
-        printf(" Or ");
         codeGen->dumpSiVarLoc(&varLocation);
         printf(" [%X - ", startEmitLocation.CodeOffset(_emitter));
 
