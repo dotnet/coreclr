@@ -2284,7 +2284,7 @@ private:
 // also, we'd have contract bit for whether APIs can be called on the helper thread.
 // @todo - if we really wanted to be strict, we should make this per-thread.
 //-----------------------------------------------------------------------------
-#ifdef ENABLE_CONTRACTS_IMPL
+#ifdef FEATURE_INTEROP_DEBUGGING
 extern Volatile<LONG> g_DbgSuppressAllocationAsserts;
 #define SUPPRESS_ALLOCATION_ASSERTS_IN_THIS_SCOPE CounterHolder _AllowNewOnHelperHolder(&g_DbgSuppressAllocationAsserts);
 #else

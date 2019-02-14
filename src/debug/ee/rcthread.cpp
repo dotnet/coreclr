@@ -806,7 +806,7 @@ static LONG _debugFilter(LPEXCEPTION_POINTERS ep, PVOID pv)
 
 void AssertAllocationAllowed()
 {
-#ifdef USE_INTEROPSAFE_HEAP
+#ifdef FEATURE_INTEROP_DEBUGGING
     // Don't forget to preserve error status!
     DWORD err = GetLastError();
 
