@@ -74,7 +74,7 @@ namespace System
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
                 ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
                 // uint|long -> IntPtr cast on 32-bit platforms does expensive overflow checks not needed here
-                (IntPtr)(int)(((value & (uint)-(int)value) * 0x077CB531u) >> 27)); // Multiple casts generate optimal MSIL
+                (IntPtr)(int)(((value & (uint)-(int)value) * 0x077CB531u) >> 27)); // Multi-cast mitigates redundant conv.u8
         }
 
         /// <summary>
