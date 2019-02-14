@@ -135,7 +135,7 @@ jobs:
           helixSource: official/dotnet/coreclr/$(Build.SourceBranch)
         ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
           helixSource: pr/dotnet/coreclr/$(Build.SourceBranch)
-        ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
+        ${{ if and(eq(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
           helixSource: ci/dotnet/coreclr/$(Build.SourceBranch)
 
         ${{ if eq(parameters.readyToRun, false) }}:
