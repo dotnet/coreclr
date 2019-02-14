@@ -63,7 +63,7 @@ namespace System
                 return (int)Bmi1.TrailingZeroCount(value);
             }
 
-            // Fallback contract is 0->0
+            // Unguarded fallback contract is 0->0
             if (value == 0)
             {
                 return 32;
@@ -124,7 +124,7 @@ namespace System
                 return (int)Lzcnt.LeadingZeroCount(value);
             }
 
-            // Fallback contract is 0->31
+            // Unguarded fallback contract is 0->31
             if (value == 0)
             {
                 return 32;
