@@ -847,10 +847,6 @@ void CodeGen::genSpillVar(GenTree* tree)
 #endif
             VarSetOps::AddElemD(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex);
         }
-
-        // Build the location of the variable
-        siVarLoc siVarLoc = CodeGenInterface::getSiVarLoc(varDsc, getCurrentStackLevel());
-        varDsc->UpdateRegisterHome(REG_STK, siVarLoc, getEmitter());
     }
 
     // Why is changing reg if spill was not needed?
@@ -859,6 +855,16 @@ void CodeGen::genSpillVar(GenTree* tree)
     if (varTypeIsMultiReg(tree))
     {
         varDsc->lvOtherReg = REG_STK;
+    }
+
+    if (needsSpill) {
+        // We need this after "lvRegNum" has change because now we are sure that varDsc->lvIsInReg() is false.
+        // "SiVarLoc" constructor uses the "LclVarDsc" of the variable.
+
+        // Build the location of the variable
+        siVarLoc siVarLoc = CodeGenInterface::getSiVarLoc(varDsc, getCurrentStackLevel());
+
+        varDsc->UpdateRegisterHome(REG_STK, siVarLoc, getEmitter());
     }
 }
 
