@@ -10,7 +10,7 @@ namespace System.Numerics.Hashing
 
         public static int Combine(int h1, int h2)
         {
-            return ((int)(((uint)h1 << 5) | ((uint)h1 >> 27)) + h1) ^ h2;
+            return ((int)BitOps.RotateLeft((uint)h1, 5) + h1) ^ h2;
         }
     }
 }

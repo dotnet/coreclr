@@ -455,25 +455,19 @@ namespace System
 
             public static uint CountSignificantBits(uint value)
             {
-                // TODO: Check that this is the correct substitution
-                return 32u - (uint)BitOps.LeadingZeroCount(value);
-                
-                //return (value != 0) ? (1 + LogBase2(value)) : 0;
+                return 32 - (uint)BitOps.LeadingZeroCount(value);
             }
 
             public static uint CountSignificantBits(ulong value)
             {
-                // TODO: Check that this is the correct substitution
-                return 64u - (uint)BitOps.LeadingZeroCount(value);
+                uint upper = (uint)(value >> 32);
 
-                //uint upper = (uint)(value >> 32);
+                if (upper != 0)
+                {
+                    return 32 + CountSignificantBits(upper);
+                }
 
-                //if (upper != 0)
-                //{
-                //    return 32 + CountSignificantBits(upper);
-                //}
-
-                //return CountSignificantBits((uint)(value));
+                return CountSignificantBits((uint)value);
             }
 
             public static uint CountSignificantBits(ref BigInteger value)
@@ -566,7 +560,7 @@ namespace System
                     uint divLo = rhs._blocks[rhsLength - 2];
 
                     // We measure the leading zeros of the divisor
-                    int shiftLeft = (int)(LeadingZeroCount(divHi));
+                    int shiftLeft = BitOps.LeadingZeroCount(divHi);
                     int shiftRight = 32 - shiftLeft;
 
                     // And, we make sure the most significant bit is set
@@ -748,28 +742,6 @@ namespace System
                 }
 
                 return quotient;
-            }
-
-            public static uint LeadingZeroCount(uint value)
-            {
-                return (uint)BitOps.LeadingZeroCount(value);
-            }
-
-            public static uint LeadingZeroCount(ulong value)
-            {
-                return (uint)BitOps.LeadingZeroCount(value);
-            }
-
-            public static uint LogBase2(uint value)
-            {
-                Debug.Assert(value != 0);
-                return BitOps.Log2(value);
-            }
-
-            public static uint LogBase2(ulong value)
-            {
-                Debug.Assert(value != 0);
-                return BitOps.Log2(value);
             }
 
             public static void Multiply(ref BigInteger lhs, uint value, ref BigInteger result)

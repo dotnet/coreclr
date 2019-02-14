@@ -439,8 +439,6 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 
   add_definitions(-DDISABLE_CONTRACTS)
-  # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
-  # after hitting just about 20 errors.
 
   if (CLR_CMAKE_WARNINGS_ARE_ERRORS)
     # All warnings that are not explicitly disabled are reported as errors
@@ -448,6 +446,8 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   endif(CLR_CMAKE_WARNINGS_ARE_ERRORS)
 
   if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
+    # after hitting just about 20 errors.
     add_compile_options(-ferror-limit=4096)
 
     # Disabled warnings
@@ -481,6 +481,9 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   # Some architectures (e.g., ARM) assume char type is unsigned while CoreCLR assumes char is signed
   # as x64 does. It has been causing issues in ARM (https://github.com/dotnet/coreclr/issues/4746)
   add_compile_options(-fsigned-char)
+
+  # We mark the function which needs exporting with DLLEXPORT
+  add_compile_options(-fvisibility=hidden)
 
   # Specify the minimum supported version of macOS
   if(CLR_CMAKE_PLATFORM_DARWIN)

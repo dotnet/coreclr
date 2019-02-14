@@ -340,7 +340,7 @@ namespace System
 #else
             return SoftwareFallback(value);
 
-            int SoftwareFallback(ulong v)
+            int SoftwareFallback(ulong v) 
             {
                 const ulong c1 = 0x_55555555_55555555ul;
                 const ulong c2 = 0x_33333333_33333333ul;
@@ -560,28 +560,5 @@ namespace System
 
         #endregion
 
-        #region Helpers
-
-        /// <summary>
-        /// Fills the trailing zeros in a mask with ones.
-        /// For example, 00010010 becomes 00011111.
-        /// Does not incur branching.
-        /// </summary>
-        /// <param name="value">The value to mutate.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint FoldTrailingOnes(uint value)
-        {
-            // byte#                         4          3   2  1
-            //                       1000 0000  0000 0000  00 00
-            value |= value >> 01; // 1100 0000  0000 0000  00 00
-            value |= value >> 02; // 1111 0000  0000 0000  00 00
-            value |= value >> 04; // 1111 1111  0000 0000  00 00
-            value |= value >> 08; // 1111 1111  1111 1111  00 00
-            value |= value >> 16; // 1111 1111  1111 1111  FF FF
-
-            return value;
-        }
-
-        #endregion
     }
 }

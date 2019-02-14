@@ -7,7 +7,7 @@ export ghprbCommentBody=
 
 # resolve python-version to use
 if [ "$PYTHON" == "" ] ; then
-    if ! PYTHON=$(command -v python3 || command -v python2 || command -v python)
+    if ! PYTHON=$(command -v python3 || command -v python2 || command -v python || command -v py)
     then
        echo "Unable to locate build-dependency python!" 1>&2
        exit 1
@@ -223,7 +223,7 @@ generate_event_logging_sources()
     __ConsumingBuildSystem=$2
 
     __OutputIncDir="$__OutputDir/src/inc"
-    __OutputEventingDir="$__OutputDir/eventing"
+    __OutputEventingDir="$__OutputDir/Eventing"
     __OutputEventProviderDir="$__OutputEventingDir/eventprovider"
 
     echo "Laying out dynamically generated files consumed by $__ConsumingBuildSystem"

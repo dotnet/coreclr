@@ -838,7 +838,7 @@ public:
     }
 #endif // DACCESS_COMPILE
 
-    DEBUG_NOINLINE static void HolderEnter(PEFileListLock *pThis) PUB
+    DEBUG_NOINLINE static void HolderEnter(PEFileListLock *pThis)
     {
         WRAPPER_NO_CONTRACT;
         ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
@@ -846,7 +846,7 @@ public:
         pThis->Enter();
     }
 
-    DEBUG_NOINLINE static void HolderLeave(PEFileListLock *pThis) PUB
+    DEBUG_NOINLINE static void HolderLeave(PEFileListLock *pThis)
     {
         WRAPPER_NO_CONTRACT;
         ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
@@ -1168,6 +1168,12 @@ public:
     // Handles
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    IGCHandleStore* GetHandleStore()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_handleStore;
+    }
+
     OBJECTHANDLE CreateTypedHandle(OBJECTREF object, HandleType type)
     {
         WRAPPER_NO_CONTRACT;
