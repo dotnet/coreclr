@@ -369,7 +369,7 @@ namespace System
         /// <param name="bitOffset">The ordinal position of the bit to read.
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ExtractBit(byte value, int bitOffset) 
+        public static bool ExtractBit(byte value, int bitOffset)
             => ExtractBit((uint)value, bitOffset & 7);
 
         /// <summary>
@@ -470,7 +470,7 @@ namespace System
         /// <param name="bitOffset">The ordinal position of the bit to clear.
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint ClearBit(uint value, int bitOffset) 
+        public static uint ClearBit(uint value, int bitOffset)
             => value & ~(1u << bitOffset);
 
         /// <summary>
@@ -560,7 +560,7 @@ namespace System
         /// <param name="bitOffset">The ordinal position of the bit to write.
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint InsertBit(uint value, int bitOffset) 
+        public static uint InsertBit(uint value, int bitOffset)
             => value | (1u << bitOffset);
 
         /// <summary>
