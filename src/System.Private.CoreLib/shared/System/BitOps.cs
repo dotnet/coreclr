@@ -17,7 +17,6 @@ namespace System
     /// Utility methods for intrinsic bit-twiddling operations.
     /// The methods use hardware intrinsics when available on the underlying platform,
     /// otherwise they use optimized software fallbacks.
-    /// Operations are all little-endian.
     /// </summary>
     internal static class BitOps
     {
