@@ -1567,6 +1567,9 @@
   <data name="ArgumentException_OtherNotArrayOfCorrectLength" xml:space="preserve">
     <value>Object is not a array with the same number of elements as the array to compare it to.</value>
   </data>
+  <data name="ArgumentException_NotIsomorphic" xml:space="preserve">
+    <value>Object contains non-primitive or non-blittable data.</value>
+  </data>
   <data name="ArgumentException_TupleIncorrectType" xml:space="preserve">
     <value>Argument must be of type {0}.</value>
   </data>
@@ -3088,6 +3091,9 @@
   <data name="ObjectDisposed_ViewAccessorClosed" xml:space="preserve">
     <value>Cannot access a closed accessor.</value>
   </data>
+  <data name="ObjectDisposed_SafeHandleClosed" xml:space="preserve">
+    <value>Safe handle has been closed.</value>
+  </data>
   <data name="OperationCanceled" xml:space="preserve">
     <value>The operation was canceled.</value>
   </data>
@@ -3672,9 +3678,6 @@
   </data>
   <data name="InvalidOp_InvalidNewEnumVariant" xml:space="preserve">
     <value>The returned enumerator does not implement IEnumVARIANT.</value>
-  </data>
-  <data name="Argument_NotIsomorphic" xml:space="preserve">
-    <value>Object contains non-primitive or non-blittable data.</value>
   </data>
   <data name="Argument_StructArrayTooLarge" xml:space="preserve">
     <value>Array size exceeds addressing limitations.</value>
