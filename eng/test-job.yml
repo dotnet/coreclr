@@ -35,11 +35,6 @@ jobs:
 
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
-    ${{ if eq(parameters.readyToRun, false) }}:
-      helixType: ${{ format('test/functional/cli/pri{0}', parameters.priority) }}
-    ${{ if eq(parameters.readyToRun, true) }}:
-      helixType: ${{ format('test/functional/r2r/cli/pri{0}', parameters.priority) }}
-
     variables:
     - group: DotNet-HelixApi-Access
     # Map template parameters to command line arguments
@@ -60,6 +55,16 @@ jobs:
     - ${{ if eq(parameters.readyToRun, false) }}:
       - name: crossgenArg
         value: ''
+
+    - name: clangArg
+      value: ''
+    # Our FreeBSD doesn't yet detect available clang versions, so pass it explicitly.
+    - ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+      - name: clangArg
+        value: '-clang6.0'
+    - ${{ if and(eq(parameters.osIdentifier, 'Linux_musl'), eq(parameters.archType, 'arm64')) }}:
+      - name: clangArg
+        value: '-clang5.0'
 
     # TODO: Enable crossgen in build-test.sh. It currently doesn't
     # accept a crossgen arg, so disable the macos/linux crossgen test
@@ -106,7 +111,7 @@ jobs:
     # Build tests
     # TODO: enable crossgen in build-test.sh
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg)
+      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg)
         displayName: Build tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
@@ -121,9 +126,23 @@ jobs:
         archType: ${{ parameters.archType }}
         osGroup: ${{ parameters.osGroup }}
 
+        ${{ if eq(variables['System.TeamProject'], 'public') }}:
+          creator: 'coreclr'
+
         helixBuild: $(Build.BuildNumber)
-        helixSource: $(_HelixSource)
-        helixType: $(_HelixType)
+
+        ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+          helixSource: official/dotnet/coreclr/$(Build.SourceBranch)
+        ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
+          helixSource: pr/dotnet/coreclr/$(Build.SourceBranch)
+        ${{ if and(eq(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+          helixSource: ci/dotnet/coreclr/$(Build.SourceBranch)
+
+        ${{ if eq(parameters.readyToRun, false) }}:
+          helixType: ${{ format('test/functional/cli/pri{0}', parameters.priority) }}
+        ${{ if eq(parameters.readyToRun, true) }}:
+          helixType: ${{ format('test/functional/r2r/cli/pri{0}', parameters.priority) }}
+
         helixQueues: ${{ parameters.helixQueues.asString }}
 
         ${{ if eq(parameters.helixQueues.asString, '') }}:
@@ -139,8 +158,5 @@ jobs:
           # Access token variable for internal project from the
           # DotNet-HelixApi-Access variable group
           helixAccessToken: $(HelixApiAccessToken)
-
-        ${{ if eq(variables['System.TeamProject'], 'public') }}:
-          creator: coreclr-pulls
 
         scenarios: ${{ parameters.scenarios.asString }}
