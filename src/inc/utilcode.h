@@ -150,15 +150,6 @@ typedef LPSTR   LPUTF8;
 #endif
 #endif
 
-#ifndef DBG_NOINLINE_X86__RET_INLINE
-#if defined(_DEBUG) && defined(_TARGET_X86_)
-// this exists to make scan work on x86. 
-#define DBG_NOINLINE_X86__RET_INLINE NOINLINE
-#else
-#define DBG_NOINLINE_X86__RET_INLINE FORCEINLINE
-#endif
-#endif
-
 #include <stddef.h> // for offsetof
 
 #ifndef NumItems
