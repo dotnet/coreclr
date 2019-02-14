@@ -339,10 +339,7 @@ public:
     UNUSED_METHOD_IMPL(VOID NestedValueClassUpdateNativeImpl(const VOID **ppProtectedCLR, SIZE_T startoffset, LPVOID pNative, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID NestedValueClassUpdateCLRImpl(const VOID *pNative, LPVOID *ppProtectedCLR, SIZE_T startoffset) const)
 
-    // 
-    // Methods for saving & restoring in prejitted images:
-    //
-
+protected:
     NStructFieldType GetNStructFieldType() const
     {
         LIMITED_METHOD_CONTRACT;
@@ -350,6 +347,7 @@ public:
     }
 
 private:
+
     void SetNStructFieldType(NStructFieldType nft)
     {
         LIMITED_METHOD_CONTRACT;
@@ -375,6 +373,10 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_nff;
     }
+
+    // 
+    // Methods for saving & restoring in prejitted images:
+    //
 
 #ifdef FEATURE_PREJIT
     void SaveImpl(DataImage *image)
@@ -659,11 +661,6 @@ class FieldMarshaler_NestedType : public FieldMarshaler
 {
 public:
     MethodTable* GetNestedMethodTable() const;
-    
-    MethodTable* GetNestedMethodTableImpl() const
-    {
-        return nullptr;
-    }
 };
 
 //=======================================================================
