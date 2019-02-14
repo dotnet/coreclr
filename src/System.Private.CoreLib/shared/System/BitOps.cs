@@ -356,14 +356,10 @@ namespace System
 #endif
         }
 
-        #region ExtractBit
-
-        // For bitlength N, it is conventional to treat N as congruent modulo-N
-        // under the shift operation.
+        // For bit-length N, it is conventional to treat N as congruent modulo-N under the shift operation.
         // So for uint, 1 << 33 == 1 << 1, and likewise 1 << -46 == 1 << +18.
-        // Note -46 % 32 == -14. But -46 & 31 (0011_1111) == +18. So we use & not %.
-        // Software & hardware intrinsics already do this for uint/ulong, but
-        // we need to emulate for byte/ushort.
+        // Note -46 % 32 == -14. But -46 & 31 (0011_1111) == +18. 
+        // So we use & not %.
 
         /// <summary>
         /// Reads whether the specified bit in a mask is set.
@@ -373,13 +369,8 @@ namespace System
         /// <param name="bitOffset">The ordinal position of the bit to read.
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ExtractBit(byte value, int bitOffset)
-        {
-            int shft = bitOffset & 7;
-            uint mask = 1U << shft;
-
-            return (value & mask) != 0;
-        }
+        public static bool ExtractBit(byte value, int bitOffset) 
+            => ExtractBit((uint)value, bitOffset & 7);
 
         /// <summary>
         /// Reads whether the specified bit in a mask is set.
@@ -390,12 +381,7 @@ namespace System
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool ExtractBit(uint value, int bitOffset)
-        {
-            // TODO: Not sure if there is a suitable (exposed) intrinsic for this
-            uint mask = 1U << bitOffset;
-
-            return (value & mask) != 0;
-        }
+            => (value & (1u << bitOffset)) != 0;
 
         /// <summary>
         /// Reads whether the specified bit in a mask is set.
@@ -406,16 +392,12 @@ namespace System
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool ExtractBit(int value, int bitOffset)
-            => ExtractBit((uint)value, bitOffset);
+            => (value & (1 << bitOffset)) != 0;
 
         /* Legacy implementations
         TBD https://raw.githubusercontent.com/dotnet/iot/93f2bd3f2a4d64528ca97a8da09fe0bfe42d648f/src/devices/Mcp23xxx/Mcp23xxx.cs
         TBD https://raw.githubusercontent.com/dotnet/wpf/2cbb1ad9759c32dc575c7537057a29ee7da2e1b2/src/Microsoft.DotNet.Wpf/src/System.Xaml/System/Xaml/Schema/Reflector.cs
         */
-
-        #endregion
-
-        #region ClearBit
 
         /// <summary>
         /// Clears the specified bit in a mask and returns whether it was originally set.
@@ -425,15 +407,32 @@ namespace System
         /// <param name="bitOffset">The ordinal position of the bit to clear.
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ClearBit(ref byte value, int bitOffset) // TODO: offset should maybe be uint
+        public static bool ClearBit(ref byte value, int bitOffset)
         {
-            int shft = bitOffset & 7;
-            uint mask = 1U << shft;
+            uint mask = 1u << (bitOffset & 7);
 
-            uint btr = value & mask;
+            bool btr = (value & mask) != 0;
             value = (byte)(value & ~mask);
 
-            return btr != 0;
+            return btr;
+        }
+
+        /// <summary>
+        /// Clears the specified bit in a mask and returns whether it was originally set.
+        /// Similar in behavior to the x86 instruction BTR.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <param name="bitOffset">The ordinal position of the bit to clear.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool ClearBit(ref uint value, int bitOffset)
+        {
+            uint mask = 1u << bitOffset;
+
+            bool btr = (value & mask) != 0;
+            value &= ~mask;
+
+            return btr;
         }
 
         /// <summary>
@@ -448,11 +447,21 @@ namespace System
         {
             int mask = 1 << bitOffset;
 
-            int btr = value & mask;
-            value = value & ~mask;
+            bool btr = (value & mask) != 0;
+            value &= ~mask;
 
-            return btr != 0;
+            return btr;
         }
+
+        /// <summary>
+        /// Clears the specified bit in a mask and returns the new value.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <param name="bitOffset">The ordinal position of the bit to clear.
+        /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte ClearBit(byte value, int bitOffset)
+            => (byte)ClearBit((uint)value, bitOffset & 7);
 
         /// <summary>
         /// Clears the specified bit in a mask and returns the new value.
@@ -461,13 +470,8 @@ namespace System
         /// <param name="bitOffset">The ordinal position of the bit to clear.
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint ClearBit(uint value, int bitOffset)
-        {
-            // TODO: Not sure if there is a suitable (exposed) intrinsic for this
-            uint mask = 1U << bitOffset;
-
-            return value & ~mask;
-        }
+        public static uint ClearBit(uint value, int bitOffset) 
+            => value & ~(1u << bitOffset);
 
         /// <summary>
         /// Clears the specified bit in a mask and returns the new value.
@@ -477,17 +481,13 @@ namespace System
         /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int ClearBit(int value, int bitOffset)
-            => unchecked((int)ClearBit((uint)value, bitOffset));
+            => value & ~(1 << bitOffset);
 
         /* Legacy implementations
         DONE https://raw.githubusercontent.com/dotnet/roslyn/367e08d8f9af968584d5bab84756eceda1587bd9/src/Workspaces/Core/Portable/Utilities/CompilerUtilities/ImmutableHashMap.cs
         DONE https://raw.githubusercontent.com/dotnet/corefx/bd414c68872c4e4c6e8b1a585675a8383b3a9555/src/System.DirectoryServices.AccountManagement/src/System/DirectoryServices/AccountManagement/Utils.cs
         TBD https://raw.githubusercontent.com/dotnet/iot/93f2bd3f2a4d64528ca97a8da09fe0bfe42d648f/src/devices/Mcp23xxx/Mcp23xxx.cs
         */
-
-        #endregion
-
-        #region InsertBit
 
         /// <summary>
         /// Sets the specified bit in a mask and returns whether it was originally set.
@@ -499,13 +499,30 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool InsertBit(ref byte value, int bitOffset) // TODO: offset should maybe be uint
         {
-            int shft = bitOffset & 7;
-            uint mask = 1U << shft;
+            uint mask = 1u << (bitOffset & 7);
 
-            uint bts = value & mask;
+            bool bts = (value & mask) != 0;
             value = (byte)(value | mask);
 
-            return bts != 0;
+            return bts;
+        }
+
+        /// <summary>
+        /// Sets the specified bit in a mask and returns whether it was originally set.
+        /// Similar in behavior to the x86 instruction BTS.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <param name="bitOffset">The ordinal position of the bit to write.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool InsertBit(ref uint value, int bitOffset)
+        {
+            uint mask = 1u << bitOffset;
+
+            bool bts = (value & mask) != 0;
+            value |= mask;
+
+            return bts;
         }
 
         /// <summary>
@@ -520,25 +537,10 @@ namespace System
         {
             int mask = 1 << bitOffset;
 
-            int bts = value & mask;
-            value = value | mask;
+            bool bts = (value & mask) != 0;
+            value |= mask;
 
-            return bts != 0;
-        }
-
-        /// <summary>
-        /// Sets the specified bit in a mask and returns the new value.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        /// <param name="bitOffset">The ordinal position of the bit to write.
-        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint InsertBit(uint value, int bitOffset)
-        {
-            // TODO: Not sure if there is a suitable (exposed) intrinsic for this
-            uint mask = 1U << bitOffset;
-
-            return value | mask;
+            return bts;
         }
 
         /// <summary>
@@ -548,8 +550,28 @@ namespace System
         /// <param name="bitOffset">The ordinal position of the bit to write.
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte InsertBit(byte value, int bitOffset)
+            => (byte)InsertBit((uint)value, bitOffset & 7);
+
+        /// <summary>
+        /// Sets the specified bit in a mask and returns the new value.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <param name="bitOffset">The ordinal position of the bit to write.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint InsertBit(uint value, int bitOffset) 
+            => value | (1u << bitOffset);
+
+        /// <summary>
+        /// Sets the specified bit in a mask and returns the new value.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        /// <param name="bitOffset">The ordinal position of the bit to write.
+        /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int InsertBit(int value, int bitOffset)
-            => unchecked((int)InsertBit((uint)value, bitOffset));
+            => value | (1 << bitOffset);
 
         /* Legacy implementations
         DONE https://raw.githubusercontent.com/dotnet/roslyn/367e08d8f9af968584d5bab84756eceda1587bd9/src/Workspaces/Core/Portable/Utilities/CompilerUtilities/ImmutableHashMap.cs
@@ -557,8 +579,5 @@ namespace System
         TBD https://raw.githubusercontent.com/dotnet/iot/93f2bd3f2a4d64528ca97a8da09fe0bfe42d648f/src/devices/Mcp23xxx/Mcp23xxx.cs
         TBD https://raw.githubusercontent.com/dotnet/wpf/2cbb1ad9759c32dc575c7537057a29ee7da2e1b2/src/Microsoft.DotNet.Wpf/src/System.Xaml/System/Xaml/Schema/Reflector.cs
         */
-
-        #endregion
-
     }
 }
