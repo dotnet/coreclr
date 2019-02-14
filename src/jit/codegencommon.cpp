@@ -2303,7 +2303,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
         JITDUMP("PRINTING REGISTER LIVE RANGES:\n");
         for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
         {
-            JITDUMP("Var %d:\n", varNum);
+            JITDUMP("IL Var Num %d:\n", compiler->compMap2ILvarNum(varNum));
             varDsc->dumpAllRegisterLiveRangesForBlock(getEmitter(), this);
             varDsc->destructRegisterLiveRanges();
         }
