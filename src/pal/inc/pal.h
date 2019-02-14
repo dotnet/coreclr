@@ -2411,13 +2411,11 @@ TlsFree(
 
 PALIMPORT
 void *
-PALAPI_NOEXPORT
-PAL_GetStackBase(VOID) DLLEXPORT;
+PAL_GetStackBase(VOID);
 
 PALIMPORT
 void *
-PALAPI_NOEXPORT
-PAL_GetStackLimit(VOID) DLLEXPORT;
+PAL_GetStackLimit(VOID);
 
 PALIMPORT
 DWORD
@@ -2662,8 +2660,7 @@ Return value:
     0 if failure
 --*/
 void *
-PALAPI_NOEXPORT
-PAL_LOADLoadPEFile(HANDLE hFile) DLLEXPORT;
+PAL_LOADLoadPEFile(HANDLE hFile);
 
 /*++
     PAL_LOADUnloadPEFile
@@ -5154,9 +5151,9 @@ public:
 class NativeExceptionHolderBase;
 
 PALIMPORT
+PALAPI
 NativeExceptionHolderBase **
-PALAPI_NOEXPORT
-PAL_GetNativeExceptionHolderHead() DLLEXPORT;
+PAL_GetNativeExceptionHolderHead();
 
 extern "C++" {
 

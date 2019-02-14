@@ -2770,18 +2770,14 @@ CPalThread::GetCachedStackLimit()
     return m_stackLimit;
 }
 
-DLLEXPORT
 void *
-PALAPI_NOEXPORT
 PAL_GetStackBase()
 {
     CPalThread* thread = InternalGetCurrentThread();
     return thread->GetCachedStackBase();
 }
 
-DLLEXPORT
 void *
-PALAPI_NOEXPORT
 PAL_GetStackLimit()
 {
     CPalThread* thread = InternalGetCurrentThread();

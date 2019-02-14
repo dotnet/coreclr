@@ -815,9 +815,7 @@ Return value:
     non-NULL - the base address of the mapped image
     NULL - error, with last error set.
 --*/
-DLLEXPORT
 void *
-PALAPI_NOEXPORT
 PAL_LOADLoadPEFile(HANDLE hFile)
 {
     ENTRY("PAL_LOADLoadPEFile (hFile=%p)\n", hFile);

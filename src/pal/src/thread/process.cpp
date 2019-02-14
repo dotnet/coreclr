@@ -254,7 +254,6 @@ struct UnambiguousProcessDescriptor
 
 static
 DWORD
-PALAPI_NOEXPORT
 StartupHelperThread(
     LPVOID p);
 

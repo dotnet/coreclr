@@ -402,9 +402,7 @@ __declspec(thread) static
 NativeExceptionHolderBase *t_nativeExceptionHolderHead = nullptr;
 
 extern "C"
-DLLEXPORT
 NativeExceptionHolderBase **
-PALAPI_NOEXPORT
 PAL_GetNativeExceptionHolderHead()
 {
     return &t_nativeExceptionHolderHead;
