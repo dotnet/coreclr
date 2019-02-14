@@ -13,6 +13,11 @@ using Internal.Runtime.CompilerServices;
 
 namespace System
 {
+    /// <summary>
+    /// Utility methods for intrinsic bit-twiddling operations.
+    /// The methods use hardware intrinsics when available on the underlying platform,
+    /// otherwise they use optimized software fallbacks.
+    /// </summary>
     internal static class BitOps
     {
         // C# no-alloc optimization that directly wraps the data section of the dll (similar to string constants)
@@ -34,179 +39,6 @@ namespace System
             19, 27, 23, 06, 26, 05, 04, 31
         };
 
-        #region PopCount
-
-        /// <summary>
-        /// Returns the population count (number of bits set) of a mask.
-        /// Similar in behavior to the x86 instruction POPCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int PopCount(uint value)
-        {
-            if (Popcnt.IsSupported)
-            {
-                return (int)Popcnt.PopCount(value);
-            }
-
-            const uint c0 = 0x_5555_5555;
-            const uint c1 = 0x_3333_3333;
-            const uint c2 = 0x_0F0F_0F0F;
-            const uint c3 = 0x_0101_0101;
-
-            uint count = value;
-
-            count -= (count >> 1) & c0;
-            count = (count & c1) + ((count >> 2) & c1);
-            count = (count + (count >> 4)) & c2;
-            count *= c3;
-            count >>= 24;
-
-            return (int)count;
-        }
-
-        /// <summary>
-        /// Returns the population count (number of bits set) of a mask.
-        /// Similar in behavior to the x86 instruction POPCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int PopCount(int value)
-            => PopCount((uint)value);
-
-        /// <summary>
-        /// Returns the population count (number of bits set) of a mask.
-        /// Similar in behavior to the x86 instruction POPCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int PopCount(ulong value)
-        {
-            if (Popcnt.IsSupported)
-            {
-                if (Popcnt.X64.IsSupported)
-                {
-                    return (int)Popcnt.X64.PopCount(value);
-                }
-
-                // Use the 32-bit function twice
-                uint pc = Popcnt.PopCount((uint)value)
-                        + Popcnt.PopCount((uint)(value >> 32));
-
-                return (int)pc;
-            }
-
-            const ulong c0 = 0x_5555_5555_5555_5555;
-            const ulong c1 = 0x_3333_3333_3333_3333;
-            const ulong c2 = 0x_0F0F_0F0F_0F0F_0F0F;
-            const ulong c3 = 0x_0101_0101_0101_0101;
-
-            ulong count = value;
-
-            count -= (value >> 1) & c0;
-            count = (count & c1) + ((count >> 2) & c1);
-            count = (count + (count >> 4)) & c2;
-            count *= c3;
-            count >>= 56;
-
-            return (int)count;
-        }
-
-        /// <summary>
-        /// Returns the population count (number of bits set) of a mask.
-        /// Similar in behavior to the x86 instruction POPCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int PopCount(long value)
-            => PopCount((ulong)value);
-
-        /* Legacy implementations
-        DONE https://raw.githubusercontent.com/dotnet/corefx/master/src/System.Reflection.Metadata/src/System/Reflection/Internal/Utilities/BitArithmetic.cs
-        DONE https://raw.githubusercontent.com/dotnet/roslyn/367e08d8f9af968584d5bab84756eceda1587bd9/src/Workspaces/Core/Portable/Utilities/CompilerUtilities/ImmutableHashMap.cs
-        TBD https://raw.githubusercontent.com/dotnet/coreclr/030a3ea9b8dbeae89c90d34441d4d9a1cf4a7de6/tests/src/JIT/Performance/CodeQuality/V8/Crypto/Crypto.cs
-        */
-
-        #endregion
-
-        #region RotateRight
-
-        // Will compile to instrinsics if pattern complies (uint/ulong):
-        // https://github.com/dotnet/coreclr/pull/1830
-
-        /// <summary>
-        /// Rotates the specified value right by the specified number of bits.
-        /// Similar in behavior to the x86 instruction ROR.
-        /// </summary>
-        /// <param name="value">The value to rotate.</param>
-        /// <param name="offset">The number of bits to rotate by.
-        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
-        /// <returns>The rotated value.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint RotateRight(uint value, int offset)
-            => (value >> offset) | (value << (32 - offset));
-
-        /// <summary>
-        /// Rotates the specified value right by the specified number of bits.
-        /// Similar in behavior to the x86 instruction ROR.
-        /// </summary>
-        /// <param name="value">The value to rotate.</param>
-        /// <param name="offset">The number of bits to rotate by.
-        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
-        /// <returns>The rotated value.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int RotateRight(int value, int offset)
-            => unchecked((int)RotateRight((uint)value, offset));
-
-        /* Legacy implementations
-        DONE https://github.com/dotnet/corert/blob/87e58839d6629b5f90777f886a2f52d7a99c076f/src/System.Private.CoreLib/src/System/Marvin.cs#L120-L124
-        */
-
-        #endregion
-
-        #region RotateLeft
-
-        // Will compile to instrinsics if pattern complies (uint/ulong):
-        // https://github.com/dotnet/coreclr/pull/1830
-
-        /// <summary>
-        /// Rotates the specified value left by the specified number of bits.
-        /// Similar in behavior to the x86 instruction ROL.
-        /// </summary>
-        /// <param name="value">The value to rotate.</param>
-        /// <param name="offset">The number of bits to rotate by.
-        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
-        /// <returns>The rotated value.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint RotateLeft(uint value, int offset)
-            => (value << offset) | (value >> (32 - offset));
-
-        /// <summary>
-        /// Rotates the specified value left by the specified number of bits.
-        /// Similar in behavior to the x86 instruction ROL.
-        /// </summary>
-        /// <param name="value">The value to rotate.</param>
-        /// <param name="offset">The number of bits to rotate by.
-        /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
-        /// <returns>The rotated value.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int RotateLeft(int value, int offset)
-            => unchecked((int)RotateLeft((uint)value, offset));
-
-        /* Legacy implementations
-        DONE https://github.com/dotnet/corert/blob/1bb85b989d9b01563df9eb83dce1c6a3415ce182/src/ILCompiler.ReadyToRun/src/Compiler/ReadyToRunHashCode.cs#L214
-        DONE https://github.com/dotnet/corert/blob/635cf21aca11265ded9d78d216424bd609c052f5/src/Common/src/Internal/NativeFormat/TypeHashingAlgorithms.cs#L20
-        DONE https://github.com/dotnet/corert/blob/635cf21aca11265ded9d78d216424bd609c052f5/src/Common/src/Internal/Text/Utf8String.cs#L47
-        DONE https://github.com/dotnet/corert/blob/635cf21aca11265ded9d78d216424bd609c052f5/src/System.Private.CoreLib/src/Internal/Runtime/CompilerServices/OpenMethodResolver.cs#L178
-        DONE https://github.com/dotnet/corert/blob/635cf21aca11265ded9d78d216424bd609c052f5/src/System.Private.CoreLib/src/System/RuntimeMethodHandle.cs#L67
-        DONE https://github.com/dotnet/corert/blob/635cf21aca11265ded9d78d216424bd609c052f5/src/ILCompiler.Compiler/src/Compiler/DependencyAnalysis/NodeFactory.NativeLayout.cs#L345
-        DONE https://github.com/dotnet/corert/blob/635cf21aca11265ded9d78d216424bd609c052f5/src/System.Private.TypeLoader/src/Internal/Runtime/TypeLoader/TypeLoaderEnvironment.NamedTypeLookup.cs#L121
-        */
-
-        #endregion
-
-        #region TrailingZeroCount
-
         /// <summary>
         /// Count the number of trailing zero bits in an integer value.
         /// Similar in behavior to the x86 instruction TZCNT.
@@ -226,19 +58,22 @@ namespace System
         {
             if (Bmi1.IsSupported)
             {
-                // Note that TZCNT contract specifies 0->32
+                // TZCNT contract is 0->32
                 return (int)Bmi1.TrailingZeroCount(value);
             }
 
-            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
-            if (value == 0u)
+            // Unguarded fallback contract is 0->0
+            if (value == 0)
+            {
                 return 32;
+            }
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
-                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
-                ((uint)((value & -value) * 0x077CB531u)) >> 27);
+                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
+                // uint|long -> IntPtr cast on 32-bit platforms does expensive overflow checks not needed here
+                (IntPtr)(int)(((value & (uint)-(int)value) * 0x077CB531u) >> 27)); // Multi-cast mitigates redundant conv.u8
         }
 
         /// <summary>
@@ -260,21 +95,19 @@ namespace System
         {
             if (Bmi1.X64.IsSupported)
             {
-                // Note that TZCNT contract specifies 0->64
+                // TZCNT contract is 0->64
                 return (int)Bmi1.X64.TrailingZeroCount(value);
             }
 
             uint lo = (uint)value;
 
             if (lo == 0)
+            {
                 return 32 + TrailingZeroCount((uint)(value >> 32));
+            }
 
             return TrailingZeroCount(lo);
         }
-
-        #endregion
-
-        #region LeadingZeroCount
 
         /// <summary>
         /// Count the number of leading zero bits in a mask.
@@ -286,15 +119,17 @@ namespace System
         {
             if (Lzcnt.IsSupported)
             {
-                // Note that LZCNT contract specifies 0->32
+                // LZCNT contract is 0->32
                 return (int)Lzcnt.LeadingZeroCount(value);
             }
 
-            // Main code has behavior 0->0, so special-case to match intrinsic path 0->32
-            if (value == 0u)
+            // Unguarded fallback contract is 0->31
+            if (value == 0)
+            {
                 return 32;
+            }
 
-            return 31 - Log2(value);
+            return 31 - Log2SoftwareFallback(value);
         }
 
         /// <summary>
@@ -307,43 +142,75 @@ namespace System
         {
             if (Lzcnt.X64.IsSupported)
             {
-                // Note that LZCNT contract specifies 0->64
+                // LZCNT contract is 0->64
                 return (int)Lzcnt.X64.LeadingZeroCount(value);
             }
 
             uint hi = (uint)(value >> 32);
 
             if (hi == 0)
+            {
                 return 32 + LeadingZeroCount((uint)value);
+            }
 
             return LeadingZeroCount(hi);
         }
 
-        /* Legacy implementations
-        DONE https://raw.githubusercontent.com/dotnet/corefx/151a6065fa8184feb1ac4a55c89752342ab7c3bb/src/Common/src/CoreLib/System/Decimal.DecCalc.cs
-        DONE https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
-        */
-
-        #endregion
-
-        #region Log2
-
         /// <summary>
         /// Returns the integer (floor) log of the specified value, base 2.
         /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
-        /// Does not incur branching.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Log2(uint value)
         {
-            value = FoldTrailingOnes(value);
+            // value    lzcnt   actual  expected
+            // ..0000   32      0        0 (by convention, guard clause)
+            // ..0001   31      31-31    0
+            // ..0010   30      31-30    1
+            // 0010..    2      31-2    29
+            // 0100..    1      31-1    30
+            // 1000..    0      31-0    31
+            if (Lzcnt.IsSupported)
+            {
+                // Enforce conventional contract 0->0 (Log(0) is undefined)
+                if (value == 0)
+                {
+                    return 0;
+                }
+
+                // LZCNT contract is 0->32
+                return 31 - (int)Lzcnt.LeadingZeroCount(value);
+            }
+
+            // Fallback contract is 0->0
+            return Log2SoftwareFallback(value);
+        }
+
+        /// <summary>
+        /// Returns the integer (floor) log of the specified value, base 2.
+        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
+        /// Does not directly use any hardware intrinsics, nor does it incur branching.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        private static int Log2SoftwareFallback(uint value)
+        {
+            // No AggressiveInlining due to large method size
+            // Has conventional contract 0->0 (Log(0) is undefined)
+
+            // Fill trailing zeros with ones, eg 00010010 becomes 00011111
+            value |= value >> 01;
+            value |= value >> 02;
+            value |= value >> 04;
+            value |= value >> 08;
+            value |= value >> 16;
 
             // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
             return Unsafe.AddByteOffset(
                 // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
                 ref MemoryMarshal.GetReference(s_Log2DeBruijn),
-                (IntPtr)((value * 0x07C4ACDDu) >> 27));
+                // uint|long -> IntPtr cast on 32-bit platforms does expensive overflow checks not needed here
+                (IntPtr)(int)((value * 0x07C4ACDDu) >> 27));
         }
 
         /// <summary>
@@ -354,20 +221,140 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Log2(ulong value)
         {
+            if (Lzcnt.X64.IsSupported)
+            {
+                // Enforce conventional contract 0->0 (Log(0) is undefined)
+                if (value == 0)
+                {
+                    return 0;
+                }
+
+                // LZCNT contract is 0->64
+                return 63 - (int)Lzcnt.X64.LeadingZeroCount(value);
+            }
+
             uint hi = (uint)(value >> 32);
 
-            if (hi != 0)
-                return 32 + Log2(hi);
+            if (hi == 0)
+            {
+                return Log2((uint)value);
+            }
 
-            return Log2((uint)value);
+            return 32 + Log2(hi);
         }
 
-        /* Legacy implementations
-        DONE https://raw.githubusercontent.com/dotnet/corefx/62c70143cfbb08bbf03b5b8aad60c2add84a0d9e/src/Common/src/CoreLib/System/Number.BigInteger.cs
-        DONE https://github.com/dotnet/roslyn/blob/33a3a61d36ec3657dc4af5e630ca6593397e6bbf/src/Workspaces/Core/Portable/Shared/Utilities/IntegerUtilities.cs#L45
-        */
+        /// <summary>
+        /// Rotates the specified value left by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROL.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint RotateLeft(uint value, int offset)
+            => (value << offset) | (value >> (32 - offset));
 
-        #endregion
+        /// <summary>
+        /// Rotates the specified value left by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROL.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..63] is treated as congruent mod 64.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong RotateLeft(ulong value, int offset)
+            => (value << offset) | (value >> (64 - offset));
+
+        /// <summary>
+        /// Rotates the specified value right by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROR.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint RotateRight(uint value, int offset)
+            => (value >> offset) | (value << (32 - offset));
+
+        /// <summary>
+        /// Rotates the specified value right by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROR.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..63] is treated as congruent mod 64.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong RotateRight(ulong value, int offset)
+            => (value >> offset) | (value << (64 - offset));
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(uint value)
+        {
+            if (Popcnt.IsSupported)
+            {
+                return (int)Popcnt.PopCount(value);
+            }
+
+            return SoftwareFallback(value);
+
+            int SoftwareFallback(uint v)
+            {
+                const uint c1 = 0x_55555555u;
+                const uint c2 = 0x_33333333u;
+                const uint c3 = 0x_0F0F0F0Fu;
+                const uint c4 = 0x_01010101u;
+
+                v = v - ((v >> 1) & c1);
+                v = (v & c2) + ((v >> 2) & c2);
+                v = (((v + (v >> 4)) & c3) * c4) >> 24;
+
+                return (int)v;
+            }
+        }
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(ulong value)
+        {
+            if (Popcnt.X64.IsSupported)
+            {
+                return (int)Popcnt.X64.PopCount(value);
+            }
+
+#if BIT32
+            return PopCount((uint)value) // lo
+                + PopCount((uint)(value >> 32)); // hi
+#else
+            return SoftwareFallback(value);
+
+            int SoftwareFallback(ulong v)
+            {
+                const ulong c1 = 0x_55555555_55555555ul;
+                const ulong c2 = 0x_33333333_33333333ul;
+                const ulong c3 = 0x_0F0F0F0F_0F0F0F0Ful;
+                const ulong c4 = 0x_01010101_01010101ul;
+
+                v = v - ((v >> 1) & c1);
+                v = (v & c2) + ((v >> 2) & c2);
+                v = (((v + (v >> 4)) & c3) * c4) >> 56;
+
+                return (int)v;
+            }
+#endif
+        }
 
         #region ExtractBit
 
