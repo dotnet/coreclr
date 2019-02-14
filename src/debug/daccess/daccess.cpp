@@ -7509,6 +7509,7 @@ STDAPI CLRDataAccessCreateInstance(ICLRDataTarget * pLegacyTarget,
 #ifdef __GNUC__
 __attribute__((used))
 #endif // __GNUC__
+DLLEXPORT
 STDAPI
 CLRDataCreateInstance(REFIID iid,
                       ICLRDataTarget * pLegacyTarget,
