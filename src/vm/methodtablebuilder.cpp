@@ -2908,9 +2908,14 @@ MethodTableBuilder::EnumerateClassMethods()
             }
         }
 
-#ifndef FEATURE_DEFAULT_INTERFACES
         // Some interface checks.
-        if (fIsClassInterface)
+        // Ngen wasn't upgraded to deal with default interface methods.
+        if (fIsClassInterface
+            && IsCompilationProcess()
+#if FEATURE_READYTORUN
+            && !IsReadyToRunCompilation()
+#endif
+            )
         {
             if (IsMdVirtual(dwMemberAttrs))
             {
@@ -2928,7 +2933,6 @@ MethodTableBuilder::EnumerateClassMethods()
                 }
             }
         }
-#endif
 
         // No synchronized methods in ValueTypes
         if(fIsClassValueType && IsMiSynchronized(dwImplFlags))
