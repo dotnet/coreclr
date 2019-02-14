@@ -69,7 +69,7 @@ namespace System.Globalization
             }
             _sRealName = _sName;
 
-            _iLanguage = this.ILANGUAGE;
+            _iLanguage = LCID;
             if (_iLanguage == 0)
             {
                 _iLanguage = CultureInfo.LOCALE_CUSTOM_UNSPECIFIED;
@@ -342,7 +342,7 @@ namespace System.Globalization
         private static int GetGeoId(string cultureName)
         {
             int geoId = LocaleData.GetLocaleDataNumericPart(cultureName, LocaleDataParts.GeoId);
-            return geoId == -1 ? CultureData.Invariant.IGEOID : geoId; 
+            return geoId == -1 ? CultureData.Invariant.GeoId : geoId; 
         }
         
         private static int GetDigitSubstitution(string cultureName)
