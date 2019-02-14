@@ -11,7 +11,7 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// RuntimeEventSource is an EventSource that represents events emitted by the managed runtime.
     /// </summary>
-    [EventSource(Name = "System.Runtime")]
+    [EventSource(Guid="5E5BB766-BBFC-5662-0548-1D44FAD9BB55", Name = "System.Runtime")]
     internal sealed class RuntimeEventSource : EventSource
     {
         private static RuntimeEventSource s_RuntimeEventSource;
@@ -41,7 +41,7 @@ namespace System.Diagnostics.Tracing
         // Threads
         // TODO
         
-        public RuntimeEventSource(): base(EventSourceSettings.EtwSelfDescribingEventFormat)
+        public RuntimeEventSource(): base(new Guid(0x5e5bb766, 0xbbfc, 0x5662, 0x05, 0x48, 0x1d, 0x44, 0xfa, 0xd9, 0xbb, 0x55), "System.Runtime", EventSourceSettings.EtwSelfDescribingEventFormat)
         {
 
         }
