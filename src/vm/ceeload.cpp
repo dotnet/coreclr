@@ -6482,6 +6482,32 @@ void Module::NotifyDebuggerUnload(AppDomain *pDomain)
 }
 
 #if !defined(CROSSGEN_COMPILE)
+using GetTokenForVTableEntry_t = mdToken(STDMETHODCALLTYPE*)(HMODULE module, BYTE**ppVTEntry);
+
+
+HMODULE GetIJWHostModule()
+{
+    static HMODULE ijwHostModule = nullptr;
+    if (ijwHostModule == nullptr)
+    {
+        ijwHostModule = CLRGetModuleHandle(W("ijwhost.dll"));
+    }
+
+    return ijwHostModule;
+}
+
+GetTokenForVTableEntry_t GetTokenGetterFromHostModule()
+{
+    static GetTokenForVTableEntry_t getTokenForVTableEntryWithHost = nullptr;
+    HMODULE ijwHost = GetIJWHostModule();
+    if (ijwHost != nullptr)
+    {
+        getTokenForVTableEntryWithHost = (GetTokenForVTableEntry_t)GetProcAddress(ijwHost, "GetTokenForVTableEntry");
+    }
+
+    return getTokenForVTableEntryWithHost;
+}
+
 //=================================================================================
 mdToken GetTokenForVTableEntry(HINSTANCE hInst, BYTE **ppVTEntry)
 {
@@ -6504,7 +6530,6 @@ void SetTargetForVTableEntry(HINSTANCE hInst, BYTE **ppVTEntry, BYTE *pTarget)
     DWORD oldProtect;
     if (!ClrVirtualProtect(ppVTEntry, sizeof(BYTE*), PAGE_READWRITE, &oldProtect))
     {
-        
         // This is very bad.  We are not going to be able to update header.
         _ASSERTE(!"SetTargetForVTableEntry(): VirtualProtect() changing IJW thunk vtable to R/W failed.\n");
         ThrowLastError();
@@ -6546,6 +6571,13 @@ void Module::FixupVTables()
     //       we need to change this conditional.
     if (IsIJWFixedUp() || m_file->IsILOnly()) {
         return;
+    }
+
+    GetTokenForVTableEntry_t GetTokenForVTableEntryCallback = GetTokenGetterFromHostModule();
+
+    if (GetTokenForVTableEntryCallback == nullptr)
+    {
+        GetTokenForVTableEntryCallback = GetTokenForVTableEntry;
     }
 
     HINSTANCE hInstThis = GetFile()->GetIJWBase();
@@ -6648,7 +6680,7 @@ void Module::FixupVTables()
                     {
                         if (pData->IsMethodFixedUp(iFixup, iMethod))
                             continue;
-                        mdToken mdTok = GetTokenForVTableEntry(hInstThis, (BYTE **)(pPointers + iMethod));
+                        mdToken mdTok = GetTokenForVTableEntryCallback(hInstThis, (BYTE**)(pPointers + iMethod));
                         CONSISTENCY_CHECK(mdTok != mdTokenNil);
                         rgMethodsToLoad[iCurMethod++].token = mdTok;
                     }
