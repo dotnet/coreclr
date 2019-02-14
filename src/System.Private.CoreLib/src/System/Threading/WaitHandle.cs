@@ -29,7 +29,7 @@ namespace System.Threading
         // IMPORTANT:
         // - Do not add or rearrange fields as the EE depends on this layout.
 
-        internal volatile SafeWaitHandle _waitHandle;
+        internal SafeWaitHandle _waitHandle;
 
         protected static readonly IntPtr InvalidHandle = new IntPtr(-1);
         private const int WAIT_OBJECT_0 = 0;
