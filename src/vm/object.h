@@ -2130,11 +2130,15 @@ class WaitHandleBase :public MarshalByRefObjectBaseObject
     friend class MscorlibBinder;
 
 public:
-    __inline LPVOID GetWaitHandle() {LIMITED_METHOD_CONTRACT; return m_safeHandle != NULL ? m_safeHandle->GetHandle() : INVALID_HANDLE_VALUE;}
-    __inline SAFEHANDLEREF GetSafeHandle() {LIMITED_METHOD_CONTRACT; return m_safeHandle;}
+    __inline LPVOID GetWaitHandle() {
+        LIMITED_METHOD_CONTRACT;
+        SAFEHANDLEREF safeHandle = (SAFEHANDLEREF)m_safeHandle.LoadWithoutBarrier();
+        return safeHandle != NULL ? safeHandle->GetHandle() : INVALID_HANDLE_VALUE;
+    }
+    __inline SAFEHANDLEREF GetSafeHandle() {LIMITED_METHOD_CONTRACT; return (SAFEHANDLEREF)m_safeHandle.LoadWithoutBarrier();}
 
 private:
-    SAFEHANDLEREF   m_safeHandle;
+    Volatile<SafeHandle*> m_safeHandle;
 };
 
 #ifdef USE_CHECKED_OBJECTREFS
