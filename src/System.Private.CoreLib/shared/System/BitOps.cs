@@ -199,6 +199,7 @@ namespace System
             // No AggressiveInlining due to large method size
             // Has conventional contract 0->0 (Log(0) is undefined)
 
+            // Fill trailing zeros with ones, eg 00010010 becomes 00011111
             value |= value >> 01;
             value |= value >> 02;
             value |= value >> 04;
@@ -306,15 +307,18 @@ namespace System
 
             return SoftwareFallback(value);
 
-            int SoftwareFallback(uint val)
+            int SoftwareFallback(uint v)
             {
-                val = val - ((val >> 1) & 0x_55555555u);
-                val = (val & 0x_33333333u) + ((val >> 2) & 0x_33333333u);
-                val = (val + (val >> 4)) & 0x_0F0F0F0Fu;
-                val = val * 0x_01010101u;
-                val = val >> 24;
+                const uint c1 = 0x_55555555u;
+                const uint c2 = 0x_33333333u;
+                const uint c3 = 0x_0F0F0F0Fu;
+                const uint c4 = 0x_01010101u;
 
-                return (int)val;
+                v = v - ((v >> 1) & c1);
+                v = (v & c2) + ((v >> 2) & c2);
+                v = (((v + (v >> 4)) & c3) * c4) >> 24;
+
+                return (int)v;
             }
         }
 
@@ -337,20 +341,22 @@ namespace System
                     + Popcnt.PopCount((uint)(value >> 32)));
             }
 
-            //return PopCount((uint)value)
-            //    + PopCount((uint)(value >> 32));
+            //return PopCount((uint)value) + PopCount((uint)(value >> 32));
 
             return SoftwareFallback(value);
 
-            int SoftwareFallback(ulong val) 
+            int SoftwareFallback(ulong v) 
             {
-                val = val - ((val >> 1) & 0x_55555555_55555555ul);
-                val = (val & 0x_33333333_33333333ul) + ((val >> 2) & 0x_33333333_33333333ul);
-                val = (val + (val >> 4)) & 0x_0F0F0F0F_0F0F0F0Ful;
-                val = val * 0x_01010101_01010101ul;
-                val = val >> 56;
+                const ulong c1 = 0x_55555555_55555555ul;
+                const ulong c2 = 0x_33333333_33333333ul;
+                const ulong c3 = 0x_0F0F0F0F_0F0F0F0Ful;
+                const ulong c4 = 0x_01010101_01010101ul;
 
-                return (int)val;
+                v = v - ((v >> 1) & c1);
+                v = (v & c2) + ((v >> 2) & c2);
+                v = (((v + (v >> 4)) & c3) * c4) >> 56;
+
+                return (int)v;
             }
         }
     }
