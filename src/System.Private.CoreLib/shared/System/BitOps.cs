@@ -393,59 +393,59 @@ namespace System
         public static bool ExtractBit(int value, int bitOffset)
             => (value & (1 << bitOffset)) != 0;
 
-        /// <summary>
-        /// Clears the specified bit in a mask and returns whether it was originally set.
-        /// Similar in behavior to the x86 instruction BTR.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        /// <param name="bitOffset">The ordinal position of the bit to clear.
-        /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ClearBit(ref byte value, int bitOffset)
-        {
-            uint mask = 1u << (bitOffset & 7);
+        ///// <summary>
+        ///// Clears the specified bit in a mask and returns whether it was originally set.
+        ///// Similar in behavior to the x86 instruction BTR.
+        ///// </summary>
+        ///// <param name="value">The value.</param>
+        ///// <param name="bitOffset">The ordinal position of the bit to clear.
+        ///// Any value outside the range [0..7] is treated as congruent mod 8.</param>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static bool ClearBit(ref byte value, int bitOffset)
+        //{
+        //    uint mask = 1u << (bitOffset & 7);
 
-            bool btr = (value & mask) != 0;
-            value = (byte)(value & ~mask);
+        //    bool btr = (value & mask) != 0;
+        //    value = (byte)(value & ~mask);
 
-            return btr;
-        }
+        //    return btr;
+        //}
 
-        /// <summary>
-        /// Clears the specified bit in a mask and returns whether it was originally set.
-        /// Similar in behavior to the x86 instruction BTR.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        /// <param name="bitOffset">The ordinal position of the bit to clear.
-        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ClearBit(ref uint value, int bitOffset)
-        {
-            uint mask = 1u << bitOffset;
+        ///// <summary>
+        ///// Clears the specified bit in a mask and returns whether it was originally set.
+        ///// Similar in behavior to the x86 instruction BTR.
+        ///// </summary>
+        ///// <param name="value">The value.</param>
+        ///// <param name="bitOffset">The ordinal position of the bit to clear.
+        ///// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static bool ClearBit(ref uint value, int bitOffset)
+        //{
+        //    uint mask = 1u << bitOffset;
 
-            bool btr = (value & mask) != 0;
-            value &= ~mask;
+        //    bool btr = (value & mask) != 0;
+        //    value &= ~mask;
 
-            return btr;
-        }
+        //    return btr;
+        //}
 
-        /// <summary>
-        /// Clears the specified bit in a mask and returns whether it was originally set.
-        /// Similar in behavior to the x86 instruction BTR.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        /// <param name="bitOffset">The ordinal position of the bit to clear.
-        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ClearBit(ref int value, int bitOffset)
-        {
-            int mask = 1 << bitOffset;
+        ///// <summary>
+        ///// Clears the specified bit in a mask and returns whether it was originally set.
+        ///// Similar in behavior to the x86 instruction BTR.
+        ///// </summary>
+        ///// <param name="value">The value.</param>
+        ///// <param name="bitOffset">The ordinal position of the bit to clear.
+        ///// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static bool ClearBit(ref int value, int bitOffset)
+        //{
+        //    int mask = 1 << bitOffset;
 
-            bool btr = (value & mask) != 0;
-            value &= ~mask;
+        //    bool btr = (value & mask) != 0;
+        //    value &= ~mask;
 
-            return btr;
-        }
+        //    return btr;
+        //}
 
         /// <summary>
         /// Clears the specified bit in a mask and returns the new value.
@@ -477,59 +477,59 @@ namespace System
         public static int ClearBit(int value, int bitOffset)
             => value & ~(1 << bitOffset);
 
-        /// <summary>
-        /// Sets the specified bit in a mask and returns whether it was originally set.
-        /// Similar in behavior to the x86 instruction BTS.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        /// <param name="bitOffset">The ordinal position of the bit to write.
-        /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool InsertBit(ref byte value, int bitOffset) // TODO: offset should maybe be uint
-        {
-            uint mask = 1u << (bitOffset & 7);
+        ///// <summary>
+        ///// Sets the specified bit in a mask and returns whether it was originally set.
+        ///// Similar in behavior to the x86 instruction BTS.
+        ///// </summary>
+        ///// <param name="value">The value.</param>
+        ///// <param name="bitOffset">The ordinal position of the bit to write.
+        ///// Any value outside the range [0..7] is treated as congruent mod 8.</param>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static bool InsertBit(ref byte value, int bitOffset) // TODO: offset should maybe be uint
+        //{
+        //    uint mask = 1u << (bitOffset & 7);
 
-            bool bts = (value & mask) != 0;
-            value = (byte)(value | mask);
+        //    bool bts = (value & mask) != 0;
+        //    value = (byte)(value | mask);
 
-            return bts;
-        }
+        //    return bts;
+        //}
 
-        /// <summary>
-        /// Sets the specified bit in a mask and returns whether it was originally set.
-        /// Similar in behavior to the x86 instruction BTS.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        /// <param name="bitOffset">The ordinal position of the bit to write.
-        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool InsertBit(ref uint value, int bitOffset)
-        {
-            uint mask = 1u << bitOffset;
+        ///// <summary>
+        ///// Sets the specified bit in a mask and returns whether it was originally set.
+        ///// Similar in behavior to the x86 instruction BTS.
+        ///// </summary>
+        ///// <param name="value">The value.</param>
+        ///// <param name="bitOffset">The ordinal position of the bit to write.
+        ///// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static bool InsertBit(ref uint value, int bitOffset)
+        //{
+        //    uint mask = 1u << bitOffset;
 
-            bool bts = (value & mask) != 0;
-            value |= mask;
+        //    bool bts = (value & mask) != 0;
+        //    value |= mask;
 
-            return bts;
-        }
+        //    return bts;
+        //}
 
-        /// <summary>
-        /// Sets the specified bit in a mask and returns whether it was originally set.
-        /// Similar in behavior to the x86 instruction BTS.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        /// <param name="bitOffset">The ordinal position of the bit to write.
-        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool InsertBit(ref int value, int bitOffset)
-        {
-            int mask = 1 << bitOffset;
+        ///// <summary>
+        ///// Sets the specified bit in a mask and returns whether it was originally set.
+        ///// Similar in behavior to the x86 instruction BTS.
+        ///// </summary>
+        ///// <param name="value">The value.</param>
+        ///// <param name="bitOffset">The ordinal position of the bit to write.
+        ///// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static bool InsertBit(ref int value, int bitOffset)
+        //{
+        //    int mask = 1 << bitOffset;
 
-            bool bts = (value & mask) != 0;
-            value |= mask;
+        //    bool bts = (value & mask) != 0;
+        //    value |= mask;
 
-            return bts;
-        }
+        //    return bts;
+        //}
 
         /// <summary>
         /// Sets the specified bit in a mask and returns the new value.
