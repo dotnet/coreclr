@@ -264,17 +264,13 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static uint Round(uint hash, uint input)
         {
-            hash += input * Prime2;
-            hash = BitOps.RotateLeft(hash, 13);
-            hash *= Prime1;
-            return hash;
+            return BitOps.RotateLeft(hash + input * Prime2, 13) * Prime1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static uint QueueRound(uint hash, uint queuedValue)
         {
-            hash += queuedValue * Prime3;
-            return BitOps.RotateLeft(hash, 17) * Prime4;
+            return BitOps.RotateLeft(hash + queuedValue * Prime3, 17) * Prime4;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
