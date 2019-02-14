@@ -356,11 +356,6 @@ namespace System
 #endif
         }
 
-        // For bit-length N, it is conventional to treat N as congruent modulo-N under the shift operation.
-        // So for uint, 1 << 33 == 1 << 1, and likewise 1 << -46 == 1 << +18.
-        // Note -46 % 32 == -14. But -46 & 31 (0011_1111) == +18. 
-        // So we use & not %.
-
         /// <summary>
         /// Reads whether the specified bit in a mask is set.
         /// Similar in behavior to the x86 instruction BT.
@@ -370,6 +365,10 @@ namespace System
         /// Any value outside the range [0..7] is treated as congruent mod 8.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool ExtractBit(byte value, int bitOffset)
+            // For bit-length N, it is conventional to treat N as congruent modulo-N under the shift operation.
+            // So for uint, 1 << 33 == 1 << 1, and likewise 1 << -46 == 1 << +18.
+            // Note -46 % 32 == -14. But -46 & 31 (0011_1111) == +18. 
+            // So we use & not %.
             => ExtractBit((uint)value, bitOffset & 7);
 
         /// <summary>
@@ -393,11 +392,6 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool ExtractBit(int value, int bitOffset)
             => (value & (1 << bitOffset)) != 0;
-
-        /* Legacy implementations
-        TBD https://raw.githubusercontent.com/dotnet/iot/93f2bd3f2a4d64528ca97a8da09fe0bfe42d648f/src/devices/Mcp23xxx/Mcp23xxx.cs
-        TBD https://raw.githubusercontent.com/dotnet/wpf/2cbb1ad9759c32dc575c7537057a29ee7da2e1b2/src/Microsoft.DotNet.Wpf/src/System.Xaml/System/Xaml/Schema/Reflector.cs
-        */
 
         /// <summary>
         /// Clears the specified bit in a mask and returns whether it was originally set.
@@ -483,12 +477,6 @@ namespace System
         public static int ClearBit(int value, int bitOffset)
             => value & ~(1 << bitOffset);
 
-        /* Legacy implementations
-        DONE https://raw.githubusercontent.com/dotnet/roslyn/367e08d8f9af968584d5bab84756eceda1587bd9/src/Workspaces/Core/Portable/Utilities/CompilerUtilities/ImmutableHashMap.cs
-        DONE https://raw.githubusercontent.com/dotnet/corefx/bd414c68872c4e4c6e8b1a585675a8383b3a9555/src/System.DirectoryServices.AccountManagement/src/System/DirectoryServices/AccountManagement/Utils.cs
-        TBD https://raw.githubusercontent.com/dotnet/iot/93f2bd3f2a4d64528ca97a8da09fe0bfe42d648f/src/devices/Mcp23xxx/Mcp23xxx.cs
-        */
-
         /// <summary>
         /// Sets the specified bit in a mask and returns whether it was originally set.
         /// Similar in behavior to the x86 instruction BTS.
@@ -572,12 +560,5 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int InsertBit(int value, int bitOffset)
             => value | (1 << bitOffset);
-
-        /* Legacy implementations
-        DONE https://raw.githubusercontent.com/dotnet/roslyn/367e08d8f9af968584d5bab84756eceda1587bd9/src/Workspaces/Core/Portable/Utilities/CompilerUtilities/ImmutableHashMap.cs
-        DONE https://raw.githubusercontent.com/dotnet/corefx/bd414c68872c4e4c6e8b1a585675a8383b3a9555/src/System.DirectoryServices.AccountManagement/src/System/DirectoryServices/AccountManagement/Utils.cs
-        TBD https://raw.githubusercontent.com/dotnet/iot/93f2bd3f2a4d64528ca97a8da09fe0bfe42d648f/src/devices/Mcp23xxx/Mcp23xxx.cs
-        TBD https://raw.githubusercontent.com/dotnet/wpf/2cbb1ad9759c32dc575c7537057a29ee7da2e1b2/src/Microsoft.DotNet.Wpf/src/System.Xaml/System/Xaml/Schema/Reflector.cs
-        */
     }
 }
