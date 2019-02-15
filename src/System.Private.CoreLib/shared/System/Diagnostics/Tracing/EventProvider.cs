@@ -437,21 +437,21 @@ namespace System.Diagnostics.Tracing
             uint sessionIdBitMask = (uint)SessionMask.FromEventKeywords(unchecked((ulong)matchAllKeywords));
             // an ETW controller that specifies more than the mandated bit for our EventSource
             // will be ignored...
-            if (BitOps.TrailingZeroCount(sessionIdBitMask) > 1)
+            if (BitOps.PopCount(sessionIdBitMask) > 1)
                 return;
 
             if (sessionList == null)
                 sessionList = new List<SessionInfo>(8);
 
-            if (BitOps.TrailingZeroCount(sessionIdBitMask) == 1)
+            if (BitOps.PopCount(sessionIdBitMask) == 1)
             {
                 // activity-tracing-aware etw session
-                sessionList.Add(new SessionInfo(BitOps.PopCount(sessionIdBitMask) + 1, etwSessionId));
+                sessionList.Add(new SessionInfo(BitOps.TrailingZeroCount(sessionIdBitMask) + 1, etwSessionId));
             }
             else
             {
                 // legacy etw session
-                sessionList.Add(new SessionInfo(BitOps.TrailingZeroCount((uint)SessionMask.All) + 1, etwSessionId));
+                sessionList.Add(new SessionInfo(BitOps.PopCount((uint)SessionMask.All) + 1, etwSessionId));
             }
         }
 
