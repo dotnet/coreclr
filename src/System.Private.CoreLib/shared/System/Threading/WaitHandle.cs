@@ -18,6 +18,14 @@ namespace System.Threading
 
         internal SafeWaitHandle _waitHandle;
 
+        internal enum OpenExistingResult
+        {
+            Success,
+            NameNotFound,
+            PathNotFound,
+            NameInvalid
+        }
+
         protected WaitHandle()
         {
         }
