@@ -157,7 +157,7 @@ INT64 AdditionalWait(INT64 sPauseTime, INT64 sTime, INT64 expDuration)
     return additional;
 }
 
-FCIMPL3(INT32, WaitHandleNative::CorWaitOneNative, SafeHandle* safeWaitHandleUNSAFE, INT32 timeout, CLR_BOOL exitContext)
+FCIMPL2(INT32, WaitHandleNative::CorWaitOneNative, SafeHandle* safeWaitHandleUNSAFE, INT32 timeout)
 {
     FCALL_CONTRACT;
 
@@ -201,7 +201,7 @@ FCIMPL3(INT32, WaitHandleNative::CorWaitOneNative, SafeHandle* safeWaitHandleUNS
 }
 FCIMPLEND
 
-FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAFE, INT32 timeout, CLR_BOOL exitContext, CLR_BOOL waitForAll)
+FCIMPL3(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAFE, INT32 timeout, CLR_BOOL waitForAll)
 {
     FCALL_CONTRACT;
 
@@ -266,7 +266,7 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAF
 }
 FCIMPLEND
 
-FCIMPL4(INT32, WaitHandleNative::CorSignalAndWaitOneNative, SafeHandle* safeWaitHandleSignalUNSAFE,SafeHandle* safeWaitHandleWaitUNSAFE, INT32 timeout, CLR_BOOL exitContext)
+FCIMPL3(INT32, WaitHandleNative::CorSignalAndWaitOneNative, SafeHandle* safeWaitHandleSignalUNSAFE,SafeHandle* safeWaitHandleWaitUNSAFE, INT32 timeout)
 {
     FCALL_CONTRACT;
 
