@@ -2909,10 +2909,11 @@ MethodTableBuilder::EnumerateClassMethods()
         }
 
         // Some interface checks.
-        // Ngen wasn't upgraded to deal with default interface methods.
+        // We only need them if default interface method support is disabled or if this is fragile crossgen
+#if !FEATURE_DEFAULT_INTERFACES || FEATURE_NATIVE_IMAGE_GENERATION
         if (fIsClassInterface
-            && IsCompilationProcess()
-#if FEATURE_READYTORUN
+#if FEATURE_DEFAULT_INTERFACES
+            // Only fragile crossgen wasn't upgraded to deal with default interface methods.
             && !IsReadyToRunCompilation()
 #endif
             )
@@ -2926,13 +2927,14 @@ MethodTableBuilder::EnumerateClassMethods()
             }
             else
             {
-                // Instance field/method
+                // Instance method
                 if (!IsMdStatic(dwMemberAttrs))
                 {
                     BuildMethodTableThrowException(BFA_NONVIRT_INST_INT_METHOD);
                 }
             }
         }
+#endif // !FEATURE_DEFAULT_INTERFACES || FEATURE_NATIVE_IMAGE_GENERATION
 
         // No synchronized methods in ValueTypes
         if(fIsClassValueType && IsMiSynchronized(dwImplFlags))
