@@ -63,75 +63,11 @@ usage()
     exit 1
 }
 
-initHostDistroRid()
-{
-    __HostDistroRid=""
-    if [ "$__HostOS" == "Linux" ]; then
-        if [ -e /etc/os-release ]; then
-            source /etc/os-release
-            if [[ $ID == "rhel" ]]; then
-                # remove the last version digit
-                VERSION_ID=${VERSION_ID%.*}
-            fi
-            __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
-            if [[ $ID == "alpine" ]]; then
-                __HostDistroRid="linux-musl-$__HostArch"
-            fi
-        elif [ -e /etc/redhat-release ]; then
-            local redhatRelease=$(</etc/redhat-release)
-            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
-               __HostDistroRid="rhel.6-$__HostArch"
-            fi
-            if [[ $redhatRelease == "CentOS Linux release 7."* ]]; then
-                __HostDistroRid="rhel.7-$__Arch"
-            fi
-        fi
-    fi
-    if [ "$__HostOS" == "FreeBSD" ]; then
-        __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
-        __HostDistroRid="freebsd.$__freebsd_version-$__HostArch"
-    fi
-
-    if [ "$__HostDistroRid" == "" ]; then
-        echo "WARNING: Can not determine runtime id for current distro."
-    fi
-}
-
 initTargetDistroRid()
 {
-    if [ $__CrossBuild == 1 ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
-                if [ -e $ROOTFS_DIR/android_platform ]; then
-                    source $ROOTFS_DIR/android_platform
-                    export __DistroRid="$RID"
-                else
-                    echo "WARNING: Can not determine runtime id for current distro."
-                    export __DistroRid=""
-                fi
-            else
-                source $ROOTFS_DIR/etc/os-release
-                export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
-            fi
-        fi
-    else
-        export __DistroRid="$__HostDistroRid"
-    fi
+    source init_distro_rid.sh
 
-    if [ "$__BuildOS" == "OSX" ]; then
-        __PortableBuild=1
-    fi
-
-    # Portable builds target the base RID
-    if [ $__PortableBuild == 1 ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            export __DistroRid="linux-$__BuildArch"
-        elif [ "$__BuildOS" == "OSX" ]; then
-            export __DistroRid="osx-$__BuildArch"
-        elif [ "$__BuildOS" == "FreeBSD" ]; then
-            export __DistroRid="freebsd-$__BuildArch"
-        fi
-    fi
+    initDistroRidGlobal
 }
 
 setup_dirs()
@@ -413,7 +349,7 @@ isMSBuildOnNETCoreSupported()
             UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64")
             for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
             do
-                if [[ $__HostDistroRid == $UNSUPPORTED_RID ]]; then
+                if [[ ${__DistroRid} == $UNSUPPORTED_RID ]]; then
                     __isMSBuildOnNETCoreSupported=0
                     break
                 fi
@@ -691,7 +627,6 @@ __GccBuild=0
 __GccMajorVersion=0
 __GccMinorVersion=0
 __NuGetPath="$__PackagesDir/NuGet.exe"
-__HostDistroRid=""
 __DistroRid=""
 __cmakeargs=""
 __SkipGenerateVersion=0
@@ -1034,9 +969,6 @@ fi
 # Set dependent variables
 __LogsDir="$__RootBinDir/Logs"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
-
-# init the host distro name
-initHostDistroRid
 
 # Set the remaining variables based upon the determined build configuration
 __BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
