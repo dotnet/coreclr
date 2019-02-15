@@ -810,6 +810,7 @@ void AssertAllocationAllowed()
     // Don't forget to preserve error status!
     DWORD err = GetLastError();
 
+#ifdef ENABLE_CONTRACTS_IMPL
     // We can mark certain
     if (g_DbgSuppressAllocationAsserts == 0)
     {
@@ -831,6 +832,7 @@ void AssertAllocationAllowed()
 
         }
     }
+#endif
     SetLastError(err);
 #endif
 }
