@@ -35,6 +35,8 @@ set "__ProjectFilesDir=%__ProjectDir%"
 set "__RootBinDir=%__ProjectDir%\..\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
+set __ToolsDir=%__ProjectDir%\..\Tools
+set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
 
 set __Sequential=
 set __msbuildExtraArgs=
@@ -415,8 +417,6 @@ REM ============================================================================
 :RunCoreFXTests
 
 set _CoreFXTestHost=%XunitTestBinBase%\testhost
-set __ToolsDir=%__ProjectDir%\..\Tools
-set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
 
 set _RootCoreFXTestPath=%__TestWorkingDir%\CoreFX
 set _CoreFXTestUtilitiesOutputPath=%_RootCoreFXTestPath%\CoreFXTestUtilities
