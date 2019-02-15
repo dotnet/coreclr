@@ -57,7 +57,7 @@ initNonPortableDistroRid()
         if [ -e "${crossBuildLocation}/etc/redhat-release" ]; then
             local redhatRelease=$(<${crossBuildLocation}/etc/redhat-release)
 
-            if [ "$redhatRelease" = "CentOS release 6."* || "$redhatRelease" = "Red Hat Enterprise Linux Server release 6."* ]; then
+            if [[ "${redhatRelease}" == "CentOS release 6."* ]] || [[ "$redhatRelease" == "Red Hat Enterprise Linux Server release 6."* ]]; then
                 nonPortableBuildID="rhel.6-${__BuildArch}"
             fi
 
