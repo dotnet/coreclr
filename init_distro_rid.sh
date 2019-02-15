@@ -26,12 +26,12 @@
 #   |  freeBSD  |        freebsd.(version)-x64      |
 #
 # It is important to note that the function does not return, but it will set
-# __DistroRID if there is a non-portable distro rid to be used.
+# __DistroRid if there is a non-portable distro rid to be used.
 #
 initNonPortableDistroRid()
 {
     # Make sure out parameter is cleared.
-    export __DistroRID=
+    export __DistroRid=
 
     local nonPortableBuildID=""
     local isCrossBuild=0
@@ -62,20 +62,20 @@ initNonPortableDistroRid()
                 VERSION_ID=${VERSION_ID%.*}
             fi
 
-            nonPortableBuildID="$ID.$VERSION_ID-$__Arch"
+            nonPortableBuildID="$ID.$VERSION_ID-${__BuildArch}"
             if [[ $ID == "alpine" ]]; then
-                nonPortableBuildID="linux-musl-$__Arch"
+                nonPortableBuildID="linux-musl-${__BuildArch}"
             fi
 
         elif [ -e "${crossBuildLocation}/etc/redhat-release" ]; then
             local redhatRelease=$(<${crossBuildLocation}/etc/redhat-release)
 
             if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
-                nonPortableBuildID="rhel.6-$__Arch"
+                nonPortableBuildID="rhel.6-${__BuildArch}"
             fi
 
             if [[ $redhatRelease == "CentOS Linux release 7."* ]]; then
-                nonPortableBuildID="rhel.7-$__Arch"
+                nonPortableBuildID="rhel.7-${__BuildArch}"
             fi
 
         elif [ -e $ROOTFS_DIR/android_platform ]; then
@@ -90,7 +90,7 @@ initNonPortableDistroRid()
     fi
 
     if [ "${nonPortableBuildID}" != "" ]; then
-        export __DistroRID=${nonPortableBuildID}
+        export __DistroRid=${nonPortableBuildID}
     fi
 }
 

@@ -76,8 +76,8 @@ while :; do
             exit 1
             ;;
         -BuildArch=*)
-            __Arch=$(echo $1| cut -d'=' -f 2)
-            buildArgs="$buildArgs /p:__BuildArch=$__Arch"
+            __BuildArch=$(echo $1| cut -d'=' -f 2)
+            buildArgs="$buildArgs /p:__BuildArch=$__BuildArch"
             ;;
         -BuildType=*)
             __Type=$(echo $1| cut -d'=' -f 2)
