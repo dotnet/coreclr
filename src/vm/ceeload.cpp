@@ -602,6 +602,11 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
     m_ModuleID = NULL;
     m_ModuleIndex.m_dwIndex = (SIZE_T)-1;
 
+    // These will be initialized in NotifyProfilerLoadFinished, set them to 
+    // a safe initial value now.
+    m_dwTypeCount = 0;
+    m_dwExportedTypeCount = 0;
+
     // Prepare statics that are known at module load time
     AllocateStatics(pamTracker);
 
