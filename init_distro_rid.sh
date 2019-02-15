@@ -53,23 +53,24 @@ initNonPortableDistroRid()
         crossBuildLocation=${ROOTFS_DIR}
     fi
 
-    if [ "$__HostOS" == "Linux" ]; then
+    if [ "$__BuildOS" = "Linux" ]; then
         if [ -e "${crossBuildLocation}/etc/redhat-release" ]; then
             local redhatRelease=$(<${crossBuildLocation}/etc/redhat-release)
 
-            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
+            if [ "$redhatRelease" = "CentOS release 6."* || "$redhatRelease" = "Red Hat Enterprise Linux Server release 6."* ]; then
                 nonPortableBuildID="rhel.6-${__BuildArch}"
             fi
 
         elif [ -e /etc/os-release ]; then
             source "${crossBuildLocation}/etc/os-release"
-            if [[ $ID == "rhel" ]]; then
-                # remove the last version digit
-                VERSION_ID=${VERSION_ID%.*}
+            if [ "${ID}" = "rhel" ]; then
+                # RHEL should have been caught by the /etc/redhat-release
+                echo "Error, please verify that your install of RedHat includes"
+                echo "/etd/redhat-release"
+                exit 1
             fi
 
-            nonPortableBuildID="$ID.$VERSION_ID-${__BuildArch}"
-            if [[ $ID == "alpine" ]]; then
+            if [ "${ID}" = "alpine" ]; then
                 nonPortableBuildID="linux-musl-${__BuildArch}"
             fi
 
@@ -79,7 +80,7 @@ initNonPortableDistroRid()
         fi
     fi
 
-    if [ "$__HostOS" == "FreeBSD" ]; then
+    if [ "$__BuildOS" = "FreeBSD" ]; then
         __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
         nonPortableBuildID="freebsd.$__freebsd_version-$__Arch"
     fi
@@ -150,7 +151,7 @@ initDistroRidGlobal()
     if [ -z "${__DistroRid}" ]; then
         # The non-portable build rid was not set. Set the portable rid.
 
-        if [ "$__BuildOS" == "OSX" ]; then
+        if [ "$__BuildOS" = "OSX" ]; then
             __PortableBuild=1
         fi
 
@@ -162,11 +163,11 @@ initDistroRidGlobal()
 
         local distroRid=""
 
-        if [ "$__BuildOS" == "Linux" ]; then
+        if [ "$__BuildOS" = "Linux" ]; then
             distroRid="linux-$__BuildArch"
-        elif [ "$__BuildOS" == "OSX" ]; then
+        elif [ "$__BuildOS" = "OSX" ]; then
             distroRid="osx-$__BuildArch"
-        elif [ "$__BuildOS" == "FreeBSD" ]; then
+        elif [ "$__BuildOS" = "FreeBSD" ]; then
             distroRid="freebsd-$__BuildArch"
         fi
 
