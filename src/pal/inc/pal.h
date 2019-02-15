@@ -4988,7 +4988,7 @@ PAL_FreeExceptionRecords(
 struct PAL_SEHException
 {
 private:
-    static const SIZE_T NoTargetFrameSp = SIZE_MAX;
+    static const SIZE_T NoTargetFrameSp = (SIZE_T)SIZE_MAX;
 
     void Move(PAL_SEHException& ex)
     {
