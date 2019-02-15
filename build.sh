@@ -65,7 +65,7 @@ usage()
 
 initTargetDistroRid()
 {
-    source init_distro_rid.sh
+    source init-distro-rid.sh
 
     initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${ROOTFS_DIR}
 }
