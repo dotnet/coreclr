@@ -6487,6 +6487,7 @@ using GetTokenForVTableEntry_t = mdToken(STDMETHODCALLTYPE*)(HMODULE module, BYT
 
 HMODULE GetIJWHostModule()
 {
+#ifndef FEATURE_PAL
     static HMODULE ijwHostModule = nullptr;
     if (ijwHostModule == nullptr)
     {
@@ -6494,6 +6495,9 @@ HMODULE GetIJWHostModule()
     }
 
     return ijwHostModule;
+#else
+    return nullptr;
+#endif // FEATURE_PAL
 }
 
 GetTokenForVTableEntry_t GetTokenGetterFromHostModule()
