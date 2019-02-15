@@ -163,7 +163,7 @@ initDistroRidGlobal()
         export __DistroRid=${distroRid}
     fi
 
-    if [ -z "__DistroRid" ]; then
+    if [ -z "$__DistroRid" ]; then
         echo "DistroRid is not set. This is almost certainly an error"
 
         exit 1
