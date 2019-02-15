@@ -169,5 +169,8 @@ initDistroRidGlobal()
         exit 1
     else
         echo "__DistroRid: ${__DistroRid}"
+        echo "__RuntimeId: ${__DistroRid}"
+        
+        export __RuntimeId=${__DistroRid}
     fi
 }
