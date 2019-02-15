@@ -4,7 +4,7 @@ initTargetDistroRid()
 {
     source init_distro_rid.sh
 
-    initDistroRidGlobal
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${ROOTFS_DIR}
 }
 
 isMSBuildOnNETCoreSupported()

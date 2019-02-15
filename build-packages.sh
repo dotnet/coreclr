@@ -14,7 +14,7 @@ initDistroRid()
 {
     source init_distro_rid.sh
 
-    initDistroRidGlobal
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${ROOTFS_DIR}
 }
 
 __ProjectRoot="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

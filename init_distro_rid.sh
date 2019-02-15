@@ -21,7 +21,6 @@
 #   |    OS     |           Expected RID            |
 #   -------------------------------------------------
 #   |   rhel6   |           rhel.6-x64              |
-#   |   rhel7   |           rhel-7-x64              |
 #   |  alpine*  |        linux-musl-(arch)          |
 #   |  freeBSD  |        freebsd.(version)-x64      |
 #
@@ -50,12 +49,19 @@ initNonPortableDistroRid()
         fi
     fi
 
-    if (( isCrossBuild == 1 )); then
+    if (( ${isCrossBuild} == 1 )); then
         crossBuildLocation=${ROOTFS_DIR}
     fi
 
     if [ "$__HostOS" == "Linux" ]; then
-        if [ -e /etc/os-release ]; then
+        if [ -e "${crossBuildLocation}/etc/redhat-release" ]; then
+            local redhatRelease=$(<${crossBuildLocation}/etc/redhat-release)
+
+            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
+                nonPortableBuildID="rhel.6-${__BuildArch}"
+            fi
+
+        elif [ -e /etc/os-release ]; then
             source "${crossBuildLocation}/etc/os-release"
             if [[ $ID == "rhel" ]]; then
                 # remove the last version digit
@@ -65,17 +71,6 @@ initNonPortableDistroRid()
             nonPortableBuildID="$ID.$VERSION_ID-${__BuildArch}"
             if [[ $ID == "alpine" ]]; then
                 nonPortableBuildID="linux-musl-${__BuildArch}"
-            fi
-
-        elif [ -e "${crossBuildLocation}/etc/redhat-release" ]; then
-            local redhatRelease=$(<${crossBuildLocation}/etc/redhat-release)
-
-            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
-                nonPortableBuildID="rhel.6-${__BuildArch}"
-            fi
-
-            if [[ $redhatRelease == "CentOS Linux release 7."* ]]; then
-                nonPortableBuildID="rhel.7-${__BuildArch}"
             fi
 
         elif [ -e $ROOTFS_DIR/android_platform ]; then
@@ -94,6 +89,29 @@ initNonPortableDistroRid()
     fi
 }
 
+
+# initDistroRidGlobal
+#
+# Input:
+#   os (str)
+#   arch (str)
+#   ROOTFS_DIR? (nullable vararg:string)
+#
+# Return:
+#   None
+#
+# Notes:
+#
+# The following global state is modified:
+#
+#   __BuildOS
+#   __BuildArch
+#   ROOTFS_DIR
+#
+# The following out parameters are returned
+#
+#   __DistroRid
+#
 initDistroRidGlobal()
 {
     # __DistroRid must be set at the end of the function.
@@ -103,7 +121,10 @@ initDistroRidGlobal()
     # deprecated. Now only __DistroRid is supported. It will be used for both
     # portable and non-portable rids and will be used in build-packages.sh
 
-    
+    export __BuildOS=$1
+    export __BuildArch=$2
+    export ROOTFS_DIR=$3
+
     # Setup whether this is a crossbuild. We can find this out if ROOTFS_DIR
     # is set. 
     local isCrossBuild=0
@@ -120,7 +141,7 @@ initDistroRidGlobal()
         fi
     fi
 
-    if (( isCrossBuild == 1 )); then
+    if (( ${isCrossBuild} == 1 )); then
         initNonPortableDistroRid isCrossBuild
     else
         initNonPortableDistroRid
