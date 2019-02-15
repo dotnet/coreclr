@@ -42,11 +42,6 @@ initNonPortableDistroRid()
         isCrossBuild=0
     else
         isCrossBuild=$1
-
-        if (( isCrossBuild != 1)) && (( isCrossBuild != 0 )); then
-            echo "Type error with argument passed to initNonPortableDistroRid."
-            exit 1
-        fi
     fi
 
     if (( ${isCrossBuild} == 1 )); then
@@ -87,6 +82,7 @@ initNonPortableDistroRid()
 
     if [ "${nonPortableBuildID}" != "" ]; then
         export __DistroRid=${nonPortableBuildID}
+        export __PortableBuild=0
     fi
 }
 
@@ -112,6 +108,7 @@ initNonPortableDistroRid()
 # The following out parameters are returned
 #
 #   __DistroRid
+#   __PortableBuild
 #
 initDistroRidGlobal()
 {
@@ -143,7 +140,7 @@ initDistroRidGlobal()
     fi
 
     if (( ${isCrossBuild} == 1 )); then
-        initNonPortableDistroRid isCrossBuild
+        initNonPortableDistroRid ${isCrossBuild}
     else
         initNonPortableDistroRid
     fi
@@ -151,15 +148,7 @@ initDistroRidGlobal()
     if [ -z "${__DistroRid}" ]; then
         # The non-portable build rid was not set. Set the portable rid.
 
-        if [ "$__BuildOS" = "OSX" ]; then
-            __PortableBuild=1
-        fi
-
-        if (( ${__PortableBuild} != 1 )); then
-            echo "Portable build has not been set; however, there was no valid"
-            echo "non-portable build RID found."
-            exit 1
-        fi
+        export __PortableBuild=1
 
         local distroRid=""
 
