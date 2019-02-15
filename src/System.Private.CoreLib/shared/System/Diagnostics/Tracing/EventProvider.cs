@@ -437,21 +437,21 @@ namespace System.Diagnostics.Tracing
             uint sessionIdBitMask = (uint)SessionMask.FromEventKeywords(unchecked((ulong)matchAllKeywords));
             // an ETW controller that specifies more than the mandated bit for our EventSource
             // will be ignored...
-            if (bitcount(sessionIdBitMask) > 1)
+            if (BitOps.TrailingZeroCount(sessionIdBitMask) > 1)
                 return;
 
             if (sessionList == null)
                 sessionList = new List<SessionInfo>(8);
 
-            if (bitcount(sessionIdBitMask) == 1)
+            if (BitOps.TrailingZeroCount(sessionIdBitMask) == 1)
             {
                 // activity-tracing-aware etw session
-                sessionList.Add(new SessionInfo(bitindex(sessionIdBitMask) + 1, etwSessionId));
+                sessionList.Add(new SessionInfo(BitOps.PopCount(sessionIdBitMask) + 1, etwSessionId));
             }
             else
             {
                 // legacy etw session
-                sessionList.Add(new SessionInfo(bitcount((uint)SessionMask.All) + 1, etwSessionId));
+                sessionList.Add(new SessionInfo(BitOps.TrailingZeroCount((uint)SessionMask.All) + 1, etwSessionId));
             }
         }
 
@@ -1232,23 +1232,6 @@ namespace System.Diagnostics.Tracing
         private uint EventUnregister(long registrationHandle)
         {
             return m_eventProvider.EventUnregister(registrationHandle);
-        }
-
-        static int[] nibblebits = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
-        private static int bitcount(uint n)
-        {
-            int count = 0;
-            for (; n != 0; n = n >> 4)
-                count += nibblebits[n & 0x0f];
-            return count;
-        }
-        private static int bitindex(uint n)
-        {
-            Debug.Assert(bitcount(n) == 1);
-            int idx = 0;
-            while ((n & (1 << idx)) == 0)
-                idx++;
-            return idx;
         }
     }
 

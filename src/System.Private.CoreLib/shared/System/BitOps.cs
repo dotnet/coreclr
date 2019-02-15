@@ -6,7 +6,10 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 
+#if CORECLR
+// Downstream will use System.Runtime.CompilerServices
 using Internal.Runtime.CompilerServices;
+#endif
 
 // Some routines inspired by the Stanford Bit Twiddling Hacks by Sean Eron Anderson:
 // http://graphics.stanford.edu/~seander/bithacks.html
