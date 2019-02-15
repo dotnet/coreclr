@@ -29,9 +29,7 @@ namespace System.Globalization
         {
             CheckTicksRange(time.Ticks);
 
-            int year = 0, month = 0, day = 0;
-            TimeToLunar(time, ref year, ref month, ref day);
-
+            TimeToLunar(time, out int year, out int month, out int day);
             return ((year - 4) % 60) + 1;
         }
 
@@ -42,8 +40,9 @@ namespace System.Globalization
             if (sexagenaryYear < 1 || sexagenaryYear > 60)
             {
                 throw new ArgumentOutOfRangeException(
-                                nameof(sexagenaryYear),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 1, 60));
+                    nameof(sexagenaryYear),
+                    sexagenaryYear,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, 60));
             }
 
             return ((sexagenaryYear - 1) % 10) + 1;
@@ -55,7 +54,10 @@ namespace System.Globalization
         {
             if (sexagenaryYear < 1 || sexagenaryYear > 60)
             {
-                throw new ArgumentOutOfRangeException( nameof(sexagenaryYear), SR.Format(SR.ArgumentOutOfRange_Range, 1, 60));
+                throw new ArgumentOutOfRangeException(
+                    nameof(sexagenaryYear),
+                    sexagenaryYear,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, 60));
             }
 
             return ((sexagenaryYear - 1) % 12) + 1;
@@ -101,7 +103,7 @@ namespace System.Globalization
                 }
             }
 
-            throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+            throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
         internal int MaxEraCalendarYear(int era)
@@ -130,7 +132,7 @@ namespace System.Globalization
                 }
             }
 
-            throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+            throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
         internal EastAsianLunisolarCalendar()
@@ -143,6 +145,7 @@ namespace System.Globalization
             {
                 throw new ArgumentOutOfRangeException(
                                 "time",
+                                ticks,
                                 string.Format(CultureInfo.InvariantCulture, SR.ArgumentOutOfRange_CalendarRange,
                                 MinSupportedDateTime, MaxSupportedDateTime));
             }
@@ -157,7 +160,7 @@ namespace System.Globalization
 
             if (era < GetEra(MinDate) || era > GetEra(MaxDate))
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
         }
 
@@ -166,11 +169,12 @@ namespace System.Globalization
             CheckEraRange(era);
             year = GetGregorianYear(year, era);
 
-            if ((year < MinCalendarYear) || (year > MaxCalendarYear))
+            if (year < MinCalendarYear || year > MaxCalendarYear)
             {
                 throw new ArgumentOutOfRangeException(
-                                nameof(year),
-                                SR.Format(SR.ArgumentOutOfRange_Range, MinEraCalendarYear(era), MaxEraCalendarYear(era)));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, MinEraCalendarYear(era), MaxEraCalendarYear(era)));
             }
             return year;
         }
@@ -184,13 +188,13 @@ namespace System.Globalization
                 // Reject if there is no leap month this year
                 if (GetYearInfo(year, LeapMonth) == 0)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
+                    throw new ArgumentOutOfRangeException(nameof(month), month, SR.ArgumentOutOfRange_Month);
                 }
             }
 
             if (month < 1 || month > 13)
             {
-                throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
+                throw new ArgumentOutOfRangeException(nameof(month), month, SR.ArgumentOutOfRange_Month);
             }
 
             return year;
@@ -240,15 +244,12 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(day),
-                            SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
+                    nameof(day),
+                    day,
+                    SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
             }
 
-            int gy = 0;
-            int gm = 0;
-            int gd = 0;
-
-            if (!LunarToGregorian(year, month, day, ref gy, ref gm, ref gd))
+            if (!LunarToGregorian(year, month, day, out int gy, out int gm, out int gd))
             {
                 throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_BadYearMonthDay);
             }
@@ -256,48 +257,50 @@ namespace System.Globalization
             return new DateTime(gy, gm, gd, hour, minute, second, millisecond);
         }
 
-        // GregorianToLunar calculates lunar calendar info for the given gregorian year, month, date.
-        // The input date should be validated before calling this method.
-        internal void GregorianToLunar(int nSYear, int nSMonth, int nSDate, ref int nLYear, ref int nLMonth, ref int nLDate)
+        /// <summary>
+        /// Calculates lunar calendar info for the given gregorian year, month, date.
+        /// The input date should be validated before calling this method.
+        /// </summary>
+        private void GregorianToLunar(int solarYear, int solarMonth, int solarDate, out int lunarYear, out int lunarMonth, out int lunarDate)
         {
-            bool isLeapYear = GregorianIsLeapYear(nSYear);
-            int nJan1Month;
-            int nJan1Date;
+            bool isLeapYear = GregorianIsLeapYear(solarYear);
+            int jan1Month;
+            int jan1Date;
 
             // Calculate the day number in the solar year.
-            int nSolarDay = isLeapYear ? DaysToMonth366[nSMonth - 1] : DaysToMonth365[nSMonth - 1];
-            nSolarDay += nSDate;
+            int solarDay = isLeapYear ? DaysToMonth366[solarMonth - 1] : DaysToMonth365[solarMonth - 1];
+            solarDay += solarDate;
 
             // Calculate the day number in the lunar year.
-            int nLunarDay = nSolarDay;
-            nLYear = nSYear;
-            if (nLYear == (MaxCalendarYear + 1))
+            int lunarDay = solarDay;
+            lunarYear = solarYear;
+            if (lunarYear == (MaxCalendarYear + 1))
             {
-                nLYear--;
-                nLunarDay += (GregorianIsLeapYear(nLYear) ? 366 : 365);
-                nJan1Month = GetYearInfo(nLYear, Jan1Month);
-                nJan1Date = GetYearInfo(nLYear, Jan1Date);
+                lunarYear--;
+                lunarDay += (GregorianIsLeapYear(lunarYear) ? 366 : 365);
+                jan1Month = GetYearInfo(lunarYear, Jan1Month);
+                jan1Date = GetYearInfo(lunarYear, Jan1Date);
             }
             else
             {
-                nJan1Month = GetYearInfo(nLYear, Jan1Month);
-                nJan1Date = GetYearInfo(nLYear, Jan1Date);
+                jan1Month = GetYearInfo(lunarYear, Jan1Month);
+                jan1Date = GetYearInfo(lunarYear, Jan1Date);
 
                 // check if this solar date is actually part of the previous
                 // lunar year
-                if ((nSMonth < nJan1Month) ||
-                    (nSMonth == nJan1Month && nSDate < nJan1Date))
+                if ((solarMonth < jan1Month) ||
+                    (solarMonth == jan1Month && solarDate < jan1Date))
                 {
                     // the corresponding lunar day is actually part of the previous
                     // lunar year
-                    nLYear--;
+                    lunarYear--;
 
                     // add a solar year to the lunar day #
-                    nLunarDay += (GregorianIsLeapYear(nLYear) ? 366 : 365);
+                    lunarDay += (GregorianIsLeapYear(lunarYear) ? 366 : 365);
 
                     // update the new start of year
-                    nJan1Month = GetYearInfo(nLYear, Jan1Month);
-                    nJan1Date = GetYearInfo(nLYear, Jan1Date);
+                    jan1Month = GetYearInfo(lunarYear, Jan1Month);
+                    jan1Date = GetYearInfo(lunarYear, Jan1Date);
                 }
             }
 
@@ -306,118 +309,125 @@ namespace System.Globalization
             // part of the lunar year.  since this part is always in Jan or Feb,
             // we don't need to handle Leap Year (LY only affects March
             // and later).
-            nLunarDay -= DaysToMonth365[nJan1Month - 1];
-            nLunarDay -= (nJan1Date - 1);
+            lunarDay -= DaysToMonth365[jan1Month - 1];
+            lunarDay -= (jan1Date - 1);
 
             // convert the lunar day into a lunar month/date
             int mask = 0x8000;
-            int LDpM = GetYearInfo(nLYear, nDaysPerMonth);
-            int nDays = ((LDpM & mask) != 0) ? 30 : 29;
-            nLMonth = 1;
-            while (nLunarDay > nDays)
+            int yearInfo = GetYearInfo(lunarYear, nDaysPerMonth);
+            int days = ((yearInfo & mask) != 0) ? 30 : 29;
+            lunarMonth = 1;
+            while (lunarDay > days)
             {
-                nLunarDay -= nDays;
-                nLMonth++;
+                lunarDay -= days;
+                lunarMonth++;
                 mask >>= 1;
-                nDays = ((LDpM & mask) != 0) ? 30 : 29;
+                days = ((yearInfo & mask) != 0) ? 30 : 29;
             }
-            nLDate = nLunarDay;
+            lunarDate = lunarDay;
         }
 
-        // Convert from Lunar to Gregorian
-        // Highly inefficient, but it works based on the forward conversion
-        internal bool LunarToGregorian(int nLYear, int nLMonth, int nLDate, ref int nSolarYear, ref int nSolarMonth, ref int nSolarDay)
+        /// <summary>
+        /// Convert from Lunar to Gregorian
+        /// </summary>
+        /// <remarks>
+        /// Highly inefficient, but it works based on the forward conversion
+        /// </remarks>
+        private bool LunarToGregorian(int lunarYear, int lunarMonth, int lunarDate, out int solarYear, out int solarMonth, out int solarDay)
         {
-            if (nLDate < 1 || nLDate > 30)
+            if (lunarDate < 1 || lunarDate > 30)
             {
+                solarYear = 0;
+                solarMonth = 0;
+                solarDay = 0;
                 return false;
             }
 
-            int numLunarDays = nLDate - 1;
+            int numLunarDays = lunarDate - 1;
 
-            //Add previous months days to form the total num of days from the first of the month.
-            for (int i = 1; i < nLMonth; i++)
+            // Add previous months days to form the total num of days from the first of the month.
+            for (int i = 1; i < lunarMonth; i++)
             {
-                numLunarDays += InternalGetDaysInMonth(nLYear, i);
+                numLunarDays += InternalGetDaysInMonth(lunarYear, i);
             }
 
-            //Get Gregorian First of year
-            int nJan1Month = GetYearInfo(nLYear, Jan1Month);
-            int nJan1Date = GetYearInfo(nLYear, Jan1Date);
+            // Get Gregorian First of year
+            int jan1Month = GetYearInfo(lunarYear, Jan1Month);
+            int jan1Date = GetYearInfo(lunarYear, Jan1Date);
 
             // calc the solar day of year of 1 Lunar day
-            bool isLeapYear = GregorianIsLeapYear(nLYear);
+            bool isLeapYear = GregorianIsLeapYear(lunarYear);
             int[] days = isLeapYear ? DaysToMonth366 : DaysToMonth365;
 
-            nSolarDay = nJan1Date;
+            solarDay = jan1Date;
 
-            if (nJan1Month > 1)
+            if (jan1Month > 1)
             {
-                nSolarDay += days[nJan1Month - 1];
+                solarDay += days[jan1Month - 1];
             }
 
             // Add the actual lunar day to get the solar day we want
-            nSolarDay = nSolarDay + numLunarDays;
+            solarDay = solarDay + numLunarDays;
 
-            if (nSolarDay > (365 + (isLeapYear ? 1 : 0)))
+            if (solarDay > (365 + (isLeapYear ? 1 : 0)))
             {
-                nSolarYear = nLYear + 1;
-                nSolarDay -= (365 + (isLeapYear ? 1 : 0));
+                solarYear = lunarYear + 1;
+                solarDay -= (365 + (isLeapYear ? 1 : 0));
             }
             else
             {
-                nSolarYear = nLYear;
+                solarYear = lunarYear;
             }
 
-            for (nSolarMonth = 1; nSolarMonth < 12; nSolarMonth++)
+            for (solarMonth = 1; solarMonth < 12; solarMonth++)
             {
-                if (days[nSolarMonth] >= nSolarDay)
+                if (days[solarMonth] >= solarDay)
                 {
                     break;
                 }
             }
 
-            nSolarDay -= days[nSolarMonth - 1];
+            solarDay -= days[solarMonth - 1];
             return true;
         }
 
-        internal DateTime LunarToTime(DateTime time, int year, int month, int day)
+        private DateTime LunarToTime(DateTime time, int year, int month, int day)
         {
-            int gy = 0; int gm = 0; int gd = 0;
-            LunarToGregorian(year, month, day, ref gy, ref gm, ref gd);
+            LunarToGregorian(year, month, day, out int gy, out int gm, out int gd);
             return GregorianCalendar.GetDefaultInstance().ToDateTime(gy, gm, gd, time.Hour, time.Minute, time.Second, time.Millisecond);
         }
 
-        internal void TimeToLunar(DateTime time, ref int year, ref int month, ref int day)
+        private void TimeToLunar(DateTime time, out int year, out int month, out int day)
         {
-            Calendar Greg = GregorianCalendar.GetDefaultInstance();
-            int gy = Greg.GetYear(time);
-            int gm = Greg.GetMonth(time);
-            int gd = Greg.GetDayOfMonth(time);
+            Calendar gregorianCalendar = GregorianCalendar.GetDefaultInstance();
+            int gy = gregorianCalendar.GetYear(time);
+            int gm = gregorianCalendar.GetMonth(time);
+            int gd = gregorianCalendar.GetDayOfMonth(time);
 
-            GregorianToLunar(gy, gm, gd, ref year, ref month, ref day);
+            GregorianToLunar(gy, gm, gd, out year, out month, out day);
         }
 
-        // Returns the DateTime resulting from adding the given number of
-        // months to the specified DateTime. The result is computed by incrementing
-        // (or decrementing) the year and month parts of the specified DateTime by
-        // value months, and, if required, adjusting the day part of the
-        // resulting date downwards to the last day of the resulting month in the
-        // resulting year. The time-of-day part of the result is the same as the
-        // time-of-day part of the specified DateTime.
+        /// <summary>
+        /// Returns the DateTime resulting from adding the given number of
+        /// months to the specified DateTime. The result is computed by incrementing
+        /// (or decrementing) the year and month parts of the specified DateTime by
+        /// value months, and, if required, adjusting the day part of the
+        /// resulting date downwards to the last day of the resulting month in the
+        /// resulting year. The time-of-day part of the result is the same as the
+        /// time-of-day part of the specified DateTime.
+        /// </summary>
         public override DateTime AddMonths(DateTime time, int months)
         {
             if (months < -120000 || months > 120000)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(months),
-                            SR.Format(SR.ArgumentOutOfRange_Range, -120000, 120000));
+                    nameof(months),
+                    months,
+                    SR.Format(SR.ArgumentOutOfRange_Range, -120000, 120000));
             }
 
             CheckTicksRange(time.Ticks);
-
-            int y = 0; int m = 0; int d = 0;
-            TimeToLunar(time, ref y, ref m, ref d);
+            TimeToLunar(time, out int y, out int m, out int d);
 
             int i = m + months;
             if (i > 0)
@@ -458,11 +468,7 @@ namespace System.Globalization
         public override DateTime AddYears(DateTime time, int years)
         {
             CheckTicksRange(time.Ticks);
-
-            int y = 0;
-            int m = 0;
-            int d = 0;
-            TimeToLunar(time, ref y, ref m, ref d);
+            TimeToLunar(time, out int y, out int m, out int d);
 
             y += years;
 
@@ -482,16 +488,14 @@ namespace System.Globalization
             return dt;
         }
 
-        // Returns the day-of-year part of the specified DateTime. The returned value
-        // is an integer between 1 and [354|355 |383|384].
+        /// <summary>
+        /// Returns the day-of-year part of the specified DateTime. The returned value
+        /// is an integer between 1 and [354|355 |383|384].
+        /// </summary>
         public override int GetDayOfYear(DateTime time)
         {
             CheckTicksRange(time.Ticks);
-
-            int y = 0;
-            int m = 0;
-            int d = 0;
-            TimeToLunar(time, ref y, ref m, ref d);
+            TimeToLunar(time, out int y, out int m, out int d);
 
             for (int i = 1; i < m; i++)
             {
@@ -500,21 +504,21 @@ namespace System.Globalization
             return d;
         }
 
-        // Returns the day-of-month part of the specified DateTime. The returned
-        // value is an integer between 1 and 29 or 30.
+        /// <summary>
+        /// Returns the day-of-month part of the specified DateTime. The returned
+        /// value is an integer between 1 and 29 or 30.
+        /// </summary>
         public override int GetDayOfMonth(DateTime time)
         {
             CheckTicksRange(time.Ticks);
-
-            int y = 0;
-            int m = 0;
-            int d = 0;
-            TimeToLunar(time, ref y, ref m, ref d);
+            TimeToLunar(time, out int y, out int m, out int d);
 
             return d;
         }
 
-        // Returns the number of days in the year given by the year argument for the current era.
+        /// <summary>
+        /// Returns the number of days in the year given by the year argument for the current era.
+        /// </summary>
         public override int GetDaysInYear(int year, int era)
         {
             year = CheckYearRange(year, era);
@@ -530,53 +534,55 @@ namespace System.Globalization
             return days;
         }
 
-        // Returns the month part of the specified DateTime. The returned value is an
-        // integer between 1 and 13.
+        /// <summary>
+        /// Returns the month part of the specified DateTime.
+        /// The returned value is an integer between 1 and 13.
+        /// </summary>
         public override int GetMonth(DateTime time)
         {
             CheckTicksRange(time.Ticks);
-
-            int y = 0;
-            int m = 0;
-            int d = 0;
-            TimeToLunar(time, ref y, ref m, ref d);
+            TimeToLunar(time, out int y, out int m, out int d);
 
             return m;
         }
 
-        // Returns the year part of the specified DateTime. The returned value is an
-        // integer between 1 and MaxCalendarYear.
+        /// <summary>
+        /// Returns the year part of the specified DateTime.
+        /// The returned value is an integer between 1 and MaxCalendarYear.
+        /// </summary>
         public override int GetYear(DateTime time)
         {
             CheckTicksRange(time.Ticks);
-
-            int y = 0;
-            int m = 0;
-            int d = 0;
-            TimeToLunar(time, ref y, ref m, ref d);
+            TimeToLunar(time, out int y, out int m, out int d);
 
             return GetYear(y, time);
         }
 
-        // Returns the day-of-week part of the specified DateTime. The returned value
-        // is an integer between 0 and 6, where 0 indicates Sunday, 1 indicates
-        // Monday, 2 indicates Tuesday, 3 indicates Wednesday, 4 indicates
-        // Thursday, 5 indicates Friday, and 6 indicates Saturday.
+        /// <summary>
+        /// Returns the day-of-week part of the specified DateTime. The returned value
+        /// is an integer between 0 and 6, where 0 indicates Sunday, 1 indicates
+        /// Monday, 2 indicates Tuesday, 3 indicates Wednesday, 4 indicates
+        /// Thursday, 5 indicates Friday, and 6 indicates Saturday.
+        /// </summary>
         public override DayOfWeek GetDayOfWeek(DateTime time)
         {
             CheckTicksRange(time.Ticks);
             return (DayOfWeek)((int)(time.Ticks / Calendar.TicksPerDay + 1) % 7);
         }
 
-        // Returns the number of months in the specified year and era.
+        /// <summary>
+        /// Returns the number of months in the specified year and era.
+        /// </summary>
         public override int GetMonthsInYear(int year, int era)
         {
             year = CheckYearRange(year, era);
             return InternalIsLeapYear(year) ? 13 : 12;
         }
 
-        // Checks whether a given day in the specified era is a leap day. This method returns true if
-        // the date is a leap day, or false if not.
+        /// <summary>
+        /// Checks whether a given day in the specified era is a leap day.
+        /// This method returns true if the date is a leap day, or false if not.
+        /// </summary>
         public override bool IsLeapDay(int year, int month, int day, int era)
         {
             year = CheckYearMonthRange(year, month, era);
@@ -585,16 +591,19 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(day),
-                            SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
+                    nameof(day),
+                    day,
+                    SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
             }
 
             int m = GetYearInfo(year, LeapMonth);
             return (m != 0) && (month == (m + 1));
         }
 
-        // Checks whether a given month in the specified era is a leap month. This method returns true if
-        // month is a leap month, or false if not.
+        /// <summary>
+        /// Checks whether a given month in the specified era is a leap month.
+        /// This method returns true if month is a leap month, or false if not.
+        /// </summary>
         public override bool IsLeapMonth(int year, int month, int era)
         {
             year = CheckYearMonthRange(year, month, era);
@@ -602,8 +611,10 @@ namespace System.Globalization
             return (m != 0) && (month == (m + 1));
         }
 
-        // Returns  the leap month in a calendar year of the specified era. This method returns 0
-        // if this this year is not a leap year.
+        /// <summary>
+        /// Returns  the leap month in a calendar year of the specified era. This method returns 0
+        /// if this this year is not a leap year.
+        /// </summary>
         public override int GetLeapMonth(int year, int era)
         {
             year = CheckYearRange(year, era);
@@ -616,8 +627,10 @@ namespace System.Globalization
             return GetYearInfo(year, LeapMonth) != 0;
         }
 
-        // Checks whether a given year in the specified era is a leap year. This method returns true if
-        // year is a leap year, or false if not.
+        /// <summary>
+        /// Checks whether a given year in the specified era is a leap year.
+        /// This method returns true if year is a leap year, or false if not.
+        /// </summary>
         public override bool IsLeapYear(int year, int era)
         {
             year = CheckYearRange(year, era);
@@ -625,7 +638,6 @@ namespace System.Globalization
         }
 
         private const int DefaultGregorianTwoDigitYearMax = 2029;
-
 
         public override int TwoDigitYearMax
         {
@@ -644,8 +656,9 @@ namespace System.Globalization
                 if (value < 99 || value > MaxCalendarYear)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 99, MaxCalendarYear));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 99, MaxCalendarYear));
                 }
 
                 _twoDigitYearMax = value;
@@ -656,7 +669,9 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(year),
+                throw new ArgumentOutOfRangeException(
+                    nameof(year),
+                    year,
                     SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 

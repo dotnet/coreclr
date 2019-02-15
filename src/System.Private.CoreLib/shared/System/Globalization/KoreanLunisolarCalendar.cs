@@ -2,16 +2,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 namespace System.Globalization
 {
-    /// <summary>
+    /// <remarks>
     /// Calendar support range:
     ///     Calendar           Minimum     Maximum
     ///     ==========         ==========  ==========
     ///     Gregorian          918/02/19   2051/02/10
     ///     KoreanLunisolar    918/01/01   2050/13/29
-    /// </summary>
+    /// </remarks>
     public class KoreanLunisolarCalendar : EastAsianLunisolarCalendar
     {
         public const int GregorianEra = 1;
@@ -19,8 +18,8 @@ namespace System.Globalization
         private const int MinLunisolarYear = 918;
         private const int MaxLunisolarYear = 2050;
 
-        private static DateTime s_minDate = new DateTime(918, 2, 19);
-        private static DateTime s_maxDate = new DateTime((new DateTime(2051, 2, 10, 23, 59, 59, 999)).Ticks + 9999);
+        private static readonly DateTime s_minDate = new DateTime(918, 2, 19);
+        private static readonly DateTime s_maxDate = new DateTime((new DateTime(2051, 2, 10, 23, 59, 59, 999)).Ticks + 9999);
 
         public override DateTime MinSupportedDateTime => s_minDate;
 
@@ -1192,8 +1191,9 @@ namespace System.Globalization
             if (lunarYear < MinLunisolarYear || lunarYear > MaxLunisolarYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            "year",
-                            SR.Format(SR.ArgumentOutOfRange_Range, MinLunisolarYear, MaxLunisolarYear));
+                    "year",
+                    lunarYear,
+                    SR.Format(SR.ArgumentOutOfRange_Range, MinLunisolarYear, MaxLunisolarYear));
             }
 
             return s_yinfo[lunarYear - MinLunisolarYear, index];
@@ -1208,15 +1208,14 @@ namespace System.Globalization
         {
             if (era != CurrentEra && era != GregorianEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
             if (year < MinLunisolarYear || year > MaxLunisolarYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            string.Format(
-                                CultureInfo.CurrentCulture,
-                                SR.ArgumentOutOfRange_Range, MinLunisolarYear, MaxLunisolarYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, MinLunisolarYear, MaxLunisolarYear));
             }
 
             return year;

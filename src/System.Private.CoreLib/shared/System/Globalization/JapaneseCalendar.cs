@@ -23,17 +23,17 @@ namespace System.Globalization
     ///  The DateTime can be represented by the JapaneseCalendar are limited to two factors:
     ///      1. The min value and max value of DateTime class.
     ///      2. The available era information.
-    ///
-    ///  Calendar support range:
-    ///      Calendar    Minimum     Maximum
-    ///      ==========  ==========  ==========
-    ///      Gregorian   1868/09/08  9999/12/31
-    ///      Japanese    Meiji 01/01 Heisei 8011/12/31
     /// </summary>
+    /// <remarks>
+    /// Calendar support range:
+    ///     Calendar    Minimum     Maximum
+    ///     ==========  ==========  ==========
+    ///     Gregorian   1868/09/08  9999/12/31
+    ///     Japanese    Meiji 01/01 Heisei 8011/12/31
+    /// </remarks>
     public partial class JapaneseCalendar : Calendar
     {
         private static readonly DateTime s_calendarMinValue = new DateTime(1868, 9, 8);
-
 
         public override DateTime MinSupportedDateTime => s_calendarMinValue;
 
@@ -43,7 +43,7 @@ namespace System.Globalization
 
         // Using a field initializer rather than a static constructor so that the whole class can be lazy
         // init.
-        internal static volatile EraInfo[] s_japaneseEraInfo;
+        private static volatile EraInfo[] s_japaneseEraInfo;
 
         // m_EraInfo must be listed in reverse chronological order.  The most recent era
         // should be the first element.
@@ -206,13 +206,14 @@ namespace System.Globalization
         {
             if (year <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_NeedPosNum);
+                throw new ArgumentOutOfRangeException(nameof(year), year, SR.ArgumentOutOfRange_NeedPosNum);
             }
             if (year > _helper.MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, _helper.MaxYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, _helper.MaxYear));
             }
 
             return year;
@@ -291,8 +292,9 @@ namespace System.Globalization
                 if (value < 99 || value > _helper.MaxYear)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 99, _helper.MaxYear));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 99, _helper.MaxYear));
                 }
 
                 _twoDigitYearMax = value;

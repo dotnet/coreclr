@@ -10,18 +10,19 @@ namespace System.Globalization
     /// Modern Persian calendar is a solar observation based calendar. Each new year begins on the day when the vernal equinox occurs before noon.
     /// The epoch is the date of the vernal equinox prior to the epoch of the Islamic calendar (March 19, 622 Julian or March 22, 622 Gregorian)
     /// There is no Persian year 0. Ordinary years have 365 days. Leap years have 366 days with the last month (Esfand) gaining the extra day.
-    ///
+    /// </summary>
+    /// <remarks>
     ///  Calendar support range:
     ///      Calendar    Minimum     Maximum
     ///      ==========  ==========  ==========
     ///      Gregorian   0622/03/22   9999/12/31
     ///      Persian     0001/01/01   9378/10/13
-    /// </summary>
+    /// </remarks>
     public class PersianCalendar : Calendar
     {
         public static readonly int PersianEra = 1;
 
-        private static long s_persianEpoch = new DateTime(622, 3, 22).Ticks / GregorianCalendar.TicksPerDay;
+        private static readonly long s_persianEpoch = new DateTime(622, 3, 22).Ticks / GregorianCalendar.TicksPerDay;
         private const int ApproximateHalfYear = 180;
 
         private const int DatePartYear = 0;
@@ -30,7 +31,7 @@ namespace System.Globalization
         private const int DatePartDay = 3;
         private const int MonthsPerYear = 12;
 
-        private static int[] s_daysToMonth = { 0, 31, 62, 93, 124, 155, 186, 216, 246, 276, 306, 336, 366 };
+        private static readonly int[] s_daysToMonth = { 0, 31, 62, 93, 124, 155, 186, 216, 246, 276, 306, 336, 366 };
 
         private const int MaxCalendarYear = 9378;
         private const int MaxCalendarMonth = 10;
@@ -38,8 +39,8 @@ namespace System.Globalization
 
         // Persian calendar (year: 1, month: 1, day:1 ) = Gregorian (year: 622, month: 3, day: 22)
         // This is the minimal Gregorian date that we support in the PersianCalendar.
-        private static DateTime s_minDate = new DateTime(622, 3, 22);
-        private static DateTime s_maxDate = DateTime.MaxValue;
+        private static readonly DateTime s_minDate = new DateTime(622, 3, 22);
+        private static readonly DateTime s_maxDate = DateTime.MaxValue;
 
         public override DateTime MinSupportedDateTime => s_minDate;
 
@@ -75,8 +76,9 @@ namespace System.Globalization
             if (ticks < s_minDate.Ticks || ticks > s_maxDate.Ticks)
             {
                 throw new ArgumentOutOfRangeException(
-                            "time",
-                            SR.Format(SR.ArgumentOutOfRange_CalendarRange, s_minDate, s_maxDate));
+                    "time",
+                    ticks,
+                    SR.Format(SR.ArgumentOutOfRange_CalendarRange, s_minDate, s_maxDate));
             }
         }
 
@@ -84,7 +86,7 @@ namespace System.Globalization
         {
             if (era != CurrentEra && era != PersianEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
         }
 
@@ -94,8 +96,9 @@ namespace System.Globalization
             if (year < 1 || year > MaxCalendarYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxCalendarYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxCalendarYear));
             }
         }
 
@@ -107,14 +110,15 @@ namespace System.Globalization
                 if (month > MaxCalendarMonth)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(month),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxCalendarMonth));
+                        nameof(month),
+                        month,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxCalendarMonth));
                 }
             }
 
             if (month < 1 || month > 12)
             {
-                throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
+                throw new ArgumentOutOfRangeException(nameof(month), month, SR.ArgumentOutOfRange_Month);
             }
         }
 
@@ -190,8 +194,9 @@ namespace System.Globalization
             if (months < -120000 || months > 120000)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(months),
-                            SR.Format(SR.ArgumentOutOfRange_Range, -120000, 120000));
+                    nameof(months),
+                    months,
+                    SR.Format(SR.ArgumentOutOfRange_Range, -120000, 120000));
             }
 
             // Get the date in Persian calendar.
@@ -306,8 +311,9 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(day),
-                            SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
+                    nameof(day),
+                    day,
+                    SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
             }
 
             return IsLeapYear(year, era) && month == 12 && day == 30;
@@ -344,8 +350,9 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(day),
-                            SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
+                    nameof(day),
+                    day,
+                    SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
             }
 
             long lDate = GetAbsoluteDatePersian(year, month, day);
@@ -377,12 +384,9 @@ namespace System.Globalization
                 if (value < 99 || value > MaxCalendarYear)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                string.Format(
-                                    CultureInfo.CurrentCulture,
-                                    SR.ArgumentOutOfRange_Range,
-                                    99,
-                                    MaxCalendarYear));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 99, MaxCalendarYear));
                 }
 
                 _twoDigitYearMax = value;
@@ -393,7 +397,7 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(year), year, SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             if (year < 100)
             {
@@ -403,8 +407,9 @@ namespace System.Globalization
             if (year > MaxCalendarYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxCalendarYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxCalendarYear));
             }
 
             return year;

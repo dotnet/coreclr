@@ -155,7 +155,7 @@ namespace System.Globalization
             double tempMillis = (value * scale + (value >= 0 ? 0.5 : -0.5));
             if (!((tempMillis > -(double)MaxMillis) && (tempMillis < (double)MaxMillis)))
             {
-                throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_AddValue);
+                throw new ArgumentOutOfRangeException(nameof(value), value, SR.ArgumentOutOfRange_AddValue);
             }
 
             long millis = (long)tempMillis;
@@ -164,70 +164,81 @@ namespace System.Globalization
             return new DateTime(ticks);
         }
 
-        // Returns the DateTime resulting from adding the given number of
-        // milliseconds to the specified DateTime. The result is computed by rounding
-        // the number of milliseconds given by value to the nearest integer,
-        // and adding that interval to the specified DateTime. The value
-        // argument is permitted to be negative.
+        /// <summary>
+        /// Returns the DateTime resulting from adding the given number of
+        /// milliseconds to the specified DateTime. The result is computed by rounding
+        /// the number of milliseconds given by value to the nearest integer,
+        /// and adding that interval to the specified DateTime. The value
+        /// argument is permitted to be negative.
+        /// </summary>
         public virtual DateTime AddMilliseconds(DateTime time, double milliseconds)
         {
             return Add(time, milliseconds, 1);
         }
 
-
-        // Returns the DateTime resulting from adding a fractional number of
-        // days to the specified DateTime. The result is computed by rounding the
-        // fractional number of days given by value to the nearest
-        // millisecond, and adding that interval to the specified DateTime. The
-        // value argument is permitted to be negative.
+        /// <summary>
+        /// Returns the DateTime resulting from adding a fractional number of
+        /// days to the specified DateTime. The result is computed by rounding the
+        /// fractional number of days given by value to the nearest
+        /// millisecond, and adding that interval to the specified DateTime. The
+        /// value argument is permitted to be negative.
+        /// </summary>
         public virtual DateTime AddDays(DateTime time, int days)
         {
             return Add(time, days, MillisPerDay);
         }
 
-        // Returns the DateTime resulting from adding a fractional number of
-        // hours to the specified DateTime. The result is computed by rounding the
-        // fractional number of hours given by value to the nearest
-        // millisecond, and adding that interval to the specified DateTime. The
-        // value argument is permitted to be negative.
+        /// <summary>
+        /// Returns the DateTime resulting from adding a fractional number of
+        /// hours to the specified DateTime. The result is computed by rounding the
+        /// fractional number of hours given by value to the nearest
+        /// millisecond, and adding that interval to the specified DateTime. The
+        /// value argument is permitted to be negative.
+        /// </summary>
         public virtual DateTime AddHours(DateTime time, int hours)
         {
             return Add(time, hours, MillisPerHour);
         }
 
-        // Returns the DateTime resulting from adding a fractional number of
-        // minutes to the specified DateTime. The result is computed by rounding the
-        // fractional number of minutes given by value to the nearest
-        // millisecond, and adding that interval to the specified DateTime. The
-        // value argument is permitted to be negative.
+        /// <summary>
+        /// Returns the DateTime resulting from adding a fractional number of
+        /// minutes to the specified DateTime. The result is computed by rounding the
+        /// fractional number of minutes given by value to the nearest
+        /// millisecond, and adding that interval to the specified DateTime. The
+        /// value argument is permitted to be negative.
+        /// </summary>
         public virtual DateTime AddMinutes(DateTime time, int minutes)
         {
             return Add(time, minutes, MillisPerMinute);
         }
 
-        // Returns the DateTime resulting from adding the given number of
-        // months to the specified DateTime. The result is computed by incrementing
-        // (or decrementing) the year and month parts of the specified DateTime by
-        // value months, and, if required, adjusting the day part of the
-        // resulting date downwards to the last day of the resulting month in the
-        // resulting year. The time-of-day part of the result is the same as the
-        // time-of-day part of the specified DateTime.
-        //
-        // In more precise terms, considering the specified DateTime to be of the
-        // form y / m / d + t, where y is the
-        // year, m is the month, d is the day, and t is the
-        // time-of-day, the result is y1 / m1 / d1 + t,
-        // where y1 and m1 are computed by adding value months
-        // to y and m, and d1 is the largest value less than
-        // or equal to d that denotes a valid day in month m1 of year
-        // y1.
+        /// <summary>
+        /// Returns the DateTime resulting from adding the given number of
+        /// months to the specified DateTime. The result is computed by incrementing
+        /// (or decrementing) the year and month parts of the specified DateTime by
+        /// value months, and, if required, adjusting the day part of the
+        /// resulting date downwards to the last day of the resulting month in the
+        /// resulting year. The time-of-day part of the result is the same as the
+        /// time-of-day part of the specified DateTime.
+        ///
+        /// In more precise terms, considering the specified DateTime to be of the
+        /// form y / m / d + t, where y is the
+        /// year, m is the month, d is the day, and t is the
+        /// time-of-day, the result is y1 / m1 / d1 + t,
+        /// where y1 and m1 are computed by adding value months
+        /// to y and m, and d1 is the largest value less than
+        /// or equal to d that denotes a valid day in month m1 of year
+        /// y1.
+        /// </summary>
         public abstract DateTime AddMonths(DateTime time, int months);
 
-        // Returns the DateTime resulting from adding a number of
-        // seconds to the specified DateTime. The result is computed by rounding the
-        // fractional number of seconds given by value to the nearest
-        // millisecond, and adding that interval to the specified DateTime. The
-        // value argument is permitted to be negative.
+        /// <summary>
+        /// Returns the DateTime resulting from adding a number of
+        /// seconds to the specified DateTime. The result is computed by rounding the
+        /// fractional number of seconds given by value to the nearest
+        /// millisecond, and adding that interval to the specified DateTime. The
+        /// value argument is permitted to be negative.
+        /// </summary>
         public virtual DateTime AddSeconds(DateTime time, int seconds)
         {
             return Add(time, seconds, MillisPerSecond);
@@ -241,50 +252,70 @@ namespace System.Globalization
             return AddDays(time, weeks * 7);
         }
 
-        // Returns the DateTime resulting from adding the given number of
-        // years to the specified DateTime. The result is computed by incrementing
-        // (or decrementing) the year part of the specified DateTime by value
-        // years. If the month and day of the specified DateTime is 2/29, and if the
-        // resulting year is not a leap year, the month and day of the resulting
-        // DateTime becomes 2/28. Otherwise, the month, day, and time-of-day
-        // parts of the result are the same as those of the specified DateTime.
+        /// <summary>
+        /// Returns the DateTime resulting from adding the given number of
+        /// years to the specified DateTime. The result is computed by incrementing
+        /// (or decrementing) the year part of the specified DateTime by value
+        /// years. If the month and day of the specified DateTime is 2/29, and if the
+        /// resulting year is not a leap year, the month and day of the resulting
+        /// DateTime becomes 2/28. Otherwise, the month, day, and time-of-day
+        /// parts of the result are the same as those of the specified DateTime.
+        /// </summary>
         public abstract DateTime AddYears(DateTime time, int years);
 
-        // Returns the day-of-month part of the specified DateTime. The returned
-        // value is an integer between 1 and 31.
+        /// <summary>
+        /// Returns the day-of-month part of the specified DateTime. The returned
+        /// value is an integer between 1 and 31.
+        /// </summary>
         public abstract int GetDayOfMonth(DateTime time);
 
-        // Returns the day-of-week part of the specified DateTime. The returned value
-        // is an integer between 0 and 6, where 0 indicates Sunday, 1 indicates
-        // Monday, 2 indicates Tuesday, 3 indicates Wednesday, 4 indicates
-        // Thursday, 5 indicates Friday, and 6 indicates Saturday.
+        /// <summary>
+        /// Returns the day-of-week part of the specified DateTime. The returned value
+        /// is an integer between 0 and 6, where 0 indicates Sunday, 1 indicates
+        /// Monday, 2 indicates Tuesday, 3 indicates Wednesday, 4 indicates
+        /// Thursday, 5 indicates Friday, and 6 indicates Saturday.
+        /// </summary>
         public abstract DayOfWeek GetDayOfWeek(DateTime time);
 
-        // Returns the day-of-year part of the specified DateTime. The returned value
-        // is an integer between 1 and 366.
+        /// <summary>
+        /// Returns the day-of-year part of the specified DateTime. The returned value
+        /// is an integer between 1 and 366.
+        /// </summary>
         public abstract int GetDayOfYear(DateTime time);
 
-        // Returns the number of days in the month given by the year and
-        // month arguments.
+        /// <summary>
+        /// Returns the number of days in the month given by the year and
+        /// month arguments.
+        /// </summary>
         public virtual int GetDaysInMonth(int year, int month)
         {
             return GetDaysInMonth(year, month, CurrentEra);
         }
 
-        // Returns the number of days in the month given by the year and
-        // month arguments for the specified era.
+        /// <summary>
+        /// Returns the number of days in the month given by the year and
+        /// month arguments for the specified era.
+        /// </summary>
         public abstract int GetDaysInMonth(int year, int month, int era);
 
-        // Returns the number of days in the year given by the year argument for the current era.
+        /// <summary>
+        /// Returns the number of days in the year given by the year argument
+        /// for the current era.
+        /// </summary>
         public virtual int GetDaysInYear(int year)
         {
             return GetDaysInYear(year, CurrentEra);
         }
 
-        // Returns the number of days in the year given by the year argument for the current era.
+        /// <summary>
+        /// Returns the number of days in the year given by the year argument
+        /// for the current era.
+        /// </summary>
         public abstract int GetDaysInYear(int year, int era);
 
-        // Returns the era for the specified DateTime value.
+        /// <summary>
+        /// Returns the era for the specified DateTime value.
+        /// </summary>
         public abstract int GetEra(DateTime time);
 
         /// <summary>
@@ -476,15 +507,18 @@ namespace System.Globalization
 
         protected virtual int DaysInYearBeforeMinSupportedYear => 365;
 
-        // Returns the week of year for the specified DateTime. The returned value is an
-        // integer between 1 and 53.
+        /// <summary>
+        /// Returns the week of year for the specified DateTime. The returned value is an
+        /// integer between 1 and 53.
+        /// </summary>
         public virtual int GetWeekOfYear(DateTime time, CalendarWeekRule rule, DayOfWeek firstDayOfWeek)
         {
-            if ((int)firstDayOfWeek < 0 || (int)firstDayOfWeek > 6)
+            if (firstDayOfWeek < DayOfWeek.Sunday || firstDayOfWeek > DayOfWeek.Saturday)
             {
                 throw new ArgumentOutOfRangeException(
-                                nameof(firstDayOfWeek),
-                                SR.Format(SR.ArgumentOutOfRange_Range, DayOfWeek.Sunday, DayOfWeek.Saturday));
+                    nameof(firstDayOfWeek),
+                    firstDayOfWeek,
+                    SR.Format(SR.ArgumentOutOfRange_Range, DayOfWeek.Sunday, DayOfWeek.Saturday));
             }
             switch (rule)
             {
@@ -496,46 +530,62 @@ namespace System.Globalization
                     return GetWeekOfYearFullDays(time, (int)firstDayOfWeek, 4);
                 default:
                     throw new ArgumentOutOfRangeException(
-                                nameof(rule),
-                                SR.Format(SR.ArgumentOutOfRange_Range, CalendarWeekRule.FirstDay, CalendarWeekRule.FirstFourDayWeek));
-            }
+                        nameof(rule),
+                        rule,
+                        SR.Format(SR.ArgumentOutOfRange_Range, CalendarWeekRule.FirstDay, CalendarWeekRule.FirstFourDayWeek));            }
         }
 
-        // Returns the year part of the specified DateTime. The returned value is an
-        // integer between 1 and 9999.
+        /// <summary>
+        /// Returns the year part of the specified DateTime. The returned value is an
+        /// integer between 1 and 9999.
+        /// </summary>
         public abstract int GetYear(DateTime time);
 
-        // Checks whether a given day in the current era is a leap day. This method returns true if
-        // the date is a leap day, or false if not.
+        /// <summary>
+        /// Checks whether a given day in the current era is a leap day.
+        /// This method returns true if the date is a leap day, or false if not.
+        /// </summary>
         public virtual bool IsLeapDay(int year, int month, int day)
         {
             return IsLeapDay(year, month, day, CurrentEra);
         }
 
-        // Checks whether a given day in the specified era is a leap day. This method returns true if
-        // the date is a leap day, or false if not.
+        /// <summary>
+        /// Checks whether a given day in the specified era is a leap day.
+        /// This method returns true if the date is a leap day, or false if not.
+        /// </summary>
         public abstract bool IsLeapDay(int year, int month, int day, int era);
 
-        // Checks whether a given month in the current era is a leap month. This method returns true if
-        // month is a leap month, or false if not.
+        /// <summary>
+        /// Checks whether a given month in the current era is a leap month.
+        /// This method returns true if month is a leap month, or false if not.
+        /// </summary>
         public virtual bool IsLeapMonth(int year, int month)
         {
             return IsLeapMonth(year, month, CurrentEra);
         }
 
-        // Checks whether a given month in the specified era is a leap month. This method returns true if
-        // month is a leap month, or false if not.
+        /// <summary>
+        /// Checks whether a given month in the specified era is a leap month. This method returns true if
+        /// month is a leap month, or false if not.
+        /// </summary>
         public abstract bool IsLeapMonth(int year, int month, int era);
 
-        // Returns  the leap month in a calendar year of the current era. This method returns 0
-        // if this calendar does not have leap month, or this year is not a leap year.
+        /// <summary>
+        /// Returns  the leap month in a calendar year of the current era.
+        /// This method returns 0 if this calendar does not have leap month,
+        /// or this year is not a leap year.
+        /// </summary>
         public virtual int GetLeapMonth(int year)
         {
             return GetLeapMonth(year, CurrentEra);
         }
 
-        // Returns  the leap month in a calendar year of the specified era. This method returns 0
-        // if this calendar does not have leap month, or this year is not a leap year.
+        /// <summary>
+        /// Returns  the leap month in a calendar year of the specified era.
+        /// This method returns 0 if this calendar does not have leap month,
+        /// or this year is not a leap year.
+        /// </summary>
         public virtual int GetLeapMonth(int year, int era)
         {
             if (!IsLeapYear(year, era))
@@ -555,24 +605,34 @@ namespace System.Globalization
             return 0;
         }
 
-        // Checks whether a given year in the current era is a leap year. This method returns true if
-        // year is a leap year, or false if not.
+        /// <summary>
+        /// Checks whether a given year in the current era is a leap year.
+        /// This method returns true if year is a leap year, or false if not.
+        /// </summary>
         public virtual bool IsLeapYear(int year)
         {
             return IsLeapYear(year, CurrentEra);
         }
 
-        // Checks whether a given year in the specified era is a leap year. This method returns true if
-        // year is a leap year, or false if not.
+        /// <summary>
+        /// Checks whether a given year in the specified era is a leap year.
+        /// This method returns true if year is a leap year, or false if not.
+        /// </summary>
         public abstract bool IsLeapYear(int year, int era);
 
-        // Returns the date and time converted to a DateTime value.  Throws an exception if the n-tuple is invalid.
+        /// <summary>
+        /// Returns the date and time converted to a DateTime value.
+        /// Throws an exception if the n-tuple is invalid.
+        /// </summary>
         public virtual DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond)
         {
             return ToDateTime(year, month, day, hour, minute, second, millisecond, CurrentEra);
         }
 
-        // Returns the date and time converted to a DateTime value.  Throws an exception if the n-tuple is invalid.
+        /// <summary>
+        /// Returns the date and time converted to a DateTime value.
+        /// Throws an exception if the n-tuple is invalid.
+        /// </summary>
         public abstract DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era);
 
         internal virtual bool TryToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era, out DateTime result)
@@ -604,12 +664,15 @@ namespace System.Globalization
             return IsValidMonth(year, month, era) && day >= 1 && day <= GetDaysInMonth(year, month, era);
         }
 
-        // Returns and assigns the maximum value to represent a two digit year.  This
-        // value is the upper boundary of a 100 year range that allows a two digit year
-        // to be properly translated to a four digit year.  For example, if 2029 is the
-        // upper boundary, then a two digit value of 30 should be interpreted as 1930
-        // while a two digit value of 29 should be interpreted as 2029.  In this example
-        // , the 100 year range would be from 1930-2029.  See ToFourDigitYear().
+        /// <summary>
+        /// Returns and assigns the maximum value to represent a two digit year.
+        /// This value is the upper boundary of a 100 year range that allows a
+        /// two digit year to be properly translated to a four digit year.
+        /// For example, if 2029 is the upper boundary, then a two digit value of
+        /// 30 should be interpreted as 1930 while a two digit value of 29 should
+        /// be interpreted as 2029.  In this example, the 100 year range would be
+        /// from 1930-2029.  See ToFourDigitYear().
+        /// </summary>
         public virtual int TwoDigitYearMax
         {
             get => _twoDigitYearMax;
@@ -620,15 +683,17 @@ namespace System.Globalization
             }
         }
 
-        // Converts the year value to the appropriate century by using the
-        // TwoDigitYearMax property.  For example, if the TwoDigitYearMax value is 2029,
-        // then a two digit value of 30 will get converted to 1930 while a two digit
-        // value of 29 will get converted to 2029.
+        /// <summary>
+        /// Converts the year value to the appropriate century by using the
+        /// TwoDigitYearMax property.  For example, if the TwoDigitYearMax value is 2029,
+        /// then a two digit value of 30 will get converted to 1930 while a two digit
+        /// value of 29 will get converted to 2029.
+        /// </summary>
         public virtual int ToFourDigitYear(int year)
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(year), year, SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             if (year < 100)
             {
@@ -640,8 +705,10 @@ namespace System.Globalization
             return year;
         }
 
-        // Return the tick count corresponding to the given hour, minute, second.
-        // Will check the if the parameters are valid.
+        /// <summary>
+        /// Return the tick count corresponding to the given hour, minute, second.
+        /// Will check the if the parameters are valid.
+        /// </summary>
         internal static long TimeToTicks(int hour, int minute, int second, int millisecond)
         {
             if (hour < 0 || hour >= 24 || minute < 0 || minute >= 60 || second < 0 || second >= 60)
@@ -651,8 +718,9 @@ namespace System.Globalization
             if (millisecond < 0 || millisecond >= MillisPerSecond)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(millisecond),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 0, MillisPerSecond - 1));
+                    nameof(millisecond),
+                    millisecond,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 0, MillisPerSecond - 1));
             }
 
             return InternalGlobalizationHelper.TimeToTicks(hour, minute, second) + millisecond * TicksPerMillisecond;

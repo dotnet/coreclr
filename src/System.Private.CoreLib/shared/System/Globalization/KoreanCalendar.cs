@@ -10,13 +10,14 @@ namespace System.Globalization
     ///      Korean year = Gregorian year + 2333.  So 2000/01/01 A.D. is Korean 4333/01/01
     ///
     /// 0001/1/1 A.D. is Korean year 2334.
-    ///
-    ///  Calendar support range:
-    ///      Calendar    Minimum     Maximum
-    ///      ==========  ==========  ==========
-    ///      Gregorian   0001/01/01   9999/12/31
-    ///      Korean      2334/01/01  12332/12/31
     /// </summary>
+    /// <remarks>
+    /// Calendar support range:
+    ///     Calendar    Minimum     Maximum
+    ///     ==========  ==========  ==========
+    ///     Gregorian   0001/01/01   9999/12/31
+    ///     Korean      2334/01/01  12332/12/31
+    /// </remarks>
     public class KoreanCalendar : Calendar
     {
         public const int KoreanEra = 1;
@@ -27,13 +28,12 @@ namespace System.Globalization
         //    1 = 2334 + yearOffset
         //  So yearOffset = -2333
         // Gregorian year 2001 is Korean year 4334.
-        internal static EraInfo[] koreanEraInfo = new EraInfo[]
+        private static readonly EraInfo[] s_koreanEraInfo = new EraInfo[]
         {
             new EraInfo( 1, 1, 1, 1, -2333, 2334, GregorianCalendar.MaxYear + 2333)   // era #, start year/month/day, yearOffset, minEraYear
         };
 
-        internal GregorianCalendarHelper _helper;
-
+        private readonly GregorianCalendarHelper _helper;
 
         public override DateTime MinSupportedDateTime => DateTime.MinValue;
 
@@ -52,7 +52,7 @@ namespace System.Globalization
                 throw new TypeInitializationException(GetType().ToString(), e);
             }
 
-            _helper = new GregorianCalendarHelper(this, koreanEraInfo);
+            _helper = new GregorianCalendarHelper(this, s_koreanEraInfo);
         }
 
         internal override CalendarId ID => CalendarId.KOREA;
@@ -168,8 +168,9 @@ namespace System.Globalization
                 if (value < 99 || value > _helper.MaxYear)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 99, _helper.MaxYear));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 99, _helper.MaxYear));
                 }
 
                 _twoDigitYearMax = value;
@@ -180,7 +181,7 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(year), year, SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             return _helper.ToFourDigitYear(year, TwoDigitYearMax);

@@ -4,7 +4,7 @@
 
 namespace System.Globalization
 {
-    /// <summary>
+    /// <remarks>
     /// Rules for the Hijri calendar:
     ///   - The Hijri calendar is a strictly Lunar calendar.
     ///   - Days begin at sunset.
@@ -30,13 +30,12 @@ namespace System.Globalization
     ///      absolute date means the number of days from January 1st, 1 A.D.
     ///      Therefore, we do not support the days before the January 1st, 1 A.D.
     ///
-    ///
     ///  Calendar support range:
     ///      Calendar    Minimum     Maximum
     ///      ==========  ==========  ==========
     ///      Gregorian   0622/07/18   9999/12/31
     ///      Hijri       0001/01/01   9666/04/03
-    /// </summary>
+    /// </remarks>
 
     public partial class HijriCalendar : Calendar
     {
@@ -129,8 +128,9 @@ namespace System.Globalization
                 if (value < MinAdvancedHijri || value > MaxAdvancedHijri)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                SR.Format(SR.ArgumentOutOfRange_Bounds_Lower_Upper, MinAdvancedHijri, MaxAdvancedHijri));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Bounds_Lower_Upper, MinAdvancedHijri, MaxAdvancedHijri));
                 }
 
                 VerifyWritable();
@@ -143,12 +143,13 @@ namespace System.Globalization
             if (ticks < s_calendarMinValue.Ticks || ticks > s_calendarMaxValue.Ticks)
             {
                 throw new ArgumentOutOfRangeException(
-                            "time",
-                            string.Format(
-                                CultureInfo.InvariantCulture,
-                                SR.ArgumentOutOfRange_CalendarRange,
-                                s_calendarMinValue,
-                                s_calendarMaxValue));
+                    "time",
+                    ticks,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        SR.ArgumentOutOfRange_CalendarRange,
+                        s_calendarMinValue,
+                        s_calendarMaxValue));
             }
         }
 
@@ -156,7 +157,7 @@ namespace System.Globalization
         {
             if (era != CurrentEra && era != HijriEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
         }
 
@@ -179,14 +180,15 @@ namespace System.Globalization
                 if (month > MaxCalendarMonth)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(month),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxCalendarMonth));
+                        nameof(month),
+                        month,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxCalendarMonth));
                 }
             }
 
             if (month < 1 || month > 12)
             {
-                throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
+                throw new ArgumentOutOfRangeException(nameof(month), month, SR.ArgumentOutOfRange_Month);
             }
         }
 
@@ -273,8 +275,9 @@ namespace System.Globalization
             if (months < -120000 || months > 120000)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(months),
-                            SR.Format(SR.ArgumentOutOfRange_Range, -120000, 120000));
+                    nameof(months),
+                    months,
+                    SR.Format(SR.ArgumentOutOfRange_Range, -120000, 120000));
             }
 
             // Get the date in Hijri calendar.
@@ -375,8 +378,9 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(day),
-                            SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
+                    nameof(day),
+                    day,
+                    SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
             }
 
             return IsLeapYear(year, era) && month == 12 && day == 30;
@@ -407,8 +411,9 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(day),
-                            SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
+                    nameof(day),
+                    day,
+                    SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
             }
 
             long lDate = GetAbsoluteDateHijri(year, month, day);
@@ -439,8 +444,9 @@ namespace System.Globalization
                 if (value < 99 || value > MaxCalendarYear)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 99, MaxCalendarYear));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 99, MaxCalendarYear));
                 }
 
                 _twoDigitYearMax = value;
@@ -451,7 +457,7 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(year), year, SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             if (year < 100)
@@ -462,8 +468,9 @@ namespace System.Globalization
             if (year > MaxCalendarYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxCalendarYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxCalendarYear));
             }
             return year;
         }

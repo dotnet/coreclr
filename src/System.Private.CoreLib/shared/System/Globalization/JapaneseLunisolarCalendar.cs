@@ -4,13 +4,13 @@
 
 namespace System.Globalization
 {
-    /// <summary>
+    /// <remarks>
     /// Calendar support range:
     ///     Calendar               Minimum             Maximum
     ///     ==========             ==========          ==========
     ///     Gregorian              1960/01/28          2050/01/22
     ///     JapaneseLunisolar      1960/01/01          2049/12/29
-    /// </summary>
+    /// </remarks>
     public class JapaneseLunisolarCalendar : EastAsianLunisolarCalendar
     {
         public const int JapaneseEra = 1;
@@ -20,8 +20,8 @@ namespace System.Globalization
         private const int MinLunisolarYear = 1960;
         private const int MaxLunisolarYear = 2049;
 
-        private static DateTime s_minDate = new DateTime(1960, 1, 28);
-        private static DateTime s_maxDate = new DateTime((new DateTime(2050, 1, 2, 23, 59, 59, 999)).Ticks + 9999);
+        private static readonly DateTime s_minDate = new DateTime(1960, 1, 28);
+        private static readonly DateTime s_maxDate = new DateTime((new DateTime(2050, 1, 2, 23, 59, 59, 999)).Ticks + 9999);
 
         public override DateTime MinSupportedDateTime => s_minDate;
 
@@ -146,11 +146,12 @@ namespace System.Globalization
 
         internal override int GetYearInfo(int lunarYear, int index)
         {
-            if ((lunarYear < MinLunisolarYear) || (lunarYear > MaxLunisolarYear))
+            if (lunarYear < MinLunisolarYear || lunarYear > MaxLunisolarYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            "year",
-                            SR.Format(SR.ArgumentOutOfRange_Range, MinLunisolarYear, MaxLunisolarYear));
+                    "year",
+                    lunarYear,
+                    SR.Format(SR.ArgumentOutOfRange_Range, MinLunisolarYear, MaxLunisolarYear));
             }
 
             return s_yinfo[lunarYear - MinLunisolarYear, index];

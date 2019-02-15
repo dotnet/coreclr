@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace System.Globalization
@@ -11,13 +10,14 @@ namespace System.Globalization
     /// Taiwan calendar is based on the Gregorian calendar.  And the year is an offset to Gregorian calendar.
     /// That is,
     ///      Taiwan year = Gregorian year - 1911.  So 1912/01/01 A.D. is Taiwan 1/01/01
-    ///
+    /// </summary>
+    /// <remarks>
     ///  Calendar support range:
     ///      Calendar    Minimum     Maximum
     ///      ==========  ==========  ==========
     ///      Gregorian   1912/01/01  9999/12/31
     ///      Taiwan      01/01/01    8088/12/31
-    /// </summary>
+    /// </remarks>
     public class TaiwanCalendar : Calendar
     {
         // Since
@@ -25,14 +25,14 @@ namespace System.Globalization
         // When Gregorian Year 1912 is year 1, so that
         //    1912 = 1 + yearOffset
         //  So yearOffset = 1911
-        internal static EraInfo[] taiwanEraInfo = new EraInfo[]
+        private static EraInfo[] s_taiwanEraInfo = new EraInfo[]
         {
             new EraInfo( 1, 1912, 1, 1, 1911, 1, GregorianCalendar.MaxYear - 1911)    // era #, start year/month/day, yearOffset, minEraYear 
         };
 
-        internal static volatile Calendar s_defaultInstance;
+        private static volatile Calendar s_defaultInstance;
 
-        internal GregorianCalendarHelper _helper;
+        private readonly GregorianCalendarHelper _helper;
 
         internal static Calendar GetDefaultInstance()
         {
@@ -58,7 +58,7 @@ namespace System.Globalization
                 throw new TypeInitializationException(GetType().ToString(), e);
             }
 
-            _helper = new GregorianCalendarHelper(this, taiwanEraInfo);
+            _helper = new GregorianCalendarHelper(this, s_taiwanEraInfo);
         }
 
         internal override CalendarId ID => CalendarId.TAIWAN;
@@ -169,8 +169,9 @@ namespace System.Globalization
                 if (value < 99 || value > _helper.MaxYear)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 99, _helper.MaxYear));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 99, _helper.MaxYear));
                 }
 
                 _twoDigitYearMax = value;
@@ -186,13 +187,14 @@ namespace System.Globalization
         {
             if (year <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_NeedPosNum);
+                throw new ArgumentOutOfRangeException(nameof(year), year, SR.ArgumentOutOfRange_NeedPosNum);
             }
             if (year > _helper.MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, _helper.MaxYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, _helper.MaxYear));
             }
 
             return year;

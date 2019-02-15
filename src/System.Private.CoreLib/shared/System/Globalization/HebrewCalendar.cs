@@ -6,61 +6,55 @@ using System.Diagnostics;
 
 namespace System.Globalization
 {
-    ////////////////////////////////////////////////////////////////////////////
-    //
-    //  Rules for the Hebrew calendar:
-    //    - The Hebrew calendar is both a Lunar (months) and Solar (years)
-    //        calendar, but allows for a week of seven days.
-    //    - Days begin at sunset.
-    //    - Leap Years occur in the 3, 6, 8, 11, 14, 17, & 19th years of a
-    //        19-year cycle.  Year = leap iff ((7y+1) mod 19 < 7).
-    //    - There are 12 months in a common year and 13 months in a leap year.
-    //    - In a common year, the 6th month, Adar, has 29 days.  In a leap
-    //        year, the 6th month, Adar I, has 30 days and the leap month,
-    //        Adar II, has 29 days.
-    //    - Common years have 353-355 days.  Leap years have 383-385 days.
-    //    - The Hebrew new year (Rosh HaShanah) begins on the 1st of Tishri,
-    //        the 7th month in the list below.
-    //        - The new year may not begin on Sunday, Wednesday, or Friday.
-    //        - If the new year would fall on a Tuesday and the conjunction of
-    //            the following year were at midday or later, the new year is
-    //            delayed until Thursday.
-    //        - If the new year would fall on a Monday after a leap year, the
-    //            new year is delayed until Tuesday.
-    //    - The length of the 8th and 9th months vary from year to year,
-    //        depending on the overall length of the year.
-    //        - The length of a year is determined by the dates of the new
-    //            years (Tishri 1) preceding and following the year in question.
-    //        - The 2th month is long (30 days) if the year has 355 or 385 days.
-    //        - The 3th month is short (29 days) if the year has 353 or 383 days.
-    //    - The Hebrew months are:
-    //        1.  Tishri        (30 days)
-    //        2.  Heshvan       (29 or 30 days)
-    //        3.  Kislev        (29 or 30 days)
-    //        4.  Teveth        (29 days)
-    //        5.  Shevat        (30 days)
-    //        6.  Adar I        (30 days)
-    //        7.  Adar {II}     (29 days, this only exists if that year is a leap year)
-    //        8.  Nisan         (30 days)
-    //        9.  Iyyar         (29 days)
-    //        10. Sivan         (30 days)
-    //        11. Tammuz        (29 days)
-    //        12. Av            (30 days)
-    //        13. Elul          (29 days)
-    //
-    ////////////////////////////////////////////////////////////////////////////
-    /*
-    **  Calendar support range:
-    **      Calendar    Minimum     Maximum
-    **      ==========  ==========  ==========
-    **      Gregorian   1583/01/01  2239/09/29
-    **      Hebrew      5343/04/07  5999/13/29
-    */
-
-    // Includes CHebrew implemetation;i.e All the code necessary for converting
-    // Gregorian to Hebrew Lunar from 1583 to 2239.
-
-
+    /// <remarks>
+    /// Rules for the Hebrew calendar:
+    ///   - The Hebrew calendar is both a Lunar (months) and Solar (years)
+    ///       calendar, but allows for a week of seven days.
+    ///   - Days begin at sunset.
+    ///   - Leap Years occur in the 3, 6, 8, 11, 14, 17, &amp; 19th years of a
+    ///       19-year cycle.  Year = leap iff ((7y+1) mod 19 &lt; 7).
+    ///   - There are 12 months in a common year and 13 months in a leap year.
+    ///   - In a common year, the 6th month, Adar, has 29 days.  In a leap
+    ///       year, the 6th month, Adar I, has 30 days and the leap month,
+    ///       Adar II, has 29 days.
+    ///   - Common years have 353-355 days.  Leap years have 383-385 days.
+    ///   - The Hebrew new year (Rosh HaShanah) begins on the 1st of Tishri,
+    ///       the 7th month in the list below.
+    ///       - The new year may not begin on Sunday, Wednesday, or Friday.
+    ///       - If the new year would fall on a Tuesday and the conjunction of
+    ///           the following year were at midday or later, the new year is
+    ///           delayed until Thursday.
+    ///       - If the new year would fall on a Monday after a leap year, the
+    ///           new year is delayed until Tuesday.
+    ///   - The length of the 8th and 9th months vary from year to year,
+    ///       depending on the overall length of the year.
+    ///       - The length of a year is determined by the dates of the new
+    ///           years (Tishri 1) preceding and following the year in question.
+    ///       - The 2th month is long (30 days) if the year has 355 or 385 days.
+    ///       - The 3th month is short (29 days) if the year has 353 or 383 days.
+    ///   - The Hebrew months are:
+    ///       1.  Tishri        (30 days)
+    ///       2.  Heshvan       (29 or 30 days)
+    ///       3.  Kislev        (29 or 30 days)
+    ///       4.  Teveth        (29 days)
+    ///       5.  Shevat        (30 days)
+    ///       6.  Adar I        (30 days)
+    ///       7.  Adar {II}     (29 days, this only exists if that year is a leap year)
+    ///       8.  Nisan         (30 days)
+    ///       9.  Iyyar         (29 days)
+    ///       10. Sivan         (30 days)
+    ///       11. Tammuz        (29 days)
+    ///       12. Av            (30 days)
+    ///       13. Elul          (29 days)
+    /// Calendar support range:
+    ///     Calendar    Minimum     Maximum
+    ///     ==========  ==========  ==========
+    ///     Gregorian   1583/01/01  2239/09/29
+    ///     Hebrew      5343/04/07  5999/13/29
+    ///
+    /// Includes CHebrew implemetation;i.e All the code necessary for converting
+    /// Gregorian to Hebrew Lunar from 1583 to 2239.
+    /// </remarks>
     public class HebrewCalendar : Calendar
     {
         public static readonly int HebrewEra = 1;
@@ -301,8 +295,9 @@ namespace System.Globalization
             if (y > MaxHebrewYear || y < MinHebrewYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            varName,
-                            SR.Format(SR.ArgumentOutOfRange_Range, MinHebrewYear, MaxHebrewYear));
+                    varName,
+                    y,
+                    SR.Format(SR.ArgumentOutOfRange_Range, MinHebrewYear, MaxHebrewYear));
             }
         }
 
@@ -318,8 +313,9 @@ namespace System.Globalization
             if (month < 1 || month > monthsInYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(month),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, monthsInYear));
+                    nameof(month),
+                    month,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, monthsInYear));
             }
         }
 
@@ -335,8 +331,9 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(day),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, daysInMonth));
+                    nameof(day),
+                    day,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, daysInMonth));
             }
         }
 
@@ -344,7 +341,7 @@ namespace System.Globalization
         {
             if (era != CurrentEra && era != HebrewEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
         }
 
@@ -353,13 +350,14 @@ namespace System.Globalization
             if (ticks < s_calendarMinValue.Ticks || ticks > s_calendarMaxValue.Ticks)
             {
                 throw new ArgumentOutOfRangeException(
-                            "time",
-                            // Print out the date in Gregorian using InvariantCulture since the DateTime is based on GreograinCalendar.
-                            string.Format(
-                                CultureInfo.InvariantCulture,
-                                SR.ArgumentOutOfRange_CalendarRange,
-                                s_calendarMinValue,
-                                s_calendarMaxValue));
+                    "time",
+                    ticks,
+                    // Print out the date in Gregorian using InvariantCulture since the DateTime is based on GreograinCalendar.
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        SR.ArgumentOutOfRange_CalendarRange,
+                        s_calendarMinValue,
+                        s_calendarMaxValue));
             }
         }
 
@@ -582,7 +580,7 @@ namespace System.Globalization
             // If exception is thrown in the calls above, we are out of the supported range of this calendar.
             catch (ArgumentException)
             {
-                throw new ArgumentOutOfRangeException(nameof(months), SR.ArgumentOutOfRange_AddValue);
+                throw new ArgumentOutOfRangeException(nameof(months), months, SR.ArgumentOutOfRange_AddValue);
             }
         }
 
@@ -672,7 +670,7 @@ namespace System.Globalization
             int monthDays = s_lunarMonthLen[hebrewYearType * MaxMonthPlusOne + month];
             if (monthDays == 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
+                throw new ArgumentOutOfRangeException(nameof(month), month, SR.ArgumentOutOfRange_Month);
             }
 
             return monthDays;
@@ -882,7 +880,7 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(year), year, SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             if (year < 100)
@@ -893,8 +891,9 @@ namespace System.Globalization
             if (year > MaxHebrewYear || year < MinHebrewYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, MinHebrewYear, MaxHebrewYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, MinHebrewYear, MaxHebrewYear));
             }
             return year;
         }

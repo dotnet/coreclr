@@ -5,24 +5,26 @@
 namespace System.Globalization
 {
     /// <summary>
-    /// ThaiBuddhistCalendar is based on Gregorian calendar.  Its year value has
-    /// an offset to the Gregorain calendar.
+    /// ThaiBuddhistCalendar is based on Gregorian calendar.
+    /// Its year value has an offset to the Gregorain calendar.
+    /// </summary>
+    /// <remarks>
     /// Calendar support range:
     ///     Calendar    Minimum     Maximum
     ///     ==========  ==========  ==========
     ///     Gregorian   0001/01/01   9999/12/31
     ///     Thai        0544/01/01  10542/12/31
-    /// </summary>
+    /// </remarks>
     public class ThaiBuddhistCalendar : Calendar
     {
-        private static EraInfo[] s_thaiBuddhistEraInfo = new EraInfo[]
+        private static readonly EraInfo[] s_thaiBuddhistEraInfo = new EraInfo[]
         {
             new EraInfo( 1, 1, 1, 1, -543, 544, GregorianCalendar.MaxYear + 543)     // era #, start year/month/day, yearOffset, minEraYear
         };
 
         public const int ThaiBuddhistEra = 1;
 
-        private GregorianCalendarHelper _helper;
+        private readonly GregorianCalendarHelper _helper;
 
         public override DateTime MinSupportedDateTime => DateTime.MinValue;
 
@@ -144,8 +146,9 @@ namespace System.Globalization
                 if (value < 99 || value > _helper.MaxYear)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 99, _helper.MaxYear));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 99, _helper.MaxYear));
                 }
 
                 _twoDigitYearMax = value;
@@ -156,10 +159,10 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(year), year, SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
-            return _helper.ToFourDigitYear(year, this.TwoDigitYearMax);
+            return _helper.ToFourDigitYear(year, TwoDigitYearMax);
         }
     }
 }

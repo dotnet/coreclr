@@ -4,9 +4,11 @@
 
 namespace System.Globalization
 {
-    // This calendar recognizes two era values:
-    // 0 CurrentEra (AD)
-    // 1 BeforeCurrentEra (BC)
+    /// <remarks>
+    /// This calendar recognizes two era values:
+    /// 0 CurrentEra (AD)
+    /// 1 BeforeCurrentEra (BC)
+    /// </remarks>
     public class GregorianCalendar : Calendar
     {
         public const int ADEra = 1;
@@ -58,9 +60,9 @@ namespace System.Globalization
             if (type < GregorianCalendarTypes.Localized || type > GregorianCalendarTypes.TransliteratedFrench)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(type),
-                            SR.Format(SR.ArgumentOutOfRange_Range,
-                    GregorianCalendarTypes.Localized, GregorianCalendarTypes.TransliteratedFrench));
+                    nameof(type),
+                    type,
+                    SR.Format(SR.ArgumentOutOfRange_Range, GregorianCalendarTypes.Localized, GregorianCalendarTypes.TransliteratedFrench));
             }
 
             _type = type;
@@ -85,7 +87,7 @@ namespace System.Globalization
                         break;
 
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_Enum);
+                        throw new ArgumentOutOfRangeException(nameof(value), value, SR.ArgumentOutOfRange_Enum);
                 }
             }
         }
@@ -155,12 +157,9 @@ namespace System.Globalization
             if (months < -120000 || months > 120000)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(months),
-                            string.Format(
-                                CultureInfo.CurrentCulture,
-                                SR.ArgumentOutOfRange_Range,
-                                -120000,
-                                120000));
+                    nameof(months),
+                    months,
+                    SR.Format(SR.ArgumentOutOfRange_Range, -120000, 120000));
             }
 
             time.GetDatePart(out int y, out int m, out int d);
@@ -224,18 +223,19 @@ namespace System.Globalization
         {
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
 
             if (year < 1 || year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
             if (month < 1 || month > 12)
             {
-                throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
+                throw new ArgumentOutOfRangeException(nameof(month), month, SR.ArgumentOutOfRange_Month);
             }
 
             int[] days = ((year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? DaysToMonth366 : DaysToMonth365);
@@ -247,14 +247,15 @@ namespace System.Globalization
         {
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
 
             if (year < 1 || year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
 
             return ((year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 366 : 365);
@@ -264,29 +265,36 @@ namespace System.Globalization
 
         public override int[] Eras => new int[] { ADEra };
 
-        // Returns the month part of the specified DateTime. The returned value is an
-        // integer between 1 and 12.
+        /// <summary>
+        /// Returns the month part of the specified DateTime.
+        /// The returned value is an integer between 1 and 12.
+        /// </summary>
         public override int GetMonth(DateTime time) => time.Month;
 
-        // Returns the number of months in the specified year and era.
+        /// <summary>
+        /// Returns the number of months in the specified year and era.
+        /// </summary>
         public override int GetMonthsInYear(int year, int era)
         {
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
             if (year < 1 || year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
 
             return 12;
         }
 
-        // Returns the year part of the specified DateTime. The returned value is an
-        // integer between 1 and 9999.
+        /// <summary>
+        /// Returns the year part of the specified DateTime. The returned value is an
+        /// integer between 1 and 9999.
+        /// </summary>
         public override int GetYear(DateTime time) => time.Year;
 
         internal override bool IsValidYear(int year, int era) => year >= 1 && year <= MaxYear;
@@ -305,103 +313,122 @@ namespace System.Globalization
             return day <= (days[month] - days[month - 1]);
         }
 
-        // Checks whether a given day in the specified era is a leap day. This method returns true if
-        // the date is a leap day, or false if not.
+        /// <summary>
+        /// Checks whether a given day in the specified era is a leap day. This method returns true if
+        /// the date is a leap day, or false if not.
+        /// </summary>
         public override bool IsLeapDay(int year, int month, int day, int era)
         {
             if (month < 1 || month > 12)
             {
                 throw new ArgumentOutOfRangeException(
-                                nameof(month),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 1, 12));
+                    nameof(month),
+                    month,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, 12));
             }
 
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
             if (year < 1 || year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                                nameof(year),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
             if (day < 1 || day > GetDaysInMonth(year, month))
             {
                 throw new ArgumentOutOfRangeException(
-                                nameof(day),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 1, GetDaysInMonth(year, month)));
+                    nameof(day),
+                    day,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, GetDaysInMonth(year, month)));
             }
 
             return IsLeapYear(year) && month == 2 && day == 29;
         }
 
-        // Returns the leap month in a calendar year of the specified era. This method returns 0
-        // if this calendar does not have leap month, or this year is not a leap year.
+        /// <summary>
+        /// Returns the leap month in a calendar year of the specified era.
+        /// This method returns 0 if this calendar does not have leap month, or
+        /// this year is not a leap year.
+        /// </summary>
         public override int GetLeapMonth(int year, int era)
         {
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
             if (year < 1 || year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
 
             return 0;
         }
 
-        // Checks whether a given month in the specified era is a leap month. This method returns true if
-        // month is a leap month, or false if not.
+        /// <summary>
+        /// Checks whether a given month in the specified era is a leap month.
+        /// This method returns true if month is a leap month, or false if not.
+        /// </summary>
         public override bool IsLeapMonth(int year, int month, int era)
         {
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
             if (year < 1 || year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
             if (month < 1 || month > 12)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(month),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, 12));
+                    nameof(month),
+                    month,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, 12));
             }
 
             return false;
         }
 
-        // Checks whether a given year in the specified era is a leap year. This method returns true if
-        // year is a leap year, or false if not.
+        /// <summary>
+        /// Checks whether a given year in the specified era is a leap year. This method returns true if
+        /// year is a leap year, or false if not.
+        /// </summary>
         public override bool IsLeapYear(int year, int era)
         {
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
             if (year < 1 || year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
 
             return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
         }
 
-        // Returns the date and time converted to a DateTime value.  Throws an exception if the n-tuple is invalid.
+        /// <summary>
+        /// Returns the date and time converted to a DateTime value.
+        /// Throws an exception if the n-tuple is invalid.
+        /// </summary>
         public override DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era)
         {
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
             }
 
             return new DateTime(year, month, day, hour, minute, second, millisecond);
@@ -438,8 +465,9 @@ namespace System.Globalization
                 if (value < 99 || value > MaxYear)
                 {
                     throw new ArgumentOutOfRangeException(
-                                nameof(value),
-                                SR.Format(SR.ArgumentOutOfRange_Range, 99, MaxYear));
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, 99, MaxYear));
                 }
                 _twoDigitYearMax = value;
             }
@@ -449,13 +477,14 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(year), year, SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             if (year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            nameof(year),
-                            SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
+                    nameof(year),
+                    year,
+                    SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
 
             return base.ToFourDigitYear(year);
