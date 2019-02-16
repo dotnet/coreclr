@@ -2,8 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
+using Internal.Runtime.CompilerServices;
 
 namespace System.Buffers.Text
 {
@@ -36,106 +38,21 @@ namespace System.Buffers.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountDigits(ulong value)
         {
-            if (Lzcnt.X64.IsSupported)
-            {
-                int y = UInt64MaxLog10GivenLzCount[(int)Lzcnt.X64.LeadingZeroCount(value)];
-                int d = unchecked((int)((value - s_uInt64PowersOf10[y]) >> 63));
-                return y - d;
-            }
-
-            int digits = 1;
-            uint part;
-            if (value >= 10000000)
-            {
-                if (value >= 100000000000000)
-                {
-                    part = (uint)(value / 100000000000000);
-                    digits += 14;
-                }
-                else
-                {
-                    part = (uint)(value / 10000000);
-                    digits += 7;
-                }
-            }
-            else
-            {
-                part = (uint)value;
-            }
-
-            if (part < 10)
-            {
-                // no-op
-            }
-            else if (part < 100)
-            {
-                digits += 1;
-            }
-            else if (part < 1000)
-            {
-                digits += 2;
-            }
-            else if (part < 10000)
-            {
-                digits += 3;
-            }
-            else if (part < 100000)
-            {
-                digits += 4;
-            }
-            else if (part < 1000000)
-            {
-                digits += 5;
-            }
-            else
-            {
-                Debug.Assert(part < 10000000);
-                digits += 6;
-            }
-
-            return digits;
+            int y = Unsafe.AddByteOffset(
+                ref MemoryMarshal.GetReference(UInt64MaxLog10GivenLzCount),
+                (IntPtr)BitOps.LeadingZeroCount(value));
+            int d = unchecked((int)((value - s_uInt64PowersOf10[y]) >> 63));
+            return y - d;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountDigits(uint value)
         {
-            if (Lzcnt.IsSupported)
-            {
-                int y = UInt32MaxLog10GivenLzCount[(int)Lzcnt.LeadingZeroCount(value)];
-                int d = unchecked((int)((value - s_uInt32PowersOf10[y]) >> 31));
-                return y - d;
-            }
-
-            int digits = 1;
-            if (value >= 100000)
-            {
-                value = value / 100000;
-                digits += 5;
-            }
-
-            if (value < 10)
-            {
-                // no-op
-            }
-            else if (value < 100)
-            {
-                digits += 1;
-            }
-            else if (value < 1000)
-            {
-                digits += 2;
-            }
-            else if (value < 10000)
-            {
-                digits += 3;
-            }
-            else
-            {
-                Debug.Assert(value < 100000);
-                digits += 4;
-            }
-
-            return digits;
+            int y = Unsafe.AddByteOffset(
+                ref MemoryMarshal.GetReference(UInt32MaxLog10GivenLzCount),
+                (IntPtr)BitOps.LeadingZeroCount(value));
+            int d = unchecked((int)((value - s_uInt32PowersOf10[y]) >> 31));
+            return y - d;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
