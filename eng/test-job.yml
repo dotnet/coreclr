@@ -22,17 +22,17 @@ jobs:
     osIdentifier: ${{ parameters.osIdentifier }}
 
     # Compute job name from template parameters
-    ${{ if and(eq(parameters.testGroup, 'innerloop'), not(parameters.readyToRun)) }}:
+    ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, false)) }}:
       name: ${{ format('testbuild_pri0_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
       displayName: ${{ format('Test Pri0 {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-    ${{ if and(eq(parameters.testGroup, 'innerloop'), parameters.readyToRun) }}:
+    ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, true)) }}:
       name: ${{ format('testbuild_pri0_r2r_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
       displayName: ${{ format('Test Pri0 R2R {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
-    ${{ if and(ne(parameters.testGroup, 'innerloop'), not(parameters.readyToRun))}}:
+    ${{ if and(ne(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, false)) }}:
       name: ${{ format('testbuild_pri1_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
       displayName: ${{ format('Test Pri1 {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-    ${{ if and(ne(parameters.testGroup, 'innerloop'), parameters.readyToRun) }}:
+    ${{ if and(ne(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, true)) }}:
       name: ${{ format('testbuild_pri1_r2r_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
       displayName: ${{ format('Test Pri1 R2R {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
