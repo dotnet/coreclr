@@ -41,6 +41,8 @@ jobs:
     variables:
     - group: DotNet-HelixApi-Access
     # Map template parameters to command line arguments
+    - name: priorityArg
+      value: ''
     - ${{ if ne(parameters.testGroup, 'innerloop') }}:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
         - name: priorityArg
@@ -48,16 +50,12 @@ jobs:
       - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
         - name: priorityArg
           value: '-priority=1'
-    - ${{ if eq(parameters.testGroup, 'innerloop') }}:
-      - name: priorityArg
-        value: ''
 
+    - name: crossgenArg
+      value: ''
     - ${{ if eq(parameters.readyToRun, true) }}:
       - name: crossgenArg
         value: 'crossgen'
-    - ${{ if eq(parameters.readyToRun, false) }}:
-      - name: crossgenArg
-        value: ''
 
     - name: clangArg
       value: ''
