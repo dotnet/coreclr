@@ -300,7 +300,7 @@ See MSDN doc for memcpy
 --*/
 EXTERN_C
 PALIMPORT
-void *PAL_memcpy (void *dest, const void *src, size_t count)
+PVOID PAL_memcpy (PVOID dest, const void *src, size_t count)
 {
     UINT_PTR x = (UINT_PTR)dest, y = (UINT_PTR)src;
     _ASSERTE((x + count <= y) || (y + count <= x));

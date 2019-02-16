@@ -4318,19 +4318,19 @@ PALIMPORT
 DLLEXPORT
 PVOID PAL_memcpy (PVOID dest, const void * src, size_t count);
 
-PALIMPORT PVOID __cdecl memcpy(PVOID, const void *, size_t) THROW_DECL;
+PALIMPORT void * __cdecl memcpy(void *, const void *, size_t) THROW_DECL;
 
 #define memcpy PAL_memcpy
 #define IS_PAL_memcpy 1
 #define TEST_PAL_DEFERRED(def) IS_##def
 #define IS_REDEFINED_IN_PAL(def) TEST_PAL_DEFERRED(def)
 #else //defined(_DEBUG)
-PALIMPORT PVOID __cdecl memcpy(PVOID, const void *, size_t);
+PALIMPORT void * __cdecl memcpy(void *, const void *, size_t);
 #endif //defined(_DEBUG)
 PALIMPORT int    __cdecl memcmp(const void *, const void *, size_t);
-PALIMPORT PVOID __cdecl memset(PVOID, int, size_t);
-PALIMPORT PVOID __cdecl memmove(PVOID, const void *, size_t);
-PALIMPORT PVOID __cdecl memchr(const void *, int, size_t);
+PALIMPORT void * __cdecl memset(void *, int, size_t);
+PALIMPORT void * __cdecl memmove(void *, const void *, size_t);
+PALIMPORT void * __cdecl memchr(const void *, int, size_t);
 PALIMPORT long long int __cdecl atoll(const char *) THROW_DECL;
 PALIMPORT size_t __cdecl strlen(const char *);
 PALIMPORT int __cdecl strcmp(const char*, const char *);
@@ -4370,8 +4370,8 @@ PALIMPORT int __cdecl toupper(int);
 #define _TRUNCATE ((size_t)-1)
 #endif
 
-PALIMPORT DLLEXPORT errno_t __cdecl memcpy_s(PVOID, size_t, const void *, size_t) THROW_DECL;
-PALIMPORT errno_t __cdecl memmove_s(PVOID, size_t, const void *, size_t);
+PALIMPORT DLLEXPORT errno_t __cdecl memcpy_s(void *, size_t, const void *, size_t) THROW_DECL;
+PALIMPORT errno_t __cdecl memmove_s(void *, size_t, const void *, size_t);
 PALIMPORT char * __cdecl _strlwr(char *);
 PALIMPORT DLLEXPORT int __cdecl _stricmp(const char *, const char *);
 PALIMPORT DLLEXPORT int __cdecl vsprintf_s(char *, size_t, const char *, va_list);
@@ -4581,9 +4581,9 @@ inline __int64 abs(__int64 _X) {
 }
 #endif
 
-PALIMPORT DLLEXPORT PVOID __cdecl malloc(size_t);
-PALIMPORT DLLEXPORT void   __cdecl free(PVOID);
-PALIMPORT DLLEXPORT PVOID __cdecl realloc(PVOID, size_t);
+PALIMPORT DLLEXPORT void * __cdecl malloc(size_t);
+PALIMPORT DLLEXPORT void   __cdecl free(void *);
+PALIMPORT DLLEXPORT void * __cdecl realloc(void *, size_t);
 PALIMPORT char * __cdecl _strdup(const char *);
 
 #if defined(_MSC_VER)
@@ -4607,7 +4607,7 @@ PALIMPORT char * __cdecl _fullpath(char *, const char *, size_t);
 #ifndef PAL_STDCPP_COMPAT
 
 PALIMPORT DLLEXPORT void __cdecl qsort(PVOID, size_t, size_t, int(__cdecl *)(const void *, const void *));
-PALIMPORT DLLEXPORT PVOID __cdecl bsearch(const void *, const void *, size_t, size_t,
+PALIMPORT DLLEXPORT void * __cdecl bsearch(const void *, const void *, size_t, size_t,
     int(__cdecl *)(const void *, const void *));
 
 PALIMPORT time_t __cdecl time(time_t *);

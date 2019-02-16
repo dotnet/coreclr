@@ -815,7 +815,7 @@ Return value:
     non-NULL - the base address of the mapped image
     NULL - error, with last error set.
 --*/
-void *
+PVOID
 PAL_LOADLoadPEFile(HANDLE hFile)
 {
     ENTRY("PAL_LOADLoadPEFile (hFile=%p)\n", hFile);
@@ -858,7 +858,7 @@ Return value:
 --*/
 BOOL
 PALAPI
-PAL_LOADUnloadPEFile(void * ptr)
+PAL_LOADUnloadPEFile(PVOID ptr)
 {
     BOOL retval = FALSE;
 
@@ -890,7 +890,7 @@ Return value:
 --*/
 LPCVOID
 PALAPI
-PAL_GetSymbolModuleBase(void *symbol)
+PAL_GetSymbolModuleBase(PVOID symbol)
 {
     LPCVOID retval = nullptr;
 

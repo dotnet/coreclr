@@ -409,7 +409,7 @@ PAL_GetNativeExceptionHolderHead()
 }
 
 NativeExceptionHolderBase *
-NativeExceptionHolderBase::FindNextHolder(NativeExceptionHolderBase *currentHolder, void *stackLowAddress, void *stackHighAddress)
+NativeExceptionHolderBase::FindNextHolder(NativeExceptionHolderBase *currentHolder, PVOID stackLowAddress, PVOID stackHighAddress)
 {
     NativeExceptionHolderBase *holder = (currentHolder == nullptr) ? t_nativeExceptionHolderHead : currentHolder->m_next;
 
