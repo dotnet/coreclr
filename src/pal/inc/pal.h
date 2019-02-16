@@ -2832,7 +2832,7 @@ VOID
 PALAPI
 RtlMoveMemory(
           IN PVOID Destination,
-          IN const VOID *Source,
+          IN CONST VOID *Source,
           IN SIZE_T Length);
 
 #define MoveMemory memmove

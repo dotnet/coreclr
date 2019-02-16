@@ -267,7 +267,7 @@ PAL_Random(
             DWORD offset = 0;
             do
             {
-                auto n = read(rand_des, (BYTE*)lpBuffer + offset , dwLength - offset);
+                ssize_t n = read(rand_des, (BYTE*)lpBuffer + offset , dwLength - offset);
                 if (n == -1)
                 {
                     if (errno == EINTR)
