@@ -10506,26 +10506,28 @@ void CodeGen::genSetScopeInfo()
     }
 #endif
 
-    if (compiler->info.compVarScopesCount == 0)
+    unsigned int amountLiveRanges = compiler->getAmountLiveRangesReported();
+
+    if (amountLiveRanges == 0)
     {
         compiler->eeSetLVcount(0);
         compiler->eeSetLVdone();
         return;
     }
 
-    noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
-    noway_assert(psiOpenScopeList.scNext == nullptr);
+    //noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
+    //noway_assert(psiOpenScopeList.scNext == nullptr);
 
-    unsigned i;
-    unsigned scopeCnt = siScopeCnt + psiScopeCnt;
 
-    compiler->eeSetLVcount(scopeCnt);
+    //unsigned scopeCnt = siScopeCnt + psiScopeCnt;
+
+    compiler->eeSetLVcount(amountLiveRanges);
 
 #ifdef DEBUG
-    genTrnslLocalVarCount = scopeCnt;
-    if (scopeCnt)
+    genTrnslLocalVarCount = amountLiveRanges;
+    if (amountLiveRanges)
     {
-        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[scopeCnt];
+        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[amountLiveRanges];
     }
 #endif
 
@@ -10533,7 +10535,7 @@ void CodeGen::genSetScopeInfo()
     // The prolog needs to be treated differently as a variable may not
     // have the same info in the prolog block as is given by compiler->lvaTable.
     // eg. A register parameter is actually on the stack, before it is loaded to reg.
-
+    /*
     CodeGen::psiScope* scopeP;
 
     for (i = 0, scopeP = psiScopeList.scNext; i < psiScopeCnt; i++, scopeP = scopeP->scNext)
@@ -10590,6 +10592,42 @@ void CodeGen::genSetScopeInfo()
 
         genSetScopeInfo(psiScopeCnt + i, startOffs, endOffs - startOffs, scopeL->scVarNum, scopeL->scLVnum,
                         scopeL->scAvailable, &varLoc);
+    }
+    */
+
+    unsigned int varNum;
+    LclVarDsc *varDsc;
+    unsigned int liveRangeIndex = 0;
+
+    for (varDsc = compiler->lvaTable, varNum = 0; varNum < compiler->lvaCount; varNum++, varDsc++)
+    {
+        LiveRangeList* liveRanges = varDsc->getLiveRanges();
+        
+        if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
+        {
+            for (LiveRangeListIterator itLiveRanges = liveRanges->begin(); itLiveRanges != liveRanges->end(); itLiveRanges++, liveRangeIndex++)
+            {
+                UNATIVE_OFFSET startOffs = itLiveRanges->startEmitLocation.CodeOffset(getEmitter());
+                UNATIVE_OFFSET endOffs   = itLiveRanges->endEmitLocation.CodeOffset(getEmitter());
+
+                // a case that should only be considered for arguments
+                // The range may be 0 if the prolog is empty. For such a case,
+                // report the liveness of arguments to span at least the first
+                // instruction in the method. This will be incorrect (except on
+                // entry to the method) if the very first instruction of the method
+                // is part of a loop. However, this should happen
+                // very rarely, and the incorrectness is worth being able to look
+                // at the argument on entry to the method.
+                if (varDsc->lvIsParam && startOffs == endOffs)
+                {
+                    noway_assert(startOffs == 0);
+                    endOffs++;
+                }
+
+                genSetScopeInfo(liveRangeIndex, startOffs, endOffs - startOffs, varNum, varNum /* I dont know what is the which in eeGetLvInfo */, true, &itLiveRanges->varLocation);
+            }
+        }
+
     }
 
     compiler->eeSetLVdone();
