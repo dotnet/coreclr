@@ -121,7 +121,7 @@ namespace System
             {
                 if (s_osVersion == null)
                 {
-                    Interlocked.CompareExchange(ref s_osVersion, GetOperatingSystem(), null);
+                    Interlocked.CompareExchange(ref s_osVersion, GetOSVersion(), null);
                 }
                 return s_osVersion;
             }

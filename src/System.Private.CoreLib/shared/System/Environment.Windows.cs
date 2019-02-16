@@ -86,7 +86,7 @@ namespace System
             Interop.Kernel32.GetComputerName() ??
             throw new InvalidOperationException(SR.InvalidOperation_ComputerName);
 
-        private static unsafe OperatingSystem GetOperatingSystem()
+        private static unsafe OperatingSystem GetOSVersion()
         {
             var version = new Interop.Kernel32.OSVERSIONINFOEX { dwOSVersionInfoSize = sizeof(Interop.Kernel32.OSVERSIONINFOEX) };
             if (!Interop.Kernel32.GetVersionExW(ref version))
