@@ -209,7 +209,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             {
                 if (!s_AssemblyLoadContexts.TryGetValue(assemblyPath, out alc))
                 {
-                    alc = new ComponentLoadContext(assemblyPath);
+                    alc = new IsolatedComponentLoadContext(assemblyPath);
                     s_AssemblyLoadContexts.Add(assemblyPath, alc);
                 }
             }

@@ -8,11 +8,11 @@ using System.Runtime.Loader;
 
 namespace Internal.Runtime.InteropServices
 {
-    internal class ComponentLoadContext : AssemblyLoadContext
+    internal class IsolatedComponentLoadContext : AssemblyLoadContext
     {
         private readonly AssemblyDependencyResolver _resolver;
 
-        public ComponentLoadContext(string componentAssemblyPath)
+        public IsolatedComponentLoadContext(string componentAssemblyPath)
         {
             _resolver = new AssemblyDependencyResolver(componentAssemblyPath);
         }

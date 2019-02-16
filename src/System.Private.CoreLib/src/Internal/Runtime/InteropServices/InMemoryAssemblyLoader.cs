@@ -36,7 +36,7 @@ namespace Internal.Runtime.InteropServices
 #if FEATURE_PAL
             throw new PlatformNotSupportedException();
 #else
-            AssemblyLoadContext context = new ComponentLoadContext(Marshal.PtrToStringUni(assemblyPath));
+            AssemblyLoadContext context = new IsolatedComponentLoadContext(Marshal.PtrToStringUni(assemblyPath));
             context.LoadFromInMemoryModule(handle);
 #endif
         }
