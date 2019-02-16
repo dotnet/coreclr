@@ -298,10 +298,10 @@ namespace System
 
         public static string NewLine => "\n";
 
-        private static readonly Lazy<OperatingSystem> s_osVersion = new Lazy<OperatingSystem>(() => GetOperatingSystem(Interop.Sys.GetUnixRelease()));
-
-        private static OperatingSystem GetOperatingSystem(string release)
+        private static OperatingSystem GetOperatingSystem()
         {
+            string release = Interop.Sys.GetUnixRelease();
+
             int major = 0, minor = 0, build = 0, revision = 0;
 
             // Parse the uname's utsname.release for the first four numbers found.
