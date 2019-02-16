@@ -72,7 +72,7 @@ extern "C" {
 // Native system libray handle.
 // On Unix systems, NATIVE_LIBRARY_HANDLE type represents a library handle not registered with the PAL.
 // To get a HMODULE on Unix, call PAL_RegisterLibraryDirect() on a NATIVE_LIBRARY_HANDLE.
-typedef void * NATIVE_LIBRARY_HANDLE;
+typedef PVOID NATIVE_LIBRARY_HANDLE;
 
 /******************* Processor-specific glue  *****************************/
 
@@ -301,7 +301,7 @@ PAL_IsDebuggerPresent(VOID);
 #if defined(__cplusplus)
 #define NULL    0
 #else
-#define NULL    ((void *)0)
+#define NULL    ((PVOID)0)
 #endif
 
 #if defined(PAL_STDCPP_COMPAT) && !defined(__cplusplus)
@@ -2410,11 +2410,13 @@ TlsFree(
     IN DWORD dwTlsIndex);
 
 PALIMPORT
-void *
+PVOID
+PALAPI
 PAL_GetStackBase(VOID);
 
 PALIMPORT
-void *
+PVOID
+PALAPI
 PAL_GetStackLimit(VOID);
 
 PALIMPORT
@@ -2493,7 +2495,7 @@ typedef struct _CRITICAL_SECTION {
     union CSNativeDataStorage
     {
         BYTE rgNativeDataStorage[PAL_CS_NATIVE_DATA_SIZE];
-        VOID * pvAlign; // make sure the storage is machine-pointer-size aligned
+        PVOID pvAlign; // make sure the storage is machine-pointer-size aligned
     } csnds;
 } CRITICAL_SECTION, *PCRITICAL_SECTION, *LPCRITICAL_SECTION;
 
@@ -2659,7 +2661,9 @@ Return value:
     A valid base address if successful.
     0 if failure
 --*/
-void *
+PALIMPORT
+PVOID
+PALAPI
 PAL_LOADLoadPEFile(HANDLE hFile);
 
 /*++
@@ -2676,7 +2680,7 @@ Return value:
 --*/
 BOOL
 PALAPI
-PAL_LOADUnloadPEFile(void * ptr);
+PAL_LOADUnloadPEFile(PVOID ptr);
 
 #ifdef UNICODE
 #define LoadLibrary LoadLibraryW
@@ -2744,7 +2748,7 @@ GetModuleFileNameExW(
 // Get base address of the module containing a given symbol
 PALAPI
 LPCVOID
-PAL_GetSymbolModuleBase(void *symbol);
+PAL_GetSymbolModuleBase(PVOID symbol);
 
 PALIMPORT
 LPCSTR
@@ -2826,7 +2830,7 @@ VOID
 PALAPI
 RtlMoveMemory(
           IN PVOID Destination,
-          IN CONST VOID *Source,
+          IN const void * Source,
           IN SIZE_T Length);
 
 #define MoveMemory memmove
@@ -4312,21 +4316,21 @@ See MSDN doc for memcpy
 EXTERN_C
 PALIMPORT
 DLLEXPORT
-void *PAL_memcpy (void *dest, const void *src, size_t count);
+PVOID PAL_memcpy (PVOID dest, const void * src, size_t count);
 
-PALIMPORT void * __cdecl memcpy(void *, const void *, size_t) THROW_DECL;
+PALIMPORT PVOID __cdecl memcpy(PVOID, const void *, size_t) THROW_DECL;
 
 #define memcpy PAL_memcpy
 #define IS_PAL_memcpy 1
 #define TEST_PAL_DEFERRED(def) IS_##def
 #define IS_REDEFINED_IN_PAL(def) TEST_PAL_DEFERRED(def)
 #else //defined(_DEBUG)
-PALIMPORT void * __cdecl memcpy(void *, const void *, size_t);
+PALIMPORT PVOID __cdecl memcpy(PVOID, const void *, size_t);
 #endif //defined(_DEBUG)
 PALIMPORT int    __cdecl memcmp(const void *, const void *, size_t);
-PALIMPORT void * __cdecl memset(void *, int, size_t);
-PALIMPORT void * __cdecl memmove(void *, const void *, size_t);
-PALIMPORT void * __cdecl memchr(const void *, int, size_t);
+PALIMPORT PVOID __cdecl memset(PVOID, int, size_t);
+PALIMPORT PVOID __cdecl memmove(PVOID, const void *, size_t);
+PALIMPORT PVOID __cdecl memchr(const void *, int, size_t);
 PALIMPORT long long int __cdecl atoll(const char *) THROW_DECL;
 PALIMPORT size_t __cdecl strlen(const char *);
 PALIMPORT int __cdecl strcmp(const char*, const char *);
@@ -4366,8 +4370,8 @@ PALIMPORT int __cdecl toupper(int);
 #define _TRUNCATE ((size_t)-1)
 #endif
 
-PALIMPORT DLLEXPORT errno_t __cdecl memcpy_s(void *, size_t, const void *, size_t) THROW_DECL;
-PALIMPORT errno_t __cdecl memmove_s(void *, size_t, const void *, size_t);
+PALIMPORT DLLEXPORT errno_t __cdecl memcpy_s(PVOID, size_t, const void *, size_t) THROW_DECL;
+PALIMPORT errno_t __cdecl memmove_s(PVOID, size_t, const void *, size_t);
 PALIMPORT char * __cdecl _strlwr(char *);
 PALIMPORT DLLEXPORT int __cdecl _stricmp(const char *, const char *);
 PALIMPORT DLLEXPORT int __cdecl vsprintf_s(char *, size_t, const char *, va_list);
@@ -4577,9 +4581,9 @@ inline __int64 abs(__int64 _X) {
 }
 #endif
 
-PALIMPORT DLLEXPORT void * __cdecl malloc(size_t);
-PALIMPORT DLLEXPORT void   __cdecl free(void *);
-PALIMPORT DLLEXPORT void * __cdecl realloc(void *, size_t);
+PALIMPORT DLLEXPORT PVOID __cdecl malloc(size_t);
+PALIMPORT DLLEXPORT void   __cdecl free(PVOID);
+PALIMPORT DLLEXPORT PVOID __cdecl realloc(PVOID, size_t);
 PALIMPORT char * __cdecl _strdup(const char *);
 
 #if defined(_MSC_VER)
@@ -4602,8 +4606,8 @@ PALIMPORT char * __cdecl _fullpath(char *, const char *, size_t);
 
 #ifndef PAL_STDCPP_COMPAT
 
-PALIMPORT DLLEXPORT void __cdecl qsort(void *, size_t, size_t, int(__cdecl *)(const void *, const void *));
-PALIMPORT DLLEXPORT void * __cdecl bsearch(const void *, const void *, size_t, size_t,
+PALIMPORT DLLEXPORT void __cdecl qsort(PVOID, size_t, size_t, int(__cdecl *)(const void *, const void *));
+PALIMPORT DLLEXPORT PVOID __cdecl bsearch(const void *, const void *, size_t, size_t,
     int(__cdecl *)(const void *, const void *));
 
 PALIMPORT time_t __cdecl time(time_t *);
@@ -4662,7 +4666,7 @@ PALIMPORT int __cdecl PAL_fclose(PAL_FILE *);
 PALIMPORT void __cdecl PAL_setbuf(PAL_FILE *, char*);
 PALIMPORT DLLEXPORT int __cdecl PAL_fflush(PAL_FILE *);
 PALIMPORT size_t __cdecl PAL_fwrite(const void *, size_t, size_t, PAL_FILE *);
-PALIMPORT size_t __cdecl PAL_fread(void *, size_t, size_t, PAL_FILE *);
+PALIMPORT size_t __cdecl PAL_fread(PVOID, size_t, size_t, PAL_FILE *);
 PALIMPORT char * __cdecl PAL_fgets(char *, int, PAL_FILE *);
 PALIMPORT int __cdecl PAL_fputs(const char *, PAL_FILE *);
 PALIMPORT int __cdecl PAL_fputc(int c, PAL_FILE *stream);
@@ -5207,7 +5211,7 @@ public:
 
     // Given the currentHolder and locals stack range find the next holder starting with this one
     // To find the first holder, pass nullptr as the currentHolder.
-    static NativeExceptionHolderBase *FindNextHolder(NativeExceptionHolderBase *currentHolder, void *frameLowAddress, void *frameHighAddress);
+    static NativeExceptionHolderBase *FindNextHolder(NativeExceptionHolderBase *currentHolder, PVOID frameLowAddress, PVOID frameHighAddress);
 };
 
 //

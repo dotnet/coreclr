@@ -2189,7 +2189,7 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
     // should not be necessary, but see AllocateMemory() for the reason why it is done.
     int32_t randomOffset = GenerateRandomStartOffset();
     m_nextFreeAddress = ALIGN_UP((void*)(((UINT_PTR)m_startAddress) + randomOffset), VIRTUAL_64KB);
-    _ASSERTE((size_t)sizeOfAllocation >= (UINT_PTR)m_nextFreeAddress - (UINT_PTR)m_startAddress);
+    _ASSERTE(sizeOfAllocation >= (int32_t)((UINT_PTR)m_nextFreeAddress - (UINT_PTR)m_startAddress));
     m_remainingReservedMemory =
         ALIGN_DOWN(sizeOfAllocation - ((UINT_PTR)m_nextFreeAddress - (UINT_PTR)m_startAddress), VIRTUAL_64KB);
 }
@@ -2219,7 +2219,7 @@ void* ExecutableMemoryAllocator::AllocateMemory(SIZE_T allocationSize)
 
     // The code below assumes that the caller owns the virtual_critsec lock.
     // So the calculations are not done in thread-safe manner.
-    if ((allocationSize > 0) && (allocationSize <= (size_t)m_remainingReservedMemory))
+    if ((allocationSize > 0) && (allocationSize <= (SIZE_T)m_remainingReservedMemory))
     {
         allocatedMemory = m_nextFreeAddress;
         m_nextFreeAddress = (void*)(((UINT_PTR)m_nextFreeAddress) + allocationSize);
@@ -2255,7 +2255,7 @@ void *ExecutableMemoryAllocator::AllocateMemoryWithinRange(const void *beginAddr
     // The code below assumes that the caller owns the virtual_critsec lock.
     // So the calculations are not done in thread-safe manner.
 
-    if (allocationSize == 0 || allocationSize > (size_t)m_remainingReservedMemory)
+    if (allocationSize == 0 || allocationSize > (SIZE_T)m_remainingReservedMemory)
     {
         return nullptr;
     }

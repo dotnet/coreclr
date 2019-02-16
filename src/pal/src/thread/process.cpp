@@ -2236,7 +2236,7 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
 
     INDEBUG(int chars = )
     snprintf(statFileName, sizeof(statFileName), "/proc/%d/stat", processId);
-    _ASSERTE(chars > 0 && (size_t)chars <= sizeof(statFileName));
+    _ASSERTE(chars > 0 && chars <= (int)sizeof(statFileName));
 
     FILE *statFile = fopen(statFileName, "r");
     if (statFile == nullptr)
@@ -3034,7 +3034,7 @@ exit:
 
     INDEBUG(int chars = )
     snprintf(mapFileName, sizeof(mapFileName), "/proc/%d/maps", dwProcessId);
-    _ASSERTE(chars > 0 && (size_t)chars <= sizeof(mapFileName));
+    _ASSERTE(chars > 0 && chars <= (int)sizeof(mapFileName));
 
     FILE *mapsFile = fopen(mapFileName, "r");
     if (mapsFile == NULL)

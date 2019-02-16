@@ -138,7 +138,7 @@ TRUE if the Unicode character was found.
 BOOL GetUnicodeData(INT nUnicodeValue, UnicodeDataRec *pDataRec)
 {
     BOOL bRet;
-    if ((size_t)nUnicodeValue <= UNICODE_DATA_DIRECT_ACCESS)
+    if (nUnicodeValue <= (INT)UNICODE_DATA_DIRECT_ACCESS)
     {
         *pDataRec = UnicodeData[nUnicodeValue];
         bRet = TRUE;

@@ -741,7 +741,7 @@ GetCurrentProcessorNumberEx(
     ENTRY("GetCurrentProcessorNumberEx(ProcNumber=%p\n", ProcNumber);
 
     DWORD cpu = GetCurrentProcessorNumber();
-    _ASSERTE(cpu < (size_t)g_possibleCpuCount);
+    _ASSERTE((int)cpu < g_possibleCpuCount);
     ProcNumber->Group = g_cpuToAffinity[cpu].Group;
     ProcNumber->Number = g_cpuToAffinity[cpu].Number;
 
@@ -868,7 +868,7 @@ VirtualAllocExNuma(
 
     if (hProcess == GetCurrentProcess())
     {
-        if (nndPreferred <= (size_t)g_highestNumaNode)
+        if ((int)nndPreferred <= g_highestNumaNode)
         {
             result = VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
 #if HAVE_NUMA_H
@@ -976,7 +976,7 @@ SetThreadIdealProcessorEx(
             }
         }
 
-        _ASSERTE(prevCpu < (size_t)g_possibleCpuCount);
+        _ASSERTE((int)prevCpu < g_possibleCpuCount);
         lpPreviousIdealProcessor->Group = g_cpuToAffinity[prevCpu].Group;
         lpPreviousIdealProcessor->Number = g_cpuToAffinity[prevCpu].Number;
         lpPreviousIdealProcessor->Reserved = 0;
