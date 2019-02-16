@@ -500,7 +500,7 @@ Function :
 
 size_t
 __cdecl
-PAL_fread(PVOID buffer, size_t size, size_t count, PAL_FILE * f)
+PAL_fread(void * buffer, size_t size, size_t count, PAL_FILE * f)
 {
     size_t nReadBytes = 0;
 

@@ -816,6 +816,7 @@ Return value:
     NULL - error, with last error set.
 --*/
 PVOID
+PALAPI
 PAL_LOADLoadPEFile(HANDLE hFile)
 {
     ENTRY("PAL_LOADLoadPEFile (hFile=%p)\n", hFile);

@@ -2678,6 +2678,7 @@ Return value:
     TRUE - success
     FALSE - failure (incorrect ptr, etc.)
 --*/
+PALIMPORT
 BOOL
 PALAPI
 PAL_LOADUnloadPEFile(PVOID ptr);
@@ -2746,8 +2747,9 @@ GetModuleFileNameExW(
 #endif
 
 // Get base address of the module containing a given symbol
-PALAPI
+PALIMPORT
 LPCVOID
+PALAPI
 PAL_GetSymbolModuleBase(PVOID symbol);
 
 PALIMPORT
@@ -2830,7 +2832,7 @@ VOID
 PALAPI
 RtlMoveMemory(
           IN PVOID Destination,
-          IN const void * Source,
+          IN const VOID *Source,
           IN SIZE_T Length);
 
 #define MoveMemory memmove
@@ -4316,7 +4318,7 @@ See MSDN doc for memcpy
 EXTERN_C
 PALIMPORT
 DLLEXPORT
-PVOID PAL_memcpy (PVOID dest, const void * src, size_t count);
+void *PAL_memcpy (void *dest, const void * src, size_t count);
 
 PALIMPORT void * __cdecl memcpy(void *, const void *, size_t) THROW_DECL;
 
@@ -4606,7 +4608,7 @@ PALIMPORT char * __cdecl _fullpath(char *, const char *, size_t);
 
 #ifndef PAL_STDCPP_COMPAT
 
-PALIMPORT DLLEXPORT void __cdecl qsort(PVOID, size_t, size_t, int(__cdecl *)(const void *, const void *));
+PALIMPORT DLLEXPORT void __cdecl qsort(void *, size_t, size_t, int(__cdecl *)(const void *, const void *));
 PALIMPORT DLLEXPORT void * __cdecl bsearch(const void *, const void *, size_t, size_t,
     int(__cdecl *)(const void *, const void *));
 
@@ -4666,7 +4668,7 @@ PALIMPORT int __cdecl PAL_fclose(PAL_FILE *);
 PALIMPORT void __cdecl PAL_setbuf(PAL_FILE *, char*);
 PALIMPORT DLLEXPORT int __cdecl PAL_fflush(PAL_FILE *);
 PALIMPORT size_t __cdecl PAL_fwrite(const void *, size_t, size_t, PAL_FILE *);
-PALIMPORT size_t __cdecl PAL_fread(PVOID, size_t, size_t, PAL_FILE *);
+PALIMPORT size_t __cdecl PAL_fread(void *, size_t, size_t, PAL_FILE *);
 PALIMPORT char * __cdecl PAL_fgets(char *, int, PAL_FILE *);
 PALIMPORT int __cdecl PAL_fputs(const char *, PAL_FILE *);
 PALIMPORT int __cdecl PAL_fputc(int c, PAL_FILE *stream);

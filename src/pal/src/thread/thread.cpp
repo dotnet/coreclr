@@ -2771,6 +2771,7 @@ CPalThread::GetCachedStackLimit()
 }
 
 PVOID
+PALAPI
 PAL_GetStackBase()
 {
     CPalThread* thread = InternalGetCurrentThread();
@@ -2778,6 +2779,7 @@ PAL_GetStackBase()
 }
 
 PVOID
+PALAPI
 PAL_GetStackLimit()
 {
     CPalThread* thread = InternalGetCurrentThread();
