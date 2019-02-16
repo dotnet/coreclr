@@ -159,16 +159,16 @@ jobs:
 
         publishTestResults: true
 
-        ${{ if eq(parameters.scenarioGroup, 'innerloop') }}:
+        ${{ if eq(parameters.testGroup, 'innerloop') }}:
           # "PerCollection" is time needed for the "biggest" xUnit test collection to complete.
           # In case xUnit test wrappers get refactored this number should also be adjusted.
           timeoutPerTestCollectionInMinutes: 30
           # "PerTest" corresponds to individual test running time (i.e. __TestTimeout).
           timeoutPerTestInMinutes: 10
-        ${{ if eq(parameters.scenarioGroup, 'outerloop') }}:
+        ${{ if eq(parameters.testGroup, 'outerloop') }}:
           timeoutPerTestCollectionInMinutes: 60
           timeoutPerTestInMinutes: 10
-        ${{ if eq(parameters.scenarioGroup, 'outerloop-jitminopts-jitstress1-jitstress2') }}:
+        ${{ if eq(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2') }}:
           # TODO: Adjust this number as soon as we have more data on how long it takes to run these jobs in Helix.
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 30
@@ -180,13 +180,13 @@ jobs:
           # DotNet-HelixApi-Access variable group
           helixAccessToken: $(HelixApiAccessToken)
 
-        ${{ if in(parameters.scenarioGroup, 'innerloop', 'outerloop') }}:
+        ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
           scenarios:
             asString: 'normal,no_tiered_compilation'
             asArray:
             - normal
             - no_tiered_compilation
-        ${{ if eq(parameters.scenarioGroup, 'outerloop-jitminopts-jitstress1-jitstress2') }}:
+        ${{ if eq(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2') }}:
           scenarios:
             asString: 'jitminopts,jitstress1,jitstress1_tiered,jitstress2,jitstress2_tiered'
             asArray:
