@@ -11097,3 +11097,20 @@ bool Compiler::killGCRefs(GenTree* tree)
 
     return false;
 }
+
+unsigned int Compiler::getAmountLiveRangesReported()
+{
+
+    unsigned int varNum, amountOfLiveRanges = 0;
+    LclVarDsc* varDsc = lvaTable;
+
+    for (varNum = 0, varDsc = lvaTable; varNum < lvaCount; varNum++, varDsc++)
+    {
+        if (compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
+        {
+            amountOfLiveRanges += varDsc->getAmountLiveRanges();
+        }
+    }
+
+    return amountOfLiveRanges;
+}

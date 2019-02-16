@@ -428,6 +428,16 @@ public:
         variableLiveRanges = nullptr;
     }
 
+    unsigned int getAmountLiveRanges() const
+    {
+        unsigned int result = 0;
+        if (variableLiveRanges != nullptr)
+        {
+            result = variableLiveRanges->size();
+        }
+        return result;
+    }
+
     // Modified the barrier to print on next block only just that changes
     void endBlockLiveRanges()
     {
@@ -457,6 +467,16 @@ public:
         {
             printf("None history\n");
         }
+    }
+
+    LiveRangeListIterator getLiveRangesIterator() const
+    {
+        return variableLiveRanges->begin();
+    }
+
+    LiveRangeList* getLiveRanges() const
+    {
+        return variableLiveRanges;
     }
 
     void dumpAllRegisterLiveRangesForBlock(emitter* _emitter, const CodeGenInterface* codeGen) const
@@ -2110,6 +2130,8 @@ class Compiler
     */
 
 public:
+    unsigned int getAmountLiveRangesReported();
+
     hashBvGlobalData hbvGlobalData; // Used by the hashBv bitvector package.
 
 #ifdef DEBUG
