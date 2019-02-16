@@ -6875,9 +6875,9 @@ bool Compiler::optHoistLoopExprsForTree(GenTree*          tree,
                                          (tree->OperIs(GT_CNS_INT) && ((tree->gtFlags & GTF_ICON_INITCLASS) != 0)));
             bool treeIsInvariant = true;
             int  childCount;
-            for (childCount = 0; m_valueStack.IndexRef(childCount).Node() != tree; childCount++)
+            for (childCount = 0; m_valueStack.TopRef(childCount).Node() != tree; childCount++)
             {
-                Value& child = m_valueStack.IndexRef(childCount);
+                Value& child = m_valueStack.TopRef(childCount);
 
                 if (!child.m_invariant)
                 {
