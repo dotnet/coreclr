@@ -823,6 +823,10 @@
                     "name": "System.Tests.MathFTests.Min",
                     "reason": "https://github.com/dotnet/coreclr/pull/20912"
                 },
+                {
+                    "name": "System.Tests.EnvironmentTests.Version_MatchesFixedVersion",
+                    "reason": "outdated"
+                },
             ]
         }
     },
