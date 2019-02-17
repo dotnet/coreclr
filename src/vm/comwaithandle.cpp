@@ -78,37 +78,6 @@ private:
     }
 };
 
-void AcquireSafeHandleFromWaitHandle(WAITHANDLEREF wh)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS; 
-        MODE_COOPERATIVE;
-        PRECONDITION(wh != NULL);
-    } CONTRACTL_END;
-
-    SAFEHANDLEREF sh = wh->GetSafeHandle();
-    if (sh == NULL)
-        COMPlusThrow(kObjectDisposedException);
-    sh->AddRef();
-}
-
-void ReleaseSafeHandleFromWaitHandle(WAITHANDLEREF wh)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        PRECONDITION(wh != NULL);
-    } CONTRACTL_END;
-    
-    SAFEHANDLEREF sh = wh->GetSafeHandle();
-    _ASSERTE(sh);
-    sh->Release();
-}
-
-typedef ObjArrayHolder<WAITHANDLEREF, AcquireSafeHandleFromWaitHandle, ReleaseSafeHandleFromWaitHandle> WaitHandleArrayHolder;
-
 INT64 AdditionalWait(INT64 sPauseTime, INT64 sTime, INT64 expDuration)
 {
     LIMITED_METHOD_CONTRACT;
