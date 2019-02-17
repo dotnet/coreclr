@@ -163,22 +163,20 @@ namespace System.Threading
         /// handles to keep them alive during a multi-wait operation.
         /// </summary>
         private static void ObtainSafeWaitHandles(
-            WaitHandle[] waitHandles,
-            int numWaitHandles,
+            Span<WaitHandle> waitHandles,
             out SafeWaitHandle[] safeWaitHandles,
             out IntPtr[] unsafeWaitHandles)
         {
             Debug.Assert(waitHandles != null);
-            Debug.Assert(numWaitHandles > 0);
-            Debug.Assert(numWaitHandles <= MaxWaitHandles);
-            Debug.Assert(numWaitHandles <= waitHandles.Length);
+            Debug.Assert(waitHandles.Length > 0);
+            Debug.Assert(waitHandles.Length <= MaxWaitHandles);
 
-            safeWaitHandles = new SafeWaitHandle[numWaitHandles];
-            unsafeWaitHandles = new IntPtr[numWaitHandles];
+            safeWaitHandles = new SafeWaitHandle[waitHandles.Length];
+            unsafeWaitHandles = new IntPtr[waitHandles.Length];
             bool success = false;
             try
             {
-                for (int i = 0; i < numWaitHandles; ++i)
+                for (int i = 0; i < waitHandles.Length; ++i)
                 {
                     WaitHandle waitHandle = waitHandles[i];
                     if (waitHandle == null)
@@ -203,7 +201,7 @@ namespace System.Threading
             {
                 if (!success)
                 {
-                    for (int i = 0; i < numWaitHandles; ++i)
+                    for (int i = 0; i < waitHandles.Length; ++i)
                     {
                         SafeWaitHandle safeWaitHandle = safeWaitHandles[i];
                         if (safeWaitHandle == null)
@@ -217,7 +215,7 @@ namespace System.Threading
             }
         }
 
-        public static int WaitMultiple(WaitHandle[] waitHandles, bool waitAll, int millisecondsTimeout)
+        private static int WaitMultiple(Span<WaitHandle> waitHandles, bool waitAll, int millisecondsTimeout)
         {
             if (waitHandles == null)
             {
@@ -245,7 +243,7 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
 
-            ObtainSafeWaitHandles(waitHandles, waitHandles.Length, out SafeWaitHandle[] safeWaitHandles, out IntPtr[] unsafeWaitHandles);
+            ObtainSafeWaitHandles(waitHandles, out SafeWaitHandle[] safeWaitHandles, out IntPtr[] unsafeWaitHandles);
             try
             {
                 int waitResult;
