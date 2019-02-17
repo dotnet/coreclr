@@ -163,7 +163,7 @@ namespace System.Threading
         /// handles to keep them alive during a multi-wait operation.
         /// </summary>
         private static void ObtainSafeWaitHandles(
-            Span<WaitHandle> waitHandles,
+            ReadOnlySpan<WaitHandle> waitHandles,
             out SafeWaitHandle[] safeWaitHandles,
             out IntPtr[] unsafeWaitHandles)
         {
@@ -215,7 +215,7 @@ namespace System.Threading
             }
         }
 
-        private static int WaitMultiple(Span<WaitHandle> waitHandles, bool waitAll, int millisecondsTimeout)
+        private static int WaitMultiple(ReadOnlySpan<WaitHandle> waitHandles, bool waitAll, int millisecondsTimeout)
         {
             if (waitHandles == null)
             {
