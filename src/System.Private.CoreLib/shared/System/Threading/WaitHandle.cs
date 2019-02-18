@@ -11,7 +11,6 @@ namespace System.Threading
     {
         internal const int WaitAbandoned = 0x80;
         internal const int WaitTimeout = 0x102;
-        internal const int ErrorTooManyPosts = 0x12A;
 
         internal const int MaxWaitHandles = 64;
 
@@ -343,11 +342,6 @@ namespace System.Threading
                 if (ret == WaitAbandoned)
                 {
                     throw new AbandonedMutexException();
-                }
-
-                if (ret == ErrorTooManyPosts)
-                {
-                    throw new InvalidOperationException(SR.Threading_WaitHandleTooManyPosts);
                 }
 
                 return ret != WaitTimeout;
