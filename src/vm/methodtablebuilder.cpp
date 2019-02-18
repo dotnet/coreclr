@@ -2910,9 +2910,9 @@ MethodTableBuilder::EnumerateClassMethods()
 
         // Some interface checks.
         // We only need them if default interface method support is disabled or if this is fragile crossgen
-#if !FEATURE_DEFAULT_INTERFACES || FEATURE_NATIVE_IMAGE_GENERATION
+#if !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
         if (fIsClassInterface
-#if FEATURE_DEFAULT_INTERFACES
+#if defined(FEATURE_DEFAULT_INTERFACES)
             // Only fragile crossgen wasn't upgraded to deal with default interface methods.
             && !IsReadyToRunCompilation()
 #endif
@@ -2934,7 +2934,7 @@ MethodTableBuilder::EnumerateClassMethods()
                 }
             }
         }
-#endif // !FEATURE_DEFAULT_INTERFACES || FEATURE_NATIVE_IMAGE_GENERATION
+#endif // !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
 
         // No synchronized methods in ValueTypes
         if(fIsClassValueType && IsMiSynchronized(dwImplFlags))
