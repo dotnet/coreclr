@@ -924,7 +924,7 @@ template <class Visitor>
             WRAPPER_NO_CONTRACT;
 
             m_pKeysToValueHash->GetElement(index, *m_pKeyValueStore);
-            return VisitKeyValueStore(m_pLoaderAllocatorRef, m_pKeyValueStore, visitor);
+            return VisitKeyValueStore(m_pLoaderAllocatorRef, m_pKeyValueStore, m_pVisitor);
         }
     };
 
