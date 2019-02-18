@@ -126,10 +126,11 @@ namespace System.Threading
             }
 
             bool success = false;
-            waitHandle.DangerousAddRef(ref success);
             try
             {
                 int waitResult;
+
+                waitHandle.DangerousAddRef(ref success);
 
                 SynchronizationContext context = SynchronizationContext.Current;
                 if (context != null && context.IsWaitNotificationRequired())
@@ -174,6 +175,8 @@ namespace System.Threading
             safeWaitHandles = new SafeWaitHandle[waitHandles.Length];
             unsafeWaitHandles = new IntPtr[waitHandles.Length];
             bool success = false;
+            bool lastSuccess = true;
+            SafeWaitHandle lastSafeWaitHandle = null;
             try
             {
                 for (int i = 0; i < waitHandles.Length; ++i)
@@ -191,7 +194,9 @@ namespace System.Threading
                         throw new ObjectDisposedException(null, SR.ObjectDisposed_Generic);
                     }
 
-                    safeWaitHandle.DangerousAddRef(ref success);
+                    lastSafeWaitHandle = safeWaitHandle;
+                    lastSuccess = false;
+                    safeWaitHandle.DangerousAddRef(ref lastSuccess);
                     safeWaitHandles[i] = safeWaitHandle;
                     unsafeWaitHandles[i] = safeWaitHandle.DangerousGetHandle();
                 }
@@ -210,6 +215,16 @@ namespace System.Threading
                         }
                         safeWaitHandle.DangerousRelease();
                         safeWaitHandles[i] = null;
+                        if (safeWaitHandle == lastSafeWaitHandle)
+                        {
+                            lastSafeWaitHandle = null;
+                            lastSuccess = true;
+                        }
+                    }
+
+                    if (!lastSuccess)
+                    {
+                        lastSafeWaitHandle.DangerousRelease();
                     }
                 }
             }
