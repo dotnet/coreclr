@@ -690,7 +690,7 @@ FCFuncEnd()
 FCFuncStart(gWaitHandleFuncs)
     FCFuncElement("WaitOneCore", WaitHandleNative::CorWaitOneNative)
     FCFuncElement("WaitMultipleIgnoringSyncContext", WaitHandleNative::CorWaitMultipleNative)
-    FCFuncElement("SignalAndWaitCore", WaitHandleNative::CorSignalAndWaitOneNative)
+    FCFuncElement("SignalAndWaitNative", WaitHandleNative::CorSignalAndWaitOneNative)
 FCFuncEnd()
 
 #ifdef FEATURE_COMINTEROP

@@ -13,8 +13,20 @@ namespace System.Threading
  
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int WaitMultipleIgnoringSyncContext(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout);
- 
+
+        private static int SignalAndWaitCore(IntPtr waitHandleToSignal, IntPtr waitHandleToWaitOn, int millisecondsTimeout)
+        {
+            int ret = SignalAndWaitNative(waitHandleToSignal, waitHandleToWaitOn, millisecondsTimeout);
+
+            if (ret == Interop.Errors.ERROR_TOO_MANY_POSTS)
+            {
+                throw new InvalidOperationException(SR.Threading_WaitHandleTooManyPosts);
+            }
+
+            return ret;
+        }
+
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern int SignalAndWaitCore(IntPtr waitHandleToSignal, IntPtr waitHandleToWaitOn, int millisecondsTimeout);
+        private static extern int SignalAndWaitNative(IntPtr waitHandleToSignal, IntPtr waitHandleToWaitOn, int millisecondsTimeout);
     }
 }
