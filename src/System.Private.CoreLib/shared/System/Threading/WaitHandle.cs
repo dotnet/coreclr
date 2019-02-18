@@ -20,7 +20,7 @@ namespace System.Threading
         // IMPORTANT:
         // - Do not add or rearrange fields as the EE depends on this layout.
 
-        internal SafeWaitHandle _waitHandle;
+        private SafeWaitHandle _waitHandle;
 
         private protected enum OpenExistingResult
         {
