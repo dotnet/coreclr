@@ -809,6 +809,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\ThreadLocal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Volatile.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\AsyncCausalityTracerConstants.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\AsyncExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\ConcurrentExclusiveSchedulerPair.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\Future.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\FutureFactory.cs" />
