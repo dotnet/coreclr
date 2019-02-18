@@ -142,9 +142,7 @@ namespace System.Threading
                 SynchronizationContext context = SynchronizationContext.Current;
                 if (context != null && context.IsWaitNotificationRequired())
                 {
-                    var handles = new[] { waitHandle.DangerousGetHandle() };
-                    waitResult = context.Wait(handles, false, millisecondsTimeout);
-                    GC.KeepAlive(handles);
+                    waitResult = context.Wait(new[] { waitHandle.DangerousGetHandle() }, false, millisecondsTimeout);
                 }
                 else
                 {
@@ -292,8 +290,6 @@ namespace System.Threading
                     waitResult -= WaitAbandoned;
                     throw new AbandonedMutexException(waitResult, waitHandles[waitResult]);
                 }
-
-                GC.KeepAlive(unsafeWaitHandles);
 
                 return waitResult;
             }
