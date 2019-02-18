@@ -425,7 +425,6 @@ class AssemblySpecBindingCache
 
         inline DomainAssembly* GetAssembly(){ LIMITED_METHOD_CONTRACT; return m_pAssembly;};
         inline void SetAssembly(DomainAssembly* pAssembly){ LIMITED_METHOD_CONTRACT;  m_pAssembly=pAssembly;};
-        inline DomainAssembly* GetParentAssembly(){ LIMITED_METHOD_CONTRACT; return m_spec.GetParentAssembly();};
         inline PEAssembly* GetFile(){ LIMITED_METHOD_CONTRACT; return m_pFile;};
         inline BOOL IsError(){ LIMITED_METHOD_CONTRACT; return (m_exceptionType!=EXTYPE_NONE);};
 

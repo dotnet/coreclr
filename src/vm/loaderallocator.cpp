@@ -501,13 +501,9 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
                 pAppDomain->RemoveFileFromCache(domainAssemblyToRemove->GetFile());
                 AssemblySpec spec;
                 spec.InitializeSpec(domainAssemblyToRemove->GetFile());
+                VERIFY(pAppDomain->RemoveAssemblyFromCache(domainAssemblyToRemove));
                 pAppDomain->RemoveNativeImageDependency(&spec);
             }
-
-            // We need to call RemoveAssemblyFromCache even for dynamic assemblies.
-            // Even though they don't have their own entries in the cache, they can
-            // be stored in the cache entries as parent assemblies.
-            VERIFY(pAppDomain->RemoveAssemblyFromCache(domainAssemblyToRemove));
 
             domainAssemblyIt++;
         }

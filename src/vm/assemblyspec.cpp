@@ -1755,7 +1755,7 @@ BOOL AssemblySpecBindingCache::RemoveAssembly(DomainAssembly* pAssembly)
     while (!i.end())
     {
         AssemblyBinding* entry = (AssemblyBinding*)i.GetValue();
-        if (entry->GetAssembly() == pAssembly || entry->GetParentAssembly() == pAssembly)
+        if (entry->GetAssembly() == pAssembly)
         {
             UPTR key = i.GetKey();
             m_map.DeleteValue(key, entry);
@@ -1851,6 +1851,11 @@ VOID DomainAssemblyCache::InsertEntry(AssemblySpec* pSpec, LPVOID pData1, LPVOID
 
             pEntry->spec.CopyFrom(pSpec);
             pEntry->spec.CloneFieldsToLoaderHeap(AssemblySpec::ALL_OWNED, m_pDomain->GetLowFrequencyHeap(), pamTracker);
+
+            // Clear the parent assembly, it is not needed for the AssemblySpec in the cache entry and it could contain stale
+            // pointer when the parent was a collectible assembly that was collected.
+            pEntry->spec.SetParentAssembly(NULL);
+
             pEntry->pData[0] = pData1;
             pEntry->pData[1] = pData2;
             DWORD hashValue = pEntry->Hash();
