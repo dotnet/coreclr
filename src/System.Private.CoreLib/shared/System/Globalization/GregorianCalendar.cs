@@ -21,20 +21,13 @@ namespace System.Globalization
         // The limitation is derived from the DateTime class.
         internal const int MaxYear = 9999;
 
-        internal GregorianCalendarTypes _type;
+        private GregorianCalendarTypes _type;
 
-        internal static readonly int[] DaysToMonth365 =
-        {
-            0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365
-        };
+        private static readonly int[] DaysToMonth365 = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 };
 
-        internal static readonly int[] DaysToMonth366 =
-        {
-            0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366
-        };
+        private static readonly int[] DaysToMonth366 = { 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 };
 
         private static volatile Calendar s_defaultInstance;
-
 
         public override DateTime MinSupportedDateTime => DateTime.MinValue;
 
@@ -74,21 +67,15 @@ namespace System.Globalization
             set
             {
                 VerifyWritable();
-
-                switch (value)
+                if (value < GregorianCalendarTypes.Localized || value > GregorianCalendarTypes.TransliteratedFrench)
                 {
-                    case GregorianCalendarTypes.Localized:
-                    case GregorianCalendarTypes.USEnglish:
-                    case GregorianCalendarTypes.MiddleEastFrench:
-                    case GregorianCalendarTypes.Arabic:
-                    case GregorianCalendarTypes.TransliteratedEnglish:
-                    case GregorianCalendarTypes.TransliteratedFrench:
-                        _type = value;
-                        break;
-
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(value), value, SR.ArgumentOutOfRange_Enum);
+                    throw new ArgumentOutOfRangeException(
+                        nameof(value),
+                        value,
+                        SR.Format(SR.ArgumentOutOfRange_Range, GregorianCalendarTypes.Localized, GregorianCalendarTypes.TransliteratedFrench));
                 }
+
+                _type = value;
             }
         }
 
@@ -129,29 +116,33 @@ namespace System.Globalization
             throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_BadYearMonthDay);
         }
 
-        // Returns the tick count corresponding to the given year, month, and day.
-        // Will check the if the parameters are valid.
+        /// <summary>
+        /// Returns the tick count corresponding to the given year, month, and day.
+        /// Will check the if the parameters are valid.
+        /// </summary>
         internal virtual long DateToTicks(int year, int month, int day)
         {
             return (GetAbsoluteDate(year, month, day) * TicksPerDay);
         }
 
-        // Returns the DateTime resulting from adding the given number of
-        // months to the specified DateTime. The result is computed by incrementing
-        // (or decrementing) the year and month parts of the specified DateTime by
-        // value months, and, if required, adjusting the day part of the
-        // resulting date downwards to the last day of the resulting month in the
-        // resulting year. The time-of-day part of the result is the same as the
-        // time-of-day part of the specified DateTime.
-        //
-        // In more precise terms, considering the specified DateTime to be of the
-        // form y / m / d + t, where y is the
-        // year, m is the month, d is the day, and t is the
-        // time-of-day, the result is y1 / m1 / d1 + t,
-        // where y1 and m1 are computed by adding value months
-        // to y and m, and d1 is the largest value less than
-        // or equal to d that denotes a valid day in month m1 of year
-        // y1.
+        /// <summary>
+        /// Returns the DateTime resulting from adding the given number of
+        /// months to the specified DateTime. The result is computed by incrementing
+        /// (or decrementing) the year and month parts of the specified DateTime by
+        /// value months, and, if required, adjusting the day part of the
+        /// resulting date downwards to the last day of the resulting month in the
+        /// resulting year. The time-of-day part of the result is the same as the
+        /// time-of-day part of the specified DateTime.
+        ///
+        /// In more precise terms, considering the specified DateTime to be of the
+        /// form y / m / d + t, where y is the
+        /// year, m is the month, d is the day, and t is the
+        /// time-of-day, the result is y1 / m1 / d1 + t,
+        /// where y1 and m1 are computed by adding value months
+        /// to y and m, and d1 is the largest value less than
+        /// or equal to d that denotes a valid day in month m1 of year
+        /// y1.
+        /// </summary>
         public override DateTime AddMonths(DateTime time, int months)
         {
             if (months < -120000 || months > 120000)
@@ -188,37 +179,47 @@ namespace System.Globalization
             return new DateTime(ticks);
         }
 
-        // Returns the DateTime resulting from adding the given number of
-        // years to the specified DateTime. The result is computed by incrementing
-        // (or decrementing) the year part of the specified DateTime by value
-        // years. If the month and day of the specified DateTime is 2/29, and if the
-        // resulting year is not a leap year, the month and day of the resulting
-        // DateTime becomes 2/28. Otherwise, the month, day, and time-of-day
-        // parts of the result are the same as those of the specified DateTime.
+        /// <summary>
+        /// Returns the DateTime resulting from adding the given number of
+        /// years to the specified DateTime. The result is computed by incrementing
+        /// (or decrementing) the year part of the specified DateTime by value
+        /// years. If the month and day of the specified DateTime is 2/29, and if the
+        /// resulting year is not a leap year, the month and day of the resulting
+        /// DateTime becomes 2/28. Otherwise, the month, day, and time-of-day
+        /// parts of the result are the same as those of the specified DateTime.
+        /// </summary>
         public override DateTime AddYears(DateTime time, int years)
         {
             return AddMonths(time, years * 12);
         }
 
-        // Returns the day-of-month part of the specified DateTime. The returned
-        // value is an integer between 1 and 31.
+        /// <summary>
+        /// Returns the day-of-month part of the specified DateTime. The returned
+        /// value is an integer between 1 and 31.
+        /// </summary>
         public override int GetDayOfMonth(DateTime time) => time.Day;
 
-        // Returns the day-of-week part of the specified DateTime. The returned value
-        // is an integer between 0 and 6, where 0 indicates Sunday, 1 indicates
-        // Monday, 2 indicates Tuesday, 3 indicates Wednesday, 4 indicates
-        // Thursday, 5 indicates Friday, and 6 indicates Saturday.
+        /// <summary>
+        /// Returns the day-of-week part of the specified DateTime. The returned value
+        /// is an integer between 0 and 6, where 0 indicates Sunday, 1 indicates
+        /// Monday, 2 indicates Tuesday, 3 indicates Wednesday, 4 indicates
+        /// Thursday, 5 indicates Friday, and 6 indicates Saturday.
+        /// </summary>
         public override DayOfWeek GetDayOfWeek(DateTime time)
         {
             return (DayOfWeek)((int)(time.Ticks / TicksPerDay + 1) % 7);
         }
 
-        // Returns the day-of-year part of the specified DateTime. The returned value
-        // is an integer between 1 and 366.
+        /// <summary>
+        /// Returns the day-of-year part of the specified DateTime. The returned value
+        /// is an integer between 1 and 366.
+        /// </summary>
         public override int GetDayOfYear(DateTime time) => time.DayOfYear;
 
-        // Returns the number of days in the month given by the year and
-        // month arguments.
+        /// <summary>
+        /// Returns the number of days in the month given by the year and
+        /// month arguments.
+        /// </summary>
         public override int GetDaysInMonth(int year, int month, int era)
         {
             if (era != CurrentEra && era != ADEra)
@@ -242,7 +243,10 @@ namespace System.Globalization
             return days[month] - days[month - 1];
         }
 
-        // Returns the number of days in the year given by the year argument for the current era.
+        /// <summary>
+        /// Returns the number of days in the year given by the year argument for
+        /// the current era.
+        /// </summary>
         public override int GetDaysInYear(int year, int era)
         {
             if (era != CurrentEra && era != ADEra)

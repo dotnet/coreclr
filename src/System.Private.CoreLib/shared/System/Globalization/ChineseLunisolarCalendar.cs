@@ -4,13 +4,13 @@
 
 namespace System.Globalization
 {
-    /// <summary>
+    /// <remarks>
     /// Calendar support range:
     ///     Calendar               Minimum             Maximum
     ///     ==========             ==========          ==========
     ///     Gregorian              1901/02/19          2101/01/28
     ///     ChineseLunisolar       1901/01/01          2100/12/29
-    /// </summary>
+    /// </remarks>
 
     public class ChineseLunisolarCalendar : EastAsianLunisolarCalendar
     {

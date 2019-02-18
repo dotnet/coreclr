@@ -25,16 +25,16 @@ namespace System.Globalization
     ///       5.  Jumada I   (30 days)     11. Dhu al-Qada    (30 days)
     ///       6.  Jumada II  (29 days)     12. Dhu al-Hijjah  (29 days) {30}
     ///
-    ///  NOTENOTE
-    ///      The calculation of the HijriCalendar is based on the absolute date.  And the
-    ///      absolute date means the number of days from January 1st, 1 A.D.
-    ///      Therefore, we do not support the days before the January 1st, 1 A.D.
+    /// NOTENOTE
+    ///     The calculation of the HijriCalendar is based on the absolute date.  And the
+    ///     absolute date means the number of days from January 1st, 1 A.D.
+    ///     Therefore, we do not support the days before the January 1st, 1 A.D.
     ///
-    ///  Calendar support range:
-    ///      Calendar    Minimum     Maximum
-    ///      ==========  ==========  ==========
-    ///      Gregorian   0622/07/18   9999/12/31
-    ///      Hijri       0001/01/01   9666/04/03
+    /// Calendar support range:
+    ///     Calendar    Minimum     Maximum
+    ///     ==========  ==========  ==========
+    ///     Gregorian   0622/07/18   9999/12/31
+    ///     Hijri       0001/01/01   9666/04/03
     /// </remarks>
 
     public partial class HijriCalendar : Calendar

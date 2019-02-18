@@ -12,19 +12,15 @@ namespace System.Globalization
         private const int nDaysPerMonth = 3;
 
         // # of days so far in the solar year
-        internal static readonly int[] DaysToMonth365 =
-        {
-            0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
-        };
+        private static readonly int[] s_daysToMonth365 = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
 
-        internal static readonly int[] DaysToMonth366 =
-        {
-            0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335
-        };
+        private static readonly int[] s_daysToMonth366 = { 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335 };
 
         public override CalendarAlgorithmType AlgorithmType => CalendarAlgorithmType.LunisolarCalendar;
 
-        // Return the year number in the 60-year cycle.
+        /// <summary>
+        /// Return the year number in the 60-year cycle.
+        /// </summary>
         public virtual int GetSexagenaryYear(DateTime time)
         {
             CheckTicksRange(time.Ticks);
@@ -33,8 +29,10 @@ namespace System.Globalization
             return ((year - 4) % 60) + 1;
         }
 
-        // Return the celestial year from the 60-year cycle.
-        // The returned value is from 1 ~ 10.
+        /// <summary>
+        /// Return the celestial year from the 60-year cycle.
+        /// The returned value is from 1 ~ 10.
+        /// </summary>
         public int GetCelestialStem(int sexagenaryYear)
         {
             if (sexagenaryYear < 1 || sexagenaryYear > 60)
@@ -48,8 +46,10 @@ namespace System.Globalization
             return ((sexagenaryYear - 1) % 10) + 1;
         }
 
-        // Return the Terrestial Branch from the 60-year cycle.
-        // The returned value is from 1 ~ 12.
+        /// <summary>
+        /// Return the Terrestial Branch from the 60-year cycle.
+        /// The returned value is from 1 ~ 12.
+        /// </summary>
         public int GetTerrestrialBranch(int sexagenaryYear)
         {
             if (sexagenaryYear < 1 || sexagenaryYear > 60)
@@ -118,7 +118,8 @@ namespace System.Globalization
             {
                 era = CurrentEraValue;
             }
-            //era has to be in the supported range otherwise we will throw exception in CheckEraRange()
+
+            // Era has to be in the supported range otherwise we will throw exception in CheckEraRange()
             if (era == GetEra(MaxDate))
             {
                 return GetYear(MaxCalendarYear, MaxDate);
@@ -214,8 +215,10 @@ namespace System.Globalization
             return 30;
         }
 
-        // Returns the number of days in the month given by the year and
-        // month arguments.
+        /// <summary>
+        /// Returns the number of days in the month given by the year and
+        /// month arguments.
+        /// </summary>
         public override int GetDaysInMonth(int year, int month, int era)
         {
             year = CheckYearMonthRange(year, month, era);
@@ -236,7 +239,10 @@ namespace System.Globalization
             return (y % 400) == 0;
         }
 
-        // Returns the date and time converted to a DateTime value.  Throws an exception if the n-tuple is invalid.
+        /// <summary>
+        /// Returns the date and time converted to a DateTime value.
+        /// Throws an exception if the n-tuple is invalid.
+        /// </summary>
         public override DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era)
         {
             year = CheckYearMonthRange(year, month, era);
@@ -268,7 +274,7 @@ namespace System.Globalization
             int jan1Date;
 
             // Calculate the day number in the solar year.
-            int solarDay = isLeapYear ? DaysToMonth366[solarMonth - 1] : DaysToMonth365[solarMonth - 1];
+            int solarDay = isLeapYear ? s_daysToMonth366[solarMonth - 1] : s_daysToMonth365[solarMonth - 1];
             solarDay += solarDate;
 
             // Calculate the day number in the lunar year.
@@ -309,7 +315,7 @@ namespace System.Globalization
             // part of the lunar year.  since this part is always in Jan or Feb,
             // we don't need to handle Leap Year (LY only affects March
             // and later).
-            lunarDay -= DaysToMonth365[jan1Month - 1];
+            lunarDay -= s_daysToMonth365[jan1Month - 1];
             lunarDay -= (jan1Date - 1);
 
             // convert the lunar day into a lunar month/date
@@ -357,7 +363,7 @@ namespace System.Globalization
 
             // calc the solar day of year of 1 Lunar day
             bool isLeapYear = GregorianIsLeapYear(lunarYear);
-            int[] days = isLeapYear ? DaysToMonth366 : DaysToMonth365;
+            int[] days = isLeapYear ? s_daysToMonth366 : s_daysToMonth365;
 
             solarDay = jan1Date;
 
