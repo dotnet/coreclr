@@ -116,6 +116,13 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
 
+            return WaitOneNoCheck(millisecondsTimeout);
+        }
+
+        private bool WaitOneNoCheck(int millisecondsTimeout)
+        {
+            Debug.Assert(millisecondsTimeout >= -1);
+
             // The field value is modifiable via the public <see cref="WaitHandle.SafeWaitHandle"/> property, save it locally
             // to ensure that one instance is used in all places in this method
             SafeWaitHandle waitHandle = _waitHandle;
@@ -362,10 +369,10 @@ namespace System.Threading
             }
         }
 
-        public virtual bool WaitOne(TimeSpan timeout) => WaitOne(ToTimeoutMilliseconds(timeout));
-        public virtual bool WaitOne() => WaitOne(-1);
+        public virtual bool WaitOne(TimeSpan timeout) => WaitOneNoCheck(ToTimeoutMilliseconds(timeout));
+        public virtual bool WaitOne() => WaitOneNoCheck(-1);
         public virtual bool WaitOne(int millisecondsTimeout, bool exitContext) => WaitOne(millisecondsTimeout);
-        public virtual bool WaitOne(TimeSpan timeout, bool exitContext) => WaitOne(ToTimeoutMilliseconds(timeout));
+        public virtual bool WaitOne(TimeSpan timeout, bool exitContext) => WaitOneNoCheck(ToTimeoutMilliseconds(timeout));
 
         public static bool WaitAll(WaitHandle[] waitHandles, int millisecondsTimeout) =>
             WaitMultiple(waitHandles, true, millisecondsTimeout) != WaitTimeout;
