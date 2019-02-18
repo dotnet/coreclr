@@ -22,7 +22,7 @@ namespace System.Threading
 
         internal SafeWaitHandle _waitHandle;
 
-        internal enum OpenExistingResult
+        private protected enum OpenExistingResult
         {
             Success,
             NameNotFound,
