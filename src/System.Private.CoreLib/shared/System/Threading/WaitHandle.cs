@@ -260,7 +260,7 @@ namespace System.Threading
             {
                 throw new NotSupportedException(SR.NotSupported_MaxWaitHandles);
             }
-            if (-1 > millisecondsTimeout)
+            if (millisecondsTimeout < -1)
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
@@ -309,15 +309,15 @@ namespace System.Threading
 
         private static bool SignalAndWait(WaitHandle toSignal, WaitHandle toWaitOn, int millisecondsTimeout)
         {
-            if (null == toSignal)
+            if (toSignal == null)
             {
                 throw new ArgumentNullException(nameof(toSignal));
             }
-            if (null == toWaitOn)
+            if (toWaitOn == null)
             {
                 throw new ArgumentNullException(nameof(toWaitOn));
             }
-            if (-1 > millisecondsTimeout)
+            if (millisecondsTimeout < -1)
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
