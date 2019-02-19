@@ -60,6 +60,7 @@ usage()
     echo "-bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "-msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     echo "-numproc - set the number of build processes."
+    echo "-portablebuild - pass -portablebuild=false to force a non-portable build."
     exit 1
 }
 
@@ -67,7 +68,14 @@ initTargetDistroRid()
 {
     source init-distro-rid.sh
 
-    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${ROOTFS_DIR}
+    local passedRootfsDir=""
+
+    # Only pass ROOTFS_DIR if cross is specified.
+    if (( ${__CrossBuild} == 1 )); then
+        passedRootfsDir=${ROOTFS_DIR}
+    fi
+
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__PortableBuild} ${ROOTFS_DIR}
 }
 
 setup_dirs()
@@ -346,7 +354,7 @@ isMSBuildOnNETCoreSupported()
         if [ "$__HostOS" == "Linux" ]; then
             __isMSBuildOnNETCoreSupported=1
             # note: the RIDs below can use globbing patterns
-            UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64")
+            UNSUPPORTED_RIDS=("ubuntu.17.04-x64")
             for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
             do
                 if [[ ${__DistroRid} == $UNSUPPORTED_RID ]]; then
@@ -986,6 +994,9 @@ if [ $__CrossBuild == 1 ]; then
 fi
 __CrossGenCoreLibLog="$__LogsDir/CrossgenCoreLib_$__BuildOS.$__BuildArch.$__BuildType.log"
 
+# init the target distro name
+initTargetDistroRid
+
 # Init if MSBuild for .NET Core is supported for this platform
 isMSBuildOnNETCoreSupported
 
@@ -1010,9 +1021,6 @@ if [ $__CrossBuild == 1 ]; then
         export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__BuildArch"
     fi
 fi
-
-# init the target distro name
-initTargetDistroRid
 
 # Make the directories necessary for build if they don't exist
 setup_dirs

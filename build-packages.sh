@@ -14,7 +14,14 @@ initDistroRid()
 {
     source init-distro-rid.sh
 
-    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${ROOTFS_DIR}
+    local passedRootfsDir=""
+
+    # Only pass ROOTFS_DIR if __DoCrossArchBuild is specified.
+    if [ -z "${__CrossBuild}" ]; then
+        passedRootfsDir=${ROOTFS_DIR}
+    fi
+
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__IsPortableBuild} ${ROOTFS_DIR}
 }
 
 __ProjectRoot="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

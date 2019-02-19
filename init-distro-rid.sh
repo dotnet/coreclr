@@ -3,7 +3,11 @@
 # initNonPortableDistroRid
 #
 # Input:
-#   isCrossBuild? (nullable vararg:int)
+#   buildOs: (str)
+#   buildArch: (str)
+#   isPortable: (int)
+#   rootfsDir: (str)
+#   isCrossBuild? (nullable:int)
 #
 # Return:
 #   None
@@ -30,7 +34,13 @@
 initNonPortableDistroRid()
 {
     # Make sure out parameter is cleared.
-    export __DistroRid=
+    __DistroRid=
+
+    local buildOs=$1
+    local buildArch=$2
+    local isPortable=$3
+    local isCrossBuild=$3
+    local rootfsDir=$4
 
     local nonPortableBuildID=""
     local isCrossBuild=0
@@ -38,50 +48,60 @@ initNonPortableDistroRid()
 
     # If there is not an optional argument passed then this will be treated
     # as if there is no crossbuild.
-    if [ -z "$1" ]; then
-        isCrossBuild=0
-    else
-        isCrossBuild=$1
+    if [ -z ${isCrossBuild} ]; then
+        crossBuildLocation=${rootfsDir}
     fi
 
-    if (( ${isCrossBuild} == 1 )); then
-        crossBuildLocation=${ROOTFS_DIR}
-    fi
-
-    if [ "$__BuildOS" = "Linux" ]; then
+    if [ "$buildOs" = "Linux" ]; then
         if [ -e "${crossBuildLocation}/etc/redhat-release" ]; then
             local redhatRelease=$(<${crossBuildLocation}/etc/redhat-release)
 
             if [[ "${redhatRelease}" == "CentOS release 6."* || "$redhatRelease" == "Red Hat Enterprise Linux Server release 6."* ]]; then
-                nonPortableBuildID="rhel.6-${__BuildArch}"
+                nonPortableBuildID="rhel.6-${buildArch}"
             fi
 
-        elif [ -e /etc/os-release ]; then
-            source "${crossBuildLocation}/etc/os-release"
-            if [ "${ID}" = "rhel" ]; then
-                # RHEL should have been caught by the /etc/redhat-release
-                echo "Error, please verify that your install of RedHat includes"
-                echo "/etd/redhat-release"
-                exit 1
-            fi
+            # RHEL 6 is the only distro we will check redHat release for.
+            if [ -e "${crossBuildLocation}/etc/os-release" ] && [ "${nonPortableBuildID}" == "" ] ; then
+                source "${crossBuildLocation}/etc/os-release"
 
-            if [ "${ID}" = "alpine" ]; then
-                nonPortableBuildID="linux-musl-${__BuildArch}"
-            fi
+                # If we are doing a portable build. Then there are several cases
+                # where we must switch __PortableBuild=0 and use a non-portable
+                # distro rid. See the table above for a full list.
+                if (( ${isPortable} == 1 ))
+                    if [ "${ID}" = "rhel" ]; then
+                        # RHEL should have been caught by the /etc/redhat-release
+                        echo "Error, please verify that your install of RedHat includes"
+                        echo "/etc/redhat-release"
+                        exit 1
+                    fi
+                else
+                    # We have forced __PortableBuild=0. This is because -portablebuld
+                    # has been passed as false.
 
-        elif [ -e $ROOTFS_DIR/android_platform ]; then
-            source $ROOTFS_DIR/android_platform
+                    if [ "${ID}" == "rhel" ]; then
+                        # remove the last version digit	
+                        VERSION_ID=${VERSION_ID%.*}
+                    fi
+
+                    nonPortableBuildID="${ID}.${VERSION_ID}-${buildArch}"
+                fi
+                
+            fi
+        elif [ -e $rootfsDir/android_platform ]; then
+            source $rootfsDir/android_platform
             nonPortableBuildID="$RID"
         fi
     fi
 
-    if [ "$__BuildOS" = "FreeBSD" ]; then
+    if [ "$buildOs" = "FreeBSD" ]; then
         __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
-        nonPortableBuildID="freebsd.$__freebsd_version-$__Arch"
+        nonPortableBuildID="freebsd.$__freebsd_version-${buildArch}"
     fi
 
     if [ "${nonPortableBuildID}" != "" ]; then
         export __DistroRid=${nonPortableBuildID}
+
+        # We are using a non-portable build rid. Force __PortableBuild to false.
         export __PortableBuild=0
     fi
 }
@@ -90,20 +110,15 @@ initNonPortableDistroRid()
 # initDistroRidGlobal
 #
 # Input:
-#   os (str)
-#   arch (str)
-#   ROOTFS_DIR? (nullable vararg:string)
+#   os: (str)
+#   arch: (str)
+#   isPortable: (int)
+#   rootfsDir?: (nullable:string)
 #
 # Return:
 #   None
 #
 # Notes:
-#
-# The following global state is modified:
-#
-#   __BuildOS
-#   __BuildArch
-#   ROOTFS_DIR
 #
 # The following out parameters are returned
 #
@@ -119,45 +134,56 @@ initDistroRidGlobal()
     # deprecated. Now only __DistroRid is supported. It will be used for both
     # portable and non-portable rids and will be used in build-packages.sh
 
-    export __BuildOS=$1
-    export __BuildArch=$2
-    export ROOTFS_DIR=$3
+    local buildOs=$1
+    local buildArch=$2
+    local isPortable=$3
+    local rootfsDir=$4
 
-    # Setup whether this is a crossbuild. We can find this out if ROOTFS_DIR
+    # Setup whether this is a crossbuild. We can find this out if rootfsDir
     # is set. 
     local isCrossBuild=0
 
-    if [ -z "${ROOTFS_DIR}" ]; then
+    if [ -z "${rootfsDir}" ]; then
         isCrossBuild=0
     else
-        # We may have a cross build. Check for the existance of the ROOTFS_DIR
-        if [ -e ${ROOTFS_DIR} ]; then
+        # We may have a cross build. Check for the existance of the rootfsDir
+        if [ -e ${rootfsDir} ]; then
             isCrossBuild=1
         else
-            echo "Error ROOTFS_DIR has been passed, but the location is not valid."
+            echo "Error rootfsDir has been passed, but the location is not valid."
             exit 1
         fi
     fi
 
     if (( ${isCrossBuild} == 1 )); then
-        initNonPortableDistroRid ${isCrossBuild}
+        initNonPortableDistroRid ${buildOs} ${buildArch} ${isPortable} ${isCrossBuild} ${rootfsDir}
     else
-        initNonPortableDistroRid
+        initNonPortableDistroRid ${buildOs} ${buildArch} ${isPortable}
     fi
 
     if [ -z "${__DistroRid}" ]; then
         # The non-portable build rid was not set. Set the portable rid.
 
         export __PortableBuild=1
-
         local distroRid=""
 
-        if [ "$__BuildOS" = "Linux" ]; then
-            distroRid="linux-$__BuildArch"
-        elif [ "$__BuildOS" = "OSX" ]; then
-            distroRid="osx-$__BuildArch"
-        elif [ "$__BuildOS" = "FreeBSD" ]; then
-            distroRid="freebsd-$__BuildArch"
+        # Check for alpine. It is the only portable build that will will have
+        # its name in the portable build rid.
+        if [ -e "${crossBuildLocation}/etc/os-release" ]; then
+            source "${crossBuildLocation}/etc/os-release"
+            if [ "${ID}" = "alpine" ]; then
+                distroRid="linux-musl-${buildArch}"
+            fi
+        fi
+
+        if [ "${distroRid}" == "" ]; then
+            if [ "$buildOs" = "Linux" ]; then
+                distroRid="linux-$buildArch"
+            elif [ "$buildOs" = "OSX" ]; then
+                distroRid="osx-$buildArch"
+            elif [ "$buildOs" = "FreeBSD" ]; then
+                distroRid="freebsd-$buildArch"
+            fi
         fi
 
         export __DistroRid=${distroRid}

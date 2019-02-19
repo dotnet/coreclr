@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 
+__PortableBuild=1
+
 initTargetDistroRid()
 {
     source init-distro-rid.sh
 
-    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${ROOTFS_DIR}
+    # Only pass ROOTFS_DIR if cross is specified.
+    if (( ${__CrossBuild} == 1 )); then
+        passedRootfsDir=${ROOTFS_DIR}
+    fi
+
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__PortableBuild} ${ROOTFS_DIR}
 }
 
 isMSBuildOnNETCoreSupported()
@@ -671,8 +678,8 @@ while :; do
             __CrossBuild=1
             ;;
 
-        portableBuild)
-            __PortableBuild=1
+        portablebuild=false)
+            __PortableBuild=0
             ;;
 
         portablelinux)
