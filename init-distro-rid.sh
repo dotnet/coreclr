@@ -18,6 +18,9 @@
 # rids are specific to distros need to build the product/package and consume
 # them on the same platform.
 #
+# If -portablebuild=false is passed a non-portable rid will be created for any
+# distro.
+#
 # Below is the list of current non-portable platforms.
 #
 # Builds from the following *must* be non-portable:
@@ -28,8 +31,8 @@
 #   |  alpine*  |        linux-musl-(arch)          |
 #   |  freeBSD  |        freebsd.(version)-x64      |
 #
-# It is important to note that the function does not return, but it will set
-# __DistroRid if there is a non-portable distro rid to be used.
+# It is important to note that the function does not return anything, but it 
+# will set __DistroRid if there is a non-portable distro rid to be used.
 #
 initNonPortableDistroRid()
 {
