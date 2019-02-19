@@ -39,8 +39,7 @@ initNonPortableDistroRid()
     local buildOs=$1
     local buildArch=$2
     local isPortable=$3
-    local isCrossBuild=$3
-    local rootfsDir=$4
+    local isCrossBuild=$4
 
     local nonPortableBuildID=""
     local isCrossBuild=0
