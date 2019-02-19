@@ -236,6 +236,22 @@ void FireDynamicEvent(const char* name, EventArgument... arguments)
  * payload. Known events will delegate to IGCToCLREventSink::Fire##name.
  */
 #if FEATURE_EVENT_TRACE
+
+#ifndef _WIN32
+#define KNOWN_EVENT(name, provider, level, keyword)               \
+  extern "C" BOOL EventXplatEnabled##name();                      \
+  inline bool GCEventEnabled##name() { return GCEventStatus::IsEnabled(provider, keyword, level); } \
+  template<typename... EventActualArgument>                       \
+  inline void GCEventFire##name(EventActualArgument... arguments) \
+  {                                                               \
+      if (GCEventEnabled##name() || EventXplatEnabled##name())    \
+      {                                                           \
+          IGCToCLREventSink* sink = GCToEEInterface::EventSink(); \
+          assert(sink != nullptr);                                \
+          sink->Fire##name(arguments...);                         \
+      }                                                           \
+  }
+#else // _WIN32
 #define KNOWN_EVENT(name, provider, level, keyword)               \
   inline bool GCEventEnabled##name() { return GCEventStatus::IsEnabled(provider, keyword, level); } \
   template<typename... EventActualArgument>                       \
@@ -248,6 +264,7 @@ void FireDynamicEvent(const char* name, EventArgument... arguments)
           sink->Fire##name(arguments...);                         \
       }                                                           \
   }
+#endif // _WIN32
 
 #define DYNAMIC_EVENT(name, level, keyword, ...)                                                                   \
   inline bool GCEventEnabled##name() { return GCEventStatus::IsEnabled(GCEventProvider_Default, keyword, level); } \
@@ -256,9 +273,15 @@ void FireDynamicEvent(const char* name, EventArgument... arguments)
 
 #include "gcevents.h"
 
+#ifndef _WIN32
+#define EVENT_ENABLED(name) GCEventEnabled##name() || EventXplatEnabled##name()
+#else // _WIN32
 #define EVENT_ENABLED(name) GCEventEnabled##name()
+#endif
+
 #define FIRE_EVENT(name, ...) GCEventFire##name(__VA_ARGS__)
-#else
+
+#else // FEATURE_EVENT_TRACE
 #define EVENT_ENABLED(name) false
 #define FIRE_EVENT(name, ...) 0
 #endif // FEATURE_EVENT_TRACE
