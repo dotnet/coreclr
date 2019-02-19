@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace System.Threading
 {
@@ -10,9 +11,17 @@ namespace System.Threading
     {
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int WaitOneCore(IntPtr waitHandle, int millisecondsTimeout);
- 
+
+        internal static unsafe int WaitMultipleIgnoringSyncContext(Span<IntPtr> waitHandles, bool waitAll, int millisecondsTimeout)
+        {
+            fixed (IntPtr *pWaitHandles = &MemoryMarshal.GetReference(waitHandles))
+            {
+                return WaitMultipleIgnoringSyncContext(pWaitHandles, waitHandles.Length, waitAll, millisecondsTimeout);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern int WaitMultipleIgnoringSyncContext(IntPtr[] waitHandles, int numHandles, bool waitAll, int millisecondsTimeout);
+        private static unsafe extern int WaitMultipleIgnoringSyncContext(IntPtr *waitHandles, int numHandles, bool waitAll, int millisecondsTimeout);
 
         private static int SignalAndWaitCore(IntPtr waitHandleToSignal, IntPtr waitHandleToWaitOn, int millisecondsTimeout)
         {

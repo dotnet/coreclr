@@ -54,7 +54,7 @@ namespace System.Threading
                 throw new ArgumentNullException(nameof(waitHandles));
             }
 
-            return WaitHandle.WaitMultipleIgnoringSyncContext(waitHandles, waitHandles.Length, waitAll, millisecondsTimeout);
+            return WaitHandle.WaitMultipleIgnoringSyncContext(waitHandles, waitAll, millisecondsTimeout);
         }
 
         public static void SetSynchronizationContext(SynchronizationContext syncContext) => Thread.CurrentThread.SynchronizationContext = syncContext;
