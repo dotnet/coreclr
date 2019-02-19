@@ -512,7 +512,7 @@ FCFuncStart(gAssemblyLoadContextFuncs)
     QCFuncElement("InternalLoadUnmanagedDllFromPath", AssemblyNative::InternalLoadUnmanagedDllFromPath)
     QCFuncElement("LoadFromStream", AssemblyNative::LoadFromStream)
 #ifndef FEATURE_PAL
-    QCFuncElement("LoadFromInMemoryModule", AssemblyNative::LoadFromInMemoryModule)
+    QCFuncElement("LoadFromInMemoryModuleInternal", AssemblyNative::LoadFromInMemoryModule)
 #endif
     QCFuncElement("GetLoadContextForAssembly", AssemblyNative::GetLoadContextForAssembly)
     FCFuncElement("GetLoadedAssemblies", AppDomainNative::GetLoadedAssemblies)
