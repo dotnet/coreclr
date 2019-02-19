@@ -66,7 +66,7 @@ initNonPortableDistroRid()
                 # If we are doing a portable build. Then there are several cases
                 # where we must switch __PortableBuild=0 and use a non-portable
                 # distro rid. See the table above for a full list.
-                if (( ${isPortable} == 1 ))
+                if (( ${isPortable} == 1 )); then
                     if [ "${ID}" = "rhel" ]; then
                         # RHEL should have been caught by the /etc/redhat-release
                         echo "Error, please verify that your install of RedHat includes"
