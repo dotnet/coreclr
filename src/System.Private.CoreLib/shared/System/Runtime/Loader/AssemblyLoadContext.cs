@@ -40,7 +40,7 @@ namespace System.Runtime.Loader
         // Indicates the state of this ALC (Alive or in Unloading state)
         private InternalState _state;
 
-        // Id used by contextsToUnload
+        // Id used by s_contextsToUnload
         private readonly long _id;
 
         // synchronization primitive to protect against usage of this instance while unloading
@@ -85,7 +85,7 @@ namespace System.Runtime.Loader
                 var thisHandlePtr = GCHandle.ToIntPtr(thisHandle);
                 _nativeAssemblyLoadContext = InitializeAssemblyLoadContext(thisHandlePtr, representsTPALoadContext, isCollectible);
 
-                _id = Interlocked.Increment (ref s_nextId);
+                _id = s_nextId++;
                 s_contextsToUnload.Add(_id, new WeakReference<AssemblyLoadContext>(this, true));
             }
         }
