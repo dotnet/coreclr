@@ -180,6 +180,8 @@ namespace System.Threading
         {
             SafeWaitHandle[] safeWaitHandles = _safeWaitHandlesForRent;
 
+            _safeWaitHandlesForRent = null;
+
             // _safeWaitHandlesForRent can be null when it was not initialized yet or
             // if a re-entrant wait is performed and the array is already rented. In
             // that case we just allocate a new one and reuse it as necessary.
@@ -188,8 +190,6 @@ namespace System.Threading
                 // Always allocate at least 4 slots to prevent unnecessary reallocations
                 safeWaitHandles = new SafeWaitHandle[Math.Max(capacity, 4)];
             }
-
-            _safeWaitHandlesForRent = null;
 
             return safeWaitHandles;
         }
