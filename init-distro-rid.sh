@@ -42,19 +42,9 @@ initNonPortableDistroRid()
     local isCrossBuild=$4
     local rootfsDir=$5
 
-    local nonPortableBuildID=""
-    local isCrossBuild=0
-    local crossBuildLocation=""
-
-    # If there is not an optional argument passed then this will be treated
-    # as if there is no crossbuild.
-    if [ -z ${isCrossBuild} ]; then
-        crossBuildLocation=${rootfsDir}
-    fi
-
     if [ "$buildOs" = "Linux" ]; then
-        if [ -e "${crossBuildLocation}/etc/redhat-release" ]; then
-            local redhatRelease=$(<${crossBuildLocation}/etc/redhat-release)
+        if [ -e "${rootfsDir}/etc/redhat-release" ]; then
+            local redhatRelease=$(<${rootfsDir}/etc/redhat-release)
 
             if [[ "${redhatRelease}" == "CentOS release 6."* || "$redhatRelease" == "Red Hat Enterprise Linux Server release 6."* ]]; then
                 nonPortableBuildID="rhel.6-${buildArch}"
@@ -65,8 +55,8 @@ initNonPortableDistroRid()
         fi
 
         # RHEL 6 is the only distro we will check redHat release for.
-        if [ -e "${crossBuildLocation}/etc/os-release" ] && [ "${nonPortableBuildID}" == "" ] ; then
-            source "${crossBuildLocation}/etc/os-release"
+        if [ -e "${rootfsDir}/etc/os-release" ] && [ "${nonPortableBuildID}" == "" ] ; then
+            source "${rootfsDir}/etc/os-release"
 
             # If we are doing a portable build. Then there are several cases
             # where we must switch __PortableBuild=0 and use a non-portable
