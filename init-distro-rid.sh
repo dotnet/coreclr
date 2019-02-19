@@ -7,7 +7,6 @@
 #   buildArch: (str)
 #   isPortable: (int)
 #   rootfsDir: (str)
-#   isCrossBuild? (nullable:int)
 #
 # Return:
 #   None
@@ -42,8 +41,7 @@ initNonPortableDistroRid()
     local buildOs=$1
     local buildArch=$2
     local isPortable=$3
-    local isCrossBuild=$4
-    local rootfsDir=$5
+    local rootfsDir=$4
 
     if [ "$buildOs" = "Linux" ]; then
         if [ -e "${rootfsDir}/etc/redhat-release" ]; then
@@ -61,20 +59,9 @@ initNonPortableDistroRid()
         if [ -e "${rootfsDir}/etc/os-release" ] && [ "${nonPortableBuildID}" == "" ] ; then
             source "${rootfsDir}/etc/os-release"
 
-            # If we are doing a portable build. Then there are several cases
-            # where we must switch __PortableBuild=0 and use a non-portable
-            # distro rid. See the table above for a full list.
-            if (( ${isPortable} == 1 )); then
-                if [ "${ID}" = "rhel" ]; then
-                    # RHEL should have been caught by the /etc/redhat-release
-                    echo "Error, please verify that your install of RedHat includes"
-                    echo "/etc/redhat-release"
-                    exit 1
-                fi
-            else
-                # We have forced __PortableBuild=0. This is because -portablebuld
-                # has been passed as false.
-
+            # We have forced __PortableBuild=0. This is because -portablebuld
+            # has been passed as false.
+            if (( ${isPortable} == 0 )); then
                 if [ "${ID}" == "rhel" ]; then
                     # remove the last version digit	
                     VERSION_ID=${VERSION_ID%.*}
@@ -148,11 +135,7 @@ initDistroRidGlobal()
         fi
     fi
 
-    if (( ${isCrossBuild} == 1 )); then
-        initNonPortableDistroRid ${buildOs} ${buildArch} ${isPortable} ${isCrossBuild} ${rootfsDir}
-    else
-        initNonPortableDistroRid ${buildOs} ${buildArch} ${isPortable}
-    fi
+    initNonPortableDistroRid ${buildOs} ${buildArch} ${isPortable} ${rootfsDir}
 
     if [ -z "${__DistroRid}" ]; then
         # The non-portable build rid was not set. Set the portable rid.
