@@ -160,15 +160,13 @@ FCIMPL2(INT32, WaitHandleNative::CorWaitOneNative, HANDLE handle, INT32 timeout)
 }
 FCIMPLEND
 
-FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, PTRArray *handleArrayUNSAFE, INT32 numHandles, CLR_BOOL waitForAll, INT32 timeout)
+FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, HANDLE *handleArray, INT32 numHandles, CLR_BOOL waitForAll, INT32 timeout)
 {
     FCALL_CONTRACT;
 
     INT32 ret = 0;
-    PTRARRAYREF handleArrayObj = (PTRARRAYREF) handleArrayUNSAFE;
-    HELPER_METHOD_FRAME_BEGIN_RET_1(handleArrayObj);
+    HELPER_METHOD_FRAME_BEGIN_RET_0();
 
-    HANDLE * internalHandles;
     Thread * pThread = GET_THREAD();
 
 #ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
@@ -180,12 +178,6 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, PTRArray *handleArrayUNS
     }
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
-    // Since DoAppropriateWait could cause a GC, we need to copy the handles to an unmanaged block
-    // of memory to ensure they aren't relocated during the call to DoAppropriateWait.
-    // The maximum number of handles is 64, so we just allocate the array on stack.
-    internalHandles = (HANDLE *) _alloca(numHandles * sizeof(HANDLE));
-    memcpy(internalHandles, handleArrayObj->GetDataPtr(), numHandles * sizeof(HANDLE));
-
     DWORD res = (DWORD) -1;
     {
         // Support for pause/resume (FXFREEZE)
@@ -193,7 +185,7 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, PTRArray *handleArrayUNS
         {
             INT64 sPauseTime = g_PauseTime;
             INT64 sTime = CLRGetTickCount64();
-            res = pThread->DoAppropriateWait(numHandles, internalHandles, waitForAll, timeout, (WaitMode)(WaitMode_Alertable | WaitMode_IgnoreSyncCtx));
+            res = pThread->DoAppropriateWait(numHandles, handleArray, waitForAll, timeout, (WaitMode)(WaitMode_Alertable | WaitMode_IgnoreSyncCtx));
             if(res != WAIT_TIMEOUT)
                 break;
             timeout = (INT32)AdditionalWait(sPauseTime, sTime, timeout);
