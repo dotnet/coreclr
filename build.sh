@@ -75,7 +75,7 @@ initTargetDistroRid()
         passedRootfsDir=${ROOTFS_DIR}
     elif [ "${__BuildArch}" != "${__HostArch}" ]; then
         echo "Error, you are building a cross scenario without passing -cross."
-        echo 1
+        exit 1
     fi
 
     initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__PortableBuild} ${passedRootfsDir}
