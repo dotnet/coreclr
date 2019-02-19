@@ -1377,7 +1377,7 @@ INT32 QCALLTYPE AssemblyNative::ExecuteMainMethod(
 
     PTRARRAYREF* argsArray = (PTRARRAYREF*)args.m_ppObject;
 
-    exitCode = assembly->ExecuteMainMethod(argsArray, TRUE);
+    exitCode = assembly->ExecuteMainMethod(argsArray, /* waitForOtherThreads */ TRUE);
     
     END_QCALL;
 
