@@ -5020,7 +5020,7 @@ extern "C" uint64_t __rdtsc();
     {
         return (ptrdiff_t)__rdtsc();
     }
-#elif defined(__clang__)    
+#elif defined(__GNUC__)
     static ptrdiff_t get_cycle_count()
     {
         ptrdiff_t cycles;
