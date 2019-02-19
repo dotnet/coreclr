@@ -758,6 +758,11 @@ namespace System.Reflection
 
         internal int ExecuteMainMethod(string[] args)
         {
+            if (args is null)
+            {
+                throw new ArgumentNullException(nameof(args));
+            }
+
             return ExecuteMainMethod(this, JitHelpers.GetObjectHandleOnStack(ref args));
         }
 
