@@ -9,9 +9,6 @@ namespace System.Threading
 {
     public abstract partial class WaitHandle : MarshalByRefObject, IDisposable
     {
-        internal const int WaitAbandoned = 0x80;
-        internal const int WaitTimeout = 0x102;
-
         internal const int MaxWaitHandles = 64;
 
         protected static readonly IntPtr InvalidHandle = new IntPtr(-1);
@@ -21,6 +18,13 @@ namespace System.Threading
 
         private SafeWaitHandle _waitHandle;
 
+        [ThreadStatic]
+        private static bool _rentalItemsInitialized;
+        [ThreadStatic]
+        private static SafeWaitHandle[] _safeWaitHandlesForRent;
+        [ThreadStatic]
+        private static IntPtr[] _unsafeWaitHandlesForRent;
+
         private protected enum OpenExistingResult
         {
             Success,
@@ -28,6 +32,21 @@ namespace System.Threading
             PathNotFound,
             NameInvalid
         }
+
+        // The wait result values below match Win32 wait result codes (WAIT_OBJECT_0,
+        // WAIT_ABANDONED, WAIT_TIMEOUT).
+
+        // Successful wait on first object. When waiting for multiple objects the
+        // return value is (WaitSuccess + waitIndex).
+        internal static int WaitSuccess = 0;
+
+        // The specified object is a mutex object that was not released by the
+        // thread that owned the mutex object before the owning thread terminated.
+        // When waiting for multiple objects the return value is (WaitAbandoned +
+        // waitIndex).
+        internal static int WaitAbandoned = 0x80;
+
+        internal static int WaitTimeout = 0x102;
 
         protected WaitHandle()
         {
@@ -162,6 +181,50 @@ namespace System.Threading
             }
         }
 
+        private static void EnsureRentalItemsInitialized()
+        {
+            if (!_rentalItemsInitialized)
+            {
+                _safeWaitHandlesForRent = new SafeWaitHandle[MaxWaitHandles];
+                _unsafeWaitHandlesForRent = new IntPtr[MaxWaitHandles];
+                _rentalItemsInitialized = true;
+            }
+        }
+
+        private static bool RentSafeWaitHandleArray(ref SafeWaitHandle[] safeWaitHandles)
+        {
+            Debug.Assert(_rentalItemsInitialized);
+
+            if (_safeWaitHandlesForRent != null)
+            {
+                safeWaitHandles = _safeWaitHandlesForRent;
+                _safeWaitHandlesForRent = null;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static void ReturnSafeWaitHandleArray(SafeWaitHandle[] safeWaitHandles)
+            => _safeWaitHandlesForRent = safeWaitHandles;
+
+        private static bool RentUnsafeWaitHandleArray(ref IntPtr[] unsafeWaitHandles)
+        {
+            Debug.Assert(_rentalItemsInitialized);
+
+            if (_unsafeWaitHandlesForRent != null)
+            {
+                unsafeWaitHandles = _unsafeWaitHandlesForRent;
+                _unsafeWaitHandlesForRent = null;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static void ReturnUnsafeWaitHandleArray(IntPtr[] unsafeWaitHandles)
+            => _unsafeWaitHandlesForRent = unsafeWaitHandles;
+
         /// <summary>
         /// Obtains all of the corresponding safe wait handles and adds a ref to each. Since the <see cref="SafeWaitHandle"/>
         /// property is publically modifiable, this makes sure that we add and release refs one the same set of safe wait
@@ -169,15 +232,13 @@ namespace System.Threading
         /// </summary>
         private static void ObtainSafeWaitHandles(
             ReadOnlySpan<WaitHandle> waitHandles,
-            out SafeWaitHandle[] safeWaitHandles,
-            out IntPtr[] unsafeWaitHandles)
+            SafeWaitHandle[] safeWaitHandles,
+            IntPtr[] unsafeWaitHandles)
         {
             Debug.Assert(waitHandles != null);
             Debug.Assert(waitHandles.Length > 0);
             Debug.Assert(waitHandles.Length <= MaxWaitHandles);
 
-            safeWaitHandles = new SafeWaitHandle[waitHandles.Length];
-            unsafeWaitHandles = new IntPtr[waitHandles.Length];
             bool success = false;
             bool lastSuccess = true;
             SafeWaitHandle lastSafeWaitHandle = null;
@@ -262,19 +323,38 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
 
-            ObtainSafeWaitHandles(waitHandles, out SafeWaitHandle[] safeWaitHandles, out IntPtr[] unsafeWaitHandles);
+            SafeWaitHandle[] safeWaitHandles = null;
+            IntPtr[] unsafeWaitHandles = null;
+            bool safeWaitHandlesRented, unsafeWaitHandlesRented = false;
+
+            SynchronizationContext context = SynchronizationContext.Current;
+            bool useWaitContext = context != null && context.IsWaitNotificationRequired();
+
+            EnsureRentalItemsInitialized();
+
+            safeWaitHandlesRented = RentSafeWaitHandleArray(ref safeWaitHandles);
+            safeWaitHandles = safeWaitHandles ?? new SafeWaitHandle[waitHandles.Length];
+
+            // For wait context we need array of exact size, so we cannot use the cache
+            if (!useWaitContext)
+            {
+                unsafeWaitHandlesRented = RentUnsafeWaitHandleArray(ref unsafeWaitHandles);
+            }
+            unsafeWaitHandles = unsafeWaitHandles ?? new IntPtr[waitHandles.Length];
+
             try
             {
                 int waitResult;
 
-                SynchronizationContext context = SynchronizationContext.Current;
-                if (context != null && context.IsWaitNotificationRequired())
+                ObtainSafeWaitHandles(waitHandles, safeWaitHandles, unsafeWaitHandles);
+
+                if (useWaitContext)
                 {
                     waitResult = context.Wait(unsafeWaitHandles, waitAll, millisecondsTimeout);
                 }
                 else
                 {
-                    waitResult = WaitMultipleIgnoringSyncContext(unsafeWaitHandles, waitAll, millisecondsTimeout);
+                    waitResult = WaitMultipleIgnoringSyncContext(unsafeWaitHandles, waitHandles.Length, waitAll, millisecondsTimeout);
                 }
 
                 if (waitResult >= WaitAbandoned && waitResult < WaitAbandoned + unsafeWaitHandles.Length)
@@ -296,8 +376,20 @@ namespace System.Threading
             {
                 for (int i = 0; i < waitHandles.Length; ++i)
                 {
-                    safeWaitHandles[i].DangerousRelease();
-                    safeWaitHandles[i] = null;
+                    if (safeWaitHandles[i] != null)
+                    {
+                        safeWaitHandles[i].DangerousRelease();
+                        safeWaitHandles[i] = null;
+                    }
+                }
+
+                if (safeWaitHandlesRented)
+                {
+                    ReturnSafeWaitHandleArray(safeWaitHandles);
+                }
+                if (unsafeWaitHandlesRented)
+                {
+                    ReturnUnsafeWaitHandleArray(unsafeWaitHandles);
                 }
             }
         }

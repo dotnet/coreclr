@@ -12,7 +12,7 @@ namespace System.Threading
         private static extern int WaitOneCore(IntPtr waitHandle, int millisecondsTimeout);
  
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern int WaitMultipleIgnoringSyncContext(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout);
+        internal static extern int WaitMultipleIgnoringSyncContext(IntPtr[] waitHandles, int numHandles, bool waitAll, int millisecondsTimeout);
 
         private static int SignalAndWaitCore(IntPtr waitHandleToSignal, IntPtr waitHandleToWaitOn, int millisecondsTimeout)
         {
