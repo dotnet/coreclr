@@ -40,6 +40,7 @@ initNonPortableDistroRid()
     local buildArch=$2
     local isPortable=$3
     local isCrossBuild=$4
+    local rootfsDir=$5
 
     local nonPortableBuildID=""
     local isCrossBuild=0
@@ -58,37 +59,37 @@ initNonPortableDistroRid()
             if [[ "${redhatRelease}" == "CentOS release 6."* || "$redhatRelease" == "Red Hat Enterprise Linux Server release 6."* ]]; then
                 nonPortableBuildID="rhel.6-${buildArch}"
             fi
-
-            # RHEL 6 is the only distro we will check redHat release for.
-            if [ -e "${crossBuildLocation}/etc/os-release" ] && [ "${nonPortableBuildID}" == "" ] ; then
-                source "${crossBuildLocation}/etc/os-release"
-
-                # If we are doing a portable build. Then there are several cases
-                # where we must switch __PortableBuild=0 and use a non-portable
-                # distro rid. See the table above for a full list.
-                if (( ${isPortable} == 1 )); then
-                    if [ "${ID}" = "rhel" ]; then
-                        # RHEL should have been caught by the /etc/redhat-release
-                        echo "Error, please verify that your install of RedHat includes"
-                        echo "/etc/redhat-release"
-                        exit 1
-                    fi
-                else
-                    # We have forced __PortableBuild=0. This is because -portablebuld
-                    # has been passed as false.
-
-                    if [ "${ID}" == "rhel" ]; then
-                        # remove the last version digit	
-                        VERSION_ID=${VERSION_ID%.*}
-                    fi
-
-                    nonPortableBuildID="${ID}.${VERSION_ID}-${buildArch}"
-                fi
-                
-            fi
         elif [ -e $rootfsDir/android_platform ]; then
             source $rootfsDir/android_platform
             nonPortableBuildID="$RID"
+        fi
+
+        # RHEL 6 is the only distro we will check redHat release for.
+        if [ -e "${crossBuildLocation}/etc/os-release" ] && [ "${nonPortableBuildID}" == "" ] ; then
+            source "${crossBuildLocation}/etc/os-release"
+
+            # If we are doing a portable build. Then there are several cases
+            # where we must switch __PortableBuild=0 and use a non-portable
+            # distro rid. See the table above for a full list.
+            if (( ${isPortable} == 1 )); then
+                if [ "${ID}" = "rhel" ]; then
+                    # RHEL should have been caught by the /etc/redhat-release
+                    echo "Error, please verify that your install of RedHat includes"
+                    echo "/etc/redhat-release"
+                    exit 1
+                fi
+            else
+                # We have forced __PortableBuild=0. This is because -portablebuld
+                # has been passed as false.
+
+                if [ "${ID}" == "rhel" ]; then
+                    # remove the last version digit	
+                    VERSION_ID=${VERSION_ID%.*}
+                fi
+
+                nonPortableBuildID="${ID}.${VERSION_ID}-${buildArch}"
+            fi
+            
         fi
     fi
 
@@ -168,8 +169,8 @@ initDistroRidGlobal()
 
         # Check for alpine. It is the only portable build that will will have
         # its name in the portable build rid.
-        if [ -e "${crossBuildLocation}/etc/os-release" ]; then
-            source "${crossBuildLocation}/etc/os-release"
+        if [ -e "${rootfsDir}/etc/os-release" ]; then
+            source "${rootfsDir}/etc/os-release"
             if [ "${ID}" = "alpine" ]; then
                 distroRid="linux-musl-${buildArch}"
             fi
