@@ -381,6 +381,26 @@ namespace System.Threading
                     return null;
                 }
             }
+
+            public int Count
+            {
+                get
+                {
+                    bool lockTaken = false;
+                    try
+                    {
+                        m_foreignLock.Enter(ref lockTaken);
+                        return Math.Max(0, m_tailIndex - m_headIndex);
+                    }
+                    finally
+                    {
+                        if (lockTaken)
+                        {
+                            m_foreignLock.Exit(useMemoryBarrier: false);
+                        }
+                    }
+                }
+            }
         }
 
         internal bool loggingEnabled;
@@ -510,6 +530,19 @@ namespace System.Threading
             }
 
             return callback;
+        }
+
+        public long Count
+        {
+            get
+            {
+                long count = workItems.Count;
+                foreach (WorkStealingQueue workStealingQueue in WorkStealingQueueList.Queues)
+                {
+                    count += workStealingQueue.Count;
+                }
+                return count;
+            }
         }
 
         /// <summary>
@@ -1248,5 +1281,16 @@ namespace System.Threading
 
         internal static object[] GetLocallyQueuedWorkItemsForDebugger() =>
             ToObjectArray(GetLocallyQueuedWorkItems());
+
+        /// <summary>
+        /// Gets the number of work items that are currently queued to be processed.
+        /// </summary>
+        /// <remarks>
+        /// For a thread pool implementation that may have different types of work items, the count includes all types that can
+        /// be tracked, which may only be the user work items including tasks. Some implementations may also include queued
+        /// timer and wait callbacks in the count. On Windows, the count is unlikely to include the number of pending IO
+        /// completions, as they get posted directly to an IO completion port.
+        /// </remarks>
+        public static long PendingWorkItemCount => ThreadPoolGlobals.workQueue.Count + PendingUnmanagedWorkItemCount;
     }
 }

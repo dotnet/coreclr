@@ -3871,21 +3871,85 @@ private:
 #endif // defined(FEATURE_PROFAPI_ATTACH_DETACH) || defined(DATA_PROFAPI_ATTACH_DETACH)
 
 private:
-    Volatile<LONG> m_threadPoolCompletionCount;
-    static Volatile<LONG> s_threadPoolCompletionCountOverflow; //counts completions for threads that have been destroyed.
+    UINT32 m_workerThreadPoolCompletionCount;
+    UINT32 m_ioThreadPoolCompletionCount;
+    static UINT64 s_workerThreadPoolCompletionCountOverflow;
+    static UINT64 s_ioThreadPoolCompletionCountOverflow;
 
+#ifndef DACCESS_COMPILE
 public:
-    static void IncrementThreadPoolCompletionCount()
+    static void IncrementWorkerThreadPoolCompletionCount(Thread *pThread)
     {
-        LIMITED_METHOD_CONTRACT;
-        Thread* pThread = GetThread();
-        if (pThread)
-            pThread->m_threadPoolCompletionCount++;
+        WRAPPER_NO_CONTRACT;
+
+        if (pThread != nullptr)
+        {
+            UINT32 newCount = pThread->m_workerThreadPoolCompletionCount + 1;
+            if (newCount != 0)
+            {
+                pThread->m_workerThreadPoolCompletionCount = newCount;
+            }
+            else
+            {
+                pThread->OnWorkerThreadPoolCompletionCountIncrementOverflow();
+            }
+        }
         else
-            FastInterlockIncrement(&s_threadPoolCompletionCountOverflow);
+        {
+            InterlockedIncrement64((LONGLONG *)&s_workerThreadPoolCompletionCountOverflow);
+        }
     }
 
-    static LONG GetTotalThreadPoolCompletionCount();
+    static void IncrementIOThreadPoolCompletionCount(Thread *pThread)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        if (pThread != nullptr)
+        {
+            UINT32 newCount = pThread->m_ioThreadPoolCompletionCount + 1;
+            if (newCount != 0)
+            {
+                pThread->m_ioThreadPoolCompletionCount = newCount;
+            }
+            else
+            {
+                pThread->OnIOThreadPoolCompletionCountIncrementOverflow();
+            }
+        }
+        else
+        {
+            InterlockedIncrement64((LONGLONG *)&s_ioThreadPoolCompletionCountOverflow);
+        }
+    }
+
+    void OnWorkerThreadPoolCompletionCountIncrementOverflow();
+    void OnIOThreadPoolCompletionCountIncrementOverflow();
+
+    static UINT64 GetWorkerThreadPoolCompletionCountOverflow()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        if (sizeof(void *) >= sizeof(s_workerThreadPoolCompletionCountOverflow))
+        {
+            return VolatileLoad(&s_workerThreadPoolCompletionCountOverflow);
+        }
+        return InterlockedCompareExchange64((LONGLONG *)&s_workerThreadPoolCompletionCountOverflow, 0, 0); // prevent tearing
+    }
+
+    static UINT64 GetIOThreadPoolCompletionCountOverflow()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        if (sizeof(void *) >= sizeof(s_ioThreadPoolCompletionCountOverflow))
+        {
+            return VolatileLoad(&s_ioThreadPoolCompletionCountOverflow);
+        }
+        return InterlockedCompareExchange64((LONGLONG *)&s_ioThreadPoolCompletionCountOverflow, 0, 0); // prevent tearing
+    }
+
+    static UINT64 GetTotalWorkerThreadPoolCompletionCount();
+    static UINT64 GetTotalThreadPoolCompletionCount();
+#endif // !DACCESS_COMPILE
 
 private:
 

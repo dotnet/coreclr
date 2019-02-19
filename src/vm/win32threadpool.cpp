@@ -694,6 +694,14 @@ BOOL ThreadpoolMgr::GetAvailableThreads(DWORD* AvailableWorkerThreads,
     return TRUE;
 }
 
+INT32 ThreadpoolMgr::GetThreadCount()
+{
+    WRAPPER_NO_CONTRACT;
+
+    EnsureInitialized();
+    return WorkerCounter.DangerousGetDirtyCounts().NumActive + CPThreadCounter.DangerousGetDirtyCounts().NumActive;
+}
+
 void QueueUserWorkItemHelp(LPTHREAD_START_ROUTINE Function, PVOID Context)
 {
     STATIC_CONTRACT_THROWS;
@@ -912,7 +920,7 @@ void ThreadpoolMgr::AdjustMaxWorkersActive()
     _ASSERTE(ThreadAdjustmentLock.IsHeld());
 
     DWORD currentTicks = GetTickCount();
-    LONG totalNumCompletions = Thread::GetTotalThreadPoolCompletionCount();
+    LONG totalNumCompletions = (LONG)Thread::GetTotalWorkerThreadPoolCompletionCount();
     LONG numCompletions = totalNumCompletions - VolatileLoad(&PriorCompletedWorkRequests);
 
     LARGE_INTEGER startTime = CurrentSampleStartTime;
@@ -2865,6 +2873,12 @@ DWORD WINAPI ThreadpoolMgr::AsyncCallbackCompletion(PVOID pArgs)
 
         ((WAITORTIMERCALLBACKFUNC) waitInfo->Callback)
                                     ( waitInfo->Context, asyncCallback->waitTimedOut != FALSE);
+
+#ifdef FEATURE_PAL
+        Thread::IncrementWorkerThreadPoolCompletionCount(pThread);
+#else
+        Thread::IncrementIOThreadPoolCompletionCount(pThread);
+#endif
     }
 
     return ERROR_SUCCESS;
@@ -3608,6 +3622,12 @@ Top:
                     CONTRACT_VIOLATION(ThrowsViolation);
 
                     ((LPOVERLAPPED_COMPLETION_ROUTINE) key)(errorCode, numBytes, pOverlapped);
+                }
+
+                if ((void *)key != CallbackForInitiateDrainageOfCompletionPortQueue &&
+                    (void *)key != CallbackForContinueDrainageOfCompletionPortQueue)
+                {
+                    Thread::IncrementIOThreadPoolCompletionCount(pThread);
                 }
 
                 if (pThread == NULL) {
@@ -4772,6 +4792,7 @@ DWORD WINAPI ThreadpoolMgr::AsyncTimerCallbackCompletion(PVOID pArgs)
     {
         TimerInfo* timerInfo = (TimerInfo*) pArgs;
         ((WAITORTIMERCALLBACKFUNC) timerInfo->Function) (timerInfo->Context, TRUE) ;
+        Thread::IncrementWorkerThreadPoolCompletionCount(pThread);
 
         if (InterlockedDecrement(&timerInfo->refCount) == 0)
         {

@@ -456,6 +456,10 @@ private:
 
     static const DWORD WaiterStarvationDurationMsBeforeStoppingPreemptingWaiters = 100;
 
+#ifndef DACCESS_COMPILE
+    static UINT64 s_lockContentionCount;
+#endif
+
     // Only SyncBlocks can create AwareLocks.  Hence this private constructor.
     AwareLock(DWORD indx)
         : m_Recursion(0),
@@ -524,6 +528,19 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_HoldingThread;
     }
+
+#ifndef DACCESS_COMPILE
+    static UINT64 GetLockContentionCount()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        if (sizeof(void *) >= sizeof(s_lockContentionCount))
+        {
+            return VolatileLoad(&s_lockContentionCount);
+        }
+        return InterlockedCompareExchange64((LONGLONG *)&s_lockContentionCount, 0, 0); // prevent tearing
+    }
+#endif
 
 private:
     void ResetWaiterStarvationStartTime();
