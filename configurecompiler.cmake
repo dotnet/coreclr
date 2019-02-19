@@ -449,6 +449,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   # Disabled common warnings
   add_compile_options(-Wno-unused-variable)
   add_compile_options(-Wno-unused-value)
+  add_compile_options(-Wno-unused-function)
 
   #These seem to indicate real issues
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-invalid-offsetof")
