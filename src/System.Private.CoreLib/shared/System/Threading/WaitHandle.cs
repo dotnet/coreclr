@@ -115,10 +115,7 @@ namespace System.Threading
 
         protected virtual void Dispose(bool explicitDisposing)
         {
-            if (_waitHandle != null)
-            {
-                _waitHandle.Close();
-            }
+            _waitHandle?.Close();
         }
 
         public void Dispose()
@@ -239,7 +236,6 @@ namespace System.Threading
             Debug.Assert(waitHandles.Length > 0);
             Debug.Assert(waitHandles.Length <= MaxWaitHandles);
 
-            bool success = false;
             bool lastSuccess = true;
             SafeWaitHandle lastSafeWaitHandle = null;
             try
@@ -265,33 +261,31 @@ namespace System.Threading
                     safeWaitHandles[i] = safeWaitHandle;
                     unsafeWaitHandles[i] = safeWaitHandle.DangerousGetHandle();
                 }
-                success = true;
             }
-            finally
+            catch
             {
-                if (!success)
+                for (int i = 0; i < waitHandles.Length; ++i)
                 {
-                    for (int i = 0; i < waitHandles.Length; ++i)
+                    SafeWaitHandle safeWaitHandle = safeWaitHandles[i];
+                    if (safeWaitHandle == null)
                     {
-                        SafeWaitHandle safeWaitHandle = safeWaitHandles[i];
-                        if (safeWaitHandle == null)
-                        {
-                            break;
-                        }
-                        safeWaitHandle.DangerousRelease();
-                        safeWaitHandles[i] = null;
-                        if (safeWaitHandle == lastSafeWaitHandle)
-                        {
-                            lastSafeWaitHandle = null;
-                            lastSuccess = true;
-                        }
+                        break;
                     }
-
-                    if (!lastSuccess)
+                    safeWaitHandle.DangerousRelease();
+                    safeWaitHandles[i] = null;
+                    if (safeWaitHandle == lastSafeWaitHandle)
                     {
-                        lastSafeWaitHandle.DangerousRelease();
+                        lastSafeWaitHandle = null;
+                        lastSuccess = true;
                     }
                 }
+
+                if (!lastSuccess)
+                {
+                    lastSafeWaitHandle.DangerousRelease();
+                }
+
+                throw;
             }
         }
 
@@ -420,13 +414,12 @@ namespace System.Threading
             }
 
             bool successSignal = false, successWait = false;
-            int ret;
             try
             {
                 safeWaitHandleToSignal.DangerousAddRef(ref successSignal);
                 safeWaitHandleToWaitOn.DangerousAddRef(ref successWait);
 
-                ret = SignalAndWaitCore(
+                int ret = SignalAndWaitCore(
                     safeWaitHandleToSignal.DangerousGetHandle(),
                     safeWaitHandleToWaitOn.DangerousGetHandle(),
                     millisecondsTimeout);
