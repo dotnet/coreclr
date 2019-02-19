@@ -36,7 +36,7 @@ set "__RootBinDir=%__ProjectDir%\..\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
 set __ToolsDir=%__ProjectDir%\..\Tools
-set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
+set "DotNetCli=%__ProjectDir%\..\dotnet.cmd"
 
 set __Sequential=
 set __msbuildExtraArgs=

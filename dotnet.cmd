@@ -21,7 +21,7 @@ if NOT [%ERRORLEVEL%]==[0] (
 
 pushd %~dp0
 echo Running: dotnet %*
-call "%~dp0\Tools\dotnetcli\dotnet.exe" %*
+call "%~dp0\.dotnet\dotnet.exe" %*
 popd
 if NOT [%ERRORLEVEL%]==[0] (
   exit /b 1
