@@ -1,0 +1,2 @@
+EXPORTS
+    _CorDllMain   PRIVATE

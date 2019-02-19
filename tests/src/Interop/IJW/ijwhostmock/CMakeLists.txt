@@ -1,8 +1,8 @@
 cmake_minimum_required (VERSION 2.6)
 project (mscoree)
 include_directories( ${INC_PLATFORM_DIR} )
-set(MSCOREE_SOURCES mscoree.cpp )
-set(IJWHOST_MOCK_SOURCES ijwhost.cpp)
+set(MSCOREE_SOURCES mscoree.cpp MscoreeExports.def)
+set(IJWHOST_MOCK_SOURCES ijwhost.cpp IjwHostExports.def)
 
 # add the shared library
 add_library(ijwhost SHARED ${IJWHOST_MOCK_SOURCES})

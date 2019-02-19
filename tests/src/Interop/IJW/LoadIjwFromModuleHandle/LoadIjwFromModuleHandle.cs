@@ -50,7 +50,7 @@ namespace NativeCallingManaged
             }
         }
 
-        [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         delegate int NativeEntryPointDelegate();
 
     }

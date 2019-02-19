@@ -15,7 +15,7 @@ int NativeFunction()
     return ManagedCallee();
 }
 
-extern "C" DLL_EXPORT int STDMETHODCALLTYPE NativeEntryPoint()
+extern "C" DLL_EXPORT int __cdecl NativeEntryPoint()
 {
     return NativeFunction();
 }
