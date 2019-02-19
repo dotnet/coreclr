@@ -2990,6 +2990,8 @@ inline void LogContention()
 #define LogContention()
 #endif
 
+UINT64 AwareLock::s_lockContentionCount = 0;
+
 BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
 {
     STATIC_CONTRACT_THROWS;
@@ -3011,6 +3013,7 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
 
     LogContention();
+    InterlockedIncrement64((LONGLONG *)&s_lockContentionCount);
 
     OBJECTREF obj = GetOwningObject();
 
