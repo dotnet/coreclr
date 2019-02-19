@@ -19,8 +19,6 @@ namespace System.Threading
         private SafeWaitHandle _waitHandle;
 
         [ThreadStatic]
-        private static bool _rentalItemsInitialized;
-        [ThreadStatic]
         private static SafeWaitHandle[] _safeWaitHandlesForRent;
 
         private protected enum OpenExistingResult
@@ -176,27 +174,22 @@ namespace System.Threading
             }
         }
 
-        private static void EnsureRentalItemsInitialized()
+        // Returns an array for storing SafeWaitHandles in WaitMultiple calls. The array
+        // is reused for subsequent calls to reduce GC pressure.
+        private static SafeWaitHandle[] RentSafeWaitHandleArray(int capacity)
         {
-            if (!_rentalItemsInitialized)
+            // _safeWaitHandlesForRent can be null when it was not initialized yet or
+            // if a re-entrant wait is performed and the array is already rented. In
+            // that case we just allocate a new one and reuse it as necessary.
+            if (_safeWaitHandlesForRent == null || _safeWaitHandlesForRent.Length < capacity)
             {
-                _safeWaitHandlesForRent = new SafeWaitHandle[MaxWaitHandles];
-                _rentalItemsInitialized = true;
-            }
-        }
-
-        private static bool RentSafeWaitHandleArray(ref SafeWaitHandle[] safeWaitHandles)
-        {
-            EnsureRentalItemsInitialized();
-
-            if (_safeWaitHandlesForRent != null)
-            {
-                safeWaitHandles = _safeWaitHandlesForRent;
-                _safeWaitHandlesForRent = null;
-                return true;
+                // Always allocate at least 4 slots to prevent unnecessary reallocations
+                _safeWaitHandlesForRent = new SafeWaitHandle[Math.Max(capacity, 4)];
             }
 
-            return false;
+            SafeWaitHandle[] safeWaitHandles = _safeWaitHandlesForRent;
+            _safeWaitHandlesForRent = null;
+            return safeWaitHandles;
         }
 
         private static void ReturnSafeWaitHandleArray(SafeWaitHandle[] safeWaitHandles)
@@ -297,18 +290,13 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
 
-            SafeWaitHandle[] safeWaitHandles = null;
-            bool safeWaitHandlesRented = false;
-
             SynchronizationContext context = SynchronizationContext.Current;
             bool useWaitContext = context != null && context.IsWaitNotificationRequired();
+            SafeWaitHandle[] safeWaitHandles = RentSafeWaitHandleArray(waitHandles.Length);
 
             try
             {
                 int waitResult;
-
-                safeWaitHandlesRented = RentSafeWaitHandleArray(ref safeWaitHandles);
-                safeWaitHandles = safeWaitHandles ?? new SafeWaitHandle[waitHandles.Length];
 
                 if (useWaitContext)
                 {
@@ -349,10 +337,7 @@ namespace System.Threading
                     }
                 }
 
-                if (safeWaitHandlesRented)
-                {
-                    ReturnSafeWaitHandleArray(safeWaitHandles);
-                }
+                ReturnSafeWaitHandleArray(safeWaitHandles);
             }
         }
 
