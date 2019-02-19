@@ -6577,6 +6577,11 @@ void Module::FixupVTables()
         return;
     }
 
+    // Try getting a callback to the IJW host if it is loaded.
+    // The IJW host substitutes in special shims in the vtfixup table
+    // so if it is loaded, we need to query it for the tokens that were in the slots.
+    // If it is not loaded, then we know that the vtfixup table entries are tokens,
+    // so we can resolve them ourselves.
     GetTokenForVTableEntry_t GetTokenForVTableEntryCallback = GetTokenGetterFromHostModule();
 
     if (GetTokenForVTableEntryCallback == nullptr)
