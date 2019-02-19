@@ -9081,7 +9081,7 @@ retry:
                 new_address += pad;
             }
             assert ((chosen_power2 && (i == 0)) ||
-                    (!chosen_power2) && (i < free_space_count));
+                    ((!chosen_power2) && (i < free_space_count)));
         }
 
         int new_bucket_power2 = index_of_highest_set_bit (new_free_space_size);
