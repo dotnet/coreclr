@@ -8,6 +8,11 @@ using System.Runtime.Loader;
 
 namespace Internal.Runtime.InteropServices
 {
+    /// <summary>
+    /// An <see cref="IsolatedComponentLoadContext" /> is an AssemblyLoadContext that can be used to isolate components such as COM components
+    /// or IJW components loaded from native. It provides a load context that uses an <see cref="AssemblyDependencyResolver" /> to resolve the component's
+    /// dependencies within the ALC and not pollute the default ALC.
+    ///</summary>
     internal class IsolatedComponentLoadContext : AssemblyLoadContext
     {
         private readonly AssemblyDependencyResolver _resolver;
