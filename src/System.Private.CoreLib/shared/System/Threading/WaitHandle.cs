@@ -178,17 +178,19 @@ namespace System.Threading
         // is reused for subsequent calls to reduce GC pressure.
         private static SafeWaitHandle[] RentSafeWaitHandleArray(int capacity)
         {
+            SafeWaitHandle[] safeWaitHandles = _safeWaitHandlesForRent;
+
             // _safeWaitHandlesForRent can be null when it was not initialized yet or
             // if a re-entrant wait is performed and the array is already rented. In
             // that case we just allocate a new one and reuse it as necessary.
-            if (_safeWaitHandlesForRent == null || _safeWaitHandlesForRent.Length < capacity)
+            if (safeWaitHandles == null || safeWaitHandles.Length < capacity)
             {
                 // Always allocate at least 4 slots to prevent unnecessary reallocations
-                _safeWaitHandlesForRent = new SafeWaitHandle[Math.Max(capacity, 4)];
+                safeWaitHandles = new SafeWaitHandle[Math.Max(capacity, 4)];
             }
 
-            SafeWaitHandle[] safeWaitHandles = _safeWaitHandlesForRent;
             _safeWaitHandlesForRent = null;
+
             return safeWaitHandles;
         }
 
