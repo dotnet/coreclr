@@ -21,7 +21,7 @@ initDistroRid()
         passedRootfsDir=${ROOTFS_DIR}
     fi
 
-    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__IsPortableBuild} ${ROOTFS_DIR}
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__IsPortableBuild} ${passedRootfsDir}
 }
 
 __ProjectRoot="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

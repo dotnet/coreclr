@@ -11,7 +11,7 @@ initTargetDistroRid()
         passedRootfsDir=${ROOTFS_DIR}
     fi
 
-    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__PortableBuild} ${ROOTFS_DIR}
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__PortableBuild} ${passedRootfsDir}
 }
 
 isMSBuildOnNETCoreSupported()
