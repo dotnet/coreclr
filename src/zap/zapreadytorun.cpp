@@ -42,7 +42,7 @@ void ZapReadyToRunHeader::Save(ZapWriter * pZapWriter)
         readyToRunHeader.Flags |= READYTORUN_FLAG_SKIP_TYPE_VALIDATION;
 
     if (pImage->GetZapperOptions()->m_fPartialNGen)
-        readyToRunHeader.Flags |= READYTORUN_FLAG_PARTIAL_NGEN;
+        readyToRunHeader.Flags |= READYTORUN_FLAG_PARTIAL;
 
     readyToRunHeader.NumberOfSections = m_Sections.GetCount();
 
