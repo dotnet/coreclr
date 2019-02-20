@@ -25,6 +25,14 @@ TreeLifeUpdater<ForCodeGen>::TreeLifeUpdater(Compiler* compiler)
 // Arguments:
 //    tree - the tree which affects liveness.
 //
+// Assumptions:
+//    The code corresponding to the given tree has been emitted, which means that if a variable has become live/dead 
+//    or been spilled then the emiter is positioned after that changed. This is used to ensure [) "VariableLiveRange"
+//    intervals when calling "startLiveRangeFromEmitter" and "endLiveRangeAtEmitter".
+//
+// Notes:
+//  If "ForCodeGen" is true, then the register mask use by CodeGen and the "LiveRangeList" of the "LclVadDsc"
+//  are updated given the new updated value of the variable ("isBorn"/"isDead"/"spill")
 template <bool ForCodeGen>
 void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
 {
@@ -310,11 +318,14 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
 }
 
 //------------------------------------------------------------------------
-// UpdateLife: Determine whether the tree affects liveness, and update liveness sets accordingly.
+// UpdateLife: Determine whether the tree affects liveness, and update liveness sets and variables home accordingly.
 //
 // Arguments:
 //    tree - the tree which effect on liveness is processed.
 //
+// Assumptions:
+//    The code corresponding to the given tree has been emitted, which means that if a variable has become live/dead 
+//    or been spilled then the emiter is positioned after that changed. This is required in UpdateLifeVar.
 template <bool ForCodeGen>
 void TreeLifeUpdater<ForCodeGen>::UpdateLife(GenTree* tree)
 {

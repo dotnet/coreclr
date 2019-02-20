@@ -618,6 +618,20 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
     }
 }
 
+//------------------------------------------------------------------------
+// compChangeLife: Update the GC's masks, register's masks and reports change on variable's homes given a set of 
+//    current live variables.
+//
+// Arguments:
+//    newLife - the set of variables that are alive.
+//
+// Assumptions:
+//    The set of live variables reflects the result of only emitted code, it should not be considering the becoming 
+//    live/dead of instructions that has not been emitted yet. This is used to ensure [) "VariableLiveRange"
+//    intervals when calling "startLiveRangeFromEmitter" and "endLiveRangeAtEmitter".
+//
+// Notes:
+//    If "ForCodeGen" is false, only "compCurLife" set (and no mask) will be setted.
 template <bool ForCodeGen>
 void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
 {

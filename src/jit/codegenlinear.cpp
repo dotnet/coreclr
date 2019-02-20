@@ -202,6 +202,8 @@ void CodeGen::genCodeForBBlist()
 
         compiler->m_pLinearScan->recordVarLocationsAtStartOfBB(block);
 
+        // Updating variable liveness after last instruction of previous block was emitted
+        // and before first of the current block is emitted
         genUpdateLife(block->bbLiveIn);
 
         // Even if liveness didn't change, we need to update the registers containing GC references.
@@ -763,7 +765,7 @@ void CodeGen::genCodeForBBlist()
 
     } //------------------ END-FOR each block of the method -------------------
 
-    /* Nothing is live at this point */
+    // Nothing is live at this point and all blocks instructions has been emited
     genUpdateLife(VarSetOps::MakeEmpty(compiler));
 
 
@@ -1747,7 +1749,7 @@ void CodeGen::genConsumeBlockOp(GenTreeBlk* blkNode, regNumber dstReg, regNumber
 
 //-------------------------------------------------------------------------
 // genProduceReg: do liveness update for register produced by the current
-// node in codegen.
+// node in codegen once it was emitted.
 //
 // Arguments:
 //     tree   -  Gentree node
@@ -1852,6 +1854,7 @@ void CodeGen::genProduceReg(GenTree* tree)
         }
     }
 
+    // Updating variable liveness after instruction was emitted
     genUpdateLife(tree);
 
     // If we've produced a register, mark it as a pointer, as needed.
