@@ -654,6 +654,16 @@ FCIMPL0(INT32, ExceptionNative::GetExceptionCode)
 }
 FCIMPLEND
 
+FCIMPL0(INT32, ExceptionNative::GetExceptionCount)
+{
+    FCALL_CONTRACT;
+
+    uint32_t exceptionCount = g_exceptionCount;
+    g_exceptionCount = 0;
+    return exceptionCount;
+}
+FCIMPLEND
+
 
 //
 // This must be implemented as an FCALL because managed code cannot

@@ -193,6 +193,9 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetExceptionCode();
 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern int GetExceptionCount();        
+
         /// <summary>
         /// Marshals data from a structure class to a native memory block. If the
         /// structure contains pointers to allocated blocks and "fDeleteOld" is

@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 
@@ -21,7 +22,8 @@ namespace System.Diagnostics.Tracing
             GCHeapSize,
             Gen0GCCount,
             Gen1GCCount,
-            Gen2GCCount
+            Gen2GCCount,
+            ExceptionCount
         }
 
         private Timer _timer;
@@ -56,7 +58,7 @@ namespace System.Diagnostics.Tracing
                         new EventCounter("Gen 1 GC Count", this),
                         new EventCounter("Gen 2 GC Count", this),
 
-                        // TODO: Exception counter
+                        new EventCounter("Exception Count", this)
                     };
                 }
 
@@ -92,6 +94,7 @@ namespace System.Diagnostics.Tracing
             _counters[(int)Counter.Gen0GCCount].WriteMetric(GC.CollectionCount(0));
             _counters[(int)Counter.Gen1GCCount].WriteMetric(GC.CollectionCount(1));
             _counters[(int)Counter.Gen2GCCount].WriteMetric(GC.CollectionCount(2));
+            _counters[(int)Counter.ExceptionCount].WriteMetric(Marshal.GetExceptionCount());
         }
 
         private void PollForCounterUpdate(object state)
