@@ -40,7 +40,9 @@ HINSTANCE g_thisModule;
 
 extern VOID STDMETHODCALLTYPE TLS_FreeMasterSlotIndex();
 
-DLLEXPORT 
+#ifdef FEATURE_PAL
+DLLEXPORT // For Win32 PAL LoadLibrary emulation
+#endif
 EXTERN_C BOOL WINAPI DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
 {
     static bool g_procInitialized = false;
