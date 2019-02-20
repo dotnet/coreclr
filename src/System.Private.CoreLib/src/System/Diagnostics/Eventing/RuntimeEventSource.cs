@@ -42,49 +42,46 @@ namespace System.Diagnostics.Tracing
         {
             if (command.Command == EventCommand.Enable)
             {
-                _counters = new EventCounter[] {
-                    // TODO: process info counters
+                if (_counters == null)
+                {
+                    // NOTE: These counters will NOT be disposed on disable command because we may be introducing 
+                    // a race condition by doing that. We still want to create these lazily so that we aren't adding
+                    // overhead by at all times even when counters aren't enabled.
+                    _counters = new EventCounter[] {
+                        // TODO: process info counters
 
-                    // GC info counters
-                    new EventCounter("Total Memory by GC", this),
-                    new EventCounter("Gen 0 GC Count", this),
-                    new EventCounter("Gen 1 GC Count", this),
-                    new EventCounter("Gen 2 GC Count", this),
+                        // GC info counters
+                        new EventCounter("Total Memory by GC", this),
+                        new EventCounter("Gen 0 GC Count", this),
+                        new EventCounter("Gen 1 GC Count", this),
+                        new EventCounter("Gen 2 GC Count", this),
 
-                    // TODO: Exception counter
-                };
+                        // TODO: Exception counter
+                    };
+                }
+
 
                 // Initialize the timer, but don't set it to run.
                 // The timer will be set to run each time PollForTracingCommand is called.
 
-                // TODO: We might not need this timer once we are done settling upon a high-level design for
-                // what EventCounter is capable of doing. Once that decision is made, we might be able to 
+                // TODO: We should not need this timer once we are done settling upon a high-level design for
+                // what EventCounter is capable of doing. Once that decision is made, we should be able to 
                 // get rid of this.
-                _timer = new Timer(
-                    callback: new TimerCallback(PollForCounterUpdate),
-                    state: null,
-                    dueTime: Timeout.Infinite,
-                    period: Timeout.Infinite,
-                    flowExecutionContext: false);
-
+                if (_timer == null)
+                {
+                    _timer = new Timer(
+                        callback: new TimerCallback(PollForCounterUpdate),
+                        state: null,
+                        dueTime: Timeout.Infinite,
+                        period: Timeout.Infinite,
+                        flowExecutionContext: false);
+                }
                 // Trigger the first poll operation on when this EventSource is enabled
                 PollForCounterUpdate(null);
             }
             else if (command.Command == EventCommand.Disable)
             {
-
-                // TODO: There are some multi-threading issues where this can be modified from a OnEventCommand callback
-                // as well as a timer callback, so we need some kind of synchronization. We need to decide on what kind of 
-                // thread safety EventCounter provides to determine what kind of synchronization is needed here.
-
-                // Dispose counters when perfcounters are disabled
-                _counters = null;
-
-                if (_timer != null)
-                {
-                    _timer.Dispose();
-                    _timer = null;
-                }
+                _timer.Change(Timeout.Infinite, Timeout.Infinite);  // disable the timer from running until System.Runtime is re-enabled
             }
         }
 
