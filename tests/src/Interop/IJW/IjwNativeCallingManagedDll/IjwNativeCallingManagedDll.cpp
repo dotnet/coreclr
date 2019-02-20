@@ -4,10 +4,7 @@
 #include "platformdefines.h"
 
 #pragma managed
-int ManagedCallee()
-{
-    return 100;
-}
+int ManagedCallee();
 
 #pragma unmanaged
 int NativeFunction()
@@ -23,9 +20,26 @@ extern "C" DLL_EXPORT int __cdecl NativeEntryPoint()
 #pragma managed
 public ref class TestClass
 {
+private:
+    static int s_valueToReturn = 100;
 public:
     int ManagedEntryPoint()
     {
         return NativeFunction();
     }
+
+    static void ChangeReturnedValue(int i)
+    {
+        s_valueToReturn = i;
+    }
+
+    static int GetReturnValue()
+    {
+        return s_valueToReturn;
+    }
 };
+
+int ManagedCallee()
+{
+    return TestClass::GetReturnValue();
+}
