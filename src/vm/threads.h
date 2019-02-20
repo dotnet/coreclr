@@ -3907,7 +3907,7 @@ private:
     //---------------------------------------------------------------
     DWORD m_profilerCallbackState;
 
-#if defined(FEATURE_PROFAPI_ATTACH_DETACH) || defined(DATA_PROFAPI_ATTACH_DETACH)
+#if defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
     //---------------------------------------------------------------
     // m_dwProfilerEvacuationCounter keeps track of how many profiler
     // callback calls remain on the stack
@@ -3915,7 +3915,7 @@ private:
     // Why volatile?
     // See code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization.
     Volatile<DWORD> m_dwProfilerEvacuationCounter;
-#endif // defined(FEATURE_PROFAPI_ATTACH_DETACH) || defined(DATA_PROFAPI_ATTACH_DETACH)
+#endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
 private:
     Volatile<LONG> m_threadPoolCompletionCount;
@@ -4002,7 +4002,7 @@ public:
         return m_pProfilerFilterContext;
     }
 
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
+#ifdef PROFILING_SUPPORTED
 
     FORCEINLINE DWORD GetProfilerEvacuationCounter(void)
     {
@@ -4024,7 +4024,7 @@ public:
         m_dwProfilerEvacuationCounter--;
     }
 
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
+#endif // PROFILING_SUPPORTED
 
     //-------------------------------------------------------------------------
     // The hijack lock enforces that a thread on which a profiler is currently
