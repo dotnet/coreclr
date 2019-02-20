@@ -319,7 +319,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
                 return nullptr;
             }
 
-            retNode = impSIMDPopStack(getSIMDTypeForSize(simdSizeBytes));
+            retNode = impSIMDPopStack(getSIMDTypeForSize(simdSizeBytes), /* expectAddr: */ false, sig->retTypeClass);
             SetOpLclRelatedToSIMDIntrinsic(retNode);
             assert(retNode->gtType == getSIMDTypeForSize(getSIMDTypeSizeInBytes(sig->retTypeSigClass)));
 
