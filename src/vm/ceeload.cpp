@@ -6484,7 +6484,6 @@ void Module::NotifyDebuggerUnload(AppDomain *pDomain)
 #if !defined(CROSSGEN_COMPILE)
 using GetTokenForVTableEntry_t = mdToken(STDMETHODCALLTYPE*)(HMODULE module, BYTE**ppVTEntry);
 
-
 HMODULE GetIJWHostModule()
 {
 #if !defined(FEATURE_PAL)
