@@ -19,7 +19,7 @@ namespace System.Threading
         private SafeWaitHandle _waitHandle;
 
         [ThreadStatic]
-        private static SafeWaitHandle[] _safeWaitHandlesForRent;
+        private static SafeWaitHandle[] t_safeWaitHandlesForRent;
 
         private protected enum OpenExistingResult
         {
@@ -88,9 +88,10 @@ namespace System.Threading
                 }
                 return _waitHandle;
             }
-
             set
-            { _waitHandle = value; }
+            {
+                _waitHandle = value;
+            }
         }
 
         internal static int ToTimeoutMilliseconds(TimeSpan timeout)
@@ -178,11 +179,11 @@ namespace System.Threading
         // is reused for subsequent calls to reduce GC pressure.
         private static SafeWaitHandle[] RentSafeWaitHandleArray(int capacity)
         {
-            SafeWaitHandle[] safeWaitHandles = _safeWaitHandlesForRent;
+            SafeWaitHandle[] safeWaitHandles = t_safeWaitHandlesForRent;
 
-            _safeWaitHandlesForRent = null;
+            t_safeWaitHandlesForRent = null;
 
-            // _safeWaitHandlesForRent can be null when it was not initialized yet or
+            // t_safeWaitHandlesForRent can be null when it was not initialized yet or
             // if a re-entrant wait is performed and the array is already rented. In
             // that case we just allocate a new one and reuse it as necessary.
             if (safeWaitHandles == null || safeWaitHandles.Length < capacity)
@@ -195,7 +196,7 @@ namespace System.Threading
         }
 
         private static void ReturnSafeWaitHandleArray(SafeWaitHandle[] safeWaitHandles)
-            => _safeWaitHandlesForRent = safeWaitHandles;
+            => t_safeWaitHandlesForRent = safeWaitHandles;
 
         /// <summary>
         /// Obtains all of the corresponding safe wait handles and adds a ref to each. Since the <see cref="SafeWaitHandle"/>
