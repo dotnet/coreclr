@@ -1501,4 +1501,38 @@
             ]
         }
     },
+    {
+        "name": "System.CodeDom.Compiler.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.CodeDom.Compiler.Tests.CSharpCodeGenerationTests.ProviderSupports",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.CodeDom.Compiler.Tests.CSharpCodeGenerationTests.MetadataAttributes",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.CodeDom.Compiler.Tests.CSharpCodeGenerationTests.RegionsSnippetsAndLinePragmas",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.CodeDom.Compiler.Tests.VBCodeGenerationTests.RegionsSnippetsAndLinePragmas",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.CodeDom.Compiler.Tests.VBCodeGenerationTests.MetadataAttributes",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.CodeDom.Compiler.Tests.VBCodeGenerationTests.ProviderSupports",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    }
 ]
