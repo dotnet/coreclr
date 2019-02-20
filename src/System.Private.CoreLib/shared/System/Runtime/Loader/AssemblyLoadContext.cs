@@ -367,4 +367,16 @@ namespace System.Runtime.Loader
             return null;
         }
     }
+
+    internal sealed class IndividualAssemblyLoadContext : AssemblyLoadContext
+    {
+        internal IndividualAssemblyLoadContext() : base(false, false)
+        {
+        }
+
+        protected override Assembly Load(AssemblyName assemblyName)
+        {
+            return null;
+        }
+    }
 }

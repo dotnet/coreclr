@@ -40,7 +40,7 @@ namespace System.Runtime.Loader
             return loadedAssembly;
         }
 
-        private unsafe Assembly InternalLoadFromStream(byte[] arrAssembly, byte[] arrSymbols)
+        internal unsafe Assembly InternalLoadFromStream(byte[] arrAssembly, byte[] arrSymbols)
         {
             RuntimeAssembly loadedAssembly = null;
 
@@ -286,18 +286,6 @@ namespace System.Runtime.Loader
                 asm is RuntimeAssembly rtAssembly ? rtAssembly :
                 asm is System.Reflection.Emit.AssemblyBuilder ab ? ab.InternalAssembly :
                 null;
-        }
-    }
-
-    internal class IndividualAssemblyLoadContext : AssemblyLoadContext
-    {
-        internal IndividualAssemblyLoadContext() : base(false, false)
-        {
-        }
-
-        protected override Assembly Load(AssemblyName assemblyName)
-        {
-            return null;
         }
     }
 }
