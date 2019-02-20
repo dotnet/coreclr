@@ -106,26 +106,6 @@ namespace Server.Contract.Servers
     }
 
     /// <summary>
-    /// Managed definition of CoClass
-    /// </summary>
-    [ComImport]
-    [CoClass(typeof(EventTestingClass))]
-    [Guid("83AFF8E4-C46A-45DB-9D91-2ADB5164545E")]
-    internal interface EventTesting : Server.Contract.IEventTesting, Server.Contract.Events.TestingEvents_Event
-    {
-    }
-
-    /// <summary>
-    /// Managed activation for CoClass
-    /// </summary>
-    [ComImport]
-    [ComSourceInterfaces("Server.Contract.Events.TestingEvents\0")]
-    [Guid(Server.Contract.Guids.EventTesting)]
-    internal class EventTestingClass
-    {
-    }
-
-    /// <summary>
     /// Managed definition of CoClass 
     /// </summary>
     [ComImport]
