@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #pragma warning disable IDE1006 // Naming Styles
+#pragma warning disable 618 // Must test deprecated features
 
 namespace Server.Contract.Servers
 {
@@ -91,7 +92,7 @@ namespace Server.Contract.Servers
     [ComImport]
     [CoClass(typeof(DispatchTestingClass))]
     [Guid("a5e04c1c-474e-46d2-bbc0-769d04e12b54")]
-    internal interface DispatchTesting : Server.Contract.IDispatchTesting 
+    internal interface DispatchTesting : Server.Contract.IDispatchTesting
     {
     }
 
@@ -101,6 +102,26 @@ namespace Server.Contract.Servers
     [ComImport]
     [Guid(Server.Contract.Guids.DispatchTesting)]
     internal class DispatchTestingClass
+    {
+    }
+
+    /// <summary>
+    /// Managed definition of CoClass
+    /// </summary>
+    [ComImport]
+    [CoClass(typeof(EventTestingClass))]
+    [Guid("83AFF8E4-C46A-45DB-9D91-2ADB5164545E")]
+    internal interface EventTesting : Server.Contract.IEventTesting, Server.Contract.Events.TestingEvents_Event
+    {
+    }
+
+    /// <summary>
+    /// Managed activation for CoClass
+    /// </summary>
+    [ComImport]
+    [ComSourceInterfaces("Server.Contract.Events.TestingEvents\0")]
+    [Guid(Server.Contract.Guids.EventTesting)]
+    internal class EventTestingClass
     {
     }
 
@@ -143,4 +164,5 @@ namespace Server.Contract.Servers
     }
 }
 
+#pragma warning restore 618 // Must test deprecated features
 #pragma warning restore IDE1006 // Naming Styles
