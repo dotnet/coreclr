@@ -11,22 +11,17 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// RuntimeEventSource is an EventSource that represents events emitted by the managed runtime.
     /// </summary>
-    [EventSource(Guid="5E5BB766-BBFC-5662-0548-1D44FAD9BB55", Name = "System.Runtime")]
+    [EventSource(Guid="49592C0F-5A05-516D-AA4B-A64E02026C89", Name = "System.Runtime")]
     internal sealed class RuntimeEventSource : EventSource
     {
         private static RuntimeEventSource s_RuntimeEventSource;
         private EventCounter[] _counters;
 
         private enum Counter {
-            TotalProcessTime,
-            WorkingSet,
-            HandleCount,
-            ThreadCount,
             GCHeapSize,
             Gen0GCCount,
             Gen1GCCount,
-            Gen2GCCount,
-            ExceptionCount
+            Gen2GCCount
         }
 
         private Timer _timer;
@@ -37,11 +32,8 @@ namespace System.Diagnostics.Tracing
         {
             s_RuntimeEventSource = new RuntimeEventSource();
         }
-
-        // Threads
-        // TODO
         
-        public RuntimeEventSource(): base(new Guid(0x5e5bb766, 0xbbfc, 0x5662, 0x05, 0x48, 0x1d, 0x44, 0xfa, 0xd9, 0xbb, 0x55), "System.Runtime", EventSourceSettings.EtwSelfDescribingEventFormat)
+        private RuntimeEventSource(): base(new Guid(0x49592C0F, 0x5A05, 0x516D, 0xAA, 0x4B, 0xA6, 0x4E, 0x02, 0x02, 0x6C, 0x89), "System.Runtime", EventSourceSettings.EtwSelfDescribingEventFormat)
         {
 
         }
@@ -50,13 +42,8 @@ namespace System.Diagnostics.Tracing
         {
             if (command.Command == EventCommand.Enable)
             {
-                // TODO: These are all returning fake stuff now
                 _counters = new EventCounter[] {
-                    // process info counters
-                    new EventCounter("Total Process Time", this),
-                    new EventCounter("Working Set", this),
-                    new EventCounter("Handle Count", this),
-                    new EventCounter("Thread Count", this),
+                    // TODO: process info counters
 
                     // GC info counters
                     new EventCounter("Total Memory by GC", this),
@@ -64,8 +51,7 @@ namespace System.Diagnostics.Tracing
                     new EventCounter("Gen 1 GC Count", this),
                     new EventCounter("Gen 2 GC Count", this),
 
-                    // TODO: Expose a managed API for computing this
-                    new EventCounter("Exception Count", this)
+                    // TODO: Exception counter
                 };
 
                 // Initialize the timer, but don't set it to run.
@@ -81,7 +67,7 @@ namespace System.Diagnostics.Tracing
                     period: Timeout.Infinite,
                     flowExecutionContext: false);
 
-                // Trigger the first poll operation on the start-up path.
+                // Trigger the first poll operation on when this EventSource is enabled
                 PollForCounterUpdate(null);
             }
             else if (command.Command == EventCommand.Disable)
@@ -104,20 +90,11 @@ namespace System.Diagnostics.Tracing
 
         public void UpdateAllCounters()
         {
-            // TODO: These are all returning fake stuff for now
-            _counters[(int)Counter.TotalProcessTime].WriteMetric(1);
-            _counters[(int)Counter.WorkingSet].WriteMetric(2);
-            _counters[(int)Counter.HandleCount].WriteMetric(3);
-            _counters[(int)Counter.ThreadCount].WriteMetric(4);
-
             // GC counters
             _counters[(int)Counter.GCHeapSize].WriteMetric(GC.GetTotalMemory(false));
             _counters[(int)Counter.Gen0GCCount].WriteMetric(GC.CollectionCount(0));
             _counters[(int)Counter.Gen1GCCount].WriteMetric(GC.CollectionCount(1));
             _counters[(int)Counter.Gen2GCCount].WriteMetric(GC.CollectionCount(2));
-
-            // Exception
-            _counters[(int)Counter.ExceptionCount].WriteMetric(5);
         }
 
         private void PollForCounterUpdate(object state)
