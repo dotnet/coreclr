@@ -33,11 +33,9 @@
 
 
 
-FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE, 
+FCIMPL5(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE,
         StringObject* codeBaseUNSAFE, 
-        AssemblyBaseObject* requestingAssemblyUNSAFE,
         StackCrawlMark* stackMark,
-        ICLRPrivBinder * pPrivHostBinder,
         CLR_BOOL fThrowOnFileNotFound,
         INT_PTR ptrLoadContextBinder)
 {
@@ -47,13 +45,11 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     {
         ASSEMBLYNAMEREF assemblyName;
         STRINGREF       codeBase;
-        ASSEMBLYREF     requestingAssembly; 
         ASSEMBLYREF     rv;
     } gc;
 
     gc.assemblyName    = (ASSEMBLYNAMEREF) assemblyNameUNSAFE;
     gc.codeBase        = (STRINGREF)       codeBaseUNSAFE;
-    gc.requestingAssembly    = (ASSEMBLYREF)     requestingAssemblyUNSAFE;
     gc.rv              = NULL;
 
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
@@ -75,14 +71,7 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     else
     {
         // Compute parent assembly
-        if (gc.requestingAssembly == NULL)
-        {
-            pRefAssembly = SystemDomain::GetCallersAssembly(stackMark);
-        }
-        else
-        {
-            pRefAssembly = gc.requestingAssembly->GetAssembly();
-        }
+        pRefAssembly = SystemDomain::GetCallersAssembly(stackMark);
         
         // Shared or collectible assemblies should not be used for the parent in the
         // late-bound case.
@@ -101,12 +90,6 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     if (!spec.HasUniqueIdentity())
     {   // Insuficient assembly name for binding (e.g. ContentType=WindowsRuntime cannot bind by assembly name)
         EEFileLoadException::Throw(&spec, COR_E_NOTSUPPORTED);
-    }
-    
-    if (pPrivHostBinder != NULL)
-    {
-        pParentAssembly = NULL;
-        spec.SetHostBinder(pPrivHostBinder);
     }
     
     if (gc.codeBase != NULL)

@@ -32,11 +32,9 @@ public:
     static
     void QCALLTYPE GetExecutingAssembly(QCall::StackCrawlMarkHandle stackMark, QCall::ObjectHandleOnStack retAssembly);
 
-    static FCDECL7(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
+    static FCDECL5(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE,
                                                                 StringObject* codeBaseUNSAFE, 
-                                                                AssemblyBaseObject* requestingAssemblyUNSAFE,
                                                                 StackCrawlMark* stackMark,
-                                                                ICLRPrivBinder * pPrivHostBinder,
                                                                 CLR_BOOL fThrowOnFileNotFound,
                                                                 INT_PTR ptrLoadContextBinder);
 
