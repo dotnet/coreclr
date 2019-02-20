@@ -1220,7 +1220,10 @@ void Module::ApplyMetaData()
     ULONG ulCount;
 
 #if PROFILING_SUPPORTED 
-    UpdateNewlyAddedTypes();
+    if (!IsResource())
+    {
+        UpdateNewlyAddedTypes();
+    }
 #endif // PROFILING_SUPPORTED
 
     // Ensure for TypeRef
