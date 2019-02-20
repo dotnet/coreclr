@@ -755,18 +755,5 @@ namespace System.Reflection
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetForwardedType(RuntimeAssembly assembly, MetadataToken mdtExternalType, ObjectHandleOnStack type);
-
-        internal int ExecuteMainMethod(string[] args)
-        {
-            if (args is null)
-            {
-                throw new ArgumentNullException(nameof(args));
-            }
-
-            return ExecuteMainMethod(this, JitHelpers.GetObjectHandleOnStack(ref args));
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern int ExecuteMainMethod(RuntimeAssembly assembly, ObjectHandleOnStack args);
     }
 }

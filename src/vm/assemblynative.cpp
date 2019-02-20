@@ -1360,26 +1360,3 @@ BOOL QCALLTYPE AssemblyNative::InternalTryGetRawMetadata(
 
     return metadata != nullptr;
 }
-
-INT32 QCALLTYPE AssemblyNative::ExecuteMainMethod(
-    QCall::AssemblyHandle pAssembly,
-    QCall::ObjectHandleOnStack args)
-{
-    QCALL_CONTRACT;
-
-    INT32 exitCode;
-
-    BEGIN_QCALL;
-
-    _ASSERTE(pAssembly != nullptr);
-
-    Assembly* assembly = pAssembly->GetAssembly();
-
-    PTRARRAYREF* argsArray = (PTRARRAYREF*)args.m_ppObject;
-
-    exitCode = assembly->ExecuteMainMethod(argsArray, /* waitForOtherThreads */ TRUE);
-    
-    END_QCALL;
-
-    return exitCode;
-}

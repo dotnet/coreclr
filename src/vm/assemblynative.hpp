@@ -111,8 +111,6 @@ public:
 
     static BOOL QCALLTYPE GetIsCollectible(QCall::AssemblyHandle pAssembly);
 
-    static INT32 QCALLTYPE ExecuteMainMethod(QCall::AssemblyHandle pAssembly, QCall::ObjectHandleOnStack args);
-
     //
     // PEFile QCalls
     // 
