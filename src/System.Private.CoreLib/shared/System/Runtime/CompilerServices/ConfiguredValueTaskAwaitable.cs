@@ -28,7 +28,15 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Returns an awaiter for this <see cref="ConfiguredValueTaskAwaitable"/> instance.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ConfiguredValueTaskAwaiter GetAwaiter() => new ConfiguredValueTaskAwaiter(_value);
+        public ConfiguredValueTaskAwaiter GetAwaiter()
+        {
+            // Unsafe casting to work around https://github.com/dotnet/coreclr/issues/18542
+
+            // NOTE: This only works because ConfiguredValueTaskAwaiter and ConfiguredValueTaskAwaitable are structs, 
+            // exactly the same data layout and ConfiguredValueTaskAwaitable.ctor does no real initalization.
+
+            return Unsafe.As<ConfiguredValueTaskAwaitable, ConfiguredValueTaskAwaiter>(ref Unsafe.AsRef(in this));
+        }
 
         /// <summary>Provides an awaiter for a <see cref="ConfiguredValueTaskAwaitable"/>.</summary>
         [StructLayout(LayoutKind.Auto)]
@@ -134,7 +142,15 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Returns an awaiter for this <see cref="ConfiguredValueTaskAwaitable{TResult}"/> instance.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ConfiguredValueTaskAwaiter GetAwaiter() => new ConfiguredValueTaskAwaiter(_value);
+        public ConfiguredValueTaskAwaiter GetAwaiter()
+        {
+            // Unsafe casting to work around https://github.com/dotnet/coreclr/issues/18542
+
+            // NOTE: This only works because ConfiguredValueTaskAwaiter and ConfiguredValueTaskAwaitable are structs, 
+            // exactly the same data layout and ConfiguredValueTaskAwaitable.ctor does no real initalization.
+
+            return Unsafe.As<ConfiguredValueTaskAwaitable<TResult>, ConfiguredValueTaskAwaiter>(ref Unsafe.AsRef(in this));
+        }
 
         /// <summary>Provides an awaiter for a <see cref="ConfiguredValueTaskAwaitable{TResult}"/>.</summary>
         [StructLayout(LayoutKind.Auto)]

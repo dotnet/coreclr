@@ -386,7 +386,18 @@ namespace System.Threading.Tasks
         /// </param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ConfiguredValueTaskAwaitable ConfigureAwait(bool continueOnCapturedContext) =>
-            new ConfiguredValueTaskAwaitable(new ValueTask(_obj, _token, continueOnCapturedContext));
+            ConfigureTask(new ValueTask(_obj, _token, continueOnCapturedContext));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ref readonly ConfiguredValueTaskAwaitable ConfigureTask(in ValueTask vt)
+        {
+            // Unsafe casting to work around https://github.com/dotnet/coreclr/issues/18542
+
+            // NOTE: This only works because ConfiguredValueTaskAwaitable and ValueTask are structs, 
+            // exactly the same data layout and ConfiguredValueTaskAwaitable.ctor does no real initalization.
+
+            return ref Unsafe.As<ValueTask, ConfiguredValueTaskAwaitable>(ref Unsafe.AsRef(in vt));
+        }
     }
 
     /// <summary>Provides a value type that can represent a synchronously available value or a task object.</summary>
@@ -789,8 +800,19 @@ namespace System.Threading.Tasks
         /// true to attempt to marshal the continuation back to the captured context; otherwise, false.
         /// </param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ConfiguredValueTaskAwaitable<TResult> ConfigureAwait(bool continueOnCapturedContext) =>
-            new ConfiguredValueTaskAwaitable<TResult>(new ValueTask<TResult>(_obj, _result, _token, continueOnCapturedContext));
+        public ConfiguredValueTaskAwaitable<TResult> ConfigureAwait(bool continueOnCapturedContext)
+            => ConfigureTask(new ValueTask<TResult>(_obj, _result, _token, continueOnCapturedContext));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ref readonly ConfiguredValueTaskAwaitable<TResult> ConfigureTask(in ValueTask<TResult> vt)
+        {
+            // Unsafe casting to work around https://github.com/dotnet/coreclr/issues/18542
+
+            // NOTE: This only works because ConfiguredValueTaskAwaitable and ValueTask are structs, 
+            // exactly the same data layout and ConfiguredValueTaskAwaitable.ctor does no real initalization.
+
+            return ref Unsafe.As<ValueTask<TResult>, ConfiguredValueTaskAwaitable<TResult>>(ref Unsafe.AsRef(in vt));
+        }
 
         /// <summary>Gets a string-representation of this <see cref="ValueTask{TResult}"/>.</summary>
         public override string ToString()
