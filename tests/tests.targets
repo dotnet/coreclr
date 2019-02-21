@@ -31,7 +31,7 @@
 
     <PropertyGroup>
       <ExcludeTraits Condition="'$(ExcludeTraits)'==''">category=outerloop;category=failing</ExcludeTraits>
-	  <!-- Run one assembly at a time to avoid excessive parallelism leading to test timeouts -->
+      <!-- Run one assembly at a time to avoid excessive parallelism leading to test timeouts -->
       <ParallelRun Condition="'$(ParallelRun)'==''">collections</ParallelRun>
     </PropertyGroup>
     <ItemGroup>
