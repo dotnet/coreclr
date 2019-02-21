@@ -94,7 +94,7 @@ namespace System.Diagnostics.Tracing
             _counters[(int)Counter.Gen0GCCount].WriteMetric(GC.CollectionCount(0));
             _counters[(int)Counter.Gen1GCCount].WriteMetric(GC.CollectionCount(1));
             _counters[(int)Counter.Gen2GCCount].WriteMetric(GC.CollectionCount(2));
-            _counters[(int)Counter.ExceptionCount].WriteMetric(Marshal.GetExceptionCount());
+            _counters[(int)Counter.ExceptionCount].WriteMetric(Exception.GetExceptionCount());
         }
 
         private void PollForCounterUpdate(object state)
