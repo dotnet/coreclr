@@ -191,7 +191,7 @@ namespace System.Runtime.InteropServices
         public static extern /* struct _EXCEPTION_POINTERS* */ IntPtr GetExceptionPointers();
         
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern int GetExceptionCode();    
+        public static extern int GetExceptionCode();
 
         /// <summary>
         /// Marshals data from a structure class to a native memory block. If the

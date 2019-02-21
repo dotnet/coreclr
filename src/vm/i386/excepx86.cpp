@@ -429,12 +429,13 @@ CPFH_AdjustContextForThreadSuspensionRace(CONTEXT *pContext, Thread *pThread)
 }
 #endif // FEATURE_HIJACK
 
-
+uint32_t            g_exceptionCount = 0;
 
 static inline void
 CPFH_UpdatePerformanceCounters() {
     WRAPPER_NO_CONTRACT;
     COUNTER_ONLY(GetPerfCounters().m_Excep.cThrown++);
+    g_exceptionCount++;
 }
 
 

@@ -129,7 +129,7 @@ static void DoEHLog(DWORD lvl, __in_z const char *fmt, ...);
 #endif
 
 TrackerAllocator    g_theTrackerAllocator;
-uint32_t            g_exceptionCount;
+uint32_t            g_exceptionCount = 0;
 
 bool FixNonvolatileRegisters(UINT_PTR  uOriginalSP,
                              Thread*   pThread,
