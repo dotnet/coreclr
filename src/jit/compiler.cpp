@@ -11169,7 +11169,7 @@ void Compiler::startVariableLiveRange(const LclVarDsc* varDsc)
     CodeGenInterface::siVarLoc varLocation = codeGen->getSiVarLoc(varDsc, codeGen->getCurrentStackLevel());
 
     // "varDsc" live range is valid from this point
-    varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, varLocation, getEmitter());
+    varDsc->startLiveRangeFromEmitter(varLocation, getEmitter());
 }
 
 //------------------------------------------------------------------------
@@ -11211,5 +11211,5 @@ void Compiler::updateVariableLiveRange(const LclVarDsc* varDsc)
     CodeGenInterface::siVarLoc siVarLoc = codeGen->getSiVarLoc(varDsc, codeGen->getCurrentStackLevel());
 
     // Report the home change for this variable
-    varDsc->UpdateRegisterHome(varDsc->lvRegNum, siVarLoc, getEmitter());
+    varDsc->UpdateRegisterHome(siVarLoc, getEmitter());
 }

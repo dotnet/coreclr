@@ -303,12 +303,10 @@ public:
     emitLocation startEmitLocation;
     emitLocation endEmitLocation;
     CodeGenInterface::siVarLoc varLocation;
-    regNumber    registerNumber;
 
-    VariableLiveRange(regNumber registerNumber, CodeGenInterface::siVarLoc varLocation, emitLocation startEmitLocation, emitLocation endEmitLocation)
+    VariableLiveRange(CodeGenInterface::siVarLoc varLocation, emitLocation startEmitLocation, emitLocation endEmitLocation)
     {
         this->varLocation = varLocation;
-        this->registerNumber = registerNumber;
         this->startEmitLocation = startEmitLocation;
         this->endEmitLocation = endEmitLocation;
     }
@@ -316,8 +314,6 @@ public:
     // Dump just the emitLocation as they are, we dont have generated the whole method yet
     void dump(const CodeGenInterface *codeGen) const
     {
-        noway_assert(varLocation.vlIsInReg(registerNumber) || varLocation.vlIsOnStack());
-
         codeGen->dumpSiVarLoc(&varLocation);
         printf(" [ ");
         startEmitLocation.Print();
@@ -335,8 +331,6 @@ public:
 
     void dump(emitter *_emitter, const CodeGenInterface *codeGen) const
     {
-        noway_assert(varLocation.vlIsInReg(registerNumber) || varLocation.vlIsOnStack());
-
         UNATIVE_OFFSET startAssemblyOffset = startEmitLocation.CodeOffset(_emitter);
         // this could be a non closed range so endEmitLocation could be a non valid emit Location
         // live -1 in case of not being defined
@@ -517,34 +511,34 @@ public:
     }
 
     /*
-     *   Creates a new live range from in the given regsiterNumber from the assembly native offset of the emitter
+     *   Creates a new live range from in the given "varLocation" from the assembly native offset of the emitter
      */
-    void startLiveRangeFromEmitter(regNumber registerNumber, CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
+    void startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
     {
         // Is the first "LiveRange" or the previous one has been closed
         noway_assert(variableLiveRanges->empty() || variableLiveRanges->back().endEmitLocation.Valid());
 
         // Creates new live range with invalid end
-        variableLiveRanges->emplace_back(registerNumber, varLocation, emitLocation(), emitLocation());
+        variableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
 
         // Restart barrier so we can print from here
         setBarrierAtLastPositionInRegisterHistory();
     }
 
-    void UpdateRegisterHome(regNumber registerNumber, CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
+    void UpdateRegisterHome(CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
     {
         // This variable is changing home so it has been started before during this block
         noway_assert(hasBeenAlive());
 
         // If we are reporting again the same home, that means we are doing something twice?
-        noway_assert(variableLiveRanges->back().registerNumber != registerNumber);
+        //noway_assert(variableLiveRanges->back().varLocation != varLocation);
 
         // Close previous live range
         endLiveRangeAtEmitter(_emitter);
 
         // Open new live range with invalid end
-        variableLiveRanges->emplace_back(registerNumber, varLocation, emitLocation(), emitLocation());
+        variableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
     }
 
