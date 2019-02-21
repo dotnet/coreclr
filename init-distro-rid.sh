@@ -44,19 +44,8 @@ initNonPortableDistroRid()
     local rootfsDir=$4
 
     if [ "$buildOs" = "Linux" ]; then
-        if [ -e "${rootfsDir}/etc/redhat-release" ]; then
-            local redhatRelease=$(<${rootfsDir}/etc/redhat-release)
-
-            if [[ "${redhatRelease}" == "CentOS release 6."* || "$redhatRelease" == "Red Hat Enterprise Linux Server release 6."* ]]; then
-                nonPortableBuildID="rhel.6-${buildArch}"
-            fi
-        elif [ -e $rootfsDir/android_platform ]; then
-            source $rootfsDir/android_platform
-            nonPortableBuildID="$RID"
-        fi
-
         # RHEL 6 is the only distro we will check redHat release for.
-        if [ -e "${rootfsDir}/etc/os-release" ] && [ "${nonPortableBuildID}" == "" ] ; then
+        if [ -e "${rootfsDir}/etc/os-release" ]; then
             source "${rootfsDir}/etc/os-release"
 
             # We have forced __PortableBuild=0. This is because -portablebuld
@@ -70,6 +59,15 @@ initNonPortableDistroRid()
                 nonPortableBuildID="${ID}.${VERSION_ID}-${buildArch}"
             fi
             
+        elif [ -e "${rootfsDir}/etc/redhat-release" ]; then
+            local redhatRelease=$(<${rootfsDir}/etc/redhat-release)
+
+            if [[ "${redhatRelease}" == "CentOS release 6."* || "$redhatRelease" == "Red Hat Enterprise Linux Server release 6."* ]]; then
+                nonPortableBuildID="rhel.6-${buildArch}"
+            fi
+        elif [ -e "${rootfsDir}/android_platform" ]; then
+            source $rootfsDir/android_platform
+            nonPortableBuildID="$RID"
         fi
     fi
 
