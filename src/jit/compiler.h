@@ -7330,6 +7330,20 @@ public:
         return codeGen->getEmitter();
     }
 
+    // Starts or ends a "VariableLiveRange" for "varDsc" if it is borning or dying respectively.
+    // Ranges are close-open [) so nothing is done in case of being borning and dying at the same line
+    // due to be an empty range.
+    void startOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying);
+    
+    // Starts a "VariableLiveRange" for "varDsc"
+    void startVariableLiveRange(const LclVarDsc* varDsc);
+
+    // Close the last "VariableLiveRange" for "varDsc"
+    void endVariableLiveRange(const LclVarDsc* varDsc);
+
+    // Calls updateRegisterHome on "varDsc" with the new variable location "siVarLoc"
+    void updateVariableLiveRange(const LclVarDsc* varDsc);
+
     bool isFramePointerUsed() const
     {
         return codeGen->isFramePointerUsed();

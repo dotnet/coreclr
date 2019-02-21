@@ -11114,3 +11114,102 @@ unsigned int Compiler::getAmountLiveRangesReported()
 
     return amountOfLiveRanges;
 }
+
+//------------------------------------------------------------------------
+// startOrCloseVariableLiveRange: Starts or ends a "VariableLiveRange" for "varDsc" if it is 
+// borning or dying respectively. Ranges are close-open "[)" so nothing is done in case 
+// of being borning and dying at the same line due to be an empty range.
+//
+// Arguments:
+//    varDsc    - the LclVarDsc of the variable for which a location changed will be reported
+//    isBorning - a boolean indicating if the VariableLiveRange is starting from the emitter 
+//                position. 
+//    isDying   - a boolean indicating if the VariableLiveRange is no more valid from the emitter 
+//                position
+//
+// Assumptions:
+//    The emitter should be pointing to the first instruction from where the VariableLiveRange is
+//    becoming valid (when isBorning is true) or invalid (when isDying is true).
+//    The given "varDsc" should have its VariableRangeLists initialized.
+//
+// Notes:
+//    This method is being called from treeLifeUpdater where the variable is becoming dead, live 
+//    or both.
+void Compiler::startOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying)
+{
+    if (isBorning && !isDying)
+    {
+        // "varDsc" is valid from this point
+        startVariableLiveRange(varDsc);
+    }
+
+    if (isDying && !isBorning)
+    {
+        // "varDsc" live range is no more valid from this point
+        endVariableLiveRange(varDsc);
+    }
+}
+
+//------------------------------------------------------------------------
+// startVariableLiveRange: Starts a "VariableLiveRange" for the given "varDsc".
+//
+// Arguments:
+//    varDsc    - the LclVarDsc of the variable for which a location changed will be reported.
+//
+// Assumptions:
+//    The emitter should be pointing to the first instruction from where the VariableLiveRange is
+//    becoming valid.
+//    The given "varDsc" should have its VariableRangeLists initialized.
+//
+// Notes:
+//    This method should be called on every place a Variable is becoming alive.
+void Compiler::startVariableLiveRange(const LclVarDsc* varDsc)
+{
+    // Build siVarLoc for this borning "varDsc"
+    CodeGenInterface::siVarLoc varLocation = codeGen->getSiVarLoc(varDsc, codeGen->getCurrentStackLevel());
+
+    // "varDsc" live range is valid from this point
+    varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, varLocation, getEmitter());
+}
+
+//------------------------------------------------------------------------
+// endVariableLiveRange: Ends a "VariableLiveRange" for the given "varDsc".
+//
+// Arguments:
+//    varDsc    - the LclVarDsc of the variable for which a location changed will be reported.
+//
+// Assumptions:
+//    The emitter should be pointing to the first instruction from where the VariableLiveRange is
+//    becoming invalid.
+//    The given "varDsc" should have its VariableRangeLists initialized.
+//
+// Notes:
+//    This method should be called on every place a Variable is becoming dead.
+void Compiler::endVariableLiveRange(const LclVarDsc* varDsc)
+{
+    // "varDsc" live range is no more valid from this point
+    varDsc->endLiveRangeAtEmitter(getEmitter());
+}
+
+//------------------------------------------------------------------------
+// updateVariableLiveRange: Calls updateRegisterHome on "varDsc" with the new variable location
+// "siVarLoc"
+//
+// Arguments:
+//    varDsc    - the LclVarDsc of the variable for which a location changed will be reported.
+//
+// Assumptions:
+//    The emitter should be pointing to the first instruction from where the new VariableLiveRange is
+//    becoming valid and the last becoming invalid.
+//    The given "varDsc" should have its VariableRangeLists initialized.
+//
+// Notes:
+//    This method should be called on every place a Variable is changing its home.
+void Compiler::updateVariableLiveRange(const LclVarDsc* varDsc)
+{
+    // Build the location of the variable
+    CodeGenInterface::siVarLoc siVarLoc = codeGen->getSiVarLoc(varDsc, codeGen->getCurrentStackLevel());
+
+    // Report the home change for this variable
+    varDsc->UpdateRegisterHome(varDsc->lvRegNum, siVarLoc, getEmitter());
+}

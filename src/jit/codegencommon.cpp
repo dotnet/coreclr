@@ -628,7 +628,7 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 // Assumptions:
 //    The set of live variables reflects the result of only emitted code, it should not be considering the becoming 
 //    live/dead of instructions that has not been emitted yet. This is used to ensure [) "VariableLiveRange"
-//    intervals when calling "startLiveRangeFromEmitter" and "endLiveRangeAtEmitter".
+//    intervals when calling "startVariableLiveRange" and "endVariableLiveRange".
 //
 // Notes:
 //    If "ForCodeGen" is false, only "compCurLife" set (and no mask) will be setted.
@@ -710,7 +710,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming dead\n", varNum);
         }
 
-        varDsc->endLiveRangeAtEmitter(getEmitter()); // Track for debugging that is dead
+        endVariableLiveRange(varDsc);
     }
 
     VarSetOps::Iter bornIter(this, bornSet);
@@ -748,12 +748,8 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             VarSetOps::AddElemD(this, codeGen->gcInfo.gcVarPtrSetCur, bornVarIndex);
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming live\n", varNum);
         }
-
-        // Build siVarLoc for this borning variable given the current stackLevel
-        CodeGenInterface::siVarLoc varLocation = codeGen->getSiVarLoc(varDsc, codeGen->getCurrentStackLevel());
-
-        // Track for debugging that is live
-        varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, varLocation, getEmitter());
+        
+        startVariableLiveRange(varDsc);
     }
 
     codeGen->siUpdate();

@@ -862,11 +862,9 @@ void CodeGen::genSpillVar(GenTree* tree)
     if (needsSpill) {
         // We need this after "lvRegNum" has change because now we are sure that varDsc->lvIsInReg() is false.
         // "SiVarLoc" constructor uses the "LclVarDsc" of the variable.
-
-        // Build the location of the variable
-        siVarLoc siVarLoc = CodeGenInterface::getSiVarLoc(varDsc, getCurrentStackLevel());
-
-        varDsc->UpdateRegisterHome(REG_STK, siVarLoc, getEmitter());
+        
+        // Report the home change for this variable
+        compiler->updateVariableLiveRange(varDsc);
     }
 }
 
@@ -1028,9 +1026,9 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             {
                 genUpdateVarReg(varDsc, tree);
 
-                // Build the location of the variable
-                siVarLoc siVarLoc = CodeGenInterface::getSiVarLoc(varDsc, getCurrentStackLevel());
-                varDsc->UpdateRegisterHome(varDsc->lvRegNum, siVarLoc, getEmitter());
+                // Report the home change for this variable
+                compiler->updateVariableLiveRange(varDsc);
+
 #ifdef DEBUG
                 if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))
                 {

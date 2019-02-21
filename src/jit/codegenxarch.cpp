@@ -4841,9 +4841,8 @@ void CodeGen::genRegCopy(GenTree* treeNode)
 
                     genUpdateVarReg(varDsc, treeNode);
 
-                    // Build siVarLoc for this variable
-                    CodeGenInterface::siVarLoc varLocation = CodeGenInterface::getSiVarLoc(varDsc, getCurrentStackLevel());
-                    varDsc->UpdateRegisterHome(varDsc->lvRegNum, varLocation, getEmitter());
+                    // Report the home change for this variable
+                    compiler->updateVariableLiveRange(varDsc);
 
                     // The new location is going live
                     genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));

@@ -28,7 +28,7 @@ TreeLifeUpdater<ForCodeGen>::TreeLifeUpdater(Compiler* compiler)
 // Assumptions:
 //    The code corresponding to the given tree has been emitted, which means that if a variable has become live/dead 
 //    or been spilled then the emiter is positioned after that changed. This is used to ensure [) "VariableLiveRange"
-//    intervals when calling "startLiveRangeFromEmitter" and "endLiveRangeAtEmitter".
+//    intervals when calling "startOrCloseVariableLiveRange".
 //
 // Notes:
 //  If "ForCodeGen" is true, then the register mask use by CodeGen and the "LiveRangeList" of the "LclVadDsc"
@@ -103,11 +103,6 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                 if (isBorn && varDsc->lvIsRegCandidate() && tree->gtHasReg())
                 {
                     compiler->codeGen->genUpdateVarReg(varDsc, tree);
-
-                    // Build siVarLoc for this borning variable
-                    CodeGenInterface::siVarLoc varLocation = compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
-                    
-                    varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, varLocation, compiler->getEmitter());
                 }
                 if (varDsc->lvIsInReg() && tree->gtRegNum != REG_NA)
                 {
@@ -116,21 +111,11 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                 }
                 else
                 {
-                    if (isBorn)
-                    {
-                        // Build siVarLoc for this borning variable
-                        CodeGenInterface::siVarLoc varLocation = compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
-                        
-                        // Its borning in stack
-                        varDsc->startLiveRangeFromEmitter(varDsc->lvRegNum, varLocation, compiler->getEmitter());
-                    }
                     // Its putting in stackVarDeltaSet the variable no matter if its living or dying
                     VarSetOps::AddElemD(compiler, stackVarDeltaSet, varDsc->lvVarIndex);
                 }
-                if (isDying)
-                {
-                    varDsc->endLiveRangeAtEmitter(compiler->getEmitter());
-                }
+                
+                compiler->startOrCloseVariableLiveRange(varDsc, isBorn, isDying);
             }
         }
         else if (varDsc->lvPromoted)
@@ -173,11 +158,6 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                                 if (isBorn)
                                 {
                                     compiler->codeGen->genUpdateVarReg(fldVarDsc, tree);
-
-                                    // Build siVarLoc for this borning variable
-                                    CodeGenInterface::siVarLoc varLocation = compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
-
-                                    fldVarDsc->startLiveRangeFromEmitter(fldVarDsc->lvRegNum, varLocation, compiler->getEmitter());
                                 }
                                 compiler->codeGen->genUpdateRegLife(fldVarDsc, isBorn, isDying DEBUGARG(tree));
                             }
@@ -185,28 +165,16 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                             {
                                 VarSetOps::AddElemD(compiler, stackVarDeltaSet, fldVarIndex);
                             }
-
-                            if (isDying)
-                            {
-                                fldVarDsc->endLiveRangeAtEmitter(compiler->getEmitter());
-                            }
                         }
                     }
                     else if (ForCodeGen && VarSetOps::IsMember(compiler, varDeltaSet, fldVarIndex))
                     {
                         if (compiler->lvaTable[i].lvIsInReg())
                         {
-                            // BRIAN: why is born if it hash dead tracked field?
-                            // should be dying?
                             if (isBorn) 
                             {
                                 // should we include this var in newLife ?
                                 compiler->codeGen->genUpdateVarReg(fldVarDsc, tree);
-
-                                // Build siVarLoc for this borning variable
-                                CodeGenInterface::siVarLoc varLocation = compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
-
-                                fldVarDsc->startLiveRangeFromEmitter(fldVarDsc->lvRegNum, varLocation, compiler->getEmitter());
                             }
                             compiler->codeGen->genUpdateRegLife(fldVarDsc, isBorn, isDying DEBUGARG(tree));
                         }
@@ -214,6 +182,13 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                         {
                             VarSetOps::AddElemD(compiler, stackVarDeltaSet, fldVarIndex);
                         }
+                    }
+
+                    if (ForCodeGen)
+                    {
+                        // BRIAN:: see how scopes are reported for promoted structs. Are they considered in the 
+                        // amount of local variables to report?
+                        compiler->startOrCloseVariableLiveRange(fldVarDsc, isBorn, isDying);
                     }
                 }
             }
