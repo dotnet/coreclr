@@ -61,21 +61,21 @@ namespace System.Runtime.InteropServices
         [StructLayout(LayoutKind.Explicit)]
         private struct UnionTypes
         {
-            [FieldOffset(0)] public SByte _i1;
-            [FieldOffset(0)] public Int16 _i2;
-            [FieldOffset(0)] public Int32 _i4;
-            [FieldOffset(0)] public Int64 _i8;
-            [FieldOffset(0)] public Byte _ui1;
-            [FieldOffset(0)] public UInt16 _ui2;
-            [FieldOffset(0)] public UInt32 _ui4;
-            [FieldOffset(0)] public UInt64 _ui8;
-            [FieldOffset(0)] public Int32 _int;
-            [FieldOffset(0)] public UInt32 _uint;
-            [FieldOffset(0)] public Int16 _bool;
-            [FieldOffset(0)] public Int32 _error;
-            [FieldOffset(0)] public Single _r4;
-            [FieldOffset(0)] public Double _r8;
-            [FieldOffset(0)] public Int64 _cy;
+            [FieldOffset(0)] public sbyte _i1;
+            [FieldOffset(0)] public short _i2;
+            [FieldOffset(0)] public int _i4;
+            [FieldOffset(0)] public long _i8;
+            [FieldOffset(0)] public byte _ui1;
+            [FieldOffset(0)] public ushort _ui2;
+            [FieldOffset(0)] public uint _ui4;
+            [FieldOffset(0)] public ulong _ui8;
+            [FieldOffset(0)] public int _int;
+            [FieldOffset(0)] public uint _uint;
+            [FieldOffset(0)] public short _bool;
+            [FieldOffset(0)] public int _error;
+            [FieldOffset(0)] public float _r4;
+            [FieldOffset(0)] public double _r8;
+            [FieldOffset(0)] public long _cy;
             [FieldOffset(0)] public double _date;
             [FieldOffset(0)] public IntPtr _bstr;
             [FieldOffset(0)] public IntPtr _unknown;
@@ -331,7 +331,7 @@ namespace System.Runtime.InteropServices
 
         // VT_I1
 
-        public SByte AsI1
+        public sbyte AsI1
         {
             get
             {
@@ -348,7 +348,7 @@ namespace System.Runtime.InteropServices
 
         // VT_I2
 
-        public Int16 AsI2
+        public short AsI2
         {
             get
             {
@@ -365,7 +365,7 @@ namespace System.Runtime.InteropServices
 
         // VT_I4
 
-        public Int32 AsI4
+        public int AsI4
         {
             get
             {
@@ -382,7 +382,7 @@ namespace System.Runtime.InteropServices
 
         // VT_I8
 
-        public Int64 AsI8
+        public long AsI8
         {
             get
             {
@@ -399,7 +399,7 @@ namespace System.Runtime.InteropServices
 
         // VT_UI1
 
-        public Byte AsUi1
+        public byte AsUi1
         {
             get
             {
@@ -416,7 +416,7 @@ namespace System.Runtime.InteropServices
 
         // VT_UI2
 
-        public UInt16 AsUi2
+        public ushort AsUi2
         {
             get
             {
@@ -433,7 +433,7 @@ namespace System.Runtime.InteropServices
 
         // VT_UI4
 
-        public UInt32 AsUi4
+        public uint AsUi4
         {
             get
             {
@@ -450,7 +450,7 @@ namespace System.Runtime.InteropServices
 
         // VT_UI8
 
-        public UInt64 AsUi8
+        public ulong AsUi8
         {
             get
             {
@@ -467,7 +467,7 @@ namespace System.Runtime.InteropServices
 
         // VT_INT
 
-        public Int32 AsInt
+        public int AsInt
         {
             get
             {
@@ -484,7 +484,7 @@ namespace System.Runtime.InteropServices
 
         // VT_UINT
 
-        public UInt32 AsUint
+        public uint AsUint
         {
             get
             {
@@ -511,6 +511,8 @@ namespace System.Runtime.InteropServices
             set
             {
                 Debug.Assert(IsEmpty);
+                // VARIANT_TRUE  = -1
+                // VARIANT_FALSE = 0
                 VariantType = VarEnum.VT_BOOL;
                 _typeUnion._unionTypes._bool = value ? (short)-1 : (short)0;
             }
@@ -518,7 +520,7 @@ namespace System.Runtime.InteropServices
 
         // VT_ERROR
 
-        public Int32 AsError
+        public int AsError
         {
             get
             {
@@ -535,7 +537,7 @@ namespace System.Runtime.InteropServices
 
         // VT_R4
 
-        public Single AsR4
+        public float AsR4
         {
             get
             {
@@ -552,7 +554,7 @@ namespace System.Runtime.InteropServices
 
         // VT_R8
 
-        public Double AsR8
+        public double AsR8
         {
             get
             {

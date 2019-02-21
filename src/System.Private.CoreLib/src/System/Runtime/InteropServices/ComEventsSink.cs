@@ -12,7 +12,6 @@ namespace System.Runtime.InteropServices
     /// <summary>
     /// Part of ComEventHelpers APIs which allow binding
     /// managed delegates to COM's connection point based events.
-    /// see code:ComEventsHelper#ComEventsArchitecture
     /// </summary>
     internal class ComEventsSink : IDispatch, ICustomQueryInterface
     {
