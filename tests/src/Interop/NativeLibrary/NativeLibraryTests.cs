@@ -105,7 +105,9 @@ public class NativeLibraryTest
             success &= EXPECT(TryLoadLibraryAdvanced(libName, assembly, null),
                 (TestLibrary.Utilities.IsWindows) ? TestResult.Success : TestResult.ReturnFailure);
 
-            if (TestLibrary.Utilities.IsWindows)
+            if (TestLibrary.Utilities.IsWindows && 
+                !TestLibrary.Utilities.IsWindowsIoTCore && 
+                !TestLibrary.Utilities.IsWindowsNanoServer)
             {
                 libName = GetWin32LibName();
 
@@ -144,7 +146,13 @@ public class NativeLibraryTest
             success &= EXPECT(FreeLibrary(handle));
 
             // Double Free
-            success &= EXPECT(FreeLibrary(handle), TestResult.InvalidOperation);
+            if (TestLibrary.Utilities.IsWindows)
+            {
+                // The FreeLibrary() implementation simply calls the appropriate OS API
+                // with the supplied handle. Not all OSes consistently return an error 
+                // when a library is double-freed.
+                success &= EXPECT(FreeLibrary(handle), TestResult.InvalidOperation);
+            }
 
             // Null Free
             success &= EXPECT(FreeLibrary(IntPtr.Zero));
