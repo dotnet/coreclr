@@ -655,13 +655,10 @@ FCIMPL0(INT32, ExceptionNative::GetExceptionCode)
 FCIMPLEND
 
 extern uint32_t g_exceptionCount;
-FCIMPL0(INT32, ExceptionNative::GetExceptionCount)
+FCIMPL0(UINT32, ExceptionNative::GetExceptionCount)
 {
     FCALL_CONTRACT;
-
-    uint32_t exceptionCount = g_exceptionCount;
-    g_exceptionCount = 0;
-    return exceptionCount;
+    return g_exceptionCount;
 }
 FCIMPLEND
 

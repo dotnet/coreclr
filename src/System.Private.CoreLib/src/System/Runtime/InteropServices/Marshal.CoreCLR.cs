@@ -194,7 +194,7 @@ namespace System.Runtime.InteropServices
         public static extern int GetExceptionCode();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern int GetExceptionCount();        
+        internal static extern uint GetExceptionCount();        
 
         /// <summary>
         /// Marshals data from a structure class to a native memory block. If the
