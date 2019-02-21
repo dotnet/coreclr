@@ -173,8 +173,6 @@ void Assembly::Init(AllocMemTracker *pamTracker, LoaderAllocator *pLoaderAllocat
     m_pClassLoader = new ClassLoader(this);
     m_pClassLoader->Init(pamTracker);
 
-    COUNTER_ONLY(GetPerfCounters().m_Loading.cAssemblies++);
-
 #ifndef CROSSGEN_COMPILE
     if (GetManifestFile()->IsDynamic())
         // manifest modules of dynamic assemblies are always transient
@@ -355,8 +353,6 @@ void Assembly::Terminate( BOOL signalProfiler )
         delete m_pClassLoader;
         m_pClassLoader = NULL;
     }
-
-    COUNTER_ONLY(GetPerfCounters().m_Loading.cAssemblies--);
 
 #ifdef PROFILING_SUPPORTED
     if (CORProfilerTrackAssemblyLoads())

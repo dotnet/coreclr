@@ -198,7 +198,6 @@ void FreeTrackerMemory(ExceptionTracker* pTracker, TrackerMemoryType mem)
 static inline void UpdatePerformanceMetrics(CrawlFrame *pcfThisFrame, BOOL bIsRethrownException, BOOL bIsNewException)
 {
     WRAPPER_NO_CONTRACT;
-    COUNTER_ONLY(GetPerfCounters().m_Excep.cThrown++);
 
     // Fire an exception thrown ETW event when an exception occurs
     ETW::ExceptionLog::ExceptionThrown(pcfThisFrame, bIsRethrownException, bIsNewException);
@@ -4147,8 +4146,6 @@ void ExceptionTracker::MakeCallbacksRelatedToHandler(
             EEToDebuggerExceptionInterfaceWrapper::ExceptionFilter(pMD, (TADDR) dwHandlerStartPC, pEHClause->FilterOffset, (BYTE*)sf.SP);
 
             EEToProfilerExceptionInterfaceWrapper::ExceptionSearchFilterEnter(pMD);
-
-            COUNTER_ONLY(GetPerfCounters().m_Excep.cFiltersExecuted++);
         }
         else
         {
@@ -4158,7 +4155,6 @@ void ExceptionTracker::MakeCallbacksRelatedToHandler(
             {
                 m_EHClauseInfo.SetEHClauseType(COR_PRF_CLAUSE_FINALLY);
                 EEToProfilerExceptionInterfaceWrapper::ExceptionUnwindFinallyEnter(pMD);
-                COUNTER_ONLY(GetPerfCounters().m_Excep.cFinallysExecuted++);
             }
             else
             {

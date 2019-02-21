@@ -3777,8 +3777,6 @@ LONG ComCallWrapperCache::AddRef()
     }
     CONTRACTL_END;
     
-    COUNTER_ONLY(GetPerfCounters().m_Interop.cCCW++);
-    
     LONG i = FastInterlockIncrement(&m_cbRef);
     LOG((LF_INTEROP, LL_INFO100, "ComCallWrapperCache::Addref %8.8x with %d in loader allocator [%d] %8.8x\n", 
         this, i, GetLoaderAllocator()?GetLoaderAllocator()->GetCreationNumber() : 0, GetLoaderAllocator()));
@@ -3799,8 +3797,6 @@ LONG ComCallWrapperCache::Release()
         MODE_ANY;
     }
     CONTRACTL_END;
-    
-    COUNTER_ONLY(GetPerfCounters().m_Interop.cCCW--);
 
     LONG i = FastInterlockDecrement(&m_cbRef);
     _ASSERTE(i >= 0);

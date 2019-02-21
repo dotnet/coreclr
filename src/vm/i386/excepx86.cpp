@@ -431,13 +431,6 @@ CPFH_AdjustContextForThreadSuspensionRace(CONTEXT *pContext, Thread *pThread)
 
 
 
-static inline void
-CPFH_UpdatePerformanceCounters() {
-    WRAPPER_NO_CONTRACT;
-    COUNTER_ONLY(GetPerfCounters().m_Excep.cThrown++);
-}
-
-
 //******************************************************************************
 EXCEPTION_DISPOSITION COMPlusAfterUnwind(
         EXCEPTION_RECORD *pExceptionRecord,
@@ -1063,7 +1056,6 @@ CPFH_RealFirstPassHandler(                  // ExceptionContinueSearch, etc.
 
         EEToProfilerExceptionInterfaceWrapper::ExceptionThrown(pThread);
         
-        CPFH_UpdatePerformanceCounters();
     } // End of case-1-or-3
 
     {
@@ -2607,8 +2599,6 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
             if (fGiveDebuggerAndProfilerNotification)
                 EEToProfilerExceptionInterfaceWrapper::ExceptionSearchFilterEnter(pFunc);
 
-            COUNTER_ONLY(GetPerfCounters().m_Excep.cFiltersExecuted++);
-
             STRESS_LOG3(LF_EH, LL_INFO10, "COMPlusThrowCallback: calling filter code, EHClausePtr:%08x, Start:%08x, End:%08x\n",
                 &EHClause, EHClause.HandlerStartPC, EHClause.HandlerEndPC);
 
@@ -2947,8 +2937,6 @@ StackWalkAction COMPlusUnwindCallback (CrawlFrame *pCf, ThrowCallbackType *pData
 
         if (IsFaultOrFinally(&EHClause))
         {
-            COUNTER_ONLY(GetPerfCounters().m_Excep.cFinallysExecuted++);
-
             if (fGiveDebuggerAndProfilerNotification)
                 EEToDebuggerExceptionInterfaceWrapper::ExceptionHandle(pFunc, pMethodAddr, EHClause.HandlerStartPC, pHandlerEBP);
 
