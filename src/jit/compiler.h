@@ -463,9 +463,9 @@ public:
 #endif
     }
 
-    unsigned int getAmountLiveRanges() const
+    size_t getAmountLiveRanges() const
     {
-        unsigned int result = 0;
+        size_t result = 0;
         if (variableLiveRanges != nullptr)
         {
             result = variableLiveRanges->size();

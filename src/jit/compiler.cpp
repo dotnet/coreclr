@@ -11108,7 +11108,7 @@ unsigned int Compiler::getAmountLiveRangesReported()
     {
         if (compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
         {
-            amountOfLiveRanges += varDsc->getAmountLiveRanges();
+            amountOfLiveRanges += (unsigned int)varDsc->getAmountLiveRanges();
         }
     }
 
