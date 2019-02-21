@@ -2,16 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-/*=============================================================================
-**
-**
-**
-** Purpose: Class for creating and managing a thread.
-**
-**
-=============================================================================*/
-
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -159,41 +149,21 @@ namespace System.Threading
         =========================================================================*/
         private void Create(ThreadStart start)
         {
-            if (start == null)
-            {
-                throw new ArgumentNullException(nameof(start));
-            }
             SetStartHelper((Delegate)start, 0);  //0 will setup Thread with default stackSize
         }
 
         private void Create(ThreadStart start, int maxStackSize)
         {
-            if (start == null)
-            {
-                throw new ArgumentNullException(nameof(start));
-            }
-            if (0 > maxStackSize)
-                throw new ArgumentOutOfRangeException(nameof(maxStackSize), SR.ArgumentOutOfRange_NeedNonNegNum);
             SetStartHelper((Delegate)start, maxStackSize);
         }
 
         private void Create(ParameterizedThreadStart start)
         {
-            if (start == null)
-            {
-                throw new ArgumentNullException(nameof(start));
-            }
             SetStartHelper((Delegate)start, 0);
         }
 
         private void Create(ParameterizedThreadStart start, int maxStackSize)
         {
-            if (start == null)
-            {
-                throw new ArgumentNullException(nameof(start));
-            }
-            if (0 > maxStackSize)
-                throw new ArgumentOutOfRangeException(nameof(maxStackSize), SR.ArgumentOutOfRange_NeedNonNegNum);
             SetStartHelper((Delegate)start, maxStackSize);
         }
 
