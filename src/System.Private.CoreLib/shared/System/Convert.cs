@@ -2557,10 +2557,14 @@ namespace System
             Vector128<sbyte>  tt7 = Vector128.Create((sbyte)26);
             Vector128<byte>   tt8 = Vector128.Create((byte)13);
 
+            Vector128<byte> localShiftLut = s_base64ShiftLut;
+            Vector128<byte> localShuffleMask = s_base64ShuffleMask;
+            Vector128<byte> localTwoBytesStringMaskLo = s_base64TwoBytesStringMaskLo;
+
             for (; i <= length - stride; i += stride)
             {
                 Vector128<byte> inputVector = Sse2.LoadVector128(inData + i);
-                inputVector = Ssse3.Shuffle(inputVector, s_base64ShuffleMask);
+                inputVector = Ssse3.Shuffle(inputVector, localShuffleMask);
 
                 // t0      = [0000cccc|cc000000|aaaaaa00|00000000]
                 Vector128<byte> t0 = Sse2.And(inputVector, tt0);
@@ -2577,17 +2581,17 @@ namespace System
                 Vector128<byte> result = Sse2.SubtractSaturate(indices, tt5);
                 Vector128<sbyte> compareResult = Sse2.CompareGreaterThan(tt7, indices.AsSByte());
                 result = Sse2.Or(result, Sse2.And(compareResult.AsByte(), tt8));
-                result = Ssse3.Shuffle(s_base64ShiftLut, result);
+                result = Ssse3.Shuffle(localShiftLut, result);
                 result = Sse2.Add(result, indices);
 
                 // save as two-bytes string, e.g.:
                 // 1,2,3,4,5..16 => 1,0,2,0,3,0..16,0
-                Sse2.Store(outputBytes + j, Ssse3.Shuffle(result, s_base64TwoBytesStringMaskLo));
+                Sse2.Store(outputBytes + j, Ssse3.Shuffle(result, localTwoBytesStringMaskLo));
                 j += Vector128<byte>.Count;
 
                 // Do it for the second part of the vector (rotate it first in order to re-use asciiToStringMaskLo)
                 result = Sse2.Shuffle(result.AsUInt32(), 0x4E /*_MM_SHUFFLE(1,0,3,2)*/).AsByte();
-                result = Ssse3.Shuffle(result, s_base64TwoBytesStringMaskLo);
+                result = Ssse3.Shuffle(result, localTwoBytesStringMaskLo);
                     
                 if (insertLineBreaks && (charcount += 16) >= base64LineBreakPosition)
                 {
