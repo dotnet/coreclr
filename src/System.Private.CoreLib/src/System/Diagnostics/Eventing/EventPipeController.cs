@@ -90,6 +90,7 @@ namespace System.Diagnostics.Tracing
                         s_controllerInstance = new EventPipeController();
                     }
                     // If enable is explicitly set to 0, then don't start the controller (to avoid overhead).
+                    RuntimeEventSource.Initialize();
                 }
             }
             catch { }
@@ -211,7 +212,7 @@ namespace System.Diagnostics.Tracing
             {
                 // If set, bail out early if the specified process does not match the current process.
                 int processID = Convert.ToInt32(strProcessID);
-                if (processID != Win32Native.GetCurrentProcessId())
+                if (processID != Interop.Kernel32.GetCurrentProcessId())
                 {
                     return null;
                 }
@@ -293,7 +294,7 @@ namespace System.Diagnostics.Tracing
 
         private static string BuildTraceFileName()
         {
-            return GetAppName() + "." + Win32Native.GetCurrentProcessId().ToString() + NetPerfFileExtension;
+            return GetAppName() + "." + Interop.Kernel32.GetCurrentProcessId().ToString() + NetPerfFileExtension;
         }
 
         private static string GetAppName()

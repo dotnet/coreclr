@@ -2291,17 +2291,18 @@ void fgArgInfo::EvalArgsToTemps()
                     if (setupArg->OperIsCopyBlkOp())
                     {
                         setupArg = compiler->fgMorphCopyBlock(setupArg);
-#if defined(_TARGET_ARMARCH_)
-                        // This scalar LclVar widening step is only performed for ARM architectures.
+#if defined(_TARGET_ARMARCH_) || defined(UNIX_AMD64_ABI)
+                        // This scalar LclVar widening step is only performed for ARM and AMD64 unix.
                         //
                         CORINFO_CLASS_HANDLE clsHnd     = compiler->lvaGetStruct(tmpVarNum);
                         unsigned             structSize = varDsc->lvExactSize;
 
                         scalarType = compiler->getPrimitiveTypeForStruct(structSize, clsHnd, curArgTabEntry->isVararg);
-#endif // _TARGET_ARMARCH_
+#endif // _TARGET_ARMARCH_ || defined (UNIX_AMD64_ABI)
                     }
 
-                    // scalarType can be set to a wider type for ARM architectures: (3 => 4)  or (5,6,7 => 8)
+                    // scalarType can be set to a wider type for ARM or unix amd64 architectures: (3 => 4)  or (5,6,7 =>
+                    // 8)
                     if ((scalarType != TYP_UNKNOWN) && (scalarType != lclVarType))
                     {
                         // Create a GT_LCL_FLD using the wider type to go to the late argument list
@@ -8247,6 +8248,58 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                                                      (call->gtCallType == CT_USER_FUNC) ? call->gtCallMethHnd : nullptr,
                                                      isTailPrefixed, TAILCALL_FAIL, szFailReason);
 
+#if FEATURE_MULTIREG_RET
+            if (fgGlobalMorph && call->HasMultiRegRetVal())
+            {
+                // The tail call has been rejected so we must finish the work deferred
+                // by impFixupCallStructReturn for multi-reg-returning calls and transform
+                //     ret call
+                // into
+                //     temp = call
+                //     ret temp
+
+                // Create a new temp.
+                unsigned tmpNum =
+                    lvaGrabTemp(false DEBUGARG("Return value temp for multi-reg return (rejected tail call)."));
+                lvaTable[tmpNum].lvIsMultiRegRet = true;
+
+                GenTree* assg = nullptr;
+                if (varTypeIsStruct(callType))
+                {
+                    CORINFO_CLASS_HANDLE structHandle = call->gtRetClsHnd;
+                    assert(structHandle != NO_CLASS_HANDLE);
+                    const bool unsafeValueClsCheck = false;
+                    lvaSetStruct(tmpNum, structHandle, unsafeValueClsCheck);
+                    var_types structType = lvaTable[tmpNum].lvType;
+                    GenTree*  dst        = gtNewLclvNode(tmpNum, structType);
+                    assg                 = gtNewAssignNode(dst, call);
+                }
+                else
+                {
+                    assg = gtNewTempAssign(tmpNum, call);
+                }
+
+                assg = fgMorphTree(assg);
+
+                // Create the assignment statement and insert it before the current statement.
+                GenTree* assgStmt = gtNewStmt(assg, compCurStmt->AsStmt()->gtStmtILoffsx);
+                fgInsertStmtBefore(compCurBB, compCurStmt, assgStmt);
+
+                // Return the temp.
+                GenTree* result = gtNewLclvNode(tmpNum, lvaTable[tmpNum].lvType);
+                result->gtFlags |= GTF_DONT_CSE;
+
+#ifdef DEBUG
+                if (verbose)
+                {
+                    printf("\nInserting assignment of a multi-reg call result to a temp:\n");
+                    gtDispTree(assgStmt);
+                }
+                result->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
+#endif // DEBUG
+                return result;
+            }
+#endif
             goto NO_TAIL_CALL;
         }
 

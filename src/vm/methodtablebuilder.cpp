@@ -1864,7 +1864,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #endif
 #ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
+#error "Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time."
 #endif // FEATURE_HFA
         SystemVAmd64CheckForPassStructInRegister();
 #endif // UNIX_AMD64_ABI
@@ -1872,7 +1872,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 
 #ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
+#error "Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time."
 #endif // FEATURE_HFA
     if (HasLayout())
     {
@@ -2072,22 +2072,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
         pModule,
         GetCl(),
         GetHalfBakedMethodTable());
-
-#ifdef MDA_SUPPORTED
-    MdaMarshaling* mda = MDA_GET_ASSISTANT(Marshaling);
-    if (mda && HasLayout())
-    {
-        FieldMarshaler *pFieldMarshaler = (FieldMarshaler*)GetLayoutInfo()->GetFieldMarshalers();
-        UINT  numReferenceFields        = GetLayoutInfo()->GetNumCTMFields();
-
-        while (numReferenceFields--)
-        {
-            mda->ReportFieldMarshal(pFieldMarshaler);
-
-            ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-        }
-    }
-#endif // MDA_SUPPORTED
 
 #ifdef FEATURE_PREJIT
     _ASSERTE(pComputedPZM == Module::GetPreferredZapModuleForMethodTable(pMT));
@@ -2908,9 +2892,15 @@ MethodTableBuilder::EnumerateClassMethods()
             }
         }
 
-#ifndef FEATURE_DEFAULT_INTERFACES
         // Some interface checks.
-        if (fIsClassInterface)
+        // We only need them if default interface method support is disabled or if this is fragile crossgen
+#if !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
+        if (fIsClassInterface
+#if defined(FEATURE_DEFAULT_INTERFACES)
+            // Only fragile crossgen wasn't upgraded to deal with default interface methods.
+            && !IsReadyToRunCompilation()
+#endif
+            )
         {
             if (IsMdVirtual(dwMemberAttrs))
             {
@@ -2921,14 +2911,14 @@ MethodTableBuilder::EnumerateClassMethods()
             }
             else
             {
-                // Instance field/method
+                // Instance method
                 if (!IsMdStatic(dwMemberAttrs))
                 {
                     BuildMethodTableThrowException(BFA_NONVIRT_INST_INT_METHOD);
                 }
             }
         }
-#endif
+#endif // !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
 
         // No synchronized methods in ValueTypes
         if(fIsClassValueType && IsMiSynchronized(dwImplFlags))

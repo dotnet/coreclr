@@ -28,6 +28,20 @@
         }
     },
     {
+        "name": "System.Globalization.Calendars.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Globalization.Tests.GregorianCalendarCtor.CalendarType_Set_InvalidType_ThrowsArgumentOutOfRangeException",
+                    "reason": "Fixed param name in .NET Core."
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Data.SqlClient.ManualTesting.Tests",
         "enabled": false,
         "exclusions": {
@@ -144,6 +158,66 @@
                 {
                     "name": "BasicEventSourceTests.TestsUserErrors.Test_BadEventSource_MismatchedIds",
                     "reason": "Assert.Equal() Failure Expected: 1 Actual: 2"
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsWrite.Test_Write_T_EventListener",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsWrite.Test_Write_T_EventListener_UseEvents",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsUserErrors.Test_BadEventSource_MismatchedIds_WithEtwListener",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.FuzzyTests.Test_Write_Fuzzy",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsWriteEventToListener.Test_WriteEvent_InvalidCalls",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsWriteEventToListener.Test_WriteEvent_ZeroKwds",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsWriteEventToListener.Test_EventSourceCreatedEvents_BeforeListener",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsWriteEventToListener.Test_WriteEvent_ToChannel_Coverage",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsWriteEventToListener.Test_WriteEvent_ArgsCornerCases",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsWriteEventToListener.Test_EventSourceCreatedEvents_AfterListener",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsWriteEventToListener.Test_WriteEvent_ArgsBasicTypes",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsEventSourceLifetime.Test_EventSource_Lifetime",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsManifestNegative.Test_GenerateManifest_InvalidEventSources",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsTraits.Test_EventSource_Traits_Dynamic",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
+                },
+                {
+                    "name": "BasicEventSourceTests.TestsTraits.Test_EventSource_Traits_Contract",
+                    "reason": "Assert.Equal() Failure Expected: Actual:   System.Runtime "
                 }
             ]
         }
@@ -692,6 +766,10 @@
                 {
                     "name": "System.Drawing.Tests.IconTests.ExtractAssociatedIcon_InvalidFilePath_ThrowsArgumentException",
                     "reason": "https://github.com/dotnet/corefx/issues/34122"
+                },
+                {
+                    "name": "System.Drawing.Tests.FontTests.ToLogFont_DisposedGraphics_ThrowsArgumentException",
+                    "reason": "outdated"
                 }
             ]
         }
@@ -751,6 +829,14 @@
                     "name": "System.Buffers.Text.Tests.ParserTests.TestParserDouble",
                     "reason": "https://github.com/dotnet/coreclr/pull/20707"
                 },
+                {
+                    "name": "System.Buffers.Text.Tests.FormatterTests.TestGFormatWithPrecisionNotSupported",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22434"
+                },
+                {
+                    "name": "System.Buffers.Text.Tests.FormatterTests.TestBadFormat",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22434"
+                },
             ]
         }
     },
@@ -807,6 +893,10 @@
             "namespaces": null,
             "classes": null,
             "methods": [
+                {
+                    "name": "System.Runtime.InteropServices.Tests.GCHandleTests.Alloc_InvalidPinnedObject_ThrowsArgumentException",
+                    "reason": "outdated"
+                },
                 {
                     "name": "System.Runtime.InteropServices.Tests.GetHINSTANCETests.GetHINSTANCE_NonRuntimeModule_ThrowsArgumentNullException",
                     "reason": "https://github.com/dotnet/coreclr/pull/30925"
@@ -1035,6 +1125,10 @@
                     "reason": "https://github.com/dotnet/coreclr/issues/12605"
                 },
                 {
+                    "name": "System.Tests.DecimalTests.Round_InvalidMidpointRounding_ThrowsArgumentException",
+                    "reason": "outdated"
+                }, 
+                {
                     "name": "System.Tests.ArrayTests.Copy",
                     "reason": "Needs updates for XUnit 2.4"
                 },
@@ -1054,7 +1148,6 @@
                     "name": "System.Tests.TimeSpanTests.Parse",
                     "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/34561"
                 },
-                
                 {
                     "name": "System.Tests.SingleTests.Test_ToString",
                     "reason" : "https://github.com/dotnet/coreclr/pull/22040"
@@ -1150,6 +1243,10 @@
                 {
                     "name": "System.ComponentModel.DataAnnotations.Tests.RangeAttributeTests.Validate_DoubleConversionOverflows_ThrowsOverflowException",
                     "reason": "https://github.com/dotnet/coreclr/pull/20707"
+                },
+                {
+                    "name": "System.ComponentModel.DataAnnotations.Tests.AssociationAttributeTests.Constructor",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22595"
                 },
             ]
         }
@@ -1269,6 +1366,194 @@
                     "name": "DataContractJsonSerializerTests.DCJS_FloatAsRoot",
                     "reason": "https://github.com/dotnet/coreclr/pull/22040"
                 },
+            ]
+        }
+    },
+    {
+        "name": "System.ObjectModel.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTest.StringComparer",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntInt.AddExistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntInt.ChangeItemDoesNotExistThrows",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntInt.ChangeItemKeyKeyAlreadyChanged",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntInt.ChangeItemKeyKeyAlreadyChangedNewKeyIsDifferent",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntInt.ChangeItemKeyKeyAlreadyChangedNewKeyIsOldKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntInt.ChangeItemKeyThrowsPreexistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntInt.Insert",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntInt.NonGenericAddExistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntString.AddExistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntString.ChangeItemDoesNotExistThrows",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntString.ChangeItemKeyKeyAlreadyChanged",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntString.ChangeItemKeyKeyAlreadyChangedNewKeyIsDifferent",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntString.ChangeItemKeyKeyAlreadyChangedNewKeyIsOldKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntString.ChangeItemKeyThrowsPreexistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntString.Insert",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsIntString.NonGenericAddExistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.AddExistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.ChangeItemDoesNotExistThrows",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.ChangeItemKeyKeyAlreadyChanged",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.ChangeItemKeyKeyAlreadyChangedNewKeyIsDifferent",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.ChangeItemKeyKeyAlreadyChangedNewKeyIsOldKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.ChangeItemKeyNullItemNotPresent",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.ChangeItemKeyNullToNewKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.ChangeItemKeyNullToOldKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.ChangeItemKeyNullToOtherKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.ChangeItemKeyThrowsPreexistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.Insert",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringInt.NonGenericAddExistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.AddExistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.ChangeItemDoesNotExistThrows",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.ChangeItemKeyKeyAlreadyChanged",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.ChangeItemKeyKeyAlreadyChangedNewKeyIsDifferent",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.ChangeItemKeyKeyAlreadyChangedNewKeyIsOldKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.ChangeItemKeyNullItemNotPresent",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.ChangeItemKeyNullToNewKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.ChangeItemKeyNullToOldKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.ChangeItemKeyNullToOtherKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.ChangeItemKeyThrowsPreexistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.Insert",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.KeyedCollectionTestsStringString.NonGenericAddExistingKey",
+                    "reason": "https://github.com/dotnet/coreclr/pull/22455"
+                },
+            ]
+        }
+    },
+    {
+        "name": "System.Net.Ping.Functional.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Net.NetworkInformation.Tests.PingTest.SendPingAsyncWithIPAddress",
+                    "reason": "https://github.com/dotnet/corefx/issues/35351"
+                }
             ]
         }
     },

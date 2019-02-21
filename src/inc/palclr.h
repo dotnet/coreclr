@@ -37,6 +37,22 @@
 #endif
 #endif
 
+#ifndef NOTHROW_DECL
+#ifdef _MSC_VER
+#define NOTHROW_DECL __declspec(nothrow)
+#else
+#define NOTHROW_DECL __attribute__((nothrow))
+#endif // !_MSC_VER
+#endif // !NOTHROW_DECL
+
+#ifndef NOINLINE
+#ifdef _MSC_VER
+#define NOINLINE __declspec(noinline)
+#else
+#define NOINLINE __attribute__((noinline))
+#endif // !_MSC_VER
+#endif // !NOINLINE
+
 //
 // CPP_ASSERT() can be used within a class definition, to perform a
 // compile-time assertion involving private names within the class.
@@ -480,14 +496,18 @@
 #if defined(SOURCE_FORMATTING)
 #define SELECTANY extern
 #else
+#if defined(__GNUC__)
+#define SELECTANY extern __attribute__((weak))
+#else
 #define SELECTANY extern __declspec(selectany)
+#endif
 #endif
 #if defined(SOURCE_FORMATTING)
 #define __annotation(x)
 #endif
         
 
-#if defined(_DEBUG_IMPL) && !defined(JIT_BUILD) && !defined(JIT64_BUILD) && !defined(CROSS_COMPILE) && !defined(_TARGET_ARM_) // @ARMTODO: no contracts for speed
+#if defined(_DEBUG_IMPL) && !defined(JIT_BUILD) && !defined(JIT64_BUILD) && !defined(CROSS_COMPILE) && !defined(DISABLE_CONTRACTS)
 #define PAL_TRY_HANDLER_DBG_BEGIN                                               \
     BOOL ___oldOkayToThrowValue = FALSE;                                        \
     ClrDebugState *___pState = ::GetClrDebugState();                            \

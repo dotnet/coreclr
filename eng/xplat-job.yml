@@ -9,7 +9,6 @@ parameters:
   dependsOn: ''
   containerName: ''
   timeoutInMinutes: ''
-  helixType: ''
   crossrootfsDir: ''
   enableMicrobuild: ''
 
@@ -29,8 +28,9 @@ jobs:
     dependsOn: ${{ parameters.dependsOn }}
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
 
+    # Send telemetry for official builds
+    enableTelemetry: ${{ and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}
     helixRepo: 'dotnet/coreclr'
-    helixType: ${{ parameters.helixType }}
 
     enableMicrobuild: ${{ parameters.enableMicrobuild }}
 

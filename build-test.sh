@@ -180,6 +180,13 @@ generate_layout()
         echo "Creating LogsDir: ${__LogsDir}"
         mkdir -p $__LogsDir
     fi
+    if [ ! -f "$__MsbuildDebugLogsDir" ]; then
+        echo "Creating MsbuildDebugLogsDir: ${__MsbuildDebugLogsDir}"
+        mkdir -p $__MsbuildDebugLogsDir
+    fi
+
+    # Set up the directory for MSBuild debug logs.
+    export MSBUILDDEBUGPATH="${__MsbuildDebugLogsDir}"
 
     __BuildProperties="-p:OSGroup=${__BuildOS} -p:BuildOS=${__BuildOS} -p:BuildArch=${__BuildArch} -p:BuildType=${__BuildType}"
 
@@ -283,6 +290,13 @@ build_Tests()
         echo "Creating LogsDir: ${__LogsDir}"
         mkdir -p $__LogsDir
     fi
+    if [ ! -f "$__MsbuildDebugLogsDir" ]; then
+        echo "Creating MsbuildDebugLogsDir: ${__MsbuildDebugLogsDir}"
+        mkdir -p $__MsbuildDebugLogsDir
+    fi
+
+    # Set up the directory for MSBuild debug logs.
+    export MSBUILDDEBUGPATH="${__MsbuildDebugLogsDir}"
 
     __BuildProperties="-p:OSGroup=${__BuildOS} -p:BuildOS=${__BuildOS} -p:BuildArch=${__BuildArch} -p:BuildType=${__BuildType}"
 
@@ -472,8 +486,8 @@ build_native_projects()
     if [ $__SkipConfigure == 0 ]; then
         # if msbuild is not supported, then set __SkipGenerateVersion to 1
         if [ $__isMSBuildOnNETCoreSupported == 0 ]; then __SkipGenerateVersion=1; fi
-        # Drop version.cpp file
-        __versionSourceFile="$intermediatesForBuild/version.cpp"
+        # Drop version.c file
+        __versionSourceFile="$intermediatesForBuild/version.c"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
             $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
@@ -484,7 +498,7 @@ build_native_projects()
                                      /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
                                      $__CommonMSBuildArgs $__UnprocessedBuildArgs
         else
-            # Generate the dummy version.cpp, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
+            # Generate the dummy version.c, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
             if [ -e $__versionSourceFile ]; then
                 read existingVersionSourceLine < $__versionSourceFile
@@ -898,6 +912,7 @@ fi
 
 # Set dependent variables
 __LogsDir="$__RootBinDir/Logs"
+__MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 
 # init the host distro name
 initHostDistroRid

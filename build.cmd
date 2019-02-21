@@ -13,14 +13,14 @@ set __ThisScriptDir="%~dp0"
 call "%__ThisScriptDir%"\setup_vs_tools.cmd
 if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
-if defined VS150COMNTOOLS (
+if defined VS160COMNTOOLS (
+    set "__VSToolsRoot=%VS160COMNTOOLS%"
+    set "__VCToolsRoot=%VS160COMNTOOLS%\..\..\VC\Auxiliary\Build"
+    set __VSVersion=vs2019
+) else if defined VS150COMNTOOLS (
     set "__VSToolsRoot=%VS150COMNTOOLS%"
     set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
     set __VSVersion=vs2017
-) else (
-    set "__VSToolsRoot=%VS140COMNTOOLS%"
-    set "__VCToolsRoot=%VS140COMNTOOLS%\..\..\VC"
-    set __VSVersion=vs2015
 )
 
 :: Work around Jenkins CI + msbuild problem: Jenkins sometimes creates very large environment
@@ -58,6 +58,7 @@ set "__PackagesDir=%DotNetRestorePackagesPath%"
 if [%__PackagesDir%]==[] set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
+set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
 
 set __BuildAll=
 
@@ -319,9 +320,13 @@ REM Generate path to be set for CMAKE_INSTALL_PREFIX to contain forward slash
 set "__CMakeBinDir=%__BinDir%"
 set "__CMakeBinDir=%__CMakeBinDir:\=/%"
 
-if not exist "%__BinDir%"           md "%__BinDir%"
-if not exist "%__IntermediatesDir%" md "%__IntermediatesDir%"
-if not exist "%__LogsDir%"          md "%__LogsDir%"
+if not exist "%__BinDir%"              md "%__BinDir%"
+if not exist "%__IntermediatesDir%"    md "%__IntermediatesDir%"
+if not exist "%__LogsDir%"             md "%__LogsDir%"
+if not exist "%__MsbuildDebugLogsDir%" md "%__MsbuildDebugLogsDir%"
+
+REM Set up the directory for MSBuild debug logs.
+set MSBUILDDEBUGPATH=%__MsbuildDebugLogsDir%
 
 REM It is convenient to have your Nuget search path include the location where the build
 REM will place packages.  However nuget used during the build will fail if that directory
@@ -362,8 +367,8 @@ REM ============================================================================
 
 @if defined _echo @echo on
 
-call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   %__ProjectDir%\build.proj /t:GenerateVersionHeader /p:GenerateVersionHeader=true /p:NativeVersionHeaderFile="%__RootBinDir%\obj\_version.h"^
@@ -377,7 +382,7 @@ REM ============================================================================
 
 if %__RestoreOptData% EQU 1 (
     echo %__MsgPrefix%Restoring the OptimizationData Package
-    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+    call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
       /p:UsePartialNGENOptimization=false /maxcpucount^
       ./build.proj /t:RestoreOptData^
@@ -389,16 +394,11 @@ if %__RestoreOptData% EQU 1 (
 )
 
 REM Parse the optdata package versions out of msbuild so that we can pass them on to CMake
-set DotNetCli=%__ProjectDir%\Tools\dotnetcli\dotnet.exe
-if not exist "%DotNetCli%" (
-    echo %__MsgPrefix%Error: "%DotNetCli%" not found
-    exit /b 1
-)
 set OptDataProjectFilePath=%__ProjectDir%\src\.nuget\optdata\optdata.csproj
-for /f "tokens=*" %%s in ('%DotNetCli% msbuild "%OptDataProjectFilePath%" /t:DumpPgoDataPackageVersion /nologo') do (
+for /f "tokens=*" %%s in ('call "%__ProjectDir%\dotnet.cmd" msbuild "%OptDataProjectFilePath%" /t:DumpPgoDataPackageVersion /nologo') do (
     set __PgoOptDataVersion=%%s
 )
-for /f "tokens=*" %%s in ('%DotNetCli% msbuild "%OptDataProjectFilePath%" /t:DumpIbcDataPackageVersion /nologo') do (
+for /f "tokens=*" %%s in ('call "%__ProjectDir%\dotnet.cmd" msbuild "%OptDataProjectFilePath%" /t:DumpIbcDataPackageVersion /nologo') do (
     set __IbcOptDataVersion=%%s
 )
 
@@ -409,7 +409,7 @@ REM ===
 REM =========================================================================================
 
 set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
-set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
+set __IntermediatesEventingDir=%__IntermediatesDir%\Eventing
 
 REM Find python and set it to the variable PYTHON
 echo import sys; sys.stdout.write(sys.executable) | (py -3 || py -2 || python3 || python2 || python) > %TEMP%\pythonlocation.txt 2> NUL
@@ -650,8 +650,8 @@ if %__BuildCoreLib% EQU 1 (
         set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
         set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-        call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-          /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+        call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+          /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
           /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
           /p:UsePartialNGENOptimization=false /maxcpucount^
           %__ProjectDir%\build.proj^
@@ -668,7 +668,7 @@ if %__BuildCoreLib% EQU 1 (
     if %__IbcOptimize% EQU 1 (
         echo %__MsgPrefix%Commencing IBCMerge of System.Private.CoreLib for %__BuildOS%.%__BuildArch%.%__BuildType%
         set IbcMergeProjectFilePath=%__ProjectDir%\src\.nuget\optdata\ibcmerge.csproj
-        for /f "tokens=*" %%s in ('%DotNetCli% msbuild "!IbcMergeProjectFilePath!" /t:DumpIbcMergePackageVersion /nologo') do @(
+        for /f "tokens=*" %%s in ('call "%__ProjectDir%\dotnet.cmd" msbuild "!IbcMergeProjectFilePath!" /t:DumpIbcMergePackageVersion /nologo') do @(
             set __IbcMergeVersion=%%s
         )
 
@@ -1051,6 +1051,6 @@ at the install location of previous Visual Studio version. The workaround is to 
 of the previous version to "%VSINSTALLDIR%" and then build.
 REM DIA SDK not included in Express editions
 echo Visual Studio Express does not include the DIA SDK. ^
-You need Visual Studio 2015 or 2017 (Community is free).
+You need Visual Studio 2017 or 2019 (Community is free).
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1

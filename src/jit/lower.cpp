@@ -87,7 +87,8 @@ bool Lowering::IsSafeToContainMem(GenTree* parentNode, GenTree* childNode)
 
     for (GenTree* node = childNode->gtNext; node != parentNode; node = node->gtNext)
     {
-        if (m_scratchSideEffects.InterferesWith(comp, node, false))
+        const bool strict = true;
+        if (m_scratchSideEffects.InterferesWith(comp, node, strict))
         {
             return false;
         }
@@ -3584,6 +3585,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
     // InlinedCallFrame.callTarget = methodHandle   // stored in m_Datum
     // InlinedCallFrame.m_pCallSiteSP = SP          // x86 only
     // InlinedCallFrame.m_pCallerReturnAddress = return address
+    // GT_START_PREEEMPTC
     // Thread.gcState = 0
     // (non-stub) - update top Frame on TCB         // 64-bit targets only
 
@@ -3688,14 +3690,19 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
     }
 #endif // _TARGET_64BIT_
 
-    // IMPORTANT **** This instruction must come last!!! ****
+    // IMPORTANT **** This instruction must be the last real instruction ****
     // It changes the thread's state to Preemptive mode
     // ----------------------------------------------------------------------------------
     //  [tcb + offsetOfGcState] = 0
-
     GenTree* storeGCState = SetGCState(0);
     BlockRange().InsertBefore(insertBefore, LIR::SeqTree(comp, storeGCState));
     ContainCheckStoreIndir(storeGCState->AsIndir());
+
+    // Indicate that codegen has switched this thread to preemptive GC.
+    // This tree node doesn't generate any code, but impacts LSRA and gc reporting.
+    // This tree node is simple so doesn't require sequencing.
+    GenTree* preemptiveGCNode = new (comp, GT_START_PREEMPTGC) GenTree(GT_START_PREEMPTGC, TYP_VOID);
+    BlockRange().InsertBefore(insertBefore, preemptiveGCNode);
 }
 
 //------------------------------------------------------------------------

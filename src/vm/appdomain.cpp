@@ -2555,6 +2555,10 @@ void SystemDomain::LoadBaseSystemClasses()
         TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1))).AsArray()->GetMethodTable();
 
 #ifndef CROSSGEN_COMPILE
+    CrossLoaderAllocatorHashSetup::EnsureTypesLoaded();
+#endif
+
+#ifndef CROSSGEN_COMPILE
     ECall::PopulateManagedStringConstructors();
 #endif // CROSSGEN_COMPILE
 
@@ -3114,32 +3118,6 @@ Assembly* SystemDomain::GetCallersAssembly(StackCrawlMark *stackMark,
     if (mod)
         return mod->GetAssembly();
     return NULL;
-}
-
-/*static*/
-Module* SystemDomain::GetCallersModule(int skip)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-
-    GCX_COOP();
-
-    CallersData cdata;
-    ZeroMemory(&cdata, sizeof(CallersData));
-    cdata.skip = skip;
-
-    StackWalkFunctions(GetThread(), CallersMethodCallback, &cdata);
-
-    if(cdata.pMethod)
-        return cdata.pMethod->GetModule();
-    else
-        return NULL;
 }
 
 /*private static*/
@@ -3849,13 +3827,6 @@ void AppDomain::Terminate()
         m_pRCWRefCache = NULL;
     }
 #endif // FEATURE_COMINTEROP
-
-#ifndef CROSSGEN_COMPILE
-    // Recorded entry point slots may point into the virtual call stub manager's heaps, so clear it first
-    GetLoaderAllocator()
-        ->GetMethodDescBackpatchInfoTracker()
-        ->ClearDependencyMethodDescEntryPointSlots(GetLoaderAllocator());
-#endif
 
     if (!IsAtProcessExit())
     {

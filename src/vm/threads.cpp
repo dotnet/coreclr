@@ -299,11 +299,11 @@ bool Thread::DetectHandleILStubsForDebugger()
 }
 
 extern "C" {
-#ifndef __llvm__
+#ifndef __GNUC__
 __declspec(thread)
-#else // !__llvm__
+#else // !__GNUC__
 __thread 
-#endif // !__llvm__
+#endif // !__GNUC__
 ThreadLocalInfo gCurrentThreadInfo = 
                                               {
                                                   NULL,    // m_pThread
@@ -897,16 +897,6 @@ void DestroyThread(Thread *th)
 #endif // _TARGET_X86_
 #endif // WIN64EXCEPTIONS
 
-#ifdef FEATURE_PERFTRACING
-    // Before the thread dies, mark its buffers as no longer owned
-    // so that they can be cleaned up after the thread dies.
-    EventPipeBufferList *pBufferList = th->GetEventPipeBufferList();
-    if(pBufferList != NULL)
-    {
-        pBufferList->SetOwnedByThread(false);
-    }
-#endif // FEATURE_PERFTRACING
-
     if (g_fEEShutDown == 0) 
     {
         th->SetThreadState(Thread::TS_ReportDead);
@@ -1019,16 +1009,6 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
 #ifdef ENABLE_CONTRACTS_DATA
     m_pClrDebugState = NULL;
 #endif //ENABLE_CONTRACTS_DATA
-
-#ifdef FEATURE_PERFTRACING
-    // Before the thread dies, mark its buffers as no longer owned
-    // so that they can be cleaned up after the thread dies.
-    EventPipeBufferList *pBufferList = m_pEventPipeBufferList.Load();
-    if(pBufferList != NULL)
-    {
-        pBufferList->SetOwnedByThread(false);
-    }
-#endif // FEATURE_PERFTRACING
 
     FastInterlockOr((ULONG*)&m_State, (int) (Thread::TS_Detached | Thread::TS_ReportDead));
     // Do not touch Thread object any more.  It may be destroyed.
@@ -1647,8 +1627,6 @@ Thread::Thread()
     m_pAllLoggedTypes = NULL;
 
 #ifdef FEATURE_PERFTRACING
-    m_pEventPipeBufferList = NULL;
-    m_eventWriteInProgress = false;
     memset(&m_activityId, 0, sizeof(m_activityId));
 #endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
@@ -6843,7 +6821,7 @@ BOOL Thread::IsSPBeyondLimit()
     return FALSE;
 }
 
-__declspec(noinline) void AllocateSomeStack(){
+NOINLINE void AllocateSomeStack(){
     LIMITED_METHOD_CONTRACT;
 #ifdef _TARGET_X86_
     const size_t size = 0x200;

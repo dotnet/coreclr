@@ -157,7 +157,7 @@ INT64 AdditionalWait(INT64 sPauseTime, INT64 sTime, INT64 expDuration)
     return additional;
 }
 
-FCIMPL4(INT32, WaitHandleNative::CorWaitOneNative, SafeHandle* safeWaitHandleUNSAFE, INT32 timeout, CLR_BOOL hasThreadAffinity, CLR_BOOL exitContext)
+FCIMPL3(INT32, WaitHandleNative::CorWaitOneNative, SafeHandle* safeWaitHandleUNSAFE, INT32 timeout, CLR_BOOL exitContext)
 {
     FCALL_CONTRACT;
 
@@ -235,10 +235,10 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAF
         WAITHANDLEREF waitObject = (WAITHANDLEREF) pWaitObjects->m_Array[i];
         _ASSERTE(waitObject != NULL);
 
-        //If the size of the array is 1 and m_handle is INVALID_HANDLE then WaitForMultipleObjectsEx will
+        //If the size of the array is 1 and handle is INVALID_HANDLE_VALUE then WaitForMultipleObjectsEx will
         //   return ERROR_INVALID_HANDLE but DoAppropriateWait will convert to WAIT_OBJECT_0.  i.e Success,
         //   this behavior seems wrong but someone explicitly coded that condition so it must have been for a reason.        
-        internalHandles[i] = waitObject->m_handle;
+        internalHandles[i] = waitObject->GetWaitHandle();
 
     }
 
@@ -266,7 +266,7 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAF
 }
 FCIMPLEND
 
-FCIMPL5(INT32, WaitHandleNative::CorSignalAndWaitOneNative, SafeHandle* safeWaitHandleSignalUNSAFE,SafeHandle* safeWaitHandleWaitUNSAFE, INT32 timeout, CLR_BOOL hasThreadAffinity, CLR_BOOL exitContext)
+FCIMPL4(INT32, WaitHandleNative::CorSignalAndWaitOneNative, SafeHandle* safeWaitHandleSignalUNSAFE,SafeHandle* safeWaitHandleWaitUNSAFE, INT32 timeout, CLR_BOOL exitContext)
 {
     FCALL_CONTRACT;
 
@@ -309,5 +309,31 @@ FCIMPL5(INT32, WaitHandleNative::CorSignalAndWaitOneNative, SafeHandle* safeWait
 
     HELPER_METHOD_FRAME_END();
     return retVal;
+}
+FCIMPLEND
+
+FCIMPL3(DWORD, WaitHandleNative::WaitHelper, PTRArray *handleArrayUNSAFE, CLR_BOOL waitAll, DWORD millis)
+{
+    FCALL_CONTRACT;
+
+    DWORD ret = 0;
+
+    PTRARRAYREF handleArrayObj = (PTRARRAYREF) handleArrayUNSAFE;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(handleArrayObj);
+
+    CQuickArray<HANDLE> qbHandles;
+    int cHandles = handleArrayObj->GetNumComponents();
+
+    // Since DoAppropriateWait could cause a GC, we need to copy the handles to an unmanaged block
+    // of memory to ensure they aren't relocated during the call to DoAppropriateWait.
+    qbHandles.AllocThrows(cHandles);
+    memcpy(qbHandles.Ptr(), handleArrayObj->GetDataPtr(), cHandles * sizeof(HANDLE));
+
+    Thread * pThread = GetThread();
+    ret = pThread->DoAppropriateWait(cHandles, qbHandles.Ptr(), waitAll, millis, 
+                                     (WaitMode)(WaitMode_Alertable | WaitMode_IgnoreSyncCtx));
+    
+    HELPER_METHOD_FRAME_END();
+    return ret;
 }
 FCIMPLEND

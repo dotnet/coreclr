@@ -12,37 +12,26 @@
 **
 =============================================================================*/
 
+using System;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+using System.Diagnostics.CodeAnalysis;
+
 namespace System.Threading
 {
-    using System.Threading;
-    using System;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.InteropServices;
-    using Microsoft.Win32.SafeHandles;
-    using System.Runtime.Versioning;
-    using System.Runtime.ConstrainedExecution;
-    using System.Diagnostics.CodeAnalysis;
-    using Win32Native = Microsoft.Win32.Win32Native;
-
     public abstract class WaitHandle : MarshalByRefObject, IDisposable
     {
         public const int WaitTimeout = 0x102;
 
         private const int MAX_WAITHANDLES = 64;
 
-#pragma warning disable 414  // Field is not used from managed.
-        private IntPtr waitHandle;  // !!! DO NOT MOVE THIS FIELD. (See defn of WAITHANDLEREF in object.h - has hard-coded access to this field.)
-#pragma warning restore 414
+        // IMPORTANT:
+        // - Do not add or rearrange fields as the EE depends on this layout.
 
-        internal volatile SafeWaitHandle _waitHandle;
+        internal SafeWaitHandle _waitHandle;
 
-        internal bool hasThreadAffinity;
-
-        private static IntPtr GetInvalidHandle()
-        {
-            return Win32Native.INVALID_HANDLE_VALUE;
-        }
-        protected static readonly IntPtr InvalidHandle = GetInvalidHandle();
+        protected static readonly IntPtr InvalidHandle = new IntPtr(-1);
         private const int WAIT_OBJECT_0 = 0;
         private const int WAIT_ABANDONED = 0x80;
         private const int WAIT_FAILED = 0x7FFFFFFF;
@@ -58,16 +47,7 @@ namespace System.Threading
 
         protected WaitHandle()
         {
-            Init();
         }
-
-        private void Init()
-        {
-            _waitHandle = null;
-            waitHandle = InvalidHandle;
-            hasThreadAffinity = false;
-        }
-
 
         [Obsolete("Use the SafeWaitHandle property instead.")]
         public virtual IntPtr Handle
@@ -93,7 +73,6 @@ namespace System.Threading
                 {
                     _waitHandle = new SafeWaitHandle(value, true);
                 }
-                waitHandle = value;
             }
         }
 
@@ -110,25 +89,7 @@ namespace System.Threading
 
             set
             {
-                // Set safeWaitHandle and waitHandle in a CER so we won't take
-                // a thread abort between the statements and leave the wait
-                // handle in an invalid state. Note this routine is not thread
-                // safe however.
-                RuntimeHelpers.PrepareConstrainedRegions();
-                try { }
-                finally
-                {
-                    if (value == null)
-                    {
-                        _waitHandle = null;
-                        waitHandle = InvalidHandle;
-                    }
-                    else
-                    {
-                        _waitHandle = value;
-                        waitHandle = _waitHandle.DangerousGetHandle();
-                    }
-                }
+                _waitHandle = value;
             }
         }
 
@@ -170,16 +131,16 @@ namespace System.Threading
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread-safety.")]
         private bool WaitOne(long timeout, bool exitContext)
         {
-            return InternalWaitOne(_waitHandle, timeout, hasThreadAffinity, exitContext);
+            return InternalWaitOne(_waitHandle, timeout, exitContext);
         }
 
-        internal static bool InternalWaitOne(SafeHandle waitableSafeHandle, long millisecondsTimeout, bool hasThreadAffinity, bool exitContext)
+        internal static bool InternalWaitOne(SafeHandle waitableSafeHandle, long millisecondsTimeout, bool exitContext)
         {
             if (waitableSafeHandle == null)
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_Generic);
             }
-            int ret = WaitOneNative(waitableSafeHandle, (uint)millisecondsTimeout, hasThreadAffinity, exitContext);
+            int ret = WaitOneNative(waitableSafeHandle, (uint)millisecondsTimeout, exitContext);
 
             if (ret == WAIT_ABANDONED)
             {
@@ -198,7 +159,7 @@ namespace System.Threading
             }
 
             long timeout = -1;
-            int ret = WaitOneNative(_waitHandle, (uint)timeout, hasThreadAffinity, false);
+            int ret = WaitOneNative(_waitHandle, (uint)timeout, false);
             if (ret == WAIT_ABANDONED)
             {
                 ThrowAbandonedMutexException();
@@ -207,7 +168,7 @@ namespace System.Threading
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern int WaitOneNative(SafeHandle waitableSafeHandle, uint millisecondsTimeout, bool hasThreadAffinity, bool exitContext);
+        private static extern int WaitOneNative(SafeHandle waitableSafeHandle, uint millisecondsTimeout, bool exitContext);
 
         /*========================================================================
         ** Waits for signal from all the objects. 
@@ -220,6 +181,9 @@ namespace System.Threading
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int WaitMultiple(WaitHandle[] waitHandles, int millisecondsTimeout, bool exitContext, bool WaitAll);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern int WaitMultipleIgnoringSyncContext(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout);
 
         public static bool WaitAll(WaitHandle[] waitHandles, int millisecondsTimeout, bool exitContext)
         {
@@ -408,7 +372,7 @@ namespace System.Threading
         ==================================================*/
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int SignalAndWaitOne(SafeWaitHandle waitHandleToSignal, SafeWaitHandle waitHandleToWaitOn, int millisecondsTimeout,
-                                            bool hasThreadAffinity, bool exitContext);
+                                            bool exitContext);
 
         public static bool SignalAndWait(
                                         WaitHandle toSignal,
@@ -452,8 +416,7 @@ namespace System.Threading
             }
 
             //NOTE: This API is not supporting Pause/Resume as it's not exposed in CoreCLR (not in WP or SL)
-            int ret = SignalAndWaitOne(toSignal._waitHandle, toWaitOn._waitHandle, millisecondsTimeout,
-                                toWaitOn.hasThreadAffinity, exitContext);
+            int ret = SignalAndWaitOne(toSignal._waitHandle, toWaitOn._waitHandle, millisecondsTimeout, exitContext);
 
             if (WAIT_ABANDONED == ret)
             {

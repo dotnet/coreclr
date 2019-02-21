@@ -16,10 +16,10 @@ if /I "%PROCESSOR_ARCHITEW6432%"=="arm64" goto :skip_vs_setup
 call "%__ThisScriptDir%"\..\setup_vs_tools.cmd
 if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
-if defined VS150COMNTOOLS (
+if defined VS160COMNTOOLS (
+    set __VSVersion=vs2019
+) else if defined VS150COMNTOOLS (
     set __VSVersion=vs2017
-) else (
-    set __VSVersion=vs2015
 )
 :skip_vs_setup
 
@@ -34,6 +34,9 @@ if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__ProjectFilesDir=%__ProjectDir%"
 set "__RootBinDir=%__ProjectDir%\..\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
+set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
+set __ToolsDir=%__ProjectDir%\..\Tools
+set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
 
 set __Sequential=
 set __msbuildExtraArgs=
@@ -51,6 +54,7 @@ set __CoreFXTestsRunAllAvailable=
 set __SkipGenerateLayout=
 set __BuildXUnitWrappers=
 set __PrintLastResultsOnly=
+set __RunInUnloadableContext=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -71,8 +75,8 @@ if /i "%1" == "debug"                                   (set __BuildType=Debug&s
 if /i "%1" == "release"                                 (set __BuildType=Release&shift&goto Arg_Loop)
 if /i "%1" == "checked"                                 (set __BuildType=Checked&shift&goto Arg_Loop)
             
-if /i "%1" == "vs2015"                                  (set __VSVersion=%1&shift&goto Arg_Loop)
 if /i "%1" == "vs2017"                                  (set __VSVersion=%1&shift&goto Arg_Loop)
+if /i "%1" == "vs2019"                                  (set __VSVersion=%1&shift&goto Arg_Loop)
             
 if /i "%1" == "TestEnv"                                 (set __TestEnv=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "AgainstPackages"                         (set __AgainstPackages=1&shift&goto Arg_Loop)
@@ -108,6 +112,8 @@ if /i "%1" == "altjitarch"                              (set __AltJitArch=%2&shi
 REM change it to COMPlus_GCStress when we stop using xunit harness
 if /i "%1" == "gcstresslevel"                           (set COMPlus_GCStress=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
 if /i "%1" == "collectdumps"                            (set __CollectDumps=true&shift&goto Arg_Loop)
+
+if /i "%1" == "runincontext"                            (set __RunInUnloadableContext=1&shift&goto Arg_Loop)
 
 if /i not "%1" == "msbuildargs" goto SkipMsbuildArgs
 :: All the rest of the args will be collected and passed directly to msbuild.
@@ -222,6 +228,10 @@ if defined __AltJitArch (
     set __RuntestPyArgs=%__RuntestPyArgs% -altjit_arch %__AltJitArch%
 )
 
+if defined __RunInUnloadableContext (
+    set __RuntestPyArgs=%__RuntestPyArgs% --run_in_context
+)
+
 REM __ProjectDir is poorly named, it is actually <projectDir>/tests
 set NEXTCMD=python "%__ProjectDir%\runtest.py" %__RuntestPyArgs%
 echo !NEXTCMD!
@@ -233,30 +243,18 @@ exit /b %ERRORLEVEL%
 
 :: Set up msbuild and tools environment. Check if msbuild and VS exist.
 
-set _msbuildexe=
-if /i "%__VSVersion%" == "vs2017" (
+if /i "%__VSVersion%" == "vs2019" (
+    set "__VSToolsRoot=%VS160COMNTOOLS%"
+    set "__VCToolsRoot=%VS160COMNTOOLS%\..\..\VC\Auxiliary\Build"
+) else if /i "%__VSVersion%" == "vs2017" (
     set "__VSToolsRoot=%VS150COMNTOOLS%"
     set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
-
-    set _msbuildexe="%VS150COMNTOOLS%\..\..\MSBuild\15.0\Bin\MSBuild.exe"
-) else if /i "%__VSVersion%" == "vs2015" (
-    set "__VSToolsRoot=%VS140COMNTOOLS%"
-    set "__VCToolsRoot=%VS140COMNTOOLS%\..\..\VC"
-
-    set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
-    if not exist !_msbuildexe! set _msbuildexe="%ProgramFiles%\MSBuild\14.0\Bin\MSBuild.exe"
 )
 
 :: Does VS really exist?
 if not exist "%__VSToolsRoot%\..\IDE\devenv.exe"      goto NoVS
 if not exist "%__VCToolsRoot%\vcvarsall.bat"          goto NoVS
 if not exist "%__VSToolsRoot%\VsDevCmd.bat"           goto NoVS
-
-:: Does MSBuild really exist?
-if not exist %_msbuildexe% (
-    echo %__MsgPrefix%Error: Could not find MSBuild.exe.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
-    exit /b 1
-)
 
 if not defined VSINSTALLDIR (
     echo %__MsgPrefix%Error: runtest.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
@@ -283,7 +281,11 @@ if defined DoLink (
     set __msbuildCommonArgs=%__msbuildCommonArgs% /p:RunTestsViaIllink=true
 )
 
-if not exist %__LogsDir% md %__LogsDir%
+if not exist "%__LogsDir%"                      md "%__LogsDir%"
+if not exist "%__MsbuildDebugLogsDir%"          md "%__MsbuildDebugLogsDir%"
+
+REM Set up the directory for MSBuild debug logs.
+set MSBUILDDEBUGPATH=%__MsbuildDebugLogsDir%
 
 REM These log files are created automatically by the test run process. Q: what do they depend on being set?
 set __TestRunHtmlLog=%__LogsDir%\TestRun_%__BuildOS%__%__BuildArch%__%__BuildType%.html
@@ -415,8 +417,6 @@ REM ============================================================================
 :RunCoreFXTests
 
 set _CoreFXTestHost=%XunitTestBinBase%\testhost
-set __ToolsDir=%__ProjectDir%\..\Tools
-set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
 
 set _RootCoreFXTestPath=%__TestWorkingDir%\CoreFX
 set _CoreFXTestUtilitiesOutputPath=%_RootCoreFXTestPath%\CoreFXTestUtilities
@@ -580,10 +580,10 @@ set __msbuildLogArgs=^
 set __msbuildArgs=%* %__msbuildCommonArgs% %__msbuildLogArgs%
 
 @REM The next line will overwrite the existing log file, if any.
-echo %__MsgPrefix%%_msbuildexe% %__msbuildArgs%
-echo Invoking: %_msbuildexe% %__msbuildArgs% > "%__BuildLog%"
+echo %__MsgPrefix%"%DotNetCli%" msbuild %__msbuildArgs%
+echo Invoking: "%DotNetCli%" msbuild %__msbuildArgs% > "%__BuildLog%"
 
-%_msbuildexe% %__msbuildArgs%
+call "%DotNetCli%" msbuild %__msbuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: msbuild failed. Refer to the log files for details:
     echo     %__BuildLog%
@@ -676,14 +676,14 @@ echo %__MsgPrefix%Created the Test Host layout with all dependencies in %_CoreFX
 
 REM Publish and call the CoreFX test helper projects - should this be integrated into runtest.proj?
 REM Build Helper project
-set NEXTCMD="%DotNetCli%" msbuild /t:Restore "%_CoreFXTestSetupUtility%"
+set NEXTCMD=call :msbuild /t:Restore "%_CoreFXTestSetupUtility%"
 echo !NEXTCMD!
 !NEXTCMD!
 if errorlevel 1 (
     exit /b 1
 )
 
-set NEXTCMD=call "%DotNetCli%" msbuild "/p:Configuration=%CoreRT_BuildType%" "/p:OSGroup=%CoreRT_BuildOS%" "/p:Platform=%CoreRT_BuildArch%" "/p:OutputPath=%_CoreFXTestUtilitiesOutputPath%" "%_CoreFXTestSetupUtility%"
+set NEXTCMD=call :msbuild "/p:Configuration=%CoreRT_BuildType%" "/p:OSGroup=%CoreRT_BuildOS%" "/p:Platform=%CoreRT_BuildArch%" "/p:OutputPath=%_CoreFXTestUtilitiesOutputPath%" "%_CoreFXTestSetupUtility%"
 echo !NEXTCMD!
 !NEXTCMD!
 if errorlevel 1 (
@@ -711,7 +711,7 @@ echo.
 echo./? -? /h -h /help -help   - View this message.
 echo ^<build_architecture^>      - Specifies build architecture: x64, x86, arm, or arm64 ^(default: x64^).
 echo ^<build_type^>              - Specifies build type: Debug, Release, or Checked ^(default: Debug^).
-echo VSVersion ^<vs_version^>    - VS2015 or VS2017 ^(default: VS2017^).
+echo VSVersion ^<vs_version^>    - VS2017 or VS2019 ^(default: VS2019^).
 echo TestEnv ^<test_env_script^> - Run a custom script before every test to set custom test environment settings.
 echo AgainstPackages           - This indicates that we are running tests that were built against packages.
 echo GenerateLayoutOnly        - If specified will not run the tests and will only create the Runtime Dependency Layout
@@ -744,6 +744,7 @@ echo gcname ^<name^>             - Runs the tests with COMPlus_GCName=name
 echo timeout ^<n^>               - Sets the per-test timeout in milliseconds ^(default is 10 minutes = 10 * 60 * 1000 = 600000^).
 echo                             Note: some options override this ^(gcstresslevel, longgc, gcsimulator^).
 echo printlastresultsonly      - Print the last test results without running tests.
+echo runincontext              - Run each tests in an unloadable AssemblyLoadContext
 echo msbuildargs ^<args...^>     - Pass all subsequent args directly to msbuild invocations.
 echo ^<CORE_ROOT^>               - Path to the runtime to test ^(if specified^).
 echo.
@@ -756,6 +757,6 @@ echo   %0 x64 release
 exit /b 1
 
 :NoVS
-echo Visual Studio 2015 or 2017 ^(Community is free^) is a prerequisite to build this repository.
+echo Visual Studio 2017 or 2019 ^(Community is free^) is a prerequisite to build this repository.
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1

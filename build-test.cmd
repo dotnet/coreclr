@@ -12,14 +12,14 @@ set __ThisScriptDir="%~dp0"
 call "%__ThisScriptDir%"\setup_vs_tools.cmd
 if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
-if defined VS150COMNTOOLS (
+if defined VS160COMNTOOLS (
+    set "__VSToolsRoot=%VS160COMNTOOLS%"
+    set "__VCToolsRoot=%VS160COMNTOOLS%\..\..\VC\Auxiliary\Build"
+    set __VSVersion=vs2019
+) else if defined VS150COMNTOOLS (
     set "__VSToolsRoot=%VS150COMNTOOLS%"
     set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
     set __VSVersion=vs2017
-) else (
-    set "__VSToolsRoot=%VS140COMNTOOLS%"
-    set "__VCToolsRoot=%VS140COMNTOOLS%\..\..\VC"
-    set __VSVersion=vs2015
 )
 
 :: Set the default arguments for build
@@ -36,6 +36,7 @@ set "__SourceDir=%__ProjectDir%\src"
 set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
+set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
 
 :: Default __Exclude to issues.targets
 set __Exclude=%__TestDir%\issues.targets
@@ -158,6 +159,10 @@ if not exist "%__TestBinDir%"                   md "%__TestBinDir%"
 if not exist "%__NativeTestIntermediatesDir%"   md "%__NativeTestIntermediatesDir%"
 if not exist "%__ManagedTestIntermediatesDir%"  md "%__ManagedTestIntermediatesDir%"
 if not exist "%__LogsDir%"                      md "%__LogsDir%"
+if not exist "%__MsbuildDebugLogsDir%"          md "%__MsbuildDebugLogsDir%"
+
+REM Set up the directory for MSBuild debug logs.
+set MSBUILDDEBUGPATH=%__MsbuildDebugLogsDir%
 
 echo %__MsgPrefix%Checking prerequisites
 
@@ -174,11 +179,6 @@ call "%__ProjectDir%\init-tools.cmd"
 @if defined _echo @echo on
 
 set "__ToolsDir=%__ProjectDir%\Tools"
-set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
-if not exist "%DotNetCli%" (
-    echo %__MsgPrefix%"%DotNetCli%" not found after init-tools.
-    exit /b 1
-)
 
 REM =========================================================================================
 REM ===
@@ -272,8 +272,8 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call "%__ProjectDir%\msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+call "%__ProjectDir%\dotnet.cmd" msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   %__ProjectDir%\tests\build.proj /t:BatchRestorePackages^
@@ -292,8 +292,8 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call "%__ProjectDir%\msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+call "%__ProjectDir%\dotnet.cmd" msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   %__Projectdir%\tests\runtest.proj /t:BinPlaceRef /t:BinPlaceProduct /t:CopyCrossgenToProduct /p:RuntimeId="%__RuntimeId%"^
@@ -348,7 +348,7 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
     set TestBuildSlice=%%G
     echo Running: msbuild %__ProjectDir%\tests\build.proj !__MsbuildLog! !__MsbuildWrn! !__MsbuildErr! %TargetsWindowsMsbuildArg% %__msbuildArgs% %__BuildAgainstPackagesArg% !__PriorityArg! %__UnprocessedBuildArgs%
 
-    call msbuild %__ProjectDir%\tests\build.proj !__MsbuildLog! !__MsbuildWrn! !__MsbuildErr! %TargetsWindowsMsbuildArg% %__msbuildArgs% %__BuildAgainstPackagesArg% !__PriorityArg! %__UnprocessedBuildArgs%
+    call "%__ProjectDir%\dotnet.cmd" msbuild %__ProjectDir%\tests\build.proj !__MsbuildLog! !__MsbuildWrn! !__MsbuildErr! %TargetsWindowsMsbuildArg% %__msbuildArgs% %__BuildAgainstPackagesArg% !__PriorityArg! %__UnprocessedBuildArgs%
 
     if errorlevel 1 (
         echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
@@ -369,8 +369,8 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
 REM Check that we've built about as many tests as we expect. This is primarily intended to prevent accidental changes that cause us to build
 REM drastically fewer Pri-1 tests than expected.
 echo %__MsgPrefix%Check the managed tests build
-echo Running: msbuild %__ProjectDir%\tests\runtest.proj /t:CheckTestBuild /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
-call msbuild %__ProjectDir%\tests\runtest.proj /t:CheckTestBuild /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
+echo Running: dotnet msbuild %__ProjectDir%\tests\runtest.proj /t:CheckTestBuild /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
+call "%__ProjectDir%\dotnet.cmd" msbuild %__ProjectDir%\tests\runtest.proj /t:CheckTestBuild /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed.
     exit /b 1
@@ -433,8 +433,8 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   %__ProjectDir%\tests\runtest.proj /t:CreateTestOverlay^
@@ -467,8 +467,8 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   %__ProjectDir%\tests\runtest.proj /t:CreateTestHost^
@@ -501,7 +501,7 @@ set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
 REM Build wrappers using the local SDK's msbuild. As we move to arcade, the other builds should be moved away from run.exe as well.
-call %DotNetCli% msbuild %__ProjectDir%\tests\runtest.proj /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/  /p:BuildWrappers=true !__Logging! %__msbuildArgs% %TargetsWindowsMsbuildArg% %__BuildAgainstPackagesArg% %__UnprocessedBuildArgs%
+call "%__ProjectDir%\dotnet.cmd" msbuild %__ProjectDir%\tests\runtest.proj /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/  /p:BuildWrappers=true !__Logging! %__msbuildArgs% %TargetsWindowsMsbuildArg% %__BuildAgainstPackagesArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: Xunit wrapper build failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -552,8 +552,8 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   %__ProjectDir%\tests\helixprep.proj^
@@ -628,7 +628,7 @@ at the install location of previous Visual Studio version. The workaround is to 
 of the previous version to "%VSINSTALLDIR%" and then build.
 REM DIA SDK not included in Express editions
 echo Visual Studio Express does not include the DIA SDK. ^
-You need Visual Studio 2015 or 2017 (Community is free).
+You need Visual Studio 2017 or 2019 (Community is free).
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1
 
