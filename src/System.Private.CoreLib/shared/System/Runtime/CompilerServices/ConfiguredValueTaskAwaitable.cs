@@ -28,7 +28,7 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Returns an awaiter for this <see cref="ConfiguredValueTaskAwaitable"/> instance.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ConfiguredValueTaskAwaiter GetAwaiter() => new ConfiguredValueTaskAwaiter(_value);
+        public ConfiguredValueTaskAwaiter GetAwaiter() => new ConfiguredValueTaskAwaiter(in _value);
 
         /// <summary>Provides an awaiter for a <see cref="ConfiguredValueTaskAwaitable"/>.</summary>
         [StructLayout(LayoutKind.Auto)]
@@ -134,7 +134,7 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Returns an awaiter for this <see cref="ConfiguredValueTaskAwaitable{TResult}"/> instance.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ConfiguredValueTaskAwaiter GetAwaiter() => new ConfiguredValueTaskAwaiter(_value);
+        public ConfiguredValueTaskAwaiter GetAwaiter() => new ConfiguredValueTaskAwaiter(in _value);
 
         /// <summary>Provides an awaiter for a <see cref="ConfiguredValueTaskAwaitable{TResult}"/>.</summary>
         [StructLayout(LayoutKind.Auto)]
