@@ -521,12 +521,6 @@ public:
      */
     void startLiveRangeFromEmitter(regNumber registerNumber, CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
     {
-        // Note: This assert is been hitting because are variables that became dead and started in the same block.
-        // Is this a bug in the LSRA?
-
-        // Nothing should has been pushed before
-        // noway_assert(!hasBeenAlive());
-
         // Is the first "LiveRange" or the previous one has been closed
         noway_assert(variableLiveRanges->empty() || variableLiveRanges->back().endEmitLocation.Valid());
 
