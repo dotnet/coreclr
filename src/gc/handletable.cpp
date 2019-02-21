@@ -21,6 +21,8 @@
 #include "objecthandle.h"
 #include "handletablepriv.h"
 
+#define COUNTER_ONLY(x)
+
 #if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
 DWORD g_dwHandles = 0;
 #endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
