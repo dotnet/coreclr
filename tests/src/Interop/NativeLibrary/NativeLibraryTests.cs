@@ -105,12 +105,13 @@ public class NativeLibraryTest
             success &= EXPECT(TryLoadLibraryAdvanced(libName, assembly, null),
                 (TestLibrary.Utilities.IsWindows) ? TestResult.Success : TestResult.ReturnFailure);
 
+            // Check for loading a native binary in the system32 directory.
+            // The choice of the binary is arbitrary, and may not be available on
+            // all Windows platforms (ex: Nano server)
+            libName = "url.dll";
             if (TestLibrary.Utilities.IsWindows && 
-                !TestLibrary.Utilities.IsWindowsIoTCore && 
-                !TestLibrary.Utilities.IsWindowsNanoServer)
+                File.Exists(Path.Combine(Environment.SystemDirectory, libName)))
             {
-                libName = GetWin32LibName();
-
                 // Calls on a valid library from System32 directory
                 success &= EXPECT(LoadLibraryAdvanced(libName, assembly, DllImportSearchPath.System32));
                 success &= EXPECT(TryLoadLibraryAdvanced(libName, assembly, DllImportSearchPath.System32));
@@ -196,11 +197,6 @@ public class NativeLibraryTest
     static string GetNativeLibraryPlainName()
     {
         return "NativeLibrary";
-    }
-
-    static string GetWin32LibName()
-    {
-        return "msi.dll";
     }
 
     static string GetNativeLibraryName()
