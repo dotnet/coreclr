@@ -44,11 +44,8 @@ namespace System.Threading
             }
         }
 
-        // call back helper
-        internal void ThreadStart(object obj)
+        private void InitializeCulture()
         {
-            _startArg = obj;
-
             if (_startCulture != null)
             {
                 CultureInfo.CurrentCulture = _startCulture;
@@ -60,6 +57,14 @@ namespace System.Threading
                 CultureInfo.CurrentUICulture = _startUICulture;
                 _startUICulture = null;
             }
+        }
+
+        // call back helper
+        internal void ThreadStart(object obj)
+        {
+            _startArg = obj;
+
+            InitializeCulture();
 
             ExecutionContext context = _executionContext;
             if (context != null)
@@ -75,6 +80,8 @@ namespace System.Threading
         // call back helper
         internal void ThreadStart()
         {
+            InitializeCulture();
+
             ExecutionContext context = _executionContext;
             if (context != null)
             {
