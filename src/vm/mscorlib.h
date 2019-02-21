@@ -905,8 +905,6 @@ DEFINE_CLASS(WEAKREFERENCE,         System,                 WeakReference)
 
 DEFINE_CLASS_U(Threading,              WaitHandle,             WaitHandleBase)
 DEFINE_FIELD_U(_waitHandle,         WaitHandleBase,         m_safeHandle)
-DEFINE_FIELD_U(waitHandle,             WaitHandleBase,         m_handle)
-DEFINE_FIELD_U(hasThreadAffinity,      WaitHandleBase,         m_hasThreadAffinity)
 
 DEFINE_CLASS(DEBUGGER,              Diagnostics,            Debugger)
 DEFINE_METHOD(DEBUGGER,             BREAK_CAN_THROW,        BreakCanThrow,          SM_RetVoid)
@@ -1394,6 +1392,25 @@ DEFINE_CLASS(GENERIC_EQUALITYCOMPARER, CollectionsGeneric, GenericEqualityCompar
 DEFINE_CLASS(OBJECT_EQUALITYCOMPARER, CollectionsGeneric, ObjectEqualityComparer`1)
 
 DEFINE_CLASS(INATTRIBUTE, Interop, InAttribute)
+
+DEFINE_CLASS_U(CompilerServices,           GCHeapHash,                      GCHeapHashObject)
+DEFINE_FIELD_U(_data,                      GCHeapHashObject,                _data)
+DEFINE_FIELD_U(_count,                     GCHeapHashObject,                _count)
+DEFINE_FIELD_U(_deletedCount,              GCHeapHashObject,                _deletedCount)
+
+DEFINE_CLASS(GCHEAPHASH, CompilerServices, GCHeapHash)
+
+DEFINE_CLASS_U(CompilerServices,           LAHashDependentHashTracker,      LAHashDependentHashTrackerObject)
+DEFINE_FIELD_U(_dependentHandle,           LAHashDependentHashTrackerObject,_dependentHandle)
+DEFINE_FIELD_U(_loaderAllocator,           LAHashDependentHashTrackerObject,_loaderAllocator)
+
+DEFINE_CLASS(LAHASHDEPENDENTHASHTRACKER, CompilerServices, LAHashDependentHashTracker)
+
+DEFINE_CLASS_U(CompilerServices,           LAHashKeyToTrackers,             LAHashKeyToTrackersObject)
+DEFINE_FIELD_U(_trackerOrTrackerSet,       LAHashKeyToTrackersObject,       _trackerOrTrackerSet)
+DEFINE_FIELD_U(_laLocalKeyValueStore,      LAHashKeyToTrackersObject,       _laLocalKeyValueStore)
+
+DEFINE_CLASS(LAHASHKEYTOTRACKERS, CompilerServices, LAHashKeyToTrackers)
 
 #undef DEFINE_CLASS
 #undef DEFINE_METHOD
