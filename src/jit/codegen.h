@@ -623,7 +623,6 @@ protected:
     // Returns a "siVarLoc" instance representing the place where the variable lives base on
     // varDsc and scope description.
     CodeGenInterface::siVarLoc getSiVarLoc(const LclVarDsc* varDsc, const siScope* scope) const;
-    //CodeGenInterface::siVarLoc getSiVarLoc(const LclVarDsc* varDsc, unsigned int stackLevel) const;
 
     siScope siOpenScopeList, siScopeList, *siOpenScopeLast, *siScopeLast;
 
