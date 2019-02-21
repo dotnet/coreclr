@@ -30,7 +30,6 @@
 #include "jitinterface.h"
 #include "vars.hpp"
 #include "assembly.hpp"
-#include "perfcounters.h"
 #include "eeprofinterfaces.h"
 #include "eehash.h"
 #include "typehash.h"

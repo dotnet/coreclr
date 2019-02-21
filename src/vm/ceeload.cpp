@@ -25,7 +25,6 @@
 #include "dbginterface.h"
 #include "dllimport.h"
 #include "eeprofinterfaces.h"
-#include "perfcounters.h"
 #include "encee.h"
 #include "jitinterface.h"
 #include "eeconfig.h"

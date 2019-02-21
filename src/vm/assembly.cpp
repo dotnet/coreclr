@@ -18,7 +18,6 @@
 
 #include "assembly.hpp"
 #include "appdomain.hpp"
-#include "perfcounters.h"
 #include "assemblyname.hpp"
 
 

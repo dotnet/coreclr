@@ -21,7 +21,6 @@
 #include "siginfo.hpp"
 #include "gcheaputilities.h"
 #include "eedbginterfaceimpl.h" //so we can clearexception in COMPlusThrow
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "eetoprofinterfacewrapper.inl"
 #include "eedbginterfaceimpl.inl"

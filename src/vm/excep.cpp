@@ -22,7 +22,6 @@
 #include "siginfo.hpp"
 #include "gcheaputilities.h"
 #include "eedbginterfaceimpl.h" //so we can clearexception in RealCOMPlusThrow
-#include "perfcounters.h"
 #include "dllimportcallback.h"
 #include "stackwalk.h" //for CrawlFrame, in SetIPFromSrcToDst
 #include "shimload.h"

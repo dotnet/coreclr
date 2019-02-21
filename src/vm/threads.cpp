@@ -23,7 +23,6 @@
 #include "corprof.h"                // profiling
 #include "eeprofinterfaces.h"
 #include "eeconfig.h"
-#include "perfcounters.h"
 #include "corhost.h"
 #include "win32threadpool.h"
 #include "jitinterface.h"

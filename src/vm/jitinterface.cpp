@@ -30,7 +30,6 @@
 #include "jitperf.h" // to track jit perf
 #include "corprof.h"
 #include "eeprofinterfaces.h"
-#include "perfcounters.h"
 #ifdef PROFILING_SUPPORTED
 #include "proftoeeinterfaceimpl.h"
 #include "eetoprofinterfaceimpl.h"

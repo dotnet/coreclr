@@ -12,7 +12,6 @@
 #include "threads.h"
 #include "excep.h"
 #include "stublink.h"
-#include "perfcounters.h"
 #include "stubgen.h"
 #include "stublink.inl"
 

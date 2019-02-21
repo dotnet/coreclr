@@ -13,7 +13,6 @@
 #include "eeconfig.h"
 #include "gcheaputilities.h"
 #include "eventtrace.h"
-#include "perfcounters.h"
 #include "assemblyname.hpp"
 #include "eeprofinterfaces.h"
 #include "dbginterface.h"

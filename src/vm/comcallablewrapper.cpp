@@ -35,7 +35,6 @@
 #include "eeconfig.h"
 #include "interoputil.h"
 #include "dispex.h"
-#include "perfcounters.h"
 #include "guidfromname.h"
 #include "comconnectionpoints.h"
 #include <objsafe.h>    // IID_IObjctSafe

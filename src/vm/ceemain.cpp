@@ -144,7 +144,6 @@
 #include "cordbpriv.h"
 #include "comdelegate.h"
 #include "appdomain.hpp"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "corhost.h"
 #include "binder.h"

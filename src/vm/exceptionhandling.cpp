@@ -13,7 +13,6 @@
 #include "asmconstants.h"
 #include "eetoprofinterfacewrapper.inl"
 #include "eedbginterfaceimpl.inl"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "virtualcallstub.h"
 #include "utilcode.h"

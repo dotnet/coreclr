@@ -22,7 +22,6 @@
 #include "syncblk.h"
 #include "interoputil.h"
 #include "encee.h"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "dllimportcallback.h"
 #include "comcallablewrapper.h"
