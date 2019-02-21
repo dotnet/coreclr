@@ -34,15 +34,15 @@ namespace System.Threading
 
         // Successful wait on first object. When waiting for multiple objects the
         // return value is (WaitSuccess + waitIndex).
-        internal static int WaitSuccess = 0;
+        internal const int WaitSuccess = 0;
 
         // The specified object is a mutex object that was not released by the
         // thread that owned the mutex object before the owning thread terminated.
         // When waiting for multiple objects the return value is (WaitAbandoned +
         // waitIndex).
-        internal static int WaitAbandoned = 0x80;
+        internal const int WaitAbandoned = 0x80;
 
-        internal static int WaitTimeout = 0x102;
+        internal const int WaitTimeout = 0x102;
 
         protected WaitHandle()
         {
