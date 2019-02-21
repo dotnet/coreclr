@@ -11213,3 +11213,42 @@ void Compiler::updateVariableLiveRange(const LclVarDsc* varDsc)
     // Report the home change for this variable
     varDsc->UpdateRegisterHome(siVarLoc, getEmitter());
 }
+#ifdef DEBUG
+void Compiler::dumpBlockVariableLiveRanges(const BasicBlock* block)
+{
+    bool hasDumpedHistory = false;
+
+    if (verbose)
+    {
+        printf("////////////////////////////////////////\n");
+        printf("////////////////////////////////////////\n");
+        printf("Var History Dump for Block %d \n", block->bbNum);
+    }
+
+    unsigned   varNum;
+    LclVarDsc* varDsc;
+
+    for (varNum = 0, varDsc = lvaTable; varNum < lvaCount; varNum++, varDsc++)
+    {
+        if (varDsc->hasBeenAlive())
+        {
+            hasDumpedHistory = true;
+            printf("Var %d:\n", varNum);
+            varDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(codeGen);
+            varDsc->endBlockLiveRanges();
+        }
+    }
+
+    if (!hasDumpedHistory)
+    {
+        printf("..None..\n");
+    }
+
+    if (verbose)
+    {
+        printf("////////////////////////////////////////\n");
+        printf("////////////////////////////////////////\n");
+        printf("End Generating code for Block %d \n", block->bbNum);
+    }
+}
+#endif

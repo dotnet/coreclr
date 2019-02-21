@@ -2302,24 +2302,25 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     genSetScopeInfo();
 
-
+#if DEBUG
     if (compiler->verbose)
     {
         unsigned   varNum;
         LclVarDsc* varDsc;
         // Printing information of variable change lifetime
-        JITDUMP("\n\n\n////////////////////////////////////////\n");
-        JITDUMP("////////////////////////////////////////\n\n\n");
-        JITDUMP("PRINTING REGISTER LIVE RANGES:\n");
+        printf("\n\n\n////////////////////////////////////////\n");
+        printf("////////////////////////////////////////\n\n\n");
+        printf("PRINTING REGISTER LIVE RANGES:\n");
         for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
         {
-            JITDUMP("IL Var Num %d:\n", compiler->compMap2ILvarNum(varNum));
+            printf("IL Var Num %d:\n", compiler->compMap2ILvarNum(varNum));
             varDsc->dumpAllRegisterLiveRangesForBlock(getEmitter(), this);
             varDsc->destructRegisterLiveRanges();
         }
-        JITDUMP("\n\n\n////////////////////////////////////////\n");
-        JITDUMP("////////////////////////////////////////\n\n\n");
+        printf("\n\n\n////////////////////////////////////////\n");
+        printf("////////////////////////////////////////\n\n\n");
     }
+#endif
     
 #ifdef LATE_DISASM
     unsigned finalHotCodeSize;

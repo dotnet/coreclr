@@ -724,45 +724,10 @@ void CodeGen::genCodeForBBlist()
 
 
 #ifdef DEBUG
-        bool hasDumpedHistory = false;
-#endif
-        if (compiler->verbose)
-        {
-            JITDUMP("////////////////////////////////////////\n");
-            JITDUMP("////////////////////////////////////////\n");
-            JITDUMP("Var History Dump for Block %d \n", block->bbNum);
-        }
+        compiler->dumpBlockVariableLiveRanges(block);
 
-        unsigned   varNum;
-        LclVarDsc* varDsc;
-
-        for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
-        {
-            if (varDsc->hasBeenAlive())
-            {
-#ifdef DEBUG
-                hasDumpedHistory = true;
-                JITDUMP("Var %d:\n", varNum);
-                varDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(this);
-#endif
-                varDsc->endBlockLiveRanges();
-            }
-        }
-
-#ifdef DEBUG
-        if (!hasDumpedHistory)
-        {
-            JITDUMP("..None..\n");
-        }
         compiler->compCurBB = nullptr;
 #endif
-        if (compiler->verbose)
-        {
-            JITDUMP("////////////////////////////////////////\n");
-            JITDUMP("////////////////////////////////////////\n");
-            JITDUMP("End Generating code for Block %d \n", block->bbNum);
-        }
-
     } //------------------ END-FOR each block of the method -------------------
 
     // Nothing is live at this point and all blocks instructions has been emited

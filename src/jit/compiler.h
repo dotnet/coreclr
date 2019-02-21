@@ -331,25 +331,20 @@ public:
 
     void dump(emitter *_emitter, const CodeGenInterface *codeGen) const
     {
-        UNATIVE_OFFSET startAssemblyOffset = startEmitLocation.CodeOffset(_emitter);
+        codeGen->dumpSiVarLoc(&varLocation);
+        
         // this could be a non closed range so endEmitLocation could be a non valid emit Location
         // live -1 in case of not being defined
         UNATIVE_OFFSET endAssemblyOffset = endEmitLocation.Valid() ? endEmitLocation.CodeOffset(_emitter) : -1;
         
-        //printf("%s [%X-", getRegName(registerNumber), startEmitLocation.CodeOffset(_emitter));
-        codeGen->dumpSiVarLoc(&varLocation);
-        printf(" [%X - ", startEmitLocation.CodeOffset(_emitter));
-
-        startEmitLocation.Print();
-        printf(", %X-", endEmitLocation.CodeOffset(_emitter));
-        endEmitLocation.Print();
-        printf("] ");
+        printf(" [%X , %X )", startEmitLocation.CodeOffset(_emitter), endEmitLocation.CodeOffset(_emitter));
     }
 };
 
 typedef jitstd::list<VariableLiveRange> LiveRangeList;
 typedef LiveRangeList::iterator  LiveRangeListIterator;
 
+#if DEBUG
 struct LiveRangeBarrier 
 {
     LiveRangeListIterator beginLastBlock;
@@ -364,13 +359,7 @@ struct LiveRangeBarrier
     void reset(LiveRangeList *list)
     {
         noway_assert(haveReadAtLeastOneOfBlock);
-        if (list->back().endEmitLocation.Valid())
-        {
-            // This live range has ended
-            // "beginLastBlock" will be updated on next call to "LclVarDsc::startLiveRangeFromEmitter"
-            haveReadAtLeastOneOfBlock = false;
-        }
-        else
+        if (! list->back().endEmitLocation.Valid())
         {
             // This live range will remain open until next block.
             // If it is in "bbliveIn" in the next "BasicBlock", there is no problem.
@@ -380,6 +369,7 @@ struct LiveRangeBarrier
         }
     }
 };
+#endif
 
 class LclVarDsc
 {
@@ -403,51 +393,23 @@ public:
     {
     }
 
+    bool              hasReportVariableLiveRanges;
     LiveRangeList*    variableLiveRanges;
+
+#if DEBUG
     LiveRangeBarrier* variableLifeBarrier;
 
-    // Initialize an empty list and a barrier pointing to its end
-    void initializeRegisterLiveRanges(CompAllocator allocator)
+    // Move the barrier to the last position of variableLiveRanges
+    // This is used to print only the changes in the last block
+    void setBarrierAtLastPositionInRegisterHistory() const
     {
-        variableLiveRanges = new LiveRangeList(allocator);
-
-        variableLifeBarrier = new LiveRangeBarrier(variableLiveRanges);
-    }
-
-    void destructRegisterLiveRanges()
-    {
-        delete variableLifeBarrier;
-        variableLifeBarrier = nullptr;
-        delete variableLiveRanges;
-        variableLiveRanges = nullptr;
-    }
-
-    unsigned int getAmountLiveRanges() const
-    {
-        unsigned int result = 0;
-        if (variableLiveRanges != nullptr)
-        {
-            result = variableLiveRanges->size();
-        }
-        return result;
-    }
-
-    // Modified the barrier to print on next block only just that changes
-    void endBlockLiveRanges()
-    {
-        // barrier now points to nullptr
-        variableLifeBarrier->reset(variableLiveRanges);
-    }
-
-    // Returns true if a live range for this variable has been recorded from last call to EndBlock
-    bool hasBeenAlive() const
-    {
-        return variableLifeBarrier->haveReadAtLeastOneOfBlock;
+        variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
+        variableLifeBarrier->beginLastBlock = variableLiveRanges->backPosition();
     }
 
     void dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface *codeGen) const
     {
-        if (variableLifeBarrier->haveReadAtLeastOneOfBlock)
+        if (hasBeenAlive())
         {
             printf("[");
             for (LiveRangeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end();
@@ -461,16 +423,6 @@ public:
         {
             printf("None history\n");
         }
-    }
-
-    LiveRangeListIterator getLiveRangesIterator() const
-    {
-        return variableLiveRanges->begin();
-    }
-
-    LiveRangeList* getLiveRanges() const
-    {
-        return variableLiveRanges;
     }
 
     void dumpAllRegisterLiveRangesForBlock(emitter* _emitter, const CodeGenInterface* codeGen) const
@@ -489,6 +441,65 @@ public:
             printf("]\n");
         }
     }
+#endif
+
+    // Initialize an empty list and a barrier pointing to its end
+    void initializeRegisterLiveRanges(CompAllocator allocator)
+    {
+        hasReportVariableLiveRanges = false;
+
+        variableLiveRanges = new LiveRangeList(allocator);
+
+#if DEBUG
+        variableLifeBarrier = new LiveRangeBarrier(variableLiveRanges);
+#endif
+    }
+
+    void destructRegisterLiveRanges()
+    {
+#if DEBUG
+        delete variableLifeBarrier;
+        variableLifeBarrier = nullptr;
+#endif
+        delete variableLiveRanges;
+        variableLiveRanges = nullptr;
+    }
+
+    unsigned int getAmountLiveRanges() const
+    {
+        unsigned int result = 0;
+        if (variableLiveRanges != nullptr)
+        {
+            result = variableLiveRanges->size();
+        }
+        return result;
+    }
+
+    // Modified the barrier to print on next block only just that changes
+    void endBlockLiveRanges()
+    {
+        hasReportVariableLiveRanges = false;
+#if DEBUG
+        // barrier now points to nullptr
+        variableLifeBarrier->reset(variableLiveRanges);
+#endif
+    }
+
+    // Returns true if a live range for this variable has been recorded from last call to EndBlock
+    bool hasBeenAlive() const
+    {
+        return hasReportVariableLiveRanges;
+    }
+
+    LiveRangeListIterator getLiveRangesIterator() const
+    {
+        return variableLiveRanges->begin();
+    }
+
+    LiveRangeList* getLiveRanges() const
+    {
+        return variableLiveRanges;
+    }
 
     void endLiveRangeAtEmitter(emitter* _emitter) const
     {
@@ -500,14 +511,6 @@ public:
 
         // Using [close, open) ranges so as to not compute the size of the last instruction
         variableLiveRanges->back().endEmitLocation.CaptureLocation(_emitter);
-    }
-
-    // Move the barrier to the last position of variableLiveRanges
-    // This is used to print only the changes in the last block
-    void setBarrierAtLastPositionInRegisterHistory() const
-    {
-        variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
-        variableLifeBarrier->beginLastBlock = variableLiveRanges->backPosition();
     }
 
     /*
@@ -522,8 +525,10 @@ public:
         variableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
 
+#if DEBUG
         // Restart barrier so we can print from here
         setBarrierAtLastPositionInRegisterHistory();
+#endif
     }
 
     void UpdateRegisterHome(CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
@@ -2159,6 +2164,7 @@ public:
     }
 
     DWORD expensiveDebugCheckLevel;
+    void dumpBlockVariableLiveRanges(const BasicBlock* block);
 #endif
 
 #if FEATURE_MULTIREG_RET
