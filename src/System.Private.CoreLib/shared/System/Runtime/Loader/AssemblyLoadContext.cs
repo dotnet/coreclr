@@ -191,7 +191,7 @@ namespace System.Runtime.Loader
 
             // Attempt to load the assembly, using the same ordering as static load, in the current load context.
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return Assembly.Load(assemblyName, ref stackMark, m_pNativeAssemblyLoadContext);
+            return Assembly.Load(assemblyName, ref stackMark, _nativeAssemblyLoadContext);
         }
 
         // These methods load assemblies into the current AssemblyLoadContext 
