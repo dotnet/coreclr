@@ -17,10 +17,6 @@ namespace System.Threading
     {
         private static AsyncLocal<IPrincipal> s_asyncLocalPrincipal;
 
-        private Delegate _start;
-        private CultureInfo _startCulture;
-        private CultureInfo _startUICulture;
-
         public Thread(ThreadStart start)
         {
             if (start == null)
@@ -28,8 +24,7 @@ namespace System.Threading
                 throw new ArgumentNullException(nameof(start));
             }
 
-            Create(ThreadMain_ThreadStart);
-            _start = start;
+            Create(start);
         }
 
         public Thread(ThreadStart start, int maxStackSize)
@@ -43,8 +38,7 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(maxStackSize), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
-            Create(ThreadMain_ThreadStart, maxStackSize);
-            _start = start;
+            Create(start, maxStackSize);
         }
 
         public Thread(ParameterizedThreadStart start)
@@ -54,8 +48,7 @@ namespace System.Threading
                 throw new ArgumentNullException(nameof(start));
             }
 
-            Create(ThreadMain_ParameterizedThreadStart);
-            _start = start;
+            Create(start);
         }
 
         public Thread(ParameterizedThreadStart start, int maxStackSize)
@@ -69,38 +62,7 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(maxStackSize), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
-            Create(ThreadMain_ParameterizedThreadStart, maxStackSize);
-            _start = start;
-        }
-
-        private Delegate InitializeNewThread()
-        {
-            Delegate start = _start;
-            _start = null;
-
-            if (_startCulture != null)
-            {
-                CultureInfo.CurrentCulture = _startCulture;
-                _startCulture = null;
-            }
-
-            if (_startUICulture != null)
-            {
-                CultureInfo.CurrentUICulture = _startUICulture;
-                _startUICulture = null;
-            }
-
-            return start;
-        }
-
-        private void ThreadMain_ThreadStart()
-        {
-            ((ThreadStart)InitializeNewThread())();
-        }
-
-        private void ThreadMain_ParameterizedThreadStart(object parameter)
-        {
-            ((ParameterizedThreadStart)InitializeNewThread())(parameter);
+            Create(start, maxStackSize);
         }
 
         private void RequireCurrentThread()
@@ -111,7 +73,7 @@ namespace System.Threading
             }
         }
 
-        private void SetCultureOnUnstartedThread(CultureInfo value, ref CultureInfo culture)
+        private void SetCultureOnUnstartedThread(CultureInfo value, bool uiCulture)
         {
             if (value == null)
             {
@@ -121,7 +83,7 @@ namespace System.Threading
             {
                 throw new InvalidOperationException(SR.Thread_Operation_RequiresCurrentThread);
             }
-            culture = value;
+            SetCultureOnUnstartedThreadNoCheck(value, uiCulture);
         }
 
         public CultureInfo CurrentCulture
@@ -135,7 +97,7 @@ namespace System.Threading
             {
                 if (this != CurrentThread)
                 {
-                    SetCultureOnUnstartedThread(value, ref _startCulture);
+                    SetCultureOnUnstartedThread(value, false);
                     return;
                 }
                 CultureInfo.CurrentCulture = value;
@@ -153,7 +115,7 @@ namespace System.Threading
             {
                 if (this != CurrentThread)
                 {
-                    SetCultureOnUnstartedThread(value, ref _startUICulture);
+                    SetCultureOnUnstartedThread(value, true);
                     return;
                 }
                 CultureInfo.CurrentUICulture = value;

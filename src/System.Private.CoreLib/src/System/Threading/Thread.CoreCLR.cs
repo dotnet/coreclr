@@ -24,11 +24,14 @@ namespace System.Threading
     internal class ThreadHelper
     {
         private Delegate _start;
+        internal CultureInfo _startCulture;
+        internal CultureInfo _startUICulture;
         private object _startArg = null;
         private ExecutionContext _executionContext = null;
+
         internal ThreadHelper(Delegate start)
         {
-            _start = start;
+            _start = start; 
         }
 
         internal void SetExecutionContextHelper(ExecutionContext ec)
@@ -55,6 +58,19 @@ namespace System.Threading
         internal void ThreadStart(object obj)
         {
             _startArg = obj;
+
+            if (_startCulture != null)
+            {
+                CultureInfo.CurrentCulture = _startCulture;
+                _startCulture = null;
+            }
+
+            if (_startUICulture != null)
+            {
+                CultureInfo.CurrentUICulture = _startUICulture;
+                _startUICulture = null;
+            }
+
             ExecutionContext context = _executionContext;
             if (context != null)
             {
@@ -244,6 +260,21 @@ namespace System.Threading
             }
 
             StartInternal();
+        }
+
+        private void SetCultureOnUnstartedThreadNoCheck(CultureInfo value, bool uiCulture)
+        {
+            Debug.Assert(m_Delegate != null);
+
+            ThreadHelper t = (ThreadHelper)(m_Delegate.Target);
+            if (uiCulture)
+            {
+                t._startUICulture = value;
+            }
+            else
+            {
+                t._startCulture = value;
+            }
         }
 
         internal ExecutionContext ExecutionContext
