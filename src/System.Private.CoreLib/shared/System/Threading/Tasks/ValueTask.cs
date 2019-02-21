@@ -369,7 +369,16 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Gets an awaiter for this <see cref="ValueTask"/>.</summary>
-        public ValueTaskAwaiter GetAwaiter() => new ValueTaskAwaiter(this);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ValueTaskAwaiter GetAwaiter()
+        {
+            // Unsafe casting to work around https://github.com/dotnet/coreclr/issues/18542
+
+            // NOTE: This only works because ValueTaskAwaiter and ValueTask are structs, 
+            // exactly the same data layout and ValueTaskAwaiter does no real initalization.
+
+            return Unsafe.As<ValueTask, ValueTaskAwaiter>(ref Unsafe.AsRef(in this));
+        }
 
         /// <summary>Configures an awaiter for this <see cref="ValueTask"/>.</summary>
         /// <param name="continueOnCapturedContext">
@@ -765,7 +774,15 @@ namespace System.Threading.Tasks
 
         /// <summary>Gets an awaiter for this <see cref="ValueTask{TResult}"/>.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTaskAwaiter<TResult> GetAwaiter() => new ValueTaskAwaiter<TResult>(this);
+        public ValueTaskAwaiter<TResult> GetAwaiter()
+        {
+            // Unsafe casting to work around https://github.com/dotnet/coreclr/issues/18542
+
+            // NOTE: This only works because ValueTaskAwaiter<TResult> and ValueTask<TResult> are structs, 
+            // exactly the same data layout and ValueTaskAwaiter.ctor does no real initalization.
+
+            return Unsafe.As<ValueTask<TResult>, ValueTaskAwaiter<TResult>>(ref Unsafe.AsRef(in this));
+        }
 
         /// <summary>Configures an awaiter for this <see cref="ValueTask{TResult}"/>.</summary>
         /// <param name="continueOnCapturedContext">

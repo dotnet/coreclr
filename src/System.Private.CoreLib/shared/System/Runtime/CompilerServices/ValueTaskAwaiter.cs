@@ -30,10 +30,18 @@ namespace System.Runtime.CompilerServices
         /// <summary>The value being awaited.</summary>
         private readonly ValueTask _value;
 
+        // NOTE: If any extra fields are added ValueTask.GetAwaiter 
+        // must be updated to call the constructor.
+
         /// <summary>Initializes the awaiter.</summary>
         /// <param name="value">The value to be awaited.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ValueTaskAwaiter(ValueTask value) => _value = value;
+        internal ValueTaskAwaiter(ValueTask value)
+        {
+            // NOTE: If this method is ever updated to perform more initialization,
+            //       ValueTask<TResult>.GetAwaiter must be updated to call this.
+            _value = value;
+        }
 
         /// <summary>Gets whether the <see cref="ValueTask"/> has completed.</summary>
         public bool IsCompleted
@@ -113,10 +121,18 @@ namespace System.Runtime.CompilerServices
         /// <summary>The value being awaited.</summary>
         private readonly ValueTask<TResult> _value;
 
+        // NOTE: If any extra fields are added ValueTask<TResult>.GetAwaiter 
+        // must be updated to call the constructor.
+
         /// <summary>Initializes the awaiter.</summary>
         /// <param name="value">The value to be awaited.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ValueTaskAwaiter(ValueTask<TResult> value) => _value = value;
+        internal ValueTaskAwaiter(ValueTask<TResult> value)
+        {
+            // NOTE: If this method is ever updated to perform more initialization,
+            //       ValueTask<TResult>.GetAwaiter must be updated to call this.
+            _value = value;
+        }
 
         /// <summary>Gets whether the <see cref="ValueTask{TResult}"/> has completed.</summary>
         public bool IsCompleted
