@@ -429,7 +429,7 @@ CPFH_AdjustContextForThreadSuspensionRace(CONTEXT *pContext, Thread *pThread)
 }
 #endif // FEATURE_HIJACK
 
-uint32_t            g_exceptionCount = 0;
+uint32_t            g_exceptionCount;
 
 static inline void
 CPFH_UpdatePerformanceCounters() {
