@@ -300,6 +300,17 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         case NI_Base_Vector64_AsSingle:
         case NI_Base_Vector64_AsUInt16:
         case NI_Base_Vector64_AsUInt32:
+        case NI_Base_Vector128_As:
+        case NI_Base_Vector128_AsByte:
+        case NI_Base_Vector128_AsDouble:
+        case NI_Base_Vector128_AsInt16:
+        case NI_Base_Vector128_AsInt32:
+        case NI_Base_Vector128_AsInt64:
+        case NI_Base_Vector128_AsSByte:
+        case NI_Base_Vector128_AsSingle:
+        case NI_Base_Vector128_AsUInt16:
+        case NI_Base_Vector128_AsUInt32:
+        case NI_Base_Vector128_AsUInt64:
         {
             // We fold away the cast here, as it only exists to satisfy
             // the type system. It is safe to do this here since the retNode type
