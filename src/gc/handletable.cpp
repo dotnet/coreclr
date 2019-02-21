@@ -21,8 +21,6 @@
 #include "objecthandle.h"
 #include "handletablepriv.h"
 
-#define COUNTER_ONLY(x)
-
 #if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
 DWORD g_dwHandles = 0;
 #endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
@@ -186,8 +184,10 @@ void HndDestroyHandleTable(HHANDLETABLE hTable)
     // fetch the handle table pointer
     HandleTable *pTable = Table(hTable);
 
+#ifdef ENABLE_PERF_COUNTERS
     // decrement handle count by number of handles in this table
     COUNTER_ONLY(GetPerfCounters().m_GC.cHandles -= HndCountHandles(hTable));
+#endif
 
     // We are going to free the memory for this HandleTable.
     // Let us reset the copy in g_pHandleTableArray to NULL.
