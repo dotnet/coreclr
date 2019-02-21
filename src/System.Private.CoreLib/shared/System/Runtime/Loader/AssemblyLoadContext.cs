@@ -32,11 +32,6 @@ namespace System.Runtime.Loader
         private static long s_nextId;
         private static bool s_isProcessExiting;
 
-        // Each AppDomain contains the reference to its AssemblyLoadContext instance, if one is
-        // specified by the host. By having the field as a static, we are
-        // making it an AppDomain-wide field.
-        private static AssemblyLoadContext s_defaultAssemblyLoadContext;
-
         // Indicates the state of this ALC (Alive or in Unloading state)
         private InternalState _state;
 
@@ -168,7 +163,7 @@ namespace System.Runtime.Loader
         // This event is fired after resolve events of AssemblyLoadContext fails
         public static event ResolveEventHandler AssemblyResolve;
 
-        public static AssemblyLoadContext Default => LazyInitializer.EnsureInitialized(ref s_defaultAssemblyLoadContext, () => new AppPathAssemblyLoadContext());
+        public static AssemblyLoadContext Default => DefaultAssemblyLoadContext.s_loadContext;
 
         public bool IsCollectible { get; }
 
@@ -258,32 +253,32 @@ namespace System.Runtime.Loader
                 throw new ArgumentNullException(nameof(assembly));
             }
 
-            if (assembly.Length <= 0)
+            int iAssemblyStreamLength = (int)assembly.Length;
+
+            if (iAssemblyStreamLength <= 0)
             {
                 throw new BadImageFormatException(SR.BadImageFormat_BadILFormat);
+            }
+
+            // Allocate the byte[] to hold the assembly
+            byte[] arrAssembly = new byte[iAssemblyStreamLength];
+
+            // Copy the assembly to the byte array
+            assembly.Read(arrAssembly, 0, iAssemblyStreamLength);
+
+            // Get the symbol stream in byte[] if provided
+            byte[] arrSymbols = null;
+            if (assemblySymbols != null)
+            {
+                var iSymbolLength = (int)assemblySymbols.Length;
+                arrSymbols = new byte[iSymbolLength];
+
+                assemblySymbols.Read(arrSymbols, 0, iSymbolLength);
             }
 
             lock (_unloadLock)
             {
                 VerifyIsAlive();
-
-                int iAssemblyStreamLength = (int) assembly.Length;
-
-                // Allocate the byte[] to hold the assembly
-                byte[] arrAssembly = new byte[iAssemblyStreamLength];
-
-                // Copy the assembly to the byte array
-                assembly.Read(arrAssembly, 0, iAssemblyStreamLength);
-
-                // Get the symbol stream in byte[] if provided
-                byte[] arrSymbols = null;
-                if (assemblySymbols != null)
-                {
-                    var iSymbolLength = (int) assemblySymbols.Length;
-                    arrSymbols = new byte[iSymbolLength];
-
-                    assemblySymbols.Read(arrSymbols, 0, iSymbolLength);
-                }
 
                 return InternalLoadFromStream(arrAssembly, arrSymbols);
             }
@@ -357,9 +352,11 @@ namespace System.Runtime.Loader
         }
     }
 
-    internal sealed class AppPathAssemblyLoadContext : AssemblyLoadContext
+    internal sealed class DefaultAssemblyLoadContext : AssemblyLoadContext
     {
-        internal AppPathAssemblyLoadContext() : base(true, false)
+        internal static readonly AssemblyLoadContext s_loadContext = new DefaultAssemblyLoadContext ();
+
+        internal DefaultAssemblyLoadContext() : base(true, false)
         {
         }
 
