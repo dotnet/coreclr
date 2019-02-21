@@ -33,8 +33,9 @@
 
 
 
-FCIMPL5(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE,
+FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE,
         StringObject* codeBaseUNSAFE, 
+        AssemblyBaseObject* requestingAssemblyUNSAFE,
         StackCrawlMark* stackMark,
         CLR_BOOL fThrowOnFileNotFound,
         INT_PTR ptrLoadContextBinder)
@@ -45,11 +46,13 @@ FCIMPL5(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     {
         ASSEMBLYNAMEREF assemblyName;
         STRINGREF       codeBase;
+        ASSEMBLYREF     requestingAssembly; 
         ASSEMBLYREF     rv;
     } gc;
 
     gc.assemblyName    = (ASSEMBLYNAMEREF) assemblyNameUNSAFE;
     gc.codeBase        = (STRINGREF)       codeBaseUNSAFE;
+    gc.requestingAssembly    = (ASSEMBLYREF)     requestingAssemblyUNSAFE;
     gc.rv              = NULL;
 
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
@@ -71,7 +74,14 @@ FCIMPL5(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     else
     {
         // Compute parent assembly
-        pRefAssembly = SystemDomain::GetCallersAssembly(stackMark);
+        if (gc.requestingAssembly == NULL)
+        {
+            pRefAssembly = SystemDomain::GetCallersAssembly(stackMark);
+        }
+        else
+        {
+            pRefAssembly = gc.requestingAssembly->GetAssembly();
+        }
         
         // Shared or collectible assemblies should not be used for the parent in the
         // late-bound case.

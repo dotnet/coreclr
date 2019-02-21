@@ -336,12 +336,13 @@ namespace System.Reflection
 
             string codeBase = VerifyCodeBase(assemblyRef.CodeBase);
 
-            return nLoad(assemblyRef, codeBase, ref stackMark, true, ptrLoadContextBinder);
+            return nLoad(assemblyRef, codeBase, null, ref stackMark, true, ptrLoadContextBinder);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern RuntimeAssembly nLoad(AssemblyName fileName,
                                                     string codeBase,
+                                                    RuntimeAssembly assemblyContext,
                                                     ref StackCrawlMark stackMark,
                                                     bool throwOnFileNotFound,
                                                     IntPtr ptrLoadContextBinder);
@@ -618,7 +619,6 @@ namespace System.Reflection
                                                        Version version,
                                                        bool throwOnFileNotFound)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMe;
             AssemblyName an = new AssemblyName();
 
             an.SetPublicKey(GetPublicKey());
@@ -632,7 +632,10 @@ namespace System.Reflection
             an.CultureInfo = culture;
             an.Name = GetSimpleName() + ".resources";
 
-            RuntimeAssembly retAssembly = nLoad(an, null, ref stackMark, throwOnFileNotFound, IntPtr.Zero);
+            // This stack crawl mark is never used because the requesting assembly is explicitly specified,
+            // so the value could be anything.
+            StackCrawlMark unused = default;
+            RuntimeAssembly retAssembly = nLoad(an, null, this, ref unused, throwOnFileNotFound, IntPtr.Zero);
 
             if (retAssembly == this)
             {
