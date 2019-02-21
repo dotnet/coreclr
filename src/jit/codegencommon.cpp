@@ -2315,7 +2315,6 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
         {
             printf("IL Var Num %d:\n", compiler->compMap2ILvarNum(varNum));
             varDsc->dumpAllRegisterLiveRangesForBlock(getEmitter(), this);
-            varDsc->destructRegisterLiveRanges();
         }
         printf("\n\n\n////////////////////////////////////////\n");
         printf("////////////////////////////////////////\n\n\n");

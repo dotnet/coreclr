@@ -1192,6 +1192,13 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
             break;
     }
 
+    if (varNum < lvaCount)
+    {
+        // If it is a variable that exists in the IL, then we want to register
+        // its home changes ("VariableLiveRanges") for debugging purpose
+        varDsc->initializeRegisterLiveRanges(getAllocator());
+    }
+
     var_types type = JITtype2varType(corInfoType);
     if (varTypeIsFloating(type))
     {

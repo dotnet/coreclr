@@ -448,21 +448,19 @@ public:
     {
         hasReportVariableLiveRanges = false;
 
-        variableLiveRanges = new LiveRangeList(allocator);
+        variableLiveRanges = allocator.allocate<LiveRangeList>(1);
+        new (variableLiveRanges, jitstd::placement_t()) LiveRangeList(allocator);
+
+        size_t variableLiveRangesSize = sizeof(*variableLiveRanges);
+        memset(variableLiveRanges, 0, variableLiveRangesSize);
 
 #if DEBUG
-        variableLifeBarrier = new LiveRangeBarrier(variableLiveRanges);
-#endif
-    }
+        variableLifeBarrier = allocator.allocate<LiveRangeBarrier>(1);
+        new (variableLifeBarrier, jitstd::placement_t()) LiveRangeBarrier(variableLiveRanges);
 
-    void destructRegisterLiveRanges()
-    {
-#if DEBUG
-        delete variableLifeBarrier;
-        variableLifeBarrier = nullptr;
+        size_t variableLifeBarrierSize = sizeof(*variableLifeBarrier);
+        memset(variableLifeBarrier, 0, variableLifeBarrierSize);
 #endif
-        delete variableLiveRanges;
-        variableLiveRanges = nullptr;
     }
 
     unsigned int getAmountLiveRanges() const

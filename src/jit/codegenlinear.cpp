@@ -40,8 +40,6 @@ void CodeGen::genInitializeRegisterState()
 
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
-        varDsc->initializeRegisterLiveRanges(compiler->getAllocator());
-
         // Is this variable a parameter assigned to a register?
         if (!varDsc->lvIsParam || !varDsc->lvRegister)
         {
