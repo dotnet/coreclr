@@ -10,7 +10,7 @@ using System.Threading.Tasks.Sources;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Threading.Tasks
-{
+{ 
     // TYPE SAFETY WARNING:
     // This code uses Unsafe.As to cast _obj.  This is done in order to minimize the costs associated with
     // casting _obj to a variety of different types that can be stored in a ValueTask, e.g. Task<TResult>
