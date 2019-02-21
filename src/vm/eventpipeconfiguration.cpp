@@ -134,15 +134,13 @@ void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
     CONTRACTL_END;
 
     if (pProvider == NULL)
-    {
         return;
-    }
 
     // Unregister the provider.
     UnregisterProvider(*pProvider);
 
     // Free the provider itself.
-    delete(pProvider);
+    delete pProvider;
 }
 
 
