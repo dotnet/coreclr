@@ -59,14 +59,7 @@ namespace System.Threading
             }
         }
 
-        private readonly int _id; // TimerQueues[_id] == this
-
         private AppDomainTimerSafeHandle m_appDomainTimer;
-
-        private TimerQueue(int id)
-        {
-            _id = id;
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool SetTimer(uint actualDuration)
