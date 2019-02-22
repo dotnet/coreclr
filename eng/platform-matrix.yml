@@ -43,34 +43,35 @@ jobs:
         crossrootfsDir: '/crossrootfs/arm'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
-# Linux arm64
+  # Linux arm64
 
-- template: ${{ parameters.jobTemplate }}
-  parameters:
-    buildConfig: ${{ parameters.buildConfig }}
-    archType: arm64
-    osGroup: Linux
-    osIdentifier: Linux
-    containerName: ubuntu_1604_arm64_cross_build_image
-    helixQueues:
-      ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-        asString: 'Ubuntu.1804.Arm64.Open'
-        asArray:
-        - Ubuntu.1804.Arm64.Open
-      ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-        # TODO: add Ubuntu.1604.Arm64.Open once Jenkins has been shutdown
-        asString: 'Debian.9.Arm64.Open,Ubuntu.1804.Arm64.Open'
-        asArray:
-        - Debian.9.Arm64.Open
-        - Ubuntu.1804.Arm64.Open
-      ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-        asString: 'Debian.9.Arm64,Ubuntu.1604.Arm64,Ubuntu.1804.Arm64'
-        asArray:
-        - Debian.9.Arm64
-        - Ubuntu.1604.Arm64
-        - Ubuntu.1804.Arm64
-    crossrootfsDir: '/crossrootfs/arm64'
-    ${{ insert }}: ${{ parameters.jobParameters }}
+  - ${{ if eq(platform, 'Linux_arm64') }}:
+    - template: ${{ parameters.jobTemplate }}
+      parameters:
+        buildConfig: ${{ parameters.buildConfig }}
+        archType: arm64
+        osGroup: Linux
+        osIdentifier: Linux
+        containerName: ubuntu_1604_arm64_cross_build_image
+        helixQueues:
+          ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
+            asString: 'Ubuntu.1804.Arm64.Open'
+            asArray:
+            - Ubuntu.1804.Arm64.Open
+          ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
+            # TODO: add Ubuntu.1604.Arm64.Open once Jenkins has been shutdown
+            asString: 'Debian.9.Arm64.Open,Ubuntu.1804.Arm64.Open'
+            asArray:
+            - Debian.9.Arm64.Open
+            - Ubuntu.1804.Arm64.Open
+          ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+            asString: 'Debian.9.Arm64,Ubuntu.1604.Arm64,Ubuntu.1804.Arm64'
+            asArray:
+            - Debian.9.Arm64
+            - Ubuntu.1604.Arm64
+            - Ubuntu.1804.Arm64
+        crossrootfsDir: '/crossrootfs/arm64'
+        ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux musl
 
