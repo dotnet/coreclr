@@ -288,7 +288,7 @@ def main(args):
 
     # Gather up some arguments to pass to the different build scripts.
 
-    config_args = '-Release /p:OSGroup=%s /p:ArchGroup=%s' % (clr_os, arch)
+    config_args = '-c Release /p:OSGroup=%s /p:ArchGroup=%s' % (clr_os, arch)
 
     build_args = config_args
 
