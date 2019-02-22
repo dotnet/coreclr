@@ -29,6 +29,7 @@ struct InitVarDscInfo
 #if FEATURE_FASTTAILCALL
     // It is used to calculate argument stack size information in byte
     unsigned stackArgSize;
+    bool hasMultiSlotStruct;
 #endif // FEATURE_FASTTAILCALL
 
 public:
@@ -50,6 +51,7 @@ public:
 
 #if FEATURE_FASTTAILCALL
         stackArgSize = 0;
+        hasMultiSlotStruct = false;
 #endif // FEATURE_FASTTAILCALL
     }
 

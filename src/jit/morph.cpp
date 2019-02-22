@@ -7168,6 +7168,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 
     const unsigned maxRegArgs = MAX_REG_ARG;
+    hasTwoSlotSizedStruct = hasTwoSlotSizedStruct || info.compHasMultiSlotArgs;
 
 // If we reached here means that callee has only those argument types which can be passed in
 // a register and if passed on stack will occupy exactly one stack slot in out-going arg area.
@@ -7243,7 +7244,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 
     // Callee has a >8 and <=16 byte struct and arguments that has to go on the stack. Do not fastTailCall.
-    if (calleeStackSize > 0 && hasTwoSlotSizedStruct)
+    if (hasStackArgs > 0 && hasTwoSlotSizedStruct)
     {
         reportFastTailCallDecision("Will not fastTailCall calleeStackSize > 0 && hasTwoSlotSizedStruct",
                                    callerStackSize, calleeStackSize);
