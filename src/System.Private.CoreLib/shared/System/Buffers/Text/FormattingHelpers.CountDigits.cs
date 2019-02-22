@@ -7,11 +7,15 @@ using System.Runtime.InteropServices;
 
 using Internal.Runtime.CompilerServices;
 
+// Decimal CountDigits is implemented as floor(log_10(x)) + 1 
+// For more info on the lookup tables see the book "Hacker's Delight, Second Edition"
+// figure 11-11 "Integer log base 10 from log base 2, double table lookup, branch free".
+
 namespace System.Buffers.Text
 {
     internal static partial class FormattingHelpers
     {
-        private static ReadOnlySpan<byte> UInt64MaxLog10GivenLzCount => new byte[]
+        private static ReadOnlySpan<byte> Log10Ceiling64 => new byte[]
         {
             20, 19, 19, 19, 19, 18, 18, 18, 17, 17, 17, 16, 16, 16, 16, 15, 15, 15, 14, 14, 14, 13, 13, 13, 13, 12, 12,
             12, 11, 11, 11, 10, 10, 10, 10, 9, 9, 9, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 2, 2, 
@@ -25,7 +29,7 @@ namespace System.Buffers.Text
             1000000000000000000, 10000000000000000000
         };
 
-        private static ReadOnlySpan<byte> UInt32MaxLog10GivenLzCount => new byte[]
+        private static ReadOnlySpan<byte> Log10Ceiling32 => new byte[]
         {
             11, 10, 10, 9, 9, 9, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 2
         };
@@ -38,21 +42,27 @@ namespace System.Buffers.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountDigits(ulong value)
         {
-            int y = Unsafe.AddByteOffset(
-                ref MemoryMarshal.GetReference(UInt64MaxLog10GivenLzCount),
+            int log10Ceiling = Unsafe.AddByteOffset(
+                ref MemoryMarshal.GetReference(Log10Ceiling64),
                 (IntPtr)BitOps.LeadingZeroCount(value));
-            int d = unchecked((int)((value - s_uInt64PowersOf10[y]) >> 63));
-            return y - d;
+            ulong pow10 = Unsafe.Add(
+                ref Unsafe.As<byte, ulong>(ref s_uInt64PowersOf10.GetRawSzArrayData()),
+                log10Ceiling);
+            int delta = unchecked((int)((value - pow10) >> 63));
+            return log10Ceiling - delta;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountDigits(uint value)
         {
-            int y = Unsafe.AddByteOffset(
-                ref MemoryMarshal.GetReference(UInt32MaxLog10GivenLzCount),
+            int log10Ceiling = Unsafe.AddByteOffset(
+                ref MemoryMarshal.GetReference(Log10Ceiling32),
                 (IntPtr)BitOps.LeadingZeroCount(value));
-            int d = unchecked((int)((value - s_uInt32PowersOf10[y]) >> 31));
-            return y - d;
+            uint pow10 = Unsafe.Add(
+                ref Unsafe.As<byte, uint>(ref s_uInt32PowersOf10.GetRawSzArrayData()),
+                log10Ceiling);
+            int delta = unchecked((int)((value - pow10) >> 31));
+            return log10Ceiling - delta;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
