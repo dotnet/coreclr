@@ -18,6 +18,7 @@ namespace System.Diagnostics.Tracing
         private EventCounter[] _counters;
 
         private enum Counter {
+            ProcessTime,
             GCHeapSize,
             Gen0GCCount,
             Gen1GCCount,
@@ -49,6 +50,7 @@ namespace System.Diagnostics.Tracing
                     // overhead by at all times even when counters aren't enabled.
                     _counters = new EventCounter[] {
                         // TODO: process info counters
+                        new EventCounter("Total Process Time", this),
 
                         // GC info counters
                         new EventCounter("Total Memory by GC", this),
@@ -87,6 +89,8 @@ namespace System.Diagnostics.Tracing
 
         public void UpdateAllCounters()
         {
+            _counters[(int)Counter.ProcessTime].WriteMetric(RuntimeEventSourceHelper.GetProcessTimes());
+
             // GC counters
             _counters[(int)Counter.GCHeapSize].WriteMetric(GC.GetTotalMemory(false));
             _counters[(int)Counter.Gen0GCCount].WriteMetric(GC.CollectionCount(0));
