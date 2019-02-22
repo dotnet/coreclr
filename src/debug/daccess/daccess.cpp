@@ -7507,8 +7507,8 @@ STDAPI CLRDataAccessCreateInstance(ICLRDataTarget * pLegacyTarget,
 // This is the legacy entrypoint to DAC, used by dbgeng/dbghelp (windbg, SOS, watson, etc).
 //
 //----------------------------------------------------------------------------
-DLLEXPORT 
 STDAPI
+DLLEXPORT
 CLRDataCreateInstance(REFIID iid,
                       ICLRDataTarget * pLegacyTarget,
                       void ** iface)
