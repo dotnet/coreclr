@@ -17,10 +17,8 @@ namespace FixupCallsHostWhenLoaded
             try
             {
                 // Load a fake mscoree.dll to avoid starting desktop
-                NativeLibrary.Load(Path.Combine(Environment.CurrentDirectory, "mscoree.dll"));
+                IntPtr ijwHost = NativeLibrary.Load(Path.Combine(Environment.CurrentDirectory, "mscoree.dll"));
 
-                // Pre-load the ijwhost mock before IjwNativeDll is loaded.
-                IntPtr ijwHost = NativeLibrary.Load("ijwhost.dll");
                 WasModuleVTableQueriedDelegate wasModuleVTableQueried = Marshal.GetDelegateForFunctionPointer<WasModuleVTableQueriedDelegate>(NativeLibrary.GetExport(ijwHost, "WasModuleVTableQueried"));
 
                 // Load IJW via reflection

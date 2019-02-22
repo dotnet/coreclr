@@ -6484,25 +6484,57 @@ void Module::NotifyDebuggerUnload(AppDomain *pDomain)
 #if !defined(CROSSGEN_COMPILE)
 using GetTokenForVTableEntry_t = mdToken(STDMETHODCALLTYPE*)(HMODULE module, BYTE**ppVTEntry);
 
-HMODULE GetIJWHostModule()
-{
 #if !defined(FEATURE_PAL)
-    static HMODULE ijwHostModule = nullptr;
-    if (ijwHostModule == nullptr)
+HMODULE GetIJWHostForModule(Module* module)
+{
+    PEDecoder* pe = module->GetFile()->GetLoadedIL();
+
+    BYTE* baseAddress = (BYTE*)module->GetFile()->GetIJWBase();
+
+    IMAGE_IMPORT_DESCRIPTOR* importDescriptor = (IMAGE_IMPORT_DESCRIPTOR*)pe->GetDirectoryData(pe->GetDirectoryEntry(IMAGE_DIRECTORY_ENTRY_IMPORT));
+
+    for(; importDescriptor->Characteristics != 0; importDescriptor++)
     {
-        ijwHostModule = CLRGetModuleHandle(W("ijwhost.dll"));
+        IMAGE_THUNK_DATA* importNameTable = (IMAGE_THUNK_DATA*)pe->GetRvaData(importDescriptor->OriginalFirstThunk);
+
+        IMAGE_THUNK_DATA* importAddressTable = (IMAGE_THUNK_DATA*)pe->GetRvaData(importDescriptor->FirstThunk);
+
+        for (int thunkIndex = 0; importNameTable[thunkIndex].u1.AddressOfData != 0; thunkIndex++)
+        {
+            // The most significant bit will be set if the entry points to an ordinal.
+            if ((importNameTable[thunkIndex].u1.Ordinal & (1LL << (sizeof(importNameTable[thunkIndex].u1.Ordinal) * CHAR_BIT - 1))) == 0)
+            {
+                IMAGE_IMPORT_BY_NAME* nameImport = (IMAGE_IMPORT_BY_NAME*)(baseAddress + importNameTable[thunkIndex].u1.AddressOfData);
+                if (strcmp("_CorDllMain", nameImport->Name) == 0)
+                {
+                    HMODULE ijwHost;
+
+                    if (!WszGetModuleHandleEx(
+                        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                        (LPCWSTR)importAddressTable[thunkIndex].u1.Function,
+                        &ijwHost))
+                    {
+                        return nullptr;
+                    }
+
+                    return ijwHost;
+                }
+            }
+        }
     }
 
-    return ijwHostModule;
-#else
     return nullptr;
-#endif // FEATURE_PAL
 }
+#else
+HMODULE GetIJWHostForModule(Module* module)
+{
+    return nullptr;
+}
+#endif
 
-GetTokenForVTableEntry_t GetTokenGetterFromHostModule()
+GetTokenForVTableEntry_t GetTokenGetterFromHostModule(HMODULE ijwHost)
 {
     static GetTokenForVTableEntry_t getTokenForVTableEntryWithHost = nullptr;
-    HMODULE ijwHost = GetIJWHostModule();
     if (ijwHost != nullptr)
     {
         getTokenForVTableEntryWithHost = (GetTokenForVTableEntry_t)GetProcAddress(ijwHost, "GetTokenForVTableEntry");
@@ -6581,7 +6613,7 @@ void Module::FixupVTables()
     // so if it is loaded, we need to query it for the tokens that were in the slots.
     // If it is not loaded, then we know that the vtfixup table entries are tokens,
     // so we can resolve them ourselves.
-    GetTokenForVTableEntry_t GetTokenForVTableEntryCallback = GetTokenGetterFromHostModule();
+    GetTokenForVTableEntry_t GetTokenForVTableEntryCallback = GetTokenGetterFromHostModule(GetIJWHostForModule(this));
 
     if (GetTokenForVTableEntryCallback == nullptr)
     {
