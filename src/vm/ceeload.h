@@ -1634,10 +1634,10 @@ private:
     BOOL                            m_nativeImageProfiling;
     CORCOMPILE_METHOD_PROFILE_LIST *m_methodProfileList;
 
-#if PROFILING_SUPPORTED 
+#if PROFILING_SUPPORTED_DATA 
     DWORD                   m_dwTypeCount;
     DWORD                   m_dwExportedTypeCount;
-#endif // PROFILING_SUPPORTED
+#endif // PROFILING_SUPPORTED_DATA
 
 #if defined(FEATURE_COMINTEROP)
         public:
