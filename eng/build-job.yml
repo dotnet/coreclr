@@ -140,10 +140,10 @@ jobs:
           KeyVaultName: EngKeyVault
           SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
 
+    # Build packages
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(crossPackagesArg) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
         displayName: Build packages
-
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber)
         displayName: Build packages
