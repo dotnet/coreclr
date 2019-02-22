@@ -90,6 +90,7 @@ namespace System.Diagnostics.Tracing
 
         public void UpdateAllCounters()
         {
+            // Process counters
             _counters[(int)Counter.ProcessTime].WriteMetric(RuntimeEventSourceHelper.GetProcessTimes());
 
             // GC counters

@@ -154,6 +154,7 @@ FCFuncStart(gEnvironmentFuncs)
     FCFuncElement("get_HasShutdownStarted", SystemNative::HasShutdownStarted)
     QCFuncElement("GetProcessorCount", SystemNative::GetProcessorCount)
     FCFuncElement("GetCommandLineArgsNative", SystemNative::GetCommandLineArgs)
+    FCFuncElement("GetCurrentProcessId", SystemNative::GetCurrentProcessId)
 
 #if defined(FEATURE_COMINTEROP)
     QCFuncElement("WinRTSupported", SystemNative::WinRTSupported)

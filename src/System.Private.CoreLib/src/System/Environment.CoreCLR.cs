@@ -88,6 +88,9 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern int GetProcessorCount();
 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern long GetCurrentProcessId();
+
         // If you change this method's signature then you must change the code that calls it
         // in excep.cpp and probably you will have to visit mscorlib.h to add the new signature
         // as well as metasig.h to create the new signature type

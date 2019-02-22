@@ -184,6 +184,17 @@ FCIMPLEND;
 #endif // FEATURE_PAL
 
 
+#ifdef FEATURE_PERFTRACING
+FCIMPL0(UINT64, SystemNative::GetCurrentProcessId)
+{
+    FCALL_CONTRACT;
+
+    return ::GetCurrentProcessId();
+}
+FCIMPLEND;
+#endif // FEATURE_PERFTRACING
+
+
 FCIMPL0(UINT32, SystemNative::GetTickCount)
 {
     FCALL_CONTRACT;
