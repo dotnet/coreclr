@@ -25,7 +25,6 @@ namespace System
         /// <summary>
         /// Removes all leading and trailing occurrences of a specified element.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
@@ -34,7 +33,6 @@ namespace System
         /// <summary>
         /// Removes all leading occurrences of a specified element.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
@@ -43,7 +41,6 @@ namespace System
         /// <summary>
         /// Removes all trailing occurrences of a specified element.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
@@ -57,7 +54,7 @@ namespace System
         /// <param name="trimElement">The specified element to look for and remove.</param>
         /// <param name="trimStart">If set to True, trims the start.</param>
         /// <param name="trimEnd">If set to True, trims the end.</param>
-        private static ReadOnlySpan<T> TrimHelper<T>(ref ReadOnlySpan<T> span, T trimElement, bool trimStart, bool trimEnd)
+        private static ReadOnlySpan<T> TrimHelper<T>(ref ReadOnlySpan<T> span, in T trimElement, bool trimStart, bool trimEnd)
             where T : IEquatable<T>
         {
             if (span.IsEmpty)
@@ -116,7 +113,6 @@ namespace System
         /// Removes all leading and trailing occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
@@ -127,7 +123,6 @@ namespace System
         /// Removes all leading occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
@@ -138,7 +133,6 @@ namespace System
         /// Removes all trailing occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
