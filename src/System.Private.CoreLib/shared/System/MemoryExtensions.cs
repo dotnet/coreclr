@@ -317,7 +317,38 @@ namespace System
         /// <remarks>If <paramref name="trimChars"/> is empty, white-space characters are removed instead.</remarks>
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span, ReadOnlySpan<char> trimChars)
         {
-            return span.TrimStart(trimChars).TrimEnd(trimChars);
+            if (trimChars.IsEmpty)
+            {
+                return span.Trim();
+            }
+
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                for (int i = 0; i < trimChars.Length; i++)
+                {
+                    if (span[start] == trimChars[i])
+                        goto Next;
+                }
+                break;
+            Next:
+                ;
+            }
+
+            int end = span.Length - 1;
+            for (; end >= start; end--)
+            {
+                for (int i = 0; i < trimChars.Length; i++)
+                {
+                    if (span[end] == trimChars[i])
+                        goto Next;
+                }
+                break;
+            Next:
+                ;
+            }
+
+            return span.Slice(start, end - start + 1);
         }
 
         /// <summary>
