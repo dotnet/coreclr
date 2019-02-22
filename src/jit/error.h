@@ -65,7 +65,9 @@ extern void DECLSPEC_NORETURN badCode();
 extern void DECLSPEC_NORETURN badCode3(const char* msg, const char* msg2, int arg, __in_z const char* file, unsigned line);
 extern void DECLSPEC_NORETURN noWay();
 extern void DECLSPEC_NORETURN NOMEM();
+extern void DECLSPEC_NORETURN rejitTier0ToTier1();
 extern void DECLSPEC_NORETURN fatal(int errCode);
+extern void DECLSPEC_NORETURN nonfatal(int errCode);
 
 extern void DECLSPEC_NORETURN noWayAssertBody();
 extern void DECLSPEC_NORETURN noWayAssertBody(const char* cond, const char* file, unsigned line);

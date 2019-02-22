@@ -288,6 +288,7 @@ public:
     DWORD         TieredCompilation_StartupTier_CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_StartupTier_CallCountThreshold; }
     DWORD         TieredCompilation_StartupTier_CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_StartupTier_CallCountingDelayMs; }
 #endif
+    bool          QuickJitForLoops() const { LIMITED_METHOD_CONTRACT; return quickJitForLoops; }
 
 #ifndef CROSSGEN_COMPILE
     bool          BackpatchEntryPointSlots() const { LIMITED_METHOD_CONTRACT; return backpatchEntryPointSlots; }
@@ -1019,6 +1020,7 @@ private: //----------------------------------------------------------------
     DWORD tieredCompilation_StartupTier_CallCountThreshold;
     DWORD tieredCompilation_StartupTier_CallCountingDelayMs;
 #endif
+    bool quickJitForLoops;
 
 #ifndef CROSSGEN_COMPILE
     bool backpatchEntryPointSlots;

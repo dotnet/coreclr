@@ -354,6 +354,7 @@ HRESULT EEConfig::Init()
     tieredCompilation_StartupTier_CallCountThreshold = 1;
     tieredCompilation_StartupTier_CallCountingDelayMs = 0;
 #endif
+    quickJitForLoops = false;
 
 #ifndef CROSSGEN_COMPILE
     backpatchEntryPointSlots = false;
@@ -1240,6 +1241,8 @@ HRESULT EEConfig::sync()
         }
     }
 #endif
+    quickJitForLoops =
+        Configuration::GetKnobBooleanValue(W("System.Runtime.QuickJitForLoops"), CLRConfig::UNSUPPORTED_QuickJitForLoops) != 0;
 
 #ifndef CROSSGEN_COMPILE
     backpatchEntryPointSlots = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_BackpatchEntryPointSlots) != 0;

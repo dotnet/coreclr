@@ -658,6 +658,7 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_StartupTier_DelaySingleProcMultiplier, W
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_StartupTier_CallCounting, W("TC_StartupTier_CallCounting"), 1, "Enabled by default (only activates when TieredCompilation is also enabled). If disabled immediately backpatches prestub, and likely prevents any promotion to higher tiers")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_StartupTier_OptimizeCode, W("TC_StartupTier_OptimizeCode"), 0, "Use optimized codegen (normally used by the optimized tier) in the startup tier")
 #endif
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_QuickJitForLoops, W("QuickJitForLoops"), 0, "When quick JIT is enabled, quick JIT may also be used for methods that contain loops.")
 
 ///
 /// Entry point slot backpatch

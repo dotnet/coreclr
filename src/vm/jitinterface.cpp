@@ -6849,6 +6849,13 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
         result |= CORINFO_FLG_DELEGATE_INVOKE;
     }
 
+#ifndef CROSSGEN_COMPILE
+    if (!g_pConfig->QuickJitForLoops())
+    {
+        result |= CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS;
+    }
+#endif
+
     return result;
 }
 
@@ -6900,6 +6907,13 @@ void CEEInfo::setMethodAttribs (
             ftn->SetNotInline(true);
         }
     }
+
+#ifndef CROSSGEN_COMPILE
+    if ((attribs & CORINFO_FLG_TIER0_TO_TIER1) && ftn->IsEligibleForTieredCompilation())
+    {
+        ftn->GetCallCounter()->DisableStartupTierCallCounting(ftn);
+    }
+#endif
 
     EE_TO_JIT_TRANSITION();
 }

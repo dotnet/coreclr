@@ -4252,6 +4252,24 @@ private:
     unsigned depth;
 };
 
+/*****************************************************************************
+ *
+ *  If appropriate, rejit to switch from tier 0 to tier 1
+ */
+
+void Compiler::fgCheckForTier0ToTier1RejitForLoops()
+{
+    if ((info.compFlags & CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS) != 0 &&
+        opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) &&
+        !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_DEBUG_CODE) &&
+        !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) &&
+        !compIsForInlining())
+    {
+        info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_TIER0_TO_TIER1);
+        rejitTier0ToTier1();
+    }
+}
+
 //------------------------------------------------------------------------
 // fgFindJumpTargets: walk the IL stream, determining jump target offsets
 //
@@ -4438,6 +4456,13 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, Fixed
                     (opcode == CEE_LEAVE || opcode == CEE_LEAVE_S || opcode == CEE_BR || opcode == CEE_BR_S))
                 {
                     break; /* NOP */
+                }
+
+                if (jmpDist < 0)
+                {
+                    // This is a bit earlier in stage for earlier rejit than fgLinkBasicBlocks(), where backward jumps are
+                    // typically identified
+                    fgCheckForTier0ToTier1RejitForLoops();
                 }
 
                 unsigned jmpAddr = (IL_OFFSET)(codeAddr - codeBegp) + sz + jmpDist;
@@ -5197,11 +5222,12 @@ void Compiler::fgLinkBasicBlocks()
                 break;
 
             case BBJ_SWITCH:
-
+            {
                 unsigned jumpCnt;
                 jumpCnt = curBBdesc->bbJumpSwt->bbsCount;
                 BasicBlock** jumpPtr;
                 jumpPtr = curBBdesc->bbJumpSwt->bbsDstTab;
+                bool foundBackwardJump = false;
 
                 do
                 {
@@ -5209,14 +5235,21 @@ void Compiler::fgLinkBasicBlocks()
                     (*jumpPtr)->bbRefs++;
                     if ((*jumpPtr)->bbNum <= curBBdesc->bbNum)
                     {
+                        foundBackwardJump = true;
                         fgMarkBackwardJump(*jumpPtr, curBBdesc);
                     }
                 } while (++jumpPtr, --jumpCnt);
+
+                if (foundBackwardJump)
+                {
+                    fgCheckForTier0ToTier1RejitForLoops();
+                }
 
                 /* Default case of CEE_SWITCH (next block), is at end of jumpTab[] */
 
                 noway_assert(*(jumpPtr - 1) == curBBdesc->bbNext);
                 break;
+            }
 
             case BBJ_CALLFINALLY: // BBJ_CALLFINALLY and BBJ_EHCATCHRET don't appear until later
             case BBJ_EHCATCHRET:
