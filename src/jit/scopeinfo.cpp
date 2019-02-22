@@ -144,6 +144,7 @@ bool CodeGenInterface::siVarLoc::vlIsOnStk(regNumber reg, signed offset) const
     }
 }
 
+#if DEBUG
 void CodeGenInterface::dumpSiVarLoc(const siVarLoc* varLoc) const
 {
     switch (varLoc->vlType)
@@ -219,6 +220,7 @@ void CodeGenInterface::dumpSiVarLoc(const siVarLoc* varLoc) const
             unreached(); // unexpected
     }
 }
+#endif
 
 //------------------------------------------------------------------------
 // siVarLoc: Non-empty constructor of siVarLoc struct
