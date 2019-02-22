@@ -6484,9 +6484,9 @@ void Module::NotifyDebuggerUnload(AppDomain *pDomain)
 #if !defined(CROSSGEN_COMPILE)
 using GetTokenForVTableEntry_t = mdToken(STDMETHODCALLTYPE*)(HMODULE module, BYTE**ppVTEntry);
 
-#if !defined(FEATURE_PAL)
 HMODULE GetIJWHostForModule(Module* module)
 {
+#if !defined(FEATURE_PAL)
     PEDecoder* pe = module->GetFile()->GetLoadedIL();
 
     BYTE* baseAddress = (BYTE*)module->GetFile()->GetIJWBase();
@@ -6509,28 +6509,28 @@ HMODULE GetIJWHostForModule(Module* module)
                 {
                     HMODULE ijwHost;
 
-                    if (!WszGetModuleHandleEx(
+                    if (WszGetModuleHandleEx(
                         GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                         (LPCWSTR)importAddressTable[thunkIndex].u1.Function,
                         &ijwHost))
                     {
-                        return nullptr;
+                        return ijwHost;
                     }
 
-                    return ijwHost;
                 }
             }
         }
     }
-
+    
     return nullptr;
-}
 #else
+    return nullptr;
+#endif
+}
 HMODULE GetIJWHostForModule(Module* module)
 {
     return nullptr;
 }
-#endif
 
 GetTokenForVTableEntry_t GetTokenGetterFromHostModule(HMODULE ijwHost)
 {
