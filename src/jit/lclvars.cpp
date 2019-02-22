@@ -364,7 +364,7 @@ void Compiler::lvaInitArgs(InitVarDscInfo* varDscInfo)
     // Save the stack usage information
     // We can get register usage information using codeGen->intRegState and
     // codeGen->floatRegState
-    info.compArgStackSize = varDscInfo->stackArgSize;
+    info.compArgStackSize     = varDscInfo->stackArgSize;
     info.compHasMultiSlotArgs = varDscInfo->hasMultiSlotStruct;
 #endif // FEATURE_FASTTAILCALL
 
@@ -828,8 +828,8 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 // If there is a second eightbyte, get a register for it too and map the arg to the reg number.
                 if (structDesc.eightByteCount >= 2)
                 {
-                    secondEightByteType      = GetEightByteType(structDesc, 1);
-                    secondAllocatedRegArgNum = varDscInfo->allocRegArg(secondEightByteType, 1);
+                    secondEightByteType            = GetEightByteType(structDesc, 1);
+                    secondAllocatedRegArgNum       = varDscInfo->allocRegArg(secondEightByteType, 1);
                     varDscInfo->hasMultiSlotStruct = true;
                 }
 
@@ -842,7 +842,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #ifdef _TARGET_ARM64_
                 if (cSlots == 2)
                 {
-                    varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
+                    varDsc->lvOtherArgReg          = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
                     varDscInfo->hasMultiSlotStruct = true;
                 }
 #endif //  _TARGET_ARM64_
