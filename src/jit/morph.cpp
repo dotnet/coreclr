@@ -7244,7 +7244,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 
     // Callee has a >8 and <=16 byte struct and arguments that has to go on the stack. Do not fastTailCall.
-    if (hasStackArgs > 0 && hasTwoSlotSizedStruct)
+    if (hasStackArgs && hasTwoSlotSizedStruct)
     {
         reportFastTailCallDecision("Will not fastTailCall calleeStackSize > 0 && hasTwoSlotSizedStruct",
                                    callerStackSize, calleeStackSize);
