@@ -283,10 +283,10 @@ public:
 #if defined(FEATURE_TIERED_COMPILATION)
     bool          TieredCompilation(void)           const { LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
     bool          TieredCompilation_StartupTier_QuickJit() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_StartupTier_QuickJit; }
-    bool          TieredCompilation_CallCounting()  const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation_CallCounting; }
-    bool          TieredCompilation_OptimizeTier0() const {LIMITED_METHOD_CONTRACT; return fTieredCompilation_OptimizeTier0; }
-    DWORD         TieredCompilation_Tier1CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountThreshold; }
-    DWORD         TieredCompilation_Tier1CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountingDelayMs; }
+    bool          TieredCompilation_StartupTier_CallCounting()  const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_StartupTier_CallCounting; }
+    bool          TieredCompilation_StartupTier_OptimizeCode() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_StartupTier_OptimizeCode; }
+    DWORD         TieredCompilation_StartupTier_CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_StartupTier_CallCountThreshold; }
+    DWORD         TieredCompilation_StartupTier_CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_StartupTier_CallCountingDelayMs; }
 #endif
 
     bool          ForceQuickJit() const { LIMITED_METHOD_CONTRACT; return forceQuickJit; }
@@ -1016,10 +1016,10 @@ private: //----------------------------------------------------------------
 #if defined(FEATURE_TIERED_COMPILATION)
     bool fTieredCompilation;
     bool fTieredCompilation_StartupTier_QuickJit;
-    bool fTieredCompilation_CallCounting;
-    bool fTieredCompilation_OptimizeTier0;
-    DWORD tieredCompilation_tier1CallCountThreshold;
-    DWORD tieredCompilation_tier1CallCountingDelayMs;
+    bool fTieredCompilation_StartupTier_CallCounting;
+    bool fTieredCompilation_StartupTier_OptimizeCode;
+    DWORD tieredCompilation_StartupTier_CallCountThreshold;
+    DWORD tieredCompilation_StartupTier_CallCountingDelayMs;
 #endif
 
     bool forceQuickJit;
