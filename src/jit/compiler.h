@@ -313,6 +313,7 @@ public:
         this->endEmitLocation   = endEmitLocation;
     }
 
+#if DEBUG
     // Dump just the emitLocation as they are, we dont have generated the whole method yet
     void dump(const CodeGenInterface* codeGen) const
     {
@@ -341,6 +342,7 @@ public:
 
         printf(" [%X , %X )", startEmitLocation.CodeOffset(_emitter), endEmitLocation.CodeOffset(_emitter));
     }
+#endif
 };
 
 typedef jitstd::list<VariableLiveRange> LiveRangeList;
