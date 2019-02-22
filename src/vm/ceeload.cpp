@@ -6521,15 +6521,11 @@ HMODULE GetIJWHostForModule(Module* module)
             }
         }
     }
-    
+
     return nullptr;
 #else
     return nullptr;
 #endif
-}
-HMODULE GetIJWHostForModule(Module* module)
-{
-    return nullptr;
 }
 
 GetTokenForVTableEntry_t GetTokenGetterFromHostModule(HMODULE ijwHost)
