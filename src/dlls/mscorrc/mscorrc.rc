@@ -612,6 +612,7 @@ BEGIN
     IDS_EE_BADMARSHAL_ASANYRESTRICTION      "AsAny cannot be used on return types, ByRef parameters, ArrayWithOffset, or parameters passed from unmanaged to managed."
     IDS_EE_BADMARSHAL_VBBYVALSTRRESTRICTION "VBByRefStr can only be used in combination with in/out, ByRef managed-to-unmanaged strings."
     IDS_EE_BADMARSHAL_AWORESTRICTION        "ArrayWithOffsets can only be marshaled as inout, non-ByRef, managed-to-unmanaged parameters."
+    IDS_EE_BADMARSHAL_COPYCTORRESTRICTION   "Classes with copy-ctors can only be marshaled by value."
     IDS_EE_BADMARSHAL_ARGITERATORRESTRICTION "ArgIterators cannot be marshaled ByRef."
     IDS_EE_BADMARSHAL_HANDLEREFRESTRICTION  "HandleRefs cannot be marshaled ByRef or from unmanaged to managed."
     IDS_EE_BADMARSHAL_SAFEHANDLENATIVETOCOM "SafeHandles cannot be marshaled from unmanaged to managed."
