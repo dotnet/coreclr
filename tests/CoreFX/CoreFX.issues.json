@@ -1502,7 +1502,7 @@
         }
     },
     {
-        "name": "System.CodeDom.Compiler.Tests",
+        "name": "System.CodeDom.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
