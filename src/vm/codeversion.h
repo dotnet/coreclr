@@ -66,8 +66,8 @@ public:
 #endif
     enum OptimizationTier
     {
-        OptimizationTier0,
-        OptimizationTier1
+        OptimizationTierStartup,
+        OptimizationTierOptimized
     };
 #ifdef FEATURE_TIERED_COMPILATION
     OptimizationTier GetOptimizationTier() const;

@@ -650,7 +650,7 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_HillClimbing_GainExponent,                    
 ///
 #ifdef FEATURE_TIERED_COMPILATION
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TieredCompilation, W("TieredCompilation"), 1, "Enables tiered compilation")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_QuickJit, W("TC_QuickJit"), 0, "For methods that would be jitted, enable using quick JIT when appropriate.")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_QuickJit, W("TC_QuickJit"), 0, "For methods that would be jitted, enable using quick JIT when appropriate. Whether quick JIT would be used for methods that contain loops is determined by QuickJitForLoops.")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_StartupTier_CallCountThreshold, W("TC_StartupTier_CallCountThreshold"), 30, "Number of times a method must be called in the startup tier after which it is promoted to the next tier.")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_StartupTier_CallCountingDelayMs, W("TC_StartupTier_CallCountingDelayMs"), 100, "A perpetual delay in milliseconds that is applied call counting in the startup tier and jitting at higher tiers, while there is startup-like activity.")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_StartupTier_DelaySingleProcMultiplier, W("TC_StartupTier_DelaySingleProcMultiplier"), 10, "Multiplier for TC_StartupTier_CallCountingDelayMs that is applied on a single-processor machine or when the process is affinitized to a single processor.")

@@ -1146,10 +1146,10 @@ HRESULT ClrDataAccess::GetTieredVersions(
                         default:
                             nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_UNKNOWN;
                             break;
-                        case NativeCodeVersion::OptimizationTier0:
+                        case NativeCodeVersion::OptimizationTierStartup:
                             nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_0;
                             break;
-                        case NativeCodeVersion::OptimizationTier1:
+                        case NativeCodeVersion::OptimizationTierOptimized:
                             nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_1;
                             break;
                         }

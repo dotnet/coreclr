@@ -375,11 +375,11 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
 #ifdef FEATURE_TIERED_COMPILATION
         if (!g_pConfig->TieredCompilation_QuickJit() &&
             IsEligibleForTieredCompilation() &&
-            pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTier0 &&
-            CallCounter::IsEligibleForTier0CallCounting(this))
+            pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTierStartup &&
+            CallCounter::IsEligibleForStartupTierCallCounting(this))
         {
-            GetCallCounter()->DisableTier0CallCounting(this);
-            pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTier1);
+            GetCallCounter()->DisableStartupTierCallCounting(this);
+            pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTierOptimized);
         }
 #endif
 

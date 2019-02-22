@@ -34,9 +34,9 @@ public:
 #ifdef FEATURE_TIERED_COMPILATION
 
 public:
-    void OnTier0MethodCalled(MethodDesc* pMethodDesc, bool isFirstCall, int currentCallCountLimit, BOOL* shouldStopCountingCallsRef, BOOL* wasPromotedToNextTierRef);
+    void OnStartupTierMethodCalled(MethodDesc* pMethodDesc, bool isFirstCall, int currentCallCountLimit, BOOL* shouldStopCountingCallsRef, BOOL* wasPromotedToNextTierRef);
     void OnMethodCallCountingStoppedWithoutTierPromotion(MethodDesc* pMethodDesc);
-    void AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc);
+    void AsyncPromoteMethodToOptimizedTier(MethodDesc* pMethodDesc);
     void Shutdown();
     static CORJIT_FLAGS GetJitFlags(NativeCodeVersion nativeCodeVersion);
 
@@ -69,9 +69,9 @@ private:
     BOOL m_isAppDomainShuttingDown;
     DWORD m_countOptimizationThreadsRunning;
     DWORD m_optimizationQuantumMs;
-    SArray<MethodDesc*>* m_methodsPendingCountingForTier1;
+    SArray<MethodDesc*>* m_methodsPendingCountingInStartupTier;
     HANDLE m_tieringDelayTimerHandle;
-    bool m_tier1CallCountingCandidateMethodRecentlyRecorded;
+    bool m_startupTierCallCountingCandidateMethodRecentlyRecorded;
 
     CLREvent m_asyncWorkDoneEvent;
 
