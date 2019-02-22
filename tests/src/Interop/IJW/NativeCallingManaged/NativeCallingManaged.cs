@@ -14,6 +14,12 @@ namespace NativeCallingManaged
     {
         static int Main(string[] args)
         {
+            // Disable running on Windows 7 until IJW activation work is complete. See dotnet/coreclr#21796
+            if(Environment.OSVersion.Platform != PlatformID.Win32NT || TestLibrary.Utilities.IsWindows7)
+            {
+                return 100;
+            }
+
             bool success = true;
             // Load a fake mscoree.dll to avoid starting desktop
             LoadLibraryEx(Path.Combine(Environment.CurrentDirectory, "mscoree.dll"), IntPtr.Zero, 0);
