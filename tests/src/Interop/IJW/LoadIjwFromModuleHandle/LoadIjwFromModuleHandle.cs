@@ -17,6 +17,12 @@ namespace NativeCallingManaged
     {
         unsafe static int Main(string[] args)
         {
+            // Disable running on Windows 7 until IJW activation work is complete.
+            if(Environment.OSVersion.Platform != PlatformID.Win32NT || TestLibrary.Utilities.IsWindows7)
+            {
+                return 100;
+            }
+
             try
             {
                 HostPolicyMock.Initialize(Environment.CurrentDirectory, null);
