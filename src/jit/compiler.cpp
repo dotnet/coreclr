@@ -11102,7 +11102,7 @@ unsigned int Compiler::getAmountLiveRangesReported()
 {
 
     unsigned int varNum, amountOfLiveRanges = 0;
-    LclVarDsc* varDsc = lvaTable;
+    LclVarDsc*   varDsc = lvaTable;
 
     for (varNum = 0, varDsc = lvaTable; varNum < lvaCount; varNum++, varDsc++)
     {
@@ -11116,15 +11116,15 @@ unsigned int Compiler::getAmountLiveRangesReported()
 }
 
 //------------------------------------------------------------------------
-// startOrCloseVariableLiveRange: Starts or ends a "VariableLiveRange" for "varDsc" if it is 
-// borning or dying respectively. Ranges are close-open "[)" so nothing is done in case 
+// startOrCloseVariableLiveRange: Starts or ends a "VariableLiveRange" for "varDsc" if it is
+// borning or dying respectively. Ranges are close-open "[)" so nothing is done in case
 // of being borning and dying at the same line due to be an empty range.
 //
 // Arguments:
 //    varDsc    - the LclVarDsc of the variable for which a location changed will be reported
-//    isBorning - a boolean indicating if the VariableLiveRange is starting from the emitter 
-//                position. 
-//    isDying   - a boolean indicating if the VariableLiveRange is no more valid from the emitter 
+//    isBorning - a boolean indicating if the VariableLiveRange is starting from the emitter
+//                position.
+//    isDying   - a boolean indicating if the VariableLiveRange is no more valid from the emitter
 //                position
 //
 // Assumptions:
@@ -11133,7 +11133,7 @@ unsigned int Compiler::getAmountLiveRangesReported()
 //    The given "varDsc" should have its VariableRangeLists initialized.
 //
 // Notes:
-//    This method is being called from treeLifeUpdater where the variable is becoming dead, live 
+//    This method is being called from treeLifeUpdater where the variable is becoming dead, live
 //    or both.
 void Compiler::startOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying)
 {

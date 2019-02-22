@@ -66,7 +66,7 @@ bool CodeGenInterface::siVarLoc::vlIsOnStack() const
         case CodeGenInterface::VLT_STK2:
         case CodeGenInterface::VLT_FPSTK:
             return true;
-        
+
         default:
             return false;
     }
@@ -148,75 +148,75 @@ void CodeGenInterface::dumpSiVarLoc(const siVarLoc* varLoc) const
 {
     switch (varLoc->vlType)
     {
-    case VLT_REG:
-    case CodeGenInterface::VLT_REG_BYREF:
-    case CodeGenInterface::VLT_REG_FP:
-        printf("%s", getRegName(varLoc->vlReg.vlrReg));
-        if (varLoc->vlType == (ICorDebugInfo::VarLocType)CodeGenInterface::VLT_REG_BYREF)
-        {
-            printf(" byref");
-        }
-        break;
+        case VLT_REG:
+        case CodeGenInterface::VLT_REG_BYREF:
+        case CodeGenInterface::VLT_REG_FP:
+            printf("%s", getRegName(varLoc->vlReg.vlrReg));
+            if (varLoc->vlType == (ICorDebugInfo::VarLocType)CodeGenInterface::VLT_REG_BYREF)
+            {
+                printf(" byref");
+            }
+            break;
 
-    case CodeGenInterface::VLT_STK:
-    case CodeGenInterface::VLT_STK_BYREF:
-        if ((int)varLoc->vlStk.vlsBaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
-        {
-            printf("%s[%d] (1 slot)", getRegName(varLoc->vlStk.vlsBaseReg), varLoc->vlStk.vlsOffset);
-        }
-        else
-        {
-            printf(STR_SPBASE "'[%d] (1 slot)", varLoc->vlStk.vlsOffset);
-        }
-        if (varLoc->vlType == (ICorDebugInfo::VarLocType)CodeGenInterface::VLT_REG_BYREF)
-        {
-            printf(" byref");
-        }
-        break;
+        case CodeGenInterface::VLT_STK:
+        case CodeGenInterface::VLT_STK_BYREF:
+            if ((int)varLoc->vlStk.vlsBaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
+            {
+                printf("%s[%d] (1 slot)", getRegName(varLoc->vlStk.vlsBaseReg), varLoc->vlStk.vlsOffset);
+            }
+            else
+            {
+                printf(STR_SPBASE "'[%d] (1 slot)", varLoc->vlStk.vlsOffset);
+            }
+            if (varLoc->vlType == (ICorDebugInfo::VarLocType)CodeGenInterface::VLT_REG_BYREF)
+            {
+                printf(" byref");
+            }
+            break;
 
 #ifndef _TARGET_AMD64_
-    case CodeGenInterface::VLT_REG_REG:
-        printf("%s-%s", getRegName(varLoc->vlRegReg.vlrrReg1), getRegName(varLoc->vlRegReg.vlrrReg2));
-        break;
+        case CodeGenInterface::VLT_REG_REG:
+            printf("%s-%s", getRegName(varLoc->vlRegReg.vlrrReg1), getRegName(varLoc->vlRegReg.vlrrReg2));
+            break;
 
-    case CodeGenInterface::VLT_REG_STK:
-        if ((int)varLoc->vlRegStk.vlrsStk.vlrssBaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
-        {
-            printf("%s-%s[%d]", getRegName(varLoc->vlRegStk.vlrsReg),
-                getRegName(varLoc->vlRegStk.vlrsStk.vlrssBaseReg), varLoc->vlRegStk.vlrsStk.vlrssOffset);
-        }
-        else
-        {
-            printf("%s-" STR_SPBASE "'[%d]", getRegName(varLoc->vlRegStk.vlrsReg),
-                varLoc->vlRegStk.vlrsStk.vlrssOffset);
-        }
-        break;
+        case CodeGenInterface::VLT_REG_STK:
+            if ((int)varLoc->vlRegStk.vlrsStk.vlrssBaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
+            {
+                printf("%s-%s[%d]", getRegName(varLoc->vlRegStk.vlrsReg),
+                       getRegName(varLoc->vlRegStk.vlrsStk.vlrssBaseReg), varLoc->vlRegStk.vlrsStk.vlrssOffset);
+            }
+            else
+            {
+                printf("%s-" STR_SPBASE "'[%d]", getRegName(varLoc->vlRegStk.vlrsReg),
+                       varLoc->vlRegStk.vlrsStk.vlrssOffset);
+            }
+            break;
 
-    case CodeGenInterface::VLT_STK_REG:
-        unreached(); // unexpected
+        case CodeGenInterface::VLT_STK_REG:
+            unreached(); // unexpected
 
-    case CodeGenInterface::VLT_STK2:
-        if ((int)varLoc->vlStk2.vls2BaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
-        {
-            printf("%s[%d] (2 slots)", getRegName(varLoc->vlStk2.vls2BaseReg), varLoc->vlStk2.vls2Offset);
-        }
-        else
-        {
-            printf(STR_SPBASE "'[%d] (2 slots)", varLoc->vlStk2.vls2Offset);
-        }
-        break;
+        case CodeGenInterface::VLT_STK2:
+            if ((int)varLoc->vlStk2.vls2BaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
+            {
+                printf("%s[%d] (2 slots)", getRegName(varLoc->vlStk2.vls2BaseReg), varLoc->vlStk2.vls2Offset);
+            }
+            else
+            {
+                printf(STR_SPBASE "'[%d] (2 slots)", varLoc->vlStk2.vls2Offset);
+            }
+            break;
 
-    case CodeGenInterface::VLT_FPSTK:
-        printf("ST(L-%d)", varLoc->vlFPstk.vlfReg);
-        break;
+        case CodeGenInterface::VLT_FPSTK:
+            printf("ST(L-%d)", varLoc->vlFPstk.vlfReg);
+            break;
 
-    case CodeGenInterface::VLT_FIXED_VA:
-        printf("fxd_va[%d]", varLoc->vlFixedVarArg.vlfvOffset);
-        break;
+        case CodeGenInterface::VLT_FIXED_VA:
+            printf("fxd_va[%d]", varLoc->vlFixedVarArg.vlfvOffset);
+            break;
 #endif // !_TARGET_AMD64_
 
-    default:
-        unreached(); // unexpected
+        default:
+            unreached(); // unexpected
     }
 }
 

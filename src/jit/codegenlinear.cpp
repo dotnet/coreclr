@@ -177,7 +177,7 @@ void CodeGen::genCodeForBBlist()
      */
 
     BasicBlock* block;
-    int blockNum;
+    int         blockNum;
     for (blockNum = 1, block = compiler->fgFirstBB; block != nullptr; block = block->bbNext, blockNum++)
     {
 
@@ -720,7 +720,6 @@ void CodeGen::genCodeForBBlist()
                 break;
         }
 
-
 #ifdef DEBUG
         compiler->dumpBlockVariableLiveRanges(block);
 
@@ -730,7 +729,6 @@ void CodeGen::genCodeForBBlist()
 
     // Nothing is live at this point and all blocks instructions has been emited
     genUpdateLife(VarSetOps::MakeEmpty(compiler));
-
 
     /* Finalize the spill  tracking logic */
 
@@ -822,10 +820,11 @@ void CodeGen::genSpillVar(GenTree* tree)
         varDsc->lvOtherReg = REG_STK;
     }
 
-    if (needsSpill) {
+    if (needsSpill)
+    {
         // We need this after "lvRegNum" has change because now we are sure that varDsc->lvIsInReg() is false.
         // "SiVarLoc" constructor uses the "LclVarDsc" of the variable.
-        
+
         // Report the home change for this variable
         compiler->updateVariableLiveRange(varDsc);
     }

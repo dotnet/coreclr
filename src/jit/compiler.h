@@ -300,19 +300,21 @@ enum RefCountState
 class VariableLiveRange
 {
 public:
-    emitLocation startEmitLocation;
-    emitLocation endEmitLocation;
+    emitLocation               startEmitLocation;
+    emitLocation               endEmitLocation;
     CodeGenInterface::siVarLoc varLocation;
 
-    VariableLiveRange(CodeGenInterface::siVarLoc varLocation, emitLocation startEmitLocation, emitLocation endEmitLocation)
+    VariableLiveRange(CodeGenInterface::siVarLoc varLocation,
+                      emitLocation               startEmitLocation,
+                      emitLocation               endEmitLocation)
     {
-        this->varLocation = varLocation;
+        this->varLocation       = varLocation;
         this->startEmitLocation = startEmitLocation;
-        this->endEmitLocation = endEmitLocation;
+        this->endEmitLocation   = endEmitLocation;
     }
 
     // Dump just the emitLocation as they are, we dont have generated the whole method yet
-    void dump(const CodeGenInterface *codeGen) const
+    void dump(const CodeGenInterface* codeGen) const
     {
         codeGen->dumpSiVarLoc(&varLocation);
         printf(" [ ");
@@ -329,37 +331,37 @@ public:
         printf(" ]; ");
     }
 
-    void dump(emitter *_emitter, const CodeGenInterface *codeGen) const
+    void dump(emitter* _emitter, const CodeGenInterface* codeGen) const
     {
         codeGen->dumpSiVarLoc(&varLocation);
-        
+
         // this could be a non closed range so endEmitLocation could be a non valid emit Location
         // live -1 in case of not being defined
         UNATIVE_OFFSET endAssemblyOffset = endEmitLocation.Valid() ? endEmitLocation.CodeOffset(_emitter) : -1;
-        
+
         printf(" [%X , %X )", startEmitLocation.CodeOffset(_emitter), endEmitLocation.CodeOffset(_emitter));
     }
 };
 
 typedef jitstd::list<VariableLiveRange> LiveRangeList;
-typedef LiveRangeList::iterator  LiveRangeListIterator;
+typedef LiveRangeList::iterator         LiveRangeListIterator;
 
 #if DEBUG
-struct LiveRangeBarrier 
+struct LiveRangeBarrier
 {
     LiveRangeListIterator beginLastBlock;
-    bool haveReadAtLeastOneOfBlock;
+    bool                  haveReadAtLeastOneOfBlock;
 
-    LiveRangeBarrier(LiveRangeList *list)
+    LiveRangeBarrier(LiveRangeList* list)
     {
         haveReadAtLeastOneOfBlock = false;
-        beginLastBlock = list->end();
-    }   
+        beginLastBlock            = list->end();
+    }
 
-    void reset(LiveRangeList *list)
+    void reset(LiveRangeList* list)
     {
         noway_assert(haveReadAtLeastOneOfBlock);
-        if (! list->back().endEmitLocation.Valid())
+        if (!list->back().endEmitLocation.Valid())
         {
             // This live range will remain open until next block.
             // If it is in "bbliveIn" in the next "BasicBlock", there is no problem.
@@ -393,8 +395,8 @@ public:
     {
     }
 
-    bool              hasReportVariableLiveRanges;
-    LiveRangeList*    variableLiveRanges;
+    bool           hasReportVariableLiveRanges;
+    LiveRangeList* variableLiveRanges;
 
 #if DEBUG
     LiveRangeBarrier* variableLifeBarrier;
@@ -404,16 +406,16 @@ public:
     void setBarrierAtLastPositionInRegisterHistory() const
     {
         variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
-        variableLifeBarrier->beginLastBlock = variableLiveRanges->backPosition();
+        variableLifeBarrier->beginLastBlock            = variableLiveRanges->backPosition();
     }
 
-    void dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface *codeGen) const
+    void dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const
     {
         if (hasBeenAlive())
         {
             printf("[");
             for (LiveRangeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end();
-                it++)
+                 it++)
             {
                 it->dump(codeGen);
             }
@@ -535,7 +537,7 @@ public:
         noway_assert(hasBeenAlive());
 
         // If we are reporting again the same home, that means we are doing something twice?
-        //noway_assert(variableLiveRanges->back().varLocation != varLocation);
+        // noway_assert(variableLiveRanges->back().varLocation != varLocation);
 
         // Close previous live range
         endLiveRangeAtEmitter(_emitter);
@@ -7326,7 +7328,7 @@ public:
     // Ranges are close-open [) so nothing is done in case of being borning and dying at the same line
     // due to be an empty range.
     void startOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying);
-    
+
     // Starts a "VariableLiveRange" for "varDsc"
     void startVariableLiveRange(const LclVarDsc* varDsc);
 

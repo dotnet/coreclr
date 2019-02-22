@@ -26,7 +26,7 @@ TreeLifeUpdater<ForCodeGen>::TreeLifeUpdater(Compiler* compiler)
 //    tree - the tree which affects liveness.
 //
 // Assumptions:
-//    The code corresponding to the given tree has been emitted, which means that if a variable has become live/dead 
+//    The code corresponding to the given tree has been emitted, which means that if a variable has become live/dead
 //    or been spilled then the emiter is positioned after that changed. This is used to ensure [) "VariableLiveRange"
 //    intervals when calling "startOrCloseVariableLiveRange".
 //
@@ -114,7 +114,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                     // Its putting in stackVarDeltaSet the variable no matter if its living or dying
                     VarSetOps::AddElemD(compiler, stackVarDeltaSet, varDsc->lvVarIndex);
                 }
-                
+
                 compiler->startOrCloseVariableLiveRange(varDsc, isBorn, isDying);
             }
         }
@@ -122,7 +122,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
         {
             // If hasDeadTrackedFieldVars is true, then, for a LDOBJ(ADDR(<promoted struct local>)),
             // *deadTrackedFieldVars indicates which tracked field vars are dying.
-            // UPDATE: If hasDeadTrackedFieldVars is true, some fields are dying, 
+            // UPDATE: If hasDeadTrackedFieldVars is true, some fields are dying,
             // while other fields remain (or become) live.
             bool hasDeadTrackedFieldVars = false;
 
@@ -171,7 +171,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                     {
                         if (compiler->lvaTable[i].lvIsInReg())
                         {
-                            if (isBorn) 
+                            if (isBorn)
                             {
                                 // should we include this var in newLife ?
                                 compiler->codeGen->genUpdateVarReg(fldVarDsc, tree);
@@ -186,7 +186,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
 
                     if (ForCodeGen)
                     {
-                        // BRIAN:: see how scopes are reported for promoted structs. Are they considered in the 
+                        // BRIAN:: see how scopes are reported for promoted structs. Are they considered in the
                         // amount of local variables to report?
                         compiler->startOrCloseVariableLiveRange(fldVarDsc, isBorn, isDying);
                     }
@@ -299,7 +299,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
 //    tree - the tree which effect on liveness is processed.
 //
 // Assumptions:
-//    The code corresponding to the given tree has been emitted, which means that if a variable has become live/dead 
+//    The code corresponding to the given tree has been emitted, which means that if a variable has become live/dead
 //    or been spilled then the emiter is positioned after that changed. This is required in UpdateLifeVar.
 template <bool ForCodeGen>
 void TreeLifeUpdater<ForCodeGen>::UpdateLife(GenTree* tree)
