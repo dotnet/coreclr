@@ -12654,6 +12654,13 @@ CORJIT_FLAGS GetCompileFlags(MethodDesc * ftn, CORJIT_FLAGS flags, CORINFO_METHO
         flags.Clear(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO);
     }
 
+#ifndef CROSSGEN_COMPILE
+    if (g_pConfig->ForceQuickJit())
+    {
+        flags.Add(CORJIT_FLAGS::CORJIT_FLAG_TIER0);
+    }
+#endif
+
     return flags;
 }
 

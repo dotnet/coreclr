@@ -348,12 +348,14 @@ HRESULT EEConfig::Init()
 
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = false;
-    fTieredCompilation_DisableTier0Jit = false;
+    fTieredCompilation_StartupTier_QuickJit = false;
     fTieredCompilation_CallCounting = false;
     fTieredCompilation_OptimizeTier0 = false;
     tieredCompilation_tier1CallCountThreshold = 1;
     tieredCompilation_tier1CallCountingDelayMs = 0;
 #endif
+
+    forceQuickJit = false;
 
 #ifndef CROSSGEN_COMPILE
     backpatchEntryPointSlots = false;
@@ -1204,10 +1206,11 @@ HRESULT EEConfig::sync()
 
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation) != 0;
-    fTieredCompilation_DisableTier0Jit =
+
+    fTieredCompilation_StartupTier_QuickJit =
         Configuration::GetKnobBooleanValue(
-            W("System.Runtime.TieredCompilation.DisableTier0Jit"),
-            CLRConfig::UNSUPPORTED_TieredCompilation_DisableTier0Jit) != 0;
+            W("System.Runtime.TieredCompilation.StartupTierQuickJit"),
+            CLRConfig::UNSUPPORTED_TC_StartupTier_QuickJit) != 0;
 
     fTieredCompilation_CallCounting = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_CallCounting) != 0;
     fTieredCompilation_OptimizeTier0 = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_OptimizeTier0) != 0;
@@ -1237,6 +1240,14 @@ HRESULT EEConfig::sync()
                 tieredCompilation_tier1CallCountingDelayMs = newDelay;
             }
         }
+    }
+#endif
+
+    forceQuickJit = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_ForceQuickJit) != 0;
+#ifdef FEATURE_TIERED_COMPILATION
+    if (forceQuickJit)
+    {
+        fTieredCompilation = false;
     }
 #endif
 

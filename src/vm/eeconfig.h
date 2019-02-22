@@ -281,13 +281,15 @@ public:
     
     // Tiered Compilation config
 #if defined(FEATURE_TIERED_COMPILATION)
-    bool          TieredCompilation(void)           const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
-    bool          TieredCompilation_DisableTier0Jit() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_DisableTier0Jit; }
+    bool          TieredCompilation(void)           const { LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
+    bool          TieredCompilation_StartupTier_QuickJit() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_StartupTier_QuickJit; }
     bool          TieredCompilation_CallCounting()  const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation_CallCounting; }
     bool          TieredCompilation_OptimizeTier0() const {LIMITED_METHOD_CONTRACT; return fTieredCompilation_OptimizeTier0; }
     DWORD         TieredCompilation_Tier1CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountThreshold; }
     DWORD         TieredCompilation_Tier1CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountingDelayMs; }
 #endif
+
+    bool          ForceQuickJit() const { LIMITED_METHOD_CONTRACT; return forceQuickJit; }
 
 #ifndef CROSSGEN_COMPILE
     bool          BackpatchEntryPointSlots() const { LIMITED_METHOD_CONTRACT; return backpatchEntryPointSlots; }
@@ -1013,12 +1015,14 @@ private: //----------------------------------------------------------------
 
 #if defined(FEATURE_TIERED_COMPILATION)
     bool fTieredCompilation;
-    bool fTieredCompilation_DisableTier0Jit;
+    bool fTieredCompilation_StartupTier_QuickJit;
     bool fTieredCompilation_CallCounting;
     bool fTieredCompilation_OptimizeTier0;
     DWORD tieredCompilation_tier1CallCountThreshold;
     DWORD tieredCompilation_tier1CallCountingDelayMs;
 #endif
+
+    bool forceQuickJit;
 
 #ifndef CROSSGEN_COMPILE
     bool backpatchEntryPointSlots;
