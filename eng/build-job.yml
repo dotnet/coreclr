@@ -150,6 +150,7 @@ jobs:
 
     # Publish official build
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
         - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore --projects $(Build.SourcesDirectory)/eng/empty.proj
           displayName: Restore blob feed tasks
           ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
