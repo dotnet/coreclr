@@ -207,6 +207,22 @@ namespace System
         }
 
         /// <summary>
+        /// Removes all leading occurrences of a specified byte.
+        /// </summary>
+        /// <param name="span">The source span from which the byte is removed.</param>
+        /// <param name="trimValue">The specified byte to look for and remove.</param>
+        public static ReadOnlySpan<byte> TrimStart(this ReadOnlySpan<byte> span, byte trimValue)
+        {
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (span[start] != trimValue)
+                    break;
+            }
+            return span.Slice(start);
+        }
+
+        /// <summary>
         /// Removes all leading and trailing white-space characters from the span.
         /// </summary>
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span)
