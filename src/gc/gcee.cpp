@@ -12,8 +12,10 @@
 
 #ifndef DACCESS_COMPILE
 
-COUNTER_ONLY(PERF_COUNTER_TIMER_PRECISION g_TotalTimeInGC = 0);
-COUNTER_ONLY(PERF_COUNTER_TIMER_PRECISION g_TotalTimeSinceLastGCEnd = 0);
+#ifdef ENABLE_PERF_COUNTERS
+PERF_COUNTER_TIMER_PRECISION g_TotalTimeInGC = 0;
+PERF_COUNTER_TIMER_PRECISION g_TotalTimeSinceLastGCEnd = 0;
+#endif
 
 #if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
 size_t g_GenerationSizes[NUMBERGENERATIONS];
@@ -69,7 +71,7 @@ void GCHeap::UpdatePreGCCounters()
 #endif //_PREFAST_
     if (hp->settings.reason == reason_induced IN_STRESS_HEAP( && !hp->settings.stress_induced))
     {
-        COUNTER_ONLY(GetPerfCounters().m_GC.cInducedGCs++);
+        GetPerfCounters().m_GC.cInducedGCs++;
     }
 
     GetPerfCounters().m_Security.timeRTchecks = 0;
