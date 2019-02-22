@@ -93,8 +93,8 @@
     </ItemGroup>
 
     <PropertyGroup>
-      <_GroupStartsWith>@(_GroupStartsWith->WithMetadataValue("GroupNumber", $(TestBuildSlice)))</_GroupStartsWith>
-      <_GroupEndsWithExcl>@(_GroupStartsWith->WithMetadataValue("GroupNumber", $([MSBuild]::Add($(TestBuildSlice), 1))))</_GroupEndsWithExcl>
+      <_GroupStartsWith>@(_GroupStartsWith->WithMetadataValue("GroupNumber", $(__TestGroupToBuild)))</_GroupStartsWith>
+      <_GroupEndsWithExcl>@(_GroupStartsWith->WithMetadataValue("GroupNumber", $([MSBuild]::Add($(__TestGroupToBuild), 1))))</_GroupEndsWithExcl>
     </PropertyGroup>
 
     <ItemGroup>
