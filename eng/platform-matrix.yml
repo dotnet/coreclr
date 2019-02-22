@@ -279,24 +279,25 @@ jobs:
             - Windows.81.Amd64
         ${{ insert }}: ${{ parameters.jobParameters }}
 
-# Windows arm/arm64
+  # Windows arm
 
-- template: ${{ parameters.jobTemplate }}
-  parameters:
-    buildConfig: ${{ parameters.buildConfig }}
-    archType: arm
-    osGroup: Windows_NT
-    osIdentifier: Windows_NT
-    helixQueues:
-      ${{ if eq(variables['System.TeamProject'], 'public') }}:
-        # TODO: add Windows.10.Arm64.Open once Jenkins has been shutdown
-        asString: ''
-        asArray: []
-      ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-        asString: 'Windows.10.Arm64'
-        asArray:
-        - Windows.10.Arm64
-    ${{ insert }}: ${{ parameters.jobParameters }}
+  - ${{ if eq(platform, 'Windows_NT_arm') }}:
+    - template: ${{ parameters.jobTemplate }}
+      parameters:
+        buildConfig: ${{ parameters.buildConfig }}
+        archType: arm
+        osGroup: Windows_NT
+        osIdentifier: Windows_NT
+        helixQueues:
+          ${{ if eq(variables['System.TeamProject'], 'public') }}:
+            # TODO: add Windows.10.Arm64.Open once Jenkins has been shutdown
+            asString: ''
+            asArray: []
+          ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+            asString: 'Windows.10.Arm64'
+            asArray:
+            - Windows.10.Arm64
+        ${{ insert }}: ${{ parameters.jobParameters }}
 
 - template: ${{ parameters.jobTemplate }}
   parameters:
