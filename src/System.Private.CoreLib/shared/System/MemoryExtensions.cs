@@ -23,6 +23,181 @@ namespace System
     public static partial class MemoryExtensions
     {
         /// <summary>
+        /// Removes all leading and trailing occurrences of a specified element.
+        /// </summary>
+        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, T trimElement)
+            where T : IEquatable<T>
+            => TrimImpl(ref span, trimElement, true, true);
+
+        /// <summary>
+        /// Removes all leading occurrences of a specified element.
+        /// </summary>
+        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, T trimElement)
+            where T : IEquatable<T>
+            => TrimImpl(ref span, trimElement, true, false);
+
+        /// <summary>
+        /// Removes all trailing occurrences of a specified element.
+        /// </summary>
+        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, T trimElement)
+            where T : IEquatable<T>
+            => TrimImpl(ref span, trimElement, false, true);
+
+        /// <summary>
+        /// Conditionally removes all leading and trailing occurrences of a specified element.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        /// <param name="trimStart">If set to True, trims the start.</param>
+        /// <param name="trimEnd">If set to True, trims the end.</param>
+        private static ReadOnlySpan<T> TrimImpl<T>(ref ReadOnlySpan<T> span, T trimElement, bool trimStart, bool trimEnd)
+            where T : IEquatable<T>
+        {
+            if (span.IsEmpty)
+                return span;
+
+            int start = 0;
+            int end = span.Length - 1;
+
+            if (trimElement == null)
+            {
+                if (trimStart)
+                {
+                    for (; start < span.Length; start++)
+                    {
+                        if (span[start] != null)
+                            break;
+                    }
+                }
+
+                if (trimEnd)
+                {
+                    for (; end >= start; end--)
+                    {
+                        if (span[end] != null)
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                if (trimStart)
+                {
+                    for (; start < span.Length; start++)
+                    {
+                        if (span[start] != null && !span[start].Equals(trimElement))
+                            break;
+                    }
+                }
+
+                if (trimEnd)
+                {
+                    for (; end >= start; end--)
+                    {
+                        if (span[end] != null && !span[end].Equals(trimElement))
+                            break;
+                    }
+                }
+            }
+
+            return span.Slice(start, end - start + 1);
+        }
+
+        /// <summary>
+        /// Removes all leading and trailing occurrences of a set of elements specified
+        /// in a readonly span from the span.
+        /// </summary>
+        /// <param name="span">The source span from which the elements are removed.</param>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
+        public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+            => span.TrimStart(trimElements).TrimEnd(trimElements);
+
+        /// <summary>
+        /// Removes all leading occurrences of a set of elements specified
+        /// in a readonly span from the span.
+        /// </summary>
+        /// <param name="span">The source span from which the elements are removed.</param>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
+        public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+        {
+            if (span.IsEmpty || trimElements.IsEmpty)
+                return span;
+
+            int start = 0;
+
+            for (; start < span.Length; start++)
+            {
+                for (int i = 0; i < trimElements.Length; i++)
+                {
+                    if (trimElements[i] == null)
+                    {
+                        if (span[start] != null)
+                            goto Next;
+                    }
+                    else
+                    {
+                        if (span[start] != null && !span[start].Equals(trimElements[i]))
+                            goto Next;
+                    }
+                }
+                break;
+            Next:
+                ;
+            }
+
+            return span.Slice(start);
+        }
+
+        /// <summary>
+        /// Removes all trailing occurrences of a set of elements specified
+        /// in a readonly span from the span.
+        /// </summary>
+        /// <param name="span">The source span from which the elements are removed.</param>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
+        public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+        {
+            if (span.IsEmpty || trimElements.IsEmpty)
+                return span;
+
+            int end = span.Length - 1;
+
+            for (; end >= 0; end--)
+            {
+                for (int i = 0; i < trimElements.Length; i++)
+                {
+                    if (trimElements[i] == null)
+                    {
+                        if (span[end] != null)
+                            goto Next;
+                    }
+                    else
+                    {
+                        if (span[end] != null && !span[end].Equals(trimElements[i]))
+                            goto Next;
+                    }
+                }
+                break;
+            Next:
+                ;
+            }
+
+            return span.Slice(0, end + 1);
+        }
+
+        /// <summary>
         /// Removes all leading and trailing white-space characters from the span.
         /// </summary>
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span)
