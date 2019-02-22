@@ -15400,24 +15400,6 @@ bool GenTree::IsPartialLclFld(Compiler* comp)
             (comp->lvaTable[this->gtLclVarCommon.gtLclNum].lvExactSize != genTypeSize(gtType)));
 }
 
-//------------------------------------------------------------------------
-// DefinesLocal: Determine if this tree defines a local, and if so,
-//    provide additional info about the definition in the two out parameters.
-//
-// Arguments:
-//    comp        - The Compiler instance
-//    pLclVarTree - A required "out" argument that is set to the LclVarCommon
-//                  subtree, if this tree is indeed a local definition
-//    pIsEntire   - An optional "out" argument that is set to true if the
-//                  tree defines the entire local.
-//
-// Return Value:
-//    Returns true, and sets the out arguments accordingly, if this is
-//    the definition of a local.
-//
-// Notes:
-//    Will only return true for GT_ASG nodes.
-
 bool GenTree::DefinesLocal(Compiler* comp, GenTreeLclVarCommon** pLclVarTree, bool* pIsEntire)
 {
     GenTreeBlk* blkNode = nullptr;
@@ -15450,7 +15432,10 @@ bool GenTree::DefinesLocal(Compiler* comp, GenTreeLclVarCommon** pLclVarTree, bo
             blkNode = gtOp.gtOp1->AsBlk();
         }
     }
-
+    else if (OperIsBlk())
+    {
+        blkNode = this->AsBlk();
+    }
     if (blkNode != nullptr)
     {
         GenTree* destAddr = blkNode->Addr();

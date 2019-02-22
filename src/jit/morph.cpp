@@ -15184,7 +15184,7 @@ void Compiler::fgMorphTreeDone(GenTree* tree,
     {
         /* Is this an assignment to a local variable */
         GenTreeLclVarCommon* lclVarTree = nullptr;
-        if (tree->DefinesLocal(this, &lclVarTree))
+        if (tree->OperIs(GT_ASG) && tree->DefinesLocal(this, &lclVarTree))
         {
             unsigned lclNum = lclVarTree->gtLclNum;
             noway_assert(lclNum < lvaCount);
