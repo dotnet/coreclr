@@ -15,10 +15,6 @@ internal class pow1
         double x, y, z;
         bool pass = true;
 
-        //Check if the test is being executed on ARMARCH
-        bool isProcessorArmArch = RuntimeInformation.ProcessArchitecture == Architecture.Arm
-                                || RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
-
         x = 0;
         y = 0;
         z = Math.Pow(x, y);
@@ -37,21 +33,13 @@ internal class pow1
             pass = false;
         }
 
-        if (isProcessorArmArch)
+        x = Double.Epsilon;
+        y = 1.0;
+        z = Math.Pow(x, y);
+        if (z != Double.Epsilon)
         {
-            //Skip this Test due to the way how Double.Epsilon is defined on ARMARCH
-            Console.WriteLine("Skipping Pow(Double.Epsilon,1) test on ARMARCH");
-        }
-        else
-        {
-            x = Double.Epsilon;
-            y = 1.0;
-            z = Math.Pow(x, y);
-            if (z != Double.Epsilon)
-            {
-                Console.WriteLine("x: {0}, y: {1}, Pow(x,y): {2}", x, y, z);
-                pass = false;
-            }
+            Console.WriteLine("x: {0}, y: {1}, Pow(x,y): {2}", x, y, z);
+            pass = false;
         }
 
         x = Double.MaxValue;
