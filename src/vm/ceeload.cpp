@@ -6534,7 +6534,7 @@ HMODULE GetIJWHostForModule(Module* module)
 
 GetTokenForVTableEntry_t GetTokenGetterFromHostModule(HMODULE ijwHost)
 {
-    static GetTokenForVTableEntry_t getTokenForVTableEntryWithHost = nullptr;
+    GetTokenForVTableEntry_t getTokenForVTableEntryWithHost = nullptr;
     if (ijwHost != nullptr)
     {
         getTokenForVTableEntryWithHost = (GetTokenForVTableEntry_t)GetProcAddress(ijwHost, "GetTokenForVTableEntry");
