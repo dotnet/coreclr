@@ -14,7 +14,7 @@ namespace NativeCallingManaged
     {
         static int Main(string[] args)
         {
-            // Disable running on Windows 7 until IJW activation work is complete. See dotnet/coreclr#21796
+            // Disable running on Windows 7 until IJW activation work is complete.
             if(Environment.OSVersion.Platform != PlatformID.Win32NT || TestLibrary.Utilities.IsWindows7)
             {
                 return 100;
