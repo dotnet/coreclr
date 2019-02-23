@@ -11,14 +11,14 @@ using TestLibrary;
 
 using Console = Internal.Console;
 
-namespace NativeCallingManaged
+namespace LoadIjwFromModuleHandle
 {
-    class NativeCallingManaged
+    class LoadIjwFromModuleHandle
     {
         unsafe static int Main(string[] args)
         {
             // Disable running on Windows 7 until IJW activation work is complete.
-            if(Environment.OSVersion.Platform != PlatformID.Win32NT || TestLibrary.Utilities.IsWindows7)
+            if(Environment.OSVersion.Platform != PlatformID.Win32NT || (Environment.OSVersion.Version.Major == 6 && Environment.OSVersion.Version.Minor == 1))
             {
                 return 100;
             }
