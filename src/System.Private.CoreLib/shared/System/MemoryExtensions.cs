@@ -26,6 +26,72 @@ namespace System
         /// Removes all leading and trailing occurrences of a specified element.
         /// </summary>
         /// <param name="trimElement">The specified element to look for and remove.</param>
+        public static Memory<T> Trim<T>(this Memory<T> memory, T trimElement)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElement, true, true);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all leading occurrences of a specified element.
+        /// </summary>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        public static Memory<T> TrimStart<T>(this Memory<T> memory, T trimElement)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElement, true, false);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all trailing occurrences of a specified element.
+        /// </summary>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        public static Memory<T> TrimEnd<T>(this Memory<T> memory, T trimElement)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElement, false, true);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all leading and trailing occurrences of a specified element.
+        /// </summary>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        public static ReadOnlyMemory<T> Trim<T>(this ReadOnlyMemory<T> memory, T trimElement)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElement, true, true);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all leading occurrences of a specified element.
+        /// </summary>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, T trimElement)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElement, true, false);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all trailing occurrences of a specified element.
+        /// </summary>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, T trimElement)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElement, false, true);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all leading and trailing occurrences of a specified element.
+        /// </summary>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
         public static Span<T> Trim<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
         {
@@ -149,6 +215,84 @@ namespace System
             }
 
             return (start, end - start + 1);
+        }
+
+        /// <summary>
+        /// Removes all leading and trailing occurrences of a set of elements specified
+        /// in a readonly span from the memory.
+        /// </summary>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
+        public static Memory<T> Trim<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElements, true, true);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all leading occurrences of a set of elements specified
+        /// in a readonly span from the memory.
+        /// </summary>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
+        public static Memory<T> TrimStart<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElements, true, false);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all trailing occurrences of a set of elements specified
+        /// in a readonly span from the memory.
+        /// </summary>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
+        public static Memory<T> TrimEnd<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElements, false, true);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all leading and trailing occurrences of a set of elements specified
+        /// in a readonly span from the memory.
+        /// </summary>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
+        public static ReadOnlyMemory<T> Trim<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElements, true, true);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all leading occurrences of a set of elements specified
+        /// in a readonly span from the memory.
+        /// </summary>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
+        public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElements, true, false);
+            return memory.Slice(start, length);
+        }
+
+        /// <summary>
+        /// Removes all trailing occurrences of a set of elements specified
+        /// in a readonly span from the memory.
+        /// </summary>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
+        public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+        {
+            (int start, int length) = TrimHelper(memory.Span, trimElements, false, true);
+            return memory.Slice(start, length);
         }
 
         /// <summary>
