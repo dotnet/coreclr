@@ -382,8 +382,16 @@ namespace System
         private static (int start, int length) Clamp<T>(in ReadOnlySpan<T> span, in ReadOnlySpan<T> trimElements, bool trimStart, bool trimEnd)
             where T : IEquatable<T>
         {
-            if (span.IsEmpty || trimElements.IsEmpty)
+            if (span.IsEmpty)
                 return (0, 0);
+
+            switch (trimElements.Length)
+            {
+                case 0:
+                    return (0, 0);
+                case 1:
+                    return Clamp(span, trimElements[0], trimStart, trimEnd);
+            }
 
             int start = 0;
             int end = span.Length - 1;
