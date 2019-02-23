@@ -1551,3 +1551,28 @@ void GCToEEInterface::VerifySyncTableEntry()
     SyncBlockCache::GetSyncBlockCache()->VerifySyncTableEntry();
 #endif // VERIFY_HEAP
 }
+
+void GCToEEInterface::UpdateGCEventStatus()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    BOOL keyword_gc_verbose = EventXPlatEnabledGCJoin_V2();
+    BOOL keyword_gc_informational = EventXplatEnabledGCStart();
+
+    BOOL keyword_gc_heapsurvival_and_movement_informational = EventXplatEnabledGCGenerationRange();
+    BOOL keyword_gchandle_informational = EventXplatEnabledSetGCHandle();
+    BOOL keyword_gchandle_prv_informational = EventXplatEnabledPrvSetGCHandle();
+
+    BOOL prv_gcprv_informational = EventXplatEnabledBGCBegin();
+    BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime();
+
+    int publicProviderLevel = keyword_gc_verbose ? 5 : (keyword_gc_informational ? 4 : 0);
+    int publicProviderKeywords = (keyword_gc_informational ? 0x1 : 0 ) | (keyword_gc_heapsurvival_and_movement_informational ? 0x400000 : 0) | (keyword_gchandle_informational ? 0x2 : 0);
+
+    int privateProviderLevel = prv_gc_verbose ? 5 : (keyword_gc_informational ? 4 : 0);
+    int privateProviderKeywords = (prv_gcprv_informational ? 0x1 : 0 ) | (keyword_gchandle_prv_informational ? 0x2 : 0);
+
+    // First update public provider
+    GCHeapUtilities::RecordEventStateChange(true, publicProviderLevel, publicProviderKeywords);
+    GCHeapUtilities::RecordEventStateChange(false, privateProviderLevel, privateProviderKeywords);
+}

@@ -435,6 +435,9 @@ public:
 
     virtual 
     void VerifySyncTableEntry() = 0;
+
+    virtual
+    void UpdateGCEventStatus() = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

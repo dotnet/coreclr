@@ -9,6 +9,17 @@
 
 #ifdef FEATURE_STANDALONE_GC
 
+extern "C" BOOL EventXplatEnabledGCStart(); // GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC
+extern "C" BOOL EventXPlatEnabledGCJoin_V2(); //  GCEventProvider_Default, GCEventLevel_Verbose, GCEventKeyword_GC
+
+extern "C" BOOL EventXplatEnabledGCGenerationRange(); // GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GCHeapSurvivalAndMovement
+
+extern "C" BOOL EventXplatEnabledSetGCHandle(); // GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GCHandle
+extern "C" BOOL EventXplatEnabledPrvSetGCHandle();; // GCEventProvider_Private, GCEventLevel_Information, GCEventKeyword_GCHandlePrivate
+
+extern "C" BOOL EventXplatEnabledBGCBegin(); // GCEventProvider_Private, GCEventLevel_Information, GCEventKeyword_GCPrivate
+extern "C" BOOL EventXplatEnabledPinPlugAtGCTime(); // GCEventProvider_Private, GCEventLevel_Verbose, GCEventKeyword_GC
+
 namespace standalone
 {
 
@@ -74,6 +85,8 @@ public:
     void AnalyzeSurvivorsFinished(int condemnedGeneration);
 
     void VerifySyncTableEntry();
+
+    void UpdateGCEventStatus();
 };
 
 } // namespace standalone
