@@ -483,7 +483,7 @@ namespace System
         }
 
         /// <summary>
-        /// Delimits  all leading occurrences of a specified element.
+        /// Delimits all leading occurrences of a specified element.
         /// </summary>
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
@@ -494,7 +494,7 @@ namespace System
 
             for (; start < span.Length; start++)
             {
-                if (!ClampContains(trimElements, span[start]))
+                if (!SequentialContains(trimElements, span[start]))
                     break;
             }
 
@@ -502,7 +502,7 @@ namespace System
         }
 
         /// <summary>
-        /// Delimits  all trailing occurrences of a specified element.
+        /// Delimits all trailing occurrences of a specified element.
         /// </summary>
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="start">The start index from which to being searching.</param>
@@ -516,7 +516,7 @@ namespace System
 
             for (; end >= start; end--)
             {
-                if (!ClampContains(trimElements, span[start]))
+                if (!SequentialContains(trimElements, span[start]))
                     break;
             }
 
@@ -530,7 +530,7 @@ namespace System
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <param name="item">The item to try find.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool ClampContains<T>(in ReadOnlySpan<T> trimElements, in T item)
+        private static bool SequentialContains<T>(in ReadOnlySpan<T> trimElements, in T item)
             where T : IEquatable<T>
         {
             // Non-vectorized scan is optimized for a small number of elements
