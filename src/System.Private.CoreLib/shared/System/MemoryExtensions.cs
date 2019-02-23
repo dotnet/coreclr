@@ -30,7 +30,8 @@ namespace System
         public static Memory<T> Trim<T>(this Memory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(memory.Span, trimElement, true, true);
+            int start = ClampStart(memory.Span, trimElement);
+            int length = ClampEnd(memory.Span, start, trimElement);
             return memory.Slice(start, length);
         }
 
@@ -41,7 +42,7 @@ namespace System
         public static Memory<T> TrimStart<T>(this Memory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, _) = Clamp(memory.Span, trimElement, true, false);
+            int start = ClampStart(memory.Span, trimElement);
             return memory.Slice(start);
         }
 
@@ -52,7 +53,7 @@ namespace System
         public static Memory<T> TrimEnd<T>(this Memory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (_, int length) = Clamp(memory.Span, trimElement, false, true);
+            int length = ClampEnd(memory.Span, 0, trimElement);
             return memory.Slice(0, length);
         }
 
@@ -63,7 +64,8 @@ namespace System
         public static ReadOnlyMemory<T> Trim<T>(this ReadOnlyMemory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(memory.Span, trimElement, true, true);
+            int start = ClampStart(memory.Span, trimElement);
+            int length = ClampEnd(memory.Span, start, trimElement);
             return memory.Slice(start, length);
         }
 
@@ -74,7 +76,7 @@ namespace System
         public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, _) = Clamp(memory.Span, trimElement, true, false);
+            int start = ClampStart(memory.Span, trimElement);
             return memory.Slice(start);
         }
 
@@ -85,7 +87,7 @@ namespace System
         public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (_, int length) = Clamp(memory.Span, trimElement, false, true);
+            int length = ClampEnd(memory.Span, 0, trimElement);
             return memory.Slice(0, length);
         }
 
@@ -96,7 +98,8 @@ namespace System
         public static Span<T> Trim<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(span, trimElement, true, true);
+            int start = ClampStart(span, trimElement);
+            int length = ClampEnd(span, start, trimElement);
             return span.Slice(start, length);
         }
 
@@ -107,7 +110,7 @@ namespace System
         public static Span<T> TrimStart<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, _) = Clamp(span, trimElement, true, false);
+            int start = ClampStart(span, trimElement);
             return span.Slice(start);
         }
 
@@ -118,7 +121,7 @@ namespace System
         public static Span<T> TrimEnd<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (_, int length) = Clamp(span, trimElement, false, true);
+            int length = ClampEnd(span, 0, trimElement);
             return span.Slice(0, length);
         }
 
@@ -129,7 +132,8 @@ namespace System
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(span, trimElement, true, true);
+            int start = ClampStart(span, trimElement);
+            int length = ClampEnd(span, start, trimElement);
             return span.Slice(start, length);
         }
 
@@ -140,7 +144,7 @@ namespace System
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, _) = Clamp(span, trimElement, true, false);
+            int start = ClampStart(span, trimElement);
             return span.Slice(start);
         }
 
@@ -151,7 +155,7 @@ namespace System
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (_, int length) = Clamp(span, trimElement, false, true);
+            int length = ClampEnd(span, 0, trimElement);
             return span.Slice(0, length);
         }
 
@@ -160,61 +164,67 @@ namespace System
         /// </summary>
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimElement">The specified element to look for and remove.</param>
-        /// <param name="trimStart">If set to True, trims the start.</param>
-        /// <param name="trimEnd">If set to True, trims the end.</param>
-        private static (int start, int length) Clamp<T>(in ReadOnlySpan<T> span, in T trimElement, bool trimStart, bool trimEnd)
+        private static int ClampStart<T>(in ReadOnlySpan<T> span, in T trimElement)
             where T : IEquatable<T>
         {
             if (span.IsEmpty)
-                return (0, 0);
+                return 0;
 
             int start = 0;
-            int end = span.Length - 1;
 
             if (trimElement == null)
             {
-                if (trimStart)
+                for (; start < span.Length; start++)
                 {
-                    for (; start < span.Length; start++)
-                    {
-                        if (span[start] != null)
-                            break;
-                    }
-                }
-
-                if (trimEnd)
-                {
-                    // Stop searching once we reach start
-                    for (; end >= start; end--)
-                    {
-                        if (span[end] != null)
-                            break;
-                    }
+                    if (span[start] != null)
+                        break;
                 }
             }
             else
             {
-                if (trimStart)
+                for (; start < span.Length; start++)
                 {
-                    for (; start < span.Length; start++)
-                    {
-                        if (span[start] != null && !span[start].Equals(trimElement))
-                            break;
-                    }
-                }
-
-                if (trimEnd)
-                {
-                    // Stop searching once we reach start
-                    for (; end >= start; end--)
-                    {
-                        if (span[end] != null && !span[end].Equals(trimElement))
-                            break;
-                    }
+                    if (span[start] != null && !span[start].Equals(trimElement))
+                        break;
                 }
             }
 
-            return (start, end - start + 1);
+            return start;
+        }
+
+        /// <summary>
+        /// Delimits all leading and trailing occurrences of a specified element.
+        /// </summary>
+        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        private static int ClampEnd<T>(in ReadOnlySpan<T> span, int start, in T trimElement)
+            where T : IEquatable<T>
+        {
+            Debug.Assert((uint)start < span.Length);
+
+            if (span.IsEmpty)
+                return 0;
+
+            int end = span.Length - 1;
+
+            if (trimElement == null)
+            {
+                for (; end >= start; end--)
+                {
+                    if (span[end] != null)
+                        break;
+                }
+            }
+            else
+            {
+                for (; end >= start; end--)
+                {
+                    if (span[end] != null && !span[end].Equals(trimElement))
+                        break;
+                }
+            }
+
+            return end - start + 1;
         }
 
         /// <summary>
@@ -393,8 +403,7 @@ namespace System
                 case 0:
                     return 0;
                 case 1:
-                    (int st, _) = Clamp(span, trimElements[0], true, false);
-                    return st;
+                    return ClampStart(span, trimElements[0]);
             }
 
             int start = 0;
@@ -439,8 +448,7 @@ namespace System
                 case 0:
                     return 0;
                 case 1:
-                    (_, int len) = Clamp(span, trimElements[0], false, true);
-                    return len;
+                    return ClampEnd(span, 0, trimElements[0]);
             }
 
             int end = span.Length - 1;
