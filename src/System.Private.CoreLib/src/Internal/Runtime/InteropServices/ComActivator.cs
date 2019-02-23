@@ -115,6 +115,12 @@ namespace Internal.Runtime.InteropServices
             }
 
             Type classType = FindClassType(cxt.ClassId, cxt.AssemblyPath, cxt.AssemblyName, cxt.TypeName);
+
+            if (LicenseInteropProxy.HasLicense(classType))
+            {
+                return new LicenseClassFactory(cxt.ClassId, classType);
+            }
+
             return new BasicClassFactory(cxt.ClassId, classType);
         }
 
@@ -250,7 +256,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         }
 
         [ComVisible(true)]
-        internal class BasicClassFactory : IClassFactory2
+        private class BasicClassFactory : IClassFactory
         {
             private readonly Guid classId;
             private readonly Type classType;
@@ -261,46 +267,67 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 this.classType = classType;
             }
 
+            public static void ValidateInterfaceRequest(Type classType, ref Guid riid, object outer)
+            {
+                Debug.Assert(classType != null);
+                if (riid == Marshal.IID_IUnknown)
+                {
+                    return;
+                }
+
+                // Aggregation can only be done when requesting IUnknown.
+                if (outer != null)
+                {
+                    const int CLASS_E_NOAGGREGATION = unchecked((int)0x80040110);
+                    throw new COMException(string.Empty, CLASS_E_NOAGGREGATION);
+                }
+
+                bool found = false;
+
+                // Verify the class implements the desired interface
+                foreach (Type i in classType.GetInterfaces())
+                {
+                    if (i.GUID == riid)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    // E_NOINTERFACE
+                    throw new InvalidCastException();
+                }
+            }
+
+            public static object CreateAggregatedObject(object pUnkOuter, object comObject)
+            {
+                Debug.Assert(pUnkOuter != null && comObject != null);
+                try
+                {
+                    IntPtr outerPtr = Marshal.GetIUnknownForObject(pUnkOuter);
+                    IntPtr innerPtr = Marshal.CreateAggregatedObject(outerPtr, comObject);
+                    return Marshal.GetObjectForIUnknown(innerPtr);
+                }
+                finally
+                {
+                    // Decrement the above 'Marshal.GetIUnknownForObject()'
+                    Marshal.ReleaseComObject(pUnkOuter);
+                }
+            }
+
             public void CreateInstance(
                 [MarshalAs(UnmanagedType.Interface)] object pUnkOuter,
                 ref Guid riid,
                 [MarshalAs(UnmanagedType.Interface)] out object ppvObject)
             {
-                if (riid != Marshal.IID_IUnknown)
-                {
-                    bool found = false;
-
-                    // Verify the class implements the desired interface
-                    foreach (Type i in this.classType.GetInterfaces())
-                    {
-                        if (i.GUID == riid)
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found)
-                    {
-                        // E_NOINTERFACE
-                        throw new InvalidCastException();
-                    }
-                }
+                BasicClassFactory.ValidateInterfaceRequest(this.classType, ref riid, pUnkOuter);
 
                 ppvObject = Activator.CreateInstance(this.classType);
                 if (pUnkOuter != null)
                 {
-                    try
-                    {
-                        IntPtr outerPtr = Marshal.GetIUnknownForObject(pUnkOuter);
-                        IntPtr innerPtr = Marshal.CreateAggregatedObject(outerPtr, ppvObject);
-                        ppvObject = Marshal.GetObjectForIUnknown(innerPtr);
-                    }
-                    finally
-                    {
-                        // Decrement the above 'Marshal.GetIUnknownForObject()'
-                        Marshal.ReleaseComObject(pUnkOuter);
-                    }
+                    ppvObject = BasicClassFactory.CreateAggregatedObject(pUnkOuter, ppvObject);
                 }
             }
 
@@ -308,15 +335,50 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             {
                 // nop
             }
+        }
 
-            public void GetLicInfo(ref LICINFO pLicInfo)
+        [ComVisible(true)]
+        private class LicenseClassFactory : IClassFactory2
+        {
+            private readonly LicenseInteropProxy licenseProxy = new LicenseInteropProxy();
+            private readonly Guid classId;
+            private readonly Type classType;
+
+            public LicenseClassFactory(Guid clsid, Type classType)
             {
-                throw new NotImplementedException();
+                this.classId = clsid;
+                this.classType = classType;
+            }
+
+            public void CreateInstance(
+                [MarshalAs(UnmanagedType.Interface)] object pUnkOuter,
+                ref Guid riid,
+                [MarshalAs(UnmanagedType.Interface)] out object ppvObject)
+            {
+                this.CreateInstanceInner(pUnkOuter, ref riid, key: null, isDesignTime: true, out ppvObject);
+            }
+
+            public void LockServer([MarshalAs(UnmanagedType.Bool)] bool fLock)
+            {
+                // nop
+            }
+
+            public void GetLicInfo(ref LICINFO licInfo)
+            {
+                bool runtimeKeyAvail;
+                bool licVerified;
+                this.licenseProxy.GetLicInfo(this.classType, out runtimeKeyAvail, out licVerified);
+
+                // The LICINFO is a struct with a DWORD size field and two BOOL fields. Each BOOL
+                // is typedef'd from a DWORD, therefore the size is manually computed as below.
+                licInfo.cbLicInfo = sizeof(int) + sizeof(int) + sizeof(int);
+                licInfo.fRuntimeKeyAvail = runtimeKeyAvail;
+                licInfo.fLicVerified = licVerified;
             }
 
             public void RequestLicKey(int dwReserved, [MarshalAs(UnmanagedType.BStr)] out string pBstrKey)
             {
-                throw new NotImplementedException();
+                pBstrKey = this.licenseProxy.RequestLicKey(this.classType);
             }
 
             public void CreateInstanceLic(
@@ -326,7 +388,76 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 [MarshalAs(UnmanagedType.BStr)] string bstrKey,
                 [MarshalAs(UnmanagedType.Interface)] out object ppvObject)
             {
-                throw new NotImplementedException();
+                Debug.Assert(pUnkReserved == null);
+                this.CreateInstanceInner(pUnkOuter, ref riid, bstrKey, isDesignTime: false, out ppvObject);
+            }
+
+            private void CreateInstanceInner(
+                object pUnkOuter,
+                ref Guid riid,
+                string key,
+                bool isDesignTime,
+                out object ppvObject)
+            {
+                BasicClassFactory.ValidateInterfaceRequest(this.classType, ref riid, pUnkOuter);
+
+                ppvObject = this.licenseProxy.AllocateAndValidateLicense(this.classType, key, isDesignTime);
+                if (pUnkOuter != null)
+                {
+                    ppvObject = BasicClassFactory.CreateAggregatedObject(pUnkOuter, ppvObject);
+                }
+            }
+        }
+
+        private class LicenseInteropProxy
+        {
+            private static readonly Type s_LicenseAttrType;
+            private readonly Type helperType;
+            private readonly MethodInfo getLicInfo;
+            private readonly MethodInfo requestLicKey;
+            private readonly MethodInfo allocateAndValidateLicense;
+            private readonly object instance;
+
+            static LicenseInteropProxy()
+            {
+                s_LicenseAttrType = Type.GetType("System.ComponentModel.LicenseProviderAttribute, System", throwOnError: true);
+            }
+
+            public LicenseInteropProxy()
+            {
+                Type licman = Type.GetType("System.ComponentModel.LicenseManager, System", throwOnError: true);
+                this.helperType = licman.GetNestedType("LicenseInteropHelper", BindingFlags.NonPublic);
+                this.getLicInfo = this.helperType.GetMethod("GetLicInfo2", BindingFlags.Instance | BindingFlags.NonPublic);
+                this.requestLicKey = this.helperType.GetMethod("RequestLicKey2", BindingFlags.Static | BindingFlags.NonPublic);
+                this.allocateAndValidateLicense = this.helperType.GetMethod("AllocateAndValidateLicense2", BindingFlags.Static | BindingFlags.NonPublic);
+
+                this.instance = Activator.CreateInstance(this.helperType);
+            }
+
+            public static bool HasLicense(Type type)
+            {
+                return type.IsDefined(s_LicenseAttrType, inherit: true);
+            }
+
+            public void GetLicInfo(Type type, out bool runtimeKeyAvail, out bool licVerified)
+            {
+                var parameters = new object[] { type, null, null };
+                this.getLicInfo.Invoke(this.instance, parameters);
+
+                runtimeKeyAvail = (bool)parameters[1];
+                licVerified = (bool)parameters[2];
+            }
+
+            public string RequestLicKey(Type type)
+            {
+                var parameters = new object[] { type };
+                return (string)this.requestLicKey.Invoke(null, parameters);
+            }
+
+            public object AllocateAndValidateLicense(Type type, string key, bool isDesignTime)
+            {
+                var parameters = new object[] { type, key, isDesignTime };
+                return this.allocateAndValidateLicense.Invoke(null, parameters);
             }
         }
     }
