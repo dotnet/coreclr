@@ -558,6 +558,7 @@ BEGIN
     IDS_EE_BADMARSHAL_DECIMALARRAY          "Invalid managed/unmanaged type combination (Decimal[] must be paired with an ArraySubType of Struct or Currency)."
     IDS_EE_BADMARSHAL_WINRT_MARSHAL_AS      "Invalid managed/unmanaged type combination (Windows Runtime parameters and fields must not have a MarshalAs attribute set)."
     IDS_EE_BADMARSHAL_WINRT_MISSING_GUID    "Invalid managed/unmanaged type combination (Windows Runtime interfaces, classes and delegates must have a Guid or a default interface)."
+    IDS_EE_BADMARSHAL_WINRT_COPYCTOR        "Windows Runtime marshaler does not support types with copy constructor."
     IDS_EE_BADMARSHAL_WINRT_DELEGATE        "Invalid managed/unmanaged type combination (Delegates must be Windows Runtime delegates)."
     IDS_EE_BADMARSHAL_DEFAULTIFACE_NOT_WINRT_IFACE "The default interface must refer to a Windows Runtime interface with a GUID."
     IDS_EE_BADMARSHAL_DEFAULTIFACE_NOT_SUBTYPE "The default interface must refer to an interface that is implemented by the type."
