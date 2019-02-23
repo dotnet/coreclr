@@ -6868,7 +6868,7 @@ ClrDataAccess::GetMDImport(const PEFile* peFile, const ReflectionModule* reflect
     PVOID       mdBaseHost = NULL;
     bool        isAlternate = false;
 
-    _ASSERTE(peFile == NULL && reflectionModule != NULL || peFile != NULL && reflectionModule == NULL);
+    _ASSERTE((peFile == NULL && reflectionModule != NULL) || (peFile != NULL && reflectionModule == NULL));
     TADDR       peFileAddr = (peFile != NULL) ? dac_cast<TADDR>(peFile) : dac_cast<TADDR>(reflectionModule);
 
     //
