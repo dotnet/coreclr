@@ -7,8 +7,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using TestLibrary;
 
-using Console = Internal.Console;
-
 enum TestResult {
     Success,
     ReturnFailure,
