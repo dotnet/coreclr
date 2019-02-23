@@ -40,8 +40,8 @@ namespace System
         public static Memory<T> TrimStart<T>(this Memory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(memory.Span, trimElement, true, false);
-            return memory.Slice(start, length);
+            (int start, _) = Clamp(memory.Span, trimElement, true, false);
+            return memory.Slice(start);
         }
 
         /// <summary>
@@ -51,8 +51,8 @@ namespace System
         public static Memory<T> TrimEnd<T>(this Memory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(memory.Span, trimElement, false, true);
-            return memory.Slice(start, length);
+            (_, int length) = Clamp(memory.Span, trimElement, false, true);
+            return memory.Slice(0, length);
         }
 
         /// <summary>
@@ -73,8 +73,8 @@ namespace System
         public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(memory.Span, trimElement, true, false);
-            return memory.Slice(start, length);
+            (int start, _) = Clamp(memory.Span, trimElement, true, false);
+            return memory.Slice(start);
         }
 
         /// <summary>
@@ -84,8 +84,8 @@ namespace System
         public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(memory.Span, trimElement, false, true);
-            return memory.Slice(start, length);
+            (_, int length) = Clamp(memory.Span, trimElement, false, true);
+            return memory.Slice(0, length);
         }
 
         /// <summary>
@@ -106,8 +106,8 @@ namespace System
         public static Span<T> TrimStart<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(span, trimElement, true, false);
-            return span.Slice(start, length);
+            (int start, _) = Clamp(span, trimElement, true, false);
+            return span.Slice(start);
         }
 
         /// <summary>
@@ -117,8 +117,8 @@ namespace System
         public static Span<T> TrimEnd<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(span, trimElement, false, true);
-            return span.Slice(start, length);
+            (_, int length) = Clamp(span, trimElement, false, true);
+            return span.Slice(0, length);
         }
 
         /// <summary>
@@ -128,7 +128,7 @@ namespace System
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(in span, trimElement, true, true);
+            (int start, int length) = Clamp(span, trimElement, true, true);
             return span.Slice(start, length);
         }
 
@@ -139,8 +139,8 @@ namespace System
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(in span, trimElement, true, false);
-            return span.Slice(start, length);
+            (int start, _) = Clamp(span, trimElement, true, false);
+            return span.Slice(start);
         }
 
         /// <summary>
@@ -150,8 +150,8 @@ namespace System
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(in span, trimElement, false, true);
-            return span.Slice(start, length);
+            (_, int length) = Clamp(span, trimElement, false, true);
+            return span.Slice(0, length);
         }
 
         /// <summary>
@@ -238,8 +238,8 @@ namespace System
         public static Memory<T> TrimStart<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(memory.Span, trimElements, true, false);
-            return memory.Slice(start, length);
+            (int start, _) = Clamp(memory.Span, trimElements, true, false);
+            return memory.Slice(start);
         }
 
         /// <summary>
@@ -251,8 +251,8 @@ namespace System
         public static Memory<T> TrimEnd<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(memory.Span, trimElements, false, true);
-            return memory.Slice(start, length);
+            (_, int length) = Clamp(memory.Span, trimElements, false, true);
+            return memory.Slice(0, length);
         }
 
         /// <summary>
@@ -277,8 +277,8 @@ namespace System
         public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(memory.Span, trimElements, true, false);
-            return memory.Slice(start, length);
+            (int start, _) = Clamp(memory.Span, trimElements, true, false);
+            return memory.Slice(start);
         }
 
         /// <summary>
@@ -290,8 +290,8 @@ namespace System
         public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(memory.Span, trimElements, false, true);
-            return memory.Slice(start, length);
+            (_, int length) = Clamp(memory.Span, trimElements, false, true);
+            return memory.Slice(0, length);
         }
 
         /// <summary>
@@ -316,8 +316,8 @@ namespace System
         public static Span<T> TrimStart<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(span, trimElements, true, false);
-            return span.Slice(start, length);
+            (int start, _) = Clamp(span, trimElements, true, false);
+            return span.Slice(start);
         }
 
         /// <summary>
@@ -329,8 +329,8 @@ namespace System
         public static Span<T> TrimEnd<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(span, trimElements, false, true);
-            return span.Slice(start, length);
+            (_, int length) = Clamp(span, trimElements, false, true);
+            return span.Slice(0, length);
         }
 
         /// <summary>
@@ -342,7 +342,7 @@ namespace System
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(in span, trimElements, true, true);
+            (int start, int length) = Clamp(span, trimElements, true, true);
             return span.Slice(start, length);
         }
 
@@ -355,8 +355,8 @@ namespace System
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(in span, trimElements, true, false);
-            return span.Slice(start, length);
+            (int start, _) = Clamp(span, trimElements, true, false);
+            return span.Slice(start);
         }
 
         /// <summary>
@@ -368,8 +368,8 @@ namespace System
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = Clamp(in span, trimElements, false, true);
-            return span.Slice(start, length);
+            (_, int length) = Clamp(span, trimElements, false, true);
+            return span.Slice(0, length);
         }
 
         /// <summary>
