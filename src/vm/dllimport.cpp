@@ -4139,10 +4139,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
                     COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_BADNATL_THISCALL);
             }
 
-            if (info.GetMarshalType() == MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR)
-            {
-                fHasCopyCtorArgs = true;
-            }
+            fHasCopyCtorArgs = info.GetMarshalType() == MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR;
 
             argidx++;
         }
