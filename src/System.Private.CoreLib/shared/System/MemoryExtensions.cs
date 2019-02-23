@@ -29,7 +29,7 @@ namespace System
         public static Memory<T> Trim<T>(this Memory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElement, true, true);
+            (int start, int length) = TrimClamper(memory.Span, trimElement, true, true);
             return memory.Slice(start, length);
         }
 
@@ -40,7 +40,7 @@ namespace System
         public static Memory<T> TrimStart<T>(this Memory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElement, true, false);
+            (int start, int length) = TrimClamper(memory.Span, trimElement, true, false);
             return memory.Slice(start, length);
         }
 
@@ -51,7 +51,7 @@ namespace System
         public static Memory<T> TrimEnd<T>(this Memory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElement, false, true);
+            (int start, int length) = TrimClamper(memory.Span, trimElement, false, true);
             return memory.Slice(start, length);
         }
 
@@ -62,7 +62,7 @@ namespace System
         public static ReadOnlyMemory<T> Trim<T>(this ReadOnlyMemory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElement, true, true);
+            (int start, int length) = TrimClamper(memory.Span, trimElement, true, true);
             return memory.Slice(start, length);
         }
 
@@ -73,7 +73,7 @@ namespace System
         public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElement, true, false);
+            (int start, int length) = TrimClamper(memory.Span, trimElement, true, false);
             return memory.Slice(start, length);
         }
 
@@ -84,7 +84,7 @@ namespace System
         public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElement, false, true);
+            (int start, int length) = TrimClamper(memory.Span, trimElement, false, true);
             return memory.Slice(start, length);
         }
 
@@ -95,7 +95,7 @@ namespace System
         public static Span<T> Trim<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(span, trimElement, true, true);
+            (int start, int length) = TrimClamper(span, trimElement, true, true);
             return span.Slice(start, length);
         }
 
@@ -106,7 +106,7 @@ namespace System
         public static Span<T> TrimStart<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(span, trimElement, true, false);
+            (int start, int length) = TrimClamper(span, trimElement, true, false);
             return span.Slice(start, length);
         }
 
@@ -117,7 +117,7 @@ namespace System
         public static Span<T> TrimEnd<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(span, trimElement, false, true);
+            (int start, int length) = TrimClamper(span, trimElement, false, true);
             return span.Slice(start, length);
         }
 
@@ -128,7 +128,7 @@ namespace System
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(in span, trimElement, true, true);
+            (int start, int length) = TrimClamper(in span, trimElement, true, true);
             return span.Slice(start, length);
         }
 
@@ -139,7 +139,7 @@ namespace System
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(in span, trimElement, true, false);
+            (int start, int length) = TrimClamper(in span, trimElement, true, false);
             return span.Slice(start, length);
         }
 
@@ -150,19 +150,18 @@ namespace System
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(in span, trimElement, false, true);
+            (int start, int length) = TrimClamper(in span, trimElement, false, true);
             return span.Slice(start, length);
         }
 
         /// <summary>
-        /// Conditionally removes all leading and trailing occurrences of a specified element.
+        /// Delimits all leading and trailing occurrences of a specified element.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimElement">The specified element to look for and remove.</param>
         /// <param name="trimStart">If set to True, trims the start.</param>
         /// <param name="trimEnd">If set to True, trims the end.</param>
-        private static (int start, int length) TrimHelper<T>(in ReadOnlySpan<T> span, in T trimElement, bool trimStart, bool trimEnd)
+        private static (int start, int length) TrimClamper<T>(in ReadOnlySpan<T> span, in T trimElement, bool trimStart, bool trimEnd)
             where T : IEquatable<T>
         {
             if (span.IsEmpty)
@@ -226,7 +225,7 @@ namespace System
         public static Memory<T> Trim<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElements, true, true);
+            (int start, int length) = TrimClamper(memory.Span, trimElements, true, true);
             return memory.Slice(start, length);
         }
 
@@ -239,7 +238,7 @@ namespace System
         public static Memory<T> TrimStart<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElements, true, false);
+            (int start, int length) = TrimClamper(memory.Span, trimElements, true, false);
             return memory.Slice(start, length);
         }
 
@@ -252,7 +251,7 @@ namespace System
         public static Memory<T> TrimEnd<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElements, false, true);
+            (int start, int length) = TrimClamper(memory.Span, trimElements, false, true);
             return memory.Slice(start, length);
         }
 
@@ -265,7 +264,7 @@ namespace System
         public static ReadOnlyMemory<T> Trim<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElements, true, true);
+            (int start, int length) = TrimClamper(memory.Span, trimElements, true, true);
             return memory.Slice(start, length);
         }
 
@@ -278,7 +277,7 @@ namespace System
         public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElements, true, false);
+            (int start, int length) = TrimClamper(memory.Span, trimElements, true, false);
             return memory.Slice(start, length);
         }
 
@@ -291,7 +290,7 @@ namespace System
         public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(memory.Span, trimElements, false, true);
+            (int start, int length) = TrimClamper(memory.Span, trimElements, false, true);
             return memory.Slice(start, length);
         }
 
@@ -304,7 +303,7 @@ namespace System
         public static Span<T> Trim<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(span, trimElements, true, true);
+            (int start, int length) = TrimClamper(span, trimElements, true, true);
             return span.Slice(start, length);
         }
 
@@ -317,7 +316,7 @@ namespace System
         public static Span<T> TrimStart<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(span, trimElements, true, false);
+            (int start, int length) = TrimClamper(span, trimElements, true, false);
             return span.Slice(start, length);
         }
 
@@ -330,7 +329,7 @@ namespace System
         public static Span<T> TrimEnd<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(span, trimElements, false, true);
+            (int start, int length) = TrimClamper(span, trimElements, false, true);
             return span.Slice(start, length);
         }
 
@@ -343,7 +342,7 @@ namespace System
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(in span, trimElements, true, true);
+            (int start, int length) = TrimClamper(in span, trimElements, true, true);
             return span.Slice(start, length);
         }
 
@@ -356,7 +355,7 @@ namespace System
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(in span, trimElements, true, false);
+            (int start, int length) = TrimClamper(in span, trimElements, true, false);
             return span.Slice(start, length);
         }
 
@@ -369,19 +368,18 @@ namespace System
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            (int start, int length) = TrimHelper(in span, trimElements, false, true);
+            (int start, int length) = TrimClamper(in span, trimElements, false, true);
             return span.Slice(start, length);
         }
 
         /// <summary>
-        /// Conditionally removes all leading and trailing occurrences of a specified element.
+        /// Delimits  all leading and trailing occurrences of a specified element.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <param name="trimStart">If set to True, trims the start.</param>
         /// <param name="trimEnd">If set to True, trims the end.</param>
-        private static (int start, int length) TrimHelper<T>(in ReadOnlySpan<T> span, in ReadOnlySpan<T> trimElements, bool trimStart, bool trimEnd)
+        private static (int start, int length) TrimClamper<T>(in ReadOnlySpan<T> span, in ReadOnlySpan<T> trimElements, bool trimStart, bool trimEnd)
             where T : IEquatable<T>
         {
             if (span.IsEmpty || trimElements.IsEmpty)
@@ -401,10 +399,9 @@ namespace System
                             if (span[start] != null)
                                 goto Next;
                         }
-                        else
+                        else if (span[start] != null && !span[start].Equals(trimElements[i]))
                         {
-                            if (span[start] != null && !span[start].Equals(trimElements[i]))
-                                goto Next;
+                            goto Next;
                         }
                     }
                     break;
@@ -425,10 +422,9 @@ namespace System
                             if (span[end] != null)
                                 goto Next;
                         }
-                        else
+                        else if (span[end] != null && !span[end].Equals(trimElements[i]))
                         {
-                            if (span[end] != null && !span[end].Equals(trimElements[i]))
-                                goto Next;
+                            goto Next;
                         }
                     }
                     break;
