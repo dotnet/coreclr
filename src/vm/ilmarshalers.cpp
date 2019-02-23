@@ -3335,6 +3335,7 @@ MarshalerOverrideStatus ILBlittableValueClassWithCopyCtorMarshaler::ArgumentOver
         // Step 2
         if (pargs->mm.m_pCopyCtor)
         {
+            // Managed copy constructor has signature of CopyCtor(T* new, T old);
             pslIL->EmitLDLOCA(dwNewValueTypeLocal);
             pslIL->EmitLDARG(argidx);
             pslIL->EmitCALL(pslIL->GetToken(pargs->mm.m_pCopyCtor), 2, 0);
@@ -3349,12 +3350,12 @@ MarshalerOverrideStatus ILBlittableValueClassWithCopyCtorMarshaler::ArgumentOver
         // Step 3
         if (pargs->mm.m_pDtor)
         {
+            // Managed destructor has signature of Destructor(T old);
             pslIL->EmitLDARG(argidx);
             pslIL->EmitCALL(pslIL->GetToken(pargs->mm.m_pDtor), 1, 0);
         }
 #ifdef _TARGET_X86_
         pslIL->SetStubTargetArgType(&locDesc);              // native type is the value type
-
         pslILDispatch->EmitLDLOC(dwNewValueTypeLocal);      // we load the local directly
 #else
         pslIL->SetStubTargetArgType(ELEMENT_TYPE_I);        // native type is a pointer

@@ -2715,6 +2715,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
                     {
                         if (fNeedsCopyCtor)
                         {
+#ifdef FEATURE_COMINTEROP
                             if (m_ms == MARSHAL_SCENARIO_WINRT)
                             {
                                 // our WinRT-optimized GetCOMIPFromRCW helpers don't support copy
@@ -2722,6 +2723,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
                                 m_resID = IDS_EE_BADMARSHAL_WINRT_COPYCTOR;
                                 IfFailGoto(E_FAIL, lFail);
                             }
+#endif
 
                             MethodDesc *pCopyCtor;
                             MethodDesc *pDtor;
