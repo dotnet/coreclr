@@ -388,6 +388,15 @@ namespace System
             if (span.IsEmpty)
                 return 0;
 
+            switch (trimElements.Length)
+            {
+                case 0:
+                    return 0;
+                case 1:
+                    (int st, _) = Clamp(span, trimElements[0], true, false);
+                    return st;
+            }
+
             int start = 0;
 
             for (; start < span.Length; start++)
@@ -424,6 +433,15 @@ namespace System
 
             if (span.IsEmpty)
                 return 0;
+
+            switch (trimElements.Length)
+            {
+                case 0:
+                    return 0;
+                case 1:
+                    (_, int len) = Clamp(span, trimElements[0], false, true);
+                    return len;
+            }
 
             int end = span.Length - 1;
 
