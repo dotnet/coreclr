@@ -21,16 +21,14 @@ namespace System.Reflection
             get
             {
                 Type[] types = GetTypes();
-                TypeInfo[] typeinfos = new TypeInfo[types.Length];
                 for (int i = 0; i < types.Length; i++)
                 {
                     TypeInfo typeinfo = types[i].GetTypeInfo();
                     if (typeinfo == null)
                         throw new NotSupportedException(SR.Format(SR.NotSupported_NoTypeInfo, types[i].FullName));
 
-                    typeinfos[i] = typeinfo;
+                    yield return typeinfo;
                 }
-                return typeinfos;
             }
         }
 
