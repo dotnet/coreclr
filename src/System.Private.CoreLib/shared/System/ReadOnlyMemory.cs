@@ -11,6 +11,14 @@ using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 
 using Internal.Runtime.CompilerServices;
 
+#if BIT64
+using nuint = System.UInt64;
+using nint = System.Int64;
+#else
+using nuint = System.UInt32;
+using nint = System.Int32;
+#endif
+
 namespace System
 {
     /// <summary>
@@ -225,34 +233,84 @@ namespace System
             get
             {
                 ref T refToReturn = ref Unsafe.AsRef<T>(null);
-                int lengthOfUnderlyingSpan = 0;
+                uint desiredLength = 0;
 
                 // Copy this field into a local so that it can't change out from under us mid-operation.
-
                 object tmpObject = _object;
+
                 if (tmpObject != null)
                 {
-                    if (typeof(T) == typeof(char) && tmpObject.GetType() == typeof(string))
+                    uint lengthOfUnderlyingSpan;
+
+                    // Our underlying object can be a string (only when T = char), an SzArray U[] where
+                    // T = U or T and U are convertible (e.g., int[] <-> uint[]), or a MemoryManager<T>.
+                    // On 32-bit platforms, string and array have the exact same shape: length immediately
+                    // followed by the string / array data. On 64-bit platforms, arrays have one extra
+                    // 32-bit padding value between the length field and the start of the data. This means
+                    // that we only need to special-case string when T is char _and_ we're running 64-bit.
+                    // 
+                    // We're going to optimistically treat the underlying object as a string or an array
+                    // first, since it's almost always the case that this reflects reality anyway.
+
+                    if (IntPtr.Size == 8 && typeof(T) == typeof(char))
                     {
-                        // Special-case string since it's the most common for ROM<char>.
+                        // Optimistically assume it's a string for now. If this isn't the case, 'refToReturn'
+                        // will point to the 32-bit padding field in the SzArray or MemoryManager<T>.
 
                         refToReturn = ref Unsafe.As<char, T>(ref Unsafe.As<string>(tmpObject).GetRawStringData());
-                        lengthOfUnderlyingSpan = Unsafe.As<string>(tmpObject).Length;
-                    }
-                    else if (RuntimeHelpers.ObjectHasComponentSize(tmpObject))
-                    {
-                        // We know the object is not null, it's not a string, and it is variable-length. The only
-                        // remaining option is for it to be a T[] (or a U[] which is blittable to T[], like int[]
-                        // and uint[]). Otherwise somebody used private reflection to set this field, and we're not
-                        // too worried about type safety violations at this point.
 
-                        // 'tmpObject is T[]' below also handles things like int[] <-> uint[] being convertible
-                        Debug.Assert(tmpObject is T[]);
+                        // Read the length field of the string or SzArray (will be non-negative) or the
+                        // _dummy field of the MemoryManager<T> (will be negative). We do it via the
+                        // GetRawData() extension method rather than unsafe casting to string or SzArray
+                        // and accessing its Length property because the JIT might try to out-clever us
+                        // and assume Length can never return a non-negative value, which would break
+                        // the checks later in this method.
 
-                        refToReturn = ref Unsafe.As<byte, T>(ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData());
-                        lengthOfUnderlyingSpan = Unsafe.As<T[]>(tmpObject).Length;
+                        lengthOfUnderlyingSpan = Unsafe.As<byte, uint>(ref tmpObject.GetRawData());
+
+                        // If our initial guess that this was a string is correct, skip straight to the
+                        // error checking at the end of the method.
+
+                        if (tmpObject.GetType() == typeof(string))
+                        {
+                            goto CheckOffsetsAndReturn;
+                        }
+
+                        // Otherwise, assume it's an SzArray instead of a string, and skip over the
+                        // 32-bit padding. If our guess is still wrong and the underlying object is
+                        // actually a MemoryManager<T>, this will point to the first field of the derived
+                        // MemoryManager<T> instance, or it will point just past the end of the object
+                        // if no fields are present in derived types. In either case the GC tracks it properly.
+
+                        refToReturn = ref Unsafe.AddByteOffset(ref refToReturn, 4);
+
+#if DEBUG
+                        // Make sure the layout of string / SzArray didn't change on us.
+
+                        Debug.Assert(
+                            Unsafe.AreSame(
+                                ref Unsafe.As<T, byte>(ref refToReturn),
+                                ref Unsafe.As<Array>(tmpObject).GetRawSzArrayData()),
+                            "We miscalculated where the start of data of the SzArray is.");
+#endif
                     }
                     else
+                    {
+                        // T != char so we don't need to check for string, _or_ we're in a 32-bit proc
+                        // where string and SzArray have the same layout. In either case optimistically
+                        // assume the underlying object is SzArray. See comments above for why code is
+                        // written this way.
+
+                        refToReturn = ref Unsafe.As<byte, T>(ref Unsafe.As<Array>(tmpObject).GetRawSzArrayData());
+                        lengthOfUnderlyingSpan = Unsafe.As<byte, uint>(ref tmpObject.GetRawData());
+                    }
+
+                    // If the underlying object really was a MemoryManager<T>, the "length" we read earlier
+                    // will actually read the _dummy field on the base class, which is set to a negative
+                    // value. Since string and SzArray can't have a negative length, this serves as a very
+                    // inexpensive check to see if a MemoryManager<T> is in use.
+
+                    if ((int)lengthOfUnderlyingSpan < 0)
                     {
                         // We know the object is not null, and it's not variable-length, so it must be a MemoryManager<T>.
                         // Otherwise somebody used private reflection to set this field, and we're not too worried about
@@ -261,10 +319,11 @@ namespace System
                         // constructor or other public API which would allow such a conversion.
 
                         Debug.Assert(tmpObject is MemoryManager<T>);
-                        Span<T> memoryManagerSpan = Unsafe.As<MemoryManager<T>>(tmpObject).GetSpan();
-                        refToReturn = ref MemoryMarshal.GetReference(memoryManagerSpan);
-                        lengthOfUnderlyingSpan = memoryManagerSpan.Length;
+                        refToReturn = ref Unsafe.As<MemoryManager<T>>(tmpObject).GetSpanAndDeconstruct(out int tempLengthOfUnderlyingSpan).Value;
+                        lengthOfUnderlyingSpan = (uint)tempLengthOfUnderlyingSpan;
                     }
+
+                CheckOffsetsAndReturn:
 
                     // If the Memory<T> or ReadOnlyMemory<T> instance is torn, this property getter has undefined behavior.
                     // We try to detect this condition and throw an exception, but it's possible that a torn struct might
@@ -272,12 +331,17 @@ namespace System
                     // least to be in-bounds when compared with the original Memory<T> instance, so using the span won't
                     // AV the process.
 
-                    int desiredStartIndex = _index & RemoveFlagsBitMask;
-                    int desiredLength = _length;
+                    nuint desiredStartIndex = (uint)(_index & RemoveFlagsBitMask);
+                    desiredLength = (uint)_length;
 
 #if BIT64
-                    // See comment in Span<T>.Slice for how this works.
-                    if ((ulong)(uint)desiredStartIndex + (ulong)(uint)desiredLength > (ulong)(uint)lengthOfUnderlyingSpan)
+                    // This is a modified version of the code in Span<T>.Slice to check for out-of-bounds access.
+                    // Since we know all inputs are at most UInt32.MaxValue, signed arithmetic over the Int64
+                    // domain will work since we can't integer overflow or underflow. This allows us to save a
+                    // register compared to the normal Span<T>.Slice logic, which requires a temporary register
+                    // to hold the result of the addition.
+
+                    if ((nint)desiredStartIndex > (nint)(nuint)lengthOfUnderlyingSpan - (nint)(nuint)desiredLength)
                     {
                         ThrowHelper.ThrowArgumentOutOfRangeException();
                     }
@@ -288,11 +352,10 @@ namespace System
                     }
 #endif
 
-                    refToReturn = ref Unsafe.Add(ref refToReturn, desiredStartIndex);
-                    lengthOfUnderlyingSpan = desiredLength;
+                    refToReturn = ref Unsafe.Add(ref refToReturn, (IntPtr)(void*)desiredStartIndex);
                 }
 
-                return new ReadOnlySpan<T>(ref refToReturn, lengthOfUnderlyingSpan);
+                return new ReadOnlySpan<T>(ref refToReturn, (int)desiredLength);
             }
         }
 
