@@ -55,6 +55,7 @@ namespace System.Collections.Generic
         private IEqualityComparer<TKey> _comparer;
         private KeyCollection _keys;
         private ValueCollection _values;
+        private const int StartOfFreeList = -3;
 
         // constants for serialization
         private const string VersionName = "Version"; // Do not rename (binary serialization)
@@ -640,7 +641,7 @@ namespace System.Collections.Generic
 
             if (updateFreeList)
             {
-                _freeList = -3 - entries[_freeList].next;
+                _freeList = StartOfFreeList - entries[_freeList].next;
             }
             entry.hashCode = hashCode;
             // Value in _buckets is 1-based
@@ -787,7 +788,7 @@ namespace System.Collections.Generic
                             entries[last].next = entry.next;
                         }
 
-                        entry.next = -3 - _freeList;
+                        entry.next = StartOfFreeList - _freeList;
 
                         if (RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())
                         {
@@ -854,7 +855,7 @@ namespace System.Collections.Generic
 
                         value = entry.value;
 
-                        entry.next = -3 - _freeList;
+                        entry.next = StartOfFreeList - _freeList;
 
                         if (RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())
                         {
