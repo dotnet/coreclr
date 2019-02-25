@@ -200,7 +200,8 @@ namespace System
         private static int ClampEnd<T>(in ReadOnlySpan<T> span, int start, in T trimElement)
             where T : IEquatable<T>
         {
-            Debug.Assert(start == 0 || (uint)start < span.Length);
+            // Initially, start==len==0. If ClampStart trims all, start==len
+            Debug.Assert((uint)start < span.Length);
 
             int end = span.Length - 1;
 
@@ -233,12 +234,9 @@ namespace System
         public static Memory<T> Trim<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return memory;
-                case 1:
-                    return Trim(memory, trimElements[0]);
+                return trimElements.Length == 0 ? memory : Trim(memory, trimElements[0]);
             }
 
             Span<T> span = memory.Span;
@@ -256,12 +254,9 @@ namespace System
         public static Memory<T> TrimStart<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return memory;
-                case 1:
-                    return TrimStart(memory, trimElements[0]);
+                return trimElements.Length == 0 ? memory : TrimStart(memory, trimElements[0]);
             }
 
             int start = ClampStart(memory.Span, trimElements);
@@ -277,12 +272,9 @@ namespace System
         public static Memory<T> TrimEnd<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return memory;
-                case 1:
-                    return TrimEnd(memory, trimElements[0]);
+                return trimElements.Length == 0 ? memory : TrimEnd(memory, trimElements[0]);
             }
 
             int length = ClampEnd(memory.Span, 0, trimElements);
@@ -298,12 +290,9 @@ namespace System
         public static ReadOnlyMemory<T> Trim<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return memory;
-                case 1:
-                    return Trim(memory, trimElements[0]);
+                return trimElements.Length == 0 ? memory : Trim(memory, trimElements[0]);
             }
 
             ReadOnlySpan<T> span = memory.Span;
@@ -321,12 +310,9 @@ namespace System
         public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return memory;
-                case 1:
-                    return TrimStart(memory, trimElements[0]);
+                return trimElements.Length == 0 ? memory : TrimStart(memory, trimElements[0]);
             }
 
             int start = ClampStart(memory.Span, trimElements);
@@ -342,12 +328,9 @@ namespace System
         public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return memory;
-                case 1:
-                    return TrimEnd(memory, trimElements[0]);
+                return trimElements.Length == 0 ? memory : TrimEnd(memory, trimElements[0]);
             }
 
             int length = ClampEnd(memory.Span, 0, trimElements);
@@ -363,12 +346,9 @@ namespace System
         public static Span<T> Trim<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return span;
-                case 1:
-                    return Trim(span, trimElements[0]);
+                return trimElements.Length == 0 ? span : Trim(span, trimElements[0]);
             }
 
             int start = ClampStart(span, trimElements);
@@ -385,12 +365,9 @@ namespace System
         public static Span<T> TrimStart<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return span;
-                case 1:
-                    return TrimStart(span, trimElements[0]);
+                return trimElements.Length == 0 ? span : TrimStart(span, trimElements[0]);
             }
 
             int start = ClampStart(span, trimElements);
@@ -406,12 +383,9 @@ namespace System
         public static Span<T> TrimEnd<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return span;
-                case 1:
-                    return TrimEnd(span, trimElements[0]);
+                return trimElements.Length == 0 ? span : TrimEnd(span, trimElements[0]);
             }
 
             int length = ClampEnd(span, 0, trimElements);
@@ -427,12 +401,9 @@ namespace System
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return span;
-                case 1:
-                    return Trim(span, trimElements[0]);
+                return trimElements.Length == 0 ? span : Trim(span, trimElements[0]);
             }
 
             int start = ClampStart(span, trimElements);
@@ -449,12 +420,9 @@ namespace System
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return span;
-                case 1:
-                    return TrimStart(span, trimElements[0]);
+                return trimElements.Length == 0 ? span : TrimStart(span, trimElements[0]);
             }
 
             int start = ClampStart(span, trimElements);
@@ -470,12 +438,9 @@ namespace System
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            switch (trimElements.Length)
+            if (trimElements.Length <= 1) // Optimize for N > 1
             {
-                case 0:
-                    return span;
-                case 1:
-                    return TrimEnd(span, trimElements[0]);
+                return trimElements.Length == 0 ? span : TrimEnd(span, trimElements[0]);
             }
 
             int length = ClampEnd(span, 0, trimElements);
@@ -510,7 +475,8 @@ namespace System
         private static int ClampEnd<T>(in ReadOnlySpan<T> span, int start, in ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            Debug.Assert(start == 0 || (uint)start < span.Length);
+            // Initially, start==len==0. If ClampStart trims all, start==len
+            Debug.Assert((uint)start < span.Length);
 
             int end = span.Length - 1;
 
@@ -533,8 +499,7 @@ namespace System
         private static bool SequentialContains<T>(in ReadOnlySpan<T> trimElements, in T item)
             where T : IEquatable<T>
         {
-            // Non-vectorized scan is optimized for a small number of elements
-
+            // Non-vectorized scan optimized for small N
             for (int i = 0; i < trimElements.Length; i++)
             {
                 if (trimElements[i] == null)
