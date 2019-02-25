@@ -72,9 +72,19 @@ jobs:
         value: $(buildConfigUpper)
     - name: officialBuildIdArg
       value: ''
+    - name: ibcOptimizeArg
+      value: ''
     - ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
       - name: officialBuildIdArg
         value: '-officialbuildid=$(Build.BuildNumber)'
+      - name: ibcOptimizeArg
+        value: '-ibcoptimize'
+    - name: enforcePgoArg
+      value: ''
+    # the EnforcePGO script is only supported on Windows and is not supported on arm or arm64.
+    - ${{ if and(eq(parameters.buildConfig, 'Release'), and(eq(parameters.osGroup, 'Windows_NT'), not(or(eq(parameters.archType, 'arm64'), eq(parameters.archType, 'arm'))))) }}:
+      - name: enforcePgoArg
+        value: '-enforcepgo'
 
     steps:
 
@@ -100,8 +110,7 @@ jobs:
             # Once we are using Arcade, use DotNetCoreSdkDir instead, as we do below.
             DotNetBootstrapCliTarPath: /dotnet-sdk-freebsd-x64.tar
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      # TODO: IBCOptimize? EnforcePGO? file logging parameters?
-      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages $(officialBuildIdArg)
+      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg)
         displayName: Build product
 
     # Sign on Windows
