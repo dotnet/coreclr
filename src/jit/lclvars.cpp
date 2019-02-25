@@ -1192,7 +1192,7 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
             break;
     }
 
-    if (varNum < lvaCount)
+    if (varNum < info.compLocalsCount)
     {
         // If it is a variable that exists in the IL, then we want to register
         // its home changes ("VariableLiveRanges") for debugging purpose
