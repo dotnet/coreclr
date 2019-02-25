@@ -389,7 +389,7 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
     {
         varDsc->lvIsParam = 1;
         varDsc->lvIsPtr   = 1;
-        
+
         // This will have the varNum 0 and will be show on debugger so
         // it's home history should be safe
         varDsc->initializeRegisterLiveRanges(getAllocator());
@@ -482,7 +482,7 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
         // This variables are shown by the debugger so
         // we need to initialize its structures
         varDsc->initializeRegisterLiveRanges(getAllocator());
-        
+
         // And store its index for tracking purpose
         varDsc->lvSlotNum = varDscInfo->varNum;
 

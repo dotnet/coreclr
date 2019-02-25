@@ -11137,7 +11137,7 @@ unsigned int Compiler::getAmountLiveRangesReported()
 //    or both.
 void Compiler::startOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying)
 {
-    // Only the variables that exists in the IL, "this, and special arguments 
+    // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
     if (varDsc->lvSlotNum < info.compLocalsCount)
@@ -11171,7 +11171,7 @@ void Compiler::startOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBor
 //    This method should be called on every place a Variable is becoming alive.
 void Compiler::startVariableLiveRange(const LclVarDsc* varDsc)
 {
-    // Only the variables that exists in the IL, "this, and special arguments 
+    // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
     if (varDsc->lvSlotNum < info.compLocalsCount)
@@ -11199,7 +11199,7 @@ void Compiler::startVariableLiveRange(const LclVarDsc* varDsc)
 //    This method should be called on every place a Variable is becoming dead.
 void Compiler::endVariableLiveRange(const LclVarDsc* varDsc)
 {
-    // Only the variables that exists in the IL, "this, and special arguments 
+    // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
     if (varDsc->lvSlotNum < info.compLocalsCount)
@@ -11225,7 +11225,7 @@ void Compiler::endVariableLiveRange(const LclVarDsc* varDsc)
 //    This method should be called on every place a Variable is changing its home.
 void Compiler::updateVariableLiveRange(const LclVarDsc* varDsc)
 {
-    // Only the variables that exists in the IL, "this, and special arguments 
+    // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
     if (varDsc->lvSlotNum < info.compLocalsCount)

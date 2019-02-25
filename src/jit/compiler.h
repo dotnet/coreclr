@@ -352,7 +352,7 @@ typedef LiveRangeList::iterator         LiveRangeListIterator;
 struct LiveRangeBarrier
 {
     LiveRangeListIterator beginLastBlock;
-    bool                  haveReadAtLeastOneOfBlock; // True if a live range for this variable has been 
+    bool                  haveReadAtLeastOneOfBlock; // True if a live range for this variable has been
                                                      // reported from last call to EndBlock
 
     LiveRangeBarrier(LiveRangeList* list)
@@ -401,7 +401,7 @@ public:
         lvPerSsaData()
     {
     }
-    
+
     LiveRangeList* variableLiveRanges;
 
 #if DEBUG
@@ -468,10 +468,10 @@ public:
     void initializeRegisterLiveRanges(CompAllocator allocator)
     {
         variableLiveRanges = allocator.allocate<LiveRangeList>(1);
-        
+
         size_t variableLiveRangesSize = sizeof(*variableLiveRanges);
         memset(variableLiveRanges, 0, variableLiveRangesSize);
-        
+
         new (variableLiveRanges, jitstd::placement_t()) LiveRangeList(allocator);
 
 #if DEBUG
@@ -493,8 +493,6 @@ public:
         }
         return result;
     }
-
-    
 
     LiveRangeListIterator getLiveRangesIterator() const
     {
@@ -548,8 +546,8 @@ public:
 #endif
         // This variable is changing home so it has been started before during this block
         noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
-        
-        // And its last endEmitLocation has to be invalid 
+
+        // And its last endEmitLocation has to be invalid
         noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
 
         // If we are reporting again the same home, that means we are doing something twice?
@@ -3050,7 +3048,7 @@ public:
     }
 
     bool     lvaTrackedFixed; // true: We cannot add new 'tracked' variable
-    unsigned lvaCount;        // total number of locals, which includes function arguments, 
+    unsigned lvaCount;        // total number of locals, which includes function arguments,
                               // special arguments, IL local variables, and JIT temporary variables
 
     unsigned   lvaRefCount; // total number of references to locals

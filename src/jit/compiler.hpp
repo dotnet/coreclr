@@ -1581,6 +1581,7 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
     lvaTable[tempNum].lvType    = TYP_UNDEF;
     lvaTable[tempNum].lvIsTemp  = shortLifetime;
     lvaTable[tempNum].lvOnFrame = true;
+    lvaTable[tempNum].lvSlotNum = tempNum;
 
     // If we've started normal ref counting, bump the ref count of this
     // local, as we no longer do any incremental counting, and we presume
@@ -1675,6 +1676,7 @@ inline unsigned Compiler::lvaGrabTemps(unsigned cnt DEBUGARG(const char* reason)
         lvaTable[lvaCount].lvType    = TYP_UNDEF; // Initialize lvType, lvIsTemp and lvOnFrame
         lvaTable[lvaCount].lvIsTemp  = false;
         lvaTable[lvaCount].lvOnFrame = true;
+        lvaTable[lvaCount].lvSlotNum = lvaCount;
         lvaCount++;
     }
 
