@@ -502,8 +502,6 @@ MethodTableBuilder::ExpandApproxInheritedInterfaces(
 {
     STANDARD_VM_CONTRACT;
 
-    INTERIOR_STACK_PROBE(GetThread());
-
     // Expand interfaces in superclasses first.  Interfaces inherited from parents
     // must have identical indexes as in the parent.
     bmtRTType * pParentOfParent = pParentType->GetParentType();
@@ -550,8 +548,6 @@ MethodTableBuilder::ExpandApproxInheritedInterfaces(
     
     // Restore parent's substitution
     pParentType->SetSubstitution(parentSubstitution);
-    
-    END_INTERIOR_STACK_PROBE;
 } // MethodTableBuilder::ExpandApproxInheritedInterfaces
 
 //*******************************************************************************
@@ -1324,10 +1320,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
     bmtInternal->pType = new (GetStackingAllocator())
         bmtMDType(pParent, pModule, cl, bmtGenericsInfo->typeContext);
 
-    // put the interior stack probe after all the stack-allocted goop above.  We check compare our this pointer to the SP on
-    // the dtor to determine if we are being called on an EH path or not.
-    INTERIOR_STACK_PROBE_FOR(GetThread(), 8);
-
     // If not NULL, it means there are some by-value fields, and this contains an entry for each inst
 
 #ifdef _DEBUG 
@@ -1489,8 +1481,25 @@ MethodTableBuilder::BuildMethodTableThrowing(
         }
     }
 
+    // If this type is marked by [Intrinsic] attribute, it may be specially treated by the runtime/compiler
+    // SIMD types have [Intrinsic] attribute, for example
+    //
+    // We check this here fairly early to ensure other downstream checks on these types can be slightly more efficient.
+    if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
+    {
+        HRESULT hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(),
+            g_CompilerServicesIntrinsicAttribute,
+            NULL,
+            NULL);
+
+        if (hr == S_OK)
+        {
+            bmtProp->fIsIntrinsicType = true;
+        }
+    }
+
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
-    if (GetModule()->IsSystem() && !bmtGenerics->HasInstantiation())
+    if (bmtProp->fIsIntrinsicType && !bmtGenerics->HasInstantiation())
     {
         LPCUTF8 className;
         LPCUTF8 nameSpace;
@@ -1519,23 +1528,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
         }
     }
 #endif
-
-    // If this type is marked by [Intrinsic] attribute, it may be specially treated by the runtime/compiler
-    // Currently, only SIMD types have [Intrinsic] attribute
-    //
-    // We check this here fairly early to ensure other downstream checks on these types can be slightly more efficient.
-    if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
-    {
-        HRESULT hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(),
-            g_CompilerServicesIntrinsicAttribute,
-            NULL,
-            NULL);
-
-        if (hr == S_OK)
-        {
-            bmtProp->fIsIntrinsicType = true;
-        }
-    }
 
     // Com Import classes are special. These types must derive from System.Object,
     // and we then substitute the parent with System._ComObject.
@@ -1872,7 +1864,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #endif
 #ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
+#error "Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time."
 #endif // FEATURE_HFA
         SystemVAmd64CheckForPassStructInRegister();
 #endif // UNIX_AMD64_ABI
@@ -1880,7 +1872,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 
 #ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
+#error "Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time."
 #endif // FEATURE_HFA
     if (HasLayout())
     {
@@ -2081,27 +2073,9 @@ MethodTableBuilder::BuildMethodTableThrowing(
         GetCl(),
         GetHalfBakedMethodTable());
 
-#ifdef MDA_SUPPORTED
-    MdaMarshaling* mda = MDA_GET_ASSISTANT(Marshaling);
-    if (mda && HasLayout())
-    {
-        FieldMarshaler *pFieldMarshaler = (FieldMarshaler*)GetLayoutInfo()->GetFieldMarshalers();
-        UINT  numReferenceFields        = GetLayoutInfo()->GetNumCTMFields();
-
-        while (numReferenceFields--)
-        {
-            mda->ReportFieldMarshal(pFieldMarshaler);
-
-            ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-        }
-    }
-#endif // MDA_SUPPORTED
-
 #ifdef FEATURE_PREJIT
     _ASSERTE(pComputedPZM == Module::GetPreferredZapModuleForMethodTable(pMT));
 #endif // FEATURE_PREJIT
-
-    END_INTERIOR_STACK_PROBE;
 
     return GetHalfBakedMethodTable();
 } // MethodTableBuilder::BuildMethodTableThrowing
@@ -2918,9 +2892,15 @@ MethodTableBuilder::EnumerateClassMethods()
             }
         }
 
-#ifndef FEATURE_DEFAULT_INTERFACES
         // Some interface checks.
-        if (fIsClassInterface)
+        // We only need them if default interface method support is disabled or if this is fragile crossgen
+#if !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
+        if (fIsClassInterface
+#if defined(FEATURE_DEFAULT_INTERFACES)
+            // Only fragile crossgen wasn't upgraded to deal with default interface methods.
+            && !IsReadyToRunCompilation()
+#endif
+            )
         {
             if (IsMdVirtual(dwMemberAttrs))
             {
@@ -2931,14 +2911,14 @@ MethodTableBuilder::EnumerateClassMethods()
             }
             else
             {
-                // Instance field/method
+                // Instance method
                 if (!IsMdStatic(dwMemberAttrs))
                 {
                     BuildMethodTableThrowException(BFA_NONVIRT_INST_INT_METHOD);
                 }
             }
         }
-#endif
+#endif // !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
 
         // No synchronized methods in ValueTypes
         if(fIsClassValueType && IsMiSynchronized(dwImplFlags))
@@ -5120,7 +5100,7 @@ MethodTableBuilder::InitNewMethodDesc(
     }
 
     // Check for methods marked as [Intrinsic]
-    if (GetModule()->IsSystem())
+    if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
     {
         HRESULT hr = GetMDImport()->GetCustomAttributeByName(pMethod->GetMethodSignature().GetToken(),
             g_CompilerServicesIntrinsicAttribute,
@@ -6954,7 +6934,7 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
 
 
 #ifdef FEATURE_TIERED_COMPILATION
-    // Keep in-sync with MethodDesc::IsEligibleForTieredCompilation()
+    // Keep in-sync with MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
     if (g_pConfig->TieredCompilation() &&
         (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED))
     {
@@ -8837,10 +8817,10 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
         // just the first indirection to detect sharing.
         if (pMT->GetVtableIndirections()[0].GetValueMaybeNull() != pCanonMT->GetVtableIndirections()[0].GetValueMaybeNull())
         {
+            MethodTable::MethodDataWrapper hCanonMTData(MethodTable::GetMethodData(pCanonMT, FALSE));
             for (DWORD i = 0; i < nParentVirtuals; i++)
             {
-                PCODE target = pCanonMT->GetRestoredSlot(i);
-                pMT->SetSlot(i, target);
+                pMT->CopySlotFrom(i, hCanonMTData, pCanonMT);
             }
         }
     }
@@ -8849,11 +8829,13 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
         MethodTable::MethodDataWrapper hMTData(MethodTable::GetMethodData(pMT, FALSE));
 
         MethodTable * pParentMT = pMT->GetParentMethodTable();
+        MethodTable::MethodDataWrapper hParentMTData(MethodTable::GetMethodData(pParentMT, FALSE));
 
         for (DWORD i = 0; i < nParentVirtuals; i++)
         {
             // fix up wrongly-inherited method descriptors
             MethodDesc* pMD = hMTData->GetImplMethodDesc(i);
+            CONSISTENCY_CHECK(CheckPointer(pMD));
             CONSISTENCY_CHECK(pMD == pMT->GetMethodDescForSlot(i));
 
             if (pMD->GetMethodTable() == pMT)
@@ -8880,8 +8862,7 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
             }
 
             // The slot lives in an unshared chunk. We need to update the slot contents
-            PCODE target = pParentMT->GetRestoredSlot(i);
-            pMT->SetSlot(i, target);
+            pMT->CopySlotFrom(i, hParentMTData, pParentMT);
         }
     }
 } // MethodTableBuilder::CopyExactParentSlots
@@ -10511,7 +10492,7 @@ MethodTableBuilder::SetupMethodTable2(
                 //
                 DWORD indirectionIndex = MethodTable::GetIndexOfVtableIndirection(iCurSlot);
                 if (GetParentMethodTable()->GetVtableIndirections()[indirectionIndex].GetValueMaybeNull() != pMT->GetVtableIndirections()[indirectionIndex].GetValueMaybeNull())
-                    pMT->SetSlot(iCurSlot, pMD->GetMethodEntryPoint());
+                    pMT->SetSlot(iCurSlot, pMD->GetInitialEntryPointForCopiedSlot());
             }
             else
             {
@@ -10625,22 +10606,27 @@ MethodTableBuilder::SetupMethodTable2(
                 // This indicates that the method body in this slot was copied here through a methodImpl.
                 // Thus, copy the value of the slot from which the body originally came, in case it was
                 // overridden, to make sure the two slots stay in sync.
-                INDEBUG(MethodDesc * pMDOld; pMDOld = pMD;)
-                if(pMD->GetSlot() != i &&
-                   pMT->GetSlot(i) != pMT->GetSlot(pMD->GetSlot()))
+                DWORD originalIndex = pMD->GetSlot();
+                if (originalIndex != i)
                 {
-                    // Copy the slot value in the method's original slot.
-                    pMT->SetSlot(i,pMT->GetSlot(pMD->GetSlot()));
-                    hMTData->InvalidateCachedVirtualSlot(i);
+                    MethodDesc *pOriginalMD = hMTData->GetImplMethodDesc(originalIndex);
+                    CONSISTENCY_CHECK(CheckPointer(pOriginalMD));
+                    CONSISTENCY_CHECK(pOriginalMD == pMT->GetMethodDescForSlot(originalIndex));
+                    if (pMD != pOriginalMD)
+                    {
+                        // Copy the slot value in the method's original slot.
+                        pMT->SetSlot(i, pOriginalMD->GetInitialEntryPointForCopiedSlot());
+                        hMTData->InvalidateCachedVirtualSlot(i);
 
-                    // Update the pMD to the new method desc we just copied over ourselves with. This will
-                    // be used in the check for missing method block below.
-                    pMD = pMT->GetMethodDescForSlot(pMD->GetSlot());
+                        // Update the pMD to the new method desc we just copied over ourselves with. This will
+                        // be used in the check for missing method block below.
+                        pMD = pOriginalMD;
 
-                    // This method is now duplicate
-                    pMD->SetDuplicate();
-                    INDEBUG(g_dupMethods++;)
-                    fChangeMade = TRUE;
+                        // This method is now duplicate
+                        pMD->SetDuplicate();
+                        INDEBUG(g_dupMethods++;)
+                        fChangeMade = TRUE;
+                    }
                 }
             }
         }
@@ -10781,6 +10767,8 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(bmtRTType *pDeclType,
     {
         bmtRTType * pCurItf = bmtInterface->pInterfaceMap[i].GetInterfaceType();
 
+        Module * pCurIntfModule = pCurItf->GetMethodTable()->GetModule();
+
         // Go over the methods on the interface
         MethodTable::IntroducedMethodIterator methIt(pCurItf->GetMethodTable());
         for (; methIt.IsValid(); methIt.Next())
@@ -10804,11 +10792,11 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(bmtRTType *pDeclType,
 
                 // Find out what interface this default implementation is implementing
                 mdToken tkParent;
-                IfFailThrow(GetModule()->GetMDImport()->GetParentToken(it.GetToken(), &tkParent));
+                IfFailThrow(pCurIntfModule->GetMDImport()->GetParentToken(it.GetToken(), &tkParent));
 
                 // We can only load the approximate interface at this point
                 MethodTable * pPotentialInterfaceMT = ClassLoader::LoadTypeDefOrRefOrSpecThrowing(
-                    GetModule(),
+                    pCurIntfModule,
                     tkParent,
                     &bmtGenerics->typeContext,
                     ClassLoader::ThrowIfNotFound,
@@ -10825,7 +10813,7 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(bmtRTType *pDeclType,
                         return TRUE;
 
                     // If this is generic, we need to compare under substitutions
-                    Substitution curItfSubs(tkParent, GetModule(), &pCurItf->GetSubstitution());
+                    Substitution curItfSubs(tkParent, pCurIntfModule, &pCurItf->GetSubstitution());
 
                     // Type Equivalence is not respected for this comparision as you can have multiple type equivalent interfaces on a class
                     TokenPairList newVisited = TokenPairList::AdjustForTypeEquivalenceForbiddenScope(NULL);
@@ -11877,7 +11865,6 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
     MethodTable * pMT = NULL;
 
     Thread * pThread = GetThread();
-    BEGIN_SO_INTOLERANT_CODE_FOR(pThread, DefaultEntryProbeAmount() * 2)
 
     MethodTable * pParentMethodTable = NULL;
     SigPointer    parentInst;
@@ -12197,6 +12184,5 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
         parentInst, 
         (WORD)cInterfaces);
 
-    END_SO_INTOLERANT_CODE;
     RETURN(TypeHandle(pMT));
 } // ClassLoader::CreateTypeHandleForTypeDefThrowing

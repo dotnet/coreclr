@@ -19,7 +19,6 @@
 #include "memorypool.h"
 #include "assemblyspecbase.h"
 #include "domainfile.h"
-#include "genericstackprobe.h"
 #include "holder.h"
 
 class AppDomain;
@@ -216,15 +215,12 @@ class AssemblySpec  : public BaseAssemblySpec
         BOOL fThrowOnFileNotFound,
         CoreBindResult* pBindResult,
         BOOL fNgenExplicitBind = FALSE, 
-        BOOL fExplicitBindToNativeImage = FALSE,
-        StackCrawlMark *pCallerStackMark  = NULL );
+        BOOL fExplicitBindToNativeImage = FALSE);
 
     Assembly *LoadAssembly(FileLoadLevel targetLevel, 
-                           BOOL fThrowOnFileNotFound = TRUE,
-                           StackCrawlMark *pCallerStackMark = NULL);
+                           BOOL fThrowOnFileNotFound = TRUE);
     DomainAssembly *LoadDomainAssembly(FileLoadLevel targetLevel,
-                                       BOOL fThrowOnFileNotFound = TRUE,
-                                       StackCrawlMark *pCallerStackMark = NULL);
+                                       BOOL fThrowOnFileNotFound = TRUE);
 
     //****************************************************************************************
     //

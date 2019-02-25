@@ -52,6 +52,7 @@ struct fgm_history
     }
 };
 
+// These values should be in sync with the GC_REASONs (in eventtrace.h) used for ETW.
 // TODO : it would be easier to make this an ORed value
 enum gc_reason
 {
@@ -67,6 +68,8 @@ enum gc_reason
     reason_lowmemory_blocking = 9,
     reason_induced_compacting = 10,
     reason_lowmemory_host = 11,
+    reason_pm_full_gc = 12, // provisional mode requested to trigger full GC
+    reason_lowmemory_host_blocking = 13,
     reason_max
 };
 
@@ -261,13 +264,6 @@ public:
     {
         return mt->GetBaseSize() >= LARGE_OBJECT_SIZE;
     }
-
-protected: 
-public:
-#if defined(FEATURE_BASICFREEZE) && defined(VERIFY_HEAP)
-    // Return TRUE if object lives in frozen segment
-    virtual BOOL IsInFrozenSegment (Object * object) = 0;
-#endif // defined(FEATURE_BASICFREEZE) && defined(VERIFY_HEAP)
 };
 
 // Go through and touch (read) each page straddled by a memory block.

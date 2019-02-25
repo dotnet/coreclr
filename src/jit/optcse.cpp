@@ -1971,6 +1971,32 @@ public:
         return result;
     }
 
+    // IsCompatibleType() takes two var_types and returns true if they
+    // are compatible types for CSE substitution
+    //
+    bool IsCompatibleType(var_types cseLclVarTyp, var_types expTyp)
+    {
+        // Exact type match is the expected case
+        if (cseLclVarTyp == expTyp)
+        {
+            return true;
+        }
+
+        // We also allow TYP_BYREF and TYP_I_IMPL as compatible types
+        //
+        if ((cseLclVarTyp == TYP_BYREF) && (expTyp == TYP_I_IMPL))
+        {
+            return true;
+        }
+        if ((cseLclVarTyp == TYP_I_IMPL) && (expTyp == TYP_BYREF))
+        {
+            return true;
+        }
+
+        // Otherwise we have incompatible types
+        return false;
+    }
+
     // PerformCSE() takes a successful candidate and performs  the appropriate replacements:
     //
     // It will replace all of the CSE defs with assignments to a new "cse0" LclVar
@@ -2105,7 +2131,10 @@ public:
 
             /* Figure out the actual type of the value */
             var_types expTyp = genActualType(exp->TypeGet());
-            noway_assert(expTyp == cseLclVarTyp);
+
+            // The cseLclVarType must be a compatible with expTyp
+            //
+            noway_assert(IsCompatibleType(cseLclVarTyp, expTyp));
 
             // This will contain the replacement tree for exp
             // It will either be the CSE def or CSE ref
@@ -2564,6 +2593,29 @@ bool Compiler::optIsCSEcandidate(GenTree* tree)
     switch (oper)
     {
         case GT_CALL:
+
+            GenTreeCall* call;
+            call = tree->AsCall();
+
+            // Don't mark calls to allocation helpers as CSE candidates.
+            // Marking them as CSE candidates usually blocks CSEs rather than enables them.
+            // A typical case is:
+            // [1] GT_IND(x) = GT_CALL ALLOC_HELPER
+            // ...
+            // [2] y = GT_IND(x)
+            // ...
+            // [3] z = GT_IND(x)
+            // If we mark CALL ALLOC_HELPER as a CSE candidate, we later discover
+            // that it can't be a CSE def because GT_INDs in [2] and [3] can cause
+            // more exceptions (NullRef) so we abandon this CSE.
+            // If we don't mark CALL ALLOC_HELPER as a CSE candidate, we are able
+            // to use GT_IND(x) in [2] as a CSE def.
+            if ((call->gtCallType == CT_HELPER) &&
+                s_helperCallProperties.IsAllocator(eeGetHelperNum(call->gtCallMethHnd)))
+            {
+                return false;
+            }
+
             // If we have a simple helper call with no other persistent side-effects
             // then we allow this tree to be a CSE candidate
             //

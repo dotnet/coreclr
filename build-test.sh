@@ -1,84 +1,17 @@
 #!/usr/bin/env bash
 
-initHostDistroRid()
-{
-    __HostDistroRid=""
-
-    # Some OS groups should default to use the portable packages
-    if [ "$__BuildOS" == "OSX" ]; then
-        __PortableBuild=1
-    fi
-
-    if [ "$__HostOS" == "Linux" ]; then
-        if [ -e /etc/redhat-release ]; then
-            __PortableBuild=1
-        elif [ -e /etc/os-release ]; then
-            source /etc/os-release
-            if [[ $ID == "alpine" ]]; then
-                __HostDistroRid="linux-musl-$__HostArch"
-            else
-                __PortableBuild=1
-                __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
-            fi
-        fi
-    elif [ "$__HostOS" == "FreeBSD" ]; then
-        __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
-        __HostDistroRid="freebsd.$__freebsd_version-$__HostArch"
-    fi
-
-    # Portable builds target the base RID
-    if [ "$__PortableBuild" == 1 ]; then
-        if [ "$__BuildOS" == "OSX" ]; then
-            export __HostDistroRid="osx-$__BuildArch"
-        elif [ "$__BuildOS" == "Linux" ]; then
-            export __HostDistroRid="linux-$__BuildArch"
-        fi
-    fi
-
-    if [ "$__HostDistroRid" == "" ]; then
-        echo "WARNING: Cannot determine runtime id for current distro."
-    fi
-
-    echo "Setting __HostDistroRid to $__HostDistroRid"
-}
+__PortableBuild=1
 
 initTargetDistroRid()
 {
-    if [ $__CrossBuild == 1 ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
-                if [ -e $ROOTFS_DIR/android_platform ]; then
-                    source $ROOTFS_DIR/android_platform
-                    export __DistroRid="$RID"
-                else
-                    echo "WARNING: Cannot determine runtime id for current distro."
-                    export __DistroRid=""
-                fi
-            else
-                source $ROOTFS_DIR/etc/os-release
-                export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
-            fi
-        fi
-    else
-        export __DistroRid="$__HostDistroRid"
+    source init-distro-rid.sh
+
+    # Only pass ROOTFS_DIR if cross is specified.
+    if (( ${__CrossBuild} == 1 )); then
+        passedRootfsDir=${ROOTFS_DIR}
     fi
 
-    if [ "$ID.$VERSION_ID" == "ubuntu.16.04" ]; then
-     export __DistroRid="ubuntu.14.04-$__BuildArch"
-    fi
-
-    # Portable builds target the base RID
-    if [ "$__PortableBuild" == 1 ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            export __DistroRid="linux-$__BuildArch"
-            export __RuntimeId="linux-$__BuildArch"
-        elif [ "$__BuildOS" == "OSX" ]; then
-            export __DistroRid="osx-$__BuildArch"
-            export __RuntimeId="osx-$__BuildArch"
-        fi
-    fi
-
-    echo "__DistroRid: " $__DistroRid
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__PortableBuild} ${passedRootfsDir}
 }
 
 isMSBuildOnNETCoreSupported()
@@ -95,7 +28,7 @@ isMSBuildOnNETCoreSupported()
             UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64")
             for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
             do
-                if [ "$__HostDistroRid" == "$UNSUPPORTED_RID" ]; then
+                if [ "${__DistroRid}" == "$UNSUPPORTED_RID" ]; then
                     __isMSBuildOnNETCoreSupported=0
                     break
                 fi
@@ -179,6 +112,13 @@ generate_layout()
         echo "Creating LogsDir: ${__LogsDir}"
         mkdir -p $__LogsDir
     fi
+    if [ ! -f "$__MsbuildDebugLogsDir" ]; then
+        echo "Creating MsbuildDebugLogsDir: ${__MsbuildDebugLogsDir}"
+        mkdir -p $__MsbuildDebugLogsDir
+    fi
+
+    # Set up the directory for MSBuild debug logs.
+    export MSBUILDDEBUGPATH="${__MsbuildDebugLogsDir}"
 
     __BuildProperties="-p:OSGroup=${__BuildOS} -p:BuildOS=${__BuildOS} -p:BuildArch=${__BuildArch} -p:BuildType=${__BuildType}"
 
@@ -188,10 +128,10 @@ generate_layout()
     # ===
     # =========================================================================================
 
-    build_MSBuild_projects "Restore_Packages" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "-BatchRestorePackages"
+    build_MSBuild_projects "Restore_Packages" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "/t:BatchRestorePackages"
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
-        __up=-updateinvalidpackageversion
+        __up="/t:UpdateInvalidPackageVersions"
     fi
 
     echo "${__MsgPrefix}Creating test overlay..."
@@ -208,7 +148,7 @@ generate_layout()
 
     mkdir -p $CORE_ROOT
 
-    build_MSBuild_projects "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "Creating test overlay" "-testOverlay"
+    build_MSBuild_projects "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "Creating test overlay" "/t:CreateTestOverlay"
 
     chmod +x $__BinDir/corerun
     chmod +x $__BinDir/crossgen
@@ -229,7 +169,7 @@ generate_testhost()
 
     mkdir -p $TEST_HOST
 
-    build_MSBuild_projects "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "Creating test host" "-testHost"
+    build_MSBuild_projects "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "Creating test host" "/t:CreateTestHost"
 }
 
 
@@ -282,6 +222,13 @@ build_Tests()
         echo "Creating LogsDir: ${__LogsDir}"
         mkdir -p $__LogsDir
     fi
+    if [ ! -f "$__MsbuildDebugLogsDir" ]; then
+        echo "Creating MsbuildDebugLogsDir: ${__MsbuildDebugLogsDir}"
+        mkdir -p $__MsbuildDebugLogsDir
+    fi
+
+    # Set up the directory for MSBuild debug logs.
+    export MSBUILDDEBUGPATH="${__MsbuildDebugLogsDir}"
 
     __BuildProperties="-p:OSGroup=${__BuildOS} -p:BuildOS=${__BuildOS} -p:BuildArch=${__BuildArch} -p:BuildType=${__BuildType}"
 
@@ -292,7 +239,7 @@ build_Tests()
     # =========================================================================================
 
     if [ ${__SkipRestorePackages} != 1 ]; then
-        build_MSBuild_projects "Restore_Product" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "-BatchRestorePackages"
+        build_MSBuild_projects "Restore_Product" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "/t:BatchRestorePackages"
     fi
 
     if [ $__SkipNative != 1 ]; then
@@ -315,7 +262,7 @@ build_Tests()
         else
             echo "Checking the Managed Tests Build..."
 
-            build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "-ExtraParameters:/t:CheckTestBuild"
+            build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "/t:CheckTestBuild"
 
             if [ $? -ne 0 ]; then
                 echo "${__MsgPrefix}Error: Check Test Build failed."
@@ -329,7 +276,7 @@ build_Tests()
     build_test_wrappers
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
-        __up=-updateinvalidpackageversion
+        __up="/t:UpdateInvalidPackageVersions"
     fi
 
     generate_layout
@@ -357,10 +304,10 @@ build_MSBuild_projects()
     __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
 
     # Use binclashlogger by default if no other logger is specified
-    if [[ "${extraBuildParameters[*]}" == *"-MsBuildEventLogging"* ]]; then
-        msbuildEventLogging=""
+    if [[ "${extraBuildParameters[*]}" == *"/l:"* ]]; then
+        __msbuildEventLogging=
     else
-        msbuildEventLogging="-MsBuildEventLogging=\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\""
+        __msbuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log"
     fi
 
     if [[ "$subDirectoryName" == "Tests_Managed" ]]; then
@@ -388,13 +335,17 @@ build_MSBuild_projects()
             export TestBuildSlice=$slice
 
             # Generate build command
-            buildArgs=("-Project=$projectName" "-MsBuildLog=${__msbuildLog}" "-MsBuildWrn=${__msbuildWrn}" "-MsBuildErr=${__msbuildErr}")
-            buildArgs+=("$msbuildEventLogging")
+            buildArgs=("/nologo" "/verbosity:minimal" "/clp:Summary")
+            buildArgs+=("/p:RestoreDefaultOptimizationDataPackage=false" "/p:PortableBuild=true")
+            buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
+
+            buildArgs+=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
+            buildArgs+=("$__msbuildEventLogging")
             buildArgs+=("${extraBuildParameters[@]}")
-            buildArgs+=("${__RunArgs[@]}")
+            buildArgs+=("${__CommonMSBuildArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-            nextCommand="\"$__ProjectRoot/run.sh\" build ${buildArgs[@]}"
+            nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild ${buildArgs[@]}"
             echo "Building step '$stepName' slice=$slice via $nextCommand"
             eval $nextCommand
 
@@ -416,13 +367,17 @@ build_MSBuild_projects()
         __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr}\""
 
         # Generate build command
-        buildArgs=("-Project=$projectName" "-MsBuildLog=${__msbuildLog}" "-MsBuildWrn=${__msbuildWrn}" "-MsBuildErr=${__msbuildErr}")
-        buildArgs+=("$msbuildEventLogging")
+        buildArgs=("/nologo" "/verbosity:minimal" "/clp:Summary")
+        buildArgs+=("/p:RestoreDefaultOptimizationDataPackage=false" "/p:PortableBuild=true")
+        buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
+
+        buildArgs+=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
+        buildArgs+=("$__msbuildEventLogging")
         buildArgs+=("${extraBuildParameters[@]}")
-        buildArgs+=("${__RunArgs[@]}")
+        buildArgs+=("${__CommonMSBuildArgs[@]}")
         buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-        nextCommand="\"$__ProjectRoot/run.sh\" build ${buildArgs[@]}"
+        nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild ${buildArgs[@]}"
         echo "Building step '$stepName' via $nextCommand"
         eval $nextCommand
 
@@ -463,13 +418,19 @@ build_native_projects()
     if [ $__SkipConfigure == 0 ]; then
         # if msbuild is not supported, then set __SkipGenerateVersion to 1
         if [ $__isMSBuildOnNETCoreSupported == 0 ]; then __SkipGenerateVersion=1; fi
-        # Drop version.cpp file
-        __versionSourceFile="$intermediatesForBuild/version.cpp"
+        # Drop version.c file
+        __versionSourceFile="$intermediatesForBuild/version.c"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
-            "$__ProjectRoot/run.sh" build -Project=$__ProjectDir/build.proj -generateHeaderUnix -NativeVersionSourceFile=$__versionSourceFile -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"  $__RunArgs $__UnprocessedBuildArgs
+            $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
+                                     /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                                     /p:UsePartialNGENOptimization=false /maxcpucount \
+                                     $__ProjectDir/build.proj /t:GenerateVersionHeader \
+                                     /p:GenerateVersionHeader=true /p:NativeVersionSourceFile=$__versionSourceFile \
+                                     /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
+                                     $__CommonMSBuildArgs $__UnprocessedBuildArgs
         else
-            # Generate the dummy version.cpp, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
+            # Generate the dummy version.c, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
             if [ -e $__versionSourceFile ]; then
                 read existingVersionSourceLine < $__versionSourceFile
@@ -635,7 +596,7 @@ __RootBinDir="$__ProjectDir/bin"
 __BuildToolsDir="$__ProjectDir/Tools"
 __DotNetCli="${__BuildToolsDir}/dotnetcli/dotnet"
 __UnprocessedBuildArgs=
-__RunArgs=
+__CommonMSBuildArgs=
 __MSBCleanBuildArgs=
 __UseNinja=0
 __VerboseBuild=0
@@ -649,7 +610,6 @@ __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
 __NuGetPath="$__PackagesDir/NuGet.exe"
-__HostDistroRid=""
 __SkipRestorePackages=0
 __DistroRid=""
 __cmakeargs=""
@@ -718,8 +678,8 @@ while :; do
             __CrossBuild=1
             ;;
 
-        portableBuild)
-            __PortableBuild=1
+        portablebuild=false)
+            __PortableBuild=0
             ;;
 
         portablelinux)
@@ -838,7 +798,7 @@ while :; do
 
         priority1)
             __priority1=1
-            __UnprocessedBuildArgs+=("-priority=1")
+            __UnprocessedBuildArgs+=("/p:CLRTestPriorityToBuild=1")
             ;;
 
         *)
@@ -862,12 +822,12 @@ else
   __NumProc=$(nproc --all)
 fi
 
-__RunArgs=("-BuildArch=$__BuildArch" "-BuildType=$__BuildType" "-BuildOS=$__BuildOS")
+__CommonMSBuildArgs=("/p:__BuildArch=$__BuildArch" "/p:__BuildType=$__BuildType" "/p:__BuildOS=$__BuildOS")
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
     export VERBOSE=1
-    __RunArgs+=("-verbose")
+    __CommonMSBuildArgs+=("/v:detailed")
 fi
 
 # Set default clang version
@@ -883,9 +843,7 @@ fi
 
 # Set dependent variables
 __LogsDir="$__RootBinDir/Logs"
-
-# init the host distro name
-initHostDistroRid
+__MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 
 # Set the remaining variables based upon the determined build configuration
 __BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"

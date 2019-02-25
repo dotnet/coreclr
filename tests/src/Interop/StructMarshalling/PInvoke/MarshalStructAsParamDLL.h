@@ -292,11 +292,11 @@ void ChangeCharSetUnicodeSequential(CharSetUnicodeSequential* p)
 #else
 	LPCWSTR strSource = u"change string";
 #endif
-	size_t len = wcslen(strSource);
+	size_t len = TP_slen(strSource);
 	LPCWSTR temp = (LPCWSTR)CoreClrAlloc(sizeof(WCHAR)*(len+1));
 	if(temp != NULL)
 	{
-		wcscpy_s((WCHAR*)temp, (len+1), strSource);
+		TP_scpy_s((WCHAR*)temp, (len+1), strSource);
 		p->f1 = temp;
 		p->f2 = L'n';
 	}
@@ -818,3 +818,64 @@ bool IsCorrectLongStructPack16Explicit(LongStructPack16Explicit* p)
 		return false;
 	return true;
 }
+
+struct HFA
+{
+    float f1;
+    float f2;
+    float f3;
+    float f4;
+};
+
+struct ManyInts
+{
+    int i1;
+    int i2;
+    int i3;
+    int i4;
+    int i5;
+    int i6;
+    int i7;
+    int i8;
+    int i9;
+    int i10;
+    int i11;
+    int i12;
+    int i13;
+    int i14;
+    int i15;
+    int i16;
+    int i17;
+    int i18;
+    int i19;
+    int i20;
+};
+
+struct MultipleBools
+{
+    BOOL b1;
+    BOOL b2;
+};
+
+struct IntWithInnerSequential
+{
+    int i1;
+    InnerSequential sequential;
+};
+
+struct SequentialWrapper
+{
+    InnerSequential sequential;
+};
+
+struct SequentialDoubleWrapper
+{
+    SequentialWrapper wrapper;
+};
+
+struct AggregateSequentialWrapper
+{
+    SequentialWrapper wrapper1;
+    InnerSequential sequential;
+    SequentialWrapper wrapper2;
+};

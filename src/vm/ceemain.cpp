@@ -84,7 +84,7 @@
 //     actually exist yet. To support this methods can have code:Precode that is an entry point that exists
 //     and will call the JIT compiler if the code does not yet exist.
 //     
-//  * NGEN - NGen stands for Native code GENeration and it is the runtime way of precomiling IL and IL
+//  * NGEN - NGen stands for Native code GENeration and it is the runtime way of precompiling IL and IL
 //      Meta-data into native code and runtime data structures. At compilation time the most
 //      fundamental data structures is the code:ZapNode which represents something that needs to go into the
 //      NGEN image.
@@ -144,7 +144,6 @@
 #include "cordbpriv.h"
 #include "comdelegate.h"
 #include "appdomain.hpp"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "corhost.h"
 #include "binder.h"
@@ -153,13 +152,9 @@
 #include "apithreadstress.h"
 #include "perflog.h"
 #include "../dlls/mscorrc/resource.h"
-#ifdef FEATURE_USE_LCID
-#include "nlsinfo.h"
-#endif 
 #include "util.hpp"
 #include "shimload.h"
 #include "comthreadpool.h"
-#include "stackprobe.h"
 #include "posterror.h"
 #include "virtualcallstub.h"
 #include "strongnameinternal.h"
@@ -419,7 +414,6 @@ HRESULT EnsureEEStarted(COINITIEE flags)
 static BOOL WINAPI DbgCtrlCHandler(DWORD dwCtrlType)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
 #if defined(DEBUGGING_SUPPORTED)
     // Note that if a managed-debugger is attached, it's actually attached with the native
@@ -522,7 +516,6 @@ void InitGSCookie()
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -671,6 +664,8 @@ void EEStartupHelper(COINITIEE fFlags)
         // This needs to be done before the EE has started
         InitializeStartupFlags();
 
+        MethodDescBackpatchInfoTracker::StaticInitialize();
+
         InitThreadManager();
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "Returned successfully from InitThreadManager");
 
@@ -798,12 +793,6 @@ void EEStartupHelper(COINITIEE fFlags)
             g_BBSweep.SetBBSweepThreadHandle(hBBSweepThread);
         }
 #endif // FEATURE_PREJIT
-
-#ifdef ENABLE_PERF_COUNTERS
-        hr = PerfCounters::Init();
-        _ASSERTE(SUCCEEDED(hr));
-        IfFailGo(hr);
-#endif
 
 #ifdef FEATURE_INTERPRETER
         Interpreter::Initialize();
@@ -943,14 +932,6 @@ void EEStartupHelper(COINITIEE fFlags)
         SyncBlockCache::Start();
 
         StackwalkCache::Init();
-
-        // In coreclr, clrjit is compiled into it, but SO work in clrjit has not been done.
-#ifdef FEATURE_STACK_PROBE
-        if (CLRHosted() && GetEEPolicy()->GetActionOnFailure(FAIL_StackOverflow) == eRudeUnloadAppDomain)
-        {
-            InitStackProbes();
-        }
-#endif
 
         // This isn't done as part of InitializeGarbageCollector() above because it
         // requires write barriers to have been set up on x86, which happens as part
@@ -1190,11 +1171,6 @@ void InnerCoEEShutDownCOM()
     // Release all of the RCWs in all contexts in all caches.
     ReleaseRCWsInCaches(NULL);
 
-    // Release all marshaling data in all AppDomains
-    AppDomainIterator i(TRUE);
-    while (i.Next())
-        i.GetDomain()->DeleteMarshalingData();
-
 #ifdef FEATURE_APPX    
     // Cleanup cached factory pointer in SynchronizationContextNative
     SynchronizationContextNative::Cleanup();
@@ -1282,7 +1258,7 @@ static void ExternalShutdownHelper(int exitCode, ShutdownCompleteAction sca)
         ENTRY_POINT;
     } CONTRACTL_END;
 
-    CONTRACT_VIOLATION(GCViolation | ModeViolation | SOToleranceViolation);
+    CONTRACT_VIOLATION(GCViolation | ModeViolation);
 
     if (g_fEEShutDown || !g_fEEStarted)
         return;
@@ -1796,11 +1772,6 @@ part2:
                 }
 #endif /* SHOULD_WE_CLEANUP */
 
-#ifdef ENABLE_PERF_COUNTERS
-                // Terminate Perf Counters as late as we can (to get the most data)
-                PerfCounters::Terminate();
-#endif // ENABLE_PERF_COUNTERS
-
                 //@TODO: find the right place for this
                 VirtualCallStubManager::UninitStatic();
 
@@ -1814,8 +1785,6 @@ part2:
                 {
                     SystemDomain::DetachEnd();
                 }
-
-                TerminateStackProbes();
 
                 // Unregister our vectored exception and continue handlers from the OS.
                 // This will ensure that if any other DLL unload (after ours) has an exception,
@@ -1960,9 +1929,6 @@ static LONG s_ActiveShutdownThreadCount = 0;
 // 
 DWORD WINAPI EEShutDownProcForSTAThread(LPVOID lpParameter)
 {
-    STATIC_CONTRACT_SO_INTOLERANT;;
-
-
     ClrFlsSetThreadType(ThreadType_ShutdownHelper);
 
     EEShutDownHelper(FALSE);
@@ -2030,7 +1996,6 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT; // we don't need to cleanup 'cus we're shutting down
         PRECONDITION(g_fEEStarted);
     } CONTRACTL_END;
 
@@ -2039,14 +2004,6 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
     {
         return;
     }
-
-    // Stop stack probing and asserts right away.  Once we're shutting down, we can do no more.
-    // And we don't want to SO-protect anything at this point anyway. This really only has impact
-    // on a debug build.
-    TerminateStackProbes();
-
-    // The process is shutting down.  No need to check SO contract.
-    SO_NOT_MAINLINE_FUNCTION;
 
     // We only do the first part of the shutdown once.
     static LONG OnlyOne = -1;
@@ -2179,7 +2136,6 @@ NOINLINE BOOL CanRunManagedCodeRare(LoaderLockCheck::kind checkKind, HINSTANCE h
         NOTHROW;
         if (checkKind == LoaderLockCheck::ForMDA) { GC_TRIGGERS; } else { GC_NOTRIGGER; }; // because of the CustomerDebugProbe
         MODE_ANY;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     // If we are shutting down the runtime, then we cannot run code.
@@ -2239,7 +2195,6 @@ BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst /*= 0*/)
         NOTHROW;
         if (checkKind == LoaderLockCheck::ForMDA) { GC_TRIGGERS; } else { GC_NOTRIGGER; }; // because of the CustomerDebugProbe
         MODE_ANY;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     // Special-case the common success cases
@@ -2284,7 +2239,6 @@ HRESULT STDAPICALLTYPE CoInitializeEE(DWORD fFlags)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2328,7 +2282,6 @@ BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)
         if (fFromThunk) THROWS; else NOTHROW;
         WRAPPER(GC_TRIGGERS);
         MODE_ANY;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     // If we have a failure result, and we're called from a thunk,
@@ -2402,10 +2355,6 @@ BOOL STDMETHODCALLTYPE EEDllMain( // TRUE on success, FALSE on error.
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
 
-    // this runs at the top of a thread, SO is not a concern here...
-    STATIC_CONTRACT_SO_NOT_MAINLINE;
-
-
     // HRESULT hr;
     // BEGIN_EXTERNAL_ENTRYPOINT(&hr);
     // EE isn't spun up enough to use this macro
@@ -2458,12 +2407,6 @@ BOOL STDMETHODCALLTYPE EEDllMain( // TRUE on success, FALSE on error.
                 // should always be non NULL.
                 _ASSERTE(pParam->lpReserved || !g_fEEStarted);
                 g_fProcessDetach = TRUE;
-
-#if defined(ENABLE_CONTRACTS_IMPL) && defined(FEATURE_STACK_PROBE)
-                // We are shutting down process.  No need to check SO contract.
-                // And it is impossible to enforce SO contract in global dtor, like ModIntPairList.
-                g_EnableDefaultRWValidation = FALSE;
-#endif
 
                 if (g_fEEStarted)
                 {
@@ -2677,7 +2620,6 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(CheckPointer(pCultureNames));
-        SO_INTOLERANT;
     } 
     CONTRACTL_END;
 
@@ -2688,7 +2630,7 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
         InlineSString<LOCALE_NAME_MAX_LENGTH> sCulture;
         InlineSString<LOCALE_NAME_MAX_LENGTH> sParentCulture;
 
-
+#if 0 // Enable and test if/once the unmanaged runtime is localized
         Thread * pThread = GetThread();
 
         // When fatal errors have occured our invariants around GC modes may be broken and attempting to transition to co-op may hang
@@ -2713,36 +2655,33 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
             // and we don't want them moving on us.
             GCX_COOP();
 
-            THREADBASEREF pThreadBase = (THREADBASEREF)pThread->GetExposedObjectRaw();
+            CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)Thread::GetCulture(TRUE);
 
-            if (pThreadBase != NULL)
+            if (pCurrentCulture != NULL)
             {
-                CULTUREINFOBASEREF pCurrentCulture = pThreadBase->GetCurrentUICulture();
+                STRINGREF cultureName = pCurrentCulture->GetName();
 
-                if (pCurrentCulture != NULL)
+                if (cultureName != NULL)
                 {
-                    STRINGREF cultureName = pCurrentCulture->GetName();
+                    sCulture.Set(cultureName->GetBuffer(),cultureName->GetStringLength());
+                }
 
-                    if (cultureName != NULL)
+                CULTUREINFOBASEREF pParentCulture = pCurrentCulture->GetParent();
+
+                if (pParentCulture != NULL)
+                {
+                    STRINGREF parentCultureName = pParentCulture->GetName();
+
+                    if (parentCultureName != NULL)
                     {
-                        sCulture.Set(cultureName->GetBuffer(),cultureName->GetStringLength());
+                        sParentCulture.Set(parentCultureName->GetBuffer(),parentCultureName->GetStringLength());
                     }
 
-                    CULTUREINFOBASEREF pParentCulture = pCurrentCulture->GetParent();
-
-                    if (pParentCulture != NULL)
-                    {
-                        STRINGREF parentCultureName = pParentCulture->GetName();
-
-                        if (parentCultureName != NULL)
-                        {
-                            sParentCulture.Set(parentCultureName->GetBuffer(),parentCultureName->GetStringLength());
-                        }
-
-                    }
                 }
             }
         }
+#endif
+
         // If the lazily-initialized cultureinfo structures aren't initialized yet, we'll
         // need to do the lookup the hard way.
         if (sCulture.IsEmpty() || sParentCulture.IsEmpty())
@@ -2800,7 +2739,6 @@ void SetLatchedExitCode (INT32 code)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -2828,7 +2766,6 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_INTOLERANT;;
     } CONTRACTL_END;
 
 
@@ -2837,6 +2774,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
 
     Thread * pThread = GetThread();
 
+#if 0 // Enable and test if/once the unmanaged runtime is localized
     // When fatal errors have occured our invariants around GC modes may be broken and attempting to transition to co-op may hang
     // indefinately. We want to ensure a clean exit so rather than take the risk of hang we take a risk of the error resource not
     // getting localized with a non-default thread-specific culture.
@@ -2859,21 +2797,18 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         // and we don't want them moving on us.
         GCX_COOP();
 
-        THREADBASEREF pThreadBase = (THREADBASEREF)pThread->GetExposedObjectRaw();
-        if (pThreadBase != NULL)
+        CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)Thread::GetCulture(TRUE);
+
+        if (pCurrentCulture != NULL)
         {
-            CULTUREINFOBASEREF pCurrentCulture = pThreadBase->GetCurrentUICulture();
+            STRINGREF cultureName = pCurrentCulture->GetName();
+            _ASSERT(cultureName != NULL);
 
-            if (pCurrentCulture != NULL)
-            {
-                STRINGREF cultureName = pCurrentCulture->GetName();
-                _ASSERT(cultureName != NULL);
-
-                if ((Result = ::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
-                    Result = (int)UICULTUREID_DONTCARE;
-            }
+            if ((Result = ::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
+                Result = (int)UICULTUREID_DONTCARE;
         }
     }
+#endif
 
     if (Result == (int)UICULTUREID_DONTCARE)
     {
@@ -2903,7 +2838,6 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_INTOLERANT;;
     } CONTRACTL_END;
 
     _ASSERTE(sizeof(LocaleIDValue)/sizeof(WCHAR) >= LOCALE_NAME_MAX_LENGTH);
@@ -2912,6 +2846,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
 
     Thread * pThread = GetThread();
 
+#if 0 // Enable and test if/once the unmanaged runtime is localized
     // When fatal errors have occured our invariants around GC modes may be broken and attempting to transition to co-op may hang
     // indefinately. We want to ensure a clean exit so rather than take the risk of hang we take a risk of the error resource not
     // getting localized with a non-default thread-specific culture.
@@ -2935,29 +2870,25 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         // and we don't want them moving on us.
         GCX_COOP();
 
-        THREADBASEREF pThreadBase = (THREADBASEREF)pThread->GetExposedObjectRaw();
-        if (pThreadBase != NULL)
+        CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)Thread::GetCulture(TRUE);
+
+        if (pCurrentCulture != NULL)
         {
-            CULTUREINFOBASEREF pCurrentCulture = pThreadBase->GetCurrentUICulture();
+            STRINGREF currentCultureName = pCurrentCulture->GetName();
 
-            if (pCurrentCulture != NULL)
+            if (currentCultureName != NULL)
             {
-                STRINGREF currentCultureName = pCurrentCulture->GetName();
-
-                if (currentCultureName != NULL)
+                int cchCurrentCultureNameResult = currentCultureName->GetStringLength();
+                if (cchCurrentCultureNameResult < LOCALE_NAME_MAX_LENGTH)
                 {
-                    int cchCurrentCultureNameResult = currentCultureName->GetStringLength();
-                    if (cchCurrentCultureNameResult < LOCALE_NAME_MAX_LENGTH)
-                    {
-                        memcpy(*pLocale, currentCultureName->GetBuffer(), cchCurrentCultureNameResult*sizeof(WCHAR));
-                        (*pLocale)[cchCurrentCultureNameResult]='\0';
-                        Result=cchCurrentCultureNameResult;
-                    }
+                    memcpy(*pLocale, currentCultureName->GetBuffer(), cchCurrentCultureNameResult*sizeof(WCHAR));
+                    (*pLocale)[cchCurrentCultureNameResult]='\0';
+                    Result=cchCurrentCultureNameResult;
                 }
-
             }
         }
     }
+#endif
     if (Result == 0)
     {
 #ifndef FEATURE_PAL
@@ -2988,7 +2919,6 @@ BOOL AreAnyViolationBitsOn()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;

@@ -231,6 +231,7 @@ DEFINE_METASIG(SM(PtrByte_IntPtr_RetVoid, P(b) I, v))
 DEFINE_METASIG(SM(Str_Bool_Bool_RefInt_RetArrByte, s F F r(i), a(b) ))
 DEFINE_METASIG(SM(ArrByte_Int_PtrByte_Int_Int_RetVoid, a(b) i P(b) i i, v))
 DEFINE_METASIG(SM(PtrByte_Int_ArrByte_Int_Int_RetVoid, P(b) i a(b) i i, v))
+DEFINE_METASIG(SM(PtrByte_RetInt, P(b), i))
 DEFINE_METASIG(SM(PtrSByt_RetInt, P(B), i))
 DEFINE_METASIG(SM(IntPtr_RetIntPtr, I, I))
 DEFINE_METASIG(SM(UIntPtr_RetIntPtr, U, I))
@@ -394,8 +395,6 @@ DEFINE_METASIG_T(IM(RetCultureInfo, _, C(CULTURE_INFO)))
 DEFINE_METASIG_T(IM(RetCausalityTraceLevel, _, g(CAUSALITY_TRACE_LEVEL)))
 #endif // FEATURE_COMINTEROP
 
-DEFINE_METASIG_T(SM(RetThread, _, C(THREAD)))
-
 DEFINE_METASIG(IM(Bool_RetIntPtr, F, I))
 DEFINE_METASIG_T(IM(Bool_RetMethodInfo, F, C(METHOD_INFO)))
 DEFINE_METASIG(SM(Bool_RetStr, F, s))
@@ -423,7 +422,8 @@ DEFINE_METASIG(IM(Obj_Int_RetIntPtr, j i, I))
 
 DEFINE_METASIG(IM(Char_Char_RetStr, u u, s))
 DEFINE_METASIG(IM(Char_Int_RetVoid, u i, v))
-DEFINE_METASIG_T(IM(CultureInfo_RetVoid, C(CULTURE_INFO), v))
+DEFINE_METASIG_T(SM(RetCultureInfo, _, C(CULTURE_INFO)))
+DEFINE_METASIG_T(SM(CultureInfo_RetVoid, C(CULTURE_INFO), v))
 DEFINE_METASIG(IM(Dbl_RetVoid, d, v))
 DEFINE_METASIG(IM(Flt_RetVoid, f, v))
 DEFINE_METASIG(IM(Int_RetInt, i, i))
@@ -515,7 +515,7 @@ DEFINE_METASIG_T(SM(RuntimeTypeHandle_RetIntPtr, g(RT_TYPE_HANDLE), I))
 DEFINE_METASIG_T(SM(RuntimeMethodHandle_RetIntPtr, g(METHOD_HANDLE), I))
 DEFINE_METASIG_T(SM(IntPtr_Type_RetDelegate, I C(TYPE), C(DELEGATE)))
 
-
+DEFINE_METASIG(IM(RetRefByte, _, r(b)))
 DEFINE_METASIG_T(IM(Type_RetArrObj, C(TYPE) F, a(j)))
 DEFINE_METASIG(IM(Bool_RetVoid, F, v))
 DEFINE_METASIG_T(IM(BindingFlags_RetArrFieldInfo, g(BINDING_FLAGS), a(C(FIELD_INFO))))
@@ -551,9 +551,11 @@ DEFINE_METASIG_T(IM(RefGuid_OutIntPtr_RetCustomQueryInterfaceResult, r(g(GUID)) 
 #endif //FEATURE_COMINTEROP
 
 DEFINE_METASIG_T(SM(IntPtr_AssemblyName_RetAssemblyBase, I C(ASSEMBLY_NAME), C(ASSEMBLYBASE)))
+DEFINE_METASIG_T(SM(Str_AssemblyBase_IntPtr_RetIntPtr, s C(ASSEMBLYBASE) I, I))
+DEFINE_METASIG_T(SM(Str_AssemblyBase_Bool_UInt_RetIntPtr, s C(ASSEMBLYBASE) F K, I))
 
 // ThreadPool
-DEFINE_METASIG(SM(Obj_Bool_RetVoid, j F, v))
+DEFINE_METASIG_T(SM(_ThreadPoolWaitOrTimerCallback_Bool_RetVoid, C(TPWAITORTIMER_HELPER) F, v))
 
 // For FailFast
 DEFINE_METASIG(SM(Str_RetVoid, s, v))

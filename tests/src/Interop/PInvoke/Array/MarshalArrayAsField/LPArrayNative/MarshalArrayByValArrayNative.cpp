@@ -24,6 +24,13 @@ macro definition
 
 #define EQUALS(__actual, __cActual, __expected) Equals((__actual), (__cActual), (__expected), (int)sizeof(__expected) / sizeof(__expected[0]))
 
+#if defined(_MSC_VER)
+#define FUNCTIONNAME __FUNCSIG__
+#else
+#define FUNCTIONNAME __PRETTY_FUNCTION__
+#endif //_MSC_VER
+
+
 /*----------------------------------------------------------------------------
 struct definition
 ----------------------------------------------------------------------------*/
@@ -52,6 +59,19 @@ typedef struct  { TestStruct	 arr[ARRAY_SIZE];		}	S_StructArray;
 
 typedef struct  { BOOL		 arr[ARRAY_SIZE];		}	S_BOOLArray;
 
+enum class TestEnum : int32_t
+{
+    Red = 1,
+    Green,
+    Blue
+};
+
+typedef struct { TestEnum arr[3]; } EnregisterableNonBlittable;
+
+typedef struct { int32_t i; } SimpleStruct;
+
+typedef struct { SimpleStruct arr[3]; } EnregisterableUserType;
+
 /*----------------------------------------------------------------------------
 helper function
 ----------------------------------------------------------------------------*/
@@ -78,7 +98,7 @@ BOOL Equals(T *pActual, int cActual, T *pExpected, int cExpected)
         return TRUE;
     else if ( cActual != cExpected )
     {
-        printf("WARNING: Test error - %s\n", __FUNCSIG__);
+        printf("WARNING: Test error - %s\n", FUNCTIONNAME);
         printf("Array Length: expected: %d, actual: %d\n", cExpected, cActual);
         return FALSE;
     }
@@ -87,7 +107,7 @@ BOOL Equals(T *pActual, int cActual, T *pExpected, int cExpected)
     {
         if ( !IsObjectEquals(pActual[i], pExpected[i]) )
         {
-            printf("WARNING: Test error - %s\n", __FUNCSIG__);
+            printf("WARNING: Test error - %s\n", FUNCTIONNAME);
             printf("Array Element Not Equal: index: %d", static_cast<int>(i));
             return FALSE;
         }
@@ -112,7 +132,7 @@ bool TestStructEquals(TestStruct Actual[], TestStruct Expected[])
             IsObjectEquals(Actual[i].l, Expected[i].l) &&
             IsObjectEquals(Actual[i].str, Expected[i].str) ))
         {
-            printf("WARNING: Test error - %s\n", __FUNCSIG__);
+            printf("WARNING: Test error - %s\n", FUNCTIONNAME);
             return false;
         }
     }
@@ -241,6 +261,17 @@ extern "C" DLL_EXPORT BOOL __cdecl TakeStructArraySeqStructByVal( S_StructArray 
     TestStruct *expected = InitTestStruct();
     return TestStructEquals( s.arr,expected );
 }
+
+extern "C" DLL_EXPORT BOOL __cdecl TakeEnregistrableNonBlittableSeqStructByVal(EnregisterableNonBlittable s, TestEnum values[3])
+{
+    return s.arr[0] == values[0] && s.arr[1] == values[1] && s.arr[2] == values[2];
+}
+
+extern "C" DLL_EXPORT BOOL __cdecl TakeEnregisterableUserTypeStructByVal(EnregisterableUserType s, SimpleStruct values[3])
+{
+    return s.arr[0].i == values[0].i && s.arr[1].i == values[1].i && s.arr[2].i == values[2].i;
+}
+
 
 /*----------------------------------------------------------------------------
 marshal sequential class
@@ -470,6 +501,13 @@ extern "C" DLL_EXPORT BOOL __cdecl TakeStructArrayExpClassByVal( S_StructArray *
 /*----------------------------------------------------------------------------
 return a struct including a C array
 ----------------------------------------------------------------------------*/
+extern "C" DLL_EXPORT S_INTArray __cdecl S_INTArray_Ret_ByValue()
+{
+    INIT_EXPECTED_STRUCT( S_INTArray, ARRAY_SIZE, INT );
+
+    return *expected;
+}
+
 extern "C" DLL_EXPORT S_INTArray* __cdecl S_INTArray_Ret()
 {
     INIT_EXPECTED_STRUCT( S_INTArray, ARRAY_SIZE, INT );

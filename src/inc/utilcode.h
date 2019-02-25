@@ -144,18 +144,9 @@ typedef LPSTR   LPUTF8;
 
 #ifndef DEBUG_NOINLINE
 #if defined(_DEBUG)
-#define DEBUG_NOINLINE __declspec(noinline)
+#define DEBUG_NOINLINE NOINLINE
 #else
 #define DEBUG_NOINLINE
-#endif
-#endif
-
-#ifndef DBG_NOINLINE_X86__RET_INLINE
-#if defined(_DEBUG) && defined(_TARGET_X86_)
-// this exists to make scan work on x86. 
-#define DBG_NOINLINE_X86__RET_INLINE __declspec(noinline)
-#else
-#define DBG_NOINLINE_X86__RET_INLINE FORCEINLINE
 #endif
 #endif
 
@@ -4634,7 +4625,6 @@ inline void ClrFlsSetThreadType (TlsThreadTypeFlag flag)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     ClrFlsSetValue (TlsIdx_ThreadType, (LPVOID)(((size_t)ClrFlsGetValue (TlsIdx_ThreadType)) |flag));
 }
@@ -4681,7 +4671,6 @@ inline BOOL IsGCThread ()
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_SUPPORTS_DAC;
-    STATIC_CONTRACT_SO_TOLERANT;
 
 #if !defined(DACCESS_COMPILE)
     return IsGCSpecialThread () || IsSuspendEEThread ();

@@ -438,43 +438,67 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fstack-protector-strong)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 
+  # Contracts are disabled on UNIX.
   add_definitions(-DDISABLE_CONTRACTS)
-  # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
-  # after hitting just about 20 errors.
-  add_compile_options(-ferror-limit=4096)
 
   if (CLR_CMAKE_WARNINGS_ARE_ERRORS)
     # All warnings that are not explicitly disabled are reported as errors
     add_compile_options(-Werror)
   endif(CLR_CMAKE_WARNINGS_ARE_ERRORS)
 
-  # Disabled warnings
-  add_compile_options(-Wno-unused-private-field)
+  # Disabled common warnings
   add_compile_options(-Wno-unused-variable)
-  # Explicit constructor calls are not supported by clang (this->ClassName::ClassName())
-  add_compile_options(-Wno-microsoft)
-  # This warning is caused by comparing 'this' to NULL
-  add_compile_options(-Wno-tautological-compare)
-  # There are constants of type BOOL used in a condition. But BOOL is defined as int
-  # and so the compiler thinks that there is a mistake.
-  add_compile_options(-Wno-constant-logical-operand)
-  # We use pshpack1/2/4/8.h and poppack.h headers to set and restore packing. However
-  # clang 6.0 complains when the packing change lifetime is not contained within 
-  # a header file.
-  add_compile_options(-Wno-pragma-pack)
-
-  add_compile_options(-Wno-unknown-warning-option)
+  add_compile_options(-Wno-unused-value)
+  add_compile_options(-Wno-unused-function)
 
   #These seem to indicate real issues
-  add_compile_options(-Wno-invalid-offsetof)
-  # The following warning indicates that an attribute __attribute__((__ms_struct__)) was applied
-  # to a struct or a class that has virtual members or a base class. In that case, clang
-  # may not generate the same object layout as MSVC.
-  add_compile_options(-Wno-incompatible-ms-struct)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-invalid-offsetof")
+
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
+    # after hitting just about 20 errors.
+    add_compile_options(-ferror-limit=4096)
+
+    # Disabled warnings
+    add_compile_options(-Wno-unused-private-field)
+    # Explicit constructor calls are not supported by clang (this->ClassName::ClassName())
+    add_compile_options(-Wno-microsoft)
+    # This warning is caused by comparing 'this' to NULL
+    add_compile_options(-Wno-tautological-compare)
+    # There are constants of type BOOL used in a condition. But BOOL is defined as int
+    # and so the compiler thinks that there is a mistake.
+    add_compile_options(-Wno-constant-logical-operand)
+    # We use pshpack1/2/4/8.h and poppack.h headers to set and restore packing. However
+    # clang 6.0 complains when the packing change lifetime is not contained within 
+    # a header file.
+    add_compile_options(-Wno-pragma-pack)
+
+    add_compile_options(-Wno-unknown-warning-option)
+
+    # The following warning indicates that an attribute __attribute__((__ms_struct__)) was applied
+    # to a struct or a class that has virtual members or a base class. In that case, clang
+    # may not generate the same object layout as MSVC.
+    add_compile_options(-Wno-incompatible-ms-struct)
+  else()
+    add_compile_options(-Wno-unused-variable)
+    add_compile_options(-Wno-unused-but-set-variable)
+    add_compile_options(-fms-extensions)
+  endif()
 
   # Some architectures (e.g., ARM) assume char type is unsigned while CoreCLR assumes char is signed
   # as x64 does. It has been causing issues in ARM (https://github.com/dotnet/coreclr/issues/4746)
   add_compile_options(-fsigned-char)
+
+  # We mark the function which needs exporting with DLLEXPORT
+  add_compile_options(-fvisibility=hidden)
+
+  # Specify the minimum supported version of macOS
+  if(CLR_CMAKE_PLATFORM_DARWIN)
+    set(MACOS_VERSION_MIN_FLAGS "-mmacosx-version-min=10.12")
+    add_compile_options("${MACOS_VERSION_MIN_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MACOS_VERSION_MIN_FLAGS}")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${MACOS_VERSION_MIN_FLAGS}")
+  endif(CLR_CMAKE_PLATFORM_DARWIN)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(CLR_CMAKE_PLATFORM_UNIX_ARM)
@@ -545,6 +569,11 @@ if (WIN32)
   add_compile_options($<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:/MTd>)  
 
   set(CMAKE_ASM_MASM_FLAGS "${CMAKE_ASM_MASM_FLAGS} /ZH:SHA_256")
+  
+  if (CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_TARGET_ARCH_ARM64)
+    # Contracts work too slow on ARM/ARM64 DEBUG/CHECKED.
+    add_definitions(-DDISABLE_CONTRACTS)
+  endif (CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_TARGET_ARCH_ARM64)    
   
 endif (WIN32)
 

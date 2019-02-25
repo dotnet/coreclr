@@ -1018,7 +1018,7 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
         else
 #ifdef HAS_THISPTR_RETBUF_PRECODE
         if (pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
-            pTargetCode = pTargetMethod->GetLoaderAllocatorForCode()->GetFuncPtrStubs()->GetFuncPtrStub(pTargetMethod, PRECODE_THISPTR_RETBUF);
+            pTargetCode = pTargetMethod->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pTargetMethod, PRECODE_THISPTR_RETBUF);
         else
 #endif // HAS_THISPTR_RETBUF_PRECODE
             pTargetCode = pTargetMethod->GetMultiCallableAddrOfCode();
@@ -1657,7 +1657,7 @@ FCIMPL3(PCODE, COMDelegate::AdjustTarget, Object* refThisUNSAFE, Object* targetU
 
     // Use the Unboxing stub for value class methods, since the value
     // class is constructed using the boxed instance.
-    if (pMTTarg->IsValueType() && !pCorrectedMethod->IsUnboxingStub())
+    if (pCorrectedMethod->GetMethodTable()->IsValueType() && !pCorrectedMethod->IsUnboxingStub())
     {
         // those should have been ruled out at jit time (code:COMDelegate::GetDelegateCtor)
         _ASSERTE((pMTMeth != g_pValueTypeClass) && (pMTMeth != g_pObjectClass));
@@ -1882,7 +1882,7 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
         }
 #ifdef HAS_THISPTR_RETBUF_PRECODE
         else if (pMeth->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
-            method = pMeth->GetLoaderAllocatorForCode()->GetFuncPtrStubs()->GetFuncPtrStub(pMeth, PRECODE_THISPTR_RETBUF);
+            method = pMeth->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pMeth, PRECODE_THISPTR_RETBUF);
 #endif // HAS_THISPTR_RETBUF_PRECODE
 
         gc.refThis->SetTarget(gc.target);
@@ -3432,7 +3432,6 @@ BOOL COMDelegate::IsSecureDelegate(DELEGATEREF dRef)
         MODE_ANY;
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     DELEGATEREF innerDel = NULL;

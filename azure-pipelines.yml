@@ -14,17 +14,23 @@ resources:
   - container: ubuntu_1604_arm64_cross_build_image
     image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921
 
-  - container: ubuntu_1604_x64_build_image
-    image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-c103199-20180628134544
-
   - container: musl_x64_build_image
-    image: microsoft/dotnet-buildtools-prereqs:alpine-3.6-e2521f8-20180716231200
+    image: microsoft/dotnet-buildtools-prereqs:alpine-3.6-WithNode-f4d3fe3-20181220200247
+
+  - container: musl_arm64_build_image
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-alpine10fcdcf-20190208200917
 
   - container: centos7_x64_build_image
     image: microsoft/dotnet-buildtools-prereqs:centos-7-d485f41-20173404063424
 
   - container: centos6_x64_build_image
     image: microsoft/dotnet-buildtools-prereqs:centos-6-376e1a3-20174311014331
+
+trigger:
+- master
+
+pr:
+- master
 
 jobs:
 
@@ -86,16 +92,16 @@ jobs:
 # https://github.com/Microsoft/azure-pipelines-yaml/pull/46 for more information
 
 #
-# Debug build (CI)
+# Debug build (Pull request)
 #
-- ${{ if eq(variables['System.TeamProject'], 'public') }}:
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: build-job.yml
       buildConfig: debug
 
 #
-# Checked build (CI)
+# Checked build
 #
 - ${{ if eq(variables['System.TeamProject'], 'public') }}:
   - template: eng/platform-matrix.yml
@@ -104,86 +110,92 @@ jobs:
       buildConfig: checked
 
 #
-# Release build (Official Build)
+# Release build (Pull request)
 #
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: release
-    jobParameters:
-      # Publishing packages to blob feeds sometimes takes a long time
-      # due to waiting for an exclusive lock on the feed.
-      # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
-      timeoutInMinutes: 120
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: build-job.yml
+      buildConfig: release
+
+#
+# Release build (Official build)
+#
+- ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: build-job.yml
+      buildConfig: release
+      jobParameters:
+        # Publishing packages to blob feeds sometimes takes a long time
+        # due to waiting for an exclusive lock on the feed.
+        # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
+        timeoutInMinutes: 120
 
 #
 # Checked test builds
 #
 
-# Pri0 (PullRequest)
+# Pull request
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
       buildConfig: checked
       jobParameters:
-        priority: 0
-        timeoutInMinutes: 120
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-ci') }}:
+          testGroup: innerloop
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop') }}:
+          testGroup: outerloop
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitminopts-jitstress1-jitstress2') }}:
+          testGroup: outerloop-jitminopts-jitstress1-jitstress2
 
-# Pri1 (CI)
+# CI
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
       buildConfig: checked
       jobParameters:
-        priority: 1
-        timeoutInMinutes: 240
+        testGroup: outerloop
 
-# Pri1 crossgen (CI)
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
       buildConfig: checked
       jobParameters:
-        priority: 1
-        crossgen: true
-        timeoutInMinutes: 240
+        readyToRun: true
+        testGroup: outerloop
 
-# Pri1 (Manual)
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'Manual')) }}:
+# Schedule or Manual
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'Schedule', 'Manual')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
       buildConfig: checked
       jobParameters:
-        priority: 1
-        scenarios: 'normal,jitstress1,jitstress2,gcstress0x3,gcstress0xc'
-        timeoutInMinutes: 300
+        testGroup: outerloop
 
 #
-# Release test builds (Official Build)
+# Release test builds
 #
 
-# Pri1
-- ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+# Official build
+- ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
       buildConfig: release
       jobParameters:
-        priority: 1
+        testGroup: outerloop
 
-# Pri1 crossgen (Official Build)
-- ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
       buildConfig: release
       jobParameters:
-        priority: 1
-        crossgen: true
+        testGroup: outerloop
+        readyToRun: true
 
 
 # Publish build information to Build Assets Registry
@@ -193,20 +205,15 @@ jobs:
 # registry. Its dependencies should be updated to include all of the
 # official builds if we add more platform/arch combinations.
 
-- ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
-  - template: /eng/common/templates/job/publish-build-assets.yml
+- ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+  - template: /eng/finalize-publish.yml
     parameters:
-      configuration: Release
-      pool:
-        name: dotnet-internal-temp
       dependsOn:
       - build_Linux_arm_release
       - build_Linux_arm64_release
-      # TODO: depend on musl job once the glibc container issue is fixed
-      # https://dnceng.visualstudio.com/internal/_workitems/edit/109
-      # - build_Linux_musl_x64_release
+      - build_Linux_musl_x64_release
+      - build_Linux_musl_arm64_release
       - build_Linux_rhel6_x64_release
-      - build_Linux_rhel7_x64_release
       - build_Linux_x64_release
       - build_OSX_x64_release
       - build_Windows_NT_x64_release

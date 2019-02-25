@@ -785,7 +785,6 @@ public:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
@@ -852,6 +851,7 @@ typedef Array<U2>   U2Array;
 typedef Array<WCHAR>   CHARArray;
 typedef Array<U4>   U4Array;
 typedef Array<U8>   U8Array;
+typedef Array<UPTR> UPTRArray;
 typedef PtrArray    PTRArray;  
 
 typedef DPTR(I1Array)   PTR_I1Array;
@@ -866,6 +866,7 @@ typedef DPTR(U2Array)   PTR_U2Array;
 typedef DPTR(CHARArray) PTR_CHARArray;
 typedef DPTR(U4Array)   PTR_U4Array;
 typedef DPTR(U8Array)   PTR_U8Array;
+typedef DPTR(UPTRArray) PTR_UPTRArray;
 typedef DPTR(PTRArray)  PTR_PTRArray;
 
 class StringObject;
@@ -883,6 +884,7 @@ typedef REF<BOOLArray>  BOOLARRAYREF;
 typedef REF<U2Array>    U2ARRAYREF;
 typedef REF<U4Array>    U4ARRAYREF;
 typedef REF<U8Array>    U8ARRAYREF;
+typedef REF<UPTRArray>  UPTRARRAYREF;
 typedef REF<CHARArray>  CHARARRAYREF;
 typedef REF<PTRArray>   PTRARRAYREF;  // Warning: Use PtrArray only for single dimensional arrays, not multidim arrays.
 typedef REF<StringObject> STRINGREF;
@@ -901,6 +903,7 @@ typedef PTR_BOOLArray   BOOLARRAYREF;
 typedef PTR_U2Array     U2ARRAYREF;
 typedef PTR_U4Array     U4ARRAYREF;
 typedef PTR_U8Array     U8ARRAYREF;
+typedef PTR_UPTRArray   UPTRARRAYREF;
 typedef PTR_CHARArray   CHARARRAYREF;
 typedef PTR_PTRArray    PTRARRAYREF;  // Warning: Use PtrArray only for single dimensional arrays, not multidim arrays.
 typedef PTR_StringObject STRINGREF;
@@ -1141,7 +1144,6 @@ protected:
             NOTHROW;
             MODE_COOPERATIVE;
             GC_NOTRIGGER;
-            SO_TOLERANT;
         }
         CONTRACTL_END;
 
@@ -1161,7 +1163,6 @@ public:
             NOTHROW;
             MODE_COOPERATIVE;
             GC_NOTRIGGER;
-            SO_TOLERANT;
         }
         CONTRACTL_END;
 
@@ -1176,7 +1177,6 @@ public:
             NOTHROW;
             MODE_COOPERATIVE;
             GC_NOTRIGGER;
-            SO_TOLERANT;
         }
         CONTRACTL_END;
 
@@ -1190,7 +1190,6 @@ public:
             NOTHROW;
             MODE_COOPERATIVE;
             GC_NOTRIGGER;
-            SO_TOLERANT;
         }
         CONTRACTL_END;
 
@@ -1339,7 +1338,6 @@ typedef SafeHandle * SAFEHANDLEREF;
 
 
 
-#define SYNCCTXPROPS_REQUIRESWAITNOTIFICATION 0x1 // Keep in sync with SynchronizationContext.cs SynchronizationContextFlags
 class ThreadBaseObject;
 class SynchronizationContextObject: public Object
 {
@@ -1349,14 +1347,12 @@ private:
     // add or change these field you must also change the managed code so that
     // it matches these.  This is necessary so that the object is the proper
     // size. 
-    INT32 _props;
+    CLR_BOOL _requireWaitNotification;
 public:
-    BOOL IsWaitNotificationRequired()
+    BOOL IsWaitNotificationRequired() const
     {
         LIMITED_METHOD_CONTRACT;
-        if ((_props & SYNCCTXPROPS_REQUIRESWAITNOTIFICATION) != 0)
-            return TRUE;
-        return FALSE;
+        return _requireWaitNotification;
     }
 };
 
@@ -1397,11 +1393,11 @@ class CultureInfoBaseObject : public Object
     friend class MscorlibBinder;
 
 private:
-    OBJECTREF compareInfo;
-    OBJECTREF textInfo;
-    OBJECTREF numInfo;
-    OBJECTREF dateTimeInfo;
-    OBJECTREF calendar;
+    OBJECTREF _compareInfo;
+    OBJECTREF _textInfo;
+    OBJECTREF _numInfo;
+    OBJECTREF _dateTimeInfo;
+    OBJECTREF _calendar;
     OBJECTREF _cultureData;
     OBJECTREF _consoleFallbackCulture;
     STRINGREF _name;                       // "real" name - en-US, de-DE_phoneb or fj-FJ
@@ -1410,7 +1406,6 @@ private:
     CULTUREINFOBASEREF _parent;
     CLR_BOOL _isReadOnly;
     CLR_BOOL _isInherited;
-    CLR_BOOL _useUserOverride;
 
 public:
     CULTUREINFOBASEREF GetParent()
@@ -1507,15 +1502,6 @@ public:
     OBJECTREF GetDelegate()                   { LIMITED_METHOD_CONTRACT; return m_Delegate; }
     void      SetDelegate(OBJECTREF delegate);
 
-    CULTUREINFOBASEREF GetCurrentUserCulture();
-    CULTUREINFOBASEREF GetCurrentUICulture();
-    OBJECTREF GetManagedThreadCulture(BOOL bUICulture);
-    void ResetManagedThreadCulture(BOOL bUICulture);
-    void ResetCurrentUserCulture();
-    void ResetCurrentUICulture();
-
-
-
     OBJECTREF GetSynchronizationContext()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1526,13 +1512,6 @@ public:
     // created first.  InitExisting is our "constructor" for the pathway where an
     // existing physical thread is later exposed.
     void      InitExisting();
-
-    void ResetCulture()
-    {
-        LIMITED_METHOD_CONTRACT;
-        ResetCurrentUserCulture();
-        ResetCurrentUICulture();
-    }
 
     void ResetName()
     {
@@ -2108,27 +2087,10 @@ class SafeHandle : public Object
         return m_handle;
     }
 
-    BOOL OwnsHandle() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_ownsHandle;
-    }
-
-    static size_t GetHandleOffset() { LIMITED_METHOD_CONTRACT; return offsetof(SafeHandle, m_handle); }
-
     void AddRef();
     void Release(bool fDispose = false);
-    void Dispose();
     void SetHandle(LPVOID handle);
-
-    static FCDECL1(void, DisposeNative, SafeHandle* refThisUNSAFE);
-    static FCDECL1(void, Finalize, SafeHandle* refThisUNSAFE);
-    static FCDECL1(void, SetHandleAsInvalid, SafeHandle* refThisUNSAFE);
-    static FCDECL2(void, DangerousAddRef, SafeHandle* refThisUNSAFE, CLR_BOOL *pfSuccess);
-    static FCDECL1(void, DangerousRelease, SafeHandle* refThisUNSAFE);
 };
-
-// SAFEHANDLEREF defined above because CompressedStackObject needs it
 
 void AcquireSafeHandle(SAFEHANDLEREF* s);
 void ReleaseSafeHandle(SAFEHANDLEREF* s);
@@ -2169,17 +2131,18 @@ typedef CriticalHandle * CRITICALHANDLEREF;
 // Base class for WaitHandle 
 class WaitHandleBase :public MarshalByRefObjectBaseObject
 {
-    friend class WaitHandleNative;
     friend class MscorlibBinder;
 
 public:
-    __inline LPVOID GetWaitHandle() {LIMITED_METHOD_CONTRACT; return m_handle;}
-    __inline SAFEHANDLEREF GetSafeHandle() {LIMITED_METHOD_CONTRACT; return m_safeHandle;}
+    __inline LPVOID GetWaitHandle() {
+        LIMITED_METHOD_CONTRACT;
+        SAFEHANDLEREF safeHandle = (SAFEHANDLEREF)m_safeHandle.LoadWithoutBarrier();
+        return safeHandle != NULL ? safeHandle->GetHandle() : INVALID_HANDLE_VALUE;
+    }
+    __inline SAFEHANDLEREF GetSafeHandle() {LIMITED_METHOD_CONTRACT; return (SAFEHANDLEREF)m_safeHandle.LoadWithoutBarrier();}
 
 private:
-    SAFEHANDLEREF   m_safeHandle;
-    LPVOID          m_handle;
-    CLR_BOOL        m_hasThreadAffinity;
+    Volatile<SafeHandle*> m_safeHandle;
 };
 
 #ifdef USE_CHECKED_OBJECTREFS
@@ -2279,7 +2242,6 @@ public:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
@@ -2837,5 +2799,134 @@ typedef REF<ExceptionObject> EXCEPTIONREF;
 #else // USE_CHECKED_OBJECTREFS
 typedef PTR_ExceptionObject EXCEPTIONREF;
 #endif // USE_CHECKED_OBJECTREFS
+
+class GCHeapHashObject : public Object
+{
+#ifdef DACCESS_COMPILE
+    friend class ClrDataAccess;
+#endif
+    friend class GCHeap;
+    friend class JIT_TrialAlloc;
+    friend class CheckAsmOffsets;
+    friend class COMString;
+    friend class MscorlibBinder;
+
+    private:
+    BASEARRAYREF _data;
+    INT32 _count;
+    INT32 _deletedCount;
+
+    public:
+    INT32 GetCount() { LIMITED_METHOD_CONTRACT; return _count; }
+    void IncrementCount(bool replacingDeletedItem)
+    {
+        LIMITED_METHOD_CONTRACT; 
+        ++_count;
+        if (replacingDeletedItem)
+            --_deletedCount;
+    }
+
+    void DecrementCount(bool deletingItem)
+    {
+        LIMITED_METHOD_CONTRACT;
+        --_count;
+        if (deletingItem)
+            ++_deletedCount;
+    }
+    INT32 GetDeletedCount() { LIMITED_METHOD_CONTRACT; return _deletedCount; }
+    void SetDeletedCountToZero() { LIMITED_METHOD_CONTRACT; _deletedCount = 0; }
+    INT32 GetCapacity() { LIMITED_METHOD_CONTRACT; if (_data == NULL) return 0; else return (_data->GetNumComponents()); }
+    BASEARRAYREF GetData() { LIMITED_METHOD_CONTRACT; return _data; }
+
+    void SetTable(BASEARRAYREF data)
+    {
+        STATIC_CONTRACT_NOTHROW;
+        STATIC_CONTRACT_GC_NOTRIGGER;
+        STATIC_CONTRACT_MODE_COOPERATIVE;
+
+        SetObjectReference((OBJECTREF*)&_data, (OBJECTREF)data, GetAppDomain());
+    }
+
+    protected:
+    GCHeapHashObject() {LIMITED_METHOD_CONTRACT; }
+   ~GCHeapHashObject() {LIMITED_METHOD_CONTRACT; }
+};
+
+typedef DPTR(GCHeapHashObject)  PTR_GCHeapHashObject;
+
+#ifdef USE_CHECKED_OBJECTREFS
+typedef REF<GCHeapHashObject> GCHEAPHASHOBJECTREF;
+#else   // USE_CHECKED_OBJECTREFS
+typedef PTR_GCHeapHashObject GCHEAPHASHOBJECTREF;
+#endif // USE_CHECKED_OBJECTREFS
+
+class LAHashDependentHashTrackerObject : public Object
+{
+#ifdef DACCESS_COMPILE
+    friend class ClrDataAccess;
+#endif
+    friend class CheckAsmOffsets;
+    friend class MscorlibBinder;
+
+    private:
+    OBJECTHANDLE _dependentHandle;
+    LoaderAllocator* _loaderAllocator;
+
+    public:
+    bool IsLoaderAllocatorLive();
+    bool IsTrackerFor(LoaderAllocator *pLoaderAllocator)
+    {
+        if (pLoaderAllocator != _loaderAllocator)
+            return false;
+        
+        return IsLoaderAllocatorLive();
+    }
+
+    void GetDependentAndLoaderAllocator(OBJECTREF *pLoaderAllocatorRef, GCHEAPHASHOBJECTREF *pGCHeapHash);
+
+    // Be careful with this. This isn't safe to use unless something is keeping the LoaderAllocator live, or there is no intention to dereference this pointer
+    LoaderAllocator* GetLoaderAllocatorUnsafe()
+    {
+        return _loaderAllocator;
+    }
+
+    void Init(OBJECTHANDLE dependentHandle, LoaderAllocator* loaderAllocator)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _dependentHandle = dependentHandle;
+        _loaderAllocator = loaderAllocator;
+    }
+};
+
+class LAHashKeyToTrackersObject : public Object
+{
+#ifdef DACCESS_COMPILE
+    friend class ClrDataAccess;
+#endif
+    friend class CheckAsmOffsets;
+    friend class MscorlibBinder;
+
+    public:
+    // _trackerOrTrackerSet is either a reference to a LAHashDependentHashTracker, or to a GCHeapHash of LAHashDependentHashTracker objects.
+    OBJECTREF _trackerOrTrackerSet;
+    // _laLocalKeyValueStore holds an object that represents a Key value (which must always be valid for the lifetime of the 
+    // CrossLoaderAllocatorHeapHash, and the values which must also be valid for that entire lifetime. When a value might
+    // have a shorter lifetime it is accessed through the _trackerOrTrackerSet variable, which allows access to hashtables which
+    // are associated with that remote loaderallocator through a dependent handle, so that lifetime can be managed.
+    OBJECTREF _laLocalKeyValueStore;
+};
+
+typedef DPTR(LAHashDependentHashTrackerObject)  PTR_LAHashDependentHashTrackerObject;
+typedef DPTR(LAHashKeyToTrackersObject) PTR_LAHashKeyToTrackersObject;
+
+
+#ifdef USE_CHECKED_OBJECTREFS
+typedef REF<LAHashDependentHashTrackerObject> LAHASHDEPENDENTHASHTRACKERREF;
+typedef REF<LAHashKeyToTrackersObject> LAHASHKEYTOTRACKERSREF;
+#else   // USE_CHECKED_OBJECTREFS
+typedef PTR_LAHashDependentHashTrackerObject LAHASHDEPENDENTHASHTRACKERREF;
+typedef PTR_LAHashKeyToTrackersObject LAHASHKEYTOTRACKERSREF;
+#endif // USE_CHECKED_OBJECTREFS
+
 
 #endif // _OBJECT_H_

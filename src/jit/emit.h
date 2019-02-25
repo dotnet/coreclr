@@ -203,9 +203,7 @@ public:
         return true;
     }
 
-#ifdef _TARGET_AMD64_
     UNATIVE_OFFSET GetFuncletPrologOffset(emitter* emit) const;
-#endif // _TARGET_AMD64_
 
 #ifdef DEBUG
     void Print() const;
@@ -214,6 +212,13 @@ public:
 private:
     insGroup* ig;      // the instruction group
     unsigned  codePos; // the code position within the IG (see emitCurOffset())
+};
+
+enum class emitDataAlignment
+{
+    None,
+    Preferred,
+    Required
 };
 
 /************************************************************************/
@@ -429,6 +434,8 @@ public:
 #ifdef _TARGET_XARCH_
         SetUseVEXEncoding(false);
 #endif // _TARGET_XARCH_
+
+        emitDataSecCur = nullptr;
     }
 
 #include "emitpub.h"
@@ -1578,7 +1585,11 @@ private:
     void emitSetMediumJump(instrDescJmp* id);
     UNATIVE_OFFSET emitSizeOfJump(instrDescJmp* jmp);
     UNATIVE_OFFSET emitInstCodeSz(instrDesc* id);
-    CORINFO_FIELD_HANDLE emitAnyConst(const void* cnsAddr, unsigned cnsSize, bool dblAlign);
+
+public:
+    CORINFO_FIELD_HANDLE emitAnyConst(const void* cnsAddr, unsigned cnsSize, emitDataAlignment alignment);
+
+private:
     CORINFO_FIELD_HANDLE emitFltOrDblConst(double constValue, emitAttr attr);
     regNumber emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src);
     regNumber emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src1, GenTree* src2);
@@ -2029,6 +2040,11 @@ public:
         dataSection*   dsdList;
         dataSection*   dsdLast;
         UNATIVE_OFFSET dsdOffs;
+        bool           align16;
+
+        dataSecDsc() : dsdList(nullptr), dsdLast(nullptr), dsdOffs(0), align16(false)
+        {
+        }
     };
 
     dataSecDsc emitConsDsc;
@@ -2036,6 +2052,9 @@ public:
     dataSection* emitDataSecCur;
 
     void emitOutputDataSec(dataSecDsc* sec, BYTE* dst);
+#ifdef DEBUG
+    void emitDispDataSec(dataSecDsc* section);
+#endif
 
     /************************************************************************/
     /*              Handles to the current class and method.                */

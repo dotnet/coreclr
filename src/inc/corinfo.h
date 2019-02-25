@@ -210,14 +210,18 @@ TODO: Talk about initializing strutures before use
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if !defined(SELECTANY)
+#if defined(__GNUC__)
+    #define SELECTANY extern __attribute__((weak))
+#else
     #define SELECTANY extern __declspec(selectany)
 #endif
+#endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* {0BA24443-F3E0-453E-BE58-039CC4510F39} */
-    0xba24443,
-    0xf3e0,
-    0x453e,
-    {0xbe, 0x58, 0x3, 0x9c, 0xc4, 0x51, 0xf, 0x39}
+SELECTANY const GUID JITEEVersionIdentifier = { /* d609bed1-7831-49fc-bd49-b6f054dd4d46 */
+    0xd609bed1,
+    0x7831,
+    0x49fc,
+    {0xbd, 0x49, 0xb6, 0xf0, 0x54, 0xdd, 0x4d, 0x46}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2450,7 +2454,8 @@ public:
     // returns the "NEW" helper optimized for "newCls."
     virtual CorInfoHelpFunc getNewHelper(
             CORINFO_RESOLVED_TOKEN * pResolvedToken,
-            CORINFO_METHOD_HANDLE    callerHandle
+            CORINFO_METHOD_HANDLE    callerHandle,
+            bool *                   pHasSideEffects = NULL /* OUT */
             ) = 0;
 
     // returns the newArr (1-Dim array) helper optimized for "arrayCls."
@@ -2591,8 +2596,18 @@ public:
             CORINFO_CLASS_HANDLE        cls2
             ) = 0;
 
-    // returns is the intersection of cls1 and cls2.
+    // Returns the intersection of cls1 and cls2.
     virtual CORINFO_CLASS_HANDLE mergeClasses(
+            CORINFO_CLASS_HANDLE        cls1,
+            CORINFO_CLASS_HANDLE        cls2
+            ) = 0;
+
+    // Returns true if cls2 is known to be a more specific type
+    // than cls1 (a subtype or more restrictive shared type)
+    // for purposes of jit type tracking. This is a hint to the
+    // jit for optimization; it does not have correctness
+    // implications.
+    virtual BOOL isMoreSpecificType(
             CORINFO_CLASS_HANDLE        cls1,
             CORINFO_CLASS_HANDLE        cls2
             ) = 0;

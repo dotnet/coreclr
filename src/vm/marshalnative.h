@@ -44,25 +44,21 @@ public:
     //====================================================================
     // These methods convert between an HR and and a managed exception.
     //====================================================================
-    static FCDECL2(void, ThrowExceptionForHR, INT32 errorCode, LPVOID errorInfo);
     static FCDECL2(Object *, GetExceptionForHR, INT32 errorCode, LPVOID errorInfo);
     static FCDECL1(int, GetHRForException, Object* eUNSAFE);
     static FCDECL1(int, GetHRForException_WinRT, Object* eUNSAFE);
 
-    static FCDECL4(void, CopyToNative, Object* psrcUNSAFE, INT32 startindex, LPVOID pdst, INT32 length);
-    static FCDECL4(void, CopyToManaged, LPVOID psrc, Object* pdstUNSAFE, INT32 startindex, INT32 length);
     static FCDECL2(UINT32, SizeOfClass, ReflectClassBaseObject* refClass, CLR_BOOL throwIfNotMarshalable);
-
-    static FCDECL2(LPVOID, FCUnsafeAddrOfPinnedArrayElement, ArrayBase *arr, INT32 index);
 
     static FCDECL1(UINT32, OffsetOfHelper, ReflectFieldObject* pFieldUNSAFE);
     static FCDECL0(int, GetLastWin32Error);
     static FCDECL1(void, SetLastWin32Error, int error);
-    static FCDECL1(INT32, CalculateCount, ArrayWithOffsetData* pRef);
     
     static FCDECL3(VOID, StructureToPtr, Object* pObjUNSAFE, LPVOID ptr, CLR_BOOL fDeleteOld);
     static FCDECL3(VOID, PtrToStructureHelper, LPVOID ptr, Object* pObjIn, CLR_BOOL allowValueClasses);
     static FCDECL2(VOID, DestroyStructure, LPVOID ptr, ReflectClassBaseObject* refClassUNSAFE);
+
+    static FCDECL1(FC_BOOL_RET, IsPinnable, Object* obj);
 
     //====================================================================
     // map a fiber cookie from the hosting APIs into a managed Thread object
@@ -72,29 +68,14 @@ public:
     static FCDECL3(LPVOID, GetUnmanagedThunkForManagedMethodPtr, LPVOID pfnMethodToWrap, PCCOR_SIGNATURE pbSignature, ULONG cbSignature);
     static FCDECL3(LPVOID, GetManagedThunkForUnmanagedMethodPtr, LPVOID pfnMethodToWrap, PCCOR_SIGNATURE pbSignature, ULONG cbSignature);
 
-    static FCDECL0(UINT32, GetSystemMaxDBCSCharSize);
-
     static FCDECL2(LPVOID, GCHandleInternalAlloc, Object *obj, int type);
     static FCDECL1(VOID, GCHandleInternalFree, OBJECTHANDLE handle);
     static FCDECL1(LPVOID, GCHandleInternalGet, OBJECTHANDLE handle);
-    static FCDECL3(VOID, GCHandleInternalSet, OBJECTHANDLE handle, Object *obj, CLR_BOOL isPinned);
-    static FCDECL4(Object*, GCHandleInternalCompareExchange, OBJECTHANDLE handle, Object *obj, Object* oldObj, CLR_BOOL isPinned);
-    static FCDECL1(LPVOID, GCHandleInternalAddrOfPinnedObject, OBJECTHANDLE handle);
-    static FCDECL1(INT32, GCHandleInternalGetHandleType, OBJECTHANDLE handle);
+    static FCDECL2(VOID, GCHandleInternalSet, OBJECTHANDLE handle, Object *obj);
+    static FCDECL3(Object*, GCHandleInternalCompareExchange, OBJECTHANDLE handle, Object *obj, Object* oldObj);
 
     static FCDECL2(Object*, GetDelegateForFunctionPointerInternal, LPVOID FPtr, ReflectClassBaseObject* refTypeUNSAFE);
     static FCDECL1(LPVOID, GetFunctionPointerForDelegateInternal, Object* refDelegateUNSAFE);
-
-
-    //====================================================================
-    // These methods provide the native callbacks for library loading APIs
-    //====================================================================
-    static INT_PTR QCALLTYPE LoadLibraryFromPath(LPCWSTR path, BOOL throwOnError);
-    static INT_PTR QCALLTYPE LoadLibraryByName(LPCWSTR name, QCall::AssemblyHandle callingAssembly, 
-                                                             BOOL hasDllImportSearchPathFlag, DWORD dllImportSearchPathFlag, 
-                                                             BOOL throwOnError);
-    static void QCALLTYPE FreeNativeLibrary(INT_PTR handle);
-    static INT_PTR QCALLTYPE GetNativeLibraryExport(INT_PTR handle, LPCWSTR symbolName, BOOL throwOnError);
 
 #ifdef FEATURE_COMINTEROP
     //====================================================================

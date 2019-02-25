@@ -39,6 +39,7 @@ enum SignatureKind
 
 class Stub;
 class MethodDesc;
+class NativeCodeVersion;
 class FieldDesc;
 enum RuntimeExceptionKind;
 class AwareLock;
@@ -68,7 +69,7 @@ bool SigInfoFlagsAreValid (CORINFO_SIG_INFO *sig)
 void InitJITHelpers1();
 void InitJITHelpers2();
 
-PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* header,
+PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODER* header,
                         CORJIT_FLAGS flags, ULONG* sizeOfCode = NULL);
 
 void getMethodInfoHelper(MethodDesc * ftn,
@@ -516,8 +517,8 @@ public:
     // considered when checking visibility rules.
     
 
-    CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle);
-    static CorInfoHelpFunc getNewHelperStatic(MethodTable * pMT);
+    CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects = NULL);
+    static CorInfoHelpFunc getNewHelperStatic(MethodTable * pMT, bool * pHasSideEffects = NULL);
 
     CorInfoHelpFunc getNewArrHelper(CORINFO_CLASS_HANDLE arrayCls);
     static CorInfoHelpFunc getNewArrHelperStatic(TypeHandle clsHnd);
@@ -596,6 +597,13 @@ public:
 
     // returns is the intersection of cls1 and cls2.
     CORINFO_CLASS_HANDLE mergeClasses(
+            CORINFO_CLASS_HANDLE        cls1,
+            CORINFO_CLASS_HANDLE        cls2
+            );
+
+    // Returns true if cls2 is known to be a more specific type
+    // than cls1 (a subtype or more restrictive shared type).
+    BOOL isMoreSpecificType(
             CORINFO_CLASS_HANDLE        cls1,
             CORINFO_CLASS_HANDLE        cls2
             );
@@ -1332,7 +1340,6 @@ public:
     void ResetForJitRetry()
     {
         CONTRACTL {
-            SO_TOLERANT;
             NOTHROW;
             GC_NOTRIGGER;
         } CONTRACTL_END;
@@ -1706,13 +1713,9 @@ CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc   *pMD,
 
 void ClearJitGenericHandleCache(AppDomain *pDomain);
 
-class JitHelpers {
-public:
-    static FCDECL3(void, UnsafeSetArrayElement, PtrArray* pPtrArray, INT32 index, Object* object);
-};
-
 CORJIT_FLAGS GetDebuggerCompileFlags(Module* pModule, CORJIT_FLAGS flags);
 
 bool __stdcall TrackAllocationsEnabled();
 
 #endif // JITINTERFACE_H
+

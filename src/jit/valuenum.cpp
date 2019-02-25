@@ -6316,7 +6316,10 @@ ValueNum Compiler::fgMemoryVNForLoopSideEffects(MemoryKind  memoryKind,
                 if (verbose)
                 {
                     var_types elemTyp = DecodeElemType(elemClsHnd);
-                    if (varTypeIsStruct(elemTyp))
+                    // If a valid class handle is given when the ElemType is set, DecodeElemType will
+                    // return TYP_STRUCT, and elemClsHnd is that handle.
+                    // Otherwise, elemClsHnd is NOT a valid class handle, and is the encoded var_types value.
+                    if (elemTyp == TYP_STRUCT)
                     {
                         printf("     Array map %s[]\n", eeGetClassName(elemClsHnd));
                     }
@@ -9236,15 +9239,6 @@ void Compiler::fgValueNumberAddExceptionSetForIndirection(GenTree* tree, GenTree
     while (vnStore->GetVNFunc(baseLVN, &funcAttr) && (funcAttr.m_func == (VNFunc)GT_ADD) &&
            (vnStore->TypeOfVN(baseLVN) == TYP_BYREF))
     {
-        if (fgIsBigOffset(offsetL))
-        {
-            // Failure: Exit this loop if we have a "big" offset
-
-            // reset baseLVN back to the full address expression
-            baseLVN = baseVNP.GetLiberal();
-            break;
-        }
-
         // The arguments in value numbering functions are sorted in increasing order
         // Thus either arg could be the constant.
         if (vnStore->IsVNConstant(funcAttr.m_args[0]) && varTypeIsIntegral(vnStore->TypeOfVN(funcAttr.m_args[0])))
@@ -9261,20 +9255,20 @@ void Compiler::fgValueNumberAddExceptionSetForIndirection(GenTree* tree, GenTree
         {
             break;
         }
+
+        if (fgIsBigOffset(offsetL))
+        {
+            // Failure: Exit this loop if we have a "big" offset
+
+            // reset baseLVN back to the full address expression
+            baseLVN = baseVNP.GetLiberal();
+            break;
+        }
     }
 
     while (vnStore->GetVNFunc(baseCVN, &funcAttr) && (funcAttr.m_func == (VNFunc)GT_ADD) &&
            (vnStore->TypeOfVN(baseCVN) == TYP_BYREF))
     {
-        if (fgIsBigOffset(offsetC))
-        {
-            // Failure: Exit this loop if we have a "big" offset
-
-            // reset baseCVN back to the full address expression
-            baseCVN = baseVNP.GetConservative();
-            break;
-        }
-
         // The arguments in value numbering functions are sorted in increasing order
         // Thus either arg could be the constant.
         if (vnStore->IsVNConstant(funcAttr.m_args[0]) && varTypeIsIntegral(vnStore->TypeOfVN(funcAttr.m_args[0])))
@@ -9289,6 +9283,15 @@ void Compiler::fgValueNumberAddExceptionSetForIndirection(GenTree* tree, GenTree
         }
         else // neither argument is a constant
         {
+            break;
+        }
+
+        if (fgIsBigOffset(offsetC))
+        {
+            // Failure: Exit this loop if we have a "big" offset
+
+            // reset baseCVN back to the full address expression
+            baseCVN = baseVNP.GetConservative();
             break;
         }
     }

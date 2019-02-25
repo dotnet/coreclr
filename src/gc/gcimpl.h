@@ -93,7 +93,7 @@ public:
 
     void SetSuspensionPending(bool fSuspensionPending);
     
-    void SetYieldProcessorScalingFactor(uint32_t yieldProcessorScalingFactor);
+    void SetYieldProcessorScalingFactor(float yieldProcessorScalingFactor);
 
     void SetWaitForGCEvent();
     void ResetWaitForGCEvent();
@@ -108,8 +108,7 @@ public:
     Object*  AllocLHeap (size_t size, uint32_t flags);
     Object* Alloc (gc_alloc_context* acontext, size_t size, uint32_t flags);
 
-    void FixAllocContext (gc_alloc_context* acontext,
-                                            bool lockp, void* arg, void *heap);
+    void FixAllocContext (gc_alloc_context* acontext, void* arg, void *heap);
 
     Object* GetContainingObject(void *pInteriorPtr, bool fCollectedGenOnly);
 
@@ -200,8 +199,6 @@ public:
 
     size_t GetValidSegmentSize(bool large_seg = false);
 
-    static size_t GetValidGen0MaxSize(size_t seg_size);
-
     void SetReservedVMLimit (size_t vmlimit);
 
     PER_HEAP_ISOLATED Object* GetNextFinalizableObject();
@@ -239,6 +236,7 @@ public:	// FIX
     // frozen segment management functions
     virtual segment_handle RegisterFrozenSegment(segment_info *pseginfo);
     virtual void UnregisterFrozenSegment(segment_handle seg);
+    virtual bool IsInFrozenSegment(Object *object);
 
     // Event control functions
     void ControlEvents(GCEventKeyword keyword, GCEventLevel level);
@@ -306,9 +304,6 @@ protected:
 
 public:
     Object * NextObj (Object * object);
-#if defined (FEATURE_BASICFREEZE) && defined (VERIFY_HEAP)
-    BOOL IsInFrozenSegment (Object * object);
-#endif // defined (FEATURE_BASICFREEZE) && defined (VERIFY_HEAP)
 };
 
 #endif  // GCIMPL_H_

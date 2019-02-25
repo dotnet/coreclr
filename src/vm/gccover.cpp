@@ -59,7 +59,7 @@ static MethodDesc* getTargetMethodDesc(PCODE target)
     if (vsdStubKind != VirtualCallStubManager::SK_BREAKPOINT && vsdStubKind != VirtualCallStubManager::SK_UNKNOWN)
     {
         // It is a VSD stub manager.
-        DispatchToken token = VirtualCallStubManager::GetTokenFromStubQuick(pVSDStubManager, target, vsdStubKind);
+        DispatchToken token(VirtualCallStubManager::GetTokenFromStubQuick(pVSDStubManager, target, vsdStubKind));
         _ASSERTE(token.IsValid());
         return VirtualCallStubManager::GetInterfaceMethodDescFromToken(token);
     }
@@ -82,7 +82,7 @@ void SetupAndSprinkleBreakpoints(
 {
     // Allocate room for the GCCoverageInfo and copy of the method instructions
     size_t memSize = sizeof(GCCoverageInfo) + methodRegionInfo.hotSize + methodRegionInfo.coldSize;
-    GCCoverageInfo* gcCover = (GCCoverageInfo*)(void*) pMD->GetLoaderAllocatorForCode()->GetHighFrequencyHeap()->AllocAlignedMem(memSize, CODE_SIZE_ALIGN);
+    GCCoverageInfo* gcCover = (GCCoverageInfo*)(void*) pMD->GetLoaderAllocator()->GetHighFrequencyHeap()->AllocAlignedMem(memSize, CODE_SIZE_ALIGN);
 
     memset(gcCover, 0, sizeof(GCCoverageInfo));
 
@@ -1281,8 +1281,6 @@ void RemoveGcCoverageInterrupt(TADDR instrPtr, BYTE * savedInstrPtr)
 
 BOOL OnGcCoverageInterrupt(PCONTEXT regs)
 {
-    SO_NOT_MAINLINE_FUNCTION;
-
     // So that you can set counted breakpoint easily;
     GCcoverCount++;
     forceStack[0]= &regs;                // This is so I can see it fastchecked

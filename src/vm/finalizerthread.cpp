@@ -59,7 +59,7 @@ BOOL FinalizerThread::HaveExtraWorkForFinalizer()
 
 // This helper is here to avoid EH goo associated with DefineFullyQualifiedNameForStack being 
 // invoked when logging is off.
-__declspec(noinline)
+NOINLINE
 void LogFinalization(Object* obj)
 {
     STATIC_CONTRACT_NOTHROW;
@@ -168,14 +168,10 @@ Object * FinalizerThread::DoOneFinalization(Object* fobj, Thread* pThread,int bi
             }
         };
         {
-            ThreadLocaleHolder localeHolder;
-
-            {
-                ResetFinalizerStartTime resetTime;
-                CallFinalizer(fobj);
-            }
+            ResetFinalizerStartTime resetTime;
+            CallFinalizer(fobj);
         }
-        pThread->InternalReset(FALSE);
+        pThread->InternalReset();
     } 
     else 
     {
@@ -194,15 +190,13 @@ Object * FinalizerThread::DoOneFinalization(Object* fobj, Thread* pThread,int bi
             args.bitToCheck = bitToCheck;
             GCPROTECT_BEGIN(args.fobj);
             {
-                ThreadLocaleHolder localeHolder;
-
                 _ASSERTE(pThreadTurnAround != NULL);
                 ManagedThreadBase::FinalizerAppDomain(targetAppDomain,
                                                       FinalizeAllObjects_Wrapper,
                                                       &args,
                                                       pThreadTurnAround);
             }
-            pThread->InternalReset(FALSE);
+            pThread->InternalReset();
             // process the object we got back or be done if we got back null
             pReturnObject = OBJECTREFToObject(args.fobj);
             GCPROTECT_END();

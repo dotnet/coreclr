@@ -67,8 +67,6 @@ class FieldMarshaler_Exception;
 class FieldMarshaler_Nullable;
 #endif // FEATURE_COMINTEROP
 
-VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType);
-
 //=======================================================================
 // Each possible COM+/Native pairing of data type has a
 // NLF_* id. This is used to select the marshaling code.
@@ -396,7 +394,6 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
         }
         CONTRACT_END;
@@ -1029,8 +1026,12 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-        MethodTable *pElementMT = m_arrayType.GetValue().AsArray()->GetArrayElementTypeHandle().GetMethodTable();
-        return OleVariant::GetElementSizeForVarType(m_vt, pElementMT) * m_numElems;
+        return OleVariant::GetElementSizeForVarType(m_vt, GetElementMethodTable()) * m_numElems;
+    }
+
+    MethodTable* GetElementMethodTable() const
+    {
+        return GetElementTypeHandle().GetMethodTable();
     }
 
     TypeHandle GetElementTypeHandle() const

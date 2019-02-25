@@ -5,7 +5,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   set(CLR_CMAKE_USE_SYSTEM_LIBUNWIND 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 
-include_directories(SYSTEM /usr/local/include)
+if(NOT DEFINED ENV{ROOTFS_DIR})
+  include_directories(SYSTEM /usr/local/include)
+endif()
 
 add_compile_options(-fPIC)
 
@@ -180,7 +182,6 @@ endif(PAL_CMAKE_PLATFORM_ARCH_ARM)
 set(SOURCES
   cruntime/file.cpp
   cruntime/filecrt.cpp
-  cruntime/lstr.cpp
   cruntime/malloc.cpp
   cruntime/math.cpp
   cruntime/mbstring.cpp
@@ -294,10 +295,18 @@ add_library(coreclrpal
   ${LIBUNWIND_OBJECTS}
 )
 
-add_library(tracepointprovider
-  STATIC
-  misc/tracepointprovider.cpp
-)
+# There is only one function exported in 'tracepointprovider.cpp' namely 'PAL_InitializeTracing',
+# which is guarded with '#if defined(__linux__)'. On macOS, Xcode issues the following warning:
+#
+# > warning: /Applications/Xcode-9.4.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib:
+# > warning for library: libtracepointprovider.a the table of contents is empty (no object file members in the library define global symbols)
+#
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+  add_library(tracepointprovider
+    STATIC
+    misc/tracepointprovider.cpp
+  )
+endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   find_library(COREFOUNDATION CoreFoundation)

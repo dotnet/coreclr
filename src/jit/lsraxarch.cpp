@@ -71,7 +71,10 @@ int LinearScan::BuildNode(GenTree* tree)
     }
 
     // floating type generates AVX instruction (vmovss etc.), set the flag
-    SetContainsAVXFlags(varTypeIsFloating(tree->TypeGet()));
+    if (varTypeIsFloating(tree->TypeGet()))
+    {
+        SetContainsAVXFlags();
+    }
 
     switch (tree->OperGet())
     {
@@ -151,6 +154,13 @@ int LinearScan::BuildNode(GenTree* tree)
         case GT_START_NONGC:
             srcCount = 0;
             assert(dstCount == 0);
+            break;
+
+        case GT_START_PREEMPTGC:
+            // This kills GC refs in callee save regs
+            srcCount = 0;
+            assert(dstCount == 0);
+            BuildDefsWithKills(tree, 0, RBM_NONE, RBM_NONE);
             break;
 
         case GT_PROF_HOOK:
@@ -656,25 +666,28 @@ int LinearScan::BuildNode(GenTree* tree)
         {
             assert(dstCount == 1);
             RefPosition* internalDef = nullptr;
-            if (tree->AsIndexAddr()->Index()->TypeGet() == TYP_I_IMPL)
+#ifdef _TARGET_64BIT_
+            // On 64-bit we always need a temporary register:
+            //   - if the index is `native int` then we need to load the array
+            //     length into a register to widen it to `native int`
+            //   - if the index is `int` (or smaller) then we need to widen
+            //     it to `long` to peform the address calculation
+            internalDef = buildInternalIntRegisterDefForNode(tree);
+#else  // !_TARGET_64BIT_
+            assert(!varTypeIsLong(tree->AsIndexAddr()->Index()->TypeGet()));
+            switch (tree->AsIndexAddr()->gtElemSize)
             {
-                internalDef = buildInternalIntRegisterDefForNode(tree);
-            }
-            else
-            {
-                switch (tree->AsIndexAddr()->gtElemSize)
-                {
-                    case 1:
-                    case 2:
-                    case 4:
-                    case 8:
-                        break;
+                case 1:
+                case 2:
+                case 4:
+                case 8:
+                    break;
 
-                    default:
-                        internalDef = buildInternalIntRegisterDefForNode(tree);
-                        break;
-                }
+                default:
+                    internalDef = buildInternalIntRegisterDefForNode(tree);
+                    break;
             }
+#endif // !_TARGET_64BIT_
             srcCount = BuildBinaryUses(tree->AsOp());
             if (internalDef != nullptr)
             {
@@ -696,7 +709,21 @@ int LinearScan::BuildNode(GenTree* tree)
     return srcCount;
 }
 
-GenTree* LinearScan::getTgtPrefOperand(GenTreeOp* tree)
+//------------------------------------------------------------------------
+// getTgtPrefOperands: Identify whether the operands of an Op should be preferenced to the target.
+//
+// Arguments:
+//    tree    - the node of interest.
+//    prefOp1 - a bool "out" parameter indicating, on return, whether op1 should be preferenced to the target.
+//    prefOp2 - a bool "out" parameter indicating, on return, whether op2 should be preferenced to the target.
+//
+// Return Value:
+//    This has two "out" parameters for returning the results (see above).
+//
+// Notes:
+//    The caller is responsible for initializing the two "out" parameters to false.
+//
+void LinearScan::getTgtPrefOperands(GenTreeOp* tree, bool& prefOp1, bool& prefOp2)
 {
     // If op2 of a binary-op gets marked as contained, then binary-op srcCount will be 1.
     // Even then we would like to set isTgtPref on Op1.
@@ -705,23 +732,20 @@ GenTree* LinearScan::getTgtPrefOperand(GenTreeOp* tree)
         GenTree* op1 = tree->gtGetOp1();
         GenTree* op2 = tree->gtGetOp2();
 
-        // Commutative opers like add/mul/and/or/xor could reverse the order of
-        // operands if it is safe to do so.  In such a case we would like op2 to be
-        // target preferenced instead of op1.
-        if (tree->OperIsCommutative() && op1->isContained() && op2 != nullptr)
-        {
-            op1 = op2;
-            op2 = tree->gtGetOp1();
-        }
-
         // If we have a read-modify-write operation, we want to preference op1 to the target,
         // if it is not contained.
         if (!op1->isContained() && !op1->OperIs(GT_LIST))
         {
-            return op1;
+            prefOp1 = true;
+        }
+
+        // Commutative opers like add/mul/and/or/xor could reverse the order of operands if it is safe to do so.
+        // In that case we will preference both, to increase the chance of getting a match.
+        if (tree->OperIsCommutative() && op2 != nullptr && !op2->isContained())
+        {
+            prefOp2 = true;
         }
     }
-    return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -803,8 +827,10 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     }
 #endif // _TARGET_X86_
 
-    GenTree* tgtPrefOperand = getTgtPrefOperand(node);
-    assert((tgtPrefOperand == nullptr) || (tgtPrefOperand == op1) || node->OperIsCommutative());
+    bool prefOp1 = false;
+    bool prefOp2 = false;
+    getTgtPrefOperands(node, prefOp1, prefOp2);
+    assert(!prefOp2 || node->OperIsCommutative());
     assert(!isReverseOp || node->OperIsCommutative());
 
     // Determine which operand, if any, should be delayRegFree. Normally, this would be op2,
@@ -839,7 +865,8 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     }
     if (delayUseOperand != nullptr)
     {
-        assert(delayUseOperand != tgtPrefOperand);
+        assert(!prefOp1 || delayUseOperand != op1);
+        assert(!prefOp2 || delayUseOperand != op2);
     }
 
     if (isReverseOp)
@@ -849,7 +876,7 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     }
 
     // Build first use
-    if (tgtPrefOperand == op1)
+    if (prefOp1)
     {
         assert(!op1->isContained());
         tgtPrefUse = BuildUse(op1, op1Candidates);
@@ -866,10 +893,10 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     // Build second use
     if (op2 != nullptr)
     {
-        if (tgtPrefOperand == op2)
+        if (prefOp2)
         {
             assert(!op2->isContained());
-            tgtPrefUse = BuildUse(op2, op2Candidates);
+            tgtPrefUse2 = BuildUse(op2, op2Candidates);
             srcCount++;
         }
         else if (delayUseOperand == op2)
@@ -1881,7 +1908,7 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
         assert((simdTree->gtSIMDIntrinsicID == SIMDIntrinsicOpEquality) ||
                (simdTree->gtSIMDIntrinsicID == SIMDIntrinsicOpInEquality));
     }
-    SetContainsAVXFlags(true, simdTree->gtSIMDSize);
+    SetContainsAVXFlags(simdTree->gtSIMDSize);
     GenTree* op1      = simdTree->gtGetOp1();
     GenTree* op2      = simdTree->gtGetOp2();
     int      srcCount = 0;
@@ -2287,9 +2314,12 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
     HWIntrinsicCategory category    = HWIntrinsicInfo::lookupCategory(intrinsicId);
     int                 numArgs     = HWIntrinsicInfo::lookupNumArgs(intrinsicTree);
 
-    if ((isa == InstructionSet_AVX) || (isa == InstructionSet_AVX2))
+    // Set the AVX Flags if this instruction may use VEX encoding for SIMD operations.
+    // Note that this may be true even if the ISA is not AVX (e.g. for platform-agnostic intrinsics
+    // or non-AVX intrinsics that will use VEX encoding if it is available on the target).
+    if (intrinsicTree->isSIMD())
     {
-        SetContainsAVXFlags(true, 32);
+        SetContainsAVXFlags(intrinsicTree->gtSIMDSize);
     }
 
     GenTree* op1    = intrinsicTree->gtGetOp1();
@@ -2512,6 +2542,25 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
                 break;
             }
 #endif // _TARGET_X86_
+
+            case NI_BMI2_MultiplyNoFlags:
+            case NI_BMI2_X64_MultiplyNoFlags:
+            {
+                assert(numArgs == 2 || numArgs == 3);
+                srcCount += BuildOperandUses(op1, RBM_EDX);
+                srcCount += BuildOperandUses(op2);
+                if (numArgs == 3)
+                {
+                    // op3 reg should be different from target reg to
+                    // store the lower half result after executing the instruction
+                    srcCount += BuildDelayFreeUses(op3);
+                    // Need a internal register different from the dst to take the lower half result
+                    buildInternalIntRegisterDefForNode(intrinsicTree);
+                    setInternalRegsDelayFree = true;
+                }
+                buildUses = false;
+                break;
+            }
 
             case NI_FMA_MultiplyAdd:
             case NI_FMA_MultiplyAddNegated:
@@ -2837,7 +2886,7 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
 #ifdef FEATURE_SIMD
     if (varTypeIsSIMD(indirTree))
     {
-        SetContainsAVXFlags(true, genTypeSize(indirTree->TypeGet()));
+        SetContainsAVXFlags(genTypeSize(indirTree->TypeGet()));
     }
     buildInternalRegisterUses();
 #endif // FEATURE_SIMD
@@ -2940,9 +2989,9 @@ int LinearScan::BuildMul(GenTree* tree)
 //    isFloatingPointType   - true if it is floating point type
 //    sizeOfSIMDVector      - SIMD Vector size
 //
-void LinearScan::SetContainsAVXFlags(bool isFloatingPointType /* = true */, unsigned sizeOfSIMDVector /* = 0*/)
+void LinearScan::SetContainsAVXFlags(unsigned sizeOfSIMDVector /* = 0*/)
 {
-    if (isFloatingPointType && compiler->canUseVexEncoding())
+    if (compiler->canUseVexEncoding())
     {
         compiler->getEmitter()->SetContainsAVX(true);
         if (sizeOfSIMDVector == 32)

@@ -133,21 +133,29 @@ FCIMPL1(INT64, ArrayNative::GetLongLengthNoRank, ArrayBase* array)
 FCIMPLEND
 
 
-FCIMPL1(INT32, ArrayNative::GetDataPtrOffsetInternal, ArrayBase* array)
+FCIMPL1(void*, ArrayNative::GetRawArrayData, ArrayBase* array)
 {
     FCALL_CONTRACT;
 
     VALIDATEOBJECT(array);
 
-    if (array == NULL)
-        FCThrow(kNullReferenceException);
+    _ASSERTE(array != NULL);
 
-    return ArrayBase::GetDataPtrOffset(array->GetMethodTable());
+    return array->GetDataPtr();
 }
 FCIMPLEND
 
+FCIMPL1(INT32, ArrayNative::GetElementSize, ArrayBase* array)
+{
+    FCALL_CONTRACT;
 
+    VALIDATEOBJECT(array);
 
+    _ASSERTE(array != NULL);
+
+    return (INT32)array->GetComponentSize();
+}
+FCIMPLEND
 
 
 
@@ -157,7 +165,6 @@ void ArrayInitializeWorker(ARRAYBASEREF * arrayRef,
                            MethodTable* pElemMT)
 {
     STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
     // Ensure that the array element type is fully loaded before executing its code
     pElemMT->EnsureInstanceActive();
@@ -275,7 +282,6 @@ ArrayNative::AssignArrayEnum ArrayNative::CanAssignArrayTypeNoGC(const BASEARRAY
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
         PRECONDITION(pSrc != NULL);
         PRECONDITION(pDest != NULL);
     }
@@ -880,7 +886,6 @@ void memmoveGCRefs(void *dest, const void *src, size_t len)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -908,7 +913,6 @@ void ArrayNative::ArrayCopyNoTypeCheck(BASEARRAYREF pSrc, unsigned int srcIndex,
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
         PRECONDITION(pSrc != NULL);
         PRECONDITION(srcIndex >= 0);
         PRECONDITION(pDest != NULL);

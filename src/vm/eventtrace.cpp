@@ -256,7 +256,6 @@ ETW::SamplingLog::EtwStackWalkStatus ETW::SamplingLog::GetCurrentThreadsCallStac
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -296,7 +295,6 @@ ETW::SamplingLog::EtwStackWalkStatus ETW::SamplingLog::SaveCurrentStack(int skip
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -4409,7 +4407,6 @@ extern "C"
             MODE_ANY;
             CAN_TAKE_LOCK;
             STATIC_CONTRACT_FAULT;
-            SO_NOT_MAINLINE;
         } CONTRACTL_END;
 
         // Mark that we are the special ETWRundown thread.  Currently all this does
@@ -4426,6 +4423,10 @@ extern "C"
         BOOLEAN bIsPrivateTraceHandle = (context->RegistrationHandle==Microsoft_Windows_DotNETRuntimePrivateHandle);
 
         BOOLEAN bIsRundownTraceHandle = (context->RegistrationHandle==Microsoft_Windows_DotNETRuntimeRundownHandle);
+
+        GCEventKeyword keywords = static_cast<GCEventKeyword>(MatchAnyKeyword);
+        GCEventLevel level = static_cast<GCEventLevel>(Level);
+        GCHeapUtilities::RecordEventStateChange(!!bIsPublicTraceHandle, keywords, level);
 
         // EventPipeEtwCallback contains some GC eventing functionality shared between EventPipe and ETW.
         // Eventually, we'll want to merge these two codepaths whenever we can.
@@ -4979,7 +4980,6 @@ VOID ETW::CodeSymbolLog::EmitCodeSymbols(Module* pModule)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -5063,7 +5063,6 @@ HRESULT ETW::CodeSymbolLog::GetInMemorySymbolsLength(
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -5146,7 +5145,6 @@ HRESULT ETW::CodeSymbolLog::ReadInMemorySymbols(
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -6046,12 +6044,18 @@ VOID ETW::LoaderLog::SendModuleEvent(Module *pModule, DWORD dwEventOptions, BOOL
         bIsIbcOptimized = pModule->IsIbcOptimized();
     }
     BOOL bIsReadyToRun = pModule->IsReadyToRun();
+    BOOL bIsPartialReadyToRun = FALSE;
+    if (bIsReadyToRun)
+    {
+        bIsPartialReadyToRun = pModule->GetReadyToRunInfo()->IsPartial();
+    }
     ULONG ulReservedFlags = 0;
     ULONG ulFlags = ((bHasNativeImage ? ETW::LoaderLog::LoaderStructs::NativeModule : 0) |
                      (bIsDynamicAssembly ? ETW::LoaderLog::LoaderStructs::DynamicModule : 0) |
                      (bIsManifestModule ? ETW::LoaderLog::LoaderStructs::ManifestModule : 0) |
                      (bIsIbcOptimized ? ETW::LoaderLog::LoaderStructs::IbcOptimized : 0) |
-                     (bIsReadyToRun ? ETW::LoaderLog::LoaderStructs::ReadyToRunModule : 0));
+                     (bIsReadyToRun ? ETW::LoaderLog::LoaderStructs::ReadyToRunModule : 0) |
+                     (bIsPartialReadyToRun ? ETW::LoaderLog::LoaderStructs::PartialReadyToRunModule : 0));
 
     // Grab PDB path, guid, and age for managed PDB and native (NGEN) PDB when
     // available.  Any failures are not fatal.  The corresponding PDB info will remain
@@ -6242,7 +6246,6 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
     CONTRACTL {
         THROWS;
         GC_NOTRIGGER;
-        SO_NOT_MAINLINE;
     } CONTRACTL_END;
 
     Module *pModule = NULL;
@@ -6643,7 +6646,6 @@ VOID ETW::MethodLog::SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWOR
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 

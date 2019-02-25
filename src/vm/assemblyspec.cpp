@@ -454,7 +454,6 @@ void AssemblySpec::AssemblyNameInit(ASSEMBLYNAMEREF* pAsmName, PEImage* pImageIn
         THROWS;
         MODE_COOPERATIVE;
         GC_TRIGGERS;
-        SO_INTOLERANT;
         PRECONDITION(IsProtectedByGCFrame (pAsmName));
     }
     CONTRACTL_END;
@@ -753,7 +752,7 @@ PEAssembly *AssemblySpec::ResolveAssemblyFile(AppDomain *pDomain)
 }
 
 
-Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, BOOL fThrowOnFileNotFound, StackCrawlMark *pCallerStackMark)
+Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, BOOL fThrowOnFileNotFound)
 {
     CONTRACTL
     {
@@ -763,7 +762,7 @@ Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, BOOL fThrowOnFil
     }
     CONTRACTL_END;
  
-    DomainAssembly * pDomainAssembly = LoadDomainAssembly(targetLevel, fThrowOnFileNotFound, pCallerStackMark);
+    DomainAssembly * pDomainAssembly = LoadDomainAssembly(targetLevel, fThrowOnFileNotFound);
     if (pDomainAssembly == NULL) {
         _ASSERTE(!fThrowOnFileNotFound);
         return NULL;
@@ -891,8 +890,7 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
 }
 
 DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
-                                                 BOOL fThrowOnFileNotFound,
-                                                 StackCrawlMark *pCallerStackMark)
+                                                 BOOL fThrowOnFileNotFound)
 {
     CONTRACT(DomainAssembly *)
     {
@@ -920,18 +918,6 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
         pBinder = GetBindingContextFromParentAssembly(pDomain);
     }
 
-
-    if (pBinder != nullptr)
-    {
-        ReleaseHolder<ICLRPrivAssembly> pPrivAssembly;
-        HRESULT hrCachedResult;
-        if (SUCCEEDED(pBinder->FindAssemblyBySpec(GetAppDomain(), this, &hrCachedResult, &pPrivAssembly)) &&
-            SUCCEEDED(hrCachedResult))
-        {
-            pAssembly = pDomain->FindAssembly(pPrivAssembly);
-        }
-    }
-
     if ((pAssembly == nullptr) && CanUseWithBindingCache())
     {
         pAssembly = pDomain->FindCachedAssembly(this);
@@ -944,7 +930,7 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
     }
 
 
-    PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound, pCallerStackMark));
+    PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound));
     if (pFile == NULL)
         RETURN NULL;
 

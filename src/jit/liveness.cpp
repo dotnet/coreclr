@@ -165,7 +165,7 @@ void Compiler::fgLocalVarLivenessInit()
     JITDUMP("In fgLocalVarLivenessInit\n");
 
     // Sort locals first, if we're optimizing
-    if (!opts.MinOpts() && !opts.compDbgCode)
+    if (opts.OptimizationEnabled())
     {
         lvaSortByRefCount();
     }
@@ -993,8 +993,7 @@ void Compiler::fgExtendDbgLifetimes()
                 }
                 else
                 {
-                    GenTree* store =
-                        new (this, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, type, varNum, BAD_IL_OFFSET);
+                    GenTree* store    = new (this, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, type, varNum);
                     store->gtOp.gtOp1 = zero;
                     store->gtFlags |= (GTF_VAR_DEF | GTF_ASG);
 
@@ -1948,6 +1947,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
             case GT_SWITCH:
             case GT_RETFILT:
             case GT_START_NONGC:
+            case GT_START_PREEMPTGC:
             case GT_PROF_HOOK:
 #if !FEATURE_EH_FUNCLETS
             case GT_END_LFIN:

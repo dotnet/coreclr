@@ -739,7 +739,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 
                 if (pAddr == NULL)
                 {
-                    COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+                    COMPlusThrow(kArgumentNullException);
                 }
             }
 
@@ -961,7 +961,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 
                     if (o1 == NULL)
                     {
-                        COMPlusThrow(kArgumentException, W("ArgumentNull_Obj"));
+                        COMPlusThrow(kArgumentNullException);
                     }
 
 
@@ -997,7 +997,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
                     OBJECTREF* op1 = (OBJECTREF*)ArgSlotToPtr(*pArgument);
                     if (op1 == NULL)
                     {
-                        COMPlusThrow(kArgumentException, W("ArgumentNull_Obj"));
+                        COMPlusThrow(kArgumentNullException);
                     }
                     OBJECTREF o1 = *op1;
 
@@ -1018,7 +1018,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 
                     if (o1 == NULL)
                     {
-                        COMPlusThrow(kArgumentException, W("ArgumentNull_Obj"));
+                        COMPlusThrow(kArgumentNullException);
                     }
 
                     _ASSERTE(o1->GetMethodTable()->IsValueType());
@@ -1663,7 +1663,7 @@ void BoxFuncEvalThisParameter(DebuggerEval *pDE,
 
                         if (pAddr == NULL)
                         {
-                            COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+                            COMPlusThrow(kArgumentNullException);
                         }
                     }
 
@@ -1694,7 +1694,7 @@ void BoxFuncEvalThisParameter(DebuggerEval *pDE,
                 *pObjectRefArg = typeHandle.GetMethodTable()->Box(pAddr);
                 if (Nullable::IsNullableType(typeHandle.GetMethodTable()) && (*pObjectRefArg == NULL))
                 {
-                    COMPlusThrow(kArgumentNullException, W("ArgumentNull_Obj"));
+                    COMPlusThrow(kArgumentNullException);
                 }
                 GCPROTECT_END();
 
@@ -1784,7 +1784,7 @@ void GatherFuncEvalArgInfo(DebuggerEval *pDE,
         //
         bool fNeedBoxOrUnbox = ((argSigType == ELEMENT_TYPE_CLASS) && (pFEAD->argElementType == ELEMENT_TYPE_VALUETYPE)) ||
             (((argSigType == ELEMENT_TYPE_VALUETYPE) && ((pFEAD->argElementType == ELEMENT_TYPE_CLASS) || (pFEAD->argElementType == ELEMENT_TYPE_OBJECT))) ||
-            // This is when method signature is expecting a BYREF ValueType, yet we recieve the boxed valuetype's handle.
+            // This is when method signature is expecting a BYREF ValueType, yet we receive the boxed valuetype's handle.
             (pFEAD->argElementType == ELEMENT_TYPE_CLASS && argSigType == ELEMENT_TYPE_BYREF && byrefArgSigType == ELEMENT_TYPE_VALUETYPE));
 
         pFEArgInfo[currArgIndex].argSigType = argSigType;
@@ -1890,7 +1890,7 @@ void BoxFuncEvalArguments(DebuggerEval *pDE,
 
                 if (pAddr == NULL)
                 {
-                    COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+                    COMPlusThrow(kArgumentNullException);
                 }
             }
 
@@ -1984,7 +1984,7 @@ void GatherFuncEvalMethodInfo(DebuggerEval *pDE,
         //
         if ((argData[0].argHome.kind == RAK_NONE) && (argData[0].argAddr == NULL))
         {
-            COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+            COMPlusThrow(kArgumentNullException);
         }
 
         //
@@ -2056,7 +2056,7 @@ void GatherFuncEvalMethodInfo(DebuggerEval *pDE,
         //
         if (objRef == NULL)
         {
-            COMPlusThrow(kArgumentNullException, W("ArgumentNull_Obj"));
+            COMPlusThrow(kArgumentNullException);
         }
 
         //
@@ -2226,7 +2226,7 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
 
                 if (pAddr == NULL)
                 {
-                    COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+                    COMPlusThrow(kArgumentNullException);
                 }
 
                 *pDest = *pAddr;
@@ -3694,7 +3694,6 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
         MODE_COOPERATIVE;
         GC_TRIGGERS;
         THROWS;
-        SO_NOT_MAINLINE;
 
         PRECONDITION(CheckPointer(pDE));
     }

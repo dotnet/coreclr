@@ -43,6 +43,7 @@ class ReadyToRunInfo
     NativeFormat::NativeArray       m_methodDefEntryPoints;
     NativeFormat::NativeHashtable   m_instMethodEntryPoints;
     NativeFormat::NativeHashtable   m_availableTypesHashtable;
+    NativeFormat::NativeHashtable   m_pMetaDataHashtable;
 
     Crst                            m_Crst;
     PtrHashMap                      m_entryPointToMethodDescMap;
@@ -67,6 +68,12 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_pHeader->Flags & READYTORUN_FLAG_SKIP_TYPE_VALIDATION;
+    }
+
+    BOOL IsPartial()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pHeader->Flags & READYTORUN_FLAG_PARTIAL;
     }
 
     PTR_PEImageLayout GetImage()

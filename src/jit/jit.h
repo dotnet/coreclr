@@ -444,7 +444,6 @@ typedef ptrdiff_t ssize_t;
 //=============================================================================
 
 #define REDUNDANT_LOAD 1      // track locals in regs, suppress loads
-#define STACK_PROBES 0        // Support for stack probes
 #define DUMP_FLOWGRAPHS DEBUG // Support for creating Xml Flowgraph reports in *.fgx files
 
 #define HANDLER_ENTRY_MUST_BE_IN_HOT_SECTION 1 // if 1 we must have all handler entry points in the Hot code section
@@ -504,7 +503,7 @@ typedef ptrdiff_t ssize_t;
 #if !defined(_HOST_X86_) && !defined(_HOST_AMD64_)
 #define MEASURE_CLRAPI_CALLS 0 // Cycle counters only hooked up on x86/x64.
 #endif
-#if !defined(_MSC_VER) && !defined(__clang__)
+#if !defined(_MSC_VER) && !defined(__GNUC__)
 #define MEASURE_CLRAPI_CALLS 0 // Only know how to do this with VC and Clang.
 #endif
 
@@ -793,11 +792,6 @@ private:
      CLFLG_INLINING | CLFLG_STRUCTPROMOTE | CLFLG_CONSTANTFOLD)
 
 #define CLFLG_MINOPT (CLFLG_TREETRANS)
-
-#define JIT_RESERVED_STACK 64 // Reserved for arguments of calls and hidden
-                              // pushes for finallys so that we don't
-                              // probe on every call site. See comment in
-                              // for CORINFO_STACKPROBE_DEPTH in corjit.h
 
 /*****************************************************************************/
 

@@ -1564,8 +1564,8 @@ void DispatchInfo::InvokeMemberWorker(DispatchMemberInfo*   pDispMemberInfo,
         {
             // If the method is culture aware, then set the specified culture on the thread.
             GetCultureInfoForLCID(lcid, &pObjs->CultureInfo);
-            pObjs->OldCultureInfo = pThread->GetCulture(FALSE);
-            pThread->SetCultureId(lcid, FALSE);
+            pObjs->OldCultureInfo = Thread::GetCulture(FALSE);
+            Thread::SetCulture(&pObjs->CultureInfo, FALSE);
         }
 
         // If the method has custom marshalers then we will need to call
@@ -1979,7 +1979,6 @@ HRESULT DispatchInfo::InvokeMember(SimpleComCallWrapper *pSimpleWrap, DISPID id,
     DISPID *pSrcArgNames = NULL;
     VARIANT *pSrcArgs = NULL;
     ULONG_PTR ulActCtxCookie = 0;
-    Thread *pThread = GetThread();
 
     //
     // Validate the arguments.
@@ -2292,7 +2291,7 @@ HRESULT DispatchInfo::InvokeMember(SimpleComCallWrapper *pSimpleWrap, DISPID id,
 
         // If the culture was changed then restore it to the old culture.
         if (Objs.OldCultureInfo != NULL)
-            pThread->SetCulture(&Objs.OldCultureInfo, FALSE);
+            Thread::SetCulture(&Objs.OldCultureInfo, FALSE);
     }
     GCPROTECT_END();
     GCPROTECT_END();
@@ -2307,7 +2306,6 @@ void DispatchInfo::MarshalParamNativeToManaged(DispatchMemberInfo *pMemberInfo, 
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
     
@@ -2360,7 +2358,6 @@ void DispatchInfo::MarshalReturnValueManagedToNative(DispatchMemberInfo *pMember
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
     
@@ -3018,7 +3015,6 @@ MethodDesc* DispatchInfo::GetInvokeMemberMD()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
         POSTCONDITION(CheckPointer(RETVAL));
     }
     CONTRACT_END;
@@ -3035,7 +3031,6 @@ OBJECTREF DispatchInfo::GetReflectionObject()
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
     
@@ -3183,7 +3178,6 @@ DISPID DispatchInfo::GenerateDispID()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
     
@@ -3671,7 +3665,6 @@ MethodDesc* DispatchExInfo::GetInvokeMemberMD()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
         POSTCONDITION(CheckPointer(RETVAL));
     }
     CONTRACT_END;

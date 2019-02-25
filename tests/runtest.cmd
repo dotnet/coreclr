@@ -7,18 +7,21 @@ set "__MsgPrefix=RUNTEST: "
 
 set __ThisScriptDir="%~dp0"
 
-if /I not "%PROCESSOR_ARCHITECTURE%"=="arm64" (
-    if /I not "%PROCESSOR_ARCHITECTURE%"=="arm" (
-        call "%__ThisScriptDir%"\..\setup_vs_tools.cmd
-        if NOT '%ERRORLEVEL%' == '0' exit /b 1
+if /I "%PROCESSOR_ARCHITECTURE%"=="arm64" goto :skip_vs_setup
+if /I "%PROCESSOR_ARCHITECTURE%"=="arm" goto :skip_vs_setup
 
-        if defined VS150COMNTOOLS (
-            set __VSVersion=vs2017
-        ) else (
-            set __VSVersion=vs2015
-        )
-    )
-)   
+REM If we're running in the x86 WoW layer on Windows arm64, we still don't check for VS.
+if /I "%PROCESSOR_ARCHITEW6432%"=="arm64" goto :skip_vs_setup
+
+call "%__ThisScriptDir%"\..\setup_vs_tools.cmd
+if NOT '%ERRORLEVEL%' == '0' exit /b 1
+
+if defined VS160COMNTOOLS (
+    set __VSVersion=vs2019
+) else if defined VS150COMNTOOLS (
+    set __VSVersion=vs2017
+)
+:skip_vs_setup
 
 :: Set the default arguments
 set __BuildArch=x64
@@ -31,6 +34,9 @@ if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__ProjectFilesDir=%__ProjectDir%"
 set "__RootBinDir=%__ProjectDir%\..\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
+set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
+set __ToolsDir=%__ProjectDir%\..\Tools
+set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
 
 set __Sequential=
 set __msbuildExtraArgs=
@@ -48,6 +54,7 @@ set __CoreFXTestsRunAllAvailable=
 set __SkipGenerateLayout=
 set __BuildXUnitWrappers=
 set __PrintLastResultsOnly=
+set __RunInUnloadableContext=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -59,50 +66,54 @@ if /i "%1" == "-h"    goto Usage
 if /i "%1" == "/help" goto Usage
 if /i "%1" == "-help" goto Usage
 
-if /i "%1" == "x64"                   (set __BuildArch=x64&shift&goto Arg_Loop)
-if /i "%1" == "x86"                   (set __BuildArch=x86&shift&goto Arg_Loop)
-if /i "%1" == "arm"                   (set __BuildArch=arm&shift&goto Arg_Loop)
-if /i "%1" == "arm64"                 (set __BuildArch=arm64&shift&goto Arg_Loop)
-
-if /i "%1" == "debug"                 (set __BuildType=Debug&shift&goto Arg_Loop)
-if /i "%1" == "release"               (set __BuildType=Release&shift&goto Arg_Loop)
-if /i "%1" == "checked"               (set __BuildType=Checked&shift&goto Arg_Loop)
-
-if /i "%1" == "vs2015"                (set __VSVersion=%1&shift&goto Arg_Loop)
-if /i "%1" == "vs2017"                (set __VSVersion=%1&shift&goto Arg_Loop)
-
-if /i "%1" == "TestEnv"               (set __TestEnv=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "AgainstPackages"       (set __AgainstPackages=1&shift&goto Arg_Loop)
-if /i "%1" == "sequential"            (set __Sequential=1&shift&goto Arg_Loop)
-if /i "%1" == "crossgen"              (set __DoCrossgen=1&shift&goto Arg_Loop)
-if /i "%1" == "crossgenaltjit"        (set __DoCrossgen=1&set __CrossgenAltJit=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "longgc"                (set __LongGCTests=1&shift&goto Arg_Loop)
-if /i "%1" == "gcsimulator"           (set __GCSimulatorTests=1&shift&goto Arg_Loop)
-if /i "%1" == "jitstress"             (set COMPlus_JitStress=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "jitstressregs"         (set COMPlus_JitStressRegs=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "jitminopts"            (set COMPlus_JITMinOpts=1&shift&goto Arg_Loop)
-if /i "%1" == "jitforcerelocs"        (set COMPlus_ForceRelocs=1&shift&goto Arg_Loop)
-if /i "%1" == "jitdisasm"             (set __JitDisasm=1&shift&goto Arg_Loop)
-if /i "%1" == "ilasmroundtrip"        (set __IlasmRoundTrip=1&shift&goto Arg_Loop)
-if /i "%1" == "GenerateLayoutOnly"    (set __GenerateLayoutOnly=1&shift&goto Arg_Loop)
-if /i "%1" == "skipgeneratelayout"    (set __SkipGenerateLayout=1&shift&goto Arg_Loop)
-if /i "%1" == "buildxunitwrappers"    (set __BuildXunitWrappers=1&shift&goto Arg_Loop)
-if /i "%1" == "printlastresultsonly"  (set __PrintLastResultsOnly=1&shift&goto Arg_Loop)
-if /i "%1" == "PerfTests"             (set __PerfTests=true&shift&goto Arg_Loop)
-if /i "%1" == "CoreFXTests"           (set __CoreFXTests=true&shift&goto Arg_Loop)
-if /i "%1" == "CoreFXTestsAll"        (set __CoreFXTests=true&set __CoreFXTestsRunAllAvailable=true&shift&goto Arg_Loop)
-if /i "%1" == "CoreFXTestList"        (set __CoreFXTests=true&set __CoreFXTestList=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "runcrossgentests"      (set RunCrossGen=true&shift&goto Arg_Loop)
-if /i "%1" == "link"                  (set DoLink=true&set ILLINK=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "x64"                                     (set __BuildArch=x64&shift&goto Arg_Loop)
+if /i "%1" == "x86"                                     (set __BuildArch=x86&shift&goto Arg_Loop)
+if /i "%1" == "arm"                                     (set __BuildArch=arm&shift&goto Arg_Loop)
+if /i "%1" == "arm64"                                   (set __BuildArch=arm64&shift&goto Arg_Loop)
+            
+if /i "%1" == "debug"                                   (set __BuildType=Debug&shift&goto Arg_Loop)
+if /i "%1" == "release"                                 (set __BuildType=Release&shift&goto Arg_Loop)
+if /i "%1" == "checked"                                 (set __BuildType=Checked&shift&goto Arg_Loop)
+            
+if /i "%1" == "vs2017"                                  (set __VSVersion=%1&shift&goto Arg_Loop)
+if /i "%1" == "vs2019"                                  (set __VSVersion=%1&shift&goto Arg_Loop)
+            
+if /i "%1" == "TestEnv"                                 (set __TestEnv=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "AgainstPackages"                         (set __AgainstPackages=1&shift&goto Arg_Loop)
+if /i "%1" == "sequential"                              (set __Sequential=1&shift&goto Arg_Loop)
+if /i "%1" == "crossgen"                                (set __DoCrossgen=1&shift&goto Arg_Loop)
+if /i "%1" == "crossgenaltjit"                          (set __DoCrossgen=1&set __CrossgenAltJit=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "longgc"                                  (set __LongGCTests=1&shift&goto Arg_Loop)
+if /i "%1" == "gcsimulator"                             (set __GCSimulatorTests=1&shift&goto Arg_Loop)
+if /i "%1" == "jitstress"                               (set COMPlus_JitStress=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "jitstressregs"                           (set COMPlus_JitStressRegs=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "jitminopts"                              (set COMPlus_JITMinOpts=1&shift&goto Arg_Loop)
+if /i "%1" == "jitforcerelocs"                          (set COMPlus_ForceRelocs=1&shift&goto Arg_Loop)
+if /i "%1" == "jitdisasm"                               (set __JitDisasm=1&shift&goto Arg_Loop)
+if /i "%1" == "ilasmroundtrip"                          (set __IlasmRoundTrip=1&shift&goto Arg_Loop)
+if /i "%1" == "GenerateLayoutOnly"                      (set __GenerateLayoutOnly=1&shift&goto Arg_Loop)
+if /i "%1" == "skipgeneratelayout"                      (set __SkipGenerateLayout=1&shift&goto Arg_Loop)
+if /i "%1" == "buildxunitwrappers"                      (set __BuildXunitWrappers=1&shift&goto Arg_Loop)
+if /i "%1" == "printlastresultsonly"                    (set __PrintLastResultsOnly=1&shift&goto Arg_Loop)
+if /i "%1" == "PerfTests"                               (set __PerfTests=true&shift&goto Arg_Loop)
+if /i "%1" == "CoreFXTests"                             (set __CoreFXTests=true&shift&goto Arg_Loop)
+if /i "%1" == "CoreFXTestsAll"                          (set __CoreFXTests=true&set __CoreFXTestsRunAllAvailable=true&shift&goto Arg_Loop)
+if /i "%1" == "CoreFXTestList"                          (set __CoreFXTests=true&set __CoreFXTestList=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "runcrossgentests"                        (set RunCrossGen=true&shift&goto Arg_Loop)
+REM This test feature is currently intentionally undocumented
+if /i "%1" == "runlargeversionbubblecrossgentests"      (set RunCrossGen=true&set CrossgenLargeVersionBubble=true&shift&goto Arg_Loop)
+if /i "%1" == "link"                                    (set DoLink=true&set ILLINK=%2&shift&shift&goto Arg_Loop)
 REM tieredcompilation is on by default now, but setting this environment variable is harmless and I didn't want to break any automation that might be using it just yet
-if /i "%1" == "tieredcompilation"     (set COMPLUS_TieredCompilation=1&shift&goto Arg_Loop)
-if /i "%1" == "gcname"                (set COMPlus_GCName=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "timeout"               (set __TestTimeout=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "altjitarch"            (set __AltJitArch=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "tieredcompilation"                       (set COMPLUS_TieredCompilation=1&shift&goto Arg_Loop)
+if /i "%1" == "gcname"                                  (set COMPlus_GCName=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "timeout"                                 (set __TestTimeout=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "altjitarch"                              (set __AltJitArch=%2&shift&shift&goto Arg_Loop)
 
 REM change it to COMPlus_GCStress when we stop using xunit harness
-if /i "%1" == "gcstresslevel"         (set COMPlus_GCStress=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
-if /i "%1" == "collectdumps"          (set __CollectDumps=true&shift&goto Arg_Loop)
+if /i "%1" == "gcstresslevel"                           (set COMPlus_GCStress=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
+if /i "%1" == "collectdumps"                            (set __CollectDumps=true&shift&goto Arg_Loop)
+
+if /i "%1" == "runincontext"                            (set __RunInUnloadableContext=1&shift&goto Arg_Loop)
 
 if /i not "%1" == "msbuildargs" goto SkipMsbuildArgs
 :: All the rest of the args will be collected and passed directly to msbuild.
@@ -205,12 +216,20 @@ if defined __DoCrossgen (
     set __RuntestPyArgs=%__RuntestPyArgs% --precompile_core_root
 )
 
+if defined CrossgenLargeVersionBubble (
+    set __RuntestPyArgs=%__RuntestPyArgs% --large_version_bubble
+)
+
 if defined __PrintLastResultsOnly (
     set __RuntestPyArgs=%__RuntestPyArgs% --analyze_results_only
 )
 
 if defined __AltJitArch (
     set __RuntestPyArgs=%__RuntestPyArgs% -altjit_arch %__AltJitArch%
+)
+
+if defined __RunInUnloadableContext (
+    set __RuntestPyArgs=%__RuntestPyArgs% --run_in_context
 )
 
 REM __ProjectDir is poorly named, it is actually <projectDir>/tests
@@ -224,30 +243,18 @@ exit /b %ERRORLEVEL%
 
 :: Set up msbuild and tools environment. Check if msbuild and VS exist.
 
-set _msbuildexe=
-if /i "%__VSVersion%" == "vs2017" (
+if /i "%__VSVersion%" == "vs2019" (
+    set "__VSToolsRoot=%VS160COMNTOOLS%"
+    set "__VCToolsRoot=%VS160COMNTOOLS%\..\..\VC\Auxiliary\Build"
+) else if /i "%__VSVersion%" == "vs2017" (
     set "__VSToolsRoot=%VS150COMNTOOLS%"
     set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
-
-    set _msbuildexe="%VS150COMNTOOLS%\..\..\MSBuild\15.0\Bin\MSBuild.exe"
-) else if /i "%__VSVersion%" == "vs2015" (
-    set "__VSToolsRoot=%VS140COMNTOOLS%"
-    set "__VCToolsRoot=%VS140COMNTOOLS%\..\..\VC"
-
-    set _msbuildexe="%ProgramFiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
-    if not exist !_msbuildexe! set _msbuildexe="%ProgramFiles%\MSBuild\14.0\Bin\MSBuild.exe"
 )
 
 :: Does VS really exist?
 if not exist "%__VSToolsRoot%\..\IDE\devenv.exe"      goto NoVS
 if not exist "%__VCToolsRoot%\vcvarsall.bat"          goto NoVS
 if not exist "%__VSToolsRoot%\VsDevCmd.bat"           goto NoVS
-
-:: Does MSBuild really exist?
-if not exist %_msbuildexe% (
-    echo %__MsgPrefix%Error: Could not find MSBuild.exe.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
-    exit /b 1
-)
 
 if not defined VSINSTALLDIR (
     echo %__MsgPrefix%Error: runtest.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
@@ -274,7 +281,11 @@ if defined DoLink (
     set __msbuildCommonArgs=%__msbuildCommonArgs% /p:RunTestsViaIllink=true
 )
 
-if not exist %__LogsDir% md %__LogsDir%
+if not exist "%__LogsDir%"                      md "%__LogsDir%"
+if not exist "%__MsbuildDebugLogsDir%"          md "%__MsbuildDebugLogsDir%"
+
+REM Set up the directory for MSBuild debug logs.
+set MSBUILDDEBUGPATH=%__MsbuildDebugLogsDir%
 
 REM These log files are created automatically by the test run process. Q: what do they depend on being set?
 set __TestRunHtmlLog=%__LogsDir%\TestRun_%__BuildOS%__%__BuildArch%__%__BuildType%.html
@@ -406,8 +417,6 @@ REM ============================================================================
 :RunCoreFXTests
 
 set _CoreFXTestHost=%XunitTestBinBase%\testhost
-set __ToolsDir=%__ProjectDir%\..\Tools
-set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
 
 set _RootCoreFXTestPath=%__TestWorkingDir%\CoreFX
 set _CoreFXTestUtilitiesOutputPath=%_RootCoreFXTestPath%\CoreFXTestUtilities
@@ -571,10 +580,10 @@ set __msbuildLogArgs=^
 set __msbuildArgs=%* %__msbuildCommonArgs% %__msbuildLogArgs%
 
 @REM The next line will overwrite the existing log file, if any.
-echo %__MsgPrefix%%_msbuildexe% %__msbuildArgs%
-echo Invoking: %_msbuildexe% %__msbuildArgs% > "%__BuildLog%"
+echo %__MsgPrefix%"%DotNetCli%" msbuild %__msbuildArgs%
+echo Invoking: "%DotNetCli%" msbuild %__msbuildArgs% > "%__BuildLog%"
 
-%_msbuildexe% %__msbuildArgs%
+call "%DotNetCli%" msbuild %__msbuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: msbuild failed. Refer to the log files for details:
     echo     %__BuildLog%
@@ -667,14 +676,14 @@ echo %__MsgPrefix%Created the Test Host layout with all dependencies in %_CoreFX
 
 REM Publish and call the CoreFX test helper projects - should this be integrated into runtest.proj?
 REM Build Helper project
-set NEXTCMD="%DotNetCli%" msbuild /t:Restore "%_CoreFXTestSetupUtility%"
+set NEXTCMD=call :msbuild /t:Restore "%_CoreFXTestSetupUtility%"
 echo !NEXTCMD!
 !NEXTCMD!
 if errorlevel 1 (
     exit /b 1
 )
 
-set NEXTCMD=call "%DotNetCli%" msbuild "/p:Configuration=%CoreRT_BuildType%" "/p:OSGroup=%CoreRT_BuildOS%" "/p:Platform=%CoreRT_BuildArch%" "/p:OutputPath=%_CoreFXTestUtilitiesOutputPath%" "%_CoreFXTestSetupUtility%"
+set NEXTCMD=call :msbuild "/p:Configuration=%CoreRT_BuildType%" "/p:OSGroup=%CoreRT_BuildOS%" "/p:Platform=%CoreRT_BuildArch%" "/p:OutputPath=%_CoreFXTestUtilitiesOutputPath%" "%_CoreFXTestSetupUtility%"
 echo !NEXTCMD!
 !NEXTCMD!
 if errorlevel 1 (
@@ -702,7 +711,7 @@ echo.
 echo./? -? /h -h /help -help   - View this message.
 echo ^<build_architecture^>      - Specifies build architecture: x64, x86, arm, or arm64 ^(default: x64^).
 echo ^<build_type^>              - Specifies build type: Debug, Release, or Checked ^(default: Debug^).
-echo VSVersion ^<vs_version^>    - VS2015 or VS2017 ^(default: VS2017^).
+echo VSVersion ^<vs_version^>    - VS2017 or VS2019 ^(default: VS2019^).
 echo TestEnv ^<test_env_script^> - Run a custom script before every test to set custom test environment settings.
 echo AgainstPackages           - This indicates that we are running tests that were built against packages.
 echo GenerateLayoutOnly        - If specified will not run the tests and will only create the Runtime Dependency Layout
@@ -735,6 +744,7 @@ echo gcname ^<name^>             - Runs the tests with COMPlus_GCName=name
 echo timeout ^<n^>               - Sets the per-test timeout in milliseconds ^(default is 10 minutes = 10 * 60 * 1000 = 600000^).
 echo                             Note: some options override this ^(gcstresslevel, longgc, gcsimulator^).
 echo printlastresultsonly      - Print the last test results without running tests.
+echo runincontext              - Run each tests in an unloadable AssemblyLoadContext
 echo msbuildargs ^<args...^>     - Pass all subsequent args directly to msbuild invocations.
 echo ^<CORE_ROOT^>               - Path to the runtime to test ^(if specified^).
 echo.
@@ -747,6 +757,6 @@ echo   %0 x64 release
 exit /b 1
 
 :NoVS
-echo Visual Studio 2015 or 2017 ^(Community is free^) is a prerequisite to build this repository.
+echo Visual Studio 2017 or 2019 ^(Community is free^) is a prerequisite to build this repository.
 echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1

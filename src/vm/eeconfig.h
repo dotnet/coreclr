@@ -118,7 +118,6 @@ public:
                 GC_NOTRIGGER;
                 // MODE_ANY;
                 FORBID_FAULT;
-                SO_TOLERANT; 
             } CONTRACTL_END;
             
             pEnd = &(pList->m_pElement);
@@ -137,7 +136,6 @@ public:
                 GC_NOTRIGGER;
                 // MODE_ANY;
                 FORBID_FAULT;
-                SO_TOLERANT; 
                 POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
             } CONTRACT_END;
         
@@ -154,8 +152,7 @@ public:
                 NOTHROW;
                 GC_NOTRIGGER;
                 FORBID_FAULT;
-                // MODE_ANY;
-                SO_TOLERANT; 
+                // MODE_ANY; 
                 POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
             } CONTRACT_END;
 
@@ -285,10 +282,15 @@ public:
     // Tiered Compilation config
 #if defined(FEATURE_TIERED_COMPILATION)
     bool          TieredCompilation(void)           const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
+    bool          TieredCompilation_DisableTier0Jit() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_DisableTier0Jit; }
     bool          TieredCompilation_CallCounting()  const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation_CallCounting; }
     bool          TieredCompilation_OptimizeTier0() const {LIMITED_METHOD_CONTRACT; return fTieredCompilation_OptimizeTier0; }
     DWORD         TieredCompilation_Tier1CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountThreshold; }
     DWORD         TieredCompilation_Tier1CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountingDelayMs; }
+#endif
+
+#ifndef CROSSGEN_COMPILE
+    bool          BackpatchEntryPointSlots() const { LIMITED_METHOD_CONTRACT; return backpatchEntryPointSlots; }
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)
@@ -613,9 +615,11 @@ public:
 #endif //_DEBUG
     int     GetGCForceCompact()             const {LIMITED_METHOD_CONTRACT; return iGCForceCompact; }
     int     GetGCRetainVM ()                const {LIMITED_METHOD_CONTRACT; return iGCHoardVM;}
+    DWORD   GetGCLOHThreshold()             const {LIMITED_METHOD_CONTRACT; return iGCLOHThreshold;}
     int     GetGCLOHCompactionMode()        const {LIMITED_METHOD_CONTRACT; return iGCLOHCompactionMode;}
     int     GetGCHeapCount()                const {LIMITED_METHOD_CONTRACT; return iGCHeapCount;}
     int     GetGCNoAffinitize ()            const {LIMITED_METHOD_CONTRACT; return iGCNoAffinitize;}
+    size_t  GetGCAffinityMask()             const {LIMITED_METHOD_CONTRACT; return iGCAffinityMask;}
 
 #ifdef GCTRIMCOMMIT
 
@@ -919,8 +923,10 @@ private: //----------------------------------------------------------------
     int  iGCForceCompact;
     int  iGCHoardVM;
     int  iGCLOHCompactionMode;
+    DWORD iGCLOHThreshold;
     int  iGCHeapCount;
     int  iGCNoAffinitize;
+    size_t  iGCAffinityMask;
 
 #ifdef GCTRIMCOMMIT
 
@@ -1018,10 +1024,15 @@ private: //----------------------------------------------------------------
 
 #if defined(FEATURE_TIERED_COMPILATION)
     bool fTieredCompilation;
+    bool fTieredCompilation_DisableTier0Jit;
     bool fTieredCompilation_CallCounting;
     bool fTieredCompilation_OptimizeTier0;
     DWORD tieredCompilation_tier1CallCountThreshold;
     DWORD tieredCompilation_tier1CallCountingDelayMs;
+#endif
+
+#ifndef CROSSGEN_COMPILE
+    bool backpatchEntryPointSlots;
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)

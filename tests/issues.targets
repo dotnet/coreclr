@@ -2,6 +2,9 @@
 <Project DefaultTargets = "GetListOfTestCmds" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <!-- All OS/Arch common excludes -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != ''">
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/generics/threadstart/GThread23/*">
+            <Issue>19339</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Coverage/271010/**">
             <Issue>3392</Issue>
         </ExcludeList>
@@ -41,22 +44,25 @@
         <ExcludeList Include="$(XunitTestBinBase)/GC/Scenarios/muldimjagary/muldimjagary/*">
             <Issue>3392</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/DefaultInterfaceMethods/constrainedcall/constrainedcall/*">
-            <Issue>15353</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_11408/GitHub_11408/*">
             <Issue>11408</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_20958/GitHub_20958/*">
+            <Issue>22410</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/exceptions/StackTracePreserve/StackTracePreserveTests/*">
             <Issue>20322</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/mutex/misc/waitone2/*">
+            <Issue>6397</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/readytorun/r2rdump/R2RDumpTest/*">
+            <Issue>19441;22020</Issue>
         </ExcludeList>
     </ItemGroup>
 
     <!-- All Unix targets -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' != 'true'">
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/paramthreadstart/ThreadStartString_1/*">
-            <Issue>18381</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Interop/StructMarshalling/PInvoke/MarshalStructAsLayoutExp/*">
             <Issue>Issue building native components for the test.</Issue>
         </ExcludeList>
@@ -78,22 +84,22 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/tailcall_v4/hijacking/*">
             <Issue>needs triage</Issue>
-        </ExcludeList>      
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/xxobj/sizeof/_il_dbgsizeof/*">
             <Issue>needs triage</Issue>
-        </ExcludeList>        
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/xxobj/sizeof/_il_dbgsizeof32/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/xxobj/sizeof/_il_dbgsizeof64/*">
             <Issue>needs triage</Issue>
-        </ExcludeList>        
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/xxobj/sizeof/_il_relsizeof/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/xxobj/sizeof/_il_relsizeof32/*">
             <Issue>needs triage</Issue>
-        </ExcludeList>        
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/xxobj/sizeof/_il_relsizeof64/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
@@ -125,9 +131,6 @@
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Regressions/dev10bugs/536168/536168/*">
-            <Issue>needs triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/readytorun/r2rdump/R2RDumpTest/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/API/GC/GetAllocatedBytesForCurrentThread/*">
@@ -190,9 +193,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/eh/FinallyExec/nonlocalexitinroot/*">
             <Issue>times out</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/opt/ObjectStackAllocation/ObjectStackAllocationTests/*">
-          <Issue>21376</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/devdiv_902271/DevDiv_902271/*">
             <Issue>times out</Issue>
         </ExcludeList>
@@ -205,22 +205,22 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/opt/cse/HugeArray/*">
             <Issue>needs triage</Issue>
-        </ExcludeList>      
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/opt/cse/HugeArray1/*">
             <Issue>needs triage</Issue>
-        </ExcludeList>        
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/opt/cse/HugeField1/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/opt/cse/HugeField2/*">
             <Issue>needs triage</Issue>
-        </ExcludeList>        
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/CoreMangLib/cti/system/string/StringFormat1/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/CoreMangLib/cti/system/string/StringFormat2/*">
             <Issue>needs triage</Issue>
-        </ExcludeList>        
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/Arm64/Simd/*">
             <Issue>18895</Issue>
         </ExcludeList>
@@ -236,12 +236,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/DevDiv_590771/DevDiv_590771/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/readytorun/r2rdump/R2RDumpTest/*">
-            <Issue>19441</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/DevDiv_736188/DevDiv_736188/*">
-            <Issue>21363</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <ItemGroup Condition="'$(XunitTestBinBase)' != ''">
@@ -252,24 +246,6 @@
 
     <!-- Windows x64 specific excludes -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'x64' and '$(TargetsWindows)' == 'true'">
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/TypeGeneratorTests/TypeGeneratorTest612/Generated612/*">
-            <Issue>6707</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/TypeGeneratorTests/TypeGeneratorTest613/Generated613/*">
-            <Issue>6707</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/TypeGeneratorTests/TypeGeneratorTest614/Generated614/*">
-            <Issue>6707</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/TypeGeneratorTests/TypeGeneratorTest681/Generated681/*">
-            <Issue>6707</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/TypeGeneratorTests/TypeGeneratorTest682/Generated682/*">
-            <Issue>6707</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/TypeGeneratorTests/TypeGeneratorTest683/Generated683/*">
-            <Issue>6707</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_18056/Bool_And_Op_cs_do/*">
             <Issue>18056</Issue>
         </ExcludeList>
@@ -299,24 +275,14 @@
             <Issue>2420. x86 JIT doesn't support implicit tail call optimization or tail. call pop ret sequence</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/DevDiv_255294/DevDiv_255294/*">
-            <Issue>11469, The test causes OutOfMemory exception in crossgen mode.</Issue> 
+            <Issue>11469, The test causes OutOfMemory exception in crossgen mode.</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport/*">
             <Issue>Varargs supported on this platform</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Directed/arglist/vararg/*">
-            <Issue>19705</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport_r/*">
             <Issue>Varargs supported on this platform</Issue>
         </ExcludeList>
-    </ItemGroup>
-
-    <!-- x86 specific excludes -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'x86'">
-      <ExcludeList Include="$(XunitTestBinBase)/JIT/opt/ObjectStackAllocation/ObjectStackAllocationTests/*">
-        <Issue>Object stack allocation is not supported on x86 yet</Issue>
-      </ExcludeList>
     </ItemGroup>
 
     <!-- Windows arm32 specific excludes -->
@@ -335,6 +301,9 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NETClients/Aggregation/NETClientAggregation/*">
             <Issue>20682</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NETClients/Events/NETClientEvents/*">
+            <Issue>22784</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -356,10 +325,7 @@
             <Issue>9565</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Regressions/dev10bugs/536168/536168/*">
-            <Issue>11534</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Exceptions/ForeignThread/ForeignThreadExceptions/*">
-            <Issue>10636</Issue>
+            <Issue>extremely memory/time intensive test</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/DefaultInterfaceMethods/diamondshape/diamondshape_d/*">
             <Issue>9565</Issue>
@@ -372,9 +338,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/DefaultInterfaceMethods/valuetypes/valuetypes/*">
             <Issue>9565</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/tracing/tracevalidation/tracelogging/tracelogging/*">
-            <Issue>15494</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/reflection/Tier1Collectible/Tier1Collectible/*">
             <Issue>9565</Issue>
@@ -399,9 +362,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/reflection/DefaultInterfaceMethods/Emit/*">
             <Issue>9565</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/tracing/eventsourcetrace/eventsourcetrace/*">
-            <Issue>15494</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/CLR-x86-JIT/v2.1/DDB/B168384/LdfldaHack/*">
             <Issue>15016</Issue>
@@ -433,33 +393,12 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/opt/rngchk/RngchkStress3/*">
             <Issue>Needs Triage</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i53/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i13/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i03/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i33/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i63/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i73/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <!-- arm32 All OS specific excludes -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and  ('$(BuildArch)' == 'arm' or '$(AltJitArch)' == 'arm')">
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/tailcall_v4/hijacking/*">
-            <Issue>6217</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/opt/Tailcall/TailcallVerifyWithPrefix/*">
-            <Issue>2420</Issue>
+            <Issue>13828</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport_r/*">
             <Issue>Varargs supported on this platform</Issue>
@@ -534,20 +473,8 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/CLR-x86-JIT/V1-M12-Beta2/b37646/*">
             <Issue>Varargs not supported on this platform</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/NativeLibs/FromNativePaths/*">
-            <Issue>Issue building native components for the test.</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Directed/pinning/object-pin/*">
             <Issue>Issue building native components for the test.</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/DefaultInterfaceMethods/constrainedcall/*">
-            <Issue>15353</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/paramthreadstart/ThreadStartBool/*">
-            <Issue>18381</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/paramthreadstart/ThreadStartBool_1/*">
-            <Issue>18381</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_18232/GitHub_18232/*">
             <Issue>Needs Triage</Issue>
@@ -589,8 +516,26 @@
         <ExcludeList Include="$(XunitTestBinBase)/GC/Scenarios/DoublinkList/dlstack/*">
             <Issue>Release only crash</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/CLR-x86-JIT/v2.1/b152292/b152292/*">
-            <Issue>20358</Issue>
+        <ExcludeList Include="$(XunitTestBinBase)/GC/Scenarios/Dynamo/dynamo/*">
+            <Issue>17129</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/compareexchange/CompareExchangeTClass/*">
+            <Issue>22303</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/compareexchange/CompareExchangeTClass_1/*">
+            <Issue>22303</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTClass/*">
+            <Issue>22303</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString/*">
+            <Issue>22303</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString_1/*">
+            <Issue>22303</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString_2/*">
+            <Issue>22303</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -599,14 +544,14 @@
         <ExcludeList Include="$(XunitTestBinBase)/tracing/runtimeeventsource/runtimeeventsource/*">
             <Issue>19340</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/CLR-x86-JIT/v2.1/b152292/b152292/*">
-            <Issue>20358</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_19361/GitHub_19361/*">
             <Issue>20232</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/GC/Scenarios/Dynamo/dynamo/*">
+            <Issue>17129</Issue>
+        </ExcludeList>
     </ItemGroup>
-    
+
 
     <!-- Tests that need to be triaged for vararg usage as that is not supported -->
     <!-- Note these will only be excluded for unix platforms -->
@@ -784,27 +729,6 @@
     <!-- The following are tests that fail when building tests against packages -->
 
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildTestsAgainstPackages)' == 'true'">
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/superpmi/superpmicollect/*">
-            <Issue>needs triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Performance/CodeQuality/BenchmarksGame/k-nucleotide/k-nucleotide-1/k-nucleotide-1*">
-            <Issue>9314</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Performance/CodeQuality/BenchmarksGame/k-nucleotide/k-nucleotide-9/k-nucleotide-9*">
-            <Issue>9314</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Performance/CodeQuality/BenchmarksGame/regex-redux/regex-redux-1/regex-redux-1*">
-            <Issue>9314</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Performance/CodeQuality/BenchmarksGame/regex-redux/regex-redux-5/regex-redux-5*">
-            <Issue>9314</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Performance/CodeQuality/BenchmarksGame/reverse-complement/reverse-complement-1/reverse-complement-1*">
-            <Issue>9314</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Performance/CodeQuality/BenchmarksGame/reverse-complement/reverse-complement-6/reverse-complement-6*">
-            <Issue>9314</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport_r/*">
             <Issue>Varargs supported on this platform</Issue>
         </ExcludeList>
@@ -813,7 +737,10 @@
     <!-- The following are tests that fail on non-Windows, which we must not run when building against packages -->
 
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildTestsAgainstPackages)' == 'true' and '$(TargetsWindows)' != 'true'">
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/MarshalAPI/NativeLibrary/NativeLibraryTests/*">
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/NativeLibrary/NativeLibraryTests/*">
+            <Issue>Issue building native components for the test. Since tests are currently built on Windows, the native components end up at Core_Root instead of Test directory, which is not suitable for the test.</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/MarshalAPI/ResolveEvent/ResolveEventTests/*">
             <Issue>Issue building native components for the test. Since tests are currently built on Windows, the native components end up at Core_Root instead of Test directory, which is not suitable for the test.</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/CoreMangLib/cti/system/byte/ByteToString3/*">
@@ -1714,7 +1641,7 @@
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Loader/NativeLibs/FromNativePaths/*">
-            <Issue>needs triage</Issue>
+            <Issue>This requires the native assets to be in the test folder, which is currently not the case when building against packages.</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/TypeGeneratorTests/TypeGeneratorTest612/Generated612/*">
             <Issue>needs triage</Issue>
@@ -1807,9 +1734,6 @@
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/mutex/openexisting/openmutexpos4/*">
-            <Issue>needs triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/paramthreadstart/ThreadStartString_1/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/readerwriterlockslim/ensurelockordering/*">
@@ -2100,7 +2024,7 @@
     </ItemGroup>
 
     <!-- Failures while testing via ILLINK -->
-    
+
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(RunTestsViaIllink)' == 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/JIT/superpmi/superpmicollect/*">
             <!-- Linker runs reset CORE_ROOT to the linked directory based on superpmicollect.exe.
@@ -2113,5 +2037,15 @@
             <Issue>Bug</Issue>
         </ExcludeList>
     </ItemGroup>
-    
+
+    <!-- runtest.proj finds all the *.cmd/*.sh scripts in a test folder and creates corresponding test methods.
+         Exclude these scripts to avoid creating such methods for the superpmicollect dependent test projects
+         and running them separately from superpmicollect test. -->
+
+    <ItemGroup Condition="'$(XunitTestBinBase)' != ''">
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/superpmi/superpmicollect/*" Exclude="$(XunitTestBinBase)/JIT/superpmi/superpmicollect/superpmicollect.*">
+            <Issue>Do not run these scripts separately from superpmicollect test</Issue>
+        </ExcludeList>
+    </ItemGroup>
+
 </Project>

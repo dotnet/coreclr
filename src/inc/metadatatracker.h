@@ -66,7 +66,6 @@ public:
             THROWS;
             GC_NOTRIGGER;
             INJECT_FAULT(ThrowOutOfMemory());
-            SO_INTOLERANT;
         }
         CONTRACTL_END;
 
@@ -98,7 +97,6 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             FORBID_FAULT;
-            SO_INTOLERANT;
         }
         CONTRACTL_END;
 
@@ -158,7 +156,6 @@ public:
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_SO_NOT_MAINLINE;
 
         if (!Enabled())
             return;
@@ -185,11 +182,10 @@ public:
         return NoteAccessWorker(address);
     }
 
-    __declspec(noinline) static void* NoteAccessWorker(void *address)
+    NOINLINE static void* NoteAccessWorker(void *address)
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_SO_NOT_MAINLINE;
 
         if (s_IBCLogMetaDataAccess != NULL)
             s_IBCLogMetaDataAccess(address);
@@ -208,11 +204,10 @@ public:
         NoteSearchWorker(result);
     }
 
-    __declspec(noinline) static void NoteSearchWorker(void *result)
+    NOINLINE static void NoteSearchWorker(void *result)
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_SO_NOT_MAINLINE;
 
         if (s_IBCLogMetaDataSearch != NULL && result != NULL)
             s_IBCLogMetaDataSearch(result);
@@ -266,7 +261,6 @@ public:
             GC_NOTRIGGER;
             INJECT_FAULT(ThrowOutOfMemory());
             POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-            SO_INTOLERANT;
         }
         CONTRACT_END;
 

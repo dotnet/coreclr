@@ -1,0 +1,64 @@
+parameters:
+  displayName: ''
+  condition: ''
+  archType: ''
+  osGroup: ''
+  buildConfig: ''
+  creator: ''
+  publishTestResults: ''
+  helixAccessToken: ''
+  helixBuild: ''
+  helixSource: ''
+  helixQueues: ''
+  helixType: ''
+  scenarios: ''
+  timeoutPerTestCollectionInMinutes: ''
+  timeoutPerTestInMinutes: ''
+  runCrossGen: ''
+
+steps:
+- ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+  - powershell: eng\common\msbuild.ps1 -ci tests\helixpublishwitharcade.proj /maxcpucount
+    displayName: ${{ parameters.displayName }}
+    ${{ if ne(parameters.condition, '') }}:
+      condition: ${{ parameters.condition }}
+    env:
+      __BuildArch: ${{ parameters.archType }}
+      __BuildOS: ${{ parameters.osGroup }}
+      __BuildType: ${{ parameters.buildConfig }}
+      _Creator: ${{ parameters.creator }}
+      _PublishTestResults: ${{ parameters.publishTestResults }}
+      _HelixAccessToken: ${{ parameters.helixAccessToken }}
+      _HelixBuild: ${{ parameters.helixBuild }}
+      _HelixSource: ${{ parameters.helixSource }}
+      _HelixTargetQueues: ${{ parameters.helixQueues.asString }}
+      _HelixType: ${{ parameters.helixType }}
+      _RunCrossGen: ${{ parameters.runCrossGen }}
+      _Scenarios: ${{ parameters.scenarios.asString }}
+      _TimeoutPerTestCollectionInMinutes: ${{ parameters.timeoutPerTestCollectionInMinutes }}
+      _TimeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}
+      ${{ if eq(parameters.publishTestResults, 'true') }}:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+- ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+  - script: ./eng/common/msbuild.sh --ci tests/helixpublishwitharcade.proj /maxcpucount
+    displayName: ${{ parameters.displayName }}
+    ${{ if ne(parameters.condition, '') }}:
+      condition: ${{ parameters.condition }}
+    env:
+      __BuildArch: ${{ parameters.archType }}
+      __BuildOS: ${{ parameters.osGroup }}
+      __BuildType: ${{ parameters.buildConfig }}
+      _Creator: ${{ parameters.creator }}
+      _PublishTestResults: ${{ parameters.publishTestResults }}
+      _HelixAccessToken: ${{ parameters.helixAccessToken }}
+      _HelixBuild: ${{ parameters.helixBuild }}
+      _HelixSource: ${{ parameters.helixSource }}
+      _HelixTargetQueues: ${{ parameters.helixQueues.asString }}
+      _HelixType: ${{ parameters.helixType }}
+      _RunCrossGen: ${{ parameters.runCrossGen }}
+      _Scenarios: ${{ parameters.scenarios.asString }}
+      _TimeoutPerTestCollectionInMinutes: ${{ parameters.timeoutPerTestCollectionInMinutes }}
+      _TimeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}
+      ${{ if eq(parameters.publishTestResults, 'true') }}:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)

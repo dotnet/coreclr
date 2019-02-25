@@ -27,7 +27,7 @@ GTNODE(LCL_FLD_ADDR     , GenTreeLclFld      ,0,GTK_LEAF)               // addre
 GTNODE(STORE_LCL_VAR    , GenTreeLclVar      ,0,GTK_UNOP|GTK_LOCAL|GTK_NOVALUE) // store to local variable
 GTNODE(STORE_LCL_FLD    , GenTreeLclFld      ,0,GTK_UNOP|GTK_LOCAL|GTK_NOVALUE) // store to field in a non-primitive variable
 GTNODE(CATCH_ARG        , GenTree            ,0,GTK_LEAF)               // Exception object in a catch block
-GTNODE(LABEL            , GenTreeLabel       ,0,GTK_LEAF)               // Jump-target
+GTNODE(LABEL            , GenTree            ,0,GTK_LEAF)               // Jump-target
 GTNODE(FTN_ADDR         , GenTreeFptrVal     ,0,GTK_LEAF)               // Address of a function
 GTNODE(RET_EXPR         , GenTreeRetExpr     ,0,GTK_LEAF)               // Place holder for the return expression from an inline candidate
 
@@ -254,6 +254,8 @@ GTNODE(SWITCH           , GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)   // switc
 GTNODE(NO_OP            , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)   // nop!
 
 GTNODE(START_NONGC      , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)   // starts a new instruction group that will be non-gc interruptible
+
+GTNODE(START_PREEMPTGC  , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)   // starts a new instruction group where preemptive GC is enabled
 
 GTNODE(PROF_HOOK        , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)   // profiler Enter/Leave/TailCall hook
 

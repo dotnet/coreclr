@@ -654,6 +654,14 @@ FCIMPL0(INT32, ExceptionNative::GetExceptionCode)
 }
 FCIMPLEND
 
+extern uint32_t g_exceptionCount;
+FCIMPL0(UINT32, ExceptionNative::GetExceptionCount)
+{
+    FCALL_CONTRACT;
+    return g_exceptionCount;
+}
+FCIMPLEND
+
 
 //
 // This must be implemented as an FCALL because managed code cannot
@@ -850,37 +858,6 @@ FCIMPL1(FC_BOOL_RET, Buffer::IsPrimitiveTypeArray, ArrayBase *arrayUNSAFE)
 }
 FCIMPLEND
 
-// Gets a particular byte out of the array.  The array can't be an array of Objects - it
-// must be a primitive array.
-FCIMPL2(FC_UINT8_RET, Buffer::GetByte, ArrayBase *arrayUNSAFE, INT32 index)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(arrayUNSAFE != NULL);
-    _ASSERTE(index >=0 && index < ((INT32)(arrayUNSAFE->GetComponentSize() * arrayUNSAFE->GetNumComponents())));
-
-    UINT8 bData = *((BYTE*)arrayUNSAFE->GetDataPtr() + index);
-    return bData;
-}
-FCIMPLEND
-
-// Sets a particular byte in an array.  The array can't be an array of Objects - it
-// must be a primitive array.
-//
-// Semantically the bData argment is of type BYTE but FCallCheckSignature expects the 
-// type to be UINT8 and raises an error if this isn't this case when 
-// COMPlus_ConsistencyCheck is set.
-FCIMPL3(VOID, Buffer::SetByte, ArrayBase *arrayUNSAFE, INT32 index, UINT8 bData)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(arrayUNSAFE != NULL);
-    _ASSERTE(index >=0 && index < ((INT32)(arrayUNSAFE->GetComponentSize() * arrayUNSAFE->GetNumComponents())));
-    
-    *((BYTE*)arrayUNSAFE->GetDataPtr() + index) = (BYTE) bData;
-}
-FCIMPLEND
-
 // Returns the length in bytes of an array containing
 // primitive type elements
 FCIMPL1(INT32, Buffer::ByteLength, ArrayBase* arrayUNSAFE)
@@ -1003,7 +980,6 @@ FCIMPL1(int, GCInterface::WaitForFullGCApproach, int millisecondsTimeout)
         THROWS;
         MODE_COOPERATIVE;
         DISABLED(GC_TRIGGERS);  // can't use this in an FCALL because we're in forbid gc mode until we setup a H_M_F.
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -1028,7 +1004,6 @@ FCIMPL1(int, GCInterface::WaitForFullGCComplete, int millisecondsTimeout)
         THROWS;
         MODE_COOPERATIVE;
         DISABLED(GC_TRIGGERS);  // can't use this in an FCALL because we're in forbid gc mode until we setup a H_M_F.
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -1062,6 +1037,26 @@ FCIMPL1(int, GCInterface::GetGeneration, Object* objUNSAFE)
     int result = (INT32)GCHeapUtilities::GetGCHeap()->WhichGeneration(objUNSAFE);
     FC_GC_POLL_RET();
     return result;
+}
+FCIMPLEND
+
+/*================================GetSegmentSize========-=======================
+**Action: Returns the maximum GC heap segment size
+**Returns: The maximum segment size of either the normal heap or the large object heap, whichever is bigger
+==============================================================================*/
+FCIMPL0(UINT64, GCInterface::GetSegmentSize)
+{
+    FCALL_CONTRACT;
+
+    IGCHeap * pGC = GCHeapUtilities::GetGCHeap();
+    size_t segment_size = pGC->GetValidSegmentSize(false);
+    size_t large_segment_size = pGC->GetValidSegmentSize(true);
+    _ASSERTE(segment_size < SIZE_T_MAX && large_segment_size < SIZE_T_MAX);
+    if (segment_size < large_segment_size)
+        segment_size = large_segment_size;
+
+    FC_GC_POLL_RET();
+    return (UINT64) segment_size;
 }
 FCIMPLEND
 
@@ -1243,6 +1238,64 @@ FCIMPL0(INT64, GCInterface::GetAllocatedBytesForCurrentThread)
 }
 FCIMPLEND
 
+#ifdef FEATURE_BASICFREEZE
+
+/*===============================RegisterFrozenSegment===============================
+**Action: Registers the frozen segment
+**Returns: segment_handle
+**Arguments: args-> pointer to section, size of section
+**Exceptions: None
+==============================================================================*/
+void* QCALLTYPE GCInterface::RegisterFrozenSegment(void* pSection, INT32 sizeSection)
+{
+    QCALL_CONTRACT;
+
+    void* retVal = nullptr;
+
+    BEGIN_QCALL;
+
+    _ASSERTE(pSection != nullptr);
+    _ASSERTE(sizeSection > 0);
+
+    GCX_COOP();
+
+    segment_info seginfo;
+    seginfo.pvMem           = pSection;
+    seginfo.ibFirstObject   = sizeof(ObjHeader);
+    seginfo.ibAllocated     = sizeSection;
+    seginfo.ibCommit        = seginfo.ibAllocated;
+    seginfo.ibReserved      = seginfo.ibAllocated;
+
+    retVal = (void*)GCHeapUtilities::GetGCHeap()->RegisterFrozenSegment(&seginfo);
+
+    END_QCALL;
+
+    return retVal;
+}
+
+/*===============================UnregisterFrozenSegment===============================
+**Action: Unregisters the frozen segment
+**Returns: void
+**Arguments: args-> segment handle
+**Exceptions: None
+==============================================================================*/
+void QCALLTYPE GCInterface::UnregisterFrozenSegment(void* segment)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+
+    _ASSERTE(segment != nullptr);
+
+    GCX_COOP();
+
+    GCHeapUtilities::GetGCHeap()->UnregisterFrozenSegment((segment_handle)segment);
+
+    END_QCALL;
+}
+
+#endif // FEATURE_BASICFREEZE
+
 /*==============================SuppressFinalize================================
 **Action: Indicate that an object's finalizer should not be run by the system
 **Arguments: Object of interest
@@ -1290,7 +1343,6 @@ FCIMPLEND
 
 FORCEINLINE UINT64 GCInterface::InterlockedAdd (UINT64 *pAugend, UINT64 addend) {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     UINT64 oldMemValue;
     UINT64 newMemValue;
@@ -1311,7 +1363,6 @@ FORCEINLINE UINT64 GCInterface::InterlockedAdd (UINT64 *pAugend, UINT64 addend) 
 
 FORCEINLINE UINT64 GCInterface::InterlockedSub(UINT64 *pMinuend, UINT64 subtrahend) {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     UINT64 oldMemValue;
     UINT64 newMemValue;
@@ -1890,7 +1941,6 @@ static BOOL HasOverriddenMethod(MethodTable* mt, MethodTable* classMT, WORD meth
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     _ASSERTE(mt != NULL);
@@ -2049,7 +2099,6 @@ static INT32 FastGetValueTypeHashCodeHelper(MethodTable *mt, void *pObjRef)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     INT32 hashCode = 0;
@@ -2265,7 +2314,6 @@ static bool HasOverriddenStreamMethod(MethodTable * pMT, WORD slot)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     PCODE actual = pMT->GetRestoredSlot(slot);

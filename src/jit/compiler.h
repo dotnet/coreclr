@@ -301,7 +301,23 @@ class LclVarDsc
 {
 public:
     // The constructor. Most things can just be zero'ed.
-    LclVarDsc();
+    //
+    // Initialize the ArgRegs to REG_STK.
+    // Morph will update if this local is passed in a register.
+    LclVarDsc()
+        : _lvArgReg(REG_STK)
+        ,
+#if FEATURE_MULTIREG_ARGS
+        _lvOtherArgReg(REG_STK)
+        ,
+#endif // FEATURE_MULTIREG_ARGS
+#if ASSERTION_PROP
+        lvRefBlks(BlockSetOps::UninitVal())
+        ,
+#endif // ASSERTION_PROP
+        lvPerSsaData()
+    {
+    }
 
     // note this only packs because var_types is a typedef of unsigned char
     var_types lvType : 5; // TYP_INT/LONG/FLOAT/DOUBLE/REF
@@ -1979,50 +1995,50 @@ public:
         pEHNodeDsc ehnFilterNode; // if this is a try node and has a filter, otherwise 0
         pEHNodeDsc ehnEquivalent; // if blockType=tryNode, start offset and end offset is same,
 
-        inline void ehnSetTryNodeType()
+        void ehnSetTryNodeType()
         {
             ehnBlockType = TryNode;
         }
-        inline void ehnSetFilterNodeType()
+        void ehnSetFilterNodeType()
         {
             ehnBlockType = FilterNode;
         }
-        inline void ehnSetHandlerNodeType()
+        void ehnSetHandlerNodeType()
         {
             ehnBlockType = HandlerNode;
         }
-        inline void ehnSetFinallyNodeType()
+        void ehnSetFinallyNodeType()
         {
             ehnBlockType = FinallyNode;
         }
-        inline void ehnSetFaultNodeType()
+        void ehnSetFaultNodeType()
         {
             ehnBlockType = FaultNode;
         }
 
-        inline BOOL ehnIsTryBlock()
+        BOOL ehnIsTryBlock()
         {
             return ehnBlockType == TryNode;
         }
-        inline BOOL ehnIsFilterBlock()
+        BOOL ehnIsFilterBlock()
         {
             return ehnBlockType == FilterNode;
         }
-        inline BOOL ehnIsHandlerBlock()
+        BOOL ehnIsHandlerBlock()
         {
             return ehnBlockType == HandlerNode;
         }
-        inline BOOL ehnIsFinallyBlock()
+        BOOL ehnIsFinallyBlock()
         {
             return ehnBlockType == FinallyNode;
         }
-        inline BOOL ehnIsFaultBlock()
+        BOOL ehnIsFaultBlock()
         {
             return ehnBlockType == FaultNode;
         }
 
         // returns true if there is any overlap between the two nodes
-        static inline BOOL ehnIsOverlap(pEHNodeDsc node1, pEHNodeDsc node2)
+        static BOOL ehnIsOverlap(pEHNodeDsc node1, pEHNodeDsc node2)
         {
             if (node1->ehnStartOffset < node2->ehnStartOffset)
             {
@@ -2035,7 +2051,7 @@ public:
         }
 
         // fails with BADCODE if inner is not completely nested inside outer
-        static inline BOOL ehnIsNested(pEHNodeDsc inner, pEHNodeDsc outer)
+        static BOOL ehnIsNested(pEHNodeDsc inner, pEHNodeDsc outer)
         {
             return ((inner->ehnStartOffset >= outer->ehnStartOffset) && (inner->ehnEndOffset <= outer->ehnEndOffset));
         }
@@ -2324,7 +2340,7 @@ public:
 
     GenTree* gtNewLconNode(__int64 value);
 
-    GenTree* gtNewDconNode(double value);
+    GenTree* gtNewDconNode(double value, var_types type = TYP_DOUBLE);
 
     GenTree* gtNewSconNode(int CPX, CORINFO_MODULE_HANDLE scpHandle);
 
@@ -2369,7 +2385,8 @@ public:
 
     GenTreeCall* gtNewHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args = nullptr);
 
-    GenTree* gtNewLclvNode(unsigned lnum, var_types type, IL_OFFSETX ILoffs = BAD_IL_OFFSET);
+    GenTree* gtNewLclvNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs = BAD_IL_OFFSET));
+    GenTree* gtNewLclLNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs = BAD_IL_OFFSET));
 
 #ifdef FEATURE_SIMD
     GenTreeSIMD* gtNewSIMDNode(
@@ -2414,11 +2431,8 @@ public:
     CORINFO_CLASS_HANDLE gtGetStructHandleForHWSIMD(var_types simdType, var_types simdBaseType);
 #endif // FEATURE_HW_INTRINSICS
 
-    GenTree* gtNewLclLNode(unsigned lnum, var_types type, IL_OFFSETX ILoffs = BAD_IL_OFFSET);
     GenTreeLclFld* gtNewLclFldNode(unsigned lnum, var_types type, unsigned offset);
     GenTree* gtNewInlineCandidateReturnExpr(GenTree* inlineCandidate, var_types type);
-
-    GenTree* gtNewCodeRef(BasicBlock* block);
 
     GenTree* gtNewFieldRef(var_types typ, CORINFO_FIELD_HANDLE fldHnd, GenTree* obj = nullptr, DWORD offset = 0);
 
@@ -2465,7 +2479,8 @@ public:
 
     GenTreeCast* gtNewCastNodeL(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType);
 
-    GenTreeAllocObj* gtNewAllocObjNode(unsigned int helper, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1);
+    GenTreeAllocObj* gtNewAllocObjNode(
+        unsigned int helper, bool helperHasSideEffects, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1);
 
     GenTreeAllocObj* gtNewAllocObjNode(CORINFO_RESOLVED_TOKEN* pResolvedToken, BOOL useParent);
 
@@ -2539,6 +2554,12 @@ public:
 
     // Returns true iff the secondNode can be swapped with firstNode.
     bool gtCanSwapOrder(GenTree* firstNode, GenTree* secondNode);
+
+    // Given an address expression, compute its costs and addressing mode opportunities,
+    // and mark addressing mode candidates as GTF_DONT_CSE.
+    // TODO-Throughput - Consider actually instantiating these early, to avoid
+    // having to re-run the algorithm that looks for them (might also improve CQ).
+    bool gtMarkAddrMode(GenTree* addr, int* costEx, int* costSz, var_types type);
 
     unsigned gtSetEvalOrder(GenTree* tree);
 
@@ -3303,7 +3324,7 @@ public:
     CORINFO_CLASS_HANDLE impGetObjectClass();
 
     // Returns underlying type of handles returned by ldtoken instruction
-    inline var_types GetRuntimeHandleUnderlyingType()
+    var_types GetRuntimeHandleUnderlyingType()
     {
         // RuntimeTypeHandle is backed by raw pointer on CoreRT and by object reference on other runtimes
         return IsTargetAbi(CORINFO_CORERT_ABI) ? TYP_I_IMPL : TYP_REF;
@@ -3314,7 +3335,8 @@ public:
                              unsigned*               methodFlags,
                              CORINFO_CONTEXT_HANDLE* contextHandle,
                              CORINFO_CONTEXT_HANDLE* exactContextHandle,
-                             bool                    isLateDevirtualization);
+                             bool                    isLateDevirtualization,
+                             bool                    isExplicitTailCall);
 
     //=========================================================================
     //                          PROTECTED
@@ -3422,10 +3444,6 @@ protected:
     NamedIntrinsic lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method);
 
 #ifdef FEATURE_HW_INTRINSICS
-    GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
-                              CORINFO_CLASS_HANDLE  clsHnd,
-                              CORINFO_METHOD_HANDLE method,
-                              CORINFO_SIG_INFO*     sig);
     GenTree* impHWIntrinsic(NamedIntrinsic        intrinsic,
                             CORINFO_METHOD_HANDLE method,
                             CORINFO_SIG_INFO*     sig,
@@ -3439,6 +3457,10 @@ protected:
     bool compSupportsHWIntrinsic(InstructionSet isa);
 
 #ifdef _TARGET_XARCH_
+    GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_METHOD_HANDLE method,
+                              CORINFO_SIG_INFO*     sig,
+                              bool                  mustExpand);
     GenTree* impSSEIntrinsic(NamedIntrinsic        intrinsic,
                              CORINFO_METHOD_HANDLE method,
                              CORINFO_SIG_INFO*     sig,
@@ -3459,14 +3481,10 @@ protected:
                              CORINFO_METHOD_HANDLE method,
                              CORINFO_SIG_INFO*     sig,
                              bool                  mustExpand);
-    GenTree* impBMI1Intrinsic(NamedIntrinsic        intrinsic,
-                              CORINFO_METHOD_HANDLE method,
-                              CORINFO_SIG_INFO*     sig,
-                              bool                  mustExpand);
-    GenTree* impBMI2Intrinsic(NamedIntrinsic        intrinsic,
-                              CORINFO_METHOD_HANDLE method,
-                              CORINFO_SIG_INFO*     sig,
-                              bool                  mustExpand);
+    GenTree* impBMI1OrBMI2Intrinsic(NamedIntrinsic        intrinsic,
+                                    CORINFO_METHOD_HANDLE method,
+                                    CORINFO_SIG_INFO*     sig,
+                                    bool                  mustExpand);
     GenTree* impFMAIntrinsic(NamedIntrinsic        intrinsic,
                              CORINFO_METHOD_HANDLE method,
                              CORINFO_SIG_INFO*     sig,
@@ -4250,7 +4268,7 @@ public:
 
     GenTreeCall* fgGetSharedCCtor(CORINFO_CLASS_HANDLE cls);
 
-    inline bool backendRequiresLocalVarLifetimes()
+    bool backendRequiresLocalVarLifetimes()
     {
         return !opts.MinOpts() || m_pLinearScan->willEnregisterLocalVars();
     }
@@ -4507,6 +4525,7 @@ public:
         }
         else
         {
+            assert(elemTyp != TYP_STRUCT);
             elemTyp = varTypeUnsignedToSigned(elemTyp);
             return CORINFO_CLASS_HANDLE(size_t(elemTyp) << 1 | 0x1);
         }
@@ -5249,6 +5268,7 @@ private:
     void fgAssignSetVarDef(GenTree* tree);
     GenTree* fgMorphOneAsgBlockOp(GenTree* tree);
     GenTree* fgMorphInitBlock(GenTree* tree);
+    GenTree* fgMorphPromoteLocalInitBlock(GenTreeLclVar* destLclNode, GenTree* initVal, unsigned blockSize);
     GenTree* fgMorphBlkToInd(GenTreeBlk* tree, var_types type);
     GenTree* fgMorphGetStructAddr(GenTree** pTree, CORINFO_CLASS_HANDLE clsHnd, bool isRValue = false);
     GenTree* fgMorphBlkNode(GenTree* tree, bool isDest);
@@ -6719,138 +6739,6 @@ private:
     */
 
 public:
-    /* These are the different addressing modes used to access a local var.
-     * The JIT has to report the location of the locals back to the EE
-     * for debugging purposes.
-     */
-
-    enum siVarLocType
-    {
-        VLT_REG,
-        VLT_REG_BYREF, // this type is currently only used for value types on X64
-        VLT_REG_FP,
-        VLT_STK,
-        VLT_STK_BYREF, // this type is currently only used for value types on X64
-        VLT_REG_REG,
-        VLT_REG_STK,
-        VLT_STK_REG,
-        VLT_STK2,
-        VLT_FPSTK,
-        VLT_FIXED_VA,
-
-        VLT_COUNT,
-        VLT_INVALID
-    };
-
-    struct siVarLoc
-    {
-        siVarLocType vlType;
-
-        union {
-            // VLT_REG/VLT_REG_FP -- Any pointer-sized enregistered value (TYP_INT, TYP_REF, etc)
-            // eg. EAX
-            // VLT_REG_BYREF -- the specified register contains the address of the variable
-            // eg. [EAX]
-
-            struct
-            {
-                regNumber vlrReg;
-            } vlReg;
-
-            // VLT_STK       -- Any 32 bit value which is on the stack
-            // eg. [ESP+0x20], or [EBP-0x28]
-            // VLT_STK_BYREF -- the specified stack location contains the address of the variable
-            // eg. mov EAX, [ESP+0x20]; [EAX]
-
-            struct
-            {
-                regNumber     vlsBaseReg;
-                NATIVE_OFFSET vlsOffset;
-            } vlStk;
-
-            // VLT_REG_REG -- TYP_LONG/TYP_DOUBLE with both DWords enregistered
-            // eg. RBM_EAXEDX
-
-            struct
-            {
-                regNumber vlrrReg1;
-                regNumber vlrrReg2;
-            } vlRegReg;
-
-            // VLT_REG_STK -- Partly enregistered TYP_LONG/TYP_DOUBLE
-            // eg { LowerDWord=EAX UpperDWord=[ESP+0x8] }
-
-            struct
-            {
-                regNumber vlrsReg;
-
-                struct
-                {
-                    regNumber     vlrssBaseReg;
-                    NATIVE_OFFSET vlrssOffset;
-                } vlrsStk;
-            } vlRegStk;
-
-            // VLT_STK_REG -- Partly enregistered TYP_LONG/TYP_DOUBLE
-            // eg { LowerDWord=[ESP+0x8] UpperDWord=EAX }
-
-            struct
-            {
-                struct
-                {
-                    regNumber     vlsrsBaseReg;
-                    NATIVE_OFFSET vlsrsOffset;
-                } vlsrStk;
-
-                regNumber vlsrReg;
-            } vlStkReg;
-
-            // VLT_STK2 -- Any 64 bit value which is on the stack, in 2 successsive DWords
-            // eg 2 DWords at [ESP+0x10]
-
-            struct
-            {
-                regNumber     vls2BaseReg;
-                NATIVE_OFFSET vls2Offset;
-            } vlStk2;
-
-            // VLT_FPSTK -- enregisterd TYP_DOUBLE (on the FP stack)
-            // eg. ST(3). Actually it is ST("FPstkHeight - vpFpStk")
-
-            struct
-            {
-                unsigned vlfReg;
-            } vlFPstk;
-
-            // VLT_FIXED_VA -- fixed argument of a varargs function.
-            // The argument location depends on the size of the variable
-            // arguments (...). Inspecting the VARARGS_HANDLE indicates the
-            // location of the first arg. This argument can then be accessed
-            // relative to the position of the first arg
-
-            struct
-            {
-                unsigned vlfvOffset;
-            } vlFixedVarArg;
-
-            // VLT_MEMORY
-
-            struct
-            {
-                void* rpValue; // pointer to the in-process
-                               // location of the value.
-            } vlMemory;
-        };
-
-        // Helper functions
-
-        bool vlIsInReg(regNumber reg);
-        bool vlIsOnStk(regNumber reg, signed offset);
-    };
-
-    /*************************************************************************/
-
-public:
     // Get handles
 
     void eeGetCallInfo(CORINFO_RESOLVED_TOKEN* pResolvedToken,
@@ -6940,13 +6828,13 @@ public:
     GenTree* eeGetPInvokeCookie(CORINFO_SIG_INFO* szMetaSig);
 
     // Returns the page size for the target machine as reported by the EE.
-    inline target_size_t eeGetPageSize()
+    target_size_t eeGetPageSize()
     {
         return (target_size_t)eeGetEEInfo()->osPageSize;
     }
 
     // Returns the frame size at which we will generate a loop to probe the stack.
-    inline target_size_t getVeryLargeFrameSize()
+    target_size_t getVeryLargeFrameSize()
     {
 #ifdef _TARGET_ARM_
         // The looping probe code is 40 bytes, whereas the straight-line probing for
@@ -7018,12 +6906,12 @@ public:
 
     VirtualStubParamInfo* virtualStubParamInfo;
 
-    inline bool IsTargetAbi(CORINFO_RUNTIME_ABI abi)
+    bool IsTargetAbi(CORINFO_RUNTIME_ABI abi)
     {
         return eeGetEEInfo()->targetAbi == abi;
     }
 
-    inline bool generateCFIUnwindCodes()
+    bool generateCFIUnwindCodes()
     {
 #if defined(_TARGET_UNIX_)
         return IsTargetAbi(CORINFO_CORERT_ABI);
@@ -7062,20 +6950,20 @@ public:
 
     struct VarResultInfo
     {
-        UNATIVE_OFFSET startOffset;
-        UNATIVE_OFFSET endOffset;
-        DWORD          varNumber;
-        siVarLoc       loc;
+        UNATIVE_OFFSET             startOffset;
+        UNATIVE_OFFSET             endOffset;
+        DWORD                      varNumber;
+        CodeGenInterface::siVarLoc loc;
     } * eeVars;
     void eeSetLVcount(unsigned count);
-    void eeSetLVinfo(unsigned        which,
-                     UNATIVE_OFFSET  startOffs,
-                     UNATIVE_OFFSET  length,
-                     unsigned        varNum,
-                     unsigned        LVnum,
-                     VarName         namex,
-                     bool            avail,
-                     const siVarLoc& loc);
+    void eeSetLVinfo(unsigned                          which,
+                     UNATIVE_OFFSET                    startOffs,
+                     UNATIVE_OFFSET                    length,
+                     unsigned                          varNum,
+                     unsigned                          LVnum,
+                     VarName                           namex,
+                     bool                              avail,
+                     const CodeGenInterface::siVarLoc* loc);
     void eeSetLVdone();
 
 #ifdef DEBUG
@@ -7204,7 +7092,7 @@ public:
         return codeGen->getEmitter();
     }
 
-    bool isFramePointerUsed()
+    bool isFramePointerUsed() const
     {
         return codeGen->isFramePointerUsed();
     }
@@ -7900,6 +7788,7 @@ private:
                               CORINFO_CLASS_HANDLE  clsHnd,
                               CORINFO_METHOD_HANDLE method,
                               CORINFO_SIG_INFO*     sig,
+                              unsigned              methodFlags,
                               int                   memberRef);
 
     GenTree* getOp1ForConstructor(OPCODE opcode, GenTree* newobjThis, CORINFO_CLASS_HANDLE clsHnd);
@@ -8186,9 +8075,6 @@ public:
 
     bool fgLocalVarLivenessDone; // Note that this one is used outside of debug.
     bool fgLocalVarLivenessChanged;
-#if STACK_PROBES
-    bool compStackProbePrologDone;
-#endif
     bool compLSRADone;
     bool compRationalIRForm;
 
@@ -8260,27 +8146,37 @@ public:
 #ifdef DEBUG
         bool compMinOptsIsUsed;
 
-        inline bool MinOpts()
+        bool MinOpts()
         {
             assert(compMinOptsIsSet);
             compMinOptsIsUsed = true;
             return compMinOpts;
         }
-        inline bool IsMinOptsSet()
+        bool IsMinOptsSet()
         {
             return compMinOptsIsSet;
         }
 #else  // !DEBUG
-        inline bool MinOpts()
+        bool MinOpts()
         {
             return compMinOpts;
         }
-        inline bool IsMinOptsSet()
+        bool IsMinOptsSet()
         {
             return compMinOptsIsSet;
         }
 #endif // !DEBUG
-        inline void SetMinOpts(bool val)
+
+        bool OptimizationDisabled()
+        {
+            return MinOpts() || compDbgCode;
+        }
+        bool OptimizationEnabled()
+        {
+            return !OptimizationDisabled();
+        }
+
+        void SetMinOpts(bool val)
         {
             assert(!compMinOptsIsUsed);
             assert(!compMinOptsIsSet || (compMinOpts == val));
@@ -8289,18 +8185,18 @@ public:
         }
 
         // true if the CLFLG_* for an optimization is set.
-        inline bool OptEnabled(unsigned optFlag)
+        bool OptEnabled(unsigned optFlag)
         {
             return !!(compFlags & optFlag);
         }
 
 #ifdef FEATURE_READYTORUN_COMPILER
-        inline bool IsReadyToRun()
+        bool IsReadyToRun()
         {
             return jitFlags->IsSet(JitFlags::JIT_FLAG_READYTORUN);
         }
 #else
-        inline bool IsReadyToRun()
+        bool IsReadyToRun()
         {
             return false;
         }
@@ -8308,20 +8204,20 @@ public:
 
         // true if we should use the PINVOKE_{BEGIN,END} helpers instead of generating
         // PInvoke transitions inline (e.g. when targeting CoreRT).
-        inline bool ShouldUsePInvokeHelpers()
+        bool ShouldUsePInvokeHelpers()
         {
             return jitFlags->IsSet(JitFlags::JIT_FLAG_USE_PINVOKE_HELPERS);
         }
 
         // true if we should use insert the REVERSE_PINVOKE_{ENTER,EXIT} helpers in the method
         // prolog/epilog
-        inline bool IsReversePInvoke()
+        bool IsReversePInvoke()
         {
             return jitFlags->IsSet(JitFlags::JIT_FLAG_REVERSE_PINVOKE);
         }
 
         // true if we must generate code compatible with JIT32 quirks
-        inline bool IsJit32Compat()
+        bool IsJit32Compat()
         {
 #if defined(_TARGET_X86_)
             return jitFlags->IsSet(JitFlags::JIT_FLAG_DESKTOP_QUIRKS);
@@ -8331,7 +8227,7 @@ public:
         }
 
         // true if we must generate code compatible with Jit64 quirks
-        inline bool IsJit64Compat()
+        bool IsJit64Compat()
         {
 #if defined(_TARGET_AMD64_)
             return jitFlags->IsSet(JitFlags::JIT_FLAG_DESKTOP_QUIRKS);
@@ -8445,15 +8341,6 @@ public:
         static const bool dspGCtbls = true;
 #endif
 
-        // We need stack probes to guarantee that we won't trigger a stack overflow
-        // when calling unmanaged code until they get a chance to set up a frame, because
-        // the EE will have no idea where it is.
-        //
-        // We will only be doing this currently for hosted environments. Unfortunately
-        // we need to take care of stubs, so potentially, we will have to do the probes
-        // for any call. We have a plan for not needing for stubs though
-        bool compNeedStackProbes;
-
 #ifdef PROFILING_SUPPORTED
         // Whether to emit Enter/Leave/TailCall hooks using a dummy stub (DummyProfilerELTStub()).
         // This option helps make the JIT behave as if it is running under a profiler.
@@ -8466,6 +8353,12 @@ public:
         // Whether optimization of transforming a recursive tail call into a loop is enabled.
         bool compTailCallLoopOpt;
 #endif
+
+#if defined(_TARGET_ARM64_)
+        // Decision about whether to save FP/LR registers with callee-saved registers (see
+        // COMPlus_JitSaveFpLrWithCalleSavedRegisters).
+        int compJitSaveFpLrWithCalleeSavedRegisters;
+#endif // defined(_TARGET_ARM64_)
 
 #ifdef ARM_SOFTFP
         static const bool compUseSoftFP = true;
@@ -8484,6 +8377,9 @@ public:
 #ifdef DEBUG
     static bool                s_pJitDisasmIncludeAssembliesListInitialized;
     static AssemblyNamesList2* s_pJitDisasmIncludeAssembliesList;
+
+    static bool       s_pJitFunctionFileInitialized;
+    static MethodSet* s_pJitMethodSet;
 #endif // DEBUG
 
 #ifdef DEBUG
@@ -8670,6 +8566,7 @@ public:
 
         const BYTE*    compCode;
         IL_OFFSET      compILCodeSize;     // The IL code size
+        IL_OFFSET      compILImportSize;   // Estimated amount of IL actually imported
         UNATIVE_OFFSET compNativeCodeSize; // The native code size, after instructions are issued. This
                                            // is less than (compTotalHotCodeSize + compTotalColdCodeSize) only if:
         // (1) the code is not hot/cold split, and we issued less code than we expected, or
@@ -9547,7 +9444,7 @@ public:
     //
     // Returns:
     //    True if the `GT_IND` node represents an array access; false otherwise.
-    inline bool TryGetArrayInfo(GenTreeIndir* indir, ArrayInfo* arrayInfo)
+    bool TryGetArrayInfo(GenTreeIndir* indir, ArrayInfo* arrayInfo)
     {
         if ((indir->gtFlags & GTF_IND_ARR_INDEX) == 0)
         {
@@ -9644,25 +9541,6 @@ public:
     bool killGCRefs(GenTree* tree);
 
 }; // end of class Compiler
-
-// LclVarDsc constructor. Uses Compiler, so must come after Compiler definition.
-inline LclVarDsc::LclVarDsc()
-    : // Initialize the ArgRegs to REG_STK.
-    // The morph will do the right thing to change
-    // to the right register if passed in register.
-    _lvArgReg(REG_STK)
-    ,
-#if FEATURE_MULTIREG_ARGS
-    _lvOtherArgReg(REG_STK)
-    ,
-#endif // FEATURE_MULTIREG_ARGS
-#if ASSERTION_PROP
-    lvRefBlks(BlockSetOps::UninitVal())
-    ,
-#endif // ASSERTION_PROP
-    lvPerSsaData()
-{
-}
 
 //---------------------------------------------------------------------------------------------------------------------
 // GenTreeVisitor: a flexible tree walker implemented using the curiosly-recurring-template pattern.
@@ -9812,6 +9690,7 @@ public:
             case GT_SETCC:
             case GT_NO_OP:
             case GT_START_NONGC:
+            case GT_START_PREEMPTGC:
             case GT_PROF_HOOK:
 #if !FEATURE_EH_FUNCLETS
             case GT_END_LFIN:

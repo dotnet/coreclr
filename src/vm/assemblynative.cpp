@@ -27,18 +27,16 @@
 #include "interoputil.h"
 #include "frames.h"
 #include "typeparse.h"
-#include "stackprobe.h"
 
 #include "appdomainnative.hpp"
 #include "../binder/inc/clrprivbindercoreclr.h"
 
 
 
-FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE, 
+FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE,
         StringObject* codeBaseUNSAFE, 
         AssemblyBaseObject* requestingAssemblyUNSAFE,
         StackCrawlMark* stackMark,
-        ICLRPrivBinder * pPrivHostBinder,
         CLR_BOOL fThrowOnFileNotFound,
         INT_PTR ptrLoadContextBinder)
 {
@@ -104,12 +102,6 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
         EEFileLoadException::Throw(&spec, COR_E_NOTSUPPORTED);
     }
     
-    if (pPrivHostBinder != NULL)
-    {
-        pParentAssembly = NULL;
-        spec.SetHostBinder(pPrivHostBinder);
-    }
-    
     if (gc.codeBase != NULL)
         spec.SetCodeBase(&(pThread->m_MarshalAlloc), &gc.codeBase);
 
@@ -135,7 +127,7 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     
     {
         GCX_PREEMP();
-        pAssembly = spec.LoadAssembly(FILE_LOADED, fThrowOnFileNotFound, stackMark);
+        pAssembly = spec.LoadAssembly(FILE_LOADED, fThrowOnFileNotFound);
     }
 
     if (pAssembly != NULL)
@@ -558,7 +550,7 @@ INT32 QCALLTYPE AssemblyNative::GetFlags(QCall::AssemblyHandle pAssembly)
     return retVal;
 }
 
-BYTE * QCALLTYPE AssemblyNative::GetResource(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, UINT64 * length, QCall::StackCrawlMarkHandle stackMark, BOOL skipSecurityCheck)
+BYTE * QCALLTYPE AssemblyNative::GetResource(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, DWORD * length)
 {
     QCALL_CONTRACT;
 
@@ -578,13 +570,9 @@ BYTE * QCALLTYPE AssemblyNative::GetResource(QCall::AssemblyHandle pAssembly, LP
     if (*pNameUTF8 == '\0')
         COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
 
-    DWORD  cbResource;
-    if (pAssembly->GetResource(pNameUTF8, &cbResource,
-                               &pbInMemoryResource, NULL, NULL,
-                               NULL, stackMark, skipSecurityCheck, FALSE))
-    {
-        *length = cbResource;
-    }
+    pAssembly->GetResource(pNameUTF8, length,
+                           &pbInMemoryResource, NULL, NULL,
+                           NULL, FALSE);
 
     END_QCALL;
 
@@ -592,7 +580,7 @@ BYTE * QCALLTYPE AssemblyNative::GetResource(QCall::AssemblyHandle pAssembly, LP
     return pbInMemoryResource;
 }
 
-INT32 QCALLTYPE AssemblyNative::GetManifestResourceInfo(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, QCall::ObjectHandleOnStack retAssembly, QCall::StringHandleOnStack retFileName, QCall::StackCrawlMarkHandle stackMark)
+INT32 QCALLTYPE AssemblyNative::GetManifestResourceInfo(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, QCall::ObjectHandleOnStack retAssembly, QCall::StringHandleOnStack retFileName)
 {
     QCALL_CONTRACT;
 
@@ -617,7 +605,7 @@ INT32 QCALLTYPE AssemblyNative::GetManifestResourceInfo(QCall::AssemblyHandle pA
     DWORD dwLocation = 0;
 
     if (pAssembly->GetResource(pNameUTF8, NULL, NULL, &pReferencedAssembly, &pFileName,
-                              &dwLocation, stackMark, FALSE, FALSE))
+                              &dwLocation, FALSE))
     {
         if (pFileName)
             retFileName.Set(pFileName);
@@ -682,38 +670,6 @@ void QCALLTYPE AssemblyNative::GetModules(QCall::AssemblyHandle pAssembly, BOOL 
     }
 
     END_QCALL;
-}
-
-BOOL QCALLTYPE AssemblyNative::GetNeutralResourcesLanguageAttribute(QCall::AssemblyHandle pAssembly, QCall::StringHandleOnStack cultureName, INT16& outFallbackLocation)
-{
-    CONTRACTL {
-        QCALL_CHECK;
-    } CONTRACTL_END;
-
-    BOOL retVal = FALSE;
-    BEGIN_QCALL;
-
-    _ASSERTE(pAssembly);
-    Assembly * pAsm = pAssembly->GetAssembly();
-    _ASSERTE(pAsm);
-    Module * pModule = pAsm->GetManifestModule();
-    _ASSERTE(pModule);
-
-    LPCUTF8 pszCultureName = NULL;
-    ULONG cultureNameLength = 0;
-    INT16 fallbackLocation = 0;
-
-    // find the attribute if it exists
-    if (pModule->GetNeutralResourcesLanguage(&pszCultureName, &cultureNameLength, &fallbackLocation, FALSE)) {
-        StackSString culture(SString::Utf8, pszCultureName, cultureNameLength);
-        cultureName.Set(culture);
-        outFallbackLocation = fallbackLocation;
-        retVal = TRUE;
-    }
-
-    END_QCALL;
-
-    return retVal;
 }
 
 BOOL QCALLTYPE AssemblyNative::GetIsCollectible(QCall::AssemblyHandle pAssembly)
@@ -1307,13 +1263,22 @@ INT_PTR QCALLTYPE AssemblyNative::GetLoadContextForAssembly(QCall::AssemblyHandl
     // actual ICLRPrivBinder instance in which the assembly was loaded.
     PTR_ICLRPrivBinder pBindingContext = pPEAssembly->GetBindingContext();
     UINT_PTR assemblyBinderID = 0;
-    IfFailThrow(pBindingContext->GetBinderID(&assemblyBinderID));
 
-    // If the assembly was bound using the TPA binder,
-    // then we will return the reference to "Default" binder from the managed implementation when this QCall returns.
-    //
-    // See earlier comment about "Default" binder for additional context.
-    pOpaqueBinder = reinterpret_cast<ICLRPrivBinder *>(assemblyBinderID);
+    if (pBindingContext)
+    {
+        IfFailThrow(pBindingContext->GetBinderID(&assemblyBinderID));
+
+        // If the assembly was bound using the TPA binder,
+        // then we will return the reference to "Default" binder from the managed implementation when this QCall returns.
+        //
+        // See earlier comment about "Default" binder for additional context.
+        pOpaqueBinder = reinterpret_cast<ICLRPrivBinder *>(assemblyBinderID);
+    }
+    else
+    {
+        // GetBindingContext() returns NULL for System.Private.CoreLib
+        pOpaqueBinder = pTPABinder;
+    }
 
     // We should have a load context binder at this point.
     _ASSERTE(pOpaqueBinder != nullptr);

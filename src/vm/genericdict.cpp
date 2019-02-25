@@ -132,6 +132,15 @@ DictionaryLayout::FindTokenWorker(LoaderAllocator *                 pAllocator,
     }
     CONTRACTL_END
 
+#ifndef FEATURE_NATIVE_IMAGE_GENERATION
+    // If the tiered compilation is on, save the fast dictionary slots for the hot Tier1 code
+    if (g_pConfig->TieredCompilation() && signatureSource == FromReadyToRunImage)
+    {
+        pResult->signature = pSig;
+        return FALSE;
+    }
+#endif
+
     BOOL isFirstBucket = TRUE;
 
     // First bucket also contains type parameters
@@ -686,8 +695,20 @@ Dictionary::PopulateEntry(
             pBlob = p.GetPtr();
         }
 
-        CORCOMPILE_FIXUP_BLOB_KIND signatureKind = (CORCOMPILE_FIXUP_BLOB_KIND)CorSigUncompressData(pBlob);
-        switch (signatureKind)
+        BYTE signatureKind = *pBlob++;
+        if (signatureKind & ENCODE_MODULE_OVERRIDE)
+        {
+            DWORD moduleIndex = CorSigUncompressData(pBlob);
+            Module * pSignatureModule = pModule->GetModuleFromIndex(moduleIndex);
+            if (pInfoModule == pModule)
+            {
+                pInfoModule = pSignatureModule;
+            }
+            _ASSERTE(pInfoModule == pSignatureModule);
+            signatureKind &= ~ENCODE_MODULE_OVERRIDE;
+        }
+
+        switch ((CORCOMPILE_FIXUP_BLOB_KIND) signatureKind)
         {
             case ENCODE_DECLARINGTYPE_HANDLE:   kind = DeclaringTypeHandleSlot; break;
             case ENCODE_TYPE_HANDLE:            kind = TypeHandleSlot; break;
@@ -1107,6 +1128,37 @@ Dictionary::PopulateEntry(
                 INDEBUG(if (!pResolvedMD) constraintType.GetMethodTable()->TryResolveConstraintMethodApprox(ownerType, pMethod);)
                 if (!pResolvedMD)
                     COMPlusThrowHR(COR_E_BADIMAGEFORMAT);
+
+#if FEATURE_DEFAULT_INTERFACES
+                // If we resolved the constrained call on a value type into a method on a reference type, this is a
+                // default interface method implementation.
+                // In such case we would need to box the value type before we can dispatch to the implementation.
+                // This would require us to make a "boxing stub". For now we leave the boxing stubs unimplemented.
+                // It's not clear if anyone would need them and the implementation complexity is not worth it at this time.
+                if (!pResolvedMD->GetMethodTable()->IsValueType() && constraintType.GetMethodTable()->IsValueType())
+                {
+                    SString assemblyName;
+
+                    constraintType.GetMethodTable()->GetAssembly()->GetDisplayName(assemblyName);
+
+                    SString strInterfaceName;
+                    TypeString::AppendType(strInterfaceName, ownerType);
+
+                    SString strMethodName;
+                    TypeString::AppendMethod(strMethodName, pMethod, pMethod->GetMethodInstantiation());
+
+                    SString strTargetClassName;
+                    TypeString::AppendType(strTargetClassName, constraintType.GetMethodTable());
+
+                    COMPlusThrow(
+                        kNotSupportedException,
+                        IDS_CLASSLOAD_UNSUPPORTED_DISPATCH,
+                        strMethodName,
+                        strInterfaceName,
+                        strTargetClassName,
+                        assemblyName);
+                }
+#endif
 
                 result = (CORINFO_GENERIC_HANDLE)pResolvedMD->GetMultiCallableAddrOfCode();
             }

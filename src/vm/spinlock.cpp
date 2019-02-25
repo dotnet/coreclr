@@ -139,7 +139,6 @@ void SpinLock::GetLock(Thread* pThread)
         DISABLED(THROWS);  // need to rewrite spin locks to no-throw.
         GC_NOTRIGGER;
         CAN_TAKE_LOCK;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -177,7 +176,6 @@ BOOL SpinLock::GetLockNoWait()
         NOTHROW;
         GC_NOTRIGGER;
         CAN_TAKE_LOCK;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -201,7 +199,6 @@ void SpinLock::FreeLock(Thread* pThread)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -237,19 +234,21 @@ SpinLock::SpinToAcquire()
         NOTHROW;
         GC_NOTRIGGER;
         CAN_TAKE_LOCK;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     DWORD backoffs = 0;
     ULONG ulSpins = 0;
+    YieldProcessorNormalizationInfo normalizationInfo;
 
     while (true)
     {
-        for (unsigned i = ulSpins+10000;
+        for (ULONG i = ulSpins + 10000;
              ulSpins < i;
              ulSpins++)
         {
+            YieldProcessorNormalized(normalizationInfo); // indicate to the processor that we are spinning 
+
             // Note: Must use Volatile to ensure the lock is
             // refetched from memory.
             //
@@ -257,7 +256,6 @@ SpinLock::SpinToAcquire()
             {
                 break;
             }
-            YieldProcessor();			// indicate to the processor that we are spining 
         }
 
         // Try the inline atomic test again.

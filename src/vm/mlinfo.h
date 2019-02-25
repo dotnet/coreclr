@@ -83,8 +83,6 @@ struct OverrideProcArgs
         struct
         {
             VARTYPE         m_vt;
-            UINT16          m_optionalbaseoffset; //for fast marshaling, offset of dataptr if known and less than 64k (0 otherwise)
-            MethodTable*    m_pMT;
 #ifdef FEATURE_COMINTEROP
             SIZE_T          m_cbElementSize;
             WinMDAdapter::RedirectedTypeIndex m_redirectedTypeIndex;
@@ -373,7 +371,7 @@ private:
 class EEMarshalingData
 {
 public:
-    EEMarshalingData(BaseDomain *pDomain, LoaderHeap *pHeap, CrstBase *pCrst);
+    EEMarshalingData(LoaderAllocator *pAllocator, CrstBase *pCrst);
     ~EEMarshalingData();
 
     // EEMarshalingData's are always allocated on the loader heap so we need to redefine
@@ -402,14 +400,15 @@ private:
     EECMHelperHashTable                 m_CMHelperHashtable;
     EEPtrHashTable                      m_SharedCMHelperToCMInfoMap;
 #endif // CROSSGEN_COMPILE
+    LoaderAllocator*                    m_pAllocator;
     LoaderHeap*                         m_pHeap;
-    BaseDomain*                         m_pDomain;
     CMINFOLIST                          m_pCMInfoList;
 #ifdef FEATURE_COMINTEROP
     OleColorMarshalingInfo*             m_pOleColorInfo;
     UriMarshalingInfo*                  m_pUriInfo;
     EventArgsMarshalingInfo*            m_pEventArgsInfo;
 #endif // FEATURE_COMINTEROP
+    CrstBase*                           m_lock;
 };
 
 struct ItfMarshalInfo;
@@ -470,8 +469,7 @@ public:
     VOID EmitOrThrowInteropParamException(NDirectStubLinker* psl, BOOL fMngToNative, UINT resID, UINT paramIdx);
 
     // These methods retrieve the information for different element types.
-    HRESULT HandleArrayElemType(NativeTypeParamInfo *pParamInfo, 
-                                UINT16 optbaseoffset, 
+    HRESULT HandleArrayElemType(NativeTypeParamInfo *pParamInfo,
                                 TypeHandle elemTypeHnd, 
                                 int iRank, 
                                 BOOL fNoLowerBounds, 
@@ -891,7 +889,7 @@ protected:
 VOID ThrowInteropParamException(UINT resID, UINT paramIdx);
 
 VOID CollateParamTokens(IMDInternalImport *pInternalImport, mdMethodDef md, ULONG numargs, mdParamDef *aParams);
-bool IsUnsupportedValueTypeReturn(MetaSig& msig);
+bool IsUnsupportedTypedrefReturn(MetaSig& msig);
 
 void FindCopyCtor(Module *pModule, MethodTable *pMT, MethodDesc **pMDOut);
 void FindDtor(Module *pModule, MethodTable *pMT, MethodDesc **pMDOut);

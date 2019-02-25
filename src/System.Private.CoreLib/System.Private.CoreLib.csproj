@@ -24,21 +24,32 @@
     <ErrorReport>prompt</ErrorReport>
     <CLSCompliant>true</CLSCompliant>
     <WarningLevel>4</WarningLevel>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);618</WarningsNotAsErrors>
-    <NoWarn>649,3019,414,169,3015,591,1573,1591,0419</NoWarn>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>649,1573,1591,0419</NoWarn>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <SignAssembly>true</SignAssembly>
     <DelaySign>true</DelaySign>
-    <DefineConstants>$(DefineConstants);CORECLR;_USE_NLS_PLUS_TABLE;CODE_ANALYSIS_BASELINE;netcoreapp</DefineConstants>
+    <DefineConstants>$(DefineConstants);CORECLR;netcoreapp</DefineConstants>
     <!-- We don't use any of MSBuild's resolution logic for resolving the framework, so just set these two properties to any folder that exists to skip
          the GenerateReferenceAssemblyPaths task (not target) and to prevent it from outputting a warning (MSB3644). -->
     <_TargetFrameworkDirectories>$(MSBuildThisFileDirectory)/Documentation</_TargetFrameworkDirectories>
     <_FullFrameworkReferenceAssemblyPaths>$(MSBuildThisFileDirectory)/Documentation</_FullFrameworkReferenceAssemblyPaths>
     <SkipCommonResourcesIncludes>true</SkipCommonResourcesIncludes>
-    <LangVersion>latest</LangVersion>
     <DocumentationFile>$(OutputPath)$(MSBuildProjectName).xml</DocumentationFile>
   </PropertyGroup>
+
+  <!-- Approximate Arcade version string https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/Versioning.md -->
+  <!-- This workaround should be removed once CoreCLR repo is updated to use Arcade -->
+  <PropertyGroup>
+    <InformationalVersion>$(VersionPrefix)</InformationalVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(PreReleaseLabel)' != ''">
+    <InformationalVersion>$(InformationalVersion)-$(PreReleaseLabel).$(BuildNumberMajor).$(BuildNumberMinor)</InformationalVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(LatestCommit)' != ''">
+    <InformationalVersion>$(InformationalVersion)+$(LatestCommit)</InformationalVersion>
+  </PropertyGroup>
+
   <!-- Add Serviceable attribute to the project's metadata -->
   <ItemGroup>
     <AssemblyMetadata Include="Serviceable">
@@ -50,12 +61,10 @@
   <PropertyGroup Condition="'$(Platform)' == 'x64'">
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
-    <BaseAddress>0x180000000</BaseAddress>
     <DefineConstants>BIT64;AMD64;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'x86'">
     <PlatformTarget>x86</PlatformTarget>
-    <BaseAddress>0x10000000</BaseAddress>
     <DefineConstants>BIT32;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'arm'">
@@ -72,21 +81,12 @@
     <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Debug'">false</Optimize>
     <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Checked'">true</Optimize>
     <DebugType Condition="'$(DebugType)' == ''">full</DebugType>
-    <DefineConstants>_LOGGING;DEBUG;TRACE;$(DefineConstants)</DefineConstants>
+    <DefineConstants>_LOGGING;DEBUG;$(DefineConstants)</DefineConstants>
     <DefineConstants Condition="'$(Platform)' == 'x86' or '$(Platform)' == 'x64'">CODE_ANALYSIS;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugSymbols>true</DebugSymbols>
     <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
-    <DebugType Condition="'$(DebugType)' == ''">pdbOnly</DebugType>
-    <DefineConstants>TRACE;$(DefineConstants)</DefineConstants>
-  </PropertyGroup>
-  <!-- Make portable PDBs on Unix -->
-  <PropertyGroup Condition="'$(OsEnvironment)' == 'Unix'">
-    <DebugType>portable</DebugType>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetsOSX)' == 'true'">
-    <DefineConstants>PLATFORM_OSX;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <!-- Assembly attributes -->
   <PropertyGroup>
@@ -102,8 +102,6 @@
   <PropertyGroup>
     <CommonPath>$(MSBuildThisFileDirectory)Common</CommonPath>
     <BclSourcesRoot>$(MSBuildThisFileDirectory)src</BclSourcesRoot>
-    <MscorlibDir>$(MSBuildThisFileDirectory)</MscorlibDir>
-    <NlpObjDir>$(BclSourcesRoot)\System\Globalization\Tables</NlpObjDir>
   </PropertyGroup>
   <!-- Msbuild variables needed to get CoreCLR features to be set properly. -->
   <PropertyGroup>
@@ -117,57 +115,49 @@
   <!-- Sources -->
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\Internal\Console.cs" />
-    <Compile Include="$(BclSourcesRoot)\Internal\Resources\PRIExceptionInfo.cs" Condition="'$(FeatureAppX)' == 'true'" />
-    <Compile Include="$(BclSourcesRoot)\Internal\Resources\WindowsRuntimeResourceManagerBase.cs" Condition="'$(FeatureAppX)' == 'true'" />
-    <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\EnvironmentAugments.cs" />
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\RuntimeThread.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\UnsafeNativeMethods.cs" />
-    <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\Win32Native.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\__Canon.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Activator.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\AppContext.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\AppContext.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ArgIterator.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Array.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Attribute.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Array.CoreCLR.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Attribute.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\BadImageFormatException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Buffer.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\ByReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\CLRConfig.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\EmptyReadOnlyDictionaryInternal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\ArraySortHelper.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\Comparer.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\Comparer.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\ComparerHelpers.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\EqualityComparer.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\EqualityComparer.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\ObjectModel\ReadOnlyDictionary.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Currency.cs" />
     <Compile Include="$(BclSourcesRoot)\System\DefaultBinder.CanConvert.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Delegate.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Contracts\Contracts.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Contracts\ContractsBCL.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debugger.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\EditAndContinueHelper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\DotNETRuntimeEventSource.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\NativeRuntimeEventSource.cs" Condition="'$(FeaturePerfTracing)' == 'true'"/>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipe.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeController.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventDispatcher.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeMetadataGenerator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipePayloadDecoder.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\RuntimeEventSource.cs" Condition="'$(FeaturePerfTracing)' == 'true'"/>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventSource_CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\FrameworkEventSource.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\TraceLoggingEventHandleTable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\ICustomDebuggerNotification.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\StackFrame.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\StackFrameHelper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Stacktrace.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymDocumentWriter.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\StackTrace.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymWriter.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymAddressKind.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\Token.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Enum.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Environment.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Environment.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Exception.cs" />
     <Compile Include="$(BclSourcesRoot)\System\GC.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Internal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileLoadException.CoreCLR.cs" />
@@ -175,11 +165,9 @@
     <Compile Include="$(BclSourcesRoot)\System\IO\Stream.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Math.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MathF.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\mda.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MissingMemberException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MulticastDelegate.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Numerics\Hashing\HashHelpers.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Object.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Object.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\OleAutBinder.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Assembly.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\AssemblyName.cs" />
@@ -196,30 +184,22 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\DynamicMethod.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\EnumBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\EventBuilder.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\EventToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\FieldBuilder.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\FieldToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\GenericTypeParameterBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ILGenerator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ISymWrapperCore.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\LocalBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\MethodBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\MethodBuilderInstantiation.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\MethodToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ModuleBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ModuleBuilderData.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ParameterBuilder.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ParameterToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\PropertyBuilder.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\PropertyToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\SignatureHelper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\SignatureToken.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\StringToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\SymbolMethod.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\SymbolType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\TypeBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\TypeBuilderInstantiation.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\TypeToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\XXXOnTypeBuilderInstantiation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\FieldInfo.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\INVOCATION_FLAGS.cs" />
@@ -242,67 +222,25 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeModule.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeParameterInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimePropertyInfo.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Resources\FileBasedResourceGroveler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Resources\IResourceGroveler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Resources\ManifestBasedResourceGroveler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceManager.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Resources\ManifestBasedResourceGroveler.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RtType.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\AsyncMethodBuilder.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\ConditionalWeakTable.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\CrossLoaderAllocatorHashHelpers.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\DependentHandle.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\GCHeapHash.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\ICastableHelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\jithelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\RuntimeFeature.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\RuntimeHelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TypeDependencyAttribute.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\ExceptionServices\ExceptionDispatchInfo.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\GcSettings.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ArrayWithOffset.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Attributes.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\BStrWrapper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\COMException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComMemberType.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IBindCtx.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IConnectionPoint.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IConnectionPointContainer.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumConnectionPoints.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumConnections.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\GCSettings.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumerable.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumMoniker.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumString.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumVARIANT.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IMoniker.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IPersistFile.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IRunningObjectTable.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IStream.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\ITypeComp.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\ITypeInfo.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\ITypeInfo2.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\ITypeLib.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\ITypeLib2.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CriticalHandle.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CurrencyWrapper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ErrorWrapper.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CriticalHandle.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Expando\IExpando.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\GcHandle.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\GCHandleCookieTable.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomAdapter.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomFactory.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomMarshaler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomQueryInterface.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\InvalidComObjectException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\InvalidOleVariantTypeException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Marshal.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NonPortable.cs" Condition="'$(FeatureCominterop)' != 'true'" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\PInvokeMap.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\PInvokeMarshal.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeArrayRankMismatchException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeArrayTypeMismatchException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeHandle.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SEHException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UnknownWrapper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\VariantWrapper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\MemoryFailPoint.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\GCHandle.CoreCLR.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Marshal.CoreCLR.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NativeLibrary.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyDependencyResolver.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Serialization\FormatterServices.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RuntimeArgumentHandle.cs" />
@@ -311,37 +249,18 @@
     <Compile Include="$(BclSourcesRoot)\System\StartupHookProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\String.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\StubHelpers.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\CodePageDataItem.cs" Condition="'$(FeatureCoreFxGlobalization)' != 'true'" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\CodePageDataItem.Unix.cs" Condition="'$(FeatureCoreFxGlobalization)' == 'true'" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\EncodingTable.cs" Condition="'$(FeatureCoreFxGlobalization)' != 'true'" />
-    <Compile Include="$(BclSourcesRoot)\System\Text\EncodingTable.Unix.cs" Condition="'$(FeatureCoreFxGlobalization)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilder.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationTokenRegistration.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationTokenSource.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandleOverlapped.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolPreAllocatedOverlapped.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Interlocked.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Monitor.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Overlapped.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\AsyncCausalityTracer.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\future.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\FutureFactory.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\ProducerConsumerQueues.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\Task.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskContinuation.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskExceptionHolder.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskFactory.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskScheduler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\ThreadPoolTaskScheduler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\TPLETWProvider.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Thread.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadPool.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Timer.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Volatile.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadPool.CoreCLR.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\Timer.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\WaitHandle.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\ThrowHelper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Type.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TypedReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TypeLoadException.cs" />
@@ -349,21 +268,30 @@
     <Compile Include="$(BclSourcesRoot)\System\ValueType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReferenceOfT.cs" />
+    <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetCurrentProcessId.cs" />
+    <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetCurrentThreadId.cs" />
+    <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetStdHandle.cs" />
+    <Compile Include="shared\Interop\Windows\Kernel32\Interop.LocalAlloc.cs" />
+    <Compile Include="shared\Interop\Windows\Kernel32\Interop.QueryUnbiasedInterruptTime.cs" />
+    <Compile Include="shared\Interop\Windows\Kernel32\Interop.VerifyVersionExW.cs" />
+    <Compile Include="shared\Interop\Windows\Kernel32\Interop.VerSetConditionMask.cs" />
+    <Compile Include="shared\Interop\Windows\Ole32\Interop.CoTaskMemAlloc.cs" />
+    <Compile Include="shared\Interop\Windows\OleAut32\Interop.SysAllocStringByteLen.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\XplatEventLogger.cs" Condition="'$(FeatureXplatEventSource)' == 'true'" />
-    <Compile Include="$(IntermediateOutputPath)..\eventing\DotNETRuntimeEventSource.cs" />
+    <Compile Include="$(IntermediateOutputPath)..\Eventing\NativeRuntimeEventSource.cs" Condition="'$(FeaturePerfTracing)' == 'true'"/>
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCominterop)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\WindowsRuntime\ExceptionSupport.cs" />
-    <Compile Include="$(BclSourcesRoot)\Internal\Threading\Tasks\AsyncCausalitySupport.cs" />
+    <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\ComActivator.cs" Condition="'$(FeatureCominteropUnmanagedActivation)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\OAVariantLib.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\__ComObject.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComActivator.cs" Condition="'$(FeatureCominteropUnmanagedActivation)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComEventsHelper.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComEventsInfo.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComEventsMethod.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComEventsSink.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Variant.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CustomMarshalers\ComDataHelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CustomMarshalers\EnumVariantViewOfEnumerator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CustomMarshalers\EnumerableToDispatchMarshaler.cs" />
@@ -372,7 +300,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CustomMarshalers\EnumeratorViewOfEnumVariant.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CustomMarshalers\ExpandoToDispatchExMarshaler.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CustomMarshalers\TypeToTypeInfoMarshaler.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\DispatchWrapper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\IDispatch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\Attributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\BindableVectorToCollectionAdapter.cs" />
@@ -386,7 +313,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\DictionaryToMapAdapter.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\DictionaryValueCollection.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\EnumeratorToIteratorAdapter.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\EventRegistrationToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\EventRegistrationTokenTable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\IActivationFactory.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\IClosable.cs" />
@@ -421,24 +347,24 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\WindowsRuntimeMarshal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\WindowsRuntimeMetadata.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\IAsyncCausalityTracerStatics.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\AsyncCausalityTracer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Variant.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
-    <Compile Include="$(BclSourcesRoot)\System\DateTime.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Unix.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\DateTime.Unix.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\DateTime.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Windows\Kernel32\Interop.GetSystemDirectoryW.cs" />
+    <Compile Include="$(BclSourcesRoot)\Interop\Windows\OleAut32\Interop.VariantClear.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ApplicationModel.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\DebugProvider.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Environment.Windows.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(FeatureAppX)' == 'true'">
+    <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.Uap.cs" />
   </ItemGroup>
   <ItemGroup>
     <!--
@@ -486,9 +412,15 @@
     <OSGroup>Windows_NT</OSGroup>
   </PropertyGroup>
   <PropertyGroup>
+    <FeatureAsyncCausalityTracer Condition="'$(FeatureCominterop)' == 'true'">true</FeatureAsyncCausalityTracer>
+  </PropertyGroup>
+  <PropertyGroup>
     <StrongNameSig>Silverlight</StrongNameSig>
   </PropertyGroup>
-  <Import Project="$(MSBuildThisFileDirectory)Tools\Versioning\GenerateVersionInfo.targets" />
+  <ItemGroup>
+    <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.ComVisible(false)]" />
+    <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute(System.Runtime.InteropServices.DllImportSearchPath.AssemblyDirectory | System.Runtime.InteropServices.DllImportSearchPath.System32)]" />
+  </ItemGroup>
   <!--
     Import common targets: codeAnalysis, Microsoft.CSharp, sign, versioning, codeOptimizations, etc.
     In doing so, override versioning targets.
@@ -499,8 +431,6 @@
     <AssemblyOriginatorKeyFile>$(ToolsDir)SilverlightPlatformPublicKey.snk</AssemblyOriginatorKeyFile>
     <!-- Don't need a strong name signature because we only ship the native image -->
     <StrongNameSig>None</StrongNameSig>
-    <!-- Use a different nativeresource file to avoid conflicts with mscorlib-->
-    <Win32Resource Condition="'$(GenerateNativeVersionInfo)'=='true'">$(IntermediateOutputPath)\System.Private.CoreLib.res</Win32Resource>
   </PropertyGroup>
   <Import Project="CreateRuntimeRootILLinkDescriptorFile.targets" />
   <ItemGroup>

@@ -330,9 +330,7 @@ public:
     static void IncForbidSuspendThread() { }
     static void DecForbidSuspendThread() { }
 
-    // The ForbidSuspendThreadHolder is used during the initialization of the stack marker infrastructure so
-    // it can't do any backout stack validation (which is why we pass in VALIDATION_TYPE=HSV_NoValidation).
-    typedef StateHolder<Thread::IncForbidSuspendThread, Thread::DecForbidSuspendThread, HSV_NoValidation> ForbidSuspendThreadHolder;
+    typedef StateHolder<Thread::IncForbidSuspendThread, Thread::DecForbidSuspendThread> ForbidSuspendThreadHolder;
 
     static BYTE GetOffsetOfCurrentFrame()
     {
@@ -1258,9 +1256,7 @@ public:
         TSNC_UnbalancedLocks            = 0x00200000, // Do not rely on lock accounting for this thread:
                                                       // we left an app domain with a lock count different from
                                                       // when we entered it
-        TSNC_DisableSOCheckInHCALL      = 0x00400000, // Some HCALL method may be called directly from VM.
-                                                      // We can not assert they are called in SOTolerant 
-                                                      // region.
+        // unused                       = 0x00400000,
         TSNC_IgnoreUnhandledExceptions  = 0x00800000, // Set for a managed thread born inside an appdomain created with the APPDOMAIN_IGNORE_UNHANDLED_EXCEPTIONS flag.
         TSNC_ProcessedUnhandledException = 0x01000000,// Set on a thread on which we have done unhandled exception processing so that
                                                       // we dont perform it again when OS invokes our UEF. Currently, applicable threads include:
@@ -1317,13 +1313,10 @@ public:
     STDMETHODIMP EndPreventAsyncAbort()
         DAC_EMPTY_RET(E_FAIL);
 
-    void InternalReset (BOOL fFull, BOOL fNotFinalizerThread=FALSE, BOOL fThreadObjectResetNeeded=TRUE, BOOL fResetAbort=TRUE);
+    void InternalReset (BOOL fNotFinalizerThread=FALSE, BOOL fThreadObjectResetNeeded=TRUE, BOOL fResetAbort=TRUE);
     INT32 ResetManagedThreadObject(INT32 nPriority); 
     INT32 ResetManagedThreadObjectInCoopMode(INT32 nPriority);
     BOOL  IsRealThreadPoolResetNeeded();
-private:
-    //Helpers for reset...
-    void FullResetThread();
 public:
     HRESULT DetachThread(BOOL fDLLThreadDetach);
 
@@ -1567,43 +1560,6 @@ public:
         return (m_State & TS_Detached);
     }
 
-#ifdef FEATURE_STACK_PROBE
-//---------------------------------------------------------------------------------------
-//
-// IsSOTolerant - Is the current thread in SO Tolerant region?
-//
-// Arguments:
-//    pLimitFrame: the limit of search for frames
-//
-// Return Value:
-//    TRUE if in SO tolerant region.
-//    FALSE if in SO intolerant region.
-// 
-// Note:
-//    We walk our frame chain to decide.  If HelperMethodFrame is seen first, we are in tolerant
-//    region.  If EnterSOIntolerantCodeFrame is seen first, we are in intolerant region.
-//
-    BOOL IsSOTolerant(void * pLimitFrame);
-#endif
-
-#ifdef _DEBUG
-    class DisableSOCheckInHCALL
-    {
-    private:
-        Thread *m_pThread;
-    public:
-        DisableSOCheckInHCALL()
-        {
-            m_pThread = GetThread();
-            m_pThread->SetThreadStateNC(TSNC_DisableSOCheckInHCALL);
-        }
-        ~DisableSOCheckInHCALL()
-        {
-        LIMITED_METHOD_CONTRACT;
-        m_pThread->ResetThreadStateNC(TSNC_DisableSOCheckInHCALL);
-        }
-    };
-#endif
     static LONG     m_DetachCount;
     static LONG     m_ActiveDetachCount;  // Count how many non-background detached
 
@@ -1793,7 +1749,6 @@ public:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_ANY;
             SUPPORTS_DAC;
         }
@@ -1820,7 +1775,6 @@ public:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_ANY;
             SUPPORTS_DAC;
         }
@@ -1846,9 +1800,7 @@ public:
         return m_dwForbidSuspendThread != (LONG)0;
     }
     
-    // The ForbidSuspendThreadHolder is used during the initialization of the stack marker infrastructure so
-    // it can't do any backout stack validation (which is why we pass in VALIDATION_TYPE=HSV_NoValidation).
-    typedef StateHolder<Thread::IncForbidSuspendThread, Thread::DecForbidSuspendThread, HSV_NoValidation> ForbidSuspendThreadHolder;
+    typedef StateHolder<Thread::IncForbidSuspendThread, Thread::DecForbidSuspendThread> ForbidSuspendThreadHolder;
 
 private:
     // Per thread counter to dispense hash code - kept in the thread so we don't need a lock
@@ -2532,7 +2484,6 @@ public:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
@@ -2654,7 +2605,6 @@ public:
 
     DWORD       GetThreadId()
     {
-        STATIC_CONTRACT_SO_TOLERANT;
         LIMITED_METHOD_DAC_CONTRACT;
         _ASSERTE(m_ThreadId != UNINITIALIZED_THREADID);
         return m_ThreadId;
@@ -2700,7 +2650,6 @@ public:
     {
         TAR_Thread =      0x00000001,   // Request by Thread
         TAR_FuncEval =    0x00000004,   // Request by Func-Eval
-        TAR_StackOverflow = 0x00000008,   // Request by StackOverflow.  TAR_THREAD should be set at the same time.
         TAR_ALL = 0xFFFFFFFF,
     };
 
@@ -2712,33 +2661,20 @@ private:
     enum ThreadAbortInfo
     {
         TAI_ThreadAbort       = 0x00000001,
-        TAI_ThreadV1Abort     = 0x00000002,
         TAI_ThreadRudeAbort   = 0x00000004,
-        TAI_ADUnloadAbort     = 0x00000008,
-        TAI_ADUnloadV1Abort   = 0x00000010,
-        TAI_ADUnloadRudeAbort = 0x00000020,
         TAI_FuncEvalAbort     = 0x00000040,
-        TAI_FuncEvalV1Abort   = 0x00000080,
         TAI_FuncEvalRudeAbort = 0x00000100,
     };
 
     static const DWORD TAI_AnySafeAbort = (TAI_ThreadAbort   |
-                                           TAI_ADUnloadAbort |
                                            TAI_FuncEvalAbort
                                           );
 
-    static const DWORD TAI_AnyV1Abort   = (TAI_ThreadV1Abort   |
-                                           TAI_ADUnloadV1Abort |
-                                           TAI_FuncEvalV1Abort
-                                          );
-
     static const DWORD TAI_AnyRudeAbort = (TAI_ThreadRudeAbort   |
-                                           TAI_ADUnloadRudeAbort |
                                            TAI_FuncEvalRudeAbort
                                           );
 
     static const DWORD TAI_AnyFuncEvalAbort = (TAI_FuncEvalAbort   |
-                                           TAI_FuncEvalV1Abort |
                                            TAI_FuncEvalRudeAbort
                                           );
 
@@ -3361,24 +3297,11 @@ public:
         return m_TraceCallCount;
     }
 
-    // Functions to get culture information for thread.
-    int GetParentCultureName(__out_ecount(length) LPWSTR szBuffer, int length, BOOL bUICulture);
-    int GetCultureName(__out_ecount(length) LPWSTR szBuffer, int length, BOOL bUICulture);
-    LCID GetCultureId(BOOL bUICulture);
-    OBJECTREF GetCulture(BOOL bUICulture);
-
-    // Release user cultures that can't survive appdomain unload
-
-    // Functions to set the culture on the thread.
-    void SetCultureId(LCID lcid, BOOL bUICulture);
-    void SetCulture(OBJECTREF *CultureObj, BOOL bUICulture);
+    // Functions to get/set culture information for current thread.
+    static OBJECTREF GetCulture(BOOL bUICulture);
+    static void SetCulture(OBJECTREF *CultureObj, BOOL bUICulture);
 
 private:
-
-    // Used by the culture accesors.
-    ARG_SLOT CallPropertyGet(BinderMethodID id, OBJECTREF pObject);
-    ARG_SLOT CallPropertySet(BinderMethodID id, OBJECTREF pObject, OBJECTREF pValue);
-
 #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
     // Used in suspension code to redirect a thread at a HandledJITCase
     BOOL RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt);
@@ -3471,7 +3394,6 @@ public:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_ANY;
         }
         CONTRACTL_END;
@@ -3527,16 +3449,6 @@ public:
     // stack overflow exception.
     BOOL DetermineIfGuardPagePresent();
 
-#ifdef FEATURE_STACK_PROBE
-    // CanResetStackTo will return TRUE if the given stack pointer is far enough away from the guard page to proper
-    // restore the guard page with RestoreGuardPage.
-    BOOL CanResetStackTo(LPCVOID stackPointer);
-
-    // IsStackSpaceAvailable will return true if there are the given number of stack pages available on the stack.
-    BOOL IsStackSpaceAvailable(float numPages);
-
-#endif
-    
     // Returns the amount of stack available after an SO but before the OS rips the process.
     static UINT_PTR GetStackGuarantee();
 
@@ -4030,15 +3942,6 @@ private:
     DomainFile* m_pLoadingFile;
 
 
-    // The ThreadAbort reason (Get/Set/ClearExceptionStateInfo on the managed thread) is
-    // held here as an OBJECTHANDLE and the ADID of the AppDomain in which it is valid.
-    // Atomic updates of this state use the Thread's Crst.
-
-    OBJECTHANDLE    m_AbortReason;
-    ADID            m_AbortReasonDomainID;
-
-    void            ClearAbortReason(BOOL pNoLock = FALSE);
-
 public:
 
     void SetInteropDebuggingHijacked(BOOL f)
@@ -4209,20 +4112,16 @@ public:
         return m_pLoadingFile;
     }
 
- private:
-
+private:
     static void LoadingFileRelease(Thread *pThread)
     {
         WRAPPER_NO_CONTRACT;
         pThread->ClearLoadingFile();
     }
 
- public:
-
+public:
      typedef Holder<Thread *, DoNothing, Thread::LoadingFileRelease> LoadingFileHolder;
-    void InitCultureAccessors();
-    FieldDesc *managedThreadCurrentCulture;
-    FieldDesc *managedThreadCurrentUICulture;
+
 private:
     // Don't allow a thread to be asynchronously stopped or interrupted (e.g. because
     // it is performing a <clinit>)
@@ -4652,27 +4551,6 @@ public:
 #endif // defined(GCCOVER_TOLERATE_SPURIOUS_AV)
 #endif // HAVE_GCCOVER
 
-#if defined(_DEBUG) && defined(FEATURE_STACK_PROBE)
-    class ::BaseStackGuard;
-private:
-    // This field is used for debugging purposes to allow easy access to the stack guard
-    // chain and also in SO-tolerance checking to quickly determine if a guard is in place.
-    BaseStackGuard *m_pCurrentStackGuard;
-
-public:
-    BaseStackGuard *GetCurrentStackGuard()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pCurrentStackGuard;
-    }
-
-    void SetCurrentStackGuard(BaseStackGuard *pGuard)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pCurrentStackGuard = pGuard;
-    }
-#endif
-
 private:
     BOOL m_fCompletionPortDrained;
 public:
@@ -5024,11 +4902,6 @@ public:
 
 #ifdef FEATURE_PERFTRACING
 private:
-    // The object that contains the list write buffers used by this thread.
-    Volatile<EventPipeBufferList*> m_pEventPipeBufferList;
-
-    // Whether or not the thread is currently writing an event.
-    Volatile<bool> m_eventWriteInProgress;
 
     // SampleProfiler thread state.  This is set on suspension and cleared before restart.
     // True if the thread was in cooperative mode.  False if it was in preemptive when the suspension started.
@@ -5039,30 +4912,6 @@ private:
     GUID m_activityId;
 
 public:
-    EventPipeBufferList* GetEventPipeBufferList()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pEventPipeBufferList;
-    }
-
-    void SetEventPipeBufferList(EventPipeBufferList *pList)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pEventPipeBufferList = pList;
-    }
-
-    bool GetEventWriteInProgress() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_eventWriteInProgress;
-    }
-
-    void SetEventWriteInProgress(bool value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_eventWriteInProgress = value;
-    }
-
     bool GetGCModeOnSuspension()
     {
         LIMITED_METHOD_CONTRACT;
@@ -5124,9 +4973,6 @@ public:
 };
 
 // End of class Thread
-
-
-LCID GetThreadCultureIdNoThrow(Thread *pThread, BOOL bUICulture);
 
 typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 typedef Thread::ThreadPreventAsyncHolder ThreadPreventAsyncHolder;
@@ -5430,7 +5276,6 @@ private:
         {
             THROWS;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_ANY;
         }
         CONTRACTL_END;
@@ -6639,90 +6484,11 @@ class GCForbidLoaderUseHolder
 #endif  // _DEBUG_IMPL
 #endif // DACCESS_COMPILE
 
-#ifdef FEATURE_STACK_PROBE
-#ifdef _DEBUG_IMPL
-inline void NO_FORBIDGC_LOADER_USE_ThrowSO()
-{
-    WRAPPER_NO_CONTRACT;
-    if (FORBIDGC_LOADER_USE_ENABLED())
-    {
-        //if you hitting this assert maybe a failure was injected at the place
-        // it won't occur in a real-world scenario, see VSW 397871
-        // then again maybe it 's a bug at the place FORBIDGC_LOADER_USE_ENABLED was set
-        _ASSERTE(!"Unexpected SO, please read the comment");
-    }
-    else
-        COMPlusThrowSO();
-}
-#else
-inline void NO_FORBIDGC_LOADER_USE_ThrowSO()
-{
-        COMPlusThrowSO();
-}
-#endif
-#endif
-
 // There is an MDA which can detect illegal reentrancy into the CLR.  For instance, if you call managed
 // code from a native vectored exception handler, this might cause a reverse PInvoke to occur.  But if the
 // exception was triggered from code that was executing in cooperative GC mode, we now have GC holes and
 // general corruption.
 BOOL HasIllegalReentrancy();
-
-
-// This class can be used to "schedule" a culture setting,
-//  kicking in when leaving scope or during exception unwinding.
-//  Note: during destruction, this can throw.  You have been warned.
-class ReturnCultureHolder
-{
-public:
-    ReturnCultureHolder(Thread* pThread, OBJECTREF* culture, BOOL bUICulture)
-    {
-        CONTRACTL
-        {
-            WRAPPER(NOTHROW);
-            WRAPPER(GC_NOTRIGGER);
-            MODE_COOPERATIVE;
-            PRECONDITION(CheckPointer(pThread));
-        }
-        CONTRACTL_END;
-
-        m_pThread = pThread;
-        m_culture = culture;
-        m_bUICulture = bUICulture;
-        m_acquired = TRUE;
-    }
-
-    FORCEINLINE void SuppressRelease()
-    {
-        m_acquired = FALSE;
-    }
-
-    ~ReturnCultureHolder()
-    {
-        CONTRACTL
-        {
-            WRAPPER(THROWS);
-            WRAPPER(GC_TRIGGERS);
-            MODE_COOPERATIVE;
-        }
-        CONTRACTL_END;
-
-        if (m_acquired)
-            m_pThread->SetCulture(m_culture, m_bUICulture);
-    }
-
-private:
-    ReturnCultureHolder()
-    {
-        LIMITED_METHOD_CONTRACT;
-    }
-
-    Thread* m_pThread;
-    OBJECTREF* m_culture;
-    BOOL m_bUICulture;
-    BOOL m_acquired;
-};
-
 
 //
 // _pThread:        (Thread*)       current Thread

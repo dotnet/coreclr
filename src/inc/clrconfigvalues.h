@@ -289,6 +289,7 @@ CONFIG_STRING_INFO(INTERNAL_GcCoverage, W("GcCoverage"), "Specify a method or re
 CONFIG_STRING_INFO(INTERNAL_SkipGCCoverage, W("SkipGcCoverage"), "Specify a list of assembly names to skip with GC Coverage")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_gcForceCompact, W("gcForceCompact"), "When set to true, always do compacting GC")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCgen0size, W("GCgen0size"), "Specifies the smallest gen0 size")
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCGen0MaxBudget, W("GCGen0MaxBudget"), "Specifies the largest gen0 allocation budget")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_GCStressMix, W("GCStressMix"), 0, "Specifies whether the GC mix mode is enabled or not")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_GCStressStep, W("GCStressStep"), 1, "Specifies how often StressHeap will actually do a GC in GCStressMix mode")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_GCStressMaxFGCsPerBGC, W("GCStressMaxFGCsPerBGC"), ~0U, "Specifies how many FGCs will occur during one BGC in GCStressMix mode")
@@ -306,6 +307,7 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCCompactRatio, W("GCCompactRatio"), 0, "Sp
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCPollType, W("GCPollType"), "")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCRetainVM, W("GCRetainVM"), 0, "When set we put the segments that should be deleted on a standby list (instead of releasing them back to the OS) which will be considered to satisfy new segment requests (note that the same thing can be specified via API which is the supported way)")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCSegmentSize, W("GCSegmentSize"), "Specifies the managed heap segment size")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCLOHThreshold, W("GCLOHThreshold"), 0, "Specifies the size that will make objects go on LOH")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCLOHCompact, W("GCLOHCompact"), "Specifies the LOH compaction mode")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_gcAllowVeryLargeObjects, W("gcAllowVeryLargeObjects"), 1, "Allow allocation of 2GB+ objects on GC heap")
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_GCStress, W("GCStress"), 0, "Trigger GCs at regular intervals", CLRConfig::REGUTIL_default)
@@ -319,9 +321,15 @@ RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_HeapVerify, W("HeapVerify"), 
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_SetupGcCoverage, W("SetupGcCoverage"), "This doesn't appear to be a config flag", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCNumaAware, W("GCNumaAware"), 1, "Specifies if to enable GC NUMA aware")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCCpuGroup, W("GCCpuGroup"), 0, "Specifies if to enable GC to support CPU groups")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCHeapCount, W("GCHeapCount"), 0, "")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCNoAffinitize, W("GCNoAffinitize"), 0, "")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCHeapCount, W("GCHeapCount"), 0, "")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCNoAffinitize, W("GCNoAffinitize"), 0, "")
+// this config is only in effect if the process is not running in multiple CPU groups.
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapAffinitizeMask, W("GCHeapAffinitizeMask"), "Specifies processor mask for Server GC threads")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCProvModeStress, W("GCProvModeStress"), 0, "Stress the provisional modes")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCHighMemPercent, W("GCHighMemPercent"), 0, "Specifies the percent for GC to consider as high memory")
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_GCName, W("GCName"), "")
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapHardLimit, W("GCHeapHardLimit"), "Specifies the maximum commit size for the GC heap")
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapHardLimitPercent, W("GCHeapHardLimitPercent"), "Specifies the GC heap usage as a percentage of the total memory")
 
 ///
 /// IBC
@@ -638,7 +646,6 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_HillClimbing_SampleIntervalLow,               
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_HillClimbing_SampleIntervalHigh,                  W("HillClimbing_SampleIntervalHigh"),                 200, "");
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_HillClimbing_GainExponent,                        W("HillClimbing_GainExponent"),                       200, "The exponent to apply to the gain, times 100.  100 means to use linear gain, higher values will enhance large moves and damp small ones.");
 
-
 ///
 /// Tiered Compilation
 ///
@@ -647,11 +654,18 @@ RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TieredCompilation, W("TieredCompilation"), 1, 
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1CallCountThreshold, W("TieredCompilation_Tier1CallCountThreshold"), 30, "Number of times a method must be called after which it is promoted to tier 1.")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1CallCountingDelayMs, W("TieredCompilation_Tier1CallCountingDelayMs"), 100, "A perpetual delay in milliseconds that is applied to tier 1 call counting and jitting, while there is tier 0 activity.")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1DelaySingleProcMultiplier, W("TieredCompilation_Tier1DelaySingleProcMultiplier"), 10, "Multiplier for TieredCompilation_Tier1CallCountingDelayMs that is applied on a single-processor machine or when the process is affinitized to a single processor.")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_DisableTier0Jit, W("TieredCompilation_DisableTier0Jit"), 0, "For methods that don't have pregenerated code, disable jitting them at tier 0 and start with a higher tier instead. For methods that have pregenerated code, tiering occurs normally.")
 
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Test_CallCounting, W("TieredCompilation_Test_CallCounting"), 1, "Enabled by default (only activates when TieredCompilation is also enabled). If disabled immediately backpatches prestub, and likely prevents any tier1 promotion")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Test_OptimizeTier0, W("TieredCompilation_Test_OptimizeTier0"), 0, "Use optimized codegen (normally used by tier1) in tier0")
 #endif
 
+///
+/// Entry point slot backpatch
+///
+#ifndef CROSSGEN_COMPILE
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_BackpatchEntryPointSlots, W("BackpatchEntryPointSlots"), 1, "Indicates whether to enable entry point slot backpatching, for instance to avoid making virtual calls through a precode and instead to patch virtual slots for a method when its entry point changes.")
+#endif
 
 ///
 /// TypeLoader
@@ -783,7 +797,6 @@ CONFIG_DWORD_INFO(INTERNAL_MessageDebugOut, W("MessageDebugOut"), 0, "")
 CONFIG_DWORD_INFO_EX(INTERNAL_MscorsnLogging, W("MscorsnLogging"), 0, "Enables strong name logging", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_NativeImageRequire, W("NativeImageRequire"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NestedEhOom, W("NestedEhOom"), 0, "", CLRConfig::REGUTIL_default)
-RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_NO_SO_NOT_MAINLINE, W("NO_SO_NOT_MAINLINE"), 0, "", CLRConfig::REGUTIL_default)
 #define INTERNAL_NoGuiOnAssert_Default 1
 RETAIL_CONFIG_DWORD_INFO_EX(INTERNAL_NoGuiOnAssert, W("NoGuiOnAssert"), INTERNAL_NoGuiOnAssert_Default, "", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_NoProcedureSplitting, W("NoProcedureSplitting"), 0, "", CLRConfig::REGUTIL_default)

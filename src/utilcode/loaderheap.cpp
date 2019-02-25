@@ -4,7 +4,6 @@
 
 #include "stdafx.h"                     // Precompiled header key.
 #include "loaderheap.h"
-#include "perfcounters.h"
 #include "ex.h"
 #include "pedecoder.h"
 #define DONOT_DEFINE_ETW_CALLBACK
@@ -236,7 +235,6 @@ BOOL RangeList::IsInRangeWorker(TADDR address, TADDR *pID /* = NULL */)
         NOTHROW;
         FORBID_FAULT;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END
         

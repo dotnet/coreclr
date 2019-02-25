@@ -408,7 +408,6 @@ class CEECompileInfo : public ICorCompileInfo
         {
             THROWS;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_ANY;
         }
         CONTRACTL_END;
@@ -791,7 +790,6 @@ class CompilationDomain : public AppDomain,
     PEAssembly *BindAssemblySpec(
         AssemblySpec *pSpec,
         BOOL fThrowOnFileNotFound,
-        StackCrawlMark *pCallerStackMark = NULL,
         BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
 
     BOOL CanEagerBindToZapFile(Module *targetModule, BOOL limitToHardBindList = TRUE);

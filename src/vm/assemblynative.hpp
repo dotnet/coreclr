@@ -32,11 +32,10 @@ public:
     static
     void QCALLTYPE GetExecutingAssembly(QCall::StackCrawlMarkHandle stackMark, QCall::ObjectHandleOnStack retAssembly);
 
-    static FCDECL7(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
+    static FCDECL6(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
                                                                 StringObject* codeBaseUNSAFE, 
                                                                 AssemblyBaseObject* requestingAssemblyUNSAFE,
                                                                 StackCrawlMark* stackMark,
-                                                                ICLRPrivBinder * pPrivHostBinder,
                                                                 CLR_BOOL fThrowOnFileNotFound,
                                                                 INT_PTR ptrLoadContextBinder);
 
@@ -70,10 +69,7 @@ public:
     void QCALLTYPE GetCodeBase(QCall::AssemblyHandle pAssembly, BOOL fCopiedName, QCall::StringHandleOnStack retString);
 
     static 
-    BYTE * QCALLTYPE GetResource(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, UINT64 * length, QCall::StackCrawlMarkHandle stackMark, BOOL skipSecurityCheck);
-
-    static 
-    BOOL QCALLTYPE GetNeutralResourcesLanguageAttribute(QCall::AssemblyHandle pAssembly, QCall::StringHandleOnStack cultureName, INT16& outFallbackLocation);
+    BYTE * QCALLTYPE GetResource(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, DWORD * length);
 
     static
     FCDECL1(FC_BOOL_RET, IsDynamic, AssemblyBaseObject * pAssemblyUNSAFE);
@@ -88,7 +84,7 @@ public:
     void QCALLTYPE GetForwardedType(QCall::AssemblyHandle pAssembly, mdToken mdtExternalType, QCall::ObjectHandleOnStack retType);
 
     static 
-    INT32 QCALLTYPE GetManifestResourceInfo(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, QCall::ObjectHandleOnStack retAssembly, QCall::StringHandleOnStack retFileName, QCall::StackCrawlMarkHandle stackMark);
+    INT32 QCALLTYPE GetManifestResourceInfo(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, QCall::ObjectHandleOnStack retAssembly, QCall::StringHandleOnStack retFileName);
 
     static
     void QCALLTYPE GetModules(QCall::AssemblyHandle pAssembly, BOOL fLoadIfNotFound, BOOL fGetResourceModules, QCall::ObjectHandleOnStack retModules);

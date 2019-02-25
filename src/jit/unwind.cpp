@@ -149,6 +149,9 @@ void Compiler::unwindPushPopCFI(regNumber reg)
 
     if (relOffsetMask & genRegMask(reg))
     {
+#ifndef _TARGET_ARM_
+        createCfiCode(func, cbProlog, CFI_ADJUST_CFA_OFFSET, DWARF_REG_ILLEGAL, REGSIZE_BYTES);
+#endif
         createCfiCode(func, cbProlog, CFI_REL_OFFSET, mapRegNumToDwarfReg(reg));
     }
     else
@@ -398,7 +401,7 @@ UNATIVE_OFFSET Compiler::unwindGetCurrentOffset(FuncInfoDsc* func)
     }
     else
     {
-#if defined(_TARGET_AMD64_)
+#if defined(_TARGET_AMD64_) || (defined(_TARGET_UNIX_) && (defined(_TARGET_ARMARCH_) || defined(_TARGET_X86_)))
         assert(func->startLoc != nullptr);
         offset = func->startLoc->GetFuncletPrologOffset(genEmitter);
 #else

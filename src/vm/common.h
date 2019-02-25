@@ -309,19 +309,16 @@ namespace Loader
 #include "pedecoder.h"
 #include "sstring.h"
 #include "slist.h"
-#include "yieldprocessornormalized.h"
 
 #include "eeconfig.h"
 
 #include "spinlock.h"
-#include "declsec.h"
 
 #ifdef FEATURE_COMINTEROP 
 #include "stdinterfaces.h"
 #endif
 
 #include "typehandle.h"
-#include "perfcounters.h"
 #include "methodtable.h"
 #include "typectxt.h"
 
@@ -334,7 +331,6 @@ namespace Loader
 #include "regdisp.h"
 #include "stackframe.h"
 #include "gms.h"
-#include "stackprobe.h"
 #include "fcall.h"
 #include "syncblk.h"
 #include "gcdesc.h"
@@ -465,7 +461,6 @@ extern DummyGlobalContract ___contract;
 #include "clsload.inl"
 #include "domainfile.inl"
 #include "method.inl"
-#include "stackprobe.inl"
 #include "syncblk.inl"
 #include "threads.inl"
 #include "eehash.inl"

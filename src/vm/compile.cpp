@@ -205,13 +205,8 @@ HRESULT MakeCrossDomainCallbackWorker(
     LPVOID                  pArgs)
 {
     STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
-    HRESULT hrRetVal = E_UNEXPECTED;
-    BEGIN_SO_TOLERANT_CODE(GetThread());
-    hrRetVal = pfnCallback(pArgs);
-    END_SO_TOLERANT_CODE;
-    return hrRetVal;
+    return pfnCallback(pArgs);
 }
 
 HRESULT CEECompileInfo::MakeCrossDomainCallback(
@@ -1018,7 +1013,7 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
 
     nStackSlots = nStackBytes / sizeof(TADDR) + NUM_ARGUMENT_REGISTERS;
 #else
-    nStackSlots = (sizeof(TransitionBlock) + nStackBytes - TransitionBlock::GetOffsetOfArgumentRegisters()) / TARGET_POINTER_SIZE;
+    nStackSlots = (sizeof(TransitionBlock) + nStackBytes - TransitionBlock::GetOffsetOfFirstGCRefMapSlot()) / TARGET_POINTER_SIZE;
 #endif
 
     for (UINT pos = 0; pos < nStackSlots; pos++)
@@ -1030,7 +1025,7 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
             (TransitionBlock::GetOffsetOfArgumentRegisters() + ARGUMENTREGISTERS_SIZE - (pos + 1) * sizeof(TADDR)) :
             (TransitionBlock::GetOffsetOfArgs() + (pos - NUM_ARGUMENT_REGISTERS) * sizeof(TADDR));
 #else
-        ofs = TransitionBlock::GetOffsetOfArgumentRegisters() + pos * TARGET_POINTER_SIZE;
+        ofs = TransitionBlock::GetOffsetOfFirstGCRefMapSlot() + pos * TARGET_POINTER_SIZE;
 #endif
 
         CORCOMPILE_GCREFMAP_TOKENS token = *(CORCOMPILE_GCREFMAP_TOKENS *)(pFrame + ofs);
@@ -1073,7 +1068,7 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
             (TransitionBlock::GetOffsetOfArgumentRegisters() + ARGUMENTREGISTERS_SIZE - (pos + 1) * sizeof(TADDR)) :
             (TransitionBlock::GetOffsetOfArgs() + (pos - NUM_ARGUMENT_REGISTERS) * sizeof(TADDR));
 #else
-        ofs = TransitionBlock::GetOffsetOfArgumentRegisters() + pos * TARGET_POINTER_SIZE;
+        ofs = TransitionBlock::GetOffsetOfFirstGCRefMapSlot() + pos * TARGET_POINTER_SIZE;
 #endif
 
         if (token != 0)
@@ -7221,7 +7216,6 @@ void ReportMissingDependency(Exception * e)
 PEAssembly *CompilationDomain::BindAssemblySpec(
     AssemblySpec *pSpec,
     BOOL fThrowOnFileNotFound,
-    StackCrawlMark *pCallerStackMark,
     BOOL fUseHostBinderIfAvailable)
 {
     PEAssembly *pFile = NULL;
@@ -7238,7 +7232,6 @@ PEAssembly *CompilationDomain::BindAssemblySpec(
         pFile = AppDomain::BindAssemblySpec(
             pSpec,
             fThrowOnFileNotFound,
-            pCallerStackMark,
             fUseHostBinderIfAvailable);
     }
     EX_HOOK

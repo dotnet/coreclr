@@ -184,6 +184,7 @@ template<class T> void DeleteDbiMemory(T *p)
 //    Must call Destroy to on interface to free its resources.
 //
 //---------------------------------------------------------------------------------------
+DLLEXPORT 
 STDAPI
 DacDbiInterfaceInstance(
     ICorDebugDataTarget * pTarget,
@@ -1310,7 +1311,6 @@ void DacDbiInterfaceImpl::GetMethodRegionInfo(MethodDesc *             pMethodDe
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pCodeInfo));
     }
@@ -5758,7 +5758,6 @@ HRESULT DacDbiInterfaceImpl::FastSanityCheckObject(PTR_Object objPtr)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }

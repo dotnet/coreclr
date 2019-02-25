@@ -54,6 +54,8 @@ You can combine steps 4-8 and pass everything on the lldb command line:
 
 For .NET Core version 1.x and 2.0.x, libsosplugin.so is built for and will only work with version 3.6 of lldb. For .NET Core 2.1, the plugin is built for 3.9 lldb and will work with 3.8 and 3.9 lldb.
 
+**Note:** _corerun_ is a simple host that does not support resolving NuGet dependencies. It relies on libraries being locatable via the `CORE_LIBRARIES` environment variable or present in the same directory as the corerun executable. The instructions above are equally applicable to the _dotnet_ host, however - e.g. for step 4 `lldb-3.9 dotnet bin/Debug/netcoreapp2.1/MvcApplication.dll` will let you debug _MvcApplication_ in the same manner.
+
 ### SOS commands ###
 
 This is the full list of commands currently supported by SOS. lldb is case-sensitive, unlike windbg.
@@ -191,3 +193,19 @@ Using Visual Studio Code
   - set `args` to the command line arguments to pass to the test
     - something like: `[ "xunit.console.netcore.exe", "<test>.dll", "-notrait", .... ]`
 - Set a breakpoint and launch the debugger, inspecting variables and call stacks will now work
+
+Using Visual Studio
+===================
+
+- Install [Visual Studio](https://visualstudio.microsoft.com/vs/)
+- Use File->Open Project (not open file) and select the binary you want to use as your host (typically dotnet.exe or corerun.exe)
+- Open the project properties for the new project that was just created and set:
+  - Arguments: Make this match whatever arguments you would have used at the command-line. For example if you would have run "dotnet.exe exec Foo.dll", then set arguments = "exec Foo.dll"
+      (Note: you probably want 'dotnet exec' rather than 'dotnet run' because the run verb is implemented to launch the app in a child-process and the debugger won't be attached to that child process)
+  - Working Directory: Make this match whatever you would have used on the command-line
+  - Debugger Type: Set this to either 'Managed (CoreCLR)' or 'Native Only' depending on whether you want to debug the C+ or native code respectively.
+  - Environment: Add any environment variables you would have added at the command-line. You may also consider adding COMPLUS_ZapDisable=1 and COMPLUS_ReadyToRun=0 which disable NGEN and R2R pre-compilation respectively and allow the JIT to create debuggable code. This will give you a higher quality C# debugging experience inside the runtime framework assemblies, at the cost of somewhat lower app performance.
+- For managed debugging, there are some settings in Debug->Options, Debugging->General that might be useful:
+  - Uncheck 'Just My Code'. This will allow you debug into the framework libraries.
+  - Check 'Enable .NET Framework Source Stepping.' This will configure the debugger to download symbols and source automatically for runtime framework binaries. If you built the framework yourself this may be irrelevant because you already have all the source on your machine but it doesn't hurt.
+  - Check 'Suppress JIT optimzation on module load'. This tells the debugger to tell the .NET runtime JIT to generate debuggable code even for modules that may not have been compiled in a 'Debug' configuration by the C# compiler. This code is slower, but it provides much higher fidelity breakpoints, stepping, and local variable access. It is the same difference you see when debugging .Net apps in the 'Debug' project configuration vs. the 'Release' project configuration. 

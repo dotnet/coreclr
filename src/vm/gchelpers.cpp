@@ -233,9 +233,6 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
     Object *retVal = NULL;
     CheckObjectSize(size);
 
-    // We don't want to throw an SO during the GC, so make sure we have plenty
-    // of stack before calling in.
-    INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
     if (GCHeapUtilities::UseThreadAllocationContexts())
     {
         gc_alloc_context *threadContext = GetThreadAllocContext();
@@ -256,7 +253,6 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
         ThrowOutOfMemory();
     }
 
-    END_INTERIOR_STACK_PROBE;
     return retVal;
 }
 
@@ -278,9 +274,6 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
     Object *retVal = NULL;
     CheckObjectSize(size);
 
-    // We don't want to throw an SO during the GC, so make sure we have plenty
-    // of stack before calling in.
-    INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
     if (GCHeapUtilities::UseThreadAllocationContexts())
     {
         gc_alloc_context *threadContext = GetThreadAllocContext();
@@ -300,7 +293,6 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
         ThrowOutOfMemory();
     }
 
-    END_INTERIOR_STACK_PROBE;
     return retVal;
 }
 #endif // FEATURE_64BIT_ALIGNMENT
@@ -336,9 +328,6 @@ inline Object* AllocLHeap(size_t size, BOOL bFinalize, BOOL bContainsPointers )
     Object *retVal = NULL;
     CheckObjectSize(size);
 
-    // We don't want to throw an SO during the GC, so make sure we have plenty
-    // of stack before calling in.
-    INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
     retVal = GCHeapUtilities::GetGCHeap()->AllocLHeap(size, flags);
 
     if (!retVal)
@@ -346,7 +335,6 @@ inline Object* AllocLHeap(size_t size, BOOL bFinalize, BOOL bContainsPointers )
         ThrowOutOfMemory();
     }
 
-    END_INTERIOR_STACK_PROBE;
     return retVal;
 }
 
@@ -615,7 +603,7 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
     orArray->m_NumComponents = cElements;
 
     if (bAllocateInLargeHeap || 
-        (totalSize >= LARGE_OBJECT_SIZE))
+        (totalSize >= g_pConfig->GetGCLOHThreshold()))
     {
         GCHeapUtilities::GetGCHeap()->PublishObject((BYTE*)orArray);
     }
@@ -682,11 +670,6 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
                 }
                 else
                 {
-                    // Since we're about to *really* recurse, probe for stack.
-                    // @todo: is the default amount really correct? 
-                    _ASSERTE(GetThread());
-                    INTERIOR_STACK_PROBE(GetThread());
-
                     TypeHandle subArrayType = pArrayMT->GetApproxArrayElementTypeHandle();
                     for (UINT32 i = 0; i < cElements; i++)
                     {
@@ -695,8 +678,6 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
                     }
 
                     iholder.Release();
-
-                    END_INTERIOR_STACK_PROBE
 
                     orArray = (ArrayBase *) OBJECTREFToObject(outerArray);
                 }
@@ -790,7 +771,8 @@ OBJECTREF   FastAllocatePrimitiveArray(MethodTable* pMT, DWORD cElements, BOOL b
     else 
     {
         ArrayTypeDesc *pArrayR8TypeDesc = g_pPredefinedArrayTypes[ELEMENT_TYPE_R8];
-        if (DATA_ALIGNMENT < sizeof(double) && pArrayR8TypeDesc != NULL && pMT == pArrayR8TypeDesc->GetMethodTable() && totalSize < LARGE_OBJECT_SIZE - MIN_OBJECT_SIZE) 
+        if (DATA_ALIGNMENT < sizeof(double) && pArrayR8TypeDesc != NULL && pMT == pArrayR8TypeDesc->GetMethodTable() && 
+            (totalSize < g_pConfig->GetGCLOHThreshold() - MIN_OBJECT_SIZE))
         {
             // Creation of an array of doubles, not in the large object heap.
             // We want to align the doubles to 8 byte boundaries, but the GC gives us pointers aligned
@@ -825,7 +807,7 @@ OBJECTREF   FastAllocatePrimitiveArray(MethodTable* pMT, DWORD cElements, BOOL b
         else
         {
             orObject = (ArrayBase*) Alloc(totalSize, FALSE, FALSE);
-            bPublish = (totalSize >= LARGE_OBJECT_SIZE);
+            bPublish = (totalSize >= g_pConfig->GetGCLOHThreshold());
         }
     }
 
@@ -912,13 +894,6 @@ OBJECTREF AllocatePrimitiveArray(CorElementType type, DWORD cElements)
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
     } CONTRACTL_END;
 
-#ifdef _DEBUG
-    // fastPrimitiveArrayAllocator is called by VM and managed code.  If called from managed code, we
-    // make sure that the thread is in SOTolerantState.
-#ifdef FEATURE_STACK_PROBE
-    Thread::DisableSOCheckInHCALL disableSOCheckInHCALL;
-#endif  // FEATURE_STACK_PROBE
-#endif  // _DEBUG
     return OBJECTREF( HCCALL2(fastPrimitiveArrayAllocator, type, cElements) );
 }
 
@@ -940,13 +915,6 @@ OBJECTREF AllocateObjectArray(DWORD cElements, TypeHandle ElementType)
     // typehandle for every object in the heap.
     TypeHandle ArrayType = ClassLoader::LoadArrayTypeThrowing(ElementType);
 
-#ifdef _DEBUG
-    // fastObjectArrayAllocator is called by VM and managed code.  If called from managed code, we
-    // make sure that the thread is in SOTolerantState.
-#ifdef FEATURE_STACK_PROBE
-    Thread::DisableSOCheckInHCALL disableSOCheckInHCALL;
-#endif  // FEATURE_STACK_PROBE
-#endif  // _DEBUG
     return OBJECTREF( HCCALL2(fastObjectArrayAllocator, ArrayType.AsArray()->GetTemplateMethodTable(), cElements));
 }
 
@@ -958,13 +926,6 @@ STRINGREF AllocateString( DWORD cchStringLength )
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
     } CONTRACTL_END;
 
-#ifdef _DEBUG
-    // fastStringAllocator is called by VM and managed code.  If called from managed code, we
-    // make sure that the thread is in SOTolerantState.
-#ifdef FEATURE_STACK_PROBE
-    Thread::DisableSOCheckInHCALL disableSOCheckInHCALL;
-#endif  // FEATURE_STACK_PROBE
-#endif  // _DEBUG
     return STRINGREF(HCCALL1(fastStringAllocator, cchStringLength));
 }
 
@@ -1038,7 +999,7 @@ STRINGREF SlowAllocateString( DWORD cchStringLength )
     orObject->SetMethodTable( g_pStringClass );
     orObject->SetStringLength( cchStringLength );
 
-    if (ObjectSize >= LARGE_OBJECT_SIZE)
+    if (ObjectSize >= g_pConfig->GetGCLOHThreshold())
     {
         GCHeapUtilities::GetGCHeap()->PublishObject((BYTE*)orObject);
     }
@@ -1169,8 +1130,7 @@ OBJECTREF AllocateObject(MethodTable *pMT
         // verify zero'd memory (at least for sync block)
         _ASSERTE( orObject->HasEmptySyncBlockInfo() );
 
-
-        if ((baseSize >= LARGE_OBJECT_SIZE))
+        if ((baseSize >= g_pConfig->GetGCLOHThreshold()))
         {
             orObject->SetMethodTableForLargeObject(pMT);
             GCHeapUtilities::GetGCHeap()->PublishObject((BYTE*)orObject);
@@ -1479,7 +1439,6 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     // if the dst is outside of the heap (unboxed value classes) then we
     //      simply exit
@@ -1520,7 +1479,6 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     *dst = ref;
 
