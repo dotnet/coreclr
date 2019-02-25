@@ -201,7 +201,7 @@ namespace System
             where T : IEquatable<T>
         {
             // Initially, start==len==0. If ClampStart trims all, start==len
-            Debug.Assert((uint)start < span.Length);
+            Debug.Assert((uint)start <= span.Length);
 
             int end = span.Length - 1;
 
@@ -476,7 +476,7 @@ namespace System
             where T : IEquatable<T>
         {
             // Initially, start==len==0. If ClampStart trims all, start==len
-            Debug.Assert((uint)start < span.Length);
+            Debug.Assert((uint)start <= span.Length);
 
             int end = span.Length - 1;
 
