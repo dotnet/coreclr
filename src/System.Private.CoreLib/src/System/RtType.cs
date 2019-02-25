@@ -3443,9 +3443,6 @@ namespace System
 
         public override bool IsEnumDefined(object value)
         {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
@@ -3454,9 +3451,6 @@ namespace System
 
         public override string GetEnumName(object value)
         {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 

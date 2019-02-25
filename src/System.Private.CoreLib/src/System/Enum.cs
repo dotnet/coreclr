@@ -22,7 +22,7 @@ namespace System
         #region Private Static Methods
         internal static ulong ToUInt64(object value) => ToUInt64(value, throwInvalidOperationException: true);
 
-        internal static ulong ToUInt64(object value, bool throwInvalidOperationException)
+        private static ulong ToUInt64(object value, bool throwInvalidOperationException)
         {
             Debug.Assert(value != null);
 
@@ -55,9 +55,11 @@ namespace System
                 case TypeCode.UInt64:
                     return (ulong)value;
                 case TypeCode.Single:
-                    return (ulong)BitConverter.SingleToInt32Bits((float)value);
+                    float singleValue = (float)value;
+                    return Unsafe.As<float, uint>(ref singleValue);
                 case TypeCode.Double:
-                    return (ulong)BitConverter.DoubleToInt64Bits((double)value);
+                    double doubleValue = (double)value;
+                    return Unsafe.As<double, ulong>(ref doubleValue);
                 // All unsigned types will be directly cast
                 default:
                     Type type = value.GetType();
@@ -91,6 +93,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
+
             EnumBridge.Get(enumType).TryParse(value, ignoreCase, throwOnFailure: true, out object result);
             return result;
         }
@@ -185,10 +188,6 @@ namespace System
 
         public static string Format(Type enumType, object value, string format)
         {
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
             if (format == null)
             {
                 throw new ArgumentNullException(nameof(format));
@@ -300,7 +299,7 @@ namespace System
                 }
 
                 FieldInfo[] fields = enumType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                if (fields?.Length != 1)
+                if (fields.Length != 1)
                 {
                     return null;
                 }
@@ -597,7 +596,11 @@ namespace System
 
             public string GetName(object value)
             {
-                Debug.Assert(value.GetType() != _enumType);
+                Debug.Assert(value?.GetType() != _enumType);
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
 
                 ulong uint64Value = ToUInt64(value, throwInvalidOperationException: false);
                 TUnderlyingOperations operations = default;
@@ -616,7 +619,7 @@ namespace System
 
             public bool IsDefined(object value)
             {
-                Debug.Assert(value.GetType() != _enumType);
+                Debug.Assert(value?.GetType() != _enumType);
 
                 switch (value)
                 {
@@ -625,6 +628,8 @@ namespace System
                     case string str:
                         string[] names = _names;
                         return Array.IndexOf(names, str, 0, names.Length) >= 0;
+                    case null:
+                        throw new ArgumentNullException(nameof(value));
                     default:
                         Type valueType = value.GetType();
 
@@ -684,11 +689,15 @@ namespace System
 
             public string Format(object value, string format)
             {
-                Debug.Assert(value.GetType() != _enumType);
+                Debug.Assert(value?.GetType() != _enumType);
 
                 if (value is TUnderlying underlyingValue)
                 {
                     return Format(underlyingValue, format);
+                }
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value));
                 }
                 throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, value.GetType(), _enumType));
             }
@@ -1655,9 +1664,9 @@ namespace System
 #endif
                 case CorElementType.ELEMENT_TYPE_U:
 #if BIT64
-                    return ((ulong)Unsafe.As<byte, IntPtr>(ref data)).ToString("X16", null);
+                    return ((ulong)Unsafe.As<byte, UIntPtr>(ref data)).ToString("X16", null);
 #else
-                    return ((uint)Unsafe.As<byte, IntPtr>(ref data)).ToString("X8", null);
+                    return ((uint)Unsafe.As<byte, UIntPtr>(ref data)).ToString("X8", null);
 #endif
                 default:
                     Debug.Fail("Invalid primitive type");
@@ -1746,6 +1755,12 @@ namespace System
             const int retIncompatibleMethodTables = 2;  // indicates that the method tables did not match
             const int retInvalidEnumType = 3; // indicates that the enum was of an unknown/unsupported underlying type
 
+            // Unlike C#, IL does not prevent you from calling a method with null this pointer.
+            // Accessing the null this pointer in managed code produces NullReferenceException that the caller
+            // can handle like any other exception.
+            // Accessing null this pointer in the unmanaged runtime causes immediate fatal crash that does not produce
+            // NullReferenceException. This explicit check for null before calling unmanaged runtime call is there to
+            // still throw NullReferenceException instead of the fatal crash.
             if (this == null)
             {
                 throw new NullReferenceException();
@@ -1758,20 +1773,14 @@ namespace System
                 // -1, 0 and 1 are the normal return codes
                 return ret;
             }
-            else if (ret == retIncompatibleMethodTables)
+            if (ret == retIncompatibleMethodTables)
             {
-                Type thisType = GetType();
-                Type targetType = target.GetType();
-
-                throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, targetType.ToString(), thisType.ToString()));
+                throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, target.GetType(), GetType()));
             }
-            else
-            {
-                // assert valid return code (3)
-                Debug.Assert(ret == retInvalidEnumType, "Enum.InternalCompareTo return code was invalid");
+            // assert valid return code (3)
+            Debug.Assert(ret == retInvalidEnumType, "Enum.InternalCompareTo return code was invalid");
 
-                throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
-            }
+            throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
         }
         #endregion
 
