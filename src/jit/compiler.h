@@ -352,7 +352,8 @@ typedef LiveRangeList::iterator         LiveRangeListIterator;
 struct LiveRangeBarrier
 {
     LiveRangeListIterator beginLastBlock;
-    bool                  haveReadAtLeastOneOfBlock;
+    bool                  haveReadAtLeastOneOfBlock; // True if a live range for this variable has been 
+                                                     // reported from last call to EndBlock
 
     LiveRangeBarrier(LiveRangeList* list)
     {
@@ -370,6 +371,10 @@ struct LiveRangeBarrier
             // If it is not, then "compiler->compCurLife" will have a difference with "block->bbliveIn"
             // and it will be indicated as dead.
             beginLastBlock = list->backPosition();
+        }
+        else
+        {
+            haveReadAtLeastOneOfBlock = false;
         }
     }
 };
@@ -396,8 +401,7 @@ public:
         lvPerSsaData()
     {
     }
-
-    bool           hasReportVariableLiveRanges;
+    
     LiveRangeList* variableLiveRanges;
 
 #if DEBUG
@@ -409,6 +413,19 @@ public:
     {
         variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
         variableLifeBarrier->beginLastBlock            = variableLiveRanges->backPosition();
+    }
+
+    // Modified the barrier to print on next block only just that changes
+    void endBlockLiveRanges()
+    {
+        // barrier now points to nullptr
+        variableLifeBarrier->reset(variableLiveRanges);
+    }
+
+    // Returns true if a live range for this variable has been recorded from last call to EndBlock
+    bool hasBeenAlive() const
+    {
+        return variableLifeBarrier->haveReadAtLeastOneOfBlock;
     }
 
     void dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const
@@ -450,20 +467,20 @@ public:
     // Initialize an empty list and a barrier pointing to its end
     void initializeRegisterLiveRanges(CompAllocator allocator)
     {
-        hasReportVariableLiveRanges = false;
-
         variableLiveRanges = allocator.allocate<LiveRangeList>(1);
-        new (variableLiveRanges, jitstd::placement_t()) LiveRangeList(allocator);
-
+        
         size_t variableLiveRangesSize = sizeof(*variableLiveRanges);
         memset(variableLiveRanges, 0, variableLiveRangesSize);
+        
+        new (variableLiveRanges, jitstd::placement_t()) LiveRangeList(allocator);
 
 #if DEBUG
         variableLifeBarrier = allocator.allocate<LiveRangeBarrier>(1);
-        new (variableLifeBarrier, jitstd::placement_t()) LiveRangeBarrier(variableLiveRanges);
 
         size_t variableLifeBarrierSize = sizeof(*variableLifeBarrier);
         memset(variableLifeBarrier, 0, variableLifeBarrierSize);
+
+        new (variableLifeBarrier, jitstd::placement_t()) LiveRangeBarrier(variableLiveRanges);
 #endif
     }
 
@@ -477,21 +494,7 @@ public:
         return result;
     }
 
-    // Modified the barrier to print on next block only just that changes
-    void endBlockLiveRanges()
-    {
-        hasReportVariableLiveRanges = false;
-#if DEBUG
-        // barrier now points to nullptr
-        variableLifeBarrier->reset(variableLiveRanges);
-#endif
-    }
-
-    // Returns true if a live range for this variable has been recorded from last call to EndBlock
-    bool hasBeenAlive() const
-    {
-        return hasReportVariableLiveRanges;
-    }
+    
 
     LiveRangeListIterator getLiveRangesIterator() const
     {
@@ -505,11 +508,15 @@ public:
 
     void endLiveRangeAtEmitter(emitter* _emitter) const
     {
-        // There should some history for this var in this block
+#if DEBUG
+        // There should be VariableLiveRanges reported during this basic block
         noway_assert(hasBeenAlive());
+#endif
+        // We are closing a "VariableLiveRange" so it has been started before during this basic block
+        noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
 
-        // The last "LiveRange" hasn't been closed
-        noway_assert(variableLiveRanges->empty() || !variableLiveRanges->back().endEmitLocation.Valid());
+        // And its last endEmitLocation has to be invalid (its the one we are reporting now)
+        noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
 
         // Using [close, open) ranges so as to not compute the size of the last instruction
         variableLiveRanges->back().endEmitLocation.CaptureLocation(_emitter);
@@ -520,7 +527,7 @@ public:
      */
     void startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
     {
-        // Is the first "LiveRange" or the previous one has been closed
+        // Is the first "VariableLiveRange" or the previous one has been closed so its "endEmitLocation" is valid
         noway_assert(variableLiveRanges->empty() || variableLiveRanges->back().endEmitLocation.Valid());
 
         // Creates new live range with invalid end
@@ -535,8 +542,15 @@ public:
 
     void UpdateRegisterHome(CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
     {
-        // This variable is changing home so it has been started before during this block
+#if DEBUG
+        // There should be VariableLiveRanges reported during this basic block
         noway_assert(hasBeenAlive());
+#endif
+        // This variable is changing home so it has been started before during this block
+        noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
+        
+        // And its last endEmitLocation has to be invalid 
+        noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
 
         // If we are reporting again the same home, that means we are doing something twice?
         // noway_assert(variableLiveRanges->back().varLocation != varLocation);
