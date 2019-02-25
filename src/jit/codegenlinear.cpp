@@ -721,7 +721,10 @@ void CodeGen::genCodeForBBlist()
         }
 
 #ifdef DEBUG
-        compiler->dumpBlockVariableLiveRanges(block);
+        if (compiler->verbose)
+        {
+            compiler->dumpBlockVariableLiveRanges(block);
+        }
 
         compiler->compCurBB = nullptr;
 #endif
