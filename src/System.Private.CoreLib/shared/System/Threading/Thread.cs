@@ -228,17 +228,6 @@ namespace System.Threading
             return TrySetApartmentStateUnchecked(state);
         }
 
-        // TODO: Replace with WaitHandle.ToTimeoutMilliseconds
-        private static int ToTimeoutMilliseconds(TimeSpan timeout)
-        {
-            var timeoutMilliseconds = (long)timeout.TotalMilliseconds;
-            if (timeoutMilliseconds < -1 || timeoutMilliseconds > int.MaxValue)
-            {
-                throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
-            }
-            return (int)timeoutMilliseconds;
-        }
-
         [Obsolete("Thread.GetCompressedStack is no longer supported. Please use the System.Threading.CompressedStack class")]
         public CompressedStack GetCompressedStack()
         {
@@ -255,9 +244,9 @@ namespace System.Threading
         public static int GetDomainID() => 1;
         public override int GetHashCode() => ManagedThreadId;
         public void Join() => Join(-1);
-        public bool Join(TimeSpan timeout) => Join(ToTimeoutMilliseconds(timeout));
+        public bool Join(TimeSpan timeout) => Join(WaitHandle.ToTimeoutMilliseconds(timeout));
         public static void MemoryBarrier() => Interlocked.MemoryBarrier();
-        public static void Sleep(TimeSpan timeout) => Sleep(ToTimeoutMilliseconds(timeout));
+        public static void Sleep(TimeSpan timeout) => Sleep(WaitHandle.ToTimeoutMilliseconds(timeout));
 
         public static byte VolatileRead(ref byte address) => Volatile.Read(ref address);
         public static double VolatileRead(ref double address) => Volatile.Read(ref address);
