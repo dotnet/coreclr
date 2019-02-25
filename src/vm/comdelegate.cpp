@@ -3206,7 +3206,7 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
         // under the conditions below the delegate ctor needs to perform some heavy operation
         // to get the unboxing stub
         BOOL needsRuntimeInfo = !pTargetMethod->IsStatic() && 
-                    (pTargetMethod->GetMethodTable()->IsValueType() && !pTargetMethod->IsUnboxingStub()));
+                    pTargetMethod->GetMethodTable()->IsValueType() && !pTargetMethod->IsUnboxingStub();
 
         if (needsRuntimeInfo)
             pRealCtor = MscorlibBinder::GetMethod(METHOD__MULTICAST_DELEGATE__CTOR_RT_CLOSED);
