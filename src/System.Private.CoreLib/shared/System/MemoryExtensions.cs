@@ -166,7 +166,7 @@ namespace System
         /// </summary>
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimElement">The specified element to look for and remove.</param>
-        private static int ClampStart<T>(in ReadOnlySpan<T> span, in T trimElement)
+        private static int ClampStart<T>(ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
         {
             int start = 0;
@@ -197,7 +197,7 @@ namespace System
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="start">The start index from which to being searching.</param>
         /// <param name="trimElement">The specified element to look for and remove.</param>
-        private static int ClampEnd<T>(in ReadOnlySpan<T> span, int start, in T trimElement)
+        private static int ClampEnd<T>(ReadOnlySpan<T> span, int start, T trimElement)
             where T : IEquatable<T>
         {
             // Initially, start==len==0. If ClampStart trims all, start==len
@@ -452,7 +452,7 @@ namespace System
         /// </summary>
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
-        private static int ClampStart<T>(in ReadOnlySpan<T> span, in ReadOnlySpan<T> trimElements)
+        private static int ClampStart<T>(ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
             int start = 0;
@@ -472,7 +472,7 @@ namespace System
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="start">The start index from which to being searching.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
-        private static int ClampEnd<T>(in ReadOnlySpan<T> span, int start, in ReadOnlySpan<T> trimElements)
+        private static int ClampEnd<T>(ReadOnlySpan<T> span, int start, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
             // Initially, start==len==0. If ClampStart trims all, start==len
@@ -496,7 +496,7 @@ namespace System
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <param name="item">The item to try find.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool SequentialContains<T>(in ReadOnlySpan<T> trimElements, in T item)
+        private static bool SequentialContains<T>(ReadOnlySpan<T> trimElements, T item)
             where T : IEquatable<T>
         {
             // Non-vectorized scan optimized for small N
