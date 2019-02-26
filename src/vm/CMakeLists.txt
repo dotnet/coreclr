@@ -319,6 +319,7 @@ set(VM_SOURCES_WKS
     eventpipeeventsource.cpp
     eventpipeblock.cpp
     eventpipefile.cpp
+    eventpipeinternal.cpp
     eventpipejsonfile.cpp
     eventpipemetadatagenerator.cpp
     eventpipeprovider.cpp
@@ -439,6 +440,7 @@ set(VM_HEADERS_WKS
     eventpipeeventinstance.h
     eventpipeeventsource.h
     eventpipefile.h
+    eventpipeinternal.h
     eventpipejsonfile.h
     eventpipemetadatagenerator.h
     eventpipeprovider.h
