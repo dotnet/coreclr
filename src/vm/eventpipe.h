@@ -36,13 +36,13 @@ struct EventFilterDescriptor
     ULONGLONG Ptr;
 
     // The size of the filter data, in bytes. The maximum size is 1024 bytes.
-    ULONG     Size;
+    ULONG Size;
 
     // The type of filter data. The type is application-defined. An event
     // controller that knows about the provider and knows details about the
     // provider's events can use the Type field to send the provider an
     // arbitrary set of data for use as enhancements to the filtering of events.
-    ULONG     Type;
+    ULONG Type;
 };
 
 // Define the event pipe callback to match the ETW callback signature.
@@ -57,7 +57,6 @@ typedef void (*EventPipeCallback)(
 
 struct EventData
 {
-public:
     UINT64 Ptr;
     unsigned int Size;
     unsigned int Reserved;
@@ -92,7 +91,7 @@ public:
     // Get the flat formatted data in this payload
     // This method will allocate a buffer if it does not already contain flattened data
     // This method will return NULL on OOM if a buffer needed to be allocated
-    BYTE* GetFlatData();
+    BYTE *GetFlatData();
 
     // Return true is the data is stored in a flat buffer
     bool IsFlattened() const
@@ -110,7 +109,7 @@ public:
         return m_size;
     }
 
-    EventData* GetEventDataArray() const
+    EventData *GetEventDataArray() const
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -121,7 +120,6 @@ public:
 class StackContents
 {
 private:
-
     const static unsigned int MAX_STACK_DEPTH = 100;
 
     // Array of IP values from a stack crawl.
@@ -131,14 +129,13 @@ private:
 #ifdef _DEBUG
     // Parallel array of MethodDesc pointers.
     // Used for debug-only stack printing.
-    MethodDesc* m_methods[MAX_STACK_DEPTH];
+    MethodDesc *m_methods[MAX_STACK_DEPTH];
 #endif // _DEBUG
 
     // The next available slot in StackFrames.
     unsigned int m_nextAvailableFrame;
 
 public:
-
     StackContents()
     {
         LIMITED_METHOD_CONTRACT;
@@ -153,7 +150,7 @@ public:
 
         memcpy_s(pDest->m_stackFrames, MAX_STACK_DEPTH * sizeof(UINT_PTR), m_stackFrames, sizeof(UINT_PTR) * m_nextAvailableFrame);
 #ifdef _DEBUG
-        memcpy_s(pDest->m_methods, MAX_STACK_DEPTH * sizeof(MethodDesc*), m_methods, sizeof(MethodDesc*) * m_nextAvailableFrame);
+        memcpy_s(pDest->m_methods, MAX_STACK_DEPTH * sizeof(MethodDesc *), m_methods, sizeof(MethodDesc *) * m_nextAvailableFrame);
 #endif
         pDest->m_nextAvailableFrame = m_nextAvailableFrame;
     }
@@ -193,7 +190,7 @@ public:
     }
 
 #ifdef _DEBUG
-    MethodDesc* GetMethod(unsigned int frameIndex)
+    MethodDesc *GetMethod(unsigned int frameIndex)
     {
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(frameIndex < MAX_STACK_DEPTH);
@@ -211,7 +208,7 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-        if(m_nextAvailableFrame < MAX_STACK_DEPTH)
+        if (m_nextAvailableFrame < MAX_STACK_DEPTH)
         {
             m_stackFrames[m_nextAvailableFrame] = controlPC;
 #ifdef _DEBUG
@@ -221,11 +218,11 @@ public:
         }
     }
 
-    BYTE* GetPointer() const
+    BYTE *GetPointer() const
     {
         LIMITED_METHOD_CONTRACT;
 
-        return (BYTE*)m_stackFrames;
+        return (BYTE *)m_stackFrames;
     }
 
     unsigned int GetSize() const
@@ -247,117 +244,115 @@ class EventPipe
     friend class EventPipeBufferManager;
     friend class SampleProfiler;
 
-    public:
+public:
+    // Initialize the event pipe.
+    static void Initialize();
 
-        // Initialize the event pipe.
-        static void Initialize();
+    // Shutdown the event pipe.
+    static void Shutdown();
 
-        // Shutdown the event pipe.
-        static void Shutdown();
+    // Enable tracing via the event pipe.
+    static EventPipeSessionID Enable(
+        LPCWSTR strOutputPath,
+        unsigned int circularBufferSizeInMB,
+        EventPipeProviderConfiguration *pProviders,
+        int numProviders,
+        UINT64 multiFileTraceLengthInSeconds);
 
-        // Enable tracing via the event pipe.
-        static EventPipeSessionID Enable(
-            LPCWSTR strOutputPath,
-            unsigned int circularBufferSizeInMB,
-            EventPipeProviderConfiguration *pProviders,
-            int numProviders,
-            UINT64 multiFileTraceLengthInSeconds);
+    // Disable tracing via the event pipe.
+    static void Disable(EventPipeSessionID id);
 
-        // Disable tracing via the event pipe.
-        static void Disable(EventPipeSessionID id);
+    // Get the session for the specified session ID.
+    static EventPipeSession *GetSession(EventPipeSessionID id);
 
-        // Get the session for the specified session ID.
-        static EventPipeSession* GetSession(EventPipeSessionID id);
+    // Specifies whether or not the event pipe is enabled.
+    static bool Enabled();
 
-        // Specifies whether or not the event pipe is enabled.
-        static bool Enabled();
+    // Create a provider.
+    static EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
 
-        // Create a provider.
-        static EventPipeProvider* CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
+    // Get a provider.
+    static EventPipeProvider *GetProvider(const SString &providerName);
 
-        // Get a provider.
-        static EventPipeProvider* GetProvider(const SString &providerName);
+    // Delete a provider.
+    static void DeleteProvider(EventPipeProvider *pProvider);
 
-        // Delete a provider.
-        static void DeleteProvider(EventPipeProvider *pProvider);
+    // Write out an event from a flat buffer.
+    // Data is written as a serialized blob matching the ETW serialization conventions.
+    static void WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
-        // Write out an event from a flat buffer.
-        // Data is written as a serialized blob matching the ETW serialization conventions.
-        static void WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int length, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
+    // Write out an event from an EventData array.
+    // Data is written as a serialized blob matching the ETW serialization conventions.
+    static void WriteEvent(EventPipeEvent &event, EventData *pEventData, unsigned int eventDataCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
-        // Write out an event from an EventData array.
-        // Data is written as a serialized blob matching the ETW serialization conventions.
-        static void WriteEvent(EventPipeEvent &event, EventData *pEventData, unsigned int eventDataCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
+    // Write out a sample profile event.
+    static void WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData = NULL, unsigned int length = 0);
 
-        // Write out a sample profile event.
-        static void WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData = NULL, unsigned int length = 0);
+    // Get the managed call stack for the current thread.
+    static bool WalkManagedStackForCurrentThread(StackContents &stackContents);
 
-        // Get the managed call stack for the current thread.
-        static bool WalkManagedStackForCurrentThread(StackContents &stackContents);
+    // Get the managed call stack for the specified thread.
+    static bool WalkManagedStackForThread(Thread *pThread, StackContents &stackContents);
 
-        // Get the managed call stack for the specified thread.
-        static bool WalkManagedStackForThread(Thread *pThread, StackContents &stackContents);
+    // Save the command line for the current process.
+    static void SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv);
 
-        // Save the command line for the current process.
-        static void SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv);
-
-        // Get next event.
+    // Get next event.
         static EventPipeEventInstance* GetNextEvent();
 
     protected:
 
-        // The counterpart to WriteEvent which after the payload is constructed
-        static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
+    // The counterpart to WriteEvent which after the payload is constructed
+    static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
     private:
 
-        // Enable the specified EventPipe session.
-        static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
+    // Enable the specified EventPipe session.
+    static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
 
-        static void CreateFileSwitchTimer();
+    static void CreateFileSwitchTimer();
 
-        static void DeleteFileSwitchTimer();
+    static void DeleteFileSwitchTimer();
 
-        // Performs one polling operation to determine if it is necessary to switch to a new file.
-        // If the polling operation decides it is time, it will perform the switch.
-        // Called directly from the timer when the timer is triggered.
-        static void WINAPI SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired);
+    // Performs one polling operation to determine if it is necessary to switch to a new file.
+    // If the polling operation decides it is time, it will perform the switch.
+    // Called directly from the timer when the timer is triggered.
+    static void WINAPI SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired);
 
-        // If event pipe has been configured to write multiple files, switch to the next file.
-        static void SwitchToNextFile();
+    // If event pipe has been configured to write multiple files, switch to the next file.
+    static void SwitchToNextFile();
 
-        // Generate the file path for the next trace file.
-        // This is used when event pipe has been configured to create multiple trace files with a specified maximum length of time.
-        static void GetNextFilePath(EventPipeSession *pSession, SString &nextTraceFilePath);
+    // Generate the file path for the next trace file.
+    // This is used when event pipe has been configured to create multiple trace files with a specified maximum length of time.
+    static void GetNextFilePath(EventPipeSession *pSession, SString &nextTraceFilePath);
 
-        // Callback function for the stack walker.  For each frame walked, this callback is invoked.
-        static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
+    // Callback function for the stack walker.  For each frame walked, this callback is invoked.
+    static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
 
-        // Get the configuration object.
-        // This is called directly by the EventPipeProvider constructor to register the new provider.
-        static EventPipeConfiguration* GetConfiguration();
+    // Get the configuration object.
+    // This is called directly by the EventPipeProvider constructor to register the new provider.
+    static EventPipeConfiguration *GetConfiguration();
 
-        // Get the event pipe configuration lock.
-        static CrstStatic* GetLock();
+    // Get the event pipe configuration lock.
+    static CrstStatic *GetLock();
 
-        static CrstStatic s_configCrst;
-        static bool s_tracingInitialized;
-        static EventPipeConfiguration *s_pConfig;
-        static EventPipeSession *s_pSession;
-        static EventPipeBufferManager *s_pBufferManager;
-        static LPCWSTR s_pOutputPath;
-        static unsigned long s_nextFileIndex;
-        static EventPipeFile *s_pFile;
-        static EventPipeEventSource *s_pEventSource;
-        static LPCWSTR s_pCommandLine;
-        const static DWORD FileSwitchTimerPeriodMS = 1000;
-        static HANDLE s_fileSwitchTimerHandle;
-        static ULONGLONG s_lastFileSwitchTime;
+    static CrstStatic s_configCrst;
+    static bool s_tracingInitialized;
+    static EventPipeConfiguration *s_pConfig;
+    static EventPipeSession *s_pSession;
+    static EventPipeBufferManager *s_pBufferManager;
+    static LPCWSTR s_pOutputPath;
+    static unsigned long s_nextFileIndex;
+    static EventPipeFile *s_pFile;
+    static EventPipeEventSource *s_pEventSource;
+    static LPCWSTR s_pCommandLine;
+    const static DWORD FileSwitchTimerPeriodMS = 1000;
+    static HANDLE s_fileSwitchTimerHandle;
+    static ULONGLONG s_lastFileSwitchTime;
 };
 
 struct EventPipeProviderConfiguration
 {
-
 private:
 
     LPCWSTR m_pProviderName;
@@ -502,7 +497,6 @@ public:
     static bool QCALLTYPE GetNextEvent(
         EventPipeEventInstanceData *pInstance);
 };
-
 #endif // FEATURE_PERFTRACING
 
 #endif // __EVENTPIPE_H__
