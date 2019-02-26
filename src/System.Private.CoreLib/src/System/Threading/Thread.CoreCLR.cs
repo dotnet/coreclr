@@ -520,7 +520,6 @@ namespace System.Threading
 #else // !FEATURE_COMINTEROP
         public void DisableComObjectEagerCleanup()
         {
-            Debug.Assert(false); // the Thread class in CoreFX should have handled this case
         }
 #endif // FEATURE_COMINTEROP
 

@@ -101,7 +101,7 @@ namespace System.Threading
             {
                 if (this != CurrentThread)
                 {
-                    SetCultureOnUnstartedThread(value, false);
+                    SetCultureOnUnstartedThread(value, uiCulture: false);
                     return;
                 }
                 CultureInfo.CurrentCulture = value;
@@ -119,7 +119,7 @@ namespace System.Threading
             {
                 if (this != CurrentThread)
                 {
-                    SetCultureOnUnstartedThread(value, true);
+                    SetCultureOnUnstartedThread(value, uiCulture: true);
                     return;
                 }
                 CultureInfo.CurrentUICulture = value;
