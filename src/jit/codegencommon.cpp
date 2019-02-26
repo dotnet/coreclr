@@ -10608,7 +10608,7 @@ void CodeGen::genSetScopeInfo()
     LclVarDsc*   varDsc;
     unsigned int liveRangeIndex = 0;
 
-    for (varDsc = compiler->lvaTable, varNum = 0; varNum < compiler->lvaCount; varNum++, varDsc++)
+    for (varDsc = compiler->lvaTable, varNum = 0; varNum < compiler->info.compLocalsCount; varNum++, varDsc++)
     {
         LiveRangeList* liveRanges = varDsc->getLiveRanges();
 
