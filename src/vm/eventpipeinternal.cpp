@@ -26,12 +26,12 @@
 #ifdef FEATURE_PERFTRACING
 
 UINT64 QCALLTYPE EventPipeInternal::Enable(
-        __in_z LPCWSTR outputFile,
-        UINT32 circularBufferSizeInMB,
-        INT64 profilerSamplingRateInNanoseconds,
-        EventPipeProviderConfiguration *pProviders,
-        INT32 numProviders,
-        UINT64 multiFileTraceLengthInSeconds)
+    __in_z LPCWSTR outputFile,
+    UINT32 circularBufferSizeInMB,
+    INT64 profilerSamplingRateInNanoseconds,
+    EventPipeProviderConfiguration *pProviders,
+    INT32 numProviders,
+    UINT64 multiFileTraceLengthInSeconds)
 {
     QCALL_CONTRACT;
 
@@ -61,10 +61,10 @@ bool QCALLTYPE EventPipeInternal::GetSessionInfo(UINT64 sessionID, EventPipeSess
     bool retVal = false;
     BEGIN_QCALL;
 
-    if(pSessionInfo != NULL)
+    if (pSessionInfo != NULL)
     {
         EventPipeSession *pSession = EventPipe::GetSession(sessionID);
-        if(pSession != NULL)
+        if (pSession != NULL)
         {
             pSessionInfo->StartTimeAsUTCFileTime = pSession->GetStartTime();
             pSessionInfo->StartTimeStamp.QuadPart = pSession->GetStartTimeStamp().QuadPart;
@@ -135,15 +135,14 @@ INT_PTR QCALLTYPE EventPipeInternal::GetProvider(
     return reinterpret_cast<INT_PTR>(pProvider);
 }
 
-void QCALLTYPE EventPipeInternal::DeleteProvider(
-    INT_PTR provHandle)
+void QCALLTYPE EventPipeInternal::DeleteProvider(INT_PTR provHandle)
 {
     QCALL_CONTRACT;
     BEGIN_QCALL;
 
-    if(provHandle != NULL)
+    if (provHandle != NULL)
     {
-        EventPipeProvider *pProvider = reinterpret_cast<EventPipeProvider*>(provHandle);
+        EventPipeProvider *pProvider = reinterpret_cast<EventPipeProvider *>(provHandle);
         EventPipe::DeleteProvider(pProvider);
     }
 
@@ -162,7 +161,7 @@ int QCALLTYPE EventPipeInternal::EventActivityIdControl(
     BEGIN_QCALL;
 
     Thread *pThread = GetThread();
-    if(pThread == NULL || pActivityId == NULL)
+    if (pThread == NULL || pActivityId == NULL)
     {
         retVal = 1;
     }
@@ -170,41 +169,40 @@ int QCALLTYPE EventPipeInternal::EventActivityIdControl(
     {
         ActivityControlCode activityControlCode = (ActivityControlCode)controlCode;
         GUID currentActivityId;
-        switch(activityControlCode)
+        switch (activityControlCode)
         {
-            case ActivityControlCode::EVENT_ACTIVITY_CONTROL_GET_ID:
+        case ActivityControlCode::EVENT_ACTIVITY_CONTROL_GET_ID:
 
-                *pActivityId = *pThread->GetActivityId();
-                break;
+            *pActivityId = *pThread->GetActivityId();
+            break;
 
-            case ActivityControlCode::EVENT_ACTIVITY_CONTROL_SET_ID:
+        case ActivityControlCode::EVENT_ACTIVITY_CONTROL_SET_ID:
 
-                pThread->SetActivityId(pActivityId);
-                break;
+            pThread->SetActivityId(pActivityId);
+            break;
 
-            case ActivityControlCode::EVENT_ACTIVITY_CONTROL_CREATE_ID:
+        case ActivityControlCode::EVENT_ACTIVITY_CONTROL_CREATE_ID:
 
-                CoCreateGuid(pActivityId);
-                break;
+            CoCreateGuid(pActivityId);
+            break;
 
-            case ActivityControlCode::EVENT_ACTIVITY_CONTROL_GET_SET_ID:
+        case ActivityControlCode::EVENT_ACTIVITY_CONTROL_GET_SET_ID:
 
-                currentActivityId = *pThread->GetActivityId();
-                pThread->SetActivityId(pActivityId);
-                *pActivityId = currentActivityId;
+            currentActivityId = *pThread->GetActivityId();
+            pThread->SetActivityId(pActivityId);
+            *pActivityId = currentActivityId;
+            break;
 
-                break;
+        case ActivityControlCode::EVENT_ACTIVITY_CONTROL_CREATE_SET_ID:
 
-            case ActivityControlCode::EVENT_ACTIVITY_CONTROL_CREATE_SET_ID:
+            *pActivityId = *pThread->GetActivityId();
+            CoCreateGuid(&currentActivityId);
+            pThread->SetActivityId(&currentActivityId);
+            break;
 
-                *pActivityId = *pThread->GetActivityId();
-                CoCreateGuid(&currentActivityId);
-                pThread->SetActivityId(&currentActivityId);
-                break;
-
-            default:
-                retVal = 1;
-        };
+        default:
+            retVal = 1;
+        }
     }
 
     END_QCALL;
