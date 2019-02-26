@@ -7,6 +7,34 @@
 
 #ifdef FEATURE_PERFTRACING
 
+//! TODO: Temp class.
+enum class EventPipeMessageType : uint32_t
+{
+    Enable = 0,
+    Disable,
+
+    // TODO: Define what else is available on the out-of-proc interface?
+    // GetSessionInfo,
+    // CreateProvider,
+    // DefineEvent,
+    // GetProvider,
+    // DeleteProvider,
+    // EventActivityIdControl,
+    // WriteEvent,
+    // WriteEventData,
+    // GetNextEvent,
+
+    // Add new events before this line.
+    TotalNumberOfEvents,
+};
+
+//! TODO: Temp class.
+struct IpcHeader
+{
+    uint32_t pid;
+    EventPipeMessageType requestType;
+};
+
 class EventPipeInternal
 {
 private:
@@ -39,6 +67,12 @@ private:
     };
 
 public:
+    //! Initialize the event pipe (Creates the EventPipe IPC server).
+    static void Initialize();
+
+    //! Shutdown the event pipe.
+    // TODO: Shutdown the EventPipe IPC server.
+    static void Shutdown();
 
     //!
     //! Sets the sampling rate and enables the event pipe for the specified configuration.

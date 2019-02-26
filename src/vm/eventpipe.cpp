@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "clrtypes.h"
+#include "processdescriptor.h"
 #include "safemath.h"
 #include "eventpipe.h"
 #include "eventpipebuffermanager.h"
@@ -240,7 +241,7 @@ void EventPipe::Shutdown()
     delete pBufferManager;
     delete s_pEventSource;
     s_pEventSource = NULL;
-    delete(s_pOutputPath);
+    delete[] s_pOutputPath; // This is an array! Maybe it should be of SString type!
     s_pOutputPath = NULL;
 
     // On Windows, this is just a pointer to the return value from

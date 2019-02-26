@@ -14,13 +14,10 @@ class EventPipeConfiguration;
 class EventPipeEvent;
 class EventPipeEventInstance;
 class EventPipeFile;
-class EventPipeJsonFile;
-class EventPipeBuffer;
 class EventPipeBufferManager;
 class EventPipeEventSource;
 class EventPipeProvider;
 class MethodDesc;
-class SampleProfilerEventInstance;
 struct EventPipeProviderConfiguration;
 class EventPipeSession;
 
@@ -359,20 +356,34 @@ private:
 public:
     EventPipeProviderConfiguration() = default;
 
+    EventPipeProviderConfiguration(LPCWSTR pProviderName, UINT64 keywords, UINT32 loggingLevel, LPCWSTR pFilterData) :
+        m_keywords(keywords),
+        m_loggingLevel(loggingLevel)
     {
         LIMITED_METHOD_CONTRACT;
+        _ASSERTE(pProviderName != nullptr); // Do we need this here?
 
-    EventPipeProviderConfiguration(
-        LPCWSTR pProviderName,
-        UINT64 keywords,
-        UINT32 loggingLevel,
-        LPCWSTR pFilterData)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pProviderName = pProviderName;
-        m_keywords = keywords;
-        m_loggingLevel = loggingLevel;
-        m_pFilterData = pFilterData;
+        // Provider name is required.
+        auto ProviderNameLength = wcslen(pProviderName);
+        NewArrayHolder<WCHAR> hProviderName = new (nothrow) WCHAR[ProviderNameLength + 1];
+        if (hProviderName.IsNull())
+            return;
+        wcsncpy(hProviderName.GetValue(), pProviderName, ProviderNameLength);
+        hProviderName.GetValue()[ProviderNameLength] = 0;
+
+        // Filter data is optional.
+        if (pFilterData != nullptr)
+        {
+            const size_t FilterDataLength = wcslen(pFilterData);
+            NewArrayHolder<WCHAR> hFilterData = new (nothrow) WCHAR[FilterDataLength + 1];
+            if (hFilterData.IsNull())
+                return;
+            wcsncpy(hFilterData.GetValue(), pFilterData, FilterDataLength);
+            hFilterData.GetValue()[FilterDataLength] = 0;
+            m_pFilterData = hFilterData.Extract();
+        }
+
+        m_pProviderName = hProviderName.Extract();
     }
 
     LPCWSTR GetProviderName() const
@@ -397,6 +408,12 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_pFilterData;
+    }
+
+    ~EventPipeProviderConfiguration()
+    {
+        delete[] m_pProviderName;
+        delete[] m_pFilterData;
     }
 };
 #endif // FEATURE_PERFTRACING
