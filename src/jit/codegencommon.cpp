@@ -628,7 +628,7 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 // Assumptions:
 //    The set of live variables reflects the result of only emitted code, it should not be considering the becoming
 //    live/dead of instructions that has not been emitted yet. This is used to ensure [) "VariableLiveRange"
-//    intervals when calling "startVariableLiveRange" and "endVariableLiveRange".
+//    intervals when calling "siStartVariableLiveRange" and "siEndVariableLiveRange".
 //
 // Notes:
 //    If "ForCodeGen" is false, only "compCurLife" set (and no mask) will be setted.
@@ -710,7 +710,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming dead\n", varNum);
         }
 
-        endVariableLiveRange(varDsc);
+        siEndVariableLiveRange(varDsc);
     }
 
     VarSetOps::Iter bornIter(this, bornSet);
@@ -749,7 +749,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming live\n", varNum);
         }
 
-        startVariableLiveRange(varDsc);
+        siStartVariableLiveRange(varDsc);
     }
 
     codeGen->siUpdate();

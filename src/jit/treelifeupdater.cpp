@@ -28,7 +28,7 @@ TreeLifeUpdater<ForCodeGen>::TreeLifeUpdater(Compiler* compiler)
 // Assumptions:
 //    The code corresponding to the given tree has been emitted, which means that if a variable has become live/dead
 //    or been spilled then the emiter is positioned after that changed. This is used to ensure [) "VariableLiveRange"
-//    intervals when calling "startOrCloseVariableLiveRange".
+//    intervals when calling "siStartOrCloseVariableLiveRange".
 //
 // Notes:
 //  If "ForCodeGen" is true, then the register mask use by CodeGen and the "LiveRangeList" of the "LclVadDsc"
@@ -115,7 +115,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                     VarSetOps::AddElemD(compiler, stackVarDeltaSet, varDsc->lvVarIndex);
                 }
 
-                compiler->startOrCloseVariableLiveRange(varDsc, isBorn, isDying);
+                compiler->siStartOrCloseVariableLiveRange(varDsc, isBorn, isDying);
             }
         }
         else if (varDsc->lvPromoted)
@@ -188,7 +188,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                     {
                         // BRIAN:: see how scopes are reported for promoted structs. Are they considered in the
                         // amount of local variables to report?
-                        compiler->startOrCloseVariableLiveRange(fldVarDsc, isBorn, isDying);
+                        compiler->siStartOrCloseVariableLiveRange(fldVarDsc, isBorn, isDying);
                     }
                 }
             }

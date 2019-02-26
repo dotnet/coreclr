@@ -829,7 +829,7 @@ void CodeGen::genSpillVar(GenTree* tree)
         // "SiVarLoc" constructor uses the "LclVarDsc" of the variable.
 
         // Report the home change for this variable
-        compiler->updateVariableLiveRange(varDsc);
+        compiler->siUpdateVariableLiveRange(varDsc);
     }
 }
 
@@ -992,7 +992,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
                 genUpdateVarReg(varDsc, tree);
 
                 // Report the home change for this variable
-                compiler->updateVariableLiveRange(varDsc);
+                compiler->siUpdateVariableLiveRange(varDsc);
 
 #ifdef DEBUG
                 if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))

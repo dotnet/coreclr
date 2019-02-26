@@ -2178,7 +2178,7 @@ void CodeGen::genRegCopy(GenTree* treeNode)
                 genUpdateVarReg(varDsc, treeNode);
 
                 // Report the home change for this variable
-                compiler->updateVariableLiveRange(varDsc);
+                compiler->siUpdateVariableLiveRange(varDsc);
 
                 // The new location is going live
                 genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));

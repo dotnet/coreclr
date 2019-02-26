@@ -11126,7 +11126,7 @@ unsigned int Compiler::getLiveRangesCount()
 }
 
 //------------------------------------------------------------------------
-// startOrCloseVariableLiveRange: Starts or ends a "VariableLiveRange" for "varDsc" if it is
+// siStartOrCloseVariableLiveRange: Starts or ends a "VariableLiveRange" for "varDsc" if it is
 // borning or dying respectively. Ranges are close-open "[)" so nothing is done in case
 // of being borning and dying at the same line due to be an empty range.
 //
@@ -11145,7 +11145,7 @@ unsigned int Compiler::getLiveRangesCount()
 // Notes:
 //    This method is being called from treeLifeUpdater where the variable is becoming dead, live
 //    or both.
-void Compiler::startOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying)
+void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying)
 {
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
@@ -11155,19 +11155,19 @@ void Compiler::startOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBor
         if (isBorning && !isDying)
         {
             // "varDsc" is valid from this point
-            startVariableLiveRange(varDsc);
+            siStartVariableLiveRange(varDsc);
         }
 
         if (isDying && !isBorning)
         {
             // "varDsc" live range is no more valid from this point
-            endVariableLiveRange(varDsc);
+            siEndVariableLiveRange(varDsc);
         }
     }
 }
 
 //------------------------------------------------------------------------
-// startVariableLiveRange: Starts a "VariableLiveRange" for the given "varDsc".
+// siStartVariableLiveRange: Starts a "VariableLiveRange" for the given "varDsc".
 //
 // Arguments:
 //    varDsc    - the LclVarDsc of the variable for which a location changed will be reported.
@@ -11179,7 +11179,7 @@ void Compiler::startOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBor
 //
 // Notes:
 //    This method should be called on every place a Variable is becoming alive.
-void Compiler::startVariableLiveRange(const LclVarDsc* varDsc)
+void Compiler::siStartVariableLiveRange(const LclVarDsc* varDsc)
 {
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
@@ -11195,7 +11195,7 @@ void Compiler::startVariableLiveRange(const LclVarDsc* varDsc)
 }
 
 //------------------------------------------------------------------------
-// endVariableLiveRange: Ends a "VariableLiveRange" for the given "varDsc".
+// siEndVariableLiveRange: Ends a "VariableLiveRange" for the given "varDsc".
 //
 // Arguments:
 //    varDsc    - the LclVarDsc of the variable for which a location changed will be reported.
@@ -11207,7 +11207,7 @@ void Compiler::startVariableLiveRange(const LclVarDsc* varDsc)
 //
 // Notes:
 //    This method should be called on every place a Variable is becoming dead.
-void Compiler::endVariableLiveRange(const LclVarDsc* varDsc)
+void Compiler::siEndVariableLiveRange(const LclVarDsc* varDsc)
 {
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
@@ -11220,7 +11220,7 @@ void Compiler::endVariableLiveRange(const LclVarDsc* varDsc)
 }
 
 //------------------------------------------------------------------------
-// updateVariableLiveRange: Calls updateRegisterHome on "varDsc" with the new variable location
+// siUpdateVariableLiveRange: Calls updateRegisterHome on "varDsc" with the new variable location
 // "siVarLoc"
 //
 // Arguments:
@@ -11233,7 +11233,7 @@ void Compiler::endVariableLiveRange(const LclVarDsc* varDsc)
 //
 // Notes:
 //    This method should be called on every place a Variable is changing its home.
-void Compiler::updateVariableLiveRange(const LclVarDsc* varDsc)
+void Compiler::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
 {
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
