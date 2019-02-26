@@ -217,7 +217,7 @@ namespace System
             {
                 for (; end >= start; end--)
                 {
-                    if (!trimElement.Equals(span[start]))
+                    if (!trimElement.Equals(span[end]))
                         break;
                 }
             }
@@ -482,7 +482,7 @@ namespace System
 
             for (; end >= start; end--)
             {
-                if (!SequentialContains(trimElements, span[start]))
+                if (!SequentialContains(trimElements, span[end]))
                     break;
             }
 
