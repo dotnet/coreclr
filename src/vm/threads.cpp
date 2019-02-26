@@ -85,6 +85,7 @@ BOOL Thread::s_fCleanFinalizedThread = FALSE;
 
 UINT64 Thread::s_workerThreadPoolCompletionCountOverflow = 0;
 UINT64 Thread::s_ioThreadPoolCompletionCountOverflow = 0;
+UINT64 Thread::s_monitorLockContentionCountOverflow = 0;
 
 CrstStatic g_DeadlockAwareCrst;
 
@@ -1529,6 +1530,7 @@ Thread::Thread()
 
     m_workerThreadPoolCompletionCount = 0;
     m_ioThreadPoolCompletionCount = 0;
+    m_monitorLockContentionCount = 0;
 
     Thread *pThread = GetThread();
     InitContext();
@@ -5360,6 +5362,9 @@ BOOL ThreadStore::RemoveThread(Thread *target)
         FastInterlockExchangeAddLong(
             (LONGLONG *)&Thread::s_ioThreadPoolCompletionCountOverflow,
             target->m_ioThreadPoolCompletionCount);
+        FastInterlockExchangeAddLong(
+            (LONGLONG *)&Thread::s_monitorLockContentionCountOverflow,
+            target->m_monitorLockContentionCount);
 
         _ASSERTE(s_pThreadStore->m_ThreadCount >= 0);
         _ASSERTE(s_pThreadStore->m_BackgroundThreadCount >= 0);
@@ -8009,9 +8014,11 @@ BOOL ThreadStore::HoldingThreadStore(Thread *pThread)
     }
 }
 
-NOINLINE void Thread::OnWorkerThreadPoolCompletionCountIncrementOverflow()
+NOINLINE void Thread::OnIncrementCountOverflow(UINT32 *threadLocalCount, UINT64 *overflowCount)
 {
     WRAPPER_NO_CONTRACT;
+    _ASSERTE(threadLocalCount != nullptr);
+    _ASSERTE(overflowCount != nullptr);
 
     // Increment overflow, accumulate the count for this increment into the overflow count and reset the thread-local count
 
@@ -8019,25 +8026,11 @@ NOINLINE void Thread::OnWorkerThreadPoolCompletionCountIncrementOverflow()
     // below become visible together
     ThreadStoreLockHolder tsl;
 
-    m_workerThreadPoolCompletionCount = 0;
-    InterlockedExchangeAdd64((LONGLONG *)&s_workerThreadPoolCompletionCountOverflow, (LONGLONG)UINT32_MAX + 1);
+    *threadLocalCount = 0;
+    InterlockedExchangeAdd64((LONGLONG *)overflowCount, (LONGLONG)UINT32_MAX + 1);
 }
 
-NOINLINE void Thread::OnIOThreadPoolCompletionCountIncrementOverflow()
-{
-    WRAPPER_NO_CONTRACT;
-
-    // Increment overflow, accumulate the count for this increment into the overflow count and reset the thread-local count
-
-    // The thread store lock, in coordination with other places that read these values, ensures that both changes
-    // below become visible together
-    ThreadStoreLockHolder tsl;
-
-    m_ioThreadPoolCompletionCount = 0;
-    InterlockedExchangeAdd64((LONGLONG *)&s_ioThreadPoolCompletionCountOverflow, (LONGLONG)UINT32_MAX + 1);
-}
-
-UINT64 Thread::GetTotalWorkerThreadPoolCompletionCount()
+UINT64 Thread::GetTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCount)
 {
     CONTRACTL
     {
@@ -8055,12 +8048,12 @@ UINT64 Thread::GetTotalWorkerThreadPoolCompletionCount()
         // enumerate all threads, summing their local counts.
         ThreadStoreLockHolder tsl;
 
-        total = GetWorkerThreadPoolCompletionCountOverflow();
+        total = GetOverflowCount(overflowCount);
 
         Thread *pThread = NULL;
         while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
         {
-            total += pThread->m_workerThreadPoolCompletionCount;
+            total += *GetThreadLocalCountRef(pThread, threadLocalCountOffset);
         }
     }
     else
@@ -8079,6 +8072,8 @@ UINT64 Thread::GetTotalThreadPoolCompletionCount()
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    _ASSERTE(overflowCount != nullptr);
 
     UINT64 total;
     if (g_fEEStarted) //make sure we actually have a thread store

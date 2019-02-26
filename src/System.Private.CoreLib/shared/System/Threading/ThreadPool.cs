@@ -532,11 +532,11 @@ namespace System.Threading
             return callback;
         }
 
-        public long Count
+        public long LocalCount
         {
             get
             {
-                long count = workItems.Count;
+                long count = 0;
                 foreach (WorkStealingQueue workStealingQueue in WorkStealingQueueList.Queues)
                 {
                     count += workStealingQueue.Count;
@@ -544,6 +544,8 @@ namespace System.Threading
                 return count;
             }
         }
+
+        public long GlobalCount => workItems.Count;
 
         /// <summary>
         /// Dispatches work items to this thread.
@@ -1283,6 +1285,26 @@ namespace System.Threading
             ToObjectArray(GetLocallyQueuedWorkItems());
 
         /// <summary>
+        /// Gets the number of local work items that are currently queued to be processed.
+        /// </summary>
+        /// <remarks>
+        /// Local work items are work items queued in some fashion that has association with a particular thread or its
+        /// execution environment, and are typically processed in last-in-first-out order. They may include tasks and work items
+        /// queued with <see cref="QueueUserWorkItem{TState}(Action{TState}, TState, bool)"/> with
+        /// <code>preferLocal: true</code>.
+        /// </remarks>
+        public static long PendingLocalWorkItemCount => ThreadPoolGlobals.workQueue.LocalCount;
+
+        /// <summary>
+        /// Gets the number of global work items that are currently queued to be processed.
+        /// </summary>
+        /// <remarks>
+        /// Global work items are shared by all thread pool worker threads and are typically processed in first-in-first-out
+        /// order. See <see cref="PendingWorkItemCount"/> for other relevant remarks.
+        /// </remarks>
+        public static long PendingGlobalWorkItemCount => ThreadPoolGlobals.workQueue.GlobalCount + PendingUnmanagedWorkItemCount;
+
+        /// <summary>
         /// Gets the number of work items that are currently queued to be processed.
         /// </summary>
         /// <remarks>
@@ -1291,6 +1313,6 @@ namespace System.Threading
         /// timer and wait callbacks in the count. On Windows, the count is unlikely to include the number of pending IO
         /// completions, as they get posted directly to an IO completion port.
         /// </remarks>
-        public static long PendingWorkItemCount => ThreadPoolGlobals.workQueue.Count + PendingUnmanagedWorkItemCount;
+        public static long PendingWorkItemCount => PendingLocalWorkItemCount + PendingGlobalWorkItemCount;
     }
 }
