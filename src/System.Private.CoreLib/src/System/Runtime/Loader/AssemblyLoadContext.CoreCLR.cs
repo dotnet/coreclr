@@ -72,7 +72,7 @@ namespace System.Runtime.Loader
                 VerifyIsAlive();
 
                 RuntimeAssembly loadedAssembly = null;
-                LoadFromInMemoryModule(
+                LoadFromInMemoryModuleInternal(
                     _nativeAssemblyLoadContext,
                     moduleHandle,
                     JitHelpers.GetObjectHandleOnStack(ref loadedAssembly));
