@@ -503,6 +503,122 @@ namespace System
         }
 
         /// <summary>
+        /// Removes all leading and trailing white-space characters from the memory.
+        /// </summary>
+        public static Memory<char> Trim(this Memory<char> memory)
+        {
+            Span<char> span = memory.Span;
+
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!char.IsWhiteSpace(span[start]))
+                    break;
+            }
+
+            int end = span.Length - 1;
+            for (; end >= start; end--)
+            {
+                if (!char.IsWhiteSpace(span[end]))
+                    break;
+            }
+
+            return memory.Slice(start, end - start + 1);
+        }
+
+        /// <summary>
+        /// Removes all leading white-space characters from the memory.
+        /// </summary>
+        public static Memory<char> TrimStart(this Memory<char> memory)
+        {
+            Span<char> span = memory.Span;
+
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!char.IsWhiteSpace(span[start]))
+                    break;
+            }
+
+            return memory.Slice(start);
+        }
+
+        /// <summary>
+        /// Removes all trailing white-space characters from the memory.
+        /// </summary>
+        public static Memory<char> TrimEnd(this Memory<char> memory)
+        {
+            Span<char> span = memory.Span;
+
+            int end = span.Length - 1;
+            for (; end >= 0; end--)
+            {
+                if (!char.IsWhiteSpace(span[end]))
+                    break;
+            }
+
+            return memory.Slice(0, end + 1);
+        }
+
+        /// <summary>
+        /// Removes all leading and trailing white-space characters from the memory.
+        /// </summary>
+        public static ReadOnlyMemory<char> Trim(this ReadOnlyMemory<char> memory)
+        {
+            ReadOnlySpan<char> span = memory.Span;
+
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!char.IsWhiteSpace(span[start]))
+                    break;
+            }
+
+            int end = span.Length - 1;
+            for (; end >= start; end--)
+            {
+                if (!char.IsWhiteSpace(span[end]))
+                    break;
+            }
+
+            return memory.Slice(start, end - start + 1);
+        }
+
+        /// <summary>
+        /// Removes all leading white-space characters from the memory.
+        /// </summary>
+        public static ReadOnlyMemory<char> TrimStart(this ReadOnlyMemory<char> memory)
+        {
+            ReadOnlySpan<char> span = memory.Span;
+
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!char.IsWhiteSpace(span[start]))
+                    break;
+            }
+
+            return memory.Slice(start);
+        }
+
+        /// <summary>
+        /// Removes all trailing white-space characters from the memory.
+        /// </summary>
+        public static ReadOnlyMemory<char> TrimEnd(this ReadOnlyMemory<char> memory)
+        {
+            ReadOnlySpan<char> span = memory.Span;
+
+            int end = span.Length - 1;
+            for (; end >= 0; end--)
+            {
+                if (!char.IsWhiteSpace(span[end]))
+                    break;
+            }
+
+            return memory.Slice(0, end + 1);
+        }
+
+        /// <summary>
         /// Removes all leading and trailing white-space characters from the span.
         /// </summary>
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span)
@@ -671,6 +787,58 @@ namespace System
             Next:
                 ;
             }
+            return span.Slice(0, end + 1);
+        }
+
+        /// <summary>
+        /// Removes all leading and trailing white-space characters from the span.
+        /// </summary>
+        public static Span<char> Trim(this Span<char> span)
+        {
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!char.IsWhiteSpace(span[start]))
+                    break;
+            }
+
+            int end = span.Length - 1;
+            for (; end >= start; end--)
+            {
+                if (!char.IsWhiteSpace(span[end]))
+                    break;
+            }
+
+            return span.Slice(start, end - start + 1);
+        }
+
+        /// <summary>
+        /// Removes all leading white-space characters from the span.
+        /// </summary>
+        public static Span<char> TrimStart(this Span<char> span)
+        {
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!char.IsWhiteSpace(span[start]))
+                    break;
+            }
+
+            return span.Slice(start);
+        }
+
+        /// <summary>
+        /// Removes all trailing white-space characters from the span.
+        /// </summary>
+        public static Span<char> TrimEnd(this Span<char> span)
+        {
+            int end = span.Length - 1;
+            for (; end >= 0; end--)
+            {
+                if (!char.IsWhiteSpace(span[end]))
+                    break;
+            }
+
             return span.Slice(0, end + 1);
         }
     }
