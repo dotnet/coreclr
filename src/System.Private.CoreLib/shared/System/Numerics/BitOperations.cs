@@ -40,78 +40,6 @@ namespace System.Numerics
         };
 
         /// <summary>
-        /// Count the number of trailing zero bits in an integer value.
-        /// Similar in behavior to the x86 instruction TZCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int TrailingZeroCount(int value)
-            => TrailingZeroCount((uint)value);
-
-        /// <summary>
-        /// Count the number of trailing zero bits in an integer value.
-        /// Similar in behavior to the x86 instruction TZCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [CLSCompliant(false)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int TrailingZeroCount(uint value)
-        {
-            if (Bmi1.IsSupported)
-            {
-                // TZCNT contract is 0->32
-                return (int)Bmi1.TrailingZeroCount(value);
-            }
-
-            // Unguarded fallback contract is 0->0
-            if (value == 0)
-            {
-                return 32;
-            }
-
-            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            return Unsafe.AddByteOffset(
-                // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
-                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
-                // uint|long -> IntPtr cast on 32-bit platforms does expensive overflow checks not needed here
-                (IntPtr)(int)(((value & (uint)-(int)value) * 0x077CB531u) >> 27)); // Multi-cast mitigates redundant conv.u8
-        }
-
-        /// <summary>
-        /// Count the number of trailing zero bits in a mask.
-        /// Similar in behavior to the x86 instruction TZCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int TrailingZeroCount(long value)
-            => TrailingZeroCount((ulong)value);
-
-        /// <summary>
-        /// Count the number of trailing zero bits in a mask.
-        /// Similar in behavior to the x86 instruction TZCNT.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        [CLSCompliant(false)]
-        public static int TrailingZeroCount(ulong value)
-        {
-            if (Bmi1.X64.IsSupported)
-            {
-                // TZCNT contract is 0->64
-                return (int)Bmi1.X64.TrailingZeroCount(value);
-            }
-
-            uint lo = (uint)value;
-
-            if (lo == 0)
-            {
-                return 32 + TrailingZeroCount((uint)(value >> 32));
-            }
-
-            return TrailingZeroCount(lo);
-        }
-
-        /// <summary>
         /// Count the number of leading zero bits in a mask.
         /// Similar in behavior to the x86 instruction LZCNT.
         /// </summary>
@@ -195,32 +123,6 @@ namespace System.Numerics
         /// <summary>
         /// Returns the integer (floor) log of the specified value, base 2.
         /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
-        /// Does not directly use any hardware intrinsics, nor does it incur branching.
-        /// </summary>
-        /// <param name="value">The value.</param>
-        private static int Log2SoftwareFallback(uint value)
-        {
-            // No AggressiveInlining due to large method size
-            // Has conventional contract 0->0 (Log(0) is undefined)
-
-            // Fill trailing zeros with ones, eg 00010010 becomes 00011111
-            value |= value >> 01;
-            value |= value >> 02;
-            value |= value >> 04;
-            value |= value >> 08;
-            value |= value >> 16;
-
-            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
-            return Unsafe.AddByteOffset(
-                // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
-                ref MemoryMarshal.GetReference(s_Log2DeBruijn),
-                // uint|long -> IntPtr cast on 32-bit platforms does expensive overflow checks not needed here
-                (IntPtr)(int)((value * 0x07C4ACDDu) >> 27));
-        }
-
-        /// <summary>
-        /// Returns the integer (floor) log of the specified value, base 2.
-        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -250,56 +152,30 @@ namespace System.Numerics
         }
 
         /// <summary>
-        /// Rotates the specified value left by the specified number of bits.
-        /// Similar in behavior to the x86 instruction ROL.
+        /// Returns the integer (floor) log of the specified value, base 2.
+        /// Note that by convention, input value 0 returns 0 since Log(0) is undefined.
+        /// Does not directly use any hardware intrinsics, nor does it incur branching.
         /// </summary>
-        /// <param name="value">The value to rotate.</param>
-        /// <param name="offset">The number of bits to rotate by.
-        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
-        /// <returns>The rotated value.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        [CLSCompliant(false)]
-        public static uint RotateLeft(uint value, int offset)
-            => (value << offset) | (value >> (32 - offset));
+        /// <param name="value">The value.</param>
+        private static int Log2SoftwareFallback(uint value)
+        {
+            // No AggressiveInlining due to large method size
+            // Has conventional contract 0->0 (Log(0) is undefined)
 
-        /// <summary>
-        /// Rotates the specified value left by the specified number of bits.
-        /// Similar in behavior to the x86 instruction ROL.
-        /// </summary>
-        /// <param name="value">The value to rotate.</param>
-        /// <param name="offset">The number of bits to rotate by.
-        /// Any value outside the range [0..63] is treated as congruent mod 64.</param>
-        /// <returns>The rotated value.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        [CLSCompliant(false)]
-        public static ulong RotateLeft(ulong value, int offset)
-            => (value << offset) | (value >> (64 - offset));
+            // Fill trailing zeros with ones, eg 00010010 becomes 00011111
+            value |= value >> 01;
+            value |= value >> 02;
+            value |= value >> 04;
+            value |= value >> 08;
+            value |= value >> 16;
 
-        /// <summary>
-        /// Rotates the specified value right by the specified number of bits.
-        /// Similar in behavior to the x86 instruction ROR.
-        /// </summary>
-        /// <param name="value">The value to rotate.</param>
-        /// <param name="offset">The number of bits to rotate by.
-        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
-        /// <returns>The rotated value.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        [CLSCompliant(false)]
-        public static uint RotateRight(uint value, int offset)
-            => (value >> offset) | (value << (32 - offset));
-
-        /// <summary>
-        /// Rotates the specified value right by the specified number of bits.
-        /// Similar in behavior to the x86 instruction ROR.
-        /// </summary>
-        /// <param name="value">The value to rotate.</param>
-        /// <param name="offset">The number of bits to rotate by.
-        /// Any value outside the range [0..63] is treated as congruent mod 64.</param>
-        /// <returns>The rotated value.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        [CLSCompliant(false)]
-        public static ulong RotateRight(ulong value, int offset)
-            => (value >> offset) | (value << (64 - offset));
+            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+            return Unsafe.AddByteOffset(
+                // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_1100_0100_1010_1100_1101_1101u
+                ref MemoryMarshal.GetReference(s_Log2DeBruijn),
+                // uint|long -> IntPtr cast on 32-bit platforms does expensive overflow checks not needed here
+                (IntPtr)(int)((value * 0x07C4ACDDu) >> 27));
+        }
 
         /// <summary>
         /// Returns the population count (number of bits set) of a mask.
@@ -367,5 +243,129 @@ namespace System.Numerics
             }
 #endif
         }
+
+        /// <summary>
+        /// Count the number of trailing zero bits in an integer value.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int TrailingZeroCount(int value)
+            => TrailingZeroCount((uint)value);
+
+        /// <summary>
+        /// Count the number of trailing zero bits in an integer value.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [CLSCompliant(false)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int TrailingZeroCount(uint value)
+        {
+            if (Bmi1.IsSupported)
+            {
+                // TZCNT contract is 0->32
+                return (int)Bmi1.TrailingZeroCount(value);
+            }
+
+            // Unguarded fallback contract is 0->0
+            if (value == 0)
+            {
+                return 32;
+            }
+
+            // uint.MaxValue >> 27 is always in range [0 - 31] so we use Unsafe.AddByteOffset to avoid bounds check
+            return Unsafe.AddByteOffset(
+                // Using deBruijn sequence, k=2, n=5 (2^5=32) : 0b_0000_0111_0111_1100_1011_0101_0011_0001u
+                ref MemoryMarshal.GetReference(s_TrailingZeroCountDeBruijn),
+                // uint|long -> IntPtr cast on 32-bit platforms does expensive overflow checks not needed here
+                (IntPtr)(int)(((value & (uint)-(int)value) * 0x077CB531u) >> 27)); // Multi-cast mitigates redundant conv.u8
+        }
+
+        /// <summary>
+        /// Count the number of trailing zero bits in a mask.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int TrailingZeroCount(long value)
+            => TrailingZeroCount((ulong)value);
+
+        /// <summary>
+        /// Count the number of trailing zero bits in a mask.
+        /// Similar in behavior to the x86 instruction TZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [CLSCompliant(false)]
+        public static int TrailingZeroCount(ulong value)
+        {
+            if (Bmi1.X64.IsSupported)
+            {
+                // TZCNT contract is 0->64
+                return (int)Bmi1.X64.TrailingZeroCount(value);
+            }
+
+            uint lo = (uint)value;
+
+            if (lo == 0)
+            {
+                return 32 + TrailingZeroCount((uint)(value >> 32));
+            }
+
+            return TrailingZeroCount(lo);
+        }
+
+        /// <summary>
+        /// Rotates the specified value left by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROL.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [CLSCompliant(false)]
+        public static uint RotateLeft(uint value, int offset)
+            => (value << offset) | (value >> (32 - offset));
+
+        /// <summary>
+        /// Rotates the specified value left by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROL.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..63] is treated as congruent mod 64.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [CLSCompliant(false)]
+        public static ulong RotateLeft(ulong value, int offset)
+            => (value << offset) | (value >> (64 - offset));
+
+        /// <summary>
+        /// Rotates the specified value right by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROR.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..31] is treated as congruent mod 32.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [CLSCompliant(false)]
+        public static uint RotateRight(uint value, int offset)
+            => (value >> offset) | (value << (32 - offset));
+
+        /// <summary>
+        /// Rotates the specified value right by the specified number of bits.
+        /// Similar in behavior to the x86 instruction ROR.
+        /// </summary>
+        /// <param name="value">The value to rotate.</param>
+        /// <param name="offset">The number of bits to rotate by.
+        /// Any value outside the range [0..63] is treated as congruent mod 64.</param>
+        /// <returns>The rotated value.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [CLSCompliant(false)]
+        public static ulong RotateRight(ulong value, int offset)
+            => (value >> offset) | (value << (64 - offset));
     }
 }
