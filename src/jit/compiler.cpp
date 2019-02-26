@@ -11098,7 +11098,17 @@ bool Compiler::killGCRefs(GenTree* tree)
     return false;
 }
 
-unsigned int Compiler::getAmountLiveRangesReported()
+//------------------------------------------------------------------------
+// getLiveRangesCount: Returns the count of VariableLiveRanges reported for arguments, 
+//   special arguments, and local IL variables (not JIT temp variables).
+//
+// Return Value:
+//    unsinged int - the count of VariableLiveRanges reported during genCodeForBBList
+//
+// Notes:
+//    This method is being called from genSetScopeInfo to know the count of "varResultInfo" 
+//    that should be created on eeSetLVcount.
+unsigned int Compiler::getLiveRangesCount()
 {
 
     unsigned int varNum, amountOfLiveRanges = 0;
