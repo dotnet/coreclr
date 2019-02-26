@@ -291,6 +291,8 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
     {
         JITDUMP("[RangeCheck::OptimizeRangeCheck] Between bounds\n");
         m_pCompiler->optRemoveRangeCheck(treeParent, stmt);
+
+        return;
     }
 
     /* TODO : When only enabled explicitly, also extend extra slots for handling explicit range checks.
