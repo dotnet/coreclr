@@ -93,7 +93,7 @@ namespace System.Runtime.Serialization
             }
             if (String.IsNullOrWhiteSpace(switchSuffix))
             {
-                throw new ArgumentException(SR.Argument_EmptyName);
+                throw new ArgumentException(SR.Argument_EmptyName, nameof(switchSuffix));
             }
 
             if (cachedValue == 0)
