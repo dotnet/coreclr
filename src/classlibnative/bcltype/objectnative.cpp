@@ -358,6 +358,6 @@ FCIMPLEND
 FCIMPL0(INT64, ObjectNative::GetMonitorLockContentionCount)
 {
     FCALL_CONTRACT;
-    return (INT64)AwareLock::GetLockContentionCount();
+    return (INT64)Thread::GetTotalMonitorLockContentionCount();
 }
 FCIMPLEND

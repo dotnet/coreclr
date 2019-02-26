@@ -3904,83 +3904,111 @@ private:
 
 private:
     UINT32 m_workerThreadPoolCompletionCount;
-    UINT32 m_ioThreadPoolCompletionCount;
     static UINT64 s_workerThreadPoolCompletionCountOverflow;
+    UINT32 m_ioThreadPoolCompletionCount;
     static UINT64 s_ioThreadPoolCompletionCountOverflow;
+    UINT32 m_monitorLockContentionCount;
+    static UINT64 s_monitorLockContentionCountOverflow;
 
 #ifndef DACCESS_COMPILE
-public:
-    static void IncrementWorkerThreadPoolCompletionCount(Thread *pThread)
+private:
+    static UINT32 *GetThreadLocalCountRef(Thread *pThread, SIZE_T threadLocalCountOffset)
     {
         WRAPPER_NO_CONTRACT;
+        _ASSERTE(threadLocalCountOffset <= sizeof(Thread) - sizeof(UINT32));
+
+        return (UINT32 *)((SIZE_T)pThread + threadLocalCountOffset);
+    }
+
+    static void IncrementCount(Thread *pThread, SIZE_T threadLocalCountOffset, UINT64 *overflowCount)
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(overflowCount != nullptr);
 
         if (pThread != nullptr)
         {
-            UINT32 newCount = pThread->m_workerThreadPoolCompletionCount + 1;
+            UINT32 *threadLocalCount = GetThreadLocalCountRef(pThread, threadLocalCountOffset);
+            UINT32 newCount = *threadLocalCount + 1;
             if (newCount != 0)
             {
-                pThread->m_workerThreadPoolCompletionCount = newCount;
+                *threadLocalCount = newCount;
             }
             else
             {
-                pThread->OnWorkerThreadPoolCompletionCountIncrementOverflow();
+                OnIncrementCountOverflow(threadLocalCount, overflowCount);
             }
         }
         else
         {
-            InterlockedIncrement64((LONGLONG *)&s_workerThreadPoolCompletionCountOverflow);
+            InterlockedIncrement64((LONGLONG *)overflowCount);
         }
+    }
+
+    static void OnIncrementCountOverflow(UINT32 *threadLocalCount, UINT64 *overflowCount);
+
+    static UINT64 GetOverflowCount(UINT64 *overflowCount)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        if (sizeof(void *) >= sizeof(*overflowCount))
+        {
+            return VolatileLoad(overflowCount);
+        }
+        return InterlockedCompareExchange64((LONGLONG *)overflowCount, 0, 0); // prevent tearing
+    }
+
+    static UINT64 GetTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCount);
+
+public:
+    static void IncrementWorkerThreadPoolCompletionCount(Thread *pThread)
+    {
+        WRAPPER_NO_CONTRACT;
+        IncrementCount(pThread, offsetof(Thread, m_workerThreadPoolCompletionCount), &s_workerThreadPoolCompletionCountOverflow);
+    }
+
+    static UINT64 GetWorkerThreadPoolCompletionCountOverflow()
+    {
+        WRAPPER_NO_CONTRACT;
+        return GetOverflowCount(&s_workerThreadPoolCompletionCountOverflow);
+    }
+
+    static UINT64 GetTotalWorkerThreadPoolCompletionCount()
+    {
+        WRAPPER_NO_CONTRACT;
+        return GetTotalCount(offsetof(Thread, m_workerThreadPoolCompletionCount), &s_workerThreadPoolCompletionCountOverflow);
     }
 
     static void IncrementIOThreadPoolCompletionCount(Thread *pThread)
     {
         WRAPPER_NO_CONTRACT;
-
-        if (pThread != nullptr)
-        {
-            UINT32 newCount = pThread->m_ioThreadPoolCompletionCount + 1;
-            if (newCount != 0)
-            {
-                pThread->m_ioThreadPoolCompletionCount = newCount;
-            }
-            else
-            {
-                pThread->OnIOThreadPoolCompletionCountIncrementOverflow();
-            }
-        }
-        else
-        {
-            InterlockedIncrement64((LONGLONG *)&s_ioThreadPoolCompletionCountOverflow);
-        }
-    }
-
-    void OnWorkerThreadPoolCompletionCountIncrementOverflow();
-    void OnIOThreadPoolCompletionCountIncrementOverflow();
-
-    static UINT64 GetWorkerThreadPoolCompletionCountOverflow()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        if (sizeof(void *) >= sizeof(s_workerThreadPoolCompletionCountOverflow))
-        {
-            return VolatileLoad(&s_workerThreadPoolCompletionCountOverflow);
-        }
-        return InterlockedCompareExchange64((LONGLONG *)&s_workerThreadPoolCompletionCountOverflow, 0, 0); // prevent tearing
+        IncrementCount(pThread, offsetof(Thread, m_ioThreadPoolCompletionCount), &s_ioThreadPoolCompletionCountOverflow);
     }
 
     static UINT64 GetIOThreadPoolCompletionCountOverflow()
     {
         WRAPPER_NO_CONTRACT;
-
-        if (sizeof(void *) >= sizeof(s_ioThreadPoolCompletionCountOverflow))
-        {
-            return VolatileLoad(&s_ioThreadPoolCompletionCountOverflow);
-        }
-        return InterlockedCompareExchange64((LONGLONG *)&s_ioThreadPoolCompletionCountOverflow, 0, 0); // prevent tearing
+        return GetOverflowCount(&s_ioThreadPoolCompletionCountOverflow);
     }
 
-    static UINT64 GetTotalWorkerThreadPoolCompletionCount();
     static UINT64 GetTotalThreadPoolCompletionCount();
+
+    static void IncrementMonitorLockContentionCount(Thread *pThread)
+    {
+        WRAPPER_NO_CONTRACT;
+        IncrementCount(pThread, offsetof(Thread, m_monitorLockContentionCount), &s_monitorLockContentionCountOverflow);
+    }
+
+    static UINT64 GetMonitorLockContentionCountOverflow()
+    {
+        WRAPPER_NO_CONTRACT;
+        return GetOverflowCount(&s_monitorLockContentionCountOverflow);
+    }
+
+    static UINT64 GetTotalMonitorLockContentionCount()
+    {
+        WRAPPER_NO_CONTRACT;
+        return GetTotalCount(offsetof(Thread, m_monitorLockContentionCount), &s_monitorLockContentionCountOverflow);
+    }
 #endif // !DACCESS_COMPILE
 
 private:

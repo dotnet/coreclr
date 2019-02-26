@@ -2875,9 +2875,7 @@ DWORD WINAPI ThreadpoolMgr::AsyncCallbackCompletion(PVOID pArgs)
         ((WAITORTIMERCALLBACKFUNC) waitInfo->Callback)
                                     ( waitInfo->Context, asyncCallback->waitTimedOut != FALSE);
 
-#ifdef FEATURE_PAL
-        Thread::IncrementWorkerThreadPoolCompletionCount(pThread);
-#else
+#ifndef FEATURE_PAL
         Thread::IncrementIOThreadPoolCompletionCount(pThread);
 #endif
     }
@@ -4795,7 +4793,6 @@ DWORD WINAPI ThreadpoolMgr::AsyncTimerCallbackCompletion(PVOID pArgs)
     {
         TimerInfo* timerInfo = (TimerInfo*) pArgs;
         ((WAITORTIMERCALLBACKFUNC) timerInfo->Function) (timerInfo->Context, TRUE) ;
-        Thread::IncrementWorkerThreadPoolCompletionCount(pThread);
 
         if (InterlockedDecrement(&timerInfo->refCount) == 0)
         {
