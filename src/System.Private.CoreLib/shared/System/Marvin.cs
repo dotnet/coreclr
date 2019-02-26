@@ -102,16 +102,16 @@ namespace System
             uint p1 = rp1;
 
             p1 ^= p0;
-            p0 = BitOps.RotateLeft(p0, 20);
+            p0 = BitOperations.RotateLeft(p0, 20);
 
             p0 += p1;
-            p1 = BitOps.RotateLeft(p1, 9);
+            p1 = BitOperations.RotateLeft(p1, 9);
 
             p1 ^= p0;
-            p0 = BitOps.RotateLeft(p0, 27);
+            p0 = BitOperations.RotateLeft(p0, 27);
 
             p0 += p1;
-            p1 = BitOps.RotateLeft(p1, 19);
+            p1 = BitOperations.RotateLeft(p1, 19);
 
             rp0 = p0;
             rp1 = p1;

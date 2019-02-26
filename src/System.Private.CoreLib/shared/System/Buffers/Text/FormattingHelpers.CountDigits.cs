@@ -103,7 +103,7 @@ namespace System.Buffers.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountHexDigits(ulong value)
         {
-            return (64 - BitOps.LeadingZeroCount(value | 1) + 3) >> 2;
+            return (64 - BitOperations.LeadingZeroCount(value | 1) + 3) >> 2;
         }
 
         // Counts the number of trailing '0' digits in a decimal number.

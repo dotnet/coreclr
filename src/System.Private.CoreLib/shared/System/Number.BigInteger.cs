@@ -455,12 +455,12 @@ namespace System
 
             public static uint CountSignificantBits(uint value)
             {
-                return 32 - (uint)BitOps.LeadingZeroCount(value);
+                return 32 - (uint)BitOperations.LeadingZeroCount(value);
             }
 
             public static uint CountSignificantBits(ulong value)
             {
-                return 64 - (uint)BitOps.LeadingZeroCount(value);
+                return 64 - (uint)BitOperations.LeadingZeroCount(value);
             }
 
             public static uint CountSignificantBits(ref BigInteger value)
@@ -553,7 +553,7 @@ namespace System
                     uint divLo = rhs._blocks[rhsLength - 2];
 
                     // We measure the leading zeros of the divisor
-                    int shiftLeft = BitOps.LeadingZeroCount(divHi);
+                    int shiftLeft = BitOperations.LeadingZeroCount(divHi);
                     int shiftRight = 32 - shiftLeft;
 
                     // And, we make sure the most significant bit is set
