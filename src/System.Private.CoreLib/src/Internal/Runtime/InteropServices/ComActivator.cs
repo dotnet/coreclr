@@ -442,7 +442,14 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             public void GetLicInfo(Type type, out bool runtimeKeyAvail, out bool licVerified)
             {
                 var parameters = new object[] { type, null, null };
-                this.getLicInfo.Invoke(this.instance, parameters);
+                try
+                {
+                    this.getLicInfo.Invoke(this.instance, parameters);
+                }
+                catch (TargetInvocationException e)
+                {
+                    throw e.InnerException;
+                }
 
                 runtimeKeyAvail = (bool)parameters[1];
                 licVerified = (bool)parameters[2];
@@ -451,13 +458,27 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             public string RequestLicKey(Type type)
             {
                 var parameters = new object[] { type };
-                return (string)this.requestLicKey.Invoke(null, parameters);
+                try
+                {
+                    return (string)this.requestLicKey.Invoke(null, parameters);
+                }
+                catch (TargetInvocationException e)
+                {
+                    throw e.InnerException;
+                }
             }
 
             public object AllocateAndValidateLicense(Type type, string key, bool isDesignTime)
             {
                 var parameters = new object[] { type, key, isDesignTime };
-                return this.allocateAndValidateLicense.Invoke(null, parameters);
+                try
+                {
+                    return this.allocateAndValidateLicense.Invoke(null, parameters);
+                }
+                catch (TargetInvocationException e)
+                {
+                    throw e.InnerException;
+                }
             }
         }
     }
