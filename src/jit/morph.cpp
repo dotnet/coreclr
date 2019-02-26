@@ -7243,7 +7243,8 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         return false;
     }
 
-    // Either the caller or callee has a >8 and <=16 byte struct and arguments that has to go on the stack. Do not fastTailCall.
+    // Either the caller or callee has a >8 and <=16 byte struct and arguments that has to go on the stack. Do not
+    // fastTailCall.
     //
     // When either the caller or callee have multi-stlot stack arguments we cannot safely
     // shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
