@@ -445,7 +445,7 @@ namespace System
 
             for (; start < span.Length; start++)
             {
-                if (!SequentialContains(trimElements, span[start]))
+                if (!trimElements.Contains(span[start]))
                     break;
             }
 
@@ -468,38 +468,11 @@ namespace System
 
             for (; end >= start; end--)
             {
-                if (!SequentialContains(trimElements, span[end]))
+                if (!trimElements.Contains(span[end]))
                     break;
             }
 
             return end - start + 1;
-        }
-
-        /// <summary>
-        /// Scans for a specified item in the provided collection, returning true if found, else false.
-        /// Optimized for a small number of elements.
-        /// </summary>
-        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
-        /// <param name="item">The item to try find.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool SequentialContains<T>(ReadOnlySpan<T> trimElements, T item)
-            where T : IEquatable<T>
-        {
-            // Non-vectorized scan optimized for small N
-            for (int i = 0; i < trimElements.Length; i++)
-            {
-                if (trimElements[i] == null)
-                {
-                    if (item == null)
-                        return true;
-                }
-                else if (trimElements[i].Equals(item))
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         /// <summary>
