@@ -11099,14 +11099,14 @@ bool Compiler::killGCRefs(GenTree* tree)
 }
 
 //------------------------------------------------------------------------
-// getLiveRangesCount: Returns the count of VariableLiveRanges reported for arguments, 
+// getLiveRangesCount: Returns the count of VariableLiveRanges reported for arguments,
 //   special arguments, and local IL variables (not JIT temp variables).
 //
 // Return Value:
 //    unsinged int - the count of VariableLiveRanges reported during genCodeForBBList
 //
 // Notes:
-//    This method is being called from genSetScopeInfo to know the count of "varResultInfo" 
+//    This method is being called from genSetScopeInfo to know the count of "varResultInfo"
 //    that should be created on eeSetLVcount.
 unsigned int Compiler::getLiveRangesCount()
 {
@@ -11127,38 +11127,38 @@ unsigned int Compiler::getLiveRangesCount()
 
 //------------------------------------------------------------------------
 // siStartOrCloseVariableLiveRange: Starts or ends a "VariableLiveRange" for "varDsc" if it is
-// borning or dying respectively. Ranges are close-open "[)" so nothing is done in case
-// of being borning and dying at the same line due to be an empty range.
+// being born or dying respectively. Ranges are close-open "[)" so nothing is done in case
+// of being born and dying at the same line due to be an empty range.
 //
 // Arguments:
 //    varDsc    - the LclVarDsc of the variable for which a location changed will be reported
-//    isBorning - a boolean indicating if the VariableLiveRange is starting from the emitter
+//    isBorn    - a boolean indicating if the VariableLiveRange is starting from the emitter
 //                position.
 //    isDying   - a boolean indicating if the VariableLiveRange is no more valid from the emitter
 //                position
 //
 // Assumptions:
 //    The emitter should be pointing to the first instruction from where the VariableLiveRange is
-//    becoming valid (when isBorning is true) or invalid (when isDying is true).
+//    becoming valid (when isBorn is true) or invalid (when isDying is true).
 //    The given "varDsc" should have its VariableRangeLists initialized.
 //
 // Notes:
 //    This method is being called from treeLifeUpdater where the variable is becoming dead, live
 //    or both.
-void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying)
+void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorn, bool isDying)
 {
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
     if (varDsc->lvSlotNum < info.compLocalsCount)
     {
-        if (isBorning && !isDying)
+        if (isBorn && !isDying)
         {
             // "varDsc" is valid from this point
             siStartVariableLiveRange(varDsc);
         }
 
-        if (isDying && !isBorning)
+        if (isDying && !isBorn)
         {
             // "varDsc" live range is no more valid from this point
             siEndVariableLiveRange(varDsc);

@@ -314,7 +314,7 @@ public:
     }
 
 #if DEBUG
-    // Dump just the emitLocation as they are, we dont have generated the whole method yet
+    // Dump just the emitLocation as they are, we haven't generated the whole method yet
     void dump(const CodeGenInterface* codeGen) const
     {
         codeGen->dumpSiVarLoc(&varLocation);
