@@ -298,14 +298,11 @@ public:
     static void SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv);
 
     // Get next event.
-        static EventPipeEventInstance* GetNextEvent();
+    static EventPipeEventInstance *GetNextEvent();
 
-    protected:
-
+private:
     // The counterpart to WriteEvent which after the payload is constructed
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
-
-    private:
 
     // Enable the specified EventPipe session.
     static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
@@ -354,22 +351,16 @@ public:
 struct EventPipeProviderConfiguration
 {
 private:
-
-    LPCWSTR m_pProviderName;
-    UINT64 m_keywords;
-    UINT32 m_loggingLevel;
-    LPCWSTR m_pFilterData;
+    LPCWSTR m_pProviderName = nullptr;
+    UINT64 m_keywords = 0;
+    UINT32 m_loggingLevel = 0;
+    LPCWSTR m_pFilterData = nullptr;
 
 public:
+    EventPipeProviderConfiguration() = default;
 
-    EventPipeProviderConfiguration()
     {
         LIMITED_METHOD_CONTRACT;
-        m_pProviderName = NULL;
-        m_keywords = NULL;
-        m_loggingLevel = 0;
-        m_pFilterData = NULL;
-    }
 
     EventPipeProviderConfiguration(
         LPCWSTR pProviderName,

@@ -150,7 +150,7 @@ void QCALLTYPE EventPipeInternal::DeleteProvider(INT_PTR provHandle)
 }
 
 int QCALLTYPE EventPipeInternal::EventActivityIdControl(
-    uint controlCode,
+    uint32_t controlCode,
     GUID *pActivityId)
 {
 

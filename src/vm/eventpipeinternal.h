@@ -10,7 +10,6 @@
 class EventPipeInternal
 {
 private:
-
     enum class ActivityControlCode
     {
         EVENT_ACTIVITY_CONTROL_GET_ID = 1,
@@ -22,7 +21,6 @@ private:
 
     struct EventPipeEventInstanceData
     {
-    public:
         void *ProviderID;
         unsigned int EventID;
         unsigned int ThreadID;
@@ -35,7 +33,6 @@ private:
 
     struct EventPipeSessionInfo
     {
-    public:
         FILETIME StartTimeAsUTCFileTime;
         LARGE_INTEGER StartTimeStamp;
         LARGE_INTEGER TimeStampFrequency;
@@ -43,6 +40,9 @@ private:
 
 public:
 
+    //!
+    //! Sets the sampling rate and enables the event pipe for the specified configuration.
+    //!
     static UINT64 QCALLTYPE Enable(
         __in_z LPCWSTR outputFile,
         UINT32 circularBufferSizeInMB,
@@ -51,6 +51,11 @@ public:
         INT32 numProviders,
         UINT64 multiFileTraceLengthInSeconds);
 
+    //! TODO: Add a ListActiveSessions to get the live SessionID in order to Disable?
+
+    //!
+    //! Disables the specified session Id.
+    //!
     static void QCALLTYPE Disable(UINT64 sessionID);
 
     static bool QCALLTYPE GetSessionInfo(UINT64 sessionID, EventPipeSessionInfo *pSessionInfo);
@@ -75,7 +80,7 @@ public:
         INT_PTR provHandle);
 
     static int QCALLTYPE EventActivityIdControl(
-        uint controlCode,
+        uint32_t controlCode,
         GUID *pActivityId);
 
     static void QCALLTYPE WriteEvent(
