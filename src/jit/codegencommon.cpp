@@ -10525,9 +10525,9 @@ void CodeGen::genSetScopeInfo()
         return;
     }
 
-    // noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
-    // noway_assert(psiOpenScopeList.scNext == nullptr);
-
+    // psiScopeInfo is not used anymore for variable tracking but I can leave its assertions
+    noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
+    noway_assert(psiOpenScopeList.scNext == nullptr);
     // unsigned scopeCnt = siScopeCnt + psiScopeCnt;
 
     compiler->eeSetLVcount(amountLiveRanges);
