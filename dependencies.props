@@ -23,23 +23,23 @@
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>f31086500dc58cefe7b1275300f6fc07b38c1bcc</CoreFxCurrentRef>
-    <CoreClrCurrentRef>f31086500dc58cefe7b1275300f6fc07b38c1bcc</CoreClrCurrentRef>
-    <BuildToolsCurrentRef>f31086500dc58cefe7b1275300f6fc07b38c1bcc</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>f31086500dc58cefe7b1275300f6fc07b38c1bcc</PgoDataCurrentRef>
-    <CoreSetupCurrentRef>f31086500dc58cefe7b1275300f6fc07b38c1bcc</CoreSetupCurrentRef>
-    <IbcDataCurrentRef>f31086500dc58cefe7b1275300f6fc07b38c1bcc</IbcDataCurrentRef>
+    <CoreFxCurrentRef>5bf4ffe55ba9993e4001192afb208a36059c44af</CoreFxCurrentRef>
+    <CoreClrCurrentRef>5bf4ffe55ba9993e4001192afb208a36059c44af</CoreClrCurrentRef>
+    <BuildToolsCurrentRef>5bf4ffe55ba9993e4001192afb208a36059c44af</BuildToolsCurrentRef>
+    <PgoDataCurrentRef>5bf4ffe55ba9993e4001192afb208a36059c44af</PgoDataCurrentRef>
+    <CoreSetupCurrentRef>5bf4ffe55ba9993e4001192afb208a36059c44af</CoreSetupCurrentRef>
+    <IbcDataCurrentRef>5bf4ffe55ba9993e4001192afb208a36059c44af</IbcDataCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.6.0-preview.19066.1</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
-    <MicrosoftNETCorePlatformsPackageVersion>3.0.0-preview.19066.1</MicrosoftNETCorePlatformsPackageVersion>
-    <PgoDataPackageVersion>99.99.99-master-20190116.5</PgoDataPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview-27316-02</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
-    <MicrosoftNETCoreAppPackageVersion>3.0.0-preview-27218-01</MicrosoftNETCoreAppPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.6.0-preview4.19125.1</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftNETCorePlatformsPackageVersion>3.0.0-preview4.19125.1</MicrosoftNETCorePlatformsPackageVersion>
+    <PgoDataPackageVersion>99.99.99-master-20190225.1</PgoDataPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview4-27421-73</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftNETCoreAppPackageVersion>3.0.0-preview4-27425-3</MicrosoftNETCoreAppPackageVersion>
     <XunitPackageVersion>2.4.1-pre.build.4059</XunitPackageVersion>
-    <IbcDataPackageVersion>99.99.99-master-20181120-0045</IbcDataPackageVersion>
+    <IbcDataPackageVersion>99.99.99-master-20190224.1</IbcDataPackageVersion>
     <IbcMergePackageVersion>4.6.0-alpha-00001</IbcMergePackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
     <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.4</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
@@ -55,7 +55,7 @@
   <!-- Package versions used as toolsets -->
   <PropertyGroup>
     <FeedTasksPackage>Microsoft.DotNet.Build.Tasks.Feed</FeedTasksPackage>
-    <FeedTasksPackageVersion>3.0.0-preview1-03617-02</FeedTasksPackageVersion>
+    <FeedTasksPackageVersion>3.0.0-preview1-03723-01</FeedTasksPackageVersion>
   </PropertyGroup>
 
   <!-- Publish symbol build task package -->
