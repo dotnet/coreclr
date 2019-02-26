@@ -185,7 +185,7 @@ FCIMPLEND;
 
 
 #ifdef FEATURE_PERFTRACING
-FCIMPL0(UINT64, SystemNative::GetCurrentProcessId)
+FCIMPL0(UINT32, SystemNative::GetCurrentProcessId)
 {
     FCALL_CONTRACT;
 

@@ -343,7 +343,8 @@
     <Compile Include="$(BclSourcesRoot)\System\DateTime.Unix.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\RuntimeEventSourceHelper.Linux.cs" Condition="'$(FeaturePerfTracing)' == 'true'"/>
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\RuntimeEventSourceHelper.Linux.cs" Condition="'$(FeaturePerfTracing)' == 'true' AND '$(TargetsOSX)' == 'false' "/>
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\RuntimeEventSourceHelper.OSX.cs" Condition="'$(FeaturePerfTracing)' == 'true' AND '$(TargetsOSX)' == 'true' "/>
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\DateTime.Windows.cs" />

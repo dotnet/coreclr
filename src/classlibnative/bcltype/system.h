@@ -52,7 +52,7 @@ public:
 #endif // FEATURE_PAL
     static FCDECL0(INT64, __GetSystemTimeAsFileTime);
     static FCDECL0(UINT32, GetTickCount);
-    static FCDECL0(UINT64, GetCurrentProcessId);
+    static FCDECL0(UINT32, GetCurrentProcessId);
 
     static
     void QCALLTYPE Exit(INT32 exitcode);

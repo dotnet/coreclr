@@ -89,7 +89,7 @@ namespace System
         private static extern int GetProcessorCount();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern long GetCurrentProcessId();
+        internal static extern int GetCurrentProcessId();
 
         // If you change this method's signature then you must change the code that calls it
         // in excep.cpp and probably you will have to visit mscorlib.h to add the new signature
