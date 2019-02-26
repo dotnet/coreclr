@@ -293,19 +293,17 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
         m_pCompiler->optRemoveRangeCheck(treeParent, stmt);
     }
 
-        /* TODO : When only enabled explicitly, also extend extra slots for handling explicit range checks.
-     * Check for previuos stmts has explicit range check. for example.
-     * if (array.Length > 0 && array[0]) { ~ } 
-     * 
-     * To make sure, this block is ONLY executed after 'array.Length > 0' check
-     */
-    
+    /* TODO : When only enabled explicitly, also extend extra slots for handling explicit range checks.
+    * Check for previuos stmts has explicit range check. for example.
+    * if (array.Length > 0 && array[0]) { ~ }
+    *
+    * To make sure, this block is ONLY executed after 'array.Length > 0' check
+    */
+
     BasicBlock* bbJmpFrom = block->bbPrev;
-    if (bbJmpFrom != nullptr              && 
-        bbJmpFrom->bbJumpKind == BBJ_COND &&
-        bbJmpFrom->firstStmt()->gtNextStmt == nullptr)
+    if (bbJmpFrom != nullptr && bbJmpFrom->bbJumpKind == BBJ_COND && bbJmpFrom->firstStmt()->gtNextStmt == nullptr)
     {
-        GenTree* gtCond  = bbJmpFrom->firstStmt()->gtStmtExpr->gtGetOp1();
+        GenTree* gtCond = bbJmpFrom->firstStmt()->gtStmtExpr->gtGetOp1();
 
         GenTree* gtCondV = gtCond->gtGetOp1();
         GenTree* gtCondC = gtCond->gtGetOp2();
@@ -318,28 +316,28 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
 
             switch (gtCond->OperGet())
             {
-            case GT_LE:
-                condVal += 1;
-            case GT_LT:
-                if (condVal > rngcVal)
-                {
-                    m_pCompiler->optRemoveRangeCheck(treeParent, stmt);
-                }
-                break;
+                case GT_LE:
+                    condVal += 1;
+                case GT_LT:
+                    if (condVal > rngcVal)
+                    {
+                        m_pCompiler->optRemoveRangeCheck(treeParent, stmt);
+                    }
+                    break;
 
-            case GT_GT:
-                condVal += 1;
-            case GT_GE:
-            case GT_EQ:
-                if (condVal < rngcVal)
-                {
-                    m_pCompiler->optRemoveRangeCheck(treeParent, stmt);
-                }
-                break;
-            
-            default:
-                // this is not condtional operator. such as GT_LE, GT_EQ, etc.
-                break;
+                case GT_GT:
+                    condVal += 1;
+                case GT_GE:
+                case GT_EQ:
+                    if (condVal < rngcVal)
+                    {
+                        m_pCompiler->optRemoveRangeCheck(treeParent, stmt);
+                    }
+                    break;
+
+                default:
+                    // this is not condtional operator. such as GT_LE, GT_EQ, etc.
+                    break;
             }
         }
     }
