@@ -10630,7 +10630,10 @@ void CodeGen::genSetScopeInfo()
                 // at the argument on entry to the method.
                 if (varDsc->lvIsParam && startOffs == endOffs)
                 {
-                    noway_assert(startOffs == 0);
+                    // If the length is zero, it means that the prolog is empty. In that case,
+                    // CodeGen::genSetScopeInfo will report the liveness of all arguments
+                    // as spanning the first instruction in the method, so that they can
+                    // at least be inspected on entry to the method.
                     endOffs++;
                 }
 
