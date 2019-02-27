@@ -1576,9 +1576,11 @@ void GCToEEInterface::UpdateGCEventStatus()
     BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime();
 
     int publicProviderLevel = keyword_gc_verbose ? 5 : (keyword_gc_informational ? 4 : 0);
-    int publicProviderKeywords = (keyword_gc_informational ? 0x1 : 0 ) | (keyword_gc_heapsurvival_and_movement_informational ? 0x400000 : 0) | (keyword_gchandle_informational ? 0x2 : 0);
+    int publicProviderKeywords = (keyword_gc_informational ? 0x1 : 0 ) | 
+                                 (keyword_gchandle_informational ? 0x2 : 0);
+                                 (keyword_gc_heapsurvival_and_movement_informational ? 0x400000 : 0) | 
 
-    int privateProviderLevel = prv_gcprv_verbose ? 5 : (keyword_gc_informational ? 4 : 0);
+    int privateProviderLevel = prv_gcprv_verbose ? 5 : (prv_gcprv_informational ? 4 : 0);
     int privateProviderKeywords = (prv_gcprv_informational ? 0x1 : 0 ) | (keyword_gchandle_prv_informational ? 0x2 : 0);
 
     GCEventLevel publicLevel = static_cast<GCEventLevel>(publicProviderLevel);
