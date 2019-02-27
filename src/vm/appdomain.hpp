@@ -64,8 +64,6 @@ class LoadLevelLimiter;
 class TypeEquivalenceHashTable;
 class StringArrayList;
 
-extern INT64 g_PauseTime;  // Total time in millisecond the CLR has been paused
-
 #ifdef FEATURE_COMINTEROP
 class ComCallWrapperCache;
 struct SimpleComCallWrapper;
@@ -1829,7 +1827,6 @@ public:
     void ShutdownAssemblies();
     void ShutdownFreeLoaderAllocators(BOOL bFromManagedCode);
     
-    void ReleaseDomainBoundInfo();
     void ReleaseFiles();
     
 
@@ -3441,8 +3438,7 @@ public:
 
     //****************************************************************************************
     // Methods used to get the callers module and hence assembly and app domain.
-    __declspec(deprecated("This method is deprecated, use the version that takes a StackCrawlMark instead"))
-    static Module* GetCallersModule(int skip);
+
     static MethodDesc* GetCallersMethod(StackCrawlMark* stackMark, AppDomain **ppAppDomain = NULL);
     static MethodTable* GetCallersType(StackCrawlMark* stackMark, AppDomain **ppAppDomain = NULL);
     static Module* GetCallersModule(StackCrawlMark* stackMark, AppDomain **ppAppDomain = NULL);

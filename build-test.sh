@@ -1,85 +1,17 @@
 #!/usr/bin/env bash
 
-initHostDistroRid()
-{
-    __HostDistroRid=""
-
-    # Some OS groups should default to use the portable packages
-    if [ "$__BuildOS" == "OSX" ]; then
-        __PortableBuild=1
-    fi
-
-    if [ "$__HostOS" == "Linux" ]; then
-        if [ -e /etc/redhat-release ]; then
-            __PortableBuild=1
-        elif [ -e /etc/os-release ]; then
-            source /etc/os-release
-            if [[ $ID == "alpine" ]]; then
-                __HostDistroRid="linux-musl-$__HostArch"
-            else
-                __PortableBuild=1
-                __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
-            fi
-        fi
-    elif [ "$__HostOS" == "FreeBSD" ]; then
-        __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
-        __HostDistroRid="freebsd.$__freebsd_version-$__HostArch"
-    fi
-
-    # Portable builds target the base RID
-    if [ "$__PortableBuild" == 1 ]; then
-        if [ "$__BuildOS" == "OSX" ]; then
-            export __HostDistroRid="osx-$__BuildArch"
-        elif [ "$__BuildOS" == "Linux" ]; then
-            export __HostDistroRid="linux-$__BuildArch"
-        fi
-    fi
-
-    if [ "$__HostDistroRid" == "" ]; then
-        echo "WARNING: Cannot determine runtime id for current distro."
-    fi
-
-    echo "Setting __HostDistroRid to $__HostDistroRid"
-}
+__PortableBuild=1
 
 initTargetDistroRid()
 {
-    if [ $__CrossBuild == 1 ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
-                if [ -e $ROOTFS_DIR/android_platform ]; then
-                    source $ROOTFS_DIR/android_platform
-                    export __DistroRid="$RID"
-                else
-                    echo "WARNING: Cannot determine runtime id for current distro."
-                    export __DistroRid=""
-                fi
-            else
-                source $ROOTFS_DIR/etc/os-release
-                export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
-            fi
-        fi
-    else
-        export __DistroRid="$__HostDistroRid"
-        export __RuntimeId="$__HostDistroRid"
+    source init-distro-rid.sh
+
+    # Only pass ROOTFS_DIR if cross is specified.
+    if (( ${__CrossBuild} == 1 )); then
+        passedRootfsDir=${ROOTFS_DIR}
     fi
 
-    if [ "$ID.$VERSION_ID" == "ubuntu.16.04" ]; then
-     export __DistroRid="ubuntu.14.04-$__BuildArch"
-    fi
-
-    # Portable builds target the base RID
-    if [ "$__PortableBuild" == 1 ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            export __DistroRid="linux-$__BuildArch"
-            export __RuntimeId="linux-$__BuildArch"
-        elif [ "$__BuildOS" == "OSX" ]; then
-            export __DistroRid="osx-$__BuildArch"
-            export __RuntimeId="osx-$__BuildArch"
-        fi
-    fi
-
-    echo "__DistroRid: " $__DistroRid
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__PortableBuild} ${passedRootfsDir}
 }
 
 isMSBuildOnNETCoreSupported()
@@ -96,7 +28,7 @@ isMSBuildOnNETCoreSupported()
             UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64")
             for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
             do
-                if [ "$__HostDistroRid" == "$UNSUPPORTED_RID" ]; then
+                if [ "${__DistroRid}" == "$UNSUPPORTED_RID" ]; then
                     __isMSBuildOnNETCoreSupported=0
                     break
                 fi
@@ -348,11 +280,6 @@ build_Tests()
     fi
 
     generate_layout
-
-    if [ $__ZipTests -ne 0 ]; then
-        echo "${__MsgPrefix}ZIP tests packages..."
-        build_MSBuild_projects "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" "Prep test binaries for Helix publishing" " "
-    fi
 }
 
 build_MSBuild_projects()
@@ -563,7 +490,6 @@ usage()
     echo "generatetesthostonly - only pull down dependencies and build coreroot and the CoreFX testhost"
     echo "skiprestorepackages - skip package restore"
     echo "runtests - run tests after building them"
-    echo "ziptests - zips CoreCLR tests & Core_Root for a Helix run"
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     echo "priority1 - include priority=1 tests in the build"
@@ -678,13 +604,11 @@ __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
 __NuGetPath="$__PackagesDir/NuGet.exe"
-__HostDistroRid=""
 __SkipRestorePackages=0
 __DistroRid=""
 __cmakeargs=""
 __PortableLinux=0
 __msbuildonunsupportedplatform=0
-__ZipTests=0
 __NativeTestIntermediatesDir=
 __RunTests=0
 __RebuildTests=0
@@ -747,8 +671,8 @@ while :; do
             __CrossBuild=1
             ;;
 
-        portableBuild)
-            __PortableBuild=1
+        portablebuild=false)
+            __PortableBuild=0
             ;;
 
         portablelinux)
@@ -823,10 +747,6 @@ while :; do
         skipmanaged|-skipmanaged)
             __SkipManaged=1
             __BuildTestWrappers=0
-            ;;
-
-        ziptests)
-            __ZipTests=1
             ;;
 
         buildtestwrappersonly)
@@ -913,9 +833,6 @@ fi
 # Set dependent variables
 __LogsDir="$__RootBinDir/Logs"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
-
-# init the host distro name
-initHostDistroRid
 
 # Set the remaining variables based upon the determined build configuration
 __BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"

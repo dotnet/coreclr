@@ -29,15 +29,27 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <SignAssembly>true</SignAssembly>
     <DelaySign>true</DelaySign>
-    <DefineConstants>$(DefineConstants);CORECLR;_USE_NLS_PLUS_TABLE;CODE_ANALYSIS_BASELINE;netcoreapp</DefineConstants>
+    <DefineConstants>$(DefineConstants);CORECLR;netcoreapp</DefineConstants>
     <!-- We don't use any of MSBuild's resolution logic for resolving the framework, so just set these two properties to any folder that exists to skip
          the GenerateReferenceAssemblyPaths task (not target) and to prevent it from outputting a warning (MSB3644). -->
     <_TargetFrameworkDirectories>$(MSBuildThisFileDirectory)/Documentation</_TargetFrameworkDirectories>
     <_FullFrameworkReferenceAssemblyPaths>$(MSBuildThisFileDirectory)/Documentation</_FullFrameworkReferenceAssemblyPaths>
     <SkipCommonResourcesIncludes>true</SkipCommonResourcesIncludes>
-    <LangVersion>latest</LangVersion>
     <DocumentationFile>$(OutputPath)$(MSBuildProjectName).xml</DocumentationFile>
   </PropertyGroup>
+
+  <!-- Approximate Arcade version string https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/Versioning.md -->
+  <!-- This workaround should be removed once CoreCLR repo is updated to use Arcade -->
+  <PropertyGroup>
+    <InformationalVersion>$(VersionPrefix)</InformationalVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(PreReleaseLabel)' != ''">
+    <InformationalVersion>$(InformationalVersion)-$(PreReleaseLabel).$(BuildNumberMajor).$(BuildNumberMinor)</InformationalVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(LatestCommit)' != ''">
+    <InformationalVersion>$(InformationalVersion)+$(LatestCommit)</InformationalVersion>
+  </PropertyGroup>
+
   <!-- Add Serviceable attribute to the project's metadata -->
   <ItemGroup>
     <AssemblyMetadata Include="Serviceable">
@@ -49,12 +61,10 @@
   <PropertyGroup Condition="'$(Platform)' == 'x64'">
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
-    <BaseAddress>0x180000000</BaseAddress>
     <DefineConstants>BIT64;AMD64;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'x86'">
     <PlatformTarget>x86</PlatformTarget>
-    <BaseAddress>0x10000000</BaseAddress>
     <DefineConstants>BIT32;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'arm'">
@@ -71,21 +81,12 @@
     <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Debug'">false</Optimize>
     <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Checked'">true</Optimize>
     <DebugType Condition="'$(DebugType)' == ''">full</DebugType>
-    <DefineConstants>_LOGGING;DEBUG;TRACE;$(DefineConstants)</DefineConstants>
+    <DefineConstants>_LOGGING;DEBUG;$(DefineConstants)</DefineConstants>
     <DefineConstants Condition="'$(Platform)' == 'x86' or '$(Platform)' == 'x64'">CODE_ANALYSIS;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugSymbols>true</DebugSymbols>
     <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
-    <DebugType Condition="'$(DebugType)' == ''">pdbOnly</DebugType>
-    <DefineConstants>TRACE;$(DefineConstants)</DefineConstants>
-  </PropertyGroup>
-  <!-- Make portable PDBs on Unix -->
-  <PropertyGroup Condition="'$(OsEnvironment)' == 'Unix'">
-    <DebugType>portable</DebugType>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetsOSX)' == 'true'">
-    <DefineConstants>PLATFORM_OSX;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <!-- Assembly attributes -->
   <PropertyGroup>
@@ -101,8 +102,6 @@
   <PropertyGroup>
     <CommonPath>$(MSBuildThisFileDirectory)Common</CommonPath>
     <BclSourcesRoot>$(MSBuildThisFileDirectory)src</BclSourcesRoot>
-    <MscorlibDir>$(MSBuildThisFileDirectory)</MscorlibDir>
-    <NlpObjDir>$(BclSourcesRoot)\System\Globalization\Tables</NlpObjDir>
   </PropertyGroup>
   <!-- Msbuild variables needed to get CoreCLR features to be set properly. -->
   <PropertyGroup>
@@ -145,6 +144,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeMetadataGenerator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipePayloadDecoder.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\RuntimeEventSource.cs" Condition="'$(FeaturePerfTracing)' == 'true'"/>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventSource_CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\TraceLoggingEventHandleTable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\ICustomDebuggerNotification.cs" />
@@ -239,8 +239,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\GCHandle.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Marshal.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NativeLibrary.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyDependencyResolver.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Serialization\FormatterServices.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RuntimeArgumentHandle.cs" />
@@ -260,7 +260,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\Thread.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadPool.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Timer.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\WaitHandle.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\WaitHandle.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Type.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TypedReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TypeLoadException.cs" />
@@ -291,6 +291,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComEventsInfo.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComEventsMethod.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComEventsSink.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Variant.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CustomMarshalers\ComDataHelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CustomMarshalers\EnumVariantViewOfEnumerator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CustomMarshalers\EnumerableToDispatchMarshaler.cs" />
@@ -357,7 +358,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\DateTime.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Windows\Kernel32\Interop.GetSystemDirectoryW.cs" />
+    <Compile Include="$(BclSourcesRoot)\Interop\Windows\OleAut32\Interop.VariantClear.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ApplicationModel.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Windows.cs" />
@@ -416,7 +417,10 @@
   <PropertyGroup>
     <StrongNameSig>Silverlight</StrongNameSig>
   </PropertyGroup>
-  <Import Project="$(MSBuildThisFileDirectory)Tools\Versioning\GenerateVersionInfo.targets" />
+  <ItemGroup>
+    <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.ComVisible(false)]" />
+    <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute(System.Runtime.InteropServices.DllImportSearchPath.AssemblyDirectory | System.Runtime.InteropServices.DllImportSearchPath.System32)]" />
+  </ItemGroup>
   <!--
     Import common targets: codeAnalysis, Microsoft.CSharp, sign, versioning, codeOptimizations, etc.
     In doing so, override versioning targets.
@@ -427,8 +431,6 @@
     <AssemblyOriginatorKeyFile>$(ToolsDir)SilverlightPlatformPublicKey.snk</AssemblyOriginatorKeyFile>
     <!-- Don't need a strong name signature because we only ship the native image -->
     <StrongNameSig>None</StrongNameSig>
-    <!-- Use a different nativeresource file to avoid conflicts with mscorlib-->
-    <Win32Resource Condition="'$(GenerateNativeVersionInfo)'=='true'">$(IntermediateOutputPath)\System.Private.CoreLib.res</Win32Resource>
   </PropertyGroup>
   <Import Project="CreateRuntimeRootILLinkDescriptorFile.targets" />
   <ItemGroup>

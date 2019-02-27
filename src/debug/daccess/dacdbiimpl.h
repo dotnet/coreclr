@@ -12,7 +12,14 @@
 #ifndef _DACDBI_IMPL_H_
 #define _DACDBI_IMPL_H_
 
-// Prototype for creation function
+// Prototype for creation functions
+
+STDAPI
+DLLEXPORT
+CLRDataCreateInstance(REFIID iid,
+    ICLRDataTarget * pLegacyTarget,
+    void ** iface);
+
 STDAPI
 DLLEXPORT
 DacDbiInterfaceInstance(

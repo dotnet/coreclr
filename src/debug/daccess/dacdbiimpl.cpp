@@ -185,6 +185,7 @@ template<class T> void DeleteDbiMemory(T *p)
 //
 //---------------------------------------------------------------------------------------
 STDAPI
+DLLEXPORT
 DacDbiInterfaceInstance(
     ICorDebugDataTarget * pTarget,
     CORDB_ADDRESS baseAddress,

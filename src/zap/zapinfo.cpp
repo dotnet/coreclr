@@ -734,7 +734,7 @@ COUNT_T ZapImage::MethodCodeTraits::Hash(key_t k)
             case ZapNodeType_Import_ClassHandle:
             case ZapNodeType_MethodHandle:
             case ZapNodeType_Import_MethodHandle:
-                hash = ((hash << 5) + hash) ^ (COUNT_T)(pTarget);
+                hash = ((hash << 5) + hash) ^ (COUNT_T)((SIZE_T)pTarget);
                 break;
             default:
                 break;
@@ -3197,6 +3197,13 @@ CORINFO_CLASS_HANDLE ZapInfo::mergeClasses(
                                 CORINFO_CLASS_HANDLE cls2)
 {
     return m_pEEJitInfo->mergeClasses(cls1, cls2);
+}
+
+BOOL ZapInfo::isMoreSpecificType(
+                CORINFO_CLASS_HANDLE cls1,
+                CORINFO_CLASS_HANDLE cls2)
+{
+    return m_pEEJitInfo->isMoreSpecificType(cls1, cls2);
 }
 
 BOOL ZapInfo::shouldEnforceCallvirtRestriction(

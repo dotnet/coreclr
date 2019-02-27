@@ -496,14 +496,18 @@
 #if defined(SOURCE_FORMATTING)
 #define SELECTANY extern
 #else
+#if defined(__GNUC__)
+#define SELECTANY extern __attribute__((weak))
+#else
 #define SELECTANY extern __declspec(selectany)
+#endif
 #endif
 #if defined(SOURCE_FORMATTING)
 #define __annotation(x)
 #endif
         
 
-#if defined(_DEBUG_IMPL) && !defined(JIT_BUILD) && !defined(JIT64_BUILD) && !defined(CROSS_COMPILE) && !defined(_TARGET_ARM_) // @ARMTODO: no contracts for speed
+#if defined(_DEBUG_IMPL) && !defined(JIT_BUILD) && !defined(JIT64_BUILD) && !defined(CROSS_COMPILE) && !defined(DISABLE_CONTRACTS)
 #define PAL_TRY_HANDLER_DBG_BEGIN                                               \
     BOOL ___oldOkayToThrowValue = FALSE;                                        \
     ClrDebugState *___pState = ::GetClrDebugState();                            \

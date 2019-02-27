@@ -61,6 +61,7 @@ public:
     // Note: these are on the PInvoke class to hide these from the user.
     static FCDECL0(EXCEPTION_POINTERS*, GetExceptionPointers);
     static FCDECL0(INT32, GetExceptionCode);
+    static FCDECL0(UINT32, GetExceptionCount);
 };
 
 class MemoryNative
@@ -138,6 +139,14 @@ public:
     static FCDECL2(int,     CollectionCount, INT32 generation, INT32 getSpecialGCCount);
     
     static FCDECL0(INT64,    GetAllocatedBytesForCurrentThread);
+
+#ifdef FEATURE_BASICFREEZE
+    static
+    void* QCALLTYPE RegisterFrozenSegment(void *pSection, INT32 sizeSection);
+
+    static
+    void QCALLTYPE UnregisterFrozenSegment(void *segmentHandle);
+#endif // FEATURE_BASICFREEZE
 
     static 
     int QCALLTYPE StartNoGCRegion(INT64 totalSize, BOOL lohSizeKnown, INT64 lohSize, BOOL disallowFullBlockingGC);

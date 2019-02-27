@@ -72,9 +72,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/Interop/ExecInDefAppDom/ExecInDefAppDom/*">
             <Issue>Issue building native components for the test.</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/DefaultInterfaceMethods/constrainedcall/constrainedcall/*">
-            <Issue>22423</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <!-- Arm32 All OS -->
@@ -117,12 +114,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Features/HeapExpansion/pluggaps/*">
             <Issue>needs triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/GC/Features/Finalizer/finalizeother/finalizearray/*">
-            <Issue>19218</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/GC/Features/Finalizer/finalizeother/finalizearraysleep/*">
-            <Issue>19218</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Regressions/v2.0-beta2/460373/460373/*">
             <Issue>needs triage</Issue>
@@ -258,18 +249,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport_r/*">
             <Issue>Varargs supported on this platform</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/Char/AFT_PFT/AFT_PFT/*">
-            <Issue>22436</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/Char/Assembly_False_False/Assembly_False_False/*">
-            <Issue>22436</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/LPStr/AFT_PFT/AFT_PFT/*">
-            <Issue>22436</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/LPStr/Assembly_False_False/Assembly_False_False/*">
-            <Issue>22436</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <!-- Windows x86 specific excludes -->
@@ -298,12 +277,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport_r/*">
             <Issue>Varargs supported on this platform</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/Char/AFT_PFT/AFT_PFT/*">
-            <Issue>22436</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/PInvoke/BestFitMapping/LPStr/AFT_PFT/AFT_PFT/*">
-            <Issue>22436</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <!-- Windows arm32 specific excludes -->
@@ -322,6 +295,9 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NETClients/Aggregation/NETClientAggregation/*">
             <Issue>20682</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NETClients/Events/NETClientEvents/*">
+            <Issue>22784</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -411,24 +387,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/opt/rngchk/RngchkStress3/*">
             <Issue>Needs Triage</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i53/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i13/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i03/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i33/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i63/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i73/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <!-- arm32 All OS specific excludes -->
@@ -509,9 +467,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/CLR-x86-JIT/V1-M12-Beta2/b37646/*">
             <Issue>Varargs not supported on this platform</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Loader/NativeLibs/FromNativePaths/*">
-            <Issue>Issue building native components for the test.</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Directed/pinning/object-pin/*">
             <Issue>Issue building native components for the test.</Issue>
         </ExcludeList>
@@ -529,9 +484,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_19601/Github_19601/*">
             <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/SIMD/Vector3Interop_ro/*">
-            <Issue>22401</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -591,18 +543,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Scenarios/Dynamo/dynamo/*">
             <Issue>17129</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/doublearray/dblarray3_cs_do/*">
-            <Issue>22015</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/doublearray/dblarray3_cs_d/*">
-            <Issue>22015</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/doublearray/dblarray3_cs_ro/*">
-            <Issue>22015</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/doublearray/dblarray3_cs_r/*">
-            <Issue>22015</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -1695,7 +1635,7 @@
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Loader/NativeLibs/FromNativePaths/*">
-            <Issue>needs triage</Issue>
+            <Issue>This requires the native assets to be in the test folder, which is currently not the case when building against packages.</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Loader/classloader/TypeGeneratorTests/TypeGeneratorTest612/Generated612/*">
             <Issue>needs triage</Issue>

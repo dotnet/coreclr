@@ -35,6 +35,8 @@ set "__ProjectFilesDir=%__ProjectDir%"
 set "__RootBinDir=%__ProjectDir%\..\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
+set __ToolsDir=%__ProjectDir%\..\Tools
+set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
 
 set __Sequential=
 set __msbuildExtraArgs=
@@ -46,7 +48,6 @@ set __IlasmRoundTrip=
 set __CollectDumps=
 set __DoCrossgen=
 set __CrossgenAltJit=
-set __PerfTests=
 set __CoreFXTests=
 set __CoreFXTestsRunAllAvailable=
 set __SkipGenerateLayout=
@@ -93,7 +94,6 @@ if /i "%1" == "GenerateLayoutOnly"                      (set __GenerateLayoutOnl
 if /i "%1" == "skipgeneratelayout"                      (set __SkipGenerateLayout=1&shift&goto Arg_Loop)
 if /i "%1" == "buildxunitwrappers"                      (set __BuildXunitWrappers=1&shift&goto Arg_Loop)
 if /i "%1" == "printlastresultsonly"                    (set __PrintLastResultsOnly=1&shift&goto Arg_Loop)
-if /i "%1" == "PerfTests"                               (set __PerfTests=true&shift&goto Arg_Loop)
 if /i "%1" == "CoreFXTests"                             (set __CoreFXTests=true&shift&goto Arg_Loop)
 if /i "%1" == "CoreFXTestsAll"                          (set __CoreFXTests=true&set __CoreFXTestsRunAllAvailable=true&shift&goto Arg_Loop)
 if /i "%1" == "CoreFXTestList"                          (set __CoreFXTests=true&set __CoreFXTestList=%2&shift&shift&goto Arg_Loop)
@@ -130,7 +130,6 @@ shift
 :: Done with argument processing. Check argument values for validity.
 
 if defined __TestEnv (if not exist %__TestEnv% echo %__MsgPrefix%Error: Test Environment script %__TestEnv% not found && exit /b 1)
-if "%__PerfTests%"=="true" (if defined __GenerateLayoutOnly  echo %__MsgPrefix%Error: Don't specify both "PerfTests" and "GenerateLayoutOnly" && exit /b 1)
 if "%__CoreFXTests%"=="true" (if defined __GenerateLayoutOnly  echo %__MsgPrefix%Error: Don't specify both "CoreFXTests" and "GenerateLayoutOnly" && exit /b 1)
 
 if defined __CoreFXTestList (
@@ -159,7 +158,6 @@ REM runtest.py will handle setup and will then call runtest.proj
 
 if defined __AgainstPackages goto SetupMSBuildAndCallRuntestProj
 if "%__CoreFXTests%"=="true" goto SetupMSBuildAndCallRuntestProj
-if "%__PerfTests%"=="true" goto SetupMSBuildAndCallRuntestProj
 if defined __GenerateLayoutOnly goto SetupMSBuildAndCallRuntestProj
 
 REM We are not running in the official build scenario, call runtest.py
@@ -241,29 +239,18 @@ exit /b %ERRORLEVEL%
 
 :: Set up msbuild and tools environment. Check if msbuild and VS exist.
 
-set _msbuildexe=
 if /i "%__VSVersion%" == "vs2019" (
     set "__VSToolsRoot=%VS160COMNTOOLS%"
     set "__VCToolsRoot=%VS160COMNTOOLS%\..\..\VC\Auxiliary\Build"
-
-    set _msbuildexe="%VS160COMNTOOLS%\..\..\MSBuild\Current\Bin\MSBuild.exe"
 ) else if /i "%__VSVersion%" == "vs2017" (
     set "__VSToolsRoot=%VS150COMNTOOLS%"
     set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
-
-    set _msbuildexe="%VS150COMNTOOLS%\..\..\MSBuild\15.0\Bin\MSBuild.exe"
 )
 
 :: Does VS really exist?
 if not exist "%__VSToolsRoot%\..\IDE\devenv.exe"      goto NoVS
 if not exist "%__VCToolsRoot%\vcvarsall.bat"          goto NoVS
 if not exist "%__VSToolsRoot%\VsDevCmd.bat"           goto NoVS
-
-:: Does MSBuild really exist?
-if not exist %_msbuildexe% (
-    echo %__MsgPrefix%Error: Could not find MSBuild.exe.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
-    exit /b 1
-)
 
 if not defined VSINSTALLDIR (
     echo %__MsgPrefix%Error: runtest.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
@@ -327,8 +314,6 @@ if not exist %CORE_ROOT%\coreclr.dll (
 )
 
 if "%__CoreFXTests%"=="true" goto RunCoreFXTests
-
-if "%__PerfTests%"=="true" goto RunPerfTests
 
 REM =========================================================================================
 REM ===
@@ -398,27 +383,6 @@ goto TestsDone
 
 REM =========================================================================================
 REM ===
-REM === Run perf tests
-REM ===
-REM =========================================================================================
-
-:RunPerfTests 
-echo %__MsgPrefix%CORE_ROOT that will be used is: %CORE_ROOT%  
-echo %__MsgPrefix%Starting test run at %TIME%
-
-set __BuildLogRootName=PerfTestRunResults  
-echo %__MsgPrefix%Running perf tests  
-call :msbuild "%__ProjectFilesDir%\runtest.proj" /t:RunPerfTests /clp:showcommandline  
-
-if errorlevel 1 (  
-    echo %__MsgPrefix%Test Run failed. Refer to the following:  
-    echo     Html report: %__TestRunHtmlLog%  
-)
-
-goto TestsDone
-
-REM =========================================================================================
-REM ===
 REM === Run CoreFX tests
 REM ===
 REM =========================================================================================
@@ -426,8 +390,6 @@ REM ============================================================================
 :RunCoreFXTests
 
 set _CoreFXTestHost=%XunitTestBinBase%\testhost
-set __ToolsDir=%__ProjectDir%\..\Tools
-set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
 
 set _RootCoreFXTestPath=%__TestWorkingDir%\CoreFX
 set _CoreFXTestUtilitiesOutputPath=%_RootCoreFXTestPath%\CoreFXTestUtilities
@@ -591,10 +553,10 @@ set __msbuildLogArgs=^
 set __msbuildArgs=%* %__msbuildCommonArgs% %__msbuildLogArgs%
 
 @REM The next line will overwrite the existing log file, if any.
-echo %__MsgPrefix%%_msbuildexe% %__msbuildArgs%
-echo Invoking: %_msbuildexe% %__msbuildArgs% > "%__BuildLog%"
+echo %__MsgPrefix%"%DotNetCli%" msbuild %__msbuildArgs%
+echo Invoking: "%DotNetCli%" msbuild %__msbuildArgs% > "%__BuildLog%"
 
-%_msbuildexe% %__msbuildArgs%
+call "%DotNetCli%" msbuild %__msbuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: msbuild failed. Refer to the log files for details:
     echo     %__BuildLog%
@@ -687,14 +649,14 @@ echo %__MsgPrefix%Created the Test Host layout with all dependencies in %_CoreFX
 
 REM Publish and call the CoreFX test helper projects - should this be integrated into runtest.proj?
 REM Build Helper project
-set NEXTCMD="%DotNetCli%" msbuild /t:Restore "%_CoreFXTestSetupUtility%"
+set NEXTCMD=call :msbuild /t:Restore "%_CoreFXTestSetupUtility%"
 echo !NEXTCMD!
 !NEXTCMD!
 if errorlevel 1 (
     exit /b 1
 )
 
-set NEXTCMD=call "%DotNetCli%" msbuild "/p:Configuration=%CoreRT_BuildType%" "/p:OSGroup=%CoreRT_BuildOS%" "/p:Platform=%CoreRT_BuildArch%" "/p:OutputPath=%_CoreFXTestUtilitiesOutputPath%" "%_CoreFXTestSetupUtility%"
+set NEXTCMD=call :msbuild "/p:Configuration=%CoreRT_BuildType%" "/p:OSGroup=%CoreRT_BuildOS%" "/p:Platform=%CoreRT_BuildArch%" "/p:OutputPath=%_CoreFXTestUtilitiesOutputPath%" "%_CoreFXTestSetupUtility%"
 echo !NEXTCMD!
 !NEXTCMD!
 if errorlevel 1 (
@@ -734,7 +696,6 @@ echo link ^<ILlink^>             - Runs the tests after linking via the IL linke
 echo CoreFXTests               - Runs CoreFX tests
 echo CoreFXTestsAll            - Runs all CoreFX tests ^(no exclusions^)
 echo CoreFXTestList ^<file^>     - Specify a file containing a list of CoreFX tests to run, and runs them.
-echo PerfTests                 - Runs perf tests
 echo RunCrossgenTests          - Runs ReadytoRun tests
 echo jitstress ^<n^>             - Runs the tests with COMPlus_JitStress=n
 echo jitstressregs ^<n^>         - Runs the tests with COMPlus_JitStressRegs=n

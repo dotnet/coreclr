@@ -177,6 +177,7 @@ FCFuncStart(gExceptionFuncs)
     FCFuncElement("CopyDynamicMethods", ExceptionNative::CopyDynamicMethods)
     FCFuncElement("GetStackTracesDeepCopy", ExceptionNative::GetStackTracesDeepCopy)
     FCFuncElement("SaveStackTracesFromDeepCopy", ExceptionNative::SaveStackTracesFromDeepCopy)
+    FCFuncElement("GetExceptionCount", ExceptionNative::GetExceptionCount)
 FCFuncEnd()
 
 FCFuncStart(gCriticalHandleFuncs)
@@ -688,10 +689,9 @@ FCFuncStart(gRegisteredWaitHandleFuncs)
 FCFuncEnd()
 
 FCFuncStart(gWaitHandleFuncs)
-    FCFuncElement("WaitOneNative", WaitHandleNative::CorWaitOneNative)
-    FCFuncElement("WaitMultiple", WaitHandleNative::CorWaitMultipleNative)
-    FCFuncElement("SignalAndWaitOne", WaitHandleNative::CorSignalAndWaitOneNative)
-    FCFuncElement("WaitMultipleIgnoringSyncContext", WaitHandleNative::WaitHelper)
+    FCFuncElement("WaitOneCore", WaitHandleNative::CorWaitOneNative)
+    FCFuncElement("WaitMultipleIgnoringSyncContext", WaitHandleNative::CorWaitMultipleNative)
+    FCFuncElement("SignalAndWaitNative", WaitHandleNative::CorSignalAndWaitOneNative)
 FCFuncEnd()
 
 #ifdef FEATURE_COMINTEROP
@@ -770,6 +770,12 @@ FCFuncStart(gGCInterfaceFuncs)
     FCFuncElement("_ReRegisterForFinalize", GCInterface::ReRegisterForFinalize)
 
     FCFuncElement("_GetAllocatedBytesForCurrentThread", GCInterface::GetAllocatedBytesForCurrentThread)
+
+#ifdef FEATURE_BASICFREEZE
+    QCFuncElement("_RegisterFrozenSegment", GCInterface::RegisterFrozenSegment)
+    QCFuncElement("_UnregisterFrozenSegment", GCInterface::UnregisterFrozenSegment)
+#endif // FEATURE_BASICFREEZE
+
 FCFuncEnd()
 
 FCFuncStart(gGCSettingsFuncs)

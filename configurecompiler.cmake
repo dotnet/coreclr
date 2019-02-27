@@ -438,12 +438,21 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fstack-protector-strong)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 
+  # Contracts are disabled on UNIX.
   add_definitions(-DDISABLE_CONTRACTS)
 
   if (CLR_CMAKE_WARNINGS_ARE_ERRORS)
     # All warnings that are not explicitly disabled are reported as errors
     add_compile_options(-Werror)
   endif(CLR_CMAKE_WARNINGS_ARE_ERRORS)
+
+  # Disabled common warnings
+  add_compile_options(-Wno-unused-variable)
+  add_compile_options(-Wno-unused-value)
+  add_compile_options(-Wno-unused-function)
+
+  #These seem to indicate real issues
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-invalid-offsetof")
 
   if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
@@ -452,7 +461,6 @@ if (CLR_CMAKE_PLATFORM_UNIX)
 
     # Disabled warnings
     add_compile_options(-Wno-unused-private-field)
-    add_compile_options(-Wno-unused-variable)
     # Explicit constructor calls are not supported by clang (this->ClassName::ClassName())
     add_compile_options(-Wno-microsoft)
     # This warning is caused by comparing 'this' to NULL
@@ -467,8 +475,6 @@ if (CLR_CMAKE_PLATFORM_UNIX)
 
     add_compile_options(-Wno-unknown-warning-option)
 
-    #These seem to indicate real issues
-    add_compile_options(-Wno-invalid-offsetof)
     # The following warning indicates that an attribute __attribute__((__ms_struct__)) was applied
     # to a struct or a class that has virtual members or a base class. In that case, clang
     # may not generate the same object layout as MSVC.
@@ -476,6 +482,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   else()
     add_compile_options(-Wno-unused-variable)
     add_compile_options(-Wno-unused-but-set-variable)
+    add_compile_options(-fms-extensions)
   endif()
 
   # Some architectures (e.g., ARM) assume char type is unsigned while CoreCLR assumes char is signed
@@ -562,6 +569,11 @@ if (WIN32)
   add_compile_options($<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:/MTd>)  
 
   set(CMAKE_ASM_MASM_FLAGS "${CMAKE_ASM_MASM_FLAGS} /ZH:SHA_256")
+  
+  if (CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_TARGET_ARCH_ARM64)
+    # Contracts work too slow on ARM/ARM64 DEBUG/CHECKED.
+    add_definitions(-DDISABLE_CONTRACTS)
+  endif (CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_TARGET_ARCH_ARM64)    
   
 endif (WIN32)
 

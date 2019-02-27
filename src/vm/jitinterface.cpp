@@ -30,7 +30,6 @@
 #include "jitperf.h" // to track jit perf
 #include "corprof.h"
 #include "eeprofinterfaces.h"
-#include "perfcounters.h"
 #ifdef PROFILING_SUPPORTED
 #include "proftoeeinterfaceimpl.h"
 #include "eetoprofinterfaceimpl.h"
@@ -100,12 +99,6 @@ GARY_IMPL(VMHELPDEF, hlpFuncTable, CORINFO_HELP_COUNT);
 GARY_IMPL(VMHELPDEF, hlpDynamicFuncTable, DYNAMIC_CORINFO_HELP_COUNT);
 
 #else // DACCESS_COMPILE
-
-/*********************************************************************/
-
-#if defined(ENABLE_PERF_COUNTERS)
-LARGE_INTEGER g_lastTimeInJitCompilation;
-#endif
 
 /*********************************************************************/
 
@@ -4706,7 +4699,7 @@ TypeCompareState CEEInfo::compareTypesForEquality(
 }
 
 /*********************************************************************/
-// returns is the intersection of cls1 and cls2.
+// returns the intersection of cls1 and cls2.
 CORINFO_CLASS_HANDLE CEEInfo::mergeClasses(
         CORINFO_CLASS_HANDLE        cls1,
         CORINFO_CLASS_HANDLE        cls2)
@@ -4770,6 +4763,68 @@ CORINFO_CLASS_HANDLE CEEInfo::mergeClasses(
     }
 #endif
     result = CORINFO_CLASS_HANDLE(merged.AsPtr());
+
+    EE_TO_JIT_TRANSITION();
+    return result;
+}
+
+/*********************************************************************/
+static BOOL isMoreSpecificTypeHelper(
+       CORINFO_CLASS_HANDLE        cls1,
+       CORINFO_CLASS_HANDLE        cls2)
+{
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    TypeHandle hnd1 = TypeHandle(cls1);
+    TypeHandle hnd2 = TypeHandle(cls2);
+
+    // We can't really reason about equivalent types. Just
+    // assume the new type is not more specific.
+    if (hnd1.HasTypeEquivalence() || hnd2.HasTypeEquivalence())
+    {
+        return FALSE;
+    }
+
+    // If we have a mixture of shared and unshared types,
+    // consider the unshared type as more specific.
+    BOOL isHnd1CanonSubtype = hnd1.IsCanonicalSubtype();
+    BOOL isHnd2CanonSubtype = hnd2.IsCanonicalSubtype();
+    if (isHnd1CanonSubtype != isHnd2CanonSubtype)
+    {
+        // Only one of hnd1 and hnd2 is shared.
+        // hdn2 is more specific if hnd1 is the shared type.
+        return isHnd1CanonSubtype;
+    }
+
+    // Otherwise both types are either shared or not shared.
+    // Look for a common parent type.
+    TypeHandle merged = TypeHandle::MergeTypeHandlesToCommonParent(hnd1, hnd2);
+
+    // If the common parent is hnd1, then hnd2 is more specific.
+    return merged == hnd1;
+}
+
+// Returns true if cls2 is known to be a more specific type
+// than cls1 (a subtype or more restrictive shared type).
+BOOL CEEInfo::isMoreSpecificType(
+        CORINFO_CLASS_HANDLE        cls1,
+        CORINFO_CLASS_HANDLE        cls2)
+{
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    BOOL result = FALSE;
+
+    JIT_TO_EE_TRANSITION();
+
+    result = isMoreSpecificTypeHelper(cls1, cls2);
 
     EE_TO_JIT_TRANSITION();
     return result;
@@ -5207,7 +5262,11 @@ void CEEInfo::getCallInfo(
             exactType, 
             pMD, 
             &fForceUseRuntimeLookup);
-        if (directMethod)
+        if (directMethod
+#ifdef FEATURE_DEFAULT_INTERFACES
+            && !directMethod->IsInterface() /* Could be a default interface method implementation */
+#endif
+            )
         {
             // Either
             //    1. no constraint resolution at compile time (!directMethod)
@@ -12807,15 +12866,6 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
                 QueryPerformanceCounter (&methodJitTimeStart);
 
 #endif
-#if defined(ENABLE_PERF_COUNTERS)
-            START_JIT_PERF();
-#endif
-
-#if defined(ENABLE_PERF_COUNTERS)
-            LARGE_INTEGER CycleStart;
-            QueryPerformanceCounter (&CycleStart);
-#endif // defined(ENABLE_PERF_COUNTERS)
-
             // Note on debuggerTrackInfo arg: if we're only importing (ie, verifying/
             // checking to make sure we could JIT, but not actually generating code (
             // eg, for inlining), then DON'T TELL THE DEBUGGER about this.
@@ -12834,20 +12884,6 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
             {
                 *pSizeOfCode = sizeOfCode;
             }
-#endif
-
-#if defined(ENABLE_PERF_COUNTERS)
-            LARGE_INTEGER CycleStop;
-            QueryPerformanceCounter(&CycleStop);
-            GetPerfCounters().m_Jit.timeInJitBase = GetPerfCounters().m_Jit.timeInJit;
-            GetPerfCounters().m_Jit.timeInJit += static_cast<DWORD>(CycleStop.QuadPart - CycleStart.QuadPart);
-            GetPerfCounters().m_Jit.cMethodsJitted++;
-            GetPerfCounters().m_Jit.cbILJitted+=methodInfo.ILCodeSize;
-
-#endif // defined(ENABLE_PERF_COUNTERS)
-
-#if defined(ENABLE_PERF_COUNTERS)
-            STOP_JIT_PERF();
 #endif
 
 #ifdef PERF_TRACK_METHOD_JITTIMES
@@ -12875,8 +12911,6 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
 
         if (!SUCCEEDED(res))
         {
-            COUNTER_ONLY(GetPerfCounters().m_Jit.cJitFailures++);
-
 #ifndef CROSSGEN_COMPILE
             jitInfo.BackoutJitData(jitMgr);
 #endif
