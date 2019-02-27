@@ -45,8 +45,8 @@ namespace System.Diagnostics.Tracing
     internal enum ControllerCommand
     {
         // Strictly Positive numbers are for provider-specific commands, negative number are for 'shared' commands. 256
-        // The first 256 negative numbers are reserved for the framework.  
-        Update = 0,                 // Not used by EventPrividerBase.  
+        // The first 256 negative numbers are reserved for the framework.
+        Update = 0, // Not used by EventProviderBase.
         SendManifest = -1,
         Enable = -2,
         Disable = -3,
@@ -438,25 +438,25 @@ namespace System.Diagnostics.Tracing
             uint sessionIdBitMask = (uint)SessionMask.FromEventKeywords(unchecked((ulong)matchAllKeywords));
             // an ETW controller that specifies more than the mandated bit for our EventSource
             // will be ignored...
-            int popc = BitOperations.PopCount(sessionIdBitMask);
-            if (popc > 1)
+            int val = BitOperations.PopCount(sessionIdBitMask);
+            if (val > 1)
                 return;
 
             if (sessionList == null)
                 sessionList = new List<SessionInfo>(8);
 
-            if (popc == 1)
+            if (val == 1)
             {
                 // activity-tracing-aware etw session
-                int tzc = BitOperations.TrailingZeroCount(sessionIdBitMask);
-                sessionList.Add(new SessionInfo(tzc + 1, etwSessionId));
+                val = BitOperations.TrailingZeroCount(sessionIdBitMask);
             }
             else
             {
                 // legacy etw session
-                popc = BitOperations.PopCount((uint)SessionMask.All);
-                sessionList.Add(new SessionInfo(popc + 1, etwSessionId));
+                val = BitOperations.PopCount((uint)SessionMask.All);
             }
+
+            sessionList.Add(new SessionInfo(val + 1, etwSessionId));
         }
 
         private delegate void SessionInfoCallback(int etwSessionId, long matchAllKeywords, ref List<SessionInfo> sessionList);
