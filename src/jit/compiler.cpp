@@ -11212,7 +11212,13 @@ void Compiler::siEndVariableLiveRange(const LclVarDsc* varDsc)
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
-    if (varDsc->lvSlotNum < info.compLocalsCount)
+
+    // There could be a variable alive after code has been emitted and we would 
+    // receive a call from genUpdateLife with this one but the emitter has no longer
+    // a valid IG so we don't report the close of a VariableLifeRange after code is 
+    // emitted.
+
+    if (varDsc->lvSlotNum < info.compLocalsCount && !lastBasicBlockHasBeenEmited)
     {
         // "varDsc" live range is no more valid from this point
         varDsc->endLiveRangeAtEmitter(getEmitter());
@@ -11247,6 +11253,41 @@ void Compiler::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
         varDsc->UpdateRegisterHome(siVarLoc, getEmitter());
     }
 }
+
+//------------------------------------------------------------------------
+// siUpdateVariableLiveRange: Iterates the given set of variables calling 
+// siEndVariableLiveRange with each of them. Set the flag 
+// lastBasicBlockHasBeenEmited to true on end so no more calls to 
+// siEndVariableLiveRange are considered.
+//
+// Arguments:
+//    newLife    - the set of variables that should end their VariableLiveRange.
+//
+// Assumptions:
+//    All the variables in the set hold hasBeenAlive() (have reported a home and 
+//    never reported the end of its life there)
+//
+// Notes:
+//    There are some cases where we finish generating code on "genCodeForBBList"
+//    and some variables are still alive in "compCurLife". So we call this method
+//    on the last block being generated and set a flag so no call to 
+//    "siEndVariableLiveRange" from "genUpdateLife" get to close a "VariableLiveRange"
+//    outside the loop.
+void Compiler::siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose)
+{
+    VarSetOps::Iter iter(this, varsToClose);
+    unsigned        varIndex = 0;
+    while (iter.NextElem(&varIndex))
+    {
+        unsigned   lclNum = lvaTrackedToVarNum[varIndex];
+        const LclVarDsc* lclVar = &lvaTable[lclNum];
+        assert(lclVar->hasBeenAlive());
+        siEndVariableLiveRange(lclVar);
+    }
+
+    lastBasicBlockHasBeenEmited = true;
+}
+
 #ifdef DEBUG
 void Compiler::dumpBlockVariableLiveRanges(const BasicBlock* block)
 {

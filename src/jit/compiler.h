@@ -7353,6 +7353,12 @@ public:
     // Calls updateRegisterHome on "varDsc" with the new variable location "siVarLoc"
     void siUpdateVariableLiveRange(const LclVarDsc* varDsc);
 
+    // Close all the "VariableLiveRanges" that are indicated in the given set
+    void siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose);
+
+    bool lastBasicBlockHasBeenEmited;   // When true no more siEndVariableLiveRange is considered.
+                                        // No update/start happens when code has been generated.
+
     bool isFramePointerUsed() const
     {
         return codeGen->isFramePointerUsed();

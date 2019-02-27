@@ -128,6 +128,7 @@ void CodeGen::genInitialize()
 //
 void CodeGen::genCodeForBBlist()
 {
+    compiler->lastBasicBlockHasBeenEmited = false;
     unsigned savedStkLvl;
 
 #ifdef DEBUG
@@ -524,16 +525,21 @@ void CodeGen::genCodeForBBlist()
                 isLastBlockProcessed = (block->bbNext->bbNext == nullptr);
             }
 
-            if (isLastBlockProcessed && siOpenScopeList.scNext)
+            if (isLastBlockProcessed)
             {
-                /* This assert no longer holds, because we may insert a throw
-                   block to demarcate the end of a try or finally region when they
-                   are at the end of the method.  It would be nice if we could fix
-                   our code so that this throw block will no longer be necessary. */
+                compiler->siEndAllVariableLiveRange(compiler->compCurLife);
 
-                // noway_assert(block->bbCodeOffsEnd != compiler->info.compILCodeSize);
+                if (siOpenScopeList.scNext)
+                {
+                    /* This assert no longer holds, because we may insert a throw
+                       block to demarcate the end of a try or finally region when they
+                       are at the end of the method.  It would be nice if we could fix
+                       our code so that this throw block will no longer be necessary. */
 
-                siCloseAllOpenScopes();
+                    // noway_assert(block->bbCodeOffsEnd != compiler->info.compILCodeSize);
+
+                    siCloseAllOpenScopes();
+                }
             }
         }
 
@@ -730,7 +736,8 @@ void CodeGen::genCodeForBBlist()
 #endif
     } //------------------ END-FOR each block of the method -------------------
 
-    // Nothing is live at this point and all blocks instructions has been emited
+    // There could be variables alive at this point. For example see lvaKeepAliveAndReportThis.
+    // This method would clean the GC ref
     genUpdateLife(VarSetOps::MakeEmpty(compiler));
 
     /* Finalize the spill  tracking logic */
