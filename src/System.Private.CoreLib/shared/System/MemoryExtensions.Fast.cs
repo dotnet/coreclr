@@ -14,7 +14,7 @@ namespace System
     /// <summary>
     /// Extension methods for Span{T}, Memory{T}, and friends.
     /// </summary>
-    partial class MemoryExtensions // .Fast
+    public static partial class MemoryExtensions // .Fast
     {
         /// <summary>
         /// Returns a value indicating whether the specified <paramref name="value"/> occurs within the <paramref name="span"/>.

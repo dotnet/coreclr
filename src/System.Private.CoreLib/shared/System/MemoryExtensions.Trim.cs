@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace System
 {
-    partial class MemoryExtensions // .Trim
+    public static partial class MemoryExtensions // .Trim
     {
         /// <summary>
         /// Removes all leading and trailing occurrences of a specified element.
@@ -162,7 +162,9 @@ namespace System
                 for (; start < span.Length; start++)
                 {
                     if (span[start] != null)
+                    {
                         break;
+                    }
                 }
             }
             else
@@ -170,7 +172,9 @@ namespace System
                 for (; start < span.Length; start++)
                 {
                     if (!trimElement.Equals(span[start]))
+                    {
                         break;
+                    }
                 }
             }
 
@@ -196,7 +200,9 @@ namespace System
                 for (; end >= start; end--)
                 {
                     if (span[end] != null)
+                    {
                         break;
+                    }
                 }
             }
             else
@@ -204,7 +210,9 @@ namespace System
                 for (; end >= start; end--)
                 {
                     if (!trimElement.Equals(span[end]))
+                    {
                         break;
+                    }
                 }
             }
 
@@ -220,7 +228,8 @@ namespace System
         public static Memory<T> Trim<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? memory : Trim(memory, trimElements[0]);
             }
@@ -240,7 +249,8 @@ namespace System
         public static Memory<T> TrimStart<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? memory : TrimStart(memory, trimElements[0]);
             }
@@ -258,7 +268,8 @@ namespace System
         public static Memory<T> TrimEnd<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? memory : TrimEnd(memory, trimElements[0]);
             }
@@ -276,7 +287,8 @@ namespace System
         public static ReadOnlyMemory<T> Trim<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? memory : Trim(memory, trimElements[0]);
             }
@@ -296,7 +308,8 @@ namespace System
         public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? memory : TrimStart(memory, trimElements[0]);
             }
@@ -314,7 +327,8 @@ namespace System
         public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? memory : TrimEnd(memory, trimElements[0]);
             }
@@ -332,7 +346,8 @@ namespace System
         public static Span<T> Trim<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? span : Trim(span, trimElements[0]);
             }
@@ -351,7 +366,8 @@ namespace System
         public static Span<T> TrimStart<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? span : TrimStart(span, trimElements[0]);
             }
@@ -369,7 +385,8 @@ namespace System
         public static Span<T> TrimEnd<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? span : TrimEnd(span, trimElements[0]);
             }
@@ -387,7 +404,8 @@ namespace System
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? span : Trim(span, trimElements[0]);
             }
@@ -406,7 +424,8 @@ namespace System
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? span : TrimStart(span, trimElements[0]);
             }
@@ -424,7 +443,8 @@ namespace System
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            if (trimElements.Length <= 1) // Optimize for N > 1
+            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
+            if (trimElements.Length <= 1)
             {
                 return trimElements.Length == 0 ? span : TrimEnd(span, trimElements[0]);
             }
@@ -442,11 +462,12 @@ namespace System
             where T : IEquatable<T>
         {
             int start = 0;
-
             for (; start < span.Length; start++)
             {
                 if (!trimElements.Contains(span[start]))
+                {
                     break;
+                }
             }
 
             return start;
@@ -465,11 +486,12 @@ namespace System
             Debug.Assert((uint)start <= span.Length);
 
             int end = span.Length - 1;
-
             for (; end >= start; end--)
             {
                 if (!trimElements.Contains(span[end]))
+                {
                     break;
+                }
             }
 
             return end - start + 1;
@@ -486,14 +508,18 @@ namespace System
             for (; start < span.Length; start++)
             {
                 if (!char.IsWhiteSpace(span[start]))
+                {
                     break;
+                }
             }
 
             int end = span.Length - 1;
             for (; end >= start; end--)
             {
                 if (!char.IsWhiteSpace(span[end]))
+                {
                     break;
+                }
             }
 
             return memory.Slice(start, end - start + 1);
@@ -510,7 +536,9 @@ namespace System
             for (; start < span.Length; start++)
             {
                 if (!char.IsWhiteSpace(span[start]))
+                {
                     break;
+                }
             }
 
             return memory.Slice(start);
@@ -527,7 +555,9 @@ namespace System
             for (; end >= 0; end--)
             {
                 if (!char.IsWhiteSpace(span[end]))
+                {
                     break;
+                }
             }
 
             return memory.Slice(0, end + 1);
@@ -544,14 +574,18 @@ namespace System
             for (; start < span.Length; start++)
             {
                 if (!char.IsWhiteSpace(span[start]))
+                {
                     break;
+                }
             }
 
             int end = span.Length - 1;
             for (; end >= start; end--)
             {
                 if (!char.IsWhiteSpace(span[end]))
+                {
                     break;
+                }
             }
 
             return memory.Slice(start, end - start + 1);
@@ -568,7 +602,9 @@ namespace System
             for (; start < span.Length; start++)
             {
                 if (!char.IsWhiteSpace(span[start]))
+                {
                     break;
+                }
             }
 
             return memory.Slice(start);
@@ -585,7 +621,9 @@ namespace System
             for (; end >= 0; end--)
             {
                 if (!char.IsWhiteSpace(span[end]))
+                {
                     break;
+                }
             }
 
             return memory.Slice(0, end + 1);
@@ -600,14 +638,20 @@ namespace System
             for (; start < span.Length; start++)
             {
                 if (!char.IsWhiteSpace(span[start]))
+                {
                     break;
+                }
             }
+
             int end = span.Length - 1;
             for (; end >= start; end--)
             {
                 if (!char.IsWhiteSpace(span[end]))
+                {
                     break;
+                }
             }
+
             return span.Slice(start, end - start + 1);
         }
 
@@ -620,8 +664,11 @@ namespace System
             for (; start < span.Length; start++)
             {
                 if (!char.IsWhiteSpace(span[start]))
+                {
                     break;
+                }
             }
+
             return span.Slice(start);
         }
 
@@ -634,8 +681,11 @@ namespace System
             for (; end >= 0; end--)
             {
                 if (!char.IsWhiteSpace(span[end]))
+                {
                     break;
+                }
             }
+
             return span.Slice(0, end + 1);
         }
 
@@ -650,14 +700,20 @@ namespace System
             for (; start < span.Length; start++)
             {
                 if (span[start] != trimChar)
+                {
                     break;
+                }
             }
+
             int end = span.Length - 1;
             for (; end >= start; end--)
             {
                 if (span[end] != trimChar)
+                {
                     break;
+                }
             }
+
             return span.Slice(start, end - start + 1);
         }
 
@@ -672,8 +728,11 @@ namespace System
             for (; start < span.Length; start++)
             {
                 if (span[start] != trimChar)
+                {
                     break;
+                }
             }
+
             return span.Slice(start);
         }
 
@@ -688,8 +747,11 @@ namespace System
             for (; end >= 0; end--)
             {
                 if (span[end] != trimChar)
+                {
                     break;
+                }
             }
+
             return span.Slice(0, end + 1);
         }
 
@@ -725,12 +787,16 @@ namespace System
                 for (int i = 0; i < trimChars.Length; i++)
                 {
                     if (span[start] == trimChars[i])
+                    {
                         goto Next;
+                    }
                 }
+
                 break;
             Next:
                 ;
             }
+
             return span.Slice(start);
         }
 
@@ -754,12 +820,16 @@ namespace System
                 for (int i = 0; i < trimChars.Length; i++)
                 {
                     if (span[end] == trimChars[i])
+                    {
                         goto Next;
+                    }
                 }
+
                 break;
             Next:
                 ;
             }
+
             return span.Slice(0, end + 1);
         }
 
@@ -772,14 +842,18 @@ namespace System
             for (; start < span.Length; start++)
             {
                 if (!char.IsWhiteSpace(span[start]))
+                {
                     break;
+                }
             }
 
             int end = span.Length - 1;
             for (; end >= start; end--)
             {
                 if (!char.IsWhiteSpace(span[end]))
+                {
                     break;
+                }
             }
 
             return span.Slice(start, end - start + 1);
@@ -794,7 +868,9 @@ namespace System
             for (; start < span.Length; start++)
             {
                 if (!char.IsWhiteSpace(span[start]))
+                {
                     break;
+                }
             }
 
             return span.Slice(start);
@@ -809,7 +885,9 @@ namespace System
             for (; end >= 0; end--)
             {
                 if (!char.IsWhiteSpace(span[end]))
+                {
                     break;
+                }
             }
 
             return span.Slice(0, end + 1);
