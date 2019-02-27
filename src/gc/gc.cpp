@@ -35744,6 +35744,8 @@ void gc_heap::do_post_gc()
                          (uint32_t)settings.reason,
                          !!settings.concurrent);
 
+    GCToEEInterface::UpdateGCEventStatus();
+
     //dprintf (1, (" ****end of Garbage Collection**** %d(gen0:%d)(%d)", 
     dprintf (1, ("*EGC* %d(gen0:%d)(%d)(%s)", 
         VolatileLoad(&settings.gc_index), 

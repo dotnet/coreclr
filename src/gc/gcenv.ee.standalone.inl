@@ -323,4 +323,10 @@ inline void GCToEEInterface::VerifySyncTableEntry()
     g_theGCToCLR->VerifySyncTableEntry();
 }
 
+inline void GCToEEInterface::UpdateGCEventStatus()
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->UpdateGCEventStatus();
+}
+
 #endif // __GCTOENV_EE_STANDALONE_INL__
