@@ -157,17 +157,7 @@ namespace System
         {
             int start = 0;
 
-            if (trimElement == null)
-            {
-                for (; start < span.Length; start++)
-                {
-                    if (span[start] != null)
-                    {
-                        break;
-                    }
-                }
-            }
-            else
+            if (trimElement != null)
             {
                 for (; start < span.Length; start++)
                 {
@@ -176,9 +166,24 @@ namespace System
                         break;
                     }
                 }
+
+                return start;
             }
 
-            return start;
+            return ClampNull(span, start);
+
+            static int ClampNull(ReadOnlySpan<T> span, int start)
+            {
+                for (; start < span.Length; start++)
+                {
+                    if (span[start] != null)
+                    {
+                        break;
+                    }
+                }
+
+                return start;
+            }
         }
 
         /// <summary>
@@ -195,17 +200,7 @@ namespace System
 
             int end = span.Length - 1;
 
-            if (trimElement == null)
-            {
-                for (; end >= start; end--)
-                {
-                    if (span[end] != null)
-                    {
-                        break;
-                    }
-                }
-            }
-            else
+            if (trimElement != null)
             {
                 for (; end >= start; end--)
                 {
@@ -214,9 +209,24 @@ namespace System
                         break;
                     }
                 }
+
+                return end - start + 1;
             }
 
-            return end - start + 1;
+            return ClampNull(span, start, end);
+
+            static int ClampNull(ReadOnlySpan<T> span, int start, int end) 
+            {
+                for (; end >= start; end--)
+                {
+                    if (span[end] != null)
+                    {
+                        break;
+                    }
+                }
+
+                return end - start + 1;
+            }
         }
 
         /// <summary>
