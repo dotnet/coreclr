@@ -9,7 +9,7 @@
 
 #ifdef FEATURE_STANDALONE_GC
 
-#ifndef _WIN32
+#if defined(__linux__)
 extern "C" BOOL EventXplatEnabledGCStart(); // GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC
 extern "C" BOOL EventXPlatEnabledGCJoin_V2(); //  GCEventProvider_Default, GCEventLevel_Verbose, GCEventKeyword_GC
 
@@ -20,7 +20,7 @@ extern "C" BOOL EventXplatEnabledPrvSetGCHandle();; // GCEventProvider_Private, 
 
 extern "C" BOOL EventXplatEnabledBGCBegin(); // GCEventProvider_Private, GCEventLevel_Information, GCEventKeyword_GCPrivate
 extern "C" BOOL EventXplatEnabledPinPlugAtGCTime(); // GCEventProvider_Private, GCEventLevel_Verbose, GCEventKeyword_GC
-#endif
+#endif // __linux__
 
 namespace standalone
 {
