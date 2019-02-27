@@ -38,10 +38,19 @@
       <AllProjects Include="*\**\*.ilproj" Exclude="@(DisabledProjects)" />
     </ItemGroup>
 
-    <!-- Test build is divided in slices which can be created within Test Group
-         Priority 0 tests are build using Test Group 1 with 2 subgroups or slices -->
+    <!-- All the test projects are partitioned into the test groups as defined below.
+         Each of the test groups is meant to be built by a separate MSBuild invocation with specified $(__TestGroupToBuild) property. -->
 
     <ItemGroup Condition=" '$(CLRTestPriorityToBuild)' == '0' ">
+      <!-- Group number k consists of all the test projects P such that _GroupStartsWith(k) <= P.Identity < _GroupStartsWith(k+1).
+           In other words, ItemGroup _GroupStartsWith defines boundaries between the test groups. -->
+
+      <!-- MSBuild does not allow specifying an item with empty identity but if it was possible Group number 1 would be defined as follows:
+
+      <_GroupStartsWith Include="">
+        <GroupNumber>1</GroupNumber>
+      </_GroupStartsWith> -->
+
       <_GroupStartsWith Include="JIT\Methodical\Boxing\callconv\_relinstance_il.ilproj">
         <GroupNumber>2</GroupNumber>
       </_GroupStartsWith>
@@ -51,10 +60,14 @@
       </_GroupStartsWith>
     </ItemGroup>
 
-    <!-- Test build is divided in slices which can be created within Test Group
-         Priority 1 or higher tests are build using Test Group 2 with 16 subgroups or slices -->    
+    <Error Condition=" '$(CLRTestPriorityToBuild)' == '0' And ($(__TestGroupToBuild) &lt; 1 Or $(__TestGroupToBuild) &gt; 3) " Text="__TestGroupToBuild property must be between 1 and 3 for Pri0." />
 
     <ItemGroup Condition=" '$(CLRTestPriorityToBuild)' == '1' ">
+      <!-- See above for explanation.
+      <_GroupStartsWith Include="">
+        <GroupNumber>1</GroupNumber>
+      </_GroupStartsWith> -->
+
       <_GroupStartsWith Include="JIT\CodeGenBringUpTests\DblNeg_ro.csproj">
         <GroupNumber>2</GroupNumber>
       </_GroupStartsWith>
@@ -92,7 +105,10 @@
       </_GroupStartsWith>
     </ItemGroup>
 
+    <Error Condition=" '$(CLRTestPriorityToBuild)' == '1' And ($(__TestGroupToBuild) &lt; 1 Or $(__TestGroupToBuild) &gt; 10)" Text="__TestGroupToBuild property must be between 1 and 10 for Pri1." />
+
     <PropertyGroup>
+      <!-- This computes lower inclusive and upper exclusive boundaries for Group number $(__TestGroupToBuild). -->
       <_GroupStartsWith>@(_GroupStartsWith->WithMetadataValue("GroupNumber", $(__TestGroupToBuild)))</_GroupStartsWith>
       <_GroupEndsWithExcl>@(_GroupStartsWith->WithMetadataValue("GroupNumber", $([MSBuild]::Add($(__TestGroupToBuild), 1))))</_GroupEndsWithExcl>
     </PropertyGroup>
@@ -102,11 +118,11 @@
         <InGroup>True</InGroup>
       </AllProjects>
 
-      <AllProjects Condition=" '$(_GroupStartsWith)' != '' And $([System.StringComparer]::Ordinal.Compare($(_GroupStartsWith), %(Identity))) &gt; 0">
+      <AllProjects Condition=" '$(_GroupStartsWith)' != '' And $([System.StringComparer]::Ordinal.Compare($(_GroupStartsWith), %(Identity))) &gt; 0 ">
         <InGroup>False</InGroup>
       </AllProjects>
 
-      <AllProjects Condition=" '$(_GroupEndsWithExcl)' != '' And $([System.StringComparer]::Ordinal.Compare(%(Identity), $(_GroupEndsWithExcl))) &gt;= 0">
+      <AllProjects Condition=" '$(_GroupEndsWithExcl)' != '' And $([System.StringComparer]::Ordinal.Compare(%(Identity), $(_GroupEndsWithExcl))) &gt;= 0 ">
         <InGroup>False</InGroup>
       </AllProjects>
     </ItemGroup>
