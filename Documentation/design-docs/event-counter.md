@@ -69,7 +69,7 @@ On the wire EventCounter and PollingCounter both produce an event with name "Eve
         Max: 22.98
         IntervalSec: 1.00324
         Series: "Interval=1"
-        CounterType: "Average"
+        CounterType: "Mean"
     }
         
 
@@ -81,7 +81,7 @@ On the wire IncrementingEventCounter and IncrementingPollingCounter both produce
     Payload = {
         DisplayName: "Exceptions Thrown"
         Name: "exceptions-thrown"
-        Value: 246
+        Increment: 246
         IntervalSec: 1.0043
         Series: "Interval=1"
         CounterType: "Sum"
