@@ -248,7 +248,7 @@ namespace System.Runtime.InteropServices
                 // as part of unmarshaling another P/Invoke).
                 int lastError = Marshal.GetLastWin32Error();
                 ReleaseHandle();
-                Marshal.SetLastError(lastError);
+                Marshal.SetLastWin32Error(lastError);
             }
         }
     }
