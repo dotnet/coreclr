@@ -6,10 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 
-#if CORECLR
-// Downstream will use System.Runtime.CompilerServices
 using Internal.Runtime.CompilerServices;
-#endif
 
 // Some routines inspired by the Stanford Bit Twiddling Hacks by Sean Eron Anderson:
 // http://graphics.stanford.edu/~seander/bithacks.html
@@ -231,7 +228,7 @@ namespace System.Numerics
 #else
             return SoftwareFallback(value);
 
-            static int SoftwareFallback(ulong value) 
+            static int SoftwareFallback(ulong value)
             {
                 const ulong c1 = 0x_55555555_55555555ul;
                 const ulong c2 = 0x_33333333_33333333ul;
