@@ -313,13 +313,6 @@ namespace System.Diagnostics.Tracing
                         EnableTimer(value);
                     }
                 }
-                else
-                {
-                    lock (this)      // Lock the EventCounterGroup
-                    {
-                        EnableTimer(1);
-                    }
-                }
             }
         }
 
