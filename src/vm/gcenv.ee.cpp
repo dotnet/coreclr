@@ -1555,7 +1555,15 @@ void GCToEEInterface::VerifySyncTableEntry()
 void GCToEEInterface::UpdateGCEventStatus()
 {
     LIMITED_METHOD_CONTRACT;
+    // LTTng does not have a notion of enabling events via "keyword"/"level" but we have to 
+    // somehow implement a similar behavior to it. 
 
+    // To do this, we manaully check for events that are enabled via different provider/keywords/level.
+    // Ex 1. GCJoin_V2 is what we use to check whether the GC keyword is enabled in verbose level in the public provider
+    // Ex 2. SetGCHandle is what we use to check whether the GCHandle keyword is enabled in informational level in the public provider
+    // Refer to the comments in src/vm/gcenv.ee.h next to the EXTERN C definitions to see which events are enabled.
+
+    // WARNING: To change an event's GC level, perfcollect script needs to be updated simultaneously to reflect it.
     BOOL keyword_gc_verbose = EventXplatEnabledGCJoin_V2();
     BOOL keyword_gc_informational = EventXplatEnabledGCStart();
 
