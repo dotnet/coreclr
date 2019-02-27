@@ -436,10 +436,10 @@ public:
     virtual 
     void VerifySyncTableEntry() = 0;
 
-#ifndef _WIN32
+#if defined(__linux__)
     virtual
     void UpdateGCEventStatus() = 0;
-#endif // _WIN32
+#endif // __linux__
 };
 
 #endif // _GCINTERFACE_EE_H_

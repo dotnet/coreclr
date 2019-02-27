@@ -323,12 +323,12 @@ inline void GCToEEInterface::VerifySyncTableEntry()
     g_theGCToCLR->VerifySyncTableEntry();
 }
 
-#ifndef _WIN32
+#if defined(__linux__)
 inline void GCToEEInterface::UpdateGCEventStatus()
 {
     assert(g_theGCToCLR != nullptr);
     g_theGCToCLR->UpdateGCEventStatus();
 }
-#endif // _WIN32
+#endif // __linux__
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

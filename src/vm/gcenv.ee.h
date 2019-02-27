@@ -88,9 +88,9 @@ public:
 
     void VerifySyncTableEntry();
 
-#ifndef _WIN32
+#if defined(__linux__)
     void UpdateGCEventStatus();
-#endif // _WIN32
+#endif // __linux__
 };
 
 } // namespace standalone
