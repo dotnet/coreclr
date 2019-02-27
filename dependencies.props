@@ -28,8 +28,6 @@
   <PropertyGroup>
     <CoreClrCurrentRef>f31086500dc58cefe7b1275300f6fc07b38c1bcc</CoreClrCurrentRef>
     <BuildToolsCurrentRef>fc12d73e8ea045517fde9b4bd1c89065917a5413</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>fc12d73e8ea045517fde9b4bd1c89065917a5413</PgoDataCurrentRef>
-    <IbcDataCurrentRef>fc12d73e8ea045517fde9b4bd1c89065917a5413</IbcDataCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
@@ -37,8 +35,6 @@
     <PgoDataPackageVersion>99.99.99-master-20190208.1</PgoDataPackageVersion>
     <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview-27316-02</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.4.1</XunitPackageVersion>
-    <IbcDataPackageVersion>99.99.99-master-20190208.1</IbcDataPackageVersion>
-    <IbcMergePackageVersion>4.6.0-alpha-00001</IbcMergePackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
     <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.34</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
     <CommandLineParserVersion>2.2.0</CommandLineParserVersion>
@@ -83,14 +79,6 @@
       <BuildInfoPath>$(BaseDotNetBuildInfo)buildtools/$(DependencyBranch)</BuildInfoPath>
       <CurrentRef>$(BuildToolsCurrentRef)</CurrentRef>
     </RemoteDependencyBuildInfo>
-    <RemoteDependencyBuildInfo Include="PgoData">
-      <BuildInfoPath>$(BaseDotNetBuildInfo)optimization/$(DependencyBranch)/PGO</BuildInfoPath>
-      <CurrentRef>$(PgoDataCurrentRef)</CurrentRef>
-    </RemoteDependencyBuildInfo>
-    <RemoteDependencyBuildInfo Include="IbcData">
-      <BuildInfoPath>$(BaseDotNetBuildInfo)optimization/$(DependencyBranch)/IBC</BuildInfoPath>
-      <CurrentRef>$(IbcDataCurrentRef)</CurrentRef>
-    </RemoteDependencyBuildInfo>
     
     <DependencyBuildInfo Include="@(RemoteDependencyBuildInfo)">
       <RawVersionsBaseUrl>https://raw.githubusercontent.com/dotnet/versions</RawVersionsBaseUrl>
@@ -110,16 +98,6 @@
        <Path>$(MSBuildThisFileFullPath)</Path>
        <ElementName>FeedTasksPackageVersion</ElementName>
        <PackageId>$(FeedTasksPackage)</PackageId>
-    </XmlUpdateStep>
-    <XmlUpdateStep Include="PgoData">
-      <Path>$(MSBuildThisFileFullPath)</Path>
-      <ElementName>PgoDataPackageVersion</ElementName>
-      <PackageId>optimization.PGO.CoreCLR</PackageId>
-    </XmlUpdateStep>
-    <XmlUpdateStep Include="IbcData">
-      <Path>$(MSBuildThisFileFullPath)</Path>
-      <ElementName>IbcDataPackageVersion</ElementName>
-      <PackageId>optimization.IBC.CoreCLR</PackageId>
     </XmlUpdateStep>
     <UpdateStep Include="ILAsm">
       <UpdaterType>File</UpdaterType>
