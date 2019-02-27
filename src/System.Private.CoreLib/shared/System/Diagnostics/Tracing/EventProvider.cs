@@ -19,6 +19,7 @@ using System.Threading;
 using System;
 
 #if !ES_BUILD_AGAINST_DOTNET_V35
+using Contract = System.Diagnostics.Contracts.Contract;
 #else
 using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
 #endif
@@ -425,7 +426,6 @@ namespace System.Diagnostics.Tracing
             m_liveSessions = liveSessionList;
             return changedSessionList;
         }
-
 
         /// <summary>
         /// This method is the callback used by GetSessions() when it calls into GetSessionInfo().
@@ -1340,4 +1340,3 @@ namespace System.Diagnostics.Tracing
         }
     }
 }
-
