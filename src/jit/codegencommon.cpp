@@ -11310,11 +11310,10 @@ void CodeGen::genIPmappingGen()
         {
             if ((block->bbRefs > 1) && (block->bbTreeList != nullptr))
             {
-                noway_assert(block->bbTreeList->gtOper == GT_STMT);
                 bool found = false;
-                if (block->bbTreeList->gtStmt.gtStmtILoffsx != BAD_IL_OFFSET)
+                if (block->firstStmt()->gtStmtILoffsx != BAD_IL_OFFSET)
                 {
-                    IL_OFFSET ilOffs = jitGetILoffs(block->bbTreeList->gtStmt.gtStmtILoffsx);
+                    IL_OFFSET ilOffs = jitGetILoffs(block->firstStmt()->gtStmtILoffsx);
                     for (unsigned i = 0; i < eeBoundariesCount; ++i)
                     {
                         if (eeBoundaries[i].ilOffset == ilOffs)

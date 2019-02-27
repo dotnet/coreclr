@@ -986,7 +986,7 @@ void Compiler::fgExtendDbgLifetimes()
                     GenTree* initNode = gtNewAssignNode(varNode, zero);
 
                     // Create a statement for the initializer, sequence it, and append it to the current BB.
-                    GenTree* initStmt = gtNewStmt(initNode);
+                    GenTreeStmt* initStmt = gtNewStmt(initNode);
                     gtSetStmtInfo(initStmt);
                     fgSetStmtSeq(initStmt);
                     fgInsertStmtNearEnd(block, initStmt);
@@ -1688,8 +1688,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
     VARSET_TP keepAliveVars(VarSetOps::Union(this, volatileVars, compCurBB->bbScope));
 
     noway_assert(VarSetOps::IsSubset(this, keepAliveVars, life));
-    noway_assert(compCurStmt->gtOper == GT_STMT);
-    noway_assert(endNode || (startNode == compCurStmt->gtStmt.gtStmtExpr));
+    noway_assert(endNode || (startNode == compCurStmt->gtStmtExpr));
 
     // NOTE: Live variable analysis will not work if you try
     // to use the result of an assignment node directly!
@@ -2136,7 +2135,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
             /* This is a "NORMAL" statement with the
              * assignment node hanging from the GT_STMT node */
 
-            noway_assert(compCurStmt->gtStmt.gtStmtExpr == asgNode);
+            noway_assert(compCurStmt->gtStmtExpr == asgNode);
             JITDUMP("top level assign\n");
 
             /* Check for side effects */
@@ -2183,7 +2182,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
                     /* Replace the assignment statement with the list of side effects */
                     noway_assert(sideEffList->gtOper != GT_STMT);
 
-                    *pTree = compCurStmt->gtStmt.gtStmtExpr = sideEffList;
+                    *pTree = compCurStmt->gtStmtExpr = sideEffList;
 #ifdef DEBUG
                     *treeModf = true;
 #endif // DEBUG
@@ -2529,7 +2528,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
         {
             /* Get the first statement in the block */
 
-            GenTree* firstStmt = block->FirstNonPhiDef();
+            GenTreeStmt* firstStmt = block->FirstNonPhiDef();
 
             if (firstStmt == nullptr)
             {
@@ -2538,7 +2537,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
 
             /* Walk all the statements of the block backwards - Get the LAST stmt */
 
-            GenTree* nextStmt = block->bbTreeList->gtPrev;
+            GenTreeStmt* nextStmt = block->firstStmt()->gtPrevStmt;
 
             do
             {
@@ -2546,16 +2545,14 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 bool treeModf = false;
 #endif // DEBUG
                 noway_assert(nextStmt);
-                noway_assert(nextStmt->gtOper == GT_STMT);
 
                 compCurStmt = nextStmt;
-                nextStmt    = nextStmt->gtPrev;
+                nextStmt    = nextStmt->gtPrevStmt;
 
                 /* Compute the liveness for each tree node in the statement */
                 bool stmtInfoDirty = false;
 
-                fgComputeLife(life, compCurStmt->gtStmt.gtStmtExpr, nullptr, volatileVars,
-                              &stmtInfoDirty DEBUGARG(&treeModf));
+                fgComputeLife(life, compCurStmt->gtStmtExpr, nullptr, volatileVars, &stmtInfoDirty DEBUGARG(&treeModf));
 
                 if (stmtInfoDirty)
                 {
@@ -2568,7 +2565,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 if (verbose && treeModf)
                 {
                     printf("\nfgComputeLife modified tree:\n");
-                    gtDispTree(compCurStmt->gtStmt.gtStmtExpr);
+                    gtDispTree(compCurStmt->gtStmtExpr);
                     printf("\n");
                 }
 #endif // DEBUG
