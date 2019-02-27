@@ -5,14 +5,17 @@
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
 
 #if BIT64
 using nuint = System.UInt64;
+using nint = System.Int64;
 #else
 using nuint = System.UInt32;
+using nint = System.Int32;
 #endif
 
 namespace System
@@ -875,6 +878,69 @@ namespace System
         private static int LocateLastFoundChar(ulong match)
         {
             return 3 - (BitOperations.LeadingZeroCount(match) >> 4);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref char Add(ref char source, nint elementOffset)
+            => ref Unsafe.Add(ref source, (IntPtr)elementOffset);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe Vector<ushort> LoadVector(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<Vector<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe Vector128<ushort> LoadVector128(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<Vector128<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe Vector256<ushort> LoadVector256(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<Vector256<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe UIntPtr LoadUIntPtr(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe nint GetCharVectorSpanLength(nint offset, nint length)
+            => ((length - offset) & ~(Vector<ushort>.Count - 1));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe nint GetCharVector128SpanLength(nint offset, nint length)
+            => ((length - offset) & ~(Vector128<ushort>.Count - 1));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static nint GetCharVector256SpanLength(nint offset, nint length)
+            => ((length - offset) & ~(Vector256<ushort>.Count - 1));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe nint UnalignedCountVector(ref char searchSpace)
+        {
+            const int elementsPerByte = sizeof(ushort) / sizeof(byte);
+            // Figure out how many characters to read sequentially until we are vector aligned
+            // This is equivalent to:
+            //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
+            //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
+            int unaligned = ((int)Unsafe.AsPointer(ref searchSpace) & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
+            return ((Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe nint UnalignedCountVector128(ref char searchSpace)
+        {
+            const int elementsPerByte = sizeof(ushort) / sizeof(byte);
+
+            int unaligned = ((int)Unsafe.AsPointer(ref searchSpace) & (Unsafe.SizeOf<Vector128<ushort>>() - 1)) / elementsPerByte;
+            return ((Vector128<ushort>.Count - unaligned) & (Vector128<ushort>.Count - 1));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe int UnalignedCountVectorFromEnd(ref char searchSpace, int length)
+        {
+            const int elementsPerByte = sizeof(ushort) / sizeof(byte);
+            // Figure out how many characters to read sequentially from the end until we are vector aligned
+            // This is equivalent to: length = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
+            int unaligned = ((int)Unsafe.AsPointer(ref searchSpace) & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
+            return ((length & (Vector<ushort>.Count - 1)) + unaligned) & (Vector<ushort>.Count - 1);
         }
     }
 }
