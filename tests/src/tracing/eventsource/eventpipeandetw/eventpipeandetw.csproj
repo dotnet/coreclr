@@ -20,6 +20,7 @@
     <!--
       Test is blocking official build, disabling it for now.
       For more information check: #19302, #22045, #22826.
+      Issue to re-enable test tracked by #22891.
       -->
     <DisableProjectBuild>true</DisableProjectBuild>
   </PropertyGroup>
