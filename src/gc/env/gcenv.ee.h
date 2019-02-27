@@ -97,7 +97,9 @@ public:
 
     static void VerifySyncTableEntry();
 
+#ifndef _WIN32
     static void UpdateGCEventStatus();
+#endif // _WIN32
 };
 
 #endif // __GCENV_EE_H__

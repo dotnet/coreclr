@@ -436,8 +436,10 @@ public:
     virtual 
     void VerifySyncTableEntry() = 0;
 
+#ifndef _WIN32
     virtual
     void UpdateGCEventStatus() = 0;
+#endif // _WIN32
 };
 
 #endif // _GCINTERFACE_EE_H_

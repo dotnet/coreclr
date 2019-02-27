@@ -1552,6 +1552,7 @@ void GCToEEInterface::VerifySyncTableEntry()
 #endif // VERIFY_HEAP
 }
 
+#ifndef _WIN32
 void GCToEEInterface::UpdateGCEventStatus()
 {
     LIMITED_METHOD_CONTRACT;
@@ -1589,3 +1590,4 @@ void GCToEEInterface::UpdateGCEventStatus()
     GCHeapUtilities::RecordEventStateChange(true, publicKeywords, publicLevel);
     GCHeapUtilities::RecordEventStateChange(false, privateKeywords, privateLevel);
 }
+#endif
