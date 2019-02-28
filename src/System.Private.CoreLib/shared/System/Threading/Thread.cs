@@ -17,6 +17,9 @@ namespace System.Threading
     {
         private static AsyncLocal<IPrincipal> s_asyncLocalPrincipal;
 
+        [ThreadStatic]
+        private static Thread t_currentThread;
+
         public Thread(ThreadStart start)
             : this()
         {
@@ -90,6 +93,8 @@ namespace System.Threading
             SetCultureOnUnstartedThreadNoCheck(value, uiCulture);
         }
 
+        partial void ThreadNameChanged();
+
         public CultureInfo CurrentCulture
         {
             get
@@ -148,6 +153,30 @@ namespace System.Threading
                 }
                 s_asyncLocalPrincipal.Value = value;
             }
+        }
+
+        public static Thread CurrentThread => t_currentThread ?? InitializeCurrentThread();
+
+        public ExecutionContext ExecutionContext => ExecutionContext.Capture();
+
+        public string Name
+        {
+            get => _name;
+            set
+            {
+                if (Interlocked.CompareExchange(ref _name, value, null) != null)
+                {
+                    throw new InvalidOperationException(SR.InvalidOperation_WriteOnce);
+                }
+
+                ThreadNameChanged();
+            }
+        }
+
+        internal SynchronizationContext SynchronizationContext
+        {
+            get => _synchronizationContext;
+            set => _synchronizationContext = value;
         }
 
         public void Abort()

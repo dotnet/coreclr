@@ -139,9 +139,6 @@ namespace System.Threading
         private int _managedThreadId; // INT32
 #pragma warning restore 169
 
-        [ThreadStatic]
-        private static Thread t_currentThread;
-
         private Thread() { }
 
         private void Create(ThreadStart start) =>
@@ -232,14 +229,6 @@ namespace System.Threading
             }
         }
 
-        public ExecutionContext ExecutionContext => ExecutionContext.Capture();
-
-        internal SynchronizationContext SynchronizationContext
-        {
-            get => _synchronizationContext;
-            set => _synchronizationContext = value;
-        }
-
         [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void StartInternal();
 
@@ -273,8 +262,6 @@ namespace System.Threading
         private static extern bool YieldInternal();
 
         public static bool Yield() => YieldInternal();
-
-        public static Thread CurrentThread => t_currentThread ?? InitializeCurrentThread();
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static Thread InitializeCurrentThread() => (t_currentThread = GetCurrentThreadNative());
@@ -312,23 +299,12 @@ namespace System.Threading
         private extern void StartupSetApartmentStateInternal();
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
-        /// <summary>Retrieves the name of the thread.</summary>
-        public string Name
+        partial void ThreadNameChanged()
         {
-            get => _name;
-            set
+            string value = Name;
+            lock (this)
             {
-                lock (this)
-                {
-                    if (_name != null)
-                    {
-                        throw new InvalidOperationException(SR.InvalidOperation_WriteOnce);
-                    }
-
-                    _name = value;
-
-                    InformThreadNameChange(GetNativeHandle(), value, (value != null) ? value.Length : 0);
-                }
+                InformThreadNameChange(GetNativeHandle(), value, value?.Length ?? 0);
             }
         }
 
