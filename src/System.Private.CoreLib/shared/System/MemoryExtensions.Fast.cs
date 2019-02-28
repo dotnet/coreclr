@@ -397,7 +397,7 @@ namespace System
             if ((uint)start > (uint)array.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), array.Length - start);
+            return new Span<T>(ref array.GetRawSzArrayData(start), array.Length - start);
         }
 
         /// <summary>
@@ -421,7 +421,7 @@ namespace System
             if ((uint)actualIndex > (uint)array.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), actualIndex), array.Length - actualIndex);
+            return new Span<T>(ref array.GetRawSzArrayData(actualIndex), array.Length - actualIndex);
         }
 
         /// <summary>
@@ -445,7 +445,7 @@ namespace System
                 ThrowHelper.ThrowArrayTypeMismatchException();
 
             (int start, int length) = range.GetOffsetAndLength(array.Length);
-            return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), length);
+            return new Span<T>(ref array.GetRawSzArrayData(start), length);
         }
 
         /// <summary>

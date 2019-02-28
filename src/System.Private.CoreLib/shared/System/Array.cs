@@ -1027,7 +1027,7 @@ namespace System
             if (typeof(T) == typeof(byte))
             {
                 int result = SpanHelpers.IndexOf(
-                    ref Unsafe.Add(ref array.GetRawSzArrayData(), startIndex),
+                    ref Unsafe.As<byte[]>(array).GetRawSzArrayData(startIndex),
                     Unsafe.As<T, byte>(ref value),
                     count);
 
@@ -1037,7 +1037,7 @@ namespace System
             if (typeof(T) == typeof(char))
             {
                 int result = SpanHelpers.IndexOf(
-                    ref Unsafe.Add(ref Unsafe.As<byte, char>(ref array.GetRawSzArrayData()), startIndex),
+                    ref Unsafe.As<char[]>(array).GetRawSzArrayData(startIndex),
                     Unsafe.As<T, char>(ref value),
                     count);
 
@@ -1216,7 +1216,7 @@ namespace System
             {
                 int endIndex = startIndex - count + 1;
                 int result = SpanHelpers.LastIndexOf(
-                    ref Unsafe.Add(ref array.GetRawSzArrayData(), endIndex),
+                    ref Unsafe.As<byte[]>(array).GetRawSzArrayData(endIndex),
                     Unsafe.As<T, byte>(ref value),
                     count);
 
@@ -1227,7 +1227,7 @@ namespace System
             {
                 int endIndex = startIndex - count + 1;
                 int result = SpanHelpers.LastIndexOf(
-                    ref Unsafe.Add(ref Unsafe.As<byte, char>(ref array.GetRawSzArrayData()), endIndex),
+                    ref Unsafe.As<char[]>(array).GetRawSzArrayData(endIndex),
                     Unsafe.As<T, char>(ref value),
                     count);
 
@@ -1324,7 +1324,7 @@ namespace System
             if (length <= 1)
                 return;
 
-            ref T first = ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), index);
+            ref T first = ref array.GetRawSzArrayData(index);
             ref T last = ref Unsafe.Add(ref Unsafe.Add(ref first, length), -1);
             do
             {

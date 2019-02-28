@@ -249,7 +249,7 @@ namespace System
                         // 'tmpObject is T[]' below also handles things like int[] <-> uint[] being convertible
                         Debug.Assert(tmpObject is T[]);
 
-                        refToReturn = ref Unsafe.As<byte, T>(ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData());
+                        refToReturn = ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData();
                         lengthOfUnderlyingSpan = Unsafe.As<T[]>(tmpObject).Length;
                     }
                     else
@@ -350,13 +350,13 @@ namespace System
                     // Array is already pre-pinned
                     if (_index < 0)
                     {
-                        void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData()), _index & RemoveFlagsBitMask);
+                        void* pointer = Unsafe.AsPointer(ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData(_index & ReadOnlyMemory<T>.RemoveFlagsBitMask));
                         return new MemoryHandle(pointer);
                     }
                     else
                     {
                         GCHandle handle = GCHandle.Alloc(tmpObject, GCHandleType.Pinned);
-                        void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData()), _index);
+                        void* pointer = Unsafe.AsPointer(ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData(_index));
                         return new MemoryHandle(pointer, handle);
                     }
                 }

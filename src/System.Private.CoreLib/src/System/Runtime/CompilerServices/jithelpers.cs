@@ -102,7 +102,17 @@ namespace System.Runtime.CompilerServices
         internal static ref byte GetRawData(this object obj) =>
             ref Unsafe.As<RawData>(obj).Data;
 
-        internal static ref byte GetRawSzArrayData(this Array array) =>
-            ref Unsafe.As<RawSzArrayData>(array).Data;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static ref T GetRawSzArrayData<T>(this T[] array) =>
+            ref Unsafe.As<byte, T>(ref Unsafe.As<RawSzArrayData>(array).Data);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static ref T GetRawSzArrayData<T>(this T[] array, int index)
+        {
+            // It's valid for a ref to point _just past_ the end of an array, and it'll
+            // be properly GC-tracked. (Though dereferencing it may result in undefined behavior.)
+            Debug.Assert((uint)index <= (uint)array.Length, "Returned reference is no longer GC-trackable.");
+            return ref Unsafe.Add(ref GetRawSzArrayData(array), index);
+        }
     }
 }

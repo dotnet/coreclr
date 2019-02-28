@@ -48,7 +48,7 @@ namespace System
                 return; // returns default
             }
 
-            _pointer = new ByReference<T>(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()));
+            _pointer = new ByReference<T>(ref array.GetRawSzArrayData());
             _length = array.Length;
         }
 
@@ -82,7 +82,7 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 #endif
 
-            _pointer = new ByReference<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start));
+            _pointer = new ByReference<T>(ref array.GetRawSzArrayData(start));
             _length = length;
         }
 
@@ -326,7 +326,7 @@ namespace System
                 return Array.Empty<T>();
 
             var destination = new T[_length];
-            Buffer.Memmove(ref Unsafe.As<byte, T>(ref destination.GetRawSzArrayData()), ref _pointer.Value, (nuint)_length);
+            Buffer.Memmove(ref destination.GetRawSzArrayData(), ref _pointer.Value, (nuint)_length);
             return destination;
         }
     }
