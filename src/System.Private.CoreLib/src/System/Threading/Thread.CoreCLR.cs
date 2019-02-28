@@ -111,9 +111,6 @@ namespace System.Threading
         ** ThreadBaseObject to maintain alignment between the two classes.
         ** DON'T CHANGE THESE UNLESS YOU MODIFY ThreadBaseObject in vm\object.h
         =========================================================================*/
-        internal ExecutionContext _executionContext; // this call context follows the logical thread
-        private SynchronizationContext _synchronizationContext; // On CoreCLR, this is maintained separately from ExecutionContext
-
         private string _name;
         private Delegate _delegate; // Delegate
 
@@ -299,9 +296,8 @@ namespace System.Threading
         private extern void StartupSetApartmentStateInternal();
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
-        partial void ThreadNameChanged()
+        partial void ThreadNameChanged(string value)
         {
-            string value = Name;
             lock (this)
             {
                 InformThreadNameChange(GetNativeHandle(), value, value?.Length ?? 0);

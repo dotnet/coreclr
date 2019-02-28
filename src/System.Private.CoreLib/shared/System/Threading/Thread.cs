@@ -20,6 +20,9 @@ namespace System.Threading
         [ThreadStatic]
         private static Thread t_currentThread;
 
+        internal ExecutionContext _executionContext; // this call context follows the logical thread
+        internal SynchronizationContext _synchronizationContext; // this is maintained separately from ExecutionContext
+
         public Thread(ThreadStart start)
             : this()
         {
@@ -93,7 +96,7 @@ namespace System.Threading
             SetCultureOnUnstartedThreadNoCheck(value, uiCulture);
         }
 
-        partial void ThreadNameChanged();
+        partial void ThreadNameChanged(string value);
 
         public CultureInfo CurrentCulture
         {
@@ -169,14 +172,8 @@ namespace System.Threading
                     throw new InvalidOperationException(SR.InvalidOperation_WriteOnce);
                 }
 
-                ThreadNameChanged();
+                ThreadNameChanged(value);
             }
-        }
-
-        internal SynchronizationContext SynchronizationContext
-        {
-            get => _synchronizationContext;
-            set => _synchronizationContext = value;
         }
 
         public void Abort()
