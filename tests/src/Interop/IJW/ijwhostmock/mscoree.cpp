@@ -21,8 +21,6 @@ extern "C" DLL_EXPORT BOOL __cdecl WasModuleVTableQueried(HINSTANCE hInst)
 }
 
 // Entrypoint jumped to by IJW dlls when their dllmain is called
-// This can be combined into ijwhost.cpp when we get an updated MSVC compiler that can
-// link the IJW entrypoints to ijwhost.dll instead of to mscoree.dll.
 extern "C" BOOL WINAPI _CorDllMain(HINSTANCE hInst, DWORD dwReason, LPVOID lpReserved)
 {
     return TRUE;
