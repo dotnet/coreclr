@@ -88,22 +88,14 @@ enum NStructFieldType
 #define DEFAULT_PACKING_SIZE 32
 
 
-typedef enum
+enum class ParseNativeTypeFlags
 {
-    ParseNativeTypeFlag_None    = 0x00,
-    ParseNativeTypeFlag_IsAnsi  = 0x01,
+    None    = 0x00,
+    IsAnsi  = 0x01,
 #ifdef FEATURE_COMINTEROP
-    ParseNativeTypeFlag_IsWinRT = 0x02,
+    IsWinRT = 0x02,
 #endif // FEATURE_COMINTEROP
-}
-ParseNativeTypeFlags;
-
-inline ParseNativeTypeFlags& operator|=(ParseNativeTypeFlags& lhs, ParseNativeTypeFlags rhs)
-{
-    LIMITED_METHOD_CONTRACT;
-    lhs = static_cast<ParseNativeTypeFlags>(lhs | rhs);
-    return lhs;
-}
+};
 
 VOID ParseNativeType(Module*    pModule,
     PCCOR_SIGNATURE             pCOMSignature,

@@ -3385,14 +3385,14 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             }
 #endif
 
-            ParseNativeTypeFlags flags = ParseNativeTypeFlag_None;
+            ParseNativeTypeFlags flags = ParseNativeTypeFlags::None;
 #ifdef FEATURE_COMINTEROP
             if (isWinRT)
-                flags |= ParseNativeTypeFlag_IsWinRT;
+                flags = ParseNativeTypeFlags::IsWinRT;
             else // WinRT types have nlType == nltAnsi but should be treated as Unicode
 #endif // FEATURE_COMINTEROP
             if (nlType == nltAnsi)
-                flags |=  ParseNativeTypeFlag_IsAnsi;
+                flags =  ParseNativeTypeFlags::IsAnsi;
 
             ParseNativeType(pModule,
                             pCOMSignature,

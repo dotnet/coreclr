@@ -225,9 +225,9 @@ do                                                      \
     ((FieldMarshaler*)&(pfwalk->m_FieldMarshaler))->SetNStructFieldType(nfttype); \
 } while(0)
 
-    BOOL                fAnsi               = (flags & ParseNativeTypeFlag_IsAnsi);
+    BOOL                fAnsi               = (flags == ParseNativeTypeFlags::IsAnsi);
 #ifdef FEATURE_COMINTEROP
-    BOOL                fIsWinRT            = (flags & ParseNativeTypeFlag_IsWinRT);
+    BOOL                fIsWinRT            = (flags == ParseNativeTypeFlags::IsWinRT);
 #endif // FEATURE_COMINTEROP
     CorElementType      corElemType         = ELEMENT_TYPE_END;
     PCCOR_SIGNATURE     pNativeTypeStart    = pNativeType;    
