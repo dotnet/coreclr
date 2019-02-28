@@ -4,7 +4,7 @@ setlocal
 set INIT_TOOLS_LOG=%~dp0init-tools.log
 if [%PACKAGES_DIR%]==[] set PACKAGES_DIR=%~dp0packages
 if [%TOOLRUNTIME_DIR%]==[] set TOOLRUNTIME_DIR=%~dp0Tools
-set DOTNET_PATH=%~dp0\.dotnet\
+set DOTNET_PATH=%~dp0.dotnet\
 if [%DOTNET_CMD%]==[] set DOTNET_CMD=%DOTNET_PATH%dotnet.exe
 if [%BUILDTOOLS_SOURCE%]==[] set BUILDTOOLS_SOURCE=https://dotnet.myget.org/F/dotnet-buildtools/api/v3/index.json
 set /P BUILDTOOLS_VERSION=< "%~dp0BuildToolsVersion.txt"
@@ -72,8 +72,10 @@ echo "init-tools.cmd: Setting arch to %_Arch% for build tools"
 :ArchSet
 
 echo Installing dotnet cli...
+set PS_DOTNET_INSTALL_SCRIPT=". %~dp0eng\configure-toolset.ps1; . %~dp0eng\common\tools.ps1; InitializeBuildTool"
 if NOT exist "%DOTNET_CMD%" (
-  powershell -NoProfile -ExecutionPolicy unrestricted -Command "try { $configureToolsetScript = Join-Path $EngRoot "configure-toolset.ps1"; if (Test-Path $configureToolsetScript) { . $configureToolsetScript; } . $PSScriptRoot\common\tools.ps1; InitializeBuildTool; } catch { Write-Host $_  Write-Host $_.Exception Write-Host $_.ScriptStackTrace }"
+  echo running: powershell -NoProfile -ExecutionPolicy unrestricted -Command %PS_DOTNET_INSTALL_SCRIPT%
+  powershell -NoProfile -ExecutionPolicy unrestricted -Command %PS_DOTNET_INSTALL_SCRIPT%
   if NOT exist "%DOTNET_CMD%" (
     echo ERROR: Could not install dotnet cli correctly. 1>&2
     goto :error
