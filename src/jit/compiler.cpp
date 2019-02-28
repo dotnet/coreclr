@@ -11247,7 +11247,11 @@ void Compiler::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
-    if (varDsc->lvSlotNum < info.compLocalsCount)
+
+    // When generating the prolog (after all code for "BasicBlock"s), "recordVarLocationsAtStartOfBB",
+    // which called this function to update variable's home at each BasicBlock beginnnings,
+    // is called to restore the positions of the variables at the beginning of the first block.
+    if (varDsc->lvSlotNum < info.compLocalsCount && !lastBasicBlockHasBeenEmited)
     {
         // Build the location of the variable
         CodeGenInterface::siVarLoc siVarLoc = codeGen->getSiVarLoc(varDsc, codeGen->getCurrentStackLevel());
