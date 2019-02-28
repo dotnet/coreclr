@@ -380,7 +380,7 @@ void QCALLTYPE AssemblyNative::LoadFromInMemoryModule(INT_PTR ptrNativeAssemblyL
     PEImageHolder pILImage(PEImage::LoadImage((HMODULE)hModule));
     
     // Need to verify that this is a valid CLR assembly. 
-    if (!pILImage->CheckILFormat())
+    if (!pILImage->HasCorHeader())
         ThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
     
     // Get the binder context in which the assembly will be loaded
