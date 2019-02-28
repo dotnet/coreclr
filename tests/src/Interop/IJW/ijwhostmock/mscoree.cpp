@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include <windows.h>
-#include "xplatform.h"
+#include <xplatform.h>
 #include <set>
 
 std::set<HINSTANCE> g_modulesQueried = {};
