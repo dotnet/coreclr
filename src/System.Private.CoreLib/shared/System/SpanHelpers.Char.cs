@@ -920,27 +920,21 @@ namespace System
             // This is equivalent to:
             //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
             //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
-            int unaligned = ((int)Unsafe.AsPointer(ref searchSpace) & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
-            return ((Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1));
+
+            // This alignment is only valid if the GC does not relocate; so we use ReadUnaligned to get the data.
+            // If a GC does occur and alignment is lost, the GC cost will outweigh any gains from alignment so it
+            // isn't too important to pin to maintain the alignment.
+            return (-(int)Unsafe.AsPointer(ref searchSpace) / elementsPerByte) & (Vector<ushort>.Count - 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe nint UnalignedCountVector128(ref char searchSpace)
         {
             const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-
-            int unaligned = ((int)Unsafe.AsPointer(ref searchSpace) & (Unsafe.SizeOf<Vector128<ushort>>() - 1)) / elementsPerByte;
-            return ((Vector128<ushort>.Count - unaligned) & (Vector128<ushort>.Count - 1));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int UnalignedCountVectorFromEnd(ref char searchSpace, int length)
-        {
-            const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-            // Figure out how many characters to read sequentially from the end until we are vector aligned
-            // This is equivalent to: length = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
-            int unaligned = ((int)Unsafe.AsPointer(ref searchSpace) & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
-            return ((length & (Vector<ushort>.Count - 1)) + unaligned) & (Vector<ushort>.Count - 1);
+            // This alignment is only valid if the GC does not relocate; so we use ReadUnaligned to get the data.
+            // If a GC does occur and alignment is lost, the GC cost will outweigh any gains from alignment so it
+            // isn't too important to pin to maintain the alignment.
+            return (-(int)Unsafe.AsPointer(ref searchSpace) / elementsPerByte) & (Vector128<ushort>.Count - 1);
         }
     }
 }
