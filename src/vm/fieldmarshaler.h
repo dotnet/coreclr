@@ -31,7 +31,6 @@
 #endif // FEATURE_PREJIT
 
 // Forward refernces
-class EEClassLayoutInfo;
 class FieldDesc;
 class MethodTable;
 
@@ -88,6 +87,44 @@ enum NStructFieldType
 //=======================================================================
 #define DEFAULT_PACKING_SIZE 32
 
+
+typedef enum
+{
+    ParseNativeTypeFlag_None    = 0x00,
+    ParseNativeTypeFlag_IsAnsi  = 0x01,
+#ifdef FEATURE_COMINTEROP
+    ParseNativeTypeFlag_IsWinRT = 0x02,
+#endif // FEATURE_COMINTEROP
+}
+ParseNativeTypeFlags;
+
+inline ParseNativeTypeFlags& operator|=(ParseNativeTypeFlags& lhs, ParseNativeTypeFlags rhs)
+{
+    LIMITED_METHOD_CONTRACT;
+    lhs = static_cast<ParseNativeTypeFlags>(lhs | rhs);
+    return lhs;
+}
+
+VOID ParseNativeType(Module*    pModule,
+    PCCOR_SIGNATURE             pCOMSignature,
+    DWORD                       cbCOMSignature,
+    ParseNativeTypeFlags        flags,
+    LayoutRawFieldInfo*         pfwalk,
+    PCCOR_SIGNATURE             pNativeType,
+    ULONG                       cbNativeType,
+    IMDInternalImport*          pInternalImport,
+    mdTypeDef                   cl,
+    const SigTypeContext *      pTypeContext,
+    BOOL                       *pfDisqualifyFromManagedSequential
+#ifdef _DEBUG
+    ,
+    LPCUTF8                     szNamespace,
+    LPCUTF8                     szClassName,
+    LPCUTF8                     szFieldName
+#endif
+);
+
+BOOL IsFieldBlittable(FieldMarshaler* pFM);
 
 //=======================================================================
 // This is invoked from the class loader while building the data structures for a type.
@@ -230,7 +267,7 @@ VOID FmtValueTypeUpdateCLR(LPVOID pProtectedManagedData, MethodTable *pMT, BYTE 
     }
 
 #define ELEMENT_SIZE_IMPL(NativeSize, AlignmentReq)     \
-    UINT32 NativeSizeImpl() const                       \
+    UINT32 NativeSizeCoreImpl() const                       \
     {                                                   \
         LIMITED_METHOD_CONTRACT;                                  \
         return NativeSize;                              \
@@ -456,6 +493,7 @@ protected:
     }
 #endif // _DEBUG
 
+    UINT32 NativeSizeCore() const;
 
     RelativeFixupPointer<PTR_FieldDesc> m_pFD;      // FieldDesc
     UINT32           m_dwExternalOffset;    // offset of field in the fixed portion
@@ -637,7 +675,7 @@ public:
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
     VOID DestroyNativeImpl(LPVOID pNativeValue) const;
 
-    UINT32 NativeSizeImpl() const;
+    UINT32 NativeSizeCoreImpl() const;
     UINT32 AlignmentRequirementImpl() const;
     
 #ifdef FEATURE_PREJIT
@@ -731,7 +769,7 @@ public:
 
     VOID DestroyNativeImpl(LPVOID pNativeValue) const;
 
-    UINT32 NativeSizeImpl() const;
+    UINT32 NativeSizeCoreImpl() const;
     UINT32 AlignmentRequirementImpl() const;
     VOID NestedValueClassUpdateNativeImpl(const VOID **ppProtectedCLR, SIZE_T startoffset, LPVOID pNative, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID NestedValueClassUpdateCLRImpl(const VOID *pNative, LPVOID *ppProtectedCLR, SIZE_T startoffset) const;
@@ -1022,7 +1060,7 @@ public:
     VOID DestroyNativeImpl(LPVOID pNativeValue) const;
     UINT32 AlignmentRequirementImpl() const;
 
-    UINT32 NativeSizeImpl() const
+    UINT32 NativeSizeCoreImpl() const
     {
         LIMITED_METHOD_CONTRACT;
 
