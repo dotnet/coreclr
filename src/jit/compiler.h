@@ -3548,6 +3548,7 @@ public:
     void impEndTreeList(BasicBlock* block);
     void impAppendStmtCheck(GenTree* stmt, unsigned chkLevel);
     void impAppendStmt(GenTree* stmt, unsigned chkLevel);
+    void impAppendStmt(GenTree* stmt);
     void impInsertStmtBefore(GenTree* stmt, GenTree* stmtBefore);
     GenTree* impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSETX offset);
     void impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, GenTree* stmtBefore);
@@ -3564,6 +3565,8 @@ public:
                           GenTree**            pAfterStmt = nullptr,
                           IL_OFFSETX           ilOffset   = BAD_IL_OFFSET,
                           BasicBlock*          block      = nullptr);
+
+    GenTree* impExtractLastStmt();
     GenTree* impCloneExpr(GenTree*             tree,
                           GenTree**            clone,
                           CORINFO_CLASS_HANDLE structHnd,

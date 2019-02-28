@@ -634,14 +634,7 @@ inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
 
     impAppendStmtCheck(stmt, chkLevel);
 
-    /* Point 'prev' at the previous node, so that we can walk backwards */
-
-    stmt->gtPrev = impTreeLast;
-
-    /* Append the expression statement to the list */
-
-    impTreeLast->gtNext = stmt;
-    impTreeLast         = stmt;
+    impAppendStmt(stmt);
 
 #ifdef FEATURE_SIMD
     impMarkContiguousSIMDFieldAssignments(stmt);
@@ -667,6 +660,41 @@ inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
         gtDispTree(stmt);
     }
 #endif
+}
+
+//------------------------------------------------------------------------
+// impAppendStmt: Add the statement to the current stmts list.
+//
+// Arguments:
+//    stmt - the statement to add.
+//
+inline void Compiler::impAppendStmt(GenTree* stmt)
+{
+    // Point 'prev' at the previous node, so that we can walk backwards.
+    stmt->gtPrev = impTreeLast;
+
+    // Append the expression statement to the list.
+    impTreeLast->gtNext = stmt;
+    impTreeLast         = stmt;
+}
+
+//------------------------------------------------------------------------
+// impExtractLastStmt: Extract the last statement from the current stmts list.
+//
+// Return Value:
+//    The extracted statement.
+//
+// Notes:
+//    It suppose that the stmt will be reinserted later.
+//
+GenTree* Compiler::impExtractLastStmt()
+{
+    assert(impTreeLast);
+    assert(impTreeLast->gtOper == GT_STMT);
+
+    GenTree* stmt = impTreeLast;
+    impTreeLast   = impTreeLast->gtPrev;
+    return stmt;
 }
 
 /*****************************************************************************
@@ -17010,14 +17038,9 @@ SPILLSTACK:
         {
             case BBJ_COND:
 
-                /* Temporarily remove the 'jtrue' from the end of the tree list */
+                addStmt = impExtractLastStmt();
 
-                assert(impTreeLast);
-                assert(impTreeLast->gtOper == GT_STMT);
-                assert(impTreeLast->gtStmt.gtStmtExpr->gtOper == GT_JTRUE);
-
-                addStmt     = impTreeLast;
-                impTreeLast = impTreeLast->gtPrev;
+                assert(addStmt->gtStmt.gtStmtExpr->gtOper == GT_JTRUE);
 
                 /* Note if the next block has more than one ancestor */
 
@@ -17057,14 +17080,8 @@ SPILLSTACK:
                 BasicBlock** jmpTab;
                 unsigned     jmpCnt;
 
-                /* Temporarily remove the GT_SWITCH from the end of the tree list */
-
-                assert(impTreeLast);
-                assert(impTreeLast->gtOper == GT_STMT);
-                assert(impTreeLast->gtStmt.gtStmtExpr->gtOper == GT_SWITCH);
-
-                addStmt     = impTreeLast;
-                impTreeLast = impTreeLast->gtPrev;
+                addStmt = impExtractLastStmt();
+                assert(addStmt->gtStmt.gtStmtExpr->gtOper == GT_SWITCH);
 
                 jmpCnt = block->bbJumpSwt->bbsCount;
                 jmpTab = block->bbJumpSwt->bbsDstTab;
