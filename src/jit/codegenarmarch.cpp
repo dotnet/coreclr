@@ -597,13 +597,39 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
     if (!isStruct) // a normal non-Struct argument
     {
+        emitAttr storeAttr = emitTypeSize(targetType);
+
+#ifdef _TARGET_ARM64_
+        // For better C/C++ interop we will zero initialize the unused portion of the stack slot
+        //
+        if (treeNode->gtCall->IsUnmanaged())
+        {
+            // Are we passing a 4-byte (or smaller) value on the stack?
+            if (EA_SIZE_IN_BYTES(storeAttr) < 8)
+            {
+                switch (EA_SIZE_IN_BYTES(storeAttr))
+                {
+                    case 1:
+                    case 2:
+                        // zero out the full stack slot
+                        emit->emitIns_S_R(INS_str, EA_8BYTE, REG_ZR, varNumOut, argOffsetOut);
+                        break;
+                    case 4:
+                        // zero out the upper 4 bytes of the stack slot
+                        emit->emitIns_S_R(INS_str, EA_4BYTE, REG_ZR, varNumOut, argOffsetOut + 4);
+                        break;
+                    default:
+                        noway_assert(!"Invalid size for scalar arg");
+                }
+            }
+        }
+#endif // _TARGET_ARM64
+
         if (varTypeIsSIMD(targetType))
         {
             assert(!source->isContained());
 
             regNumber srcReg = genConsumeReg(source);
-
-            emitAttr storeAttr = emitTypeSize(targetType);
 
             assert((srcReg != REG_NA) && (genIsValidFloatReg(srcReg)));
             emit->emitIns_S_R(INS_str, storeAttr, srcReg, varNumOut, argOffsetOut);
@@ -613,8 +639,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             return;
         }
 
-        instruction storeIns  = ins_Store(targetType);
-        emitAttr    storeAttr = emitTypeSize(targetType);
+        instruction storeIns = ins_Store(targetType);
 
         // If it is contained then source must be the integer constant zero
         if (source->isContained())
