@@ -32,11 +32,11 @@
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <PgoDataPackageVersion>99.99.99-master-20190208.1</PgoDataPackageVersion>
     <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview-27316-02</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.4.1</XunitPackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
     <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.34</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
+    <IbcMergePackageVersion>4.6.0-alpha-00001</IbcMergePackageVersion>
     <CommandLineParserVersion>2.2.0</CommandLineParserVersion>
 
     <!-- Scenario tests install this version of Microsoft.NetCore.App, then patch coreclr binaries via xcopy. At the moment it is
