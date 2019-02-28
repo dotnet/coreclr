@@ -409,15 +409,14 @@ void Compiler::impRestoreStackState(SavedStack* savePtr)
     }
 }
 
-/*****************************************************************************
- *
- *  Get the tree list started for a new basic block.
- */
+//------------------------------------------------------------------------
+// impBeginTreeList: Get the tree list started for a new basic block.
+//
 inline void Compiler::impBeginTreeList()
 {
     assert(impTreeList == nullptr && impTreeLast == nullptr);
-
-    impTreeList = impTreeLast = new (this, GT_BEG_STMTS) GenTree(GT_BEG_STMTS, TYP_VOID);
+    // These fields are assigned only for debug in impInit and impEndTreeList.
+    impTreeList = impTreeLast = nullptr;
 }
 
 /*****************************************************************************
@@ -446,30 +445,26 @@ inline void Compiler::impEndTreeList(BasicBlock* block, GenTree* firstStmt, GenT
     block->bbFlags |= BBF_IMPORTED;
 }
 
-/*****************************************************************************
- *
- *  Store the current tree list in the given basic block.
- */
-
+//------------------------------------------------------------------------
+// impEndTreeList: Store the current tree list in the given basic block.
+//
+// Arguments:
+//    block - the basic block to store into.
+//
 inline void Compiler::impEndTreeList(BasicBlock* block)
 {
-    assert(impTreeList->gtOper == GT_BEG_STMTS);
+    GenTree* firstTree = impTreeList;
 
-    GenTree* firstTree = impTreeList->gtNext;
-
-    if (!firstTree)
+    if (impTreeList == nullptr)
     {
-        /* The block should not already be marked as imported */
+        // The block should not already be marked as imported.
         assert((block->bbFlags & BBF_IMPORTED) == 0);
 
-        // Empty block. Just mark it as imported
+        // Empty block. Just mark it as imported.
         block->bbFlags |= BBF_IMPORTED;
     }
     else
     {
-        // Ignore the GT_BEG_STMTS
-        assert(firstTree->gtPrev == impTreeList);
-
         impEndTreeList(block, firstTree, impTreeLast);
     }
 
@@ -559,7 +554,6 @@ inline void Compiler::impAppendStmtCheck(GenTree* stmt, unsigned chkLevel)
 inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
 {
     assert(stmt->gtOper == GT_STMT);
-    noway_assert(impTreeLast != nullptr);
 
     if (chkLevel == (unsigned)CHECK_SPILL_ALL)
     {
@@ -670,12 +664,18 @@ inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
 //
 inline void Compiler::impAppendStmt(GenTree* stmt)
 {
-    // Point 'prev' at the previous node, so that we can walk backwards.
-    stmt->gtPrev = impTreeLast;
-
-    // Append the expression statement to the list.
-    impTreeLast->gtNext = stmt;
-    impTreeLast         = stmt;
+    if (impTreeList == nullptr)
+    {
+        // The stmt is the first in the list.
+        impTreeList = stmt;
+    }
+    else
+    {
+        // Append the expression statement to the existing list.
+        impTreeLast->gtNext = stmt;
+        stmt->gtPrev        = impTreeLast;
+    }
+    impTreeLast = stmt;
 }
 
 //------------------------------------------------------------------------
@@ -694,6 +694,10 @@ GenTree* Compiler::impExtractLastStmt()
 
     GenTree* stmt = impTreeLast;
     impTreeLast   = impTreeLast->gtPrev;
+    if (impTreeLast == nullptr)
+    {
+        impTreeList = nullptr;
+    }
     return stmt;
 }
 
@@ -3084,12 +3088,9 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
     // If it's not then we just return NULL and we don't optimize this call
     //
 
-    //
-    // It is possible the we don't have any statements in the block yet
-    //
-    if (impTreeLast->gtOper != GT_STMT)
+    // It is possible the we don't have any statements in the block yet.
+    if (impTreeLast == nullptr)
     {
-        assert(impTreeLast->gtOper == GT_BEG_STMTS);
         return nullptr;
     }
 
@@ -19467,7 +19468,7 @@ BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*    ad
         return FALSE;
     }
 
-    for (stmt = impTreeList->gtNext; stmt; stmt = stmt->gtNext)
+    for (stmt = impTreeList; stmt; stmt = stmt->gtNext)
     {
         expr = stmt->gtStmt.gtStmtExpr;
 
