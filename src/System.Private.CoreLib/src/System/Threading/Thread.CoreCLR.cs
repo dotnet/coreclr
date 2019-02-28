@@ -397,7 +397,7 @@ namespace System.Threading
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
             (ApartmentState)GetApartmentStateNative();
 #else // !FEATURE_COMINTEROP_APARTMENT_SUPPORT
-            ApartmentState.MTA;
+            ApartmentState.Unknown;
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
         /// <summary>
