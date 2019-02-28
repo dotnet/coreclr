@@ -6484,7 +6484,7 @@ void Module::NotifyDebuggerUnload(AppDomain *pDomain)
 #if !defined(CROSSGEN_COMPILE)
 using GetTokenForVTableEntry_t = mdToken(STDMETHODCALLTYPE*)(HMODULE module, BYTE**ppVTEntry);
 
-HMODULE GetIJWHostForModule(Module* module)
+static HMODULE GetIJWHostForModule(Module* module)
 {
 #if !defined(FEATURE_PAL)
     PEDecoder* pe = module->GetFile()->GetLoadedIL();
@@ -6528,7 +6528,7 @@ HMODULE GetIJWHostForModule(Module* module)
 #endif
 }
 
-GetTokenForVTableEntry_t GetTokenGetterFromHostModule(HMODULE ijwHost)
+static GetTokenForVTableEntry_t GetTokenGetterFromHostModule(HMODULE ijwHost)
 {
     GetTokenForVTableEntry_t getTokenForVTableEntryWithHost = nullptr;
     if (ijwHost != nullptr)
