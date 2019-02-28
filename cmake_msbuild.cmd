@@ -18,9 +18,8 @@ set Platform=
 set __ProjectDir=
 
 pushd %~dp0
-echo Running: eng\common\msbuild.ps1 %*
-call powershell -ExecutionPolicy ByPass -NoProfile -command "& """%~dp0eng\common\msbuild.ps1""" %*"
-
+echo Running: msbuild.exe %*
+call msbuild.exe %*
 popd
 if NOT [%ERRORLEVEL%]==[0] (
   exit /b 1

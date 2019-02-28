@@ -1,19 +1,6 @@
 {
   "tools": {
-    "dotnet": "2.1.401",
-    "vs": {
-        "version": "15.9",
-        "components": [
-            "Microsoft.VisualStudio.Component.VC.140",
-            "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-            "Microsoft.Component.VC.Runtime.UCRTSDK",
-            "Microsoft.VisualStudio.Component.VC.CoreIde",
-            "Microsoft.VisualStudio.Component.Windows10SDK.17134",
-            "Microsoft.VisualStudio.Component.Windows10SDK.16299.Desktop.arm",
-            "Microsoft.VisualStudio.Component.VC.Tools.ARM",
-            "Microsoft.VisualStudio.Component.VC.Tools.ARM64"
-        ]
-    }
+    "dotnet": "2.1.401"
   },
   "native-tools": {
     "cmake": "3.11.1",

@@ -73,7 +73,7 @@ echo "init-tools.cmd: Setting arch to %_Arch% for build tools"
 
 echo Installing dotnet cli...
 if NOT exist "%DOTNET_CMD%" (
-  powershell -NoProfile -ExecutionPolicy unrestricted -Command "$msbuildEngine = "dotnet"; try { $configureToolsetScript = Join-Path $EngRoot "configure-toolset.ps1"; if (Test-Path $configureToolsetScript) { . $configureToolsetScript; } . $PSScriptRoot\common\tools.ps1; InitializeBuildTool; } catch { Write-Host $_  Write-Host $_.Exception Write-Host $_.ScriptStackTrace }"
+  powershell -NoProfile -ExecutionPolicy unrestricted -Command "try { $configureToolsetScript = Join-Path $EngRoot "configure-toolset.ps1"; if (Test-Path $configureToolsetScript) { . $configureToolsetScript; } . $PSScriptRoot\common\tools.ps1; InitializeBuildTool; } catch { Write-Host $_  Write-Host $_.Exception Write-Host $_.ScriptStackTrace }"
   if NOT exist "%DOTNET_CMD%" (
     echo ERROR: Could not install dotnet cli correctly. 1>&2
     goto :error

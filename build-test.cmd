@@ -225,7 +225,7 @@ set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
 call "%__ProjectDir%\cmake_msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  "'/l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log'"^
+  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   "%__NativeTestIntermediatesDir%\install.vcxproj"^

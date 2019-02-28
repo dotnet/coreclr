@@ -524,7 +524,7 @@ if %__BuildNative% EQU 1 (
     set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
     call %__ProjectDir%\cmake_msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-      "'/l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log'"^
+      /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
       /p:UsePartialNGENOptimization=false /maxcpucount %__IntermediatesDir%\install.vcxproj^
       !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% /m:2 %__UnprocessedBuildArgs%
@@ -591,7 +591,7 @@ if %__BuildCrossArchNative% EQU 1 (
     set __Logging=!_MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
     call %__ProjectDir%\cmake_msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-      "'/l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log'"^
+      /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
       /p:UsePartialNGENOptimization=false /maxcpucount^
       %__CrossCompIntermediatesDir%\install.vcxproj^
