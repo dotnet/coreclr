@@ -77,4 +77,5 @@ private:
     #include "EventTesting.h"
     #include "AggregationTesting.h"
     #include "ColorTesting.h"
+    #include "LicenseTesting.h"
 #endif
