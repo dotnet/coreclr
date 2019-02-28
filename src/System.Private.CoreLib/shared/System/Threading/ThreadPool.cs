@@ -22,8 +22,6 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Internal.Runtime.CompilerServices;
 
-using Thread = Internal.Runtime.Augments.RuntimeThread;
-
 namespace System.Threading
 {
     internal static class ThreadPoolGlobals
@@ -560,7 +558,7 @@ namespace System.Threading
                 Thread currentThread = tl.currentThread;
 
                 // Start on clean ExecutionContext and SynchronizationContext
-                currentThread.ExecutionContext = null;
+                currentThread._executionContext = null;
                 currentThread.SynchronizationContext = null;
 
                 //

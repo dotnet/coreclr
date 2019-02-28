@@ -13,7 +13,6 @@
 #include "eeconfig.h"
 #include "gcheaputilities.h"
 #include "eventtrace.h"
-#include "perfcounters.h"
 #include "assemblyname.hpp"
 #include "eeprofinterfaces.h"
 #include "dbginterface.h"
@@ -1174,27 +1173,6 @@ void AppDomain::ShutdownNativeDllSearchDirectories()
     }
 
     m_NativeDllSearchDirectories.Clear();
-}
-
-void AppDomain::ReleaseDomainBoundInfo()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;;
-    // Shutdown assemblies
-    m_AssemblyCache.OnAppDomainUnload();
-
-    AssemblyIterator i = IterateAssembliesEx( (AssemblyIterationFlags)(kIncludeFailedToLoad) );
-    CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
-    
-    while (i.Next(pDomainAssembly.This()))
-    {
-       pDomainAssembly->ReleaseManagedData();
-    }
 }
 
 void AppDomain::ReleaseFiles()
@@ -3742,7 +3720,6 @@ void AppDomain::Init()
     SetStage(STAGE_READYFORMANAGEDCODE);
 
 #ifndef CROSSGEN_COMPILE
-    COUNTER_ONLY(GetPerfCounters().m_Loading.cAppDomains++);
 
 #ifdef FEATURE_TIERED_COMPILATION
     m_tieredCompilationManager.Init(GetId());
