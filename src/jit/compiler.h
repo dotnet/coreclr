@@ -3533,8 +3533,8 @@ protected:
 
     //----------------- Manipulating the trees and stmts ----------------------
 
-    GenTree* impTreeList; // Trees for the BB being imported
-    GenTree* impTreeLast; // The last tree for the current BB
+    GenTreeStmt* impStmtList; // Statements for the BB being imported.
+    GenTreeStmt* impLastStmt; // The last statement for the current BB.
 
 public:
     enum

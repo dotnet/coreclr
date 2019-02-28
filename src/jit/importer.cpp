@@ -65,8 +65,8 @@ void Compiler::impInit()
 {
 
 #ifdef DEBUG
-    impTreeList        = nullptr;
-    impTreeLast        = nullptr;
+    impStmtList        = nullptr;
+    impLastStmt        = nullptr;
     impInlinedCodeSize = 0;
 #endif
 }
@@ -414,9 +414,9 @@ void Compiler::impRestoreStackState(SavedStack* savePtr)
 //
 inline void Compiler::impBeginTreeList()
 {
-    assert(impTreeList == nullptr && impTreeLast == nullptr);
+    assert(impStmtList == nullptr && impLastStmt == nullptr);
     // These fields are assigned only for debug in impInit and impEndTreeList.
-    impTreeList = impTreeLast = nullptr;
+    impStmtList = impLastStmt = nullptr;
 }
 
 /*****************************************************************************
@@ -453,9 +453,9 @@ inline void Compiler::impEndTreeList(BasicBlock* block, GenTree* firstStmt, GenT
 //
 inline void Compiler::impEndTreeList(BasicBlock* block)
 {
-    GenTree* firstTree = impTreeList;
+    GenTree* firstTree = impStmtList;
 
-    if (impTreeList == nullptr)
+    if (impStmtList == nullptr)
     {
         // The block should not already be marked as imported.
         assert((block->bbFlags & BBF_IMPORTED) == 0);
@@ -465,7 +465,7 @@ inline void Compiler::impEndTreeList(BasicBlock* block)
     }
     else
     {
-        impEndTreeList(block, firstTree, impTreeLast);
+        impEndTreeList(block, firstTree, impLastStmt);
     }
 
 #ifdef DEBUG
@@ -475,7 +475,7 @@ inline void Compiler::impEndTreeList(BasicBlock* block)
         impLastILoffsStmt                          = nullptr;
     }
 
-    impTreeList = impTreeLast = nullptr;
+    impStmtList = impLastStmt = nullptr;
 #endif
 }
 
@@ -637,7 +637,7 @@ inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
     /* Once we set impCurStmtOffs in an appended tree, we are ready to
        report the following offsets. So reset impCurStmtOffs */
 
-    if (impTreeLast->gtStmt.gtStmtILoffsx == impCurStmtOffs)
+    if (impLastStmt->gtStmtILoffsx == impCurStmtOffs)
     {
         impCurStmtOffsSet(BAD_IL_OFFSET);
     }
@@ -664,18 +664,18 @@ inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
 //
 inline void Compiler::impAppendStmt(GenTree* stmt)
 {
-    if (impTreeList == nullptr)
+    if (impStmtList == nullptr)
     {
         // The stmt is the first in the list.
-        impTreeList = stmt;
+        impStmtList = stmt->AsStmt();
     }
     else
     {
         // Append the expression statement to the existing list.
-        impTreeLast->gtNext = stmt;
-        stmt->gtPrev        = impTreeLast;
+        impLastStmt->gtNext = stmt;
+        stmt->gtPrev        = impLastStmt;
     }
-    impTreeLast = stmt;
+    impLastStmt = stmt->AsStmt();
 }
 
 //------------------------------------------------------------------------
@@ -689,14 +689,13 @@ inline void Compiler::impAppendStmt(GenTree* stmt)
 //
 GenTree* Compiler::impExtractLastStmt()
 {
-    assert(impTreeLast);
-    assert(impTreeLast->gtOper == GT_STMT);
+    assert(impLastStmt != nullptr);
 
-    GenTree* stmt = impTreeLast;
-    impTreeLast   = impTreeLast->gtPrev;
-    if (impTreeLast == nullptr)
+    GenTree* stmt = impLastStmt;
+    impLastStmt   = impLastStmt->gtPrevStmt;
+    if (impLastStmt == nullptr)
     {
-        impTreeList = nullptr;
+        impStmtList = nullptr;
     }
     return stmt;
 }
@@ -1084,7 +1083,7 @@ GenTreeArgList* Compiler::impPopRevList(unsigned count, CORINFO_SIG_INFO* sig, u
 //    The tree that should be appended to the statement list that represents the assignment.
 //
 // Notes:
-//    Temp assignments may be appended to impTreeList if spilling is necessary.
+//    Temp assignments may be appended to impStmtList if spilling is necessary.
 
 GenTree* Compiler::impAssignStruct(GenTree*             dest,
                                    GenTree*             src,
@@ -1163,7 +1162,7 @@ GenTree* Compiler::impAssignStruct(GenTree*             dest,
 //    The tree that should be appended to the statement list that represents the assignment.
 //
 // Notes:
-//    Temp assignments may be appended to impTreeList if spilling is necessary.
+//    Temp assignments may be appended to impStmtList if spilling is necessary.
 
 GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                                       GenTree*             src,
@@ -1379,7 +1378,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
             // Insert op1 after '*pAfterStmt'
             *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(src->gtOp.gtOp1, ilOffset));
         }
-        else if (impTreeLast != nullptr)
+        else if (impLastStmt != nullptr)
         {
             // Do the side-effect as a separate statement.
             impAppendTree(src->gtOp.gtOp1, curLevel, ilOffset);
@@ -1485,11 +1484,11 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
     {
         assert(structVal->gtOp.gtOp2->gtType == type); // Second thing is the struct
 
-        GenTree* oldTreeLast  = impTreeLast;
+        GenTree* oldTreeLast  = impLastStmt;
         structVal->gtOp.gtOp2 = impGetStructAddr(structVal->gtOp.gtOp2, structHnd, curLevel, willDeref);
         structVal->gtType     = TYP_BYREF;
 
-        if (oldTreeLast != impTreeLast)
+        if (oldTreeLast != impLastStmt)
         {
             // Some temp assignment statement was placed on the statement list
             // for Op2, but that would be out of order with op1, so we need to
@@ -2746,10 +2745,9 @@ void Compiler::impNoteLastILoffs()
         // We should have added a statement for the current basic block
         // Is this assert correct ?
 
-        assert(impTreeLast);
-        assert(impTreeLast->gtOper == GT_STMT);
+        assert(impLastStmt);
 
-        impTreeLast->gtStmt.gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
+        impLastStmt->gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
     }
     else
     {
@@ -3089,7 +3087,7 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
     //
 
     // It is possible the we don't have any statements in the block yet.
-    if (impTreeLast == nullptr)
+    if (impLastStmt == nullptr)
     {
         return nullptr;
     }
@@ -3098,7 +3096,7 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
     // We start by looking at the last statement, making sure it's an assignment, and
     // that the target of the assignment is the array passed to InitializeArray.
     //
-    GenTree* arrayAssignment = impTreeLast->gtStmt.gtStmtExpr;
+    GenTree* arrayAssignment = impLastStmt->gtStmtExpr;
     if ((arrayAssignment->gtOper != GT_ASG) || (arrayAssignment->gtOp.gtOp1->gtOper != GT_LCL_VAR) ||
         (arrayLocalNode->gtOper != GT_LCL_VAR) ||
         (arrayAssignment->gtOp.gtOp1->gtLclVarCommon.gtLclNum != arrayLocalNode->gtLclVarCommon.gtLclNum))
@@ -4792,7 +4790,7 @@ void Compiler::verConvertBBToThrowVerificationException(BasicBlock* block DEBUGA
 
 #ifdef DEBUG
     // we need this since BeginTreeList asserts otherwise
-    impTreeList = impTreeLast = nullptr;
+    impStmtList = impLastStmt = nullptr;
     block->bbFlags &= ~BBF_IMPORTED;
 
     if (logMsg)
@@ -19449,9 +19447,6 @@ BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*    ad
 
     BasicBlock* block = compCurBB;
 
-    GenTree* stmt;
-    GenTree* expr;
-
     if (block != fgFirstBB)
     {
         return FALSE;
@@ -19468,10 +19463,9 @@ BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*    ad
         return FALSE;
     }
 
-    for (stmt = impTreeList; stmt; stmt = stmt->gtNext)
+    for (GenTreeStmt* stmt = impStmtList; stmt != nullptr; stmt = stmt->gtNextStmt)
     {
-        expr = stmt->gtStmt.gtStmtExpr;
-
+        GenTree* expr = stmt->gtStmtExpr;
         if (GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS(expr->gtFlags))
         {
             return FALSE;
