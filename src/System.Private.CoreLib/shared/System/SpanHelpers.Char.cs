@@ -924,7 +924,7 @@ namespace System
             // This alignment is only valid if the GC does not relocate; so we use ReadUnaligned to get the data.
             // If a GC does occur and alignment is lost, the GC cost will outweigh any gains from alignment so it
             // isn't too important to pin to maintain the alignment.
-            return (-(int)Unsafe.AsPointer(ref searchSpace) / elementsPerByte) & (Vector<ushort>.Count - 1);
+            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / elementsPerByte) & (Vector<ushort>.Count - 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -934,7 +934,7 @@ namespace System
             // This alignment is only valid if the GC does not relocate; so we use ReadUnaligned to get the data.
             // If a GC does occur and alignment is lost, the GC cost will outweigh any gains from alignment so it
             // isn't too important to pin to maintain the alignment.
-            return (-(int)Unsafe.AsPointer(ref searchSpace) / elementsPerByte) & (Vector128<ushort>.Count - 1);
+            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / elementsPerByte) & (Vector128<ushort>.Count - 1);
         }
     }
 }
