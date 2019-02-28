@@ -11152,7 +11152,10 @@ void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isB
     // "info.compLocalsCount".
     if (varDsc->lvSlotNum < info.compLocalsCount)
     {
-        if (isBorn && !isDying)
+        // If variable a variable is inside a try/catch block, we persist it on the stack during the 
+        // whole block and alive. It can be assigned/defined many times, but the "VariableLiveRange"
+        // has to still start on a "BasicBlock" boundary
+        if (isBorn && !isDying && !varDsc->lvLiveInOutOfHndlr)
         {
             // "varDsc" is valid from this point
             siStartVariableLiveRange(varDsc);
