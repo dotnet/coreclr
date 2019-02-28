@@ -416,8 +416,6 @@ void Compiler::impRestoreStackState(SavedStack* savePtr)
 inline void Compiler::impBeginTreeList()
 {
     assert(impTreeList == nullptr && impTreeLast == nullptr);
-
-    impTreeList = impTreeLast = new (this, GT_BEG_STMTS) GenTree(GT_BEG_STMTS, TYP_VOID);
 }
 
 /*****************************************************************************
@@ -450,9 +448,8 @@ inline void Compiler::impEndTreeList(BasicBlock* block, GenTreeStmt* firstStmt, 
 
 inline void Compiler::impEndTreeList(BasicBlock* block)
 {
-    assert(impTreeList->gtOper == GT_BEG_STMTS);
 
-    if (impTreeList->gtNext == nullptr)
+    if (impTreeList == nullptr)
     {
         /* The block should not already be marked as imported */
         assert((block->bbFlags & BBF_IMPORTED) == 0);
@@ -462,11 +459,7 @@ inline void Compiler::impEndTreeList(BasicBlock* block)
     }
     else
     {
-        // Ignore the GT_BEG_STMTS
-        GenTreeStmt* firstStmt = impTreeList->gtNext->AsStmt();
-        assert(firstStmt->gtPrev == impTreeList);
-
-        impEndTreeList(block, firstStmt, impTreeLast->AsStmt());
+        impEndTreeList(block, impTreeList, impTreeLast);
     }
 
 #ifdef DEBUG
@@ -654,6 +647,7 @@ inline void Compiler::impAppendStmt(GenTreeStmt* stmt, unsigned chkLevel)
     else
     {
         impTreeLast = stmt;
+        impTreeList = stmt;
     }
 
 #ifdef FEATURE_SIMD
@@ -663,7 +657,7 @@ inline void Compiler::impAppendStmt(GenTreeStmt* stmt, unsigned chkLevel)
     /* Once we set impCurStmtOffs in an appended tree, we are ready to
        report the following offsets. So reset impCurStmtOffs */
 
-    if (impTreeLast->AsStmt()->gtStmtILoffsx == impCurStmtOffs)
+    if (impTreeLast->gtStmtILoffsx == impCurStmtOffs)
     {
         impCurStmtOffsSet(BAD_IL_OFFSET);
     }
@@ -1456,7 +1450,7 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
     {
         assert(structVal->gtOp.gtOp2->gtType == type); // Second thing is the struct
 
-        GenTreeStmt* oldLastStmt = impTreeLast->AsStmt();
+        GenTreeStmt* oldLastStmt = impTreeLast;
         structVal->gtOp.gtOp2    = impGetStructAddr(structVal->gtOp.gtOp2, structHnd, curLevel, willDeref);
         structVal->gtType        = TYP_BYREF;
 
@@ -2718,7 +2712,7 @@ void Compiler::impNoteLastILoffs()
 
         assert(impTreeLast);
 
-        impTreeLast->AsStmt()->gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
+        impTreeLast->gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
     }
     else
     {
@@ -3060,9 +3054,8 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
     //
     // It is possible the we don't have any statements in the block yet
     //
-    if (impTreeLast->gtOper != GT_STMT)
+    if (impTreeLast == nullptr)
     {
-        assert(impTreeLast->gtOper == GT_BEG_STMTS);
         return nullptr;
     }
 
@@ -3070,7 +3063,7 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
     // We start by looking at the last statement, making sure it's an assignment, and
     // that the target of the assignment is the array passed to InitializeArray.
     //
-    GenTree* arrayAssignment = impTreeLast->AsStmt()->gtStmtExpr;
+    GenTree* arrayAssignment = impTreeLast->gtStmtExpr;
     if ((arrayAssignment->gtOper != GT_ASG) || (arrayAssignment->gtOp.gtOp1->gtOper != GT_LCL_VAR) ||
         (arrayLocalNode->gtOper != GT_LCL_VAR) ||
         (arrayAssignment->gtOp.gtOp1->gtLclVarCommon.gtLclNum != arrayLocalNode->gtLclVarCommon.gtLclNum))
@@ -17018,10 +17011,14 @@ SPILLSTACK:
                 /* Temporarily remove the 'jtrue' from the end of the tree list */
 
                 assert(impTreeLast);
-                assert(impTreeLast->AsStmt()->gtStmtExpr->gtOper == GT_JTRUE);
+                assert(impTreeLast->gtStmtExpr->gtOper == GT_JTRUE);
 
-                addStmt     = impTreeLast->AsStmt();
-                impTreeLast = impTreeLast->AsStmt()->gtPrev;
+                addStmt     = impTreeLast;
+                impTreeLast = impTreeLast->gtPrevStmt;
+                if (impTreeLast == nullptr)
+                {
+                    impTreeList = nullptr;
+                }
 
                 /* Note if the next block has more than one ancestor */
 
@@ -17064,10 +17061,14 @@ SPILLSTACK:
                 /* Temporarily remove the GT_SWITCH from the end of the tree list */
 
                 assert(impTreeLast);
-                assert(impTreeLast->AsStmt()->gtStmtExpr->gtOper == GT_SWITCH);
+                assert(impTreeLast->gtStmtExpr->gtOper == GT_SWITCH);
 
-                addStmt     = impTreeLast->AsStmt();
-                impTreeLast = impTreeLast->AsStmt()->gtPrevStmt;
+                addStmt     = impTreeLast;
+                impTreeLast = impTreeLast->gtPrevStmt;
+                if (impTreeLast == nullptr)
+                {
+                    impTreeList = nullptr;
+                }
 
                 jmpCnt = block->bbJumpSwt->bbsCount;
                 jmpTab = block->bbJumpSwt->bbsDstTab;
@@ -19450,16 +19451,13 @@ BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*    ad
         return FALSE;
     }
 
-    if (impTreeList->gtNext != nullptr)
+    for (GenTreeStmt* stmt = impTreeList; stmt != nullptr; stmt = stmt->gtNextStmt)
     {
-        for (GenTreeStmt* stmt = impTreeList->gtNext->AsStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
-        {
-            GenTree* expr = stmt->gtStmtExpr;
+        GenTree* expr = stmt->gtStmtExpr;
 
-            if (GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS(expr->gtFlags))
-            {
-                return FALSE;
-            }
+        if (GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS(expr->gtFlags))
+        {
+            return FALSE;
         }
     }
 
