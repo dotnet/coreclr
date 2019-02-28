@@ -14,12 +14,14 @@ namespace System.Buffers.Text
         public const byte Slash = (byte)'/';
         public const byte Space = (byte)' ';
         public const byte Hyphen = (byte)'-';
+		public const byte UtcOffsetChar = (byte)'Z';
+		public const byte TimePrefix = (byte)'T';
 
-        public const byte Separator = (byte)',';
+		public const byte Separator = (byte)',';
 
-        // Invariant formatting uses groups of 3 for each number group separated by commas.
-        //   ex. 1,234,567,890
-        public const int GroupSize = 3;
+		// Invariant formatting uses groups of 3 for each number group separated by commas.
+		//   ex. 1,234,567,890
+		public const int GroupSize = 3;
 
         public static readonly TimeSpan NullUtcOffset = TimeSpan.MinValue;  // Utc offsets must range from -14:00 to 14:00 so this is never a valid offset.
 
@@ -30,5 +32,19 @@ namespace System.Buffers.Text
 
         public const ulong BillionMaxUIntValue = (ulong)uint.MaxValue * Billion; // maximum value that can be split into two uint32 {1-10 digits}{9 digits}
         public const uint Billion = 1000000000; // 10^9, used to split int64/uint64 into three uint32 {1-2 digits}{9 digits}{9 digits}
+
+        public enum DateJParserState
+		{
+			Year = 0,
+			Month = 1,
+			Day = 2,
+			Hour = 3,
+			Minute = 4,
+			Second = 5,
+			Fraction = 6,
+			OffsetHours = 7,
+			OffsetMinutes = 8,
+			Invalid = 9,
+		}
     }
 }

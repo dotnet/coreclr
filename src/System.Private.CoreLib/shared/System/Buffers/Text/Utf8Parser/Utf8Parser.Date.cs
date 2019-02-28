@@ -89,6 +89,32 @@ namespace System.Buffers.Text
                         return true;
                     }
 
+                case 'J':
+                    {
+                        if (!TryParseDateTimeOffsetJ(source, out DateTimeOffset dateTimeOffset, out bytesConsumed, out DateTimeKind kind))
+                        {
+                            value = default;
+                            bytesConsumed = 0;
+                            return false;
+                        }
+
+                        switch (kind)
+                        {
+                            case DateTimeKind.Local:
+                                value = dateTimeOffset.LocalDateTime;
+                                break;
+                            case DateTimeKind.Utc:
+                                value = dateTimeOffset.UtcDateTime;
+                                break;
+                            default:
+                                Debug.Assert(kind == DateTimeKind.Unspecified);
+                                value = dateTimeOffset.DateTime;
+                                break;
+                        }
+
+                        return true;
+                    }
+
                 case default(char):
                 case 'G':
                     return TryParseDateTimeG(source, out value, out _, out bytesConsumed);
@@ -131,6 +157,9 @@ namespace System.Buffers.Text
 
                 case 'O':
                     return TryParseDateTimeOffsetO(source, out value, out bytesConsumed, out _);
+
+                case 'J':
+                    return TryParseDateTimeOffsetJ(source, out value, out bytesConsumed, out _);
 
                 case default(char):
                     return TryParseDateTimeOffsetDefault(source, out value, out bytesConsumed);
