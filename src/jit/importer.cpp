@@ -9245,10 +9245,10 @@ void Compiler::impImportLeave(BasicBlock* block)
     assert(block->bbJumpKind == BBJ_LEAVE);
     assert(fgBBs == (BasicBlock**)0xCDCD || fgLookupBB(jmpAddr) != NULL); // should be a BB boundary
 
-    BasicBlock* step         = DUMMY_INIT(NULL);
-    unsigned    encFinallies = 0; // Number of enclosing finallies.
-    GenTree*    endCatches   = NULL;
-    GenTree*    endLFin      = NULL; // The statement tree to indicate the end of locally-invoked finally.
+    BasicBlock*  step         = DUMMY_INIT(NULL);
+    unsigned     encFinallies = 0; // Number of enclosing finallies.
+    GenTree*     endCatches   = NULL;
+    GenTreeStmt* endLFinStmt  = NULL; // The statement tree to indicate the end of locally-invoked finally.
 
     unsigned  XTnum;
     EHblkDsc* HBtab;
@@ -9303,7 +9303,8 @@ void Compiler::impImportLeave(BasicBlock* block)
 
             BasicBlock* callBlock;
 
-            assert(!encFinallies == !endLFin); // if we have finallies, we better have an endLFin tree, and vice-versa
+            assert(!encFinallies ==
+                   !endLFinStmt); // if we have finallies, we better have an endLFinStmt, and vice-versa
 
             if (encFinallies == 0)
             {
@@ -9346,21 +9347,21 @@ void Compiler::impImportLeave(BasicBlock* block)
                 }
 #endif
 
-                GenTree* lastStmt;
+                GenTreeStmt* lastStmt;
 
                 if (endCatches)
                 {
-                    lastStmt         = gtNewStmt(endCatches);
-                    endLFin->gtNext  = lastStmt;
-                    lastStmt->gtPrev = endLFin;
+                    lastStmt            = gtNewStmt(endCatches);
+                    endLFinStmt->gtNext = lastStmt;
+                    lastStmt->gtPrev    = endLFinStmt;
                 }
                 else
                 {
-                    lastStmt = endLFin;
+                    lastStmt = endLFinStmt;
                 }
 
                 // note that this sets BBF_IMPORTED on the block
-                impEndTreeList(callBlock, endLFin, lastStmt);
+                impEndTreeList(callBlock, endLFinStmt, lastStmt);
             }
 
             step = fgNewBBafter(BBJ_ALWAYS, callBlock, true);
@@ -9380,8 +9381,8 @@ void Compiler::impImportLeave(BasicBlock* block)
             assert(finallyNesting <= compHndBBtabCount);
 
             callBlock->bbJumpDest = HBtab->ebdHndBeg; // This callBlock will call the "finally" handler.
-            endLFin               = new (this, GT_END_LFIN) GenTreeVal(GT_END_LFIN, TYP_VOID, finallyNesting);
-            endLFin               = gtNewStmt(endLFin);
+            GenTree* endLFin      = new (this, GT_END_LFIN) GenTreeVal(GT_END_LFIN, TYP_VOID, finallyNesting);
+            endLFinStmt           = gtNewStmt(endLFinStmt);
             endCatches            = NULL;
 
             encFinallies++;
@@ -9392,7 +9393,7 @@ void Compiler::impImportLeave(BasicBlock* block)
 
     /* Append any remaining endCatches, if any */
 
-    assert(!encFinallies == !endLFin);
+    assert(!encFinallies == !endLFinStmt);
 
     if (encFinallies == 0)
     {
