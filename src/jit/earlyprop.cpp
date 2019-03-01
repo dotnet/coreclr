@@ -258,7 +258,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
             //      *  stmtExpr  void  (top level)
             //      \--*  indir     int
             //          \--*  lclVar    ref    V02 loc0
-            if (compCurStmt->gtStmt.gtStmtExpr == tree)
+            if (compCurStmt->gtStmtExpr == tree)
             {
                 return nullptr;
             }

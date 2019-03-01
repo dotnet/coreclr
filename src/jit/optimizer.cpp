@@ -4885,16 +4885,16 @@ bool Compiler::optComputeDerefConditions(unsigned loopNum, LoopCloneContext* con
 //
 // Arguments:
 //      block        - the block in which the helper call needs to be inserted.
-//      insertBefore - the tree before which the helper call will be inserted.
+//      insertBefore - the stmt before which the helper call will be inserted.
 //
-void Compiler::optDebugLogLoopCloning(BasicBlock* block, GenTree* insertBefore)
+void Compiler::optDebugLogLoopCloning(BasicBlock* block, GenTreeStmt* insertBefore)
 {
     if (JitConfig.JitDebugLogLoopCloning() == 0)
     {
         return;
     }
-    GenTree* logCall = gtNewHelperCallNode(CORINFO_HELP_DEBUG_LOG_LOOP_CLONING, TYP_VOID);
-    GenTree* stmt    = fgNewStmtFromTree(logCall);
+    GenTree*     logCall = gtNewHelperCallNode(CORINFO_HELP_DEBUG_LOG_LOOP_CLONING, TYP_VOID);
+    GenTreeStmt* stmt    = fgNewStmtFromTree(logCall);
     fgInsertStmtBefore(block, insertBefore, stmt);
     fgMorphBlockStmt(block, stmt->AsStmt() DEBUGARG("Debug log loop cloning"));
 }

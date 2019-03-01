@@ -4799,7 +4799,7 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test)
     // these side effects from the JTrue stmt before insert them back here.
     while (sideEffList != nullptr)
     {
-        GenTree* newStmt;
+        GenTreeStmt* newStmt;
         if (sideEffList->OperGet() == GT_COMMA)
         {
             newStmt     = fgInsertStmtNearEnd(block, sideEffList->gtGetOp1());
@@ -4812,7 +4812,7 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test)
         }
         // fgMorphBlockStmt could potentially affect stmts after the current one,
         // for example when it decides to fgRemoveRestOfBlock.
-        fgMorphBlockStmt(block, newStmt->AsStmt() DEBUGARG(__FUNCTION__));
+        fgMorphBlockStmt(block, newStmt DEBUGARG(__FUNCTION__));
     }
 
     return test;
@@ -4838,7 +4838,7 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test)
 //    evaluates to constant, then the tree is replaced by its side effects and
 //    the constant node.
 //
-Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, GenTree* stmt, GenTree* tree)
+Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree)
 {
     // Don't propagate floating-point constants into a TYP_STRUCT LclVar
     // This can occur for HFA return values (see hfa_sf3E_r.exe)
