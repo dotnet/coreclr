@@ -4507,11 +4507,9 @@ ASSERT_TP* Compiler::optComputeAssertionGen()
         GenTree*  jtrue    = nullptr;
 
         // Walk the statement trees in this basic block.
-        for (GenTree* stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
-            noway_assert(stmt->gtOper == GT_STMT);
-
-            for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree; tree = tree->gtNext)
             {
                 if (tree->gtOper == GT_JTRUE)
                 {
@@ -5005,7 +5003,7 @@ Compiler::fgWalkResult Compiler::optVNAssertionPropCurStmtVisitor(GenTree** ppTr
  *   Returns the skipped next stmt if the current statement or next few
  *   statements got removed, else just returns the incoming stmt.
  */
-GenTree* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, GenTree* stmt)
+GenTreeStmt* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, GenTreeStmt* stmt)
 {
     // TODO-Review: EH successor/predecessor iteration seems broken.
     // See: SELF_HOST_TESTS_ARM\jit\Directed\ExcepFilters\fault\fault.exe
@@ -5015,23 +5013,23 @@ GenTree* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, GenTree* stmt)
     }
 
     // Preserve the prev link before the propagation and morph.
-    GenTree* prev = (stmt == block->firstStmt()) ? nullptr : stmt->gtPrev;
+    GenTreeStmt* prev = (stmt == block->firstStmt()) ? nullptr : stmt->getPrevStmt();
 
     // Perform VN based assertion prop first, in case we don't find
     // anything in assertion gen.
     optAssertionPropagatedCurrentStmt = false;
 
     VNAssertionPropVisitorInfo data(this, block, stmt);
-    fgWalkTreePre(&stmt->gtStmt.gtStmtExpr, Compiler::optVNAssertionPropCurStmtVisitor, &data);
+    fgWalkTreePre(&stmt->gtStmtExpr, Compiler::optVNAssertionPropCurStmtVisitor, &data);
 
     if (optAssertionPropagatedCurrentStmt)
     {
-        fgMorphBlockStmt(block, stmt->AsStmt() DEBUGARG("optVNAssertionPropCurStmt"));
+        fgMorphBlockStmt(block, stmt DEBUGARG("optVNAssertionPropCurStmt"));
     }
 
     // Check if propagation removed statements starting from current stmt.
     // If so, advance to the next good statement.
-    GenTree* nextStmt = (prev == nullptr) ? block->firstStmt() : prev->gtNext;
+    GenTreeStmt* nextStmt = (prev == nullptr) ? block->firstStmt() : prev->getNextStmt();
     return nextStmt;
 }
 
@@ -5066,25 +5064,25 @@ void Compiler::optAssertionPropMain()
 
         fgRemoveRestOfBlock = false;
 
-        GenTree* stmt = block->bbTreeList;
-        while (stmt)
+        GenTreeStmt* stmt = block->firstStmt();
+        while (stmt != nullptr)
         {
             // We need to remove the rest of the block.
             if (fgRemoveRestOfBlock)
             {
                 fgRemoveStmt(block, stmt);
-                stmt = stmt->gtNext;
+                stmt = stmt->getNextStmt();
                 continue;
             }
             else
             {
                 // Perform VN based assertion prop before assertion gen.
-                GenTree* nextStmt = optVNAssertionPropCurStmt(block, stmt);
+                GenTreeStmt* nextStmt = optVNAssertionPropCurStmt(block, stmt);
 
                 // Propagation resulted in removal of the remaining stmts, perform it.
                 if (fgRemoveRestOfBlock)
                 {
-                    stmt = stmt->gtNext;
+                    stmt = stmt->getNextStmt();
                     continue;
                 }
 
@@ -5097,13 +5095,13 @@ void Compiler::optAssertionPropMain()
             }
 
             // Perform assertion gen for control flow based assertions.
-            for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 optAssertionGen(tree);
             }
 
             // Advance the iterator
-            stmt = stmt->gtNext;
+            stmt = stmt->getNextStmt();
         }
     }
 
@@ -5169,26 +5167,24 @@ void Compiler::optAssertionPropMain()
         fgRemoveRestOfBlock = false;
 
         // Walk the statement trees in this basic block
-        GenTree* stmt = block->FirstNonPhiDef();
-        while (stmt)
+        GenTreeStmt* stmt = block->FirstNonPhiDef();
+        while (stmt != nullptr)
         {
-            noway_assert(stmt->gtOper == GT_STMT);
-
             // Propagation tells us to remove the rest of the block. Remove it.
             if (fgRemoveRestOfBlock)
             {
                 fgRemoveStmt(block, stmt);
-                stmt = stmt->gtNext;
+                stmt = stmt->getNextStmt();
                 continue;
             }
 
             // Preserve the prev link before the propagation and morph, to check if propagation
             // removes the current stmt.
-            GenTree* prev = (stmt == block->firstStmt()) ? nullptr : stmt->gtPrev;
+            GenTreeStmt* prevStmt = (stmt == block->firstStmt()) ? nullptr : stmt->getPrevStmt();
 
             optAssertionPropagatedCurrentStmt = false; // set to true if a assertion propagation took place
                                                        // and thus we must morph, set order, re-link
-            for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 if (tree->OperIs(GT_JTRUE))
                 {
@@ -5228,13 +5224,13 @@ void Compiler::optAssertionPropMain()
                 }
 #endif
                 // Re-morph the statement.
-                fgMorphBlockStmt(block, stmt->AsStmt() DEBUGARG("optAssertionPropMain"));
+                fgMorphBlockStmt(block, stmt DEBUGARG("optAssertionPropMain"));
             }
 
             // Check if propagation removed statements starting from current stmt.
             // If so, advance to the next good statement.
-            GenTree* nextStmt = (prev == nullptr) ? block->firstStmt() : prev->gtNext;
-            stmt              = (stmt == nextStmt) ? stmt->gtNext : nextStmt;
+            GenTreeStmt* nextStmt = (prevStmt == nullptr) ? block->firstStmt() : prevStmt->getNextStmt();
+            stmt                  = (stmt == nextStmt) ? stmt->getNextStmt() : nextStmt;
         }
         optAssertionPropagatedCurrentStmt = false; // clear it back as we are done with stmts.
     }

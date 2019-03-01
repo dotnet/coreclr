@@ -1308,12 +1308,12 @@ bool Compiler::optRecordLoop(BasicBlock*   head,
                 block = block->bbNext;
                 for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
                 {
-                    if (stmt->gtStmt.gtStmtExpr == incr)
+                    if (stmt->gtStmtExpr == incr)
                     {
                         break;
                     }
                     printf("\n");
-                    gtDispTree(stmt->gtStmt.gtStmtExpr);
+                    gtDispTree(stmt->gtStmtExpr);
                 }
             } while (block != bottom);
         }
@@ -3796,7 +3796,7 @@ void Compiler::optUnrollLoops()
                         // Remove the test; we're doing a full unroll.
 
                         GenTreeStmt* testCopyStmt = newBlock->lastStmt();
-                        GenTree*     testCopyExpr = testCopyStmt->gtStmt.gtStmtExpr;
+                        GenTree*     testCopyExpr = testCopyStmt->gtStmtExpr;
                         assert(testCopyExpr->gtOper == GT_JTRUE);
                         GenTree* sideEffList = nullptr;
                         gtExtractSideEffList(testCopyExpr, &sideEffList, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
@@ -3806,7 +3806,7 @@ void Compiler::optUnrollLoops()
                         }
                         else
                         {
-                            testCopyStmt->gtStmt.gtStmtExpr = sideEffList;
+                            testCopyStmt->gtStmtExpr = sideEffList;
                         }
                         newBlock->bbJumpKind = BBJ_NONE;
 
@@ -6104,9 +6104,8 @@ int Compiler::optIsSetAssgLoop(unsigned lnum, ALLVARSET_VALARG_TP vars, varRefKi
         {
             noway_assert(beg);
 
-            for (GenTreeStmt* stmt = beg->FirstNonPhiDef(); stmt; stmt = stmt->gtNextStmt)
+            for (GenTreeStmt* stmt = beg->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->gtNextStmt)
             {
-                noway_assert(stmt->gtOper == GT_STMT);
                 fgWalkTreePre(&stmt->gtStmtExpr, optIsVarAssgCB, &desc);
 
                 if (desc.ivaMaskIncomplete)
@@ -6699,7 +6698,7 @@ void Compiler::optHoistLoopExprsForBlock(BasicBlock* blk, unsigned lnum, LoopHoi
         return;
     }
 
-    for (GenTreeStmt* stmt = blk->FirstNonPhiDef(); stmt; stmt = stmt->gtNextStmt)
+    for (GenTreeStmt* stmt = blk->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
         GenTree* stmtTree = stmt->gtStmtExpr;
         bool     hoistable;
@@ -7337,9 +7336,9 @@ void Compiler::fgCreateLoopPreHeader(unsigned lnum)
     // into the phi via the loop header block will now flow through the preheader
     // block from the header block.
 
-    for (GenTree* stmt = top->bbTreeList; stmt; stmt = stmt->gtNext)
+    for (GenTreeStmt* stmt = top->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
-        GenTree* tree = stmt->gtStmt.gtStmtExpr;
+        GenTree* tree = stmt->gtStmtExpr;
         if (tree->OperGet() != GT_ASG)
         {
             break;
@@ -7579,9 +7578,9 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
     MemoryKindSet memoryHavoc = emptyMemoryKindSet;
 
     // Now iterate over the remaining statements, and their trees.
-    for (GenTree* stmts = blk->FirstNonPhiDef(); (stmts != nullptr); stmts = stmts->gtNext)
+    for (GenTreeStmt* stmt = blk->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
-        for (GenTree* tree = stmts->gtStmt.gtStmtList; (tree != nullptr); tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
         {
             genTreeOps oper = tree->OperGet();
 
@@ -8113,7 +8112,7 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
     for (BasicBlock* block = beg; block != end->bbNext; block = block->bbNext)
     {
         compCurBB = block;
-        for (GenTree* stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
             info.stmt               = stmt;
             const bool lclVarsOnly  = false;
