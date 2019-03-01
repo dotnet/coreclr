@@ -9442,16 +9442,16 @@ void Compiler::impImportLeave(BasicBlock* block)
 
         if (endCatches)
         {
-            lastStmt         = gtNewStmt(endCatches);
-            endLFin->gtNext  = lastStmt;
-            lastStmt->gtPrev = endLFin;
+            lastStmt            = gtNewStmt(endCatches);
+            endLFinStmt->gtNext = lastStmt;
+            lastStmt->gtPrev    = endLFinStmt;
         }
         else
         {
-            lastStmt = endLFin;
+            lastStmt = endLFinStmt;
         }
 
-        impEndTreeList(finalStep, endLFin, lastStmt);
+        impEndTreeList(finalStep, endLFinStmt, lastStmt);
 
         finalStep->bbJumpDest = leaveTarget; // this is the ultimate destination of the LEAVE
 
