@@ -111,6 +111,9 @@ namespace System.Threading
         ** ThreadBaseObject to maintain alignment between the two classes.
         ** DON'T CHANGE THESE UNLESS YOU MODIFY ThreadBaseObject in vm\object.h
         =========================================================================*/
+        internal ExecutionContext _executionContext; // this call context follows the logical thread
+        internal SynchronizationContext _synchronizationContext; // On CoreCLR, this is maintained separately from ExecutionContext
+
         private string _name;
         private Delegate _delegate; // Delegate
 

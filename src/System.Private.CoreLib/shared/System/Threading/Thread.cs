@@ -20,9 +20,6 @@ namespace System.Threading
         [ThreadStatic]
         private static Thread t_currentThread;
 
-        internal ExecutionContext _executionContext; // this call context follows the logical thread
-        internal SynchronizationContext _synchronizationContext; // this is maintained separately from ExecutionContext
-
         public Thread(ThreadStart start)
             : this()
         {
