@@ -26,35 +26,36 @@ namespace System.Diagnostics.Tracing
     /// See https://github.com/dotnet/corefx/blob/master/src/System.Diagnostics.Tracing/tests/BasicEventSourceTest/TestEventCounter.cs
     /// which shows tests, which are also useful in seeing actual use.  
     /// </summary>
-    public partial class EventCounter : BaseCounter
+    public partial class PollingCounter : BaseCounter
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="EventCounter"/> class.
+        /// Initializes a new instance of the <see cref="PollingCounter"/> class.
         /// EVentCounters live as long as the EventSource that they are attached to unless they are
         /// explicitly Disposed.   
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="eventSource">The event source.</param>
-        public EventCounter(string name, EventSource eventSource) : base(name, eventSource)
+        public PollingCounter(string name, EventSource eventSource, Func<float> getMetricFunction) : base(name, eventSource)
         {
             _min = float.PositiveInfinity;
             _max = float.NegativeInfinity;
+            _getMetricFunction = getMetricFunction;
         }
 
         /// <summary>
-        /// Writes 'value' to the stream of values tracked by the counter.  This updates the sum and other statistics that will 
-        /// be logged on the next timer interval.  
+        /// Calls "_getMetricFunction" to enqueue the counter value to the queue. 
         /// </summary>
         /// <param name="value">The value.</param>
-        public void WriteMetric(float value)
+        public void UpdateMetric()
         {
-            Enqueue(value);
+            Enqueue(_getMetricFunction());
         }
 
         public override string ToString()
         {
             return "EventCounter '" + name + "' Count " + _count + " Mean " + (((double)_sum) / _count).ToString("n3");
         }
+
 
         #region Statistics Calculation
 
@@ -64,6 +65,8 @@ namespace System.Diagnostics.Tracing
         private float _sumSquared;
         private float _min;
         private float _max;
+
+        private Func<float> _getMetricFunction;
 
         internal override void OnMetricWritten(float value)
         {
@@ -81,17 +84,17 @@ namespace System.Diagnostics.Tracing
 
         internal override void WritePayload(EventSource _eventSource, float intervalSec)
         {
-            CounterPayload payload = GetEventCounterPayload();
+            EventCounterPayload payload = GetEventCounterPayload();
             payload.IntervalSec = intervalSec;
-            _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new EventCounterPayloadType(payload));
+            _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PayloadType(payload));
         }
 
-        internal CounterPayload GetEventCounterPayload()
+        internal EventCounterPayload GetEventCounterPayload()
         {
             lock (MyLock)     // Lock the counter
             {
                 Flush();
-                CounterPayload result = new CounterPayload();
+                EventCounterPayload result = new EventCounterPayload();
                 result.Name = name;
                 result.Count = _count;
                 if (0 < _count)
@@ -124,15 +127,15 @@ namespace System.Diagnostics.Tracing
         #endregion // Statistics Calculation
     }
 
-
+    
     /// <summary>
     /// This is the payload that is sent in the with EventSource.Write
     /// </summary>
     [EventData]
-    class EventCounterPayloadType
+    class PayloadType
     {
-        public EventCounterPayloadType(CounterPayload payload) { Payload = payload; }
-        public CounterPayload Payload { get; set; }
+        public PayloadType(EventCounterPayload payload) { Payload = payload; }
+        public EventCounterPayload Payload { get; set; }
     }
 
 }
