@@ -3243,10 +3243,6 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     ULONG               ulOffset;
     ULONG cFields = 0;
 
-    // Running tote - if anything in this type disqualifies it from being ManagedSequential, somebody will set this to TRUE by the the time
-    // function exits.
-    BOOL                fDisqualifyFromManagedSequential = FALSE; 
-
     // Internal interface for the NStruct being loaded.
     IMDInternalImport *pInternalImport = pModule->GetMDImport();
 
@@ -3263,6 +3259,9 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         CONSISTENCY_CHECK_MSGF(false, ("BreakOnStructMarshalSetup: '%s' ", szName));
 #endif
 
+    // Running tote - if anything in this type disqualifies it from being ManagedSequential, somebody will set this to TRUE by the the time
+    // function exits.
+    BOOL fDisqualifyFromManagedSequential = FALSE; 
 
     // Check if this type might be ManagedSequential. Only valuetypes marked Sequential can be
     // ManagedSequential. Other issues checked below might also disqualify the type.
