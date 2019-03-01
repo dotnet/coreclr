@@ -3217,7 +3217,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
 #endif // FEATURE_COMINTEROP
    BOOL           fExplicitOffsets, // explicit offsets?
    MethodTable   *pParentMT,        // the loaded superclass
-   ULONG          cMembers,         // total number of members (methods + fields)
+   ULONG          cTotalFields,         // total number of fields (instance and static)
    HENUMInternal *phEnumField,      // enumerator for field
    Module        *pModule,          // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
    const SigTypeContext *pTypeContext,          // Type parameters for NStruct being loaded
@@ -3237,15 +3237,9 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     }
     CONTRACTL_END;
 
-    HRESULT             hr;
-    MD_CLASS_LAYOUT     classlayout;
-    mdFieldDef          fd;
-    ULONG               ulOffset;
-    ULONG cFields = 0;
-
+    HRESULT hr;
     // Internal interface for the NStruct being loaded.
     IMDInternalImport *pInternalImport = pModule->GetMDImport();
-
 
 #ifdef _DEBUG
     LPCUTF8 szName; 
@@ -3287,6 +3281,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     //====================================================================
     _ASSERTE(!(fHasNonTrivialParent && !(pParentMT->HasLayout())));
 
+    MD_CLASS_LAYOUT classlayout;
     hr = pInternalImport->GetClassLayoutInit(cl, &classlayout);
     if (FAILED(hr))
     {
@@ -3304,7 +3299,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
 
     LayoutRawFieldInfo *pfwalk = pInfoArrayOut;
     
-    S_UINT32 cbSortArraySize = S_UINT32(cMembers) * S_UINT32(sizeof(LayoutRawFieldInfo *));
+    S_UINT32 cbSortArraySize = S_UINT32(cTotalFields) * S_UINT32(sizeof(LayoutRawFieldInfo *));
     if (cbSortArraySize.IsOverflow())
     {
         ThrowHR(COR_E_TYPELOAD);
@@ -3336,8 +3331,10 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         }
     }
 
+    mdFieldDef fd;
     ULONG i;
-    for (i = 0; pInternalImport->EnumNext(phEnumField, &fd); i++)
+    ULONG cInstanceFields = 0;
+    for (ULONG i = 0; pInternalImport->EnumNext(phEnumField, &fd); i++)
     {
         DWORD dwFieldAttrs;
         ULONG rid = RidFromToken(fd);
@@ -3415,12 +3412,12 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             if (!IsFieldBlittable((FieldMarshaler*)(&pfwalk->m_FieldMarshaler)))
                 pEEClassLayoutInfoOut->SetIsBlittable(FALSE);
 
-            cFields++;
+            cInstanceFields++;
             pfwalk++;
         }
     }
 
-    _ASSERTE(i == cMembers);
+    _ASSERTE(i == cTotalFields);
 
     // NULL out the last entry
     pfwalk->m_MD = mdFieldDefNil;
@@ -3433,6 +3430,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     // pfwalk points to the beginging of the array
     pfwalk = pInfoArrayOut;
 
+    ULONG ulOffset;
     while (SUCCEEDED(hr = pInternalImport->GetClassLayoutNext(
                                      &classlayout,
                                      &fd,
@@ -3468,7 +3466,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     if (!fExplicitOffsets)
     { 
         // sort sequential by ascending sequence
-        for (i = 0; i < cFields; i++)
+        for (i = 0; i < cInstanceFields; i++)
         {
             LayoutRawFieldInfo**pSortWalk = pSortArrayEnd;
             while (pSortWalk != pSortArray)
@@ -3487,7 +3485,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     }
     else // no sorting for explicit layout
     {
-        for (i = 0; i < cFields; i++)
+        for (i = 0; i < cInstanceFields; i++)
         {
             if(pInfoArrayOut[i].m_MD != mdFieldDefNil)
             {
@@ -3599,7 +3597,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         unsigned calcTotalSize = cbAdjustedParentLayoutNativeSize;
      
         LayoutRawFieldInfo **pSortWalk;
-        for (pSortWalk = pSortArray, i=cFields; i; i--, pSortWalk++)
+        for (pSortWalk = pSortArray, i=cInstanceFields; i; i--, pSortWalk++)
         {
             pfwalk = *pSortWalk;
     
@@ -3738,7 +3736,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         unsigned calcTotalSize = 1;
      
         LayoutRawFieldInfo **pSortWalk;
-        for (pSortWalk = pSortArray, i=cFields; i; i--, pSortWalk++)
+        for (pSortWalk = pSortArray, i=cInstanceFields; i; i--, pSortWalk++)
         {
             pfwalk = *pSortWalk;
     
