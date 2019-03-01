@@ -2373,13 +2373,13 @@ AssertionIndex Compiler::optAssertionIsSubtype(GenTree* tree, GenTree* methodTab
 //    appropriately decremented. The ref-counts of variables in the side-effect
 //    nodes will be retained.
 //
-GenTree* Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTree* stmt, GenTree* tree)
+GenTree* Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTree* tree)
 {
     if (tree->OperGet() == GT_JTRUE)
     {
         // Treat JTRUE separately to extract side effects into respective statements rather
         // than using a COMMA separated op1.
-        return optVNConstantPropOnJTrue(block, stmt, tree);
+        return optVNConstantPropOnJTrue(block, tree);
     }
     // If relop is part of JTRUE, this should be optimized as part of the parent JTRUE.
     // Or if relop is part of QMARK or anything else, we simply bail here.
@@ -3657,7 +3657,7 @@ AssertionIndex Compiler::optAssertionIsNonNullInternal(GenTree* op, ASSERT_VALAR
  *  Returns the modified tree, or nullptr if no assertion prop took place.
  *
  */
-GenTree* Compiler::optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, GenTree* stmt)
+GenTree* Compiler::optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call)
 {
     if ((call->gtFlags & GTF_CALL_NULLCHECK) == 0)
     {
@@ -3706,7 +3706,7 @@ GenTree* Compiler::optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, Gen
 
 GenTree* Compiler::optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, GenTree* stmt)
 {
-    if (optNonNullAssertionProp_Call(assertions, call, stmt))
+    if (optNonNullAssertionProp_Call(assertions, call))
     {
         return optAssertionProp_Update(call, call, stmt);
     }
@@ -4732,8 +4732,7 @@ GenTree* Compiler::optPrepareTreeForReplacement(GenTree* oldTree, GenTree* newTr
 //
 // Arguments:
 //    block - The block that contains the JTrue.
-//    stmt  - The JTrue stmt which can be evaluated to a constant.
-//    tree  - The JTrue node whose relop evaluates to 0 or non-zero value.
+//    test  - The JTrue node whose relop evaluates to 0 or non-zero value.
 //
 // Return Value:
 //    The jmpTrue tree node that has relop of the form "0 =/!= 0".
@@ -4755,7 +4754,7 @@ GenTree* Compiler::optPrepareTreeForReplacement(GenTree* oldTree, GenTree* newTr
 //  sensitive to adding new statements. Hence the change is not made directly
 //  into fgFoldConditional.
 //
-GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, GenTree* test)
+GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test)
 {
     GenTree* relop = test->gtGetOp1();
 
@@ -4910,7 +4909,7 @@ Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, Gen
     }
 
     // Perform the constant propagation
-    GenTree* newTree = optVNConstantPropOnTree(block, stmt, tree);
+    GenTree* newTree = optVNConstantPropOnTree(block, tree);
     if (newTree == nullptr)
     {
         // Not propagated, keep going.
@@ -4955,7 +4954,7 @@ void Compiler::optVnNonNullPropCurStmt(BasicBlock* block, GenTree* stmt, GenTree
     GenTree*  newTree = nullptr;
     if (tree->OperGet() == GT_CALL)
     {
-        newTree = optNonNullAssertionProp_Call(empty, tree->AsCall(), stmt);
+        newTree = optNonNullAssertionProp_Call(empty, tree->AsCall());
     }
     else if (tree->OperIsIndir())
     {
