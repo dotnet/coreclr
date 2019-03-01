@@ -19165,24 +19165,18 @@ unsigned Compiler::fgGetCodeEstimate(BasicBlock* block)
             break;
     }
 
-    GenTreeStmt* stmt = block->FirstNonPhiDef();
-    if (stmt != nullptr)
+    for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
-        do
+        if (stmt->gtCostSz < MAX_COST)
         {
-            if (stmt->gtCostSz < MAX_COST)
-            {
-                costSz += stmt->gtCostSz;
-            }
-            else
-            {
-                // We could walk the tree to find out the real gtCostSz,
-                // but just using MAX_COST for this trees code size works OK
-                costSz += stmt->gtCostSz;
-            }
-
-            stmt = stmt->getNextStmt();
-        } while (stmt != nullptr);
+            costSz += stmt->gtCostSz;
+        }
+        else
+        {
+            // We could walk the tree to find out the real gtCostSz,
+            // but just using MAX_COST for this trees code size works OK
+            costSz += stmt->gtCostSz;
+        }
     }
 
     return costSz;
