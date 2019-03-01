@@ -1257,13 +1257,13 @@ void LinearScan::recordVarLocationsAtStartOfBB(BasicBlock* bb)
             varDsc->lvRegNum = newRegNum;
             count++;
 
-            // Build the location of the variable
-            CodeGenInterface::siVarLoc siVarLoc =
-                compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
-
-            // Variables in bblivein have been defined in the predecesor block, so they have an open "VariableLiveRange"
-            // which should change the register number if this is for some reason changing
-            compiler->siUpdateVariableLiveRange(varDsc);
+            if (bb->bbPrev != nullptr && VarSetOps::IsMember(compiler, bb->bbPrev->bbLiveOut, varIndex))
+            {
+                // varDsc was alive on previous block end ("bb->bbPrev->bbLiveOut"), so it has an open
+                // "VariableLiveRange"
+                // which should change to be according "getInVarToRegMap"
+                compiler->siUpdateVariableLiveRange(varDsc);
+            }
         }
         else if (newRegNum != REG_STK)
         {
