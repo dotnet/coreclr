@@ -231,20 +231,20 @@ namespace System.Text
         /// </para>
         /// </returns>
         /// <remarks>
-        /// The general calling convention is to call this method in a loop, slicing the <paramref name="source"/> buffer by
+        /// The general calling convention is to call this method in a loop, slicing the <paramref name="utf16Source"/> buffer by
         /// <paramref name="charsConsumed"/> elements on each iteration of the loop. On each iteration of the loop <paramref name="result"/>
         /// will contain the real scalar value if successfully decoded, or it will contain <see cref="ReplacementChar"/> if
         /// the data could not be successfully decoded. This pattern provides convenient automatic U+FFFD substitution of
         /// invalid sequences while iterating through the loop.
         /// </remarks>
-        public static OperationStatus Decode(ReadOnlySpan<char> source, out Rune result, out int charsConsumed)
+        public static OperationStatus DecodeUtf16(ReadOnlySpan<char> utf16Source, out Rune result, out int charsConsumed)
         {
-            if (!source.IsEmpty)
+            if (!utf16Source.IsEmpty)
             {
                 // First, check for the common case of a BMP scalar value.
                 // If this is correct, return immediately.
 
-                char firstChar = source[0];
+                char firstChar = utf16Source[0];
                 if (TryCreate(firstChar, out result))
                 {
                     charsConsumed = 1;
@@ -255,9 +255,9 @@ namespace System.Text
                 // Let's optimistically assume for now it's a high surrogate and hope
                 // that combining it with the next char yields useful results.
 
-                if (1 < (uint)source.Length)
+                if (1 < (uint)utf16Source.Length)
                 {
-                    char secondChar = source[1];
+                    char secondChar = utf16Source[1];
                     if (TryCreate(firstChar, secondChar, out result))
                     {
                         // Success! Formed a supplementary scalar value.
@@ -284,7 +284,7 @@ namespace System.Text
             // If we got to this point, the input buffer was empty, or the buffer
             // was a single element in length and that element was a high surrogate char.
 
-            charsConsumed = source.Length;
+            charsConsumed = utf16Source.Length;
             result = ReplacementChar;
             return OperationStatus.NeedMoreData;
 
@@ -299,20 +299,20 @@ namespace System.Text
         /// Decodes the <see cref="Rune"/> at the end of the provided UTF-16 source buffer.
         /// </summary>
         /// <remarks>
-        /// This method is very similar to <see cref="Decode(ReadOnlySpan{char}, out Rune, out int)"/>, but it allows
+        /// This method is very similar to <see cref="DecodeUtf16(ReadOnlySpan{char}, out Rune, out int)"/>, but it allows
         /// the caller to loop backward instead of forward. The typical calling convention is that on each iteration
         /// of the loop, the caller should slice off the final <paramref name="charsConsumed"/> elements of
-        /// the <paramref name="source"/> buffer.
+        /// the <paramref name="utf16Source"/> buffer.
         /// </remarks>
-        public static OperationStatus DecodeFromEnd(ReadOnlySpan<char> source, out Rune result, out int charsConsumed)
+        public static OperationStatus DecodeUtf16FromEnd(ReadOnlySpan<char> utf16Source, out Rune result, out int charsConsumed)
         {
-            int index = source.Length - 1;
-            if ((uint)index < (uint)source.Length)
+            int index = utf16Source.Length - 1;
+            if ((uint)index < (uint)utf16Source.Length)
             {
                 // First, check for the common case of a BMP scalar value.
                 // If this is correct, return immediately.
 
-                char finalChar = source[index];
+                char finalChar = utf16Source[index];
                 if (TryCreate(finalChar, out result))
                 {
                     charsConsumed = 1;
@@ -326,9 +326,9 @@ namespace System.Text
                     // we have a standalone low surrogate, which is always invalid.
 
                     index--;
-                    if ((uint)index < (uint)source.Length)
+                    if ((uint)index < (uint)utf16Source.Length)
                     {
-                        char penultimateChar = source[index];
+                        char penultimateChar = utf16Source[index];
                         if (TryCreate(penultimateChar, finalChar, out result))
                         {
                             // Success! Formed a supplementary scalar value.
@@ -350,7 +350,7 @@ namespace System.Text
             // with a UTF-16 high surrogate code point. These aren't errors since they could
             // be valid given more input data.
 
-            charsConsumed = (int)((uint)(-source.Length) >> 31); // 0 -> 0, all other lengths -> 1
+            charsConsumed = (int)((uint)(-utf16Source.Length) >> 31); // 0 -> 0, all other lengths -> 1
             result = ReplacementChar;
             return OperationStatus.NeedMoreData;
         }
@@ -375,13 +375,13 @@ namespace System.Text
         /// </para>
         /// </returns>
         /// <remarks>
-        /// The general calling convention is to call this method in a loop, slicing the <paramref name="source"/> buffer by
+        /// The general calling convention is to call this method in a loop, slicing the <paramref name="utf8Source"/> buffer by
         /// <paramref name="bytesConsumed"/> elements on each iteration of the loop. On each iteration of the loop <paramref name="result"/>
         /// will contain the real scalar value if successfully decoded, or it will contain <see cref="ReplacementChar"/> if
         /// the data could not be successfully decoded. This pattern provides convenient automatic U+FFFD substitution of
         /// invalid sequences while iterating through the loop.
         /// </remarks>
-        public static OperationStatus DecodeUtf8(ReadOnlySpan<byte> source, out Rune result, out int bytesConsumed)
+        public static OperationStatus DecodeUtf8(ReadOnlySpan<byte> utf8Source, out Rune result, out int bytesConsumed)
         {
             // This method follows the Unicode Standard's recommendation for detecting
             // the maximal subpart of an ill-formed subsequence. See The Unicode Standard,
@@ -393,12 +393,12 @@ namespace System.Text
 
             // Try reading input[0].
 
-            if ((uint)index >= (uint)source.Length)
+            if ((uint)index >= (uint)utf8Source.Length)
             {
                 goto NeedsMoreData;
             }
 
-            uint tempValue = source[index];
+            uint tempValue = utf8Source[index];
             if (!UnicodeUtility.IsAsciiCodePoint(tempValue))
             {
                 goto NotAscii;
@@ -428,7 +428,7 @@ namespace System.Text
             // Try reading input[1].
 
             index++;
-            if ((uint)index >= (uint)source.Length)
+            if ((uint)index >= (uint)utf8Source.Length)
             {
                 goto NeedsMoreData;
             }
@@ -437,7 +437,7 @@ namespace System.Text
             // complement representation is in the range [-65..-128]. This allows us to
             // perform a single comparison to see if a byte is a continuation byte.
 
-            int thisByteSignExtended = (sbyte)source[index];
+            int thisByteSignExtended = (sbyte)utf8Source[index];
             if (thisByteSignExtended >= -64)
             {
                 goto Invalid;
@@ -482,12 +482,12 @@ namespace System.Text
             // Try reading input[2].
 
             index++;
-            if ((uint)index >= (uint)source.Length)
+            if ((uint)index >= (uint)utf8Source.Length)
             {
                 goto NeedsMoreData;
             }
 
-            thisByteSignExtended = (sbyte)source[index];
+            thisByteSignExtended = (sbyte)utf8Source[index];
             if (thisByteSignExtended >= -64)
             {
                 goto Invalid; // this byte is not a UTF-8 continuation byte
@@ -507,12 +507,12 @@ namespace System.Text
             // Try reading input[3].
 
             index++;
-            if ((uint)index >= (uint)source.Length)
+            if ((uint)index >= (uint)utf8Source.Length)
             {
                 goto NeedsMoreData;
             }
 
-            thisByteSignExtended = (sbyte)source[index];
+            thisByteSignExtended = (sbyte)utf8Source[index];
             if (thisByteSignExtended >= -64)
             {
                 goto Invalid; // this byte is not a UTF-8 continuation byte
@@ -552,17 +552,17 @@ namespace System.Text
         /// This method is very similar to <see cref="DecodeUtf8(ReadOnlySpan{byte}, out Rune, out int)"/>, but it allows
         /// the caller to loop backward instead of forward. The typical calling convention is that on each iteration
         /// of the loop, the caller should slice off the final <paramref name="bytesConsumed"/> elements of
-        /// the <paramref name="source"/> buffer.
+        /// the <paramref name="utf8Source"/> buffer.
         /// </remarks>
-        public static OperationStatus DecodeUtf8FromEnd(ReadOnlySpan<byte> source, out Rune value, out int bytesConsumed)
+        public static OperationStatus DecodeUtf8FromEnd(ReadOnlySpan<byte> utf8Source, out Rune value, out int bytesConsumed)
         {
-            int index = source.Length - 1;
-            if ((uint)index < (uint)source.Length)
+            int index = utf8Source.Length - 1;
+            if ((uint)index < (uint)utf8Source.Length)
             {
                 // The buffer contains at least one byte. Let's check the fast case where the
                 // buffer ends with an ASCII byte.
 
-                uint tempValue = source[index];
+                uint tempValue = utf8Source[index];
                 if (UnicodeUtility.IsAsciiCodePoint(tempValue))
                 {
                     bytesConsumed = 1;
@@ -582,7 +582,7 @@ namespace System.Text
                     // This is a UTF-8 leading byte. We'll do a forward read from here.
                     // It'll return invalid (if given C0, F5, etc.) or incomplete. Both are fine.
 
-                    return DecodeUtf8(source.Slice(index), out value, out bytesConsumed);
+                    return DecodeUtf8(utf8Source.Slice(index), out value, out bytesConsumed);
                 }
 
                 // If we got to this point, the final byte was a UTF-8 continuation byte.
@@ -591,7 +591,7 @@ namespace System.Text
                 for (int i = 3; i > 0; i--)
                 {
                     index--;
-                    if ((uint)index >= (uint)source.Length)
+                    if ((uint)index >= (uint)utf8Source.Length)
                     {
                         goto Invalid; // out of data
                     }
@@ -600,7 +600,7 @@ namespace System.Text
                     // (bits 0xC0 set, values C0..FF). In two's complement this is the range [-64..127].
                     // It's just a fast way for us to terminate the search.
 
-                    if ((sbyte)source[index] >= -64)
+                    if ((sbyte)utf8Source[index] >= -64)
                     {
                         goto ForwardDecode;
                     }
@@ -628,11 +628,11 @@ namespace System.Text
                 // fine since it'll be handled by the forward read. From this position, we'll perform a forward read
                 // and see if we consumed the entirety of the buffer.
 
-                source = source.Slice(index);
-                Debug.Assert(!source.IsEmpty, "Shouldn't reach this for empty inputs.");
+                utf8Source = utf8Source.Slice(index);
+                Debug.Assert(!utf8Source.IsEmpty, "Shouldn't reach this for empty inputs.");
 
-                OperationStatus operationStatus = DecodeUtf8(source, out Rune tempRune, out int tempBytesConsumed);
-                if (tempBytesConsumed == source.Length)
+                OperationStatus operationStatus = DecodeUtf8(utf8Source, out Rune tempRune, out int tempBytesConsumed);
+                if (tempBytesConsumed == utf8Source.Length)
                 {
                     // If this forward read consumed the entirety of the end of the input buffer, we can return it
                     // as the result of this function. It could be well-formed, incomplete, or invalid. If it's
