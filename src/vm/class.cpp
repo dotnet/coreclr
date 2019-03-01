@@ -3255,7 +3255,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
 
     // Running tote - if anything in this type disqualifies it from being ManagedSequential, somebody will set this to TRUE by the the time
     // function exits.
-    BOOL fDisqualifyFromManagedSequential = FALSE; 
+    BOOL fDisqualifyFromManagedSequential; 
 
     // Check if this type might be ManagedSequential. Only valuetypes marked Sequential can be
     // ManagedSequential. Other issues checked below might also disqualify the type.
@@ -3263,7 +3263,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
          (pParentMT && (pParentMT->IsValueTypeClass() || pParentMT->IsManagedSequential()))  // Is it a valuetype or derived from a qualifying valuetype?
        )
     {
-        // Type qualifies so far... need do nothing.
+        fDisqualifyFromManagedSequential = FALSE;
     }
     else
     {
