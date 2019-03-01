@@ -9438,7 +9438,7 @@ void Compiler::impImportLeave(BasicBlock* block)
         }
 #endif
 
-        GenTree* lastStmt;
+        GenTreeStmt* lastStmt;
 
         if (endCatches)
         {
