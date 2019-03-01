@@ -13,7 +13,6 @@
 #include "asmconstants.h"
 #include "eetoprofinterfacewrapper.inl"
 #include "eedbginterfaceimpl.inl"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "virtualcallstub.h"
 #include "utilcode.h"
@@ -43,7 +42,7 @@
 #endif // _TARGET_ARM_ || _TARGET_ARM64_ || _TARGET_X86_
 
 #ifndef FEATURE_PAL
-void __declspec(noinline)
+void NOINLINE
 ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord,
                  UINT_PTR          ReturnValue,
                  UINT_PTR          TargetIP,
@@ -129,6 +128,7 @@ static void DoEHLog(DWORD lvl, __in_z const char *fmt, ...);
 #endif
 
 TrackerAllocator    g_theTrackerAllocator;
+uint32_t            g_exceptionCount;
 
 bool FixNonvolatileRegisters(UINT_PTR  uOriginalSP,
                              Thread*   pThread,
@@ -198,7 +198,7 @@ void FreeTrackerMemory(ExceptionTracker* pTracker, TrackerMemoryType mem)
 static inline void UpdatePerformanceMetrics(CrawlFrame *pcfThisFrame, BOOL bIsRethrownException, BOOL bIsNewException)
 {
     WRAPPER_NO_CONTRACT;
-    COUNTER_ONLY(GetPerfCounters().m_Excep.cThrown++);
+    g_exceptionCount++;
 
     // Fire an exception thrown ETW event when an exception occurs
     ETW::ExceptionLog::ExceptionThrown(pcfThisFrame, bIsRethrownException, bIsNewException);
@@ -1025,7 +1025,27 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
 
             // Failfast if exception indicates corrupted process state            
             if (pTracker->GetCorruptionSeverity() == ProcessCorrupting)
-                EEPOLICY_HANDLE_FATAL_ERROR(pExceptionRecord->ExceptionCode);
+            {
+                OBJECTREF oThrowable = NULL;
+                SString message;
+
+                GCPROTECT_BEGIN(oThrowable);
+                oThrowable = pTracker->GetThrowable();
+                if (oThrowable != NULL)
+                {
+                    EX_TRY
+                    {
+                        GetExceptionMessage(oThrowable, message);
+                    }
+                    EX_CATCH
+                    {
+                    }
+                    EX_END_CATCH(SwallowAllExceptions);
+                }
+                GCPROTECT_END();
+
+                EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(pExceptionRecord->ExceptionCode, (LPCWSTR)message);
+            }
         }
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
@@ -3041,7 +3061,19 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                             }
                             else
                             {
-                                TypeHandle typeHnd = pJitMan->ResolveEHClause(&EHClause, pcfThisFrame);
+                                TypeHandle typeHnd;
+                                EX_TRY
+                                {
+                                    typeHnd = pJitMan->ResolveEHClause(&EHClause, pcfThisFrame);
+                                }
+                                EX_CATCH_EX(Exception)
+                                {
+                                    SString msg;
+                                    GET_EXCEPTION()->GetMessage(msg);
+                                    msg.Insert(msg.Begin(), W("Cannot resolve EH clause:\n"));
+                                    EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_FAILFAST, msg.GetUnicode());
+                                }
+                                EX_END_CATCH(RethrowTransientExceptions);
 
                                 EH_LOG((LL_INFO100,
                                         "  clause type = %s\n",
@@ -4135,8 +4167,6 @@ void ExceptionTracker::MakeCallbacksRelatedToHandler(
             EEToDebuggerExceptionInterfaceWrapper::ExceptionFilter(pMD, (TADDR) dwHandlerStartPC, pEHClause->FilterOffset, (BYTE*)sf.SP);
 
             EEToProfilerExceptionInterfaceWrapper::ExceptionSearchFilterEnter(pMD);
-
-            COUNTER_ONLY(GetPerfCounters().m_Excep.cFiltersExecuted++);
         }
         else
         {
@@ -4146,7 +4176,6 @@ void ExceptionTracker::MakeCallbacksRelatedToHandler(
             {
                 m_EHClauseInfo.SetEHClauseType(COR_PRF_CLAUSE_FINALLY);
                 EEToProfilerExceptionInterfaceWrapper::ExceptionUnwindFinallyEnter(pMD);
-                COUNTER_ONLY(GetPerfCounters().m_Excep.cFinallysExecuted++);
             }
             else
             {

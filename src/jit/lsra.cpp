@@ -1678,8 +1678,9 @@ void LinearScan::identifyCandidates()
             CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-            // Additionally, when we are generating AVX on non-UNIX amd64, we keep a separate set of the LargeVectorType
-            // vars.
+            // Additionally, when we are generating code for a target with partial SIMD callee-save
+            // (AVX on non-UNIX amd64 and 16-byte vectors on arm64), we keep a separate set of the
+            // LargeVectorType vars.
             if (varTypeNeedsPartialCalleeSave(varDsc->lvType))
             {
                 largeVectorVarCount++;
@@ -2236,16 +2237,21 @@ void LinearScan::dumpVarRefPositions(const char* title)
 
         for (unsigned i = 0; i < compiler->lvaCount; i++)
         {
-            printf("--- V%02u\n", i);
+            printf("--- V%02u", i);
 
             LclVarDsc* varDsc = compiler->lvaTable + i;
             if (varDsc->lvIsRegCandidate())
             {
                 Interval* interval = getIntervalForLocalVar(varDsc->lvVarIndex);
+                printf("  (Interval %d)\n", interval->intervalIndex);
                 for (RefPosition* ref = interval->firstRefPosition; ref != nullptr; ref = ref->nextRefPosition)
                 {
                     ref->dump();
                 }
+            }
+            else
+            {
+                printf("\n");
             }
         }
         printf("\n");
@@ -2668,60 +2674,83 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
     {
         preferences = candidates;
     }
-    regMaskTP relatedPreferences = RBM_NONE;
 
 #ifdef DEBUG
     candidates = stressLimitRegs(refPosition, candidates);
 #endif
     assert(candidates != RBM_NONE);
 
-    // If the related interval has no further references, it is possible that it is a source of the
-    // node that produces this interval.  However, we don't want to use the relatedInterval for preferencing
-    // if its next reference is not a new definition (as it either is or will become live).
     Interval* relatedInterval = currentInterval->relatedInterval;
-    if (relatedInterval != nullptr)
+    if (currentInterval->isSpecialPutArg)
     {
-        RefPosition* nextRelatedRefPosition = relatedInterval->getNextRefPosition();
-        if (nextRelatedRefPosition != nullptr)
-        {
-            // Don't use the relatedInterval for preferencing if its next reference is not a new definition,
-            // or if it is only related because they are multi-reg targets of the same node.
-            if (!RefTypeIsDef(nextRelatedRefPosition->refType))
-            {
-                relatedInterval = nullptr;
-            }
-            // Is the relatedInterval not assigned and simply a copy to another relatedInterval?
-            else if ((relatedInterval->assignedReg == nullptr) && (relatedInterval->relatedInterval != nullptr) &&
-                     (nextRelatedRefPosition->nextRefPosition != nullptr) &&
-                     (nextRelatedRefPosition->nextRefPosition->nextRefPosition == nullptr) &&
-                     (nextRelatedRefPosition->nextRefPosition->nodeLocation <
-                      relatedInterval->relatedInterval->getNextRefLocation()))
-            {
-                // The current relatedInterval has only two remaining RefPositions, both of which
-                // occur prior to the next RefPosition for its relatedInterval.
-                // It is likely a copy.
-                relatedInterval = relatedInterval->relatedInterval;
-            }
-        }
+        // This is not actually a preference, it's merely to track the lclVar that this
+        // "specialPutArg" is using.
+        relatedInterval = nullptr;
     }
-
-    if (relatedInterval != nullptr)
+    Interval* nextRelatedInterval  = relatedInterval;
+    Interval* finalRelatedInterval = relatedInterval;
+    Interval* rangeEndInterval     = relatedInterval;
+    regMaskTP relatedPreferences   = (relatedInterval == nullptr) ? RBM_NONE : relatedInterval->getCurrentPreferences();
+    LsraLocation rangeEndLocation  = refPosition->getRangeEndLocation();
+    bool         preferCalleeSave  = currentInterval->preferCalleeSave;
+    bool         avoidByteRegs     = false;
+#ifdef _TARGET_X86_
+    if ((relatedPreferences & ~RBM_BYTE_REGS) != RBM_NONE)
     {
-        // If the related interval already has an assigned register, then use that
-        // as the related preference.  We'll take the related
-        // interval preferences into account in the loop over all the registers.
+        avoidByteRegs = true;
+    }
+#endif
 
-        if (relatedInterval->assignedReg != nullptr)
+    // Follow the chain of related intervals, as long as:
+    // - The next reference is a def. We don't want to use the relatedInterval for preferencing if its next reference
+    //   is not a new definition (as it either is or will become live).
+    // - The next (def) reference is downstream. Otherwise we could iterate indefinitely because the preferences can be
+    // circular.
+    // - The intersection of preferenced registers is non-empty.
+    //
+    while (nextRelatedInterval != nullptr)
+    {
+        RefPosition* nextRelatedRefPosition = nextRelatedInterval->getNextRefPosition();
+
+        // Only use the relatedInterval for preferencing if the related interval's next reference
+        // is a new definition.
+        if ((nextRelatedRefPosition != nullptr) && RefTypeIsDef(nextRelatedRefPosition->refType))
         {
-            relatedPreferences = genRegMask(relatedInterval->assignedReg->regNum);
+            finalRelatedInterval = nextRelatedInterval;
+            nextRelatedInterval  = nullptr;
+
+            // First, get the preferences for this interval
+            regMaskTP thisRelatedPreferences = finalRelatedInterval->getCurrentPreferences();
+            // Now, determine if they are compatible and update the relatedPreferences that we'll consider.
+            regMaskTP newRelatedPreferences = thisRelatedPreferences & relatedPreferences;
+            if (newRelatedPreferences != RBM_NONE && (!avoidByteRegs || thisRelatedPreferences != RBM_BYTE_REGS))
+            {
+                bool thisIsSingleReg = isSingleRegister(newRelatedPreferences);
+                if (!thisIsSingleReg || (finalRelatedInterval->isLocalVar &&
+                                         getRegisterRecord(genRegNumFromMask(newRelatedPreferences))->isFree()))
+                {
+                    relatedPreferences = newRelatedPreferences;
+                    // If this Interval has a downstream def without a single-register preference, continue to iterate.
+                    if (nextRelatedRefPosition->nodeLocation > rangeEndLocation)
+                    {
+                        preferCalleeSave    = (preferCalleeSave || finalRelatedInterval->preferCalleeSave);
+                        rangeEndLocation    = nextRelatedRefPosition->getRangeEndLocation();
+                        rangeEndInterval    = finalRelatedInterval;
+                        nextRelatedInterval = finalRelatedInterval->relatedInterval;
+                    }
+                }
+            }
         }
         else
         {
-            relatedPreferences = relatedInterval->registerPreferences;
+            if (nextRelatedInterval == relatedInterval)
+            {
+                relatedInterval    = nullptr;
+                relatedPreferences = RBM_NONE;
+            }
+            nextRelatedInterval = nullptr;
         }
     }
-
-    bool preferCalleeSave = currentInterval->preferCalleeSave;
 
     // For floating point, we want to be less aggressive about using callee-save registers.
     // So in that case, we just need to ensure that the current RefPosition is covered.
@@ -2730,27 +2759,27 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
     if (useFloatReg(currentInterval->registerType))
     {
         rangeEndRefPosition = refPosition;
+        preferCalleeSave    = currentInterval->preferCalleeSave;
     }
     else
     {
-        rangeEndRefPosition = currentInterval->lastRefPosition;
-        // If we have a relatedInterval that is not currently occupying a register,
-        // and whose lifetime begins after this one ends,
+        rangeEndRefPosition = refPosition->getRangeEndRef();
+        // If we have a chain of related intervals, and a finalRelatedInterval that
+        // is not currently occupying a register, and whose lifetime begins after this one,
         // we want to try to select a register that will cover its lifetime.
-        if ((relatedInterval != nullptr) && (relatedInterval->assignedReg == nullptr) &&
-            (relatedInterval->getNextRefLocation() >= rangeEndRefPosition->nodeLocation))
+        if ((rangeEndInterval != nullptr) && (rangeEndInterval->assignedReg == nullptr) &&
+            (rangeEndInterval->getNextRefLocation() >= rangeEndRefPosition->nodeLocation))
         {
-            lastRefPosition  = relatedInterval->lastRefPosition;
-            preferCalleeSave = relatedInterval->preferCalleeSave;
+            lastRefPosition = rangeEndInterval->lastRefPosition;
         }
     }
 
     // If this has a delayed use (due to being used in a rmw position of a
     // non-commutative operator), its endLocation is delayed until the "def"
     // position, which is one location past the use (getRefEndLocation() takes care of this).
-    LsraLocation rangeEndLocation = rangeEndRefPosition->getRefEndLocation();
-    LsraLocation lastLocation     = lastRefPosition->getRefEndLocation();
-    regNumber    prevReg          = REG_NA;
+    rangeEndLocation          = rangeEndRefPosition->getRefEndLocation();
+    LsraLocation lastLocation = lastRefPosition->getRefEndLocation();
+    regNumber    prevReg      = REG_NA;
 
     if (currentInterval->assignedReg)
     {
@@ -2911,7 +2940,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
         // are "local last uses" of the Interval - otherwise the liveRange would interfere with the reg.
         if (nextPhysRefLocation == rangeEndLocation && rangeEndRefPosition->isFixedRefOfReg(regNum))
         {
-            INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_INCREMENT_RANGE_END, currentInterval, regNum));
+            INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_INCREMENT_RANGE_END, currentInterval));
             nextPhysRefLocation++;
         }
 
@@ -2923,7 +2952,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
                 score |= COVERS;
             }
         }
-        if (relatedInterval != nullptr && (candidateBit & relatedPreferences) != RBM_NONE)
+        if ((candidateBit & relatedPreferences) != RBM_NONE)
         {
             score |= RELATED_PREFERENCE;
             if (nextPhysRefLocation > relatedInterval->lastRefPosition->nodeLocation)
@@ -3033,10 +3062,6 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
         foundReg                        = availablePhysRegInterval->regNum;
         regMaskTP foundRegMask          = genRegMask(foundReg);
         refPosition->registerAssignment = foundRegMask;
-        if (relatedInterval != nullptr)
-        {
-            relatedInterval->updateRegisterPreferences(foundRegMask);
-        }
     }
 
     return foundReg;
@@ -5237,10 +5262,28 @@ void LinearScan::allocateRegisters()
 #ifdef FEATURE_SIMD
             else if (refType == RefTypeUpperVectorSaveDef || refType == RefTypeUpperVectorSaveUse)
             {
-                Interval* lclVarInterval = currentInterval->relatedInterval;
-                if (lclVarInterval->physReg == REG_NA)
+                if (currentInterval->isInternal)
                 {
-                    allocate = false;
+                    // This is the lclVar case. This internal interval is what will hold the upper half.
+                    Interval* lclVarInterval = currentInterval->relatedInterval;
+                    assert(lclVarInterval->isLocalVar);
+                    if (lclVarInterval->physReg == REG_NA)
+                    {
+                        allocate = false;
+                    }
+                }
+                else
+                {
+                    assert(!currentInterval->isLocalVar);
+                    // Note that this case looks a lot like the case below, but in this case we need to spill
+                    // at the previous RefPosition.
+                    if (assignedRegister != REG_NA)
+                    {
+                        unassignPhysReg(getRegisterRecord(assignedRegister), currentInterval->firstRefPosition);
+                        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_NO_REG_ALLOCATED, currentInterval));
+                    }
+                    currentRefPosition->registerAssignment = RBM_NONE;
+                    continue;
                 }
             }
 #endif // FEATURE_SIMD
@@ -5688,6 +5731,14 @@ void LinearScan::allocateRegisters()
                 else
                 {
                     currentInterval->isActive = false;
+                }
+
+                // Update the register preferences for the relatedInterval, if this is 'preferencedToDef'.
+                // Don't propagate to subsequent relatedIntervals; that will happen as they are allocated, and we
+                // don't know yet whether the register will be retained.
+                if (currentInterval->relatedInterval != nullptr)
+                {
+                    currentInterval->relatedInterval->updateRegisterPreferences(assignedRegBit);
                 }
             }
 
@@ -6670,13 +6721,26 @@ void LinearScan::resolveRegisters()
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
             if (currentRefPosition->refType == RefTypeUpperVectorSaveDef)
             {
-                // The treeNode must be a call, and this must be a RefPosition for a LargeVectorType LocalVar.
-                // If the LocalVar is in a callee-save register, we are going to spill its upper half around the call.
-                // If we have allocated a register to spill it to, we will use that; otherwise, we will spill it
-                // to the stack.  We can use as a temp register any non-arg caller-save register.
+                // The treeNode must be non-null. It is a call or an instruction that becomes a call.
                 noway_assert(treeNode != nullptr);
-                currentRefPosition->referent->recentRefPosition = currentRefPosition;
-                insertUpperVectorSaveAndReload(treeNode, currentRefPosition, block);
+
+                // If the associated interval is internal, this must be a RefPosition for a LargeVectorType LocalVar.
+                // Otherwise, this  is a non-lclVar interval that has been spilled, and we don't need to do anything.
+                if (currentRefPosition->getInterval()->isInternal)
+                {
+                    // If the LocalVar is in a callee-save register, we are going to spill its upper half around the
+                    // call.
+                    // If we have allocated a register to spill it to, we will use that; otherwise, we will spill it
+                    // to the stack.  We can use as a temp register any non-arg caller-save register.
+                    currentRefPosition->referent->recentRefPosition = currentRefPosition;
+                    insertUpperVectorSaveAndReload(treeNode, currentRefPosition, block);
+                }
+                else
+                {
+                    // This is a non-lclVar interval that must have been spilled.
+                    assert(!currentRefPosition->getInterval()->isLocalVar);
+                    assert(currentRefPosition->getInterval()->firstRefPosition->spillAfter);
+                }
             }
             else if (currentRefPosition->refType == RefTypeUpperVectorSaveUse)
             {
@@ -6776,6 +6840,15 @@ void LinearScan::resolveRegisters()
                         if (INDEBUG(alwaysInsertReload() ||)
                                 nextRefPosition->assignedReg() != currentRefPosition->assignedReg())
                         {
+                            if (!currentRefPosition->getInterval()->isLocalVar)
+                            {
+                                while ((nextRefPosition != nullptr) &&
+                                       (nextRefPosition->refType == RefTypeUpperVectorSaveDef))
+                                {
+                                    nextRefPosition = nextRefPosition->nextRefPosition;
+                                }
+                            }
+                            noway_assert(nextRefPosition != nullptr);
                             if (nextRefPosition->assignedReg() != REG_NA)
                             {
                                 insertCopyOrReload(block, treeNode, currentRefPosition->getMultiRegIdx(),
@@ -8609,7 +8682,6 @@ void Interval::dump()
     {
         printf(" RelatedInterval ");
         relatedInterval->microDump();
-        printf("[%p]", dspPtr(relatedInterval));
     }
 
     printf("\n");
@@ -8633,16 +8705,16 @@ void Interval::tinyDump()
 // print out extremely concise representation
 void Interval::microDump()
 {
+    if (isLocalVar)
+    {
+        printf("<V%02u/L%u>", varNum, intervalIndex);
+        return;
+    }
     char intervalTypeChar = 'I';
     if (isInternal)
     {
         intervalTypeChar = 'T';
     }
-    else if (isLocalVar)
-    {
-        intervalTypeChar = 'L';
-    }
-
     printf("<%c%u>", intervalTypeChar, intervalIndex);
 }
 
@@ -9282,10 +9354,6 @@ void LinearScan::dumpLsraAllocationEvent(LsraDumpEvent event,
             }
             printf("Restr %-4s ", getRegName(reg));
             dumpRegRecords();
-            if (activeRefPosition != nullptr)
-            {
-                printf(emptyRefPositionFormat, "");
-            }
             break;
 
         // Done with GC Kills
@@ -9650,8 +9718,9 @@ void LinearScan::dumpRefPositionShort(RefPosition* refPosition, BasicBlock* curr
         if (block == nullptr)
         {
             printf(regNameFormat, "END");
-            printf("               ");
-            printf(regNameFormat, "");
+            printf("        ");
+            // We still need to print this refposition.
+            lastPrintedRefPosition = nullptr;
         }
         else
         {

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Internal.Runtime.Augments;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -16,16 +15,13 @@ namespace System
 {
     public static partial class Environment
     {
-        internal static readonly bool IsMac = Interop.Sys.GetUnixName() == "OSX";
         private static Func<string, object> s_directoryCreateDirectory;
 
         private static string CurrentDirectoryCore
         {
-            get { return Interop.Sys.GetCwd(); }
-            set { Interop.CheckIo(Interop.Sys.ChDir(value), value, isDirectory: true); }
+            get => Interop.Sys.GetCwd();
+            set => Interop.CheckIo(Interop.Sys.ChDir(value), value, isDirectory: true);
         }
-
-        public static int ExitCode { get { return EnvironmentAugments.ExitCode; } set { EnvironmentAugments.ExitCode = value; } }
 
         private static string ExpandEnvironmentVariablesCore(string name)
         {
@@ -100,14 +96,10 @@ namespace System
             {
                 case SpecialFolder.CommonApplicationData: return "/usr/share";
                 case SpecialFolder.CommonTemplates: return "/usr/share/templates";
-            }
-            if (IsMac)
-            {
-                switch (folder)
-                {
-                    case SpecialFolder.ProgramFiles: return "/Applications";
-                    case SpecialFolder.System: return "/System";
-                }
+#if PLATFORM_OSX
+                case SpecialFolder.ProgramFiles: return "/Applications";
+                case SpecialFolder.System: return "/System";
+#endif
             }
 
             // All other paths are based on the XDG Base Directory Specification:
@@ -160,19 +152,25 @@ namespace System
                 case SpecialFolder.MyVideos:
                     return ReadXdgDirectory(home, "XDG_VIDEOS_DIR", "Videos");
 
+#if PLATFORM_OSX
                 case SpecialFolder.MyMusic:
-                    return IsMac ? Path.Combine(home, "Music") : ReadXdgDirectory(home, "XDG_MUSIC_DIR", "Music");
+                    return Path.Combine(home, "Music");
                 case SpecialFolder.MyPictures:
-                    return IsMac ? Path.Combine(home, "Pictures") : ReadXdgDirectory(home, "XDG_PICTURES_DIR", "Pictures");
+                    return Path.Combine(home, "Pictures");
                 case SpecialFolder.Fonts:
-                    return IsMac ? Path.Combine(home, "Library", "Fonts") : Path.Combine(home, ".fonts");
-
+                    return Path.Combine(home, "Library", "Fonts");
                 case SpecialFolder.Favorites:
-                    if (IsMac) return Path.Combine(home, "Library", "Favorites");
-                    break;
+                    return Path.Combine(home, "Library", "Favorites");
                 case SpecialFolder.InternetCache:
-                    if (IsMac) return Path.Combine(home, "Library", "Caches");
-                    break;
+                    return Path.Combine(home, "Library", "Caches");
+#else
+                case SpecialFolder.MyMusic:
+                    return ReadXdgDirectory(home, "XDG_MUSIC_DIR", "Music");
+                case SpecialFolder.MyPictures:
+                    return ReadXdgDirectory(home, "XDG_PICTURES_DIR", "Pictures");
+                case SpecialFolder.Fonts:
+                    return Path.Combine(home, ".fonts");
+#endif
             }
 
             // No known path for the SpecialFolder
@@ -299,8 +297,9 @@ namespace System
 
         public static string NewLine => "\n";
 
-        private static readonly Lazy<OperatingSystem> s_osVersion = new Lazy<OperatingSystem>(() => GetOperatingSystem(Interop.Sys.GetUnixRelease()));
+        private static OperatingSystem GetOSVersion() => GetOperatingSystem(Interop.Sys.GetUnixRelease());
 
+        // Tests exercise this method for corner cases via private reflection
         private static OperatingSystem GetOperatingSystem(string release)
         {
             int major = 0, minor = 0, build = 0, revision = 0;

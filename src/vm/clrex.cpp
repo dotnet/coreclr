@@ -897,13 +897,12 @@ void CLRException::HandlerState::SetupCatch(INDEBUG_COMMA(__in_z const char * sz
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
 
-    bool fVMInitialized = g_fEEStarted?true:false;
-    Exception::HandlerState::SetupCatch(INDEBUG_COMMA(szFile) lineNum, fVMInitialized);
+    Exception::HandlerState::SetupCatch(INDEBUG_COMMA(szFile) lineNum);
 
     Thread *pThread = NULL;
     DWORD exceptionCode = 0;
 
-    if (fVMInitialized)
+    if (g_fEEStarted)
     {
         pThread = GetThread();
         exceptionCode = GetCurrentExceptionCode();
@@ -1624,8 +1623,6 @@ OBJECTREF EETypeLoadException::CreateThrowable()
     }
     CONTRACTL_END;
 
-    COUNTER_ONLY(GetPerfCounters().m_Loading.cLoadFailures++);
-
     MethodTable *pMT = MscorlibBinder::GetException(kTypeLoadException);
 
     struct _gc {
@@ -1824,8 +1821,6 @@ OBJECTREF EEFileLoadException::CreateThrowable()
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
-    
-    COUNTER_ONLY(GetPerfCounters().m_Loading.cLoadFailures++);
 
     // Fetch any log info from the fusion log
     SString logText;

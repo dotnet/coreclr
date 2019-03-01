@@ -1407,9 +1407,6 @@ private:
         //If module has default dll import search paths attribute
         DEFAULT_DLL_IMPORT_SEARCH_PATHS_STATUS      = 0x00000800,
 
-        //If attribute value has been cached before
-        NEUTRAL_RESOURCES_LANGUAGE_IS_CACHED = 0x00001000,
-
         //If m_MethodDefToPropertyInfoMap has been generated
         COMPUTED_METHODDEF_TO_PROPERTYINFO_MAP = 0x00002000,
 
@@ -1517,10 +1514,6 @@ private:
     ILStubCache                *m_pILStubCache;
 
     ULONG m_DefaultDllImportSearchPathsAttributeValue;
-
-     LPCUTF8 m_pszCultureName;
-     ULONG m_CultureNameLength;
-     INT16 m_FallbackLocation;
 
 #ifdef PROFILING_SUPPORTED_DATA 
      // a wrapper for the underlying PEFile metadata emitter which validates that the metadata edits being
@@ -1633,6 +1626,11 @@ private:
     // Profile information
     BOOL                            m_nativeImageProfiling;
     CORCOMPILE_METHOD_PROFILE_LIST *m_methodProfileList;
+
+#if PROFILING_SUPPORTED_DATA 
+    DWORD                   m_dwTypeCount;
+    DWORD                   m_dwExportedTypeCount;
+#endif // PROFILING_SUPPORTED_DATA
 
 #if defined(FEATURE_COMINTEROP)
         public:
@@ -2533,6 +2531,8 @@ public:
                                               DEBUGGER_INFO_SHIFT_PRIV);
     }
 
+    void UpdateNewlyAddedTypes();
+
 #ifdef PROFILING_SUPPORTED
     BOOL IsProfilerNotified() {LIMITED_METHOD_CONTRACT;  return (m_dwTransientFlags & IS_PROFILER_NOTIFIED) != 0; }
     void NotifyProfilerLoadFinished(HRESULT hr);
@@ -3175,12 +3175,6 @@ public:
     // instead of parsing the version themselves.
     //-----------------------------------------------------------------------------------------
     BOOL                    IsPreV4Assembly();
-
-
-    //-----------------------------------------------------------------------------------------
-    // Parse/Return NeutralResourcesLanguageAttribute if it exists (updates Module member variables at ngen time)
-    //-----------------------------------------------------------------------------------------
-    BOOL                    GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureNameLength, INT16 * fallbackLocation, BOOL cacheAttribute);
 
 protected:
 

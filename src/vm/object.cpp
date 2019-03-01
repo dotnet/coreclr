@@ -779,6 +779,8 @@ void ArrayBase::AssertArrayTypeDescLoaded()
 {
     _ASSERTE (m_pMethTab->IsArray());
 
+    ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
+
     // The type should already be loaded
     // See also: MethodTable::DoFullyLoad
     TypeHandle th = ClassLoader::LoadArrayTypeThrowing(m_pMethTab->GetApproxArrayElementTypeHandle(),
@@ -2217,4 +2219,21 @@ void ExceptionObject::GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * 
     SpinLock::ReleaseLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
 #endif // !defined(DACCESS_COMPILE)
 
+}
+
+bool LAHashDependentHashTrackerObject::IsLoaderAllocatorLive()
+{
+    return (ObjectFromHandle(_dependentHandle) != NULL);
+}
+
+void LAHashDependentHashTrackerObject::GetDependentAndLoaderAllocator(OBJECTREF *pLoaderAllocatorRef, GCHEAPHASHOBJECTREF *pGCHeapHash)
+{
+    OBJECTREF primary = ObjectFromHandle(_dependentHandle);
+    if (pLoaderAllocatorRef != NULL)
+        *pLoaderAllocatorRef = primary;
+
+    IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
+    // Secondary is tracked only if primary is non-null
+    if (pGCHeapHash != NULL)
+        *pGCHeapHash = (GCHEAPHASHOBJECTREF)(OBJECTREF)((primary != NULL) ? mgr->GetDependentHandleSecondary(_dependentHandle) : NULL);
 }

@@ -25,7 +25,6 @@
 #include "dbginterface.h"
 #include "dllimport.h"
 #include "eeprofinterfaces.h"
-#include "perfcounters.h"
 #include "encee.h"
 #include "jitinterface.h"
 #include "eeconfig.h"
@@ -192,6 +191,35 @@ BOOL Module::SetTransientFlagInterlocked(DWORD dwFlag)
 }
 
 #if PROFILING_SUPPORTED 
+void Module::UpdateNewlyAddedTypes()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END
+
+    DWORD countTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
+    DWORD countExportedTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
+
+    // typeDefs rids 0 and 1 aren't included in the count, thus X typeDefs before means rid X+1 was valid and our incremental addition should start at X+2
+    for (DWORD typeDefRid = m_dwTypeCount + 2; typeDefRid < countTypesAfterProfilerUpdate + 2; typeDefRid++)
+    {
+        GetAssembly()->AddType(this, TokenFromRid(typeDefRid, mdtTypeDef));
+    }
+
+    // exportedType rid 0 isn't included in the count, thus X exportedTypes before means rid X was valid and our incremental addition should start at X+1
+    for (DWORD exportedTypeDef = m_dwExportedTypeCount + 1; exportedTypeDef < countExportedTypesAfterProfilerUpdate + 1; exportedTypeDef++)
+    {
+        GetAssembly()->AddExportedType(TokenFromRid(exportedTypeDef, mdtExportedType));
+    }
+
+    m_dwTypeCount = countTypesAfterProfilerUpdate;
+    m_dwExportedTypeCount = countExportedTypesAfterProfilerUpdate;
+}
+
 void Module::NotifyProfilerLoadFinished(HRESULT hr)
 {
     CONTRACTL
@@ -209,12 +237,10 @@ void Module::NotifyProfilerLoadFinished(HRESULT hr)
     if (SetTransientFlagInterlocked(IS_PROFILER_NOTIFIED))
     {
         // Record how many types are already present
-        DWORD countTypesOrig = 0;
-        DWORD countExportedTypesOrig = 0;
         if (!IsResource())
         {
-            countTypesOrig = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
-            countExportedTypesOrig = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
+            m_dwTypeCount = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
+            m_dwExportedTypeCount = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
         }
 
         // Notify the profiler, this may cause metadata to be updated
@@ -237,18 +263,7 @@ void Module::NotifyProfilerLoadFinished(HRESULT hr)
         // assembly
         if (!IsResource())
         {
-            DWORD countTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
-            DWORD countExportedTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
-            // typeDefs rids 0 and 1 aren't included in the count, thus X typeDefs before means rid X+1 was valid and our incremental addition should start at X+2
-            for (DWORD typeDefRid = countTypesOrig + 2; typeDefRid < countTypesAfterProfilerUpdate + 2; typeDefRid++)
-            {
-                GetAssembly()->AddType(this, TokenFromRid(typeDefRid, mdtTypeDef));
-            }
-            // exportedType rid 0 isn't included in the count, thus X exportedTypes before means rid X was valid and our incremental addition should start at X+1
-            for (DWORD exportedTypeDef = countExportedTypesOrig + 1; exportedTypeDef < countExportedTypesAfterProfilerUpdate + 1; exportedTypeDef++)
-            {
-                GetAssembly()->AddExportedType(TokenFromRid(exportedTypeDef, mdtExportedType));
-            }
+            UpdateNewlyAddedTypes();
         }
 
         {
@@ -585,6 +600,11 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
     // this will be initialized a bit later.
     m_ModuleID = NULL;
     m_ModuleIndex.m_dwIndex = (SIZE_T)-1;
+
+    // These will be initialized in NotifyProfilerLoadFinished, set them to 
+    // a safe initial value now.
+    m_dwTypeCount = 0;
+    m_dwExportedTypeCount = 0;
 
     // Prepare statics that are known at module load time
     AllocateStatics(pamTracker);
@@ -1188,7 +1208,7 @@ void Module::ApplyMetaData()
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1198,6 +1218,13 @@ void Module::ApplyMetaData()
     HRESULT hr = S_OK;
     ULONG ulCount;
 
+#if PROFILING_SUPPORTED 
+    if (!IsResource())
+    {
+        UpdateNewlyAddedTypes();
+    }
+#endif // PROFILING_SUPPORTED
+
     // Ensure for TypeRef
     ulCount = GetMDImport()->GetCountWithTokenKind(mdtTypeRef) + 1;
     EnsureTypeRefCanBeStored(TokenFromRid(ulCount, mdtTypeRef));
@@ -1205,6 +1232,10 @@ void Module::ApplyMetaData()
     // Ensure for AssemblyRef
     ulCount = GetMDImport()->GetCountWithTokenKind(mdtAssemblyRef) + 1;
     EnsureAssemblyRefCanBeStored(TokenFromRid(ulCount, mdtAssemblyRef));
+
+    // Ensure for MethodDef
+    ulCount = GetMDImport()->GetCountWithTokenKind(mdtMethodDef) + 1;
+    EnsureMethodDefCanBeStored(TokenFromRid(ulCount, mdtMethodDef));
 }
 
 //
@@ -2576,79 +2607,6 @@ BOOL Module::IsNoStringInterning()
 
     return !!(m_dwPersistedFlags & NO_STRING_INTERNING);
 }
-
-BOOL Module::GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureNameLength, INT16 * fallbackLocation, BOOL cacheAttribute)
-{
-    STANDARD_VM_CONTRACT;
-
-    BOOL retVal = FALSE;
-    if (!(m_dwPersistedFlags & NEUTRAL_RESOURCES_LANGUAGE_IS_CACHED))
-    {
-        const BYTE *pVal = NULL;
-        ULONG cbVal = 0;
-
-        // This flag applies to assembly, but it is stored on module so it can be cached in ngen image
-        // Thus, we should ever need it for manifest module only.
-        IMDInternalImport *mdImport = GetAssembly()->GetManifestImport();
-        _ASSERTE(mdImport);
-
-        mdToken token;
-        IfFailThrow(mdImport->GetAssemblyFromScope(&token));
-
-        // Check for the existance of the attribute.
-        HRESULT hr = mdImport->GetCustomAttributeByName(token,"System.Resources.NeutralResourcesLanguageAttribute",(const void **)&pVal, &cbVal);
-        if (hr == S_OK) {
-
-            // we should not have a native image (it would have been cached at ngen time)
-            _ASSERTE(!HasNativeImage());
-
-            CustomAttributeParser cap(pVal, cbVal);
-            IfFailThrow(cap.SkipProlog());
-            IfFailThrow(cap.GetString(cultureName, cultureNameLength));
-            IfFailThrow(cap.GetI2(fallbackLocation));
-            // Should only be true on Module.Save(). Update flag to show we have the attribute cached
-            if (cacheAttribute)
-                FastInterlockOr(&m_dwPersistedFlags, NEUTRAL_RESOURCES_LANGUAGE_IS_CACHED);
-
-            retVal = TRUE;
-        }
-    }
-    else 
-    {
-        *cultureName = m_pszCultureName;
-        *cultureNameLength = m_CultureNameLength;
-        *fallbackLocation = m_FallbackLocation;
-        retVal = TRUE;
-
-#ifdef _DEBUG
-        // confirm that the NGENed attribute is correct
-        LPCUTF8 pszCultureNameCheck = NULL;
-        ULONG cultureNameLengthCheck = 0;
-        INT16 fallbackLocationCheck = 0;
-        const BYTE *pVal = NULL;
-        ULONG cbVal = 0;
-
-        IMDInternalImport *mdImport = GetAssembly()->GetManifestImport();
-        _ASSERTE(mdImport);
-        mdToken token;
-        IfFailThrow(mdImport->GetAssemblyFromScope(&token));
-
-        // Confirm that the attribute exists, and has the save value as when we ngen'd it
-        HRESULT hr = mdImport->GetCustomAttributeByName(token,"System.Resources.NeutralResourcesLanguageAttribute",(const void **)&pVal, &cbVal);
-        _ASSERTE(hr == S_OK);
-        CustomAttributeParser cap(pVal, cbVal);
-        IfFailThrow(cap.SkipProlog());
-        IfFailThrow(cap.GetString(&pszCultureNameCheck, &cultureNameLengthCheck));
-        IfFailThrow(cap.GetI2(&fallbackLocationCheck));
-        _ASSERTE(cultureNameLengthCheck == m_CultureNameLength);
-        _ASSERTE(fallbackLocationCheck == m_FallbackLocation);
-        _ASSERTE(strncmp(pszCultureNameCheck,m_pszCultureName,m_CultureNameLength) == 0);
-#endif // _DEBUG
-    }
-
-    return retVal;
-}
-
 
 BOOL Module::HasDefaultDllImportSearchPathsAttribute()
 {
@@ -4129,18 +4087,8 @@ void Module::BuildClassForModule()
     // If we have any work to do...
     if (cFunctions > 0 || cFields > 0)
     {
-        COUNTER_ONLY(size_t _HeapSize = 0);
-
         TypeKey typeKey(this, COR_GLOBAL_PARENT_TOKEN);
         TypeHandle typeHnd = GetClassLoader()->LoadTypeHandleForTypeKeyNoLock(&typeKey);
-
-#ifdef ENABLE_PERF_COUNTERS 
-
-        _HeapSize = GetLoaderAllocator()->GetHighFrequencyHeap()->GetSize();
-
-        GetPerfCounters().m_Loading.cbLoaderHeapSize = _HeapSize;
-#endif // ENABLE_PERF_COUNTERS
-
     }
 }
 
@@ -6889,8 +6837,6 @@ LoaderHeap *Module::GetThunkHeap()
             size_t * pPrivatePCLBytes = NULL;
             size_t * pGlobalPCLBytes = NULL;
 
-            COUNTER_ONLY(pPrivatePCLBytes = &(GetPerfCounters().m_Loading.cbLoaderHeapSize));
-
             LoaderHeap *pNewHeap = new LoaderHeap(VIRTUAL_ALLOC_RESERVE_GRANULARITY, // DWORD dwReserveBlockSize
                 0,                                 // DWORD dwCommitBlockSize
                 pPrivatePCLBytes,
@@ -8540,15 +8486,6 @@ void Module::Save(DataImage *image)
     //
     CorProfileData * profileData = GetProfileData();
 
-    // ngen the neutral resources culture
-    if(GetNeutralResourcesLanguage(&m_pszCultureName, &m_CultureNameLength, &m_FallbackLocation, TRUE)) {
-        image->StoreStructure((void *) m_pszCultureName,
-                                        (ULONG)(m_CultureNameLength + 1),
-                                        DataImage::ITEM_BINDER_ITEMS,
-                                        1);
-    }
-
-
     m_TypeRefToMethodTableMap.Save(image, DataImage::ITEM_TYPEREF_MAP, profileData, mdtTypeRef);
     image->BindPointer(&m_TypeRefToMethodTableMap, pModuleNode, offsetof(Module, m_TypeRefToMethodTableMap));
 
@@ -9603,11 +9540,6 @@ void Module::Fixup(DataImage *image)
     image->ZeroField(this, offsetof(Module, m_pProfileData), sizeof(m_pProfileData));
 
     image->ZeroPointerField(this, offsetof(Module, m_pNgenStats));
-
-    // fixup the pointer for NeutralResourcesLanguage, if we have it cached
-    if(!!(m_dwPersistedFlags & NEUTRAL_RESOURCES_LANGUAGE_IS_CACHED)) {
-        image->FixupPointerField(this, offsetof(Module, m_pszCultureName));
-    }
 
     // Fixup the property name set
     image->FixupPointerField(this, offsetof(Module, m_propertyNameSet));

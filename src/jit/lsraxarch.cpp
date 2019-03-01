@@ -156,6 +156,13 @@ int LinearScan::BuildNode(GenTree* tree)
             assert(dstCount == 0);
             break;
 
+        case GT_START_PREEMPTGC:
+            // This kills GC refs in callee save regs
+            srcCount = 0;
+            assert(dstCount == 0);
+            BuildDefsWithKills(tree, 0, RBM_NONE, RBM_NONE);
+            break;
+
         case GT_PROF_HOOK:
             srcCount = 0;
             assert(dstCount == 0);
@@ -659,25 +666,28 @@ int LinearScan::BuildNode(GenTree* tree)
         {
             assert(dstCount == 1);
             RefPosition* internalDef = nullptr;
-            if (tree->AsIndexAddr()->Index()->TypeGet() == TYP_I_IMPL)
+#ifdef _TARGET_64BIT_
+            // On 64-bit we always need a temporary register:
+            //   - if the index is `native int` then we need to load the array
+            //     length into a register to widen it to `native int`
+            //   - if the index is `int` (or smaller) then we need to widen
+            //     it to `long` to peform the address calculation
+            internalDef = buildInternalIntRegisterDefForNode(tree);
+#else  // !_TARGET_64BIT_
+            assert(!varTypeIsLong(tree->AsIndexAddr()->Index()->TypeGet()));
+            switch (tree->AsIndexAddr()->gtElemSize)
             {
-                internalDef = buildInternalIntRegisterDefForNode(tree);
-            }
-            else
-            {
-                switch (tree->AsIndexAddr()->gtElemSize)
-                {
-                    case 1:
-                    case 2:
-                    case 4:
-                    case 8:
-                        break;
+                case 1:
+                case 2:
+                case 4:
+                case 8:
+                    break;
 
-                    default:
-                        internalDef = buildInternalIntRegisterDefForNode(tree);
-                        break;
-                }
+                default:
+                    internalDef = buildInternalIntRegisterDefForNode(tree);
+                    break;
             }
+#endif // !_TARGET_64BIT_
             srcCount = BuildBinaryUses(tree->AsOp());
             if (internalDef != nullptr)
             {
@@ -699,7 +709,21 @@ int LinearScan::BuildNode(GenTree* tree)
     return srcCount;
 }
 
-GenTree* LinearScan::getTgtPrefOperand(GenTreeOp* tree)
+//------------------------------------------------------------------------
+// getTgtPrefOperands: Identify whether the operands of an Op should be preferenced to the target.
+//
+// Arguments:
+//    tree    - the node of interest.
+//    prefOp1 - a bool "out" parameter indicating, on return, whether op1 should be preferenced to the target.
+//    prefOp2 - a bool "out" parameter indicating, on return, whether op2 should be preferenced to the target.
+//
+// Return Value:
+//    This has two "out" parameters for returning the results (see above).
+//
+// Notes:
+//    The caller is responsible for initializing the two "out" parameters to false.
+//
+void LinearScan::getTgtPrefOperands(GenTreeOp* tree, bool& prefOp1, bool& prefOp2)
 {
     // If op2 of a binary-op gets marked as contained, then binary-op srcCount will be 1.
     // Even then we would like to set isTgtPref on Op1.
@@ -708,23 +732,20 @@ GenTree* LinearScan::getTgtPrefOperand(GenTreeOp* tree)
         GenTree* op1 = tree->gtGetOp1();
         GenTree* op2 = tree->gtGetOp2();
 
-        // Commutative opers like add/mul/and/or/xor could reverse the order of
-        // operands if it is safe to do so.  In such a case we would like op2 to be
-        // target preferenced instead of op1.
-        if (tree->OperIsCommutative() && op1->isContained() && op2 != nullptr)
-        {
-            op1 = op2;
-            op2 = tree->gtGetOp1();
-        }
-
         // If we have a read-modify-write operation, we want to preference op1 to the target,
         // if it is not contained.
         if (!op1->isContained() && !op1->OperIs(GT_LIST))
         {
-            return op1;
+            prefOp1 = true;
+        }
+
+        // Commutative opers like add/mul/and/or/xor could reverse the order of operands if it is safe to do so.
+        // In that case we will preference both, to increase the chance of getting a match.
+        if (tree->OperIsCommutative() && op2 != nullptr && !op2->isContained())
+        {
+            prefOp2 = true;
         }
     }
-    return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -806,8 +827,10 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     }
 #endif // _TARGET_X86_
 
-    GenTree* tgtPrefOperand = getTgtPrefOperand(node);
-    assert((tgtPrefOperand == nullptr) || (tgtPrefOperand == op1) || node->OperIsCommutative());
+    bool prefOp1 = false;
+    bool prefOp2 = false;
+    getTgtPrefOperands(node, prefOp1, prefOp2);
+    assert(!prefOp2 || node->OperIsCommutative());
     assert(!isReverseOp || node->OperIsCommutative());
 
     // Determine which operand, if any, should be delayRegFree. Normally, this would be op2,
@@ -842,7 +865,8 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     }
     if (delayUseOperand != nullptr)
     {
-        assert(delayUseOperand != tgtPrefOperand);
+        assert(!prefOp1 || delayUseOperand != op1);
+        assert(!prefOp2 || delayUseOperand != op2);
     }
 
     if (isReverseOp)
@@ -852,7 +876,7 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     }
 
     // Build first use
-    if (tgtPrefOperand == op1)
+    if (prefOp1)
     {
         assert(!op1->isContained());
         tgtPrefUse = BuildUse(op1, op1Candidates);
@@ -869,10 +893,10 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     // Build second use
     if (op2 != nullptr)
     {
-        if (tgtPrefOperand == op2)
+        if (prefOp2)
         {
             assert(!op2->isContained());
-            tgtPrefUse = BuildUse(op2, op2Candidates);
+            tgtPrefUse2 = BuildUse(op2, op2Candidates);
             srcCount++;
         }
         else if (delayUseOperand == op2)

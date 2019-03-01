@@ -166,6 +166,18 @@
   <data name="AppDomain_AppBaseNotSet" xml:space="preserve">
     <value>The ApplicationBase must be set before retrieving this property.</value>
   </data>
+  <data name="AppDomain_Name" xml:space="preserve">
+    <value>Name:</value>
+  </data>
+  <data name="AppDomain_NoContextPolicies" xml:space="preserve">
+    <value>There are no context policies.</value>
+  </data>
+  <data name="AppDomain_Policy_PrincipalTwice" xml:space="preserve">
+    <value>Default principal object cannot be set twice.</value>
+  </data>
+  <data name="AmbiguousImplementationException_NullMessage" xml:space="preserve">
+    <value>Ambiguous implementation found.</value>
+  </data>
   <data name="Arg_AccessException" xml:space="preserve">
     <value>Cannot access member.</value>
   </data>
@@ -222,6 +234,9 @@
   </data>
   <data name="Arg_CannotMixComparisonInfrastructure" xml:space="preserve">
     <value>The usage of IKeyComparer and IHashCodeProvider/IComparer interfaces cannot be mixed; use one or the other.</value>
+  </data>
+  <data name="Arg_CannotUnloadAppDomainException" xml:space="preserve">
+    <value>Attempt to unload the AppDomain failed.</value>
   </data>
   <data name="Arg_CATypeResolutionFailed" xml:space="preserve">
     <value>Failed to resolve type from string "{0}" which was embedded in custom attribute blob.</value>
@@ -403,6 +418,9 @@
   <data name="Arg_InvalidNeutralResourcesLanguage_FallbackLoc" xml:space="preserve">
     <value>The NeutralResourcesLanguageAttribute specifies an invalid or unrecognized ultimate resource fallback location: "{0}".</value>
   </data>
+  <data name="Arg_InvalidSatelliteContract_Asm_Ver" xml:space="preserve">
+    <value>Satellite contract version attribute on the assembly '{0}' specifies an invalid version: {1}.</value>
+  </data>
   <data name="Arg_InvalidOleVariantTypeException" xml:space="preserve">
     <value>Specified OLE variant was invalid.</value>
   </data>
@@ -493,6 +511,9 @@
   <data name="Arg_MustBeDouble" xml:space="preserve">
     <value>Object must be of type Double.</value>
   </data>
+  <data name="Arg_MustBeDriveLetterOrRootDir" xml:space="preserve">
+    <value>Drive name must be a root directory (i.e. 'C:\') or a drive letter ('C').</value>
+  </data>
   <data name="Arg_MustBeEnum" xml:space="preserve">
     <value>Type provided must be an Enum.</value>
   </data>
@@ -537,6 +558,9 @@
   </data>
   <data name="Arg_MustBeType" xml:space="preserve">
     <value>Type must be a type provided by the runtime.</value>
+  </data>
+  <data name="Arg_MustBeTrue" xml:space="preserve">
+    <value>Argument must be true.</value>
   </data>
   <data name="Arg_MustBeUInt16" xml:space="preserve">
     <value>Object must be of type UInt16.</value>
@@ -816,6 +840,9 @@
   </data>
   <data name="Argument_ArraysInvalid" xml:space="preserve">
     <value>Array or pointer types are not valid.</value>
+  </data>
+  <data name="Argument_AttributeNamesMustBeUnique" xml:space="preserve">
+    <value>Attribute names must be unique.</value>
   </data>
   <data name="Argument_BadAttributeOnInterfaceMethod" xml:space="preserve">
     <value>Interface method must be abstract and virtual.</value>
@@ -1128,6 +1155,18 @@
   </data>
   <data name="Argument_InvalidDigitSubstitution" xml:space="preserve">
     <value>The DigitSubstitution property must be of a valid member of the DigitShapes enumeration. Valid entries include Context, NativeNational or None.</value>
+  </data>
+  <data name="Argument_InvalidElementName" xml:space="preserve">
+    <value>Invalid element name '{0}'.</value>
+  </data>
+  <data name="Argument_InvalidElementTag" xml:space="preserve">
+    <value>Invalid element tag '{0}'.</value>
+  </data>
+  <data name="Argument_InvalidElementText" xml:space="preserve">
+    <value>Invalid element text '{0}'.</value>
+  </data>
+  <data name="Argument_InvalidElementValue" xml:space="preserve">
+    <value>Invalid element value '{0}'.</value>
   </data>
   <data name="Argument_InvalidEnum" xml:space="preserve">
     <value>The Enum type should contain one and only one instance field.</value>
@@ -1558,6 +1597,9 @@
   <data name="ArgumentException_OtherNotArrayOfCorrectLength" xml:space="preserve">
     <value>Object is not a array with the same number of elements as the array to compare it to.</value>
   </data>
+  <data name="ArgumentException_NotIsomorphic" xml:space="preserve">
+    <value>Object contains non-primitive or non-blittable data.</value>
+  </data>
   <data name="ArgumentException_TupleIncorrectType" xml:space="preserve">
     <value>Argument must be of type {0}.</value>
   </data>
@@ -1590,6 +1632,9 @@
   </data>
   <data name="ArgumentNull_Buffer" xml:space="preserve">
     <value>Buffer cannot be null.</value>
+  </data>
+  <data name="ArgumentNull_Child" xml:space="preserve">
+    <value>Cannot have a null child.</value>
   </data>
   <data name="ArgumentNull_Collection" xml:space="preserve">
     <value>Collection cannot be null.</value>
@@ -2461,6 +2506,9 @@
   <data name="InvalidOperation_CollectionCorrupted" xml:space="preserve">
     <value>A prior operation on this collection was interrupted by an exception. Collection's state is no longer trusted.</value>
   </data>
+  <data name="InvalidOperation_ComputerName" xml:space="preserve">
+    <value>Computer name could not be obtained.</value>
+  </data>
   <data name="InvalidOperation_ConcurrentOperationsNotSupported" xml:space="preserve">
     <value>Operations that change non-concurrent collections must have exclusive access. A concurrent update was performed on this collection and corrupted its state. The collection's state is no longer correct.</value>
   </data>
@@ -2605,6 +2653,9 @@
   <data name="InvalidOperation_SetData_OnlyOnce" xml:space="preserve">
     <value>SetData can only be used to set the value of a given name once.</value>
   </data>
+  <data name="InvalidOperation_SetLatencyModeNoGC" xml:space="preserve">
+    <value>The NoGCRegion mode is in progress.End it and then set a different mode.</value>
+  </data>
   <data name="InvalidOperation_ShouldNotHaveMethodBody" xml:space="preserve">
     <value>Method body should not exist.</value>
   </data>
@@ -2625,6 +2676,9 @@
   </data>
   <data name="InvalidOperation_TypeNotCreated" xml:space="preserve">
     <value>Type has not been created.</value>
+  </data>
+  <data name="InvalidOperation_UnderlyingArrayListChanged" xml:space="preserve">
+    <value>This range in the underlying list is invalid. A possible cause is that elements were removed.</value>
   </data>
   <data name="InvalidOperation_UnknownEnumType" xml:space="preserve">
     <value>Unknown enum type.</value>
@@ -2974,6 +3028,9 @@
   <data name="NotSupported_PIAInAppxProcess" xml:space="preserve">
     <value>A Primary Interop Assembly is not supported in AppX.</value>
   </data>
+  <data name="NotSupported_RangeCollection" xml:space="preserve">
+    <value>The specified operation is not supported on Ranges.</value>
+  </data>
   <data name="NotSupported_Reading" xml:space="preserve">
     <value>Accessor does not support reading.</value>
   </data>
@@ -3073,6 +3130,9 @@
   <data name="ObjectDisposed_ViewAccessorClosed" xml:space="preserve">
     <value>Cannot access a closed accessor.</value>
   </data>
+  <data name="ObjectDisposed_SafeHandleClosed" xml:space="preserve">
+    <value>Safe handle has been closed.</value>
+  </data>
   <data name="OperationCanceled" xml:space="preserve">
     <value>The operation was canceled.</value>
   </data>
@@ -3166,6 +3226,24 @@
   <data name="PlatformNotSupported_IExpando" xml:space="preserve">
     <value>Marshalling an IDispatchEx to an IReflect or IExpando is not supported on this platform.</value>
   </data>
+  <data name="PlatformNotSupported_AppDomains" xml:space="preserve">
+    <value>Secondary AppDomains are not supported on this platform.</value>
+  </data>
+  <data name="PlatformNotSupported_CAS" xml:space="preserve">
+    <value>Code Access Security is not supported on this platform.</value>
+  </data>
+  <data name="PlatformNotSupported_AppDomain_ResMon" xml:space="preserve">
+    <value>AppDomain resource monitoring is not supported on this platform.</value>
+  </data>
+  <data name="PlatformNotSupported_Principal" xml:space="preserve">
+    <value>Windows Principal functionality is not supported on this platform.</value>
+  </data>
+  <data name="PlatformNotSupported_ThreadAbort" xml:space="preserve">
+    <value>Thread abort is not supported on this platform.</value>
+  </data>
+  <data name="PlatformNotSupported_ThreadSuspend" xml:space="preserve">
+    <value>Thread suspend is not supported on this platform.</value>
+  </data>
   <data name="Policy_CannotLoadSemiTrustAssembliesDuringInit" xml:space="preserve">
     <value>All assemblies loaded as part of AppDomain initialization must be fully trusted.</value>
   </data>
@@ -3186,6 +3264,9 @@
   </data>
   <data name="PreconditionFailed_Cnd" xml:space="preserve">
     <value>Precondition failed: {0}</value>
+  </data>
+  <data name="PersistedFiles_NoHomeDirectory" xml:space="preserve">
+    <value>The home directory of the current user could not be determined.</value>
   </data>
   <data name="Rank_MultiDimNotSupported" xml:space="preserve">
     <value>Only single dimension arrays are supported here.</value>
@@ -3466,6 +3547,15 @@
   <data name="TaskT_TransitionToFinal_AlreadyCompleted" xml:space="preserve">
     <value>An attempt was made to transition a task to a final state when it had already completed.</value>
   </data>
+  <data name="Thread_ApartmentState_ChangeFailed" xml:space="preserve">
+    <value>Failed to set the specified COM apartment state.</value>
+  </data>
+  <data name="Thread_GetSetCompressedStack_NotSupported" xml:space="preserve">
+    <value>Use CompressedStack.(Capture/Run) instead.</value>
+  </data>
+  <data name="Thread_Operation_RequiresCurrentThread" xml:space="preserve">
+    <value>This operation must be performed on the same thread as that represented by the Thread instance.</value>
+  </data>
   <data name="Threading_AbandonedMutexException" xml:space="preserve">
     <value>The wait completed due to an abandoned mutex.</value>
   </data>
@@ -3654,9 +3744,6 @@
   </data>
   <data name="InvalidOp_InvalidNewEnumVariant" xml:space="preserve">
     <value>The returned enumerator does not implement IEnumVARIANT.</value>
-  </data>
-  <data name="Argument_NotIsomorphic" xml:space="preserve">
-    <value>Object contains non-primitive or non-blittable data.</value>
   </data>
   <data name="Argument_StructArrayTooLarge" xml:space="preserve">
     <value>Array size exceeds addressing limitations.</value>

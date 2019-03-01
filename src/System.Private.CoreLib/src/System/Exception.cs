@@ -307,12 +307,17 @@ namespace System
                 return remoteStackTraceString;
             }
 
-            // Obtain the stack trace string. Note that since Environment.GetStackTrace
-            // will add the path to the source file if the PDB is present and a demand
-            // for FileIOPermission(PathDiscovery) succeeds, we need to make sure we 
-            // don't store the stack trace string in the _stackTraceString member variable.
-            string tempStackTraceString = Environment.GetStackTrace(this, needFileInfo);
-            return remoteStackTraceString + tempStackTraceString;
+            // Obtain the stack trace string. Note that since GetStackTrace
+            // will add the path to the source file if the PDB is present:
+            // we need to make sure we don't store the stack trace string in
+            // the _stackTraceString member variable.
+            return remoteStackTraceString + GetStackTrace(needFileInfo, this);
+        }
+
+        private static string GetStackTrace(bool needFileInfo, Exception e)
+        {
+            // Do not include a trailing newline for backwards compatibility
+            return new StackTrace(e, needFileInfo).ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
         }
 
         // Sets the help link for this exception.
@@ -337,7 +342,7 @@ namespace System
             {
                 if (_source == null)
                 {
-                    StackTrace st = new StackTrace(this, true);
+                    StackTrace st = new StackTrace(this, fNeedFileInfo: false);
                     if (st.FrameCount > 0)
                     {
                         StackFrame sf = st.GetFrame(0);
@@ -418,7 +423,7 @@ namespace System
             {
                 if (tempStackTraceString == null)
                 {
-                    tempStackTraceString = Environment.GetStackTrace(this, true);
+                    tempStackTraceString = GetStackTrace(true, this);
                 }
                 if (_exceptionMethod == null)
                 {
@@ -525,6 +530,9 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern object CopyDynamicMethods(object currentDynamicMethods);
 
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern uint GetExceptionCount();
+
         internal object DeepCopyStackTrace(object currentStackTrace)
         {
             if (currentStackTrace != null)
@@ -617,7 +625,7 @@ namespace System
 #pragma warning restore 414
 
         // @MANAGED: HResult is used from within the EE!  Rename with care - check VM directory
-        internal int _HResult;     // HResult
+        private int _HResult;       // HResult
 
         public int HResult
         {
@@ -663,7 +671,7 @@ namespace System
         {
             get
             {
-                return nIsTransient(_HResult);
+                return nIsTransient(HResult);
             }
         }
 

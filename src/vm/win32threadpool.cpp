@@ -831,8 +831,6 @@ BOOL ThreadpoolMgr::QueueUserWorkItem(LPTHREAD_START_ROUTINE Function,
         ThreadCounter::Counts counts = CPThreadCounter.GetCleanCounts();
         if ((MaxLimitTotalCPThreads - counts.NumActive) >= MinimumAvailableCPThreads )
         {
-            ThreadLocaleHolder localeHolder;
-
             QueueUserWorkItemHelp(Function, Context);
             return TRUE;
         }
@@ -1507,8 +1505,6 @@ DWORD WINAPI ThreadpoolMgr::ExecuteHostRequest(PVOID pArg)
     }
     CONTRACTL_END;
 
-    ThreadLocaleHolder localeHolder;
-
     bool foundWork, wasNotRecalled;
     ExecuteWorkRequest(&foundWork, &wasNotRecalled);
     return ERROR_SUCCESS;
@@ -2005,8 +2001,6 @@ Work:
     }
 
     {
-        ThreadLocaleHolder localeHolder;
-
         ThreadpoolMgr::UpdateLastDequeueTime();
         ThreadpoolMgr::ExecuteWorkRequest(&foundWork, &wasNotRecalled);
     }
@@ -3621,8 +3615,6 @@ Top:
                 {
                     CONTRACT_VIOLATION(ThrowsViolation);
 
-                    ThreadLocaleHolder localeHolder;
-
                     ((LPOVERLAPPED_COMPLETION_ROUTINE) key)(errorCode, numBytes, pOverlapped);
                 }
 
@@ -4184,19 +4176,6 @@ DWORD WINAPI ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
         if (CORDebuggerAttached() && g_pDebugInterface->IsStopped())
             continue;
 #endif // DEBUGGING_SUPPORTED
-
-        if(g_IsPaused)
-        {
-            _ASSERTE(g_ClrResumeEvent.IsValid());
-            EX_TRY {
-                g_ClrResumeEvent.Wait(INFINITE, TRUE);
-            }
-            EX_CATCH {
-                // Assert on debug builds 
-                _ASSERTE(FALSE);
-            }
-            EX_END_CATCH(SwallowAllExceptions);
-        }
 
         if (!GCHeapUtilities::IsGCInProgress(FALSE) )
         {

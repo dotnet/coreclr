@@ -13,7 +13,6 @@
 #include "eeconfig.h"
 #include "gcheaputilities.h"
 #include "eventtrace.h"
-#include "perfcounters.h"
 #include "assemblyname.hpp"
 #include "eeprofinterfaces.h"
 #include "dbginterface.h"
@@ -1174,27 +1173,6 @@ void AppDomain::ShutdownNativeDllSearchDirectories()
     }
 
     m_NativeDllSearchDirectories.Clear();
-}
-
-void AppDomain::ReleaseDomainBoundInfo()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;;
-    // Shutdown assemblies
-    m_AssemblyCache.OnAppDomainUnload();
-
-    AssemblyIterator i = IterateAssembliesEx( (AssemblyIterationFlags)(kIncludeFailedToLoad) );
-    CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
-    
-    while (i.Next(pDomainAssembly.This()))
-    {
-       pDomainAssembly->ReleaseManagedData();
-    }
 }
 
 void AppDomain::ReleaseFiles()
@@ -2555,6 +2533,10 @@ void SystemDomain::LoadBaseSystemClasses()
         TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1))).AsArray()->GetMethodTable();
 
 #ifndef CROSSGEN_COMPILE
+    CrossLoaderAllocatorHashSetup::EnsureTypesLoaded();
+#endif
+
+#ifndef CROSSGEN_COMPILE
     ECall::PopulateManagedStringConstructors();
 #endif // CROSSGEN_COMPILE
 
@@ -3114,32 +3096,6 @@ Assembly* SystemDomain::GetCallersAssembly(StackCrawlMark *stackMark,
     if (mod)
         return mod->GetAssembly();
     return NULL;
-}
-
-/*static*/
-Module* SystemDomain::GetCallersModule(int skip)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-
-    GCX_COOP();
-
-    CallersData cdata;
-    ZeroMemory(&cdata, sizeof(CallersData));
-    cdata.skip = skip;
-
-    StackWalkFunctions(GetThread(), CallersMethodCallback, &cdata);
-
-    if(cdata.pMethod)
-        return cdata.pMethod->GetModule();
-    else
-        return NULL;
 }
 
 /*private static*/
@@ -3764,7 +3720,6 @@ void AppDomain::Init()
     SetStage(STAGE_READYFORMANAGEDCODE);
 
 #ifndef CROSSGEN_COMPILE
-    COUNTER_ONLY(GetPerfCounters().m_Loading.cAppDomains++);
 
 #ifdef FEATURE_TIERED_COMPILATION
     m_tieredCompilationManager.Init(GetId());
@@ -3849,13 +3804,6 @@ void AppDomain::Terminate()
         m_pRCWRefCache = NULL;
     }
 #endif // FEATURE_COMINTEROP
-
-#ifndef CROSSGEN_COMPILE
-    // Recorded entry point slots may point into the virtual call stub manager's heaps, so clear it first
-    GetLoaderAllocator()
-        ->GetMethodDescBackpatchInfoTracker()
-        ->ClearDependencyMethodDescEntryPointSlots(GetLoaderAllocator());
-#endif
 
     if (!IsAtProcessExit())
     {
@@ -6834,7 +6782,7 @@ BOOL AppDomain::StopEEAndUnwindThreads(unsigned int retryCount, BOOL *pFMarkUnlo
 #if _DEBUG_ADUNLOAD
             printf("AppDomain::UnwindThreads %x stopping %x with first frame %8.8p\n", GetThread()->GetThreadId(), pThread->GetThreadId(), pFrame);
 #endif
-            pThread->SetAbortRequest(EEPolicy::TA_V1Compatible);
+            pThread->SetAbortRequest(EEPolicy::TA_Safe);
         }
         TESTHOOKCALL(UnwindingThreads(GetId().m_dwId)) ;
     }

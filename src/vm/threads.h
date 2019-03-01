@@ -330,9 +330,7 @@ public:
     static void IncForbidSuspendThread() { }
     static void DecForbidSuspendThread() { }
 
-    // The ForbidSuspendThreadHolder is used during the initialization of the stack marker infrastructure so
-    // it can't do any backout stack validation (which is why we pass in VALIDATION_TYPE=HSV_NoValidation).
-    typedef StateHolder<Thread::IncForbidSuspendThread, Thread::DecForbidSuspendThread, HSV_NoValidation> ForbidSuspendThreadHolder;
+    typedef StateHolder<Thread::IncForbidSuspendThread, Thread::DecForbidSuspendThread> ForbidSuspendThreadHolder;
 
     static BYTE GetOffsetOfCurrentFrame()
     {
@@ -1258,9 +1256,7 @@ public:
         TSNC_UnbalancedLocks            = 0x00200000, // Do not rely on lock accounting for this thread:
                                                       // we left an app domain with a lock count different from
                                                       // when we entered it
-        TSNC_DisableSOCheckInHCALL      = 0x00400000, // Some HCALL method may be called directly from VM.
-                                                      // We can not assert they are called in SOTolerant 
-                                                      // region.
+        // unused                       = 0x00400000,
         TSNC_IgnoreUnhandledExceptions  = 0x00800000, // Set for a managed thread born inside an appdomain created with the APPDOMAIN_IGNORE_UNHANDLED_EXCEPTIONS flag.
         TSNC_ProcessedUnhandledException = 0x01000000,// Set on a thread on which we have done unhandled exception processing so that
                                                       // we dont perform it again when OS invokes our UEF. Currently, applicable threads include:
@@ -1564,24 +1560,6 @@ public:
         return (m_State & TS_Detached);
     }
 
-#ifdef _DEBUG
-    class DisableSOCheckInHCALL
-    {
-    private:
-        Thread *m_pThread;
-    public:
-        DisableSOCheckInHCALL()
-        {
-            m_pThread = GetThread();
-            m_pThread->SetThreadStateNC(TSNC_DisableSOCheckInHCALL);
-        }
-        ~DisableSOCheckInHCALL()
-        {
-        LIMITED_METHOD_CONTRACT;
-        m_pThread->ResetThreadStateNC(TSNC_DisableSOCheckInHCALL);
-        }
-    };
-#endif
     static LONG     m_DetachCount;
     static LONG     m_ActiveDetachCount;  // Count how many non-background detached
 
@@ -1822,9 +1800,7 @@ public:
         return m_dwForbidSuspendThread != (LONG)0;
     }
     
-    // The ForbidSuspendThreadHolder is used during the initialization of the stack marker infrastructure so
-    // it can't do any backout stack validation (which is why we pass in VALIDATION_TYPE=HSV_NoValidation).
-    typedef StateHolder<Thread::IncForbidSuspendThread, Thread::DecForbidSuspendThread, HSV_NoValidation> ForbidSuspendThreadHolder;
+    typedef StateHolder<Thread::IncForbidSuspendThread, Thread::DecForbidSuspendThread> ForbidSuspendThreadHolder;
 
 private:
     // Per thread counter to dispense hash code - kept in the thread so we don't need a lock
@@ -2674,7 +2650,6 @@ public:
     {
         TAR_Thread =      0x00000001,   // Request by Thread
         TAR_FuncEval =    0x00000004,   // Request by Func-Eval
-        TAR_StackOverflow = 0x00000008,   // Request by StackOverflow.  TAR_THREAD should be set at the same time.
         TAR_ALL = 0xFFFFFFFF,
     };
 
@@ -2686,33 +2661,20 @@ private:
     enum ThreadAbortInfo
     {
         TAI_ThreadAbort       = 0x00000001,
-        TAI_ThreadV1Abort     = 0x00000002,
         TAI_ThreadRudeAbort   = 0x00000004,
-        TAI_ADUnloadAbort     = 0x00000008,
-        TAI_ADUnloadV1Abort   = 0x00000010,
-        TAI_ADUnloadRudeAbort = 0x00000020,
         TAI_FuncEvalAbort     = 0x00000040,
-        TAI_FuncEvalV1Abort   = 0x00000080,
         TAI_FuncEvalRudeAbort = 0x00000100,
     };
 
     static const DWORD TAI_AnySafeAbort = (TAI_ThreadAbort   |
-                                           TAI_ADUnloadAbort |
                                            TAI_FuncEvalAbort
                                           );
 
-    static const DWORD TAI_AnyV1Abort   = (TAI_ThreadV1Abort   |
-                                           TAI_ADUnloadV1Abort |
-                                           TAI_FuncEvalV1Abort
-                                          );
-
     static const DWORD TAI_AnyRudeAbort = (TAI_ThreadRudeAbort   |
-                                           TAI_ADUnloadRudeAbort |
                                            TAI_FuncEvalRudeAbort
                                           );
 
     static const DWORD TAI_AnyFuncEvalAbort = (TAI_FuncEvalAbort   |
-                                           TAI_FuncEvalV1Abort |
                                            TAI_FuncEvalRudeAbort
                                           );
 
@@ -4940,11 +4902,6 @@ public:
 
 #ifdef FEATURE_PERFTRACING
 private:
-    // The object that contains the list write buffers used by this thread.
-    Volatile<EventPipeBufferList*> m_pEventPipeBufferList;
-
-    // Whether or not the thread is currently writing an event.
-    Volatile<bool> m_eventWriteInProgress;
 
     // SampleProfiler thread state.  This is set on suspension and cleared before restart.
     // True if the thread was in cooperative mode.  False if it was in preemptive when the suspension started.
@@ -4955,30 +4912,6 @@ private:
     GUID m_activityId;
 
 public:
-    EventPipeBufferList* GetEventPipeBufferList()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pEventPipeBufferList;
-    }
-
-    void SetEventPipeBufferList(EventPipeBufferList *pList)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pEventPipeBufferList = pList;
-    }
-
-    bool GetEventWriteInProgress() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_eventWriteInProgress;
-    }
-
-    void SetEventWriteInProgress(bool value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_eventWriteInProgress = value;
-    }
-
     bool GetGCModeOnSuspension()
     {
         LIMITED_METHOD_CONTRACT;

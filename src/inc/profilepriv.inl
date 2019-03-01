@@ -727,6 +727,20 @@ inline BOOL CORProfilerDisableTieredCompilation()
          ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_DISABLE_TIERED_COMPILATION));
 }
 
+inline BOOL CORProfilerTrackBasicGC()
+{
+    CONTRACTL 
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    return (CORProfilerPresent() &&
+         ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_BASIC_GC));
+}
+
 #if defined(PROFILING_SUPPORTED) && !defined(CROSSGEN_COMPILE)
 
 #if defined(FEATURE_PROFAPI_ATTACH_DETACH)
@@ -743,7 +757,7 @@ inline BOOL CORProfilerDisableTieredCompilation()
 // See code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization.
 // 
 typedef Wrapper<Thread *, ProfilingAPIUtility::IncEvacuationCounter, ProfilingAPIUtility::DecEvacuationCounter, 
-    (UINT_PTR)0, CompareDefault<Thread *>, HSV_NoValidation> EvacuationCounterHolder;
+    (UINT_PTR)0, CompareDefault<Thread *>> EvacuationCounterHolder;
 
 
 //---------------------------------------------------------------------------------------

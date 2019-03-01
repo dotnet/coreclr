@@ -14,18 +14,10 @@ using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
-#if FEATURE_COMINTEROP
-using System.Runtime.InteropServices.WindowsRuntime;
-#endif // FEATURE_COMINTEROP
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using Internal.Runtime.CompilerServices;
-using Internal.Runtime.Augments;
-
-#if CORERT
-using Thread = Internal.Runtime.Augments.RuntimeThread;
-#endif
 
 namespace System.Runtime.CompilerServices
 {
@@ -46,7 +38,15 @@ namespace System.Runtime.CompilerServices
         {
             SynchronizationContext sc = SynchronizationContext.Current;
             sc?.OperationStarted();
+#if PROJECTN
+            // ProjectN's AsyncTaskMethodBuilder.Create() currently does additional debugger-related
+            // work, so we need to delegate to it.
+            return new AsyncVoidMethodBuilder() { _synchronizationContext = sc, _builder = AsyncTaskMethodBuilder.Create() };
+#else
+            // _builder should be initialized to AsyncTaskMethodBuilder.Create(), but on coreclr
+            // that Create() is a nop, so we can just return the default here.
             return new AsyncVoidMethodBuilder() { _synchronizationContext = sc };
+#endif
         }
 
         /// <summary>Initiates the builder's execution with the associated state machine.</summary>
@@ -131,7 +131,7 @@ namespace System.Runtime.CompilerServices
                 // and decrement its outstanding operation count.
                 try
                 {
-                    AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: _synchronizationContext);
+                    System.Threading.Tasks.Task.ThrowAsync(exception, targetContext: _synchronizationContext);
                 }
                 finally
                 {
@@ -143,7 +143,7 @@ namespace System.Runtime.CompilerServices
                 // Otherwise, queue the exception to be thrown on the ThreadPool.  This will
                 // result in a crash unless legacy exception behavior is enabled by a config
                 // file or a CLR host.
-                AsyncMethodBuilderCore.ThrowAsync(exception, targetContext: null);
+                System.Threading.Tasks.Task.ThrowAsync(exception, targetContext: null);
             }
 
             // The exception was propagated already; we don't need or want to fault the builder, just mark it as completed.
@@ -162,7 +162,7 @@ namespace System.Runtime.CompilerServices
             {
                 // If the interaction with the SynchronizationContext goes awry,
                 // fall back to propagating on the ThreadPool.
-                AsyncMethodBuilderCore.ThrowAsync(exc, targetContext: null);
+                Task.ThrowAsync(exc, targetContext: null);
             }
         }
 
@@ -194,7 +194,7 @@ namespace System.Runtime.CompilerServices
 #if PROJECTN
         private static readonly Task<VoidTaskResult> s_cachedCompleted = AsyncTaskCache.CreateCacheableTask<VoidTaskResult>(default(VoidTaskResult));
 #else
-        private readonly static Task<VoidTaskResult> s_cachedCompleted = AsyncTaskMethodBuilder<VoidTaskResult>.s_defaultResultTask;
+        private static readonly Task<VoidTaskResult> s_cachedCompleted = AsyncTaskMethodBuilder<VoidTaskResult>.s_defaultResultTask;
 #endif
 
         /// <summary>The generic builder object to which this non-generic instance delegates.</summary>
@@ -202,7 +202,16 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Initializes a new <see cref="AsyncTaskMethodBuilder"/>.</summary>
         /// <returns>The initialized <see cref="AsyncTaskMethodBuilder"/>.</returns>
-        public static AsyncTaskMethodBuilder Create() => default;
+        public static AsyncTaskMethodBuilder Create() =>
+#if PROJECTN
+            // ProjectN's AsyncTaskMethodBuilder<VoidTaskResult>.Create() currently does additional debugger-related
+            // work, so we need to delegate to it.
+            new AsyncTaskMethodBuilder { m_builder = AsyncTaskMethodBuilder<VoidTaskResult>.Create() };
+#else
+            // m_builder should be initialized to AsyncTaskMethodBuilder<VoidTaskResult>.Create(), but on coreclr
+            // that Create() is a nop, so we can just return the default here.
+            default;
+#endif
 
         /// <summary>Initiates the builder's execution with the associated state machine.</summary>
         /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
@@ -315,10 +324,20 @@ namespace System.Runtime.CompilerServices
         /// <returns>The initialized <see cref="AsyncTaskMethodBuilder"/>.</returns>
         public static AsyncTaskMethodBuilder<TResult> Create()
         {
-            return default;
+#if PROJECTN
+            var result = new AsyncTaskMethodBuilder<TResult>();
+            if (System.Threading.Tasks.Task.s_asyncDebuggingEnabled)
+            {
+                // This allows the debugger to access m_task directly without evaluating ObjectIdForDebugger for ProjectN
+                result.InitializeTaskAsStateMachineBox();
+            }            
+            return result;
+#else
             // NOTE: If this method is ever updated to perform more initialization,
             //       other Create methods like AsyncTaskMethodBuilder.Create and
             //       AsyncValueTaskMethodBuilder.Create must be updated to call this.
+            return default;
+#endif
         }
 
         /// <summary>Initiates the builder's execution with the associated state machine.</summary>
@@ -369,7 +388,7 @@ namespace System.Runtime.CompilerServices
             }
             catch (Exception e)
             {
-                AsyncMethodBuilderCore.ThrowAsync(e, targetContext: null);
+                System.Threading.Tasks.Task.ThrowAsync(e, targetContext: null);
             }
         }
 
@@ -415,7 +434,7 @@ namespace System.Runtime.CompilerServices
                     // exceptions well at that location in the state machine, especially if the exception may occur
                     // after the ValueTaskAwaiter already successfully hooked up the callback, in which case it's possible
                     // two different flows of execution could end up happening in the same async method call.
-                    AsyncMethodBuilderCore.ThrowAsync(e, targetContext: null);
+                    System.Threading.Tasks.Task.ThrowAsync(e, targetContext: null);
                 }
             }
             else
@@ -427,7 +446,7 @@ namespace System.Runtime.CompilerServices
                 }
                 catch (Exception e)
                 {
-                    AsyncMethodBuilderCore.ThrowAsync(e, targetContext: null);
+                    System.Threading.Tasks.Task.ThrowAsync(e, targetContext: null);
                 }
             }
         }
@@ -535,7 +554,7 @@ namespace System.Runtime.CompilerServices
                 // Fire an event with details about the state machine to help with debugging.
                 if (!IsCompleted) // double-check it's not completed, just to help minimize false positives
                 {
-                    TplEtwProvider.Log.IncompleteAsyncMethod(this);
+                    TplEventSource.Log.IncompleteAsyncMethod(this);
                 }
             }
         }
@@ -548,12 +567,16 @@ namespace System.Runtime.CompilerServices
             where TStateMachine : IAsyncStateMachine
         {
             /// <summary>Delegate used to invoke on an ExecutionContext when passed an instance of this box type.</summary>
-            private static readonly ContextCallback s_callback = s =>
+            private static readonly ContextCallback s_callback = ExecutionContextCallback;
+
+            // Used to initialize s_callback above. We don't use a lambda for this on purpose: a lambda would
+            // introduce a new generic type behind the scenes that comes with a hefty size penalty in AOT builds.
+            private static void ExecutionContextCallback(object s)
             {
                 Debug.Assert(s is AsyncStateMachineBox<TStateMachine>);
                 // Only used privately to pass directly to EC.Run
                 Unsafe.As<AsyncStateMachineBox<TStateMachine>>(s).StateMachine.MoveNext();
-            };
+            }
 
             /// <summary>A delegate to the <see cref="MoveNext()"/> method.</summary>
             private Action _moveNextAction;
@@ -988,7 +1011,7 @@ namespace System.Runtime.CompilerServices
             // Capture references to Thread Contexts
             Thread currentThread0 = Thread.CurrentThread;
             Thread currentThread = currentThread0;
-            ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
+            ExecutionContext previousExecutionCtx0 = currentThread0._executionContext;
 
             // Store current ExecutionContext and SynchronizationContext as "previousXxx".
             // This allows us to restore them and undo any Context changes made in stateMachine.MoveNext
@@ -1013,7 +1036,7 @@ namespace System.Runtime.CompilerServices
                 }
 
                 ExecutionContext previousExecutionCtx1 = previousExecutionCtx;
-                ExecutionContext currentExecutionCtx1 = currentThread1.ExecutionContext;
+                ExecutionContext currentExecutionCtx1 = currentThread1._executionContext;
                 if (previousExecutionCtx1 != currentExecutionCtx1)
                 {
                     ExecutionContext.RestoreChangedContextToThread(currentThread1, previousExecutionCtx1, currentExecutionCtx1);
@@ -1026,7 +1049,7 @@ namespace System.Runtime.CompilerServices
         internal static bool TrackAsyncMethodCompletion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => TplEtwProvider.Log.IsEnabled(EventLevel.Warning, TplEtwProvider.Keywords.AsyncMethod);
+            get => TplEventSource.Log.IsEnabled(EventLevel.Warning, TplEventSource.Keywords.AsyncMethod);
         }
 #endif
 
@@ -1069,48 +1092,6 @@ namespace System.Runtime.CompilerServices
         internal static Task TryGetContinuationTask(Action continuation) =>
             (continuation?.Target as ContinuationWrapper)?._innerTask;
 
-        /// <summary>Throws the exception on the ThreadPool.</summary>
-        /// <param name="exception">The exception to propagate.</param>
-        /// <param name="targetContext">The target context on which to propagate the exception.  Null to use the ThreadPool.</param>
-        internal static void ThrowAsync(Exception exception, SynchronizationContext targetContext)
-        {
-            // Capture the exception into an ExceptionDispatchInfo so that its 
-            // stack trace and Watson bucket info will be preserved
-            var edi = ExceptionDispatchInfo.Capture(exception);
-
-            // If the user supplied a SynchronizationContext...
-            if (targetContext != null)
-            {
-                try
-                {
-                    // Post the throwing of the exception to that context, and return.
-                    targetContext.Post(state => ((ExceptionDispatchInfo)state).Throw(), edi);
-                    return;
-                }
-                catch (Exception postException)
-                {
-                    // If something goes horribly wrong in the Post, we'll 
-                    // propagate both exceptions on the ThreadPool
-                    edi = ExceptionDispatchInfo.Capture(new AggregateException(exception, postException));
-                }
-            }
-
-#if CORERT
-            RuntimeAugments.ReportUnhandledException(edi.SourceException);
-#else
-
-#if FEATURE_COMINTEROP
-            // If we have the new error reporting APIs, report this error.
-            if (WindowsRuntimeMarshal.ReportUnhandledError(edi.SourceException))
-                return;
-#endif // FEATURE_COMINTEROP
-
-            // Propagate the exception(s) on the ThreadPool
-            ThreadPool.QueueUserWorkItem(state => ((ExceptionDispatchInfo)state).Throw(), edi);
-
-#endif // CORERT
-        }
-
         /// <summary>
         /// Logically we pass just an Action (delegate) to a task for its action to 'ContinueWith' when it completes.
         /// However debuggers and profilers need more information about what that action is. (In particular what 
@@ -1119,10 +1100,10 @@ namespace System.Runtime.CompilerServices
         /// (like the action after that (which is also a ContinuationWrapper and thus form a linked list).  
         ///  We also store that task if the action is associate with at task.  
         /// </summary>
-        private sealed class ContinuationWrapper
+        private sealed class ContinuationWrapper // SOS DumpAsync command depends on this name
         {
             private readonly Action<Action, Task> _invokeAction; // This wrapper is an action that wraps another action, this is that Action.  
-            internal readonly Action _continuation;              // This is continuation which will happen after m_invokeAction  (and is probably a ContinuationWrapper)
+            internal readonly Action _continuation;              // This is continuation which will happen after m_invokeAction  (and is probably a ContinuationWrapper). SOS DumpAsync command depends on this name.
             internal readonly Task _innerTask;                   // If the continuation is logically going to invoke a task, this is that task (may be null)
 
             internal ContinuationWrapper(Action continuation, Action<Action, Task> invokeAction, Task innerTask)

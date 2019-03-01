@@ -16,7 +16,6 @@
 #include "hash.h"
 #include "crst.h"
 #include "cgensys.h"
-#include "declsec.h"
 #ifdef FEATURE_COMINTEROP
 #include "stdinterfaces.h"
 #endif
@@ -2442,14 +2441,14 @@ protected:
                            UINT32 slotNumber,
                            DispatchMapEntry *pEntry);
 
-public:
+private:
     BOOL FindDispatchImpl(
         UINT32         typeID, 
         UINT32         slotNumber, 
         DispatchSlot * pImplSlot,
         BOOL           throwOnConflict);
 
-
+public:
 #ifndef DACCESS_COMPILE
     BOOL FindDefaultInterfaceImplementation(
         MethodDesc *pInterfaceMD,
@@ -2460,8 +2459,6 @@ public:
 #endif // DACCESS_COMPILE
 
     DispatchSlot FindDispatchSlot(UINT32 typeID, UINT32 slotNumber, BOOL throwOnConflict);
-
-    DispatchSlot FindDispatchSlot(DispatchToken tok, BOOL throwOnConflict);
 
     // You must use the second of these two if there is any chance the pMD is a method
     // on a generic interface such as IComparable<T> (which it normally can be).  The 
@@ -3666,14 +3663,14 @@ private:
 
 #if defined(FEATURE_HFA)
 #if defined(UNIX_AMD64_ABI)
-#error Can't define both FEATURE_HFA and UNIX_AMD64_ABI
+#error "Can't define both FEATURE_HFA and UNIX_AMD64_ABI"
 #endif
         enum_flag_IsHFA                     = 0x00000800,   // This type is an HFA (Homogenous Floating-point Aggregate)
 #endif // FEATURE_HFA
 
 #if defined(UNIX_AMD64_ABI)
 #if defined(FEATURE_HFA)
-#error Can't define both FEATURE_HFA and UNIX_AMD64_ABI
+#error "Can't define both FEATURE_HFA and UNIX_AMD64_ABI"
 #endif
         enum_flag_IsRegStructPassed         = 0x00000800,   // This type is a System V register passed struct.
 #endif // UNIX_AMD64_ABI

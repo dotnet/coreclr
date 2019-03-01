@@ -22,7 +22,6 @@
 #include "siginfo.hpp"
 #include "gcheaputilities.h"
 #include "eedbginterfaceimpl.h" //so we can clearexception in RealCOMPlusThrow
-#include "perfcounters.h"
 #include "dllimportcallback.h"
 #include "stackwalk.h" //for CrawlFrame, in SetIPFromSrcToDst
 #include "shimload.h"
@@ -3627,7 +3626,6 @@ BOOL StackTraceInfo::AppendElement(BOOL bAllowAllocMem, UINT_PTR currentIP, UINT
 
         ++m_dFrameCount;
         bRetVal = TRUE;
-        COUNTER_ONLY(GetPerfCounters().m_Excep.cThrowToCatchStackDepth++);
     }
 
 #ifndef FEATURE_PAL // Watson is supported on Windows only   
@@ -8017,11 +8015,11 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
     //
     // WARNING: This function could potentially throw an exception, however it should only
     // be able to do so when an interop debugger is attached
-    if(g_pDebugInterface != NULL)
+    if (g_pDebugInterface != NULL)
     {
-        if(g_pDebugInterface->FirstChanceSuspendHijackWorker(pExceptionInfo->ContextRecord,
+        if (g_pDebugInterface->FirstChanceSuspendHijackWorker(pExceptionInfo->ContextRecord,
             pExceptionInfo->ExceptionRecord) == EXCEPTION_CONTINUE_EXECUTION)
-        return EXCEPTION_CONTINUE_EXECUTION;
+            return EXCEPTION_CONTINUE_EXECUTION;
     }
 #endif
 
@@ -8040,6 +8038,12 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
         return EXCEPTION_CONTINUE_SEARCH;
     }
 #endif
+
+    if (NtCurrentTeb()->ThreadLocalStoragePointer == NULL)
+    {
+        // Ignore exceptions early during thread startup before the thread is fully initialized by the OS
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
 
     bool bIsGCMarker = false;
 

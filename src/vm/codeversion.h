@@ -71,6 +71,9 @@ public:
     };
 #ifdef FEATURE_TIERED_COMPILATION
     OptimizationTier GetOptimizationTier() const;
+#ifndef DACCESS_COMPILE
+    void SetOptimizationTier(OptimizationTier tier);
+#endif
 #endif // FEATURE_TIERED_COMPILATION
     bool operator==(const NativeCodeVersion & rhs) const;
     bool operator!=(const NativeCodeVersion & rhs) const;
@@ -106,7 +109,7 @@ private:
     union
     {
         PTR_NativeCodeVersionNode m_pVersionNode;
-        struct SyntheticStorage
+        struct
         {
             PTR_MethodDesc m_pMethodDesc;
         } m_synthetic;
@@ -204,7 +207,7 @@ private:
     union
     {
         PTR_ILCodeVersionNode m_pVersionNode;
-        struct SyntheticStorage
+        struct
         {
             PTR_Module m_pModule;
             mdMethodDef m_methodDef;
@@ -237,7 +240,10 @@ public:
 #endif
 #ifdef FEATURE_TIERED_COMPILATION
     NativeCodeVersion::OptimizationTier GetOptimizationTier() const;
+#ifndef DACCESS_COMPILE
+    void SetOptimizationTier(NativeCodeVersion::OptimizationTier tier);
 #endif
+#endif // FEATURE_TIERED_COMPILATION
 
 private:
     //union - could save a little memory?

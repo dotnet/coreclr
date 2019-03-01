@@ -23,7 +23,6 @@
 #include "corprof.h"                // profiling
 #include "eeprofinterfaces.h"
 #include "eeconfig.h"
-#include "perfcounters.h"
 #include "corhost.h"
 #include "win32threadpool.h"
 #include "jitinterface.h"
@@ -299,11 +298,11 @@ bool Thread::DetectHandleILStubsForDebugger()
 }
 
 extern "C" {
-#ifndef __llvm__
+#ifndef __GNUC__
 __declspec(thread)
-#else // !__llvm__
+#else // !__GNUC__
 __thread 
-#endif // !__llvm__
+#endif // !__GNUC__
 ThreadLocalInfo gCurrentThreadInfo = 
                                               {
                                                   NULL,    // m_pThread
@@ -897,16 +896,6 @@ void DestroyThread(Thread *th)
 #endif // _TARGET_X86_
 #endif // WIN64EXCEPTIONS
 
-#ifdef FEATURE_PERFTRACING
-    // Before the thread dies, mark its buffers as no longer owned
-    // so that they can be cleaned up after the thread dies.
-    EventPipeBufferList *pBufferList = th->GetEventPipeBufferList();
-    if(pBufferList != NULL)
-    {
-        pBufferList->SetOwnedByThread(false);
-    }
-#endif // FEATURE_PERFTRACING
-
     if (g_fEEShutDown == 0) 
     {
         th->SetThreadState(Thread::TS_ReportDead);
@@ -1019,16 +1008,6 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
 #ifdef ENABLE_CONTRACTS_DATA
     m_pClrDebugState = NULL;
 #endif //ENABLE_CONTRACTS_DATA
-
-#ifdef FEATURE_PERFTRACING
-    // Before the thread dies, mark its buffers as no longer owned
-    // so that they can be cleaned up after the thread dies.
-    EventPipeBufferList *pBufferList = m_pEventPipeBufferList.Load();
-    if(pBufferList != NULL)
-    {
-        pBufferList->SetOwnedByThread(false);
-    }
-#endif // FEATURE_PERFTRACING
 
     FastInterlockOr((ULONG*)&m_State, (int) (Thread::TS_Detached | Thread::TS_ReportDead));
     // Do not touch Thread object any more.  It may be destroyed.
@@ -1514,9 +1493,6 @@ Thread::Thread()
     _ASSERTE((((size_t) &m_State) & 3) == 0);
     _ASSERTE((((size_t) &m_ThreadTasks) & 3) == 0);
 
-    // Track perf counter for the logical thread object.
-    COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cCurrentThreadsLogical++);
-
     // On all callbacks, call the trap code, which we now have
     // wired to cause a GC.  Thus we will do a GC on all Transition Frame Transitions (and more).
    if (GCStress<cfg_transition>::IsEnabled())
@@ -1647,8 +1623,6 @@ Thread::Thread()
     m_pAllLoggedTypes = NULL;
 
 #ifdef FEATURE_PERFTRACING
-    m_pEventPipeBufferList = NULL;
-    m_eventWriteInProgress = false;
     memset(&m_activityId, 0, sizeof(m_activityId));
 #endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
@@ -1676,15 +1650,6 @@ BOOL Thread::InitThread(BOOL fInternal)
         // all memory allocations).  By sending a message now, we insure that the stress
         // log will not allocate memory at these critical times an avoid deadlock.
     STRESS_LOG2(LF_ALWAYS, LL_ALWAYS, "SetupThread  managed Thread %p Thread Id = %x\n", this, GetThreadId());
-
-    if ((m_State & TS_WeOwn) == 0)
-    {
-    COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cRecognizedThreads++);
-    }
-    else
-    {
-        COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cCurrentThreadsPhysical++);
-    }
 
 #ifndef FEATURE_PAL
     // workaround: Remove this when we flow impersonation token to host.
@@ -2631,20 +2596,6 @@ Thread::~Thread()
 #ifdef _DEBUG
     m_pFrame = (Frame *)POISONC;
 #endif
-
-    // Update Perfmon counters.
-    COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cCurrentThreadsLogical--);
-
-    // Current recognized threads are non-runtime threads that are alive and ran under the
-    // runtime. Check whether this Thread was one of them.
-    if ((m_State & TS_WeOwn) == 0)
-    {
-        COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cRecognizedThreads--);
-    }
-    else
-    {
-        COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cCurrentThreadsPhysical--);
-    }
 
     // Normally we shouldn't get here with a valid thread handle; however if SetupThread
     // failed (due to an OOM for example) then we need to CloseHandle the thread
@@ -6849,7 +6800,7 @@ BOOL Thread::IsSPBeyondLimit()
     return FALSE;
 }
 
-__declspec(noinline) void AllocateSomeStack(){
+NOINLINE void AllocateSomeStack(){
     LIMITED_METHOD_CONTRACT;
 #ifdef _TARGET_X86_
     const size_t size = 0x200;
