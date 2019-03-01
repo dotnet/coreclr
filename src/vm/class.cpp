@@ -3332,9 +3332,9 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     }
 
     mdFieldDef fd;
-    ULONG i = 0;
+    ULONG i;
     ULONG cInstanceFields = 0;
-    for (ULONG i = 0; pInternalImport->EnumNext(phEnumField, &fd); i++)
+    for (i = 0; pInternalImport->EnumNext(phEnumField, &fd); i++)
     {
         DWORD dwFieldAttrs;
         ULONG rid = RidFromToken(fd);
