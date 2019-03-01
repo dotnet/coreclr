@@ -11152,15 +11152,21 @@ void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isB
     // "info.compLocalsCount".
     if (varDsc->lvSlotNum < info.compLocalsCount)
     {
-        // If variable a variable is inside a try/catch block, we persist it on the stack during the 
-        // whole block and alive. It can be assigned/defined many times, but the "VariableLiveRange"
-        // has to still start on a "BasicBlock" boundary
-        if (isBorn && !isDying && !varDsc->lvLiveInOutOfHndlr)
+        if (isBorn && !isDying)
         {
-            // "varDsc" is valid from this point
-            siStartVariableLiveRange(varDsc);
-        }
+            // If variable a variable is inside a try/catch block, we persist it on the stack during the
+            // whole block and alive. It can be assigned/defined many times, but the "VariableLiveRange"
+            // has to still start on a "BasicBlock" boundary
 
+            // Update:: this is not entirely true, on same cases is not alive until first use. So we
+            // need to considerate both cases.
+
+            if (!varDsc->lvLiveInOutOfHndlr || !varDsc->hasVariableLiveRangeOpen())
+            {
+                // "varDsc" is valid from this point
+                siStartVariableLiveRange(varDsc);
+            }
+        }
         if (isDying && !isBorn)
         {
             // "varDsc" live range is no more valid from this point
@@ -11216,9 +11222,9 @@ void Compiler::siEndVariableLiveRange(const LclVarDsc* varDsc)
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
 
-    // There could be a variable alive after code has been emitted and we would 
+    // There could be a variable alive after code has been emitted and we would
     // receive a call from genUpdateLife with this one but the emitter has no longer
-    // a valid IG so we don't report the close of a VariableLifeRange after code is 
+    // a valid IG so we don't report the close of a VariableLifeRange after code is
     // emitted.
 
     if (varDsc->lvSlotNum < info.compLocalsCount && !lastBasicBlockHasBeenEmited)
@@ -11262,22 +11268,22 @@ void Compiler::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
 }
 
 //------------------------------------------------------------------------
-// siUpdateVariableLiveRange: Iterates the given set of variables calling 
-// siEndVariableLiveRange with each of them. Set the flag 
-// lastBasicBlockHasBeenEmited to true on end so no more calls to 
+// siUpdateVariableLiveRange: Iterates the given set of variables calling
+// siEndVariableLiveRange with each of them. Set the flag
+// lastBasicBlockHasBeenEmited to true on end so no more calls to
 // siEndVariableLiveRange are considered.
 //
 // Arguments:
 //    newLife    - the set of variables that should end their VariableLiveRange.
 //
 // Assumptions:
-//    All the variables in the set hold hasBeenAlive() (have reported a home and 
+//    All the variables in the set hold hasBeenAlive() (have reported a home and
 //    never reported the end of its life there)
 //
 // Notes:
 //    There are some cases where we finish generating code on "genCodeForBBList"
 //    and some variables are still alive in "compCurLife". So we call this method
-//    on the last block being generated and set a flag so no call to 
+//    on the last block being generated and set a flag so no call to
 //    "siEndVariableLiveRange" from "genUpdateLife" get to close a "VariableLiveRange"
 //    outside the loop.
 void Compiler::siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose)
@@ -11286,7 +11292,7 @@ void Compiler::siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose)
     unsigned        varIndex = 0;
     while (iter.NextElem(&varIndex))
     {
-        unsigned   lclNum = lvaTrackedToVarNum[varIndex];
+        unsigned         lclNum = lvaTrackedToVarNum[varIndex];
         const LclVarDsc* lclVar = &lvaTable[lclNum];
         assert(lclVar->hasBeenAlive());
         siEndVariableLiveRange(lclVar);

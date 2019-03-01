@@ -363,18 +363,20 @@ struct LiveRangeBarrier
 
     void reset(LiveRangeList* list)
     {
+        // There must have reported something in order to reset
         noway_assert(haveReadAtLeastOneOfBlock);
-        if (!list->back().endEmitLocation.Valid())
+
+        if (list->back().endEmitLocation.Valid())
+        {
+            haveReadAtLeastOneOfBlock = false;
+        }
+        else
         {
             // This live range will remain open until next block.
             // If it is in "bbliveIn" in the next "BasicBlock", there is no problem.
             // If it is not, then "compiler->compCurLife" will have a difference with "block->bbliveIn"
             // and it will be indicated as dead.
             beginLastBlock = list->backPosition();
-        }
-        else
-        {
-            haveReadAtLeastOneOfBlock = false;
         }
     }
 };
@@ -463,6 +465,13 @@ public:
         }
     }
 #endif
+
+    bool hasVariableLiveRangeOpen() const
+    {
+        noway_assert(variableLiveRanges != nullptr);
+
+        return !variableLiveRanges->empty() && !variableLiveRanges->back().endEmitLocation.Valid();
+    }
 
     // Initialize an empty list and a barrier pointing to its end
     void initializeRegisterLiveRanges(CompAllocator allocator)
@@ -7356,8 +7365,8 @@ public:
     // Close all the "VariableLiveRanges" that are indicated in the given set
     void siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose);
 
-    bool lastBasicBlockHasBeenEmited;   // When true no more siEndVariableLiveRange is considered.
-                                        // No update/start happens when code has been generated.
+    bool lastBasicBlockHasBeenEmited; // When true no more siEndVariableLiveRange is considered.
+                                      // No update/start happens when code has been generated.
 
     bool isFramePointerUsed() const
     {
