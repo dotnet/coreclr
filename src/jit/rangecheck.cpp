@@ -188,7 +188,7 @@ bool RangeCheck::BetweenBounds(Range& range, int lower, GenTree* upper)
     return false;
 }
 
-void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* treeParent)
+void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreeStmt* stmt, GenTree* treeParent)
 {
     // Check if we are dealing with a bounds check node.
     if (treeParent->OperGet() != GT_COMMA)
@@ -1257,11 +1257,11 @@ void RangeCheck::MapStmtDefs(const Location& loc)
 
 struct MapMethodDefsData
 {
-    RangeCheck* rc;
-    BasicBlock* block;
-    GenTree*    stmt;
+    RangeCheck*  rc;
+    BasicBlock*  block;
+    GenTreeStmt* stmt;
 
-    MapMethodDefsData(RangeCheck* rc, BasicBlock* block, GenTree* stmt) : rc(rc), block(block), stmt(stmt)
+    MapMethodDefsData(RangeCheck* rc, BasicBlock* block, GenTreeStmt* stmt) : rc(rc), block(block), stmt(stmt)
     {
     }
 };
