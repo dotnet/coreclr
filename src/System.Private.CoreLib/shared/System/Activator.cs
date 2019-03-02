@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.Remoting;
@@ -15,48 +16,45 @@ namespace System
     {
         private const BindingFlags ConstructorDefault = BindingFlags.Instance | BindingFlags.Public | BindingFlags.CreateInstance;
 
+#if PROJECTN
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+#endif
         public static object CreateInstance(Type type, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture) =>
             CreateInstance(type, bindingAttr, binder, args, culture, null);
 
+#if PROJECTN
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+#endif
         public static object CreateInstance(Type type, params object[] args) =>
             CreateInstance(type, ConstructorDefault, null, args, null, null);
 
+#if PROJECTN
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+#endif
         public static object CreateInstance(Type type, object[] args, object[] activationAttributes) =>
             CreateInstance(type, ConstructorDefault, null, args, null, activationAttributes);
 
+#if PROJECTN
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+#endif
         public static object CreateInstance(Type type) =>
             CreateInstance(type, nonPublic: false);
 
+#if PROJECTN
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+#endif
         public static object CreateInstance(Type type, bool nonPublic) =>
             CreateInstance(type, nonPublic, wrapExceptions: true);
 
-        public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName)
-        {
-            return CreateInstanceFrom(assemblyFile, typeName, null);
-        }
+        public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName) =>
+            CreateInstanceFrom(assemblyFile, typeName, false, ConstructorDefault, null, null, null, null);
 
-        public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
-        {
-            return CreateInstanceFromInternal(assemblyFile,
-                                              typeName,
-                                              ignoreCase,
-                                              bindingAttr,
-                                              binder,
-                                              args,
-                                              culture,
-                                              activationAttributes);
-        }
-
-        public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, object[] activationAttributes)
-        {
-            return CreateInstanceFromInternal(assemblyFile,
-                                              typeName,
-                                              false,
-                                              ConstructorDefault,
-                                              null,
-                                              null,
-                                              null,
-                                              activationAttributes);
-        }
+        public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, object[] activationAttributes) =>
+            CreateInstanceFrom(assemblyFile, typeName, false, ConstructorDefault, null, null, null, activationAttributes);
     }
 }

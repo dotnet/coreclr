@@ -137,14 +137,7 @@ namespace System
             return o != null ? new ObjectHandle(o) : null;          
         }
 
-        private static ObjectHandle CreateInstanceFromInternal(string assemblyFile,
-                                                               string typeName,
-                                                               bool ignoreCase,
-                                                               BindingFlags bindingAttr,
-                                                               Binder binder,
-                                                               object[] args,
-                                                               CultureInfo culture,
-                                                               object[] activationAttributes)
+        public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
         {
             Assembly assembly = Assembly.LoadFrom(assemblyFile);
             Type t = assembly.GetType(typeName, true, ignoreCase);
