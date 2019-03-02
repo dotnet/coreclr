@@ -64,7 +64,6 @@ build_test_wrappers()
         __Logging="$__MsbuildLog $__MsbuildWrn $__MsbuildErr /consoleloggerparameters:$buildVerbosity"
 
         nextCommand="\"${__DotNetCli}\" msbuild \"${__ProjectDir}/tests/runtest.proj\" /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/ /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
-        echo "$nextCommand"
         eval $nextCommand
 
         if [ $? -ne 0 ]; then
@@ -312,22 +311,21 @@ build_MSBuild_projects()
         # __SkipPackageRestore and __SkipTargetingPackBuild used  to control build by tests/src/dirs.proj
         export __SkipPackageRestore=false
         export __SkipTargetingPackBuild=false
-        export __BuildLoopCount=2
-        export __TestGroupToBuild=1
+        export __NumberOfTestGroups=3
+
         __AppendToLog=false
 
         if [ -n "$__priority1" ]; then
-            export __BuildLoopCount=16
-            export __TestGroupToBuild=2
+            export __NumberOfTestGroups=10
         fi
 
-        for (( slice=1 ; slice <= __BuildLoopCount; slice = slice + 1 ))
+        for (( testGroupToBuild=1 ; testGroupToBuild <= __NumberOfTestGroups; testGroupToBuild = testGroupToBuild + 1 ))
         do
             __msbuildLog="\"/flp:Verbosity=normal;LogFile=${__BuildLog};Append=${__AppendToLog}\""
             __msbuildWrn="\"/flp1:WarningsOnly;LogFile=${__BuildWrn};Append=${__AppendToLog}\""
             __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr};Append=${__AppendToLog}\""
 
-            export TestBuildSlice=$slice
+            export __TestGroupToBuild=$testGroupToBuild
 
             # Generate build command
             buildArgs=("/nologo" "/verbosity:minimal" "/clp:Summary")
@@ -341,7 +339,7 @@ build_MSBuild_projects()
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
             nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild ${buildArgs[@]}"
-            echo "Building step '$stepName' slice=$slice via $nextCommand"
+            echo "Building step '$stepName' testGroupToBuild=$testGroupToBuild via $nextCommand"
             eval $nextCommand
 
             # Make sure everything is OK
@@ -588,7 +586,7 @@ __SourceDir="$__ProjectDir/src"
 __PackagesDir="$__ProjectDir/packages"
 __RootBinDir="$__ProjectDir/bin"
 __BuildToolsDir="$__ProjectDir/Tools"
-__DotNetCli="${__BuildToolsDir}/dotnetcli/dotnet"
+__DotNetCli="$__ProjectDir/dotnet.sh"
 __UnprocessedBuildArgs=
 __CommonMSBuildArgs=
 __MSBCleanBuildArgs=
@@ -879,9 +877,6 @@ fi
 initTargetDistroRid
 
 # Override tool directory
-
-__CoreClrVersion=1.1.0
-__sharedFxDir=$__BuildToolsDir/dotnetcli/shared/Microsoft.NETCore.App/$__CoreClrVersion/
 
 if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly") && (-z "$__BuildTestWrappersOnly") ]]; then
     build_Tests

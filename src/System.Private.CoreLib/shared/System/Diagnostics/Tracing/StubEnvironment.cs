@@ -54,7 +54,7 @@ namespace System.Diagnostics.Tracing.Internal
     }
 
 #if ES_BUILD_STANDALONE
-    internal static class BitOps
+    internal static class BitOperations
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint RotateLeft(uint value, int offset)
@@ -344,7 +344,7 @@ internal static partial class Interop
     internal static partial class Kernel32
     {
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-        public static extern int GetCurrentThreadId();
+        internal static extern int GetCurrentThreadId();
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         internal static extern uint GetCurrentProcessId();

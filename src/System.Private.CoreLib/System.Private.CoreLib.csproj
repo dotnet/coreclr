@@ -115,7 +115,6 @@
   <!-- Sources -->
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\Internal\Console.cs" />
-    <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\RuntimeThread.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\UnsafeNativeMethods.cs" />
     <Compile Include="$(BclSourcesRoot)\System\__Canon.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Activator.cs" />
@@ -256,8 +255,9 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\Interlocked.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Monitor.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Overlapped.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\StackCrawlMark.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Thread.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\Thread.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadPool.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Timer.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\WaitHandle.CoreCLR.cs" />
@@ -269,7 +269,6 @@
     <Compile Include="$(BclSourcesRoot)\System\WeakReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReferenceOfT.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetCurrentProcessId.cs" />
-    <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetCurrentThreadId.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetStdHandle.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.LocalAlloc.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.QueryUnbiasedInterruptTime.cs" />
