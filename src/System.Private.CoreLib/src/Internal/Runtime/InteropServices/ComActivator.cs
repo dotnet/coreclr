@@ -561,7 +561,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                     parameters = new object[] { type, licContext };
                     return _createWithContext.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
                 }
-                catch (Exception licExceptionMaybe)
+                catch (Exception exception) when (exception.GetType() == s_LicenseExceptionType)
                 {
                     if (licExceptionMaybe.GetType() == s_LicenseExceptionType)
                     {
