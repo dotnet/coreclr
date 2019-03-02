@@ -112,7 +112,7 @@ namespace System.Threading
         ** DON'T CHANGE THESE UNLESS YOU MODIFY ThreadBaseObject in vm\object.h
         =========================================================================*/
         internal ExecutionContext _executionContext; // this call context follows the logical thread
-        internal SynchronizationContext _synchronizationContext; // On CoreCLR, this is maintained separately from ExecutionContext
+        internal SynchronizationContext _synchronizationContext; // maintained separately from ExecutionContext
 
         private string _name;
         private Delegate _delegate; // Delegate
@@ -301,10 +301,7 @@ namespace System.Threading
 
         partial void ThreadNameChanged(string value)
         {
-            lock (this)
-            {
-                InformThreadNameChange(GetNativeHandle(), value, value?.Length ?? 0);
-            }
+            InformThreadNameChange(GetNativeHandle(), value, value?.Length ?? 0);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]

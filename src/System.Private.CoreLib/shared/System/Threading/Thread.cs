@@ -164,12 +164,17 @@ namespace System.Threading
             get => _name;
             set
             {
-                if (Interlocked.CompareExchange(ref _name, value, null) != null)
+                lock (this)
                 {
-                    throw new InvalidOperationException(SR.InvalidOperation_WriteOnce);
-                }
+                    if (_name != null)
+                    {
+                        throw new InvalidOperationException(SR.InvalidOperation_WriteOnce);
+                    }
 
-                ThreadNameChanged(value);
+                    _name = value;
+
+                    ThreadNameChanged(value);
+                }
             }
         }
 
@@ -320,7 +325,7 @@ namespace System.Threading
                 return new LocalDataStoreSlot(new ThreadLocal<object>());
             }
 
-            public static Dictionary<string, LocalDataStoreSlot> EnsureNameToSlotMap()
+            private static Dictionary<string, LocalDataStoreSlot> EnsureNameToSlotMap()
             {
                 Dictionary<string, LocalDataStoreSlot> nameToSlotMap = s_nameToSlotMap;
                 if (nameToSlotMap != null)
