@@ -631,7 +631,7 @@ inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
     impAppendStmt(stmt);
 
 #ifdef FEATURE_SIMD
-    impMarkContiguousSIMDFieldAssignments(stmt);
+    impMarkContiguousSIMDFieldAssignments(stmt->AsStmt());
 #endif
 
     /* Once we set impCurStmtOffs in an appended tree, we are ready to

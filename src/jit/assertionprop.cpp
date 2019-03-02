@@ -3496,7 +3496,7 @@ GenTree* Compiler::optAssertionProp_Comma(ASSERT_VALARG_TP assertions, GenTree* 
     if ((tree->gtGetOp1()->OperGet() == GT_ARR_BOUNDS_CHECK) &&
         ((tree->gtGetOp1()->gtFlags & GTF_ARR_BOUND_INBND) != 0))
     {
-        optRemoveRangeCheck(tree, stmt);
+        optRemoveRangeCheck(tree, stmt->AsStmt());
         return optAssertionProp_Update(tree, tree, stmt);
     }
     return nullptr;

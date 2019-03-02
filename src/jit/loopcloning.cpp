@@ -687,7 +687,7 @@ void LoopCloneContext::CondToStmtInBlock(Compiler*                          comp
     cond = comp->gtNewOperNode(reverse ? GT_NE : GT_EQ, TYP_INT, cond, comp->gtNewIconNode(0));
 
     // Add jmpTrue "cond == 0" to slow path.
-    GenTree* stmt = comp->fgNewStmtFromTree(comp->gtNewOperNode(GT_JTRUE, TYP_VOID, cond));
+    GenTreeStmt* stmt = comp->fgNewStmtFromTree(comp->gtNewOperNode(GT_JTRUE, TYP_VOID, cond));
 
     // Add stmt to the block.
     comp->fgInsertStmtAtEnd(block, stmt);

@@ -7901,13 +7901,12 @@ void Compiler::AddModifiedElemTypeAllContainingLoops(unsigned lnum, CORINFO_CLAS
 //    tree   -  Range check tree
 //    stmt   -  Statement the tree belongs to
 
-void Compiler::optRemoveRangeCheck(GenTree* tree, GenTree* stmt)
+void Compiler::optRemoveRangeCheck(GenTree* tree, GenTreeStmt* stmt)
 {
 #if !REARRANGE_ADDS
     noway_assert(!"can't remove range checks without REARRANGE_ADDS right now");
 #endif
 
-    noway_assert(stmt->gtOper == GT_STMT);
     noway_assert(tree->gtOper == GT_COMMA);
 
     GenTree* bndsChkTree = tree->gtOp.gtOp1;

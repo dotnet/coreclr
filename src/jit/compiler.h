@@ -5222,7 +5222,7 @@ private:
     GenTree* fgMorphFieldAssignToSIMDIntrinsicSet(GenTree* tree);
     GenTree* fgMorphFieldToSIMDIntrinsicGet(GenTree* tree);
     bool fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* stmt);
-    void impMarkContiguousSIMDFieldAssignments(GenTree* stmt);
+    void impMarkContiguousSIMDFieldAssignments(GenTreeStmt* stmt);
 
     // fgPreviousCandidateSIMDFieldAsgStmt is only used for tracking previous simd field assignment
     // in function: Complier::impMarkContiguousSIMDFieldAssignments.
@@ -5471,7 +5471,7 @@ private:
 public:
     void optInit();
 
-    void optRemoveRangeCheck(GenTree* tree, GenTree* stmt);
+    void optRemoveRangeCheck(GenTree* tree, GenTreeStmt* stmt);
     bool optIsRangeCheckRemovable(GenTree* tree);
 
 protected:
@@ -5983,7 +5983,7 @@ protected:
     {
         treeStmtLst* tslNext;
         GenTree*     tslTree;  // tree node
-        GenTree*     tslStmt;  // statement containing the tree
+        GenTreeStmt* tslStmt;  // statement containing the tree
         BasicBlock*  tslBlock; // block containing the statement
     };
 
@@ -6004,8 +6004,8 @@ protected:
         unsigned csdDefWtCnt; // weighted def count
         unsigned csdUseWtCnt; // weighted use count  (excluding the implicit uses at defs)
 
-        GenTree*    csdTree;  // treenode containing the 1st occurance
-        GenTree*    csdStmt;  // stmt containing the 1st occurance
+        GenTree*     csdTree; // treenode containing the 1st occurance
+        GenTree*     csdStmt; // stmt containing the 1st occurance
         BasicBlock* csdBlock; // block containing the 1st occurance
 
         treeStmtLst* csdTreeList; // list of matching tree nodes: head
@@ -6077,7 +6077,7 @@ public:
 
 protected:
     void     optValnumCSE_Init();
-    unsigned optValnumCSE_Index(GenTree* tree, GenTree* stmt);
+    unsigned optValnumCSE_Index(GenTree* tree, GenTreeStmt* stmt);
     unsigned optValnumCSE_Locate();
     void     optValnumCSE_InitDataFlow();
     void     optValnumCSE_DataFlow();
@@ -6144,7 +6144,7 @@ public:
     VARSET_TP optCopyPropKillSet;
 
     // Copy propagation functions.
-    void optCopyProp(BasicBlock* block, GenTree* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName);
+    void optCopyProp(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName);
     void optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
     void optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
     bool optIsSsaLocal(GenTree* tree);

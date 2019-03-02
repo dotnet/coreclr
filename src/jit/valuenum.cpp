@@ -6132,21 +6132,19 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
     }
 
     // Now iterate over the remaining statements, and their trees.
-    for (GenTree* stmt = firstNonPhi; stmt != nullptr; stmt = stmt->gtNext)
+    for (GenTreeStmt* stmt = firstNonPhi; stmt != nullptr; stmt = stmt->getNextStmt())
     {
-        assert(stmt->IsStatement());
-
 #ifdef DEBUG
         compCurStmtNum++;
         if (verbose)
         {
             printf("\n***** " FMT_BB ", stmt %d (before)\n", blk->bbNum, compCurStmtNum);
-            gtDispTree(stmt->gtStmt.gtStmtExpr);
+            gtDispTree(stmt->gtStmtExpr);
             printf("\n");
         }
 #endif
 
-        for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmtList; tree; tree = tree->gtNext)
         {
             fgValueNumberTree(tree);
         }
@@ -6155,7 +6153,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
         if (verbose)
         {
             printf("\n***** " FMT_BB ", stmt %d (after)\n", blk->bbNum, compCurStmtNum);
-            gtDispTree(stmt->gtStmt.gtStmtExpr);
+            gtDispTree(stmt->gtStmtExpr);
             printf("\n");
             if (stmt->gtNext)
             {
