@@ -18,6 +18,10 @@ using Internal.Win32;
 using System.Threading;
 using System;
 
+#if ES_BUILD_STANDALONE
+using BitOperations = Microsoft.Diagnostics.Tracing.Internal.BitOperations;
+#endif
+
 #if !ES_BUILD_AGAINST_DOTNET_V35
 using Contract = System.Diagnostics.Contracts.Contract;
 #else
