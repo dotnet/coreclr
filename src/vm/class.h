@@ -414,16 +414,11 @@ class EEClassLayoutInfo
             Module* pModule,
             LayoutRawFieldInfo** pSortArrayOut);
 
-        static void CalculateTypeNativeSizeAndOffsets(
-            const UINT32 cbAdjustedParentLayoutNativeSize,
+        static void CalculateSizeAndFieldOffsets(
+            const UINT32 parentSize,
+            const EEClassLayoutInfo::TypeLayoutHelper& layoutHelper,
             BYTE parentAlignmentRequirement,
-            const TypeLayoutHelper& layoutHelper,
-            EEClassLayoutInfo* pEEClassLayoutInfoOut);
-
-        static void CalculateManagedSequentialLayout(
-            UINT32 parentSize,
-            BYTE parentAlignmentRequirement,
-            const TypeLayoutHelper& layoutHelper,
+            BOOL calculatingNativeLayout,
             EEClassLayoutInfo* pEEClassLayoutInfoOut);
 
         // size (in bytes) of fixed portion of NStruct.

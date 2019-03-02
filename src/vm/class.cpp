@@ -3310,155 +3310,36 @@ void EEClassLayoutInfo::SetOffsetsAndSortFields(
     }
 }
 
-void EEClassLayoutInfo::CalculateManagedSequentialLayout(
-    UINT32 parentSize,
-    BYTE parentAlignmentRequirement,
+void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
+    const UINT32 parentSize,
     const TypeLayoutHelper& layoutHelper,
+    BYTE parentAlignmentRequirement,
+    BOOL calculatingNativeLayout,
     EEClassLayoutInfo* pEEClassLayoutInfoOut)
 {
-    BYTE   LargestAlignmentRequirement = 1;
-    UINT32 cbCurOffset = 0;
-
-    // Treat base class as an initial member if a base class exists.
-    if (!SafeAddUINT32(&cbCurOffset, parentSize))
-        COMPlusThrowOM();
-
-    LargestAlignmentRequirement = max(LargestAlignmentRequirement, min(layoutHelper.packingSize, parentAlignmentRequirement));
-
-    // The current size of the structure as a whole, we start at 1, because we disallow 0 sized structures.
-    // NOTE: We do not need to do the same checking for zero-sized types as phase 3 because only ValueTypes
-    //       can be ManagedSequential and ValueTypes can not be inherited from.
-    unsigned calcTotalSize = 1;
-
-    LayoutRawFieldInfo* const * pSortWalk;
-    ULONG i;
-    for (pSortWalk = layoutHelper.pSortedFieldInfoArray, i = layoutHelper.numInstanceFields; i; i--, pSortWalk++)
-    {
-        LayoutRawFieldInfo* pfwalk = *pSortWalk;
-
-        BYTE alignmentRequirement = ((BYTE)(pfwalk->m_managedAlignmentReq));
-        if (!(alignmentRequirement == 1 ||
-            alignmentRequirement == 2 ||
-            alignmentRequirement == 4 ||
-            alignmentRequirement == 8 ||
-            alignmentRequirement == 16 ||
-            alignmentRequirement == 32))
-        {
-            COMPlusThrowHR(COR_E_INVALIDPROGRAM, BFA_METADATA_CORRUPT);
-        }
-
-        alignmentRequirement = min(alignmentRequirement, layoutHelper.packingSize);
-
-        LargestAlignmentRequirement = max(LargestAlignmentRequirement, alignmentRequirement);
-
-        _ASSERTE(alignmentRequirement <= 32);
-
-        // Insert enough padding to align the current data member.
-        while (cbCurOffset % alignmentRequirement)
-        {
-            if (!SafeAddUINT32(&cbCurOffset, 1))
-                COMPlusThrowOM();
-        }
-
-        // Insert current data member.
-        pfwalk->m_managedOffset = cbCurOffset;
-
-        // if we overflow we will catch it below
-        cbCurOffset += pfwalk->m_managedSize;
-
-        unsigned fieldEnd = pfwalk->m_managedOffset + pfwalk->m_managedSize;
-        if (fieldEnd < pfwalk->m_managedOffset)
-            COMPlusThrowOM();
-
-        // size of the structure is the size of the last field.  
-        if (fieldEnd > calcTotalSize)
-            calcTotalSize = fieldEnd;
-
-#ifdef _DEBUG
-        // @perf: If the type is blittable, the managed and native layouts have to be identical
-        // so they really shouldn't be calculated twice. Until this code has been well tested and
-        // stabilized, however, it is useful to compute both and assert that they are equal in the blittable
-        // case.
-        if (pEEClassLayoutInfoOut->IsBlittable())
-        {
-            _ASSERTE(pfwalk->m_managedOffset == pfwalk->m_offset);
-        }
-#endif
-    } //for
-
-    if (layoutHelper.classSizeInMetadata != 0)
-    {
-        pEEClassLayoutInfoOut->SetHasExplicitSize(TRUE);
-
-        ULONG classSize = layoutHelper.classSizeInMetadata;
-
-        if (!SafeAddULONG(&classSize, parentSize))
-            COMPlusThrowOM();
-
-        // size must be large enough to accomodate layout. If not, we use the layout size instead.
-        calcTotalSize = max(classSize, calcTotalSize);
-    }
-    else
-    {
-        // The did not give us an explict size, so lets round up to a good size (for arrays) 
-        while (calcTotalSize % LargestAlignmentRequirement != 0)
-        {
-            if (!SafeAddUINT32(&calcTotalSize, 1))
-                COMPlusThrowOM();
-        }
-    }
-
-    pEEClassLayoutInfoOut->m_cbManagedSize = calcTotalSize;
-
-    // The packingSize acts as a ceiling on all individual alignment
-    // requirements so it follows that the largest alignment requirement
-    // is also capped.
-    _ASSERTE(LargestAlignmentRequirement <= layoutHelper.packingSize);
-    pEEClassLayoutInfoOut->m_ManagedLargestAlignmentRequirementOfAllMembers = LargestAlignmentRequirement;
-}
-
-//=====================================================================
-// CalculateTypeNativeSizeAndOffsets:
-// If FieldMarshaler requires autooffsetting, compute the offset
-// of each field and the size of the total structure. We do the layout
-// according to standard VC layout rules:
-//
-//   Each field has an alignment requirement. The alignment-requirement
-//   of a scalar field is the smaller of its size and the declared packsize.
-//   The alignment-requirement of a struct field is the smaller of the
-//   declared packsize and the largest of the alignment-requirement
-//   of its fields. The alignment requirement of an array is that
-//   of one of its elements.
-//
-//   In addition, each struct gets padding at the end to ensure
-//   that an array of such structs contain no unused space between
-//   elements.
-//=====================================================================
-void EEClassLayoutInfo::CalculateTypeNativeSizeAndOffsets(
-    const UINT32 cbAdjustedParentLayoutNativeSize,
-    BYTE parentAlignmentRequirement,
-    const TypeLayoutHelper& layoutHelper,
-    EEClassLayoutInfo* pEEClassLayoutInfoOut)
-{
-    BYTE   LargestAlignmentRequirement = 1;
-    UINT32 cbCurOffset = 0;
-
-    // Treat base class as an initial member.
-    if (!SafeAddUINT32(&cbCurOffset, cbAdjustedParentLayoutNativeSize))
-        COMPlusThrowOM();
-
-    LargestAlignmentRequirement = max(LargestAlignmentRequirement, min(layoutHelper.packingSize, parentAlignmentRequirement));
+    UINT32 cbCurOffset = parentSize;
+    BYTE LargestAlignmentRequirement = max(1, min(layoutHelper.packingSize, parentAlignmentRequirement));
 
     // Start with the size inherited from the parent (if any).
-    unsigned calcTotalSize = cbAdjustedParentLayoutNativeSize;
+    unsigned calcTotalSize = parentSize;
 
-    LayoutRawFieldInfo* const * pSortWalk;
+    LayoutRawFieldInfo* const* pSortWalk;
     ULONG i;
     for (pSortWalk = layoutHelper.pSortedFieldInfoArray, i = layoutHelper.numInstanceFields; i; i--, pSortWalk++)
     {
         LayoutRawFieldInfo* pfwalk = *pSortWalk;
 
-        BYTE alignmentRequirement = static_cast<BYTE>(((FieldMarshaler*) & (pfwalk->m_FieldMarshaler))->AlignmentRequirement());
+        BYTE alignmentRequirement;
+
+        if (calculatingNativeLayout)
+        {
+            alignmentRequirement = static_cast<BYTE>(((FieldMarshaler*) & (pfwalk->m_FieldMarshaler))->AlignmentRequirement());
+        }
+        else
+        {
+            alignmentRequirement = pfwalk->m_managedAlignmentReq;
+        }
+
         if (!(alignmentRequirement == 1 ||
             alignmentRequirement == 2 ||
             alignmentRequirement == 4 ||
@@ -3479,7 +3360,10 @@ void EEClassLayoutInfo::CalculateTypeNativeSizeAndOffsets(
 
         // Check if this field is overlapped with other(s)
         pfwalk->m_fIsOverlapped = FALSE;
-        if (layoutHelper.fExplicitOffsets) {
+        if (layoutHelper.fExplicitOffsets)
+        {
+            CONSISTENCY_CHECK_MSG(calculatingNativeLayout, "The only managed types that should call this function are managed-sequential.");
+
             DWORD dwBegin = pfwalk->m_offset;
             DWORD dwEnd = dwBegin + pfwalk->m_cbNativeSize;
             ULONG j;
@@ -3501,14 +3385,31 @@ void EEClassLayoutInfo::CalculateTypeNativeSizeAndOffsets(
                     COMPlusThrowOM();
             }
 
-            // Insert current data member.
-            pfwalk->m_offset = cbCurOffset;
 
             // if we overflow we will catch it below
-            cbCurOffset += pfwalk->m_cbNativeSize;
+            if (calculatingNativeLayout)
+            {
+                // Insert current data member.
+                pfwalk->m_offset = cbCurOffset;
+                cbCurOffset += pfwalk->m_cbNativeSize;
+            }
+            else
+            {
+                // Insert current data member.
+                pfwalk->m_managedOffset = cbCurOffset;
+                cbCurOffset += pfwalk->m_managedSize;
+            }
         }
 
-        unsigned fieldEnd = pfwalk->m_offset + pfwalk->m_cbNativeSize;
+        unsigned fieldEnd;
+        if (calculatingNativeLayout)
+        {
+            fieldEnd = pfwalk->m_offset + pfwalk->m_cbNativeSize;
+        }
+        else
+        {
+            fieldEnd = pfwalk->m_offset + pfwalk->m_managedSize;
+        }
         if (fieldEnd < pfwalk->m_offset)
             COMPlusThrowOM();
 
@@ -3520,7 +3421,7 @@ void EEClassLayoutInfo::CalculateTypeNativeSizeAndOffsets(
     if (layoutHelper.classSizeInMetadata != 0)
     {
         ULONG classSize = layoutHelper.classSizeInMetadata;
-        if (!SafeAddULONG(&classSize, (ULONG)cbAdjustedParentLayoutNativeSize))
+        if (!SafeAddULONG(&classSize, (ULONG)parentSize))
             COMPlusThrowOM();
 
         // size must be large enough to accomodate layout. If not, we use the layout size instead.
@@ -3548,13 +3449,28 @@ void EEClassLayoutInfo::CalculateTypeNativeSizeAndOffsets(
         calcTotalSize = 1;
     }
 
-    pEEClassLayoutInfoOut->m_cbNativeSize = calcTotalSize;
+    if (calculatingNativeLayout)
+    {
+        pEEClassLayoutInfoOut->m_cbNativeSize = calcTotalSize;
+    }
+    else
+    {
+        pEEClassLayoutInfoOut->m_cbManagedSize = calcTotalSize;
+    }
 
     // The packingSize acts as a ceiling on all individual alignment
     // requirements so it follows that the largest alignment requirement
     // is also capped.
     _ASSERTE(LargestAlignmentRequirement <= layoutHelper.packingSize);
-    pEEClassLayoutInfoOut->m_LargestAlignmentRequirementOfAllMembers = LargestAlignmentRequirement;
+
+    if (calculatingNativeLayout)
+    {
+        pEEClassLayoutInfoOut->m_LargestAlignmentRequirementOfAllMembers = LargestAlignmentRequirement;
+    }
+    else
+    {
+        pEEClassLayoutInfoOut->m_ManagedLargestAlignmentRequirementOfAllMembers = LargestAlignmentRequirement;
+    }
 }
 
 //=======================================================================
@@ -3699,8 +3615,8 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         // @perf: If the type is blittable, the managed and native layouts have to be identical
         // so they really shouldn't be calculated twice. Until this code has been well tested and
         // stabilized, however, it is useful to compute both and assert that they are equal in the blittable
-        // case.
-        if (pEEClassLayoutInfoOut->IsBlittable())
+        // case. The managed size is only calculated in the managed-sequential case.
+        if (!fDisqualifyFromManagedSequential && pEEClassLayoutInfoOut->IsBlittable())
         {
             _ASSERTE(pfwalk->m_managedSize == pfwalk->m_cbNativeSize);
         }
@@ -3756,7 +3672,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         parentAlignmentRequirement = pParentLayoutInfo->GetLargestAlignmentRequirementOfAllMembers();
     }
 
-    CalculateTypeNativeSizeAndOffsets(cbAdjustedParentLayoutNativeSize, parentAlignmentRequirement, layoutHelper, pEEClassLayoutInfoOut);
+    CalculateSizeAndFieldOffsets(cbAdjustedParentLayoutNativeSize, layoutHelper, parentAlignmentRequirement, /*calculatingNativeLayout*/ TRUE, pEEClassLayoutInfoOut);
 
     // Calculate the managedsequential layout if the type is eligible.
     if (!fDisqualifyFromManagedSequential)
@@ -3768,7 +3684,8 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             parentManagedAlignmentRequirement = pParentLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
             parentSize = pParentMT->GetNumInstanceFieldBytes();
         }
-        CalculateManagedSequentialLayout(parentSize, parentAlignmentRequirement, layoutHelper, pEEClassLayoutInfoOut);
+
+        CalculateSizeAndFieldOffsets(parentSize, layoutHelper, parentManagedAlignmentRequirement, /*calculatingNativeLayout*/ FALSE, pEEClassLayoutInfoOut);
 
 #ifdef _DEBUG
         // @perf: If the type is blittable, the managed and native layouts have to be identical
