@@ -9699,16 +9699,17 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
             {
                 if (opts.compDbgInfo)
                 {
-                    IL_OFFSET endIL = tree->gtStmt.gtStmtLastILoffs;
+                    GenTreeStmt* stmt  = tree->AsStmt();
+                    IL_OFFSET    endIL = stmt->gtStmtLastILoffs;
 
                     printf("(IL ");
-                    if (tree->gtStmt.gtStmtILoffsx == BAD_IL_OFFSET)
+                    if (stmt->gtStmtILoffsx == BAD_IL_OFFSET)
                     {
                         printf("  ???");
                     }
                     else
                     {
-                        printf("0x%03X", jitGetILoffs(tree->gtStmt.gtStmtILoffsx));
+                        printf("0x%03X", jitGetILoffs(stmt->gtStmtILoffsx));
                     }
                     printf("...");
                     if (endIL == BAD_IL_OFFSET)
