@@ -3896,11 +3896,11 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
             //
             //  More formally, if control flow targets an instruction, that instruction must be the
             //  start of a new sequence point.
-            if (newStmt->gtNext)
+            GenTreeStmt* nextStmt = newStmt->getNextStmt();
+            if (nextStmt != nullptr)
             {
                 // Is it possible for gtNext to be NULL?
-                noway_assert(newStmt->gtNext->gtOper == GT_STMT);
-                newStmt->gtStmtILoffsx = newStmt->gtNextStmt->gtStmtILoffsx;
+                newStmt->gtStmtILoffsx = nextStmt->gtStmtILoffsx;
             }
         }
 
@@ -13941,7 +13941,7 @@ bool Compiler::fgOptimizeEmptyBlock(BasicBlock* block)
                         {
                             GenTreeStmt* nopStmt = fgInsertStmtAtEnd(block, nop);
                             fgSetStmtSeq(nopStmt);
-                            gtSetStmtInfo(nopStmt->AsStmt());
+                            gtSetStmtInfo(nopStmt);
                         }
 
 #ifdef DEBUG
@@ -14482,7 +14482,7 @@ bool Compiler::fgOptimizeUncondBranchToSimpleCond(BasicBlock* block, BasicBlock*
 
     if (fgStmtListThreaded)
     {
-        gtSetStmtInfo(jmpStmt->AsStmt());
+        gtSetStmtInfo(jmpStmt);
     }
 
     fgInsertStmtAtEnd(block, jmpStmt);
@@ -22803,7 +22803,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
 
 #ifdef DEBUG
 
-    GenTree* currentDumpStmt = nullptr;
+    GenTreeStmt* currentDumpStmt = nullptr;
 
     if (verbose)
     {
@@ -22871,11 +22871,9 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
                 {
                     do
                     {
-                        currentDumpStmt = currentDumpStmt->gtNext;
+                        currentDumpStmt = currentDumpStmt->getNextStmt();
 
                         printf("\n");
-
-                        noway_assert(currentDumpStmt->gtOper == GT_STMT);
 
                         gtDispTree(currentDumpStmt);
                         printf("\n");

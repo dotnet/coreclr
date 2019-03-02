@@ -486,7 +486,7 @@ unsigned Compiler::optValnumCSE_Index(GenTree* tree, GenTreeStmt* stmt)
                 newElem = new (this, CMK_TreeStatementList) treeStmtLst;
 
                 newElem->tslTree  = hashDsc->csdTree;
-                newElem->tslStmt  = hashDsc->csdStmt->AsStmt();
+                newElem->tslStmt  = hashDsc->csdStmt;
                 newElem->tslBlock = hashDsc->csdBlock;
                 newElem->tslNext  = nullptr;
 

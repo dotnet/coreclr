@@ -622,7 +622,7 @@ inline void Compiler::impAppendStmt(GenTreeStmt* stmt, unsigned chkLevel)
     impAppendStmt(stmt);
 
 #ifdef FEATURE_SIMD
-    impMarkContiguousSIMDFieldAssignments(stmt->AsStmt());
+    impMarkContiguousSIMDFieldAssignments(stmt);
 #endif
 
     /* Once we set impCurStmtOffs in an appended tree, we are ready to
@@ -658,7 +658,7 @@ inline void Compiler::impAppendStmt(GenTreeStmt* stmt)
     if (impStmtList == nullptr)
     {
         // The stmt is the first in the list.
-        impStmtList = stmt->AsStmt();
+        impStmtList = stmt;
     }
     else
     {
@@ -666,7 +666,7 @@ inline void Compiler::impAppendStmt(GenTreeStmt* stmt)
         impLastStmt->gtNext = stmt;
         stmt->gtPrev        = impLastStmt;
     }
-    impLastStmt = stmt->AsStmt();
+    impLastStmt = stmt;
 }
 
 //------------------------------------------------------------------------

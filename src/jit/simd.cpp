@@ -2300,7 +2300,7 @@ void Compiler::impMarkContiguousSIMDFieldAssignments(GenTreeStmt* stmt)
         else if (fgPreviousCandidateSIMDFieldAsgStmt != nullptr)
         {
             assert(index > 0);
-            GenTree* prevAsgExpr = fgPreviousCandidateSIMDFieldAsgStmt->AsStmt()->gtStmtExpr;
+            GenTree* prevAsgExpr = fgPreviousCandidateSIMDFieldAsgStmt->gtStmtExpr;
             GenTree* prevDst     = prevAsgExpr->gtOp.gtOp1;
             GenTree* prevSrc     = prevAsgExpr->gtOp.gtOp2;
             if (!areArgumentsContiguous(prevDst, curDst) || !areArgumentsContiguous(prevSrc, curSrc))

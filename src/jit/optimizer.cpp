@@ -4890,7 +4890,7 @@ void Compiler::optDebugLogLoopCloning(BasicBlock* block, GenTreeStmt* insertBefo
     GenTree*     logCall = gtNewHelperCallNode(CORINFO_HELP_DEBUG_LOG_LOOP_CLONING, TYP_VOID);
     GenTreeStmt* stmt    = fgNewStmtFromTree(logCall);
     fgInsertStmtBefore(block, insertBefore, stmt);
-    fgMorphBlockStmt(block, stmt->AsStmt() DEBUGARG("Debug log loop cloning"));
+    fgMorphBlockStmt(block, stmt DEBUGARG("Debug log loop cloning"));
 }
 #endif
 
@@ -6035,7 +6035,6 @@ bool Compiler::optIsVarAssigned(BasicBlock* beg, BasicBlock* end, GenTree* skip,
 
         for (GenTreeStmt* stmt = beg->firstStmt(); stmt; stmt = stmt->gtNextStmt)
         {
-            noway_assert(stmt->gtOper == GT_STMT);
             if (fgWalkTreePre(&stmt->gtStmtExpr, optIsVarAssgCB, &desc))
             {
                 result = true;
@@ -6269,7 +6268,7 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
 
     if (fgStmtListThreaded)
     {
-        gtSetStmtInfo(hoistStmt->AsStmt());
+        gtSetStmtInfo(hoistStmt);
         fgSetStmtSeq(hoistStmt);
     }
 
