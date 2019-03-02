@@ -1552,9 +1552,9 @@ void GCToEEInterface::VerifySyncTableEntry()
 #endif // VERIFY_HEAP
 }
 
-#if defined(__linux__)
-void GCToEEInterface::UpdateGCEventStatus()
+void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPublicKeywords, int currentPrivateLevel, int currentPrivateKeywords)
 {
+#if defined(__linux__)
     LIMITED_METHOD_CONTRACT;
     // LTTng does not have a notion of enabling events via "keyword"/"level" but we have to 
     // somehow implement a similar behavior to it. 
@@ -1575,21 +1575,26 @@ void GCToEEInterface::UpdateGCEventStatus()
     BOOL prv_gcprv_informational = EventXplatEnabledBGCBegin();
     BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime();
 
-    int publicProviderLevel = keyword_gc_verbose ? 5 : (keyword_gc_informational ? 4 : 0);
-    int publicProviderKeywords = (keyword_gc_informational ? 0x1 : 0 ) | 
-                                 (keyword_gchandle_informational ? 0x2 : 0) |
-                                 (keyword_gc_heapsurvival_and_movement_informational ? 0x400000 : 0);
+    int publicProviderLevel = keyword_gc_verbose ? GCEventLevel_Verbose : (keyword_gc_informational ? GCEventLevel_Information : GCEventLevel_None);
+    int publicProviderKeywords = (keyword_gc_informational ? GCEventKeyword_GC : GCEventKeyword_None) | 
+                                 (keyword_gchandle_informational ? GCEventKeyword_GCHandle : GCEventKeyword_None) |
+                                 (keyword_gc_heapsurvival_and_movement_informational ? GCEventKeyword_GCHeapSurvivalAndMovement : GCEventKeyword_None);
 
-    int privateProviderLevel = prv_gcprv_verbose ? 5 : (prv_gcprv_informational ? 4 : 0);
-    int privateProviderKeywords = (prv_gcprv_informational ? 0x1 : 0 ) | (keyword_gchandle_prv_informational ? 0x2 : 0);
+    int privateProviderLevel = prv_gcprv_verbose ? GCEventLevel_Verbose : (prv_gcprv_informational ? GCEventLevel_Information : GCEventLevel_None);
+    int privateProviderKeywords = (prv_gcprv_informational ? GCEventKeyword_GCPrivate : GCEventKeyword_None) | 
+        (keyword_gchandle_prv_informational ? GCEventKeyword_GCHandlePrivate : GCEventKeyword_None);
 
-    GCEventLevel publicLevel = static_cast<GCEventLevel>(publicProviderLevel);
-    GCEventKeyword publicKeywords = static_cast<GCEventKeyword>(publicProviderKeywords);
-    GCEventLevel privateLevel = static_cast<GCEventLevel>(privateProviderLevel);
-    GCEventKeyword privateKeywords = static_cast<GCEventKeyword>(privateProviderKeywords);
-
-    // First update public provider
-    GCHeapUtilities::RecordEventStateChange(true, publicKeywords, publicLevel);
-    GCHeapUtilities::RecordEventStateChange(false, privateKeywords, privateLevel);
-}
+    if (publicProviderLevel != currentPublicLevel || publicProviderKeywords != currentPublicKeywords)
+    {
+        GCEventLevel publicLevel = static_cast<GCEventLevel>(publicProviderLevel);
+        GCEventKeyword publicKeywords = static_cast<GCEventKeyword>(publicProviderKeywords);
+        GCHeapUtilities::RecordEventStateChange(true, publicKeywords, publicLevel);
+    }
+    if (privateProviderLevel != currentPrivateLevel || privateProviderKeywords != currentPrivateKeywords)
+    {
+        GCEventLevel privateLevel = static_cast<GCEventLevel>(privateProviderLevel);
+        GCEventKeyword privateKeywords = static_cast<GCEventKeyword>(privateProviderKeywords);
+        GCHeapUtilities::RecordEventStateChange(false, privateKeywords, privateLevel);
+    }
 #endif // __linux__
+}

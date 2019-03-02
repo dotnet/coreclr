@@ -88,9 +88,7 @@ public:
 
     void VerifySyncTableEntry();
 
-#if defined(__linux__)
-    void UpdateGCEventStatus();
-#endif // __linux__
+    void UpdateGCEventStatus(int publicLevel, int publicKeywords, int privateLevel, int privateKeywords);
 };
 
 } // namespace standalone

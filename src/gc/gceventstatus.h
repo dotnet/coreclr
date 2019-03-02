@@ -32,15 +32,6 @@
 // Uncomment this define to print out event state changes to standard error.
 // #define TRACE_GC_EVENT_STATE 1
 
-/*
- * GCEventProvider represents one of the two providers that the GC can
- * fire events from: the default and private providers.
- */
-enum GCEventProvider
-{
-    GCEventProvider_Default = 0,
-    GCEventProvider_Private = 1
-};
 
 /*
  * GCEventStatus maintains all eventing state for the GC. It consists
@@ -96,6 +87,22 @@ public:
         fprintf(stderr, "event state change:\n");
         DebugDumpState(provider);
 #endif // TRACE_GC_EVENT_STATE
+    }
+
+    /*
+     * Returns currently enabled levels
+     */
+    static inline GCEventLevel GetEnabledLevel(GCEventProvider provider)
+    {
+        return enabledLevels[static_cast<size_t>(provider)].LoadWithoutBarrier();
+    }
+
+    /*
+     * Returns currently enabled keywords in GCPublic
+     */
+    static inline GCEventKeyword GetEnabledKeywords(GCEventProvider provider)
+    {
+        return enabledKeywords[static_cast<size_t>(provider)].LoadWithoutBarrier();
     }
 
 #if TRACE_GC_EVENT_STATE

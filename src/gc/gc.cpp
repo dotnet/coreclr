@@ -35545,6 +35545,13 @@ void gc_heap::do_pre_gc()
 
     last_gc_index = VolatileLoad(&settings.gc_index);
     GCHeap::UpdatePreGCCounters();
+#if defined(__linux__)
+    GCToEEInterface::UpdateGCEventStatus(static_cast<int>(GCEventStatus::GetEnabledLevel(GCEventProvider_Default)),
+                                         static_cast<int>(GCEventStatus::GetEnabledKeywords(GCEventProvider_Default)),
+                                         static_cast<int>(GCEventStatus::GetEnabledLevel(GCEventProvider_Private)),
+                                         static_cast<int>(GCEventStatus::GetEnabledKeywords(GCEventProvider_Private)));
+#endif // __linux__
+
 
     if (settings.concurrent)
     {
@@ -35743,10 +35750,6 @@ void gc_heap::do_post_gc()
                          (uint32_t)settings.condemned_generation,
                          (uint32_t)settings.reason,
                          !!settings.concurrent);
-
-#if defined(__linux__)
-    GCToEEInterface::UpdateGCEventStatus();
-#endif // __linux__
 
     //dprintf (1, (" ****end of Garbage Collection**** %d(gen0:%d)(%d)", 
     dprintf (1, ("*EGC* %d(gen0:%d)(%d)(%s)", 

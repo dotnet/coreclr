@@ -323,12 +323,12 @@ inline void GCToEEInterface::VerifySyncTableEntry()
     g_theGCToCLR->VerifySyncTableEntry();
 }
 
-#if defined(__linux__)
-inline void GCToEEInterface::UpdateGCEventStatus()
+inline void GCToEEInterface::UpdateGCEventStatus(int publicLevel, int publicKeywords, int privateLevel, int privateKeywords)
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->UpdateGCEventStatus();
-}
+#if defined(__linux__)
+    g_theGCToCLR->UpdateGCEventStatus(publicLevel, publicKeywords, privateLevel, privateKeywords);
 #endif // __linux__
+}
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

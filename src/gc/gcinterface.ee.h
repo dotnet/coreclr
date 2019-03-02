@@ -436,10 +436,8 @@ public:
     virtual 
     void VerifySyncTableEntry() = 0;
 
-#if defined(__linux__)
     virtual
-    void UpdateGCEventStatus() = 0;
-#endif // __linux__
+    void UpdateGCEventStatus(int publicLevel, int publicKeywords, int privateLEvel, int privateKeywords) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
