@@ -304,9 +304,10 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             public static object CreateAggregatedObject(object pUnkOuter, object comObject)
             {
                 Debug.Assert(pUnkOuter != null && comObject != null);
+                IntPtr outerPtr = Marshal.GetIUnknownForObject(pUnkOuter);
+
                 try
                 {
-                    IntPtr outerPtr = Marshal.GetIUnknownForObject(pUnkOuter);
                     IntPtr innerPtr = Marshal.CreateAggregatedObject(outerPtr, comObject);
                     return Marshal.GetObjectForIUnknown(innerPtr);
                 }
@@ -417,8 +418,8 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         // license context and instantiate the object.
         private class LicenseInteropProxy
         {
-            private static readonly Type s_LicenseAttrType;
-            private static readonly Type s_LicenseExceptionType;
+            private static readonly Type s_licenseAttrType;
+            private static readonly Type s_licenseExceptionType;
 
             private MethodInfo _createWithContext;
             private MethodInfo _validateTypeAndReturnDetails;
@@ -430,8 +431,8 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
             static LicenseInteropProxy()
             {
-                s_LicenseAttrType = Type.GetType("System.ComponentModel.LicenseProviderAttribute, System.ComponentModel.TypeConverter", throwOnError: false);
-                s_LicenseExceptionType = Type.GetType("System.ComponentModel.LicenseException, System.ComponentModel.TypeConverter", throwOnError: false);
+                s_licenseAttrType = Type.GetType("System.ComponentModel.LicenseProviderAttribute, System.ComponentModel.TypeConverter", throwOnError: false);
+                s_licenseExceptionType = Type.GetType("System.ComponentModel.LicenseException, System.ComponentModel.TypeConverter", throwOnError: false);
             }
 
             public LicenseInteropProxy()
@@ -457,12 +458,12 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             {
                 // If the attribute type can't be found, then the type
                 // definitely doesn't support licensing.
-                if (s_LicenseAttrType == null)
+                if (s_licenseAttrType == null)
                 {
                     return false;
                 }
 
-                return type.IsDefined(s_LicenseAttrType, inherit: true);
+                return type.IsDefined(s_licenseAttrType, inherit: true);
             }
 
             // The CLR invokes this whenever a COM client invokes
@@ -561,15 +562,10 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                     parameters = new object[] { type, licContext };
                     return _createWithContext.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
                 }
-                catch (Exception exception) when (exception.GetType() == s_LicenseExceptionType)
+                catch (Exception exception) when (exception.GetType() == s_licenseExceptionType)
                 {
-                    if (licExceptionMaybe.GetType() == s_LicenseExceptionType)
-                    {
-                        const int CLASS_E_NOTLICENSED = unchecked((int)0x80040112);
-                        throw new COMException(licExceptionMaybe.Message, CLASS_E_NOTLICENSED);
-                    }
-
-                    throw;
+                    const int CLASS_E_NOTLICENSED = unchecked((int)0x80040112);
+                    throw new COMException(exception.Message, CLASS_E_NOTLICENSED);
                 }
             }
         }
