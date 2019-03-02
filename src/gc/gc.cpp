@@ -10192,6 +10192,13 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
     yp_spin_count_unit = 32 * g_num_processors;
 #endif //MULTIPLE_HEAPS
 
+#if defined(__linux__)
+    GCToEEInterface::UpdateGCEventStatus(static_cast<int>(GCEventStatus::GetEnabledLevel(GCEventProvider_Default)),
+                                         static_cast<int>(GCEventStatus::GetEnabledKeywords(GCEventProvider_Default)),
+                                         static_cast<int>(GCEventStatus::GetEnabledLevel(GCEventProvider_Private)),
+                                         static_cast<int>(GCEventStatus::GetEnabledKeywords(GCEventProvider_Private)));
+#endif // __linux__
+
     if (!init_semi_shared())
     {
         hres = E_FAIL;
@@ -35551,7 +35558,6 @@ void gc_heap::do_pre_gc()
                                          static_cast<int>(GCEventStatus::GetEnabledLevel(GCEventProvider_Private)),
                                          static_cast<int>(GCEventStatus::GetEnabledKeywords(GCEventProvider_Private)));
 #endif // __linux__
-
 
     if (settings.concurrent)
     {
