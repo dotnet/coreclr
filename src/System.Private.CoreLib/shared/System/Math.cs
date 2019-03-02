@@ -14,8 +14,9 @@
 //This class contains only static members and doesn't require serialization.
 
 using System.Diagnostics;
-using System.Runtime;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 using System.Runtime.Versioning;
 
 namespace System
@@ -536,6 +537,7 @@ namespace System
             return decimal.Max(val1, val2);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Max(double val1, double val2)
         {
             // When val1 and val2 are both finite or infinite, return the larger
@@ -543,27 +545,82 @@ namespace System
             // When val1 or val2, but not both, are NaN return the opposite
             //  * We return the opposite if either is NaN to match MSVC
 
-            if (double.IsNaN(val1))
+            if (Sse2.IsSupported)
             {
-                return val2;
+                var lhs = Vector128.CreateScalarUnsafe(val1);
+                var rhs = Vector128.CreateScalarUnsafe(val2);
+
+                // Get the larger of lhs or rhs, picking lhs if either is NaN or both are +/-0
+                var larger = Sse2.MaxScalar(rhs, lhs);
+
+                // Compare lhs and rhs for equality, giving us a mask of all ones (equal) or all zeros (not-equal) and combine the raw bits of lhs and rhs
+                var equalityMask = Sse2.CompareEqualScalar(rhs, lhs);
+                var combinedBits = Sse2.And(rhs, lhs);
+
+                if (Sse41.IsSupported)
+                {
+                    // Select combinedBits if lhs and rhs are equal; otherwise select larger
+                    larger = Sse41.BlendVariable(larger, combinedBits, equalityMask);
+                }
+                else
+                {
+                    // Select combinedBits if lhs and rhs are equal; otherwise 0
+                    var larger1 = Sse2.And(equalityMask, combinedBits);
+
+                    // Select 0 if lhs and rhs are equal; otherwise larger
+                    var larger2 = Sse2.AndNot(equalityMask, larger);
+
+                    larger = Sse2.Or(larger1, larger2);
+                }
+
+                // Check if lhs is NaN, giving us a mask of all ones (true) or all zeros (false)
+                var nanMask = Sse2.CompareUnorderedScalar(lhs, lhs);
+
+                if (Sse41.IsSupported)
+                {
+                    // Select rhs if lhs was NaN; otherwise select larger
+                    return Sse41.BlendVariable(larger, rhs, nanMask).ToScalar();
+                }
+                else
+                {
+                    // Select rhs if lhs was NaN; otherwise 0
+                    var result1 = Sse2.And(nanMask, rhs);
+
+                    // Select 0 if lhs was NaN; otherwise larger
+                    var result2 = Sse2.AndNot(nanMask, larger);
+
+                    // Combine the two possible results for the actual result as only one will be non-zero
+                    return Sse2.Or(result1, result2).ToScalar();
+                }
             }
 
-            if (double.IsNaN(val2))
+            return SoftwareFallback(val1, val2);
+
+            static double SoftwareFallback(double val1, double val2)
             {
-                return val1;
+                if (double.IsNaN(val1))
+                {
+                    return val2;
+                }
+
+                if (double.IsNaN(val2))
+                {
+                    return val1;
+                }
+
+                // We do this comparison first and separately to handle the -0.0 to +0.0 comparision
+                // * Doing (val1 < val2) first could get transformed into (val2 >= val1) by the JIT
+                //   which would then return an incorrect value
+
+                if (val1 == val2)
+                {
+                    return double.IsNegative(val1) ? val2 : val1;
+                }
+
+                return (val1 < val2) ? val2 : val1;
             }
-
-            // We do this comparison first and separately to handle the -0.0 to +0.0 comparision
-            // * Doing (val1 < val2) first could get transformed into (val2 >= val1) by the JIT
-            //   which would then return an incorrect value
-
-            if (val1 == val2)
-            {
-                return double.IsNegative(val1) ? val2 : val1;
-            }
-
-            return (val1 < val2) ? val2 : val1;
         }
+
 
         [NonVersionable]
         public static short Max(short val1, short val2)
@@ -589,7 +646,8 @@ namespace System
         {
             return (val1 >= val2) ? val1 : val2;
         }
-        
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Max(float val1, float val2)
         {
             // When val1 and val2 are both finite or infinite, return the larger
@@ -597,26 +655,80 @@ namespace System
             // When val1 or val2, but not both, are NaN return the opposite
             //  * We return the opposite if either is NaN to match MSVC
 
-            if (float.IsNaN(val1))
+            if (Sse.IsSupported)
             {
-                return val2;
+                var lhs = Vector128.CreateScalarUnsafe(val1);
+                var rhs = Vector128.CreateScalarUnsafe(val2);
+
+                // Get the larger of lhs or rhs, picking lhs if either is NaN or both are +/-0
+                var larger = Sse.MaxScalar(rhs, lhs);
+
+                // Compare lhs and rhs for equality, giving us a mask of all ones (equal) or all zeros (not-equal) and combine the raw bits of lhs and rhs
+                var equalityMask = Sse.CompareEqualScalar(rhs, lhs);
+                var combinedBits = Sse.And(rhs, lhs);
+
+                if (Sse41.IsSupported)
+                {
+                    // Select combinedBits if lhs and rhs are equal; otherwise select larger
+                    larger = Sse41.BlendVariable(larger, combinedBits, equalityMask);
+                }
+                else
+                {
+                    // Select combinedBits if lhs and rhs are equal; otherwise 0
+                    var larger1 = Sse.And(equalityMask, combinedBits);
+
+                    // Select 0 if lhs and rhs are equal; otherwise larger
+                    var larger2 = Sse.AndNot(equalityMask, larger);
+
+                    larger = Sse.Or(larger1, larger2);
+                }
+
+                // Check if lhs is NaN, giving us a mask of all ones (true) or all zeros (false)
+                var nanMask = Sse.CompareUnorderedScalar(lhs, lhs);
+
+                if (Sse41.IsSupported)
+                {
+                    // Select rhs if lhs was NaN; otherwise select larger
+                    return Sse41.BlendVariable(larger, rhs, nanMask).ToScalar();
+                }
+                else
+                {
+                    // Select rhs if lhs was NaN; otherwise 0
+                    var result1 = Sse.And(nanMask, rhs);
+
+                    // Select 0 if lhs was NaN; otherwise larger
+                    var result2 = Sse.AndNot(nanMask, larger);
+
+                    // Combine the two possible results for the actual result as only one will be non-zero
+                    return Sse.Or(result1, result2).ToScalar();
+                }
             }
 
-            if (float.IsNaN(val2))
+            return SoftwareFallback(val1, val2);
+
+            static float SoftwareFallback(float val1, float val2)
             {
-                return val1;
+                if (float.IsNaN(val1))
+                {
+                    return val2;
+                }
+
+                if (float.IsNaN(val2))
+                {
+                    return val1;
+                }
+
+                // We do this comparison first and separately to handle the -0.0 to +0.0 comparision
+                // * Doing (val1 < val2) first could get transformed into (val2 >= val1) by the JIT
+                //   which would then return an incorrect value
+
+                if (val1 == val2)
+                {
+                    return float.IsNegative(val1) ? val2 : val1;
+                }
+
+                return (val1 < val2) ? val2 : val1;
             }
-
-            // We do this comparison first and separately to handle the -0.0 to +0.0 comparision
-            // * Doing (val1 < val2) first could get transformed into (val2 >= val1) by the JIT
-            //   which would then return an incorrect value
-
-            if (val1 == val2)
-            {
-                return float.IsNegative(val1) ? val2 : val1;
-            }
-
-            return (val1 < val2) ? val2 : val1;
         }
 
         [CLSCompliant(false)]
@@ -684,6 +796,7 @@ namespace System
             return decimal.Min(val1, val2);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Min(double val1, double val2)
         {
             // When val1 and val2 are both finite or infinite, return the smaller
@@ -691,26 +804,69 @@ namespace System
             // When val1 or val2, but not both, are NaN return the opposite
             //  * We return the opposite if either is NaN to match MSVC
 
-            if (double.IsNaN(val1))
+            if (Sse2.IsSupported)
             {
-                return val2;
+                var lhs = Vector128.CreateScalarUnsafe(val1);
+                var rhs = Vector128.CreateScalarUnsafe(val2);
+
+                // Get the smaller of lhs or rhs, picking lhs if either is NaN or both are +/-0
+                var smaller = Sse2.MinScalar(rhs, lhs);
+
+                // Compare lhs and rhs for equality, giving us a mask of all ones (equal) or all zeros (not-equal) and combine the raw bits of lhs and rhs
+                var equalityMask = Sse2.CompareEqualScalar(rhs, lhs);
+                var combinedBits = Sse2.Or(rhs, lhs);
+
+                // AND the above two masks to either get a mask of all zeros (not-equal) or the combined bits (equal) and then combine that result with the smaller value.
+                // This has the side-effect of setting the sign-bit if both were zero, but only one input was negative zero; and otherwise returning the original value.
+                combinedBits = Sse2.And(combinedBits, equalityMask);
+                smaller = Sse2.Or(smaller, combinedBits);
+
+                // Check if lhs is NaN, giving us a mask of all ones (true) or all zeros (false)
+                var nanMask = Sse2.CompareUnorderedScalar(lhs, lhs);
+
+                if (Sse41.IsSupported)
+                {
+                    // Select rhs if lhs was NaN; otherwise select smaller
+                    return Sse41.BlendVariable(smaller, rhs, nanMask).ToScalar();
+                }
+                else
+                {
+                    // Select rhs if lhs was NaN; otherwise 0
+                    var result1 = Sse2.And(nanMask, rhs);
+
+                    // Select 0 if lhs was NaN; otherwise smaller
+                    var result2 = Sse2.AndNot(nanMask, smaller);
+
+                    // Combine the two possible results for the actual result as only one will be non-zero
+                    return Sse2.Or(result1, result2).ToScalar();
+                }
             }
 
-            if (double.IsNaN(val2))
+            return SoftwareFallback(val1, val2);
+
+            static double SoftwareFallback(double val1, double val2)
             {
-                return val1;
+                if (double.IsNaN(val1))
+                {
+                    return val2;
+                }
+
+                if (double.IsNaN(val2))
+                {
+                    return val1;
+                }
+
+                // We do this comparison first and separately to handle the -0.0 to +0.0 comparision
+                // * Doing (val1 < val2) first could get transformed into (val2 >= val1) by the JIT
+                //   which would then return an incorrect value
+
+                if (val1 == val2)
+                {
+                    return double.IsNegative(val1) ? val1 : val2;
+                }
+
+                return (val1 < val2) ? val1 : val2;
             }
-
-            // We do this comparison first and separately to handle the -0.0 to +0.0 comparision
-            // * Doing (val1 < val2) first could get transformed into (val2 >= val1) by the JIT
-            //   which would then return an incorrect value
-
-            if (val1 == val2)
-            {
-                return double.IsNegative(val1) ? val1 : val2;
-            }
-
-            return (val1 < val2) ? val1 : val2;
         }
 
         [NonVersionable]
@@ -738,6 +894,7 @@ namespace System
             return (val1 <= val2) ? val1 : val2;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Min(float val1, float val2)
         {
             // When val1 and val2 are both finite or infinite, return the smaller
@@ -745,26 +902,69 @@ namespace System
             // When val1 or val2, but not both, are NaN return the opposite
             //  * We return the opposite if either is NaN to match MSVC
 
-            if (float.IsNaN(val1))
+            if (Sse.IsSupported)
             {
-                return val2;
+                var lhs = Vector128.CreateScalarUnsafe(val1);
+                var rhs = Vector128.CreateScalarUnsafe(val2);
+
+                // Get the smaller of lhs or rhs, picking lhs if either is NaN or both are +/-0
+                var smaller = Sse.MinScalar(rhs, lhs);
+
+                // Compare lhs and rhs for equality, giving us a mask of all ones (equal) or all zeros (not-equal) and combine the raw bits of lhs and rhs
+                var equalityMask = Sse.CompareEqualScalar(rhs, lhs);
+                var combinedBits = Sse.Or(rhs, lhs);
+
+                // AND the above two masks to either get a mask of all zeros (not-equal) or the combined bits (equal) and then combine that result with the smaller value.
+                // This has the side-effect of setting the sign-bit if both were zero, but only one input was negative zero; and otherwise returning the original value.
+                combinedBits = Sse.And(combinedBits, equalityMask);
+                smaller = Sse.Or(smaller, combinedBits);
+
+                // Check if lhs is NaN, giving us a mask of all ones (true) or all zeros (false)
+                var nanMask = Sse.CompareUnorderedScalar(lhs, lhs);
+
+                if (Sse41.IsSupported)
+                {
+                    // Select rhs if lhs was NaN; otherwise select smaller
+                    return Sse41.BlendVariable(smaller, rhs, nanMask).ToScalar();
+                }
+                else
+                {
+                    // Select rhs if lhs was NaN; otherwise 0
+                    var result1 = Sse.And(nanMask, rhs);
+
+                    // Select 0 if lhs was NaN; otherwise smaller
+                    var result2 = Sse.AndNot(nanMask, smaller);
+
+                    // Combine the two possible results for the actual result as only one will be non-zero
+                    return Sse.Or(result1, result2).ToScalar();
+                }
             }
 
-            if (float.IsNaN(val2))
+            return SoftwareFallback(val1, val2);
+
+            static float SoftwareFallback(float val1, float val2)
             {
-                return val1;
+                if (float.IsNaN(val1))
+                {
+                    return val2;
+                }
+
+                if (float.IsNaN(val2))
+                {
+                    return val1;
+                }
+
+                // We do this comparison first and separately to handle the -0.0 to +0.0 comparision
+                // * Doing (val1 < val2) first could get transformed into (val2 >= val1) by the JIT
+                //   which would then return an incorrect value
+
+                if (val1 == val2)
+                {
+                    return float.IsNegative(val1) ? val1 : val2;
+                }
+
+                return (val1 < val2) ? val1 : val2;
             }
-
-            // We do this comparison first and separately to handle the -0.0 to +0.0 comparision
-            // * Doing (val1 < val2) first could get transformed into (val2 >= val1) by the JIT
-            //   which would then return an incorrect value
-
-            if (val1 == val2)
-            {
-                return float.IsNegative(val1) ? val1 : val2;
-            }
-
-            return (val1 < val2) ? val1 : val2;
         }
 
         [CLSCompliant(false)]
