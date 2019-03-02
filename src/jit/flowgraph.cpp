@@ -539,7 +539,7 @@ bool Compiler::fgBlockContainsStatementBounded(BasicBlock* block, GenTree* stmt,
 //
 // Arguments:
 //    block     - The block into which 'stmt' will be inserted.
-//    stmt      - The statement to be inserted.
+//    node      - The node to be inserted.
 //
 // Return Value:
 //    Returns the new (potentially) GT_STMT node.
@@ -550,18 +550,23 @@ bool Compiler::fgBlockContainsStatementBounded(BasicBlock* block, GenTree* stmt,
 //    In other cases, if there are any phi assignments and/or an assignment of
 //    the GT_CATCH_ARG, we insert after those.
 
-GenTree* Compiler::fgInsertStmtAtBeg(BasicBlock* block, GenTree* stmt)
+GenTreeStmt* Compiler::fgInsertStmtAtBeg(BasicBlock* block, GenTree* node)
 {
-    if (stmt->gtOper != GT_STMT)
+    GenTreeStmt* stmt;
+    if (node->gtOper == GT_STMT)
     {
-        stmt = gtNewStmt(stmt);
+        stmt = node->AsStmt();
+    }
+    else
+    {
+        stmt = gtNewStmt(node);
     }
 
     GenTree* list = block->firstStmt();
 
     if (!stmt->IsPhiDefnStmt())
     {
-        GenTree* insertBeforeStmt = block->FirstNonPhiDefOrCatchArgAsg();
+        GenTreeStmt* insertBeforeStmt = block->FirstNonPhiDefOrCatchArgAsg();
         if (insertBeforeStmt != nullptr)
         {
             return fgInsertStmtBefore(block, insertBeforeStmt, stmt);
@@ -743,11 +748,9 @@ GenTreeStmt* Compiler::fgInsertStmtNearEnd(BasicBlock* block, GenTree* node)
  *  Note that the gtPrev list of statement nodes is circular, but the gtNext list is not.
  */
 
-GenTree* Compiler::fgInsertStmtAfter(BasicBlock* block, GenTree* insertionPoint, GenTree* stmt)
+GenTreeStmt* Compiler::fgInsertStmtAfter(BasicBlock* block, GenTreeStmt* insertionPoint, GenTreeStmt* stmt)
 {
     assert(block->bbTreeList != nullptr);
-    noway_assert(insertionPoint->gtOper == GT_STMT);
-    noway_assert(stmt->gtOper == GT_STMT);
     assert(fgBlockContainsStatementBounded(block, insertionPoint));
     assert(!fgBlockContainsStatementBounded(block, stmt, false));
 
@@ -779,11 +782,9 @@ GenTree* Compiler::fgInsertStmtAfter(BasicBlock* block, GenTree* insertionPoint,
 //  Insert the given tree or statement before GT_STMT node "insertionPoint".
 //  Returns the newly inserted GT_STMT node.
 
-GenTree* Compiler::fgInsertStmtBefore(BasicBlock* block, GenTree* insertionPoint, GenTree* stmt)
+GenTreeStmt* Compiler::fgInsertStmtBefore(BasicBlock* block, GenTreeStmt* insertionPoint, GenTreeStmt* stmt)
 {
     assert(block->bbTreeList != nullptr);
-    noway_assert(insertionPoint->gtOper == GT_STMT);
-    noway_assert(stmt->gtOper == GT_STMT);
     assert(fgBlockContainsStatementBounded(block, insertionPoint));
     assert(!fgBlockContainsStatementBounded(block, stmt, false));
 
@@ -817,16 +818,16 @@ GenTree* Compiler::fgInsertStmtBefore(BasicBlock* block, GenTree* insertionPoint
  *  Return the last statement stmtList.
  */
 
-GenTree* Compiler::fgInsertStmtListAfter(BasicBlock* block,     // the block where stmtAfter is in.
-                                         GenTree*    stmtAfter, // the statement where stmtList should be inserted
-                                                                // after.
-                                         GenTree* stmtList)
+GenTreeStmt* Compiler::fgInsertStmtListAfter(BasicBlock*  block,     // the block where stmtAfter is in.
+                                             GenTreeStmt* stmtAfter, // the statement where stmtList should be inserted
+                                                                     // after.
+                                             GenTreeStmt* stmtList)
 {
     // Currently we can handle when stmtAfter and stmtList are non-NULL. This makes everything easy.
-    noway_assert(stmtAfter && stmtAfter->gtOper == GT_STMT);
-    noway_assert(stmtList && stmtList->gtOper == GT_STMT);
+    noway_assert(stmtAfter);
+    noway_assert(stmtList);
 
-    GenTree* stmtLast = stmtList->gtPrev; // Last statement in a non-empty list, circular in the gtPrev list.
+    GenTreeStmt* stmtLast = stmtList->getPrevStmt(); // Last statement in a non-empty list, circular in the gtPrev list.
     noway_assert(stmtLast);
     noway_assert(stmtLast->gtNext == nullptr);
 
@@ -22843,7 +22844,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
     }
 
     // Prepend statements
-    GenTree* stmtAfter = fgInlinePrependStatements(pInlineInfo);
+    GenTreeStmt* stmtAfter = fgInlinePrependStatements(pInlineInfo);
 
 #ifdef DEBUG
     if (verbose)
@@ -23173,14 +23174,14 @@ _Done:
 //    and are are given the same inline context as the call any calls
 //    added here will appear to have been part of the immediate caller.
 
-GenTree* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
+GenTreeStmt* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 {
     BasicBlock*  block        = inlineInfo->iciBlock;
     GenTreeStmt* callStmt     = inlineInfo->iciStmt;
     IL_OFFSETX   callILOffset = callStmt->gtStmtILoffsx;
     GenTreeStmt* postStmt     = callStmt->gtNextStmt;
-    GenTree*     afterStmt    = callStmt; // afterStmt is the place where the new statements should be inserted after.
-    GenTree*     newStmt      = nullptr;
+    GenTreeStmt* afterStmt    = callStmt; // afterStmt is the place where the new statements should be inserted after.
+    GenTreeStmt* newStmt      = nullptr;
     GenTreeCall* call         = inlineInfo->iciCall->AsCall();
 
     noway_assert(call->gtOper == GT_CALL);
@@ -23553,7 +23554,7 @@ GenTree* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 //    we skip nulling the locals, since it can interfere
 //    with tail calls introduced by the local.
 
-void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* block, GenTree* stmtAfter)
+void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* block, GenTreeStmt* stmtAfter)
 {
     // If this inlinee was passed a runtime lookup generic context and
     // ignores it, we can decrement the "generic context was used" ref
@@ -23654,8 +23655,8 @@ void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* bloc
         }
 
         // Assign null to the local.
-        GenTree* nullExpr = gtNewTempAssign(tmpNum, gtNewZeroConNode(lclTyp));
-        GenTree* nullStmt = gtNewStmt(nullExpr, callILOffset);
+        GenTree*     nullExpr = gtNewTempAssign(tmpNum, gtNewZeroConNode(lclTyp));
+        GenTreeStmt* nullStmt = gtNewStmt(nullExpr, callILOffset);
 
         if (stmtAfter == nullptr)
         {

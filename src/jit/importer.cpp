@@ -63,12 +63,11 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 void Compiler::impInit()
 {
-
 #ifdef DEBUG
     impStmtList        = nullptr;
     impLastStmt        = nullptr;
     impInlinedCodeSize = 0;
-#endif
+#endif // DEBUG
 }
 
 /*****************************************************************************
@@ -426,11 +425,8 @@ inline void Compiler::impBeginTreeList()
  *  directly only for handling CEE_LEAVEs out of finally-protected try's.
  */
 
-inline void Compiler::impEndTreeList(BasicBlock* block, GenTree* firstStmt, GenTree* lastStmt)
+inline void Compiler::impEndTreeList(BasicBlock* block, GenTreeStmt* firstStmt, GenTreeStmt* lastStmt)
 {
-    assert(firstStmt->gtOper == GT_STMT);
-    assert(lastStmt->gtOper == GT_STMT);
-
     /* Make the list circular, so that we can easily walk it backwards */
 
     firstStmt->gtPrev = lastStmt;
@@ -453,8 +449,6 @@ inline void Compiler::impEndTreeList(BasicBlock* block, GenTree* firstStmt, GenT
 //
 inline void Compiler::impEndTreeList(BasicBlock* block)
 {
-    GenTree* firstTree = impStmtList;
-
     if (impStmtList == nullptr)
     {
         // The block should not already be marked as imported.
@@ -465,7 +459,7 @@ inline void Compiler::impEndTreeList(BasicBlock* block)
     }
     else
     {
-        impEndTreeList(block, firstTree, impLastStmt);
+        impEndTreeList(block, impStmtList, impLastStmt);
     }
 
 #ifdef DEBUG
@@ -485,12 +479,11 @@ inline void Compiler::impEndTreeList(BasicBlock* block)
  *  that this has only limited value as we can only check [0..chkLevel).
  */
 
-inline void Compiler::impAppendStmtCheck(GenTree* stmt, unsigned chkLevel)
+inline void Compiler::impAppendStmtCheck(GenTreeStmt* stmt, unsigned chkLevel)
 {
 #ifndef DEBUG
     return;
 #else
-    assert(stmt->gtOper == GT_STMT);
 
     if (chkLevel == (unsigned)CHECK_SPILL_ALL)
     {
@@ -502,7 +495,7 @@ inline void Compiler::impAppendStmtCheck(GenTree* stmt, unsigned chkLevel)
         return;
     }
 
-    GenTree* tree = stmt->gtStmt.gtStmtExpr;
+    GenTree* tree = stmt->gtStmtExpr;
 
     // Calls can only be appended if there are no GTF_GLOB_EFFECT on the stack
 
@@ -551,10 +544,8 @@ inline void Compiler::impAppendStmtCheck(GenTree* stmt, unsigned chkLevel)
  *    interference with stmt and spill if needed.
  */
 
-inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
+inline void Compiler::impAppendStmt(GenTreeStmt* stmt, unsigned chkLevel)
 {
-    assert(stmt->gtOper == GT_STMT);
-
     if (chkLevel == (unsigned)CHECK_SPILL_ALL)
     {
         chkLevel = verCurrentState.esStackDepth;
@@ -567,7 +558,7 @@ inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
         /* If the statement being appended has any side-effects, check the stack
            to see if anything needs to be spilled to preserve correct ordering. */
 
-        GenTree* expr  = stmt->gtStmt.gtStmtExpr;
+        GenTree* expr  = stmt->gtStmtExpr;
         unsigned flags = expr->gtFlags & GTF_GLOB_EFFECT;
 
         // Assignment to (unaliased) locals don't count as a side-effect as
@@ -662,7 +653,7 @@ inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
 // Arguments:
 //    stmt - the statement to add.
 //
-inline void Compiler::impAppendStmt(GenTree* stmt)
+inline void Compiler::impAppendStmt(GenTreeStmt* stmt)
 {
     if (impStmtList == nullptr)
     {
@@ -687,12 +678,12 @@ inline void Compiler::impAppendStmt(GenTree* stmt)
 // Notes:
 //    It suppose that the stmt will be reinserted later.
 //
-GenTree* Compiler::impExtractLastStmt()
+GenTreeStmt* Compiler::impExtractLastStmt()
 {
     assert(impLastStmt != nullptr);
 
-    GenTree* stmt = impLastStmt;
-    impLastStmt   = impLastStmt->gtPrevStmt;
+    GenTreeStmt* stmt = impLastStmt;
+    impLastStmt       = impLastStmt->gtPrevStmt;
     if (impLastStmt == nullptr)
     {
         impStmtList = nullptr;
@@ -705,16 +696,13 @@ GenTree* Compiler::impExtractLastStmt()
  *  Insert the given GT_STMT "stmt" before GT_STMT "stmtBefore"
  */
 
-inline void Compiler::impInsertStmtBefore(GenTree* stmt, GenTree* stmtBefore)
+inline void Compiler::impInsertStmtBefore(GenTreeStmt* stmt, GenTreeStmt* stmtBefore)
 {
-    assert(stmt->gtOper == GT_STMT);
-    assert(stmtBefore->gtOper == GT_STMT);
-
-    GenTree* stmtPrev  = stmtBefore->gtPrev;
-    stmt->gtPrev       = stmtPrev;
-    stmt->gtNext       = stmtBefore;
-    stmtPrev->gtNext   = stmt;
-    stmtBefore->gtPrev = stmt;
+    GenTreeStmt* stmtPrev = stmtBefore->getPrevStmt();
+    stmt->gtPrev          = stmtPrev;
+    stmt->gtNext          = stmtBefore;
+    stmtPrev->gtNext      = stmt;
+    stmtBefore->gtPrev    = stmt;
 }
 
 /*****************************************************************************
@@ -723,19 +711,19 @@ inline void Compiler::impInsertStmtBefore(GenTree* stmt, GenTree* stmtBefore)
  *  Return the newly created statement.
  */
 
-GenTree* Compiler::impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSETX offset)
+GenTreeStmt* Compiler::impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSETX offset)
 {
     assert(tree);
 
     /* Allocate an 'expression statement' node */
 
-    GenTree* expr = gtNewStmt(tree, offset);
+    GenTreeStmt* stmt = gtNewStmt(tree, offset);
 
     /* Append the statement to the current block's stmt list */
 
-    impAppendStmt(expr, chkLevel);
+    impAppendStmt(stmt, chkLevel);
 
-    return expr;
+    return stmt;
 }
 
 /*****************************************************************************
@@ -743,17 +731,15 @@ GenTree* Compiler::impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSETX of
  *  Insert the given exression tree before GT_STMT "stmtBefore"
  */
 
-void Compiler::impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, GenTree* stmtBefore)
+void Compiler::impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, GenTreeStmt* stmtBefore)
 {
-    assert(stmtBefore->gtOper == GT_STMT);
-
     /* Allocate an 'expression statement' node */
 
-    GenTree* expr = gtNewStmt(tree, offset);
+    GenTreeStmt* stmt = gtNewStmt(tree, offset);
 
     /* Append the statement to the current block's stmt list */
 
-    impInsertStmtBefore(expr, stmtBefore);
+    impInsertStmtBefore(stmt, stmtBefore);
 }
 
 /*****************************************************************************
@@ -762,12 +748,12 @@ void Compiler::impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, GenTree* st
  *  curLevel is the stack level for which the spill to the temp is being done.
  */
 
-void Compiler::impAssignTempGen(unsigned    tmp,
-                                GenTree*    val,
-                                unsigned    curLevel,
-                                GenTree**   pAfterStmt, /* = NULL */
-                                IL_OFFSETX  ilOffset,   /* = BAD_IL_OFFSET */
-                                BasicBlock* block       /* = NULL */
+void Compiler::impAssignTempGen(unsigned      tmp,
+                                GenTree*      val,
+                                unsigned      curLevel,
+                                GenTreeStmt** pAfterStmt, /* = NULL */
+                                IL_OFFSETX    ilOffset,   /* = BAD_IL_OFFSET */
+                                BasicBlock*   block       /* = NULL */
                                 )
 {
     GenTree* asg = gtNewTempAssign(tmp, val);
@@ -776,8 +762,8 @@ void Compiler::impAssignTempGen(unsigned    tmp,
     {
         if (pAfterStmt)
         {
-            GenTree* asgStmt = gtNewStmt(asg, ilOffset);
-            *pAfterStmt      = fgInsertStmtAfter(block, *pAfterStmt, asgStmt);
+            GenTreeStmt* asgStmt = gtNewStmt(asg, ilOffset);
+            *pAfterStmt          = fgInsertStmtAfter(block, *pAfterStmt, asgStmt);
         }
         else
         {
@@ -794,7 +780,7 @@ void Compiler::impAssignTempGen(unsigned             tmpNum,
                                 GenTree*             val,
                                 CORINFO_CLASS_HANDLE structType,
                                 unsigned             curLevel,
-                                GenTree**            pAfterStmt, /* = NULL */
+                                GenTreeStmt**        pAfterStmt, /* = NULL */
                                 IL_OFFSETX           ilOffset,   /* = BAD_IL_OFFSET */
                                 BasicBlock*          block       /* = NULL */
                                 )
@@ -836,8 +822,8 @@ void Compiler::impAssignTempGen(unsigned             tmpNum,
     {
         if (pAfterStmt)
         {
-            GenTree* asgStmt = gtNewStmt(asg, ilOffset);
-            *pAfterStmt      = fgInsertStmtAfter(block, *pAfterStmt, asgStmt);
+            GenTreeStmt* asgStmt = gtNewStmt(asg, ilOffset);
+            *pAfterStmt          = fgInsertStmtAfter(block, *pAfterStmt, asgStmt);
         }
         else
         {
@@ -1089,7 +1075,7 @@ GenTree* Compiler::impAssignStruct(GenTree*             dest,
                                    GenTree*             src,
                                    CORINFO_CLASS_HANDLE structHnd,
                                    unsigned             curLevel,
-                                   GenTree**            pAfterStmt, /* = nullptr */
+                                   GenTreeStmt**        pAfterStmt, /* = nullptr */
                                    IL_OFFSETX           ilOffset,   /* = BAD_IL_OFFSET */
                                    BasicBlock*          block       /* = nullptr */
                                    )
@@ -1168,7 +1154,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                                       GenTree*             src,
                                       CORINFO_CLASS_HANDLE structHnd,
                                       unsigned             curLevel,
-                                      GenTree**            pAfterStmt, /* = NULL */
+                                      GenTreeStmt**        pAfterStmt, /* = NULL */
                                       IL_OFFSETX           ilOffset,   /* = BAD_IL_OFFSET */
                                       BasicBlock*          block       /* = NULL */
                                       )
@@ -1484,17 +1470,17 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
     {
         assert(structVal->gtOp.gtOp2->gtType == type); // Second thing is the struct
 
-        GenTree* oldTreeLast  = impLastStmt;
-        structVal->gtOp.gtOp2 = impGetStructAddr(structVal->gtOp.gtOp2, structHnd, curLevel, willDeref);
-        structVal->gtType     = TYP_BYREF;
+        GenTreeStmt* oldLastStmt = impLastStmt;
+        structVal->gtOp.gtOp2    = impGetStructAddr(structVal->gtOp.gtOp2, structHnd, curLevel, willDeref);
+        structVal->gtType        = TYP_BYREF;
 
-        if (oldTreeLast != impLastStmt)
+        if (oldLastStmt != impLastStmt)
         {
             // Some temp assignment statement was placed on the statement list
             // for Op2, but that would be out of order with op1, so we need to
             // spill op1 onto the statement list after whatever was last
             // before we recursed on Op2 (i.e. before whatever Op2 appended).
-            impInsertTreeBefore(structVal->gtOp.gtOp1, impCurStmtOffs, oldTreeLast->gtNext);
+            impInsertTreeBefore(structVal->gtOp.gtOp1, impCurStmtOffs, oldLastStmt->getNextStmt());
             structVal->gtOp.gtOp1 = gtNewNothingNode();
         }
 
@@ -2639,7 +2625,7 @@ GenTree* Compiler::impCloneExpr(GenTree*             tree,
                                 GenTree**            pClone,
                                 CORINFO_CLASS_HANDLE structHnd,
                                 unsigned             curLevel,
-                                GenTree** pAfterStmt DEBUGARG(const char* reason))
+                                GenTreeStmt** pAfterStmt DEBUGARG(const char* reason))
 {
     if (!(tree->gtFlags & GTF_GLOB_EFFECT))
     {
@@ -9380,7 +9366,7 @@ void Compiler::impImportLeave(BasicBlock* block)
                 }
 #endif
 
-                GenTree* lastStmt;
+                GenTreeStmt* lastStmt;
 
                 if (endCatches)
                 {
@@ -9390,11 +9376,11 @@ void Compiler::impImportLeave(BasicBlock* block)
                 }
                 else
                 {
-                    lastStmt = endLFin;
+                    lastStmt = endLFin->AsStmt();
                 }
 
                 // note that this sets BBF_IMPORTED on the block
-                impEndTreeList(callBlock, endLFin, lastStmt);
+                impEndTreeList(callBlock, endLFin->AsStmt(), lastStmt);
             }
 
             step = fgNewBBafter(BBJ_ALWAYS, callBlock, true);
@@ -9471,7 +9457,7 @@ void Compiler::impImportLeave(BasicBlock* block)
         }
 #endif
 
-        GenTree* lastStmt;
+        GenTreeStmt* lastStmt;
 
         if (endCatches)
         {
@@ -9481,10 +9467,10 @@ void Compiler::impImportLeave(BasicBlock* block)
         }
         else
         {
-            lastStmt = endLFin;
+            lastStmt = endLFin->AsStmt();
         }
 
-        impEndTreeList(finalStep, endLFin, lastStmt);
+        impEndTreeList(finalStep, endLFin->AsStmt(), lastStmt);
 
         finalStep->bbJumpDest = leaveTarget; // this is the ultimate destination of the LEAVE
 
@@ -17025,7 +17011,7 @@ SPILLSTACK:
                                   // on the stack, its lifetime is hard to determine, simply
                                   // don't reuse such temps.
 
-        GenTree* addStmt = nullptr;
+        GenTreeStmt* addStmt = nullptr;
 
         /* Do the successors of 'block' have any other predecessors ?
            We do not want to do some of the optimizations related to multiRef
@@ -17039,7 +17025,7 @@ SPILLSTACK:
 
                 addStmt = impExtractLastStmt();
 
-                assert(addStmt->gtStmt.gtStmtExpr->gtOper == GT_JTRUE);
+                assert(addStmt->gtStmtExpr->gtOper == GT_JTRUE);
 
                 /* Note if the next block has more than one ancestor */
 
@@ -17080,7 +17066,7 @@ SPILLSTACK:
                 unsigned     jmpCnt;
 
                 addStmt = impExtractLastStmt();
-                assert(addStmt->gtStmt.gtStmtExpr->gtOper == GT_SWITCH);
+                assert(addStmt->gtStmtExpr->gtOper == GT_SWITCH);
 
                 jmpCnt = block->bbJumpSwt->bbsCount;
                 jmpTab = block->bbJumpSwt->bbsDstTab;
@@ -17231,9 +17217,9 @@ SPILLSTACK:
                are spilling to the temps already used by a previous block),
                we need to spill addStmt */
 
-            if (addStmt && !newTemps && gtHasRef(addStmt->gtStmt.gtStmtExpr, tempNum, false))
+            if (addStmt != nullptr && !newTemps && gtHasRef(addStmt->gtStmtExpr, tempNum, false))
             {
-                GenTree* addTree = addStmt->gtStmt.gtStmtExpr;
+                GenTree* addTree = addStmt->gtStmtExpr;
 
                 if (addTree->gtOper == GT_JTRUE)
                 {
@@ -17291,7 +17277,7 @@ SPILLSTACK:
 
         /* Put back the 'jtrue'/'switch' if we removed it earlier */
 
-        if (addStmt)
+        if (addStmt != nullptr)
         {
             impAppendStmt(addStmt, (unsigned)CHECK_SPILL_NONE);
         }

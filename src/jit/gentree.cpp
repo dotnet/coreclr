@@ -7702,7 +7702,7 @@ GenTree* Compiler::gtReplaceTree(GenTree* stmt, GenTree* tree, GenTree* replacem
 // Note: If tree's order hasn't been established, the method updates side effect
 //       flags on all statement's nodes.
 
-void Compiler::gtUpdateSideEffects(GenTree* stmt, GenTree* tree)
+void Compiler::gtUpdateSideEffects(GenTreeStmt* stmt, GenTree* tree)
 {
     if (fgStmtListThreaded)
     {
@@ -7737,9 +7737,9 @@ void Compiler::gtUpdateTreeAncestorsSideEffects(GenTree* tree)
 // Arguments:
 //    stmt            - The statement to update side effects on
 
-void Compiler::gtUpdateStmtSideEffects(GenTree* stmt)
+void Compiler::gtUpdateStmtSideEffects(GenTreeStmt* stmt)
 {
-    fgWalkTree(&stmt->gtStmt.gtStmtExpr, fgUpdateSideEffectsPre, fgUpdateSideEffectsPost);
+    fgWalkTree(&stmt->gtStmtExpr, fgUpdateSideEffectsPre, fgUpdateSideEffectsPost);
 }
 
 //------------------------------------------------------------------------
@@ -14419,7 +14419,7 @@ DONE:
 //    May set compFloatingPointUsed.
 
 GenTree* Compiler::gtNewTempAssign(
-    unsigned tmp, GenTree* val, GenTree** pAfterStmt, IL_OFFSETX ilOffset, BasicBlock* block)
+    unsigned tmp, GenTree* val, GenTreeStmt** pAfterStmt, IL_OFFSETX ilOffset, BasicBlock* block)
 {
     // Self-assignment is a nop.
     if (val->OperGet() == GT_LCL_VAR && val->gtLclVarCommon.gtLclNum == tmp)

@@ -2460,11 +2460,11 @@ public:
 
     GenTree* gtNewAssignNode(GenTree* dst, GenTree* src);
 
-    GenTree* gtNewTempAssign(unsigned    tmp,
-                             GenTree*    val,
-                             GenTree**   pAfterStmt = nullptr,
-                             IL_OFFSETX  ilOffset   = BAD_IL_OFFSET,
-                             BasicBlock* block      = nullptr);
+    GenTree* gtNewTempAssign(unsigned      tmp,
+                             GenTree*      val,
+                             GenTreeStmt** pAfterStmt = nullptr,
+                             IL_OFFSETX    ilOffset   = BAD_IL_OFFSET,
+                             BasicBlock*   block      = nullptr);
 
     GenTree* gtNewRefCOMfield(GenTree*                objPtr,
                               CORINFO_RESOLVED_TOKEN* pResolvedToken,
@@ -2520,11 +2520,11 @@ public:
 
     GenTree* gtReplaceTree(GenTree* stmt, GenTree* tree, GenTree* replacementTree);
 
-    void gtUpdateSideEffects(GenTree* stmt, GenTree* tree);
+    void gtUpdateSideEffects(GenTreeStmt* stmt, GenTree* tree);
 
     void gtUpdateTreeAncestorsSideEffects(GenTree* tree);
 
-    void gtUpdateStmtSideEffects(GenTree* stmt);
+    void gtUpdateStmtSideEffects(GenTreeStmt* stmt);
 
     void gtUpdateNodeSideEffects(GenTree* tree);
 
@@ -3544,46 +3544,46 @@ public:
     };
 
     void impBeginTreeList();
-    void impEndTreeList(BasicBlock* block, GenTree* firstStmt, GenTree* lastStmt);
+    void impEndTreeList(BasicBlock* block, GenTreeStmt* firstStmt, GenTreeStmt* lastStmt);
     void impEndTreeList(BasicBlock* block);
-    void impAppendStmtCheck(GenTree* stmt, unsigned chkLevel);
-    void impAppendStmt(GenTree* stmt, unsigned chkLevel);
-    void impAppendStmt(GenTree* stmt);
-    void impInsertStmtBefore(GenTree* stmt, GenTree* stmtBefore);
-    GenTree* impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSETX offset);
-    void impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, GenTree* stmtBefore);
-    void impAssignTempGen(unsigned    tmp,
-                          GenTree*    val,
-                          unsigned    curLevel,
-                          GenTree**   pAfterStmt = nullptr,
-                          IL_OFFSETX  ilOffset   = BAD_IL_OFFSET,
-                          BasicBlock* block      = nullptr);
+    void impAppendStmtCheck(GenTreeStmt* stmt, unsigned chkLevel);
+    void impAppendStmt(GenTreeStmt* stmt, unsigned chkLevel);
+    void impAppendStmt(GenTreeStmt* stmt);
+    void impInsertStmtBefore(GenTreeStmt* stmt, GenTreeStmt* stmtBefore);
+    GenTreeStmt* impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSETX offset);
+    void impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, GenTreeStmt* stmtBefore);
+    void impAssignTempGen(unsigned      tmp,
+                          GenTree*      val,
+                          unsigned      curLevel,
+                          GenTreeStmt** pAfterStmt = nullptr,
+                          IL_OFFSETX    ilOffset   = BAD_IL_OFFSET,
+                          BasicBlock*   block      = nullptr);
     void impAssignTempGen(unsigned             tmpNum,
                           GenTree*             val,
                           CORINFO_CLASS_HANDLE structHnd,
                           unsigned             curLevel,
-                          GenTree**            pAfterStmt = nullptr,
+                          GenTreeStmt**        pAfterStmt = nullptr,
                           IL_OFFSETX           ilOffset   = BAD_IL_OFFSET,
                           BasicBlock*          block      = nullptr);
 
-    GenTree* impExtractLastStmt();
+    GenTreeStmt* impExtractLastStmt();
     GenTree* impCloneExpr(GenTree*             tree,
                           GenTree**            clone,
                           CORINFO_CLASS_HANDLE structHnd,
                           unsigned             curLevel,
-                          GenTree** pAfterStmt DEBUGARG(const char* reason));
+                          GenTreeStmt** pAfterStmt DEBUGARG(const char* reason));
     GenTree* impAssignStruct(GenTree*             dest,
                              GenTree*             src,
                              CORINFO_CLASS_HANDLE structHnd,
                              unsigned             curLevel,
-                             GenTree**            pAfterStmt = nullptr,
+                             GenTreeStmt**        pAfterStmt = nullptr,
                              IL_OFFSETX           ilOffset   = BAD_IL_OFFSET,
                              BasicBlock*          block      = nullptr);
     GenTree* impAssignStructPtr(GenTree*             dest,
                                 GenTree*             src,
                                 CORINFO_CLASS_HANDLE structHnd,
                                 unsigned             curLevel,
-                                GenTree**            pAfterStmt = nullptr,
+                                GenTreeStmt**        pAfterStmt = nullptr,
                                 IL_OFFSETX           ilOffset   = BAD_IL_OFFSET,
                                 BasicBlock*          block      = nullptr);
 
@@ -5101,14 +5101,14 @@ public: // Used by linear scan register allocation
     GenTreeStmt* fgInsertStmtNearEnd(BasicBlock* block, GenTree* node);
 
 private:
-    GenTree* fgInsertStmtAtBeg(BasicBlock* block, GenTree* stmt);
-    GenTree* fgInsertStmtAfter(BasicBlock* block, GenTree* insertionPoint, GenTree* stmt);
+    GenTreeStmt* fgInsertStmtAtBeg(BasicBlock* block, GenTree* node);
+    GenTreeStmt* fgInsertStmtAfter(BasicBlock* block, GenTreeStmt* insertionPoint, GenTreeStmt* stmt);
 
 public: // Used by linear scan register allocation
-    GenTree* fgInsertStmtBefore(BasicBlock* block, GenTree* insertionPoint, GenTree* stmt);
+    GenTreeStmt* fgInsertStmtBefore(BasicBlock* block, GenTreeStmt* insertionPoint, GenTreeStmt* stmt);
 
 private:
-    GenTree* fgInsertStmtListAfter(BasicBlock* block, GenTree* stmtAfter, GenTree* stmtList);
+    GenTreeStmt* fgInsertStmtListAfter(BasicBlock* block, GenTreeStmt* stmtAfter, GenTreeStmt* stmtList);
 
     //                  Create a new temporary variable to hold the result of *ppTree,
     //                  and transform the graph accordingly.
@@ -5255,12 +5255,12 @@ private:
     void fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs);
     GenTree* fgGetStubAddrArg(GenTreeCall* call);
     void fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCall* recursiveTailCall);
-    GenTree* fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
-                                                   fgArgTabEntry* argTabEntry,
-                                                   BasicBlock*    block,
-                                                   IL_OFFSETX     callILOffset,
-                                                   GenTree*       tmpAssignmentInsertionPoint,
-                                                   GenTree*       paramAssignmentInsertionPoint);
+    GenTreeStmt* fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
+                                                       fgArgTabEntry* argTabEntry,
+                                                       BasicBlock*    block,
+                                                       IL_OFFSETX     callILOffset,
+                                                       GenTreeStmt*   tmpAssignmentInsertionPoint,
+                                                       GenTreeStmt*   paramAssignmentInsertionPoint);
     static int fgEstimateCallStackSize(GenTreeCall* call);
     GenTree* fgMorphCall(GenTreeCall* call);
     void fgMorphCallInline(GenTreeCall* call, InlineResult* result);
@@ -5387,8 +5387,8 @@ private:
     unsigned fgCheckInlineDepthAndRecursion(InlineInfo* inlineInfo);
     void fgInvokeInlineeCompiler(GenTreeCall* call, InlineResult* result);
     void fgInsertInlineeBlocks(InlineInfo* pInlineInfo);
-    GenTree* fgInlinePrependStatements(InlineInfo* inlineInfo);
-    void fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* block, GenTree* stmt);
+    GenTreeStmt* fgInlinePrependStatements(InlineInfo* inlineInfo);
+    void fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* block, GenTreeStmt* stmt);
 
 #if FEATURE_MULTIREG_RET
     GenTree* fgGetStructAsStructPtr(GenTree* tree);
@@ -6004,9 +6004,9 @@ protected:
         unsigned csdDefWtCnt; // weighted def count
         unsigned csdUseWtCnt; // weighted use count  (excluding the implicit uses at defs)
 
-        GenTree*     csdTree; // treenode containing the 1st occurance
-        GenTree*     csdStmt; // stmt containing the 1st occurance
-        BasicBlock* csdBlock; // block containing the 1st occurance
+        GenTree*     csdTree;  // treenode containing the 1st occurance
+        GenTreeStmt* csdStmt;  // stmt containing the 1st occurance
+        BasicBlock*  csdBlock; // block containing the 1st occurance
 
         treeStmtLst* csdTreeList; // list of matching tree nodes: head
         treeStmtLst* csdTreeLast; // list of matching tree nodes: tail
