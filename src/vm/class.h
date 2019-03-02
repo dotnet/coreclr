@@ -97,6 +97,7 @@ class LoadingEntry_LockHolder;
 class   DispatchMapBuilder;
 class LoaderAllocator;
 class ComCallWrapperTemplate;
+enum class ParseNativeTypeFlags : int;
 
 typedef DPTR(DictionaryLayout) PTR_DictionaryLayout;
 typedef DPTR(FieldMarshaler) PTR_FieldMarshaler;
@@ -366,7 +367,6 @@ class EEClassLayoutInfo
        AllocMemTracker    *pamTracker
     );
 
-
     friend class ClassLoader;
     friend class EEClass;
     friend class MethodTableBuilder;
@@ -375,12 +375,63 @@ class EEClassLayoutInfo
 #endif
 
     private:
+        // Simple aggregate structure to combine multiple parameters shared in the field metadata collection.
+        struct TypeLayoutHelper  
+        {
+            ULONG numInstanceFields;
+            BOOL fExplicitOffsets;
+            LayoutRawFieldInfo* const* pSortedFieldInfoArray;
+            ULONG classSizeInMetadata;
+            BYTE packingSize;
+        };
+
+        static void ParseFieldNativeTypes(
+            IMDInternalImport* pInternalImport,
+            const mdTypeDef cl,
+            HENUMInternal* phEnumField,
+            const ULONG cTotalFields,
+            Module* pModule,
+            ParseNativeTypeFlags nativeTypeFlags,
+            const SigTypeContext* pTypeContext,
+            BOOL* fDisqualifyFromManagedSequential,
+            LayoutRawFieldInfo* pFieldInfoArrayOut,
+            EEClassLayoutInfo* pEEClassLayoutInfoOut,
+            ULONG* cInstanceFields
+#ifdef _DEBUG
+            ,
+            LPCUTF8 szNamespace,
+            LPCUTF8 szName
+#endif
+        );
+
+        static void SetOffsetsAndSortFields(
+            IMDInternalImport* pInternalImport,
+            const mdTypeDef cl,
+            LayoutRawFieldInfo* pFieldInfoArray,
+            const ULONG cInstanceFields,
+            const BOOL fExplicitOffsets,
+            const UINT32 cbAdjustedParentLayoutNativeSize,
+            Module* pModule,
+            LayoutRawFieldInfo** pSortArrayOut);
+
+        static void CalculateTypeNativeSizeAndOffsets(
+            const UINT32 cbAdjustedParentLayoutNativeSize,
+            BYTE parentAlignmentRequirement,
+            const TypeLayoutHelper& layoutHelper,
+            EEClassLayoutInfo* pEEClassLayoutInfoOut);
+
+        static void CalculateManagedSequentialLayout(
+            UINT32 parentSize,
+            BYTE parentAlignmentRequirement,
+            const TypeLayoutHelper& layoutHelper,
+            EEClassLayoutInfo* pEEClassLayoutInfoOut);
+
         // size (in bytes) of fixed portion of NStruct.
         UINT32      m_cbNativeSize;
         UINT32      m_cbManagedSize;
 
     public:
-        // 1,2,4 or 8: this is equal to the largest of the alignment requirements
+        // this is equal to the largest of the alignment requirements
         // of each of the EEClass's members. If the NStruct extends another NStruct,
         // the base NStruct is treated as the first member for the purpose of
         // this calculation.
@@ -2401,3 +2452,9 @@ public:
 };
 
 #endif // !CLASS_H
+
+void FillLayoutInfo(IMDInternalImport* pInternalImport, const mdTypeDef cl, LayoutRawFieldInfo* pInfoArrayOut, const ULONG cInstanceFields, const BOOL fExplicitOffsets, const UINT32 cbAdjustedParentLayoutNativeSize, Module* pModule, LayoutRawFieldInfo** pSortArray);
+
+void CalculateManagedSequentialLayout(MethodTable* pParentMT, BYTE& packingSize, EEClassLayoutInfo* pParentLayoutInfo, LayoutRawFieldInfo** pSortArray, const ULONG& cInstanceFields, LayoutRawFieldInfo*& pfwalk, EEClassLayoutInfo* pEEClassLayoutInfoOut, IMDInternalImport* pInternalImport, const mdTypeDef& cl);
+
+void CalculateTypeNativeSizeAndOffsets(const UINT32& cbAdjustedParentLayoutNativeSize, const BOOL& fParentHasLayout, BYTE& packingSize, EEClassLayoutInfo* pParentLayoutInfo, LayoutRawFieldInfo** pSortArray, const ULONG& cInstanceFields, LayoutRawFieldInfo*& pfwalk, const BOOL& fExplicitOffsets, LayoutRawFieldInfo* pInfoArrayOut, IMDInternalImport* pInternalImport, const mdTypeDef& cl, EEClassLayoutInfo* pEEClassLayoutInfoOut);

@@ -33,7 +33,7 @@
 // Forward refernces
 class FieldDesc;
 class MethodTable;
-
+class FieldMarshaler;
 class FieldMarshaler_NestedLayoutClass;
 class FieldMarshaler_NestedValueClass;
 class FieldMarshaler_StringUni;
@@ -87,8 +87,7 @@ enum NStructFieldType
 //=======================================================================
 #define DEFAULT_PACKING_SIZE 32
 
-
-enum class ParseNativeTypeFlags
+enum class ParseNativeTypeFlags : int
 {
     None    = 0x00,
     IsAnsi  = 0x01,
