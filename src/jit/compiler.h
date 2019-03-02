@@ -519,11 +519,7 @@ public:
         // There should be VariableLiveRanges reported during this basic block
         noway_assert(hasBeenAlive());
 #endif
-        // We are closing a "VariableLiveRange" so it has been started before during this basic block
-        noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
-
-        // And its last endEmitLocation has to be invalid (its the one we are reporting now)
-        noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
+        noway_assert(hasVariableLiveRangeOpen());
 
         // Using [close, open) ranges so as to not compute the size of the last instruction
         variableLiveRanges->back().endEmitLocation.CaptureLocation(_emitter);
