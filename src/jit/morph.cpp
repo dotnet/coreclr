@@ -7721,7 +7721,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
     // Transform recursive tail call into a loop.
 
     GenTreeStmt* earlyArgInsertionPoint = lastStmt;
-    IL_OFFSETX   callILOffset           = lastStmt->gtStmt.gtStmtILoffsx;
+    IL_OFFSETX   callILOffset           = lastStmt->gtStmtILoffsx;
 
     // Hoist arg setup statement for the 'this' argument.
     GenTree* thisArg = recursiveTailCall->gtCallObjp;
@@ -15233,11 +15233,11 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
     {
         noway_assert(block->bbTreeList && block->bbTreeList->gtPrev);
 
-        GenTree* stmt = block->bbTreeList->gtPrev;
+        GenTreeStmt* lastStmt = block->lastStmt();
 
-        noway_assert(stmt->gtNext == nullptr);
+        noway_assert(lastStmt->gtNext == nullptr);
 
-        if (stmt->gtStmt.gtStmtExpr->gtOper == GT_CALL)
+        if (lastStmt->gtStmtExpr->gtOper == GT_CALL)
         {
             noway_assert(fgRemoveRestOfBlock);
 
@@ -15260,13 +15260,13 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
             goto DONE_COND;
         }
 
-        noway_assert(stmt->gtStmt.gtStmtExpr->gtOper == GT_JTRUE);
+        noway_assert(lastStmt->gtStmtExpr->gtOper == GT_JTRUE);
 
         /* Did we fold the conditional */
 
-        noway_assert(stmt->gtStmt.gtStmtExpr->gtOp.gtOp1);
+        noway_assert(lastStmt->gtStmtExpr->gtOp.gtOp1);
         GenTree* cond;
-        cond = stmt->gtStmt.gtStmtExpr->gtOp.gtOp1;
+        cond = lastStmt->gtStmtExpr->gtOp.gtOp1;
 
         if (cond->OperKind() & GTK_CONST)
         {
@@ -15278,7 +15278,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 
             /* remove the statement from bbTreelist - No need to update
              * the reference counts since there are no lcl vars */
-            fgRemoveStmt(block, stmt);
+            fgRemoveStmt(block, lastStmt);
 
             // block is a BBJ_COND that we are folding the conditional for
             // bTaken is the path that will always be taken from block
@@ -15441,11 +15441,11 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
     {
         noway_assert(block->bbTreeList && block->bbTreeList->gtPrev);
 
-        GenTree* stmt = block->bbTreeList->gtPrev;
+        GenTreeStmt* lastStmt = block->lastStmt();
 
-        noway_assert(stmt->gtNext == nullptr);
+        noway_assert(lastStmt->gtNext == nullptr);
 
-        if (stmt->gtStmt.gtStmtExpr->gtOper == GT_CALL)
+        if (lastStmt->gtStmtExpr->gtOper == GT_CALL)
         {
             noway_assert(fgRemoveRestOfBlock);
 
@@ -15475,13 +15475,13 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
             goto DONE_SWITCH;
         }
 
-        noway_assert(stmt->gtStmt.gtStmtExpr->gtOper == GT_SWITCH);
+        noway_assert(lastStmt->gtStmtExpr->gtOper == GT_SWITCH);
 
         /* Did we fold the conditional */
 
-        noway_assert(stmt->gtStmt.gtStmtExpr->gtOp.gtOp1);
+        noway_assert(lastStmt->gtStmtExpr->gtOp.gtOp1);
         GenTree* cond;
-        cond = stmt->gtStmt.gtStmtExpr->gtOp.gtOp1;
+        cond = lastStmt->gtStmtExpr->gtOp.gtOp1;
 
         if (cond->OperKind() & GTK_CONST)
         {
@@ -15492,7 +15492,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 
             /* remove the statement from bbTreelist - No need to update
              * the reference counts since there are no lcl vars */
-            fgRemoveStmt(block, stmt);
+            fgRemoveStmt(block, lastStmt);
 
             /* modify the flow graph */
 
@@ -15718,8 +15718,6 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
     GenTree*     prev = nullptr;
     for (; stmt != nullptr; prev = stmt->gtStmtExpr, stmt = stmt->gtNextStmt)
     {
-        assert(stmt->gtOper == GT_STMT);
-
         if (fgRemoveRestOfBlock)
         {
             fgRemoveStmt(block, stmt);
@@ -15883,16 +15881,16 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
     {
         if ((block->bbJumpKind == BBJ_COND) || (block->bbJumpKind == BBJ_SWITCH))
         {
-            GenTree* first = block->bbTreeList;
+            GenTreeStmt* first = block->firstStmt();
             noway_assert(first);
-            GenTree* last = first->gtPrev;
-            noway_assert(last && last->gtNext == nullptr);
-            GenTree* lastStmt = last->gtStmt.gtStmtExpr;
+            GenTreeStmt* lastStmt = block->lastStmt();
+            noway_assert(lastStmt && lastStmt->gtNext == nullptr);
+            GenTree* last = lastStmt->gtStmtExpr;
 
-            if (((block->bbJumpKind == BBJ_COND) && (lastStmt->gtOper == GT_JTRUE)) ||
-                ((block->bbJumpKind == BBJ_SWITCH) && (lastStmt->gtOper == GT_SWITCH)))
+            if (((block->bbJumpKind == BBJ_COND) && (last->gtOper == GT_JTRUE)) ||
+                ((block->bbJumpKind == BBJ_SWITCH) && (last->gtOper == GT_SWITCH)))
             {
-                GenTree* op1 = lastStmt->gtOp.gtOp1;
+                GenTree* op1 = last->gtOp.gtOp1;
 
                 if (op1->OperKind() & GTK_RELOP)
                 {
@@ -15900,7 +15898,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
                     op1->gtFlags &= ~GTF_RELOP_JMP_USED;
                 }
 
-                last->gtStmt.gtStmtExpr = fgMorphTree(op1);
+                lastStmt->gtStmtExpr = fgMorphTree(op1);
             }
         }
 
@@ -16457,7 +16455,7 @@ GenTree* Compiler::fgGetTopLevelQmark(GenTree* expr, GenTree** ppDst /* = NULL *
  *     tmp has the result.
  *
  */
-void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTree* stmt)
+void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTreeStmt* stmt)
 {
 #ifdef DEBUG
     if (verbose)
@@ -16467,7 +16465,7 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTree* stmt)
     }
 #endif // DEBUG
 
-    GenTree* expr = stmt->gtStmt.gtStmtExpr;
+    GenTree* expr = stmt->gtStmtExpr;
 
     GenTree* dst   = nullptr;
     GenTree* qmark = fgGetTopLevelQmark(expr, &dst);
@@ -16568,23 +16566,23 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTree* stmt)
 
     // Append cond1 as JTRUE to cond1Block
     GenTree* jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, condExpr);
-    GenTree* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmt.gtStmtILoffsx);
+    GenTree* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(cond1Block, jmpStmt);
 
     // Append cond2 as JTRUE to cond2Block
     jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, cond2Expr);
-    jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmt.gtStmtILoffsx);
+    jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(cond2Block, jmpStmt);
 
     // AsgBlock should get tmp = op1 assignment.
     trueExpr          = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), trueExpr);
-    GenTree* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmt.gtStmtILoffsx);
+    GenTree* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(asgBlock, trueStmt);
 
     // Since we are adding helper in the JTRUE false path, reverse the cond2 and add the helper.
     gtReverseCond(cond2Expr);
     GenTree* helperExpr = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), true2Expr);
-    GenTree* helperStmt = fgNewStmtFromTree(helperExpr, stmt->gtStmt.gtStmtILoffsx);
+    GenTree* helperStmt = fgNewStmtFromTree(helperExpr, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(helperBlock, helperStmt);
 
     // Finally remove the nested qmark stmt.
@@ -16649,9 +16647,9 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTree* stmt)
  *  If the qmark assigns to a variable, then create tmps for "then"
  *  and "else" results and assign the temp to the variable as a writeback step.
  */
-void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTree* stmt)
+void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTreeStmt* stmt)
 {
-    GenTree* expr = stmt->gtStmt.gtStmtExpr;
+    GenTree* expr = stmt->gtStmtExpr;
 
     // Retrieve the Qmark node to be expanded.
     GenTree* dst   = nullptr;
@@ -16783,7 +16781,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTree* stmt)
     }
 
     GenTree* jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, qmark->gtGetOp1());
-    GenTree* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmt.gtStmtILoffsx);
+    GenTree* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(condBlock, jmpStmt);
 
     // Remove the original qmark statement.
@@ -16809,7 +16807,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTree* stmt)
         {
             trueExpr = gtNewTempAssign(lclNum, trueExpr);
         }
-        GenTree* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmt.gtStmtILoffsx);
+        GenTreeStmt* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmtILoffsx);
         fgInsertStmtAtEnd(thenBlock, trueStmt);
     }
 
@@ -16820,7 +16818,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTree* stmt)
         {
             falseExpr = gtNewTempAssign(lclNum, falseExpr);
         }
-        GenTree* falseStmt = fgNewStmtFromTree(falseExpr, stmt->gtStmt.gtStmtILoffsx);
+        GenTreeStmt* falseStmt = fgNewStmtFromTree(falseExpr, stmt->gtStmtILoffsx);
         fgInsertStmtAtEnd(elseBlock, falseStmt);
     }
 
@@ -18792,11 +18790,10 @@ void Compiler::fgMarkAddressExposedLocals()
 //  if this funciton successfully optimized the stmts, then return true. Otherwise
 //  return false;
 
-bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* stmt)
+bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTreeStmt* stmt)
 {
 
-    noway_assert(stmt->gtOper == GT_STMT);
-    GenTree* tree = stmt->gtStmt.gtStmtExpr;
+    GenTree* tree = stmt->gtStmtExpr;
     assert(tree->OperGet() == GT_ASG);
 
     GenTree*  originalLHS    = tree->gtOp.gtOp1;
@@ -18813,15 +18810,15 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* st
         return false;
     }
 
-    var_types simdType             = getSIMDTypeForSize(simdSize);
-    int       assignmentsCount     = simdSize / genTypeSize(baseType) - 1;
-    int       remainingAssignments = assignmentsCount;
-    GenTree*  curStmt              = stmt->gtNext;
-    GenTree*  lastStmt             = stmt;
+    var_types    simdType             = getSIMDTypeForSize(simdSize);
+    int          assignmentsCount     = simdSize / genTypeSize(baseType) - 1;
+    int          remainingAssignments = assignmentsCount;
+    GenTreeStmt* curStmt              = stmt->getNextStmt();
+    GenTreeStmt* lastStmt             = stmt;
 
     while (curStmt != nullptr && remainingAssignments > 0)
     {
-        GenTree* exp = curStmt->gtStmt.gtStmtExpr;
+        GenTree* exp = curStmt->gtStmtExpr;
         if (exp->OperGet() != GT_ASG)
         {
             break;
@@ -18839,7 +18836,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* st
         prevRHS = curRHS;
 
         lastStmt = curStmt;
-        curStmt  = curStmt->gtNext;
+        curStmt  = curStmt->getNextStmt();
     }
 
     if (remainingAssignments > 0)
@@ -18863,7 +18860,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* st
 
     for (int i = 0; i < assignmentsCount; i++)
     {
-        fgRemoveStmt(block, stmt->gtNext);
+        fgRemoveStmt(block, stmt->getNextStmt());
     }
 
     GenTree* copyBlkDst = createAddressNodeForSIMDInit(originalLHS, simdSize);
@@ -18906,12 +18903,12 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* st
     GenTree* dstNode = gtNewOperNode(GT_IND, simdType, copyBlkDst);
     tree             = gtNewAssignNode(dstNode, simdStructNode);
 
-    stmt->gtStmt.gtStmtExpr = tree;
+    stmt->gtStmtExpr = tree;
 
     // Since we generated a new address node which didn't exist before,
     // we should expose this address manually here.
     LocalAddressVisitor visitor(this);
-    visitor.VisitStmt(stmt->AsStmt());
+    visitor.VisitStmt(stmt);
 
 #ifdef DEBUG
     if (verbose)

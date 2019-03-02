@@ -465,8 +465,8 @@ inline void Compiler::impEndTreeList(BasicBlock* block)
 #ifdef DEBUG
     if (impLastILoffsStmt != nullptr)
     {
-        impLastILoffsStmt->gtStmt.gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
-        impLastILoffsStmt                          = nullptr;
+        impLastILoffsStmt->gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
+        impLastILoffsStmt                   = nullptr;
     }
 
     impStmtList = impLastStmt = nullptr;
@@ -2663,9 +2663,8 @@ inline void Compiler::impCurStmtOffsSet(IL_OFFSET offs)
 {
     if (compIsForInlining())
     {
-        GenTree* callStmt = impInlineInfo->iciStmt;
-        assert(callStmt->gtOper == GT_STMT);
-        impCurStmtOffs = callStmt->gtStmt.gtStmtILoffsx;
+        GenTreeStmt* callStmt = impInlineInfo->iciStmt;
+        impCurStmtOffs        = callStmt->gtStmtILoffsx;
     }
     else
     {
@@ -2737,8 +2736,8 @@ void Compiler::impNoteLastILoffs()
     }
     else
     {
-        impLastILoffsStmt->gtStmt.gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
-        impLastILoffsStmt                          = nullptr;
+        impLastILoffsStmt->gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
+        impLastILoffsStmt                   = nullptr;
     }
 }
 
@@ -6069,7 +6068,7 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
 
         GenTree* asg = gtNewTempAssign(impBoxTemp, op1);
 
-        GenTree* asgStmt = impAppendTree(asg, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
+        GenTreeStmt* asgStmt = impAppendTree(asg, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
 
         op1 = gtNewLclvNode(impBoxTemp, TYP_REF);
         op2 = gtNewIconNode(TARGET_POINTER_SIZE, TYP_I_IMPL);
@@ -6110,7 +6109,7 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
         impSpillSideEffects(true, (unsigned)CHECK_SPILL_ALL DEBUGARG("impImportAndPushBox"));
 
         // Set up this copy as a second assignment.
-        GenTree* copyStmt = impAppendTree(op1, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
+        GenTreeStmt* copyStmt = impAppendTree(op1, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
 
         op1 = gtNewLclvNode(impBoxTemp, TYP_REF);
 

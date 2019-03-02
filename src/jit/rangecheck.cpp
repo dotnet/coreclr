@@ -1287,7 +1287,7 @@ void RangeCheck::MapMethodDefs()
         for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
             MapMethodDefsData data(this, block, stmt);
-            m_pCompiler->fgWalkTreePre(&stmt->gtStmt.gtStmtExpr, MapMethodDefsVisitor, &data, false, true);
+            m_pCompiler->fgWalkTreePre(&stmt->gtStmtExpr, MapMethodDefsVisitor, &data, false, true);
         }
     }
     m_fMappedDefs = true;
