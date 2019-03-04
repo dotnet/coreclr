@@ -3362,25 +3362,7 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
         // above switch.
         _ASSERTE(alignmentRequirement <= 32);
 
-        // Check if this field is overlapped with other(s)
-        pfwalk->m_fIsOverlapped = FALSE;
-        if (fExplicitOffsets)
-        {
-            CONSISTENCY_CHECK_MSG(calculatingNativeLayout, "The only managed types that should call this function are managed-sequential.");
-
-            DWORD dwBegin = pfwalk->m_offset;
-            DWORD dwEnd = dwBegin + pfwalk->m_cbNativeSize;
-            ULONG j;
-            LayoutRawFieldInfo* const* pSortWalk1;
-            for (pSortWalk1 = pSortedFieldInfoArray, j = numInstanceFields; j; j--, pSortWalk1++)
-            {
-                LayoutRawFieldInfo* pfwalk1 = *pSortWalk1;
-                if ((pfwalk1->m_offset >= dwEnd) || (pfwalk1->m_offset + pfwalk1->m_cbNativeSize <= dwBegin)) continue;
-                pfwalk->m_fIsOverlapped = TRUE;
-                pfwalk1->m_fIsOverlapped = TRUE;
-            }
-        }
-        else
+        if (!fExplicitOffsets)
         {
             // Insert enough padding to align the current data member.
             while (cbCurOffset % alignmentRequirement)
@@ -3668,15 +3650,21 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         classSizeInMetadata = 0;
     }
 
-    TypeLayoutHelper layoutHelper{ cInstanceFields, fExplicitOffsets, pSortArray, classSizeInMetadata, packingSize };
-
     BYTE parentAlignmentRequirement = 0;
     if (fParentHasLayout)
     {
         parentAlignmentRequirement = pParentLayoutInfo->GetLargestAlignmentRequirementOfAllMembers();
     }
 
-    CalculateSizeAndFieldOffsets(cbAdjustedParentLayoutNativeSize, layoutHelper, parentAlignmentRequirement, /*calculatingNativeLayout*/ TRUE, pEEClassLayoutInfoOut);
+    CalculateSizeAndFieldOffsets(
+        cbAdjustedParentLayoutNativeSize,
+        cInstanceFields,
+        fExplicitOffsets,
+        pSortArray,
+        classSizeInMetadata,
+        packingSize,
+        parentAlignmentRequirement,
+        /*calculatingNativeLayout*/ TRUE, pEEClassLayoutInfoOut);
 
     // Calculate the managedsequential layout if the type is eligible.
     if (!fDisqualifyFromManagedSequential)
@@ -3689,7 +3677,16 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             parentSize = pParentMT->GetNumInstanceFieldBytes();
         }
 
-        CalculateSizeAndFieldOffsets(parentSize, layoutHelper, parentManagedAlignmentRequirement, /*calculatingNativeLayout*/ FALSE, pEEClassLayoutInfoOut);
+        CalculateSizeAndFieldOffsets(
+            parentSize,
+            cInstanceFields,
+            FALSE,
+            pSortArray,
+            classSizeInMetadata,
+            packingSize,
+            parentManagedAlignmentRequirement,
+            /*calculatingNativeLayout*/ FALSE,
+            pEEClassLayoutInfoOut);
 
 #ifdef _DEBUG
         // @perf: If the type is blittable, the managed and native layouts have to be identical

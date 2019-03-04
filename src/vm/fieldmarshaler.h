@@ -161,7 +161,6 @@ struct LayoutRawFieldInfo
     UINT32      m_offset;         // native offset of field
     UINT32      m_cbNativeSize;   // native size of field in bytes
     ULONG       m_sequence;       // sequence # from metadata
-    BOOL        m_fIsOverlapped;
 
 
     //----- Post v1.0 addition: The LayoutKind.Sequential attribute now affects managed layout as well.
@@ -171,7 +170,6 @@ struct LayoutRawFieldInfo
     UINT32      m_managedSize;    // managed size of field
     UINT32      m_managedAlignmentReq; // natural alignment of field
     UINT32      m_managedOffset;  // managed offset of field
-    UINT32      m_pad;            // needed to keep m_FieldMarshaler 8-byte aligned
 
     // WARNING!
     // We in-place create a field marshaler in the following
@@ -179,7 +177,7 @@ struct LayoutRawFieldInfo
     // the vtable pointer initialization will cause a 
     // misaligned memory write on IA64.
     // The entire struct's size must also be multiple of 8 bytes
-    struct
+    alignas(8) struct
     {
         private:
             char m_space[MAXFIELDMARSHALERSIZE];
