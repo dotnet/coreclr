@@ -144,7 +144,7 @@ initDistroRidGlobal ${__BuildOS} x64 ${isPortable}
 # Hack, replace the rid to ubuntu.14.04 which has a valid non-portable
 # package.
 #
-# The CoreDisTools package is currently manually packages and we only have
+# The CoreDisTools package is currently manually packaged and we only have
 # 14.04 and 16.04 packages. Use the oldest package which will work on newer
 # platforms.
 if [[ ${__DistroRid} == "ubuntu"* ]]; then
