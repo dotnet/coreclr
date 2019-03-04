@@ -280,7 +280,7 @@ namespace System.Runtime.Loader
             {
                 VerifyIsAlive();
 
-                return InternalLoadFromStream(arrAssembly, arrSymbols);
+                return InternalLoad(arrAssembly, arrSymbols);
             }
         }
 

@@ -228,7 +228,7 @@ namespace System.Reflection
                 ref s_cachedSerializationSwitch);
 
             AssemblyLoadContext alc = new IndividualAssemblyLoadContext();
-            return alc.InternalLoadFromStream(rawAssembly, rawSymbolStore);
+            return alc.InternalLoad(rawAssembly, rawSymbolStore);
         }
 
         public static Assembly LoadFile(string path)

@@ -40,14 +40,14 @@ namespace System.Runtime.Loader
             return loadedAssembly;
         }
 
-        internal unsafe Assembly InternalLoadFromStream(byte[] arrAssembly, byte[] arrSymbols)
+        internal unsafe Assembly InternalLoad(ReadOnlySpan<byte> arrAssembly, ReadOnlySpan<byte> arrSymbols)
         {
             RuntimeAssembly loadedAssembly = null;
 
             fixed (byte* ptrAssembly = arrAssembly, ptrSymbols = arrSymbols)
             {
                 LoadFromStream(_nativeAssemblyLoadContext, new IntPtr(ptrAssembly), arrAssembly.Length,
-                    new IntPtr(ptrSymbols), arrSymbols?.Length ?? 0, JitHelpers.GetObjectHandleOnStack(ref loadedAssembly));
+                    new IntPtr(ptrSymbols), arrSymbols.Length, JitHelpers.GetObjectHandleOnStack(ref loadedAssembly));
             }
 
             return loadedAssembly;
