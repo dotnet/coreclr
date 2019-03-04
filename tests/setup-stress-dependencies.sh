@@ -141,8 +141,17 @@ isPortable=0
 source "${scriptDir}"/../init-distro-rid.sh
 initDistroRidGlobal ${__BuildOS} x64 ${isPortable}
 
+# Hack, as replace to ubuntu.14.04 which has a valid non-portable
+# package.
+if [[ ${__DistroRid} == "ubuntu"* ]]; then
+   __DistroRid=ubuntu.14.04
+fi
+
 # Query runtime Id
 rid=${__DistroRid}
+
+echo "Rid to be used: ${rid}"
+
 if [ -z "$rid" ]; then
     exit_with_error 1 "Failed to query runtime Id"
 fi    
@@ -157,7 +166,7 @@ fi
 
 # Get library path
 libPath=`find $packageDir | grep $rid | grep -m 1 libcoredistools`
-if [ ! -e $libPath ] || [ -z "$libpath" ]; then
+if [ ! -e $libPath ] || [ -z "$libPath" ]; then
     exit_with_error 1 'Failed to locate the downloaded library'
 fi
 
