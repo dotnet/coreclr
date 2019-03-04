@@ -3680,7 +3680,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         CalculateSizeAndFieldOffsets(
             parentSize,
             cInstanceFields,
-            FALSE,
+            /* fExplicitOffsets */ FALSE,
             pSortArray,
             classSizeInMetadata,
             packingSize,
