@@ -375,16 +375,6 @@ class EEClassLayoutInfo
 #endif
 
     private:
-        // Simple aggregate structure to combine multiple parameters shared in the field metadata collection.
-        struct TypeLayoutHelper  
-        {
-            ULONG numInstanceFields;
-            BOOL fExplicitOffsets;
-            LayoutRawFieldInfo* const* pSortedFieldInfoArray;
-            ULONG classSizeInMetadata;
-            BYTE packingSize;
-        };
-
         static void ParseFieldNativeTypes(
             IMDInternalImport* pInternalImport,
             const mdTypeDef cl,
@@ -416,7 +406,11 @@ class EEClassLayoutInfo
 
         static void CalculateSizeAndFieldOffsets(
             const UINT32 parentSize,
-            const EEClassLayoutInfo::TypeLayoutHelper& layoutHelper,
+            ULONG numInstanceFields,
+            BOOL fExplicitOffsets,
+            LayoutRawFieldInfo* const* pSortedFieldInfoArray,
+            ULONG classSizeInMetadata,
+            BYTE packingSize,
             BYTE parentAlignmentRequirement,
             BOOL calculatingNativeLayout,
             EEClassLayoutInfo* pEEClassLayoutInfoOut);

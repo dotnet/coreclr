@@ -3312,20 +3312,24 @@ void EEClassLayoutInfo::SetOffsetsAndSortFields(
 
 void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
     const UINT32 parentSize,
-    const TypeLayoutHelper& layoutHelper,
+    ULONG numInstanceFields,
+    BOOL fExplicitOffsets,
+    LayoutRawFieldInfo* const* pSortedFieldInfoArray,
+    ULONG classSizeInMetadata,
+    BYTE packingSize,
     BYTE parentAlignmentRequirement,
     BOOL calculatingNativeLayout,
     EEClassLayoutInfo* pEEClassLayoutInfoOut)
 {
     UINT32 cbCurOffset = parentSize;
-    BYTE LargestAlignmentRequirement = max(1, min(layoutHelper.packingSize, parentAlignmentRequirement));
+    BYTE LargestAlignmentRequirement = max(1, min(packingSize, parentAlignmentRequirement));
 
     // Start with the size inherited from the parent (if any).
     unsigned calcTotalSize = parentSize;
 
     LayoutRawFieldInfo* const* pSortWalk;
     ULONG i;
-    for (pSortWalk = layoutHelper.pSortedFieldInfoArray, i = layoutHelper.numInstanceFields; i; i--, pSortWalk++)
+    for (pSortWalk = pSortedFieldInfoArray, i = numInstanceFields; i; i--, pSortWalk++)
     {
         LayoutRawFieldInfo* pfwalk = *pSortWalk;
 
@@ -3350,7 +3354,7 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
             COMPlusThrowHR(COR_E_INVALIDPROGRAM, BFA_METADATA_CORRUPT);
         }
 
-        alignmentRequirement = min(alignmentRequirement, layoutHelper.packingSize);
+        alignmentRequirement = min(alignmentRequirement, packingSize);
 
         LargestAlignmentRequirement = max(LargestAlignmentRequirement, alignmentRequirement);
 
@@ -3360,7 +3364,7 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
 
         // Check if this field is overlapped with other(s)
         pfwalk->m_fIsOverlapped = FALSE;
-        if (layoutHelper.fExplicitOffsets)
+        if (fExplicitOffsets)
         {
             CONSISTENCY_CHECK_MSG(calculatingNativeLayout, "The only managed types that should call this function are managed-sequential.");
 
@@ -3368,7 +3372,7 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
             DWORD dwEnd = dwBegin + pfwalk->m_cbNativeSize;
             ULONG j;
             LayoutRawFieldInfo* const* pSortWalk1;
-            for (pSortWalk1 = layoutHelper.pSortedFieldInfoArray, j = layoutHelper.numInstanceFields; j; j--, pSortWalk1++)
+            for (pSortWalk1 = pSortedFieldInfoArray, j = numInstanceFields; j; j--, pSortWalk1++)
             {
                 LayoutRawFieldInfo* pfwalk1 = *pSortWalk1;
                 if ((pfwalk1->m_offset >= dwEnd) || (pfwalk1->m_offset + pfwalk1->m_cbNativeSize <= dwBegin)) continue;
@@ -3418,9 +3422,9 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
             calcTotalSize = fieldEnd;
     }
 
-    if (layoutHelper.classSizeInMetadata != 0)
+    if (classSizeInMetadata != 0)
     {
-        ULONG classSize = layoutHelper.classSizeInMetadata;
+        ULONG classSize = classSizeInMetadata;
         if (!SafeAddULONG(&classSize, (ULONG)parentSize))
             COMPlusThrowOM();
 
@@ -3461,7 +3465,7 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
     // The packingSize acts as a ceiling on all individual alignment
     // requirements so it follows that the largest alignment requirement
     // is also capped.
-    _ASSERTE(LargestAlignmentRequirement <= layoutHelper.packingSize);
+    _ASSERTE(LargestAlignmentRequirement <= packingSize);
 
     if (calculatingNativeLayout)
     {
