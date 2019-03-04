@@ -252,20 +252,17 @@
 
     <!-- Windows specific excludes -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' == 'true'">
-         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mc_i11/*">
+         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i11/*">
             <Issue>22974</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mc_i10/*">
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i10/*">
             <Issue>22974</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mc_i12/*">
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i12/*">
             <Issue>22974</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mc_i13/*">
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i13/*">
             <Issue>22974</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Directed/pinvoke/tail/*">
-            <Issue>Does not work on nano.</Issue>
         </ExcludeList>
     </ItemGroup>
     
