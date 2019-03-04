@@ -11,7 +11,7 @@
 #ifdef FEATURE_PAL
 #include "resourcestring.h"
 #define NATIVE_STRING_RESOURCE_NAME mscorrc_debug
-DECLARE_NATIVE_STRING_RESOURCE_TABLE(NATIVE_STRING_RESOURCE_NAME);
+__attribute__((visibility("default"))) DECLARE_NATIVE_STRING_RESOURCE_TABLE(NATIVE_STRING_RESOURCE_NAME);
 #endif
 #include "sstring.h"
 #include "stringarraylist.h"
@@ -138,7 +138,6 @@ HRESULT GetMUILanguageNames(__inout StringArrayList* pCultureNames)
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pCultureNames));
-        SO_INTOLERANT;
     } 
     CONTRACTL_END;
 

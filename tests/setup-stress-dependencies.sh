@@ -79,7 +79,7 @@ echo "Running init-tools.sh"
 $scriptDir/../init-tools.sh
 
 dotnetToolsDir=$scriptDir/../Tools
-dotnetCmd=${dotnetToolsDir}/dotnetcli/dotnet
+dotnetCmd=$scriptDir/dotnet.sh
 packageDir=${scriptDir}/../packages
 csprojPath=${scriptDir}/src/Common/stress_dependencies/stress_dependencies.csproj
 
@@ -117,7 +117,7 @@ fi
 
 # Get library path
 libPath=`find $packageDir | grep $rid | grep -m 1 libcoredistools`
-if [ ! -e $libPath ]; then
+if [ ! -e $libPath ] || [ -z "$libpath" ]; then
     exit_with_error 1 'Failed to locate the downloaded library'
 fi
 

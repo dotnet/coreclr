@@ -1025,8 +1025,8 @@ HANDLE ZapImage::GenerateFile(LPCWSTR wszOutputFileName, CORCOMPILE_NGEN_SIGNATU
     {    
         // Write the debug directory entry for the NGEN PDB
         RSDS rsds = {0};
-        
-        rsds.magic = 'SDSR';
+
+        rsds.magic = VAL32(0x53445352); // "SDSR";
         rsds.age = 1;
         // our PDB signature will be the same as our NGEN signature.  
         // However we want the printed version of the GUID to be be the same as the
@@ -2128,13 +2128,6 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
 
     CompileStatus result = NOT_COMPILED;
     
-    // This is an entry point into the JIT which can call back into the VM. There are methods in the
-    // JIT that will swallow exceptions and only the VM guarentees that exceptions caught or swallowed
-    // with restore the debug state of the stack guards. So it is necessary to ensure that the status
-    // is restored on return from the call into the JIT, which this light-weight transition macro
-    // will do.
-    REMOVE_STACK_GUARD;
-
     CORINFO_MODULE_HANDLE module;
 
     // We only compile IL_STUBs from the current assembly

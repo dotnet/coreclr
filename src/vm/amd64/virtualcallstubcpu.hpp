@@ -509,7 +509,7 @@ struct VTableCallHolder
         return 3 + (offsetOfIndirection >= 0x80 ? 7 : 4) + (offsetAfterIndirection >= 0x80 ? 6 : 3) + 4;
     }
 
-    static VTableCallHolder* VTableCallHolder::FromVTableCallEntry(PCODE entry) { LIMITED_METHOD_CONTRACT; return (VTableCallHolder*)entry; }
+    static VTableCallHolder* FromVTableCallEntry(PCODE entry) { LIMITED_METHOD_CONTRACT; return (VTableCallHolder*)entry; }
 
 private:
     // VTableCallStub follows here. It is dynamically sized on allocation because it could 
@@ -586,7 +586,9 @@ void DispatchHolder::InitializeStatic()
 
     static_assert_no_msg(((sizeof(DispatchStub) + sizeof(DispatchStubShort)) % sizeof(void*)) == 0);
     static_assert_no_msg(((sizeof(DispatchStub) + sizeof(DispatchStubLong)) % sizeof(void*)) == 0);
-    static_assert_no_msg((DispatchStubLong_offsetof_failLabel - DispatchStubLong_offsetof_failDisplBase) < INT8_MAX);
+    // TODO: This should be a static_assert_no_msg(), but there were reports of build failure with VS 2019 due to the expression
+    // not being a compile-time constant, see https://github.com/dotnet/coreclr/issues/22103
+    _ASSERTE((DispatchStubLong_offsetof_failLabel - DispatchStubLong_offsetof_failDisplBase) < INT8_MAX);
 
     // Common dispatch stub initialization
     dispatchInit._entryPoint [0]      = 0x48;
@@ -730,13 +732,13 @@ void ResolveHolder::InitializeStatic()
     resolveInit.part4 [2]              = 0x50;
     resolveInit.mtOffset               = offsetof(ResolveCacheElem,pMT) & 0xFF;
     resolveInit.part5 [0]              = 0x75;
-    resolveInit.toMiss1                = offsetof(ResolveStub,miss)-(offsetof(ResolveStub,toMiss1)+1) & 0xFF;
+    resolveInit.toMiss1                = (offsetof(ResolveStub,miss)-(offsetof(ResolveStub,toMiss1)+1)) & 0xFF;
     resolveInit.part6 [0]              = 0x4C;
     resolveInit.part6 [1]              = 0x3B;
     resolveInit.part6 [2]              = 0x50;
     resolveInit.tokenOffset            = offsetof(ResolveCacheElem,token) & 0xFF;
     resolveInit.part7 [0]              = 0x75;
-    resolveInit.toMiss2                = offsetof(ResolveStub,miss)-(offsetof(ResolveStub,toMiss2)+1) & 0xFF;
+    resolveInit.toMiss2                = (offsetof(ResolveStub,miss)-(offsetof(ResolveStub,toMiss2)+1)) & 0xFF;
     resolveInit.part8 [0]              = 0x48;
     resolveInit.part8 [1]              = 0x8B;
     resolveInit.part8 [2]              = 0x40;

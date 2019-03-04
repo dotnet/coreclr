@@ -53,7 +53,6 @@ INT32 Object::GetHashCodeEx()
         MODE_COOPERATIVE;
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -146,7 +145,6 @@ TypeHandle Object::GetTrueTypeHandle()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -308,7 +306,6 @@ void Object::DEBUG_SetAppDomain(AppDomain *pDomain)
     }
     CONTRACTL_END;
 
-    /*_ASSERTE(GetThread()->IsSOTolerant());*/
     SetAppDomain(pDomain);
 }
 #endif
@@ -319,7 +316,6 @@ void Object::SetAppDomain(AppDomain *pDomain)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(CheckPointer(pDomain));
     }
@@ -351,7 +347,6 @@ BOOL Object::SetAppDomainNoThrow()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -377,7 +372,6 @@ AppDomain *Object::GetAppDomain()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -451,7 +445,6 @@ void Object::SetOffsetObjectRef(DWORD dwOffset, size_t dwValue)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     OBJECTREF*  location;
     OBJECTREF   o;
@@ -786,6 +779,8 @@ void ArrayBase::AssertArrayTypeDescLoaded()
 {
     _ASSERTE (m_pMethTab->IsArray());
 
+    ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
+
     // The type should already be loaded
     // See also: MethodTable::DoFullyLoad
     TypeHandle th = ClassLoader::LoadArrayTypeThrowing(m_pMethTab->GetApproxArrayElementTypeHandle(),
@@ -1062,7 +1057,6 @@ BOOL StringObject::CaseInsensitiveCompHelper(__in_ecount(aLength) WCHAR *strACha
         PRECONDITION(CheckPointer(strAChars));
         PRECONDITION(CheckPointer(strBChars));
         PRECONDITION(CheckPointer(result));
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     WCHAR *strAStart = strAChars;
@@ -1213,7 +1207,6 @@ BOOL StringObject::ValidateHighChars()
 ==============================================================================*/
 BOOL StringObject::HasTrailByte() {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     
     SyncBlock * pSyncBlock = PassiveGetSyncBlock();
     if(pSyncBlock != NULL)
@@ -1238,7 +1231,6 @@ BOOL StringObject::GetTrailByte(BYTE *bTrailByte) {
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1282,8 +1274,6 @@ OBJECTREF::OBJECTREF()
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
 
-    STATIC_CONTRACT_VIOLATION(SOToleranceViolation);
-
     m_asObj = (Object*)POISONC;
     Thread::ObjectRefNew(this);
 }
@@ -1297,8 +1287,6 @@ OBJECTREF::OBJECTREF(const OBJECTREF & objref)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_FORBID_FAULT;
-
-    STATIC_CONTRACT_VIOLATION(SOToleranceViolation);
 
     VALIDATEOBJECT(objref.m_asObj);
 
@@ -1332,8 +1320,6 @@ OBJECTREF::OBJECTREF(TADDR nul)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
-
-    STATIC_CONTRACT_VIOLATION(SOToleranceViolation);
 
     //_ASSERTE(nul == 0);
     m_asObj = (Object*)nul;
@@ -1587,7 +1573,6 @@ void* __cdecl GCSafeMemCpy(void * dest, const void * src, size_t len)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     if (!(((*(BYTE**)&dest) <  g_lowest_address ) ||
           ((*(BYTE**)&dest) >= g_highest_address)))
@@ -1821,7 +1806,6 @@ BOOL Nullable::IsNullableForTypeHelper(MethodTable* nullableMT, MethodTable* par
     {
         THROWS;
         GC_TRIGGERS;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1908,7 +1892,6 @@ BOOL Nullable::UnBox(void* destPtr, OBJECTREF boxedVal, MethodTable* destMT)
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     Nullable* dest = (Nullable*) destPtr;
@@ -1966,7 +1949,6 @@ BOOL Nullable::UnBoxNoGC(void* destPtr, OBJECTREF boxedVal, MethodTable* destMT)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     Nullable* dest = (Nullable*) destPtr;
@@ -2015,7 +1997,6 @@ BOOL Nullable::UnBoxIntoArgNoGC(ArgDestination *argDest, OBJECTREF boxedVal, Met
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2072,7 +2053,6 @@ void Nullable::UnBoxNoCheck(void* destPtr, OBJECTREF boxedVal, MethodTable* dest
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     Nullable* dest = (Nullable*) destPtr;
@@ -2175,7 +2155,6 @@ void ExceptionObject::SetStackTrace(StackTraceArray const & stackTrace, PTRARRAY
         GC_NOTRIGGER;
         NOTHROW;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2196,7 +2175,6 @@ void ExceptionObject::SetNullStackTrace()
         GC_NOTRIGGER;
         NOTHROW;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2221,7 +2199,6 @@ void ExceptionObject::GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * 
         GC_NOTRIGGER;
         NOTHROW;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2242,4 +2219,21 @@ void ExceptionObject::GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * 
     SpinLock::ReleaseLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
 #endif // !defined(DACCESS_COMPILE)
 
+}
+
+bool LAHashDependentHashTrackerObject::IsLoaderAllocatorLive()
+{
+    return (ObjectFromHandle(_dependentHandle) != NULL);
+}
+
+void LAHashDependentHashTrackerObject::GetDependentAndLoaderAllocator(OBJECTREF *pLoaderAllocatorRef, GCHEAPHASHOBJECTREF *pGCHeapHash)
+{
+    OBJECTREF primary = ObjectFromHandle(_dependentHandle);
+    if (pLoaderAllocatorRef != NULL)
+        *pLoaderAllocatorRef = primary;
+
+    IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
+    // Secondary is tracked only if primary is non-null
+    if (pGCHeapHash != NULL)
+        *pGCHeapHash = (GCHEAPHASHOBJECTREF)(OBJECTREF)((primary != NULL) ? mgr->GetDependentHandleSecondary(_dependentHandle) : NULL);
 }

@@ -142,6 +142,16 @@ struct TransitionBlock
         LIMITED_METHOD_CONTRACT;
         return offsetof(TransitionBlock, m_x8RetBuffReg);
     }
+    
+    static int GetOffsetOfFirstGCRefMapSlot()
+    {
+        return GetOffsetOfRetBuffArgReg();
+    }
+#else
+    static int GetOffsetOfFirstGCRefMapSlot()
+    {
+        return GetOffsetOfArgumentRegisters();
+    }
 #endif
 
     static BYTE GetOffsetOfArgs()
@@ -169,7 +179,7 @@ struct TransitionBlock
         LIMITED_METHOD_CONTRACT;
 
 #if defined(UNIX_AMD64_ABI)
-        return offset >= sizeof(TransitionBlock);
+        return offset >= (int)sizeof(TransitionBlock);
 #else        
         int ofsArgRegs = GetOffsetOfArgumentRegisters();
 
@@ -573,8 +583,8 @@ public:
 
         if (TransitionBlock::IsFloatArgumentRegisterOffset(argOffset))
         {
-            // Dividing by 8 as size of each register in FloatArgumentRegisters is 8 bytes.
-            pLoc->m_idxFloatReg = (argOffset - TransitionBlock::GetOffsetOfFloatArgumentRegisters()) / 8;
+            // Dividing by 16 as size of each register in FloatArgumentRegisters is 16 bytes.
+            pLoc->m_idxFloatReg = (argOffset - TransitionBlock::GetOffsetOfFloatArgumentRegisters()) / 16;
 
             if (!m_argTypeHandle.IsNull() && m_argTypeHandle.IsHFA())
             {
@@ -1322,7 +1332,8 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     {
         if (cFPRegs + m_idxFPReg <= 8)
         {
-            int argOfs = TransitionBlock::GetOffsetOfFloatArgumentRegisters() + m_idxFPReg * 8;
+            // Each floating point register in the argument area is 16 bytes.
+            int argOfs = TransitionBlock::GetOffsetOfFloatArgumentRegisters() + m_idxFPReg * 16;
             m_idxFPReg += cFPRegs;
             return argOfs;
         }

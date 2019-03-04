@@ -2,13 +2,33 @@
 <Dependencies>
   <ProductDependencies></ProductDependencies>
   <ToolsetDependencies>
-    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="1.0.0-beta.19067.6">
+    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="1.0.0-beta.19128.3">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>bed438c56afcd799b4de747291cf68815ae2f53b</Sha>
+      <Sha>6c034531b2af9e6b2f76c86d471fd308a400269e</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19067.6">
+    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19128.3">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>bed438c56afcd799b4de747291cf68815ae2f53b</Sha>
+      <Sha>6c034531b2af9e6b2f76c86d471fd308a400269e</Sha>
+    </Dependency>
+    <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-preview4.19153.2">
+      <Uri>https://github.com/dotnet/corefx</Uri>
+      <Sha>ce278ee840561e90b2c6bb9daaee5ff4b9cce293</Sha>
+    </Dependency>
+    <Dependency Name="Microsoft.NETCore.Platforms" Version="3.0.0-preview4.19153.2">
+      <Uri>https://github.com/dotnet/corefx</Uri>
+      <Sha>ce278ee840561e90b2c6bb9daaee5ff4b9cce293</Sha>
+    </Dependency>
+    <Dependency Name="Microsoft.NETCore.App" Version="3.0.0-preview4-27503-9">
+      <Uri>https://github.com/dotnet/core-setup</Uri>
+      <Sha>04c13d860a04d51e206e92a7bffe6e5bf92ad91c</Sha>
+    </Dependency>
+    <Dependency Name="optimization.IBC.CoreCLR" Version="99.99.99-master-20190303.1">
+      <Uri>https://dnceng@dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
+      <Sha>6cf1c3d858719aa31d0d78ce537dc92f3b0a6ddd</Sha>
+    </Dependency>
+    <Dependency Name="optimization.PGO.CoreCLR" Version="99.99.99-master-20190301.2">
+      <Uri>https://dnceng@dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
+      <Sha>6cf1c3d858719aa31d0d78ce537dc92f3b0a6ddd</Sha>
     </Dependency>
   </ToolsetDependencies>
 </Dependencies>

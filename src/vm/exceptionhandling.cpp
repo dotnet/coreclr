@@ -13,7 +13,6 @@
 #include "asmconstants.h"
 #include "eetoprofinterfacewrapper.inl"
 #include "eedbginterfaceimpl.inl"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "virtualcallstub.h"
 #include "utilcode.h"
@@ -43,7 +42,7 @@
 #endif // _TARGET_ARM_ || _TARGET_ARM64_ || _TARGET_X86_
 
 #ifndef FEATURE_PAL
-void __declspec(noinline)
+void NOINLINE
 ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord,
                  UINT_PTR          ReturnValue,
                  UINT_PTR          TargetIP,
@@ -129,6 +128,7 @@ static void DoEHLog(DWORD lvl, __in_z const char *fmt, ...);
 #endif
 
 TrackerAllocator    g_theTrackerAllocator;
+uint32_t            g_exceptionCount;
 
 bool FixNonvolatileRegisters(UINT_PTR  uOriginalSP,
                              Thread*   pThread,
@@ -198,7 +198,7 @@ void FreeTrackerMemory(ExceptionTracker* pTracker, TrackerMemoryType mem)
 static inline void UpdatePerformanceMetrics(CrawlFrame *pcfThisFrame, BOOL bIsRethrownException, BOOL bIsNewException)
 {
     WRAPPER_NO_CONTRACT;
-    COUNTER_ONLY(GetPerfCounters().m_Excep.cThrown++);
+    g_exceptionCount++;
 
     // Fire an exception thrown ETW event when an exception occurs
     ETW::ExceptionLog::ExceptionThrown(pcfThisFrame, bIsRethrownException, bIsNewException);
@@ -882,7 +882,7 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
     // we don't handle the SO.
     if (!(dwExceptionFlags & EXCEPTION_UNWINDING))
     {
-        if (IsSOExceptionCode(pExceptionRecord->ExceptionCode))
+        if (pExceptionRecord->ExceptionCode == STATUS_STACK_OVERFLOW)
         {
             // We don't need to unwind the frame chain here because we have backstop
             // personality routines at the U2M boundary to handle do that.  They are
@@ -896,15 +896,6 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
             FastInterlockAnd (&pThread->m_fPreemptiveGCDisabled, 0);
             return ExceptionContinueSearch;
         }
-        else
-        {
-#ifdef FEATURE_STACK_PROBE
-            if (GetEEPolicy()->GetActionOnFailure(FAIL_StackOverflow) == eRudeUnloadAppDomain)
-            {
-                RetailStackProbe(static_cast<unsigned int>(ADJUST_PROBE(BACKOUT_CODE_STACK_LIMIT)), pThread);
-            }
-#endif
-        }
     }
     else
     {
@@ -916,13 +907,11 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
             // look at our saved exception code.
             exceptionCode = GetCurrentExceptionCode();
 
-        if (IsSOExceptionCode(exceptionCode))
+        if (exceptionCode == STATUS_STACK_OVERFLOW)
         {
             return ExceptionContinueSearch;
         }
     }
-
-    BEGIN_CONTRACT_VIOLATION(SOToleranceViolation);
 
     StackFrame sf((UINT_PTR)MemoryStackFp);
 
@@ -986,14 +975,10 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
             // It is a breakpoint; is it from the runtime or managed code?
             PCODE ip = GetIP(pContextRecord); // IP of the fault.
 
-            BOOL fExternalException = FALSE;
-
-            BEGIN_SO_INTOLERANT_CODE_NOPROBE;
+            BOOL fExternalException;
 
             fExternalException = (!ExecutionManager::IsManagedCode(ip) &&
                                   !IsIPInModule(g_pMSCorEE, ip));
-
-            END_SO_INTOLERANT_CODE_NOPROBE;
 
             if (fExternalException)
             {
@@ -1040,7 +1025,27 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
 
             // Failfast if exception indicates corrupted process state            
             if (pTracker->GetCorruptionSeverity() == ProcessCorrupting)
-                EEPOLICY_HANDLE_FATAL_ERROR(pExceptionRecord->ExceptionCode);
+            {
+                OBJECTREF oThrowable = NULL;
+                SString message;
+
+                GCPROTECT_BEGIN(oThrowable);
+                oThrowable = pTracker->GetThrowable();
+                if (oThrowable != NULL)
+                {
+                    EX_TRY
+                    {
+                        GetExceptionMessage(oThrowable, message);
+                    }
+                    EX_CATCH
+                    {
+                    }
+                    EX_END_CATCH(SwallowAllExceptions);
+                }
+                GCPROTECT_END();
+
+                EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(pExceptionRecord->ExceptionCode, (LPCWSTR)message);
+            }
         }
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
@@ -1246,7 +1251,7 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
             // SO-tolerant mode before we do so.
             RestoreSOToleranceState();
 #endif
-            RESET_CONTRACT_VIOLATION();
+
             ExceptionTracker::ResumeExecution(pContextRecord,
                                               NULL
                                               );
@@ -1263,8 +1268,6 @@ lExit: ;
     {
         GCX_PREEMP_NO_DTOR();
     }
-
-    END_CONTRACT_VIOLATION;
 
     SetLastError(dwLastError);
 
@@ -1287,7 +1290,6 @@ bool FixNonvolatileRegisters(UINT_PTR  uOriginalSP,
         MODE_COOPERATIVE;
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2683,17 +2685,6 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
 
         }
 
-#ifdef FEATURE_STACK_PROBE
-        // Don't call a handler if we're within a certain distance of the end of the stack.  Could end up here via probe, in
-        // which case guard page is intact, or via hard SO, in which case guard page won't be.  So don't check for presence of
-        // guard page, just check for sufficient space on stack.
-        if (   IsStackOverflowException()
-            && !pThread->CanResetStackTo((void*)sf.SP))
-        {
-            EH_LOG((LL_INFO100, "  STACKOVERFLOW: IGNOREFRAME: stack frame too close to guard page: sf.SP: %p\n", sf.SP));
-        }
-        else
-#endif // FEATURE_STACK_PROBE
         {
             IJitManager* pJitMan   = pcfThisFrame->GetJitManager();
             const METHODTOKEN& MethToken = pcfThisFrame->GetMethodToken();
@@ -3070,7 +3061,19 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                             }
                             else
                             {
-                                TypeHandle typeHnd = pJitMan->ResolveEHClause(&EHClause, pcfThisFrame);
+                                TypeHandle typeHnd;
+                                EX_TRY
+                                {
+                                    typeHnd = pJitMan->ResolveEHClause(&EHClause, pcfThisFrame);
+                                }
+                                EX_CATCH_EX(Exception)
+                                {
+                                    SString msg;
+                                    GET_EXCEPTION()->GetMessage(msg);
+                                    msg.Insert(msg.Begin(), W("Cannot resolve EH clause:\n"));
+                                    EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_FAILFAST, msg.GetUnicode());
+                                }
+                                EX_END_CATCH(RethrowTransientExceptions);
 
                                 EH_LOG((LL_INFO100,
                                         "  clause type = %s\n",
@@ -3275,24 +3278,6 @@ lExit:
     return ReturnStatus;
 }
 
-// <64bit_And_Arm_Specific>
-
-// For funclets, add support for unwinding frame chain during SO. These definitions will be automatically picked up by
-// BEGIN_SO_TOLERANT_CODE/END_SO_TOLERANT_CODE usage in ExceptionTracker::CallHandler below.
-//
-// This is required since funclet invocation is the only case of calling managed code from VM that is not wrapped by
-// assembly helper with associated personality routine. The personality routine will invoke CleanupForSecondPass to 
-// release exception trackers and unwind frame chain.
-//
-// We need to do the same work as CleanupForSecondPass for funclet invocation in the face of SO. Thus, we redefine OPTIONAL_SO_CLEANUP_UNWIND
-// below. This will perform frame chain unwind inside the "__finally" block that is part of the END_SO_TOLERANT_CODE macro only in the face
-// of an SO. 
-//
-// The second part of work, releasing exception trackers, is done inside the "__except" block also part of the END_SO_TOLERANT_CODE by invoking
-// ClearExceptionStateAfterSO.
-//
-// </64bit_And_Arm_Specific>
-
 #undef OPTIONAL_SO_CLEANUP_UNWIND
 
 #define OPTIONAL_SO_CLEANUP_UNWIND(pThread, pFrame)  if (pThread->GetFrame() < pFrame) { UnwindFrameChain(pThread, pFrame); }
@@ -3374,15 +3359,6 @@ DWORD_PTR ExceptionTracker::CallHandler(
 
     throwable = PossiblyUnwrapThrowable(pThread->GetThrowable(), pMD->GetAssembly());
 
-    // We probe for stack space before attempting to call a filter, finally, or catch clause. The path from
-    // here to the actual managed code is very short. We must probe, however, because the JIT does not generate a
-    // probe for us upon entry to the handler. This probe ensures we have enough stack space to actually make it
-    // into the managed code.
-    //
-    // Incase a SO happens, this macro will also unwind the frame chain before continuing to dispatch the SO
-    // upstack (look at the macro implementation for details).
-    BEGIN_SO_TOLERANT_CODE(pThread);
-
     // Stores the current SP and BSP, which will be the caller SP and BSP for the funclet.
     // Note that we are making the assumption here that the SP and BSP don't change from this point
     // forward until we actually make the call to the funclet.  If it's not the case then we will need
@@ -3449,8 +3425,6 @@ DWORD_PTR ExceptionTracker::CallHandler(
     }
 
     this->m_EHClauseInfo.SetManagedCodeEntered(FALSE);
-
-    END_SO_TOLERANT_CODE;
 
     // The first parameter specifies whether we want to make callbacks before (true) or after (false)
     // calling the handler.
@@ -3886,7 +3860,7 @@ ExceptionTracker* ExceptionTracker::GetOrCreateTracker(
         //
         // Thus, if we see that we are here for SO in the 2nd pass, then
         // we shouldn't attempt to create a throwable.
-        if ((!fIsFirstPass) && (IsSOExceptionCode(pExceptionRecord->ExceptionCode)))
+        if ((!fIsFirstPass) && (pExceptionRecord->ExceptionCode == STATUS_STACK_OVERFLOW))
         {
             fCreateThrowableForCurrentPass = false;
         }
@@ -4193,8 +4167,6 @@ void ExceptionTracker::MakeCallbacksRelatedToHandler(
             EEToDebuggerExceptionInterfaceWrapper::ExceptionFilter(pMD, (TADDR) dwHandlerStartPC, pEHClause->FilterOffset, (BYTE*)sf.SP);
 
             EEToProfilerExceptionInterfaceWrapper::ExceptionSearchFilterEnter(pMD);
-
-            COUNTER_ONLY(GetPerfCounters().m_Excep.cFiltersExecuted++);
         }
         else
         {
@@ -4204,7 +4176,6 @@ void ExceptionTracker::MakeCallbacksRelatedToHandler(
             {
                 m_EHClauseInfo.SetEHClauseType(COR_PRF_CLAUSE_FINALLY);
                 EEToProfilerExceptionInterfaceWrapper::ExceptionUnwindFinallyEnter(pMD);
-                COUNTER_ONLY(GetPerfCounters().m_Excep.cFinallysExecuted++);
             }
             else
             {
@@ -5636,7 +5607,6 @@ BOOL FirstCallToHandler (
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -5671,7 +5641,6 @@ NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
         GC_NOTRIGGER;
         NOTHROW;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -5683,8 +5652,6 @@ NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
 
     Thread* pThread = GetThread();
     CONTEXT *pNewContext = NULL;
-
-    VALIDATE_BACKOUT_STACK_CONSUMPTION;
 
     if (FirstCallToHandler(pDispatcherContext, &pNewContext))
     {
@@ -5735,11 +5702,6 @@ FixContextHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
 {
     CONTEXT* pNewContext = NULL;
 
-    VALIDATE_BACKOUT_STACK_CONSUMPTION;
-
-    // Our backout validation should ensure that we don't SO here.
-    BEGIN_CONTRACT_VIOLATION(SOToleranceViolation);
-
     if (FirstCallToHandler(pDispatcherContext, &pNewContext))
     {
         //
@@ -5752,8 +5714,6 @@ FixContextHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
     }
 
     FixupDispatcherContext(pDispatcherContext, pNewContext, pContextRecord);
-
-    END_CONTRACT_VIOLATION;
 
     // Returning ExceptionCollidedUnwind will cause the OS to take our new context record
     // and dispatcher context and restart the exception dispatching on this call frame,
@@ -5893,10 +5853,7 @@ UMThunkUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
         return ExceptionContinueSearch;
     }
 
-    bool fIsSO =
-        IsSOExceptionCode(pExceptionRecord->ExceptionCode);
-
-    VALIDATE_BACKOUT_STACK_CONSUMPTION;
+    bool fIsSO = pExceptionRecord->ExceptionCode == STATUS_STACK_OVERFLOW;
 
     if (IS_UNWINDING(pExceptionRecord->ExceptionFlags))
     {
@@ -5907,8 +5864,6 @@ UMThunkUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
                 pThread->DisablePreemptiveGC();
             }
         }
-        // The VALIDATE_BACKOUT_STACK_CONSUMPTION makes sure that this function does not use stack more than backout limit.
-        CONTRACT_VIOLATION(SOToleranceViolation);
         CleanUpForSecondPass(pThread, fIsSO, (void*)MemoryStackFp, (void*)MemoryStackFp);
     }
 
@@ -5998,7 +5953,7 @@ CallDescrWorkerUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionReco
     Thread* pThread = GetThread();
     _ASSERTE(pThread);
 
-    if (IsSOExceptionCode(pExceptionRecord->ExceptionCode))
+    if (pExceptionRecord->ExceptionCode == STATUS_STACK_OVERFLOW)
     {
         if (IS_UNWINDING(pExceptionRecord->ExceptionFlags))
         {
@@ -6017,10 +5972,6 @@ CallDescrWorkerUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionReco
                                                        pContextRecord,
                                                        pDispatcherContext);
 
-    // Our backout validation should ensure that we don't SO here.  Add a
-    // backout validation here.
-    BEGIN_CONTRACT_VIOLATION(SOToleranceViolation);
-
     if (retVal == ExceptionContinueSearch)
     {
 
@@ -6033,8 +5984,6 @@ CallDescrWorkerUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionReco
         // So switch to preemptive mode.
         GCX_PREEMP_NO_DTOR();
     }
-
-    END_CONTRACT_VIOLATION;
 
     return retVal;
 }
@@ -6073,7 +6022,6 @@ FixRedirectContextHandler(
         GC_NOTRIGGER;
         NOTHROW;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -6082,8 +6030,6 @@ FixRedirectContextHandler(
         pDispatcherContext->EstablisherFrame,
         pContextRecord,
         pDispatcherContext->ContextRecord);
-
-    VALIDATE_BACKOUT_STACK_CONSUMPTION;
 
     CONTEXT *pRedirectedContext = GetCONTEXTFromRedirectedStubStackFrame(pDispatcherContext);
 

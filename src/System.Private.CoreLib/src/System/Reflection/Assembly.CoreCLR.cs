@@ -19,6 +19,7 @@ namespace System.Reflection
         private static object s_syncRootLoadFrom = new object();
         private static List<string> s_LoadFromAssemblyList = new List<string>();
         private static object s_syncLoadFromAssemblyList = new object();
+        private static int s_cachedSerializationSwitch = 0;
 
         private static Assembly LoadFromResolveHandler(object sender, ResolveEventArgs args)
         {
@@ -124,28 +125,19 @@ namespace System.Reflection
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Assembly Load(AssemblyName assemblyRef)
         {
-            AssemblyName modifiedAssemblyRef = null;
-            if (assemblyRef != null && assemblyRef.CodeBase != null)
-            {
-                modifiedAssemblyRef = (AssemblyName)assemblyRef.Clone();
-                modifiedAssemblyRef.CodeBase = null;
-            }
-            else
-            {
-                modifiedAssemblyRef = assemblyRef;
-            }
-            
+            if (assemblyRef == null)
+                throw new ArgumentNullException(nameof(assemblyRef));
+
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RuntimeAssembly.InternalLoadAssemblyName(modifiedAssemblyRef, null, ref stackMark, true /*thrownOnFileNotFound*/);
+            return Load(assemblyRef, ref stackMark, IntPtr.Zero);
         }
 
         // Locate an assembly by its name. The name can be strong or
         // weak. The assembly is loaded into the domain of the caller.
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        internal static Assembly Load(AssemblyName assemblyRef, IntPtr ptrLoadContextBinder)
+        internal static Assembly Load(AssemblyName assemblyRef, ref StackCrawlMark stackMark, IntPtr ptrLoadContextBinder)
         {
             AssemblyName modifiedAssemblyRef = null;
-            if (assemblyRef != null && assemblyRef.CodeBase != null)
+            if (assemblyRef.CodeBase != null)
             {
                 modifiedAssemblyRef = (AssemblyName)assemblyRef.Clone();
                 modifiedAssemblyRef.CodeBase = null;
@@ -155,8 +147,7 @@ namespace System.Reflection
                 modifiedAssemblyRef = assemblyRef;
             }
 
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RuntimeAssembly.InternalLoadAssemblyName(modifiedAssemblyRef, null, ref stackMark, true /*thrownOnFileNotFound*/, ptrLoadContextBinder);
+            return RuntimeAssembly.InternalLoadAssemblyName(modifiedAssemblyRef, ref stackMark, ptrLoadContextBinder);
         }
 
         // Loads the assembly with a COFF based IMAGE containing
@@ -172,6 +163,9 @@ namespace System.Reflection
             if (ApplicationModel.IsUap)
                 throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.Load(byte[], ...)"));
 #endif
+
+            SerializationInfo.ThrowIfDeserializationInProgress("AllowAssembliesFromByteArrays", 
+                ref s_cachedSerializationSwitch);
 
             AssemblyLoadContext alc = new IndividualAssemblyLoadContext();
             MemoryStream assemblyStream = new MemoryStream(rawAssembly);
@@ -253,5 +247,9 @@ namespace System.Reflection
             GetEntryAssembly(JitHelpers.GetObjectHandleOnStack(ref entryAssembly));
             return entryAssembly;
         }
+
+        // Exists to faciliate code sharing between CoreCLR and CoreRT.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool IsRuntimeImplemented() => this is RuntimeAssembly;
     }
 }

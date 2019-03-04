@@ -137,7 +137,7 @@ static void ConvertConfigPropertiesToUnicode(
 
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 // Reference to the global holding the path to the JIT
-extern "C" LPCWSTR g_CLRJITPath;
+extern LPCWSTR g_CLRJITPath;
 #endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
 #ifdef FEATURE_GDBJIT
@@ -149,7 +149,7 @@ extern "C" int coreclr_create_delegate(void*, unsigned int, const char*, const c
 // Initialize the CoreCLR. Creates and starts CoreCLR host and creates an app domain
 //
 // Parameters:
-//  exePath                 - Absolute path of the executable that invoked the ExecuteAssembly
+//  exePath                 - Absolute path of the executable that invoked the ExecuteAssembly (the native host application)
 //  appDomainFriendlyName   - Friendly name of the app domain that will be created to execute the assembly
 //  propertyCount           - Number of properties (elements of the following two arguments)
 //  propertyKeys            - Keys of properties of the app domain
@@ -161,6 +161,7 @@ extern "C" int coreclr_create_delegate(void*, unsigned int, const char*, const c
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
+DLLEXPORT
 int coreclr_initialize(
             const char* exePath,
             const char* appDomainFriendlyName,
@@ -274,12 +275,13 @@ int coreclr_initialize(
 //
 // Parameters:
 //  hostHandle              - Handle of the host
-//  domainId                - Id of the domain 
+//  domainId                - Id of the domain
 //
 // Returns:
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
+DLLEXPORT
 int coreclr_shutdown(
             void* hostHandle,
             unsigned int domainId)
@@ -310,6 +312,7 @@ int coreclr_shutdown(
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
+DLLEXPORT
 int coreclr_shutdown_2(
             void* hostHandle,
             unsigned int domainId,
@@ -330,7 +333,7 @@ int coreclr_shutdown_2(
 }
 
 //
-// Create a native callable delegate for a managed method.
+// Create a native callable function pointer for a managed method.
 //
 // Parameters:
 //  hostHandle              - Handle of the host
@@ -338,12 +341,13 @@ int coreclr_shutdown_2(
 //  entryPointAssemblyName  - Name of the assembly which holds the custom entry point
 //  entryPointTypeName      - Name of the type which holds the custom entry point
 //  entryPointMethodName    - Name of the method which is the custom entry point
-//  delegate                - Output parameter, the function stores a pointer to the delegate at the specified address
+//  delegate                - Output parameter, the function stores a native callable function pointer to the delegate at the specified address
 //
 // Returns:
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
+DLLEXPORT
 int coreclr_create_delegate(
             void* hostHandle,
             unsigned int domainId,
@@ -383,6 +387,7 @@ int coreclr_create_delegate(
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
+DLLEXPORT
 int coreclr_execute_assembly(
             void* hostHandle,
             unsigned int domainId,

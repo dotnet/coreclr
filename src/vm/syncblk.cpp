@@ -22,7 +22,6 @@
 #include "syncblk.h"
 #include "interoputil.h"
 #include "encee.h"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "dllimportcallback.h"
 #include "comcallablewrapper.h"
@@ -309,7 +308,6 @@ inline WaitEventLink *ThreadQueue::DequeueThread(SyncBlock *psb)
 #endif
         ret = WaitEventLinkForLink(pLink);
         _ASSERTE(ret->m_WaitSB == psb);
-        COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cQueueLength--);
     }
     return ret;
 }
@@ -333,8 +331,6 @@ inline void ThreadQueue::EnqueueThread(WaitEventLink *pWaitEventLink, SyncBlock 
     // Be careful, the debugger inspects the queue from out of process and just looks at the memory...
     // it must be valid even if the lock is held. Be careful if you change the way the queue is updated.
     SyncBlockCache::LockHolder lh(SyncBlockCache::GetSyncBlockCache());
-
-    COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cQueueLength++);
 
     SLink       *pPrior = &psb->m_Link;
 
@@ -382,7 +378,6 @@ BOOL ThreadQueue::RemoveThread (Thread *pThread, SyncBlock *psb)
             pLink->m_pNext = (SLink *)POISONC;
 #endif
             _ASSERTE(pWaitEventLink->m_WaitSB == psb);
-            COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cQueueLength--);
             res = TRUE;
             break;
         }
@@ -1862,7 +1857,6 @@ BOOL ObjHeader::TryEnterObjMonitor(INT32 timeOut)
 AwareLock::EnterHelperResult ObjHeader::EnterObjMonitorHelperSpin(Thread* pCurThread)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -2089,7 +2083,6 @@ BOOL ObjHeader::GetThreadOwningMonitorLock(DWORD *pThreadId, DWORD *pAcquisition
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
 #ifndef DACCESS_COMPILE
         if (!IsGCSpecialThread ()) {MODE_COOPERATIVE;} else {MODE_ANY;}
 #endif
@@ -2290,7 +2283,6 @@ ADIndex ObjHeader::GetAppDomainIndex()
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_SUPPORTS_DAC;
 
     ADIndex indx = GetRawAppDomainIndex();
@@ -2513,9 +2505,8 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
-    
+
     DWORD bits = GetBits ();
     Object * obj = GetBaseObject ();
     BOOL bVerifyMore = g_pConfig->GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_SYNCBLK;
@@ -3046,8 +3037,6 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     // mode temporarily before calling here, then they are responsible for protecting
     // the object associated with this lock.
     _ASSERTE(pCurThread->PreemptiveGCDisabled());
-
-    COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cContention++);
 
     // Fire a contention start event for a managed contention
     FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());

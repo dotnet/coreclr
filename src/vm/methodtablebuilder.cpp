@@ -502,8 +502,6 @@ MethodTableBuilder::ExpandApproxInheritedInterfaces(
 {
     STANDARD_VM_CONTRACT;
 
-    INTERIOR_STACK_PROBE(GetThread());
-
     // Expand interfaces in superclasses first.  Interfaces inherited from parents
     // must have identical indexes as in the parent.
     bmtRTType * pParentOfParent = pParentType->GetParentType();
@@ -550,8 +548,6 @@ MethodTableBuilder::ExpandApproxInheritedInterfaces(
     
     // Restore parent's substitution
     pParentType->SetSubstitution(parentSubstitution);
-    
-    END_INTERIOR_STACK_PROBE;
 } // MethodTableBuilder::ExpandApproxInheritedInterfaces
 
 //*******************************************************************************
@@ -1324,10 +1320,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
     bmtInternal->pType = new (GetStackingAllocator())
         bmtMDType(pParent, pModule, cl, bmtGenericsInfo->typeContext);
 
-    // put the interior stack probe after all the stack-allocted goop above.  We check compare our this pointer to the SP on
-    // the dtor to determine if we are being called on an EH path or not.
-    INTERIOR_STACK_PROBE_FOR(GetThread(), 8);
-
     // If not NULL, it means there are some by-value fields, and this contains an entry for each inst
 
 #ifdef _DEBUG 
@@ -1872,7 +1864,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #endif
 #ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
+#error "Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time."
 #endif // FEATURE_HFA
         SystemVAmd64CheckForPassStructInRegister();
 #endif // UNIX_AMD64_ABI
@@ -1880,7 +1872,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 
 #ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
+#error "Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time."
 #endif // FEATURE_HFA
     if (HasLayout())
     {
@@ -2081,27 +2073,9 @@ MethodTableBuilder::BuildMethodTableThrowing(
         GetCl(),
         GetHalfBakedMethodTable());
 
-#ifdef MDA_SUPPORTED
-    MdaMarshaling* mda = MDA_GET_ASSISTANT(Marshaling);
-    if (mda && HasLayout())
-    {
-        FieldMarshaler *pFieldMarshaler = (FieldMarshaler*)GetLayoutInfo()->GetFieldMarshalers();
-        UINT  numReferenceFields        = GetLayoutInfo()->GetNumCTMFields();
-
-        while (numReferenceFields--)
-        {
-            mda->ReportFieldMarshal(pFieldMarshaler);
-
-            ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-        }
-    }
-#endif // MDA_SUPPORTED
-
 #ifdef FEATURE_PREJIT
     _ASSERTE(pComputedPZM == Module::GetPreferredZapModuleForMethodTable(pMT));
 #endif // FEATURE_PREJIT
-
-    END_INTERIOR_STACK_PROBE;
 
     return GetHalfBakedMethodTable();
 } // MethodTableBuilder::BuildMethodTableThrowing
@@ -2918,9 +2892,15 @@ MethodTableBuilder::EnumerateClassMethods()
             }
         }
 
-#ifndef FEATURE_DEFAULT_INTERFACES
         // Some interface checks.
-        if (fIsClassInterface)
+        // We only need them if default interface method support is disabled or if this is fragile crossgen
+#if !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
+        if (fIsClassInterface
+#if defined(FEATURE_DEFAULT_INTERFACES)
+            // Only fragile crossgen wasn't upgraded to deal with default interface methods.
+            && !IsReadyToRunCompilation()
+#endif
+            )
         {
             if (IsMdVirtual(dwMemberAttrs))
             {
@@ -2931,14 +2911,14 @@ MethodTableBuilder::EnumerateClassMethods()
             }
             else
             {
-                // Instance field/method
+                // Instance method
                 if (!IsMdStatic(dwMemberAttrs))
                 {
                     BuildMethodTableThrowException(BFA_NONVIRT_INST_INT_METHOD);
                 }
             }
         }
-#endif
+#endif // !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
 
         // No synchronized methods in ValueTypes
         if(fIsClassValueType && IsMiSynchronized(dwImplFlags))
@@ -11885,7 +11865,6 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
     MethodTable * pMT = NULL;
 
     Thread * pThread = GetThread();
-    BEGIN_SO_INTOLERANT_CODE_FOR(pThread, DefaultEntryProbeAmount() * 2)
 
     MethodTable * pParentMethodTable = NULL;
     SigPointer    parentInst;
@@ -12205,6 +12184,5 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
         parentInst, 
         (WORD)cInterfaces);
 
-    END_SO_INTOLERANT_CODE;
     RETURN(TypeHandle(pMT));
 } // ClassLoader::CreateTypeHandleForTypeDefThrowing

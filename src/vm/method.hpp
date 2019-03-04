@@ -19,7 +19,6 @@
 #include "codeman.h"
 #include "class.h"
 #include "siginfo.hpp"
-#include "declsec.h"
 #include "methodimpl.h"
 #include "typedesc.h"
 #include <stddef.h>
@@ -833,7 +832,6 @@ public:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_ANY;
         }
         CONTRACTL_END;
@@ -1398,7 +1396,7 @@ private:
     void RecordAndBackpatchEntryPointSlot_Locked(LoaderAllocator *mdLoaderAllocator, LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlots::SlotType slotType, PCODE currentEntryPoint);
 
 public:
-    void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint)
+    void BackpatchEntryPointSlots(PCODE entryPoint)
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(entryPoint != GetPrestubEntryPointToBackpatch());
@@ -1407,7 +1405,7 @@ public:
         BackpatchEntryPointSlots(entryPoint, false /* isPrestubEntryPoint */);
     }
 
-    void MethodDesc::BackpatchToResetEntryPointSlots()
+    void BackpatchToResetEntryPointSlots()
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
@@ -3693,7 +3691,6 @@ inline BOOL MethodDesc::SanityCheck()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
         SUPPORTS_DAC;
     }

@@ -184,8 +184,10 @@ void HndDestroyHandleTable(HHANDLETABLE hTable)
     // fetch the handle table pointer
     HandleTable *pTable = Table(hTable);
 
+#ifdef ENABLE_PERF_COUNTERS
     // decrement handle count by number of handles in this table
-    COUNTER_ONLY(GetPerfCounters().m_GC.cHandles -= HndCountHandles(hTable));
+    GetPerfCounters().m_GC.cHandles -= HndCountHandles(hTable);
+#endif
 
     // We are going to free the memory for this HandleTable.
     // Let us reset the copy in g_pHandleTableArray to NULL.
@@ -297,7 +299,6 @@ OBJECTHANDLE HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF obje
         {
             MODE_ANY;
         }
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -356,7 +357,6 @@ void ValidateFetchObjrefForHandle(OBJECTREF objref, ADIndex appDomainIndex)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_DEBUG_ONLY;
 
@@ -374,7 +374,6 @@ void ValidateAssignObjrefForHandle(OBJECTREF objref, ADIndex appDomainIndex)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_DEBUG_ONLY;
 
@@ -432,7 +431,6 @@ void HndDestroyHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTHANDLE handle)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT; 
         CAN_TAKE_LOCK;     // because of TableFreeSingleHandleToCache
     }
     CONTRACTL_END;
@@ -478,7 +476,6 @@ void HndDestroyHandleOfUnknownType(HHANDLETABLE hTable, OBJECTHANDLE handle)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -590,7 +587,6 @@ void HndLogSetEvent(OBJECTHANDLE handle, _UNCHECKED_OBJECTREF value)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
 #if !defined(DACCESS_COMPILE) && defined(FEATURE_EVENT_TRACE)
@@ -646,7 +642,6 @@ void HndWriteBarrier(OBJECTHANDLE handle, OBJECTREF objref)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
     // unwrap the objectref we were given

@@ -35,7 +35,6 @@
 #include "eeconfig.h"
 #include "interoputil.h"
 #include "dispex.h"
-#include "perfcounters.h"
 #include "guidfromname.h"
 #include "comconnectionpoints.h"
 #include <objsafe.h>    // IID_IObjctSafe
@@ -1004,12 +1003,10 @@ LONGLONG SimpleComCallWrapper::ReleaseImplWithLogging(LONGLONG * pRefCount)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     LONGLONG newRefCount;
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), goto NoLog );
 
     StackSString ssMessage;
     ComCallWrapper *pWrap = GetMainWrapper();
@@ -1020,14 +1017,7 @@ LONGLONG SimpleComCallWrapper::ReleaseImplWithLogging(LONGLONG * pRefCount)
 
     LogRefCount(pWrap, ssMessage, GET_EXT_COM_REF(newRefCount));
 
-    END_SO_INTOLERANT_CODE;
     return newRefCount;
-
-#ifdef FEATURE_STACK_PROBE  // this code is unreachable if FEATURE_STACK_PROBE is not defined
-NoLog:
-    // Decrement the ref count
-    return ::InterlockedDecrement64(pRefCount);
-#endif // FEATURE_STACK_PROBE
 }
 
 
@@ -1743,7 +1733,6 @@ IUnknown* SimpleComCallWrapper::QIStandardInterface(Enum_StdInterfaces index)
         MODE_ANY;                                           \
         NOTHROW;                                            \
         GC_NOTRIGGER;                                       \
-        SO_TOLERANT;                                        \
         POSTCONDITION(RETVAL == !!IsEqualGUID(iid, riid));  \
     }                                                       \
     CONTRACT_END;                                           \
@@ -1899,7 +1888,6 @@ void SimpleComCallWrapper::ResetOuter()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -1921,7 +1909,6 @@ IUnknown* SimpleComCallWrapper::GetOuter()
         GC_NOTRIGGER;
         MODE_ANY;
         POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-        SO_TOLERANT;
     }
     CONTRACT_END;
 
@@ -3251,7 +3238,7 @@ IUnknown * ComCallWrapper::GetComIPFromCCW_HandleExtendsCOMObject(
                 MethodDesc *pClsMD = NULL;
 
                 // Find the implementation for the first slot of the interface
-                DispatchSlot impl(pMT->FindDispatchSlot(intIt.GetInterface()->GetTypeID(), 0));
+                DispatchSlot impl(pMT->FindDispatchSlot(intIt.GetInterface()->GetTypeID(), 0, FALSE /* throwOnConflict */));
                 CONSISTENCY_CHECK(!impl.IsNull());
 
                 // Get the MethodDesc for this slot in the class
@@ -3789,8 +3776,6 @@ LONG ComCallWrapperCache::AddRef()
     }
     CONTRACTL_END;
     
-    COUNTER_ONLY(GetPerfCounters().m_Interop.cCCW++);
-    
     LONG i = FastInterlockIncrement(&m_cbRef);
     LOG((LF_INTEROP, LL_INFO100, "ComCallWrapperCache::Addref %8.8x with %d in loader allocator [%d] %8.8x\n", 
         this, i, GetLoaderAllocator()?GetLoaderAllocator()->GetCreationNumber() : 0, GetLoaderAllocator()));
@@ -3811,8 +3796,6 @@ LONG ComCallWrapperCache::Release()
         MODE_ANY;
     }
     CONTRACTL_END;
-    
-    COUNTER_ONLY(GetPerfCounters().m_Interop.cCCW--);
 
     LONG i = FastInterlockDecrement(&m_cbRef);
     _ASSERTE(i >= 0);

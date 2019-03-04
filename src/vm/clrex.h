@@ -788,7 +788,7 @@ class EEFileLoadException : public EEException
 #define SET_CE_RETHROW_FLAG_FOR_EX_CATCH(expr)      ((expr == TRUE) && \
                                                      (g_pConfig->LegacyCorruptedStateExceptionsPolicy() == false) && \
                                                      (CEHelper::IsProcessCorruptedStateException(GetCurrentExceptionCode(), FALSE) ||     \
-                                                     ((!__state.DidCatchSO()) && (!__state.DidCatchCxx()) && \
+                                                     (!__state.DidCatchCxx() && \
                                                       CEHelper::IsLastActiveExceptionCorrupting(TRUE))))
 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -810,11 +810,6 @@ class EEFileLoadException : public EEException
   #undef GET_EXCEPTION
   #define GET_EXCEPTION() (__pException == NULL ? __defaultException.Validate() : __pException.GetValue())
 #endif // _DEBUG
-
-// When we throw an exception, we need stay in SO-intolerant state and
-// probe for sufficient stack so that we don't SO during the processing.
-#undef HANDLE_SO_TOLERANCE_FOR_THROW
-#define HANDLE_SO_TOLERANCE_FOR_THROW STACK_PROBE_FOR_THROW(GetThread());
 
 LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv);
 
@@ -898,10 +893,7 @@ LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv);
 //
 #undef EX_ENDTRY
 #define EX_ENDTRY                                           \
-    PAL_CPP_ENDTRY                                          \
-    SO_INFRASTRUCTURE_CODE(if (__state.DidCatch()) { RESTORE_SO_TOLERANCE_STATE; }) \
-    SO_INFRASTRUCTURE_CODE(if (__state.DidCatchSO()) { HANDLE_STACKOVERFLOW_AFTER_CATCH; }) \
-    NO_SO_INFRASTRUCTURE_CODE_ASSERTE(!__state.DidCatchSO()) \
+    PAL_CPP_ENDTRY
 
 
 // CLRException::GetErrorInfo below invokes GetComIPFromObjectRef 
@@ -1011,14 +1003,12 @@ NOINLINE BOOL HasIllegalReentrancyRare();
             }                                                           \
             if (CURRENT_THREAD != NULL)                                 \
             {                                                           \
-                BEGIN_SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, *__phr = COR_E_STACKOVERFLOW); \
                 EX_TRY_THREAD(CURRENT_THREAD);                          \
                 {                                                       \
 
 #define END_EXTERNAL_ENTRYPOINT                                         \
                 }                                                       \
                 EX_CATCH_HRESULT(*__phr);                               \
-                END_SO_INTOLERANT_CODE;                                 \
             }                                                           \
         }                                                               \
     }                                                                   \
@@ -1032,7 +1022,6 @@ NOINLINE BOOL HasIllegalReentrancyRare();
                     *__phr = GET_EXCEPTION()->GetHR();                  \
                 }                                                       \
                 EX_END_CATCH(RethrowCorruptingExceptionsEx(fCond));     \
-                END_SO_INTOLERANT_CODE;                                 \
             }                                                           \
         }                                                               \
     }                                                                   \

@@ -138,7 +138,6 @@ Function:
 
 See MSDN for more details.
 --*/
-
 PAL_time_t 
 __cdecl
 PAL_mktime(struct PAL_tm *tm)
@@ -214,7 +213,6 @@ PAL_time(PAL_time_t *tloc)
     PERF_EXIT(time);
     return result;
 }
-
 
 PALIMPORT 
 void __cdecl 

@@ -681,10 +681,6 @@ inline BOOL CLRHosted()
 #ifndef FEATURE_PAL
 HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName);
 
-// Equivalent to CLRGetModuleHandle(NULL) but doesn't have the INJECT_FAULT contract associated
-// with CLRGetModuleHandle.
-HMODULE CLRGetCurrentModuleHandle();
-
 HMODULE CLRLoadLibraryEx(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
 #endif // !FEATURE_PAL
 
@@ -756,8 +752,7 @@ BOOL IsHostRegisteredForEvent(EClrEvent event);
 #define InternalSetupForComCall(CannotEnterRetVal, OOMRetVal, SORetVal, CheckCanRunManagedCode) \
 SetupThreadForComCall(OOMRetVal);                       \
 if (CheckCanRunManagedCode && !CanRunManagedCode())     \
-    return CannotEnterRetVal;                           \
-SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, return SORetVal)
+    return CannotEnterRetVal;
 
 #define SetupForComCallHRNoHostNotif() InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)
 #define SetupForComCallHRNoHostNotifNoCheckCanRunManagedCode() InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, false)
@@ -777,7 +772,6 @@ InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFL
 if (CheckCanRunManagedCode && !CanRunManagedCode())                         \
     return CannotEnterRetVal;                                               \
 SetupThreadForComCall(OOMRetVal);                                           \
-BEGIN_SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, SORetVal)                  \
 
 #define BeginSetupForComCallHRWithEscapingCorruptingExceptions()            \
 HRESULT __hr = S_OK;                                                        \
@@ -788,7 +782,6 @@ if (SUCCEEDED(__hr))                                                        \
 
 #define EndSetupForComCallHRWithEscapingCorruptingExceptions()              \
 }                                                                           \
-END_SO_INTOLERANT_CODE;                                                     \
                                                                             \
 if (FAILED(__hr))                                                           \
 {                                                                           \
@@ -878,29 +871,8 @@ inline bool IsInCantStopRegion()
 }
 #endif // _DEBUG
 
-
-// PAL does not support per-thread locales. The holder is no-op for FEATURE_PALs
-class ThreadLocaleHolder
-{
-#ifndef FEATURE_PAL
-public:
-
-    ThreadLocaleHolder()
-    {
-        m_locale = GetThreadLocale();
-    }
-
-    ~ThreadLocaleHolder();
-
-private:
-    LCID m_locale;
-#endif // !FEATURE_PAL
-};
-
-
-
 BOOL IsValidMethodCodeNotification(USHORT Notification);
-    
+
 typedef DPTR(struct JITNotification) PTR_JITNotification;
 struct JITNotification
 {

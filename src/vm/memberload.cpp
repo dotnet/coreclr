@@ -37,7 +37,6 @@
 #include "dllimportcallback.h"
 #include "listlock.h"
 #include "methodimpl.h"
-#include "stackprobe.h"
 #include "encee.h"
 #include "comsynchronizable.h"
 #include "customattribute.h"
@@ -1180,7 +1179,7 @@ MemberLoader::FindMethodForInterfaceSlot(MethodTable * pMT, MethodTable *pInterf
 
     MethodDesc *pMDRet = NULL;
 
-    DispatchSlot ds(pMT->FindDispatchSlot(pInterface->GetTypeID(), (UINT32)slotNum));
+    DispatchSlot ds(pMT->FindDispatchSlot(pInterface->GetTypeID(), (UINT32)slotNum, FALSE /* throwOnConflict */));
     if (!ds.IsNull()) {
         pMDRet = ds.GetMethodDesc();
     }

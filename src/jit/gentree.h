@@ -826,8 +826,6 @@ public:
 #define GTF_CLS_VAR_ASG_LHS         0x04000000 // GT_CLS_VAR   -- this GT_CLS_VAR node is (the effective val) of the LHS
                                                //                 of an assignment; don't evaluate it independently.
 
-#define GTF_ADDR_ONSTACK            0x80000000 // GT_ADDR    -- this expression is guaranteed to be on the stack
-
 #define GTF_ADDRMODE_NO_CSE         0x80000000 // GT_ADD/GT_MUL/GT_LSH -- Do not CSE this node only, forms complex
                                                //                         addressing mode
 
@@ -2031,7 +2029,6 @@ public:
     }
     inline bool IsHelperCall();
 
-    bool IsVarAddr() const;
     bool gtOverflow() const;
     bool gtOverflowEx() const;
     bool gtSetFlags() const;
@@ -2645,8 +2642,9 @@ struct GenTreeDblCon : public GenTree
         return (bits == otherBits);
     }
 
-    GenTreeDblCon(double val) : GenTree(GT_CNS_DBL, TYP_DOUBLE), gtDconVal(val)
+    GenTreeDblCon(double val, var_types type = TYP_DOUBLE) : GenTree(GT_CNS_DBL, type), gtDconVal(val)
     {
+        assert(varTypeIsFloating(type));
     }
 #if DEBUGGABLE_GENTREE
     GenTreeDblCon() : GenTree()
@@ -4961,6 +4959,14 @@ struct GenTreeClsVar : public GenTree
     {
         gtFlags |= GTF_GLOB_REF;
     }
+
+    GenTreeClsVar(genTreeOps oper, var_types type, CORINFO_FIELD_HANDLE clsVarHnd, FieldSeqNode* fldSeq)
+        : GenTree(oper, type), gtClsVarHnd(clsVarHnd), gtFieldSeq(fldSeq)
+    {
+        assert((oper == GT_CLS_VAR) || (oper == GT_CLS_VAR_ADDR));
+        gtFlags |= GTF_GLOB_REF;
+    }
+
 #if DEBUGGABLE_GENTREE
     GenTreeClsVar() : GenTree()
     {

@@ -8,7 +8,6 @@
 
 #include <wincrypt.h>
 #include "cor.h"
-#include "genericstackprobe.h"
 #include "staticcontract.h"
 #include "volatile.h"
 #include "palclr.h"
@@ -62,9 +61,7 @@
         _NAME & operator=(_NAME const &);
 #endif
 
-
 #ifdef _DEBUG
-
 
 //------------------------------------------------------------------------------------------------
 // This is used to make Visual Studio autoexp.dat work sensibly with holders again.
@@ -131,11 +128,6 @@ class HolderBase
     HolderBase(TYPE value)
       : m_value(value)
     {
-        // TODO: Find a way to enable this check.
-        // We can have a holder in SO tolerant, then probe, then acquire a value.  This works
-        // because the dtor is guaranteed to run with enough stack.
-        // EnsureSOIntolerantOK(__FUNCTION__, __FILE__, __LINE__);
-
 #ifdef _DEBUG
         m_pAutoExpVisibleValue = (const AutoExpVisibleValue *)(&m_value);
 #endif //_DEBUG
@@ -238,8 +230,7 @@ template
         typename TYPE,
         typename BASE,
         UINT_PTR DEFAULTVALUE = 0,
-        BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>,
-        HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq
+        BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>
     >
 class BaseHolder : protected BASE
 {
@@ -303,16 +294,7 @@ class BaseHolder : protected BASE
         if (m_acquired)
         {
             _ASSERTE(!IsNull());
-        
-            if (VALIDATION_TYPE != HSV_NoValidation)
-            {
-                VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(VALIDATION_TYPE);
-                this->DoRelease();
-            }
-            else
-            {
-                this->DoRelease();
-            }
+            this->DoRelease();
             m_acquired = FALSE;
         }
     }
@@ -347,7 +329,7 @@ class BaseHolder : protected BASE
     HIDE_GENERATED_METHODS(BaseHolder)
 };  // BaseHolder<>
 
-template <void (*ACQUIRE)(), void (*RELEASEF)(), HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq>
+template <void (*ACQUIRE)(), void (*RELEASEF)()>
 class StateHolder
 {
   private:
@@ -383,15 +365,7 @@ class StateHolder
 
         if (m_acquired)
         {
-            if (VALIDATION_TYPE != HSV_NoValidation)
-            {
-                VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(VALIDATION_TYPE);
-                RELEASEF();
-            }
-            else
-            {
-                RELEASEF();
-            }
+            RELEASEF();
             m_acquired = FALSE;
         }
     }
@@ -415,7 +389,7 @@ class StateHolder
 };  // class StateHolder<>
 
 // Holder for the case where the acquire function can fail.
-template <typename VALUE, BOOL (*ACQUIRE)(VALUE value), void (*RELEASEF)(VALUE value), HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq>
+template <typename VALUE, BOOL (*ACQUIRE)(VALUE value), void (*RELEASEF)(VALUE value)>
 class ConditionalStateHolder
 {
   private:
@@ -453,15 +427,7 @@ class ConditionalStateHolder
 
         if (m_acquired)
         {
-            if (VALIDATION_TYPE != HSV_NoValidation)
-            {
-                VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(VALIDATION_TYPE);
-                RELEASEF(m_value);
-            }
-            else
-            {
-                RELEASEF(m_value);
-            }
+            RELEASEF(m_value);
             m_acquired = FALSE;
         }
     }
@@ -503,10 +469,10 @@ class ConditionalStateHolder
 // the value it contains.
 //-----------------------------------------------------------------------------
 template <typename TYPE, typename BASE,
-          UINT_PTR DEFAULTVALUE = 0, BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>, HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq> 
-class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDATION_TYPE>
+          UINT_PTR DEFAULTVALUE = 0, BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>>
+class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL>
 {
-    typedef BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDATION_TYPE> BaseT;
+    typedef BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL> BaseT;
 
 
 #ifdef __GNUC__
@@ -642,7 +608,7 @@ class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDAT
     {
         return !!(this->m_value != TYPE(value));
     }
-#ifdef __llvm__
+#ifdef __GNUC__
     // This handles the NULL value that is an int and clang
     // doesn't want to convert int to a pointer
     FORCEINLINE bool operator==(int value) const
@@ -653,7 +619,7 @@ class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDAT
     {
         return !!(this->m_value != TYPE((void*)(SIZE_T)value));
     }
-#endif // __llvm__
+#endif // __GNUC__
     FORCEINLINE const TYPE &operator->() const
     {
         return this->m_value;
@@ -728,14 +694,12 @@ FORCEINLINE void SafeArrayDoNothing(SAFEARRAY* p)
 }
 
 
-
-
 //-----------------------------------------------------------------------------
 // Holder/Wrapper are the simplest way to define holders - they synthesizes a base class out of 
 // function pointers
 //-----------------------------------------------------------------------------
 
-template <typename TYPE, void (*ACQUIREF)(TYPE), void (*RELEASEF)(TYPE), HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq>  
+template <typename TYPE, void (*ACQUIREF)(TYPE), void (*RELEASEF)(TYPE)>
 class FunctionBase : protected HolderBase<TYPE>
 {
   protected:
@@ -752,17 +716,7 @@ class FunctionBase : protected HolderBase<TYPE>
 
     void DoRelease()
     {
-        // <TODO> Consider removing this stack validation since it is redundant with the
-        // one that is already being done in BaseHolder & BaseWrapper. </TODO>
-        if (VALIDATION_TYPE != HSV_NoValidation)
-        {
-            VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(VALIDATION_TYPE);
-            RELEASEF(this->m_value);
-        }
-        else
-        {
-            RELEASEF(this->m_value);
-        }
+        RELEASEF(this->m_value);
     }
 };  // class Function<>
 
@@ -773,17 +727,16 @@ template
         void (*RELEASEF)(TYPE),
         UINT_PTR DEFAULTVALUE = 0, 
         BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>,
-        HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq,
         // For legacy compat (see EEJitManager::WriterLockHolder), where default ctor
         // causes ACQUIREF(DEFAULTVALUE), but ACQUIREF ignores the argument and
         // operates on static or global value instead.
         bool DEFAULT_CTOR_ACQUIRE = true
     >
-class Holder : public BaseHolder<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, VALIDATION_TYPE>,
-                                 DEFAULTVALUE, IS_NULL, VALIDATION_TYPE>
+class Holder : public BaseHolder<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF>,
+                                 DEFAULTVALUE, IS_NULL>
 {
-    typedef BaseHolder<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, VALIDATION_TYPE>,
-                                 DEFAULTVALUE, IS_NULL, VALIDATION_TYPE> BaseT;
+    typedef BaseHolder<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF>,
+                                 DEFAULTVALUE, IS_NULL> BaseT;
 
   public:
     FORCEINLINE Holder()
@@ -823,17 +776,16 @@ template
         void (*RELEASEF)(TYPE),
         UINT_PTR DEFAULTVALUE = 0,
         BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>,
-        HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq,
         // For legacy compat (see EEJitManager::WriterLockHolder), where default ctor
         // causes ACQUIREF(DEFAULTVALUE), but ACQUIREF ignores the argument and
         // operates on static or global value instead.
         bool DEFAULT_CTOR_ACQUIRE = true
     >
-class Wrapper : public BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, VALIDATION_TYPE>,
-                                   DEFAULTVALUE, IS_NULL, VALIDATION_TYPE>
+class Wrapper : public BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF>,
+                                   DEFAULTVALUE, IS_NULL>
 {
-    typedef BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, VALIDATION_TYPE>,
-                                   DEFAULTVALUE, IS_NULL, VALIDATION_TYPE> BaseT;
+    typedef BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF>,
+                                   DEFAULTVALUE, IS_NULL> BaseT;
 
   public:
     FORCEINLINE Wrapper()
@@ -974,7 +926,6 @@ FORCEINLINE void DoTheRelease(TYPE *value)
 {
     if (value)
     {
-        VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(HSV_ValidateNormalStackReq);
         value->Release();
     }
 }
@@ -1221,7 +1172,7 @@ typedef Wrapper< bool *, BoolSet, BoolUnset > BoolFlagStateHolder;
 FORCEINLINE void CounterIncrease(RAW_KEYWORD(volatile) LONG* p) {InterlockedIncrement(p);};
 FORCEINLINE void CounterDecrease(RAW_KEYWORD(volatile) LONG* p) {InterlockedDecrement(p);};
 
-typedef Wrapper<RAW_KEYWORD(volatile) LONG*, CounterIncrease, CounterDecrease, (UINT_PTR)0, CompareDefault<RAW_KEYWORD(volatile) LONG*>, HSV_NoValidation> CounterHolder;
+typedef Wrapper<RAW_KEYWORD(volatile) LONG*, CounterIncrease, CounterDecrease, (UINT_PTR)0, CompareDefault<RAW_KEYWORD(volatile) LONG*>> CounterHolder;
 
 
 #ifndef FEATURE_PAL

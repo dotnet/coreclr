@@ -189,7 +189,6 @@ void ThreadNative::KickOffThread_Worker(LPVOID ptr)
         GC_TRIGGERS;
         THROWS;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -211,7 +210,6 @@ void ThreadNative::KickOffThread_Worker(LPVOID ptr)
     pThread = GetThread();
     _ASSERTE(pThread);
     GCPROTECT_BEGIN(gc);
-    BEGIN_SO_INTOLERANT_CODE(pThread);
 
     gc.orDelegate = ObjectFromHandle(args->share->m_Threadable);
     gc.orThreadStartArg = ObjectFromHandle(args->share->m_ThreadStartArg);
@@ -249,7 +247,6 @@ void ThreadNative::KickOffThread_Worker(LPVOID ptr)
     }
 	STRESS_LOG2(LF_SYNC, LL_INFO10, "Managed thread exiting normally for delegate %p Type %pT\n", OBJECTREFToObject(gc.orDelegate), (size_t) gc.orDelegate->GetMethodTable());
 
-    END_SO_INTOLERANT_CODE;
     GCPROTECT_END();
 }
 
@@ -288,15 +285,11 @@ ULONG WINAPI ThreadNative::KickOffThread(void* pass)
         GC_TRIGGERS;
         THROWS;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     ULONG retVal = 0;
     // Before we do anything else, get Setup so that we have a real thread.
-
-    // Our thread isn't setup yet, so we can't use the standard probe
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return E_FAIL);
 
     KickOffThread_Args args;
     // don't have a separate var becuase this can be updated in the worker
@@ -380,8 +373,6 @@ ULONG WINAPI ThreadNative::KickOffThread(void* pass)
 
         DestroyThread(pThread);
     }
-
-    END_SO_INTOLERANT_CODE;
 
     return retVal;
 }
@@ -685,15 +676,7 @@ FCIMPL1(void, ThreadNative::Sleep, INT32 iTime)
     if ((iTime < 0) && (iTime != INFINITE_TIMEOUT))
         COMPlusThrowArgumentOutOfRange(W("millisecondsTimeout"), W("ArgumentOutOfRange_NeedNonNegOrNegative1"));
 
-    while(true)
-    {
-        INT64 sPauseTime = g_PauseTime;
-        INT64 sTime = CLRGetTickCount64();
-        GetThread()->UserSleep(iTime);       
-        iTime = (INT32)AdditionalWait(sPauseTime, sTime, iTime);
-        if(iTime == 0)
-            break;
-    }
+    GetThread()->UserSleep(iTime);       
 
     HELPER_METHOD_FRAME_END();
 }
@@ -1440,6 +1423,29 @@ BOOL QCALLTYPE ThreadNative::YieldThread()
     return ret;
 }
 
+FCIMPL1(Object*, ThreadNative::GetThreadDeserializationTracker, StackCrawlMark* stackMark)
+{
+    FCALL_CONTRACT;
+    OBJECTREF refRetVal = NULL;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal)
+
+    // To avoid reflection trying to bypass deserialization tracking, check the caller
+    // and only allow SerializationInfo to call into this method.
+    MethodTable* pCallerMT = SystemDomain::GetCallersType(stackMark);
+    if (pCallerMT != MscorlibBinder::GetClass(CLASS__SERIALIZATION_INFO))
+    {
+        COMPlusThrowArgumentException(W("stackMark"), NULL);
+    }
+
+    Thread* pThread = GetThread();
+
+    refRetVal = ObjectFromHandle(pThread->GetOrCreateDeserializationTracker());
+
+    HELPER_METHOD_FRAME_END();
+
+    return OBJECTREFToObject(refRetVal);
+}
+FCIMPLEND
 
 FCIMPL0(INT32, ThreadNative::GetCurrentProcessorNumber)
 {

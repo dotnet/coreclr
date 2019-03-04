@@ -381,7 +381,7 @@ void LinearScan::applyCalleeSaveHeuristics(RefPosition* rp)
 #endif // DEBUG
     {
         // Set preferences so that this register set will be preferred for earlier refs
-        theInterval->updateRegisterPreferences(rp->registerAssignment);
+        theInterval->mergeRegisterPreferences(rp->registerAssignment);
     }
 }
 
@@ -1113,6 +1113,7 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
 // Arguments:
 //    tree       - the tree for which kill positions should be generated
 //    currentLoc - the location at which the kills should be added
+//    killMask   - The mask of registers killed by this node
 //
 // Return Value:
 //    true       - kills were inserted
@@ -1124,10 +1125,14 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
 //    the multiple defs for a regPair are in different locations.
 //    If we generate any kills, we will mark all currentLiveVars as being preferenced
 //    to avoid the killed registers.  This is somewhat conservative.
+//
+//    This method can add kills even if killMask is RBM_NONE, if this tree is one of the
+//    special cases that signals that we can't permit callee save registers to hold GC refs.
 
 bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLoc, regMaskTP killMask)
 {
-    bool isCallKill = ((killMask == RBM_INT_CALLEE_TRASH) || (killMask == RBM_CALLEE_TRASH));
+    bool insertedKills = false;
+
     if (killMask != RBM_NONE)
     {
         // The killMask identifies a set of registers that will be used during codegen.
@@ -1143,7 +1148,7 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
         addRefsForPhysRegMask(killMask, currentLoc, RefTypeKill, true);
 
         // TODO-CQ: It appears to be valuable for both fp and int registers to avoid killing the callee
-        // save regs on infrequently exectued paths.  However, it results in a large number of asmDiffs,
+        // save regs on infrequently executed paths.  However, it results in a large number of asmDiffs,
         // many of which appear to be regressions (because there is more spill on the infrequently path),
         // but are not really because the frequent path becomes smaller.  Validating these diffs will need
         // to be done before making this change.
@@ -1171,7 +1176,9 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
                 {
                     continue;
                 }
-                Interval* interval = getIntervalForLocalVar(varIndex);
+                Interval*  interval   = getIntervalForLocalVar(varIndex);
+                const bool isCallKill = ((killMask == RBM_INT_CALLEE_TRASH) || (killMask == RBM_CALLEE_TRASH));
+
                 if (isCallKill)
                 {
                     interval->preferCalleeSave = true;
@@ -1192,15 +1199,17 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
             }
         }
 
-        if (compiler->killGCRefs(tree))
-        {
-            RefPosition* pos = newRefPosition((Interval*)nullptr, currentLoc, RefTypeKillGCRefs, tree,
-                                              (allRegs(TYP_REF) & ~RBM_ARG_REGS));
-        }
-        return true;
+        insertedKills = true;
     }
 
-    return false;
+    if (compiler->killGCRefs(tree))
+    {
+        RefPosition* pos =
+            newRefPosition((Interval*)nullptr, currentLoc, RefTypeKillGCRefs, tree, (allRegs(TYP_REF) & ~RBM_ARG_REGS));
+        insertedKills = true;
+    }
+
+    return insertedKills;
 }
 
 //----------------------------------------------------------------------------
@@ -1306,60 +1315,70 @@ void LinearScan::buildInternalRegisterUses()
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 //------------------------------------------------------------------------
 // buildUpperVectorSaveRefPositions - Create special RefPositions for saving
-//                                    the upper half of a set of large vector.
+//                                    the upper half of a set of large vectors.
 //
 // Arguments:
-//    tree       - The current node being handled
-//    currentLoc - The location of the current node
+//    tree             - The current node being handled.
+//    currentLoc       - The location of the current node.
+//    liveLargeVectors - The set of large vector lclVars live across 'tree'.
 //
-// Return Value: Returns the set of lclVars that are killed by this node, and therefore
-//               required RefTypeUpperVectorSaveDef RefPositions.
+// Notes:
+//    At this time we create these RefPositions for any large vectors that are live across this node,
+//    though we don't yet know which, if any, will be in a callee-save register at this point.
+//    (If they're in a caller-save register, they will simply be fully spilled.)
+//    This method is called after all the use and kill RefPositions are created for 'tree' but before
+//    any definitions.
 //
-// Notes: The returned set is used by buildUpperVectorRestoreRefPositions.
-//
-VARSET_VALRET_TP
-LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation currentLoc, regMaskTP fpCalleeKillSet)
+void LinearScan::buildUpperVectorSaveRefPositions(GenTree*         tree,
+                                                  LsraLocation     currentLoc,
+                                                  VARSET_VALARG_TP liveLargeVectors)
 {
-    assert(enregisterLocalVars);
-    VARSET_TP liveLargeVectors(VarSetOps::MakeEmpty(compiler));
-    if (!VarSetOps::IsEmpty(compiler, largeVectorVars))
+    if (enregisterLocalVars && !VarSetOps::IsEmpty(compiler, largeVectorVars))
     {
-        // We actually need to find any calls that kill the upper-half of the callee-save vector registers.
-        // But we will use as a proxy any node that kills floating point registers.
-        // (Note that some calls are masquerading as other nodes at this point so we can't just check for calls.)
-        // This check should have been done by the caller.
-        if ((fpCalleeKillSet & RBM_FLT_CALLEE_TRASH) != RBM_NONE)
+        VarSetOps::Iter iter(compiler, liveLargeVectors);
+        unsigned        varIndex = 0;
+        while (iter.NextElem(&varIndex))
         {
-            VarSetOps::AssignNoCopy(compiler, liveLargeVectors,
-                                    VarSetOps::Intersection(compiler, currentLiveVars, largeVectorVars));
-            VarSetOps::Iter iter(compiler, liveLargeVectors);
-            unsigned        varIndex = 0;
-            while (iter.NextElem(&varIndex))
-            {
-                Interval* varInterval    = getIntervalForLocalVar(varIndex);
-                Interval* tempInterval   = newInterval(varInterval->registerType);
-                tempInterval->isInternal = true;
-                RefPosition* pos =
-                    newRefPosition(tempInterval, currentLoc, RefTypeUpperVectorSaveDef, tree, RBM_FLT_CALLEE_SAVED);
-                // We are going to save the existing relatedInterval of varInterval on tempInterval, so that we can set
-                // the tempInterval as the relatedInterval of varInterval, so that we can build the corresponding
-                // RefTypeUpperVectorSaveUse RefPosition.  We will then restore the relatedInterval onto varInterval,
-                // and set varInterval as the relatedInterval of tempInterval.
-                tempInterval->relatedInterval = varInterval->relatedInterval;
-                varInterval->relatedInterval  = tempInterval;
-            }
+            Interval* varInterval    = getIntervalForLocalVar(varIndex);
+            Interval* tempInterval   = newInterval(varInterval->registerType);
+            tempInterval->isInternal = true;
+            RefPosition* pos =
+                newRefPosition(tempInterval, currentLoc, RefTypeUpperVectorSaveDef, tree, RBM_FLT_CALLEE_SAVED);
+            // We are going to save the existing relatedInterval of varInterval on tempInterval, so that we can set
+            // the tempInterval as the relatedInterval of varInterval, so that we can build the corresponding
+            // RefTypeUpperVectorSaveUse RefPosition.  We will then restore the relatedInterval onto varInterval,
+            // and set varInterval as the relatedInterval of tempInterval.
+            tempInterval->relatedInterval = varInterval->relatedInterval;
+            varInterval->relatedInterval  = tempInterval;
         }
     }
-    return liveLargeVectors;
+    // For any non-lclVar large vector intervals that are live at this point (i.e. tree temps in the DefList),
+    // we will also create a RefTypeUpperVectorSaveDef. For now these will all be spilled at this point,
+    // as we don't currently have a mechanism to communicate any non-lclVar intervals that need to be restored.
+    // TODO-CQ: Consider reworking this as part of addressing GitHub Issues #18144 and #17481.
+    for (RefInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;
+         listNode = listNode->Next())
+    {
+        var_types treeType = listNode->treeNode->TypeGet();
+        if (varTypeIsSIMD(treeType) && varTypeNeedsPartialCalleeSave(treeType))
+        {
+            RefPosition* pos = newRefPosition(listNode->ref->getInterval(), currentLoc, RefTypeUpperVectorSaveDef, tree,
+                                              RBM_FLT_CALLEE_SAVED);
+        }
+    }
 }
 
 // buildUpperVectorRestoreRefPositions - Create special RefPositions for restoring
 //                                       the upper half of a set of large vectors.
 //
 // Arguments:
-//    tree       - The current node being handled
-//    currentLoc - The location of the current node
-//    liveLargeVectors - The set of lclVars needing restores (returned by buildUpperVectorSaveRefPositions)
+//    tree             - The current node being handled.
+//    currentLoc       - The location of the current node.
+//    liveLargeVectors - The set of large vector lclVars live across 'tree'.
+//
+// Notes:
+//    This is called after all the RefPositions for 'tree' have been created, since the restore,
+//    if needed, will be inserted after the call.
 //
 void LinearScan::buildUpperVectorRestoreRefPositions(GenTree*         tree,
                                                      LsraLocation     currentLoc,
@@ -2359,6 +2378,38 @@ void LinearScan::validateIntervals()
 }
 #endif // DEBUG
 
+#ifdef _TARGET_XARCH_
+//------------------------------------------------------------------------
+// setTgtPref: Set a  preference relationship between the given Interval
+//             and a Use RefPosition.
+//
+// Arguments:
+//    interval   - An interval whose defining instruction has tgtPrefUse as a use
+//    tgtPrefUse - The use RefPosition
+//
+// Notes:
+//    This is called when we would like tgtPrefUse and this def to get the same register.
+//    This is only desirable if the use is a last use, which it is if it is a non-local,
+//    *or* if it is a lastUse.
+//     Note that we don't yet have valid lastUse information in the RefPositions that we're building
+//    (every RefPosition is set as a lastUse until we encounter a new use), so we have to rely on the treeNode.
+//    This may be called for multiple uses, in which case 'interval' will only get preferenced at most
+//    to the first one (if it didn't already have a 'relatedInterval'.
+//
+void setTgtPref(Interval* interval, RefPosition* tgtPrefUse)
+{
+    if (tgtPrefUse != nullptr)
+    {
+        Interval* useInterval = tgtPrefUse->getInterval();
+        if (!useInterval->isLocalVar || (tgtPrefUse->treeNode == nullptr) ||
+            ((tgtPrefUse->treeNode->gtFlags & GTF_VAR_DEATH) != 0))
+        {
+            // Set the use interval as related to the interval we're defining.
+            useInterval->assignRelatedIntervalIfUnassigned(interval);
+        }
+    }
+}
+#endif // _TARGET_XARCH_
 //------------------------------------------------------------------------
 // BuildDef: Build a RefTypeDef RefPosition for the given node
 //
@@ -2430,10 +2481,10 @@ RefPosition* LinearScan::BuildDef(GenTree* tree, regMaskTP dstCandidates, int mu
         RefInfoListNode* refInfo = listNodePool.GetNode(defRefPosition, tree);
         defList.Append(refInfo);
     }
-    if (tgtPrefUse != nullptr)
-    {
-        interval->assignRelatedIntervalIfUnassigned(tgtPrefUse->getInterval());
-    }
+#ifdef _TARGET_XARCH_
+    setTgtPref(interval, tgtPrefUse);
+    setTgtPref(interval, tgtPrefUse2);
+#endif // _TARGET_XARCH_
     return defRefPosition;
 }
 
@@ -2506,20 +2557,35 @@ void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCa
     // Generate Kill RefPositions
     assert(killMask == getKillSetForNode(tree));
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    VARSET_TP liveLargeVectors(VarSetOps::UninitVal());
+    VARSET_TP liveLargeVectorVars(VarSetOps::UninitVal());
     bool      doLargeVectorRestore = false;
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+
+    // Call this even when killMask is RBM_NONE, as we have to check for some special cases
+    buildKillPositionsForNode(tree, currentLoc + 1, killMask);
+
     if (killMask != RBM_NONE)
     {
-        buildKillPositionsForNode(tree, currentLoc + 1, killMask);
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        if (enregisterLocalVars && (RBM_FLT_CALLEE_SAVED != RBM_NONE))
+        // Build RefPositions to account for the fact that, even in a callee-save register, the upper half of any large
+        // vector will be killed by a call.
+        // We actually need to find any calls that kill the upper-half of the callee-save vector registers.
+        // But we will use as a proxy any node that kills floating point registers.
+        // (Note that some calls are masquerading as other nodes at this point so we can't just check for calls.)
+        // We call this unconditionally for such nodes, as we will create RefPositions for any large vector tree temps
+        // even if 'enregisterLocalVars' is false, or 'liveLargeVectors' is empty, though currently the allocation
+        // phase will fully (rather than partially) spill those, so we don't need to build the UpperVectorRestore
+        // RefPositions in that case.
+        //
+        if ((killMask & RBM_FLT_CALLEE_TRASH) != RBM_NONE)
         {
-            // Build RefPositions for saving any live large vectors.
-            // This must be done after the kills, so that we know which large vectors are still live.
-            VarSetOps::AssignNoCopy(compiler, liveLargeVectors,
-                                    buildUpperVectorSaveRefPositions(tree, currentLoc + 1, killMask));
-            doLargeVectorRestore = true;
+            if (enregisterLocalVars)
+            {
+                VarSetOps::AssignNoCopy(compiler, liveLargeVectorVars,
+                                        VarSetOps::Intersection(compiler, currentLiveVars, largeVectorVars));
+            }
+            buildUpperVectorSaveRefPositions(tree, currentLoc, liveLargeVectorVars);
+            doLargeVectorRestore = (enregisterLocalVars && !VarSetOps::IsEmpty(compiler, liveLargeVectorVars));
         }
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     }
@@ -2531,7 +2597,7 @@ void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCa
     // Finally, generate the UpperVectorRestores
     if (doLargeVectorRestore)
     {
-        buildUpperVectorRestoreRefPositions(tree, currentLoc, liveLargeVectors);
+        buildUpperVectorRestoreRefPositions(tree, currentLoc, liveLargeVectorVars);
     }
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 }
@@ -2757,7 +2823,6 @@ int LinearScan::BuildDelayFreeUses(GenTree* node, regMaskTP candidates)
 int LinearScan::BuildBinaryUses(GenTreeOp* node, regMaskTP candidates)
 {
 #ifdef _TARGET_XARCH_
-    RefPosition* tgtPrefUse = nullptr;
     if (node->OperIsBinary() && isRMWRegOper(node))
     {
         return BuildRMWUses(node, candidates);
@@ -3156,7 +3221,6 @@ int LinearScan::BuildPutArgReg(GenTreeUnOp* node)
         // Preference the destination to the interval of the first register defined by the first operand.
         assert(use->getInterval()->isLocalVar);
         isSpecialPutArg = true;
-        tgtPrefUse      = use;
     }
 
 #ifdef _TARGET_ARM_
@@ -3178,6 +3242,7 @@ int LinearScan::BuildPutArgReg(GenTreeUnOp* node)
         if (isSpecialPutArg)
         {
             def->getInterval()->isSpecialPutArg = true;
+            def->getInterval()->assignRelatedInterval(use->getInterval());
         }
     }
     return srcCount;

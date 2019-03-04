@@ -144,18 +144,9 @@ typedef LPSTR   LPUTF8;
 
 #ifndef DEBUG_NOINLINE
 #if defined(_DEBUG)
-#define DEBUG_NOINLINE __declspec(noinline)
+#define DEBUG_NOINLINE NOINLINE
 #else
 #define DEBUG_NOINLINE
-#endif
-#endif
-
-#ifndef DBG_NOINLINE_X86__RET_INLINE
-#if defined(_DEBUG) && defined(_TARGET_X86_)
-// this exists to make scan work on x86. 
-#define DBG_NOINLINE_X86__RET_INLINE __declspec(noinline)
-#else
-#define DBG_NOINLINE_X86__RET_INLINE FORCEINLINE
 #endif
 #endif
 
@@ -1355,31 +1346,10 @@ public:
     static void InitNumaNodeInfo();
 
 #if !defined(FEATURE_REDHAWK)
-private:	// apis types
-
-    //GetNumaHighestNodeNumber()
-    typedef BOOL
-    (WINAPI *PGNHNN)(PULONG);
-    //VirtualAllocExNuma()
-    typedef LPVOID
-    (WINAPI *PVAExN)(HANDLE,LPVOID,SIZE_T,DWORD,DWORD,DWORD);
-
-    // api pfns and members
-    static PGNHNN   m_pGetNumaHighestNodeNumber;
-    static PVAExN   m_pVirtualAllocExNuma;
-
 public: 	// functions
 
     static LPVOID VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T size,
                                      DWORD allocType, DWORD prot, DWORD node);
-
-private:
-    //GetNumaProcessorNodeEx()
-    typedef BOOL
-    (WINAPI *PGNPNEx)(PPROCESSOR_NUMBER, PUSHORT);
-    static PGNPNEx  m_pGetNumaProcessorNodeEx;
-
-public:
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
 #endif
 };
@@ -1407,7 +1377,6 @@ private:
     static CPU_Group_Info *m_CPUGroupInfoArray;
     static bool s_hadSingleProcessorAtStartup;
 
-    static BOOL InitCPUGroupInfoAPI();
     static BOOL InitCPUGroupInfoArray();
     static BOOL InitCPUGroupInfoRange();
     static void InitCPUGroupInfo();
@@ -1424,34 +1393,8 @@ public:
     //static void PopulateCPUUsageArray(void * infoBuffer, ULONG infoSize);
 
 #if !defined(FEATURE_REDHAWK)
-private:
-    //GetLogicalProcessorInforomationEx()
-    typedef BOOL
-    (WINAPI *PGLPIEx)(DWORD, SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *, PDWORD);
-    //SetThreadGroupAffinity()
-    typedef BOOL
-    (WINAPI *PSTGA)(HANDLE, GROUP_AFFINITY *, GROUP_AFFINITY *);
-    //GetThreadGroupAffinity()
-    typedef BOOL
-    (WINAPI *PGTGA)(HANDLE, GROUP_AFFINITY *);
-    //GetCurrentProcessorNumberEx()
-    typedef void
-    (WINAPI *PGCPNEx)(PROCESSOR_NUMBER *);
-    //GetSystemTimes()
-    typedef BOOL
-    (WINAPI *PGST)(FILETIME *, FILETIME *, FILETIME *);
-    //NtQuerySystemInformationEx()
-    //typedef int
-    //(WINAPI *PNTQSIEx)(SYSTEM_INFORMATION_CLASS, PULONG, ULONG, PVOID, ULONG, PULONG);
-    static PGLPIEx m_pGetLogicalProcessorInformationEx;
-    static PSTGA   m_pSetThreadGroupAffinity;
-    static PGTGA   m_pGetThreadGroupAffinity;
-    static PGCPNEx m_pGetCurrentProcessorNumberEx;
-    static PGST    m_pGetSystemTimes;
-    //static PNTQSIEx m_pNtQuerySystemInformationEx;
-
 public:
-    static BOOL GetLogicalProcessorInformationEx(DWORD relationship,
+    static BOOL GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
 		   SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiex, PDWORD count); 
     static BOOL SetThreadGroupAffinity(HANDLE h,
 		    GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
@@ -4634,7 +4577,6 @@ inline void ClrFlsSetThreadType (TlsThreadTypeFlag flag)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     ClrFlsSetValue (TlsIdx_ThreadType, (LPVOID)(((size_t)ClrFlsGetValue (TlsIdx_ThreadType)) |flag));
 }
@@ -4681,7 +4623,6 @@ inline BOOL IsGCThread ()
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_SUPPORTS_DAC;
-    STATIC_CONTRACT_SO_TOLERANT;
 
 #if !defined(DACCESS_COMPILE)
     return IsGCSpecialThread () || IsSuspendEEThread ();

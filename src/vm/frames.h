@@ -1678,7 +1678,6 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             MODE_COOPERATIVE; // Frame MethodDesc should be always updated in cooperative mode to avoid racing with GC stackwalk
-            SO_TOLERANT;
         }
         CONTRACTL_END;
 
@@ -3674,5 +3673,7 @@ public:
 #undef FRAMES_TURNED_FPO_ON
 #undef FPO_ON
 #endif
+
+#include "crossloaderallocatorhash.inl"
 
 #endif  //__frames_h__

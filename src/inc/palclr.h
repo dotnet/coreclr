@@ -31,6 +31,28 @@
 #define _DEBUG_IMPL 1
 #endif
 
+#if __GNUC__
+#ifndef __cdecl
+#define __cdecl	__attribute__((__cdecl__))
+#endif
+#endif
+
+#ifndef NOTHROW_DECL
+#ifdef _MSC_VER
+#define NOTHROW_DECL __declspec(nothrow)
+#else
+#define NOTHROW_DECL __attribute__((nothrow))
+#endif // !_MSC_VER
+#endif // !NOTHROW_DECL
+
+#ifndef NOINLINE
+#ifdef _MSC_VER
+#define NOINLINE __declspec(noinline)
+#else
+#define NOINLINE __attribute__((noinline))
+#endif // !_MSC_VER
+#endif // !NOINLINE
+
 //
 // CPP_ASSERT() can be used within a class definition, to perform a
 // compile-time assertion involving private names within the class.
@@ -474,29 +496,30 @@
 #if defined(SOURCE_FORMATTING)
 #define SELECTANY extern
 #else
+#if defined(__GNUC__)
+#define SELECTANY extern __attribute__((weak))
+#else
 #define SELECTANY extern __declspec(selectany)
+#endif
 #endif
 #if defined(SOURCE_FORMATTING)
 #define __annotation(x)
 #endif
         
 
-#if defined(_DEBUG_IMPL) && !defined(JIT_BUILD) && !defined(JIT64_BUILD) && !defined(CROSS_COMPILE) && !defined(_TARGET_ARM_) // @ARMTODO: no contracts for speed
+#if defined(_DEBUG_IMPL) && !defined(JIT_BUILD) && !defined(JIT64_BUILD) && !defined(CROSS_COMPILE) && !defined(DISABLE_CONTRACTS)
 #define PAL_TRY_HANDLER_DBG_BEGIN                                               \
     BOOL ___oldOkayToThrowValue = FALSE;                                        \
-    SO_INFRASTRUCTURE_CODE(BOOL ___oldSOTolerantState = FALSE;)                \
     ClrDebugState *___pState = ::GetClrDebugState();                            \
     __try                                                                       \
     {                                                                           \
         ___oldOkayToThrowValue = ___pState->IsOkToThrow();                      \
-        SO_INFRASTRUCTURE_CODE(___oldSOTolerantState = ___pState->IsSOTolerant();) \
         ___pState->SetOkToThrow();                                        \
         PAL_ENTER_THROWS_REGION;
 
 // Special version that avoids touching the debug state after doing work in a DllMain for process or thread detach.
 #define PAL_TRY_HANDLER_DBG_BEGIN_DLLMAIN(_reason)                              \
     BOOL ___oldOkayToThrowValue = FALSE;                                        \
-    SO_INFRASTRUCTURE_CODE(BOOL ___oldSOTolerantState = FALSE;)                \
     ClrDebugState *___pState = NULL;                                            \
     if (_reason != DLL_PROCESS_ATTACH)                                          \
         ___pState = CheckClrDebugState();                                       \
@@ -505,7 +528,6 @@
         if (___pState)                                                          \
         {                                                                       \
             ___oldOkayToThrowValue = ___pState->IsOkToThrow();                  \
-            SO_INFRASTRUCTURE_CODE(___oldSOTolerantState = ___pState->IsSOTolerant();) \
             ___pState->SetOkToThrow();                                        \
         }                                                                       \
         if ((_reason == DLL_PROCESS_DETACH) || (_reason == DLL_THREAD_DETACH))  \
@@ -523,16 +545,11 @@
         {                                                                       \
             _ASSERTE(___pState == CheckClrDebugState());                        \
             ___pState->SetOkToThrow( ___oldOkayToThrowValue );                \
-            SO_INFRASTRUCTURE_CODE(___pState->SetSOTolerance( ___oldSOTolerantState );) \
         }                                                                       \
     }
 
-#define PAL_ENDTRY_NAKED_DBG                                                    \
-    if (__exHandled)                                                            \
-    {                                                                           \
-        RESTORE_SO_TOLERANCE_STATE;                                             \
-    }                                                                           \
-    
+#define PAL_ENDTRY_NAKED_DBG
+
 #else
 #define PAL_TRY_HANDLER_DBG_BEGIN                   ANNOTATION_TRY_BEGIN;
 #define PAL_TRY_HANDLER_DBG_BEGIN_DLLMAIN(_reason)  ANNOTATION_TRY_BEGIN;

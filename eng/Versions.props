@@ -8,19 +8,23 @@
     <UsingToolXliff>false</UsingToolXliff>
     <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
     <MicrosoftNetFrameworkReferenceAssembliesVersion>1.0.0-alpha-004</MicrosoftNetFrameworkReferenceAssembliesVersion>
-    <!-- Libs -->
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview4.19153.2</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>3.0.0-preview4.19153.2</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftNETCoreAppVersion>3.0.0-preview4-27503-9</MicrosoftNETCoreAppVersion>
+    <optimizationIBCCoreCLRVersion>99.99.99-master-20190303.1</optimizationIBCCoreCLRVersion>
+    <optimizationPGOCoreCLRVersion>99.99.99-master-20190301.2</optimizationPGOCoreCLRVersion>
+  </PropertyGroup>
+  <!--Package names-->
+  <PropertyGroup>
+    <MicrosoftPrivateCoreFxNETCoreAppPackage>Microsoft.Private.CoreFx.NETCoreApp</MicrosoftPrivateCoreFxNETCoreAppPackage>
+    <MicrosoftNETCorePlatformsPackage>Microsoft.NETCore.Platforms</MicrosoftNETCorePlatformsPackage>
+    <MicrosoftNETCoreAppPackage>Microsoft.NETCore.App</MicrosoftNETCoreAppPackage>
+    <optimizationIBCCoreCLRPackage>optimization.IBC.CoreCLR</optimizationIBCCoreCLRPackage>
+    <optimizationPGOCoreCLRPackage>optimization.PGO.CoreCLR</optimizationPGOCoreCLRPackage>
   </PropertyGroup>
   <PropertyGroup>
-    <!-- Override arcade package version to use most recent signing
-         package -->
+    <!-- Override signing package version. Current version breaks signing SPC, remove
+         this property group once SignTool supports the scenario. -->
     <MicrosoftDotNetSignToolVersion>1.0.0-beta.19067.6</MicrosoftDotNetSignToolVersion>
-  </PropertyGroup>
-  <PropertyGroup>
-    <RestoreSources>
-      $(RestoreSources);
-      https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json;
-      https://dotnet.myget.org/F/symreader-converter/api/v3/index.json;
-      https:%2F%2Fdotnet.myget.org/F/symreader/api/v3/index.json
-    </RestoreSources>
   </PropertyGroup>
 </Project>
