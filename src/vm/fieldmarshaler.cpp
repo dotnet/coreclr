@@ -2081,7 +2081,7 @@ VOID FieldMarshaler_NestedLayoutClass::DestroyNativeImpl(LPVOID pNativeValue) co
 // Nested structure conversion
 // See FieldMarshaler for details.
 //=======================================================================
-UINT32 FieldMarshaler_NestedLayoutClass::NativeSizeCoreImpl() const
+UINT32 FieldMarshaler_NestedLayoutClass::NativeSizeImpl() const
 {
     CONTRACTL
     {
@@ -2240,7 +2240,7 @@ VOID FieldMarshaler_NestedValueClass::DestroyNativeImpl(LPVOID pNativeValue) con
 // Nested structure conversion
 // See FieldMarshaler for details.
 //=======================================================================
-UINT32 FieldMarshaler_NestedValueClass::NativeSizeCoreImpl() const
+UINT32 FieldMarshaler_NestedValueClass::NativeSizeImpl() const
 {
     CONTRACTL
     {
@@ -3698,9 +3698,7 @@ VOID FieldMarshaler_Variant::DestroyNativeImpl(LPVOID pNativeValue) const
 
 #ifdef FEATURE_COMINTEROP
 
-#define IMPLEMENT_FieldMarshaler_METHOD(ret, name, argsdecl, rettype, args) \
-    ret FieldMarshaler::name argsdecl { \
-        WRAPPER_NO_CONTRACT; \
+#define FieldMarshaler_VTable(name, rettype, args) \
         switch (GetNStructFieldType()) { \
         case NFT_STRINGUNI: rettype ((FieldMarshaler_StringUni*)this)->name##Impl args; break; \
         case NFT_STRINGANSI: rettype ((FieldMarshaler_StringAnsi*)this)->name##Impl args; break; \
@@ -3736,14 +3734,12 @@ VOID FieldMarshaler_Variant::DestroyNativeImpl(LPVOID pNativeValue) const
         case NFT_WINDOWSFOUNDATIONIREFERENCE: rettype ((FieldMarshaler_Nullable*)this)->name##Impl args; break; \
         case NFT_ILLEGAL: rettype ((FieldMarshaler_Illegal*)this)->name##Impl args; break; \
         default: UNREACHABLE_MSG("unexpected type of FieldMarshaler"); break; \
-        } \
-    }
+        } 
 
 #else // FEATURE_COMINTEROP
 
-#define IMPLEMENT_FieldMarshaler_METHOD(ret, name, argsdecl, rettype, args) \
-    ret FieldMarshaler::name argsdecl { \
-        WRAPPER_NO_CONTRACT; \
+
+#define FieldMarshaler_VTable(name, rettype, args) \
         switch (GetNStructFieldType()) { \
         case NFT_STRINGUNI: rettype ((FieldMarshaler_StringUni*)this)->name##Impl args; break; \
         case NFT_STRINGANSI: rettype ((FieldMarshaler_StringAnsi*)this)->name##Impl args; break; \
@@ -3769,13 +3765,20 @@ VOID FieldMarshaler_Variant::DestroyNativeImpl(LPVOID pNativeValue) const
         case NFT_BSTR: rettype ((FieldMarshaler_BSTR*)this)->name##Impl args; break; \
         case NFT_ILLEGAL: rettype ((FieldMarshaler_Illegal*)this)->name##Impl args; break; \
         default: UNREACHABLE_MSG("unexpected type of FieldMarshaler"); break; \
-        } \
-    }
+        }
 
 #endif // FEATURE_COMINTEROP
 
+
+#define IMPLEMENT_FieldMarshaler_METHOD(ret, name, argsdecl, rettype, args) \
+    ret FieldMarshaler::name argsdecl { \
+        WRAPPER_NO_CONTRACT; \
+        FieldMarshaler_VTable(name, rettype, args) \
+    }
+
 UINT32 FieldMarshaler::NativeSize() const
 {
+    WRAPPER_NO_CONTRACT;
     // Use the NFTDataBase to lookup the native size quickly to avoid a vtable call when the result is already known.
     if (NFTDataBase[m_nft].m_cbNativeSize != 0)
     {
@@ -3783,14 +3786,9 @@ UINT32 FieldMarshaler::NativeSize() const
     }
     else
     {
-        return NativeSizeCore();
+        FieldMarshaler_VTable(NativeSize, return, ())
     }
 }
-
-IMPLEMENT_FieldMarshaler_METHOD(UINT32, NativeSizeCore,
-    () const,
-    return,
-    ())
 
 IMPLEMENT_FieldMarshaler_METHOD(UINT32, AlignmentRequirement,
     () const,
