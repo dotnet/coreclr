@@ -288,36 +288,11 @@
     },
     {
         "name": "System.ComponentModel.TypeConverter.Tests",
-        "enabled": true,
+        "enabled": false,
         "exclusions": {
             "namespaces": null,
             "classes": null,
-            "methods": [
-                {
-                    "name": "System.ComponentModel.Tests.EnumConverterTests.ConvertFrom_ULongFlagsEnum_String",
-                    "reason": "System.OverflowException : Value was either too large or too small for an Int64"
-                },
-                {
-                    "name": "System.ComponentModel.Tests.EnumConverterTests.ConvertFrom_ULongFlagsEnum_EnumArray",
-                    "reason": "System.OverflowException : Value was either too large or too small for an Int64."
-                },
-                {
-                    "name": "System.ComponentModel.Tests.EnumConverterTests.ConvertTo_ULongFlagsEnum_EnumArray",
-                    "reason": "System.OverflowException : Value was either too large or too small for an Int64."
-                },
-                {
-                    "name": "System.ComponentModel.TypeConverterTests.SizeFConverterTests.ConvertTo",
-                    "reason" : "https://github.com/dotnet/coreclr/pull/22040"
-                },
-                {
-                    "name": "System.ComponentModel.TypeConverterTests.SizeFConverterTests.ConvertToString",
-                    "reason" : "https://github.com/dotnet/coreclr/pull/22040"
-                },
-                {
-                    "name": "System.ComponentModel.TypeConverterTests.SizeFConverterTests.ConvertToInvariantString",
-                    "reason" : "https://github.com/dotnet/coreclr/pull/22040"
-                },
-            ]
+            "methods": null
         }
     },
     {
@@ -887,6 +862,14 @@
                     "name": "System.Tests.EnvironmentTests.Version_MatchesFixedVersion",
                     "reason": "outdated"
                 },
+                {
+                    "name": "System.Tests.AppDomainTests.ApplyPolicy",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.GetAssemblies",
+                    "reason": "outdated"
+                }
             ]
         }
     },
@@ -1593,6 +1576,29 @@
                     "reason": "outdated"
                 }
             ]
+        }
+    },
+    {
+        "name": "System.Runtime.InteropServices.RuntimeInformation.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Runtime.InteropServices.RuntimeInformationTests.DescriptionNameTests.VerifyRuntimeDebugNameOnNetCoreApp",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.IO.Compression.Brotli.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
         }
     }
 ]

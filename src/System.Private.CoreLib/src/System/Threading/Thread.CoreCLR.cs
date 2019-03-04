@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 
 namespace System.Threading
 {
@@ -112,7 +113,7 @@ namespace System.Threading
         ** DON'T CHANGE THESE UNLESS YOU MODIFY ThreadBaseObject in vm\object.h
         =========================================================================*/
         internal ExecutionContext _executionContext; // this call context follows the logical thread
-        private SynchronizationContext _synchronizationContext; // On CoreCLR, this is maintained separately from ExecutionContext
+        internal SynchronizationContext _synchronizationContext; // maintained separately from ExecutionContext
 
         private string _name;
         private Delegate _delegate; // Delegate
@@ -138,9 +139,6 @@ namespace System.Threading
         // from working.
         private int _managedThreadId; // INT32
 #pragma warning restore 169
-
-        [ThreadStatic]
-        private static Thread t_currentThread;
 
         private Thread() { }
 
@@ -232,14 +230,6 @@ namespace System.Threading
             }
         }
 
-        public ExecutionContext ExecutionContext => ExecutionContext.Capture();
-
-        internal SynchronizationContext SynchronizationContext
-        {
-            get => _synchronizationContext;
-            set => _synchronizationContext = value;
-        }
-
         [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void StartInternal();
 
@@ -273,8 +263,6 @@ namespace System.Threading
         private static extern bool YieldInternal();
 
         public static bool Yield() => YieldInternal();
-
-        public static Thread CurrentThread => t_currentThread ?? InitializeCurrentThread();
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static Thread InitializeCurrentThread() => (t_currentThread = GetCurrentThreadNative());
@@ -312,28 +300,16 @@ namespace System.Threading
         private extern void StartupSetApartmentStateInternal();
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
-        /// <summary>Retrieves the name of the thread.</summary>
-        public string Name
+        partial void ThreadNameChanged(string value)
         {
-            get => _name;
-            set
-            {
-                lock (this)
-                {
-                    if (_name != null)
-                    {
-                        throw new InvalidOperationException(SR.InvalidOperation_WriteOnce);
-                    }
-
-                    _name = value;
-
-                    InformThreadNameChange(GetNativeHandle(), value, (value != null) ? value.Length : 0);
-                }
-            }
+            InformThreadNameChange(GetNativeHandle(), value, value?.Length ?? 0);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void InformThreadNameChange(ThreadHandle t, string name, int len);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern DeserializationTracker GetThreadDeserializationTracker(ref StackCrawlMark stackMark);
 
         /// <summary>Returns true if the thread has been started and is not dead.</summary>
         public extern bool IsAlive
@@ -397,18 +373,18 @@ namespace System.Threading
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
             (ApartmentState)GetApartmentStateNative();
 #else // !FEATURE_COMINTEROP_APARTMENT_SUPPORT
-            ApartmentState.MTA;
+            ApartmentState.Unknown;
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
         /// <summary>
         /// An unstarted thread can be marked to indicate that it will host a
         /// single-threaded or multi-threaded apartment.
         /// </summary>
-        public bool TrySetApartmentStateUnchecked(ApartmentState state) =>
+        private bool TrySetApartmentStateUnchecked(ApartmentState state) =>
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
             SetApartmentStateHelper(state, false);
 #else // !FEATURE_COMINTEROP_APARTMENT_SUPPORT
-            false;
+            state == ApartmentState.Unknown;
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
