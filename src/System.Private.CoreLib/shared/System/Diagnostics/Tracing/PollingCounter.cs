@@ -45,7 +45,6 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Calls "_getMetricFunction" to enqueue the counter value to the queue. 
         /// </summary>
-        /// <param name="value">The value.</param>
         public void UpdateMetric()
         {
             Enqueue(_getMetricFunction());
@@ -84,17 +83,17 @@ namespace System.Diagnostics.Tracing
 
         internal override void WritePayload(EventSource _eventSource, float intervalSec)
         {
-            EventCounterPayload payload = GetEventCounterPayload();
+            CounterPayload payload = GetEventCounterPayload();
             payload.IntervalSec = intervalSec;
-            _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PayloadType(payload));
+            _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(payload));
         }
 
-        internal EventCounterPayload GetEventCounterPayload()
+        internal CounterPayload GetEventCounterPayload()
         {
             lock (MyLock)     // Lock the counter
             {
                 Flush();
-                EventCounterPayload result = new EventCounterPayload();
+                CounterPayload result = new CounterPayload();
                 result.Name = name;
                 result.Count = _count;
                 if (0 < _count)
@@ -132,10 +131,10 @@ namespace System.Diagnostics.Tracing
     /// This is the payload that is sent in the with EventSource.Write
     /// </summary>
     [EventData]
-    class PayloadType
+    class PollingPayloadType
     {
-        public PayloadType(EventCounterPayload payload) { Payload = payload; }
-        public EventCounterPayload Payload { get; set; }
+        public PollingPayloadType(CounterPayload payload) { Payload = payload; }
+        public CounterPayload Payload { get; set; }
     }
 
 }
