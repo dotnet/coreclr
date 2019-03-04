@@ -3206,7 +3206,8 @@ void EEClassLayoutInfo::SetOffsetsAndSortFields(
     const BOOL fExplicitOffsets,
     const UINT32 cbAdjustedParentLayoutNativeSize,
     Module* pModule,
-    LayoutRawFieldInfo** pSortArrayOut)
+    LayoutRawFieldInfo** pSortArrayOut
+)
 {
     HRESULT hr;
     MD_CLASS_LAYOUT classlayout;
@@ -3319,7 +3320,8 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
     BYTE packingSize,
     BYTE parentAlignmentRequirement,
     BOOL calculatingNativeLayout,
-    EEClassLayoutInfo* pEEClassLayoutInfoOut)
+    EEClassLayoutInfo* pEEClassLayoutInfoOut
+)
 {
     UINT32 cbCurOffset = parentSize;
     BYTE LargestAlignmentRequirement = max(1, min(packingSize, parentAlignmentRequirement));

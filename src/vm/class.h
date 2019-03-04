@@ -358,11 +358,11 @@ class EEClassLayoutInfo
        BOOL fExplicitOffsets,       // explicit offsets?
        MethodTable *pParentMT,       // the loaded superclass
        ULONG cTotalFields,              // total number of fields (instance and static)
-       HENUMInternal *phEnumField,  // enumerator for field
+       HENUMInternal *phEnumField,  // enumerator for fields
        Module* pModule,             // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
        const SigTypeContext *pTypeContext,          // Type parameters for NStruct being loaded
        EEClassLayoutInfo *pEEClassLayoutInfoOut,  // caller-allocated structure to fill in.
-       LayoutRawFieldInfo *pInfoArrayOut, // caller-allocated array to fill in.  Needs room for cMember+1 elements
+       LayoutRawFieldInfo *pInfoArrayOut, // caller-allocated array to fill in.  Needs room for cTotalFields+1 elements
        LoaderAllocator * pAllocator,
        AllocMemTracker    *pamTracker
     );
@@ -377,16 +377,16 @@ class EEClassLayoutInfo
     private:
         static void ParseFieldNativeTypes(
             IMDInternalImport* pInternalImport,
-            const mdTypeDef cl,
-            HENUMInternal* phEnumField,
+            const mdTypeDef cl, // cl of the NStruct being loaded
+            HENUMInternal* phEnumField, // enumerator for fields
             const ULONG cTotalFields,
-            Module* pModule,
+            Module* pModule, // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
             ParseNativeTypeFlags nativeTypeFlags,
-            const SigTypeContext* pTypeContext,
+            const SigTypeContext* pTypeContext, // Type parameters for NStruct being loaded
             BOOL* fDisqualifyFromManagedSequential,
-            LayoutRawFieldInfo* pFieldInfoArrayOut,
-            EEClassLayoutInfo* pEEClassLayoutInfoOut,
-            ULONG* cInstanceFields
+            LayoutRawFieldInfo* pFieldInfoArrayOut, // caller-allocated array to fill in.  Needs room for cTotalFields+1 elements
+            EEClassLayoutInfo* pEEClassLayoutInfoOut, // caller-allocated structure to fill in.
+            ULONG* cInstanceFields // [out] number of instance fields
 #ifdef _DEBUG
             ,
             LPCUTF8 szNamespace,
@@ -397,23 +397,25 @@ class EEClassLayoutInfo
         static void SetOffsetsAndSortFields(
             IMDInternalImport* pInternalImport,
             const mdTypeDef cl,
-            LayoutRawFieldInfo* pFieldInfoArray,
+            LayoutRawFieldInfo* pFieldInfoArray, // An array of LayoutRawFieldInfos.
             const ULONG cInstanceFields,
             const BOOL fExplicitOffsets,
             const UINT32 cbAdjustedParentLayoutNativeSize,
-            Module* pModule,
-            LayoutRawFieldInfo** pSortArrayOut);
+            Module* pModule, // Module that defines the scope for the type-load
+            LayoutRawFieldInfo** pSortArrayOut // A caller-allocated array to fill in with pointers to elements in pFieldInfoArray in ascending order when sequential layout, and declaration order otherwise.
+        );
 
         static void CalculateSizeAndFieldOffsets(
             const UINT32 parentSize,
             ULONG numInstanceFields,
             BOOL fExplicitOffsets,
-            LayoutRawFieldInfo* const* pSortedFieldInfoArray,
+            LayoutRawFieldInfo* const* pSortedFieldInfoArray, // An array of pointers to LayoutRawFieldInfo's in ascending order when sequential layout.
             ULONG classSizeInMetadata,
             BYTE packingSize,
             BYTE parentAlignmentRequirement,
             BOOL calculatingNativeLayout,
-            EEClassLayoutInfo* pEEClassLayoutInfoOut);
+            EEClassLayoutInfo* pEEClassLayoutInfoOut // A pointer to a caller-allocated EEClassLayoutInfo that we are filling in.
+        );
 
         // size (in bytes) of fixed portion of NStruct.
         UINT32      m_cbNativeSize;
