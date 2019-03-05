@@ -30,7 +30,6 @@ Revision History:
 #include "eventtrace.h"
 #include "threads.h"
 #include "appdomain.inl"
-#include "nativeoverlapped.h"
 #include "hillclimbing.h"
 #include "configuration.h"
 
@@ -3687,12 +3686,9 @@ LPOVERLAPPED ThreadpoolMgr::CompletionPortDispatchWorkWithinAppDomain(
 
     LPOVERLAPPED lpOverlapped=NULL;
 
-    BOOL status=FALSE;
-    OVERLAPPEDDATAREF overlapped=NULL;
-    BOOL ManagedCallback=FALSE;
+    BOOL success=FALSE;
 
     *pErrorCode = S_OK;
-
 
     //Very Very Important!
     //Do not change the timeout for GetQueuedCompletionStatus to a non-zero value.
@@ -3702,59 +3698,33 @@ LPOVERLAPPED ThreadpoolMgr::CompletionPortDispatchWorkWithinAppDomain(
     //taking a context switch. Changing the timeout to non-zero can lead to perf degrades, that are very
     //hard to diagnose.     
 
-    status = ::GetQueuedCompletionStatus(
-                 GlobalCompletionPort,
-                 pNumBytes,
-                 (PULONG_PTR)pKey,
-                 &lpOverlapped,
-                 0);
+    success = ::GetQueuedCompletionStatus(
+                  GlobalCompletionPort,
+                  pNumBytes,
+                  (PULONG_PTR)pKey,
+                  &lpOverlapped,
+                  0);
 
-    DWORD lastError = GetLastError();
-
-    if (status == 0) 
+    if (!success) 
     {          
         if (lpOverlapped != NULL) 
         {
-            *pErrorCode = lastError;
+            *pErrorCode = GetLastError();
         } 
-        else 
+        else
         {
             return NULL;
         }
     } 
 
-    if (((LPOVERLAPPED_COMPLETION_ROUTINE) *pKey) != BindIoCompletionCallbackStub)
+    _ASSERTE(((LPOVERLAPPED_COMPLETION_ROUTINE) *pKey) == BindIoCompletionCallbackStub);
+
+    _ASSERTE(*pKey != 0);  // should be a valid function address
+    if (*pKey == 0)
     {
-        //_ASSERTE(FALSE);
-    } 
-    else 
-    {
-        ManagedCallback = TRUE;
-        overlapped = ObjectToOVERLAPPEDDATAREF(OverlappedDataObject::GetOverlapped(lpOverlapped));
+        //Application Bug.
+        return NULL;
     }  
-
-    if (ManagedCallback) 
-    {           
-        _ASSERTE(*pKey != 0);  // should be a valid function address
-        
-        if (*pKey ==0) 
-        {
-            //Application Bug.
-            return NULL;
-        }
-    } 
-    else 
-    {
-        //Just retruned back from managed code, a Thread structure should exist.
-        _ASSERTE (pThread);
-        
-        //Oops, this is an overlapped fom a different appdomain. STick it in
-        //the thread. We will process it later.
-
-        StoreOverlappedInfoInThread(pThread, *pErrorCode, *pNumBytes, *pKey, lpOverlapped);
-
-        lpOverlapped = NULL;        
-    }
 
 #ifndef DACCESS_COMPILE    
     return lpOverlapped;
