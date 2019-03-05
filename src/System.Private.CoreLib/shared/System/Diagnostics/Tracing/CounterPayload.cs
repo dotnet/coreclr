@@ -66,19 +66,11 @@ namespace System.Diagnostics.Tracing
     }
 
     [EventData]
-    internal class PollingCounterPayload : IEnumerable<KeyValuePair<string, object>>
+    internal class IncrementingCounterPayload : IEnumerable<KeyValuePair<string, object>>
     {
         public string Name { get; set; }
 
-        public float Mean { get; set; }
-
-        public float StandardDeviation { get; set; }
-
-        public int Count { get; set; }
-
-        public float Min { get; set; }
-
-        public float Max { get; set; }
+        public float Increment { get; set; }
 
         public float IntervalSec { get; internal set; }
 
@@ -99,14 +91,10 @@ namespace System.Diagnostics.Tracing
             get
             {
                 yield return new KeyValuePair<string, object>("Name", Name);
-                yield return new KeyValuePair<string, object>("Mean", Mean);
-                yield return new KeyValuePair<string, object>("StandardDeviation", StandardDeviation);
-                yield return new KeyValuePair<string, object>("Count", Count);
-                yield return new KeyValuePair<string, object>("Min", Min);
-                yield return new KeyValuePair<string, object>("Max", Max);
+                yield return new KeyValuePair<string, object>("Increment", Increment);
                 yield return new KeyValuePair<string, object>("IntervalSec", IntervalSec);
                 yield return new KeyValuePair<string, object>("Series", $"Interval={IntervalSec}");
-                yield return new KeyValuePair<string, object>("CounterType", "Mean");
+                yield return new KeyValuePair<string, object>("CounterType", "Sum");
             }
         }
 

@@ -185,7 +185,6 @@ namespace System.Diagnostics.Tracing
                             pCounter.UpdateMetric();
                         }
 
-
                     	counter.WritePayload(_eventSource, (float)elapsed.TotalSeconds);
 
                     	/*
