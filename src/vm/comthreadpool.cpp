@@ -561,7 +561,7 @@ struct BindIoCompletion_Args
     LPOVERLAPPED lpOverlapped;
 };
 
-// The function is called from BindIoCompletionCallBack_Worker to quicly check if a
+// The function is called from BindIoCompletionCallBack_Worker to quickly check if a
 // packet is available. This is a perf-critical function. We fall back to the VM to
 // do heavy weight operations like creating a new CP thread. 
 LPOVERLAPPED CheckVMForIOPacket(DWORD* errorCode, DWORD* numBytes)
