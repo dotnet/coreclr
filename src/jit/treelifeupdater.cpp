@@ -114,8 +114,6 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                     // Its putting in stackVarDeltaSet the variable no matter if its living or dying
                     VarSetOps::AddElemD(compiler, stackVarDeltaSet, varDsc->lvVarIndex);
                 }
-
-                compiler->siStartOrCloseVariableLiveRange(varDsc, isBorn, isDying);
             }
         }
         else if (varDsc->lvPromoted)
@@ -267,6 +265,8 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                 }
 #endif // DEBUG
             }
+
+            compiler->siStartOrCloseVariableLiveRange(varDsc, isBorn, isDying);
 
             compiler->codeGen->siUpdate();
         }
