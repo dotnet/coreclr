@@ -35,26 +35,26 @@ We believe adding some new top-level types will satisfy these requests:
         EventCounter(string name, EventSource eventSource);
         string DisplayName;
         void WriteMetric(float metric);
-        void AddMetaData(string,string);
+        void AddMetaData(string key, string value);
     }
 
     class PollingCounter {
         PollingCounter(string name, EventSource eventSource Func<float> getMetricFunction);
         string DisplayName;
-        void AddMetaData(string,string);
+        void AddMetaData(string key, string value);
     }
 
     class IncrementingEventCounter {
         IncrementingEventCounter(string name, EventSource eventSource);
         string DisplayName;
         void Increment(float increment = 1);
-        void AddMetaData(string,string);
+        void AddMetaData(string key, string value);
     }
 
     class IncrementingPollingCounter {
         IncrementingPollingCounter(string name, EventSource eventSource, Func<float> getCountFunction);
         string DisplayName;
-        void AddMetaData(string,string);
+        void AddMetaData(string key, string value);
     }
     
 
@@ -104,4 +104,4 @@ For EventCounter and PollingCounter we expect simple viewers to use the display 
 
 ### Metadata
 
-To add any optional metadata about the counters that we do not provide appropriate way of encoding, users can call the `AddMetaData(string, string)` API. This API exists on all variants of the Counter APIs, and allows users to add one or many key-value pairs of metadata, which is dumped to the Payload as a comma-separated string value. It is up to the users on how they want to use this API (i.e. encode user/scenario specific information that their viewers want to consume).
+To add any optional metadata about the counters that we do not provide appropriate way of encoding, users can call the `AddMetaData(string key, string value)` API. This API exists on all variants of the Counter APIs, and allows users to add one or many key-value pairs of metadata, which is dumped to the Payload as a comma-separated string value. This API exists so that users can add any metadata about their Counter that is not known to us and is different from the ones we provide by default (i.e. `DisplayName`, `CounterType`).
