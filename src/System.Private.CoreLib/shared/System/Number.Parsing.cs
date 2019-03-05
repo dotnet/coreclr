@@ -32,13 +32,13 @@ namespace System
         private const int Int64Precision = 19;
         private const int UInt64Precision = 20;
 
-        private const int DoubleMaxExponent = 308;
+        private const int DoubleMaxExponent = 309;
         private const int DoubleMinExponent = -324;
 
         private const int FloatingPointMaxExponent = DoubleMaxExponent;
         private const int FloatingPointMinExponent = DoubleMinExponent;
 
-        private const int SingleMaxExponent = 38;
+        private const int SingleMaxExponent = 39;
         private const int SingleMinExponent = -45;
 
         /// <summary>Map from an ASCII char to its hex value, e.g. arr['b'] == 11. 0xFF means it's not a hex digit.</summary>
