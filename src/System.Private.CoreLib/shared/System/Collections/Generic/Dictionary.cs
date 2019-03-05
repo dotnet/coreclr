@@ -356,13 +356,12 @@ namespace System.Collections.Generic
             }
 
             info.AddValue(VersionName, _version);
-            info.AddValue(ComparerName, _comparer ?? EqualityComparer<TKey>.Default, typeof(IEqualityComparer<TKey>));
-            info.AddValue(HashSizeName, _buckets.Length <= 1 ? 0 : _buckets.Length); // This is the length of the bucket array
+            info.AddValue(ComparerName, Comparer, typeof(IEqualityComparer<TKey>));
+            info.AddValue(HashSizeName, _entries.Length); // This is the length of the entry array
 
-            int count = Count;
-            if (count > 0)
+            if (_entries.Length > 0)
             {
-                var array = new KeyValuePair<TKey, TValue>[count];
+                var array = new KeyValuePair<TKey, TValue>[Count];
                 CopyTo(array, 0);
                 info.AddValue(KeyValuePairsName, array, typeof(KeyValuePair<TKey, TValue>[]));
             }
