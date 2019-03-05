@@ -5410,7 +5410,9 @@ void CEEInfo::getCallInfo(
     if (directCall)
     {
         // Direct calls to abstract methods are not allowed
-        if (pTargetMD->IsAbstract())
+        if (pTargetMD->IsAbstract() &&
+            // Compensate for always treating delegates as direct calls above
+            !(((flags & CORINFO_CALLINFO_LDFTN) && (flags & CORINFO_CALLINFO_CALLVIRT) && !resolvedCallVirt)))
         {
             COMPlusThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
         }
