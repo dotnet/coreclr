@@ -307,6 +307,7 @@ def main(args):
         build_args += ' /p:BuildNativeClang=--clang5.0'
 
     if not Is_windows and (arch == 'arm' or arch == 'arm64'):
+        # It is needed under docker where LC_ALL is not configured.
         build_args += ' --warnAsError false'
 
     command = ' '.join(('build.cmd' if Is_windows else './build.sh', build_args))
