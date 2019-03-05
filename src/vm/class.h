@@ -2443,9 +2443,3 @@ public:
 };
 
 #endif // !CLASS_H
-
-void FillLayoutInfo(IMDInternalImport* pInternalImport, const mdTypeDef cl, LayoutRawFieldInfo* pInfoArrayOut, const ULONG cInstanceFields, const BOOL fExplicitOffsets, const UINT32 cbAdjustedParentLayoutNativeSize, Module* pModule, LayoutRawFieldInfo** pSortArray);
-
-void CalculateManagedSequentialLayout(MethodTable* pParentMT, BYTE& packingSize, EEClassLayoutInfo* pParentLayoutInfo, LayoutRawFieldInfo** pSortArray, const ULONG& cInstanceFields, LayoutRawFieldInfo*& pfwalk, EEClassLayoutInfo* pEEClassLayoutInfoOut, IMDInternalImport* pInternalImport, const mdTypeDef& cl);
-
-void CalculateTypeNativeSizeAndOffsets(const UINT32& cbAdjustedParentLayoutNativeSize, const BOOL& fParentHasLayout, BYTE& packingSize, EEClassLayoutInfo* pParentLayoutInfo, LayoutRawFieldInfo** pSortArray, const ULONG& cInstanceFields, LayoutRawFieldInfo*& pfwalk, const BOOL& fExplicitOffsets, LayoutRawFieldInfo* pInfoArrayOut, IMDInternalImport* pInternalImport, const mdTypeDef& cl, EEClassLayoutInfo* pEEClassLayoutInfoOut);
