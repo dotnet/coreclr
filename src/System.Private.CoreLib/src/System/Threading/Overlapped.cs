@@ -7,7 +7,6 @@
 /*
  * This files defines the following types:
  *  - _IOCompletionCallback
- *  - OverlappedData
  *  - Overlapped
  */
 
@@ -55,7 +54,7 @@ namespace System.Threading
 
         internal static unsafe void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
         {
-            OverlappedData overlapped = OverlappedData.GetOverlappedFromNative(pNativeOverlapped);
+            Overlapped overlapped = Overlapped.GetOverlappedFromNative(pNativeOverlapped);
 
             if (overlapped._callback is IOCompletionCallback iocb)
             {
@@ -76,14 +75,12 @@ namespace System.Threading
 
     #endregion class _IOCompletionCallback
 
+    #region class Overlapped
 
-    #region class OverlappedData
-
-    sealed internal unsafe class OverlappedData
+    public unsafe class Overlapped
     {
         internal IAsyncResult _asyncResult;
         internal object _callback; // IOCompletionCallback or _IOCompletionCallback
-        internal Overlapped _overlapped;
         private object _userObject;
         private GCHandle[] _pinnedData;
         private NativeOverlapped * _pNativeOverlapped;
@@ -91,13 +88,94 @@ namespace System.Threading
         private int _offsetLow;
         private int _offsetHigh;
 
-        internal ref IAsyncResult AsyncResult => ref _asyncResult;
+        public Overlapped()
+        {
+        }
 
-        internal ref int OffsetLow => ref (_pNativeOverlapped != null) ? ref _pNativeOverlapped->OffsetLow : ref _offsetLow;
-        internal ref int OffsetHigh => ref (_pNativeOverlapped != null) ? ref _pNativeOverlapped->OffsetHigh : ref _offsetHigh;
-        internal ref IntPtr EventHandle => ref (_pNativeOverlapped != null) ? ref _pNativeOverlapped->EventHandle : ref _eventHandle;
+        public Overlapped(int offsetLo, int offsetHi, IntPtr hEvent, IAsyncResult ar)
+        {
+            _offsetLow = offsetLo;
+            _offsetHigh = offsetHi;
+            _eventHandle = hEvent;
+            AsyncResult = ar;
+        }
 
-        internal unsafe NativeOverlapped* Pack(IOCompletionCallback iocb, object userData)
+        [Obsolete("This constructor is not 64-bit compatible.  Use the constructor that takes an IntPtr for the event handle.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public Overlapped(int offsetLo, int offsetHi, int hEvent, IAsyncResult ar) : this(offsetLo, offsetHi, new IntPtr(hEvent), ar)
+        {
+        }
+
+        public IAsyncResult AsyncResult { get; set; }
+
+        public int OffsetLow
+        {
+            get { return _pNativeOverlapped != null ? _pNativeOverlapped->OffsetLow : _offsetLow; }
+            set
+            {
+                if (_pNativeOverlapped != null)
+                {
+                    _pNativeOverlapped->OffsetLow = value;
+                }
+                else
+                {
+                    _offsetLow = value;
+                }
+            }
+        }
+
+        public int OffsetHigh
+        {
+            get { return _pNativeOverlapped != null ? _pNativeOverlapped->OffsetHigh : _offsetHigh; }
+            set
+            {
+                if (_pNativeOverlapped != null)
+                {
+                    _pNativeOverlapped->OffsetHigh = value;
+                }
+                else
+                {
+                    _offsetHigh = value;
+                }
+            }
+        }
+
+        [Obsolete("This property is not 64-bit compatible.  Use EventHandleIntPtr instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int EventHandle
+        {
+            get { return EventHandleIntPtr.ToInt32(); }
+            set { EventHandleIntPtr = new IntPtr(value); }
+        }
+
+        public IntPtr EventHandleIntPtr
+        {
+            get { return _pNativeOverlapped != null ? _pNativeOverlapped->EventHandle : _eventHandle; }
+            set
+            {
+                if (_pNativeOverlapped != null)
+                {
+                    _pNativeOverlapped->EventHandle = value;
+                }
+                else
+                {
+                    _eventHandle = value;
+                }
+            }
+        }
+
+        /*====================================================================
+        *  Packs a managed overlapped class into native Overlapped struct.
+        *  Roots the iocb and stores it in the ReservedCOR field of native Overlapped
+        *  Pins the native Overlapped struct and returns the pinned index.
+        ====================================================================*/
+        [Obsolete("This method is not safe.  Use Pack (iocb, userData) instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        [CLSCompliant(false)]
+        public unsafe NativeOverlapped* Pack(IOCompletionCallback iocb)
+        {
+            return Pack(iocb, null);
+        }
+
+        [CLSCompliant(false)]
+        public unsafe NativeOverlapped* Pack(IOCompletionCallback iocb, object userData)
         {
             if (_pNativeOverlapped != null)
             {
@@ -117,7 +195,15 @@ namespace System.Threading
             return AllocateNativeOverlapped();
         }
 
-        internal unsafe NativeOverlapped* UnsafePack(IOCompletionCallback iocb, object userData)
+        [Obsolete("This method is not safe.  Use UnsafePack (iocb, userData) instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        [CLSCompliant(false)]
+        public unsafe NativeOverlapped* UnsafePack(IOCompletionCallback iocb)
+        {
+            return UnsafePack(iocb, null);
+        }
+
+        [CLSCompliant(false)]
+        public unsafe NativeOverlapped* UnsafePack(IOCompletionCallback iocb, object userData)
         {
             if (_pNativeOverlapped != null)
             {
@@ -126,6 +212,29 @@ namespace System.Threading
             _userObject = userData;
             _callback = iocb;
             return AllocateNativeOverlapped();
+        }
+
+        /*====================================================================
+        *  Unpacks an unmanaged native Overlapped struct.
+        *  Unpins the native Overlapped struct
+        ====================================================================*/
+        [CLSCompliant(false)]
+        public static unsafe Overlapped Unpack(NativeOverlapped* nativeOverlappedPtr)
+        {
+            if (nativeOverlappedPtr == null)
+                throw new ArgumentNullException(nameof(nativeOverlappedPtr));
+
+            return GetOverlappedFromNative(nativeOverlappedPtr);
+        }
+
+        [CLSCompliant(false)]
+        public static unsafe void Free(NativeOverlapped* nativeOverlappedPtr)
+        {
+            if (nativeOverlappedPtr == null)
+                throw new ArgumentNullException(nameof(nativeOverlappedPtr));
+
+            GetOverlappedFromNative(nativeOverlappedPtr)._pNativeOverlapped = null;
+            FreeNativeOverlapped(nativeOverlappedPtr);
         }
 
         private unsafe NativeOverlapped* AllocateNativeOverlapped()
@@ -181,8 +290,8 @@ namespace System.Threading
 
         internal static unsafe void FreeNativeOverlapped(NativeOverlapped* nativeOverlappedPtr)
         {
-            OverlappedData overlappedData = OverlappedData.GetOverlappedFromNative(nativeOverlappedPtr);
-            overlappedData.FreeNativeOverlapped();
+            Overlapped overlapped = GetOverlappedFromNative(nativeOverlappedPtr);
+            overlapped.FreeNativeOverlapped();
         }
 
         private void FreeNativeOverlapped()
@@ -210,125 +319,10 @@ namespace System.Threading
             }
         }
 
-        internal static unsafe OverlappedData GetOverlappedFromNative(NativeOverlapped* pNativeOverlapped)
+        internal static unsafe Overlapped GetOverlappedFromNative(NativeOverlapped* pNativeOverlapped)
         {
             GCHandle handle = *(GCHandle*)(pNativeOverlapped + 1);
-            return (OverlappedData)handle.Target;
-        }
-    }
-
-    #endregion class OverlappedData
-
-    #region class Overlapped
-
-    public class Overlapped
-    {
-        private OverlappedData _overlappedData;
-
-        public Overlapped()
-        {
-            // The split between Overlapped and OverlappedData should not be needed. It is required by the implementation of 
-            // async GC handles currently. It expects OverlappedData to be a sealed type.
-            _overlappedData = new OverlappedData();
-            _overlappedData._overlapped = this;
-        }
-
-        public Overlapped(int offsetLo, int offsetHi, IntPtr hEvent, IAsyncResult ar) : this()
-        {
-            _overlappedData.OffsetLow = offsetLo;
-            _overlappedData.OffsetHigh = offsetHi;
-            _overlappedData.EventHandle = hEvent;
-            _overlappedData.AsyncResult = ar;
-        }
-
-        [Obsolete("This constructor is not 64-bit compatible.  Use the constructor that takes an IntPtr for the event handle.  http://go.microsoft.com/fwlink/?linkid=14202")]
-        public Overlapped(int offsetLo, int offsetHi, int hEvent, IAsyncResult ar) : this(offsetLo, offsetHi, new IntPtr(hEvent), ar)
-        {
-        }
-
-        public IAsyncResult AsyncResult
-        {
-            get { return _overlappedData.AsyncResult; }
-            set { _overlappedData.AsyncResult = value; }
-        }
-
-        public int OffsetLow
-        {
-            get { return _overlappedData.OffsetLow; }
-            set { _overlappedData.OffsetLow = value; }
-        }
-
-        public int OffsetHigh
-        {
-            get { return _overlappedData.OffsetHigh; }
-            set { _overlappedData.OffsetHigh = value; }
-        }
-
-        [Obsolete("This property is not 64-bit compatible.  Use EventHandleIntPtr instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
-        public int EventHandle
-        {
-            get { return EventHandleIntPtr.ToInt32(); }
-            set { EventHandleIntPtr = new IntPtr(value); }
-        }
-
-        public IntPtr EventHandleIntPtr
-        {
-            get { return _overlappedData.EventHandle; }
-            set { _overlappedData.EventHandle = value; }
-        }
-
-        /*====================================================================
-        *  Packs a managed overlapped class into native Overlapped struct.
-        *  Roots the iocb and stores it in the ReservedCOR field of native Overlapped 
-        *  Pins the native Overlapped struct and returns the pinned index. 
-        ====================================================================*/
-        [Obsolete("This method is not safe.  Use Pack (iocb, userData) instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
-        [CLSCompliant(false)]
-        public unsafe NativeOverlapped* Pack(IOCompletionCallback iocb)
-        {
-            return Pack(iocb, null);
-        }
-
-        [CLSCompliant(false)]
-        public unsafe NativeOverlapped* Pack(IOCompletionCallback iocb, object userData)
-        {
-            return _overlappedData.Pack(iocb, userData);
-        }
-
-        [Obsolete("This method is not safe.  Use UnsafePack (iocb, userData) instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
-        [CLSCompliant(false)]
-        public unsafe NativeOverlapped* UnsafePack(IOCompletionCallback iocb)
-        {
-            return UnsafePack(iocb, null);
-        }
-
-        [CLSCompliant(false)]
-        public unsafe NativeOverlapped* UnsafePack(IOCompletionCallback iocb, object userData)
-        {
-            return _overlappedData.UnsafePack(iocb, userData);
-        }
-
-        /*====================================================================
-        *  Unpacks an unmanaged native Overlapped struct. 
-        *  Unpins the native Overlapped struct
-        ====================================================================*/
-        [CLSCompliant(false)]
-        public static unsafe Overlapped Unpack(NativeOverlapped* nativeOverlappedPtr)
-        {
-            if (nativeOverlappedPtr == null)
-                throw new ArgumentNullException(nameof(nativeOverlappedPtr));
-
-            return OverlappedData.GetOverlappedFromNative(nativeOverlappedPtr)._overlapped;
-        }
-
-        [CLSCompliant(false)]
-        public static unsafe void Free(NativeOverlapped* nativeOverlappedPtr)
-        {
-            if (nativeOverlappedPtr == null)
-                throw new ArgumentNullException(nameof(nativeOverlappedPtr));
-
-            OverlappedData.GetOverlappedFromNative(nativeOverlappedPtr)._overlapped._overlappedData = null;
-            OverlappedData.FreeNativeOverlapped(nativeOverlappedPtr);
+            return (Overlapped)handle.Target;
         }
     }
 
