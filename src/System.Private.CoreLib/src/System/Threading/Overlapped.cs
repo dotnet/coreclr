@@ -93,11 +93,11 @@ namespace System.Threading
         internal object _callback; // IOCompletionCallback or _IOCompletionCallback
         internal Overlapped _overlapped;
         private object _userObject;
+        private GCHandle[] _pinnedData;
         private NativeOverlapped * _pNativeOverlapped;
         private IntPtr _eventHandle;
         private int _offsetLow;
         private int _offsetHigh;
-        private GCHandle[] _pinnedData;
 
         internal ref IAsyncResult AsyncResult => ref _asyncResult;
 

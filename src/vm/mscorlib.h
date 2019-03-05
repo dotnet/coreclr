@@ -620,6 +620,7 @@ DEFINE_FIELD_U(_asyncResult,            OverlappedDataObject,       m_asyncResul
 DEFINE_FIELD_U(_callback,               OverlappedDataObject,       m_callback)
 DEFINE_FIELD_U(_overlapped,             OverlappedDataObject,       m_overlapped)
 DEFINE_FIELD_U(_userObject,             OverlappedDataObject,       m_userObject)
+DEFINE_FIELD_U(_pinnedData,             OverlappedDataObject,       m_pinnedData)
 DEFINE_FIELD_U(_pNativeOverlapped,      OverlappedDataObject,       m_pNativeOverlapped)
 DEFINE_FIELD_U(_offsetLow,              OverlappedDataObject,       m_offsetLow)
 DEFINE_FIELD_U(_offsetHigh,             OverlappedDataObject,       m_offsetHigh)

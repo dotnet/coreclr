@@ -27,19 +27,15 @@ struct NATIVEOVERLAPPED_AND_HANDLE
 class OverlappedDataObject : public Object
 {
 public:
-    // OverlappedDataObject is very special.  An async pin handle keeps it alive.
-    // During GC, we also make sure
-    // 1. m_userObject itself does not move if m_userObject is not array
-    // 2. Every object pointed by m_userObject does not move if m_userObject is array
     OBJECTREF m_asyncResult;
     OBJECTREF m_callback;
     OBJECTREF m_overlapped;
     OBJECTREF m_userObject;
+    OBJECTREF m_pinnedData;
     LPOVERLAPPED m_pNativeOverlapped;
     ULONG_PTR m_eventHandle;
     int m_offsetLow;
     int m_offsetHigh;
-    LPVOID m_gcHandles;
 
 #ifndef DACCESS_COMPILE
     static OverlappedDataObject* GetOverlapped(LPOVERLAPPED nativeOverlapped)
