@@ -111,7 +111,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 throw new MethodAccessException(
                     SR.Format(
                         SR.Arg_MethodAccessException_WithMethodName,
-                        accessor.ToString(),
+                        accessor,
                         accessor.DeclaringType.FullName));
 
             RuntimeMethodInfo rtMethod = accessor as RuntimeMethodInfo;

@@ -366,7 +366,7 @@ namespace System
 
         private static KeyNotFoundException GetKeyNotFoundException(object key)
         {
-            return new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
+            return new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key));
         }
 
         private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource)

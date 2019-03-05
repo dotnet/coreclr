@@ -694,7 +694,7 @@ namespace System.Reflection
 
             if (type == null)
                 throw new InvalidOperationException(
-                    SR.Format(CultureInfo.CurrentUICulture, SR.Arg_CATypeResolutionFailed, typeName));
+                    SR.Format(SR.Arg_CATypeResolutionFailed, typeName));
 
             return type;
         }
@@ -1450,8 +1450,7 @@ namespace System.Reflection
                             if (property == null)
                             {
                                 throw new CustomAttributeFormatException(
-                                    SR.Format(CultureInfo.CurrentUICulture, 
-                                        SR.RFLCT_InvalidPropFail, name));
+                                    SR.Format(SR.RFLCT_InvalidPropFail, name));
                             }
 
                             MethodInfo setMethod = property.GetSetMethod(true);
@@ -1473,8 +1472,7 @@ namespace System.Reflection
                     catch (Exception e)
                     {
                         throw new CustomAttributeFormatException(
-                            SR.Format(CultureInfo.CurrentUICulture,
-                                isProperty ? SR.RFLCT_InvalidPropFail : SR.RFLCT_InvalidFieldFail, name), e);
+                            SR.Format(isProperty ? SR.RFLCT_InvalidPropFail : SR.RFLCT_InvalidFieldFail, name), e);
                     }
                 }
 
@@ -1640,8 +1638,7 @@ namespace System.Reflection
                     continue;
 
                 if (attributeUsageAttribute != null)
-                    throw new FormatException(SR.Format(
-                        CultureInfo.CurrentUICulture, SR.Format_AttributeUsage, attributeType));
+                    throw new FormatException(SR.Format(SR.Format_AttributeUsage, attributeType));
 
                 ParseAttributeUsageAttribute(caRecord.blob, out AttributeTargets targets, out bool inherited, out bool allowMultiple);
                 attributeUsageAttribute = new AttributeUsageAttribute(targets, allowMultiple, inherited);

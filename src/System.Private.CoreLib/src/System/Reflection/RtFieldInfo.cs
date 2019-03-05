@@ -102,7 +102,7 @@ namespace System.Reflection
                     else
                     {
                         throw new ArgumentException(
-                            SR.Format(CultureInfo.CurrentUICulture, SR.Arg_FieldDeclTarget,
+                            SR.Format(SR.Arg_FieldDeclTarget,
                                 Name, m_declaringType, target.GetType()));
                     }
                 }
