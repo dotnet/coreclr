@@ -724,7 +724,6 @@ namespace System
             {
                 string[] names = _names;
                 TUnderlying[] values = _values;
-                TUnderlyingOperations operations = default;
                 TUnderlying zero = default;
                 int nonNegativeStart = _nonNegativeStart;
 
@@ -745,6 +744,10 @@ namespace System
                 {
                     return names[index];
                 }
+                else if (index == -1)
+                {
+                    return value.ToString();
+                }
 
                 // With a ulong result value, regardless of the enum's base type, the maximum
                 // possible number of consistent name/values we could have is 64, since every
@@ -759,9 +762,10 @@ namespace System
                 TUnderlying tempValue = value;
                 index = ~index - 1;
 
-                if (index < nonNegativeStart && index >= 0)
+                TUnderlyingOperations operations = default;
+                if (index < nonNegativeStart)
                 {
-                    for (; index >= 0; --index)
+                    do
                     {
                         TUnderlying currentValue = values[index];
                         if (operations.And(tempValue, currentValue).Equals(currentValue))
@@ -770,8 +774,9 @@ namespace System
                             foundItems[foundItemsCount++] = index;
                             resultLength = checked(resultLength + names[index].Length);
                         }
-                    }
-                    index = values.Length;
+                        --index;
+                    } while (index >= 0);
+                    index = values.Length - 1;
                 }
 
                 for (; index >= nonNegativeStart; --index)
@@ -791,8 +796,7 @@ namespace System
 
                 // If we exhausted looking through all the values and we still have
                 // a non-zero result, we couldn't match the result to only named values.
-                // In that case, we return null and let the call site just generate
-                // a string for the integral value.
+                // In that case, we return the integral value.
                 if (!tempValue.Equals(zero))
                 {
                     return value.ToString();
