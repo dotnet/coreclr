@@ -5352,12 +5352,6 @@ void CEEInfo::getCallInfo(
         directCall = true;
     }
     else
-    // Backwards compat: calls to abstract interface methods are treated as callvirt
-    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsAbstract())
-    {
-        directCall = false;
-    }
-    else
     if (!(flags & CORINFO_CALLINFO_CALLVIRT) || fResolvedConstraint)
     {
         directCall = true;
