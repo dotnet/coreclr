@@ -104,4 +104,4 @@ For EventCounter and PollingCounter we expect simple viewers to use the display 
 
 ### Metadata
 
-To add any optional metadata about the counters that we do not provide appropriate way of encoding, users can call the `AddMetaData(string key, string value)` API. This API exists on all variants of the Counter APIs, and allows users to add one or many key-value pairs of metadata, which is dumped to the Payload as a comma-separated string value. This API exists so that users can add any metadata about their Counter that is not known to us and is different from the ones we provide by default (i.e. `DisplayName`, `CounterType`).
+To add any optional metadata about the counters that we do not already provide a way of encoding, users can call the `AddMetaData(string key, string value)` API. This API exists on all variants of the Counter APIs, and allows users to add one or many key-value pairs of metadata, which is dumped to the Payload as a comma-separated string value. This API exists so that users can add any metadata about their Counter that is not known to us and is different from the ones we provide by default (i.e. `DisplayName`, `CounterType`).
