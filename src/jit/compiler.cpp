@@ -11308,9 +11308,9 @@ void Compiler::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
 //    on the last block being generated and set a flag so no call to
 //    "siEndVariableLiveRange" from "genUpdateLife" get to close a "VariableLiveRange"
 //    outside the loop.
-void Compiler::siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose)
+void Compiler::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
 {
-    VarSetOps::Iter iter(this, varsToClose);
+    VarSetOps::Iter iter(this, *varsToClose);
     unsigned        varIndex = 0;
     while (iter.NextElem(&varIndex))
     {

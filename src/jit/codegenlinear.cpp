@@ -530,7 +530,7 @@ void CodeGen::genCodeForBBlist()
 
             if (isLastBlockProcessed)
             {
-                compiler->siEndAllVariableLiveRange(compiler->compCurLife);
+                compiler->siEndAllVariableLiveRange(&compiler->compCurLife);
 
                 if (siOpenScopeList.scNext)
                 {
