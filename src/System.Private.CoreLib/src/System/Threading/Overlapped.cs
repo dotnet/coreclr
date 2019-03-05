@@ -81,7 +81,6 @@ namespace System.Threading
     {
         internal IAsyncResult _asyncResult;
         internal object _callback; // IOCompletionCallback or _IOCompletionCallback
-        private object _userObject;
         private GCHandle[] _pinnedData;
         private NativeOverlapped * _pNativeOverlapped;
         private IntPtr _eventHandle;
@@ -191,8 +190,7 @@ namespace System.Threading
             {
                 _callback = null;
             }
-            _userObject = userData;
-            return AllocateNativeOverlapped();
+            return AllocateNativeOverlapped(userData);
         }
 
         [Obsolete("This method is not safe.  Use UnsafePack (iocb, userData) instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
@@ -209,9 +207,8 @@ namespace System.Threading
             {
                 throw new InvalidOperationException(SR.InvalidOperation_Overlapped_Pack);
             }
-            _userObject = userData;
             _callback = iocb;
-            return AllocateNativeOverlapped();
+            return AllocateNativeOverlapped(userData);
         }
 
         /*====================================================================
@@ -237,29 +234,37 @@ namespace System.Threading
             FreeNativeOverlapped(nativeOverlappedPtr);
         }
 
-        private unsafe NativeOverlapped* AllocateNativeOverlapped()
+        private unsafe NativeOverlapped* AllocateNativeOverlapped(object userData)
         {
             Debug.Assert(_pinnedData == null);
 
             bool success = false;
             try
             {
-                if (_userObject != null)
+                if (userData != null)
                 {
-                    if (_userObject.GetType() == typeof(object[]))
+                    try
                     {
-                        object[] objArray = (object[])_userObject;
-
-                        _pinnedData = new GCHandle[objArray.Length];
-                        for (int i = 0; i < objArray.Length; i++)
+                        if (userData is object[] objArray)
                         {
-                            _pinnedData[i] = GCHandle.Alloc(objArray[i], GCHandleType.Pinned);
+                            _pinnedData = new GCHandle[objArray.Length];
+                            for (int i = 0; i < objArray.Length; i++)
+                            {
+                                _pinnedData[i] = GCHandle.Alloc(objArray[i], GCHandleType.Pinned);
+                            }
+                        }
+                        else
+                        {
+                            _pinnedData = new GCHandle[1];
+                            _pinnedData[0] = GCHandle.Alloc(userData, GCHandleType.Pinned);
                         }
                     }
-                    else
+                    catch (ArgumentException)
                     {
-                        _pinnedData = new GCHandle[1];
-                        _pinnedData[0] = GCHandle.Alloc(_userObject, GCHandleType.Pinned);
+                        // For performance reasons we catch the exception thrown by GCHandle.Alloc
+                        // instead of calling Marshal.IsPinnable ourselves. The ParamName of the
+                        // ArgumentException has to be fixed up.
+                        throw new ArgumentException(SR.ArgumentException_NotIsomorphic, nameof(userData));
                     }
                 }
 

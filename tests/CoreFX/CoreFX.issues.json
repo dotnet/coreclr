@@ -764,6 +764,32 @@
         }
     },
     {
+        "name": "System.Threading.Overlapped.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Threading.Overlapped.Tests.ThreadPoolBoundHandleTests.PreAllocatedOverlapped_NonBlittableTypeAsPinData_Throws",
+                    "reason": "updated parameter name"
+                },
+                {
+                    "name": "System.Threading.Overlapped.Tests.ThreadPoolBoundHandleTests.PreAllocatedOverlapped_ObjectArrayWithNonBlittableTypeAsPinData_Throws",
+                    "reason": "updated parameter name"
+                },
+                {
+                    "name": "System.Threading.Overlapped.Tests.ThreadPoolBoundHandleTests.AllocateNativeOverlapped_NonBlittableTypeAsPinData_Throws",
+                    "reason": "updated parameter name"
+                },
+                {
+                    "name": "System.Threading.Overlapped.Tests.ThreadPoolBoundHandleTests.AllocateNativeOverlapped_ObjectArrayWithNonBlittableTypeAsPinData_Throws",
+                    "reason": "updated parameter name"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Threading.Thread.Tests",
         "enabled": true,
         "exclusions": {
