@@ -11877,35 +11877,6 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport* pInternalImport, 
 
     if (IsTdAutoLayout(clFlags))
     {
-        // VC++ fails to set SequentialLayout on some classes
-        // with ClassSize. Too late to fix compiler for V1.
-        //
-        // To compensate, we treat AutoLayout classes as Sequential if they
-        // meet all of the following criteria:
-        //
-        //    - ClassSize present and nonzero.
-        //    - No instance fields declared
-        //    - Base class is System.ValueType.
-        ULONG cbTotalSize = 0;
-        if (SUCCEEDED(pInternalImport->GetClassTotalSize(cl, &cbTotalSize)) && cbTotalSize != 0)
-        {
-            if (pParentMT && pParentMT->IsValueTypeClass())
-            {
-                MDEnumHolder hEnumField(pInternalImport);
-                if (SUCCEEDED(pInternalImport->EnumInit(mdtFieldDef, cl, &hEnumField)))
-                {
-                    ULONG numFields = pInternalImport->EnumGetCount(&hEnumField);
-                    if (numFields == 0)
-                    {
-                        *pfExplicitOffsets = FALSE;
-                        *pNLTType = nltAnsi;
-                        *pPackingSize = 1;
-                        return TRUE;
-                    }
-                }
-            }
-        }
-
         return FALSE;
     }
     else if (IsTdSequentialLayout(clFlags))
