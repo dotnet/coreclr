@@ -18,241 +18,255 @@ namespace System.Buffers.Text
 		// YYYY-MM-DDThh:mm:ss.s (eg 1997-07-16T19:20:30.45)
 		// YYYY-MM-DDThh:mmTZD (eg 1997-07-16T19:20+01:00)
 		// YYYY-MM-DDThh:mm:ssTZD (eg 1997-07-16T19:20:30+01:00)
+		// YYYY-MM-DDThh:mm:ss.sTZD (eg 1997-07-16T19:20:30.45Z)
 		// YYYY-MM-DDThh:mm:ss.sTZD (eg 1997-07-16T19:20:30.45+01:00)
+		// YYYY-MM-DDThh:mm:ss.sTZD (eg 1997-07-16T19:20:30.45-01:00)
 		private static bool TryParseDateTimeOffsetJ(ReadOnlySpan<byte> source, out DateTimeOffset value, out int bytesConsumed, out DateTimeKind kind)
 		{
-			int year = 0;
-			int month = 0;
-			int day = 0;
+			// Source does not have enough characters for YYYY-MM-DD
+			if (source.Length < 10)
+			{
+				goto ReturnFalse;
+			}
+
+			int year;
+			{
+				uint digit1 = source[0] - (uint)'0';
+				uint digit2 = source[1] - (uint)'0';
+				uint digit3 = source[2] - (uint)'0';
+				uint digit4 = source[3] - (uint)'0';
+
+				if (digit1 > 9 || digit2 > 9 || digit3 > 9 || digit4 > 9)
+				{
+					goto ReturnFalse;
+				}
+
+				year = (int)(digit1 * 1000 + digit2 * 100 + digit3 * 10 + digit4);
+			}
+
+			if (source[4] != Utf8Constants.Hyphen)
+			{
+				goto ReturnFalse;
+			}
+
+			int month;
+			if (!ParserHelpers.TryGetNextTwoDigits(source.Slice(start: 5, length: 2), out month))
+			{
+				goto ReturnFalse;
+			}
+
+			if (source[7] != Utf8Constants.Hyphen)
+			{
+				goto ReturnFalse;
+			}
+
+			int day;
+			if (!ParserHelpers.TryGetNextTwoDigits(source.Slice(start: 8, length: 2), out day))
+			{
+				goto ReturnFalse;
+			}
+
+			// We now have YYYY-MM-DD
+			bytesConsumed = 10;
+
 			int hour = 0;
 			int minute = 0;
 			int second = 0;
 			int fraction = 0;
-
-			byte offsetChar = default;
 			int offsetHours = 0;
 			int offsetMinutes = 0;
+			byte offsetToken = default;
 
-			Utf8Constants.DateJParserState state = Utf8Constants.DateJParserState.Year;
-            bool continueParsing = true;
-			int sourceLength = source.Length;
-            int sourceIndex = 0;
-
-			while (continueParsing && (sourceIndex < sourceLength))
+			if (source.Length < 11)
 			{
-				switch (state)
+				goto FinishedParsing;
+			}
+
+			byte curByte = source[10];
+
+			if (curByte == Utf8Constants.UtcOffsetToken || curByte == Utf8Constants.Plus || curByte == Utf8Constants.Minus)
+			{
+				goto ReturnFalse;
+			}
+			else if (curByte != Utf8Constants.TimePrefix)
+			{
+				goto FinishedParsing;
+			}
+
+			// Source does not have enough characters for YYYY-MM-DDThh:mm
+			if (source.Length < 16)
+			{
+				goto ReturnFalse;
+			}
+
+			if (!ParserHelpers.TryGetNextTwoDigits(source.Slice(start: 11, length: 2), out hour))
+			{
+				goto ReturnFalse;
+			}
+
+			if (source[13] != Utf8Constants.Colon)
+			{
+				goto ReturnFalse;
+			}
+
+			if (!ParserHelpers.TryGetNextTwoDigits(source.Slice(start: 14, length: 2), out minute))
+			{
+				goto ReturnFalse;
+			}
+
+			// We now have YYYY-MM-DDThh:mm
+			bytesConsumed = 16;
+
+			if (source.Length < 17)
+			{
+				goto FinishedParsing;
+			}
+
+			curByte = source[16];
+
+			int sourceIndex = 16;
+
+			if (curByte == Utf8Constants.UtcOffsetToken)
+			{
+				bytesConsumed++;
+				offsetToken = Utf8Constants.UtcOffsetToken;
+				goto FinishedParsing;
+			}
+			else if (curByte == Utf8Constants.Plus || curByte == Utf8Constants.Minus)
+			{
+				offsetToken = curByte;
+				sourceIndex++;
+				goto ParseOffset;
+			}
+			else if (curByte != Utf8Constants.Colon)
+			{
+				goto FinishedParsing;
+			}
+
+			if (!ParserHelpers.TryGetNextTwoDigits(source.Slice(start: 17, length: 2), out second))
+			{
+				goto ReturnFalse;
+			}
+
+			// We now have YYYY-MM-DDThh:mm:ss
+			bytesConsumed = 19;
+
+			if (source.Length < 20)
+			{
+				goto FinishedParsing;
+			}
+
+			curByte = source[19];
+
+			if (curByte == Utf8Constants.UtcOffsetToken)
+			{
+				bytesConsumed = 20;
+				offsetToken = Utf8Constants.UtcOffsetToken;
+				goto FinishedParsing;
+			}
+			else if (curByte == Utf8Constants.Plus || curByte == Utf8Constants.Minus)
+			{
+				offsetToken = curByte;
+				goto ParseOffset;
+			}
+			else if (curByte != Utf8Constants.Period)
+			{
+				goto FinishedParsing;
+			}
+
+			// Source does not have enough characters for YYYY-MM-DDThh:mm:ss.s
+			if (source.Length < 21)
+			{
+				value = default;
+				bytesConsumed = 0;
+				kind = default;
+				return false;
+			}
+
+			sourceIndex = 20;
+
+			{
+				while (sourceIndex < source.Length && ParserHelpers.IsDigit(curByte = source[sourceIndex]))
 				{
-					case Utf8Constants.DateJParserState.Year:
-    					if (source.Length - sourceIndex < 4)
-                        {
-                            state = Utf8Constants.DateJParserState.Invalid;
-                            break;
-                        }
-                        
-                        uint digit1 = source[sourceIndex++] - 48u;
-                        uint digit2 = source[sourceIndex++] - 48u;
-                        uint digit3 = source[sourceIndex++] - 48u;
-                        uint digit4 = source[sourceIndex++] - 48u;
+					int prevFractionTimesTen = fraction * 10;
 
-                        if (digit1 > 9 || digit2 > 9 || digit3 > 9 || digit4 > 9)
-                        {
-                            state = Utf8Constants.DateJParserState.Invalid;
-                            break;
-                        }
-
-                        year = (int)(digit1 * 1000 + digit2 * 100 + digit3 * 10 + digit4);
-
-                        state = (sourceLength - sourceIndex > 1) && (source[sourceIndex++] == Utf8Constants.Hyphen) ? Utf8Constants.DateJParserState.Month : Utf8Constants.DateJParserState.Invalid;
+					if (!(prevFractionTimesTen + (int)(curByte - (uint)'0') <= Utf8Constants.MaxDateTimeFraction))
+					{
+						sourceIndex++;
 						break;
-					case Utf8Constants.DateJParserState.Month:
-                        state = ParserHelpers.TryGetNextTwoDigits(source, sourceIndex, out sourceIndex, out month) && (sourceLength - sourceIndex > 1) && (source[sourceIndex++] == Utf8Constants.Hyphen) ?
-                            Utf8Constants.DateJParserState.Day:
-                            Utf8Constants.DateJParserState.Invalid;
-						break;
-					case Utf8Constants.DateJParserState.Day:
-						if (!ParserHelpers.TryGetNextTwoDigits(source, sourceIndex, out sourceIndex, out day))
-                        {
-                            state = Utf8Constants.DateJParserState.Invalid;
-                            break;
-                        }
+					}
 
-                        if (sourceLength - sourceIndex > 1)
-                        {
-                            switch (source[sourceIndex])
-                            {
-								case Utf8Constants.TimePrefix:
-									state = Utf8Constants.DateJParserState.Hour;
-									sourceIndex++;
-									break;
-								case Utf8Constants.UtcOffsetChar:
-								case Utf8Constants.Plus:
-								case Utf8Constants.Minus:
-                                    state = Utf8Constants.DateJParserState.Invalid;
-									break;
-								default:
-									continueParsing = false;
-									break;
-							}
-                        }
-						break;
-					case Utf8Constants.DateJParserState.Hour:
-						state = ParserHelpers.TryGetNextTwoDigits(source, sourceIndex, out sourceIndex, out hour) && (sourceLength - sourceIndex > 1) && (source[sourceIndex++] == Utf8Constants.Colon) ?
-                            Utf8Constants.DateJParserState.Minute:
-                            Utf8Constants.DateJParserState.Invalid;
-						break;
-					case Utf8Constants.DateJParserState.Minute:
-						if (!ParserHelpers.TryGetNextTwoDigits(source, sourceIndex, out sourceIndex, out minute))
-                        {
-                            state = Utf8Constants.DateJParserState.Invalid;
-                            break;
-                        }
-
-                        if (sourceLength - sourceIndex > 1)
-                        {
-                            if (source[sourceIndex] == Utf8Constants.Colon)
-                                state = Utf8Constants.DateJParserState.Second;
-                            else if (source[sourceIndex] == Utf8Constants.UtcOffsetChar)
-				            {
-					            offsetChar = Utf8Constants.UtcOffsetChar;
-					            continueParsing = false;
-				            }
-                            else if (source[sourceIndex] == Utf8Constants.Plus)
-                            {
-                                offsetChar = Utf8Constants.Plus;
-                                state = Utf8Constants.DateJParserState.OffsetHours;
-                            }
-                            else if (source[sourceIndex] == Utf8Constants.Minus)
-                            {
-                                offsetChar = Utf8Constants.Minus;
-                                state = Utf8Constants.DateJParserState.OffsetHours;
-                            }
-                            else
-							{
-								continueParsing = false;
-								break;
-							}
-
-                            sourceIndex++;
-                        }
-						break;
-					case Utf8Constants.DateJParserState.Second:
-						if (!ParserHelpers.TryGetNextTwoDigits(source, sourceIndex, out sourceIndex, out second))
-                        {
-                            state = Utf8Constants.DateJParserState.Invalid;
-                            break;
-                        }
-
-						if (sourceLength - sourceIndex > 1)
-                        {
-                            if (source[sourceIndex] == Utf8Constants.Period)
-                                state = Utf8Constants.DateJParserState.Fraction;
-                            else if (source[sourceIndex] == Utf8Constants.UtcOffsetChar)
-				            {
-					            offsetChar = Utf8Constants.UtcOffsetChar;
-					            continueParsing = false;
-				            }
-                            else if (source[sourceIndex] == Utf8Constants.Plus)
-                            {
-                                offsetChar = Utf8Constants.Plus;
-                                state = Utf8Constants.DateJParserState.OffsetHours;
-                            }
-                            else if (source[sourceIndex] == Utf8Constants.Minus)
-                            {
-                                offsetChar = Utf8Constants.Minus;
-                                state = Utf8Constants.DateJParserState.OffsetHours;
-                            }
-                            else
-							{
-								continueParsing = false;
-								break;
-							}
-
-                            sourceIndex++;
-                        }
-						break;
-					case Utf8Constants.DateJParserState.Fraction:
-						while (sourceIndex < sourceLength && ParserHelpers.IsDigit(source[sourceIndex]))
-						{
-                            if (!((fraction * 10) + (int)(source[sourceIndex] - 48u) <= Utf8Constants.MaxDateTimeFraction))
-                            {
-                                sourceIndex++;
-                                break;
-                            }
-
-                            fraction = (fraction * 10) + (int)(source[sourceIndex++] - 48u);
-						}
-
-						if (fraction != 0)
-						{
-							while (fraction * 10 <= Utf8Constants.MaxDateTimeFraction)
-								fraction *= 10;
-			            }
-
-						if (sourceIndex == sourceLength)
-							break;
-						
-						if (source[sourceIndex] == Utf8Constants.UtcOffsetChar)
-						{
-							offsetChar = Utf8Constants.UtcOffsetChar;
-							continueParsing = false;
-							sourceIndex++;
-						}
-						else if (source[sourceIndex] == Utf8Constants.Plus)
-                        {
-                            offsetChar = Utf8Constants.Plus;
-                            state = Utf8Constants.DateJParserState.OffsetHours;
-							sourceIndex++;
-                        }
-                        else if (source[sourceIndex] == Utf8Constants.Minus)
-                        {
-                            offsetChar = Utf8Constants.Minus;
-                            state = Utf8Constants.DateJParserState.OffsetHours;
-							sourceIndex++;
-						}
-                        else
-                            continueParsing = false;
-                        break;
-					case Utf8Constants.DateJParserState.OffsetHours:
-						state = ParserHelpers.TryGetNextTwoDigits(source, sourceIndex, out sourceIndex, out offsetHours) && (sourceLength - sourceIndex > 1) && (source[sourceIndex++] == Utf8Constants.Colon) ?
-                            Utf8Constants.DateJParserState.OffsetMinutes:
-                            Utf8Constants.DateJParserState.Invalid;
-						break;
-					case Utf8Constants.DateJParserState.OffsetMinutes:
-						if (!ParserHelpers.TryGetNextTwoDigits(source, sourceIndex, out sourceIndex, out offsetMinutes))
-                        {
-                            state = Utf8Constants.DateJParserState.Invalid;
-                            break;
-                        }
-
-                        continueParsing = false;
-						break;
-					case Utf8Constants.DateJParserState.Invalid:
-					default:
-						value = default;
-						bytesConsumed = 0;
-						kind = default;
-						return false;
+					fraction = prevFractionTimesTen + (int)(source[sourceIndex++] - (uint)'0');
 				}
 			}
 
-			switch(state)
+			if (fraction != 0)
 			{
-				case Utf8Constants.DateJParserState.Day:
-				case Utf8Constants.DateJParserState.Minute:
-				case Utf8Constants.DateJParserState.Second:
-				case Utf8Constants.DateJParserState.Fraction:
-				case Utf8Constants.DateJParserState.OffsetMinutes:
-					break;
-				default:
-					value = default;
-					bytesConsumed = 0;
-					kind = default;
-					return false;
+				int fractionTimesTen;
+				while ((fractionTimesTen = fraction * 10) <= Utf8Constants.MaxDateTimeFraction)
+				{
+					fraction = fractionTimesTen;
+				}
 			}
 
+			// We now have YYYY-MM-DDThh:mm:ss.s
 			bytesConsumed = sourceIndex;
 
-			if ((offsetChar != Utf8Constants.UtcOffsetChar) && (offsetChar != Utf8Constants.Plus) && (offsetChar != Utf8Constants.Minus))
+			if (sourceIndex == source.Length)
+			{
+				goto FinishedParsing;
+			}
+
+			if (curByte == Utf8Constants.UtcOffsetToken)
+			{
+				bytesConsumed++;
+				offsetToken = Utf8Constants.UtcOffsetToken;
+				goto FinishedParsing;
+			}
+			else if (curByte == Utf8Constants.Plus || curByte == Utf8Constants.Minus)
+			{
+				offsetToken = source[sourceIndex++];
+				goto ParseOffset;
+			}
+
+			goto FinishedParsing;
+
+		ParseOffset:
+			// Source does not have enough characters for YYYY-MM-DDThh:mm:ss.s+|-hh:mm
+			if (source.Length - sourceIndex < 5)
+			{
+				goto ReturnFalse;
+			}
+
+			if (!ParserHelpers.TryGetNextTwoDigits(source.Slice(start: sourceIndex, length: 2), out offsetHours))
+			{
+				goto ReturnFalse;
+			}
+			sourceIndex += 2;
+
+			if (source[sourceIndex++] != Utf8Constants.Colon)
+			{
+				goto ReturnFalse;
+			}
+
+			if (!ParserHelpers.TryGetNextTwoDigits(source.Slice(start: sourceIndex, length: 2), out offsetMinutes))
+			{
+				goto ReturnFalse;
+			}
+			sourceIndex += 2;
+
+			// We now have YYYY-MM-DDThh:mm:ss.s+|-hh:mm
+			bytesConsumed = sourceIndex;
+			goto FinishedParsing;
+
+		ReturnFalse:
+			value = default;
+			bytesConsumed = 0;
+			kind = default;
+			return false;
+
+		FinishedParsing:
+			if ((offsetToken != Utf8Constants.UtcOffsetToken) && (offsetToken != Utf8Constants.Plus) && (offsetToken != Utf8Constants.Minus))
 			{
 				if (!TryCreateDateTimeOffsetInterpretingDataAsLocalTime(year: year, month: month, day: day, hour: hour, minute: minute, second: second, fraction: fraction, out value))
 				{
@@ -266,7 +280,7 @@ namespace System.Buffers.Text
 				return true;
 			}
 
-			if (offsetChar == 'Z')
+			if (offsetToken == Utf8Constants.UtcOffsetToken)
 			{
 				// Same as specifying an offset of "+00:00", except that DateTime's Kind gets set to UTC rather than Local
 				if (!TryCreateDateTimeOffset(year: year, month: month, day: day, hour: hour, minute: minute, second: second, fraction: fraction, offsetNegative: false, offsetHours: 0, offsetMinutes: 0, out value))
@@ -281,12 +295,12 @@ namespace System.Buffers.Text
 				return true;
 			}
 
-			Debug.Assert(offsetChar == Utf8Constants.Plus || offsetChar == Utf8Constants.Minus);
+			Debug.Assert(offsetToken == Utf8Constants.Plus || offsetToken == Utf8Constants.Minus);
 
-			if (!TryCreateDateTimeOffset(year: year, month: month, day: day, hour: hour, minute: minute, second: second, fraction: fraction, offsetNegative: offsetChar == Utf8Constants.Minus, offsetHours: offsetHours, offsetMinutes: offsetMinutes, out value))
+			if (!TryCreateDateTimeOffset(year: year, month: month, day: day, hour: hour, minute: minute, second: second, fraction: fraction, offsetNegative: offsetToken == Utf8Constants.Minus, offsetHours: offsetHours, offsetMinutes: offsetMinutes, out value))
 			{
 				value = default;
-                bytesConsumed = 0;
+				bytesConsumed = 0;
 				kind = default;
 				return false;
 			}

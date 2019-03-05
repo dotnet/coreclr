@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace System.Buffers.Text
@@ -71,28 +72,22 @@ namespace System.Buffers.Text
             return TryParseThrowFormatException(out bytesConsumed);
         }
 
-        public static bool TryGetNextTwoDigits(ReadOnlySpan<byte> source, int prevSourceIndex, out int sourceIndex, out int value)
-        {
-            if (source.Length - prevSourceIndex < 2)
-            {
-                sourceIndex = prevSourceIndex;
-                value = default;
-                return false;
-            }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static bool TryGetNextTwoDigits(ReadOnlySpan<byte> source, out int value)
+		{
+			Debug.Assert(source.Length == 2);
 
-            uint digit1 = source[prevSourceIndex++] - 48u;
-            uint digit2 = source[prevSourceIndex++] - 48u;
+			uint digit1 = source[0] - 48u;
+			uint digit2 = source[1] - 48u;
 
-            sourceIndex = prevSourceIndex;
+			if (digit1 > 9 || digit2 > 9)
+			{
+				value = default;
+				return false;
+			}
 
-            if (digit1 > 9 || digit2 > 9)
-            {
-                value = default;
-                return false;
-            }
-
-            value = (int)(digit1 * 10 + digit2);
-            return true;
-        }
-    }
+			value = (int)(digit1 * 10 + digit2);
+			return true;
+		}
+	}
 }

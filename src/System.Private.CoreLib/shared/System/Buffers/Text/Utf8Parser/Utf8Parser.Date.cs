@@ -23,9 +23,10 @@ namespace System.Buffers.Text
         /// Formats supported:
         ///     default       05/25/2017 10:30:15 -08:00
         ///     G             05/25/2017 10:30:15
-        ///     R             Tue, 03 Jan 2017 08:08:05 GMT       (RFC 1123)
-        ///     l             tue, 03 jan 2017 08:08:05 gmt       (Lowercase RFC 1123)
-        ///     O             2017-06-12T05:30:45.7680000-07:00   (Round-trippable)
+        ///     R             Tue, 03 Jan 2017 08:08:05 GMT            (RFC 1123)
+        ///     l             tue, 03 jan 2017 08:08:05 gmt            (Lowercase RFC 1123)
+        ///     O             2017-06-12T05:30:45.7680000-07:00        (Round-trippable)
+        ///     J             2017-06-12[T05:30[:45[.7680000]][-07:00] (ISO 8601)
         /// </remarks>
         /// <exceptions>
         /// <cref>System.FormatException</cref> if the format is not valid for this data type.
@@ -87,9 +88,9 @@ namespace System.Buffers.Text
                         }
 
                         return true;
-                    }
+					}
 
-                case 'J':
+                    case 'J':
                     {
                         if (!TryParseDateTimeOffsetJ(source, out DateTimeOffset dateTimeOffset, out bytesConsumed, out DateTimeKind kind))
                         {
@@ -138,9 +139,10 @@ namespace System.Buffers.Text
         /// <remarks>
         /// Formats supported:
         ///     G  (default)  05/25/2017 10:30:15
-        ///     R             Tue, 03 Jan 2017 08:08:05 GMT       (RFC 1123)
-        ///     l             tue, 03 jan 2017 08:08:05 gmt       (Lowercase RFC 1123)
-        ///     O             2017-06-12T05:30:45.7680000-07:00   (Round-trippable)
+        ///     R             Tue, 03 Jan 2017 08:08:05 GMT            (RFC 1123)
+        ///     l             tue, 03 jan 2017 08:08:05 gmt            (Lowercase RFC 1123)
+        ///     O             2017-06-12T05:30:45.7680000-07:00        (Round-trippable)
+        ///     J             2017-06-12[T05:30[:45[.7680000]][-07:00] (ISO 8601)
         /// </remarks>
         /// <exceptions>
         /// <cref>System.FormatException</cref> if the format is not valid for this data type.
