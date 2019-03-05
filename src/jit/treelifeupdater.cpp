@@ -181,13 +181,6 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                             VarSetOps::AddElemD(compiler, stackVarDeltaSet, fldVarIndex);
                         }
                     }
-
-                    if (ForCodeGen)
-                    {
-                        // BRIAN:: see how scopes are reported for promoted structs. Are they considered in the
-                        // amount of local variables to report?
-                        compiler->siStartOrCloseVariableLiveRange(fldVarDsc, isBorn, isDying);
-                    }
                 }
             }
         }
@@ -266,7 +259,8 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
 #endif // DEBUG
             }
 
-            compiler->siStartOrCloseVariableLiveRange(varDsc, isBorn, isDying);
+            // For each of the LclVarDsc that are reporting change, variable or fields
+            compiler->siStartOrCloseVariableLiveRanges(&varDeltaSet, isBorn, isDying);
 
             compiler->codeGen->siUpdate();
         }

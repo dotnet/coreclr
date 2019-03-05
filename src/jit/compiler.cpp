@@ -11166,6 +11166,38 @@ void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isB
 }
 
 //------------------------------------------------------------------------
+// siStartOrCloseVariableLiveRanges: Iterates the VARSET_TP* set calling "siStartOrCloseVariableLiveRange"
+//  for each of the LclVarDsc.
+//
+// Arguments:
+//    varsIndexSet    - the VARSET_TP with the variable to report start/end "VariableLiveRange"
+//    isBorn    - a boolean indicating if the VariableLiveRange is starting from the emitter
+//                position.
+//    isDying   - a boolean indicating if the VariableLiveRange is no more valid from the emitter
+//                position
+//
+// Assumptions:
+//    The emitter should be pointing to the first instruction from where the VariableLiveRanges are
+//    becoming valid (when isBorn is true) or invalid (when isDying is true).
+//    All the "LvlVarDsc" in the set "varsIndexSet" should have its "VariableRangeLists" initialized.
+//
+// Notes:
+//    This method is being called from treeLifeUpdater where the variable is becoming dead, live
+//    or both.
+void Compiler::siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying)
+{
+    VarSetOps::Iter iter(this, *varsIndexSet);
+    unsigned        varIndex = 0;
+    while (iter.NextElem(&varIndex))
+    {
+        unsigned         lclNum = lvaTrackedToVarNum[varIndex];
+        const LclVarDsc* lclVar = &lvaTable[lclNum];
+
+        siStartOrCloseVariableLiveRange(lclVar, isBorn, isDying);
+    }
+}
+
+//------------------------------------------------------------------------
 // siStartVariableLiveRange: Starts a "VariableLiveRange" for the given "varDsc".
 //
 // Arguments:

@@ -7349,6 +7349,9 @@ public:
     // due to be an empty range.
     void siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying);
 
+    // Iterates the VARSET_TP* set calling "siStartOrCloseVariableLiveRange" for each of the LclVarDsc.
+    void siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying);
+
     // Starts a "VariableLiveRange" for "varDsc"
     void siStartVariableLiveRange(const LclVarDsc* varDsc);
 
