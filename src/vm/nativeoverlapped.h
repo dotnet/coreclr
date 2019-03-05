@@ -71,6 +71,4 @@ typedef OverlappedDataObject* OVERLAPPEDDATAREF;
 
 #endif
 
-FCDECL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, DWORD* numBytes);
-
 #endif

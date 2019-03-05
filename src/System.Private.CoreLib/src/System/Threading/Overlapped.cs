@@ -55,28 +55,22 @@ namespace System.Threading
 
         internal static unsafe void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
         {
-            do
+            OverlappedData overlapped = OverlappedData.GetOverlappedFromNative(pNativeOverlapped);
+
+            if (overlapped._callback is IOCompletionCallback iocb)
             {
-                OverlappedData overlapped = OverlappedData.GetOverlappedFromNative(pNativeOverlapped);
-
-                if (overlapped._callback is IOCompletionCallback iocb)
-                {
-                    // We got here because of UnsafePack (or) Pack with EC flow suppressed
-                    iocb(errorCode, numBytes, pNativeOverlapped);
-                }
-                else
-                {
-                    // We got here because of Pack
-                    var helper = (_IOCompletionCallback)overlapped._callback;
-                    helper._errorCode = errorCode;
-                    helper._numBytes = numBytes;
-                    helper._pNativeOverlapped = pNativeOverlapped;
-                    ExecutionContext.RunInternal(helper._executionContext, s_ccb, helper);
-                }
-
-                //Quickly check the VM again, to see if a packet has arrived.
-                OverlappedData.CheckVMForIOPacket(out pNativeOverlapped, out errorCode, out numBytes);
-            } while (pNativeOverlapped != null);
+                // We got here because of UnsafePack (or) Pack with EC flow suppressed
+                iocb(errorCode, numBytes, pNativeOverlapped);
+            }
+            else
+            {
+                // We got here because of Pack
+                var helper = (_IOCompletionCallback)overlapped._callback;
+                helper._errorCode = errorCode;
+                helper._numBytes = numBytes;
+                helper._pNativeOverlapped = pNativeOverlapped;
+                ExecutionContext.RunInternal(helper._executionContext, s_ccb, helper);
+            }
         }
     }
 
@@ -223,9 +217,6 @@ namespace System.Threading
             GCHandle handle = *(GCHandle*)(pNativeOverlapped + 1);
             return (OverlappedData)handle.Target;
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void CheckVMForIOPacket(out NativeOverlapped* pNativeOverlapped, out uint errorCode, out uint numBytes);
     }
 
     #endregion class OverlappedData

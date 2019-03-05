@@ -898,10 +898,6 @@ FCFuncStart(gMonitorFuncs)
     FCFuncElement("IsEnteredNative", ObjectNative::IsLockHeld)
 FCFuncEnd()
 
-FCFuncStart(gOverlappedFuncs)
-    FCFuncElement("CheckVMForIOPacket", CheckVMForIOPacket)
-FCFuncEnd()
-
 FCFuncStart(gRuntimeHelpers)
     FCFuncElement("GetObjectValue", ObjectNative::GetObjectValue)
     FCIntrinsic("InitializeArray", ArrayNative::InitializeArray, CORINFO_INTRINSIC_InitializeArray)
@@ -1233,8 +1229,6 @@ FCClassElement("Object", "System", gObjectFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("ObjectMarshaler", "System.StubHelpers", gObjectMarshalerFuncs)
 #endif
-FCClassElement("OverlappedData", "System.Threading", gOverlappedFuncs)
-
 
 FCClassElement("PunkSafeHandle", "System.Reflection.Emit", gSymWrapperCodePunkSafeHandleFuncs)
 FCClassElement("RegisteredWaitHandleSafe", "System.Threading", gRegisteredWaitHandleFuncs)
