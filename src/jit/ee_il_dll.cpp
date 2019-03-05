@@ -163,10 +163,11 @@ void jitShutdown(bool processIsTerminating)
 
 #ifndef FEATURE_MERGE_JIT_AND_ENGINE
 
+extern "C"
 #ifdef FEATURE_PAL
-DLLEXPORT // For Win32 PAL LoadLibrary emulation
+    DLLEXPORT // For Win32 PAL LoadLibrary emulation
 #endif
-    extern "C" BOOL WINAPI
+    BOOL WINAPI
     DllMain(HANDLE hInstance, DWORD dwReason, LPVOID pvReserved)
 {
     if (dwReason == DLL_PROCESS_ATTACH)
