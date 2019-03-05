@@ -73,7 +73,7 @@ On the wire EventCounter and PollingCounter both produce an event with name "Eve
         IntervalSec: 1.00324,
         Series: "Interval=1",
         CounterType: "Mean",
-        MetaData: "key1=value1,key1=value1,key1=value1"
+        MetaData: "key1=value1,key2=value2,key3=value3"
     }
         
 
@@ -89,7 +89,7 @@ On the wire IncrementingEventCounter and IncrementingPollingCounter both produce
         IntervalSec: 1.0043,
         Series: "Interval=1",
         CounterType: "Sum",
-        MetaData: "key1=value1,key1=value1,key1=value1"
+        MetaData: "key1=value1,key2=value2,key3=value3"
     }
 
 
