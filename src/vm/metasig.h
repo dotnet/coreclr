@@ -347,7 +347,7 @@ DEFINE_METASIG_T(SM(Str_PtrHStringHeader_RetIntPtr, s P(g(HSTRING_HEADER_MANAGED
 
 DEFINE_METASIG_T(SM(RefDateTimeOffset_RefDateTimeNative_RetVoid, r(g(DATE_TIME_OFFSET)) r(g(DATETIMENATIVE)), v))
 
-DEFINE_METASIG_T(IM(RuntimeTypeHandle_RefInt_RefIntPtr_RetVoid, g(RT_TYPE_HANDLE) r(i) r(I), v))
+DEFINE_METASIG_T(IM(RuntimeTypeHandle_RefBool_RefIntPtr_RetVoid, g(RT_TYPE_HANDLE) r(F) r(I), v))
 
 #endif
 

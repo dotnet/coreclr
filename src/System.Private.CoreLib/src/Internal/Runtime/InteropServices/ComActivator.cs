@@ -417,7 +417,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
     // When a managed object is exposed to COM, the CLR invokes
     // AllocateAndValidateLicense() to set up the appropriate
     // license context and instantiate the object.
-    internal class LicenseInteropProxy
+    internal sealed class LicenseInteropProxy
     {
         private static readonly Type s_licenseAttrType;
         private static readonly Type s_licenseExceptionType;
@@ -592,7 +592,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         }
 
         // See usage in native RCW code
-        public void GetCurrentContextInfo(RuntimeTypeHandle rth, ref int fDesignTime, ref IntPtr bstrKey)
+        public void GetCurrentContextInfo(RuntimeTypeHandle rth, ref bool isDesignTime, ref IntPtr bstrKey)
         {
             Type targetRcwTypeMaybe = Type.GetTypeFromHandle(rth);
 
@@ -602,7 +602,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             _licContext = _getCurrentContextInfo.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
 
             _targetRcwType = targetRcwTypeMaybe;
-            fDesignTime = ((bool)parameters[1]) ? 1 : 0;
+            isDesignTime = (bool)parameters[1];
             bstrKey = Marshal.StringToBSTR((string)parameters[2]);
         }
 

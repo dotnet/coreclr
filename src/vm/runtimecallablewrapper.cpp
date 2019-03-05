@@ -134,13 +134,6 @@ IUnknown *ComClassFactory::CreateInstanceFromClassFactory(IClassFactory *pClassF
         // Get the type to query for licensing.
         TypeHandle rth = TypeHandle(m_pClassMT);
 
-        MethodTable *pProxyMT = MscorlibBinder::GetClass(CLASS__LICENSE_INTEROP_PROXY);
-        MethodDesc *pMD = MemberLoader::FindMethod(pProxyMT, "Create", &gsig_SM_RetObj);
-        MethodDescCallSite createObj(pMD);
-
-        pMD = MemberLoader::FindMethod(pProxyMT, "GetCurrentContextInfo", &gsig_IM_RuntimeTypeHandle_RefInt_RefIntPtr_RetVoid);
-        MethodDescCallSite getCurrentContextInfo(pMD);
-
         struct
         {
             OBJECTREF pProxy;
@@ -152,10 +145,12 @@ IUnknown *ComClassFactory::CreateInstanceFromClassFactory(IClassFactory *pClassF
         GCPROTECT_BEGIN(gc);
 
         // Create an instance of the object
+        MethodDescCallSite createObj(METHOD__LICENSE_INTEROP_PROXY__CREATE);
         gc.pProxy = createObj.Call_RetOBJECTREF(NULL);
         gc.pType = rth.GetManagedClassObject();
 
         // Query the current licensing context
+        MethodDescCallSite getCurrentContextInfo(METHOD__LICENSE_INTEROP_PROXY__GETCURRENTCONTEXTINFO, &gc.pProxy);
         BOOL fDesignTime = FALSE;
         ARG_SLOT args[4];
         args[0] = ObjToArgSlot(gc.pProxy);
@@ -194,8 +189,7 @@ IUnknown *ComClassFactory::CreateInstanceFromClassFactory(IClassFactory *pClassF
             // Store the requested license key
             if (SUCCEEDED(hr))
             {
-                MethodDesc *pMDSaveKey = MemberLoader::FindMethod(pProxyMT, "SaveKeyInCurrentContext", &gsig_IM_IntPtr_RetVoid);
-                MethodDescCallSite saveKeyInCurrentContext(pMDSaveKey);
+                MethodDescCallSite saveKeyInCurrentContext(METHOD__LICENSE_INTEROP_PROXY__SAVEKEYINCURRENTCONTEXT, &gc.pProxy);
 
                 args[0] = ObjToArgSlot(gc.pProxy);
                 args[1] = (ARG_SLOT)(BSTR)bstrKey;
