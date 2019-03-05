@@ -11154,18 +11154,8 @@ void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isB
     {
         if (isBorn && !isDying)
         {
-            // If variable a variable is inside a try/catch block, we persist it on the stack during the
-            // whole block and alive. It can be assigned/defined many times, but the "VariableLiveRange"
-            // has to still start on a "BasicBlock" boundary
-
-            // Update:: this is not entirely true, on same cases is not alive until first use. So we
-            // need to considerate both cases.
-
-            if (!varDsc->lvLiveInOutOfHndlr || !varDsc->hasVariableLiveRangeOpen())
-            {
-                // "varDsc" is valid from this point
-                siStartVariableLiveRange(varDsc);
-            }
+            // "varDsc" is valid from this point
+            siStartVariableLiveRange(varDsc);
         }
         if (isDying && !isBorn)
         {
@@ -11294,7 +11284,7 @@ void Compiler::siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose)
     {
         unsigned         lclNum = lvaTrackedToVarNum[varIndex];
         const LclVarDsc* lclVar = &lvaTable[lclNum];
-        
+
         siEndVariableLiveRange(lclVar);
     }
 
