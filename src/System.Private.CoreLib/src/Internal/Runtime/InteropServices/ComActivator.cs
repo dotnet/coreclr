@@ -592,7 +592,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         }
 
         // See usage in native RCW code
-        public void GetCurrentContextInfo(RuntimeTypeHandle rth, ref bool isDesignTime, ref IntPtr bstrKey)
+        public void GetCurrentContextInfo(RuntimeTypeHandle rth, out bool isDesignTime, out IntPtr bstrKey)
         {
             Type targetRcwTypeMaybe = Type.GetTypeFromHandle(rth);
 
