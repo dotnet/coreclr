@@ -109,8 +109,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (!accessor.IsPublic)
                 throw new MethodAccessException(
-                    string.Format(
-                        CultureInfo.CurrentCulture,
+                    SR.Format(
                         SR.Arg_MethodAccessException_WithMethodName,
                         accessor.ToString(),
                         accessor.DeclaringType.FullName));

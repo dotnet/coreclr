@@ -1776,8 +1776,8 @@ namespace System
                     }
 
                     if (!loaderAssuredCompatible)
-                        throw new ArgumentException(string.Format(
-                            CultureInfo.CurrentCulture, SR.Argument_ResolveMethodHandle,
+                        throw new ArgumentException(SR.Format(
+                            SR.Argument_ResolveMethodHandle,
                             reflectedType.ToString(), declaredType.ToString()));
                 }
                 // Action<in string> is assignable from, but not a subclass of Action<in object>.
@@ -1804,8 +1804,8 @@ namespace System
                     if (baseType == null)
                     {
                         // ignoring instantiation is the ReflectedType is not a subtype of the DeclaringType
-                        throw new ArgumentException(string.Format(
-                            CultureInfo.CurrentCulture, SR.Argument_ResolveMethodHandle,
+                        throw new ArgumentException(SR.Format(
+                            SR.Argument_ResolveMethodHandle,
                             reflectedType.ToString(), declaredType.ToString()));
                     }
 
@@ -1894,8 +1894,8 @@ namespace System
                     if (!RuntimeFieldHandle.AcquiresContextFromThis(fieldHandle) ||
                         !RuntimeTypeHandle.CompareCanonicalHandles(declaredType, reflectedType))
                     {
-                        throw new ArgumentException(string.Format(
-                            CultureInfo.CurrentCulture, SR.Argument_ResolveFieldHandle,
+                        throw new ArgumentException(SR.Format(
+                            SR.Argument_ResolveFieldHandle,
                             reflectedType.ToString(),
                             declaredType.ToString()));
                     }
@@ -3750,7 +3750,7 @@ namespace System
             }
 
             if ((invokeAttr & BindingFlags.ExactBinding) == BindingFlags.ExactBinding)
-                throw new ArgumentException(string.Format(CultureInfo.CurrentUICulture, SR.Arg_ObjObjEx, value.GetType(), this));
+                throw new ArgumentException(SR.Format(CultureInfo.CurrentUICulture, SR.Arg_ObjObjEx, value.GetType(), this));
 
             return TryChangeType(value, binder, culture, needsSpecialCast);
         }
@@ -3791,7 +3791,7 @@ namespace System
                 }
             }
 
-            throw new ArgumentException(string.Format(CultureInfo.CurrentUICulture, SR.Arg_ObjObjEx, value.GetType(), this));
+            throw new ArgumentException(SR.Format(CultureInfo.CurrentUICulture, SR.Arg_ObjObjEx, value.GetType(), this));
         }
 
         // GetDefaultMembers
@@ -4398,8 +4398,7 @@ namespace System
                     {
                         Debug.Assert((invokeMethod.CallingConvention & CallingConventions.VarArgs) ==
                                             CallingConventions.VarArgs);
-                        throw new NotSupportedException(string.Format(CultureInfo.CurrentCulture,
-                            SR.NotSupported_CallToVarArg));
+                        throw new NotSupportedException(SR.NotSupported_CallToVarArg);
                     }
 
                     // fast path??
