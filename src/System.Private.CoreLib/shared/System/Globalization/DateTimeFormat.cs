@@ -347,7 +347,7 @@ namespace System
             {
                 // Here we can't find the matching quote.
                 throw new FormatException(
-                        string.Format(
+                        SR.Format(
                             CultureInfo.CurrentCulture,
                             SR.Format_BadQuote, quoteChar));
             }

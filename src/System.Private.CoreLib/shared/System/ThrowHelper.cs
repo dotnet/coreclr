@@ -731,8 +731,7 @@ namespace System
                 case ExceptionResource.Arg_TypeNotSupported:
                     return SR.Arg_TypeNotSupported;
                 default:
-                    Debug.Assert(false,
-                        "The enum value is not defined, please check the ExceptionResource Enum.");
+                    Debug.Fail("The enum value is not defined, please check the ExceptionResource Enum.");
                     return "";
             }
         }

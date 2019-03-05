@@ -71,7 +71,7 @@ namespace System.Globalization
             _cultureData = CultureData.GetCultureDataForRegion(name, true);
             if (_cultureData == null)
                 throw new ArgumentException(
-                    string.Format(
+                    SR.Format(
                         CultureInfo.CurrentCulture,
                         SR.Argument_InvalidCultureName, name), nameof(name));
 

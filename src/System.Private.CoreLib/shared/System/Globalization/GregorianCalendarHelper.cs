@@ -182,7 +182,7 @@ namespace System.Globalization
                     {
                         throw new ArgumentOutOfRangeException(
                                     nameof(year),
-                                    string.Format(
+                                    SR.Format(
                                         CultureInfo.CurrentCulture,
                                         SR.ArgumentOutOfRange_Range,
                                         m_EraInfo[i].minEraYear,
@@ -324,7 +324,7 @@ namespace System.Globalization
                 {
                     throw new ArgumentOutOfRangeException(
                                 nameof(millisecond),
-                                string.Format(
+                                SR.Format(
                                     CultureInfo.CurrentCulture,
                                     SR.ArgumentOutOfRange_Range,
                                     0,
@@ -342,7 +342,7 @@ namespace System.Globalization
             {
                 throw new ArgumentOutOfRangeException(
                             "time",
-                            string.Format(
+                            SR.Format(
                                 CultureInfo.InvariantCulture,
                                 SR.ArgumentOutOfRange_CalendarRange,
                                 m_Cal.MinSupportedDateTime,
@@ -373,7 +373,7 @@ namespace System.Globalization
             {
                 throw new ArgumentOutOfRangeException(
                             nameof(months),
-                            string.Format(
+                            SR.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,
                                 -120000,
@@ -571,7 +571,7 @@ namespace System.Globalization
             {
                 throw new ArgumentOutOfRangeException(
                             nameof(day),
-                            string.Format(
+                            SR.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,
                                 1,
@@ -610,7 +610,7 @@ namespace System.Globalization
             {
                 throw new ArgumentOutOfRangeException(
                             nameof(month),
-                            string.Format(
+                            SR.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,
                                 1,
@@ -665,7 +665,7 @@ namespace System.Globalization
             {
                 throw new ArgumentOutOfRangeException(
                             nameof(year),
-                            string.Format(
+                            SR.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range, m_minYear, m_maxYear));
             }
