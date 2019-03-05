@@ -5415,6 +5415,12 @@ void CEEInfo::getCallInfo(
 
     if (directCall)
     {
+        // Direct calls to abstract methods are not allowed
+        if (pTargetMD->IsAbstract())
+        {
+            COMPlusThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
+        }
+
         bool allowInstParam = (flags & CORINFO_CALLINFO_ALLOWINSTPARAM);
 
         // Create instantiating stub if necesary
