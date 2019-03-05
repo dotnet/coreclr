@@ -34,6 +34,7 @@ We believe adding some new top-level types will satisfy these requests:
     class EventCounter {
         EventCounter(string name, EventSource eventSource);
         string DisplayName;
+        TimeSpan DisplayRateTimeScale;
         void WriteMetric(float metric);
         void AddMetaData(string key, string value);
     }
@@ -41,12 +42,14 @@ We believe adding some new top-level types will satisfy these requests:
     class PollingCounter {
         PollingCounter(string name, EventSource eventSource Func<float> getMetricFunction);
         string DisplayName;
+        TimeSpan DisplayRateTimeScale;
         void AddMetaData(string key, string value);
     }
 
     class IncrementingEventCounter {
         IncrementingEventCounter(string name, EventSource eventSource);
         string DisplayName;
+        TimeSpan DisplayRateTimeScale;
         void Increment(float increment = 1);
         void AddMetaData(string key, string value);
     }
@@ -54,6 +57,7 @@ We believe adding some new top-level types will satisfy these requests:
     class IncrementingPollingCounter {
         IncrementingPollingCounter(string name, EventSource eventSource, Func<float> getCountFunction);
         string DisplayName;
+        TimeSpan DisplayRateTimeScale;
         void AddMetaData(string key, string value);
     }
     
@@ -63,7 +67,8 @@ EventCounter does what it has always done, producing a set of 5 stats (Min/Max/M
 On the wire EventCounter and PollingCounter both produce an event with name "EventCounters" and example body:
     
     Payload = {
-        DisplayName: "Request Bytes"
+        DisplayName: "Request Bytes",
+        DisplayRateTimeScale: "1",
         Name: "request-bytes",
         Mean: 12.32,
         StandardDeviation: 2.45,
@@ -84,6 +89,7 @@ On the wire IncrementingEventCounter and IncrementingPollingCounter both produce
 
     Payload = {
         DisplayName: "Exceptions Thrown",
+        DisplayRateTimeScale: "1",
         Name: "exceptions-thrown",
         Increment: 246,
         IntervalSec: 1.0043,
@@ -104,4 +110,4 @@ For EventCounter and PollingCounter we expect simple viewers to use the display 
 
 ### Metadata
 
-To add any optional metadata about the counters that we do not already provide a way of encoding, users can call the `AddMetaData(string key, string value)` API. This API exists on all variants of the Counter APIs, and allows users to add one or many key-value pairs of metadata, which is dumped to the Payload as a comma-separated string value. This API exists so that users can add any metadata about their Counter that is not known to us and is different from the ones we provide by default (i.e. `DisplayName`, `CounterType`).
+To add any optional metadata about the counters that we do not already provide a way of encoding, users can call the `AddMetaData(string key, string value)` API. This API exists on all variants of the Counter APIs, and allows users to add one or many key-value pairs of metadata, which is dumped to the Payload as a comma-separated string value. This API exists so that users can add any metadata about their Counter that is not known to us and is different from the ones we provide by default (i.e. `DisplayName`, `CounterType`, `DisplayRateTimeScale`).
