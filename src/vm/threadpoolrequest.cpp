@@ -23,7 +23,6 @@
 #include "excep.h"
 #include "eeconfig.h"
 #include "corhost.h"
-#include "nativeoverlapped.h"
 #include "appdomain.inl"
 
 BYTE PerAppDomainTPCountList::s_padding[MAX_CACHE_LINE_SIZE - sizeof(LONG)];

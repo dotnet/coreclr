@@ -17,7 +17,6 @@
 #define _COMTHREADPOOL_H
 
 #include "delegateinfo.h"
-#include "nativeoverlapped.h"
 
 class ThreadPoolNative
 {
@@ -64,9 +63,5 @@ VOID QueueUserWorkItemManagedCallback(PVOID pArg);
 void WINAPI BindIoCompletionCallbackStub(DWORD ErrorCode,
                                          DWORD numBytesTransferred,
                                          LPOVERLAPPED lpOverlapped);
-void SetAsyncResultProperties(
-    OVERLAPPEDDATAREF overlapped,
-    DWORD dwErrorCode, 
-    DWORD dwNumBytes);
 
 #endif

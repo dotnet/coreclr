@@ -62,7 +62,7 @@ namespace System.Threading
                 // We got here because of UnsafePack (or) Pack with EC flow suppressed
                 iocb(errorCode, numBytes, pNativeOverlapped);
             }
-            else
+            else if (overlapped._callback != null)
             {
                 // We got here because of Pack
                 var helper = (_IOCompletionCallback)overlapped._callback;
@@ -81,8 +81,6 @@ namespace System.Threading
 
     sealed internal unsafe class OverlappedData
     {
-        // ! If you make any change to the layout here, you need to make matching change 
-        // ! to OverlappedDataObject in vm\nativeoverlapped.h
         internal IAsyncResult _asyncResult;
         internal object _callback; // IOCompletionCallback or _IOCompletionCallback
         internal Overlapped _overlapped;

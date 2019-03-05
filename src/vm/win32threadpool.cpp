@@ -32,7 +32,7 @@ Revision History:
 #include "appdomain.inl"
 #include "hillclimbing.h"
 #include "configuration.h"
-
+#include "nativeoverlapped.h"
 
 #ifndef FEATURE_PAL
 #ifndef DACCESS_COMPILE
@@ -3427,7 +3427,7 @@ Top:
         if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIODequeue)
                 && !AreEtwIOQueueEventsSpeciallyHandled((LPOVERLAPPED_COMPLETION_ROUTINE)key) && pOverlapped != NULL)
         {
-            FireEtwThreadPoolIODequeue(pOverlapped, OverlappedDataObject::GetOverlappedForTracing(pOverlapped), GetClrInstanceId());
+            FireEtwThreadPoolIODequeue(pOverlapped, ::GetOverlappedForTracing(pOverlapped), GetClrInstanceId());
         }
 
         bool enterRetirement;

@@ -22,6 +22,22 @@ struct NATIVEOVERLAPPED_AND_HANDLE
     OBJECTHANDLE m_handle;
 };
 
+static OBJECTREF GetOverlapped(LPOVERLAPPED nativeOverlapped)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    _ASSERTE (nativeOverlapped != NULL);
+    return ObjectFromHandle(((NATIVEOVERLAPPED_AND_HANDLE*)nativeOverlapped)->m_handle);
+}
+
+static LPVOID GetOverlappedForTracing(LPOVERLAPPED nativeOverlapped)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    _ASSERTE(nativeOverlapped != NULL);
+    return *(LPVOID*)(((NATIVEOVERLAPPED_AND_HANDLE*)nativeOverlapped)->m_handle);
+}
+
 // This should match the managed Overlapped object.
 // If you make any change here, you need to change the managed part Overlapped.
 class OverlappedDataObject : public Object

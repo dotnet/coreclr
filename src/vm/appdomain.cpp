@@ -59,8 +59,6 @@
 #include "mdaassistants.h"
 #include "threadpoolrequest.h"
 
-#include "nativeoverlapped.h"
-
 #ifndef FEATURE_PAL
 #include "dwreport.h"
 #endif // !FEATURE_PAL

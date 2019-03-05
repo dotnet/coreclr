@@ -33,8 +33,6 @@
 
 #include "wrappers.h"
 
-#include "nativeoverlapped.h"
-
 #include "mdaassistants.h"
 #include "appdomain.inl"
 #include "vmholder.h"

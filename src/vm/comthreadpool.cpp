@@ -561,17 +561,6 @@ struct BindIoCompletion_Args
     LPOVERLAPPED lpOverlapped;
 };
 
-void SetAsyncResultProperties(
-    OVERLAPPEDDATAREF overlapped,
-    DWORD dwErrorCode, 
-    DWORD dwNumBytes
-)
-{
-    STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_MODE_ANY;
-}
-
 // The function is called from BindIoCompletionCallBack_Worker to quicly check if a
 // packet is available. This is a perf-critical function. We fall back to the VM to
 // do heavy weight operations like creating a new CP thread. 
@@ -590,39 +579,28 @@ LPOVERLAPPED CheckVMForIOPacket(DWORD* errorCode, DWORD* numBytes)
         return NULL;
     }
 
-    OVERLAPPEDDATAREF overlapped = ObjectToOVERLAPPEDDATAREF(OverlappedDataObject::GetOverlapped(lpOverlapped));
-
-    if (overlapped->m_callback == NULL)
+    if (!pThread->IsRealThreadPoolResetNeeded())
     {
-        //We're not initialized yet, go back to the Vm, and process the packet there.
-        ThreadpoolMgr::StoreOverlappedInfoInThread(pThread, *errorCode, *numBytes, key, lpOverlapped);
-        return NULL;
-    }
-    else
-    {
-        if (!pThread->IsRealThreadPoolResetNeeded())
+        pThread->ResetManagedThreadObjectInCoopMode(ThreadNative::PRIORITY_NORMAL);
+        pThread->InternalReset(TRUE, FALSE, FALSE);
+        if (ThreadpoolMgr::ShouldGrowCompletionPortThreadpool(ThreadpoolMgr::CPThreadCounter.DangerousGetDirtyCounts()))
         {
-            pThread->ResetManagedThreadObjectInCoopMode(ThreadNative::PRIORITY_NORMAL);
-            pThread->InternalReset(TRUE, FALSE, FALSE);  
-            if (ThreadpoolMgr::ShouldGrowCompletionPortThreadpool(ThreadpoolMgr::CPThreadCounter.DangerousGetDirtyCounts()))
-            {
-                // We may have to create a CP thread, go back to the Vm, and process the packet there.
-                ThreadpoolMgr::StoreOverlappedInfoInThread(pThread, *errorCode, *numBytes, key, lpOverlapped);
-                lpOverlapped = NULL;
-            }
-        }
-        else
-        {
-            // A more complete reset is needed (due to change in priority etc), go back to the VM, 
-            // and process the packet there.
+            // We may have to create a CP thread, go back to the Vm, and process the packet there.
             ThreadpoolMgr::StoreOverlappedInfoInThread(pThread, *errorCode, *numBytes, key, lpOverlapped);
             lpOverlapped = NULL;
         }
     }
+    else
+    {
+        // A more complete reset is needed (due to change in priority etc), go back to the VM,
+        // and process the packet there.
+        ThreadpoolMgr::StoreOverlappedInfoInThread(pThread, *errorCode, *numBytes, key, lpOverlapped);
+        lpOverlapped = NULL;
+    }
 
     // if this will be "dispatched" to the managed callback fire the IODequeue event:
     if (lpOverlapped != NULL && ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIODequeue))
-        FireEtwThreadPoolIODequeue(lpOverlapped, OverlappedDataObject::GetOverlapped(lpOverlapped), GetClrInstanceId());
+        FireEtwThreadPoolIODequeue(lpOverlapped, ::GetOverlappedForTracing(lpOverlapped), GetClrInstanceId());
 
     return lpOverlapped;
 #else // !FEATURE_PAL
@@ -640,7 +618,7 @@ VOID BindIoCompletionCallBack_Worker(LPVOID args)
     DWORD        numBytesTransferred = ((BindIoCompletion_Args *)args)->numBytesTransferred;
     LPOVERLAPPED lpOverlapped = ((BindIoCompletion_Args *)args)->lpOverlapped;
 
-    OVERLAPPEDDATAREF overlapped = ObjectToOVERLAPPEDDATAREF(OverlappedDataObject::GetOverlapped(lpOverlapped));
+    OBJECTREF overlapped = ::GetOverlapped(lpOverlapped);
 
     GCPROTECT_BEGIN(overlapped);
     // we set processed to TRUE, now it's our responsibility to guarantee proper cleanup
@@ -650,31 +628,22 @@ VOID BindIoCompletionCallBack_Worker(LPVOID args)
     LogCall(pMeth,"IOCallback");
 #endif
 
-    if (overlapped->m_callback != NULL)
+    do
     {
-        do
-        {
-            // Caution: the args are not protected, we have to garantee there's no GC from here till
-            PREPARE_NONVIRTUAL_CALLSITE(METHOD__IOCB_HELPER__PERFORM_IOCOMPLETION_CALLBACK);
-            DECLARE_ARGHOLDER_ARRAY(arg, 3);
-            arg[ARGNUM_0]  = DWORD_TO_ARGHOLDER(errorCode);
-            arg[ARGNUM_1]  = DWORD_TO_ARGHOLDER(numBytesTransferred);
-            arg[ARGNUM_2]  = PTR_TO_ARGHOLDER(lpOverlapped);
+        // Caution: the args are not protected, we have to garantee there's no GC from here till
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__IOCB_HELPER__PERFORM_IOCOMPLETION_CALLBACK);
+        DECLARE_ARGHOLDER_ARRAY(arg, 3);
+        arg[ARGNUM_0]  = DWORD_TO_ARGHOLDER(errorCode);
+        arg[ARGNUM_1]  = DWORD_TO_ARGHOLDER(numBytesTransferred);
+        arg[ARGNUM_2]  = PTR_TO_ARGHOLDER(lpOverlapped);
 
-            // Call the method...
-            CALL_MANAGED_METHOD_NORET(arg);
+        // Call the method...
+        CALL_MANAGED_METHOD_NORET(arg);
 
-            // Do a quick check for any further pending packet
-            lpOverlapped = CheckVMForIOPacket(&errorCode, &numBytesTransferred);
-        } while (lpOverlapped != NULL);
-    }
-    else
-    {
-        // no user delegate to callback
-        _ASSERTE((overlapped->m_callback == NULL) || !"This is benign, but should be optimized");
+        // Do a quick check for any further pending packet
+        lpOverlapped = CheckVMForIOPacket(&errorCode, &numBytesTransferred);
+    } while (lpOverlapped != NULL);
 
-        SetAsyncResultProperties(overlapped, errorCode, numBytesTransferred);
-    }
     GCPROTECT_END();
 }
 
@@ -776,7 +745,7 @@ FCIMPL1(FC_BOOL_RET, ThreadPoolNative::CorPostQueuedCompletionStatus, LPOVERLAPP
 {
     FCALL_CONTRACT;
 
-    OVERLAPPEDDATAREF   overlapped = ObjectToOVERLAPPEDDATAREF(OverlappedDataObject::GetOverlapped(lpOverlapped));
+    OBJECTREF overlapped = ::GetOverlapped(lpOverlapped);
 
     BOOL res = FALSE;
 
@@ -786,7 +755,7 @@ FCIMPL1(FC_BOOL_RET, ThreadPoolNative::CorPostQueuedCompletionStatus, LPOVERLAPP
     lpOverlapped->Internal = 0;
 
     if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIOEnqueue))
-        FireEtwThreadPoolIOEnqueue(lpOverlapped, OBJECTREFToObject(overlapped), false, GetClrInstanceId());
+        FireEtwThreadPoolIOEnqueue(lpOverlapped, ::GetOverlappedForTracing(lpOverlapped), false, GetClrInstanceId());
     
     res = ThreadpoolMgr::PostQueuedCompletionStatus(lpOverlapped, 
         BindIoCompletionCallbackStub);

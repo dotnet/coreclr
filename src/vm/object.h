@@ -2919,7 +2919,6 @@ class LAHashKeyToTrackersObject : public Object
 typedef DPTR(LAHashDependentHashTrackerObject)  PTR_LAHashDependentHashTrackerObject;
 typedef DPTR(LAHashKeyToTrackersObject) PTR_LAHashKeyToTrackersObject;
 
-
 #ifdef USE_CHECKED_OBJECTREFS
 typedef REF<LAHashDependentHashTrackerObject> LAHASHDEPENDENTHASHTRACKERREF;
 typedef REF<LAHashKeyToTrackersObject> LAHASHKEYTOTRACKERSREF;
@@ -2927,6 +2926,5 @@ typedef REF<LAHashKeyToTrackersObject> LAHASHKEYTOTRACKERSREF;
 typedef PTR_LAHashDependentHashTrackerObject LAHASHDEPENDENTHASHTRACKERREF;
 typedef PTR_LAHashKeyToTrackersObject LAHASHKEYTOTRACKERSREF;
 #endif // USE_CHECKED_OBJECTREFS
-
 
 #endif // _OBJECT_H_
