@@ -151,7 +151,7 @@ IUnknown *ComClassFactory::CreateInstanceFromClassFactory(IClassFactory *pClassF
 
         // Query the current licensing context
         MethodDescCallSite getCurrentContextInfo(METHOD__LICENSE_INTEROP_PROXY__GETCURRENTCONTEXTINFO, &gc.pProxy);
-        BOOL fDesignTime = FALSE;
+        CLR_BOOL fDesignTime = FALSE;
         ARG_SLOT args[4];
         args[0] = ObjToArgSlot(gc.pProxy);
         args[1] = ObjToArgSlot(gc.pType);
