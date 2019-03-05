@@ -268,8 +268,8 @@ class FCallTransitionState
 {
 public:
 
-    FCallTransitionState () NOT_DEBUG({ LIMITED_METHOD_CONTRACT; });
-    ~FCallTransitionState () NOT_DEBUG({ LIMITED_METHOD_CONTRACT; });
+    FCallTransitionState () { LIMITED_METHOD_CONTRACT; };
+    ~FCallTransitionState () { LIMITED_METHOD_CONTRACT; };
 
 #ifdef _DEBUG
 private:
@@ -285,10 +285,10 @@ class PermitHelperMethodFrameState
 {
 public:
 
-    PermitHelperMethodFrameState () NOT_DEBUG({ LIMITED_METHOD_CONTRACT; });
-    ~PermitHelperMethodFrameState () NOT_DEBUG({ LIMITED_METHOD_CONTRACT; });
+    PermitHelperMethodFrameState () { LIMITED_METHOD_CONTRACT; };
+    ~PermitHelperMethodFrameState () { LIMITED_METHOD_CONTRACT; };
 
-    static VOID CheckHelperMethodFramePermitted () NOT_DEBUG({ LIMITED_METHOD_CONTRACT; });
+    static VOID CheckHelperMethodFramePermitted () { LIMITED_METHOD_CONTRACT; };
 
 #ifdef _DEBUG
 private:
@@ -306,8 +306,8 @@ class CompletedFCallTransitionState
 {
 public:
 
-    CompletedFCallTransitionState () NOT_DEBUG({ LIMITED_METHOD_CONTRACT; });
-    ~CompletedFCallTransitionState () NOT_DEBUG({ LIMITED_METHOD_CONTRACT; });
+    CompletedFCallTransitionState () { LIMITED_METHOD_CONTRACT; }
+    ~CompletedFCallTransitionState () { LIMITED_METHOD_CONTRACT; }
 
 #ifdef _DEBUG
 private:

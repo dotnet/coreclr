@@ -418,6 +418,9 @@ endif ()
 #--------------------------------------
 # Compile Options
 #--------------------------------------
+
+add_definitions(-DDISABLE_CONTRACTS)
+
 if (CLR_CMAKE_PLATFORM_UNIX)
   # Disable frame pointer optimizations so profilers can get better call stacks
   add_compile_options(-fno-omit-frame-pointer)
