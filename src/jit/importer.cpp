@@ -63,9 +63,8 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 void Compiler::impInit()
 {
+    impStmtList = impLastStmt = nullptr;
 #ifdef DEBUG
-    impStmtList        = nullptr;
-    impLastStmt        = nullptr;
     impInlinedCodeSize = 0;
 #endif // DEBUG
 }
@@ -414,8 +413,6 @@ void Compiler::impRestoreStackState(SavedStack* savePtr)
 inline void Compiler::impBeginTreeList()
 {
     assert(impStmtList == nullptr && impLastStmt == nullptr);
-    // These fields are assigned only for debug in impInit and impEndTreeList.
-    impStmtList = impLastStmt = nullptr;
 }
 
 /*****************************************************************************
@@ -468,9 +465,8 @@ inline void Compiler::impEndTreeList(BasicBlock* block)
         impLastILoffsStmt->gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
         impLastILoffsStmt                   = nullptr;
     }
-
-    impStmtList = impLastStmt = nullptr;
 #endif
+    impStmtList = impLastStmt = nullptr;
 }
 
 /*****************************************************************************
