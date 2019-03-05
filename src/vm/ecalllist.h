@@ -899,10 +899,7 @@ FCFuncStart(gMonitorFuncs)
 FCFuncEnd()
 
 FCFuncStart(gOverlappedFuncs)
-    FCFuncElement("AllocateNativeOverlapped", AllocateNativeOverlapped)
-    FCFuncElement("FreeNativeOverlapped", FreeNativeOverlapped)
     FCFuncElement("CheckVMForIOPacket", CheckVMForIOPacket)
-    FCFuncElement("GetOverlappedFromNative", GetOverlappedFromNative)
 FCFuncEnd()
 
 FCFuncStart(gRuntimeHelpers)

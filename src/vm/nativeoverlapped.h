@@ -39,6 +39,7 @@ public:
     ULONG_PTR m_eventHandle;
     int m_offsetLow;
     int m_offsetHigh;
+    LPVOID m_gcHandles;
 
 #ifndef DACCESS_COMPILE
     static OverlappedDataObject* GetOverlapped(LPOVERLAPPED nativeOverlapped)
@@ -75,8 +76,5 @@ typedef OverlappedDataObject* OVERLAPPEDDATAREF;
 #endif
 
 FCDECL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, DWORD* numBytes);
-FCDECL1(LPOVERLAPPED, AllocateNativeOverlapped, OverlappedDataObject* overlapped);
-FCDECL1(void, FreeNativeOverlapped, LPOVERLAPPED lpOverlapped);
-FCDECL1(OverlappedDataObject*, GetOverlappedFromNative, LPOVERLAPPED lpOverlapped);
 
 #endif

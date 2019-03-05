@@ -24,6 +24,7 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace System.Threading
 {
@@ -42,17 +43,16 @@ namespace System.Threading
             _ioCompletionCallback = ioCompletionCallback;
             _executionContext = executionContext;
         }
+
         // Context callback: same sig for SendOrPostCallback and ContextCallback
-        internal static ContextCallback _ccb = new ContextCallback(IOCompletionCallback_Context);
-        internal static void IOCompletionCallback_Context(object state)
+        private static ContextCallback s_ccb = new ContextCallback(IOCompletionCallback_Context);
+        private static void IOCompletionCallback_Context(object state)
         {
             _IOCompletionCallback helper = (_IOCompletionCallback)state;
             Debug.Assert(helper != null, "_IOCompletionCallback cannot be null");
             helper._ioCompletionCallback(helper._errorCode, helper._numBytes, helper._pNativeOverlapped);
         }
 
-
-        // call back helper
         internal static unsafe void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
         {
             do
@@ -71,7 +71,7 @@ namespace System.Threading
                     helper._errorCode = errorCode;
                     helper._numBytes = numBytes;
                     helper._pNativeOverlapped = pNativeOverlapped;
-                    ExecutionContext.RunInternal(helper._executionContext, _ccb, helper);
+                    ExecutionContext.RunInternal(helper._executionContext, s_ccb, helper);
                 }
 
                 //Quickly check the VM again, to see if a packet has arrived.
@@ -97,6 +97,7 @@ namespace System.Threading
         private IntPtr _eventHandle;
         private int _offsetLow;
         private int _offsetHigh;
+        private GCHandle[] _pinnedData;
 
         internal ref IAsyncResult AsyncResult => ref _asyncResult;
 
@@ -135,21 +136,99 @@ namespace System.Threading
             return AllocateNativeOverlapped();
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern NativeOverlapped* AllocateNativeOverlapped();
+        private unsafe NativeOverlapped* AllocateNativeOverlapped()
+        {
+            Debug.Assert(_pinnedData == null);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void FreeNativeOverlapped(NativeOverlapped* nativeOverlappedPtr);
+            bool success = false;
+            try
+            {
+                if (_userObject != null)
+                {
+                    if (_userObject.GetType() == typeof(object[]))
+                    {
+                        object[] objArray = (object[])_userObject;
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern OverlappedData GetOverlappedFromNative(NativeOverlapped* nativeOverlappedPtr);
+                        _pinnedData = new GCHandle[objArray.Length];
+                        for (int i = 0; i < objArray.Length; i++)
+                        {
+                            _pinnedData[i] = GCHandle.Alloc(objArray[i], GCHandleType.Pinned);
+                        }
+                    }
+                    else
+                    {
+                        _pinnedData = new GCHandle[1];
+                        _pinnedData[0] = GCHandle.Alloc(_userObject, GCHandleType.Pinned);
+                    }
+                }
+
+                NativeOverlapped* pNativeOverlapped = (NativeOverlapped*)Marshal.AllocHGlobal(sizeof(NativeOverlapped) + sizeof(GCHandle));
+                *(GCHandle*)(pNativeOverlapped + 1) = default(GCHandle);
+                _pNativeOverlapped = pNativeOverlapped;
+
+                _pNativeOverlapped->InternalLow = default;
+                _pNativeOverlapped->InternalHigh = default;
+                _pNativeOverlapped->OffsetLow = _offsetLow;
+                _pNativeOverlapped->OffsetHigh = _offsetHigh;
+                _pNativeOverlapped->EventHandle = _eventHandle;
+
+                *(GCHandle*)(_pNativeOverlapped + 1) = GCHandle.Alloc(this);
+
+                //if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIODequeue))
+                //    FireEtwThreadPoolIOPack(lpOverlapped, overlappedUNSAFE, GetClrInstanceId());
+
+                success = true;
+                return _pNativeOverlapped;
+            }
+            finally
+            {
+                if (!success)
+                    FreeNativeOverlapped();
+            }
+        }
+
+        internal static unsafe void FreeNativeOverlapped(NativeOverlapped* nativeOverlappedPtr)
+        {
+            OverlappedData overlappedData = OverlappedData.GetOverlappedFromNative(nativeOverlappedPtr);
+            overlappedData.FreeNativeOverlapped();
+        }
+
+        private void FreeNativeOverlapped()
+        {
+            if (_pinnedData != null)
+            {
+                for (int i = 0; i < _pinnedData.Length; i++)
+                {
+                    if (_pinnedData[i].IsAllocated)
+                    {
+                        _pinnedData[i].Free();
+                    }
+                }
+                _pinnedData = null;
+            }
+
+            if (_pNativeOverlapped != null)
+            {
+                GCHandle handle = *(GCHandle*)(_pNativeOverlapped + 1);
+                if (handle.IsAllocated)
+                    handle.Free();
+
+                Marshal.FreeHGlobal((IntPtr)_pNativeOverlapped);
+                _pNativeOverlapped = null;
+            }
+        }
+
+        internal static unsafe OverlappedData GetOverlappedFromNative(NativeOverlapped* pNativeOverlapped)
+        {
+            GCHandle handle = *(GCHandle*)(pNativeOverlapped + 1);
+            return (OverlappedData)handle.Target;
+        }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void CheckVMForIOPacket(out NativeOverlapped* pNativeOverlapped, out uint errorCode, out uint numBytes);
     }
 
     #endregion class OverlappedData
-
 
     #region class Overlapped
 

@@ -1401,36 +1401,8 @@ void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* s
     assert(object != nullptr);
     assert(sc != nullptr);
     assert(callback != nullptr);
-    if (object->GetGCSafeMethodTable() != g_pOverlappedDataClass)
-    {
-        // not an overlapped data object - nothing to do.
-        return;
-    }
 
-    // reporting the pinned user objects
-    OverlappedDataObject *pOverlapped = (OverlappedDataObject *)object;
-    if (pOverlapped->m_userObject != NULL)
-    {
-        if (pOverlapped->m_userObject->GetGCSafeMethodTable() == g_pPredefinedArrayTypes[ELEMENT_TYPE_OBJECT]->GetMethodTable())
-        {
-            // OverlappedDataObject is very special.  An async pin handle keeps it alive.
-            // During GC, we also make sure
-            // 1. m_userObject itself does not move if m_userObject is not array
-            // 2. Every object pointed by m_userObject does not move if m_userObject is array
-            // We do not want to pin m_userObject if it is array.
-            ArrayBase* pUserObject = (ArrayBase*)OBJECTREFToObject(pOverlapped->m_userObject);
-            Object **ppObj = (Object**)pUserObject->GetDataPtr(TRUE);
-            size_t num = pUserObject->GetNumComponents();
-            for (size_t i = 0; i < num; i++)
-            {
-                callback(ppObj + i, sc, GC_CALL_PINNED);
-            }
-        }
-        else
-        {
-            callback(&OBJECTREF_TO_UNCHECKED_OBJECTREF(pOverlapped->m_userObject), (ScanContext *)sc, GC_CALL_PINNED);
-        }
-    }
+    return;
 }
 
 void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*callback)(Object*, Object*, void*))
@@ -1440,27 +1412,7 @@ void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*call
     assert(object != nullptr);
     assert(callback != nullptr);
 
-    if (object->GetGCSafeMethodTable() != g_pOverlappedDataClass)
-    {
-        return;
-    }
-
-    OverlappedDataObject *pOverlapped = (OverlappedDataObject *)(object);
-    if (pOverlapped->m_userObject != NULL)
-    {
-        Object * pUserObject = OBJECTREFToObject(pOverlapped->m_userObject);
-        callback(object, pUserObject, context);
-        if (pOverlapped->m_userObject->GetGCSafeMethodTable() == g_pPredefinedArrayTypes[ELEMENT_TYPE_OBJECT]->GetMethodTable())
-        {
-            ArrayBase* pUserArrayObject = (ArrayBase*)pUserObject;
-            Object **pObj = (Object**)pUserArrayObject->GetDataPtr(TRUE);
-            size_t num = pUserArrayObject->GetNumComponents();
-            for (size_t i = 0; i < num; i ++)
-            {
-                callback(pUserObject, pObj[i], context);
-            }
-        }
-    }
+    return;
 }
 
 IGCToCLREventSink* GCToEEInterface::EventSink()
