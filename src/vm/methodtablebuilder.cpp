@@ -11886,7 +11886,6 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport* pInternalImport, 
         //    - ClassSize present and nonzero.
         //    - No instance fields declared
         //    - Base class is System.ValueType.
-        //</BUGNUM>
         ULONG cbTotalSize = 0;
         if (SUCCEEDED(pInternalImport->GetClassTotalSize(cl, &cbTotalSize)) && cbTotalSize != 0)
         {
@@ -11930,13 +11929,8 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport* pInternalImport, 
     {
         *pNLTType = nltAnsi;
     }
-    else if (IsTdUnicodeClass(clFlags))
+    else if (IsTdUnicodeClass(clFlags) || IsTdAutoClass(clFlags))
     {
-        *pNLTType = nltUnicode;
-    }
-    else if (IsTdAutoClass(clFlags))
-    {
-        // We no longer support Win9x so TdAuto always maps to Unicode.
         *pNLTType = nltUnicode;
     }
     else
