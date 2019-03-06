@@ -1662,11 +1662,15 @@ namespace System.Text
                         pos++;
 
                         if (ch == '}')
+                        {
                             // Argument hole closed
                             break;
+                        }
                         else if (ch == '{')
+                        {
                             // Braces inside the argument hole are not supported
                             FormatError();
+                        }
                     }
 
                     int count = pos - startPos - 1;

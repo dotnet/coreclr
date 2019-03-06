@@ -1100,6 +1100,10 @@
                     "reason": "Because of a change in StringBuilder, this test is outdated."
                 },
                 {
+                    "name": "System.Text.Tests.StringBuilderTests.AppendFormat",
+                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/35820"
+                },
+                {
                     "name": "System.Tests.DecimalTests.Remainder",
                     "reason": "https://github.com/dotnet/coreclr/issues/12605"
                 },
@@ -1114,7 +1118,7 @@
                 {
                     "name": "System.Tests.DecimalTests.Round_InvalidMidpointRounding_ThrowsArgumentException",
                     "reason": "outdated"
-                }, 
+                },
                 {
                     "name": "System.Tests.ArrayTests.Copy",
                     "reason": "Needs updates for XUnit 2.4"
@@ -1137,24 +1141,24 @@
                 },
                 {
                     "name": "System.Tests.SingleTests.Test_ToString",
-                    "reason" : "https://github.com/dotnet/coreclr/pull/22040"
+                    "reason": "https://github.com/dotnet/coreclr/pull/22040"
                 },
                 {
                     "name": "System.Tests.SingleTests.TryFormat",
-                    "reason" : "https://github.com/dotnet/coreclr/pull/22040"
+                    "reason": "https://github.com/dotnet/coreclr/pull/22040"
                 },
                 {
                     "name": "System.Tests.DoubleTests.Test_ToString",
-                    "reason" : "https://github.com/dotnet/coreclr/pull/22040"
+                    "reason": "https://github.com/dotnet/coreclr/pull/22040"
                 },
                 {
                     "name": "System.Tests.DoubleTests.TryFormat",
-                    "reason" : "https://github.com/dotnet/coreclr/pull/22040"
+                    "reason": "https://github.com/dotnet/coreclr/pull/22040"
                 },
                 {
                     "name": "System.Tests.TimeSpanTests.Total_Days_Hours_Minutes_Seconds_Milliseconds",
-                    "reason" : "https://github.com/dotnet/coreclr/pull/22040"
-                },
+                    "reason": "https://github.com/dotnet/coreclr/pull/22040"
+                }
             ]
         }
     },
