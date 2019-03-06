@@ -3393,13 +3393,15 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
         if (calculatingNativeLayout)
         {
             fieldEnd = pfwalk->m_offset + pfwalk->m_cbNativeSize;
+            if (fieldEnd < pfwalk->m_offset)
+                COMPlusThrowOM();
         }
         else
         {
-            fieldEnd = pfwalk->m_offset + pfwalk->m_managedSize;
+            fieldEnd = pfwalk->m_managedOffset + pfwalk->m_managedSize;
+            if (fieldEnd < pfwalk->m_managedOffset)
+                COMPlusThrowOM();
         }
-        if (fieldEnd < pfwalk->m_offset)
-            COMPlusThrowOM();
 
         // size of the structure is the size of the last field.  
         if (fieldEnd > calcTotalSize)
