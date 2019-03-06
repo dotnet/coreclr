@@ -12,8 +12,7 @@ namespace System.Globalization
     public partial class SortKey
     {
         private readonly string _localeName;
-
-        internal readonly CompareOptions _options;
+        private readonly CompareOptions _options;
         private readonly string _string;
         private readonly byte[] _keyData;
 
