@@ -157,16 +157,18 @@ namespace System.Buffers.Text
 			}
 
 			curByte = source[19];
+			sourceIndex = 19;
 
 			if (curByte == Utf8Constants.UtcOffsetToken)
 			{
-				bytesConsumed = 20;
+				bytesConsumed++;
 				offsetToken = Utf8Constants.UtcOffsetToken;
 				goto FinishedParsing;
 			}
 			else if (curByte == Utf8Constants.Plus || curByte == Utf8Constants.Minus)
 			{
 				offsetToken = curByte;
+				sourceIndex += 1;
 				goto ParseOffset;
 			}
 			else if (curByte != Utf8Constants.Period)
@@ -196,16 +198,17 @@ namespace System.Buffers.Text
 						break;
 					}
 
-					fraction = prevFractionTimesTen + (int)(source[sourceIndex++] - (uint)'0');
+					fraction = prevFractionTimesTen + (int)(curByte - (uint)'0');
+					sourceIndex++;
 				}
 			}
 
 			if (fraction != 0)
 			{
-				int fractionTimesTen;
-				while ((fractionTimesTen = fraction * 10) <= Utf8Constants.MaxDateTimeFraction)
+				// Note this is 1 order of magnitude less than Utf8Constants.MaxDateTimeFraction
+				while (fraction <= 999_999)
 				{
-					fraction = fractionTimesTen;
+					fraction *= 10;
 				}
 			}
 
@@ -257,23 +260,13 @@ namespace System.Buffers.Text
 
 			// We now have YYYY-MM-DDThh:mm:ss.s+|-hh:mm
 			bytesConsumed = sourceIndex;
-			goto FinishedParsing;
-
-		ReturnFalse:
-			value = default;
-			bytesConsumed = 0;
-			kind = default;
-			return false;
 
 		FinishedParsing:
 			if ((offsetToken != Utf8Constants.UtcOffsetToken) && (offsetToken != Utf8Constants.Plus) && (offsetToken != Utf8Constants.Minus))
 			{
 				if (!TryCreateDateTimeOffsetInterpretingDataAsLocalTime(year: year, month: month, day: day, hour: hour, minute: minute, second: second, fraction: fraction, out value))
 				{
-					value = default;
-					bytesConsumed = 0;
-					kind = default;
-					return false;
+					goto ReturnFalse;
 				}
 
 				kind = DateTimeKind.Unspecified;
@@ -285,10 +278,7 @@ namespace System.Buffers.Text
 				// Same as specifying an offset of "+00:00", except that DateTime's Kind gets set to UTC rather than Local
 				if (!TryCreateDateTimeOffset(year: year, month: month, day: day, hour: hour, minute: minute, second: second, fraction: fraction, offsetNegative: false, offsetHours: 0, offsetMinutes: 0, out value))
 				{
-					value = default;
-					bytesConsumed = 0;
-					kind = default;
-					return false;
+					goto ReturnFalse;
 				}
 
 				kind = DateTimeKind.Utc;
@@ -299,14 +289,17 @@ namespace System.Buffers.Text
 
 			if (!TryCreateDateTimeOffset(year: year, month: month, day: day, hour: hour, minute: minute, second: second, fraction: fraction, offsetNegative: offsetToken == Utf8Constants.Minus, offsetHours: offsetHours, offsetMinutes: offsetMinutes, out value))
 			{
-				value = default;
-				bytesConsumed = 0;
-				kind = default;
-				return false;
+				goto ReturnFalse;
 			}
 
 			kind = DateTimeKind.Local;
 			return true;
+
+		ReturnFalse:
+			value = default;
+			bytesConsumed = 0;
+			kind = default;
+			return false;
 		}
 	}
 }

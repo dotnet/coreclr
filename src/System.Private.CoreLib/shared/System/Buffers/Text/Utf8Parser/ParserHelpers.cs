@@ -77,8 +77,8 @@ namespace System.Buffers.Text
 		{
 			Debug.Assert(source.Length == 2);
 
-			uint digit1 = source[0] - 48u;
-			uint digit2 = source[1] - 48u;
+			uint digit1 = source[0] - (uint)'0';
+			uint digit2 = source[1] - (uint)'0';
 
 			if (digit1 > 9 || digit2 > 9)
 			{
