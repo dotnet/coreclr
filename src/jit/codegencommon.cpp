@@ -5246,7 +5246,8 @@ void          CodeGen::genPushCalleeSavedRegisters()
 
             JITDUMP("    spAdjustment3=%d\n", spAdjustment3);
 
-            // We've already established the frame pointer, so no need to report the stack pointer change to unwind info.
+            // We've already established the frame pointer, so no need to report the stack pointer change to unwind
+            // info.
             genStackPointerAdjustment(-spAdjustment3, initReg, pInitRegZeroed, /* reportUnwindData */ false);
             offset += spAdjustment3;
         }
