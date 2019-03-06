@@ -31,8 +31,10 @@ class Program
         return new DisposableObject();
     }
     
-    static void Main(string[] args)
+    static int Main(string[] args)
     {
+        int result = 0;
+
         try
         {
             try
@@ -50,6 +52,9 @@ class Program
         catch (Exception e2)
         {
             Console.WriteLine("In catch 2");
+            result = 100;
         }
+
+        return result;
     }
 }

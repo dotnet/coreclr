@@ -1075,6 +1075,22 @@ void Compiler::fgExtendDbgLifetimes()
 //    (for filter blocks). This flow effectively creates additional successor
 //    edges in the flow graph that the jit does not model. This method computes
 //    the net contribution from all the missing successor edges.
+//
+//    For example, with the following C# source, during EH processing of the throw,
+//    the outer filter will execute in pass1, before the inner handler executes
+//    in pass2, and so the filter blocks should show the inner handler's local is live.
+//
+//    try
+//    {
+//        using (AllocateObject())   // ==> try-finally; handler calls Dispose
+//        {
+//            throw new Exception();
+//        }
+//    }
+//    catch (Exception e1) when (IsExpectedException(e1))
+//    {
+//        Console.WriteLine("In catch 1");
+//    }
 
 VARSET_VALRET_TP Compiler::fgGetHandlerLiveVars(BasicBlock* block)
 {
