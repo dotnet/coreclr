@@ -638,50 +638,66 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
 {
     assert(emitter::emitNoGChelper(helper));
-
+    regMaskTP result;
     switch (helper)
     {
         case CORINFO_HELP_ASSIGN_BYREF:
 #if defined(_TARGET_X86_)
             // This helper only trashes ECX.
-            return RBM_ECX;
+            result = RBM_ECX;
+            break;
 #elif defined(_TARGET_AMD64_)
             // This uses and defs RDI and RSI.
-            return RBM_CALLEE_TRASH_NOGC & ~(RBM_RDI | RBM_RSI);
+            result = RBM_CALLEE_TRASH_NOGC & ~(RBM_RDI | RBM_RSI);
+            break;
 #elif defined(_TARGET_ARMARCH_)
-            return RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF;
+            result = RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF;
+            break;
 #else
             assert(!"unknown arch");
 #endif
 
 #if defined(_TARGET_XARCH_)
         case CORINFO_HELP_PROF_FCN_ENTER:
-            return RBM_PROFILER_ENTER_TRASH;
+            result = RBM_PROFILER_ENTER_TRASH;
+            break;
 
         case CORINFO_HELP_PROF_FCN_LEAVE:
-            return RBM_PROFILER_LEAVE_TRASH;
+            result = RBM_PROFILER_LEAVE_TRASH;
+            break;
 
         case CORINFO_HELP_PROF_FCN_TAILCALL:
-            return RBM_PROFILER_TAILCALL_TRASH;
+            result = RBM_PROFILER_TAILCALL_TRASH;
+            break;
 #endif // defined(_TARGET_XARCH_)
 
 #if defined(_TARGET_ARMARCH_)
         case CORINFO_HELP_ASSIGN_REF:
         case CORINFO_HELP_CHECKED_ASSIGN_REF:
-            return RBM_CALLEE_GCTRASH_WRITEBARRIER;
+            result = RBM_CALLEE_GCTRASH_WRITEBARRIER;
+            break;
         case CORINFO_HELP_PROF_FCN_LEAVE:
             // In case of Leave profiler callback, we need to preserve liveness of REG_PROFILER_RET_SCRATCH on ARMARCH.
-            return RBM_CALLEE_TRASH_NOGC & ~RBM_PROFILER_RET_SCRATCH;
+            result = RBM_CALLEE_TRASH_NOGC & ~RBM_PROFILER_RET_SCRATCH;
+            break;
 #endif
 
 #if defined(_TARGET_X86_)
         case CORINFO_HELP_INIT_PINVOKE_FRAME:
-            return RBM_INIT_PINVOKE_FRAME_TRASH;
+            result = RBM_INIT_PINVOKE_FRAME_TRASH;
+            break;
 #endif // defined(_TARGET_X86_)
 
         default:
-            return RBM_CALLEE_TRASH_NOGC;
+            result = RBM_CALLEE_TRASH_NOGC;
+            break;
     }
+
+    // compHelperCallKillSet returns a superset of the registers which values are not guranteed to be the same
+    // after the call, if a register loses its GC or byref it has to be in the compHelperCallKillSet set as well.
+    assert((result & compHelperCallKillSet(helper)) == result);
+
+    return result;
 }
 
 template <bool ForCodeGen>
