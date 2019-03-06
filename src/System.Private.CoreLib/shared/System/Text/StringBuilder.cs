@@ -1674,10 +1674,9 @@ namespace System.Text
                         pos++;
                     }
 
-                    int count = pos - startPos - 1;
-                    if (count > 0)
+                    if (pos > startPos)
                     {
-                        itemFormatSpan = format.AsSpan(startPos, count);
+                        itemFormatSpan = format.AsSpan(startPos, pos - startPos);
                     }
                 }
                 else if (ch != '}')
