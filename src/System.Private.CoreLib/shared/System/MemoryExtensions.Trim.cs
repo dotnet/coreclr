@@ -552,23 +552,60 @@ namespace System
         /// </summary>
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span)
         {
-            int start = ClampStart(span);
-            int length = ClampEnd(span, start);
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!char.IsWhiteSpace(span[start]))
+                {
+                    break;
+                }
+            }
 
-            return span.Slice(start, length);
+            int end = span.Length - 1;
+            for (; end >= start; end--)
+            {
+                if (!char.IsWhiteSpace(span[end]))
+                {
+                    break;
+                }
+            }
+
+            return span.Slice(start, end - start + 1);
         }
 
         /// <summary>
         /// Removes all leading white-space characters from the span.
         /// </summary>
         public static ReadOnlySpan<char> TrimStart(this ReadOnlySpan<char> span)
-            => span.Slice(ClampStart(span));
+        {
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!char.IsWhiteSpace(span[start]))
+                {
+                    break;
+                }
+            }
+
+            return span.Slice(start);
+        }
 
         /// <summary>
         /// Removes all trailing white-space characters from the span.
         /// </summary>
         public static ReadOnlySpan<char> TrimEnd(this ReadOnlySpan<char> span)
-            => span.Slice(0, ClampEnd(span, 0));
+        {
+            int end = span.Length - 1;
+            for (; end >= 0; end--)
+            {
+                if (!char.IsWhiteSpace(span[end]))
+                {
+                    break;
+                }
+            }
+
+            return span.Slice(0, end + 1);
+        }
 
         /// <summary>
         /// Removes all leading and trailing occurrences of a specified character.
@@ -577,10 +614,25 @@ namespace System
         /// <param name="trimChar">The specified character to look for and remove.</param>
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span, char trimChar)
         {
-            int start = ClampStart(span, trimChar);
-            int length = ClampEnd(span, start, trimChar);
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (span[start] != trimChar)
+                {
+                    break;
+                }
+            }
 
-            return span.Slice(start, length);
+            int end = span.Length - 1;
+            for (; end >= start; end--)
+            {
+                if (span[end] != trimChar)
+                {
+                    break;
+                }
+            }
+
+            return span.Slice(start, end - start + 1);
         }
 
         /// <summary>
@@ -589,7 +641,18 @@ namespace System
         /// <param name="span">The source span from which the character is removed.</param>
         /// <param name="trimChar">The specified character to look for and remove.</param>
         public static ReadOnlySpan<char> TrimStart(this ReadOnlySpan<char> span, char trimChar)
-            => span.Slice(ClampStart(span, trimChar));
+        {
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (span[start] != trimChar)
+                {
+                    break;
+                }
+            }
+
+            return span.Slice(start);
+        }
 
         /// <summary>
         /// Removes all trailing occurrences of a specified character.
@@ -597,7 +660,18 @@ namespace System
         /// <param name="span">The source span from which the character is removed.</param>
         /// <param name="trimChar">The specified character to look for and remove.</param>
         public static ReadOnlySpan<char> TrimEnd(this ReadOnlySpan<char> span, char trimChar)
-            => span.Slice(0, ClampEnd(span, 0, trimChar));
+        {
+            int end = span.Length - 1;
+            for (; end >= 0; end--)
+            {
+                if (span[end] != trimChar)
+                {
+                    break;
+                }
+            }
+
+            return span.Slice(0, end + 1);
+        }
 
         /// <summary>
         /// Removes all leading and trailing occurrences of a set of characters specified
@@ -608,15 +682,7 @@ namespace System
         /// <remarks>If <paramref name="trimChars"/> is empty, white-space characters are removed instead.</remarks>
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span, ReadOnlySpan<char> trimChars)
         {
-            if (trimChars.IsEmpty)
-            {
-                return span.Trim();
-            }
-
-            int start = ClampStart(span, trimChars);
-            int length = ClampEnd(span, start, trimChars);
-
-            return span.Slice(start, length);
+            return span.TrimStart(trimChars).TrimEnd(trimChars);
         }
 
         /// <summary>
@@ -633,7 +699,23 @@ namespace System
                 return span.TrimStart();
             }
 
-            return span.Slice(ClampStart(span, trimChars));
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                for (int i = 0; i < trimChars.Length; i++)
+                {
+                    if (span[start] == trimChars[i])
+                    {
+                        goto Next;
+                    }
+                }
+
+                break;
+            Next:
+                ;
+            }
+
+            return span.Slice(start);
         }
 
         /// <summary>
@@ -650,7 +732,23 @@ namespace System
                 return span.TrimEnd();
             }
 
-            return span.Slice(0, ClampEnd(span, 0, trimChars));
+            int end = span.Length - 1;
+            for (; end >= 0; end--)
+            {
+                for (int i = 0; i < trimChars.Length; i++)
+                {
+                    if (span[end] == trimChars[i])
+                    {
+                        goto Next;
+                    }
+                }
+
+                break;
+            Next:
+                ;
+            }
+
+            return span.Slice(0, end + 1);
         }
 
         /// <summary>
