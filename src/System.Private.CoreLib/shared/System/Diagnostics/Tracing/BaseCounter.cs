@@ -63,8 +63,19 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        public string DisplayName { get; }
-        public float IntervalSec { get; }
+        /// <summary>
+        /// 
+        /// </summary>
+        internal void AddMetaData(string key, string value)
+        {
+            lock (MyLock)
+            {
+                _metaData.Add(key, value);
+            }
+        }
+
+        internal string DisplayName { get; }
+        internal TimeSpan DisplayRateTimeScale { get; }
 
         #region private implementation
 
@@ -79,6 +90,7 @@ namespace System.Diagnostics.Tracing
         private const int UnsetIndex = -1;
         private volatile float[] _bufferedValues;
         private volatile int _bufferedValuesIndex;
+        private volatile Dictionary<string, string> _metaData;
 
         // Abstract methods that behave differently across different Counter APIs
         internal abstract void OnMetricWritten(float value);
@@ -86,6 +98,16 @@ namespace System.Diagnostics.Tracing
 
         // arbitrarily we use _bufferedValues as the lock object.  
         protected object MyLock { get { return _bufferedValues; } }
+
+        protected string GetMetaDataString()
+        {
+            String metaDataString = "";
+            foreach(KeyValuePair<string, string> kvPair in _metaData)
+            {
+                metaDataString += kvPair.Key + ":" + kvPair.Value + ",";
+            }
+            return metaDataString.Substring(0, metaDataString.Length - 1); // Get rid of the last ","
+        }
 
         private void InitializeBuffer()
         {

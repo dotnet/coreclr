@@ -81,17 +81,18 @@ namespace System.Diagnostics.Tracing
 
         internal override void WritePayload(EventSource _eventSource, float intervalSec)
         {
-            CounterPayload payload = GetEventCounterPayload();
+            EventCounterPayload payload = GetCounterPayload();
             payload.IntervalSec = intervalSec;
             _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new EventCounterPayloadType(payload));
         }
 
-        internal CounterPayload GetEventCounterPayload()
+        internal EventCounterPayload GetCounterPayload()
         {
+            // TODO: Change this to return CounterPayload instead of EventCounterPayload once we make the new payload public.
             lock (MyLock)     // Lock the counter
             {
                 Flush();
-                CounterPayload result = new CounterPayload();
+                EventCounterPayload result = new EventCounterPayload();
                 result.Name = name;
                 result.Count = _count;
                 if (0 < _count)
@@ -131,8 +132,8 @@ namespace System.Diagnostics.Tracing
     [EventData]
     class EventCounterPayloadType
     {
-        public EventCounterPayloadType(CounterPayload payload) { Payload = payload; }
-        public CounterPayload Payload { get; set; }
+        public EventCounterPayloadType(EventCounterPayload payload) { Payload = payload; }
+        public EventCounterPayload Payload { get; set; }
     }
 
 }

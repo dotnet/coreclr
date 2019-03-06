@@ -18,19 +18,13 @@ namespace System.Diagnostics.Tracing
 #endif
 {
     /// <summary>
-    /// Provides the ability to collect statistics through EventSource
-    /// 
-    /// See https://github.com/dotnet/corefx/blob/master/src/System.Diagnostics.Tracing/documentation/EventCounterTutorial.md
-    /// for a tutorial guide.  
-    /// 
-    /// See https://github.com/dotnet/corefx/blob/master/src/System.Diagnostics.Tracing/tests/BasicEventSourceTest/TestEventCounter.cs
-    /// which shows tests, which are also useful in seeing actual use.  
+    /// An EventCounter for variables that are ever-increasing. Ex) # of exceptions in the runtime.
     /// </summary>
-    public partial class IncrementingEventCounter : BaseCounter
+    internal partial class IncrementingEventCounter : BaseCounter
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="IncrementingEventCounter"/> class.
-        /// EVentCounters live as long as the EventSource that they are attached to unless they are
+        /// IncrementingEventCounter live as long as the EventSource that they are attached to unless they are
         /// explicitly Disposed.   
         /// </summary>
         /// <param name="name">The name.</param>
@@ -47,7 +41,10 @@ namespace System.Diagnostics.Tracing
         /// <param name="increment">The value to increment by.</param>
         public void Increment(float increment = 1)
         {
-            _increment += increment;
+            lock(MyLock)
+            {
+                _increment += increment;
+            }
         }
 
         public override string ToString()
@@ -55,12 +52,14 @@ namespace System.Diagnostics.Tracing
             return "IncrementingEventCounter '" + name + "' Increment " + _increment;
         }
 
-        private float _increment;
+        private volatile float _increment;
 
-        // TODO: BLow this shit up
         internal override void OnMetricWritten(float value)
         {
-            _increment += value;
+            lock(MyLock)
+            {
+                _increment += value;
+            }
         }
 
         internal override void WritePayload(EventSource _eventSource, float intervalSec)
@@ -77,6 +76,9 @@ namespace System.Diagnostics.Tracing
                 Flush();
                 IncrementingCounterPayload result = new IncrementingCounterPayload();
                 result.Name = name;
+                result.DisplayName = DisplayName;
+                result.DisplayRateTimeScale = DisplayRateTimeScale;
+                result.MetaDataString = GetMetaDataString();
                 result.Increment = _increment;
                 return result;
             }

@@ -26,11 +26,11 @@ namespace System.Diagnostics.Tracing
     /// See https://github.com/dotnet/corefx/blob/master/src/System.Diagnostics.Tracing/tests/BasicEventSourceTest/TestEventCounter.cs
     /// which shows tests, which are also useful in seeing actual use.  
     /// </summary>
-    public partial class PollingCounter : BaseCounter
+    internal partial class PollingCounter : BaseCounter
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="PollingCounter"/> class.
-        /// EVentCounters live as long as the EventSource that they are attached to unless they are
+        /// PollingCounter live as long as the EventSource that they are attached to unless they are
         /// explicitly Disposed.   
         /// </summary>
         /// <param name="name">The name.</param>
@@ -47,7 +47,14 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public void UpdateMetric()
         {
-            Enqueue(_getMetricFunction());
+            try
+            {
+                Enqueue(_getMetricFunction());    
+            }
+            catch (Exception)
+            {
+                // Swallow all exceptions that we may get from calling _getMetricFunction();
+            }
         }
 
         public override string ToString()
@@ -83,12 +90,12 @@ namespace System.Diagnostics.Tracing
 
         internal override void WritePayload(EventSource _eventSource, float intervalSec)
         {
-            CounterPayload payload = GetEventCounterPayload();
+            CounterPayload payload = GetCounterPayload();
             payload.IntervalSec = intervalSec;
             _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(payload));
         }
 
-        internal CounterPayload GetEventCounterPayload()
+        internal CounterPayload GetCounterPayload()
         {
             lock (MyLock)     // Lock the counter
             {

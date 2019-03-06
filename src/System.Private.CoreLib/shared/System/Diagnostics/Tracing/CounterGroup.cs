@@ -178,11 +178,15 @@ namespace System.Diagnostics.Tracing
 
                     foreach (var counter in _counters)
                     {
-
                         if (counter is PollingCounter)
                         {
                             PollingCounter pCounter = (PollingCounter)counter;
                             pCounter.UpdateMetric();
+                        }
+                        else if (counter is IncrementingPollingCounter)
+                        {
+                            IncrementingPollingCounter ipCounter = (IncrementingPollingCounter)counter;
+                            ipCounter.UpdateMetric();
                         }
 
                     	counter.WritePayload(_eventSource, (float)elapsed.TotalSeconds);
