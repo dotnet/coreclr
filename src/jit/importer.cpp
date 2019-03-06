@@ -1357,15 +1357,16 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         assert(varTypeIsStruct(src->gtOp.gtOp2) || src->gtOp.gtOp2->gtType == TYP_BYREF);
         if (pAfterStmt)
         {
+            // Insert op1 after '*pAfterStmt'
             *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(src->gtOp.gtOp1, ilOffset));
+            // Evaluate the second thing using recursion.
+            return impAssignStructPtr(destAddr, src->gtOp.gtOp2, structHnd, curLevel, pAfterStmt, ilOffset, block);
         }
         else
         {
-            impAppendTree(src->gtOp.gtOp1, curLevel, ilOffset); // do the side effect
+            // We don't have an instruction to insert after, so use the entire comma expression as our rhs.
+            asgType = impNormStructType(structHnd);
         }
-
-        // Evaluate the second thing using recursion.
-        return impAssignStructPtr(destAddr, src->gtOp.gtOp2, structHnd, curLevel, pAfterStmt, ilOffset, block);
     }
     else if (src->IsLocal())
     {
@@ -4068,7 +4069,8 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 {
                     case CorInfoType::CORINFO_TYPE_SHORT:
                     case CorInfoType::CORINFO_TYPE_USHORT:
-                        retNode = gtNewOperNode(GT_BSWAP16, callType, impPopStack().val);
+                        retNode = gtNewCastNode(TYP_INT, gtNewOperNode(GT_BSWAP16, TYP_INT, impPopStack().val), false,
+                                                callType);
                         break;
 
                     case CorInfoType::CORINFO_TYPE_INT:

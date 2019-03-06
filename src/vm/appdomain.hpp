@@ -64,8 +64,6 @@ class LoadLevelLimiter;
 class TypeEquivalenceHashTable;
 class StringArrayList;
 
-extern INT64 g_PauseTime;  // Total time in millisecond the CLR has been paused
-
 #ifdef FEATURE_COMINTEROP
 class ComCallWrapperCache;
 struct SimpleComCallWrapper;
@@ -1829,7 +1827,6 @@ public:
     void ShutdownAssemblies();
     void ShutdownFreeLoaderAllocators(BOOL bFromManagedCode);
     
-    void ReleaseDomainBoundInfo();
     void ReleaseFiles();
     
 

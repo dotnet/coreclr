@@ -17,7 +17,7 @@ initDistroRid()
     local passedRootfsDir=""
 
     # Only pass ROOTFS_DIR if __DoCrossArchBuild is specified.
-    if [ -z "${__CrossBuild}" ]; then
+    if (( ${__CrossBuild} == 1 )); then
         passedRootfsDir=${ROOTFS_DIR}
     fi
 
@@ -26,6 +26,7 @@ initDistroRid()
 
 __ProjectRoot="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 __IsPortableBuild=1
+__CrossBuild=0
 
 # Use uname to determine what the OS is.
 OSName=$(uname -s)
@@ -111,6 +112,18 @@ while :; do
 done
 
 initDistroRid
+
+if [ "${__DistroRid}" = "linux-musl-arm64" ]; then
+    # ArchGroup is generally determined from parsing {}-{}; however, linux-musl-arm64
+    # will break this logic. To work around this, pass ArchGroup explicitely.
+
+    export ArchGroup=arm64
+
+    # Currently the decision tree in src/.nuget/dirs.props will incorrectly
+    # reparse the already calculated __DistroRid. For linux-musl-arm64 use
+    # the hack/hook to specifically bypass this logic.
+    export OutputRID=${__DistroRid}
+fi
 
 $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
                          /p:__BuildOS=$__BuildOS /flp:v=detailed\;Append\;LogFile=build-packages.log \

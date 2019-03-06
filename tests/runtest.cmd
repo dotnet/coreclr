@@ -7,22 +7,6 @@ set "__MsgPrefix=RUNTEST: "
 
 set __ThisScriptDir="%~dp0"
 
-if /I "%PROCESSOR_ARCHITECTURE%"=="arm64" goto :skip_vs_setup
-if /I "%PROCESSOR_ARCHITECTURE%"=="arm" goto :skip_vs_setup
-
-REM If we're running in the x86 WoW layer on Windows arm64, we still don't check for VS.
-if /I "%PROCESSOR_ARCHITEW6432%"=="arm64" goto :skip_vs_setup
-
-call "%__ThisScriptDir%"\..\setup_vs_tools.cmd
-if NOT '%ERRORLEVEL%' == '0' exit /b 1
-
-if defined VS160COMNTOOLS (
-    set __VSVersion=vs2019
-) else if defined VS150COMNTOOLS (
-    set __VSVersion=vs2017
-)
-:skip_vs_setup
-
 :: Set the default arguments
 set __BuildArch=x64
 set __BuildType=Debug
@@ -36,19 +20,17 @@ set "__RootBinDir=%__ProjectDir%\..\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
 set __ToolsDir=%__ProjectDir%\..\Tools
-set "DotNetCli=%__ToolsDir%\dotnetcli\dotnet.exe"
+set "DotNetCli=%__ProjectDir%\..\dotnet.cmd"
 
 set __Sequential=
 set __msbuildExtraArgs=
 set __LongGCTests=
 set __GCSimulatorTests=
-set __AgainstPackages=
 set __JitDisasm=
 set __IlasmRoundTrip=
 set __CollectDumps=
 set __DoCrossgen=
 set __CrossgenAltJit=
-set __PerfTests=
 set __CoreFXTests=
 set __CoreFXTestsRunAllAvailable=
 set __SkipGenerateLayout=
@@ -79,7 +61,7 @@ if /i "%1" == "vs2017"                                  (set __VSVersion=%1&shif
 if /i "%1" == "vs2019"                                  (set __VSVersion=%1&shift&goto Arg_Loop)
             
 if /i "%1" == "TestEnv"                                 (set __TestEnv=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "AgainstPackages"                         (set __AgainstPackages=1&shift&goto Arg_Loop)
+if /i "%1" == "AgainstPackages"                         (echo error: Remove /AgainstPackages switch&&echo /b 1)
 if /i "%1" == "sequential"                              (set __Sequential=1&shift&goto Arg_Loop)
 if /i "%1" == "crossgen"                                (set __DoCrossgen=1&shift&goto Arg_Loop)
 if /i "%1" == "crossgenaltjit"                          (set __DoCrossgen=1&set __CrossgenAltJit=%2&shift&shift&goto Arg_Loop)
@@ -95,7 +77,6 @@ if /i "%1" == "GenerateLayoutOnly"                      (set __GenerateLayoutOnl
 if /i "%1" == "skipgeneratelayout"                      (set __SkipGenerateLayout=1&shift&goto Arg_Loop)
 if /i "%1" == "buildxunitwrappers"                      (set __BuildXunitWrappers=1&shift&goto Arg_Loop)
 if /i "%1" == "printlastresultsonly"                    (set __PrintLastResultsOnly=1&shift&goto Arg_Loop)
-if /i "%1" == "PerfTests"                               (set __PerfTests=true&shift&goto Arg_Loop)
 if /i "%1" == "CoreFXTests"                             (set __CoreFXTests=true&shift&goto Arg_Loop)
 if /i "%1" == "CoreFXTestsAll"                          (set __CoreFXTests=true&set __CoreFXTestsRunAllAvailable=true&shift&goto Arg_Loop)
 if /i "%1" == "CoreFXTestList"                          (set __CoreFXTests=true&set __CoreFXTestList=%2&shift&shift&goto Arg_Loop)
@@ -132,7 +113,6 @@ shift
 :: Done with argument processing. Check argument values for validity.
 
 if defined __TestEnv (if not exist %__TestEnv% echo %__MsgPrefix%Error: Test Environment script %__TestEnv% not found && exit /b 1)
-if "%__PerfTests%"=="true" (if defined __GenerateLayoutOnly  echo %__MsgPrefix%Error: Don't specify both "PerfTests" and "GenerateLayoutOnly" && exit /b 1)
 if "%__CoreFXTests%"=="true" (if defined __GenerateLayoutOnly  echo %__MsgPrefix%Error: Don't specify both "CoreFXTests" and "GenerateLayoutOnly" && exit /b 1)
 
 if defined __CoreFXTestList (
@@ -159,9 +139,7 @@ REM For official builds we will continue to run tests using the un-unified scrip
 REM which relies on msbuild and calls runtest.proj directly. For all other scenarios
 REM runtest.py will handle setup and will then call runtest.proj
 
-if defined __AgainstPackages goto SetupMSBuildAndCallRuntestProj
 if "%__CoreFXTests%"=="true" goto SetupMSBuildAndCallRuntestProj
-if "%__PerfTests%"=="true" goto SetupMSBuildAndCallRuntestProj
 if defined __GenerateLayoutOnly goto SetupMSBuildAndCallRuntestProj
 
 REM We are not running in the official build scenario, call runtest.py
@@ -241,26 +219,6 @@ exit /b %ERRORLEVEL%
 
 :SetupMSBuildAndCallRuntestProj
 
-:: Set up msbuild and tools environment. Check if msbuild and VS exist.
-
-if /i "%__VSVersion%" == "vs2019" (
-    set "__VSToolsRoot=%VS160COMNTOOLS%"
-    set "__VCToolsRoot=%VS160COMNTOOLS%\..\..\VC\Auxiliary\Build"
-) else if /i "%__VSVersion%" == "vs2017" (
-    set "__VSToolsRoot=%VS150COMNTOOLS%"
-    set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
-)
-
-:: Does VS really exist?
-if not exist "%__VSToolsRoot%\..\IDE\devenv.exe"      goto NoVS
-if not exist "%__VCToolsRoot%\vcvarsall.bat"          goto NoVS
-if not exist "%__VSToolsRoot%\VsDevCmd.bat"           goto NoVS
-
-if not defined VSINSTALLDIR (
-    echo %__MsgPrefix%Error: runtest.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
-    exit /b 1
-)
-
 :: Note: We've disabled node reuse because it causes file locking issues.
 ::       The issue is that we extend the build with our own targets which
 ::       means that that rebuilding cannot successfully delete the task
@@ -271,10 +229,6 @@ if not defined __Sequential (
     set __msbuildCommonArgs=%__msbuildCommonArgs% /maxcpucount
 ) else (
     set __msbuildCommonArgs=%__msbuildCommonArgs% /p:ParallelRun=false
-)
-
-if defined __AgainstPackages (
-    set __msbuildCommonArgs=%__msbuildCommonArgs% /p:BuildTestsAgainstPackages=true
 )
 
 if defined DoLink (
@@ -318,8 +272,6 @@ if not exist %CORE_ROOT%\coreclr.dll (
 )
 
 if "%__CoreFXTests%"=="true" goto RunCoreFXTests
-
-if "%__PerfTests%"=="true" goto RunPerfTests
 
 REM =========================================================================================
 REM ===
@@ -383,27 +335,6 @@ if %__errorlevel% GEQ 1 (
     echo %__MsgPrefix%Test Run failed. Refer to the following:
     echo     Html report: %__TestRunHtmlLog%
     exit /b 1
-)
-
-goto TestsDone
-
-REM =========================================================================================
-REM ===
-REM === Run perf tests
-REM ===
-REM =========================================================================================
-
-:RunPerfTests 
-echo %__MsgPrefix%CORE_ROOT that will be used is: %CORE_ROOT%  
-echo %__MsgPrefix%Starting test run at %TIME%
-
-set __BuildLogRootName=PerfTestRunResults  
-echo %__MsgPrefix%Running perf tests  
-call :msbuild "%__ProjectFilesDir%\runtest.proj" /t:RunPerfTests /clp:showcommandline  
-
-if errorlevel 1 (  
-    echo %__MsgPrefix%Test Run failed. Refer to the following:  
-    echo     Html report: %__TestRunHtmlLog%  
 )
 
 goto TestsDone
@@ -713,7 +644,6 @@ echo ^<build_architecture^>      - Specifies build architecture: x64, x86, arm, 
 echo ^<build_type^>              - Specifies build type: Debug, Release, or Checked ^(default: Debug^).
 echo VSVersion ^<vs_version^>    - VS2017 or VS2019 ^(default: VS2019^).
 echo TestEnv ^<test_env_script^> - Run a custom script before every test to set custom test environment settings.
-echo AgainstPackages           - This indicates that we are running tests that were built against packages.
 echo GenerateLayoutOnly        - If specified will not run the tests and will only create the Runtime Dependency Layout
 echo skipgeneratelayout        - Do not generate the core root. Used for cross target testing.
 echo sequential                - Run tests sequentially (no parallelism).
@@ -723,7 +653,6 @@ echo link ^<ILlink^>             - Runs the tests after linking via the IL linke
 echo CoreFXTests               - Runs CoreFX tests
 echo CoreFXTestsAll            - Runs all CoreFX tests ^(no exclusions^)
 echo CoreFXTestList ^<file^>     - Specify a file containing a list of CoreFX tests to run, and runs them.
-echo PerfTests                 - Runs perf tests
 echo RunCrossgenTests          - Runs ReadytoRun tests
 echo jitstress ^<n^>             - Runs the tests with COMPlus_JitStress=n
 echo jitstressregs ^<n^>         - Runs the tests with COMPlus_JitStressRegs=n
@@ -754,9 +683,4 @@ echo Examples:
 echo   %0 x86 checked
 echo   %0 x64 checked GenerateLayoutOnly
 echo   %0 x64 release
-exit /b 1
-
-:NoVS
-echo Visual Studio 2017 or 2019 ^(Community is free^) is a prerequisite to build this repository.
-echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1

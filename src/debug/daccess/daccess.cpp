@@ -40,10 +40,11 @@ HINSTANCE g_thisModule;
 
 extern VOID STDMETHODCALLTYPE TLS_FreeMasterSlotIndex();
 
+EXTERN_C
 #ifdef FEATURE_PAL
 DLLEXPORT // For Win32 PAL LoadLibrary emulation
 #endif
-EXTERN_C BOOL WINAPI DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
+BOOL WINAPI DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
 {
     static bool g_procInitialized = false;
 
@@ -6867,7 +6868,7 @@ ClrDataAccess::GetMDImport(const PEFile* peFile, const ReflectionModule* reflect
     PVOID       mdBaseHost = NULL;
     bool        isAlternate = false;
 
-    _ASSERTE(peFile == NULL && reflectionModule != NULL || peFile != NULL && reflectionModule == NULL);
+    _ASSERTE((peFile == NULL && reflectionModule != NULL) || (peFile != NULL && reflectionModule == NULL));
     TADDR       peFileAddr = (peFile != NULL) ? dac_cast<TADDR>(peFile) : dac_cast<TADDR>(reflectionModule);
 
     //
@@ -7506,8 +7507,8 @@ STDAPI CLRDataAccessCreateInstance(ICLRDataTarget * pLegacyTarget,
 // This is the legacy entrypoint to DAC, used by dbgeng/dbghelp (windbg, SOS, watson, etc).
 //
 //----------------------------------------------------------------------------
-DLLEXPORT 
 STDAPI
+DLLEXPORT
 CLRDataCreateInstance(REFIID iid,
                       ICLRDataTarget * pLegacyTarget,
                       void ** iface)

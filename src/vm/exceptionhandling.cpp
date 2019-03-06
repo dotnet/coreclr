@@ -128,6 +128,7 @@ static void DoEHLog(DWORD lvl, __in_z const char *fmt, ...);
 #endif
 
 TrackerAllocator    g_theTrackerAllocator;
+uint32_t            g_exceptionCount;
 
 bool FixNonvolatileRegisters(UINT_PTR  uOriginalSP,
                              Thread*   pThread,
@@ -197,6 +198,7 @@ void FreeTrackerMemory(ExceptionTracker* pTracker, TrackerMemoryType mem)
 static inline void UpdatePerformanceMetrics(CrawlFrame *pcfThisFrame, BOOL bIsRethrownException, BOOL bIsNewException)
 {
     WRAPPER_NO_CONTRACT;
+    g_exceptionCount++;
 
     // Fire an exception thrown ETW event when an exception occurs
     ETW::ExceptionLog::ExceptionThrown(pcfThisFrame, bIsRethrownException, bIsNewException);
@@ -1023,7 +1025,27 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
 
             // Failfast if exception indicates corrupted process state            
             if (pTracker->GetCorruptionSeverity() == ProcessCorrupting)
-                EEPOLICY_HANDLE_FATAL_ERROR(pExceptionRecord->ExceptionCode);
+            {
+                OBJECTREF oThrowable = NULL;
+                SString message;
+
+                GCPROTECT_BEGIN(oThrowable);
+                oThrowable = pTracker->GetThrowable();
+                if (oThrowable != NULL)
+                {
+                    EX_TRY
+                    {
+                        GetExceptionMessage(oThrowable, message);
+                    }
+                    EX_CATCH
+                    {
+                    }
+                    EX_END_CATCH(SwallowAllExceptions);
+                }
+                GCPROTECT_END();
+
+                EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(pExceptionRecord->ExceptionCode, (LPCWSTR)message);
+            }
         }
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 

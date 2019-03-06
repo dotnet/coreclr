@@ -21,7 +21,8 @@ namespace System.Diagnostics.Tracing
             GCHeapSize,
             Gen0GCCount,
             Gen1GCCount,
-            Gen2GCCount
+            Gen2GCCount,
+            ExceptionCount
         }
 
         //private Timer _timer;
@@ -56,7 +57,7 @@ namespace System.Diagnostics.Tracing
                         new PollingCounter("Gen 1 GC Count", this, () => GC.CollectionCount(1)),
                         new PollingCounter("Gen 2 GC Count", this, () => GC.CollectionCount(2)),
 
-                        // TODO: Exception counter
+                        new EventCounter("Exception Count", this)
                     };
                 }
 
@@ -82,7 +83,10 @@ namespace System.Diagnostics.Tracing
             }
             else if (command.Command == EventCommand.Disable)
             {
-                _timer.Change(Timeout.Infinite, Timeout.Infinite);  // disable the timer from running until System.Runtime is re-enabled
+                if (_timer != null)
+                {
+                    _timer.Change(Timeout.Infinite, Timeout.Infinite);  // disable the timer from running until System.Runtime is re-enabled
+                }
             }
             */
             }
@@ -96,6 +100,7 @@ namespace System.Diagnostics.Tracing
             _counters[(int)Counter.Gen0GCCount].WriteMetric(GC.CollectionCount(0));
             _counters[(int)Counter.Gen1GCCount].WriteMetric(GC.CollectionCount(1));
             _counters[(int)Counter.Gen2GCCount].WriteMetric(GC.CollectionCount(2));
+            _counters[(int)Counter.ExceptionCount].WriteMetric(Exception.GetExceptionCount());
         }
 
         private void PollForCounterUpdate(object state)
