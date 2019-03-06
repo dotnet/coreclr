@@ -1659,7 +1659,6 @@ namespace System.Text
                         // If reached end of text then error. (Unexpected end of text)
                         if (pos == len) FormatError();
                         ch = format[pos];
-                        pos++;
 
                         if (ch == '}')
                         {
@@ -1671,6 +1670,8 @@ namespace System.Text
                             // Braces inside the argument hole are not supported
                             FormatError();
                         }
+
+                        pos++;
                     }
 
                     int count = pos - startPos - 1;
@@ -1679,17 +1680,14 @@ namespace System.Text
                         itemFormatSpan = format.AsSpan(startPos, count);
                     }
                 }
-                else if (ch == '}')
-                {
-                    pos++;
-                }
-                else
+                else if (ch != '}')
                 {
                     // Unexpected character
                     FormatError();
                 }
 
                 // Construct the output for this arg hole.
+                pos++;
                 string s = null;
                 string itemFormat = null;
                 if (cf != null)
