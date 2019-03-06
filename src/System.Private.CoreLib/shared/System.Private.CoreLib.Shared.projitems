@@ -865,6 +865,25 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\WaitHandleCannotBeOpenedException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\ThreadStaticAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\ThrowHelper.cs" />
+    <None Include="$(MSBuildThisFileDirectory)System\ThrowHelper.ttinclude" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\ExceptionArgument.Generated.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>ExceptionArgument.cs</DependentUpon>
+    </Compile>
+    <Content Include="$(MSBuildThisFileDirectory)System\ExceptionArgument.cs">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>ExceptionArgument.Generated.cs</LastGenOutput>
+    </Content>
+    <Compile Include="$(MSBuildThisFileDirectory)System\ExceptionResource.Generated.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>ExceptionResource.cs</DependentUpon>
+    </Compile>
+    <Content Include="$(MSBuildThisFileDirectory)System\ExceptionResource.cs">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>ExceptionResource.Generated.cs</LastGenOutput>
+    </Content>
     <Compile Include="$(MSBuildThisFileDirectory)System\TimeoutException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\TimeZone.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\TimeZoneInfo.cs" />

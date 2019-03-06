@@ -370,6 +370,15 @@
     Visual Studio Solution Explorer. Adding them here as well so developers can
     edit them and regenerate the .cs files.
     -->
+    <Content Include="shared\System\ExceptionArgument.cs">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>ExceptionArgument.Generated.cs</LastGenOutput>
+    </Content>
+      <Content Include="shared\System\ExceptionResource.cs">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>ExceptionResource.Generated.cs</LastGenOutput>
+    </Content>
+    <None Include="shared\System\ThrowHelper.ttinclude" />
     <Content Include="shared\System\Numerics\ConstantHelper.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>ConstantHelper.cs</LastGenOutput>

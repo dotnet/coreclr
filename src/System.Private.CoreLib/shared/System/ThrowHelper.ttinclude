@@ -1,0 +1,110 @@
+﻿<#+
+
+/*
+ * Don't make changes to this file.
+ * Make changes to ExceptionArgument.cs / ExceptionResource.cs instead.
+ */
+
+//
+// Writes "internal enum ENUMNAME { ... }"
+//
+
+void WriteEnumType(string enumName, Type enumType)
+{
+#>
+    internal enum <#= enumName #>
+    {
+<#+
+foreach (string value in Enum.GetNames(enumType))
+{
+#>
+        <#= value #>,
+<#+
+}
+#>
+    }
+<#+
+}
+
+//
+// Writes ThrowHelper.GetArgumentName
+//
+
+void WriteThrowHelperGetArgumentName(Type exceptionArgumentType)
+{
+#>
+    internal static partial class ThrowHelper
+    {
+        private static string GetArgumentName(ExceptionArgument argument)
+        {
+            switch (argument)
+            {
+<#+
+    foreach (string enumName in Enum.GetNames(exceptionArgumentType))
+    {
+#>
+                case ExceptionArgument.<#= enumName #>:
+                    return "<#= enumName #>";
+<#+
+    }
+#>
+                default:
+                    Debug.Fail("The enum value is not defined, please check the ExceptionArgument enum in ExceptionArgument.cs.");
+                    return "";
+            }
+        }
+    }
+<#+
+}
+
+//
+// Writes ThrowHelper.GetResourceString
+//
+
+void WriteThrowHelperGetResourceString(Type exceptionResourceType)
+{
+#>
+    internal static partial class ThrowHelper
+    {
+        private static string GetResourceString(ExceptionResource resource)
+        {
+            string resourceName;
+
+            // nameof(...) is used in the switch statement below to guarantee there's a matching property on the SR class.
+
+            switch (resource)
+            {
+<#+
+    foreach (string enumName in Enum.GetNames(exceptionResourceType))
+    {
+#>
+                case ExceptionResource.<#= enumName #>:
+                    resourceName = nameof(System.SR.<#= enumName #>);
+                    break;
+<#+
+    }
+#>
+                default:
+                    Debug.Fail("The enum value is not defined, please check the ExceptionResource enum in ExceptionResource.cs.");
+                    return "";
+            }
+
+            return System.SR.GetResourceString(resourceName, null);
+        }
+    }
+<#+
+}
+
+//
+// Writes the auto-gen warning
+//
+
+void WriteAutogenWarning(string filename)
+{
+#>
+!! THIS FILE IS AUTO-GENERATED !!
+// Any changes you make directly to this file will be overwritten by build tooling.
+// Instead, make changes to <#= filename #>.cs (see comment at the top of that file)."
+<#+
+}
+#>
