@@ -504,7 +504,7 @@ void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction 
     if (sca == SCA_ExitProcessWhenShutdownComplete)
     {
         // disabled because if we fault in this code path we will trigger our
-        // Watson code via EntryPointFilter which is THROWS (see Dev11 317016)
+        // Watson code
         CONTRACT_VIOLATION(ThrowsViolation);
 
 #ifdef FEATURE_PAL
@@ -663,12 +663,6 @@ EPolicyAction EEPolicy::DetermineResourceConstraintAction(Thread *pThread)
     // If it is default domain, we can not unload the appdomain 
     if (pDomain == SystemDomain::System()->DefaultDomain() &&
         (action == eUnloadAppDomain || action == eRudeUnloadAppDomain))
-    {
-        action = eThrowException;
-    }
-    // If the current thread is AD unload helper thread, it should not block itself.
-    else if (pThread->HasThreadStateNC(Thread::TSNC_ADUnloadHelper) &&
-        action < eExitProcess) 
     {
         action = eThrowException;
     }

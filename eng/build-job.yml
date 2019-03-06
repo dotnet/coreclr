@@ -72,9 +72,21 @@ jobs:
         value: $(buildConfigUpper)
     - name: officialBuildIdArg
       value: ''
+    - name: ibcOptimizeArg
+      value: ''
     - ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
       - name: officialBuildIdArg
         value: '-officialbuildid=$(Build.BuildNumber)'
+      # IBCMerge is currently Windows-only and x86/x64-only
+      - ${{ if and(eq(parameters.osGroup, 'Windows_NT'), or(eq(parameters.archType, 'x64'), eq(parameters.archType, 'x86'))) }}:
+        - name: ibcOptimizeArg
+          value: '-ibcoptimize'
+    - name: enforcePgoArg
+      value: ''
+    # The EnforcePGO script is only supported on Windows and is not supported on arm or arm64.
+    - ${{ if and(eq(parameters.buildConfig, 'Release'), and(eq(parameters.osGroup, 'Windows_NT'), not(or(eq(parameters.archType, 'arm64'), eq(parameters.archType, 'arm'))))) }}:
+      - name: enforcePgoArg
+        value: '-enforcepgo'
 
     steps:
 
@@ -94,14 +106,8 @@ jobs:
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -skiptests -skipnuget $(clangArg) $(stripSymbolsArg) $(officialBuildIdArg)
         displayName: Build product
-        ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
-          env:
-            # init-tools.sh extracts an SDK from here to the Tools/dotnetcli folder instead of trying to restore it.
-            # Once we are using Arcade, use DotNetCoreSdkDir instead, as we do below.
-            DotNetBootstrapCliTarPath: /dotnet-sdk-freebsd-x64.tar
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      # TODO: IBCOptimize? EnforcePGO? file logging parameters?
-      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages $(officialBuildIdArg)
+      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg)
         displayName: Build product
 
     # Sign on Windows
@@ -181,6 +187,14 @@ jobs:
           artifactName: ${{ format('build_{0}_{1}_{2}_nuget', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
           targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)/.nuget/pkg
 
+    # Publish Logs
+    - task: PublishPipelineArtifact@0
+      displayName: Publish Logs
+      inputs:
+        artifactName: ${{ format('build_{0}_{1}_{2}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        targetPath: $(Build.SourcesDirectory)/bin/Logs
+      continueOnError: true
+      condition: always()
 
     # Kill tasks that hold onto files on Windows. Otherwise git clean
     # may fail for later jobs on the same agent.

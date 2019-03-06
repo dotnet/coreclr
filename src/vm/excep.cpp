@@ -4798,12 +4798,6 @@ LONG InternalUnhandledExceptionFilter_Worker(
     }
 #endif
 
-#ifdef _DEBUG_ADUNLOAD
-    printf("%x InternalUnhandledExceptionFilter_Worker: Called for %x\n",
-           ((pThread == NULL) ? NULL : pThread->GetThreadId()), pExceptionInfo->ExceptionRecord->ExceptionCode);
-    fflush(stdout);
-#endif
-
     // This shouldn't be possible, but MSVC re-installs us... for now, just bail if this happens.
     if (g_fNoExceptions)
     {
@@ -4840,7 +4834,7 @@ LONG InternalUnhandledExceptionFilter_Worker(
     // simply return back. See comment in threads.h for details for the flag
     // below.
     //
-    if (pThread && (pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) || pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled)))
+    if (pThread && pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException))
     {
         // This assert shouldnt be hit in CoreCLR since:
         //
@@ -5241,8 +5235,7 @@ LONG __stdcall COMUnhandledExceptionFilter(     // EXCEPTION_CONTINUE_SEARCH or 
     // various runtimes again.
     //
     // Thus, check if this UEF has already been invoked in context of this thread and runtime and if so, dont invoke it again.
-    if (GetThread() && (GetThread()->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) ||
-                        GetThread()->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled)))
+    if (GetThread() && (GetThread()->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException)))
     {
         LOG((LF_EH, LL_INFO10, "Exiting COMUnhandledExceptionFilter since we have already done UE processing for this thread!\n"));
         return retVal;
@@ -5471,11 +5464,6 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
     const int buf_size = 128;
     WCHAR buf[buf_size] = {0};
 
-    // See detailed explanation of this flag in threads.cpp.  But the basic idea is that we already
-    // reported the exception in the AppDomain where it went unhandled, so we don't need to report
-    // it at the process level.
-    // Print the unhandled exception message.
-    if (!pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled))
     {
         EX_TRY
         {
@@ -5609,12 +5597,6 @@ BOOL NotifyAppDomainsOfUnhandledException(
         _ASSERTE(g_fEEShutDown);
         return FALSE;
     }
-
-    // See detailed explanation of this flag in threads.cpp.  But the basic idea is that we already
-    // reported the exception in the AppDomain where it went unhandled, so we don't need to report
-    // it at the process level.
-    if (pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled))
-        return FALSE;
 
     ThreadPreventAsyncHolder prevAsync;
 
@@ -5789,7 +5771,7 @@ static LONG ThreadBaseExceptionFilter_Worker(PEXCEPTION_POINTERS pExceptionInfo,
         {
             // No, don't swallow unhandled exceptions...
 
-            // ...except if the exception is of a type that is always swallowed (ThreadAbort, AppDomainUnload)...
+            // ...except if the exception is of a type that is always swallowed (ThreadAbort, ...)
             if (ExceptionIsAlwaysSwallowed(pExceptionInfo))
             {   // ...return EXCEPTION_EXECUTE_HANDLER to swallow the exception anyway.
                 return EXCEPTION_EXECUTE_HANDLER;
@@ -6580,7 +6562,7 @@ LONG FilterAccessViolation(PEXCEPTION_POINTERS pExceptionPointers, LPVOID lpvPar
 }
 
 /*
- * IsContinuableException
+ * IsInterceptableException
  *
  * Returns whether this is an exception the EE knows how to intercept and continue from.
  *

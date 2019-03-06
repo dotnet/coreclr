@@ -288,16 +288,10 @@ def main(args):
 
     # Gather up some arguments to pass to the different build scripts.
 
-    config_args = '-c Release /p:OSGroup=%s /p:ArchGroup=%s' % (clr_os, arch)
-    
-    if Is_windows:
-        config_args += ' -restore -build -buildtests'
-        if not no_run_tests:
-            config_args += ' -test'
-    else:
-        config_args += ' --restore --build --buildtests'
-        if not no_run_tests:
-            config_args += ' --test'
+    config_args = '-restore -build -buildtests -configuration Release -os %s -arch %s' % (clr_os, arch)
+
+    if not no_run_tests:
+        config_args += ' -test'
 
     build_args = config_args
 
@@ -305,6 +299,10 @@ def main(args):
         # We need to force clang5.0; we are building in a docker container that doesn't have
         # clang3.9, which is currently the default used by the native build.
         build_args += ' /p:BuildNativeClang=--clang5.0'
+
+    if not Is_windows and (arch == 'arm' or arch == 'arm64'):
+        # It is needed under docker where LC_ALL is not configured.
+        build_args += ' --warnAsError false'
 
     command = ' '.join(('build.cmd' if Is_windows else './build.sh', build_args))
     log(command)
