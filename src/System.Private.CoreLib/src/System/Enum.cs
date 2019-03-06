@@ -244,14 +244,9 @@ namespace System
         {
             internal static EnumBridge Get(Type enumType)
             {
-                if (!(enumType is RuntimeType rtType))
+                if (!(enumType is RuntimeType rtType) || !rtType.IsEnum)
                 {
                     return ThrowGetBridgeException(enumType);
-                }
-
-                if (!rtType.IsEnum)
-                {
-                    throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
                 }
 
                 return Get(rtType);
@@ -260,7 +255,7 @@ namespace System
             [MethodImpl(MethodImplOptions.NoInlining)]
             private static EnumBridge ThrowGetBridgeException(Type enumType)
             {
-                Debug.Assert(!(enumType is RuntimeType));
+                Debug.Assert(!(enumType is RuntimeType rtType) || !rtType.IsEnum);
 
                 if (enumType == null)
                 {
@@ -699,7 +694,12 @@ namespace System
                 {
                     throw new ArgumentNullException(nameof(value));
                 }
-                throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, value.GetType(), _enumType));
+                Type valueType = value.GetType();
+                if (valueType.IsEnum)
+                {
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType, _enumType));
+                }
+                throw new ArgumentException(SR.Format(SR.Arg_EnumFormatUnderlyingTypeAndObjectMustBeSameType, valueType, typeof(TUnderlying)));
             }
 
             public override string ToString(Enum value) => ToString(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()));
@@ -835,7 +835,7 @@ namespace System
                 {
                     if (throwOnFailure)
                     {
-                        throw new ArgumentException(SR.Arg_MustContainEnumInfo);
+                        throw new ArgumentException(SR.Arg_MustContainEnumInfo, nameof(value));
                     }
                     result = default;
                     return false;
@@ -850,17 +850,14 @@ namespace System
                     {
                         return true;
                     }
-                    else
+                    result = default;
+                    if (status == Number.ParsingStatus.Overflow)
                     {
-                        result = default;
-                        if (status == Number.ParsingStatus.Overflow)
+                        if (throwOnFailure)
                         {
-                            if (throwOnFailure)
-                            {
-                                Number.ThrowOverflowException(operations.OverflowTypeCode);
-                            }
-                            return false;
+                            Number.ThrowOverflowException(operations.OverflowTypeCode);
                         }
+                        return false;
                     }
                 }
 
@@ -927,7 +924,7 @@ namespace System
 
                 if (throwOnFailure)
                 {
-                    throw new ArgumentException(SR.Arg_EnumValueNotFound, nameof(value));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumValueNotFound, value.ToString()));
                 }
                 
                 return false;
@@ -2357,10 +2354,8 @@ namespace System
             }
         }
 
-        DateTime IConvertible.ToDateTime(IFormatProvider provider)
-        {
+        DateTime IConvertible.ToDateTime(IFormatProvider provider) =>
             throw new InvalidCastException(SR.Format(SR.InvalidCast_FromTo, "Enum", "DateTime"));
-        }
 
         object IConvertible.ToType(Type type, IFormatProvider provider) =>
             Convert.DefaultToType(this, type, provider);
