@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 
 namespace System
 {
@@ -145,78 +144,6 @@ namespace System
         {
             int length = ClampEnd(span, 0, trimElement);
             return span.Slice(0, length);
-        }
-
-        /// <summary>
-        /// Delimits all leading occurrences of a specified element.
-        /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
-        /// <param name="trimElement">The specified element to look for and remove.</param>
-        private static int ClampStart<T>(ReadOnlySpan<T> span, T trimElement)
-            where T : IEquatable<T>
-        {
-            int start = 0;
-
-            if (trimElement != null)
-            {
-                for (; start < span.Length; start++)
-                {
-                    if (!trimElement.Equals(span[start]))
-                    {
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                for (; start < span.Length; start++)
-                {
-                    if (span[start] != null)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            return start;
-        }
-
-        /// <summary>
-        /// Delimits all trailing occurrences of a specified element.
-        /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
-        /// <param name="start">The start index from which to being searching.</param>
-        /// <param name="trimElement">The specified element to look for and remove.</param>
-        private static int ClampEnd<T>(ReadOnlySpan<T> span, int start, T trimElement)
-            where T : IEquatable<T>
-        {
-            // Initially, start==len==0. If ClampStart trims all, start==len
-            Debug.Assert((uint)start <= span.Length);
-
-            int end = span.Length - 1;
-
-            if (trimElement != null)
-            {
-                for (; end >= start; end--)
-                {
-                    if (!trimElement.Equals(span[end]))
-                    {
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                for (; end >= start; end--)
-                {
-                    if (span[end] != null)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            return end - start + 1;
         }
 
         /// <summary>
@@ -451,50 +378,6 @@ namespace System
 
             int length = ClampEnd(span, 0, trimElements);
             return span.Slice(0, length);
-        }
-
-        /// <summary>
-        /// Delimits all leading occurrences of a specified element.
-        /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
-        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
-        private static int ClampStart<T>(ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
-            where T : IEquatable<T>
-        {
-            int start = 0;
-            for (; start < span.Length; start++)
-            {
-                if (!trimElements.Contains(span[start]))
-                {
-                    break;
-                }
-            }
-
-            return start;
-        }
-
-        /// <summary>
-        /// Delimits all trailing occurrences of a specified element.
-        /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
-        /// <param name="start">The start index from which to being searching.</param>
-        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
-        private static int ClampEnd<T>(ReadOnlySpan<T> span, int start, ReadOnlySpan<T> trimElements)
-            where T : IEquatable<T>
-        {
-            // Initially, start==len==0. If ClampStart trims all, start==len
-            Debug.Assert((uint)start <= span.Length);
-
-            int end = span.Length - 1;
-            for (; end >= start; end--)
-            {
-                if (!trimElements.Contains(span[end]))
-                {
-                    break;
-                }
-            }
-
-            return end - start + 1;
         }
 
         /// <summary>
@@ -775,10 +658,125 @@ namespace System
             => span.Slice(0, ClampEnd(span, 0));
 
         /// <summary>
+        /// Delimits all leading occurrences of a specified element.
+        /// </summary>
+        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        private static int ClampStart<T>(ReadOnlySpan<T> span, T trimElement)
+            where T : IEquatable<T>
+        {
+            int start = 0;
+
+            if (trimElement != null)
+            {
+                for (; start < span.Length; start++)
+                {
+                    if (!trimElement.Equals(span[start]))
+                    {
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                for (; start < span.Length; start++)
+                {
+                    if (span[start] != null)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return start;
+        }
+
+        /// <summary>
+        /// Delimits all trailing occurrences of a specified element.
+        /// </summary>
+        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="start">The start index from which to being searching.</param>
+        /// <param name="trimElement">The specified element to look for and remove.</param>
+        private static int ClampEnd<T>(ReadOnlySpan<T> span, int start, T trimElement)
+            where T : IEquatable<T>
+        {
+            // Initially, start==len==0. If ClampStart trims all, start==len
+            Debug.Assert((uint)start <= span.Length);
+
+            int end = span.Length - 1;
+
+            if (trimElement != null)
+            {
+                for (; end >= start; end--)
+                {
+                    if (!trimElement.Equals(span[end]))
+                    {
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                for (; end >= start; end--)
+                {
+                    if (span[end] != null)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return end - start + 1;
+        }
+
+        /// <summary>
+        /// Delimits all leading occurrences of a specified element.
+        /// </summary>
+        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        private static int ClampStart<T>(ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+        {
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!trimElements.Contains(span[start]))
+                {
+                    break;
+                }
+            }
+
+            return start;
+        }
+
+        /// <summary>
+        /// Delimits all trailing occurrences of a specified element.
+        /// </summary>
+        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="start">The start index from which to being searching.</param>
+        /// <param name="trimElements">The span which contains the set of elements to remove.</param>
+        private static int ClampEnd<T>(ReadOnlySpan<T> span, int start, ReadOnlySpan<T> trimElements)
+            where T : IEquatable<T>
+        {
+            // Initially, start==len==0. If ClampStart trims all, start==len
+            Debug.Assert((uint)start <= span.Length);
+
+            int end = span.Length - 1;
+            for (; end >= start; end--)
+            {
+                if (!trimElements.Contains(span[end]))
+                {
+                    break;
+                }
+            }
+
+            return end - start + 1;
+        }
+
+        /// <summary>
         /// Delimits all leading occurrences of whitespace.
         /// </summary>
         /// <param name="span">The source span from which the element is removed.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int ClampStart(ReadOnlySpan<char> span)
         {
             int start = 0;
@@ -799,7 +797,6 @@ namespace System
         /// </summary>
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="start">The start index from which to being searching.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int ClampEnd(ReadOnlySpan<char> span, int start)
         {
             // Initially, start==len==0. If ClampStart trims all, start==len
@@ -818,12 +815,12 @@ namespace System
             return end - start + 1;
         }
 
+        /*
         /// <summary>
         /// Delimits all leading occurrences of a specified element.
         /// </summary>
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimChar">The specified element to look for and remove.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int ClampStart(ReadOnlySpan<char> span, char trimChar)
         {
             int start = 0;
@@ -845,7 +842,6 @@ namespace System
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="start">The start index from which to being searching.</param>
         /// <param name="trimChar">The specified element to look for and remove.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int ClampEnd(ReadOnlySpan<char> span, int start, char trimChar)
         {
             // Initially, start==len==0. If ClampStart trims all, start==len
@@ -869,7 +865,6 @@ namespace System
         /// </summary>
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="trimChars">The span which contains the set of elements to remove.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int ClampStart(ReadOnlySpan<char> span, ReadOnlySpan<char> trimChars)
         {
             int start = 0;
@@ -890,7 +885,6 @@ namespace System
         /// <param name="span">The source span from which the element is removed.</param>
         /// <param name="start">The start index from which to being searching.</param>
         /// <param name="trimChars">The span which contains the set of elements to remove.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int ClampEnd(ReadOnlySpan<char> span, int start, ReadOnlySpan<char> trimChars)
         {
             // Initially, start==len==0. If ClampStart trims all, start==len
@@ -907,5 +901,6 @@ namespace System
 
             return end - start + 1;
         }
+        */
     }
 }
