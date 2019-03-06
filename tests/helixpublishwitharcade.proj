@@ -10,10 +10,6 @@
        that will run in parallel. -->
 
   <Target Name="RunInParallelForEachScenario">
-    <ItemGroup>
-      <_Scenarios Include="$(_Scenarios.Split(','))" />
-    </ItemGroup>
-
     <PropertyGroup>
       <!-- This specifies what properties are needed to be passed down as global properties to a child project. -->
 
@@ -34,11 +30,14 @@
       </_PropertiesToPass>
     </PropertyGroup>
 
-    <ItemGroup>
-      <!-- MSBuild creates a new instance of the project for each %(_Scenarios.Identity) and can build them in parallel. -->
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="PreparePayloadsDirectory" Properties="Scenarios=$(_Scenarios)" StopOnFirstFailure="true" />
 
+    <ItemGroup>
+      <_Scenario Include="$(_Scenarios.Split(','))" />
+
+      <!-- MSBuild creates a new instance of the project for each Scenario and can build them in parallel. -->
       <_ProjectsToBuild Include="$(MSBuildProjectFile)">
-        <AdditionalProperties>$(_PropertiesToPass);Scenario=%(_Scenarios.Identity)</AdditionalProperties>
+        <AdditionalProperties>$(_PropertiesToPass);Scenario=%(_Scenario.Identity)</AdditionalProperties>
       </_ProjectsToBuild>
     </ItemGroup>
 
@@ -47,95 +46,165 @@
       <_BuildInParallel Condition=" '@(_ProjectsToBuild->Count())' > '1' ">true</_BuildInParallel>
     </PropertyGroup>
 
-    <MSBuild Projects="@(_ProjectsToBuild)" Targets="CreateTestEnvFiles" StopOnFirstFailure="true" />
     <MSBuild Projects="@(_ProjectsToBuild)" Targets="Test" BuildInParallel="$(_BuildInParallel)" StopOnFirstFailure="false" Properties="UsesHelixSdk=true" />
   </Target>
 
   <Import Project="..\dir.props" />
 
   <PropertyGroup>
-    <CoreRootDir>$(TestWorkingDir)Tests\Core_Root</CoreRootDir>
+    <CoreRootDirectory>$(TestWorkingDir)Tests\Core_Root\</CoreRootDirectory>
+    <PayloadsDirectory>$(TestWorkingDir)Payloads\</PayloadsDirectory>
     <TestEnvFileName Condition=" '$(TargetsWindows)' == 'true' ">SetStressModes_$(Scenario).cmd</TestEnvFileName>
     <TestEnvFileName Condition=" '$(TargetsWindows)' != 'true' ">SetStressModes_$(Scenario).sh</TestEnvFileName>
   </PropertyGroup>
 
-  <ItemGroup>
-    <XUnitWrapperDll Include="$(TestWorkingDir)\**\*.XUnitWrapper.dll">
-      <FileDirectory>%(RootDir)%(Directory)</FileDirectory>
-      <File>%(FileName)%(Extension)</File>
-    </XUnitWrapperDll>
-  </ItemGroup>
+  <Target Name="PreparePayloadsDirectory">
+    <ItemGroup>
+      <_XUnitWrapperDll Include="$(TestWorkingDir)**\*.XUnitWrapper.dll" Exclude="$(PayloadsDirectory)**\*.XUnitWrapper.dll" />
 
-  <Target Name="CreateTestEnvFiles">
+      <_XUnitWrapperDll>
+        <FileDirectory>%(RootDir)%(Directory)</FileDirectory>
+      </_XUnitWrapperDll>
 
-    <!-- This target creates one __TestEnv file for each XUnitWrapper. -->
+      <!-- Partition *.XUnitWrapper.dll into Groups. "Group" is a collection of tests that are submitted to Helix together.
+           In other words, Groups define a correspondence between the test collections and HelixWorkItems.
+           Ideally, we would like to have a partitioning where each Group takes the same amount of time to finish (across all operating systems and architectures). -->
+      <_XUnitWrapperDll>
+        <Group>Group.default</Group>
+        <Group Condition=" %(FileName) == 'baseservices.threading.XUnitWrapper'
+                        Or %(FileName) == 'JIT.CodeGenBringUpTests.XUnitWrapper'
+                        Or %(FileName) == 'JIT.Directed.XUnitWrapper' ">baseservices.threading_JIT.CodeGenBringUpTests_JIT.Directed</Group>
+        <Group Condition=" %(FileName) == 'JIT.jit64.XUnitWrapper' ">JIT.jit64</Group>
+        <Group Condition=" %(FileName) == 'JIT.Methodical.XUnitWrapper' ">JIT.Methodical</Group>
+        <Group Condition=" %(FileName) == 'JIT.Regression.XUnitWrapper' ">JIT.Regression</Group>
+        <Group Condition=" %(FileName) == 'Loader.classloader.XUnitWrapper' ">Loader.classloader</Group>
+      </_XUnitWrapperDll>
+
+      <_AllFiles Include="%(_XUnitWrapperDll.FileDirectory)**">
+        <Group>%(Group)</Group>
+        <GroupDirectory>$(PayloadsDirectory)%(Group)\</GroupDirectory>
+      </_AllFiles>
+
+      <_AllFiles>
+        <RelativeToGroupDirectory>$([MSBuild]::MakeRelative($(TestWorkingDir), %(Identity)))</RelativeToGroupDirectory>
+      </_AllFiles>
+
+      <_GroupDirectory Include="@(_AllFiles->'%(GroupDirectory)')" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_AllFiles)" DestinationFiles="@(_AllFiles->'%(GroupDirectory)%(RelativeToGroupDirectory)')" />
 
     <ItemGroup>
-      <_ProjectsToBuild Include=".\testenvironment.proj">
-        <Properties>Scenario=$(Scenario);TestEnvFileName=%(XUnitWrapperDll.FileDirectory)$(TestEnvFileName);TargetsWindows=$(TargetsWindows)</Properties>
+      <_Scenario Include="$(_Scenarios.Split(','))" />
+
+      <_ProjectsToBuild Include="$(MSBuildProjectFile)">
+        <AdditionalProperties>Scenario=%(_Scenario.Identity);GroupDirectories=@(_AllFiles->'%(GroupDirectory)'->DistinctWithCase())</AdditionalProperties>
       </_ProjectsToBuild>
     </ItemGroup>
 
-    <MSBuild Projects="@(_ProjectsToBuild)" Targets="CreateTestEnvFile" StopOnFirstFailure="true" />
+    <MSBuild Projects="@(_ProjectsToBuild)" Targets="CreateTestEnvFiles" StopOnFirstFailure="true" />
   </Target>
 
-  <PropertyGroup>
-    <EnableAzurePipelinesReporter>$(PublishTestResults)</EnableAzurePipelinesReporter>
-    <EnableAzurePipelinesReporter Condition=" '$(EnableAzurePipelinesReporter)' == '' ">false</EnableAzurePipelinesReporter>
-    <EnableXUnitReporter>true</EnableXUnitReporter>
-    <FailOnMissionControlTestFailure>true</FailOnMissionControlTestFailure>
-    <FailOnWorkItemFailure>true</FailOnWorkItemFailure>
-    <HelixArchitecture>$(BuildArch)</HelixArchitecture>
-    <HelixConfiguration Condition=" '$(Scenario)' == 'normal' ">$(BuildType)</HelixConfiguration>
-    <HelixConfiguration Condition=" '$(Scenario)' != 'normal' ">$(BuildType)-$(Scenario)</HelixConfiguration>
-    <RunCrossGen Condition=" '$(RunCrossGen)' != 'true' ">false</RunCrossGen>
-    <TestRunNamePrefix Condition=" '$(Scenario)' == 'normal' ">$(BuildOS) $(BuildArch) $(BuildType) @ </TestRunNamePrefix>
-    <TestRunNamePrefix Condition=" '$(Scenario)' != 'normal' ">$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
-    <TimeoutPerTestInMilliseconds Condition=" '$(TimeoutPerTestInMinutes)' != '' ">$([System.TimeSpan]::FromMinutes($(TimeoutPerTestInMinutes)).TotalMilliseconds)</TimeoutPerTestInMilliseconds>
-    <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
-    <XUnitRunnerArgs>-parallel collections -nocolor -noshadow -xml testResults.xml -notrait category=outerloop -notrait category=failing</XUnitRunnerArgs>
-  </PropertyGroup>
+  <Target Name="CreateTestEnvFiles">
+    <ItemGroup>
+      <_GroupDirectory Include="$(GroupDirectories)" />
+    </ItemGroup>
 
-  <!-- WARNING: HelixPreCommand ItemGroup is intentionally minimal and should be kept that way. -->
+    <MSBuild Projects=".\testenvironment.proj" Targets="CreateTestEnvFile" Properties="Scenario=$(Scenario);TestEnvFileName=%(_GroupDirectory.Identity)$(TestEnvFileName);TargetsWindows=$(TargetsWindows)" />
+  </Target>
 
-  <ItemGroup Condition=" '$(TargetsWindows)' == 'true' ">
-    <HelixPreCommand Include="set CORE_ROOT=%HELIX_CORRELATION_PAYLOAD%" />
-    <HelixPreCommand Include="set RunCrossGen=1" Condition=" '$(RunCrossGen)' == 'true' " />
-    <HelixPreCommand Include="set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\$(TestEnvFileName)" />
-    <HelixPreCommand Include="set __TestTimeout=$(TimeoutPerTestInMilliseconds)" Condition=" '$(TimeoutPerTestInMilliseconds)' != '' " />
-    <HelixPreCommand Include="type %__TestEnv%" />
-  </ItemGroup>
+  <Choose>
+    <When Condition=" '$(UsesHelixSdk)' == 'true' ">
+      <PropertyGroup>
+        <EnableAzurePipelinesReporter>$(PublishTestResults)</EnableAzurePipelinesReporter>
+        <EnableAzurePipelinesReporter Condition=" '$(EnableAzurePipelinesReporter)' == '' ">false</EnableAzurePipelinesReporter>
+        <EnableXUnitReporter>true</EnableXUnitReporter>
+        <FailOnMissionControlTestFailure>true</FailOnMissionControlTestFailure>
+        <FailOnWorkItemFailure>true</FailOnWorkItemFailure>
+        <HelixArchitecture>$(BuildArch)</HelixArchitecture>
+        <HelixConfiguration Condition=" '$(Scenario)' == 'normal' ">$(BuildType)</HelixConfiguration>
+        <HelixConfiguration Condition=" '$(Scenario)' != 'normal' ">$(BuildType)-$(Scenario)</HelixConfiguration>
+        <RunCrossGen Condition=" '$(RunCrossGen)' != 'true' ">false</RunCrossGen>
+        <TestRunNamePrefix Condition=" '$(Scenario)' == 'normal' ">$(BuildOS) $(BuildArch) $(BuildType) @ </TestRunNamePrefix>
+        <TestRunNamePrefix Condition=" '$(Scenario)' != 'normal' ">$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
+        <TimeoutPerTestInMilliseconds Condition=" '$(TimeoutPerTestInMinutes)' != '' ">$([System.TimeSpan]::FromMinutes($(TimeoutPerTestInMinutes)).TotalMilliseconds)</TimeoutPerTestInMilliseconds>
+        <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
+        <XUnitRunnerArgs>-parallel collections -nocolor -noshadow -xml testResults.xml -notrait category=outerloop -notrait category=failing</XUnitRunnerArgs>
+      </PropertyGroup>
 
-  <ItemGroup Condition=" '$(TargetsWindows)' != 'true' ">
-    <HelixPreCommand Include="export CORE_ROOT=$HELIX_CORRELATION_PAYLOAD" />
-    <HelixPreCommand Include="export RunCrossGen=1" Condition=" '$(RunCrossGen)' == 'true' " />
-    <HelixPreCommand Include="export __TestEnv=$HELIX_WORKITEM_PAYLOAD/$(TestEnvFileName)" />
-    <HelixPreCommand Include="export __TestTimeout=$(TimeoutPerTestInMilliseconds)" Condition=" '$(TimeoutPerTestInMilliseconds)' != '' " />
-    <HelixPreCommand Include="cat $__TestEnv" />
-  </ItemGroup>
+      <!-- WARNING: HelixPreCommand ItemGroup is intentionally minimal and should be kept that way. -->
 
-  <PropertyGroup>
-    <HelixPreCommands>@(HelixPreCommand)</HelixPreCommands>
-  </PropertyGroup>
+      <ItemGroup Condition=" '$(TargetsWindows)' == 'true' ">
+        <HelixPreCommand Include="set CORE_ROOT=%HELIX_CORRELATION_PAYLOAD%" />
+        <HelixPreCommand Include="set RunCrossGen=1" Condition=" '$(RunCrossGen)' == 'true' " />
+        <HelixPreCommand Include="set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\$(TestEnvFileName)" />
+        <HelixPreCommand Include="set __TestTimeout=$(TimeoutPerTestInMilliseconds)" Condition=" '$(TimeoutPerTestInMilliseconds)' != '' " />
+        <HelixPreCommand Include="type %__TestEnv%" />
+      </ItemGroup>
 
-  <PropertyGroup Condition=" '$(TargetsWindows)' == 'true' ">
-    <CoreRun>%CORE_ROOT%\CoreRun.exe</CoreRun>
-    <XUnitRunnerDll>%CORE_ROOT%\xunit.console.dll</XUnitRunnerDll>
-  </PropertyGroup>
+      <ItemGroup Condition=" '$(TargetsWindows)' != 'true' ">
+        <HelixPreCommand Include="export CORE_ROOT=$HELIX_CORRELATION_PAYLOAD" />
+        <HelixPreCommand Include="export RunCrossGen=1" Condition=" '$(RunCrossGen)' == 'true' " />
+        <HelixPreCommand Include="export __TestEnv=$HELIX_WORKITEM_PAYLOAD/$(TestEnvFileName)" />
+        <HelixPreCommand Include="export __TestTimeout=$(TimeoutPerTestInMilliseconds)" Condition=" '$(TimeoutPerTestInMilliseconds)' != '' " />
+        <HelixPreCommand Include="cat $__TestEnv" />
+      </ItemGroup>
 
-  <PropertyGroup Condition=" '$(TargetsWindows)' != 'true' ">
-    <CoreRun>$CORE_ROOT/corerun</CoreRun>
-    <XUnitRunnerDll>$CORE_ROOT/xunit.console.dll</XUnitRunnerDll>
-  </PropertyGroup>
+      <PropertyGroup>
+        <HelixPreCommands>@(HelixPreCommand)</HelixPreCommands>
+      </PropertyGroup>
 
-  <ItemGroup>
-    <HelixCorrelationPayload Include="$(CoreRootDir)" />
-    <HelixWorkItem Include="@(XUnitWrapperDll->'%(FileName)'->Replace('.XUnitWrapper', ''))">
-      <PayloadDirectory>%(FileDirectory)</PayloadDirectory>
-      <Command>$(CoreRun) $(XUnitRunnerDll) %(File) $(XUnitRunnerArgs)</Command>
-      <Timeout Condition=" '$(TimeoutPerTestCollectionInMinutes)' != '' ">$([System.TimeSpan]::FromMinutes($(TimeoutPerTestCollectionInMinutes)))</Timeout>
-    </HelixWorkItem>
-  </ItemGroup>
+      <PropertyGroup Condition=" '$(TargetsWindows)' == 'true' ">
+        <CoreRun>%CORE_ROOT%\CoreRun.exe</CoreRun>
+        <XUnitRunnerDll>%CORE_ROOT%\xunit.console.dll</XUnitRunnerDll>
+      </PropertyGroup>
+
+      <PropertyGroup Condition=" '$(TargetsWindows)' != 'true' ">
+        <CoreRun>$CORE_ROOT/corerun</CoreRun>
+        <XUnitRunnerDll>$CORE_ROOT/xunit.console.dll</XUnitRunnerDll>
+      </PropertyGroup>
+
+      <ItemGroup>
+        <XUnitWrapperDll Include="$(PayloadsDirectory)**\*.XUnitWrapper.dll">
+          <GroupDirectory>$([MSBuild]::GetDirectoryNameOfFileAbove(%(Identity), $(TestEnvFileName)))</GroupDirectory>
+          <Group>$([MSBuild]::MakeRelative($(PayloadsDirectory), %(GroupDirectory)))</Group>
+          <RelativeToGroupDirectory>$([MSBuild]::MakeRelative(%(GroupDirectory), %(Identity)))</RelativeToGroupDirectory>
+        </XUnitWrapperDll>
+
+        <Group Include="Group.default">
+          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'Group.default')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
+        </Group>
+
+        <Group Include="baseservices.threading_JIT.CodeGenBringUpTests_JIT.Directed">
+          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'baseservices.threading_JIT.CodeGenBringUpTests_JIT.Directed')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
+        </Group>
+
+        <Group Include="JIT.jit64">
+          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'JIT.jit64')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
+        </Group>
+
+        <Group Include="JIT.Methodical">
+          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'JIT.Methodical')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
+        </Group>
+
+        <Group Include="JIT.Regression">
+          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'JIT.Regression')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
+        </Group>
+
+        <Group Include="Loader.classloader">
+          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'Loader.classloader')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
+        </Group>
+
+        <HelixCorrelationPayload Include="$(CoreRootDirectory)" />
+
+        <HelixWorkItem Include="@(Group)">
+          <PayloadDirectory>$(PayloadsDirectory)%(Identity)</PayloadDirectory>
+          <Command>$(CoreRun) $(XUnitRunnerDll) %(XUnitWrapperDlls) $(XUnitRunnerArgs)</Command>
+          <Timeout Condition=" '$(TimeoutPerTestCollectionInMinutes)' != '' ">$([System.TimeSpan]::FromMinutes($(TimeoutPerTestCollectionInMinutes)))</Timeout>
+        </HelixWorkItem>
+      </ItemGroup>
+    </When>
+  </Choose>
 
   <Import Sdk="Microsoft.DotNet.Helix.Sdk" Project="Sdk.targets" Condition=" '$(UsesHelixSdk)' == 'true' " />
 
