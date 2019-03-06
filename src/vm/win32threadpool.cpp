@@ -698,7 +698,11 @@ INT32 ThreadpoolMgr::GetThreadCount()
 {
     WRAPPER_NO_CONTRACT;
 
-    EnsureInitialized();
+    if (!IsInitialized())
+    {
+        return 0;
+    }
+
     return WorkerCounter.DangerousGetDirtyCounts().NumActive + CPThreadCounter.DangerousGetDirtyCounts().NumActive;
 }
 

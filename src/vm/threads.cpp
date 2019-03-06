@@ -8073,8 +8073,6 @@ UINT64 Thread::GetTotalThreadPoolCompletionCount()
     }
     CONTRACTL_END;
 
-    _ASSERTE(overflowCount != nullptr);
-
     UINT64 total;
     if (g_fEEStarted) //make sure we actually have a thread store
     {
