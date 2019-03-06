@@ -3859,7 +3859,7 @@ void EEClassLayoutInfo::ParseFieldNativeTypes(
     _ASSERTE(i == cTotalFields);
 
     // Set the number of fields here.
-    pEEClassLayoutInfoOut->m_numCTMFields = *cInstanceFields;
+    pEEClassLayoutInfoOut->m_numCTMFields += *cInstanceFields;
     // NULL out the last entry
     pFieldInfoArrayOut->m_MD = mdFieldDefNil;
 
