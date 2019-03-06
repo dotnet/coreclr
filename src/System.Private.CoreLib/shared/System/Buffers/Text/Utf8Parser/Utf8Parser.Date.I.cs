@@ -21,7 +21,7 @@ namespace System.Buffers.Text
 		// YYYY-MM-DDThh:mm:ss.sTZD (eg 1997-07-16T19:20:30.45Z)
 		// YYYY-MM-DDThh:mm:ss.sTZD (eg 1997-07-16T19:20:30.45+01:00)
 		// YYYY-MM-DDThh:mm:ss.sTZD (eg 1997-07-16T19:20:30.45-01:00)
-		private static bool TryParseDateTimeOffsetJ(ReadOnlySpan<byte> source, out DateTimeOffset value, out int bytesConsumed, out DateTimeKind kind)
+		private static bool TryParseDateTimeOffsetI(ReadOnlySpan<byte> source, out DateTimeOffset value, out int bytesConsumed, out DateTimeKind kind)
 		{
 			// Source does not have enough characters for YYYY-MM-DD
 			if (source.Length < 10)
