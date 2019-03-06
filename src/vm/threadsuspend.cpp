@@ -1395,10 +1395,7 @@ Thread::UserAbort(ThreadAbortRequester requester,
         SetAbortEndTime(newEndTime, abortType == EEPolicy::TA_Rude);
     }
 
-    // If the abort comes from the thread abort watchdog, proceed with the abort only 
-    // if the abort is still requested. This handles race between watchdog and UnmarkThreadForAbort.
-    BOOL fTentative = (requester == Thread::TAR_Thread) && (client == UAC_WatchDog);
-    MarkThreadForAbort(requester, abortType, fTentative);
+    MarkThreadForAbort(requester, abortType);
 
     Thread *pCurThread = GetThread();
 
@@ -1456,26 +1453,13 @@ Thread::UserAbort(ThreadAbortRequester requester,
     BOOL fAlreadyAssert = FALSE;
 #endif
 
-    BOOL fOneTryOnly = (client == UAC_WatchDog) || (client == UAC_FinalizerTimeout); 
-    BOOL fFirstRun = TRUE;
-    BOOL fNeedEscalation;
-
 #if !defined(DISABLE_THREADSUSPEND)
     DWORD dwSwitchCount = 0;
 #endif // !defined(DISABLE_THREADSUSPEND)
 
 LRetry:
-    fNeedEscalation = FALSE;
     for (;;)
     {
-        if (fOneTryOnly)
-        {
-            if (!fFirstRun)
-            {
-                return S_OK;
-            }
-            fFirstRun = FALSE;
-        }
         // Lock the thread store
         LOG((LF_SYNC, INFO3, "UserAbort obtain lock\n"));
 
@@ -1514,8 +1498,6 @@ LRetry:
                 }
                 if (timeout1 != INFINITE)
                 {
-                    // There is an escalation policy.
-                    fNeedEscalation = TRUE;
                     break;
                 }
             }
@@ -1892,11 +1874,6 @@ LPrepareRetry:
 
         checkForAbort.Release();
 
-        if (fOneTryOnly)
-        {
-            break;
-        }
-
         // Don't do a Sleep.  It's possible that the thread we are trying to abort is
         // stuck in unmanaged code trying to get into the apartment that we are supposed
         // to be pumping!  Instead, ping the current thread's handle.  Obviously this
@@ -1921,11 +1898,6 @@ LPrepareRetry:
 #endif
 
     } // for(;;)
-
-    if (fOneTryOnly  && !fNeedEscalation)
-    {
-        return S_OK;
-    }
 
     if ((GetAbortEndTime() != MAXULONGLONG)  && IsAbortRequested())
     {
@@ -2056,155 +2028,6 @@ void Thread::SetRudeAbortEndTimeFromEEPolicy()
 
 ULONGLONG Thread::s_NextSelfAbortEndTime = MAXULONGLONG;
 
-void Thread::ThreadAbortWatchDogAbort(Thread *pThread)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        if (GetThread()) {GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
-    }
-    CONTRACTL_END;
-
-        EEPolicy::ThreadAbortTypes abortType = EEPolicy::TA_Safe;
-        if (pThread->m_AbortInfo & TAI_ThreadRudeAbort)
-        {
-            abortType = EEPolicy::TA_Rude;
-        }
-        else if (pThread->m_AbortInfo & TAI_ThreadAbort)
-        {
-            abortType = EEPolicy::TA_Safe;
-        }
-        else
-        {
-            return;
-        }
-
-        EX_TRY
-        {
-            pThread->UserAbort(Thread::TAR_Thread, abortType, INFINITE, Thread::UAC_WatchDog);            
-        }
-        EX_CATCH
-        {
-        }
-        EX_END_CATCH(SwallowAllExceptions);
-}
-
-void Thread::ThreadAbortWatchDogEscalate(Thread *pThread)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        if (GetThread()) {GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
-    }
-    CONTRACTL_END;
-
-    EPolicyAction action = eNoAction;
-    EClrOperation operation = OPR_ThreadRudeAbortInNonCriticalRegion;
-    if (!pThread->IsRudeAbort())
-    {
-        operation = OPR_ThreadAbort;
-    }
-    else if (pThread->HasLockInCurrentDomain())
-    {
-        operation = OPR_ThreadRudeAbortInCriticalRegion;
-    }
-    else
-    {
-        operation = OPR_ThreadRudeAbortInNonCriticalRegion;
-    }
-    action = GetEEPolicy()->GetActionOnTimeout(operation, pThread);
-    // We only support escalation to rude abort
-
-    EX_TRY {
-        switch (action)
-        {
-        case eRudeAbortThread:
-            GetEEPolicy()->NotifyHostOnTimeout(operation,action);
-            pThread->UserAbort(Thread::TAR_Thread, EEPolicy::TA_Rude, INFINITE, Thread::UAC_WatchDog);
-            break;
-        case eExitProcess:
-        case eFastExitProcess:
-        case eRudeExitProcess:
-        case eDisableRuntime:
-            // HandleExitProcessFromEscalation will try to grab ThreadStore again.
-            _ASSERTE (ThreadStore::HoldingThreadStore());
-            ThreadStore::UnlockThreadStore();
-            GetEEPolicy()->NotifyHostOnTimeout(operation,action);
-            EEPolicy::HandleExitProcessFromEscalation(action, HOST_E_EXITPROCESS_THREADABORT);
-            _ASSERTE (!"Should not reach here");
-            break;
-        case eNoAction:
-            break;
-        default:
-            _ASSERTE (!"unknown policy for thread abort");
-        }
-    }
-    EX_CATCH {
-    }
-    EX_END_CATCH(SwallowAllExceptions);
-}
-
-// If a thread is self-aborted and has a timeout, we need to watch the thread
-void Thread::ThreadAbortWatchDog()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        if (GetThread()) {GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
-    }
-    CONTRACTL_END;
-
-    if (CLRHosted())
-    {
-        ThreadStoreLockHolder tsLock;
-
-        ULONGLONG curTime = CLRGetTickCount64();
-
-        s_NextSelfAbortEndTime = MAXULONGLONG;
-
-        Thread *thread = NULL;
-            while ((thread = ThreadStore::GetThreadList(thread)) != NULL)
-            {
-                if (!thread->IsAbortRequested())
-                {
-                    continue;
-                }
-
-                if (thread == FinalizerThread::GetFinalizerThread() && !g_FinalizerIsRunning)
-                {
-                    // if finalizer method is not running, don't try to abort the finalizer thread
-                    continue;
-                }
-                
-            BOOL fNeedsToInitiateAbort = !thread->IsAbortInitiated() || thread->IsRudeAbort();
-            ULONGLONG endTime = thread->GetAbortEndTime();
-            if (fNeedsToInitiateAbort)
-                {
-                s_NextSelfAbortEndTime = 0;
-            }
-            else if (endTime < s_NextSelfAbortEndTime)
-            {
-                s_NextSelfAbortEndTime = endTime;
-                }
-
-            if (thread->m_AbortController == 0)
-                {
-                    STRESS_LOG3(LF_ALWAYS, LL_ALWAYS, "ThreadAbortWatchDog for Thread %p Thread Id = %x with timeout %x\n",
-                                thread, thread->GetThreadId(), endTime);
-
-                if (endTime != MAXULONGLONG && curTime >= endTime)
-                    {
-                    ThreadAbortWatchDogEscalate(thread);
-                    }
-                else if (fNeedsToInitiateAbort)
-                    {
-                    ThreadAbortWatchDogAbort(thread);
-                }
-            }
-        }
-    }
-}
-
 void Thread::LockAbortRequest(Thread* pThread)
 {
     WRAPPER_NO_CONTRACT;
@@ -2233,7 +2056,7 @@ void Thread::UnlockAbortRequest(Thread *pThread)
     FastInterlockExchange(&pThread->m_AbortRequestLock, 0);
 }
 
-void Thread::MarkThreadForAbort(ThreadAbortRequester requester, EEPolicy::ThreadAbortTypes abortType, BOOL fTentative /*=FALSE*/)
+void Thread::MarkThreadForAbort(ThreadAbortRequester requester, EEPolicy::ThreadAbortTypes abortType)
 {
     CONTRACTL
     {
@@ -2242,18 +2065,7 @@ void Thread::MarkThreadForAbort(ThreadAbortRequester requester, EEPolicy::Thread
     }
     CONTRACTL_END;
 
-    _ASSERTE ((requester & TAR_Thread) == TAR_Thread);
-
     AbortRequestLockHolder lh(this);
-
-    if (fTentative)
-    {
-        if (!IsAbortRequested())
-        {
-            STRESS_LOG0(LF_SYNC, LL_INFO1000, "Tentative thread abort abandoned\n");
-            return;
-        }
-    }
 
 #ifdef _DEBUG
     if (abortType == EEPolicy::TA_Rude)
@@ -2488,25 +2300,6 @@ void Thread::InternalResetAbort(ThreadAbortRequester requester, BOOL fResetRudeA
 
     // managed code can not reset Rude thread abort
     UnmarkThreadForAbort(requester, fResetRudeAbort);
-}
-
-
-// Throw a thread abort request when a suspended thread is resumed. Make sure you know what you
-// are doing when you call this routine.
-void Thread::SetAbortRequest(EEPolicy::ThreadAbortTypes abortType)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    MarkThreadForAbort(TAR_Thread, abortType);
-
-    if (m_State & TS_Interruptible)
-    {
-        UserInterrupt(TI_Abort);
-    }
 }
 
 
@@ -2963,7 +2756,7 @@ void Thread::HandleThreadAbortTimeout()
     EX_END_CATCH(SwallowAllExceptions);
 }
 
-void Thread::HandleThreadAbort (BOOL fForce)
+void Thread::HandleThreadAbort ()
 {
     BEGIN_PRESERVE_LAST_ERROR;
 
@@ -2988,7 +2781,7 @@ void Thread::HandleThreadAbort (BOOL fForce)
     // That's okay since COMPlusThrow will eventually erect SEH around the RaiseException. It prevents
     // us from stating CONTRACT here.
 
-    if (fForce || ReadyForAbort())
+    if (ReadyForAbort())
     {
         ResetThreadState ((ThreadState)(TS_Interrupted | TS_Interruptible));
         // We are going to abort.  Abort satisfies Thread.Interrupt requirement.
@@ -4032,40 +3825,6 @@ COR_PRF_SUSPEND_REASON GCSuspendReasonToProfSuspendReason(ThreadSuspend::SUSPEND
 #endif // PROFILING_SUPPORTED
 
 //************************************************************************************
-// To support fast application switch (FAS), one requirement is that the CPU 
-// consumption during the time the CLR is paused should be 0. Given that the process
-// will be anyway suspended this should've been an NOP for CLR. However, in Mango
-// we ensured that no handle timed out or no other such context switch happens
-// during the pause time. To match that and also to ensure that in-between the 
-// pause and when the process is suspended (~60 sec) no context switch happens due to 
-// CLR handles (like Waits/sleeps due to calls from BCL) we call APC on these
-// Threads and make them wait on the resume handle
-void __stdcall PauseAPC(__in ULONG_PTR dwParam)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-    
-    if(g_IsPaused && (GetThread()->m_State & Thread::TS_Interruptible))
-    {
-        _ASSERTE(g_ClrResumeEvent.IsValid());
-        EX_TRY {
-            g_ClrResumeEvent.Wait(INFINITE, FALSE);
-        }
-        EX_CATCH {
-            // Assert on debug builds 
-            _ASSERTE(FALSE);
-        }
-        EX_END_CATCH(SwallowAllExceptions);
-    }
-}
-
-
-//************************************************************************************
 //
 // SuspendRuntime is responsible for ensuring that all managed threads reach a
 // "safe point."  It returns when all threads are known to be in "preemptive" mode.
@@ -4365,16 +4124,6 @@ HRESULT ThreadSuspend::SuspendRuntime(ThreadSuspend::SUSPEND_REASON reason)
 #endif // DISABLE_THREADSUSPEND
 
         }
-        else
-        {
-            // To ensure 0 CPU utilization for FAS (see implementation of PauseAPC)
-            // we queue the APC to all interruptable threads. 
-            if(g_IsPaused && (thread->m_State & Thread::TS_Interruptible))
-            {
-                HANDLE handle = thread->GetThreadHandle();
-                QueueUserAPC((PAPCFUNC)PauseAPC, handle, APC_Code);
-            }
-        }
     }
 
 #ifdef _DEBUG
@@ -4436,14 +4185,6 @@ HRESULT ThreadSuspend::SuspendRuntime(ThreadSuspend::SUSPEND_REASON reason)
                 STRESS_LOG1(LF_SYNC, LL_INFO1000, "    Thread %x went preemptive it is at a GC safe point\n", thread);
                 countThreads--;
                 thread->ResetThreadState(Thread::TS_GCSuspendPending);
-
-                // To ensure 0 CPU utilization for FAS (see implementation of PauseAPC)
-                // we queue the APC to all interruptable threads.
-                if(g_IsPaused && (thread->m_State & Thread::TS_Interruptible))
-                {
-                    HANDLE handle = thread->GetThreadHandle();
-                    QueueUserAPC((PAPCFUNC)PauseAPC, handle, APC_Code);
-                }
             }
         }
 
@@ -4982,7 +4723,7 @@ ThrowControlForThread(
 }
 
 #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
-// This function is called by UserAbort and StopEEAndUnwindThreads.
+// This function is called by UserAbort.
 // It forces a thread to abort if allowed and the thread is running managed code.
 BOOL Thread::HandleJITCaseForAbort()
 {
@@ -7398,7 +7139,7 @@ void SuspendStatistics::DisplayAndUpdate()
            cntWaitTimeouts - g_LastSuspendStatistics.cntWaitTimeouts, cntWaitTimeouts,
            cntHijackTrap - g_LastSuspendStatistics.cntHijackTrap, cntHijackTrap);
 
-    fprintf(logFile, "Redirected EIP Failures %d (%d), Collided GC/Debugger/ADUnload %d (%d)\n",
+    fprintf(logFile, "Redirected EIP Failures %d (%d), Collided GC/Debugger %d (%d)\n",
            cntFailedRedirections - g_LastSuspendStatistics.cntFailedRedirections, cntFailedRedirections,
            cntCollideRetry - g_LastSuspendStatistics.cntCollideRetry, cntCollideRetry);
 

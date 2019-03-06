@@ -23957,8 +23957,12 @@ uint8_t* tree_search (uint8_t* tree, uint8_t* old_address)
 bool gc_heap::frozen_object_p (Object* obj)
 {
 #ifdef MULTIPLE_HEAPS
+#ifdef SEG_MAPPING_TABLE
+    heap_segment* pSegment = seg_mapping_table_segment_of((uint8_t*)obj);
+#else
     ptrdiff_t delta = 0;
     heap_segment* pSegment = segment_of ((uint8_t*)obj, delta);
+#endif
 #else //MULTIPLE_HEAPS
     heap_segment* pSegment = gc_heap::find_segment ((uint8_t*)obj, FALSE);
     _ASSERTE(pSegment);
@@ -34202,7 +34206,10 @@ HRESULT GCHeap::Initialize()
 #ifdef MULTIPLE_HEAPS
     nhp_from_config = static_cast<uint32_t>(GCConfig::GetHeapCount());
     
-    uint32_t nhp_from_process = GCToOSInterface::GetCurrentProcessCpuCount();
+    // GetCurrentProcessCpuCount only returns up to 64 procs.
+    uint32_t nhp_from_process = GCToOSInterface::CanEnableGCCPUGroups() ?
+                                GCToOSInterface::GetTotalProcessorCount():
+                                GCToOSInterface::GetCurrentProcessCpuCount();
 
     if (nhp_from_config)
     {
@@ -34233,6 +34240,20 @@ HRESULT GCHeap::Initialize()
             {
                 pmask &= smask;
 
+#ifdef FEATURE_PAL
+                // GetCurrentProcessAffinityMask can return pmask=0 and smask=0 on
+                // systems with more than 1 NUMA node. The pmask decides the
+                // number of GC heaps to be used and the processors they are
+                // affinitized with. So pmask is now set to reflect that 64
+                // processors are available to begin with. The actual processors in
+                // the system may be lower and are taken into account before
+                // finalizing the number of heaps.
+                if (!pmask)
+                {
+                    pmask = SIZE_T_MAX;
+                }
+#endif // FEATURE_PAL
+
                 if (gc_thread_affinity_mask)
                 {
                     pmask &= gc_thread_affinity_mask;
@@ -34249,6 +34270,11 @@ HRESULT GCHeap::Initialize()
                 }
 
                 nhp = min (nhp, set_bits_in_pmask);
+
+#ifdef FEATURE_PAL
+                // Limit the GC heaps to the number of processors available in the system.
+                nhp = min (nhp, GCToOSInterface::GetTotalProcessorCount());
+#endif // FEATURE_PAL
             }
             else
             {
@@ -34522,24 +34548,6 @@ Object * GCHeap::NextObj (Object * object)
     return nullptr;
 #endif // VERIFY_HEAP
 }
-
-#ifdef VERIFY_HEAP
-
-#ifdef FEATURE_BASICFREEZE
-BOOL GCHeap::IsInFrozenSegment (Object * object)
-{
-    uint8_t* o = (uint8_t*)object;
-    heap_segment * hs = gc_heap::find_segment (o, FALSE);
-    //We create a frozen object for each frozen segment before the segment is inserted
-    //to segment list; during ngen, we could also create frozen objects in segments which
-    //don't belong to current GC heap.
-    //So we return true if hs is NULL. It might create a hole about detecting invalidate 
-    //object. But given all other checks present, the hole should be very small
-    return !hs || heap_segment_read_only_p (hs);
-}
-#endif //FEATURE_BASICFREEZE
-
-#endif //VERIFY_HEAP
 
 // returns TRUE if the pointer is in one of the GC heaps.
 bool GCHeap::IsHeapPointer (void* vpObject, bool small_heap_only)

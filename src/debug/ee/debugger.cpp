@@ -10039,8 +10039,6 @@ LExit:
 
 // Called when this module is completely gone from ALL AppDomains, regardless of
 // whether a debugger is attached.
-// Note that this doesn't get called until after the ADUnload is complete, which happens
-// asyncronously in Whidbey (and won't happen at all if the process shuts down first).
 // This is normally not called only domain-neutral assemblies because they can't be unloaded.
 // However, it may be called if the loader fails to completely load a domain-neutral assembly.
 void Debugger::DestructModule(Module *pModule)
@@ -13619,7 +13617,6 @@ void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRec
     // processed this unhandled exception.  Thus, we should not call into CLR UEF again if it is the case.
     if (pThread &&
         (pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) ||
-         pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled) ||
          fSOException))
     {
 

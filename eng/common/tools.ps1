@@ -321,10 +321,12 @@ function LocateVisualStudio([object]$vsRequirements = $null){
 
 function InitializeBuildTool() {
   if (Test-Path variable:global:_BuildTool) {
+    Write-Host "variable:global:_BuildTool initialized." -ForegroundColor Red
     return $global:_BuildTool
   }
 
   if (-not $msbuildEngine) {
+    Write-Host "-not $msbuildEngine" -ForegroundColor Red
     $msbuildEngine = GetDefaultMSBuildEngine
   }
 
@@ -461,7 +463,7 @@ function MSBuild() {
 
   $buildTool = InitializeBuildTool
 
-  $cmdArgs = "$($buildTool.Command) /m /nologo /clp:Summary /v:$verbosity /nr:$nodeReuse"
+  $cmdArgs = "$($buildTool.Command) /m /nologo /clp:Summary /v:$verbosity /nr:$nodeReuse /p:ContinuousIntegrationBuild=$ci"
 
   if ($warnAsError) { 
     $cmdArgs += " /warnaserror /p:TreatWarningsAsErrors=true" 
