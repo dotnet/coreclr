@@ -39,6 +39,8 @@ namespace System.Diagnostics.Tracing
         {
             _min = float.PositiveInfinity;
             _max = float.NegativeInfinity;
+            
+            InitializeBuffer();
         }
 
         /// <summary>
@@ -123,6 +125,63 @@ namespace System.Diagnostics.Tracing
         }
 
         #endregion // Statistics Calculation
+
+        // Values buffering
+        private const int BufferedSize = 10;
+        private const float UnusedBufferSlotValue = float.NegativeInfinity;
+        private const int UnsetIndex = -1;
+        private volatile float[] _bufferedValues;
+        private volatile int _bufferedValuesIndex;
+
+        private void InitializeBuffer()
+        {
+            _bufferedValues = new float[BufferedSize];
+            for (int i = 0; i < _bufferedValues.Length; i++)
+            {
+                _bufferedValues[i] = UnusedBufferSlotValue;
+            }
+        }
+
+        protected void Enqueue(float value)
+        {
+            // It is possible that two threads read the same bufferedValuesIndex, but only one will be able to write the slot, so that is okay.
+            int i = _bufferedValuesIndex;
+            while (true)
+            {
+                float result = Interlocked.CompareExchange(ref _bufferedValues[i], value, UnusedBufferSlotValue);
+                i++;
+                if (_bufferedValues.Length <= i)
+                {
+                    // It is possible that two threads both think the buffer is full, but only one get to actually flush it, the other
+                    // will eventually enter this code path and potentially calling Flushing on a buffer that is not full, and that's okay too.
+                    lock (MyLock) // Lock the counter
+                        Flush();
+                    i = 0;
+                }
+
+                if (result == UnusedBufferSlotValue)
+                {
+                    // CompareExchange succeeded 
+                    _bufferedValuesIndex = i;
+                    return;
+                }
+            }
+        }
+
+        protected void Flush()
+        {
+            Debug.Assert(Monitor.IsEntered(MyLock));
+            for (int i = 0; i < _bufferedValues.Length; i++)
+            {
+                var value = Interlocked.Exchange(ref _bufferedValues[i], UnusedBufferSlotValue);
+                if (value != UnusedBufferSlotValue)
+                {
+                    OnMetricWritten(value);
+                }
+            }
+
+            _bufferedValuesIndex = 0;
+        }
     }
 
 

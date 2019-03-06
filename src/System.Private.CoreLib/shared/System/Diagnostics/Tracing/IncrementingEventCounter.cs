@@ -18,7 +18,10 @@ namespace System.Diagnostics.Tracing
 #endif
 {
     /// <summary>
-    /// An EventCounter for variables that are ever-increasing. Ex) # of exceptions in the runtime.
+    /// IncrementingEventCounter is a variant of EventCounter for variables that are ever-increasing. 
+    /// Ex) # of exceptions in the runtime.
+    /// It does not calculate statistics like mean, standard deviation, etc. because it only accumulates
+    /// the counter value.
     /// </summary>
     internal partial class IncrementingEventCounter : BaseCounter
     {
@@ -73,7 +76,6 @@ namespace System.Diagnostics.Tracing
         {
             lock (MyLock)     // Lock the counter
             {
-                Flush();
                 IncrementingCounterPayload result = new IncrementingCounterPayload();
                 result.Name = name;
                 result.DisplayName = DisplayName;

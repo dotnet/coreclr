@@ -18,8 +18,12 @@ namespace System.Diagnostics.Tracing
 #endif
 {
     /// <summary>
-    /// A Counter for variables that are ever-increasing. Ex) # of exceptions in the runtime.
-    /// Unlike IncrementingEventCounter, this takes in a polling callback that it can call to update its own metric periodically.
+    /// IncrementingPollingCounter is a variant of EventCounter for variables that are ever-increasing. 
+    /// Ex) # of exceptions in the runtime.
+    /// It does not calculate statistics like mean, standard deviation, etc. because it only accumulates
+    /// the counter value.
+    /// Unlike IncrementingEventCounter, this takes in a polling callback that it can call to update 
+    /// its own metric periodically.
     /// </summary>
     internal partial class IncrementingPollingCounter : BaseCounter
     {

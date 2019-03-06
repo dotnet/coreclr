@@ -18,13 +18,13 @@ namespace System.Diagnostics.Tracing
 #endif
 {
     /// <summary>
-    /// 
+    /// BaseCounter is an abstract class that serves as the parent class for various Counter* classes, 
+    /// namely EventCounter, PollingCounter, IncrementingEventCounter, and IncrementingPollingCounter.
     /// </summary>
     public abstract class BaseCounter : IDisposable
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="BaseCounter"/> class.
-        /// BaseCounter live as long as the EventSource that they are attached to unless they are
+        /// All Counters live as long as the EventSource that they are attached to unless they are
         /// explicitly Disposed.   
         /// </summary>
         /// <param name="name">The name.</param>
@@ -41,7 +41,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(eventSource));
             }
 
-            InitializeBuffer();
             _group = CounterGroup.GetCounterGroup(eventSource);
             _group.Add(this);
             this.name = name;
@@ -64,7 +63,7 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// 
+        /// Adds a key-value metadata to the EventCounter that will be included as a part of the payload
         /// </summary>
         internal void AddMetaData(string key, string value)
         {
@@ -82,22 +81,14 @@ namespace System.Diagnostics.Tracing
         protected readonly string name;
         private CounterGroup _group;
 
-        #region Buffer Management
-
-        // Values buffering
-        private const int BufferedSize = 10;
-        private const float UnusedBufferSlotValue = float.NegativeInfinity;
-        private const int UnsetIndex = -1;
-        private volatile float[] _bufferedValues;
-        private volatile int _bufferedValuesIndex;
         private volatile Dictionary<string, string> _metaData;
 
         // Abstract methods that behave differently across different Counter APIs
         internal abstract void OnMetricWritten(float value);
         internal abstract void WritePayload(EventSource _eventSource, float intervalSec);
 
-        // arbitrarily we use _bufferedValues as the lock object.  
-        protected object MyLock { get { return _bufferedValues; } }
+        // arbitrarily we use name as the lock object.  
+        protected object MyLock { get { return name; } }
 
         protected string GetMetaDataString()
         {
@@ -108,58 +99,6 @@ namespace System.Diagnostics.Tracing
             }
             return metaDataString.Substring(0, metaDataString.Length - 1); // Get rid of the last ","
         }
-
-        private void InitializeBuffer()
-        {
-            _bufferedValues = new float[BufferedSize];
-            for (int i = 0; i < _bufferedValues.Length; i++)
-            {
-                _bufferedValues[i] = UnusedBufferSlotValue;
-            }
-        }
-
-        protected void Enqueue(float value)
-        {
-            // It is possible that two threads read the same bufferedValuesIndex, but only one will be able to write the slot, so that is okay.
-            int i = _bufferedValuesIndex;
-            while (true)
-            {
-                float result = Interlocked.CompareExchange(ref _bufferedValues[i], value, UnusedBufferSlotValue);
-                i++;
-                if (_bufferedValues.Length <= i)
-                {
-                    // It is possible that two threads both think the buffer is full, but only one get to actually flush it, the other
-                    // will eventually enter this code path and potentially calling Flushing on a buffer that is not full, and that's okay too.
-                    lock (MyLock) // Lock the counter
-                        Flush();
-                    i = 0;
-                }
-
-                if (result == UnusedBufferSlotValue)
-                {
-                    // CompareExchange succeeded 
-                    _bufferedValuesIndex = i;
-                    return;
-                }
-            }
-        }
-
-        protected void Flush()
-        {
-            Debug.Assert(Monitor.IsEntered(MyLock));
-            for (int i = 0; i < _bufferedValues.Length; i++)
-            {
-                var value = Interlocked.Exchange(ref _bufferedValues[i], UnusedBufferSlotValue);
-                if (value != UnusedBufferSlotValue)
-                {
-                    OnMetricWritten(value);
-                }
-            }
-
-            _bufferedValuesIndex = 0;
-        }
-
-        #endregion // Buffer Management
 
         #endregion // private implementation
     }

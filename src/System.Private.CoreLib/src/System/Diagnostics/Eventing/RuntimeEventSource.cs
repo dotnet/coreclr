@@ -15,7 +15,7 @@ namespace System.Diagnostics.Tracing
     internal sealed class RuntimeEventSource : EventSource
     {
         private static RuntimeEventSource s_RuntimeEventSource;
-        private PollingCounter[] _counters;
+        private EventCounter[] _counters;
 
         private enum Counter {
             GCHeapSize,
@@ -25,7 +25,7 @@ namespace System.Diagnostics.Tracing
             ExceptionCount
         }
 
-        //private Timer _timer;
+        private Timer _timer;
 
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
 
@@ -48,14 +48,14 @@ namespace System.Diagnostics.Tracing
                     // NOTE: These counters will NOT be disposed on disable command because we may be introducing 
                     // a race condition by doing that. We still want to create these lazily so that we aren't adding
                     // overhead by at all times even when counters aren't enabled.
-                    _counters = new PollingCounter[] {
+                    _counters = new EventCounter[] {
                         // TODO: process info counters
 
                         // GC info counters
-                        new PollingCounter("Total Memory by GC", this, () => GC.GetTotalMemory(false)),
-                        new PollingCounter("Gen 0 GC Count", this, () => GC.CollectionCount(0)),
-                        new PollingCounter("Gen 1 GC Count", this, () => GC.CollectionCount(1)),
-                        new PollingCounter("Gen 2 GC Count", this, () => GC.CollectionCount(2)),
+                        new EventCounter("Total Memory by GC", this),
+                        new EventCounter("Gen 0 GC Count", this),
+                        new EventCounter("Gen 1 GC Count", this),
+                        new EventCounter("Gen 2 GC Count", this),
 
                         new EventCounter("Exception Count", this)
                     };
@@ -68,7 +68,6 @@ namespace System.Diagnostics.Tracing
                 // TODO: We should not need this timer once we are done settling upon a high-level design for
                 // what EventCounter is capable of doing. Once that decision is made, we should be able to 
                 // get rid of this.
-                /*
                 if (_timer == null)
                 {
                     _timer = new Timer(
@@ -88,10 +87,7 @@ namespace System.Diagnostics.Tracing
                     _timer.Change(Timeout.Infinite, Timeout.Infinite);  // disable the timer from running until System.Runtime is re-enabled
                 }
             }
-            */
-            }
         }
-        /*
 
         public void UpdateAllCounters()
         {
@@ -119,6 +115,5 @@ namespace System.Diagnostics.Tracing
             }
             catch { }
         }
-        */
     }
 }

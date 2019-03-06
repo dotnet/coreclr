@@ -18,20 +18,17 @@ namespace System.Diagnostics.Tracing
 #endif
 {
     /// <summary>
-    /// Provides the ability to collect statistics through EventSource
-    /// 
-    /// See https://github.com/dotnet/corefx/blob/master/src/System.Diagnostics.Tracing/documentation/EventCounterTutorial.md
-    /// for a tutorial guide.  
-    /// 
-    /// See https://github.com/dotnet/corefx/blob/master/src/System.Diagnostics.Tracing/tests/BasicEventSourceTest/TestEventCounter.cs
-    /// which shows tests, which are also useful in seeing actual use.  
+    /// PollingCounter is a variant of EventCounter - it collects and calculates similar statistics 
+    /// as EventCounter. PollingCounter differs from EventCounter in that it takes in a callback
+    /// function to collect metrics on its own rather than the user having to call WriteMetric() 
+    /// every time.
     /// </summary>
     internal partial class PollingCounter : BaseCounter
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="PollingCounter"/> class.
         /// PollingCounter live as long as the EventSource that they are attached to unless they are
-        /// explicitly Disposed.   
+        /// explicitly Disposed.
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="eventSource">The event source.</param>
@@ -40,10 +37,12 @@ namespace System.Diagnostics.Tracing
             _min = float.PositiveInfinity;
             _max = float.NegativeInfinity;
             _getMetricFunction = getMetricFunction;
+
+            InitializeBuffer();
         }
 
         /// <summary>
-        /// Calls "_getMetricFunction" to enqueue the counter value to the queue. 
+        /// Calls the callback function to get the value to enqueue. 
         /// </summary>
         public void UpdateMetric()
         {
@@ -131,6 +130,64 @@ namespace System.Diagnostics.Tracing
         }
 
         #endregion // Statistics Calculation
+
+
+        // Values buffering
+        private const int BufferedSize = 10;
+        private const float UnusedBufferSlotValue = float.NegativeInfinity;
+        private const int UnsetIndex = -1;
+        private volatile float[] _bufferedValues;
+        private volatile int _bufferedValuesIndex;
+
+        private void InitializeBuffer()
+        {
+            _bufferedValues = new float[BufferedSize];
+            for (int i = 0; i < _bufferedValues.Length; i++)
+            {
+                _bufferedValues[i] = UnusedBufferSlotValue;
+            }
+        }
+
+        protected void Enqueue(float value)
+        {
+            // It is possible that two threads read the same bufferedValuesIndex, but only one will be able to write the slot, so that is okay.
+            int i = _bufferedValuesIndex;
+            while (true)
+            {
+                float result = Interlocked.CompareExchange(ref _bufferedValues[i], value, UnusedBufferSlotValue);
+                i++;
+                if (_bufferedValues.Length <= i)
+                {
+                    // It is possible that two threads both think the buffer is full, but only one get to actually flush it, the other
+                    // will eventually enter this code path and potentially calling Flushing on a buffer that is not full, and that's okay too.
+                    lock (MyLock) // Lock the counter
+                        Flush();
+                    i = 0;
+                }
+
+                if (result == UnusedBufferSlotValue)
+                {
+                    // CompareExchange succeeded 
+                    _bufferedValuesIndex = i;
+                    return;
+                }
+            }
+        }
+
+        protected void Flush()
+        {
+            Debug.Assert(Monitor.IsEntered(MyLock));
+            for (int i = 0; i < _bufferedValues.Length; i++)
+            {
+                var value = Interlocked.Exchange(ref _bufferedValues[i], UnusedBufferSlotValue);
+                if (value != UnusedBufferSlotValue)
+                {
+                    OnMetricWritten(value);
+                }
+            }
+
+            _bufferedValuesIndex = 0;
+        }
     }
 
     
