@@ -280,9 +280,6 @@ namespace System.Threading
 
                 *(GCHandle*)(_pNativeOverlapped + 1) = GCHandle.Alloc(this);
 
-                //if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIODequeue))
-                //    FireEtwThreadPoolIOPack(lpOverlapped, overlappedUNSAFE, GetClrInstanceId());
-
                 success = true;
                 return _pNativeOverlapped;
             }

@@ -344,7 +344,6 @@
                             <opcode name="Dequeue" message="$(string.RuntimePublisher.DequeueOpcodeMessage)" symbol="CLR_DEQUEUE_OPCODE" value="12"> </opcode>
                             <opcode name="IOEnqueue" message="$(string.RuntimePublisher.IOEnqueueOpcodeMessage)" symbol="CLR_IOENQUEUE_OPCODE" value="13"> </opcode>
                             <opcode name="IODequeue" message="$(string.RuntimePublisher.IODequeueOpcodeMessage)" symbol="CLR_IODEQUEUE_OPCODE" value="14"> </opcode>
-                            <opcode name="IOPack" message="$(string.RuntimePublisher.IOPackOpcodeMessage)" symbol="CLR_IOPACK_OPCODE" value="15"> </opcode>
                         </opcodes>
                     </task>
                     <task name="Thread" symbol="CLR_THREADING_TASK"
@@ -2795,13 +2794,6 @@
                            opcode="IODequeue"
                            symbol="ThreadPoolIODequeue"
                            message="$(string.RuntimePublisher.ThreadPoolIODequeueEventMessage)"/>
-
-                    <event value="65" version="0" level="win:Verbose"  template="ThreadPoolIOWork"
-                           keywords="ThreadingKeyword"
-                           task="ThreadPool"
-                           opcode="IOPack"
-                           symbol="ThreadPoolIOPack"
-                           message="$(string.RuntimePublisher.ThreadPoolIOPackEventMessage)"/>
 
                     <event value="70" version="0" level="win:Informational"  template="ThreadStartWork"
                            keywords="ThreadingKeyword ThreadTransferKeyword"
@@ -6374,7 +6366,6 @@
                 <string id="RuntimePublisher.ThreadPoolIOEnqueueEventMessage" value="WorkID=%1;%nMultiDequeues=%4%nClrInstanceID=%3" />
                 <string id="RuntimePublisher.ThreadPoolIOEnqueue_V1EventMessage" value="WorkID=%1;%nClrInstanceID=%3" />
                 <string id="RuntimePublisher.ThreadPoolIODequeueEventMessage" value="WorkID=%1;%nClrInstanceID=%3" />
-                <string id="RuntimePublisher.ThreadPoolIOPackEventMessage" value="WorkID=%1;%nClrInstanceID=%3" />
                 <string id="RuntimePublisher.ThreadCreatingEventMessage" value="ID=%1;%nClrInstanceID=%s" />
                 <string id="RuntimePublisher.ThreadRunningEventMessage" value="ID=%1;%nClrInstanceID=%s" />
                 <string id="RuntimePublisher.ExceptionExceptionThrownEventMessage" value="NONE" />
@@ -6998,7 +6989,6 @@
                 <string id="RuntimePublisher.DequeueOpcodeMessage" value="Dequeue" />
                 <string id="RuntimePublisher.IOEnqueueOpcodeMessage" value="IOEnqueue" />
                 <string id="RuntimePublisher.IODequeueOpcodeMessage" value="IODequeue" />
-                <string id="RuntimePublisher.IOPackOpcodeMessage" value="IOPack" />
 
                 <string id="RuntimePublisher.ThreadCreatingOpcodeMessage" value="Creating" />
                 <string id="RuntimePublisher.ThreadRunningOpcodeMessage" value="Running" />
