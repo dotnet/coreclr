@@ -57,14 +57,6 @@ namespace System.Diagnostics.Tracing
 
         private volatile float _increment;
 
-        internal override void OnMetricWritten(float value)
-        {
-            lock(MyLock)
-            {
-                _increment += value;
-            }
-        }
-
         internal override void WritePayload(EventSource _eventSource, float intervalSec)
         {
             IncrementingCounterPayload payload = GetCounterPayload();

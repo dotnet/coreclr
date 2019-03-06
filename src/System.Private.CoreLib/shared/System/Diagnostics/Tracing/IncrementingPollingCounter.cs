@@ -47,22 +47,6 @@ namespace System.Diagnostics.Tracing
         private volatile float _increment;
         private Func<float> _getMetricFunction;
 
-        // TODO: BLow this shit up
-        internal override void OnMetricWritten(float value)
-        {
-            try
-            {
-                lock(MyLock)
-                {
-                    _increment += _getMetricFunction();
-                }
-            }
-            catch (Exception)
-            {
-                // Swallow all exceptions that we may get from calling _getMetricFunction();
-            }
-        }
-
         /// <summary>
         /// Calls "_getMetricFunction" to enqueue the counter value to the queue. 
         /// </summary>
