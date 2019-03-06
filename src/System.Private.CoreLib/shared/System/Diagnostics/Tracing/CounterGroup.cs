@@ -188,14 +188,7 @@ namespace System.Diagnostics.Tracing
                             IncrementingPollingCounter ipCounter = (IncrementingPollingCounter)counter;
                             ipCounter.UpdateMetric();
                         }
-
                     	counter.WritePayload(_eventSource, (float)elapsed.TotalSeconds);
-
-                    	/*
-                        EventCounterPayload payload = counter.GetEventCounterPayload();
-                        payload.IntervalSec = (float)elapsed.TotalSeconds;
-                        _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PayloadType(payload));
-                        */
                     }
                     _timeStampSinceCollectionStarted = now;
                 }
