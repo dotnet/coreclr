@@ -1405,11 +1405,8 @@ namespace System.Reflection
                     {
                         // Metadata is always written in little-endian format. Must account for this on
                         // big-endian platforms.
-#if BIGENDIAN
-                        const int CustomAttributeVersion = 0x0100;
-#else
-                        const int CustomAttributeVersion = 0x0001;
-#endif
+                        const int CustomAttributeVersion = BitConverter.IsLittleEndian ? 0x0001 : 0x0100;
+
                         if (Marshal.ReadInt16(blobStart) != CustomAttributeVersion)
                         {
                             throw new CustomAttributeFormatException();
@@ -1419,9 +1416,11 @@ namespace System.Reflection
 
                         cNamedArgs = Marshal.ReadInt16(blobStart);
                         blobStart = (IntPtr)((byte*)blobStart + 2); // skip namedArgs count
-#if BIGENDIAN
-                        cNamedArgs = ((cNamedArgs & 0xff00) >> 8) | ((cNamedArgs & 0x00ff) << 8);
-#endif
+
+                        if (!BitConverter.IsLittleEndian)
+                        {
+                            cNamedArgs = ((cNamedArgs & 0xff00) >> 8) | ((cNamedArgs & 0x00ff) << 8);
+                        }
                     }
                 }
 
