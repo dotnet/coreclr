@@ -10135,7 +10135,7 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
         // ** IMPORTANT ** If you ever need to change the value of this fixed size, make sure to change the R2R
         // version number, otherwise older R2R images will probably crash when used.
 
-        const int r2rInlinedCallFrameSize = TARGET_POINTER_SIZE * 10;
+        const int r2rInlinedCallFrameSize = TARGET_POINTER_SIZE * 11;
 
 #if defined(_DEBUG) && !defined(CROSSBITNESS_COMPILE)
         InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);

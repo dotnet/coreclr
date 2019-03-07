@@ -114,6 +114,19 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
         
         MEND
 
+; ------------------------------------------------------------------
+;
+        MACRO
+
+        REMOVE_FRAME_FROM_THREAD $frameReg, $threadReg, $trashReg
+
+        ldr     $trashReg, [$frameReg, #Frame__m_Next]
+        str     $trashReg, [$threadReg, #Thread_m_pFrame]
+
+        str     xzr, [$frameReg, #InlinedCallFrame__m_pCallerReturnAddress]
+
+        MEND
+
     TEXTAREA
 
 ; ------------------------------------------------------------------
@@ -122,46 +135,40 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
 ; in:
 ; x0 = InlinedCallFrame*
 ; 
-        NESTED_ENTRY JIT_PInvokeBegin
+        LEAF_ENTRY JIT_PInvokeBegin
 
-            PROLOG_SAVE_REG_PAIR           fp, lr, #-32!
-            PROLOG_SAVE_REG                x19, #16
-           
             ldr     x9, =s_gsCookie
             ldr     x9, [x9]
             str     x9, [x0]
-            add     x19, x0, SIZEOF__GSCookie
+            add     x10, x0, SIZEOF__GSCookie
             
             ;; set first slot to the value of InlinedCallFrame::`vftable' (checked by runtime code)
             ldr     x9, =$InlinedCallFrame_vftable
-            str     x9, [x19]
+            str     x9, [x10]
 
-            str     xzr, [x19, #InlinedCallFrame__m_Datum]
+            str     xzr, [x10, #InlinedCallFrame__m_Datum]
         
-            add     x9, sp, 32
-            str     x9, [x19, #InlinedCallFrame__m_pCallSiteSP]
-            ldr     x9, [sp]
-            str     x9, [x19, #InlinedCallFrame__m_pCalleeSavedFP]
-            str     lr, [x19, #InlinedCallFrame__m_pCallerReturnAddress]
+            mov     x9, sp
+            str     x9, [x10, #InlinedCallFrame__m_pCallSiteSP]
+            str     fp, [x10, #InlinedCallFrame__m_pCalleeSavedFP]
+            str     lr, [x10, #InlinedCallFrame__m_pCallerReturnAddress]
 
             ;; x0 = GetThread(), TRASHES x9
             INLINE_GETTHREAD x0, x9
 
             ;; pFrame->m_Next = pThread->m_pFrame;
             ldr     x9, [x0, #Thread_m_pFrame]
-            str     x9, [x19, #Frame__m_Next]
+            str     x9, [x10, #Frame__m_Next]
 
             ;; pThread->m_pFrame = pFrame;
-            str     x19, [x0, #Thread_m_pFrame]
+            str     x10, [x0, #Thread_m_pFrame]
 
             ;; pThread->m_fPreemptiveGCDisabled = 0
             str     wzr, [x0, #Thread_m_fPreemptiveGCDisabled]
 
-            EPILOG_RESTORE_REG        x19, #16
-            EPILOG_RESTORE_REG_PAIR   fp, lr, #32!
-            EPILOG_RETURN
+            ret
             
-        NESTED_END
+        LEAF_END
 
 ; ------------------------------------------------------------------
 ; JIT_PInvokeEnd helper
@@ -169,38 +176,53 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
 ; in:
 ; x0 = InlinedCallFrame*
 ; 
-        NESTED_ENTRY JIT_PInvokeEnd
+        LEAF_ENTRY JIT_PInvokeEnd
     
-            PROLOG_SAVE_REG_PAIR           fp, lr, #-32!
-            PROLOG_SAVE_REG_PAIR           x19, x20, #16
+            add     x0, x0, SIZEOF__GSCookie
 
-            add     x19, x0, SIZEOF__GSCookie
+            ;; x1 = GetThread(), TRASHES x2
+            INLINE_GETTHREAD x1, x2
 
-            ;; x20 = GetThread(), TRASHES x9
-            INLINE_GETTHREAD x20, x9
-
-            ;; x19 = pFrame
-            ;; x20 = pThread
+            ;; x0 = pFrame
+            ;; x1 = pThread
             
             ;; pThread->m_fPreemptiveGCDisabled = 1
             mov     x9, 1
-            str     w9, [x20, #Thread_m_fPreemptiveGCDisabled]
+            str     w9, [x1, #Thread_m_fPreemptiveGCDisabled]
 
             ;; Check return trap
             ldr     x9, =g_TrapReturningThreads
             ldr     x9, [x9]
-            cbz     x9, DoNothing
+            cbnz    x9, JIT_PInvokeEndRarePath
 
-            ; Call GC helper
-            bl      RareDisablePreemptiveGCHelper
+            ;; pThread->m_pFrame = pFrame->m_Next
+            REMOVE_FRAME_FROM_THREAD x0, x1, x9
+
+            ret
             
-DoNothing
+        LEAF_END
 
-            ;; pThread->m_pFrame = pFrame->m_Next;
-            ldr     x9, [x19, #Frame__m_Next]
-            str     x9, [x20, #Thread_m_pFrame]
+; ------------------------------------------------------------------
+; JIT_PInvokeEndRarePath helper
+;
+; in:
+; x0 = InlinedCallFrame*
+; 
+        NESTED_ENTRY JIT_PInvokeEndRarePath
+    
+            PROLOG_SAVE_REG_PAIR           fp, lr, #-32!
+            PROLOG_SAVE_REG_PAIR           x19, x20, #16
 
-            str     xzr, [x19, #InlinedCallFrame__m_pCallerReturnAddress]
+            ;; Save thread and frame in callee saved registers
+            mov         x19, x0
+            mov         x20, x1
+
+            ;; Call GC helper
+            mov         x0, x1
+            bl          RareDisablePreemptiveGCHelper
+
+            ;; pThread->m_pFrame = pFrame->m_Next
+            REMOVE_FRAME_FROM_THREAD x19, x20, x9
         
             EPILOG_RESTORE_REG_PAIR   x19, x20, #16
             EPILOG_RESTORE_REG_PAIR   fp, lr, #32!

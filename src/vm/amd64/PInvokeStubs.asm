@@ -22,6 +22,15 @@ extern g_TrapReturningThreads:DWORD
 ; Min amount of stack space that a nested function should allocate.
 MIN_SIZE equ 28h
 
+REMOVE_FRAME_FROM_THREAD macro frameReg, threadReg, trashReg
+
+        mov             trashReg, qword ptr [frameReg + OFFSETOF__Frame__m_Next]
+        mov             qword ptr [threadReg + OFFSETOF__Thread__m_pFrame], trashReg
+
+        mov             qword ptr [frameReg + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], 0
+
+        endm
+
 ;
 ; in:
 ; PINVOKE_CALLI_TARGET_REGISTER (r10) = unmanaged target
@@ -190,44 +199,59 @@ LEAF_END JIT_PInvokeBegin, _TEXT
 ;                          before actual InlinedCallFrame data)
 ;
 ;
-NESTED_ENTRY JIT_PInvokeEnd, _TEXT
+LEAF_ENTRY JIT_PInvokeEnd, _TEXT
+
+        add             rcx, SIZEOF_GSCookie
+
+        INLINE_GETTHREAD rdx 
+
+        ;; rcx = pFrame
+        ;; rdx = pThread
+
+        ;; pThread->m_fPreemptiveGCDisabled = 1
+        mov             dword ptr [rdx + OFFSETOF__Thread__m_fPreemptiveGCDisabled], 1
+
+        ;; Check return trap
+        cmp             [g_TrapReturningThreads], 0
+        jnz             JIT_PInvokeEndRarePath
+
+        ;; pThread->m_pFrame = pFrame->m_Next
+        ;; Trashes rax
+        REMOVE_FRAME_FROM_THREAD rcx, rdx, rax
+
+        ret
+
+LEAF_END JIT_PInvokeEnd, _TEXT
+
+;
+; in:
+; InlinedCallFrame (rcx) = pointer to the InlinedCallFrame data
+; Thread           (rdx) = pointer to current thread
+;
+;
+NESTED_ENTRY JIT_PInvokeEndRarePath, _TEXT
 
         alloc_stack         MIN_SIZE
         save_reg_postrsp    r14, MIN_SIZE + 08h
         save_reg_postrsp    r15, MIN_SIZE + 10h 
         END_PROLOGUE
 
-        add             rcx, SIZEOF_GSCookie
+        ;; Save thread and frame in callee saved registers
         mov             r14, rcx
+        mov             r15, rdx
 
-        INLINE_GETTHREAD r15 
-
-        ;; r14 = pFrame
-        ;; r15 = pThread
-
-        ;; pThread->m_fPreemptiveGCDisabled = 1
-        mov             dword ptr [r15 + OFFSETOF__Thread__m_fPreemptiveGCDisabled], 1
-
-        ;; Check return trap
-        cmp             [g_TrapReturningThreads], 0
-        jz              DoNothing
-
-        mov             rcx, r15
+        ;; Call
+        mov             rcx, rdx
         call            RareDisablePreemptiveGCHelper
 
-DoNothing:
-
-        ;; pThread->m_pFrame = pFrame->m_Next;
-        mov             rax, qword ptr [r14 + OFFSETOF__Frame__m_Next]
-        mov             qword ptr [r15 + OFFSETOF__Thread__m_pFrame], rax
-
-        mov             qword ptr [r14 + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], 0
+        ;; pThread->m_pFrame = pFrame->m_Next
+        REMOVE_FRAME_FROM_THREAD r14, r15, rax
 
         mov             r14, qword ptr [rsp + MIN_SIZE + 08h]
         mov             r15, qword ptr [rsp + MIN_SIZE + 10h]
         add             rsp, MIN_SIZE
         ret
 
-NESTED_END JIT_PInvokeEnd, _TEXT
+NESTED_END JIT_PInvokeEndRarePath, _TEXT
 
         end
