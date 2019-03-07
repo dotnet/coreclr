@@ -1401,8 +1401,6 @@ void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* s
     assert(object != nullptr);
     assert(sc != nullptr);
     assert(callback != nullptr);
-
-    return;
 }
 
 void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*callback)(Object*, Object*, void*))
@@ -1411,8 +1409,6 @@ void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*call
 
     assert(object != nullptr);
     assert(callback != nullptr);
-
-    return;
 }
 
 IGCToCLREventSink* GCToEEInterface::EventSink()
