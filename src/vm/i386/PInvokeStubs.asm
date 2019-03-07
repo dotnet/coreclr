@@ -16,6 +16,7 @@
         .model  flat
 
         include asmconstants.inc
+        include asmmacros.inc
 
         option  casemap:none
         .code
@@ -25,10 +26,17 @@ extern ??_7InlinedCallFrame@@6B@:DWORD
 extern _g_TrapReturningThreads:DWORD
 
 extern _RareDisablePreemptiveGCHelper@4:proc
-EXTERN _GetThread@0:proc
 
 .686P
 .XMM
+
+REMOVE_FRAME_FROM_THREAD macro frameReg, threadReg, trashReg
+
+        mov             trashReg, dword ptr [frameReg + Frame__m_Next]
+        mov             dword ptr [threadReg + Thread_m_pFrame], trashReg
+
+        mov             dword ptr [frameReg + InlinedCallFrame__m_pCallerReturnAddress], 0
+endm
 
 ;
 ; in:
@@ -57,19 +65,18 @@ _JIT_PInvokeBegin@4 PROC public
         mov             eax, [esp]
         mov             dword ptr [ecx + InlinedCallFrame__m_pCallerReturnAddress], eax
 
-        push            ecx             ; Save pFrame pointer on stack
-        call            _GetThread@0    ; eax = Thread*
-        pop             ecx
+        ;; edx = GetThread(). Trashes eax
+        INLINE_GETTHREAD edx, eax
 
         ;; pFrame->m_Next = pThread->m_pFrame;
-        mov             edx, dword ptr [eax + Thread_m_pFrame]
-        mov             dword ptr [ecx + Frame__m_Next], edx
+        mov             eax, dword ptr [edx + Thread_m_pFrame]
+        mov             dword ptr [ecx + Frame__m_Next], eax
 
         ;; pThread->m_pFrame = pFrame;
-        mov             dword ptr [eax + Thread_m_pFrame], ecx
+        mov             dword ptr [edx + Thread_m_pFrame], ecx
 
         ;; pThread->m_fPreemptiveGCDisabled = 0
-        mov             dword ptr [eax + Thread_m_fPreemptiveGCDisabled], 0
+        mov             dword ptr [edx + Thread_m_fPreemptiveGCDisabled], 0
 
         ret
 
@@ -85,37 +92,51 @@ _JIT_PInvokeEnd@4 PROC public
 
         add             ecx, SIZEOF_GSCookie
 
-        push            ecx             ; Save pFrame pointer on stack
-        call            _GetThread@0    ; eax = Thread*
-        pop             ecx
+        ;; edx = GetThread(). Trashes eax
+        INLINE_GETTHREAD edx, eax
+
+        ;; ecx = pFrame
+        ;; edx = pThread
 
         ;; pThread->m_fPreemptiveGCDisabled = 1
-        mov             dword ptr [eax + Thread_m_fPreemptiveGCDisabled], 1
+        mov             dword ptr [edx + Thread_m_fPreemptiveGCDisabled], 1
 
         ;; Check return trap
         cmp             [_g_TrapReturningThreads], 0
-        jz              DoNothing
+        jnz             _JIT_PInvokeEndRarePath@8
 
-        push            ecx             ; Save pFrame pointer
-        push            eax             ; Save pThread pointer
-
-        ; Call GC helper
-        push            eax             ; pThread as argument to the call
-        call            _RareDisablePreemptiveGCHelper@4
-
-        pop             eax
-        pop             ecx
-
-DoNothing:
-
-        ;; pThread->m_pFrame = pFrame->m_Next;
-        mov             edx, dword ptr [ecx + Frame__m_Next]
-        mov             dword ptr [eax + Thread_m_pFrame], edx
-
-        mov             dword ptr [ecx + InlinedCallFrame__m_pCallerReturnAddress], 0
+        ;; pThread->m_pFrame = pFrame->m_Next
+        ;; Trashes eax
+        REMOVE_FRAME_FROM_THREAD ecx, edx, eax
 
         ret
 
 _JIT_PInvokeEnd@4 ENDP
+
+;
+; in:
+; InlinedCallFrame (ecx) = pointer to the InlinedCallFrame data
+; Thread           (edx) = pointer to current thread
+;
+;
+_JIT_PInvokeEndRarePath@8 PROC public
+
+        push            ecx             ; Save pFrame pointer
+        push            edx             ; Save pThread pointer
+
+        ;; Call GC helper
+        push            edx             ; pThread as argument to the call
+        call            _RareDisablePreemptiveGCHelper@4
+
+        pop             edx
+        pop             ecx
+
+        ;; pThread->m_pFrame = pFrame->m_Next
+        ;; Trashes eax
+        REMOVE_FRAME_FROM_THREAD ecx, edx, eax
+
+        ret
+
+_JIT_PInvokeEndRarePath@8 ENDP
 
         end
