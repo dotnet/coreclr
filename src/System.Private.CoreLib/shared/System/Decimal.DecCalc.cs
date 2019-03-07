@@ -24,7 +24,7 @@ namespace System
         private ulong Low64
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get =>BitConverter.IsLittleEndian ? Unsafe.As<int, ulong>(ref Unsafe.AsRef(in lo)) : ((ulong)Mid << 32) | Low;
+            get => BitConverter.IsLittleEndian ? Unsafe.As<int, ulong>(ref Unsafe.AsRef(in lo)) : ((ulong)Mid << 32) | Low;
         }
 
         private static ref DecCalc AsMutable(ref decimal d) => ref Unsafe.As<decimal, DecCalc>(ref d);
