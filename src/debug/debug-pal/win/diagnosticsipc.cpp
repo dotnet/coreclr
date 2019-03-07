@@ -3,15 +3,13 @@
 // See the LICENSE file in the project root for more information.
 
 #include <assert.h>
+#include <new>
 #include <stdio.h>
-#include <type_traits>
 #include "diagnosticsipc.h"
 
-#define _ASSERTE assert
-
-DiagnosticsIpc::DiagnosticsIpc(const char *const pIpcName, const uint32_t pid)
+IpcStream::DiagnosticsIpc::DiagnosticsIpc(const char *const pIpcName, const uint32_t pid)
 {
-    _ASSERTE(pIpcName != nullptr);
+    assert(pIpcName != nullptr);
 
     memset(_pNamedPipeName, 0, sizeof(_pNamedPipeName));
     const int nCharactersWritten = sprintf_s(
@@ -20,72 +18,46 @@ DiagnosticsIpc::DiagnosticsIpc(const char *const pIpcName, const uint32_t pid)
         "\\\\.\\pipe\\%s-%d",
         pIpcName,
         pid);
-    _ASSERTE(nCharactersWritten > 0);
+    assert(nCharactersWritten > 0);
 }
 
-DiagnosticsIpc::~DiagnosticsIpc()
+IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 {
-    if (IsValidStatus())
-    {
-        bool fSuccess = Close();
-        if (!fSuccess)
-        {
-            // TODO: Add error handling.
-        }
-    }
 }
 
-bool DiagnosticsIpc::Open()
+IpcStream *IpcStream::DiagnosticsIpc::Accept() const
 {
-    const uint32_t BufferSize = 8192;
-    _hPipe = ::CreateNamedPipeA(
+    const uint32_t nInBufferSize = 1024;
+    const uint32_t nOutBufferSize = 16 * 1024 * 1024;
+    HANDLE hPipe = ::CreateNamedPipeA(
         _pNamedPipeName,                                            // pipe name
-        PIPE_ACCESS_DUPLEX,                                         // read/write access
+        PIPE_ACCESS_DUPLEX/* | FILE_FLAG_OVERLAPPED*/,              // read/write access
         PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,    // message type pipe, message-read and blocking mode
         PIPE_UNLIMITED_INSTANCES,                                   // max. instances
-        BufferSize,                                                 // output buffer size
-        BufferSize,                                                 // input buffer size
+        nOutBufferSize,                                             // output buffer size
+        nInBufferSize,                                              // input buffer size
         0,                                                          // default client time-out
         NULL);                                                      // default security attribute
-
-    return (_hPipe != INVALID_HANDLE_VALUE);
+    if (hPipe == INVALID_HANDLE_VALUE)
+        return nullptr;
+    return (::ConnectNamedPipe(hPipe, NULL) != 0) || (::GetLastError() == ERROR_PIPE_CONNECTED) ? new (std::nothrow) IpcStream(hPipe) : nullptr;
 }
 
-bool DiagnosticsIpc::Close()
+IpcStream::~IpcStream()
 {
-    if (IsValidStatus())
+    if (_hPipe != INVALID_HANDLE_VALUE)
     {
-        HANDLE hPipe = _hPipe;
-        _hPipe = INVALID_HANDLE_VALUE;
+        BOOL fSuccess = ::DisconnectNamedPipe(_hPipe);
+        assert(fSuccess != 0);
 
-        BOOL fSuccess;
-        fSuccess = ::DisconnectNamedPipe(hPipe);
-        if (fSuccess == 0)
-            return false;
-
-        fSuccess = ::CloseHandle(hPipe);
-        if (fSuccess == 0)
-            return false;
-        return true;
+        fSuccess = ::CloseHandle(_hPipe);
+        assert(fSuccess != 0);
     }
-
-    return false;
 }
 
-bool DiagnosticsIpc::IsValidStatus() const
+bool IpcStream::Read(void *lpBuffer, const uint32_t nBytesToRead, uint32_t &nBytesRead) const
 {
-    return _hPipe != INVALID_HANDLE_VALUE;
-}
-
-bool DiagnosticsIpc::Accept()
-{
-    const BOOL fSuccess = ::ConnectNamedPipe(_hPipe, NULL);
-    return fSuccess != 0 ? true : (GetLastError() == ERROR_PIPE_CONNECTED);
-}
-
-bool DiagnosticsIpc::Read(void *lpBuffer, const uint32_t nBytesToRead, uint32_t &nBytesRead) const
-{
-    _ASSERTE(lpBuffer != nullptr);
+    assert(lpBuffer != nullptr);
 
     DWORD nNumberOfBytesRead = 0;
     const bool fSuccess = ::ReadFile(
@@ -100,13 +72,13 @@ bool DiagnosticsIpc::Read(void *lpBuffer, const uint32_t nBytesToRead, uint32_t 
         // TODO: Add error handling.
     }
 
-    nBytesRead = fSuccess ? static_cast<std::remove_reference<decltype(nBytesRead)>::type>(nNumberOfBytesRead) : 0;
+    nBytesRead = static_cast<std::remove_reference<decltype(nBytesRead)>::type>(nNumberOfBytesRead);
     return fSuccess;
 }
 
-bool DiagnosticsIpc::Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32_t &nBytesWritten) const
+bool IpcStream::Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32_t &nBytesWritten) const
 {
-    _ASSERTE(lpBuffer != nullptr);
+    assert(lpBuffer != nullptr);
 
     DWORD nNumberOfBytesWritten = 0;
     const bool fSuccess = ::WriteFile(
@@ -121,11 +93,11 @@ bool DiagnosticsIpc::Write(const void *lpBuffer, const uint32_t nBytesToWrite, u
         // TODO: Add error handling.
     }
 
-    nBytesWritten = fSuccess ? static_cast<std::remove_reference<decltype(nBytesWritten)>::type>(nNumberOfBytesWritten) : 0;
+    nBytesWritten = static_cast<std::remove_reference<decltype(nBytesWritten)>::type>(nNumberOfBytesWritten);
     return fSuccess;
 }
 
-bool DiagnosticsIpc::Flush() const
+bool IpcStream::Flush() const
 {
     const bool fSuccess = ::FlushFileBuffers(_hPipe) != 0;
     if (!fSuccess)

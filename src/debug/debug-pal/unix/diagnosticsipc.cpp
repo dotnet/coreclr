@@ -4,17 +4,16 @@
 
 #include <pal.h>
 #include <pal_assert.h>
-#include "diagnosticsipc.h"
 #include <new>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <type_traits>
+#include "diagnosticsipc.h"
 
-DiagnosticsIpc::DiagnosticsIpc(const char *const pIpcName, const uint32_t pid)
-    : _pServerAddress(new (std::nothrow) sockaddr_un)
+IpcStream::DiagnosticsIpc::DiagnosticsIpc(const char *const pIpcName, const uint32_t pid) :
+    _pServerAddress(new (std::nothrow) sockaddr_un)
 {
     _ASSERTE(_pServerAddress != nullptr);
     _ASSERTE(pIpcName != nullptr);
@@ -27,7 +26,7 @@ DiagnosticsIpc::DiagnosticsIpc(const char *const pIpcName, const uint32_t pid)
     const int nCharactersWritten = sprintf_s(
         _pServerAddress->sun_path,
         sizeof(_pServerAddress->sun_path),
-        "/tmp/%s-%d.socket",
+        "/tmp/%s-%d",
         pIpcName,
         pid);
     _ASSERTE(nCharactersWritten > 0);
@@ -36,16 +35,10 @@ DiagnosticsIpc::DiagnosticsIpc(const char *const pIpcName, const uint32_t pid)
     _ASSERTE(fSuccessBind != -1);
 }
 
-DiagnosticsIpc::~DiagnosticsIpc()
+IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 {
-    if (IsValidStatus())
+    if (_serverSocket != -1)
     {
-        bool fSuccess = Close();
-        if (!fSuccess)
-        {
-            // TODO: Add error handling.
-        }
-
         const int fSuccessClose = ::close(_serverSocket);
         _ASSERTE(fSuccessClose != -1); // TODO: Add error handling.
 
@@ -56,56 +49,26 @@ DiagnosticsIpc::~DiagnosticsIpc()
     }
 }
 
-bool DiagnosticsIpc::Open()
+IpcStream *IpcStream::DiagnosticsIpc::Accept() const
 {
-    return true;
+    if (::listen(_serverSocket, /* backlog */ 255) == -1)
+        return nullptr;
+    sockaddr_un from;
+    socklen_t fromlen = sizeof(from);
+    const int clientSocket = ::accept(_serverSocket, (sockaddr *)&from, &fromlen);
+    return clientSocket == -1 ? nullptr : new (std::nothrow) IpcStream(clientSocket);
 }
 
-bool DiagnosticsIpc::Close()
+IpcStream::~IpcStream()
 {
     if (_clientSocket != -1)
     {
         const int fSuccessClose = ::close(_clientSocket);
-        _clientSocket = -1;
         _ASSERTE(fSuccessClose != -1);
-        if (fSuccessClose == -1)
-        {
-            // TODO: Add error handling.
-            return false;
-        }
-        return true;
     }
-    return false;
 }
 
-bool DiagnosticsIpc::IsValidStatus() const
-{
-    return _serverSocket != -1;
-}
-
-bool DiagnosticsIpc::Accept()
-{
-    const int fSuccessListen = ::listen(_serverSocket, /* backlog */ 255); // TODO: Unlimited here?
-    _ASSERTE(fSuccessListen != -1);
-    if (fSuccessListen == -1)
-    {
-        // TODO: Add error handling.
-        return false;
-    }
-
-    sockaddr_un from;
-    socklen_t fromlen = sizeof(from);
-    _clientSocket = ::accept(_serverSocket, (sockaddr *)&from, &fromlen);
-    _ASSERTE(_clientSocket != -1);
-    if (_clientSocket == -1)
-    {
-        // TODO: Add error handling.
-        return false;
-    }
-    return true;
-}
-
-bool DiagnosticsIpc::Read(void *lpBuffer, const uint32_t nBytesToRead, uint32_t &nBytesRead) const
+bool IpcStream::Read(void *lpBuffer, const uint32_t nBytesToRead, uint32_t &nBytesRead) const
 {
     _ASSERTE(lpBuffer != nullptr);
 
@@ -117,11 +80,11 @@ bool DiagnosticsIpc::Read(void *lpBuffer, const uint32_t nBytesToRead, uint32_t 
         // TODO: Add error handling.
     }
 
-    nBytesRead = fSuccess ? static_cast<std::remove_reference<decltype(nBytesRead)>::type>(ssize) : 0;
+    nBytesRead = static_cast<std::remove_reference<decltype(nBytesRead)>::type>(ssize);
     return fSuccess;
 }
 
-bool DiagnosticsIpc::Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32_t &nBytesWritten) const
+bool IpcStream::Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32_t &nBytesWritten) const
 {
     _ASSERTE(lpBuffer != nullptr);
 
@@ -133,11 +96,12 @@ bool DiagnosticsIpc::Write(const void *lpBuffer, const uint32_t nBytesToWrite, u
         // TODO: Add error handling.
     }
 
-    nBytesWritten = fSuccess ? static_cast<std::remove_reference<decltype(nBytesWritten)>::type>(ssize) : 0;
+    nBytesWritten = static_cast<std::remove_reference<decltype(nBytesWritten)>::type>(ssize);
     return fSuccess;
 }
 
-bool DiagnosticsIpc::Flush() const
+bool IpcStream::Flush() const
 {
+    // fsync - http://man7.org/linux/man-pages/man2/fsync.2.html ???
     return true;
 }
