@@ -800,8 +800,8 @@ void BlockResetAgeMapForBlocksWorker(uint32_t *pdwGen, uint32_t dwClumpMask, Sca
 
     // loop over the clumps, scanning those that are identified by the mask
     do
-    {
-        // compute the last handle in this clump
+    {        
+                // compute the last handle in this clump
         _UNCHECKED_OBJECTREF *pLast = pValue + HANDLE_HANDLES_PER_CLUMP;
 
         // if this clump should be scanned then scan it
