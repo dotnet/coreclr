@@ -85,9 +85,6 @@
 
     <!-- Arm32 All OS -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and ('$(BuildArch)' == 'arm' or '$(AltJitArch)' == 'arm')">
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/MDArray/DataTypes/long_cs_do/*">
-            <Issue>23103</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/CoreMangLib/cti/system/reflection/emit/DynMethodJumpStubTests/DynMethodJumpStubTests/*">
             <Issue>needs triage</Issue>
         </ExcludeList>
