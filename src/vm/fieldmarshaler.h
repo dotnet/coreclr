@@ -142,6 +142,13 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport *pInternalImport, 
 //=======================================================================
 BOOL IsStructMarshalable(TypeHandle th);
 
+struct RawFieldPlacementInfo
+{
+    UINT32 m_offset;
+    UINT32 m_size;
+    UINT32 m_alignment;
+};
+
 //=======================================================================
 // The classloader stores an intermediate representation of the layout
 // metadata in an array of these structures. The dual-pass nature
@@ -152,7 +159,6 @@ BOOL IsStructMarshalable(TypeHandle th);
 //
 // Each redirected field gets one entry in LayoutRawFieldInfo.
 // The array is terminated by one dummy record whose m_MD == mdMemberDefNil.
-// WARNING!! Before you change this struct see the comment above the m_FieldMarshaler field
 //=======================================================================
 struct LayoutRawFieldInfo
 {
@@ -160,6 +166,7 @@ struct LayoutRawFieldInfo
     UINT8       m_nft;            // NFT_* value
     UINT32      m_offset;         // native offset of field
     UINT32      m_cbNativeSize;   // native size of field in bytes
+    UINT32      m_nativeAlignment;// native alignment of field
     ULONG       m_sequence;       // sequence # from metadata
 
 
@@ -176,7 +183,6 @@ struct LayoutRawFieldInfo
     // memory, so keep it 8-byte aligned or 
     // the vtable pointer initialization will cause a 
     // misaligned memory write on IA64.
-    // The entire struct's size must also be multiple of 8 bytes
     alignas(8) struct
     {
         private:

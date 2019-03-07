@@ -3339,7 +3339,7 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
 
         if (calculatingNativeLayout)
         {
-            alignmentRequirement = static_cast<BYTE>(((FieldMarshaler*) & (pfwalk->m_FieldMarshaler))->AlignmentRequirement());
+            alignmentRequirement = pfwalk->m_nativeAlignment;
         }
         else
         {
@@ -3600,6 +3600,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     for (LayoutRawFieldInfo* pfwalk = pInfoArrayOut; pfwalk->m_MD != mdFieldDefNil; pfwalk++)
     {
         pfwalk->m_cbNativeSize = ((FieldMarshaler*) & (pfwalk->m_FieldMarshaler))->NativeSize();
+        pfwalk->m_nativeAlignment = ((FieldMarshaler*) & (pfwalk->m_FieldMarshaler))->AlignmentRequirement();
 
 #ifdef _DEBUG
         // @perf: If the type is blittable, the managed and native layouts have to be identical
