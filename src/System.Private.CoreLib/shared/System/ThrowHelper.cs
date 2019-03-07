@@ -44,7 +44,7 @@ using System.Runtime.Serialization;
 namespace System
 {
     [StackTraceHidden]
-    internal static class ThrowHelper
+    internal static partial class ThrowHelper
     {
         internal static void ThrowArrayTypeMismatchException()
         {
