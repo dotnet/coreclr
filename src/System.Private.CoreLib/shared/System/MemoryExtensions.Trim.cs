@@ -551,30 +551,25 @@ namespace System
         /// </summary>
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span)
         {
-            int start = ClampStart(span);
-            int length = ClampEnd(span, start);
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!char.IsWhiteSpace(span[start]))
+                {
+                    break;
+                }
+            }
 
-            return span.Slice(start, length);
+            int end = span.Length - 1;
+            for (; end >= start; end--)
+            {
+                if (!char.IsWhiteSpace(span[end]))
+                {
+                    break;
+                }
+            }
 
-            //int start = 0;
-            //for (; start < span.Length; start++)
-            //{
-            //    if (!char.IsWhiteSpace(span[start]))
-            //    {
-            //        break;
-            //    }
-            //}
-
-            //int end = span.Length - 1;
-            //for (; end >= start; end--)
-            //{
-            //    if (!char.IsWhiteSpace(span[end]))
-            //    {
-            //        break;
-            //    }
-            //}
-
-            //return span.Slice(start, end - start + 1);
+            return span.Slice(start, end - start + 1);
         }
 
         /// <summary>
@@ -582,18 +577,16 @@ namespace System
         /// </summary>
         public static ReadOnlySpan<char> TrimStart(this ReadOnlySpan<char> span)
         {
-            return span.Slice(ClampStart(span));
+            int start = 0;
+            for (; start < span.Length; start++)
+            {
+                if (!char.IsWhiteSpace(span[start]))
+                {
+                    break;
+                }
+            }
 
-            //int start = 0;
-            //for (; start < span.Length; start++)
-            //{
-            //    if (!char.IsWhiteSpace(span[start]))
-            //    {
-            //        break;
-            //    }
-            //}
-
-            //return span.Slice(start);
+            return span.Slice(start);
         }
 
         /// <summary>
@@ -601,18 +594,16 @@ namespace System
         /// </summary>
         public static ReadOnlySpan<char> TrimEnd(this ReadOnlySpan<char> span)
         {
-            return span.Slice(0, ClampEnd(span, 0));
+            int end = span.Length - 1;
+            for (; end >= 0; end--)
+            {
+                if (!char.IsWhiteSpace(span[end]))
+                {
+                    break;
+                }
+            }
 
-            //int end = span.Length - 1;
-            //for (; end >= 0; end--)
-            //{
-            //    if (!char.IsWhiteSpace(span[end]))
-            //    {
-            //        break;
-            //    }
-            //}
-
-            //return span.Slice(0, end + 1);
+            return span.Slice(0, end + 1);
         }
 
         /// <summary>
