@@ -14,12 +14,16 @@ class EventPipeConfiguration;
 class EventPipeEvent;
 class EventPipeEventInstance;
 class EventPipeFile;
+class EventPipeStream;
 class EventPipeBufferManager;
 class EventPipeEventSource;
 class EventPipeProvider;
+class EventPipeSessionProvider;
+class EventPipeSessionProviderList;
 class MethodDesc;
 struct EventPipeProviderConfiguration;
 class EventPipeSession;
+class IpcStream;
 
 // EVENT_FILTER_DESCRIPTOR (This type does not exist on non-Windows platforms.)
 //  https://docs.microsoft.com/en-us/windows/desktop/api/evntprov/ns-evntprov-_event_filter_descriptor
@@ -237,6 +241,7 @@ class EventPipe
     // Declare friends.
     friend class EventPipeConfiguration;
     friend class EventPipeFile;
+    friend class EventPipeStream;
     friend class EventPipeProvider;
     friend class EventPipeBufferManager;
     friend class SampleProfiler;
@@ -251,10 +256,10 @@ public:
     // Enable tracing via the event pipe.
     static EventPipeSessionID Enable(
         LPCWSTR strOutputPath,
-        unsigned int circularBufferSizeInMB,
-        EventPipeProviderConfiguration *pProviders,
-        int numProviders,
-        UINT64 multiFileTraceLengthInSeconds);
+        uint32_t circularBufferSizeInMB,
+        uint64_t profilerSamplingRateInNanoseconds,
+        const EventPipeSessionProviderList &providers,
+        uint64_t multiFileTraceLengthInSeconds);
 
     // Disable tracing via the event pipe.
     static void Disable(EventPipeSessionID id);
@@ -296,6 +301,11 @@ public:
 
     // Get next event.
     static EventPipeEventInstance *GetNextEvent();
+
+    // IPC event handlers.
+    static void EnableFileTracingEventHandler(IpcStream *pStream);
+    // static void EnableStreamTracingEventHandler(IpcStream *pStream);
+    static void DisableTracingEventHandler(IpcStream *pStream);
 
 private:
     // The counterpart to WriteEvent which after the payload is constructed
@@ -357,33 +367,11 @@ public:
     EventPipeProviderConfiguration() = default;
 
     EventPipeProviderConfiguration(LPCWSTR pProviderName, UINT64 keywords, UINT32 loggingLevel, LPCWSTR pFilterData) :
+        m_pProviderName(pProviderName),
         m_keywords(keywords),
-        m_loggingLevel(loggingLevel)
+        m_loggingLevel(loggingLevel),
+        m_pFilterData(pFilterData)
     {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(pProviderName != nullptr); // Do we need this here?
-
-        // Provider name is required.
-        auto ProviderNameLength = wcslen(pProviderName);
-        NewArrayHolder<WCHAR> hProviderName = new (nothrow) WCHAR[ProviderNameLength + 1];
-        if (hProviderName.IsNull())
-            return;
-        wcsncpy(hProviderName.GetValue(), pProviderName, ProviderNameLength);
-        hProviderName.GetValue()[ProviderNameLength] = 0;
-
-        // Filter data is optional.
-        if (pFilterData != nullptr)
-        {
-            const size_t FilterDataLength = wcslen(pFilterData);
-            NewArrayHolder<WCHAR> hFilterData = new (nothrow) WCHAR[FilterDataLength + 1];
-            if (hFilterData.IsNull())
-                return;
-            wcsncpy(hFilterData.GetValue(), pFilterData, FilterDataLength);
-            hFilterData.GetValue()[FilterDataLength] = 0;
-            m_pFilterData = hFilterData.Extract();
-        }
-
-        m_pProviderName = hProviderName.Extract();
     }
 
     LPCWSTR GetProviderName() const
@@ -409,13 +397,8 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_pFilterData;
     }
-
-    ~EventPipeProviderConfiguration()
-    {
-        delete[] m_pProviderName;
-        delete[] m_pFilterData;
-    }
 };
+
 #endif // FEATURE_PERFTRACING
 
 #endif // __EVENTPIPE_H__

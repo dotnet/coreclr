@@ -306,6 +306,7 @@ set(VM_SOURCES_WKS
     comwaithandle.cpp
     customattribute.cpp
     custommarshalerinfo.cpp
+    diagnosticserver.cpp
     dllimportcallback.cpp
     eeconfig.cpp
     eecontract.cpp
@@ -326,6 +327,7 @@ set(VM_SOURCES_WKS
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp
     eventpipesession.cpp
+    eventpipesessionprovider.cpp
     eventstore.cpp
     fastserializer.cpp
     fcall.cpp
@@ -422,6 +424,7 @@ set(VM_HEADERS_WKS
     comwaithandle.h
     customattribute.h
     custommarshalerinfo.h
+    diagnosticserver.h
     dllimportcallback.h
     eeconfig.h
     eecontract.h
@@ -445,6 +448,7 @@ set(VM_HEADERS_WKS
     eventpipemetadatagenerator.h
     eventpipeprovider.h
     eventpipesession.h
+    eventpipesessionprovider.h
     eventstore.hpp
     fastserializer.h
     fcall.h

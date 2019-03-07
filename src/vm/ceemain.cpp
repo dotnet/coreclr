@@ -215,8 +215,8 @@
 #include "perfmap.h"
 #endif
 
+#include "diagnosticserver.h"
 #include "eventpipe.h"
-#include "eventpipeinternal.h"
 
 #ifndef FEATURE_PAL
 // Included for referencing __security_cookie
@@ -672,7 +672,7 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifdef FEATURE_PERFTRACING
         // Initialize the event pipe.
-        EventPipeInternal::Initialize();
+        DiagnosticServer::Initialize();
         EventPipe::Initialize();
 #endif // FEATURE_PERFTRACING
 
@@ -1468,7 +1468,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 #ifdef FEATURE_PERFTRACING
     // Shutdown the event pipe.
     EventPipe::Shutdown();
-    EventPipeInternal::Shutdown();
+    DiagnosticServer::Shutdown();
 #endif // FEATURE_PERFTRACING
 
 #if defined(FEATURE_COMINTEROP)

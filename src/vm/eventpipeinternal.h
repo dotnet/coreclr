@@ -7,33 +7,7 @@
 
 #ifdef FEATURE_PERFTRACING
 
-//! TODO: Temp class.
-enum class EventPipeMessageType : uint32_t
-{
-    Enable = 0,
-    Disable,
-
-    // TODO: Define what else is available on the out-of-proc interface?
-    // GetSessionInfo,
-    // CreateProvider,
-    // DefineEvent,
-    // GetProvider,
-    // DeleteProvider,
-    // EventActivityIdControl,
-    // WriteEvent,
-    // WriteEventData,
-    // GetNextEvent,
-
-    // Add new events before this line.
-    TotalNumberOfEvents,
-};
-
-//! TODO: Temp class.
-struct IpcHeader
-{
-    uint32_t pid;
-    EventPipeMessageType requestType;
-};
+// TODO: Maybe we should move the other types that are used on PInvoke here?
 
 class EventPipeInternal
 {
@@ -67,13 +41,6 @@ private:
     };
 
 public:
-    //! Initialize the event pipe (Creates the EventPipe IPC server).
-    static void Initialize();
-
-    //! Shutdown the event pipe.
-    // TODO: Shutdown the EventPipe IPC server.
-    static void Shutdown();
-
     //!
     //! Sets the sampling rate and enables the event pipe for the specified configuration.
     //!
@@ -82,7 +49,7 @@ public:
         UINT32 circularBufferSizeInMB,
         INT64 profilerSamplingRateInNanoseconds,
         EventPipeProviderConfiguration *pProviders,
-        INT32 numProviders,
+        UINT32 numProviders,
         UINT64 multiFileTraceLengthInSeconds);
 
     //! TODO: Add a ListActiveSessions to get the live SessionID in order to Disable?
