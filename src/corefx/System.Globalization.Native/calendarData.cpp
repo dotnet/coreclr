@@ -509,7 +509,7 @@ the callback for each value in the collection.
 The context parameter is passed through to the callback along with each string.
 */
 extern "C" int32_t GlobalizationNative_EnumCalendarInfo(
-                        EnumCalendarInfoCallback callback, 
+                        EnumCalendarInfoCallback callback,
                         const UChar* localeName,
                         CalendarId calendarId,
                         CalendarDataType dataType,
@@ -581,7 +581,8 @@ extern "C" int32_t GlobalizationNative_GetLatestJapaneseEra()
     if (U_FAILURE(err))
         return 0;
 
-    int32_t ret = ucal_getLimit(pCal, UCAL_ERA, UCAL_MAXIMUM, &err);
+    ucal_set(pCal, UCAL_EXTENDED_YEAR, 9999);
+    int32_t ret = ucal_get(pCal, UCAL_ERA, &err);
 
     return U_SUCCESS(err) ? ret : 0;
 }
