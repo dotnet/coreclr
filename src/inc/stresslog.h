@@ -127,6 +127,7 @@
             LOG((facility, level, msg, data1, data2, data3, data4, data5, data6, data7));               \
             } while(0)
 
+// Missing `cond` parameter.
 #define STRESS_LOG_COND0(facility, level, msg) do {                           \
             if (StressLog::LogOn(facility, level) && (cond))                  \
                 StressLog::LogMsg(level, facility, 0, msg);                   \

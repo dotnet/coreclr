@@ -38,6 +38,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID /*lpThreadParameter*/)
             continue;
         }
 
+        // TODO: Read operation should happen in a loop.
         uint32_t nNumberOfBytesRead = 0;
         MessageHeader header;
         bool fSuccess = pStream->Read(&header, sizeof(header), nNumberOfBytesRead);
@@ -80,7 +81,7 @@ bool DiagnosticServer::Initialize()
     assert(!fInitialized);
 
     DWORD dwThreadId = 0;
-    HANDLE hThread = ::CreateThread(
+    HANDLE hThread = ::CreateThread( // TODO: Is it correct to have this "lower" level call here?
         nullptr,                    // no security attribute
         0,                          // default stack size
         DiagnosticsServerThread,    // thread proc
@@ -99,7 +100,7 @@ bool DiagnosticServer::Initialize()
     }
     else
     {
-         // FIXME: Maybe hold on to the thread to abort/cleanup atexit?
+         // FIXME: Maybe hold on to the thread to abort/cleanup at exit?
         ::CloseHandle(hThread);
         fInitialized = true;
     }
