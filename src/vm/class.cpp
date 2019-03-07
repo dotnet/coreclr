@@ -3241,11 +3241,11 @@ void EEClassLayoutInfo::SetOffsetsAndSortFields(
         else
         {
             // ulOffset is the explicit offset
-            pfwalk->m_offset = ulOffset;
+            pfwalk->m_nativePlacement.m_offset = ulOffset;
             pfwalk->m_sequence = (ULONG)-1;
 
             // Treat base class as an initial member.
-            if (!SafeAddUINT32(&(pfwalk->m_offset), cbAdjustedParentLayoutNativeSize))
+            if (!SafeAddUINT32(&(pfwalk->m_nativePlacement.m_offset), cbAdjustedParentLayoutNativeSize))
                 COMPlusThrowOM();
         }
     }
@@ -3279,7 +3279,7 @@ void EEClassLayoutInfo::SetOffsetsAndSortFields(
         {
             if (pFieldInfoArray[i].m_MD != mdFieldDefNil)
             {
-                if (pFieldInfoArray[i].m_offset == (UINT32)-1)
+                if (pFieldInfoArray[i].m_nativePlacement.m_offset == (UINT32)-1)
                 {
                     LPCUTF8 szFieldName;
                     if (FAILED(pInternalImport->GetNameOfFieldDef(pFieldInfoArray[i].m_MD, &szFieldName)))
@@ -3291,7 +3291,7 @@ void EEClassLayoutInfo::SetOffsetsAndSortFields(
                         szFieldName,
                         IDS_CLASSLOAD_NSTRUCT_EXPLICIT_OFFSET);
                 }
-                else if ((INT)pFieldInfoArray[i].m_offset < 0)
+                else if ((INT)pFieldInfoArray[i].m_nativePlacement.m_offset < 0)
                 {
                     LPCUTF8 szFieldName;
                     if (FAILED(pInternalImport->GetNameOfFieldDef(pFieldInfoArray[i].m_MD, &szFieldName)))
@@ -3334,17 +3334,18 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
     for (pSortWalk = pSortedFieldInfoArray, i = numInstanceFields; i; i--, pSortWalk++)
     {
         LayoutRawFieldInfo* pfwalk = *pSortWalk;
-
-        BYTE alignmentRequirement;
+        RawFieldPlacementInfo* placementInfo;
 
         if (calculatingNativeLayout)
         {
-            alignmentRequirement = pfwalk->m_nativeAlignment;
+            placementInfo = &pfwalk->m_nativePlacement;
         }
         else
         {
-            alignmentRequirement = pfwalk->m_managedAlignmentReq;
+            placementInfo = &pfwalk->m_managedPlacement;
         }
+
+        BYTE alignmentRequirement = placementInfo->m_alignment;
 
         if (!(alignmentRequirement == 1 ||
             alignmentRequirement == 2 ||
@@ -3373,35 +3374,14 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
                     COMPlusThrowOM();
             }
 
-
             // if we overflow we will catch it below
-            if (calculatingNativeLayout)
-            {
-                // Insert current data member.
-                pfwalk->m_offset = cbCurOffset;
-                cbCurOffset += pfwalk->m_cbNativeSize;
-            }
-            else
-            {
-                // Insert current data member.
-                pfwalk->m_managedOffset = cbCurOffset;
-                cbCurOffset += pfwalk->m_managedSize;
-            }
+            placementInfo->m_offset = cbCurOffset;
+            cbCurOffset += placementInfo->m_size;
         }
 
-        unsigned fieldEnd;
-        if (calculatingNativeLayout)
-        {
-            fieldEnd = pfwalk->m_offset + pfwalk->m_cbNativeSize;
-            if (fieldEnd < pfwalk->m_offset)
-                COMPlusThrowOM();
-        }
-        else
-        {
-            fieldEnd = pfwalk->m_managedOffset + pfwalk->m_managedSize;
-            if (fieldEnd < pfwalk->m_managedOffset)
-                COMPlusThrowOM();
-        }
+        unsigned fieldEnd = placementInfo->m_offset + placementInfo->m_size;
+        if (fieldEnd < placementInfo->m_offset)
+            COMPlusThrowOM();
 
         // size of the structure is the size of the last field.  
         if (fieldEnd > calcTotalSize)
@@ -3599,8 +3579,8 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     // Now compute the native size of each field
     for (LayoutRawFieldInfo* pfwalk = pInfoArrayOut; pfwalk->m_MD != mdFieldDefNil; pfwalk++)
     {
-        pfwalk->m_cbNativeSize = ((FieldMarshaler*) & (pfwalk->m_FieldMarshaler))->NativeSize();
-        pfwalk->m_nativeAlignment = ((FieldMarshaler*) & (pfwalk->m_FieldMarshaler))->AlignmentRequirement();
+        pfwalk->m_nativePlacement.m_size = ((FieldMarshaler*) & (pfwalk->m_FieldMarshaler))->NativeSize();
+        pfwalk->m_nativePlacement.m_alignment = ((FieldMarshaler*) & (pfwalk->m_FieldMarshaler))->AlignmentRequirement();
 
 #ifdef _DEBUG
         // @perf: If the type is blittable, the managed and native layouts have to be identical
@@ -3609,7 +3589,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         // case. The managed size is only calculated in the managed-sequential case.
         if (!fDisqualifyFromManagedSequential && pEEClassLayoutInfoOut->IsBlittable())
         {
-            _ASSERTE(pfwalk->m_managedSize == pfwalk->m_cbNativeSize);
+            _ASSERTE(pfwalk->m_managedPlacement.m_size == pfwalk->m_nativePlacement.m_size);
         }
 #endif
     }
@@ -3724,7 +3704,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             {
                 fieldname = "??";
             }
-            LOG((LF_INTEROP, LL_INFO100000, "+%-5lu  ", (ULONG)(pfwalk->m_offset)));
+            LOG((LF_INTEROP, LL_INFO100000, "+%-5lu  ", (ULONG)(pfwalk->m_nativePlacement.m_offset)));
             LOG((LF_INTEROP, LL_INFO100000, "%s", fieldname));
             LOG((LF_INTEROP, LL_INFO100000, "\n"));
 
@@ -3819,7 +3799,7 @@ void EEClassLayoutInfo::ParseFieldNativeTypes(
 
             // fill the appropriate entry in pInfoArrayOut
             pFieldInfoArrayOut->m_MD = fd;
-            pFieldInfoArrayOut->m_offset = (UINT32)-1;
+            pFieldInfoArrayOut->m_nativePlacement.m_offset = (UINT32)-1;
             pFieldInfoArrayOut->m_sequence = 0;
 
 #ifdef _DEBUG

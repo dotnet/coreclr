@@ -142,6 +142,10 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport *pInternalImport, 
 //=======================================================================
 BOOL IsStructMarshalable(TypeHandle th);
 
+//=======================================================================
+// This structure contains information about where a field is placed in a structure, as well as it's size and alignment.
+// It is used as part of type-loading to determine native layout and (where applicable) managed sequential layout.
+//=======================================================================
 struct RawFieldPlacementInfo
 {
     UINT32 m_offset;
@@ -164,9 +168,7 @@ struct LayoutRawFieldInfo
 {
     mdFieldDef  m_MD;             // mdMemberDefNil for end of array
     UINT8       m_nft;            // NFT_* value
-    UINT32      m_offset;         // native offset of field
-    UINT32      m_cbNativeSize;   // native size of field in bytes
-    UINT32      m_nativeAlignment;// native alignment of field
+    RawFieldPlacementInfo m_nativePlacement; // Description of the native field placement
     ULONG       m_sequence;       // sequence # from metadata
 
 
@@ -174,9 +176,7 @@ struct LayoutRawFieldInfo
     //----- So we need to keep a parallel set of layout data for the managed side. The Size and AlignmentReq
     //----- is redundant since we can figure it out from the sig but since we're already accessing the sig
     //----- in ParseNativeType, we might as well capture it at that time.
-    UINT32      m_managedSize;    // managed size of field
-    UINT32      m_managedAlignmentReq; // natural alignment of field
-    UINT32      m_managedOffset;  // managed offset of field
+    RawFieldPlacementInfo m_managedPlacement;
 
     // WARNING!
     // We in-place create a field marshaler in the following
