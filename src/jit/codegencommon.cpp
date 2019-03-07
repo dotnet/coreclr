@@ -4975,9 +4975,9 @@ void          CodeGen::genPushCalleeSavedRegisters()
             //      stp fp,lr,[sp,#-framesz]!
             //
             // The (totalFrameSize <= 504) condition ensures that both the pre-index STP instruction
-            // used in the prolog, the post-index LDP instruction used in the epilog, can be generated.
+            // used in the prolog, and the post-index LDP instruction used in the epilog, can be generated.
             // Note that STP and the unwind codes can handle -512, but LDP with a positive post-index value
-            // can only handle up to 504, and we want our prolog and epilogs to match.
+            // can only handle up to 504, and we want our prolog and epilog to match.
             //
             // After saving callee-saved registers, we establish the frame pointer with:
             //      mov fp,sp
