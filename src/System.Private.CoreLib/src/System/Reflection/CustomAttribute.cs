@@ -1405,9 +1405,7 @@ namespace System.Reflection
                     {
                         // Metadata is always written in little-endian format. Must account for this on
                         // big-endian platforms.
-                        const int CustomAttributeVersion = BitConverter.IsLittleEndian ? 0x0001 : 0x0100;
-
-                        if (Marshal.ReadInt16(blobStart) != CustomAttributeVersion)
+                        if (Marshal.ReadInt16(blobStart) != (BitConverter.IsLittleEndian ? 0x0001 : 0x0100))
                         {
                             throw new CustomAttributeFormatException();
                         }
