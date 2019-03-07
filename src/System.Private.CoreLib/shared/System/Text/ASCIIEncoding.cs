@@ -219,7 +219,7 @@ namespace System.Text
             // arrays so we don't need to special-case the null value.
 
             fixed (char* pChars = chars)
-            fixed (byte* pBytes = &JitHelpers.GetRawSzArrayData(bytes))
+            fixed (byte* pBytes = &bytes.GetRawSzArrayData())
             {
                 return GetBytesCommon(pChars + charIndex, charCount, pBytes + byteIndex, bytes.Length - byteIndex);
             }
@@ -271,8 +271,8 @@ namespace System.Text
             // Using GetRawSzArrayData allows us to get a usable reference for empty
             // arrays so we don't need to special-case the null value.
 
-            fixed (byte* pCharsAsBytes = &JitHelpers.GetRawSzArrayData(chars))
-            fixed (byte* pBytes = &JitHelpers.GetRawSzArrayData(bytes))
+            fixed (byte* pCharsAsBytes = &chars.GetRawSzArrayData())
+            fixed (byte* pBytes = &bytes.GetRawSzArrayData())
             {
                 return GetBytesCommon((char*)pCharsAsBytes + charIndex, charCount, pBytes + byteIndex, bytes.Length - byteIndex);
             }
@@ -408,7 +408,7 @@ namespace System.Text
             // Using GetRawSzArrayData allows us to get a usable reference for empty
             // arrays so we don't need to special-case the null value.
 
-            fixed (byte* pBytes = &JitHelpers.GetRawSzArrayData(bytes))
+            fixed (byte* pBytes = &bytes.GetRawSzArrayData())
             {
                 return GetCharCountCommon(pBytes + index, count);
             }
@@ -531,8 +531,8 @@ namespace System.Text
             // Using GetRawSzArrayData allows us to get a usable reference for empty
             // arrays so we don't need to special-case the null value.
 
-            fixed (byte* pBytes = &JitHelpers.GetRawSzArrayData(bytes))
-            fixed (byte* pCharsAsBytes = &JitHelpers.GetRawSzArrayData(chars))
+            fixed (byte* pBytes = &bytes.GetRawSzArrayData())
+            fixed (byte* pCharsAsBytes = &chars.GetRawSzArrayData())
             {
                 return GetCharsCommon(pBytes + byteIndex, byteCount, (char*)pCharsAsBytes + charIndex, chars.Length - charIndex);
             }
