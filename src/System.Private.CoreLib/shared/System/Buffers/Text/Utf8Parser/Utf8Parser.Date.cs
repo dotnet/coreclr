@@ -88,9 +88,9 @@ namespace System.Buffers.Text
                         }
 
                         return true;
-					}
+                    }
 
-                    case 'I':
+                case 'I':
                     {
                         if (!TryParseDateTimeOffsetI(source, out DateTimeOffset dateTimeOffset, out bytesConsumed, out DateTimeKind kind))
                         {
