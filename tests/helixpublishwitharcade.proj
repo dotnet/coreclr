@@ -71,13 +71,6 @@
            Ideally, we would like to have a partitioning where each Group takes the same amount of time to finish (across all operating systems and architectures). -->
       <_XUnitWrapperDll>
         <Group>Group.default</Group>
-        <Group Condition=" %(FileName) == 'baseservices.threading.XUnitWrapper'
-                        Or %(FileName) == 'JIT.CodeGenBringUpTests.XUnitWrapper'
-                        Or %(FileName) == 'JIT.Directed.XUnitWrapper' ">baseservices.threading_JIT.CodeGenBringUpTests_JIT.Directed</Group>
-        <Group Condition=" %(FileName) == 'JIT.jit64.XUnitWrapper' ">JIT.jit64</Group>
-        <Group Condition=" %(FileName) == 'JIT.Methodical.XUnitWrapper' ">JIT.Methodical</Group>
-        <Group Condition=" %(FileName) == 'JIT.Regression.XUnitWrapper' ">JIT.Regression</Group>
-        <Group Condition=" %(FileName) == 'Loader.classloader.XUnitWrapper' ">Loader.classloader</Group>
       </_XUnitWrapperDll>
 
       <_AllFiles Include="%(_XUnitWrapperDll.FileDirectory)**">
@@ -173,26 +166,6 @@
 
         <Group Include="Group.default">
           <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'Group.default')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
-        </Group>
-
-        <Group Include="baseservices.threading_JIT.CodeGenBringUpTests_JIT.Directed">
-          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'baseservices.threading_JIT.CodeGenBringUpTests_JIT.Directed')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
-        </Group>
-
-        <Group Include="JIT.jit64">
-          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'JIT.jit64')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
-        </Group>
-
-        <Group Include="JIT.Methodical">
-          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'JIT.Methodical')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
-        </Group>
-
-        <Group Include="JIT.Regression">
-          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'JIT.Regression')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
-        </Group>
-
-        <Group Include="Loader.classloader">
-          <XUnitWrapperDlls>@(XUnitWrapperDll->WithMetadataValue('Group', 'Loader.classloader')->'%(RelativeToGroupDirectory)',' ')</XUnitWrapperDlls>
         </Group>
 
         <HelixCorrelationPayload Include="$(CoreRootDirectory)" />
