@@ -21,7 +21,11 @@ namespace System
 
         internal int Scale => (byte)(flags >> ScaleShift);
 
-        private ulong Low64 => BitConverter.IsLittleEndian ? Unsafe.As<int, ulong>(ref Unsafe.AsRef(in lo)) : ((ulong)Mid << 32) | Low;
+        private ulong Low64
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get =>BitConverter.IsLittleEndian ? Unsafe.As<int, ulong>(ref Unsafe.AsRef(in lo)) : ((ulong)Mid << 32) | Low;
+        }
 
         private static ref DecCalc AsMutable(ref decimal d) => ref Unsafe.As<decimal, DecCalc>(ref d);
 
@@ -80,7 +84,9 @@ namespace System
 
             private ulong Low64
             {
-                get { return BitConverter.IsLittleEndian ? ulomidLE : (((ulong)umid << 32) | ulo); }
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => BitConverter.IsLittleEndian ? ulomidLE : (((ulong)umid << 32) | ulo);
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 set
                 {
                     if (BitConverter.IsLittleEndian)
@@ -2562,7 +2568,9 @@ done:
 
                 public ulong Low64
                 {
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     get => BitConverter.IsLittleEndian ? ulo64LE : (((ulong)U1 << 32) | U0);
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     set
                     {
                         if (BitConverter.IsLittleEndian)
@@ -2582,7 +2590,9 @@ done:
                 /// </summary>
                 public ulong High64
                 {
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     get => BitConverter.IsLittleEndian ? uhigh64LE : (((ulong)U2 << 32) | U1);
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     set
                     {
                         if (BitConverter.IsLittleEndian)
@@ -2617,7 +2627,9 @@ done:
 
                 public ulong Low64
                 {
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     get => BitConverter.IsLittleEndian ? ulo64LE : (((ulong)U1 << 32) | U0);
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     set
                     {
                         if (BitConverter.IsLittleEndian)
@@ -2634,7 +2646,9 @@ done:
 
                 public ulong High64
                 {
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     get => BitConverter.IsLittleEndian ? uhigh64LE : (((ulong)U3 << 32) | U2);
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     set
                     {
                         if (BitConverter.IsLittleEndian)
@@ -2675,7 +2689,9 @@ done:
 
                 public ulong Low64
                 {
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     get => BitConverter.IsLittleEndian ? ulo64LE : (((ulong)U1 << 32) | U0);
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     set
                     {
                         if (BitConverter.IsLittleEndian)
@@ -2692,7 +2708,9 @@ done:
 
                 public ulong Mid64
                 {
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     get => BitConverter.IsLittleEndian ? umid64LE : (((ulong)U3 << 32) | U2);
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     set
                     {
                         if (BitConverter.IsLittleEndian)
@@ -2709,7 +2727,9 @@ done:
 
                 public ulong High64
                 {
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     get => BitConverter.IsLittleEndian ? uhigh64LE : (((ulong)U5 << 32) | U4);
+                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     set
                     {
                         if (BitConverter.IsLittleEndian)
