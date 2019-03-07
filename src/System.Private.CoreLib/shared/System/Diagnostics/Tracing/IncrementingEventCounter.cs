@@ -50,10 +50,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        public override string ToString()
-        {
-            return "IncrementingEventCounter '" + name + "' Increment " + _increment;
-        }
+        public override string ToString() => $"IncrementingEventCounter '{name}' Increment {_increment}";
 
         private volatile float _increment;
 

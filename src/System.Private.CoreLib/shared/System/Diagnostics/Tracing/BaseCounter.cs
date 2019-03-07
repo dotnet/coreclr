@@ -54,10 +54,9 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public void Dispose()
         {
-            var group = _group;
-            if (group != null)
+            if (_group != null)
             {
-                group.Remove(this);
+                _group.Remove(this);
                 _group = null;
             }
         }
@@ -83,8 +82,6 @@ namespace System.Diagnostics.Tracing
 
         private volatile Dictionary<string, string> _metaData;
 
-        // Abstract methods that behave differently across different Counter APIs
-        internal abstract void OnMetricWritten(float value);
         internal abstract void WritePayload(EventSource _eventSource, float intervalSec);
 
         // arbitrarily we use name as the lock object.  

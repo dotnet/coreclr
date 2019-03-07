@@ -39,7 +39,7 @@ namespace System.Diagnostics.Tracing
         {
             _min = float.PositiveInfinity;
             _max = float.NegativeInfinity;
-            
+
             InitializeBuffer();
         }
 
@@ -53,11 +53,8 @@ namespace System.Diagnostics.Tracing
             Enqueue(value);
         }
 
-        public override string ToString()
-        {
-            return "EventCounter '" + name + "' Count " + _count + " Mean " + (((double)_sum) / _count).ToString("n3");
-        }
-
+        public override string ToString() => $"EventCounter '{name}' Count {_count} Mean {(((double)_sum) / _count).ToString("n3")}";
+    
         #region Statistics Calculation
 
         // Statistics
@@ -67,7 +64,7 @@ namespace System.Diagnostics.Tracing
         private float _min;
         private float _max;
 
-        internal override void OnMetricWritten(float value)
+        internal void OnMetricWritten(float value)
         {
             Debug.Assert(Monitor.IsEntered(MyLock));
             _sum += value;

@@ -56,11 +56,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        public override string ToString()
-        {
-            return "EventCounter '" + name + "' Count " + _count + " Mean " + (((double)_sum) / _count).ToString("n3");
-        }
-
+        public override string ToString() => $"PollingCounter '{name}' Count {_count} Mean {(((double)_sum) / _count).ToString("n3")}";
 
         #region Statistics Calculation
 
@@ -73,7 +69,7 @@ namespace System.Diagnostics.Tracing
 
         private Func<float> _getMetricFunction;
 
-        internal override void OnMetricWritten(float value)
+        internal void OnMetricWritten(float value)
         {
             Debug.Assert(Monitor.IsEntered(MyLock));
             _sum += value;

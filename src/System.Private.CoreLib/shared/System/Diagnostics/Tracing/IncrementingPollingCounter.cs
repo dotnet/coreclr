@@ -39,10 +39,7 @@ namespace System.Diagnostics.Tracing
             _increment = 0;
         }
 
-        public override string ToString()
-        {
-            return "IncrementingPollingCounter '" + name + "' Increment " + _increment;
-        }
+        public override string ToString() => $"IncrementingPollingCounter '{name}' Increment {_increment}";
 
         private volatile float _increment;
         private Func<float> _getMetricFunction;
