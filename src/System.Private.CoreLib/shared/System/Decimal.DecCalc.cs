@@ -727,7 +727,7 @@ ThrowOverflow:
                         num = *(ushort*)((byte*)result + i * 4 + low16Le) + (remainder << 16);
                         div = num / power;
                         remainder = num - div * power;
-                        *(ushort*)((byte*)result + i * 4 + low16Le)) = (ushort)div;
+                        *(ushort*)((byte*)result + i * 4 + low16Le) = (ushort)div;
                     }
                     else
                     {
@@ -741,7 +741,7 @@ ThrowOverflow:
                         num = *(ushort*)((byte*)result + i * 4 + low16Be) + (remainder << 16);
                         div = num / power;
                         remainder = num - div * power;
-                        *(ushort*)((byte*)result + i * 4 + low16Be)) = (ushort)div;
+                        *(ushort*)((byte*)result + i * 4 + low16Be) = (ushort)div;
                     }
 #endif
                 }
