@@ -6,6 +6,7 @@ using System;
 using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 #if ES_BUILD_PCL
     using System.Threading.Tasks;
@@ -96,12 +97,12 @@ namespace System.Diagnostics.Tracing
 
         internal string GetMetaDataString()
         {
-            String metaDataString = "";
+            StringBuilder sb = new StringBuilder("");
             foreach(KeyValuePair<string, string> kvPair in _metaData)
             {
-                metaDataString += kvPair.Key + ":" + kvPair.Value + ",";
+                sb.Append($"{kvPair.Key}:{kvPair.Value},");
             }
-            return metaDataString.Length == 0 ? "" : metaDataString.Substring(0, metaDataString.Length - 1); // Get rid of the last ","
+            return sb.Length == 0 ? "" : sb.ToString(0, sb.Length - 1); // Get rid of the last ","
         }
 
         #endregion // private implementation
