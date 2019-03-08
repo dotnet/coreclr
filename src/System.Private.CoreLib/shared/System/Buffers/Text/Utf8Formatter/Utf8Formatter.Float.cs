@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Globalization;
+using System.Text;
 
 namespace System.Buffers.Text
 {
@@ -99,21 +100,17 @@ namespace System.Buffers.Text
                 utf16Text = value.ToString(new string(formatText), CultureInfo.InvariantCulture);
             }
 
-            // Copy the value to the destination, if it's large enough.
+            bytesWritten = 0;
 
-            if (utf16Text.Length > destination.Length)
+            try
             {
-                bytesWritten = 0;
+                bytesWritten = Encoding.UTF8.GetBytes(utf16Text, destination);
+            }
+            catch
+            {
                 return false;
             }
 
-            for (int i = 0; i < utf16Text.Length; i++)
-            {
-                Debug.Assert(utf16Text[i] < 128, "A culture-invariant ToString() of a floating point expected to produce ASCII characters only.");
-                destination[i] = (byte)utf16Text[i];
-            }
-
-            bytesWritten = utf16Text.Length;
             return true;
         }
     }
