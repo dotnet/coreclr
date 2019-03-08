@@ -197,7 +197,7 @@ bool HWIntrinsicInfo::isScalarIsa(InstructionSet isa)
 //
 // Return Value:
 //     if necessary, add a GT_HW_INTRINSIC_CHK node which throws an ArgumentOutOfRangeException
-//     when the immOp is not in the valid range
+//     when the immOp is not in the valid range; otherwise, just return the provided immOp.
 //
 GenTree* Compiler::addRangeCheckIfNeeded(GenTree* immOp, unsigned int max, bool mustExpand)
 {
