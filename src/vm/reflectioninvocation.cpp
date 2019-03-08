@@ -2581,56 +2581,16 @@ FCIMPL1(Object*, ReflectionSerialization::GetUninitializedObject, ReflectClassBa
 
     HELPER_METHOD_FRAME_BEGIN_RET_NOPOLL();
 
-    if (objType == NULL) {
-        COMPlusThrowArgumentNull(W("type"), W("ArgumentNull_Type"));
-    }
-
     TypeHandle type = objType->GetType();
-
-    // Don't allow arrays, pointers, byrefs or function pointers.
-    if (type.IsTypeDesc())
-        COMPlusThrow(kArgumentException, W("Argument_InvalidValue"));
 
     MethodTable *pMT = type.GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);
-
-    //We don't allow unitialized strings.
-    if (pMT == g_pStringClass) {
-        COMPlusThrow(kArgumentException, W("Argument_NoUninitializedStrings"));
-    }
-
-    // if this is an abstract class or an interface type then we will
-    //  fail this
-    if (pMT->IsAbstract()) {
-        COMPlusThrow(kMemberAccessException,W("Acc_CreateAbst"));
-    }
-
-    if (pMT->ContainsGenericVariables()) {
-        COMPlusThrow(kMemberAccessException,W("Acc_CreateGeneric"));
-    }
-
-    if (pMT->IsByRefLike()) {
-        COMPlusThrow(kNotSupportedException, W("NotSupported_ByRefLike"));
-    }
 
     // Never allow allocation of generics actually instantiated over __Canon
     if (pMT->IsSharedByGenericInstantiations()) {
         COMPlusThrow(kNotSupportedException, W("NotSupported_Type"));
     }
 
-    // Never allow the allocation of an unitialized ContextBoundObject derived type, these must always be created with a paired
-    // transparent proxy or the jit will get confused.
-
-#ifdef FEATURE_COMINTEROP
-    // Also do not allow allocation of uninitialized RCWs (COM objects).
-    if (pMT->IsComObjectType())
-        COMPlusThrow(kNotSupportedException, W("NotSupported_ManagedActivation"));
-#endif // FEATURE_COMINTEROP
-
-    // If it is a nullable, return the underlying type instead.  
-    if (Nullable::IsNullableType(pMT)) 
-        pMT = pMT->GetInstantiation()[0].GetMethodTable();
- 
     retVal = pMT->Allocate();
 
     HELPER_METHOD_FRAME_END();

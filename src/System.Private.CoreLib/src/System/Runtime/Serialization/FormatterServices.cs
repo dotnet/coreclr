@@ -2,28 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-**
-**
-** Purpose: Provides some static methods to aid with the implementation
-**          of a Formatter for Serialization.
-**
-**
-============================================================*/
-
-using System;
-using System.Reflection;
-using System.Collections;
-using System.Collections.Generic;
-using System.Security;
 using System.Runtime.CompilerServices;
-using System.Runtime.Versioning;
-using System.Threading;
-using System.IO;
-using System.Text;
-using System.Globalization;
-using System.Diagnostics;
 
 namespace System.Runtime.Serialization
 {
@@ -38,23 +17,7 @@ namespace System.Runtime.Serialization
         // will not create an unitialized string because it is non-sensical to create an empty
         // instance of an immutable type.
         //
-        public static object GetUninitializedObject(Type type)
-        {
-            if ((object)type == null)
-            {
-                throw new ArgumentNullException(nameof(type));
-            }
-
-            if (!(type is RuntimeType))
-            {
-                throw new SerializationException(SR.Format(SR.Serialization_InvalidType, type));
-            }
-
-            return nativeGetUninitializedObject((RuntimeType)type);
-        }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern object nativeGetUninitializedObject(RuntimeType type);
+        public static object GetUninitializedObject(Type type) => RuntimeHelpers.GetUninitializedObject(type);
     }
 }
 
