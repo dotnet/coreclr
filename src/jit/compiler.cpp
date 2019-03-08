@@ -11337,6 +11337,9 @@ void Compiler::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
 #ifdef DEBUG
 void Compiler::dumpBlockVariableLiveRanges(const BasicBlock* block)
 {
+    // "block" will be dereferenced
+    noway_assert(block != nullptr);
+
     bool hasDumpedHistory = false;
 
     if (verbose)
@@ -11344,35 +11347,68 @@ void Compiler::dumpBlockVariableLiveRanges(const BasicBlock* block)
         printf("////////////////////////////////////////\n");
         printf("////////////////////////////////////////\n");
         printf("Var History Dump for Block %d \n", block->bbNum);
-    }
 
-    if (opts.compDbgInfo)
-    {
-        unsigned   varNum;
-        LclVarDsc* varDsc;
-
-        for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
+        if (opts.compDbgInfo)
         {
-            if (varDsc->hasBeenAlive())
+            unsigned   varNum;
+            LclVarDsc* varDsc;
+
+            for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
             {
-                hasDumpedHistory = true;
-                printf("Var %d:\n", varNum);
-                varDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(codeGen);
-                varDsc->endBlockLiveRanges();
+                if (varDsc->hasBeenAlive())
+                {
+                    hasDumpedHistory = true;
+                    printf("Var %d:\n", varNum);
+                    varDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(codeGen);
+                    varDsc->endBlockLiveRanges();
+                }
             }
         }
-    }
 
-    if (!hasDumpedHistory)
-    {
-        printf("..None..\n");
+        if (!hasDumpedHistory)
+        {
+            printf("..None..\n");
+        }
+
+        printf("////////////////////////////////////////\n");
+        printf("////////////////////////////////////////\n");
+        printf("End Generating code for Block %d \n", block->bbNum);
     }
+}
+
+void Compiler::dumpLvaVariableLiveRanges() const
+{
+    bool hasDumpedHistory = false;
 
     if (verbose)
     {
         printf("////////////////////////////////////////\n");
         printf("////////////////////////////////////////\n");
-        printf("End Generating code for Block %d \n", block->bbNum);
+        printf("PRINTING REGISTER LIVE RANGES:\n");
+
+        if (opts.compDbgInfo)
+        {
+            unsigned   varNum;
+            LclVarDsc* varDsc;
+
+            for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
+            {
+                if (varDsc->hasBeenAlive())
+                {
+                    hasDumpedHistory = true;
+                    printf("IL Var Num %d:\n", compMap2ILvarNum(varNum));
+                    varDsc->dumpAllRegisterLiveRangesForBlock(getEmitter(), codeGen);
+                }
+            }
+        }
+
+        if (!hasDumpedHistory)
+        {
+            printf("..None..\n");
+        }
+
+        printf("////////////////////////////////////////\n");
+        printf("////////////////////////////////////////\n");
     }
 }
 #endif

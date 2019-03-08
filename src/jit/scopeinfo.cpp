@@ -147,6 +147,9 @@ bool CodeGenInterface::siVarLoc::vlIsOnStk(regNumber reg, signed offset) const
 #if DEBUG
 void CodeGenInterface::dumpSiVarLoc(const siVarLoc* varLoc) const
 {
+    // "varLoc" cannot be null
+    noway_assert(varLoc != nullptr);
+
     switch (varLoc->vlType)
     {
         case VLT_REG:

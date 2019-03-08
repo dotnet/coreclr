@@ -2305,19 +2305,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 #if DEBUG
     if (compiler->verbose)
     {
-        unsigned   varNum;
-        LclVarDsc* varDsc;
-        // Printing information of variable change lifetime
-        printf("\n\n\n////////////////////////////////////////\n");
-        printf("////////////////////////////////////////\n\n\n");
-        printf("PRINTING REGISTER LIVE RANGES:\n");
-        for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->info.compLocalsCount; varNum++, varDsc++)
-        {
-            printf("IL Var Num %d:\n", compiler->compMap2ILvarNum(varNum));
-            varDsc->dumpAllRegisterLiveRangesForBlock(getEmitter(), this);
-        }
-        printf("\n\n\n////////////////////////////////////////\n");
-        printf("////////////////////////////////////////\n\n\n");
+        compiler->dumpLvaVariableLiveRanges();
     }
 #endif
 
