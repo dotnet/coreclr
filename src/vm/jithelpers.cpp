@@ -5536,16 +5536,15 @@ HCIMPLEND
 // we have noticed that the returning thread should trap for one reason or another.
 // ECall sets up the frame.
 
+extern "C" FCDECL0(VOID, JIT_RareDisableHelper);
+
 #if defined(_TARGET_ARM_) || defined(_TARGET_AMD64_)
 // The JIT expects this helper to preserve the return value on AMD64 and ARM. We should eventually
 // switch other platforms to the same convention since it produces smaller code.
-extern "C" FCDECL0(VOID, JIT_RareDisableHelper);
 extern "C" FCDECL0(VOID, JIT_RareDisableHelperWorker);
 
 HCIMPL0(void, JIT_RareDisableHelperWorker)
 #else
-extern "C" FCDECL0(VOID, JIT_RareDisableHelper);
-
 HCIMPL0(void, JIT_RareDisableHelper)
 #endif
 {
