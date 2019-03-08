@@ -2135,14 +2135,15 @@ void Compiler::compDoComponentUnitTestsOnce()
 //    Note that we can't use small values like zero, because we have some
 //    asserts that can fire for such values.
 //
-unsigned char Compiler::compGetJitDefaultFill()
+// static
+unsigned char Compiler::compGetJitDefaultFill(Compiler* comp)
 {
     unsigned char defaultFill = (unsigned char)JitConfig.JitDefaultFill();
 
-    if ((this != nullptr) && (compStressCompile(STRESS_GENERIC_VARN, 50)))
+    if (comp != nullptr && comp->compStressCompile(STRESS_GENERIC_VARN, 50))
     {
         unsigned temp;
-        temp = info.compMethodHash();
+        temp = comp->info.compMethodHash();
         temp = (temp >> 16) ^ temp;
         temp = (temp >> 8) ^ temp;
         temp = temp & 0xff;
