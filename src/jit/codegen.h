@@ -261,7 +261,7 @@ protected:
                               regNumber   tmpReg,
                               bool        inUnwindRegion = false);
 
-    void genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg, bool* pTmpRegIsZero);
+    void genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg, bool* pTmpRegIsZero, bool reportUnwindData);
 
     void genPrologSaveRegPair(regNumber reg1,
                               regNumber reg2,
@@ -592,7 +592,7 @@ public:
     void siBeginBlock(BasicBlock* block);
 
     void siEndBlock(BasicBlock* block);
-
+    // Closes the "ScopeInfo" of the tracked variables that has become dead.
     virtual void siUpdate();
 
     void siCheckVarScope(unsigned varNum, IL_OFFSET offs);
