@@ -51,10 +51,10 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
     }
 
     sockaddr_un serverAddress{};
-    serverAddress->sun_family = AF_UNIX;
+    serverAddress.sun_family = AF_UNIX;
     const int nCharactersWritten = sprintf_s(
-        serverAddress->sun_path,
-        sizeof(serverAddress->sun_path),
+        serverAddress.sun_path,
+        sizeof(serverAddress.sun_path),
         "/tmp/%s-%d",
         pIpcName,
         pid);
