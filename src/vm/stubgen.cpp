@@ -1684,11 +1684,6 @@ void ILCodeStream::EmitCALL(BinderMethodID id, int numInArgs, int numRetArgs)
     EmitCALL(GetToken(MscorlibBinder::GetMethod(id)), numInArgs, numRetArgs);
 }
 
-
-
-
-
-
 void ILStubLinker::SetHasThis (bool fHasThis)
 {
     LIMITED_METHOD_CONTRACT;

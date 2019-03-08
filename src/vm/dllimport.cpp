@@ -1747,6 +1747,7 @@ NDirectStubLinker::NDirectStubLinker(
     m_fHasCleanupCode(FALSE),
     m_fHasExceptionCleanupCode(FALSE),
     m_fCleanupWorkListIsSetup(FALSE),
+    m_targetHasThis(fTargetHasThis),
     m_dwThreadLocalNum(-1),
     m_dwCleanupWorkListLocalNum(-1),
     m_dwRetValLocalNum(-1),
@@ -3953,11 +3954,14 @@ static void CreateNDirectStubWorker(StubState*         pss,
     // Normally we would like this to be false so that we use the correct signature 
     // in the IL_STUB, (i.e if it returns a value class then the signature will use that)
     // When this bool is true we change the return type to void and explicitly add a
-    // return buffer argument as the first argument.
+    // return buffer argument as the first argument so as to match the native calling convention correctly.
     BOOL fMarshalReturnValueFirst = false;
     
     // We can only change fMarshalReturnValueFirst to true when we are NOT doing HRESULT-swapping!
-    //
+    // When we are HRESULT-swapping, the managed return type is actually the type of the last parameter and not the return type.
+    // The native return type of an HRESULT-swapped function is an HRESULT, which never uses a return-buffer argument.
+    // Since the managed return type is actually the last parameter, we need to marshal it after the last parameter in the managed signature
+    // to make sure we match the native signature correctly (when marshalling parameters, we add them to the native stub signature).
     if (!SF_IsHRESULTSwapping(dwStubFlags))
     {
 
@@ -3975,7 +3979,8 @@ static void CreateNDirectStubWorker(StubState*         pss,
 #else // UNIX_X86_ABI
         fMarshalReturnValueFirst = HasRetBuffArg(&msig);
 #endif // UNIX_X86_ABI
-
+#elif defined(_WIN32) && defined(_TARGET_AMD64_)
+        fMarshalReturnValueFirst = SF_IsForwardStub(dwStubFlags) && (SF_IsCOMStub(dwStubFlags) || SF_IsDelegateStub(dwStubFlags));
 #endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 
     }

@@ -42,6 +42,18 @@ _COM_SMARTPTR_TYPEDEF(IAggregationTesting, __uuidof(IAggregationTesting));
 _COM_SMARTPTR_TYPEDEF(IColorTesting, __uuidof(IColorTesting));
 _COM_SMARTPTR_TYPEDEF(ILicenseTesting, __uuidof(ILicenseTesting));
 
+struct SizeF
+{
+    float width;
+    float height;
+};
+
+struct Size
+{
+    BYTE width;
+    BYTE height;
+};
+
 //
 // Type library items
 //
@@ -184,6 +196,12 @@ INumericTesting : IUnknown
         /*[in]*/ int i11,
         /*[in]*/ int i12,
         /*[out]*/ int * result ) = 0;
+        virtual COM_DECLSPEC_NOTHROW SizeF STDMETHODCALLTYPE MakeSize(
+        /*[in]*/ float width,
+        /*[in]*/ float height) = 0;
+        virtual COM_DECLSPEC_NOTHROW Size STDMETHODCALLTYPE MakeSizeSmall(
+        /*[in]*/ BYTE width,
+        /*[in]*/ BYTE height) = 0;
 };
 
 struct __declspec(uuid("7731cb31-e063-4cc8-bcd2-d151d6bc8f43"))

@@ -283,6 +283,20 @@ public:
         return S_OK;
     }
 
+    virtual COM_DECLSPEC_NOTHROW SizeF STDMETHODCALLTYPE MakeSize(
+        /*[in]*/ float width,
+        /*[in]*/ float height)
+    {
+        return { width, height };
+    }
+
+    virtual COM_DECLSPEC_NOTHROW Size STDMETHODCALLTYPE MakeSizeSmall(
+        /*[in]*/ BYTE width,
+        /*[in]*/ BYTE height)
+    {
+        return { width, height };
+    }
+
 public: // IUnknown
     STDMETHOD(QueryInterface)(
         /* [in] */ REFIID riid,
