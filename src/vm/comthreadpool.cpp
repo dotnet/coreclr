@@ -714,12 +714,12 @@ FCIMPL1(VOID, ThreadPoolNative::TraceAllocateNativeOverlapped, LPOVERLAPPED lpOv
 {
     FCALL_CONTRACT;
 
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-
     if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIODequeue))
+    {
+        HELPER_METHOD_FRAME_BEGIN_0();
         FireEtwThreadPoolIOPack(lpOverlapped, ::GetOverlappedForTracing(lpOverlapped), GetClrInstanceId());
-
-    HELPER_METHOD_FRAME_END();
+        HELPER_METHOD_FRAME_END();
+    }
 }
 FCIMPLEND
 
