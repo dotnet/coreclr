@@ -84,31 +84,34 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
             pStack = &s;
         }
 
-        EventPipeEventInstance *pInstance = new (m_pCurrent) EventPipeEventInstance(
-            session,
-            event,
-            (pThread == NULL) ? ::GetCurrentThreadId() : pThread->GetOSThreadId(),
-            pDataDest,
-            payload.GetSize(),
-            (pThread == NULL) ? NULL : pActivityId,
-            pRelatedActivityId);
-
-        // Copy the stack if a separate stack trace was provided.
-        if (pStack != NULL)
         {
-            StackContents *pInstanceStack = pInstance->GetStack();
-            pStack->CopyTo(pInstanceStack);
+            SpinLockHolder slh(ThreadEventBufferList::Get()->GetLock());
+
+            EventPipeEventInstance *pInstance = new (m_pCurrent) EventPipeEventInstance(
+                session,
+                event,
+                (pThread == NULL) ? ::GetCurrentThreadId() : pThread->GetOSThreadId(),
+                pDataDest,
+                payload.GetSize(),
+                (pThread == NULL) ? NULL : pActivityId,
+                pRelatedActivityId);
+
+            // Copy the stack if a separate stack trace was provided.
+            if (pStack != NULL)
+            {
+                StackContents *pInstanceStack = pInstance->GetStack();
+                pStack->CopyTo(pInstanceStack);
+            }
+
+            // Write the event payload data to the buffer.
+            if(payload.GetSize() > 0)
+            {
+                payload.CopyData(pDataDest);
+            }
+
+            // Save the most recent event timestamp.
+            m_mostRecentTimeStamp = *pInstance->GetTimeStamp();
         }
-
-        // Write the event payload data to the buffer.
-        if(payload.GetSize() > 0)
-        {
-            payload.CopyData(pDataDest);
-        }
-
-        // Save the most recent event timestamp.
-        m_mostRecentTimeStamp = *pInstance->GetTimeStamp();
-
     }
     EX_CATCH
     {

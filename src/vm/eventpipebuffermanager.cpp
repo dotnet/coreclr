@@ -337,7 +337,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
 
     EventPipeBufferList *pThreadBufferList = ThreadEventBufferList::Get();
 
-    if(pThreadBufferList == NULL)
+    if (pThreadBufferList == NULL)
     {
         allocNewBuffer = true;
     }
@@ -353,19 +353,13 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         }
         else
         {
-            // The event is still enabled.  Mark that the thread is now writing an event.
-            pThreadBufferList->SetThreadEventWriteInProgress(true);
-
             // Attempt to write the event to the buffer.  If this fails, we should allocate a new buffer.
             allocNewBuffer = !pBuffer->WriteEvent(pEventThread, session, event, payload, pActivityId, pRelatedActivityId, pStack);
-
-            // Mark that the thread is no longer writing an event.
-            pThreadBufferList->SetThreadEventWriteInProgress(false);
         }
     }
 
     // Check to see if we need to allocate a new buffer, and if so, do it here.
-    if(allocNewBuffer)
+    if (allocNewBuffer)
     {
         // We previously switched to preemptive mode here, however, this is not safe and can cause deadlocks.
         // When a GC is started, and background threads are created (for the first BGC), a thread creation event is fired.
@@ -375,7 +369,17 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         // to switch to preemptive mode here.
 
         unsigned int requestSize = sizeof(EventPipeEventInstance) + payload.GetSize();
-        pBuffer = AllocateBufferForThread(session, requestSize);
+        {
+            if (pThreadBufferList == NULL)
+            {
+                pBuffer = AllocateBufferForThread(session, requestSize);
+            }
+            else
+            {
+                SpinLockHolder _slh2(pThreadBufferList->GetLock());
+                pBuffer = AllocateBufferForThread(session, requestSize);
+            }
+        ]
     }
 
     // Try to write the event after we allocated (or stole) a buffer.
@@ -386,11 +390,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         // By this point, a new buffer list has been allocated so we should fetch it again before using it.
         pThreadBufferList = ThreadEventBufferList::Get();
         // The event is still enabled.  Mark that the thread is now writing an event.
-        pThreadBufferList->SetThreadEventWriteInProgress(true);
         allocNewBuffer = !pBuffer->WriteEvent(pEventThread, session, event, payload, pActivityId, pRelatedActivityId, pStack);
-
-        // Mark that the thread is no longer writing an event.
-        pThreadBufferList->SetThreadEventWriteInProgress(false);
     }
 
 
@@ -557,6 +557,8 @@ void EventPipeBufferManager::DeAllocateBuffers()
     {
         // Get the list and determine if we can free it.
         EventPipeBufferList *pBufferList = pElem->GetValue();
+
+        SpinLockHolder _slh2(pBufferList->GetLock());
         if(!pBufferList->OwnedByThread())
         {
             // Iterate over all nodes in the list and de-allocate them.
@@ -576,7 +578,8 @@ void EventPipeBufferManager::DeAllocateBuffers()
             delete(pCurElem);
 
             // Now that all of the list elements have been freed, free the list itself.
-            delete(pBufferList);
+            // TODO: We need to find another home for the SpinLocks :(
+            // delete(pBufferList);
             pBufferList = NULL;
         }
         else
@@ -616,7 +619,8 @@ EventPipeBufferList::EventPipeBufferList(EventPipeBufferManager *pManager)
     m_bufferCount = 0;
     m_pReadBuffer = NULL;
     m_ownedByThread = true;
-    m_threadEventWriteInProgress = false;
+
+    m_lock.Init(LOCK_TYPE_DEFAULT);
 
 #ifdef _DEBUG
     m_pCreatingThread = GetThread();
@@ -656,11 +660,13 @@ void EventPipeBufferList::InsertTail(EventPipeBuffer *pBuffer)
     // First node in the list.
     if(m_pTailBuffer == NULL)
     {
+        _ASSERTE(m_pHeadBuffer == NULL);
         m_pHeadBuffer = m_pTailBuffer = pBuffer;
     }
     else
     {
         // Set links between the old and new tail nodes.
+        _ASSERTE(m_pTailBuffer->GetNext() == NULL);
         m_pTailBuffer->SetNext(pBuffer);
         pBuffer->SetPrevious(m_pTailBuffer);
 

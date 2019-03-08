@@ -11,6 +11,7 @@
 #include "eventpipeevent.h"
 #include "eventpipeeventinstance.h"
 #include "eventpipesession.h"
+#include "eventpipebuffermanager.h"
 
 class EventPipeBuffer
 {

@@ -56,7 +56,7 @@ void SpinLock::Init(LOCK_TYPE type, bool RequireCoopGC)
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
@@ -299,7 +299,7 @@ void SpinLock::dbg_PreEnterLock()
     if (pThread)
     {
         // SpinLock can not be nested.
-        _ASSERTE ((pThread->m_StateNC & Thread::TSNC_OwnsSpinLock) == 0);
+        // _ASSERTE ((pThread->m_StateNC & Thread::TSNC_OwnsSpinLock) == 0);
 
         pThread->SetThreadStateNC(Thread::TSNC_OwnsSpinLock);
 
@@ -338,7 +338,8 @@ void SpinLock::dbg_LeaveLock()
     Thread* pThread = GetThread();
     if (pThread)
     {
-        _ASSERTE ((pThread->m_StateNC & Thread::TSNC_OwnsSpinLock) != 0);
+        // NO! 
+        // _ASSERTE ((pThread->m_StateNC & Thread::TSNC_OwnsSpinLock) != 0);
         pThread->ResetThreadStateNC(Thread::TSNC_OwnsSpinLock);
         INCONTRACT(pThread->EndNoTriggerGC());
     }

@@ -141,8 +141,8 @@ private:
     // If it is false, then this buffer can be de-allocated after it is drained.
     Volatile<bool> m_ownedByThread;
 
-    // True if a thread is writing something to this list
-    Volatile<bool> m_threadEventWriteInProgress;
+    // Lock to protect access to the active buffer
+    SpinLock m_lock;
 
 #ifdef _DEBUG
     // For diagnostics, keep the thread pointer.
@@ -191,16 +191,9 @@ public:
         m_ownedByThread = value;
     }
 
-    bool GetThreadEventWriteInProgress() const
+    SpinLock* GetLock()
     {
-        LIMITED_METHOD_CONTRACT;
-        return m_threadEventWriteInProgress;
-    }
-
-    void SetThreadEventWriteInProgress(bool value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_threadEventWriteInProgress = value;
+        return &m_lock;
     }
 
 #ifdef _DEBUG
