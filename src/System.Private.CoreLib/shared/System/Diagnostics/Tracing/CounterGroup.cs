@@ -59,7 +59,7 @@ namespace System.Diagnostics.Tracing
                     // Recursion through EventSource callbacks possible.  When we enable the timer
                     // we synchonously issue a EventSource.Write event, which in turn can call back
                     // to user code (in an EventListener) while holding this lock.   This is dangerous
-                    // because it mean this code might inadvertantly participate in a lock loop. 
+                    // because it means this code might inadvertantly participate in a lock loop. 
                     // The scenario seems very unlikely so we ignore that problem for now.  
                     lock (this)      // Lock the CounterGroup
                     {
@@ -178,17 +178,7 @@ namespace System.Diagnostics.Tracing
 
                     foreach (var counter in _counters)
                     {
-                        if (counter is PollingCounter)
-                        {
-                            PollingCounter pCounter = (PollingCounter)counter;
-                            pCounter.UpdateMetric();
-                        }
-                        else if (counter is IncrementingPollingCounter)
-                        {
-                            IncrementingPollingCounter ipCounter = (IncrementingPollingCounter)counter;
-                            ipCounter.UpdateMetric();
-                        }
-                    	counter.WritePayload(_eventSource, (float)elapsed.TotalSeconds);
+                        counter.WritePayload((float)elapsed.TotalSeconds);
                     }
                     _timeStampSinceCollectionStarted = now;
                 }
@@ -202,7 +192,7 @@ namespace System.Diagnostics.Tracing
         #region PCL timer hack
 
 #if ES_BUILD_PCL
-    internal delegate void TimerCallback(object state);
+        internal delegate void TimerCallback(object state);
 
         internal sealed class Timer : CancellationTokenSource, IDisposable
         {

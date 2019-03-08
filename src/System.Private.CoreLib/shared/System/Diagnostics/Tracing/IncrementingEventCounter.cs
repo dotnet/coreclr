@@ -34,7 +34,6 @@ namespace System.Diagnostics.Tracing
         /// <param name="eventSource">The event source.</param>
         public IncrementingEventCounter(string name, EventSource eventSource) : base(name, eventSource)
         {
-            _increment = 0;
         }
 
         /// <summary>
@@ -50,28 +49,25 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        public override string ToString() => $"IncrementingEventCounter '{name}' Increment {_increment}";
+        internal TimeSpan DisplayRateTimeScale { get; set; }
+        private float _increment;
+        private float _prevIncrement;
 
-        private volatile float _increment;
+        public override string ToString() => $"IncrementingEventCounter '{_name}' Increment {_increment}";
 
-        internal override void WritePayload(EventSource _eventSource, float intervalSec)
-        {
-            IncrementingCounterPayload payload = GetCounterPayload();
-            payload.IntervalSec = intervalSec;
-            _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingEventCounterPayloadType(payload));
-        }
-
-        internal IncrementingCounterPayload GetCounterPayload()
+        internal override void WritePayload(float intervalSec)
         {
             lock (MyLock)     // Lock the counter
             {
-                IncrementingCounterPayload result = new IncrementingCounterPayload();
-                result.Name = name;
-                result.DisplayName = DisplayName;
-                result.DisplayRateTimeScale = DisplayRateTimeScale;
-                result.MetaDataString = GetMetaDataString();
-                result.Increment = _increment;
-                return result;
+                IncrementingCounterPayload payload = new IncrementingCounterPayload();
+                payload.Name = _name;
+                payload.IntervalSec = intervalSec;
+                payload.DisplayName = DisplayName;
+                payload.DisplayRateTimeScale = DisplayRateTimeScale;
+                payload.MetaData = GetMetaDataString();
+                payload.Increment = _increment - _prevIncrement;
+                _prevIncrement = _increment;
+                _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingEventCounterPayloadType(payload));
             }
         }
     }

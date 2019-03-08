@@ -53,8 +53,8 @@ namespace System.Diagnostics.Tracing
             Enqueue(value);
         }
 
-        public override string ToString() => $"EventCounter '{name}' Count {_count} Mean {(((double)_sum) / _count).ToString("n3")}";
-    
+        public override string ToString() => $"EventCounter '{_name}' Count {_count} Mean {(((double)_sum) / _count).ToString("n3")}";
+
         #region Statistics Calculation
 
         // Statistics
@@ -78,39 +78,31 @@ namespace System.Diagnostics.Tracing
             _count++;
         }
 
-        internal override void WritePayload(EventSource _eventSource, float intervalSec)
+        internal override void WritePayload(float intervalSec)
         {
-            EventCounterPayload payload = GetCounterPayload();
-            payload.IntervalSec = intervalSec;
-            _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new EventCounterPayloadType(payload));
-        }
-
-        internal EventCounterPayload GetCounterPayload()
-        {
-            // TODO: Change this to return CounterPayload instead of EventCounterPayload once we make the new payload public.
-            lock (MyLock)     // Lock the counter
+            lock (MyLock)
             {
                 Flush();
-                EventCounterPayload result = new EventCounterPayload();
-                result.Name = name;
-                result.Count = _count;
+                EventCounterPayload payload = new EventCounterPayload();
+                payload.Name = _name;
+                payload.Count = _count;
+                payload.IntervalSec = intervalSec;
                 if (0 < _count)
                 {
-                    result.Mean = _sum / _count;
-                    result.StandardDeviation = (float)Math.Sqrt(_sumSquared / _count - _sum * _sum / _count / _count);
+                    payload.Mean = _sum / _count;
+                    payload.StandardDeviation = (float)Math.Sqrt(_sumSquared / _count - _sum * _sum / _count / _count);
                 }
                 else
                 {
-                    result.Mean = 0;
-                    result.StandardDeviation = 0;
+                    payload.Mean = 0;
+                    payload.StandardDeviation = 0;
                 }
-                result.Min = _min;
-                result.Max = _max;
+                payload.Min = _min;
+                payload.Max = _max;
                 ResetStatistics();
-                return result;
+                _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new EventCounterPayloadType(payload));
             }
         }
-
         private void ResetStatistics()
         {
             Debug.Assert(Monitor.IsEntered(MyLock));

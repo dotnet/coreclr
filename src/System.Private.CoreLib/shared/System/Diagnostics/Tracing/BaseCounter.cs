@@ -33,7 +33,7 @@ namespace System.Diagnostics.Tracing
         {
             if (name == null)
             {
-                throw new ArgumentNullException(nameof(name));
+                throw new ArgumentNullException(nameof(_name));
             }
 
             if (eventSource == null)
@@ -43,7 +43,9 @@ namespace System.Diagnostics.Tracing
 
             _group = CounterGroup.GetCounterGroup(eventSource);
             _group.Add(this);
-            this.name = name;
+            _eventSource = eventSource;
+            _name = name;
+            _metaData = new Dictionary<string, string>();
         }
 
         /// <summary>
@@ -72,29 +74,34 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        internal string DisplayName { get; }
-        internal TimeSpan DisplayRateTimeScale { get; }
+        internal string DisplayName { get; set; }
 
         #region private implementation
 
-        protected readonly string name;
+        internal readonly string _name;
+
         private CounterGroup _group;
+        private Dictionary<string, string> _metaData;
+        internal EventSource _eventSource;
 
-        private volatile Dictionary<string, string> _metaData;
-
-        internal abstract void WritePayload(EventSource _eventSource, float intervalSec);
+        internal abstract void WritePayload(float intervalSec);
 
         // arbitrarily we use name as the lock object.  
-        protected object MyLock { get { return name; } }
+        internal object MyLock { get { return _name; } }
 
-        protected string GetMetaDataString()
+        internal void ReportOutOfBandMessage(string message)
+        {
+            _eventSource.ReportOutOfBandMessage(message, true);
+        }
+
+        internal string GetMetaDataString()
         {
             String metaDataString = "";
             foreach(KeyValuePair<string, string> kvPair in _metaData)
             {
                 metaDataString += kvPair.Key + ":" + kvPair.Value + ",";
             }
-            return metaDataString.Substring(0, metaDataString.Length - 1); // Get rid of the last ","
+            return metaDataString.Length == 0 ? "" : metaDataString.Substring(0, metaDataString.Length - 1); // Get rid of the last ","
         }
 
         #endregion // private implementation

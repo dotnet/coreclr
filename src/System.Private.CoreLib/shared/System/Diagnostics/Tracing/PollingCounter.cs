@@ -34,159 +34,42 @@ namespace System.Diagnostics.Tracing
         /// <param name="eventSource">The event source.</param>
         public PollingCounter(string name, EventSource eventSource, Func<float> getMetricFunction) : base(name, eventSource)
         {
-            _min = float.PositiveInfinity;
-            _max = float.NegativeInfinity;
             _getMetricFunction = getMetricFunction;
-
-            InitializeBuffer();
         }
 
-        /// <summary>
-        /// Calls the callback function to get the value to enqueue. 
-        /// </summary>
-        public void UpdateMetric()
-        {
-            try
-            {
-                Enqueue(_getMetricFunction());    
-            }
-            catch (Exception)
-            {
-                // Swallow all exceptions that we may get from calling _getMetricFunction();
-            }
-        }
-
-        public override string ToString() => $"PollingCounter '{name}' Count {_count} Mean {(((double)_sum) / _count).ToString("n3")}";
-
-        #region Statistics Calculation
-
-        // Statistics
-        private int _count;
-        private float _sum;
-        private float _sumSquared;
-        private float _min;
-        private float _max;
+        public override string ToString() => $"PollingCounter '{_name}' Count {1} Mean {_lastVal.ToString("n3")}";
 
         private Func<float> _getMetricFunction;
+        private float _lastVal;
 
-        internal void OnMetricWritten(float value)
+        internal override void WritePayload(float intervalSec)
         {
-            Debug.Assert(Monitor.IsEntered(MyLock));
-            _sum += value;
-            _sumSquared += value * value;
-            if (value > _max)
-                _max = value;
-
-            if (value < _min)
-                _min = value;
-
-            _count++;
-        }
-
-        internal override void WritePayload(EventSource _eventSource, float intervalSec)
-        {
-            CounterPayload payload = GetCounterPayload();
-            payload.IntervalSec = intervalSec;
-            _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(payload));
-        }
-
-        internal CounterPayload GetCounterPayload()
-        {
-            lock (MyLock)     // Lock the counter
+            lock (MyLock)
             {
-                Flush();
-                CounterPayload result = new CounterPayload();
-                result.Name = name;
-                result.Count = _count;
-                if (0 < _count)
+                float value = 0;
+                try 
                 {
-                    result.Mean = _sum / _count;
-                    result.StandardDeviation = (float)Math.Sqrt(_sumSquared / _count - _sum * _sum / _count / _count);
+                    value = _getMetricFunction();
                 }
-                else
+                catch (Exception ex)
                 {
-                    result.Mean = 0;
-                    result.StandardDeviation = 0;
+                    ReportOutOfBandMessage($"ERROR: Exception during EventCounter {_name} getMetricFunction callback: " + ex.Message);
                 }
-                result.Min = _min;
-                result.Max = _max;
-                ResetStatistics();
-                return result;
+
+                CounterPayload payload = new CounterPayload();
+                payload.Name = _name;
+                payload.Count = 1; // NOTE: These dumb-looking statistics is intentional
+                payload.IntervalSec = intervalSec;
+                payload.Mean = value;
+                payload.Max = value;
+                payload.Min = value;
+                payload.StandardDeviation = 0;
+                _lastVal = value;
+                _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(payload));
             }
-        }
-
-        private void ResetStatistics()
-        {
-            Debug.Assert(Monitor.IsEntered(MyLock));
-            _count = 0;
-            _sum = 0;
-            _sumSquared = 0;
-            _min = float.PositiveInfinity;
-            _max = float.NegativeInfinity;
-        }
-
-        #endregion // Statistics Calculation
-
-
-        // Values buffering
-        private const int BufferedSize = 10;
-        private const float UnusedBufferSlotValue = float.NegativeInfinity;
-        private const int UnsetIndex = -1;
-        private volatile float[] _bufferedValues;
-        private volatile int _bufferedValuesIndex;
-
-        private void InitializeBuffer()
-        {
-            _bufferedValues = new float[BufferedSize];
-            for (int i = 0; i < _bufferedValues.Length; i++)
-            {
-                _bufferedValues[i] = UnusedBufferSlotValue;
-            }
-        }
-
-        protected void Enqueue(float value)
-        {
-            // It is possible that two threads read the same bufferedValuesIndex, but only one will be able to write the slot, so that is okay.
-            int i = _bufferedValuesIndex;
-            while (true)
-            {
-                float result = Interlocked.CompareExchange(ref _bufferedValues[i], value, UnusedBufferSlotValue);
-                i++;
-                if (_bufferedValues.Length <= i)
-                {
-                    // It is possible that two threads both think the buffer is full, but only one get to actually flush it, the other
-                    // will eventually enter this code path and potentially calling Flushing on a buffer that is not full, and that's okay too.
-                    lock (MyLock) // Lock the counter
-                        Flush();
-                    i = 0;
-                }
-
-                if (result == UnusedBufferSlotValue)
-                {
-                    // CompareExchange succeeded 
-                    _bufferedValuesIndex = i;
-                    return;
-                }
-            }
-        }
-
-        protected void Flush()
-        {
-            Debug.Assert(Monitor.IsEntered(MyLock));
-            for (int i = 0; i < _bufferedValues.Length; i++)
-            {
-                var value = Interlocked.Exchange(ref _bufferedValues[i], UnusedBufferSlotValue);
-                if (value != UnusedBufferSlotValue)
-                {
-                    OnMetricWritten(value);
-                }
-            }
-
-            _bufferedValuesIndex = 0;
         }
     }
 
-    
     /// <summary>
     /// This is the payload that is sent in the with EventSource.Write
     /// </summary>
@@ -196,5 +79,4 @@ namespace System.Diagnostics.Tracing
         public PollingPayloadType(CounterPayload payload) { Payload = payload; }
         public CounterPayload Payload { get; set; }
     }
-
 }

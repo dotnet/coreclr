@@ -70,8 +70,6 @@ namespace System.Diagnostics.Tracing
 
         public string DisplayName { get; set; }
 
-        public TimeSpan DisplayRateTimeScale { get; set; }
-
         public float Mean { get; set; }
 
         public float StandardDeviation { get; set; }
@@ -84,7 +82,7 @@ namespace System.Diagnostics.Tracing
 
         public float IntervalSec { get; internal set; }
 
-        public string MetaDataString { get; set; }
+        public string MetaData { get; set; }
 
         #region Implementation of the IEnumerable interface
 
@@ -104,7 +102,6 @@ namespace System.Diagnostics.Tracing
             {
                 yield return new KeyValuePair<string, object>("Name", Name);
                 yield return new KeyValuePair<string, object>("DisplayName", DisplayName);
-                yield return new KeyValuePair<string, object>("DisplayRateTimeScale", DisplayRateTimeScale.ToString("c"));
                 yield return new KeyValuePair<string, object>("Mean", Mean);
                 yield return new KeyValuePair<string, object>("StandardDeviation", StandardDeviation);
                 yield return new KeyValuePair<string, object>("Count", Count);
@@ -113,7 +110,7 @@ namespace System.Diagnostics.Tracing
                 yield return new KeyValuePair<string, object>("IntervalSec", IntervalSec);
                 yield return new KeyValuePair<string, object>("Series", $"Interval={IntervalSec}");
                 yield return new KeyValuePair<string, object>("CounterType", "Mean");
-                yield return new KeyValuePair<string, object>("MetaData", MetaDataString);
+                yield return new KeyValuePair<string, object>("MetaData", MetaData);
             }
         }
 
@@ -133,7 +130,7 @@ namespace System.Diagnostics.Tracing
 
         public float IntervalSec { get; internal set; }
 
-        public string MetaDataString { get; set; }
+        public string MetaData { get; set; }
 
         #region Implementation of the IEnumerable interface
 
@@ -158,7 +155,7 @@ namespace System.Diagnostics.Tracing
                 yield return new KeyValuePair<string, object>("IntervalSec", IntervalSec);
                 yield return new KeyValuePair<string, object>("Series", $"Interval={IntervalSec}");
                 yield return new KeyValuePair<string, object>("CounterType", "Sum");
-                yield return new KeyValuePair<string, object>("MetaData", MetaDataString);
+                yield return new KeyValuePair<string, object>("MetaData", MetaData);
             }
         }
 
