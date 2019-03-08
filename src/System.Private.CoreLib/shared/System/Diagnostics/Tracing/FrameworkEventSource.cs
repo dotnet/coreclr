@@ -117,9 +117,16 @@ namespace System.Diagnostics.Tracing
         }
 
         [Event(32, Level = EventLevel.Verbose, Keywords = Keywords.ThreadPool)]
-        public void ThreadPoolIOPackWork(long workID)
+        public void ThreadPoolIOPackWork(long nativeOverlapped, long overlapped)
         {
-            WriteEvent(32, workID);
+            WriteEvent(32, nativeOverlapped, overlapped);
+        }
+
+        [NonEvent]
+        public unsafe void ThreadPoolIOPackWorkObject(long nativeOverlapped, object overlapped)
+        {
+            // convert the Object Id to a long
+            ThreadPoolIOPackWork(nativeOverlapped, (long)*((void**)Unsafe.AsPointer(ref overlapped)));
         }
 
         // id -   represents a correlation ID that allows correlation of two activities, one stamped by 
