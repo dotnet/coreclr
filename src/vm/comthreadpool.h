@@ -49,6 +49,7 @@ public:
     static FCDECL2(FC_BOOL_RET, CorUnregisterWait, LPVOID WaitHandle, Object * objectToNotify);
     static FCDECL1(void, CorWaitHandleCleanupNative, LPVOID WaitHandle);
     static FCDECL1(FC_BOOL_RET, CorBindIoCompletionCallback, HANDLE fileHandle);
+    static FCDECL1(void, TraceAllocateNativeOverlapped, LPOVERLAPPED lpOverlapped);
 };
 
 class AppDomainTimerNative

@@ -82,6 +82,7 @@
 #define FireEtwThreadPoolDequeue(WorkID, ClrInstanceID) 0
 #define FireEtwThreadPoolIOEnqueue(NativeOverlapped, Overlapped, MultiDequeues, ClrInstanceID) 0
 #define FireEtwThreadPoolIODequeue(NativeOverlapped, Overlapped, ClrInstanceID) 0
+#define FireEtwThreadPoolIOPack(NativeOverlapped, Overlapped, ClrInstanceID) 0
 #define FireEtwThreadCreating(ID, ClrInstanceID) 0
 #define FireEtwThreadRunning(ID, ClrInstanceID) 0
 #define FireEtwExceptionThrown() 0

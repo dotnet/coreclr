@@ -710,6 +710,19 @@ void WINAPI BindIoCompletionCallbackStub(DWORD ErrorCode,
 #endif // !FEATURE_PAL
 }
 
+FCIMPL1(VOID, ThreadPoolNative::TraceAllocateNativeOverlapped, LPOVERLAPPED lpOverlapped)
+{
+    FCALL_CONTRACT;
+
+    HELPER_METHOD_FRAME_BEGIN_RET_0();
+
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIODequeue))
+        FireEtwThreadPoolIOPack(lpOverlapped, ::GetOverlappedForTracing(lpOverlapped), GetClrInstanceId());
+
+    HELPER_METHOD_FRAME_END();
+}
+FCIMPLEND
+
 FCIMPL1(FC_BOOL_RET, ThreadPoolNative::CorBindIoCompletionCallback, HANDLE fileHandle)
 {
     FCALL_CONTRACT;

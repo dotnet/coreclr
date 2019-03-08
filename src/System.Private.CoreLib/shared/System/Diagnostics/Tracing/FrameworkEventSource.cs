@@ -116,19 +116,6 @@ namespace System.Diagnostics.Tracing
             ThreadPoolDequeueWork((long)*((void**)Unsafe.AsPointer(ref workID)));
         }
 
-        [Event(32, Level = EventLevel.Verbose, Keywords = Keywords.ThreadPool)]
-        public void ThreadPoolIOPackWork(long nativeOverlapped, long overlapped)
-        {
-            WriteEvent(32, nativeOverlapped, overlapped);
-        }
-
-        [NonEvent]
-        public unsafe void ThreadPoolIOPackWorkObject(long nativeOverlapped, object overlapped)
-        {
-            // convert the Object Id to a long
-            ThreadPoolIOPackWork(nativeOverlapped, (long)*((void**)Unsafe.AsPointer(ref overlapped)));
-        }
-
         // id -   represents a correlation ID that allows correlation of two activities, one stamped by 
         //        ThreadTransferSend, the other by ThreadTransferReceive
         // kind - identifies the transfer: values below 64 are reserved for the runtime. Currently used values:

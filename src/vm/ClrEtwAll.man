@@ -344,7 +344,6 @@
                             <opcode name="Dequeue" message="$(string.RuntimePublisher.DequeueOpcodeMessage)" symbol="CLR_DEQUEUE_OPCODE" value="12"> </opcode>
                             <opcode name="IOEnqueue" message="$(string.RuntimePublisher.IOEnqueueOpcodeMessage)" symbol="CLR_IOENQUEUE_OPCODE" value="13"> </opcode>
                             <opcode name="IODequeue" message="$(string.RuntimePublisher.IODequeueOpcodeMessage)" symbol="CLR_IODEQUEUE_OPCODE" value="14"> </opcode>
-                            <!-- The following opcode is now defunct, moved to FrameworkEventSource -->
                             <opcode name="IOPack" message="$(string.RuntimePublisher.IOPackOpcodeMessage)" symbol="CLR_IOPACK_OPCODE" value="15"> </opcode>
                         </opcodes>
                     </task>
@@ -2797,7 +2796,6 @@
                            symbol="ThreadPoolIODequeue"
                            message="$(string.RuntimePublisher.ThreadPoolIODequeueEventMessage)"/>
 
-                    <!-- The following opcode is now defunct, moved to FrameworkEventSource -->
                     <event value="65" version="0" level="win:Verbose"  template="ThreadPoolIOWork"
                            keywords="ThreadingKeyword"
                            task="ThreadPool"

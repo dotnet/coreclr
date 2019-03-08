@@ -235,6 +235,9 @@ namespace System.Threading
             FreeNativeOverlapped(nativeOverlappedPtr);
         }
 
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern void TraceAllocateNativeOverlapped(NativeOverlapped* pNativeOverlapped);
+
         private unsafe NativeOverlapped* AllocateNativeOverlapped(object userData)
         {
             Debug.Assert(_pinnedData == null);
@@ -281,8 +284,7 @@ namespace System.Threading
 
                 *(GCHandle*)(_pNativeOverlapped + 1) = GCHandle.Alloc(this);
 
-                if (FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool))
-                    System.Diagnostics.Tracing.FrameworkEventSource.Log.ThreadPoolIOPackWorkObject((long)(IntPtr)_pNativeOverlapped, this);
+                TraceAllocateNativeOverlapped(_pNativeOverlapped);
 
                 success = true;
                 return _pNativeOverlapped;
