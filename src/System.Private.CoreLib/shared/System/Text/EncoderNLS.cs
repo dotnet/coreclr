@@ -22,9 +22,6 @@ namespace System.Text
 
     internal class EncoderNLS : Encoder
     {
-        internal OperationStatus StatusFromPreviousOperation;
-        internal int FallbackBufferIndexAdjustment;
-
         // Need a place for the last left over character, most of our encodings use this
         internal char _charLeftOver;
         private Encoding _encoding;
