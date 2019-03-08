@@ -2384,7 +2384,6 @@ public:
                                   IL_OFFSETX      ilOffset = BAD_IL_OFFSET);
 
     GenTreeCall* gtNewHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args = nullptr);
-    GenTreeCall* gtNewReadyToRunHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args = nullptr);
 
     GenTree* gtNewLclvNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs = BAD_IL_OFFSET));
     GenTree* gtNewLclLNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs = BAD_IL_OFFSET));
