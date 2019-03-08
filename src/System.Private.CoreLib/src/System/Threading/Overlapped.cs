@@ -281,6 +281,9 @@ namespace System.Threading
 
                 *(GCHandle*)(_pNativeOverlapped + 1) = GCHandle.Alloc(this);
 
+                if (FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool))
+                    System.Diagnostics.Tracing.FrameworkEventSource.Log.ThreadPoolIOPackWork((long)(IntPtr)_pNativeOverlapped);
+
                 success = true;
                 return _pNativeOverlapped;
             }
@@ -288,9 +291,6 @@ namespace System.Threading
             {
                 if (!success)
                     FreeNativeOverlapped();
-
-                if (success && FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool))
-                    System.Diagnostics.Tracing.FrameworkEventSource.Log.ThreadPoolIOPackWork((long)(IntPtr)_pNativeOverlapped);
             }
         }
 
