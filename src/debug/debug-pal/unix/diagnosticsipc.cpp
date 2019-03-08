@@ -93,7 +93,7 @@ IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
         return nullptr;
     }
 
-    auto pIpcStream = new (std::nothrow) IpcStream(hPipe);
+    auto pIpcStream = new (std::nothrow) IpcStream(clientSocket);
     if (pIpcStream == nullptr && callback != nullptr)
         callback("Failed to allocate an IpcStream object.", 1);
     return pIpcStream;
