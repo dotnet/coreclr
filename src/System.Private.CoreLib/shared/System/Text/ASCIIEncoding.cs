@@ -72,12 +72,9 @@ namespace System.Text
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.chars, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
             }
 
-            // Using GetRawSzArrayData allows us to get a usable reference for empty
-            // arrays so we don't need to special-case the null value.
-
-            fixed (byte* pCharsAsBytes = &chars.GetRawSzArrayData())
+            fixed (char* pChars = chars)
             {
-                return GetByteCountCommon((char*)pCharsAsBytes + index, count);
+                return GetByteCountCommon(pChars + index, count);
             }
         }
 
@@ -215,11 +212,8 @@ namespace System.Text
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.byteIndex, ExceptionResource.ArgumentOutOfRange_Index);
             }
 
-            // Using GetRawSzArrayData allows us to get a usable reference for empty
-            // arrays so we don't need to special-case the null value.
-
             fixed (char* pChars = chars)
-            fixed (byte* pBytes = &bytes.GetRawSzArrayData())
+            fixed (byte* pBytes = bytes)
             {
                 return GetBytesCommon(pChars + charIndex, charCount, pBytes + byteIndex, bytes.Length - byteIndex);
             }
@@ -268,13 +262,10 @@ namespace System.Text
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.byteIndex, ExceptionResource.ArgumentOutOfRange_Index);
             }
 
-            // Using GetRawSzArrayData allows us to get a usable reference for empty
-            // arrays so we don't need to special-case the null value.
-
-            fixed (byte* pCharsAsBytes = &chars.GetRawSzArrayData())
-            fixed (byte* pBytes = &bytes.GetRawSzArrayData())
+            fixed (char* pChars = chars)
+            fixed (byte* pBytes = bytes)
             {
-                return GetBytesCommon((char*)pCharsAsBytes + charIndex, charCount, pBytes + byteIndex, bytes.Length - byteIndex);
+                return GetBytesCommon(pChars + charIndex, charCount, pBytes + byteIndex, bytes.Length - byteIndex);
             }
         }
 
@@ -405,10 +396,7 @@ namespace System.Text
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.bytes, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
             }
 
-            // Using GetRawSzArrayData allows us to get a usable reference for empty
-            // arrays so we don't need to special-case the null value.
-
-            fixed (byte* pBytes = &bytes.GetRawSzArrayData())
+            fixed (byte* pBytes = bytes)
             {
                 return GetCharCountCommon(pBytes + index, count);
             }
@@ -528,13 +516,10 @@ namespace System.Text
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.charIndex, ExceptionResource.ArgumentOutOfRange_Index);
             }
 
-            // Using GetRawSzArrayData allows us to get a usable reference for empty
-            // arrays so we don't need to special-case the null value.
-
-            fixed (byte* pBytes = &bytes.GetRawSzArrayData())
-            fixed (byte* pCharsAsBytes = &chars.GetRawSzArrayData())
+            fixed (byte* pBytes = bytes)
+            fixed (char* pChars = chars)
             {
-                return GetCharsCommon(pBytes + byteIndex, byteCount, (char*)pCharsAsBytes + charIndex, chars.Length - charIndex);
+                return GetCharsCommon(pBytes + byteIndex, byteCount, pChars + charIndex, chars.Length - charIndex);
             }
         }
 

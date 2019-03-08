@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Text;
-using System;
-using System.Runtime.InteropServices;
 using System.Buffers;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace System.Text
 {
@@ -319,6 +317,19 @@ namespace System.Text
         }
 
         internal bool TryDrainLeftoverDataForGetBytes(ReadOnlySpan<char> chars, Span<byte> bytes, out int charsConsumed, out int bytesWritten)
+        {
+            // This is a stub function that performs a quick check of whether there's any leftover
+            // data to drain at all, and if not it skips the slower method invocation. This stub
+            // is small enough to be auto-inlined into the caller.
+
+            charsConsumed = 0;
+            bytesWritten = 0;
+
+            return (_charLeftOver == default && (_fallbackBuffer is null || _fallbackBuffer.Remaining == 0))
+                || TryDrainLeftoverDataForGetBytesSlow(chars, bytes, out charsConsumed, out bytesWritten);
+        }
+
+        private bool TryDrainLeftoverDataForGetBytesSlow(ReadOnlySpan<char> chars, Span<byte> bytes, out int charsConsumed, out int bytesWritten)
         {
             // We may have a leftover high surrogate data from a previous invocation, or we may have leftover
             // data in the fallback buffer, or we may have neither, but we will never have both. Check for these
