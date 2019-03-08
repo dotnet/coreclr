@@ -39,42 +39,10 @@ namespace System.Runtime.CompilerServices
                 throw new ArgumentNullException(nameof(type), SR.ArgumentNull_Type);
             }
             
-            if(!type.IsRuntimeImplemented())
+            if (!type.IsRuntimeImplemented())
             {
                 throw new SerializationException(SR.Format(SR.Serialization_InvalidType, type.ToString()));
             }
-
-            if (type.HasElementType || type.IsGenericParameter)
-            {
-                throw new ArgumentException(SR.Argument_InvalidValue);
-            }
-
-            if (type.ContainsGenericParameters)
-            {
-                throw new MemberAccessException(SR.Acc_CreateGeneric);
-            }
-
-            if (type.IsCOMObject)
-            {
-                throw new NotSupportedException(SR.NotSupported_ManagedActivation);
-            }
-
-            if (type == typeof(string))
-            {
-                throw new ArgumentException(SR.Argument_NoUninitializedStrings);
-            }
-
-            if (type.IsAbstract)
-            {
-                throw new MemberAccessException(SR.Acc_CreateAbst);
-            }
-
-            if (type.IsByRefLike)
-            {
-                throw new NotSupportedException(SR.NotSupported_ByRefLike);
-            }
-
-            type = Nullable.GetUnderlyingType(type) ?? type;
 
             return GetUninitializedObjectInternal(type);
         }
