@@ -50,8 +50,10 @@ public class Simple
         // Sanity checks
         Assert.IsTrue(inAsmInterfaceType == inAsmInterfaceType);
         Assert.IsTrue(inAsmInterfaceType.IsEquivalentTo(inAsmInterfaceType));
+        Assert.IsFalse(inAsmInterfaceType.IsEquivalentTo(inAsm.GetType()));
         Assert.IsTrue(otherAsmInterfaceType == otherAsmInterfaceType);
         Assert.IsTrue(otherAsmInterfaceType.IsEquivalentTo(otherAsmInterfaceType));
+        Assert.IsFalse(otherAsmInterfaceType.IsEquivalentTo(otherAsm.GetType()));
 
         // The intrinsic equality operations should fail
         Assert.IsFalse(inAsmInterfaceType == otherAsmInterfaceType);
