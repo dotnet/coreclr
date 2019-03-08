@@ -455,9 +455,7 @@ void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction 
     GCX_PREEMP_NO_DTOR();
     
     FastInterlockExchange((LONG*)&g_fForbidEnterEE, TRUE);
-    
-    ProcessEventForHost(Event_ClrDisabled, NULL);
-    
+
     // Note that for free and retail builds StressLog must also be enabled
     if (g_pConfig && g_pConfig->StressLog())
     {
@@ -504,7 +502,7 @@ void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction 
     if (sca == SCA_ExitProcessWhenShutdownComplete)
     {
         // disabled because if we fault in this code path we will trigger our
-        // Watson code via EntryPointFilter which is THROWS (see Dev11 317016)
+        // Watson code
         CONTRACT_VIOLATION(ThrowsViolation);
 
 #ifdef FEATURE_PAL
@@ -580,7 +578,6 @@ void DisableRuntime(ShutdownCompleteAction sca)
 
     GCX_PREEMP_NO_DTOR();
     
-    ProcessEventForHost(Event_ClrDisabled, NULL);
     ClrFlsClearThreadType(ThreadType_Shutdown);
 
     if (g_pDebugInterface != NULL)
@@ -663,12 +660,6 @@ EPolicyAction EEPolicy::DetermineResourceConstraintAction(Thread *pThread)
     // If it is default domain, we can not unload the appdomain 
     if (pDomain == SystemDomain::System()->DefaultDomain() &&
         (action == eUnloadAppDomain || action == eRudeUnloadAppDomain))
-    {
-        action = eThrowException;
-    }
-    // If the current thread is AD unload helper thread, it should not block itself.
-    else if (pThread->HasThreadStateNC(Thread::TSNC_ADUnloadHelper) &&
-        action < eExitProcess) 
     {
         action = eThrowException;
     }
@@ -763,12 +754,7 @@ void EEPolicy::HandleStackOverflow(StackOverflowDetector detector, void * pLimit
 
     if (pThread == NULL)
     {
-        //_ASSERTE (detector != SOD_ManagedFrameHandler);
-        // ProcessSOEventForHost(NULL, FALSE);
-
         // For security reason, it is not safe to continue execution if stack overflow happens
-        // unless a host tells us to do something different.
-        // EEPolicy::HandleFatalStackOverflow(NULL);
         return;
     }
 
@@ -776,8 +762,6 @@ void EEPolicy::HandleStackOverflow(StackOverflowDetector detector, void * pLimit
     GetCurrentExceptionPointers(&exceptionInfo);
 
     _ASSERTE(exceptionInfo.ExceptionRecord);
-
-    ProcessSOEventForHost(&exceptionInfo, false /* fInSoTolerant */);
 
     EEPolicy::HandleFatalStackOverflow(&exceptionInfo);
 }
@@ -874,44 +858,58 @@ inline void LogCallstackForLogWorker()
 
 //---------------------------------------------------------------------------------------
 //
-// Generate an EventLog entry for unhandled exception.
+// Print information on fatal error to stderr.
 //
 // Arguments:
-//    pExceptionInfo - Exception information
+//    exitCode - code of the fatal error
+//    pszMessage - error message (can be NULL)
+//    errorSource - details on the source of the error
+//    argExceptionString - exception details
 //
 // Return Value:
 //    None
 //
-inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, LPCWSTR argExceptionString)
+void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource, LPCWSTR argExceptionString)
 {
     WRAPPER_NO_CONTRACT;
 
     Thread *pThread = GetThread();
     EX_TRY
     {
-        if (errorSource == NULL)
+        if ((exitCode == (UINT)COR_E_FAILFAST) && (errorSource == NULL))
         {
-            PrintToStdErrA("FailFast:");
-        }
-        else 
-        {
-            PrintToStdErrW((WCHAR*)errorSource);
+            PrintToStdErrA("FailFast:\n");
         }
 
-        PrintToStdErrA("\n");
-        PrintToStdErrW((WCHAR*)pszMessage);
+        if (errorSource != NULL)
+        {
+            PrintToStdErrW(errorSource);
+            PrintToStdErrA("\n");
+        }
+
+        if (pszMessage != NULL)
+        {
+            PrintToStdErrW(pszMessage);
+        }
+        else
+        {
+            // If no message was passed in, generate it from the exitCode
+            SString exitCodeMessage;
+            GetHRMsg(exitCode, exitCodeMessage);
+            PrintToStdErrW((LPCWSTR)exitCodeMessage);
+        }
+
         PrintToStdErrA("\n");
 
         if (pThread && errorSource == NULL)
         {
-            PrintToStdErrA("\n");
             LogCallstackForLogWorker();
 
             if (argExceptionString != NULL) {
                 PrintToStdErrA("\n");
                 PrintToStdErrA("Exception details:");
                 PrintToStdErrA("\n");
-                PrintToStdErrW((WCHAR*)argExceptionString);
+                PrintToStdErrW(argExceptionString);
                 PrintToStdErrA("\n");
             }
         }
@@ -936,11 +934,8 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
 
     _ASSERTE(pExceptionInfo != NULL);
 
-    // Log FailFast exception to StdErr
-    if (exitCode == (UINT)COR_E_FAILFAST)
-    {
-        DoLogForFailFastException(pszMessage, pExceptionInfo, errorSource, argExceptionString);
-    }
+    // Log exception to StdErr
+    LogInfoForFatalError(exitCode, pszMessage, errorSource, argExceptionString);
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
     {

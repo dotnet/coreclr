@@ -1,85 +1,17 @@
 #!/usr/bin/env bash
 
-initHostDistroRid()
-{
-    __HostDistroRid=""
-
-    # Some OS groups should default to use the portable packages
-    if [ "$__BuildOS" == "OSX" ]; then
-        __PortableBuild=1
-    fi
-
-    if [ "$__HostOS" == "Linux" ]; then
-        if [ -e /etc/redhat-release ]; then
-            __PortableBuild=1
-        elif [ -e /etc/os-release ]; then
-            source /etc/os-release
-            if [[ $ID == "alpine" ]]; then
-                __HostDistroRid="linux-musl-$__HostArch"
-            else
-                __PortableBuild=1
-                __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
-            fi
-        fi
-    elif [ "$__HostOS" == "FreeBSD" ]; then
-        __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
-        __HostDistroRid="freebsd.$__freebsd_version-$__HostArch"
-    fi
-
-    # Portable builds target the base RID
-    if [ "$__PortableBuild" == 1 ]; then
-        if [ "$__BuildOS" == "OSX" ]; then
-            export __HostDistroRid="osx-$__BuildArch"
-        elif [ "$__BuildOS" == "Linux" ]; then
-            export __HostDistroRid="linux-$__BuildArch"
-        fi
-    fi
-
-    if [ "$__HostDistroRid" == "" ]; then
-        echo "WARNING: Cannot determine runtime id for current distro."
-    fi
-
-    echo "Setting __HostDistroRid to $__HostDistroRid"
-}
+__PortableBuild=1
 
 initTargetDistroRid()
 {
-    if [ $__CrossBuild == 1 ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
-                if [ -e $ROOTFS_DIR/android_platform ]; then
-                    source $ROOTFS_DIR/android_platform
-                    export __DistroRid="$RID"
-                else
-                    echo "WARNING: Cannot determine runtime id for current distro."
-                    export __DistroRid=""
-                fi
-            else
-                source $ROOTFS_DIR/etc/os-release
-                export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
-            fi
-        fi
-    else
-        export __DistroRid="$__HostDistroRid"
-        export __RuntimeId="$__HostDistroRid"
+    source init-distro-rid.sh
+
+    # Only pass ROOTFS_DIR if cross is specified.
+    if (( ${__CrossBuild} == 1 )); then
+        passedRootfsDir=${ROOTFS_DIR}
     fi
 
-    if [ "$ID.$VERSION_ID" == "ubuntu.16.04" ]; then
-     export __DistroRid="ubuntu.14.04-$__BuildArch"
-    fi
-
-    # Portable builds target the base RID
-    if [ "$__PortableBuild" == 1 ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            export __DistroRid="linux-$__BuildArch"
-            export __RuntimeId="linux-$__BuildArch"
-        elif [ "$__BuildOS" == "OSX" ]; then
-            export __DistroRid="osx-$__BuildArch"
-            export __RuntimeId="osx-$__BuildArch"
-        fi
-    fi
-
-    echo "__DistroRid: " $__DistroRid
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__PortableBuild} ${passedRootfsDir}
 }
 
 isMSBuildOnNETCoreSupported()
@@ -96,7 +28,7 @@ isMSBuildOnNETCoreSupported()
             UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64")
             for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
             do
-                if [ "$__HostDistroRid" == "$UNSUPPORTED_RID" ]; then
+                if [ "${__DistroRid}" == "$UNSUPPORTED_RID" ]; then
                     __isMSBuildOnNETCoreSupported=0
                     break
                 fi
@@ -132,7 +64,6 @@ build_test_wrappers()
         __Logging="$__MsbuildLog $__MsbuildWrn $__MsbuildErr /consoleloggerparameters:$buildVerbosity"
 
         nextCommand="\"${__DotNetCli}\" msbuild \"${__ProjectDir}/tests/runtest.proj\" /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/ /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
-        echo "$nextCommand"
         eval $nextCommand
 
         if [ $? -ne 0 ]; then
@@ -348,11 +279,6 @@ build_Tests()
     fi
 
     generate_layout
-
-    if [ $__ZipTests -ne 0 ]; then
-        echo "${__MsgPrefix}ZIP tests packages..."
-        build_MSBuild_projects "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" "Prep test binaries for Helix publishing" " "
-    fi
 }
 
 build_MSBuild_projects()
@@ -385,22 +311,21 @@ build_MSBuild_projects()
         # __SkipPackageRestore and __SkipTargetingPackBuild used  to control build by tests/src/dirs.proj
         export __SkipPackageRestore=false
         export __SkipTargetingPackBuild=false
-        export __BuildLoopCount=2
-        export __TestGroupToBuild=1
+        export __NumberOfTestGroups=3
+
         __AppendToLog=false
 
         if [ -n "$__priority1" ]; then
-            export __BuildLoopCount=16
-            export __TestGroupToBuild=2
+            export __NumberOfTestGroups=10
         fi
 
-        for (( slice=1 ; slice <= __BuildLoopCount; slice = slice + 1 ))
+        for (( testGroupToBuild=1 ; testGroupToBuild <= __NumberOfTestGroups; testGroupToBuild = testGroupToBuild + 1 ))
         do
             __msbuildLog="\"/flp:Verbosity=normal;LogFile=${__BuildLog};Append=${__AppendToLog}\""
             __msbuildWrn="\"/flp1:WarningsOnly;LogFile=${__BuildWrn};Append=${__AppendToLog}\""
             __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr};Append=${__AppendToLog}\""
 
-            export TestBuildSlice=$slice
+            export __TestGroupToBuild=$testGroupToBuild
 
             # Generate build command
             buildArgs=("/nologo" "/verbosity:minimal" "/clp:Summary")
@@ -414,7 +339,7 @@ build_MSBuild_projects()
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
             nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild ${buildArgs[@]}"
-            echo "Building step '$stepName' slice=$slice via $nextCommand"
+            echo "Building step '$stepName' testGroupToBuild=$testGroupToBuild via $nextCommand"
             eval $nextCommand
 
             # Make sure everything is OK
@@ -563,7 +488,6 @@ usage()
     echo "generatetesthostonly - only pull down dependencies and build coreroot and the CoreFX testhost"
     echo "skiprestorepackages - skip package restore"
     echo "runtests - run tests after building them"
-    echo "ziptests - zips CoreCLR tests & Core_Root for a Helix run"
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     echo "priority1 - include priority=1 tests in the build"
@@ -662,7 +586,7 @@ __SourceDir="$__ProjectDir/src"
 __PackagesDir="$__ProjectDir/packages"
 __RootBinDir="$__ProjectDir/bin"
 __BuildToolsDir="$__ProjectDir/Tools"
-__DotNetCli="${__BuildToolsDir}/dotnetcli/dotnet"
+__DotNetCli="$__ProjectDir/dotnet.sh"
 __UnprocessedBuildArgs=
 __CommonMSBuildArgs=
 __MSBCleanBuildArgs=
@@ -678,13 +602,11 @@ __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
 __NuGetPath="$__PackagesDir/NuGet.exe"
-__HostDistroRid=""
 __SkipRestorePackages=0
 __DistroRid=""
 __cmakeargs=""
 __PortableLinux=0
 __msbuildonunsupportedplatform=0
-__ZipTests=0
 __NativeTestIntermediatesDir=
 __RunTests=0
 __RebuildTests=0
@@ -747,8 +669,8 @@ while :; do
             __CrossBuild=1
             ;;
 
-        portableBuild)
-            __PortableBuild=1
+        portablebuild=false)
+            __PortableBuild=0
             ;;
 
         portablelinux)
@@ -823,10 +745,6 @@ while :; do
         skipmanaged|-skipmanaged)
             __SkipManaged=1
             __BuildTestWrappers=0
-            ;;
-
-        ziptests)
-            __ZipTests=1
             ;;
 
         buildtestwrappersonly)
@@ -914,9 +832,6 @@ fi
 __LogsDir="$__RootBinDir/Logs"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 
-# init the host distro name
-initHostDistroRid
-
 # Set the remaining variables based upon the determined build configuration
 __BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
 __PackagesBinDir="$__BinDir/.nuget"
@@ -962,9 +877,6 @@ fi
 initTargetDistroRid
 
 # Override tool directory
-
-__CoreClrVersion=1.1.0
-__sharedFxDir=$__BuildToolsDir/dotnetcli/shared/Microsoft.NETCore.App/$__CoreClrVersion/
 
 if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly") && (-z "$__BuildTestWrappersOnly") ]]; then
     build_Tests

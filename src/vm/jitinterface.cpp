@@ -30,7 +30,6 @@
 #include "jitperf.h" // to track jit perf
 #include "corprof.h"
 #include "eeprofinterfaces.h"
-#include "perfcounters.h"
 #ifdef PROFILING_SUPPORTED
 #include "proftoeeinterfaceimpl.h"
 #include "eetoprofinterfaceimpl.h"
@@ -100,12 +99,6 @@ GARY_IMPL(VMHELPDEF, hlpFuncTable, CORINFO_HELP_COUNT);
 GARY_IMPL(VMHELPDEF, hlpDynamicFuncTable, DYNAMIC_CORINFO_HELP_COUNT);
 
 #else // DACCESS_COMPILE
-
-/*********************************************************************/
-
-#if defined(ENABLE_PERF_COUNTERS)
-LARGE_INTEGER g_lastTimeInJitCompilation;
-#endif
 
 /*********************************************************************/
 
@@ -5302,6 +5295,7 @@ void CEEInfo::getCallInfo(
     //
 
     MethodDesc * pTargetMD = pMDAfterConstraintResolution;
+    DWORD dwTargetMethodAttrs = pTargetMD->GetAttrs();
 
     if (pTargetMD->HasMethodInstantiation())
     {
@@ -5359,12 +5353,6 @@ void CEEInfo::getCallInfo(
         directCall = true;
     }
     else
-    // Backwards compat: calls to abstract interface methods are treated as callvirt
-    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsAbstract())
-    {
-        directCall = false;
-    }
-    else
     if (!(flags & CORINFO_CALLINFO_CALLVIRT) || fResolvedConstraint)
     {
         directCall = true;
@@ -5405,12 +5393,11 @@ void CEEInfo::getCallInfo(
         if (pTargetMD->GetMethodTable()->IsInterface())
         {
             // Handle interface methods specially because the Sealed bit has no meaning on interfaces.
-            devirt = !IsMdVirtual(pTargetMD->GetAttrs());
+            devirt = !IsMdVirtual(dwTargetMethodAttrs);
         }
         else
         {
-            DWORD dwMethodAttrs = pTargetMD->GetAttrs();
-            devirt = !IsMdVirtual(dwMethodAttrs) || IsMdFinal(dwMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
+            devirt = !IsMdVirtual(dwTargetMethodAttrs) || IsMdFinal(dwTargetMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
         }
 
         if (devirt)
@@ -5422,6 +5409,14 @@ void CEEInfo::getCallInfo(
 
     if (directCall)
     {
+        // Direct calls to abstract methods are not allowed
+        if (IsMdAbstract(dwTargetMethodAttrs) &&
+            // Compensate for always treating delegates as direct calls above
+            !(((flags & CORINFO_CALLINFO_LDFTN) && (flags & CORINFO_CALLINFO_CALLVIRT) && !resolvedCallVirt)))
+        {
+            COMPlusThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
+        }
+
         bool allowInstParam = (flags & CORINFO_CALLINFO_ALLOWINSTPARAM);
 
         // Create instantiating stub if necesary
@@ -12873,15 +12868,6 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
                 QueryPerformanceCounter (&methodJitTimeStart);
 
 #endif
-#if defined(ENABLE_PERF_COUNTERS)
-            START_JIT_PERF();
-#endif
-
-#if defined(ENABLE_PERF_COUNTERS)
-            LARGE_INTEGER CycleStart;
-            QueryPerformanceCounter (&CycleStart);
-#endif // defined(ENABLE_PERF_COUNTERS)
-
             // Note on debuggerTrackInfo arg: if we're only importing (ie, verifying/
             // checking to make sure we could JIT, but not actually generating code (
             // eg, for inlining), then DON'T TELL THE DEBUGGER about this.
@@ -12900,20 +12886,6 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
             {
                 *pSizeOfCode = sizeOfCode;
             }
-#endif
-
-#if defined(ENABLE_PERF_COUNTERS)
-            LARGE_INTEGER CycleStop;
-            QueryPerformanceCounter(&CycleStop);
-            GetPerfCounters().m_Jit.timeInJitBase = GetPerfCounters().m_Jit.timeInJit;
-            GetPerfCounters().m_Jit.timeInJit += static_cast<DWORD>(CycleStop.QuadPart - CycleStart.QuadPart);
-            GetPerfCounters().m_Jit.cMethodsJitted++;
-            GetPerfCounters().m_Jit.cbILJitted+=methodInfo.ILCodeSize;
-
-#endif // defined(ENABLE_PERF_COUNTERS)
-
-#if defined(ENABLE_PERF_COUNTERS)
-            STOP_JIT_PERF();
 #endif
 
 #ifdef PERF_TRACK_METHOD_JITTIMES
@@ -12941,8 +12913,6 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
 
         if (!SUCCEEDED(res))
         {
-            COUNTER_ONLY(GetPerfCounters().m_Jit.cJitFailures++);
-
 #ifndef CROSSGEN_COMPILE
             jitInfo.BackoutJitData(jitMgr);
 #endif

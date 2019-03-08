@@ -288,7 +288,10 @@ def main(args):
 
     # Gather up some arguments to pass to the different build scripts.
 
-    config_args = '-Release /p:OSGroup=%s /p:ArchGroup=%s' % (clr_os, arch)
+    config_args = '-restore -build -buildtests -configuration Release -os %s -arch %s' % (clr_os, arch)
+
+    if not no_run_tests:
+        config_args += ' -test'
 
     build_args = config_args
 
@@ -296,6 +299,10 @@ def main(args):
         # We need to force clang5.0; we are building in a docker container that doesn't have
         # clang3.9, which is currently the default used by the native build.
         build_args += ' /p:BuildNativeClang=--clang5.0'
+
+    if not Is_windows and (arch == 'arm' or arch == 'arm64'):
+        # It is needed under docker where LC_ALL is not configured.
+        build_args += ' --warnAsError false'
 
     command = ' '.join(('build.cmd' if Is_windows else './build.sh', build_args))
     log(command)
@@ -326,9 +333,9 @@ def main(args):
     # Build the test command line.
 
     if Is_windows:
-        command = 'build.cmd -test'
+        command = 'build.cmd'
     else:
-        command = './build.sh -test'
+        command = './build.sh'
 
     # If we're doing altjit testing, then don't run any tests that don't work with altjit.
     if ci_arch is not None and (ci_arch == 'x86_arm_altjit' or ci_arch == 'x64_arm64_altjit'):
@@ -361,7 +368,6 @@ def main(args):
     command = ' '.join((
         command,
         config_args,
-        '-SkipTests' if no_run_tests else '',
         without_categories
     ))
 
@@ -370,6 +376,10 @@ def main(args):
 
     if not Is_windows:
         command += ' /p:TestWithLocalNativeLibraries=true'
+
+    if not Is_windows and (arch == 'arm' or arch == 'arm64'):
+        # It is needed under docker where LC_ALL is not configured.
+        command += ' --warnAsError false'
 
     # Run the corefx test build and run the tests themselves.
 

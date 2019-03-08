@@ -19,10 +19,14 @@ struct __declspec(uuid("592386a5-6837-444d-9de3-250815d18556"))
 /* interface */ IErrorMarshalTesting;
 struct __declspec(uuid("a5e04c1c-474e-46d2-bbc0-769d04e12b54"))
 /* interface */ IDispatchTesting;
+struct __declspec(uuid("83AFF8E4-C46A-45DB-9D91-2ADB5164545E"))
+/* interface */ IEventTesting;
 struct __declspec(uuid("98cc27f0-d521-4f79-8b63-e980e3a92974"))
 /* interface */ IAggregationTesting;
 struct __declspec(uuid("E6D72BA7-0936-4396-8A69-3B76DA1108DA"))
 /* interface */ IColorTesting;
+struct __declspec(uuid("6C9E230E-411F-4219-ABFD-E71F2B84FD50"))
+/* interface */ ILicenseTesting;
 
 //
 // Smart pointer typedef declarations
@@ -33,8 +37,10 @@ _COM_SMARTPTR_TYPEDEF(IArrayTesting, __uuidof(IArrayTesting));
 _COM_SMARTPTR_TYPEDEF(IStringTesting, __uuidof(IStringTesting));
 _COM_SMARTPTR_TYPEDEF(IErrorMarshalTesting, __uuidof(IErrorMarshalTesting));
 _COM_SMARTPTR_TYPEDEF(IDispatchTesting, __uuidof(IDispatchTesting));
+_COM_SMARTPTR_TYPEDEF(IEventTesting, __uuidof(IEventTesting));
 _COM_SMARTPTR_TYPEDEF(IAggregationTesting, __uuidof(IAggregationTesting));
 _COM_SMARTPTR_TYPEDEF(IColorTesting, __uuidof(IColorTesting));
+_COM_SMARTPTR_TYPEDEF(ILicenseTesting, __uuidof(ILicenseTesting));
 
 //
 // Type library items
@@ -444,6 +450,19 @@ IDispatchTesting : IDispatch
         /*[out,retval]*/ HFA_4 *pRetVal) = 0;
 };
 
+struct __declspec(uuid("83AFF8E4-C46A-45DB-9D91-2ADB5164545E"))
+IEventTesting : IDispatch
+{
+    virtual HRESULT STDMETHODCALLTYPE FireEvent() = 0;
+};
+
+struct __declspec(uuid("28ea6635-42ab-4f5b-b458-4152e78b8e86"))
+TestingEvents : IDispatch
+{
+#define DISPATCHTESTINGEVENTS_DISPID_ONEVENT 100
+    // void OnEvent(_In_z_ BSTR t);
+};
+
 struct __declspec(uuid("98cc27f0-d521-4f79-8b63-e980e3a92974"))
 IAggregationTesting : IUnknown
 {
@@ -468,6 +487,16 @@ IColorTesting : public IUnknown
 
     virtual HRESULT STDMETHODCALLTYPE GetRed(
         _Out_ _Ret_ OLE_COLOR* color) = 0;
+};
+
+struct __declspec(uuid("6C9E230E-411F-4219-ABFD-E71F2B84FD50"))
+ILicenseTesting : IUnknown
+{
+    virtual HRESULT STDMETHODCALLTYPE SetNextDenyLicense(_In_ VARIANT_BOOL denyLicense) = 0;
+
+    virtual HRESULT STDMETHODCALLTYPE GetLicense(_Out_ BSTR *lic) = 0;
+
+    virtual HRESULT STDMETHODCALLTYPE SetNextLicense(_In_z_ LPCOLESTR lic) = 0;
 };
 
 #pragma pack(pop)

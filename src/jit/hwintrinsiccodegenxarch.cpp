@@ -1520,16 +1520,6 @@ void CodeGen::genSSEIntrinsic(GenTreeHWIntrinsic* node)
             break;
         }
 
-        case NI_SSE_MoveMask:
-        {
-            assert(baseType == TYP_FLOAT);
-            assert(op2 == nullptr);
-
-            instruction ins = HWIntrinsicInfo::lookupIns(intrinsicId, node->gtSIMDBaseType);
-            emit->emitIns_R_R(ins, emitTypeSize(TYP_INT), targetReg, op1Reg);
-            break;
-        }
-
         case NI_SSE_Prefetch0:
         case NI_SSE_Prefetch1:
         case NI_SSE_Prefetch2:
@@ -1746,16 +1736,6 @@ void CodeGen::genSSE2Intrinsic(GenTreeHWIntrinsic* node)
             assert(op1 == nullptr);
             assert(op2 == nullptr);
             emit->emitIns(INS_mfence);
-            break;
-        }
-
-        case NI_SSE2_MoveMask:
-        {
-            assert(op2 == nullptr);
-            assert(baseType == TYP_BYTE || baseType == TYP_UBYTE || baseType == TYP_DOUBLE);
-
-            instruction ins = HWIntrinsicInfo::lookupIns(intrinsicId, baseType);
-            emit->emitIns_R_R(ins, emitTypeSize(TYP_INT), targetReg, op1Reg);
             break;
         }
 
@@ -2136,85 +2116,6 @@ void CodeGen::genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node)
             genHWIntrinsic_R_RM(node, ins, attr);
             emit->emitIns_R(INS_sete, EA_1BYTE, targetReg);
             emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
-            break;
-        }
-
-        case NI_AVX_ExtractVector128:
-        case NI_AVX_InsertVector128:
-        case NI_AVX2_ExtractVector128:
-        case NI_AVX2_InsertVector128:
-        {
-            GenTree* lastOp = nullptr;
-            if (numArgs == 2)
-            {
-                assert(intrinsicId == NI_AVX_ExtractVector128 || NI_AVX_ExtractVector128);
-                op2Reg = op2->gtRegNum;
-                lastOp = op2;
-            }
-            else
-            {
-                assert(numArgs == 3);
-                assert(op1->OperIsList());
-                assert(op1->gtGetOp2()->OperIsList());
-                assert(op1->gtGetOp2()->gtGetOp2()->OperIsList());
-
-                GenTreeArgList* argList = op1->AsArgList();
-                op1                     = argList->Current();
-                genConsumeRegs(op1);
-                op1Reg = op1->gtRegNum;
-
-                argList = argList->Rest();
-                op2     = argList->Current();
-                genConsumeRegs(op2);
-                op2Reg = op2->gtRegNum;
-
-                argList = argList->Rest();
-                lastOp  = argList->Current();
-                genConsumeRegs(lastOp);
-            }
-
-            regNumber op3Reg = lastOp->gtRegNum;
-
-            auto emitSwCase = [&](int8_t i) {
-                if (numArgs == 3)
-                {
-                    if (intrinsicId == NI_AVX_ExtractVector128 || intrinsicId == NI_AVX2_ExtractVector128)
-                    {
-                        emit->emitIns_AR_R_I(ins, attr, op1Reg, 0, op2Reg, i);
-                    }
-                    else if (op2->TypeGet() == TYP_I_IMPL)
-                    {
-                        emit->emitIns_SIMD_R_R_AR_I(ins, attr, targetReg, op1Reg, op2Reg, i);
-                    }
-                    else
-                    {
-                        assert(op2->TypeGet() == TYP_SIMD16);
-                        emit->emitIns_SIMD_R_R_R_I(ins, attr, targetReg, op1Reg, op2Reg, i);
-                    }
-                }
-                else
-                {
-                    assert(numArgs == 2);
-                    assert(intrinsicId == NI_AVX_ExtractVector128 || intrinsicId == NI_AVX2_ExtractVector128);
-                    emit->emitIns_SIMD_R_R_I(ins, attr, targetReg, op1Reg, i);
-                }
-            };
-
-            if (lastOp->IsCnsIntOrI())
-            {
-                ssize_t ival = lastOp->AsIntCon()->IconValue();
-                assert((ival >= 0) && (ival <= 255));
-                emitSwCase((int8_t)ival);
-            }
-            else
-            {
-                // We emit a fallback case for the scenario when the imm-op is not a constant. This should
-                // normally happen when the intrinsic is called indirectly, such as via Reflection. However, it
-                // can also occur if the consumer calls it directly and just doesn't pass a constant value.
-                regNumber baseReg = node->ExtractTempReg();
-                regNumber offsReg = node->GetSingleTempReg();
-                genHWIntrinsicJumpTableFallback(intrinsicId, op3Reg, baseReg, offsReg, emitSwCase);
-            }
             break;
         }
 

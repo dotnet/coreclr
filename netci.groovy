@@ -1197,12 +1197,12 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
         }
         else if (architecture == 'arm') {
             if (os == 'Ubuntu') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420"
+                return "mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-14.04-cross-e435274-20180426002420"
             }
         }
         else if (architecture == 'arm64') {
             if (os == 'Ubuntu16.04') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921"
+                return "mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921"
             }
         }
     }
@@ -1661,12 +1661,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
         'pgodeq',
         'RussKeldorph',
         'sandreenko',
-        'sdmaclea',
         'swaroop-sridhar',
         'jkotas',
         'markwilkie',
         'weshaggard',
-        'tannergooding
+        'tannergooding'
     ]
 
     // Pull request builds.  Generally these fall into two categories: default triggers and on-demand triggers

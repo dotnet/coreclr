@@ -25,7 +25,6 @@
 #include "dbginterface.h"
 #include "dllimport.h"
 #include "eeprofinterfaces.h"
-#include "perfcounters.h"
 #include "encee.h"
 #include "jitinterface.h"
 #include "eeconfig.h"
@@ -4056,18 +4055,8 @@ void Module::BuildClassForModule()
     // If we have any work to do...
     if (cFunctions > 0 || cFields > 0)
     {
-        COUNTER_ONLY(size_t _HeapSize = 0);
-
         TypeKey typeKey(this, COR_GLOBAL_PARENT_TOKEN);
         TypeHandle typeHnd = GetClassLoader()->LoadTypeHandleForTypeKeyNoLock(&typeKey);
-
-#ifdef ENABLE_PERF_COUNTERS 
-
-        _HeapSize = GetLoaderAllocator()->GetHighFrequencyHeap()->GetSize();
-
-        GetPerfCounters().m_Loading.cbLoaderHeapSize = _HeapSize;
-#endif // ENABLE_PERF_COUNTERS
-
     }
 }
 
@@ -6816,8 +6805,6 @@ LoaderHeap *Module::GetThunkHeap()
             size_t * pPrivatePCLBytes = NULL;
             size_t * pGlobalPCLBytes = NULL;
 
-            COUNTER_ONLY(pPrivatePCLBytes = &(GetPerfCounters().m_Loading.cbLoaderHeapSize));
-
             LoaderHeap *pNewHeap = new LoaderHeap(VIRTUAL_ALLOC_RESERVE_GRANULARITY, // DWORD dwReserveBlockSize
                 0,                                 // DWORD dwCommitBlockSize
                 pPrivatePCLBytes,
@@ -7454,6 +7441,11 @@ MethodDesc* Module::LoadIBCMethodHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_
             // get the method desc using slot number
             DWORD slot;
             IfFailThrow(p.GetData(&slot));
+
+            if (slot >= pOwnerMT->GetNumVtableSlots())
+            {
+                COMPlusThrow(kTypeLoadException, IDS_IBC_MISSING_EXTERNAL_METHOD);
+            }
 
             pMethod = pOwnerMT->GetMethodDescForSlot(slot);
         }

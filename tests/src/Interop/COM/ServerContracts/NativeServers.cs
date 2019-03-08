@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #pragma warning disable IDE1006 // Naming Styles
+#pragma warning disable 618 // Must test deprecated features
 
 namespace Server.Contract.Servers
 {
@@ -91,7 +92,7 @@ namespace Server.Contract.Servers
     [ComImport]
     [CoClass(typeof(DispatchTestingClass))]
     [Guid("a5e04c1c-474e-46d2-bbc0-769d04e12b54")]
-    internal interface DispatchTesting : Server.Contract.IDispatchTesting 
+    internal interface DispatchTesting : Server.Contract.IDispatchTesting
     {
     }
 
@@ -141,6 +142,26 @@ namespace Server.Contract.Servers
     internal class ColorTestingClass
     {
     }
+
+    /// <summary>
+    /// Managed definition of CoClass
+    /// </summary>
+    [ComImport]
+    [CoClass(typeof(LicenseTestingClass))]
+    [Guid("6C9E230E-411F-4219-ABFD-E71F2B84FD50")]
+    internal interface LicenseTesting : Server.Contract.ILicenseTesting
+    {
+    }
+
+    /// <summary>
+    /// Managed activation for CoClass
+    /// </summary>
+    [ComImport]
+    [Guid(Server.Contract.Guids.LicenseTesting)]
+    internal class LicenseTestingClass
+    {
+    }
 }
 
+#pragma warning restore 618 // Must test deprecated features
 #pragma warning restore IDE1006 // Naming Styles
