@@ -13,8 +13,8 @@
 #include "diagnosticsipc.h"
 
 IpcStream::DiagnosticsIpc::DiagnosticsIpc(const int serverSocket, sockaddr_un *const pServerAddress) :
-    _pServerAddress(new (std::nothrow) sockaddr_un),
-    _serverSocket(serverSocket)
+    _serverSocket(serverSocket),
+    _pServerAddress(new (std::nothrow) sockaddr_un)
 {
     _ASSERTE(_pServerAddress != nullptr);
     _ASSERTE(_serverSocket != -1);
