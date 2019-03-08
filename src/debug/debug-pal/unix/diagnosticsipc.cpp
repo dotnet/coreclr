@@ -79,14 +79,24 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
     return new IpcStream::DiagnosticsIpc(serverSocket, &serverAddress);
 }
 
-IpcStream *IpcStream::DiagnosticsIpc::Accept() const
+IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
 {
     if (::listen(_serverSocket, /* backlog */ 255) == -1)
         return nullptr;
     sockaddr_un from;
     socklen_t fromlen = sizeof(from);
     const int clientSocket = ::accept(_serverSocket, (sockaddr *)&from, &fromlen);
-    return clientSocket == -1 ? nullptr : new (std::nothrow) IpcStream(clientSocket);
+    if (clientSocket == -1)
+    {
+        if (callback != nullptr)
+            callback(strerror(errno), errno);
+        return nullptr;
+    }
+
+    auto pIpcStream = new (std::nothrow) IpcStream(hPipe);
+    if (pIpcStream == nullptr && callback != nullptr)
+        callback("Failed to allocate an IpcStream object.", 1);
+    return pIpcStream;
 }
 
 IpcStream::~IpcStream()
@@ -110,7 +120,7 @@ bool IpcStream::Read(void *lpBuffer, const uint32_t nBytesToRead, uint32_t &nByt
         // TODO: Add error handling.
     }
 
-    nBytesRead = static_cast<std::remove_reference<decltype(nBytesRead)>::type>(ssize);
+    nBytesRead = static_cast<uint32_t>(ssize);
     return fSuccess;
 }
 
@@ -126,7 +136,7 @@ bool IpcStream::Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32
         // TODO: Add error handling.
     }
 
-    nBytesWritten = static_cast<std::remove_reference<decltype(nBytesWritten)>::type>(ssize);
+    nBytesWritten = static_cast<uint32_t>(ssize);
     return fSuccess;
 }
 

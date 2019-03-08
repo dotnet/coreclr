@@ -39,7 +39,7 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
     return new IpcStream::DiagnosticsIpc(namedPipeName);
 }
 
-IpcStream *IpcStream::DiagnosticsIpc::Accept() const
+IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
 {
     const uint32_t nInBufferSize = 1024;
     const uint32_t nOutBufferSize = 16 * 1024 * 1024;
@@ -52,9 +52,27 @@ IpcStream *IpcStream::DiagnosticsIpc::Accept() const
         nInBufferSize,                                              // input buffer size
         0,                                                          // default client time-out
         NULL);                                                      // default security attribute
+
     if (hPipe == INVALID_HANDLE_VALUE)
+    {
+        if (callback != nullptr)
+            callback("Failed to create an instance of a named pipe.", ::GetLastError());
         return nullptr;
-    return (::ConnectNamedPipe(hPipe, NULL) != 0) || (::GetLastError() == ERROR_PIPE_CONNECTED) ? new (std::nothrow) IpcStream(hPipe) : nullptr;
+    }
+
+    const BOOL fSuccess = ::ConnectNamedPipe(hPipe, NULL) != 0;
+    const DWORD errorCode = ::GetLastError();
+    if (!fSuccess && (errorCode != ERROR_PIPE_CONNECTED))
+    {
+        if (callback != nullptr)
+            callback("Failed to wait for a client process to connect.", errorCode);
+        return nullptr;
+    }
+
+    auto pIpcStream = new (std::nothrow) IpcStream(hPipe);
+    if (pIpcStream == nullptr && callback != nullptr)
+        callback("Failed to allocate an IpcStream object.", 1);
+    return pIpcStream;
 }
 
 IpcStream::~IpcStream()
@@ -86,7 +104,7 @@ bool IpcStream::Read(void *lpBuffer, const uint32_t nBytesToRead, uint32_t &nByt
         // TODO: Add error handling.
     }
 
-    nBytesRead = static_cast<std::remove_reference<decltype(nBytesRead)>::type>(nNumberOfBytesRead);
+    nBytesRead = static_cast<uint32_t>(nNumberOfBytesRead);
     return fSuccess;
 }
 
@@ -107,7 +125,7 @@ bool IpcStream::Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32
         // TODO: Add error handling.
     }
 
-    nBytesWritten = static_cast<std::remove_reference<decltype(nBytesWritten)>::type>(nNumberOfBytesWritten);
+    nBytesWritten = static_cast<uint32_t>(nNumberOfBytesWritten);
     return fSuccess;
 }
 

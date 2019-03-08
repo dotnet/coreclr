@@ -30,17 +30,22 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
     auto pIpc = reinterpret_cast<IpcStream::DiagnosticsIpc *>(lpThreadParameter);
     if (pIpc == nullptr)
     {
-        STRESS_LOG0(
-            LF_STARTUP,                                     // facility
-            LL_ERROR,                                       // level
-            "Diagnostics IPC listener was undefined\n");    // msg
+        STRESS_LOG0(LF_STARTUP, LL_ERROR,"Diagnostics IPC listener was undefined\n");
         return 1;
     }
 
+#ifdef _DEBUG
+    ErrorCallback LoggingCallback = [](const char *szMessage, uint32_t code) {
+        LOG((LF_REMOTING, LL_WARNING, "warning (%d): %s.\n", code, szMessage));
+    };
+#else
+    ErrorCallback LoggingCallback = nullptr;
+#endif
+
     while (true)
     {
-        IpcStream *pStream = pIpc->Accept();  // FIXME: Ideally this would be something like a std::shared_ptr
-        assert(pStream != nullptr);
+        // FIXME: Ideally this would be something like a std::shared_ptr
+        IpcStream *pStream = pIpc->Accept(LoggingCallback);
         if (pStream == nullptr)
             continue;
 
@@ -66,7 +71,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
             break;
 
         default:
-            // TODO: Add error handling?
+            LOG((LF_REMOTING, LL_WARNING, "Received unknow request type (%d)\n", header.RequestType));
             break;
         }
     }
@@ -129,7 +134,10 @@ bool DiagnosticServer::Initialize()
             }
         }
     }
-    EX_CATCH {}
+    EX_CATCH
+    {
+        // TODO: Should we log anything here?
+    }
     EX_END_CATCH(SwallowAllExceptions);
 
     return fSuccess;
@@ -155,6 +163,7 @@ bool DiagnosticServer::Shutdown()
     EX_CATCH
     {
         fSuccess = false;
+        // TODO: Should we log anything here?
     }
     EX_END_CATCH(SwallowAllExceptions);
 
