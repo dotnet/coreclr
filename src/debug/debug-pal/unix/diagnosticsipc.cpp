@@ -12,27 +12,17 @@
 #include <sys/un.h>
 #include "diagnosticsipc.h"
 
-IpcStream::DiagnosticsIpc::DiagnosticsIpc(const char *const pIpcName, const uint32_t pid) :
-    _pServerAddress(new (std::nothrow) sockaddr_un)
+IpcStream::DiagnosticsIpc::DiagnosticsIpc(const int serverSocket, sockaddr_un *const pServerAddress) :
+    _pServerAddress(new (std::nothrow) sockaddr_un),
+    _serverSocket(serverSocket)
 {
     _ASSERTE(_pServerAddress != nullptr);
-    _ASSERTE(pIpcName != nullptr);
+    _ASSERTE(_serverSocket != -1);
+    _ASSERTE(pServerAddress != nullptr);
 
-    _serverSocket = ::socket(PF_UNIX, SOCK_STREAM, 0);
-    _ASSERTE(_serverSocket != -1); // TODO: Add error handling.
-
-    memset(_pServerAddress, 0, sizeof(sockaddr_un));
-    _pServerAddress->sun_family = AF_UNIX;
-    const int nCharactersWritten = sprintf_s(
-        _pServerAddress->sun_path,
-        sizeof(_pServerAddress->sun_path),
-        "/tmp/%s-%d",
-        pIpcName,
-        pid);
-    _ASSERTE(nCharactersWritten > 0);
-
-    const int fSuccessBind = ::bind(_serverSocket, (sockaddr *)_pServerAddress, sizeof(*_pServerAddress));
-    _ASSERTE(fSuccessBind != -1);
+    if (_pServerAddress == nullptr || pServerAddress == nullptr)
+        return;
+    memcpy(_pServerAddress, pServerAddress, sizeof(sockaddr_un));
 }
 
 IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
@@ -40,13 +30,53 @@ IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
     if (_serverSocket != -1)
     {
         const int fSuccessClose = ::close(_serverSocket);
-        _ASSERTE(fSuccessClose != -1); // TODO: Add error handling.
+        _ASSERTE(fSuccessClose != -1); // TODO: Add error handling?
 
         const int fSuccessUnlink = ::unlink(_pServerAddress->sun_path);
-        _ASSERTE(fSuccessUnlink != -1); // TODO: Add error handling.
+        _ASSERTE(fSuccessUnlink != -1); // TODO: Add error handling?
 
         delete _pServerAddress;
     }
+}
+
+IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, const uint32_t pid, ErrorCallback callback)
+{
+    const int serverSocket = ::socket(PF_UNIX, SOCK_STREAM, 0);
+    _ASSERTE(serverSocket != -1);
+    if (serverSocket == -1)
+    {
+        if (callback != nullptr)
+            callback(strerror(errno), errno);
+        return nullptr;
+    }
+
+    sockaddr_un serverAddress{};
+    serverAddress->sun_family = AF_UNIX;
+    const int nCharactersWritten = sprintf_s(
+        serverAddress->sun_path,
+        sizeof(serverAddress->sun_path),
+        "/tmp/%s-%d",
+        pIpcName,
+        pid);
+
+    _ASSERTE(nCharactersWritten != -1);
+    if (nCharactersWritten == -1)
+    {
+        if (callback != nullptr)
+            callback("Failed to generate the socket name", nCharactersWritten);
+        return nullptr;
+    }
+
+    const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
+    _ASSERTE(fSuccessBind != -1);
+    if (fSuccessBind == -1)
+    {
+        if (callback != nullptr)
+            callback(strerror(errno), errno);
+        return nullptr;
+    }
+
+    return new IpcStream::DiagnosticsIpc(serverSocket, &serverAddress);
 }
 
 IpcStream *IpcStream::DiagnosticsIpc::Accept() const

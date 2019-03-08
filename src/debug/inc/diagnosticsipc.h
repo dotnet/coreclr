@@ -13,7 +13,7 @@
   #include <Windows.h>
 #endif /* FEATURE_PAL */
 
-// typedef void (*ErrorCallback)(const char *szMessage, uint32_t code);
+typedef void (*ErrorCallback)(const char *szMessage, uint32_t code);
 
 class IpcStream final
 {
@@ -26,16 +26,20 @@ public:
     class DiagnosticsIpc final
     {
     public:
-        DiagnosticsIpc(const char *const pIpcName, const uint32_t pid);
+        static DiagnosticsIpc *Create(const char *const pIpcName, const uint32_t pid, ErrorCallback callback = nullptr);
         ~DiagnosticsIpc();
         IpcStream *Accept() const;
 
     private:
+
 #ifdef FEATURE_PAL
-        int _serverSocket = -1;
+        DiagnosticsIpc(const int serverSocket, sockaddr_un *const pServerAddress);
+        const int _serverSocket = -1;
         sockaddr_un *const _pServerAddress;
 #else
-        char _pNamedPipeName[256]; // https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-createnamedpipea
+        static const uint32_t MaxNamedPipeNameLength = 256;
+        DiagnosticsIpc(const char(&namedPipeName)[MaxNamedPipeNameLength]);
+        char _pNamedPipeName[MaxNamedPipeNameLength]; // https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-createnamedpipea
 #endif /* FEATURE_PAL */
 
         DiagnosticsIpc() = delete;

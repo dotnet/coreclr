@@ -7,7 +7,6 @@
 #include "diagnosticsipc.h"
 #include "eventpipe.h"
 #include "eventpipeconfiguration.h"
-#include "processdescriptor.h"
 #include "sampleprofiler.h"
 
 #ifdef FEATURE_PAL
@@ -16,27 +15,34 @@
 
 #ifdef FEATURE_PERFTRACING
 
-static DWORD WINAPI DiagnosticsServerThread(LPVOID /*lpThreadParameter*/)
+static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 {
     CONTRACTL
     {
+        // TODO: Maybe this should not throw.
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(lpThreadParameter != nullptr);
     }
     CONTRACTL_END;
 
-    const ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
-    IpcStream::DiagnosticsIpc ipc("dotnetcore-diagnostic", pd.m_Pid);
+    auto pIpc = reinterpret_cast<IpcStream::DiagnosticsIpc *>(lpThreadParameter);
+    if (pIpc == nullptr)
+    {
+        STRESS_LOG0(
+            LF_STARTUP,                                     // facility
+            LL_ERROR,                                       // level
+            "Diagnostics IPC listener was undefined\n");    // msg
+        return 1;
+    }
 
     while (true)
     {
-        IpcStream *pStream = ipc.Accept();  // FIXME: Ideally this would be something like a std::shared_ptr
+        IpcStream *pStream = pIpc->Accept();  // FIXME: Ideally this would be something like a std::shared_ptr
         assert(pStream != nullptr);
         if (pStream == nullptr)
-        {
             continue;
-        }
 
         // TODO: Read operation should happen in a loop.
         uint32_t nNumberOfBytesRead = 0;
@@ -77,15 +83,25 @@ bool DiagnosticServer::Initialize()
         MODE_ANY;
     } CONTRACTL_END;
 
-    static bool fInitialized = false;
-    assert(!fInitialized);
+    auto ErrorCallback = [](const char *szMessage, uint32_t code) {
+        STRESS_LOG2(
+            LF_STARTUP,                                             // facility
+            LL_ERROR,                                               // level
+            "Failed to create diagnostic IPC: error (%d): %s.\n",   // msg
+            code,                                                   // data1
+            szMessage);                                             // data2
+    };
+    IpcStream::DiagnosticsIpc *pIpc = IpcStream::DiagnosticsIpc::Create(
+        "dotnetcore-diagnostic", ::GetCurrentProcessId(), ErrorCallback);
+    if (pIpc == nullptr)
+        return false; // Do not bother starting the Diagnostics thread.
 
     DWORD dwThreadId = 0;
     HANDLE hThread = ::CreateThread( // TODO: Is it correct to have this "lower" level call here?
         nullptr,                    // no security attribute
         0,                          // default stack size
         DiagnosticsServerThread,    // thread proc
-        nullptr,                    // thread parameter
+        (LPVOID)pIpc,               // thread parameter
         0,                          // not suspended
         &dwThreadId);               // returns thread ID
 
@@ -102,10 +118,11 @@ bool DiagnosticServer::Initialize()
     {
          // FIXME: Maybe hold on to the thread to abort/cleanup at exit?
         ::CloseHandle(hThread);
-        fInitialized = true;
+        // TODO: Add error handling?
+        return true;
     }
 
-    return fInitialized;
+    return false;
 }
 
 bool DiagnosticServer::Shutdown()

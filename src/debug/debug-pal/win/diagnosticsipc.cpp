@@ -7,22 +7,36 @@
 #include <stdio.h>
 #include "diagnosticsipc.h"
 
-IpcStream::DiagnosticsIpc::DiagnosticsIpc(const char *const pIpcName, const uint32_t pid)
+IpcStream::DiagnosticsIpc::DiagnosticsIpc(const char(&namedPipeName)[MaxNamedPipeNameLength])
 {
-    assert(pIpcName != nullptr);
-
-    memset(_pNamedPipeName, 0, sizeof(_pNamedPipeName));
-    const int nCharactersWritten = sprintf_s(
-        _pNamedPipeName,
-        sizeof(_pNamedPipeName),
-        "\\\\.\\pipe\\%s-%d",
-        pIpcName,
-        pid);
-    assert(nCharactersWritten > 0);
+    memcpy(_pNamedPipeName, namedPipeName, sizeof(_pNamedPipeName));
 }
 
 IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 {
+}
+
+IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, const uint32_t pid, ErrorCallback callback)
+{
+    assert(pIpcName != nullptr);
+
+    char namedPipeName[256]{};
+    const int nCharactersWritten = sprintf_s(
+        namedPipeName,
+        sizeof(namedPipeName),
+        "\\\\.\\pipe\\%s-%d",
+        pIpcName,
+        pid);
+
+    assert(nCharactersWritten != -1);
+    if (nCharactersWritten == -1)
+    {
+        if (callback != nullptr)
+            callback("Failed to generate the named pipe name", nCharactersWritten);
+        return nullptr;
+    }
+
+    return new IpcStream::DiagnosticsIpc(namedPipeName);
 }
 
 IpcStream *IpcStream::DiagnosticsIpc::Accept() const
