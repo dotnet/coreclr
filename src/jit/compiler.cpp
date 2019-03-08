@@ -11111,14 +11111,19 @@ bool Compiler::killGCRefs(GenTree* tree)
 unsigned int Compiler::getLiveRangesCount()
 {
 
-    unsigned int varNum, amountOfLiveRanges = 0;
-    LclVarDsc*   varDsc = lvaTable;
+    unsigned int amountOfLiveRanges = 0;
 
-    for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
+    if (opts.compDbgInfo)
     {
-        if (compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
+        unsigned int varNum;
+        LclVarDsc*   varDsc;
+
+        for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
         {
-            amountOfLiveRanges += (unsigned int)varDsc->getAmountLiveRanges();
+            if (compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
+            {
+                amountOfLiveRanges += (unsigned int)varDsc->getAmountLiveRanges();
+            }
         }
     }
 
@@ -11150,7 +11155,7 @@ void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isB
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
-    if (varDsc->lvSlotNum < info.compLocalsCount)
+    if (opts.compDbgInfo && varDsc->lvSlotNum < info.compLocalsCount)
     {
         if (isBorn && !isDying)
         {
@@ -11186,14 +11191,17 @@ void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isB
 //    or both.
 void Compiler::siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying)
 {
-    VarSetOps::Iter iter(this, *varsIndexSet);
-    unsigned        varIndex = 0;
-    while (iter.NextElem(&varIndex))
+    if (opts.compDbgInfo)
     {
-        unsigned         lclNum = lvaTrackedToVarNum[varIndex];
-        const LclVarDsc* lclVar = &lvaTable[lclNum];
+        VarSetOps::Iter iter(this, *varsIndexSet);
+        unsigned        varIndex = 0;
+        while (iter.NextElem(&varIndex))
+        {
+            unsigned         lclNum = lvaTrackedToVarNum[varIndex];
+            const LclVarDsc* lclVar = &lvaTable[lclNum];
 
-        siStartOrCloseVariableLiveRange(lclVar, isBorn, isDying);
+            siStartOrCloseVariableLiveRange(lclVar, isBorn, isDying);
+        }
     }
 }
 
@@ -11215,7 +11223,7 @@ void Compiler::siStartVariableLiveRange(const LclVarDsc* varDsc)
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
-    if (varDsc->lvSlotNum < info.compLocalsCount)
+    if (opts.compDbgInfo && varDsc->lvSlotNum < info.compLocalsCount)
     {
         // Build siVarLoc for this borning "varDsc"
         CodeGenInterface::siVarLoc varLocation = codeGen->getSiVarLoc(varDsc, codeGen->getCurrentStackLevel());
@@ -11249,7 +11257,7 @@ void Compiler::siEndVariableLiveRange(const LclVarDsc* varDsc)
     // a valid IG so we don't report the close of a VariableLifeRange after code is
     // emitted.
 
-    if (varDsc->lvSlotNum < info.compLocalsCount && !lastBasicBlockHasBeenEmited)
+    if (opts.compDbgInfo && varDsc->lvSlotNum < info.compLocalsCount && !lastBasicBlockHasBeenEmited)
     {
         // "varDsc" live range is no more valid from this point
         varDsc->endLiveRangeAtEmitter(getEmitter());
@@ -11279,7 +11287,7 @@ void Compiler::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
     // When generating the prolog (after all code for "BasicBlock"s), "recordVarLocationsAtStartOfBB",
     // which called this function to update variable's home at each BasicBlock beginnnings,
     // is called to restore the positions of the variables at the beginning of the first block.
-    if (varDsc->lvSlotNum < info.compLocalsCount && !lastBasicBlockHasBeenEmited)
+    if (opts.compDbgInfo && varDsc->lvSlotNum < info.compLocalsCount && !lastBasicBlockHasBeenEmited)
     {
         // Build the location of the variable
         CodeGenInterface::siVarLoc siVarLoc = codeGen->getSiVarLoc(varDsc, codeGen->getCurrentStackLevel());
@@ -11310,14 +11318,17 @@ void Compiler::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
 //    outside the loop.
 void Compiler::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
 {
-    VarSetOps::Iter iter(this, *varsToClose);
-    unsigned        varIndex = 0;
-    while (iter.NextElem(&varIndex))
+    if (opts.compDbgInfo)
     {
-        unsigned         lclNum = lvaTrackedToVarNum[varIndex];
-        const LclVarDsc* lclVar = &lvaTable[lclNum];
+        VarSetOps::Iter iter(this, *varsToClose);
+        unsigned        varIndex = 0;
+        while (iter.NextElem(&varIndex))
+        {
+            unsigned         lclNum = lvaTrackedToVarNum[varIndex];
+            const LclVarDsc* lclVar = &lvaTable[lclNum];
 
-        siEndVariableLiveRange(lclVar);
+            siEndVariableLiveRange(lclVar);
+        }
     }
 
     lastBasicBlockHasBeenEmited = true;
@@ -11335,17 +11346,20 @@ void Compiler::dumpBlockVariableLiveRanges(const BasicBlock* block)
         printf("Var History Dump for Block %d \n", block->bbNum);
     }
 
-    unsigned   varNum;
-    LclVarDsc* varDsc;
-
-    for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
+    if (opts.compDbgInfo)
     {
-        if (varDsc->hasBeenAlive())
+        unsigned   varNum;
+        LclVarDsc* varDsc;
+
+        for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
         {
-            hasDumpedHistory = true;
-            printf("Var %d:\n", varNum);
-            varDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(codeGen);
-            varDsc->endBlockLiveRanges();
+            if (varDsc->hasBeenAlive())
+            {
+                hasDumpedHistory = true;
+                printf("Var %d:\n", varNum);
+                varDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(codeGen);
+                varDsc->endBlockLiveRanges();
+            }
         }
     }
 

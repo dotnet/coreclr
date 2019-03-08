@@ -390,9 +390,12 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
         varDsc->lvIsParam = 1;
         varDsc->lvIsPtr   = 1;
 
-        // This will have the varNum 0 and will be show on debugger so
-        // it's home history should be safe
-        varDsc->initializeRegisterLiveRanges(getAllocator());
+        if (opts.compDbgInfo)
+        {
+            // This will have the varNum 0 and will be show on debugger so
+            // it's home history should be safe
+            varDsc->initializeRegisterLiveRanges(getAllocator());
+        }
 
         // And store its index for tracking purpose
         varDsc->lvSlotNum = varDscInfo->varNum;
@@ -479,9 +482,12 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
         varDsc->lvIsParam   = 1;
         varDsc->lvIsRegArg  = 1;
 
-        // This variables are shown by the debugger so
-        // we need to initialize its structures
-        varDsc->initializeRegisterLiveRanges(getAllocator());
+        if (opts.compDbgInfo)
+        {
+            // This variables are shown by the debugger so
+            // we need to initialize its structures
+            varDsc->initializeRegisterLiveRanges(getAllocator());
+        }
 
         // And store its index for tracking purpose
         varDsc->lvSlotNum = varDscInfo->varNum;
@@ -1056,9 +1062,12 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
         varDsc->lvIsParam = 1;
         varDsc->lvType    = TYP_I_IMPL;
 
-        // This will have the varNum 0 and will be show on debugger so
-        // it's home history should be safe
-        varDsc->initializeRegisterLiveRanges(getAllocator());
+        if (opts.compDbgInfo)
+        {
+            // This will have the varNum 0 and will be show on debugger so
+            // it's home history should be safe
+            varDsc->initializeRegisterLiveRanges(getAllocator());
+        }
 
         // And store its index for tracking purpose
         varDsc->lvSlotNum = varDscInfo->varNum;
@@ -1116,9 +1125,12 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
         varDsc->lvType    = TYP_I_IMPL;
         varDsc->lvIsParam = 1;
 
-        // This variables are shown by the debugger so
-        // we need to initialize its structures
-        varDsc->initializeRegisterLiveRanges(getAllocator());
+        if (opts.compDbgInfo)
+        {
+            // This variables are shown by the debugger so
+            // we need to initialize its structures
+            varDsc->initializeRegisterLiveRanges(getAllocator());
+        }
 
         // And store its index for tracking purpose
         varDsc->lvSlotNum = varDscInfo->varNum;
@@ -1221,7 +1233,7 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
             break;
     }
 
-    if (varNum < info.compLocalsCount)
+    if (opts.compDbgInfo && varNum < info.compLocalsCount)
     {
         // If it is a variable that exists in the IL, then we want to register
         // its home changes ("VariableLiveRanges") for debugging purpose

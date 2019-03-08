@@ -516,33 +516,33 @@ void CodeGen::genCodeForBBlist()
         // we've generated code for the last IL offset we saw in the block.
         genEnsureCodeEmitted(currentILOffset);
 
+        /* Is this the last block, and are there any open scopes left ? */
+
+        bool isLastBlockProcessed = (block->bbNext == nullptr);
+        if (block->isBBCallAlwaysPair())
+        {
+            isLastBlockProcessed = (block->bbNext->bbNext == nullptr);
+        }
+
+        if (compiler->opts.compDbgInfo && isLastBlockProcessed)
+        {
+            compiler->siEndAllVariableLiveRange(&compiler->compCurLife);
+        }
+
         if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
         {
             siEndBlock(block);
 
-            /* Is this the last block, and are there any open scopes left ? */
-
-            bool isLastBlockProcessed = (block->bbNext == nullptr);
-            if (block->isBBCallAlwaysPair())
+            if (isLastBlockProcessed && siOpenScopeList.scNext)
             {
-                isLastBlockProcessed = (block->bbNext->bbNext == nullptr);
-            }
+                /* This assert no longer holds, because we may insert a throw
+                    block to demarcate the end of a try or finally region when they
+                    are at the end of the method.  It would be nice if we could fix
+                    our code so that this throw block will no longer be necessary. */
 
-            if (isLastBlockProcessed)
-            {
-                compiler->siEndAllVariableLiveRange(&compiler->compCurLife);
+                // noway_assert(block->bbCodeOffsEnd != compiler->info.compILCodeSize);
 
-                if (siOpenScopeList.scNext)
-                {
-                    /* This assert no longer holds, because we may insert a throw
-                       block to demarcate the end of a try or finally region when they
-                       are at the end of the method.  It would be nice if we could fix
-                       our code so that this throw block will no longer be necessary. */
-
-                    // noway_assert(block->bbCodeOffsEnd != compiler->info.compILCodeSize);
-
-                    siCloseAllOpenScopes();
-                }
+                siCloseAllOpenScopes();
             }
         }
 
