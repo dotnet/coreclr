@@ -78,68 +78,86 @@ bool DiagnosticServer::Initialize()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-    } CONTRACTL_END;
-
-    auto ErrorCallback = [](const char *szMessage, uint32_t code) {
-        STRESS_LOG2(
-            LF_STARTUP,                                             // facility
-            LL_ERROR,                                               // level
-            "Failed to create diagnostic IPC: error (%d): %s.\n",   // msg
-            code,                                                   // data1
-            szMessage);                                             // data2
-    };
-    IpcStream::DiagnosticsIpc *pIpc = IpcStream::DiagnosticsIpc::Create(
-        "dotnetcore-diagnostic", ::GetCurrentProcessId(), ErrorCallback);
-    if (pIpc == nullptr)
-        return false; // Do not bother starting the Diagnostics thread.
-
-    DWORD dwThreadId = 0;
-    HANDLE hThread = ::CreateThread( // TODO: Is it correct to have this "lower" level call here?
-        nullptr,                    // no security attribute
-        0,                          // default stack size
-        DiagnosticsServerThread,    // thread proc
-        (LPVOID)pIpc,               // thread parameter
-        0,                          // not suspended
-        &dwThreadId);               // returns thread ID
-
-    if (hThread == nullptr)
-    {
-        // Failed to create IPC thread. Add error to STRESS_LOG.
-        STRESS_LOG1(
-            LF_STARTUP,                                             // facility
-            LL_ERROR,                                               // level
-            "Failed to create diagnostic server thread (%d).\n",    // msg
-            ::GetLastError());                                      // data1
     }
-    else
-    {
-         // FIXME: Maybe hold on to the thread to abort/cleanup at exit?
-        ::CloseHandle(hThread);
-        // TODO: Add error handling?
-        return true;
-    }
+    CONTRACTL_END;
 
-    return false;
+    bool fSuccess = false;
+
+    EX_TRY
+    {
+        auto ErrorCallback = [](const char *szMessage, uint32_t code) {
+            STRESS_LOG2(
+                LF_STARTUP,                                           // facility
+                LL_ERROR,                                             // level
+                "Failed to create diagnostic IPC: error (%d): %s.\n", // msg
+                code,                                                 // data1
+                szMessage);                                           // data2
+        };
+        IpcStream::DiagnosticsIpc *pIpc = IpcStream::DiagnosticsIpc::Create(
+            "dotnetcore-diagnostic", ::GetCurrentProcessId(), ErrorCallback);
+
+        if (pIpc != nullptr)
+        {
+            DWORD dwThreadId = 0;
+            HANDLE hThread = ::CreateThread( // TODO: Is it correct to have this "lower" level call here?
+                nullptr,                     // no security attribute
+                0,                           // default stack size
+                DiagnosticsServerThread,     // thread proc
+                (LPVOID)pIpc,                // thread parameter
+                0,                           // not suspended
+                &dwThreadId);                // returns thread ID
+
+            if (hThread == nullptr)
+            {
+                // Failed to create IPC thread.
+                STRESS_LOG1(
+                    LF_STARTUP,                                          // facility
+                    LL_ERROR,                                            // level
+                    "Failed to create diagnostic server thread (%d).\n", // msg
+                    ::GetLastError());                                   // data1
+            }
+            else
+            {
+                // FIXME: Maybe hold on to the thread to abort/cleanup at exit?
+                ::CloseHandle(hThread);
+
+                // TODO: Add error handling?
+                fSuccess = true;
+            }
+        }
+    }
+    EX_CATCH {}
+    EX_END_CATCH(SwallowAllExceptions);
+
+    return fSuccess;
 }
 
 bool DiagnosticServer::Shutdown()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-    } CONTRACTL_END;
+    }
+    CONTRACTL_END;
 
-    static bool fSuccess = false;
-    assert(!fSuccess);
+    bool fSuccess = false;
 
-    // FIXME: Stop IPC server thread?
+    EX_TRY
+    {
+        // FIXME: Stop IPC server thread?
+        fSuccess = true;
+    }
+    EX_CATCH
+    {
+        fSuccess = false;
+    }
+    EX_END_CATCH(SwallowAllExceptions);
 
-    fSuccess = true;
     return fSuccess;
 }
 
