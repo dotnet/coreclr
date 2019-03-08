@@ -713,19 +713,21 @@ ThrowOverflow:
                     // 32-bit RyuJIT doesn't convert 64-bit division by constant into multiplication by reciprocal. Do half-width divisions instead.
                     Debug.Assert(power <= ushort.MaxValue);
 
-                    int low16 = BitConverter.IsLittleEndian ? 0 : 2;
-                    int high16 = BitConverter.IsLittleEndian ? 2 : 0;
+                    const int low16Le = 0;
+                    const int low16Be = 2;
+                    const int high16Le = 2;
+                    const int high16Be = 0;
 
                     // byte* is used here because Roslyn doesn't do constant propagation for pointer arithmetic
-                    uint num = *(ushort*)((byte*)result + i * 4 + high16) + (remainder << 16);
+                    uint num = *(ushort*)((byte*)result + i * 4 + (BitConverter.IsLittleEndian ? high16Le : high16Be)) + (remainder << 16);
                     uint div = num / power;
                     remainder = num - div * power;
-                    *(ushort*)((byte*)result + i * 4 + high16) = (ushort)div;
+                    *(ushort*)((byte*)result + i * 4 + (BitConverter.IsLittleEndian ? high16Le : high16Be)) = (ushort)div;
 
-                    num = *(ushort*)((byte*)result + i * 4 + low16) + (remainder << 16);
+                    num = *(ushort*)((byte*)result + i * 4 + (BitConverter.IsLittleEndian ? low16Le : low16Be)) + (remainder << 16);
                     div = num / power;
                     remainder = num - div * power;
-                    *(ushort*)((byte*)result + i * 4 + low16) = (ushort)div;
+                    *(ushort*)((byte*)result + i * 4 + (BitConverter.IsLittleEndian ? low16Le : low16Be)) = (ushort)div;
 #endif
                 }
                 return power;
