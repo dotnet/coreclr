@@ -25,7 +25,7 @@ extern _s_gsCookie:DWORD
 extern ??_7InlinedCallFrame@@6B@:DWORD
 extern _g_TrapReturningThreads:DWORD
 
-extern _RareDisablePreemptiveGCHelper@4:proc
+extern @JIT_RareDisableHelper@0:proc
 
 .686P
 .XMM
@@ -125,8 +125,7 @@ _JIT_PInvokeEndRarePath@8 PROC public
         push            edx             ; Save pThread pointer
 
         ;; Call GC helper
-        push            edx             ; pThread as argument to the call
-        call            _RareDisablePreemptiveGCHelper@4
+        call            @JIT_RareDisableHelper@0
 
         pop             edx
         pop             ecx

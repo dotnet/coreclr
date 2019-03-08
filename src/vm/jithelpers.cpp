@@ -5544,6 +5544,8 @@ extern "C" FCDECL0(VOID, JIT_RareDisableHelperWorker);
 
 HCIMPL0(void, JIT_RareDisableHelperWorker)
 #else
+extern "C" FCDECL0(VOID, JIT_RareDisableHelper);
+
 HCIMPL0(void, JIT_RareDisableHelper)
 #endif
 {
@@ -5725,11 +5727,6 @@ Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubS
 
 EXTERN_C void JIT_PInvokeBegin(InlinedCallFrame* pFrame);
 EXTERN_C void JIT_PInvokeEnd(InlinedCallFrame* pFrame);
-
-EXTERN_C void STDCALL RareDisablePreemptiveGCHelper(Thread* pThread)
-{
-    pThread->RareDisablePreemptiveGC();
-}
 
 //========================================================================
 //
