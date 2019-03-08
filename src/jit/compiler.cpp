@@ -2154,6 +2154,11 @@ unsigned char Compiler::compGetJitDefaultFill(Compiler* comp)
         {
             temp |= 0x80;
         }
+
+        // Make a misaligned pointer value to reduce probability of getting a valid value and firing
+        // assert(!IsUninitialized(pointer)).
+        temp |= 0x1;
+
         defaultFill = (unsigned char)temp;
     }
 
