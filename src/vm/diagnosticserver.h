@@ -12,9 +12,10 @@
 //! TODO: Temp class.
 enum class DiagnosticMessageType : uint32_t
 {
-    // Debug
-    EnableDebugger = 0,
+    ///////////////////////////////////////////////////////////////////////////
+    // Debug = 0
 
+    ///////////////////////////////////////////////////////////////////////////
     // EventPipe
     EnableEventPipe = 1024,
     DisableEventPipe,
@@ -30,8 +31,8 @@ enum class DiagnosticMessageType : uint32_t
     // WriteEventData,
     // GetNextEvent,
 
-    // Profiler
-    EnableProfiler = 2048
+    ///////////////////////////////////////////////////////////////////////////
+    // Profiler = 2048
 };
 
 //! TODO: Temp class.
