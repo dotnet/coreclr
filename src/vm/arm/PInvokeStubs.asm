@@ -16,7 +16,7 @@
 
     IMPORT VarargPInvokeStubWorker
     IMPORT GenericPInvokeCalliStubWorker
-    IMPORT RareDisablePreemptiveGCHelper
+    IMPORT JIT_RareDisableHelper
 
     IMPORT s_gsCookie
     IMPORT g_TrapReturningThreads
@@ -221,8 +221,7 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
             mov         r5, r1
 
             ;; Call GC helper
-            mov         r0, r1
-            bl          RareDisablePreemptiveGCHelper
+            bl          JIT_RareDisableHelper
             
             ;; pThread->m_pFrame = pFrame->m_Next
             REMOVE_FRAME_FROM_THREAD r4, r5, r0

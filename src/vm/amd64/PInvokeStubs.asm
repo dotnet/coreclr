@@ -13,7 +13,7 @@ include AsmConstants.inc
 
 extern GenericPInvokeCalliStubWorker:proc
 extern VarargPInvokeStubWorker:proc
-extern RareDisablePreemptiveGCHelper:proc
+extern JIT_RareDisableHelper:proc
 
 extern s_gsCookie:QWORD
 extern ??_7InlinedCallFrame@@6B@:QWORD
@@ -241,8 +241,7 @@ NESTED_ENTRY JIT_PInvokeEndRarePath, _TEXT
         mov             r15, rdx
 
         ;; Call
-        mov             rcx, rdx
-        call            RareDisablePreemptiveGCHelper
+        call            JIT_RareDisableHelper
 
         ;; pThread->m_pFrame = pFrame->m_Next
         REMOVE_FRAME_FROM_THREAD r14, r15, rax

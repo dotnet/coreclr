@@ -324,8 +324,7 @@ TrashRegister32Bit SETS "w":CC:("$TrashRegister32Bit":RIGHT:((:LEN:TrashRegister
         ldr         $destReg, [$destReg, $trashReg lsl #3]
         ldr         $trashReg, =$__SECTIONREL_gCurrentThreadInfo
         ldr         $trashReg, [$trashReg]
-        add         $destReg, $destReg, $trashReg
-        ldr         $destReg, [$destReg]        ; return gCurrentThreadInfo.m_pThread
+        ldr         $destReg, [$destReg, $trashReg]        ; return gCurrentThreadInfo.m_pThread
     MEND
 
 ;-----------------------------------------------------------------------------

@@ -177,8 +177,7 @@ __SECTIONREL_gCurrentThreadInfo SETS "SECTIONREL_gCurrentThreadInfo"
         ldr         $trashReg, [$trashReg, #__tls_array]
         ldr         $destReg, [$trashReg, $destReg, lsl #2]
         ldr         $trashReg, $__SECTIONREL_gCurrentThreadInfo
-        add         $destReg, $trashReg
-        ldr         $destReg,[$destReg]     ; return gCurrentThreadInfo.m_pThread
+        ldr         $destReg,[$destReg, $trashReg]     ; return gCurrentThreadInfo.m_pThread
     MEND
 
 ;-----------------------------------------------------------------------------
@@ -188,10 +187,11 @@ __SECTIONREL_gCurrentThreadInfo SETS "SECTIONREL_gCurrentThreadInfo"
 ;
     MACRO
         INLINE_GETTHREAD_CONSTANT_POOL
-
         EXTERN gCurrentThreadInfo
+
 $__SECTIONREL_gCurrentThreadInfo
-        DCD gCurrentThreadInfo
+        DCDU gCurrentThreadInfo
         RELOC 15 ;; SECREL
+
 __SECTIONREL_gCurrentThreadInfo SETS "$__SECTIONREL_gCurrentThreadInfo":CC:"_"
     MEND
