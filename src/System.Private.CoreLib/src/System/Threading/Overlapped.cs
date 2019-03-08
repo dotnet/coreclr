@@ -22,6 +22,7 @@
 
 
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -287,6 +288,9 @@ namespace System.Threading
             {
                 if (!success)
                     FreeNativeOverlapped();
+
+                if (success && FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool))
+                    System.Diagnostics.Tracing.FrameworkEventSource.Log.ThreadPoolIOPackWork((long)(IntPtr)_pNativeOverlapped);
             }
         }
 

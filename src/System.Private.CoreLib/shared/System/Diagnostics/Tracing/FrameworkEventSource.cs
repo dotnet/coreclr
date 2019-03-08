@@ -17,7 +17,9 @@ namespace System.Diagnostics.Tracing
         // so grouping low volume events together in a single keywords is OK (users can post-filter by task if desired)
         public static class Keywords
         {
+            // NetFX reserved: Loader = 1
             public const EventKeywords ThreadPool = (EventKeywords)0x0002;
+            // NetFX reserved: NetClient = 4, DynamicTypeUsage = 8
             public const EventKeywords ThreadTransfer = (EventKeywords)0x0010;
         }
 
@@ -112,6 +114,12 @@ namespace System.Diagnostics.Tracing
         {
             // convert the Object Id to a long
             ThreadPoolDequeueWork((long)*((void**)Unsafe.AsPointer(ref workID)));
+        }
+
+        [Event(32, Level = EventLevel.Verbose, Keywords = Keywords.ThreadPool)]
+        public void ThreadPoolIOPackWork(long workID)
+        {
+            WriteEvent(32, workID);
         }
 
         // id -   represents a correlation ID that allows correlation of two activities, one stamped by 
