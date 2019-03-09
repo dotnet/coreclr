@@ -2298,14 +2298,15 @@ PAL_GetTransportPipeName(
     OUT char *name,
     IN DWORD id,
     IN const char *applicationGroupId,
-    IN const char *suffix)
+    IN const char *suffix,
+    const int MAX_TRANSPORT_NAME_LENGTH)
 {
     *name = '\0';
     DWORD dwRetVal = 0;
     UINT64 disambiguationKey = 0;
     PathCharString formatBufferString;
     BOOL ret = GetProcessIdDisambiguationKey(id, &disambiguationKey);
-    char *formatBuffer = formatBufferString.OpenStringBuffer(MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH-1);
+    char *formatBuffer = formatBufferString.OpenStringBuffer(MAX_TRANSPORT_NAME_LENGTH-1);
     if (formatBuffer == nullptr)
     {
         ERROR("Out Of Memory");
@@ -2337,9 +2338,9 @@ PAL_GetTransportPipeName(
         }
 
         // Verify the size of the path won't exceed maximum allowed size
-        if (formatBufferString.GetCount() >= MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH)
+        if (formatBufferString.GetCount() >= MAX_TRANSPORT_NAME_LENGTH)
         {
-            ERROR("GetApplicationContainerFolder returned a path that was larger than MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH");
+            ERROR("GetApplicationContainerFolder returned a path that was larger than MAX_TRANSPORT_NAME_LENGTH");
             return;
         }
     }
@@ -2347,27 +2348,27 @@ PAL_GetTransportPipeName(
 #endif // __APPLE__
     {
         // Get a temp file location
-        dwRetVal = ::GetTempPathA(MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, formatBuffer);
+        dwRetVal = ::GetTempPathA(MAX_TRANSPORT_NAME_LENGTH, formatBuffer);
         if (dwRetVal == 0)
         {
             ERROR("GetTempPath failed (0x%08x)", ::GetLastError());
             return;
         }
-        if (dwRetVal > MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH)
+        if (dwRetVal > MAX_TRANSPORT_NAME_LENGTH)
         {
-            ERROR("GetTempPath returned a path that was larger than MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH");
+            ERROR("GetTempPath returned a path that was larger than MAX_TRANSPORT_NAME_LENGTH");
             return;
         }
     }
 
-    if (strncat_s(formatBuffer, MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, PipeNameFormat, strlen(PipeNameFormat)) == STRUNCATE)
+    if (strncat_s(formatBuffer, MAX_TRANSPORT_NAME_LENGTH, PipeNameFormat, strlen(PipeNameFormat)) == STRUNCATE)
     {
-        ERROR("TransportPipeName was larger than MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH");
+        ERROR("TransportPipeName was larger than MAX_TRANSPORT_NAME_LENGTH");
         return;
     }
 
-    int chars = snprintf(name, MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, formatBuffer, id, disambiguationKey, suffix);
-    _ASSERTE(chars > 0 && chars < MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH);
+    int chars = snprintf(name, MAX_TRANSPORT_NAME_LENGTH, formatBuffer, id, disambiguationKey, suffix);
+    _ASSERTE(chars > 0 && chars < MAX_TRANSPORT_NAME_LENGTH);
 }
 
 /*++

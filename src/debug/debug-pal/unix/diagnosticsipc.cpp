@@ -53,22 +53,13 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
 
     sockaddr_un serverAddress{};
     serverAddress.sun_family = AF_UNIX;
-
     const ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
-    const int nCharactersWritten = sprintf_s(
+    PAL_GetTransportPipeName(
         serverAddress.sun_path,
-        sizeof(serverAddress.sun_path),
-        "/tmp/%s-%d",
-        pIpcName,
-        pd.m_Pid);
-
-    if (nCharactersWritten == -1)
-    {
-        if (callback != nullptr)
-            callback("Failed to generate the socket name", nCharactersWritten);
-        _ASSERTE(nCharactersWritten != -1);
-        return nullptr;
-    }
+        pd.m_Pid,
+        pd.m_ApplicationGroupId,
+        "", // TODO: should we add `socket` as suffix?
+        sizeof(serverAddress.sun_path));
 
     const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
     if (fSuccessBind == -1)
