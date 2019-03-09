@@ -230,8 +230,7 @@ namespace System
                 return trimElements.Length == 0 ? memory : TrimStart(memory, trimElements[0]);
             }
 
-            int start = ClampStart(memory.Span, trimElements);
-            return memory.Slice(start);
+            return memory.Slice(ClampStart(memory.Span, trimElements));
         }
 
         /// <summary>
@@ -249,8 +248,7 @@ namespace System
                 return trimElements.Length == 0 ? memory : TrimEnd(memory, trimElements[0]);
             }
 
-            int length = ClampEnd(memory.Span, 0, trimElements);
-            return memory.Slice(0, length);
+            return memory.Slice(0, ClampEnd(memory.Span, 0, trimElements));
         }
 
         /// <summary>
@@ -289,8 +287,7 @@ namespace System
                 return trimElements.Length == 0 ? memory : TrimStart(memory, trimElements[0]);
             }
 
-            int start = ClampStart(memory.Span, trimElements);
-            return memory.Slice(start);
+            return memory.Slice(ClampStart(memory.Span, trimElements));
         }
 
         /// <summary>
@@ -308,8 +305,7 @@ namespace System
                 return trimElements.Length == 0 ? memory : TrimEnd(memory, trimElements[0]);
             }
 
-            int length = ClampEnd(memory.Span, 0, trimElements);
-            return memory.Slice(0, length);
+            return memory.Slice(0, ClampEnd(memory.Span, 0, trimElements));
         }
 
         /// <summary>
@@ -347,8 +343,7 @@ namespace System
                 return trimElements.Length == 0 ? span : TrimStart(span, trimElements[0]);
             }
 
-            int start = ClampStart(span, trimElements);
-            return span.Slice(start);
+            return span.Slice(ClampStart(span, trimElements));
         }
 
         /// <summary>
@@ -366,8 +361,7 @@ namespace System
                 return trimElements.Length == 0 ? span : TrimEnd(span, trimElements[0]);
             }
 
-            int length = ClampEnd(span, 0, trimElements);
-            return span.Slice(0, length);
+            return span.Slice(0, ClampEnd(span, 0, trimElements));
         }
 
         /// <summary>
@@ -405,8 +399,7 @@ namespace System
                 return trimElements.Length == 0 ? span : TrimStart(span, trimElements[0]);
             }
 
-            int start = ClampStart(span, trimElements);
-            return span.Slice(start);
+            return span.Slice(ClampStart(span, trimElements));
         }
 
         /// <summary>
@@ -424,8 +417,7 @@ namespace System
                 return trimElements.Length == 0 ? span : TrimEnd(span, trimElements[0]);
             }
 
-            int length = ClampEnd(span, 0, trimElements);
-            return span.Slice(0, length);
+            return span.Slice(0, ClampEnd(span, 0, trimElements));
         }
 
         /// <summary>
@@ -481,7 +473,6 @@ namespace System
 
             int start = ClampStart(span);
             int length = ClampEnd(span, start);
-
             return memory.Slice(start, length);
         }
 
@@ -506,7 +497,6 @@ namespace System
 
             int start = ClampStart(span);
             int length = ClampEnd(span, start);
-
             return memory.Slice(start, length);
         }
 
@@ -733,7 +723,6 @@ namespace System
         {
             int start = ClampStart(span);
             int length = ClampEnd(span, start);
-
             return span.Slice(start, length);
         }
 
