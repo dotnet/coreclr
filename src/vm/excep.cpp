@@ -5138,25 +5138,17 @@ LONG InternalUnhandledExceptionFilter(
 
 } // LONG InternalUnhandledExceptionFilter()
 
-bool& GetUseEntryPointFilter()
-{
-    static bool use = false;
-
-#ifndef PLATFORM_WINDOWS
-    // This feature has only been tested on Windows, keep it disabled on other platforms
-    use = false;
-#endif
-
-    return use;
-}
+static bool s_useEntryPointFilter = false;
 
 void ParseUseEntryPointFilter(LPCWSTR value)
 {
-    // set GetUseEntryPointFilter() true if value != "0"
-    if(value && (_wcsicmp(value, W("0")) != 0))
+#ifdef PLATFORM_WINDOWS // This feature has only been tested on Windows, keep it disabled on other platforms
+    // set s_useEntryPointFilter true if value != "0"
+    if (value && (_wcsicmp(value, W("0")) != 0))
     {
-        GetUseEntryPointFilter() = true;
+        s_useEntryPointFilter = true;
     }
+#endif
 }
 
 // This filter is used to trigger unhandled exception processing for the entrypoint thread
@@ -5179,7 +5171,7 @@ LONG EntryPointFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOID _pData)
         return ret;
     }
 
-    if(!GetUseEntryPointFilter())
+    if (!s_useEntryPointFilter)
     {
         return EXCEPTION_CONTINUE_SEARCH;
     }
@@ -5197,7 +5189,7 @@ LONG EntryPointFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOID _pData)
         LOG((LF_EH, LL_INFO100, "EntryPointFilter: setting TSNC_ProcessedUnhandledException\n"));
         pThread->SetThreadStateNC(Thread::TSNC_ProcessedUnhandledException);
 
-        if(ret == EXCEPTION_EXECUTE_HANDLER)
+        if (ret == EXCEPTION_EXECUTE_HANDLER)
         {
             // Do not swallow the exception, we just want to log it
             return EXCEPTION_CONTINUE_SEARCH;
