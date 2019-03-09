@@ -10139,10 +10139,10 @@ var_types Compiler::impGetByRefResultType(genTreeOps oper, bool fUnsigned, GenTr
             // to have a tree like this:
             //
             //              -
-            //             / \
-            //            /   \
-            //           /     \
-            //          /       \
+            //             / \.
+            //            /   \.
+            //           /     \.
+            //          /       \.
             // const(h) int     addr byref
             //
             // <BUGNUM> VSW 318822 </BUGNUM>
@@ -10450,7 +10450,7 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // expand the methodtable match:
     //
     //  condMT ==>   GT_NE
-    //               /    \
+    //               /    \.
     //           GT_IND   op2 (typically CNS_INT)
     //              |
     //           op1Copy
@@ -10479,7 +10479,7 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // expand the null check:
     //
     //  condNull ==>   GT_EQ
-    //                 /    \
+    //                 /    \.
     //             op1Copy CNS_INT
     //                      null
     //
@@ -10512,9 +10512,9 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // Generate first QMARK - COLON tree
     //
     //  qmarkMT ==>   GT_QMARK
-    //                 /     \
+    //                 /     \.
     //            condMT   GT_COLON
-    //                      /     \
+    //                      /     \.
     //                condFalse  condTrue
     //
     temp    = new (this, GT_COLON) GenTreeColon(TYP_REF, condTrue, condFalse);
@@ -10525,9 +10525,9 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // Generate second QMARK - COLON tree
     //
     //  qmarkNull ==>  GT_QMARK
-    //                 /     \
+    //                 /     \.
     //           condNull  GT_COLON
-    //                      /     \
+    //                      /     \.
     //                qmarkMT   op1Copy
     //
     temp      = new (this, GT_COLON) GenTreeColon(TYP_REF, gtClone(op1), qmarkMT);
