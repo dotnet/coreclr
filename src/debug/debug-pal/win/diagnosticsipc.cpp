@@ -28,11 +28,11 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
         pIpcName,
         pid);
 
-    assert(nCharactersWritten != -1);
     if (nCharactersWritten == -1)
     {
         if (callback != nullptr)
             callback("Failed to generate the named pipe name", nCharactersWritten);
+        assert(nCharactersWritten != -1);
         return nullptr;
     }
 
@@ -79,11 +79,11 @@ IpcStream::~IpcStream()
 {
     if (_hPipe != INVALID_HANDLE_VALUE)
     {
-        BOOL fSuccess = ::DisconnectNamedPipe(_hPipe);
-        assert(fSuccess != 0);
+        const BOOL fSuccessDisconnectNamedPipe = ::DisconnectNamedPipe(_hPipe);
+        assert(fSuccessDisconnectNamedPipe != 0);
 
-        fSuccess = ::CloseHandle(_hPipe);
-        assert(fSuccess != 0);
+        const BOOL fSuccessCloseHandle = ::CloseHandle(_hPipe);
+        assert(CloseHandle != 0);
     }
 }
 

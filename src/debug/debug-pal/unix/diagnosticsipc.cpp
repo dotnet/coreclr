@@ -42,11 +42,11 @@ IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, const uint32_t pid, ErrorCallback callback)
 {
     const int serverSocket = ::socket(AF_UNIX, SOCK_STREAM, 0);
-    _ASSERTE(serverSocket != -1);
     if (serverSocket == -1)
     {
         if (callback != nullptr)
             callback(strerror(errno), errno);
+        _ASSERTE(serverSocket != -1);
         return nullptr;
     }
 
@@ -59,20 +59,20 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
         pIpcName,
         pid);
 
-    _ASSERTE(nCharactersWritten != -1);
     if (nCharactersWritten == -1)
     {
         if (callback != nullptr)
             callback("Failed to generate the socket name", nCharactersWritten);
+        _ASSERTE(nCharactersWritten != -1);
         return nullptr;
     }
 
     const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
-    _ASSERTE(fSuccessBind != -1);
     if (fSuccessBind == -1)
     {
         if (callback != nullptr)
             callback(strerror(errno), errno);
+        _ASSERTE(fSuccessBind != -1);
         return nullptr;
     }
 
