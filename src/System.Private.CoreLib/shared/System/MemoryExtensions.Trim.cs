@@ -646,9 +646,7 @@ namespace System
         /// <param name="trimChars">The span which contains the set of characters to remove.</param>
         /// <remarks>If <paramref name="trimChars"/> is empty, white-space characters are removed instead.</remarks>
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span, ReadOnlySpan<char> trimChars)
-        {
-            return span.TrimStart(trimChars).TrimEnd(trimChars);
-        }
+            => span.TrimStart(trimChars).TrimEnd(trimChars);
 
         /// <summary>
         /// Removes all leading occurrences of a set of characters specified
