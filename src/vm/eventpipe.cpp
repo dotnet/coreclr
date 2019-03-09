@@ -1162,7 +1162,7 @@ void ProviderParser(const char *first, const char *last, EventPipeSessionProvide
     }
 
     // TODO: Move to a different function?
-    if (providerName.GetCount() > 0)
+    if (wcslen(providerName.GetUnicode()) > 0)
     {
         NewHolder<EventPipeSessionProvider> hEventPipeSessionProvider = new (nothrow) EventPipeSessionProvider(
             providerName.GetUnicode(), // TODO: Make sure we do not end up with a dangling reference.
@@ -1293,9 +1293,10 @@ void EventPipe::EnableFileTracingEventHandler(IpcStream *pStream)
     EventPipeSessionID sessionId = (EventPipeSessionID) nullptr;
     if (!providers.IsEmpty())
     {
-        //EventPipeSessionProviderList
+        LPCWSTR pStrOutputPath = wcslen(strOutputPath.GetUnicode()) > 0 ?
+            strOutputPath.GetUnicode() : nullptr;
         sessionId = EventPipe::Enable(
-            strOutputPath.GetUnicode(),               // outputFile
+            pStrOutputPath,                           // outputFile
             circularBufferSizeInMB,                   // circularBufferSizeInMB
             DefaultProfilerSamplingRateInNanoseconds, // ProfilerSamplingRateInNanoseconds
             providers,                                // pProviders
