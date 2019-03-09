@@ -20,7 +20,6 @@
 #include "eeconfig.h"
 #include "dbginterface.h"
 #include "stubgen.h"
-#include "mdaassistants.h"
 #include "appdomain.inl"
 
 #ifndef CROSSGEN_COMPILE
@@ -1167,12 +1166,8 @@ VOID UMThunkMarshInfo::RunTimeInit()
     // we will always emit the argument-shuffling thunk, m_cbActualArgSize is set inside
     LoaderHeap *pHeap = (pMD == NULL ? NULL : pMD->GetLoaderAllocator()->GetStubHeap());
 
-    if (pFinalILStub != NULL ||
-#ifdef MDA_SUPPORTED
-        // GC.Collect calls are emitted to IL stubs
-        MDA_GET_ASSISTANT(GcManagedToUnmanaged) || MDA_GET_ASSISTANT(GcUnmanagedToManaged) ||
-#endif // MDA_SUPPORTED
-        NDirect::MarshalingRequired(pMD, GetSignature().GetRawSig(), GetModule()))
+    if (pFinalILStub != NULL
+        || NDirect::MarshalingRequired(pMD, GetSignature().GetRawSig(), GetModule()))
     {
         if (pFinalILStub == NULL)
         {
@@ -1209,12 +1204,9 @@ VOID UMThunkMarshInfo::RunTimeInit()
 
     if (pFinalILStub == NULL)
     {
-        if (pMD != NULL && !pMD->IsEEImpl() &&
-#ifdef MDA_SUPPORTED
-            // GC.Collect calls are emitted to IL stubs
-            !MDA_GET_ASSISTANT(GcManagedToUnmanaged) && !MDA_GET_ASSISTANT(GcUnmanagedToManaged) &&
-#endif // MDA_SUPPORTED
-            !NDirect::MarshalingRequired(pMD, GetSignature().GetRawSig(), GetModule()))
+        if (pMD != NULL
+            && !pMD->IsEEImpl()
+            && !NDirect::MarshalingRequired(pMD, GetSignature().GetRawSig(), GetModule()))
         {
             // Call the method directly in no-delegate case if possible. This is important to avoid JITing
             // for stubs created via code:ICLRRuntimeHost2::CreateDelegate during coreclr startup.

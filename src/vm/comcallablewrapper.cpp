@@ -46,10 +46,6 @@
 #include "winrttypenameconverter.h"
 #include "typestring.h"
 
-#ifdef MDA_SUPPORTED
-const int DEBUG_AssertSlots = 50;
-#endif
-
 // The enum that describes the value of the IDispatchImplAttribute custom attribute.
 enum IDispatchImplType
 {
@@ -553,13 +549,6 @@ extern "C" PCODE ComPreStubWorker(ComPrestubMethodFrame *pPFrame, UINT64 *pError
 
                                 if (pADThrowable != NULL)
                                 {
-#ifdef MDA_SUPPORTED
-                                    if (fNonTransientExceptionThrown)
-                                    {
-                                        MDA_TRIGGER_ASSISTANT(InvalidMemberDeclaration, ReportViolation(pCMD, &pADThrowable));
-                                    }                    
-#endif
-                                    
                                     // Transform the exception into an HRESULT. This also sets up
                                     // an IErrorInfo on the current thread for the exception.
                                     hr = SetupErrorInfo(pADThrowable, pCMD);
@@ -4590,22 +4579,6 @@ void ComMethodTable::LayOutBasicMethodTable()
         pDispVtable->m_Invoke = (SLOT)Dispatch_Invoke_Wrapper;
     }
 
-#ifdef MDA_SUPPORTED
-#ifndef _DEBUG
-    // Only lay these out if the MDA is active when in retail.
-    if (NULL != MDA_GET_ASSISTANT(DirtyCastAndCallOnInterface))
-#endif
-        // Layout the assert stub slots so that people doing dirty casts get an assert telling
-        //  them what's wrong.
-    {
-        SLOT* assertSlot = ((SLOT*)(pDispVtable + 1));
-        for (int i = 0; i < DEBUG_AssertSlots; i++)
-        {
-            assertSlot[i] = (SLOT)DirtyCast_Assert;
-        }
-    }
-#endif
-    
     //
     // Set the layout complete flag.
     //
@@ -5327,18 +5300,11 @@ BOOL ComCallWrapperTemplate::CheckParentComVisibilityNoThrow(BOOL fForIDispatch)
     }
     CONTRACTL_END;
 
-    
     // If the parent is visible to COM then everything is ok.
     if (!HasInvisibleParent())
         return TRUE;
 
-#ifdef MDA_SUPPORTED
-    // Fire an MDA to help people diagnose the fact they are attempting to
-    // expose a class with a non COM visible base class to COM.
-    MDA_TRIGGER_ASSISTANT(NonComVisibleBaseClass, ReportViolation(m_thClass.GetMethodTable(), fForIDispatch));
-#endif
-
-    return FALSE;    
+    return FALSE;
 }
 
 DefaultInterfaceType ComCallWrapperTemplate::GetDefaultInterface(MethodTable **ppDefaultItf)
@@ -5693,17 +5659,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForBasic(MethodTable
     unsigned cbVtable    = cbExtraSlots * sizeof(SLOT);
     unsigned cbToAlloc   = sizeof(ComMethodTable) + cbVtable;
 
-#ifdef MDA_SUPPORTED
-#ifndef _DEBUG
-    // Only add these if the MDA is active while in retail.
-    if (NULL != MDA_GET_ASSISTANT(DirtyCastAndCallOnInterface))
-#endif
-    {
-        // Add some extra slots that will assert to catch dirty casts.
-        cbToAlloc += sizeof(SLOT) * DEBUG_AssertSlots;
-    }
-#endif
-
     NewExecutableHolder<ComMethodTable> pComMT = (ComMethodTable*) new (executable) BYTE[cbToAlloc]; 
 
     // set up the header
@@ -5730,18 +5685,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForBasic(MethodTable
     // Determine if the interface is a COM imported class interface.
     if (pMT->GetClass()->IsComClassInterface())
         pComMT->m_Flags |= enum_ComClassItf;
-
-#ifdef MDA_SUPPORTED
-#ifdef _DEBUG
-    {
-        // In debug set all the vtable slots to 0xDEADCA11.
-        SLOT *pComVTable = (SLOT*)(pComMT + 1);
-        for (unsigned iComSlots = 0; iComSlots < DEBUG_AssertSlots + cbExtraSlots; iComSlots++)
-            *(pComVTable + iComSlots) = (SLOT)(size_t)0xDEADCA11;
-    }
-#endif
-#endif
-
 
     LOG((LF_INTEROP, LL_INFO1000, "---------- end of CreateComMethodTableForBasic %s -----------\n", pMT->GetDebugClassName()));
 
