@@ -3515,7 +3515,7 @@ protected:
 #ifdef _TARGET_ARM64_
     InstructionSet lookupHWIntrinsicISA(const char* className);
     NamedIntrinsic lookupHWIntrinsic(const char* className, const char* methodName);
-    bool impCheckImmediate(GenTree* immediateOp, unsigned int max);
+    GenTree* addRangeCheckIfNeeded(GenTree* lastOp, unsigned int max, bool mustExpand);
 #endif // _TARGET_ARM64_
 #endif // FEATURE_HW_INTRINSICS
     GenTree* impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,
@@ -7188,11 +7188,6 @@ public:
     template <bool ForCodeGen>
     void compChangeLife(VARSET_VALARG_TP newLife);
 
-    void genChangeLife(VARSET_VALARG_TP newLife)
-    {
-        compChangeLife</*ForCodeGen*/ true>(newLife);
-    }
-
     template <bool ForCodeGen>
     inline void compUpdateLife(VARSET_VALARG_TP newLife);
 
@@ -8856,8 +8851,8 @@ public:
     bool compDonotInline();
 
 #ifdef DEBUG
-    unsigned char compGetJitDefaultFill(); // Get the default fill char value
-                                           // we randomize this value when JitStress is enabled
+    // Get the default fill char value we randomize this value when JitStress is enabled.
+    static unsigned char compGetJitDefaultFill(Compiler* comp);
 
     const char* compLocalVarName(unsigned varNum, unsigned offs);
     VarName compVarName(regNumber reg, bool isFloatReg = false);
