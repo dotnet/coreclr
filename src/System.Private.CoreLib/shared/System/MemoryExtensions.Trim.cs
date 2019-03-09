@@ -27,10 +27,7 @@ namespace System
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static Memory<T> TrimStart<T>(this Memory<T> memory, T trimElement)
             where T : IEquatable<T>
-        {
-            int start = ClampStart(memory.Span, trimElement);
-            return memory.Slice(start);
-        }
+            => memory.Slice(ClampStart(memory.Span, trimElement));
 
         /// <summary>
         /// Removes all trailing occurrences of a specified element.
@@ -38,10 +35,7 @@ namespace System
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static Memory<T> TrimEnd<T>(this Memory<T> memory, T trimElement)
             where T : IEquatable<T>
-        {
-            int length = ClampEnd(memory.Span, 0, trimElement);
-            return memory.Slice(0, length);
-        }
+            => memory.Slice(0, ClampEnd(memory.Span, 0, trimElement));
 
         /// <summary>
         /// Removes all leading and trailing occurrences of a specified element.
@@ -62,10 +56,7 @@ namespace System
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, T trimElement)
             where T : IEquatable<T>
-        {
-            int start = ClampStart(memory.Span, trimElement);
-            return memory.Slice(start);
-        }
+            => memory.Slice(ClampStart(memory.Span, trimElement));
 
         /// <summary>
         /// Removes all trailing occurrences of a specified element.
@@ -73,10 +64,7 @@ namespace System
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, T trimElement)
             where T : IEquatable<T>
-        {
-            int length = ClampEnd(memory.Span, 0, trimElement);
-            return memory.Slice(0, length);
-        }
+            => memory.Slice(0, ClampEnd(memory.Span, 0, trimElement));
 
         /// <summary>
         /// Removes all leading and trailing occurrences of a specified element.
@@ -96,10 +84,7 @@ namespace System
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static Span<T> TrimStart<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
-        {
-            int start = ClampStart(span, trimElement);
-            return span.Slice(start);
-        }
+            => span.Slice(ClampStart(span, trimElement));
 
         /// <summary>
         /// Removes all trailing occurrences of a specified element.
@@ -107,10 +92,7 @@ namespace System
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static Span<T> TrimEnd<T>(this Span<T> span, T trimElement)
             where T : IEquatable<T>
-        {
-            int length = ClampEnd(span, 0, trimElement);
-            return span.Slice(0, length);
-        }
+            => span.Slice(0, ClampEnd(span, 0, trimElement));
 
         /// <summary>
         /// Removes all leading and trailing occurrences of a specified element.
@@ -130,10 +112,7 @@ namespace System
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
-        {
-            int start = ClampStart(span, trimElement);
-            return span.Slice(start);
-        }
+            => span.Slice(ClampStart(span, trimElement));
 
         /// <summary>
         /// Removes all trailing occurrences of a specified element.
@@ -141,10 +120,7 @@ namespace System
         /// <param name="trimElement">The specified element to look for and remove.</param>
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, T trimElement)
             where T : IEquatable<T>
-        {
-            int length = ClampEnd(span, 0, trimElement);
-            return span.Slice(0, length);
-        }
+            => span.Slice(0, ClampEnd(span, 0, trimElement));
 
         /// <summary>
         /// Delimits all leading occurrences of a specified element.
