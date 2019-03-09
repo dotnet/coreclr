@@ -422,6 +422,8 @@ public:
     // This is used to print only the changes in the last block
     void setBarrierAtLastPositionInRegisterHistory() const
     {
+        noway_assert(variableLiveRanges != nullptr);
+
         variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
         variableLifeBarrier->beginLastBlock            = variableLiveRanges->backPosition();
     }
@@ -430,7 +432,8 @@ public:
     void endBlockLiveRanges()
     {
         noway_assert(variableLifeBarrier != nullptr);
-        // barrier now points to nullptr
+        
+        // make "variableLifeBarrier->beginLastBlock" now points to nullptr for printing purposes
         variableLifeBarrier->reset(variableLiveRanges);
     }
 
@@ -467,7 +470,7 @@ public:
     void dumpAllRegisterLiveRangesForBlock(emitter* _emitter, const CodeGenInterface* codeGen) const
     {
         // "variableLiveRanges" should has been initialized
-        noway_assert(variableLiveRanges);
+        noway_assert(variableLiveRanges != nullptr);
 
         if (variableLiveRanges->empty())
         {
@@ -545,6 +548,9 @@ public:
 
         // Using [close, open) ranges so as to not compute the size of the last instruction
         variableLiveRanges->back().endEmitLocation.CaptureLocation(_emitter);
+        
+        // No endEmitLocation has to be Valid
+        noway_assert(variableLiveRanges->back().endEmitLocation.Valid());
     }
 
     /*
@@ -558,6 +564,10 @@ public:
         // Creates new live range with invalid end
         variableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
+        
+        // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
+        noway_assert(variableLiveRanges->back().startEmitLocation.Valid());
+        noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
 
 #if DEBUG
         // Restart barrier so we can print from here
@@ -586,6 +596,10 @@ public:
         // Open new live range with invalid end
         variableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
+
+        // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
+        noway_assert(variableLiveRanges->back().startEmitLocation.Valid());
+        noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
     }
 
     // note this only packs because var_types is a typedef of unsigned char
