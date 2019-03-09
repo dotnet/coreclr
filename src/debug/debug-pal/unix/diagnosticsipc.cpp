@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include "diagnosticsipc.h"
+#include "processdescriptor.h"
 
 IpcStream::DiagnosticsIpc::DiagnosticsIpc(const int serverSocket, sockaddr_un *const pServerAddress) :
     _serverSocket(serverSocket),
@@ -39,7 +40,7 @@ IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
     }
 }
 
-IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, const uint32_t pid, ErrorCallback callback)
+IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, ErrorCallback callback)
 {
     const int serverSocket = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (serverSocket == -1)
@@ -52,12 +53,14 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
 
     sockaddr_un serverAddress{};
     serverAddress.sun_family = AF_UNIX;
+
+    const ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
     const int nCharactersWritten = sprintf_s(
         serverAddress.sun_path,
         sizeof(serverAddress.sun_path),
         "/tmp/%s-%d",
         pIpcName,
-        pid);
+        pd.m_Pid);
 
     if (nCharactersWritten == -1)
     {

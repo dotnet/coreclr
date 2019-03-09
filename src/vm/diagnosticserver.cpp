@@ -102,7 +102,7 @@ bool DiagnosticServer::Initialize()
                 szMessage);                                           // data2
         };
         IpcStream::DiagnosticsIpc *pIpc = IpcStream::DiagnosticsIpc::Create(
-            "dotnetcore-diagnostic", ::GetCurrentProcessId(), ErrorCallback);
+            "dotnetcore-diagnostic", ErrorCallback);
 
         if (pIpc != nullptr)
         {

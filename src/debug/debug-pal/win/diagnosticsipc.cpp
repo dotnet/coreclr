@@ -6,6 +6,7 @@
 #include <new>
 #include <stdio.h>
 #include "diagnosticsipc.h"
+#include "processdescriptor.h"
 
 IpcStream::DiagnosticsIpc::DiagnosticsIpc(const char(&namedPipeName)[MaxNamedPipeNameLength])
 {
@@ -16,17 +17,18 @@ IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 {
 }
 
-IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, const uint32_t pid, ErrorCallback callback)
+IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, ErrorCallback callback)
 {
     assert(pIpcName != nullptr);
-
+    const ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
     char namedPipeName[256]{};
+
     const int nCharactersWritten = sprintf_s(
         namedPipeName,
         sizeof(namedPipeName),
         "\\\\.\\pipe\\%s-%d",
         pIpcName,
-        pid);
+        pd.m_Pid);
 
     if (nCharactersWritten == -1)
     {
@@ -41,8 +43,8 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
 
 IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
 {
-    const uint32_t nInBufferSize = 1024;
-    const uint32_t nOutBufferSize = 16 * 1024 * 1024;
+    const uint32_t nInBufferSize = 16 * 1024;
+    const uint32_t nOutBufferSize = 16 * 1024;
     HANDLE hPipe = ::CreateNamedPipeA(
         _pNamedPipeName,                                            // pipe name
         PIPE_ACCESS_DUPLEX/* | FILE_FLAG_OVERLAPPED*/,              // read/write access

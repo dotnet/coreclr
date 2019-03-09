@@ -26,7 +26,7 @@ public:
     class DiagnosticsIpc final
     {
     public:
-        static DiagnosticsIpc *Create(const char *const pIpcName, const uint32_t pid, ErrorCallback callback = nullptr);
+        static DiagnosticsIpc *Create(const char *const pIpcName, ErrorCallback callback = nullptr);
         ~DiagnosticsIpc();
         IpcStream *Accept(ErrorCallback callback = nullptr) const;
 
