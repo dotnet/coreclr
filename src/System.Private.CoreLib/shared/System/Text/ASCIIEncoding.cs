@@ -319,54 +319,82 @@ namespace System.Text
 
             // First call into the fast path.
 
-            int numElementsConverted = (int)ASCIIUtility.NarrowUtf16ToAscii(pChars, pBytes, Math.Min((uint)charCount, (uint)byteCount));
+            int bytesWritten = GetBytesFast(pChars, charCount, pBytes, byteCount, out int charsConsumed);
 
-            if (numElementsConverted == charCount)
+            if (charsConsumed == charCount)
             {
                 // All elements converted - return immediately.
 
-                return numElementsConverted;
+                return bytesWritten;
             }
             else
             {
                 // Simple narrowing conversion couldn't operate on entire buffer - invoke fallback.
 
-                return GetBytesWithFallback(pChars, charCount, pBytes, byteCount, numElementsConverted, numElementsConverted);
+                return GetBytesWithFallback(pChars, charCount, pBytes, byteCount, charsConsumed, bytesWritten);
             }
         }
 
-        private protected sealed override unsafe int GetBytesNoFallbackBuffer(char* pChars, int charCount, byte* pBytes, int byteCount, EncoderFallback fallback, out int charsConsumed)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // called directly by GetBytesCommon
+        private protected sealed override unsafe int GetBytesFast(char* pChars, int charsLength, byte* pBytes, int bytesLength, out int charsConsumed)
         {
-            Debug.Assert(charCount >= 0, "Should've been checked by caller.");
-            Debug.Assert(byteCount >= 0, "Should've been checked by caller.");
+            int bytesWritten = (int)ASCIIUtility.NarrowUtf16ToAscii(pChars, pBytes, (uint)Math.Min(charsLength, bytesLength));
 
-            int numElementsToConvert = Math.Min(charCount, byteCount);
-            int numElementsConverted = (int)ASCIIUtility.NarrowUtf16ToAscii(pChars, pBytes, (uint)numElementsToConvert);
+            charsConsumed = bytesWritten;
+            return bytesWritten;
+        }
 
-            if (numElementsConverted < numElementsToConvert)
+        private protected sealed override unsafe int GetBytesWithFallback(ReadOnlySpan<char> chars, int originalCharsLength, Span<byte> bytes, int originalBytesLength, EncoderNLS encoder)
+        {
+            // We special-case EncoderReplacementFallback if it's telling us to write a single ASCII char,
+            // since we believe this to be relatively common and we can handle it more efficiently than
+            // the base implementation.
+
+            if (((encoder is null) ? this.EncoderFallback : encoder.Fallback) is EncoderReplacementFallback replacementFallback
+                && replacementFallback.MaxCharCount == 1
+                && replacementFallback.DefaultString[0] <= 0x7F)
             {
-                // If we weren't able to convert all the elements we wanted, this means we encountered
-                // non-ASCII data somewhere in the input stream. If there's an EncoderReplacementFallback
-                // active and if it's telling us to substitute a single ASCII char in the output, we can
-                // fix it up now rather than go through the entire fallback buffer logic.
+                byte replacementByte = (byte)replacementFallback.DefaultString[0];
 
-                if (fallback is EncoderReplacementFallback replacementFallback && replacementFallback.MaxCharCount == 1 && replacementFallback.DefaultString[0] <= 0x7F)
+                int numElementsToConvert = Math.Min(chars.Length, bytes.Length);
+                int idx = 0;
+
+                fixed (char* pChars = &MemoryMarshal.GetReference(chars))
+                fixed (byte* pBytes = &MemoryMarshal.GetReference(bytes))
                 {
-                    byte replacementByte = (byte)replacementFallback.DefaultString[0];
+                    // In a loop, bulk-convert as much as we can, then replace individual non-ASCII chars.
 
-                    do
+                    while (idx < numElementsToConvert)
                     {
-                        // Substitute a single byte for a single char, then continue transcoding, then loop until we're out of data.
+                        idx += (int)ASCIIUtility.NarrowUtf16ToAscii(&pChars[idx], &pBytes[idx], (uint)(numElementsToConvert - idx));
 
-                        pBytes[numElementsConverted++] = replacementByte;
-                        numElementsConverted += (int)ASCIIUtility.NarrowUtf16ToAscii(pChars + numElementsConverted, pBytes + numElementsConverted, (uint)(numElementsToConvert - numElementsConverted));
-                        Debug.Assert(0 <= numElementsConverted && numElementsConverted <= numElementsToConvert, "Ran past the end of our buffer?");
-                    } while (numElementsConverted < numElementsToConvert);
+                        if (idx < numElementsToConvert)
+                        {
+                            pBytes[idx++] = replacementByte;
+                        }
+
+                        Debug.Assert(idx <= numElementsToConvert, "Somehow went beyond bounds of source or destination buffer?");
+                    }
                 }
+
+                // Slice off how much we consumed / wrote.
+
+                chars = chars.Slice(numElementsToConvert);
+                bytes = bytes.Slice(numElementsToConvert);
             }
 
-            charsConsumed = numElementsConverted;
-            return numElementsConverted;
+            // If we couldn't go through our fast fallback mechanism, or if we still have leftover
+            // data because we couldn't consume everything in the loop above, we need to go down the
+            // slow fallback path.
+
+            if (chars.IsEmpty)
+            {
+                return originalBytesLength - bytes.Length; // total number of bytes written
+            }
+            else
+            {
+                return base.GetBytesWithFallback(chars, originalCharsLength, bytes, originalBytesLength, encoder);
+            }
         }
 
         // Returns the number of characters produced by decoding a range of bytes

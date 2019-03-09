@@ -34,31 +34,34 @@ namespace System.Text
          * 
          * ASCIIEncoding.GetBytes(...) [non-EncoderNLS path, public virtual override]
          * `- <parameter validation>
-         *  - ASCIIEncoding.GetBytesCommon [private helper method per derived type]
-         *    `- <invoke fast-path logic>
+         *  - ASCIIEncoding.GetBytesCommon [private helper method per derived type, inlined]
+         *    `- ASCIIEncoding.GetBytesFast [overridden fast-path implementation, inlined]
          *     - <if all data transcoded, return immediately>
          *     - <if all data not transcoded...>
-         *       `- Encoding.GetBytesWithFallback [helper method on base type that coordinates fallback]
-         *          `- <invoke any optimized fallback logic>
-         *           - <if all data transcoded, return immediately>
-         *           - <if all data not transcoded...>
-         *           - <create EncoderFallbackBuffer instance>
-         *             `- Encoding.GetBytesWithFallback(..., fallbackBuffer) [helper method on base type, "slow path"]
-         *                `- <perform the following in a loop>
-         *                 - <invoke fast-path logic via virtual method dispatch on derived type>
+         *       `- Encoding.GetBytesWithFallback [non-virtual stub method to call main GetBytesWithFallback worker]
+         *          `- Encoding.GetBytesWithFallback [virtual method whose base implementation contains slow fallback logic]
+         *             `- <may be overridden to provide optimized fallback logic>
+         *              - <create EncodeFallbackBuffer instance>
+         *              - <perform the following in a loop:>
+         *                `- <invoke fast-path logic via virtual method dispatch on derived type>
          *                 - <read next "bad" scalar value from source>
          *                 - <run this bad value through the fallback buffer>
          *                 - <drain the fallback buffer to the destination>
          *                 - <loop until source is fully consumed or destination is full>
+         *              - <signal full or partial success to EncoderNLS instance / throw if necessary>
          * 
          * The call graph for GetBytes(..., EncoderNLS) is similar:
          * 
          * Encoding.GetBytes(..., EncoderNLS) [base implementation]
-         * `- <drain leftover data from previous EncoderNLS invocation>
-         *  - <invoke fast-path logic with optimized fallback>
-         *  - <if all data transcoded, return immediately>
-         *  - <if all data not transcoded...>
-         *  - <call Encoding.GetBytesWithFallback(..., fallbackBuffer), as described above>
+         * `- <if no leftover data from previous invocation, invoke fast-path>
+         *  - <if fast-path invocation above completed, return immediately>
+         *  - <if not all data transcoded, or if there was leftover data from previous invocation...>
+         *    `- Encoding.GetBytesWithFallback [non-virtual stub method]
+         *       `- <drain any leftover data from previous invocation>
+         *        - <invoke fast-path again>
+         *        - <if all data transcoded, return immediately>
+         *        - <if all data not transcoded...>
+         *          `- Encoding.GetBytesWithFallback [virtual method as described above]
          *  
          * There are different considerations in each call graph for things like error handling,
          * since the error conditions will be different depending on whether or not an EncoderNLS
@@ -86,6 +89,10 @@ namespace System.Text
          * FOR IMPROVED PERFORMANCE, SUBCLASSED TYPES MAY WANT TO OVERRIDE ONE OR MORE VIRTUAL METHODS BELOW.
          */
 
+        /*
+         * GETBYTECOUNT FAMILY OF FUNCTIONS
+         */
+
         internal virtual bool TryGetByteCount(Rune value, out int byteCount)
         {
             // Ideally this method should be overridden by a subclassed type,
@@ -98,6 +105,67 @@ namespace System.Text
             Debug.Assert(opStatus == OperationStatus.Done || opStatus == OperationStatus.InvalidData, "Unexpected return value.");
 
             return (opStatus == OperationStatus.Done);
+        }
+
+        // Entry point from EncoderNLS implementation.
+        internal virtual unsafe int GetByteCount(char* pChars, int charCount, EncoderNLS encoder)
+        {
+            Debug.Assert(encoder != null, "This code path should only be called from EncoderNLS.");
+            Debug.Assert(charCount >= 0, "Caller should've checked this condition.");
+            Debug.Assert(pChars != null || charCount == 0, "Cannot provide a null pointer and a non-zero count.");
+
+            // First, draining any data that already exists on the encoder instance.
+
+            ReadOnlySpan<char> chars = new ReadOnlySpan<char>(pChars, charCount);
+
+            int totalByteCount = encoder.DrainLeftoverDataForGetByteCount(chars, out int charsConsumed);
+
+            Debug.Assert(charsConsumed >= 0, "EncoderNLS shouldn't have reported negative chars consumed.");
+            Debug.Assert(totalByteCount >= 0, "EncoderNLS shouldn't have reported negative byte count.");
+
+            // Now try invoking the "fast path" (no fallback buffer) implementation.
+            // If we consumed the entire buffer, report this to the caller and return success.
+            // We can use Unsafe.AsPointer here since these spans are created from pinned data (raw pointers).
+            // As we're tallying we'll need to check for integer overflow.
+
+            chars = chars.Slice(charsConsumed);
+
+            int byteCountThisIteration = GetByteCountNoFallbackBuffer(
+                pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
+                charCount: chars.Length,
+                fallback: encoder.Fallback,
+                charsConsumed: out charsConsumed);
+
+            Debug.Assert(0 <= charsConsumed && charsConsumed <= chars.Length, "Method returned invalid value.");
+            Debug.Assert(byteCountThisIteration >= 0, "Method shouldn't have returned negative value.");
+
+            totalByteCount += byteCountThisIteration;
+            if (totalByteCount < 0)
+            {
+                ThrowConversionOverflow();
+            }
+
+            chars = chars.Slice(charsConsumed);
+
+            // If there's still data remaining in the source buffer, go down the fallback path.
+            // Otherwise we're finished.
+
+            if (!chars.IsEmpty)
+            {
+                EncoderFallbackBuffer fallbackBuffer = encoder.FallbackBuffer; // will allocate if necessary
+                fallbackBuffer.InternalInitialize(this, encoder, charCount);
+
+                byteCountThisIteration = GetByteCountWithFallback(chars, fallbackBuffer);
+                Debug.Assert(byteCountThisIteration >= 0, "Method shouldn't have returned negative value.");
+
+                totalByteCount += byteCountThisIteration;
+                if (totalByteCount < 0)
+                {
+                    ThrowConversionOverflow();
+                }
+            }
+
+            return totalByteCount;
         }
 
         /// <summary>
@@ -145,41 +213,6 @@ namespace System.Text
 
             charsConsumed = charCount - chars.Length;
             return totalByteCount;
-        }
-
-        /// <summary>
-        /// Transcodes <paramref name="pChars"/> to <paramref name="pBytes"/>. If <paramref name="fallback"/> is
-        /// specified, the method implementation may inspect properties of the instance in order to short-circuit
-        /// the operation, but the method should not attempt to call <see cref="EncoderFallback.CreateFallbackBuffer"/>.
-        /// </summary>
-        /// <returns>
-        /// Via <paramref name="charsConsumed"/>, the amount of <paramref name="pChars"/> consumed before terminating;
-        /// and returns the total byte count written to <paramref name="pBytes"/>.
-        /// </returns>
-        private protected virtual unsafe int GetBytesNoFallbackBuffer(char* pChars, int charCount, byte* pBytes, int byteCount, EncoderFallback fallback, out int charsConsumed)
-        {
-            // Ideally this method should be overridden by a subclassed type,
-            // but we can provide a slow correct implementation.
-
-            ReadOnlySpan<char> chars = new ReadOnlySpan<char>(pChars, charCount);
-            Span<byte> bytes = new Span<byte>(pBytes, byteCount);
-
-            while (!chars.IsEmpty)
-            {
-                if (Rune.DecodeUtf16(chars, out Rune value, out int charsConsumedThisIteration) != OperationStatus.Done
-                    || GetBytes(value, bytes, out int bytesWrittenThisIteration) != OperationStatus.Done)
-                {
-                    // Invalid UTF-16 data, or not convertible to target encoding, or destination buffer too small to contain encoded value
-
-                    break;
-                }
-
-                chars = chars.Slice(charsConsumedThisIteration);
-                bytes = bytes.Slice(bytesWrittenThisIteration);
-            }
-
-            charsConsumed = charCount - chars.Length;
-            return byteCount - bytes.Length;
         }
 
         /// <summary>
@@ -318,12 +351,87 @@ namespace System.Text
             return byteCount;
         }
 
+        /*
+         * GETBYTES FAMILY OF FUNCTIONS
+         */
+
+        // Entry point from EncoderNLS.
+        internal virtual unsafe int GetBytes(char* pChars, int charCount, byte* pBytes, int byteCount, EncoderNLS encoder)
+        {
+            Debug.Assert(encoder != null, "This code path should only be called from EncoderNLS.");
+            Debug.Assert(charCount >= 0, "Caller should've checked this condition.");
+            Debug.Assert(pChars != null || charCount == 0, "Cannot provide a null pointer and a non-zero count.");
+            Debug.Assert(byteCount >= 0, "Caller should've checked this condition.");
+            Debug.Assert(pBytes != null || byteCount == 0, "Cannot provide a null pointer and a non-zero count.");
+
+            // We're going to try to stay on the fast-path as much as we can. That means that we have
+            // no leftover data to drain and the entire source buffer can be transcoded in a single
+            // fast-path invocation. If either of these doesn't hold, we'll go down the slow path of
+            // creating spans, draining the EncoderNLS instance, and falling back.
+
+            int bytesWritten = 0;
+            int charsConsumed = 0;
+
+            if (!encoder.HasLeftoverData)
+            {
+                bytesWritten = GetBytesFast(pChars, charCount, pBytes, byteCount, out charsConsumed);
+                if (charsConsumed == charCount)
+                {
+                    encoder._charsUsed = charCount;
+                    return bytesWritten;
+                }
+            }
+
+            // We had leftover data, or we couldn't consume the entire input buffer.
+            // Let's go down the draining + fallback mechanisms.
+
+            return GetBytesWithFallback(pChars, charCount, pBytes, byteCount, charsConsumed, bytesWritten, encoder);
+        }
+
+        /// <summary>
+        /// Transcodes <see langword="char"/>s to <see langword="byte"/>s, exiting when the source or destination
+        /// buffer is consumed or when the first unreadable data is encountered.
+        /// </summary>
+        /// <returns>
+        /// Via <paramref name="charsConsumed"/>, the number of elements from <paramref name="pChars"/> which
+        /// were consumed; and returns the number of elements written to <paramref name="pBytes"/>.
+        /// </returns>
+        /// <remarks>
+        /// The implementation should not attempt to perform any sort of fallback behavior.
+        /// If custom fallback behavior is necessary, override <see cref="GetBytesWithFallback"/>.
+        /// </remarks>
+        private protected virtual unsafe int GetBytesFast(char* pChars, int charsLength, byte* pBytes, int bytesLength, out int charsConsumed)
+        {
+            // Ideally this method should be overridden by a subclassed type,
+            // but we can provide a slow correct implementation.
+
+            ReadOnlySpan<char> chars = new ReadOnlySpan<char>(pChars, charsLength);
+            Span<byte> bytes = new Span<byte>(pBytes, bytesLength);
+
+            while (!chars.IsEmpty)
+            {
+                if (Rune.DecodeUtf16(chars, out Rune scalarValue, out int charsConsumedJustNow) != OperationStatus.Done
+                    || GetBytes(scalarValue, bytes, out int bytesWrittenJustNow) != OperationStatus.Done)
+                {
+                    // Invalid UTF-16 data, or not convertible to target encoding, or destination buffer too small to contain encoded value
+
+                    break;
+                }
+
+                chars = chars.Slice(charsConsumedJustNow);
+                bytes = bytes.Slice(bytesWrittenJustNow);
+            }
+
+            charsConsumed = charsLength - chars.Length; // number of chars consumed across all loop iterations above
+            return bytesLength - bytes.Length; // number of bytes written across all loop iterations above
+        }
+
         /// <summary>
         /// Transcodes chars to bytes, with no associated <see cref="EncoderNLS"/>. The first four arguments are
         /// based on the original input before invoking this method; and <paramref name="charsConsumedSoFar"/>
         /// and <paramref name="bytesWrittenSoFar"/> signal where in the provided buffers the fallback loop
-        /// should begin operating. The behavior of this method is to call the <see cref="GetBytesNoFallbackBuffer"/>
-        /// method as overridden by the specific type, and failing that go down the shared fallback path.
+        /// should begin operating. The behavior of this method is to call the <see cref="GetBytesWithFallback"/>
+        /// virtual method as overridden by the specific type, and failing that go down the shared fallback path.
         /// </summary>
         /// <returns>
         /// The total number of bytes written to <paramref name="pOriginalBytes"/>, including <paramref name="bytesWrittenSoFar"/>.
@@ -331,83 +439,110 @@ namespace System.Text
         /// <exception cref="ArgumentException">
         /// If the destination buffer is not large enough to hold the entirety of the transcoded data.
         /// </exception>
-        [MethodImpl(MethodImplOptions.NoInlining)] // don't stack spill spans into our caller
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private protected unsafe int GetBytesWithFallback(char* pOriginalChars, int originalCharCount, byte* pOriginalBytes, int originalByteCount, int charsConsumedSoFar, int bytesWrittenSoFar)
         {
+            // This is a stub method that's marked "no-inlining" so that it we don't stack-spill spans
+            // into our immediate caller. Doing so increases the method prolog in what's supposed to
+            // be a very fast path.
+
             Debug.Assert(0 <= charsConsumedSoFar && charsConsumedSoFar < originalCharCount, "Invalid arguments provided to method.");
             Debug.Assert(0 <= bytesWrittenSoFar && bytesWrittenSoFar <= originalByteCount, "Invalid arguments provided to method.");
 
-            // Using spans below helps keep our slicing logic simple.
-            // We can use Unsafe.AsPointer later in this method since we know the spans are
-            // constructed from existing fixed pointers.
+            return GetBytesWithFallback(
+                chars: new ReadOnlySpan<char>(pOriginalChars, originalCharCount).Slice(charsConsumedSoFar),
+                originalCharsLength: originalCharCount,
+                bytes: new Span<byte>(pOriginalBytes, originalByteCount).Slice(bytesWrittenSoFar),
+                originalBytesLength: originalByteCount,
+                encoder: null);
+        }
+
+        private unsafe int GetBytesWithFallback(char* pOriginalChars, int originalCharCount, byte* pOriginalBytes, int originalByteCount, int charsConsumedSoFar, int bytesWrittenSoFar, EncoderNLS encoder)
+        {
+            Debug.Assert(encoder != null, "This code path should only be called from EncoderNLS.");
+            Debug.Assert(0 <= charsConsumedSoFar && charsConsumedSoFar < originalCharCount, "Caller should've checked this condition.");
+            Debug.Assert(0 <= bytesWrittenSoFar && bytesWrittenSoFar <= originalByteCount, "Caller should've checked this condition.");
+
+            // First, try draining any data that already exists on the encoder instance. If we can't complete
+            // that operation, there's no point to continuing down to the main workhorse methods.
 
             ReadOnlySpan<char> chars = new ReadOnlySpan<char>(pOriginalChars, originalCharCount).Slice(charsConsumedSoFar);
             Span<byte> bytes = new Span<byte>(pOriginalBytes, originalByteCount).Slice(bytesWrittenSoFar);
 
-            // First, see if we can transcode without instantiating the fallback buffer.
-            // The subclassed Encoding instance may have optimized this code path.
+            bool drainFinishedSuccessfully = encoder.TryDrainLeftoverDataForGetBytes(chars, bytes, out int charsConsumedJustNow, out int bytesWrittenJustNow);
 
-            int bytesWrittenJustNow = GetBytesNoFallbackBuffer(
-                pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
-                charCount: chars.Length,
-                pBytes: (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(bytes)),
-                byteCount: bytes.Length,
-                fallback: this.EncoderFallback,
-                charsConsumed: out int charsConsumedJustNow);
-
-            chars = chars.Slice(charsConsumedJustNow);
+            chars = chars.Slice(charsConsumedJustNow); // whether or not the drain finished, we may have made some progress
             bytes = bytes.Slice(bytesWrittenJustNow);
 
-            // If we _still_ haven't consumed the entire source input, instantiate the fallback buffer
-            // and go down the unoptimized shared code path.
-
-            if (!chars.IsEmpty)
+            if (!drainFinishedSuccessfully)
             {
-                EncoderFallbackBuffer fallbackBuffer = EncoderFallback.CreateFallbackBuffer(); // allocate a fresh new instance
-                fallbackBuffer.InternalInitialize(this, null, originalCharCount);
+                ThrowBytesOverflow(encoder, nothingEncoded: bytes.Length == originalByteCount); // might not throw if we wrote at least one byte
+            }
+            else
+            {
+                // Now try invoking the "fast path" (no fallback) implementation.
+                // We can use Unsafe.AsPointer here since these spans are created from pinned data (raw pointers).
 
-                bytesWrittenJustNow = GetBytesWithFallback(chars, bytes, fallbackBuffer);
-                Debug.Assert(0 <= bytesWrittenJustNow && bytesWrittenJustNow <= bytes.Length, "Invalid value returned by workhorse.");
+                bytesWrittenJustNow = GetBytesFast(
+                    pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
+                    charsLength: chars.Length,
+                    pBytes: (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(bytes)),
+                    bytesLength: bytes.Length,
+                    charsConsumed: out charsConsumedJustNow);
+
+                chars = chars.Slice(charsConsumedJustNow);
                 bytes = bytes.Slice(bytesWrittenJustNow);
+
+                // If there's still data remaining in the source buffer, go down the fallback path.
+                // Otherwise we're finished.
+
+                if (!chars.IsEmpty)
+                {
+                    // We'll optimistically tell the encoder that we're using everything; the
+                    // GetBytesWithFallback method will overwrite this field if necessary.
+
+                    encoder._charsUsed = originalCharCount;
+                    return GetBytesWithFallback(chars, originalCharCount, bytes, originalByteCount, encoder);
+                }
             }
 
-            return originalByteCount - bytes.Length; // total number of bytes written
+            encoder._charsUsed = originalCharCount - chars.Length; // total number of characters consumed up until now
+            return originalByteCount - bytes.Length; // total number of bytes written up until now
         }
 
         /// <summary>
-        /// Transcodes chars to bytes, using the provided <see cref="EncoderFallbackBuffer"/> if fallback is necessary.
+        /// Transcodes chars to bytes, using <see cref="Encoding.EncoderFallback"/> or <see cref="Encoder.Fallback"/> if needed.
         /// </summary>
         /// <returns>
-        /// The number of bytes written to <paramref name="bytes"/>.
+        /// The total number of bytes written to <paramref name="bytes"/> (based on <paramref name="originalBytesLength"/>).
         /// </returns>
         /// <remarks>
-        /// If <paramref name="fallbackBuffer"/> is backed by an <see cref="EncoderNLS"/> instance and if that instance allows
-        /// incomplete transcoding of source data, the number of chars converted by this operation will
-        /// be subtracted from the <see cref="EncoderNLS._charsUsed"/> field. (This assumes the caller optimistically
-        /// set the field to a value indicating "conversion completed successfully.")
+        /// The derived class should override this method if it might be able to provide a more optimized fallback
+        /// implementation, deferring to the base implementation if needed. This method calls <see cref="ThrowBytesOverflow"/>
+        /// if necessary.
         /// </remarks>
-        private unsafe int GetBytesWithFallback(ReadOnlySpan<char> chars, Span<byte> bytes, EncoderFallbackBuffer fallbackBuffer)
+        private protected virtual unsafe int GetBytesWithFallback(ReadOnlySpan<char> chars, int originalCharsLength, Span<byte> bytes, int originalBytesLength, EncoderNLS encoder)
         {
             Debug.Assert(!chars.IsEmpty, "Caller shouldn't invoke this method with an empty input buffer.");
-            Debug.Assert(fallbackBuffer != null, "Fallback buffer should've been provided by the caller.");
+            Debug.Assert(originalCharsLength >= 0, "Caller provided invalid parameter.");
+            Debug.Assert(originalBytesLength >= 0, "Caller provided invalid parameter.");
 
             // Since we're using Unsafe.AsPointer in our central loop, we want to ensure everything is pinned.
 
             fixed (char* _pChars_Unused = &MemoryMarshal.GetReference(chars))
             fixed (byte* _pBytes_Unused = &MemoryMarshal.GetReference(bytes))
             {
-                int originalBytesLength = bytes.Length;
+                EncoderFallbackBuffer fallbackBuffer = EncoderFallbackBuffer.CreateAndInitialize(this, encoder, originalCharsLength);
 
                 do
                 {
                     // First, transcode as much well-formed data as we can via the fast path.
 
-                    int bytesWrittenThisIteration = GetBytesNoFallbackBuffer(
+                    int bytesWrittenThisIteration = GetBytesFast(
                         pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
-                        charCount: chars.Length,
+                        charsLength: chars.Length,
                         pBytes: (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(bytes)),
-                        byteCount: bytes.Length,
-                        fallback: null, // wasn't able to be short-circuited by our caller; don't bother trying again
+                        bytesLength: bytes.Length,
                         charsConsumed: out int charsConsumedThisIteration);
 
                     Debug.Assert(bytesWrittenThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
@@ -426,13 +561,13 @@ namespace System.Text
                         {
                             case OperationStatus.NeedMoreData:
                                 Debug.Assert(charsConsumedThisIteration == chars.Length, "If returning NeedMoreData, should out the entire buffer length as chars consumed.");
-                                if (fallbackBuffer.encoder is null || fallbackBuffer.encoder.MustFlush)
+                                if (encoder is null || encoder.MustFlush)
                                 {
                                     goto case OperationStatus.InvalidData; // see comment in GetByteCountWithFallback
                                 }
                                 else
                                 {
-                                    fallbackBuffer.encoder._charLeftOver = chars[0]; // squirrel away remaining high surrogate char and finish
+                                    encoder._charLeftOver = chars[0]; // squirrel away remaining high surrogate char and finish
                                     chars = ReadOnlySpan<char>.Empty;
                                     goto Finish;
                                 }
@@ -468,175 +603,41 @@ namespace System.Text
 
             Finish:
 
-                // If an EncoderNLS instance is active, update its "total consumed character count" value.
-                // The caller optimistically assumed complete conversion, so we subtract to account for
-                // the data we weren't able to get to.
-
-                if (fallbackBuffer.encoder != null)
-                {
-                    fallbackBuffer.encoder._charsUsed -= chars.Length;
-                    Debug.Assert(fallbackBuffer.encoder._charsUsed >= 0, "Integer overflow detected; shouldn't have consumed more chars than in source buffer.");
-                }
-
-                // If we consumed the entire input and there's no fallback data remaining, it means the destination
-                // buffer was able to hold the entirety of the transcoded data. If this isn't the case, we need to
-                // report this situation so that an exception can be thrown if necessary.
-                //
-                // If no EncoderNLS is in use, this is an unrecoverable error and ThrowBytesOverflow will throw.
-                // If an EncoderNLS is in use, this is only an unrecoverable error if the EncoderNLS instance
-                // mandates we transcode all data to completion, so ThrowBytesOverflow might not throw.
-                //
-                // We optimistically pass 'nothingEncoded: false' because we don't know whether our immediate caller
-                // was able to make progress before invoking our fallback routine. If necessary, our caller will
-                // invoke ThrowBytesOverflow again, providing the correct value for 'nothingEncoded'.
+                // We reach this point when we deplete the source or destination buffer. There are a few
+                // cases to consider now. If the source buffer has been fully consumed and there's no
+                // leftover data in the EncoderNLS or the fallback buffer, we've completed transcoding.
+                // If the source buffer isn't empty or there's leftover data in the fallback buffer,
+                // it means we ran out of space in the destintion buffer. This is an unrecoverable error
+                // if no EncoderNLS is in use (because only EncoderNLS can handle partial success), and
+                // even if an EncoderNLS is in use this is only recoverable if the EncoderNLS instance
+                // allows partial completion. Let's check all of these conditions now.
 
                 if (!chars.IsEmpty || fallbackBuffer.Remaining > 0)
                 {
-                    ThrowBytesOverflow(fallbackBuffer.encoder, nothingEncoded: false);
+                    // The line below will also throw if the encoder couldn't make any progress at all
+                    // because the output buffer wasn't large enough to contain the result of even
+                    // a single scalar conversion or fallback.
+
+                    ThrowBytesOverflow(encoder, nothingEncoded: bytes.Length == originalBytesLength);
                 }
 
-                Debug.Assert(fallbackBuffer.Remaining == 0 || fallbackBuffer.encoder != null, "Shouldn't have any leftover data in fallback buffer unless an EncoderNLS is in use.");
+                // If an EncoderNLS instance is active, update its "total consumed character count" value.
+
+                if (encoder != null)
+                {
+                    Debug.Assert(originalCharsLength >= chars.Length, "About to report a negative number of chars used?");
+                    encoder._charsUsed = originalCharsLength - chars.Length; // number of chars consumed
+                }
+
+                Debug.Assert(fallbackBuffer.Remaining == 0 || encoder != null, "Shouldn't have any leftover data in fallback buffer unless an EncoderNLS is in use.");
 
                 return originalBytesLength - bytes.Length;
             }
         }
 
-        internal virtual unsafe int GetByteCount(char* pChars, int charCount, EncoderNLS encoder)
-        {
-            Debug.Assert(encoder != null, "This code path should only be called from EncoderNLS.");
-            Debug.Assert(charCount >= 0, "Caller should've checked this condition.");
-            Debug.Assert(pChars != null || charCount == 0, "Cannot provide a null pointer and a non-zero count.");
-
-            // First, draining any data that already exists on the encoder instance.
-
-            ReadOnlySpan<char> chars = new ReadOnlySpan<char>(pChars, charCount);
-
-            int totalByteCount = encoder.DrainLeftoverDataForGetByteCount(chars, out int charsConsumed);
-
-            Debug.Assert(charsConsumed >= 0, "EncoderNLS shouldn't have reported negative chars consumed.");
-            Debug.Assert(totalByteCount >= 0, "EncoderNLS shouldn't have reported negative byte count.");
-
-            // Now try invoking the "fast path" (no fallback buffer) implementation.
-            // If we consumed the entire buffer, report this to the caller and return success.
-            // We can use Unsafe.AsPointer here since these spans are created from pinned data (raw pointers).
-            // As we're tallying we'll need to check for integer overflow.
-
-            chars = chars.Slice(charsConsumed);
-
-            int byteCountThisIteration = GetByteCountNoFallbackBuffer(
-                pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
-                charCount: chars.Length,
-                fallback: encoder.Fallback,
-                charsConsumed: out charsConsumed);
-
-            Debug.Assert(0 <= charsConsumed && charsConsumed <= chars.Length, "Method returned invalid value.");
-            Debug.Assert(byteCountThisIteration >= 0, "Method shouldn't have returned negative value.");
-
-            totalByteCount += byteCountThisIteration;
-            if (totalByteCount < 0)
-            {
-                ThrowConversionOverflow();
-            }
-
-            chars = chars.Slice(charsConsumed);
-
-            // If there's still data remaining in the source buffer, go down the fallback path.
-            // Otherwise we're finished.
-
-            if (!chars.IsEmpty)
-            {
-                EncoderFallbackBuffer fallbackBuffer = encoder.FallbackBuffer; // will allocate if necessary
-                fallbackBuffer.InternalInitialize(this, encoder, charCount);
-
-                byteCountThisIteration = GetByteCountWithFallback(chars, fallbackBuffer);
-                Debug.Assert(byteCountThisIteration >= 0, "Method shouldn't have returned negative value.");
-
-                totalByteCount += byteCountThisIteration;
-                if (totalByteCount < 0)
-                {
-                    ThrowConversionOverflow();
-                }
-            }
-
-            return totalByteCount;
-        }
-
-        internal virtual unsafe int GetBytes(char* pChars, int charCount, byte* pBytes, int byteCount, EncoderNLS encoder)
-        {
-            Debug.Assert(encoder != null, "This code path should only be called from EncoderNLS.");
-            Debug.Assert(charCount >= 0, "Caller should've checked this condition.");
-            Debug.Assert(pChars != null || charCount == 0, "Cannot provide a null pointer and a non-zero count.");
-            Debug.Assert(byteCount >= 0, "Caller should've checked this condition.");
-            Debug.Assert(pBytes != null || byteCount == 0, "Cannot provide a null pointer and a non-zero count.");
-
-            // First, try draining any data that already exists on the encoder instance. If we can't complete
-            // that operation, there's no point to continuing down to the main workhorse methods.
-
-            ReadOnlySpan<char> chars = new ReadOnlySpan<char>(pChars, charCount);
-            Span<byte> bytes = new Span<byte>(pBytes, byteCount);
-
-            if (!encoder.TryDrainLeftoverDataForGetBytes(chars, bytes, out int charsConsumed, out int bytesWritten))
-            {
-                ThrowBytesOverflow(encoder, nothingEncoded: bytesWritten == 0); // might not throw if we made some progress
-                encoder._charsUsed = charsConsumed;
-                return bytesWritten;
-            }
-
-            Debug.Assert(!encoder.InternalHasFallbackBuffer || encoder.FallbackBuffer.Remaining == 0, "Should be no remaining fallback data at this point.");
-
-            // Now try invoking the "fast path" (no fallback buffer) implementation.
-            // If we consumed the entire buffer, report this to the caller and return success.
-            // We can use Unsafe.AsPointer here since these spans are created from pinned data (raw pointers).
-
-            chars = chars.Slice(charsConsumed);
-            bytes = bytes.Slice(bytesWritten);
-
-            bytesWritten = GetBytesNoFallbackBuffer(
-                pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
-                charCount: chars.Length,
-                pBytes: (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(bytes)),
-                byteCount: bytes.Length,
-                fallback: encoder.Fallback,
-                charsConsumed: out charsConsumed);
-
-            Debug.Assert(0 <= charsConsumed && charsConsumed <= chars.Length, "Method returned invalid value.");
-            Debug.Assert(0 <= bytesWritten && bytesWritten <= bytes.Length, "Method returned invalid value.");
-
-            chars = chars.Slice(charsConsumed);
-            bytes = bytes.Slice(bytesWritten);
-
-            // Optimistically set _charsUsed assuming we've consumed the entire input buffer.
-            // If this turns out to be incorrect, it'll be overwritten by GetBytesWithFallback.
-
-            encoder._charsUsed = charCount;
-
-            // If there's still data remaining in the source buffer, go down the fallback path.
-            // Otherwise we're finished.
-
-            if (!chars.IsEmpty)
-            {
-                EncoderFallbackBuffer fallbackBuffer = encoder.FallbackBuffer; // will allocate if necessary
-                fallbackBuffer.InternalInitialize(this, encoder, charCount);
-
-                bytesWritten = GetBytesWithFallback(chars, bytes, fallbackBuffer);
-
-                Debug.Assert(0 <= encoder._charsUsed && encoder._charsUsed <= charCount, "Method wrote invalid value to encoder._charsUsed");
-                Debug.Assert(0 <= bytesWritten && bytesWritten <= bytes.Length, "Method returned invalid value.");
-
-                bytes = bytes.Slice(bytesWritten);
-
-                // If we _still_ haven't consumed the entire source buffer due to the destination buffer being too
-                // small to contain the full output, signal this condition now. The ThrowBytesOverflow call below
-                // might not throw; e.g., if EncoderNLS.Convert is being called and partial conversions are allowed.
-
-                if (encoder._charsUsed != charCount)
-                {
-                    ThrowBytesOverflow(encoder, nothingEncoded: byteCount == bytes.Length);
-                }
-            }
-
-            return byteCount - bytes.Length; // total bytes written
-        }
+        /*
+         * GETCHARCOUNT FAMILY OF FUNCTIONS
+         */
 
         internal virtual unsafe int GetCharCount(byte* pBytes, int byteCount, DecoderNLS decoder)
         {

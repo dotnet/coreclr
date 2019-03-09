@@ -87,13 +87,13 @@ namespace System.Text
         // These help us with our performance and messages internally
         internal unsafe char* charStart;
         internal unsafe char* charEnd;
-        internal EncoderNLS encoder;
+        internal EncoderNLS encoder; // TODO: MAKE ME PRIVATE
         internal bool setEncoder;
         internal bool bUsedEncoder;
         internal bool bFallingBack = false;
         internal int iRecursionCount = 0;
         private const int iMaxRecursion = 250;
-        internal Encoding encoding;
+        private Encoding encoding;
         private int originalCharCount;
 
         // Internal Reset
@@ -129,6 +129,22 @@ namespace System.Text
             this.encoding = encoding;
             this.encoder = encoder;
             this.originalCharCount = originalCharCount;
+        }
+
+        internal static EncoderFallbackBuffer CreateAndInitialize(Encoding encoding, EncoderNLS encoder, int originalCharCount)
+        {
+            // The original char count is only used for keeping track of what 'index' value needs
+            // to be passed to the abstract Fallback method. The index value is calculated by subtracting
+            // 'chars.Length' (where chars is expected to be the entire remaining input buffer)
+            // from the 'originalCharCount' value specified here.
+
+            EncoderFallbackBuffer fallbackBuffer = (encoder is null) ? encoding.EncoderFallback.CreateFallbackBuffer() : encoder.FallbackBuffer;
+
+            fallbackBuffer.encoding = encoding;
+            fallbackBuffer.encoder = encoder;
+            fallbackBuffer.originalCharCount = originalCharCount;
+
+            return fallbackBuffer;
         }
 
         internal char InternalGetNextChar()

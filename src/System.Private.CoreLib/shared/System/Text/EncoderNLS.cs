@@ -313,20 +313,12 @@ namespace System.Text
             }
         }
 
+        /// <summary>
+        /// States whether a call to <see cref="Encoding.GetBytes(char*, int, byte*, int, EncoderNLS)"/> must first drain data on this <see cref="EncoderNLS"/> instance.
+        /// </summary>
+        internal bool HasLeftoverData => _charLeftOver != default || (_fallbackBuffer != null && _fallbackBuffer.Remaining > 0);
+
         internal bool TryDrainLeftoverDataForGetBytes(ReadOnlySpan<char> chars, Span<byte> bytes, out int charsConsumed, out int bytesWritten)
-        {
-            // This is a stub function that performs a quick check of whether there's any leftover
-            // data to drain at all, and if not it skips the slower method invocation. This stub
-            // is small enough to be auto-inlined into the caller.
-
-            charsConsumed = 0;
-            bytesWritten = 0;
-
-            return (_charLeftOver == default && (_fallbackBuffer is null || _fallbackBuffer.Remaining == 0))
-                || TryDrainLeftoverDataForGetBytesSlow(chars, bytes, out charsConsumed, out bytesWritten);
-        }
-
-        private bool TryDrainLeftoverDataForGetBytesSlow(ReadOnlySpan<char> chars, Span<byte> bytes, out int charsConsumed, out int bytesWritten)
         {
             // We may have a leftover high surrogate data from a previous invocation, or we may have leftover
             // data in the fallback buffer, or we may have neither, but we will never have both. Check for these
