@@ -100,18 +100,24 @@ namespace System.Buffers.Text
                 utf16Text = value.ToString(new string(formatText), CultureInfo.InvariantCulture);
             }
 
-            bytesWritten = 0;
+            // Copy the value to the destination, if it's large enough.
+
+            if (utf16Text.Length > destination.Length)
+            {
+                bytesWritten = 0;
+                return false;
+            }
 
             try
             {
                 bytesWritten = Encoding.UTF8.GetBytes(utf16Text, destination);
+                return true;
             }
             catch
             {
+                bytesWritten = 0;
                 return false;
             }
-
-            return true;
         }
     }
 }
