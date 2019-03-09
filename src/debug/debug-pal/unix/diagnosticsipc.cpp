@@ -41,7 +41,7 @@ IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 
 IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, const uint32_t pid, ErrorCallback callback)
 {
-    const int serverSocket = ::socket(AF_LOCAL, SOCK_STREAM, 0);
+    const int serverSocket = ::socket(AF_UNIX, SOCK_STREAM, 0);
     _ASSERTE(serverSocket != -1);
     if (serverSocket == -1)
     {
