@@ -475,11 +475,11 @@ PALIMPORT
 VOID
 PALAPI
 PAL_GetTransportPipeName(
+    const int MAX_TRANSPORT_NAME_LENGTH,
     OUT char *name,
     IN DWORD id,
     IN const char *applicationGroupId,
-    IN const char *suffix,
-    const int MAX_TRANSPORT_NAME_LENGTH = MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH);
+    IN const char *suffix);
 
 PALIMPORT
 void

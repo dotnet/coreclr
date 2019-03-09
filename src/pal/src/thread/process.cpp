@@ -1799,7 +1799,7 @@ public:
     {
         char pipeName[MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH];
 
-        PAL_GetTransportPipeName(pipeName, m_processId, GetApplicationGroupId(), "in");
+        PAL_GetTransportPipeName(MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, pipeName, m_processId, GetApplicationGroupId(), "in");
 
         struct stat buf;
         if (stat(pipeName, &buf) == 0)
@@ -2295,11 +2295,11 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
 VOID
 PALAPI
 PAL_GetTransportPipeName(
+    const int MAX_TRANSPORT_NAME_LENGTH,
     OUT char *name,
     IN DWORD id,
     IN const char *applicationGroupId,
-    IN const char *suffix,
-    const int MAX_TRANSPORT_NAME_LENGTH)
+    IN const char *suffix)
 {
     *name = '\0';
     DWORD dwRetVal = 0;

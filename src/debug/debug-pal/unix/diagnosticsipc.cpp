@@ -55,11 +55,11 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
     serverAddress.sun_family = AF_UNIX;
     const ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
     PAL_GetTransportPipeName(
+        sizeof(serverAddress.sun_path),
         serverAddress.sun_path,
         pd.m_Pid,
         pd.m_ApplicationGroupId,
-        "", // TODO: should we add `socket` as suffix?
-        sizeof(serverAddress.sun_path));
+        ""); // TODO: should we add `socket` as suffix?
 
     const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
     if (fSuccessBind == -1)
