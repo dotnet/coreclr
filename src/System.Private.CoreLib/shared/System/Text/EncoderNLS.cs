@@ -224,6 +224,10 @@ namespace System.Text
             }
         }
 
+        /// <summary>
+        /// States whether a call to <see cref="Encoding.GetBytes(char*, int, byte*, int, EncoderNLS)"/> must first drain data on this <see cref="EncoderNLS"/> instance.
+        /// </summary>
+        internal bool HasLeftoverData => _charLeftOver != default || (_fallbackBuffer != null && _fallbackBuffer.Remaining > 0);
 
         // Anything left in our encoder?
         internal virtual bool HasState
@@ -312,11 +316,6 @@ namespace System.Text
                 return _fallbackBuffer.DrainRemainingDataForGetByteCount();
             }
         }
-
-        /// <summary>
-        /// States whether a call to <see cref="Encoding.GetBytes(char*, int, byte*, int, EncoderNLS)"/> must first drain data on this <see cref="EncoderNLS"/> instance.
-        /// </summary>
-        internal bool HasLeftoverData => _charLeftOver != default || (_fallbackBuffer != null && _fallbackBuffer.Remaining > 0);
 
         internal bool TryDrainLeftoverDataForGetBytes(ReadOnlySpan<char> chars, Span<byte> bytes, out int charsConsumed, out int bytesWritten)
         {

@@ -153,6 +153,7 @@ namespace System.Text
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe int GetByteCountCommon(char* pChars, int charCount)
         {
             // Common helper method for all non-EncoderNLS entry points to GetByteCount.
@@ -163,7 +164,7 @@ namespace System.Text
 
             // First call into the fast path.
 
-            int byteCount = GetByteCountNoFallbackBuffer(pChars, charCount, EncoderFallback, out int charsConsumed);
+            int totalByteCount = GetByteCountFast(pChars, charCount, EncoderFallback, out int charsConsumed);
 
             if (charsConsumed != charCount)
             {
@@ -171,34 +172,38 @@ namespace System.Text
                 // We need to check for integer overflow since the fallback could change the required
                 // output count in unexpected ways.
 
-                byteCount += GetByteCountWithFallback(pChars, charCount, charsConsumed);
-                if (byteCount < 0)
+                totalByteCount += GetByteCountWithFallback(pChars, charCount, charsConsumed);
+                if (totalByteCount < 0)
                 {
                     ThrowConversionOverflow();
                 }
             }
 
-            return byteCount;
+            return totalByteCount;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] // invoked directly by our common entry method
-        private protected sealed override unsafe int GetByteCountNoFallbackBuffer(char* pChars, int charCount, EncoderFallback fallback, out int charsConsumed)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // called directly by GetByteCountCommon
+        private protected sealed override unsafe int GetByteCountFast(char* pChars, int charsLength, EncoderFallback fallback, out int charsConsumed)
         {
-            Debug.Assert(charCount >= 0, "Should've been checked by caller.");
+            // First: Can we short-circuit the entire calculation?
+            // If an EncoderReplacementFallback is in use, all non-ASCII chars
+            // (including surrogate halves) are replaced with the default string.
+            // If the default string consists of a single ASCII value, then we
+            // know there's a 1:1 char->byte transcoding in all cases.
 
-            // See comment in ASCIIEncodingSealed.GetByteCount(char*, int) for details on why we can
-            // perform a short-circuiting computation if we know that we have an EncoderReplacementFallback
-            // whose substitution character is a single ASCII char.
+            int byteCount = charsLength;
 
-            int numElementsConverted = charCount;
-
-            if (charCount != 0 && !(fallback is EncoderReplacementFallback replacementFallback && replacementFallback.MaxCharCount == 1 && replacementFallback.DefaultString[0] <= 0x7F))
+            if (!(fallback is EncoderReplacementFallback replacementFallback
+                && replacementFallback.MaxCharCount == 1
+                && replacementFallback.DefaultString[0] <= 0x7F))
             {
-                numElementsConverted = (int)ASCIIUtility.GetIndexOfFirstNonAsciiChar(pChars, (uint)charCount);
+                // Unrecognized fallback mechanism - count chars manually.
+
+                byteCount = (int)ASCIIUtility.GetIndexOfFirstNonAsciiChar(pChars, (uint)charsLength);
             }
 
-            charsConsumed = numElementsConverted;
-            return numElementsConverted;
+            charsConsumed = byteCount;
+            return byteCount;
         }
 
         // Parent method is safe.

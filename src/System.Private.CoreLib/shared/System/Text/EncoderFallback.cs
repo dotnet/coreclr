@@ -301,7 +301,7 @@ namespace System.Text
                 if (totalByteCount < 0)
                 {
                     InternalReset();
-                    throw new ArgumentException(SR.Argument_ConversionOverflow);
+                    Encoding.ThrowConversionOverflow();
                 }
             }
 
