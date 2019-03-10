@@ -210,7 +210,7 @@ namespace System
         /// Removes all leading and trailing occurrences of a set of elements specified
         /// in a readonly span from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
         public static Memory<T> Trim<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
@@ -232,7 +232,7 @@ namespace System
         /// Removes all leading occurrences of a set of elements specified
         /// in a readonly span from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
         public static Memory<T> TrimStart<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
@@ -251,7 +251,7 @@ namespace System
         /// Removes all trailing occurrences of a set of elements specified
         /// in a readonly span from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
         public static Memory<T> TrimEnd<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
@@ -270,7 +270,7 @@ namespace System
         /// Removes all leading and trailing occurrences of a set of elements specified
         /// in a readonly span from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
         public static ReadOnlyMemory<T> Trim<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
@@ -292,7 +292,7 @@ namespace System
         /// Removes all leading occurrences of a set of elements specified
         /// in a readonly span from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
         public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
@@ -311,7 +311,7 @@ namespace System
         /// Removes all trailing occurrences of a set of elements specified
         /// in a readonly span from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the memory is returned unaltered.</remarks>
         public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
@@ -330,7 +330,7 @@ namespace System
         /// Removes all leading and trailing occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
         public static Span<T> Trim<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
@@ -351,7 +351,7 @@ namespace System
         /// Removes all leading occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
         public static Span<T> TrimStart<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
@@ -370,7 +370,7 @@ namespace System
         /// Removes all trailing occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
         public static Span<T> TrimEnd<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
@@ -389,7 +389,7 @@ namespace System
         /// Removes all leading and trailing occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
@@ -410,7 +410,7 @@ namespace System
         /// Removes all leading occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
@@ -429,7 +429,7 @@ namespace System
         /// Removes all trailing occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         /// <remarks>If <paramref name="trimElements"/> is empty, the span is returned unaltered.</remarks>
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
@@ -448,7 +448,7 @@ namespace System
         /// Delimits all leading occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         private static int ClampStart<T>(ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
@@ -469,7 +469,7 @@ namespace System
         /// Delimits all trailing occurrences of a set of elements specified
         /// in a readonly span from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the elements are removed.</param>
         /// <param name="start">The start index from which to being searching.</param>
         /// <param name="trimElements">The span which contains the set of elements to remove.</param>
         private static int ClampEnd<T>(ReadOnlySpan<T> span, int start, ReadOnlySpan<T> trimElements)
@@ -493,7 +493,7 @@ namespace System
         /// <summary>
         /// Removes all leading and trailing white-space characters from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the characters are removed.</param>
         public static Memory<char> Trim(this Memory<char> memory)
         {
             ReadOnlySpan<char> span = memory.Span;
@@ -505,21 +505,21 @@ namespace System
         /// <summary>
         /// Removes all leading white-space characters from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the characters are removed.</param>
         public static Memory<char> TrimStart(this Memory<char> memory)
             => memory.Slice(ClampStart(memory.Span));
 
         /// <summary>
         /// Removes all trailing white-space characters from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the characters are removed.</param>
         public static Memory<char> TrimEnd(this Memory<char> memory)
             => memory.Slice(0, ClampEnd(memory.Span, 0));
 
         /// <summary>
         /// Removes all leading and trailing white-space characters from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the characters are removed.</param>
         public static ReadOnlyMemory<char> Trim(this ReadOnlyMemory<char> memory)
         {
             ReadOnlySpan<char> span = memory.Span;
@@ -531,21 +531,21 @@ namespace System
         /// <summary>
         /// Removes all leading white-space characters from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the characters are removed.</param>
         public static ReadOnlyMemory<char> TrimStart(this ReadOnlyMemory<char> memory)
             => memory.Slice(ClampStart(memory.Span));
 
         /// <summary>
         /// Removes all trailing white-space characters from the memory.
         /// </summary>
-        /// <param name="memory">The source memory from which the element is removed.</param>
+        /// <param name="memory">The source memory from which the characters are removed.</param>
         public static ReadOnlyMemory<char> TrimEnd(this ReadOnlyMemory<char> memory)
             => memory.Slice(0, ClampEnd(memory.Span, 0));
 
         /// <summary>
         /// Removes all leading and trailing white-space characters from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the characters are removed.</param>
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span)
         {
             int start = 0;
@@ -572,7 +572,7 @@ namespace System
         /// <summary>
         /// Removes all leading white-space characters from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the characters are removed.</param>
         public static ReadOnlySpan<char> TrimStart(this ReadOnlySpan<char> span)
         {
             int start = 0;
@@ -590,7 +590,7 @@ namespace System
         /// <summary>
         /// Removes all trailing white-space characters from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the characters are removed.</param>
         public static ReadOnlySpan<char> TrimEnd(this ReadOnlySpan<char> span)
         {
             int end = span.Length - 1;
@@ -750,7 +750,7 @@ namespace System
         /// <summary>
         /// Removes all leading and trailing white-space characters from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the characters are removed.</param>
         public static Span<char> Trim(this Span<char> span)
         {
             int start = ClampStart(span);
@@ -761,21 +761,21 @@ namespace System
         /// <summary>
         /// Removes all leading white-space characters from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the characters are removed.</param>
         public static Span<char> TrimStart(this Span<char> span)
             => span.Slice(ClampStart(span));
 
         /// <summary>
         /// Removes all trailing white-space characters from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the characters are removed.</param>
         public static Span<char> TrimEnd(this Span<char> span)
             => span.Slice(0, ClampEnd(span, 0));
 
         /// <summary>
-        /// Delimits all leading occurrences of whitespace from the span.
+        /// Delimits all leading occurrences of whitespace charecters from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the characters are removed.</param>
         private static int ClampStart(ReadOnlySpan<char> span)
         {
             int start = 0;
@@ -792,9 +792,9 @@ namespace System
         }
 
         /// <summary>
-        /// Delimits all trailing occurrences of whitespace from the span.
+        /// Delimits all trailing occurrences of whitespace charecters from the span.
         /// </summary>
-        /// <param name="span">The source span from which the element is removed.</param>
+        /// <param name="span">The source span from which the characters are removed.</param>
         /// <param name="start">The start index from which to being searching.</param>
         private static int ClampEnd(ReadOnlySpan<char> span, int start)
         {
