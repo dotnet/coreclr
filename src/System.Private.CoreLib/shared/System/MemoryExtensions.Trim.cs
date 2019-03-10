@@ -496,8 +496,7 @@ namespace System
         /// <param name="memory">The source memory from which the element is removed.</param>
         public static Memory<char> Trim(this Memory<char> memory)
         {
-            Span<char> span = memory.Span;
-
+            ReadOnlySpan<char> span = memory.Span;
             int start = ClampStart(span);
             int length = ClampEnd(span, start);
             return memory.Slice(start, length);
@@ -524,7 +523,6 @@ namespace System
         public static ReadOnlyMemory<char> Trim(this ReadOnlyMemory<char> memory)
         {
             ReadOnlySpan<char> span = memory.Span;
-
             int start = ClampStart(span);
             int length = ClampEnd(span, start);
             return memory.Slice(start, length);
