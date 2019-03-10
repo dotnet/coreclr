@@ -21,6 +21,29 @@ namespace System.Text
 
     public partial class ASCIIEncoding : Encoding
     {
+        // This specialized sealed type has two benefits:
+        // 1) it allows for devirtualization (see https://github.com/dotnet/coreclr/pull/9230), and
+        // 2) it allows us to provide highly optimized implementations of certain routines because
+        //    we can make assumptions about the fallback mechanisms in use (in particular, always
+        //    replace with "?").
+        //
+        // (We don't take advantage of #2 yet, but we can do so in the future because the implementation
+        // of cloning below allows us to make assumptions about the behaviors of the sealed type.)
+        internal sealed class ASCIIEncodingSealed : ASCIIEncoding
+        {
+            public override object Clone()
+            {
+                // The base implementation of Encoding.Clone calls object.MemberwiseClone and marks the new object mutable.
+                // We don't want to do this because it violates the invariants we have set for the sealed type.
+                // Instead, we'll create a new instance of the base ASCIIEncoding type and mark it mutable.
+
+                return new ASCIIEncoding()
+                {
+                    IsReadOnly = false
+                };
+            }
+        }
+
         // Used by Encoding.ASCII for lazy initialization
         // The initialization code will not be run until a static member of the class is referenced
         internal static readonly ASCIIEncodingSealed s_default = new ASCIIEncodingSealed();
