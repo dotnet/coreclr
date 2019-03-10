@@ -735,7 +735,7 @@ namespace System.Text
             }
         }
 
-        internal sealed override OperationStatus GetBytes(Rune value, Span<byte> bytes, out int bytesWritten)
+        internal sealed override OperationStatus EncodeRune(Rune value, Span<byte> bytes, out int bytesWritten)
         {
             if (value.IsAscii)
             {
@@ -758,7 +758,7 @@ namespace System.Text
             }
         }
 
-        internal sealed override OperationStatus DecodeFirst(ReadOnlySpan<byte> bytes, out Rune value, out int bytesConsumed)
+        internal sealed override OperationStatus DecodeFirstRune(ReadOnlySpan<byte> bytes, out Rune value, out int bytesConsumed)
         {
             if (!bytes.IsEmpty)
             {

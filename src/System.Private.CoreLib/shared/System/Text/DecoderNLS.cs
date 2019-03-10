@@ -274,7 +274,7 @@ namespace System.Text
             combinedBuffer = combinedBuffer.Slice(0, ConcatInto(GetLeftoverData(), bytes, combinedBuffer));
             int charCount = 0;
 
-            switch (_encoding.DecodeFirst(combinedBuffer, out Rune value, out int combinedBufferBytesConsumed))
+            switch (_encoding.DecodeFirstRune(combinedBuffer, out Rune value, out int combinedBufferBytesConsumed))
             {
                 case OperationStatus.Done:
                     charCount = value.Utf16SequenceLength;
@@ -329,7 +329,7 @@ namespace System.Text
 
             bool persistNewCombinedBuffer = false;
 
-            switch (_encoding.DecodeFirst(combinedBuffer, out Rune value, out int combinedBufferBytesConsumed))
+            switch (_encoding.DecodeFirstRune(combinedBuffer, out Rune value, out int combinedBufferBytesConsumed))
             {
                 case OperationStatus.Done:
                     if (value.TryEncode(chars, out charsWritten))

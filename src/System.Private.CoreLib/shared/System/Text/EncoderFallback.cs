@@ -233,7 +233,7 @@ namespace System.Text
             Rune thisRune;
             while ((thisRune = GetNextRune()).Value != 0)
             {
-                switch (encoding.GetBytes(thisRune, bytes, out int bytesWrittenJustNow))
+                switch (encoding.EncodeRune(thisRune, bytes, out int bytesWrittenJustNow))
                 {
                     case OperationStatus.Done:
 

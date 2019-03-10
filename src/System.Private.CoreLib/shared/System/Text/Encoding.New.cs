@@ -72,13 +72,13 @@ namespace System.Text
          * THESE TWO METHODS MUST BE OVERRIDDEN BY A SUBCLASSED TYPE
          */
 
-        internal virtual OperationStatus GetBytes(Rune value, Span<byte> bytes, out int bytesWritten)
+        internal virtual OperationStatus DecodeFirstRune(ReadOnlySpan<byte> bytes, out Rune value, out int bytesConsumed)
         {
             Debug.Fail("This should be overridden by a subclassed type.");
             throw NotImplemented.ByDesign;
         }
 
-        internal virtual OperationStatus DecodeFirst(ReadOnlySpan<byte> bytes, out Rune value, out int bytesConsumed)
+        internal virtual OperationStatus EncodeRune(Rune value, Span<byte> bytes, out int bytesWritten)
         {
             Debug.Fail("This should be overridden by a subclassed type.");
             throw NotImplemented.ByDesign;
@@ -93,18 +93,28 @@ namespace System.Text
          * GETBYTECOUNT FAMILY OF FUNCTIONS
          */
 
+        /// <summary>
+        /// Given a <see cref="Rune"/>, determines its byte count under the current <see cref="Encoding"/>.
+        /// Returns <see langword="false"/> if the <see cref="Rune"/> cannot be represented in the
+        /// current <see cref="Encoding"/>.
+        /// </summary>
         internal virtual bool TryGetByteCount(Rune value, out int byteCount)
         {
-            // Ideally this method should be overridden by a subclassed type,
-            // but we can provide a basic implementation assuming the subclassed
-            // implementation doesn't try writing more than 4 bytes.
+            // Any production-quality type would override this method and provide a real
+            // implementation, so we won't provide a base implementation. However, a
+            // non-shipping slow reference implementation is provided below for convenience.
 
-            Span<byte> bytes = stackalloc byte[4];
+#if false
+            Span<byte> bytes = stackalloc byte[4]; // max 4 bytes per input scalar
 
-            OperationStatus opStatus = GetBytes(value, bytes, out byteCount);
+            OperationStatus opStatus = EncodeRune(value, bytes, out byteCount);
             Debug.Assert(opStatus == OperationStatus.Done || opStatus == OperationStatus.InvalidData, "Unexpected return value.");
 
             return (opStatus == OperationStatus.Done);
+#else
+            Debug.Fail("This should be overridden by a subclassed type.");
+            throw NotImplemented.ByDesign;
+#endif
         }
 
         // Entry point from EncoderNLS implementation.
@@ -355,7 +365,9 @@ namespace System.Text
          * GETBYTES FAMILY OF FUNCTIONS
          */
 
-        // Entry point from EncoderNLS.
+        /// <summary>
+        /// Entry point from <see cref="EncoderNLS.GetBytes"/> and <see cref="EncoderNLS.Convert"/>.
+        /// </summary>
         internal virtual unsafe int GetBytes(char* pChars, int charCount, byte* pBytes, int byteCount, EncoderNLS encoder)
         {
             Debug.Assert(encoder != null, "This code path should only be called from EncoderNLS.");
@@ -402,16 +414,18 @@ namespace System.Text
         /// </remarks>
         private protected virtual unsafe int GetBytesFast(char* pChars, int charsLength, byte* pBytes, int bytesLength, out int charsConsumed)
         {
-            // Ideally this method should be overridden by a subclassed type,
-            // but we can provide a slow correct implementation.
+            // Any production-quality type would override this method and provide a real
+            // implementation, so we won't provide a base implementation. However, a
+            // non-shipping slow reference implementation is provided below for convenience.
 
+#if false
             ReadOnlySpan<char> chars = new ReadOnlySpan<char>(pChars, charsLength);
             Span<byte> bytes = new Span<byte>(pBytes, bytesLength);
 
             while (!chars.IsEmpty)
             {
                 if (Rune.DecodeUtf16(chars, out Rune scalarValue, out int charsConsumedJustNow) != OperationStatus.Done
-                    || GetBytes(scalarValue, bytes, out int bytesWrittenJustNow) != OperationStatus.Done)
+                    || EncodeRune(scalarValue, bytes, out int bytesWrittenJustNow) != OperationStatus.Done)
                 {
                     // Invalid UTF-16 data, or not convertible to target encoding, or destination buffer too small to contain encoded value
 
@@ -424,6 +438,10 @@ namespace System.Text
 
             charsConsumed = charsLength - chars.Length; // number of chars consumed across all loop iterations above
             return bytesLength - bytes.Length; // number of bytes written across all loop iterations above
+#else
+            Debug.Fail("This should be overridden by a subclassed type.");
+            throw NotImplemented.ByDesign;
+#endif
         }
 
         /// <summary>
@@ -457,6 +475,22 @@ namespace System.Text
                 encoder: null);
         }
 
+        /// <summary>
+        /// Transcodes chars to bytes, with an associated <see cref="EncoderNLS"/>. The first four arguments are
+        /// based on the original input before invoking this method; and <paramref name="charsConsumedSoFar"/>
+        /// and <paramref name="bytesWrittenSoFar"/> signal where in the provided buffers the fallback loop
+        /// should begin operating. The behavior of this method is to drain any leftover data in the
+        /// <see cref="EncoderNLS"/> instance, then to invoke the <see cref="GetBytesFast"/> virtual method
+        /// after data has been drained, then to call <see cref="GetBytesWithFallback(ReadOnlySpan{char}, int, Span{byte}, int, EncoderNLS)"/>.
+        /// </summary>
+        /// <returns>
+        /// The total number of bytes written to <paramref name="pOriginalBytes"/>, including <paramref name="bytesWrittenSoFar"/>.
+        /// </returns>
+        /// <exception cref="ArgumentException">
+        /// If the destination buffer is too small to make any forward progress at all, or if the destination buffer is
+        /// too small to contain the entirety of the transcoded data and the <see cref="EncoderNLS"/> instance disallows
+        /// partial transcoding.
+        /// </exception>
         private unsafe int GetBytesWithFallback(char* pOriginalChars, int originalCharCount, byte* pOriginalBytes, int originalByteCount, int charsConsumedSoFar, int bytesWrittenSoFar, EncoderNLS encoder)
         {
             Debug.Assert(encoder != null, "This code path should only be called from EncoderNLS.");
@@ -576,7 +610,7 @@ namespace System.Text
                                 break;
 
                             default:
-                                if (GetBytes(firstScalarValue, bytes, out _) == OperationStatus.DestinationTooSmall)
+                                if (EncodeRune(firstScalarValue, bytes, out _) == OperationStatus.DestinationTooSmall)
                                 {
                                     goto Finish; // source buffer contained valid UTF-16 but encoder ran out of space in destination buffer
                                 }
@@ -808,7 +842,7 @@ namespace System.Text
             {
                 // We don't care about statuses other than Done. The fallback mechanism will handle those.
 
-                if (DecodeFirst(bytes, out Rune value, out int bytesConsumedJustNow) != OperationStatus.Done)
+                if (DecodeFirstRune(bytes, out Rune value, out int bytesConsumedJustNow) != OperationStatus.Done)
                 {
                     break;
                 }
@@ -903,7 +937,7 @@ namespace System.Text
                         // There's still data remaining in the source buffer.
                         // We need to figure out why we weren't able to make progress.
 
-                        OperationStatus opStatus = DecodeFirst(bytes, out _, out bytesConsumedThisIteration);
+                        OperationStatus opStatus = DecodeFirstRune(bytes, out _, out bytesConsumedThisIteration);
 
                         if (opStatus == OperationStatus.NeedMoreData)
                         {
@@ -968,7 +1002,7 @@ namespace System.Text
             {
                 // We don't care about statuses other than Done. The fallback mechanism will handle those.
 
-                if ((DecodeFirst(bytes, out Rune value, out int bytesConsumedJustNow) != OperationStatus.Done)
+                if ((DecodeFirstRune(bytes, out Rune value, out int bytesConsumedJustNow) != OperationStatus.Done)
                     || !value.TryEncode(chars, out int charsWrittenJustNow))
                 {
                     break;
@@ -1086,7 +1120,7 @@ namespace System.Text
                         // There's still data remaining in the source buffer.
                         // We need to figure out why we weren't able to make progress.
 
-                        switch (DecodeFirst(bytes, out _, out bytesConsumedThisIteration))
+                        switch (DecodeFirstRune(bytes, out _, out bytesConsumedThisIteration))
                         {
                             case OperationStatus.NeedMoreData:
                                 Debug.Assert(bytesConsumedThisIteration == bytes.Length, "If returning NeedMoreData, should out the entire buffer length as bytes consumed.");

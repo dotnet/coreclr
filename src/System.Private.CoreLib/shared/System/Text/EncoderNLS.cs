@@ -356,7 +356,7 @@ namespace System.Text
                 if (Rune.TryCreate(_charLeftOver, secondChar, out Rune rune))
                 {
                     charsConsumed = 1; // at the very least, we consumed 1 char from the input
-                    switch (_encoding.GetBytes(rune, bytes, out bytesWritten))
+                    switch (_encoding.EncodeRune(rune, bytes, out bytesWritten))
                     {
                         case OperationStatus.Done:
                             _charLeftOver = default; // we just consumed this char
