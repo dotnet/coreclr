@@ -2159,12 +2159,12 @@ ILStubLinker::ILStubLinker(Module* pStubSigModule, const Signature &signature, S
     m_pStubSigModule(pStubSigModule),
     m_pLabelList(NULL),
     m_StubHasVoidReturnType(FALSE),
+    m_fIsReverseStub(fIsReverseStub),
     m_iTargetStackDelta(0),
     m_cbCurrentCompressedSigLen(1),
     m_nLocals(0),
     m_fHasThis(false),
-    m_pMD(pMD),
-    m_fIsReverseStub(fIsReverseStub)
+    m_pMD(pMD)
 {
     CONTRACTL
     {
