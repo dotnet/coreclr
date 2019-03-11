@@ -362,12 +362,10 @@ namespace System.Text
 
             // Couldn't decode the buffer. Fallback the buffer instead.
 
-            if (FallbackBuffer.Fallback(combinedBuffer.Slice(0, combinedBufferBytesConsumed).ToArray(), index: 0))
+            if (FallbackBuffer.Fallback(combinedBuffer.Slice(0, combinedBufferBytesConsumed).ToArray(), index: 0)
+                && !_fallbackBuffer.TryDrainRemainingDataForGetChars(chars, out charsWritten))
             {
-                if (!_fallbackBuffer.TryDrainRemainingDataForGetChars(chars, out charsWritten))
-                {
-                    goto DestinationTooSmall;
-                }
+                goto DestinationTooSmall;
             }
 
         Finish:

@@ -631,54 +631,81 @@ namespace System.Text
 
             // First call into the fast path.
 
-            int numElementsConverted = (int)ASCIIUtility.WidenAsciiToUtf16(pBytes, pChars, Math.Min((uint)byteCount, (uint)charCount));
+            int charsWritten = GetCharsFast(pBytes, byteCount, pChars, charCount, out int bytesConsumed);
 
-            if (numElementsConverted == byteCount)
+            if (bytesConsumed == byteCount)
             {
                 // All elements converted - return immediately.
 
-                return numElementsConverted;
+                return charsWritten;
             }
             else
             {
-                // Simple widening conversion couldn't operate on entire buffer - invoke fallback.
+                // Simple narrowing conversion couldn't operate on entire buffer - invoke fallback.
 
-                return GetCharsWithFallback(pBytes, byteCount, pChars, charCount, numElementsConverted, numElementsConverted);
+                return GetCharsWithFallback(pBytes, byteCount, pChars, charCount, bytesConsumed, charsWritten);
             }
         }
 
-        private protected sealed override unsafe int GetCharsNoFallbackBuffer(byte* pBytes, int byteCount, char* pChars, int charCount, DecoderFallback fallback, out int bytesConsumed)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // called directly by GetCharsCommon
+        private protected sealed override unsafe int GetCharsFast(byte* pBytes, int bytesLength, char* pChars, int charsLength, out int bytesConsumed)
         {
-            Debug.Assert(byteCount >= 0, "Should've been checked by caller.");
-            Debug.Assert(charCount >= 0, "Should've been checked by caller.");
+            int charsWritten = (int)ASCIIUtility.WidenAsciiToUtf16(pBytes, pChars, (uint)Math.Min(bytesLength, charsLength));
 
-            int numElementsToConvert = Math.Min(byteCount, charCount);
-            int numElementsConverted = (int)ASCIIUtility.WidenAsciiToUtf16(pBytes, pChars, (uint)numElementsToConvert);
+            bytesConsumed = charsWritten;
+            return charsWritten;
+        }
 
-            if (numElementsConverted < numElementsToConvert)
+        private protected sealed override unsafe int GetCharsWithFallback(ReadOnlySpan<byte> bytes, int originalBytesLength, Span<char> chars, int originalCharsLength, DecoderNLS decoder)
+        {
+            // We special-case DecoderReplacementFallback if it's telling us to write a single BMP char,
+            // since we believe this to be relatively common and we can handle it more efficiently than
+            // the base implementation.
+
+            if (((decoder is null) ? this.DecoderFallback: decoder.Fallback) is DecoderReplacementFallback replacementFallback
+                && replacementFallback.MaxCharCount == 1)
             {
-                // If we weren't able to convert all the elements we wanted, this means we encountered
-                // non-ASCII data somewhere in the input stream. If there's an DecoderReplacementFallback
-                // active and if it's telling us to substitute a single BMP char in the output, we can
-                // fix it up now rather than go through the entire fallback buffer logic.
+                char replacementChar = replacementFallback.DefaultString[0];
 
-                if (fallback is DecoderReplacementFallback replacementFallback && replacementFallback.MaxCharCount == 1)
+                int numElementsToConvert = Math.Min( bytes.Length, chars.Length);
+                int idx = 0;
+
+                fixed (byte* pBytes = &MemoryMarshal.GetReference(bytes))
+                fixed (char* pChars = &MemoryMarshal.GetReference(chars))
                 {
-                    char replacementChar = replacementFallback.DefaultString[0];
+                    // In a loop, bulk-convert as much as we can, then replace individual non-ASCII bytes.
 
-                    do
+                    while (idx < numElementsToConvert)
                     {
-                        // Substitute a single char for a single byte, then continue transcoding, then loop until we're out of data.
+                        idx += (int)ASCIIUtility.WidenAsciiToUtf16(&pBytes[idx], &pChars[idx], (uint)(numElementsToConvert - idx));
 
-                        pChars[numElementsConverted++] = replacementChar;
-                        numElementsConverted += (int)ASCIIUtility.WidenAsciiToUtf16(pBytes + numElementsConverted, pChars + numElementsConverted, (uint)(numElementsToConvert - numElementsConverted));
-                        Debug.Assert(0 <= numElementsConverted && numElementsConverted <= numElementsToConvert, "Ran past the end of our buffer?");
-                    } while (numElementsConverted < numElementsToConvert);
+                        if (idx < numElementsToConvert)
+                        {
+                            pChars[idx++] = replacementChar;
+                        }
+
+                        Debug.Assert(idx <= numElementsToConvert, "Somehow went beyond bounds of source or destination buffer?");
+                    }
                 }
+
+                // Slice off how much we consumed / wrote.
+
+                bytes = bytes.Slice(numElementsToConvert);
+                chars = chars.Slice(numElementsToConvert);
             }
 
-            bytesConsumed = numElementsConverted;
-            return numElementsConverted;
+            // If we couldn't go through our fast fallback mechanism, or if we still have leftover
+            // data because we couldn't consume everything in the loop above, we need to go down the
+            // slow fallback path.
+
+            if (bytes.IsEmpty)
+            {
+                return originalCharsLength - chars.Length; // total number of chars written
+            }
+            else
+            {
+                return base.GetCharsWithFallback(bytes, originalBytesLength, chars, originalCharsLength, decoder);
+            }
         }
 
         // Returns a string containing the decoded representation of a range of
