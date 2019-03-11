@@ -1055,20 +1055,32 @@ GenTree* Compiler::impSIMDPopStack(var_types type, bool expectAddr, CORINFO_CLAS
 
     bool isParam = false;
 
-    // If we have a ldobj of a SIMD local we need to transform it.
-    if (tree->OperGet() == GT_OBJ)
+    // If we are popping a struct type it must have a valid handle.
+    // If 'structHandle' is specifed:
+    // - If we have an existing 'OBJ' we will change its handle if it doesn't match.
+    //   This can happen when we have a retyping of a vector that doesn't translate to any
+    //   actual IR.
+    // - (If it's not an OBJ and it's used in a parameter context where it is required,
+    //   impNormStructVal will add one).
+    // If 'structHandle' is not specified it is NO_CLASS_HANDLE), then we will use the
+    // handle on the stack value (see ti.GetClassHandleForValueClass() below).
+    //
+    if (structHandle != NO_CLASS_HANDLE)
     {
-        if (tree->AsObj()->gtClass != structHandle)
+        if (tree->OperGet() == GT_OBJ)
         {
-            // In this case we need to retain the GT_OBJ to retype the value.
-            tree->AsObj()->gtClass = structHandle;
-        }
-        else
-        {
-            GenTree* addr = tree->gtOp.gtOp1;
-            if ((addr->OperGet() == GT_ADDR) && isSIMDTypeLocal(addr->gtOp.gtOp1))
+            if (tree->AsObj()->gtClass != structHandle)
             {
-                tree = addr->gtOp.gtOp1;
+                // In this case we need to retain the GT_OBJ to retype the value.
+                tree->AsObj()->gtClass = structHandle;
+            }
+            else
+            {
+                GenTree* addr = tree->gtOp.gtOp1;
+                if ((addr->OperGet() == GT_ADDR) && isSIMDTypeLocal(addr->gtOp.gtOp1))
+                {
+                    tree = addr->gtOp.gtOp1;
+                }
             }
         }
     }
@@ -3115,7 +3127,9 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
             GenTree* dstAddrHi = impSIMDPopStack(TYP_BYREF);
             GenTree* dstAddrLo = impSIMDPopStack(TYP_BYREF);
             op1                = impSIMDPopStack(simdType);
-            GenTree* dupOp1    = fgInsertCommaFormTemp(&op1, gtGetStructHandleForSIMD(simdType, baseType));
+            // op1 must have a valid class handle; the following method will assert it.
+            CORINFO_CLASS_HANDLE op1Handle = gtGetStructHandle(op1);
+            GenTree*             dupOp1    = fgInsertCommaFormTemp(&op1, op1Handle);
 
             // Widen the lower half and assign it to dstAddrLo.
             simdTree = gtNewSIMDNode(simdType, op1, nullptr, SIMDIntrinsicWidenLo, baseType, size);
