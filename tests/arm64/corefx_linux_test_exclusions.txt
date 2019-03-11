@@ -8,4 +8,5 @@ System.Net.NameResolution.Pal.Tests           # https://github.com/dotnet/corefx
 System.Net.Sockets.Tests                      # https://github.com/dotnet/coreclr/issues/21576 -- continuing flakiness
 System.Runtime.Serialization.Formatters.Tests # https://github.com/dotnet/coreclr/issues/20246 -- timeout
 System.Text.RegularExpressions.Tests          # https://github.com/dotnet/coreclr/issues/17754 -- timeout -- JitMinOpts + Tiered only
+System.Threading.Tasks.Tests                  # https://github.com/dotnet/coreclr/issues/20706
 System.Threading.Tests                        # https://github.com/dotnet/coreclr/issues/20215
