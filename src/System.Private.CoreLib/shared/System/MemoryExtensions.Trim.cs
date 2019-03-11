@@ -607,7 +607,7 @@ namespace System
             }
 
             int end = span.Length - 1;
-            for (; end >= start; end--)
+            for (; end > start; end--)
             {
                 if (!char.IsWhiteSpace(span[end]))
                 {
@@ -671,7 +671,7 @@ namespace System
             }
 
             int end = span.Length - 1;
-            for (; end >= start; end--)
+            for (; end > start; end--)
             {
                 if (span[end] != trimChar)
                 {
