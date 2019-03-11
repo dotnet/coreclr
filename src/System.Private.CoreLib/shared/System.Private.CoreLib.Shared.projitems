@@ -776,7 +776,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncoderFallback.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncoderReplacementFallback.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\Encoding.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)System\Text\Encoding.New.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Text\Encoding.Internal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncodingData.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncodingInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\EncodingNLS.cs" />
