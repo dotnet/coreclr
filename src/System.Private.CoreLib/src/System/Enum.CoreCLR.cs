@@ -36,9 +36,21 @@ namespace System
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public extern override bool Equals(object obj);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern object InternalBoxEnum(RuntimeType enumType, long value);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern int InternalCompareTo(object o1, object o2);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern CorElementType InternalGetCorElementType();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern override bool Equals(object obj);
+        internal static extern RuntimeType InternalGetUnderlyingType(RuntimeType enumType);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private extern bool InternalHasFlag(Enum flags);
     }
 }

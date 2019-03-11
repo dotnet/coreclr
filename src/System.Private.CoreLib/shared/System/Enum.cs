@@ -314,12 +314,6 @@ namespace System
 
             return result;
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern RuntimeType InternalGetUnderlyingType(RuntimeType enumType);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern object InternalBoxEnum(RuntimeType enumType, long value);
         #endregion
 
         #region Public Static Methods
@@ -1033,9 +1027,6 @@ namespace System
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern bool InternalHasFlag(Enum flags);
-
         #endregion
 
         #region Object Overrides
@@ -1104,62 +1095,34 @@ namespace System
         #endregion
 
         #region IComparable
-
         public int CompareTo(object target)
         {
-            if (target == null)
-                return 1;
+            const int retIncompatibleMethodTables = 2;  // indicates that the method tables did not match
+            const int retInvalidEnumType = 3; // indicates that the enum was of an unknown/unsupported underlying type
 
-            if (target == this)
-                return 0;
+            if (this == null)
+                throw new NullReferenceException();
 
-            if (!this.GetType().IsEquivalentTo(target.GetType()))
+            int ret = InternalCompareTo(this, target);
+
+            if (ret < retIncompatibleMethodTables)
             {
-                throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, target.GetType().ToString(), this.GetType().ToString()));
+                // -1, 0 and 1 are the normal return codes
+                return ret;
             }
-
-            ref byte pThisValue = ref this.GetRawData();
-            ref byte pTargetValue = ref target.GetRawData();
-
-            switch (InternalGetCorElementType())
+            else if (ret == retIncompatibleMethodTables)
             {
-                case CorElementType.ELEMENT_TYPE_I1:
-                    return (Unsafe.As<byte, sbyte>(ref pThisValue) == Unsafe.As<byte, sbyte>(ref pTargetValue)) ?
-                        0 : (Unsafe.As<byte, sbyte>(ref pThisValue) < Unsafe.As<byte, sbyte>(ref pTargetValue)) ? -1 : 1;
+                Type thisType = this.GetType();
+                Type targetType = target.GetType();
 
-                case CorElementType.ELEMENT_TYPE_U1:
-                case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                    return (Unsafe.As<byte, byte>(ref pThisValue) == Unsafe.As<byte, byte>(ref pTargetValue)) ?
-                        0 : (Unsafe.As<byte, byte>(ref pThisValue) < Unsafe.As<byte, byte>(ref pTargetValue)) ? -1 : 1;
+                throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, targetType, thisType));
+            }
+            else
+            {
+                // assert valid return code (3)
+                Debug.Assert(ret == retInvalidEnumType, "Enum.InternalCompareTo return code was invalid");
 
-                case CorElementType.ELEMENT_TYPE_I2:
-                    return (Unsafe.As<byte, short>(ref pThisValue) == Unsafe.As<byte, short>(ref pTargetValue)) ?
-                        0 : (Unsafe.As<byte, short>(ref pThisValue) < Unsafe.As<byte, short>(ref pTargetValue)) ? -1 : 1;
-
-                case CorElementType.ELEMENT_TYPE_U2:
-                case CorElementType.ELEMENT_TYPE_CHAR:
-                    return (Unsafe.As<byte, ushort>(ref pThisValue) == Unsafe.As<byte, ushort>(ref pTargetValue)) ?
-                        0 : (Unsafe.As<byte, ushort>(ref pThisValue) < Unsafe.As<byte, ushort>(ref pTargetValue)) ? -1 : 1;
-
-                case CorElementType.ELEMENT_TYPE_I4:
-                    return (Unsafe.As<byte, int>(ref pThisValue) == Unsafe.As<byte, int>(ref pTargetValue)) ?
-                        0 : (Unsafe.As<byte, int>(ref pThisValue) < Unsafe.As<byte, int>(ref pTargetValue)) ? -1 : 1;
-
-                case CorElementType.ELEMENT_TYPE_U4:
-                    return (Unsafe.As<byte, uint>(ref pThisValue) == Unsafe.As<byte, uint>(ref pTargetValue)) ?
-                        0 : (Unsafe.As<byte, uint>(ref pThisValue) < Unsafe.As<byte, uint>(ref pTargetValue)) ? -1 : 1;
-
-                case CorElementType.ELEMENT_TYPE_I8:
-                    return (Unsafe.As<byte, long>(ref pThisValue) == Unsafe.As<byte, long>(ref pTargetValue)) ?
-                        0 : (Unsafe.As<byte, long>(ref pThisValue) < Unsafe.As<byte, long>(ref pTargetValue)) ? -1 : 1;
-
-                case CorElementType.ELEMENT_TYPE_U8:
-                    return (Unsafe.As<byte, ulong>(ref pThisValue) == Unsafe.As<byte, ulong>(ref pTargetValue)) ?
-                        0 : (Unsafe.As<byte, ulong>(ref pThisValue) < Unsafe.As<byte, ulong>(ref pTargetValue)) ? -1 : 1;
-
-                default:
-                    Environment.FailFast("Unexpected enum underlying type");
-                    return 0;
+                throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
             }
         }
         #endregion
