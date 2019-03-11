@@ -3986,8 +3986,8 @@ static void CreateNDirectStubWorker(StubState*         pss,
         fMarshalReturnValueFirst = HasRetBuffArg(&msig);
 #endif // UNIX_X86_ABI
 #elif defined(_WIN32) && defined(_TARGET_AMD64_)
-        fMarshalReturnValueFirst = SF_IsCOMStub(dwStubFlags) || SF_IsDelegateStub(dwStubFlags);
-        fReverseWithReturnBufferArg = SF_IsCOMStub(dwStubFlags) && SF_IsReverseStub(dwStubFlags) && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE;
+        fMarshalReturnValueFirst = SF_IsCOMStub(dwStubFlags) && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE;
+        fReverseWithReturnBufferArg = fMarshalReturnValueFirst && SF_IsReverseStub(dwStubFlags);
 #endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     }
 

@@ -604,12 +604,12 @@ public:
             // code for the pinvoke ILStubs which do a return using a struct type.  Therefore, we
             // change the signature of calli to return void and make the return buffer as first argument. 
 
-            // for X86 and AMD64-Windows we bash the return type from struct to U1, U2, U4 or U8
+            // for X86 Windows we bash the return type from struct to U1, U2, U4 or U8
             // and use byrefNativeReturn for all other structs.
             // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
 #if defined(_TARGET_AMD64_) && defined(_WIN32)
-            if ((m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
-                || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags)))
+            // For Windows AMD64, we need to use a return buffer for member functions returning structures.
+            if (m_pslNDirect->TargetHasThis() && m_pslNDirect->HasThis())
             {
                 byrefNativeReturn = true;
             }
