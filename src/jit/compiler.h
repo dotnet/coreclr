@@ -10314,14 +10314,6 @@ extern BasicBlock dummyBB;
 /*****************************************************************************/
 /*****************************************************************************/
 
-// foreach_treenode_execution_order: An iterator that iterates through all the tree
-// nodes of a statement in execution order.
-//      __stmt: a GT_STMT type GenTree*
-//      __node: a GenTree*, already declared, that gets updated with each node in the statement, in execution order
-
-#define foreach_treenode_execution_order(__node, __stmt)                                                               \
-    for ((__node) = (__stmt)->gtStmtList; (__node); (__node) = (__node)->gtNext)
-
 // foreach_block: An iterator over all blocks in the function.
 //    __compiler: the Compiler* object
 //    __block   : a BasicBlock*, already declared, that gets updated each iteration.

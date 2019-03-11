@@ -347,7 +347,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
         }
 
         // This logic must be in sync with SSA renaming process.
-        for (GenTree* tree = stmt->gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
         {
             if (!optIsSsaLocal(tree))
             {

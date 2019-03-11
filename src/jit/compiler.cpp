@@ -8808,9 +8808,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
             if (comp->compRationalIRForm)
             {
-                GenTree* tree;
-
-                foreach_treenode_execution_order(tree, stmt)
+                for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
                 {
                     cNodeIR(comp, tree);
                 }

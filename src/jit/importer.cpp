@@ -672,7 +672,7 @@ inline void Compiler::impAppendStmt(GenTreeStmt* stmt)
 //    The extracted statement.
 //
 // Notes:
-//    It suppose that the stmt will be reinserted later.
+//    It assumes that the stmt will be reinserted later.
 //
 GenTreeStmt* Compiler::impExtractLastStmt()
 {

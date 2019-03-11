@@ -6144,7 +6144,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
         }
 #endif
 
-        for (GenTree* tree = stmt->gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
         {
             fgValueNumberTree(tree);
         }
