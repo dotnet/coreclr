@@ -216,16 +216,20 @@ namespace System
         public static Memory<T> Trim<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? memory : Trim(memory, trimElements[0]);
+                ReadOnlySpan<T> span = memory.Span;
+                int start = ClampStart(span, trimElements);
+                int length = ClampEnd(span, start, trimElements);
+                return memory.Slice(start, length);
             }
 
-            ReadOnlySpan<T> span = memory.Span;
-            int start = ClampStart(span, trimElements);
-            int length = ClampEnd(span, start, trimElements);
-            return memory.Slice(start, length);
+            if (trimElements.Length == 1)
+            {
+                return Trim(memory, trimElements[0]);
+            }
+
+            return memory;
         }
 
         /// <summary>
@@ -238,13 +242,17 @@ namespace System
         public static Memory<T> TrimStart<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? memory : TrimStart(memory, trimElements[0]);
+                return memory.Slice(ClampStart(memory.Span, trimElements));
             }
 
-            return memory.Slice(ClampStart(memory.Span, trimElements));
+            if (trimElements.Length == 1)
+            {
+                return TrimStart(memory, trimElements[0]);
+            }
+
+            return memory;
         }
 
         /// <summary>
@@ -257,13 +265,17 @@ namespace System
         public static Memory<T> TrimEnd<T>(this Memory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? memory : TrimEnd(memory, trimElements[0]);
+                return memory.Slice(0, ClampEnd(memory.Span, 0, trimElements));
             }
 
-            return memory.Slice(0, ClampEnd(memory.Span, 0, trimElements));
+            if (trimElements.Length == 1)
+            {
+                return TrimEnd(memory, trimElements[0]);
+            }
+
+            return memory;
         }
 
         /// <summary>
@@ -276,16 +288,20 @@ namespace System
         public static ReadOnlyMemory<T> Trim<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? memory : Trim(memory, trimElements[0]);
+                ReadOnlySpan<T> span = memory.Span;
+                int start = ClampStart(span, trimElements);
+                int length = ClampEnd(span, start, trimElements);
+                return memory.Slice(start, length);
             }
 
-            ReadOnlySpan<T> span = memory.Span;
-            int start = ClampStart(span, trimElements);
-            int length = ClampEnd(span, start, trimElements);
-            return memory.Slice(start, length);
+            if (trimElements.Length == 1)
+            {
+                return Trim(memory, trimElements[0]);
+            }
+
+            return memory;
         }
 
         /// <summary>
@@ -298,13 +314,17 @@ namespace System
         public static ReadOnlyMemory<T> TrimStart<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? memory : TrimStart(memory, trimElements[0]);
+                return memory.Slice(ClampStart(memory.Span, trimElements));
             }
 
-            return memory.Slice(ClampStart(memory.Span, trimElements));
+            if (trimElements.Length == 1)
+            {
+                return TrimStart(memory, trimElements[0]);
+            }
+
+            return memory;
         }
 
         /// <summary>
@@ -317,13 +337,18 @@ namespace System
         public static ReadOnlyMemory<T> TrimEnd<T>(this ReadOnlyMemory<T> memory, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? memory : TrimEnd(memory, trimElements[0]);
+                return memory.Slice(0, ClampEnd(memory.Span, 0, trimElements));
             }
 
-            return memory.Slice(0, ClampEnd(memory.Span, 0, trimElements));
+            if (trimElements.Length == 1)
+            {
+                return TrimEnd(memory, trimElements[0]);
+            }
+
+            return memory;
+
         }
 
         /// <summary>
@@ -336,15 +361,19 @@ namespace System
         public static Span<T> Trim<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? span : Trim(span, trimElements[0]);
+                int start = ClampStart(span, trimElements);
+                int length = ClampEnd(span, start, trimElements);
+                return span.Slice(start, length);
             }
 
-            int start = ClampStart(span, trimElements);
-            int length = ClampEnd(span, start, trimElements);
-            return span.Slice(start, length);
+            if (trimElements.Length == 1)
+            {
+                return Trim(span, trimElements[0]);
+            }
+
+            return span;
         }
 
         /// <summary>
@@ -357,13 +386,17 @@ namespace System
         public static Span<T> TrimStart<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? span : TrimStart(span, trimElements[0]);
+                return span.Slice(ClampStart(span, trimElements));
             }
 
-            return span.Slice(ClampStart(span, trimElements));
+            if (trimElements.Length == 1)
+            {
+                return TrimStart(span, trimElements[0]);
+            }
+
+            return span;
         }
 
         /// <summary>
@@ -376,13 +409,17 @@ namespace System
         public static Span<T> TrimEnd<T>(this Span<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? span : TrimEnd(span, trimElements[0]);
+                return span.Slice(0, ClampEnd(span, 0, trimElements));
             }
 
-            return span.Slice(0, ClampEnd(span, 0, trimElements));
+            if (trimElements.Length == 1)
+            {
+                return TrimEnd(span, trimElements[0]);
+            }
+
+            return span;
         }
 
         /// <summary>
@@ -395,15 +432,19 @@ namespace System
         public static ReadOnlySpan<T> Trim<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? span : Trim(span, trimElements[0]);
+                int start = ClampStart(span, trimElements);
+                int length = ClampEnd(span, start, trimElements);
+                return span.Slice(start, length);
             }
 
-            int start = ClampStart(span, trimElements);
-            int length = ClampEnd(span, start, trimElements);
-            return span.Slice(start, length);
+            if (trimElements.Length == 1)
+            {
+                return Trim(span, trimElements[0]);
+            }
+
+            return span;
         }
 
         /// <summary>
@@ -416,13 +457,17 @@ namespace System
         public static ReadOnlySpan<T> TrimStart<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? span : TrimStart(span, trimElements[0]);
+                return span.Slice(ClampStart(span, trimElements));
             }
 
-            return span.Slice(ClampStart(span, trimElements));
+            if (trimElements.Length == 1)
+            {
+                return TrimStart(span, trimElements[0]);
+            }
+
+            return span;
         }
 
         /// <summary>
@@ -435,13 +480,17 @@ namespace System
         public static ReadOnlySpan<T> TrimEnd<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> trimElements)
             where T : IEquatable<T>
         {
-            // Use nested checks to avoid unnecessary branching for the unlikely case of N <= 1
-            if (trimElements.Length <= 1)
+            if (trimElements.Length > 1)
             {
-                return trimElements.Length == 0 ? span : TrimEnd(span, trimElements[0]);
+                return span.Slice(0, ClampEnd(span, 0, trimElements));
             }
 
-            return span.Slice(0, ClampEnd(span, 0, trimElements));
+            if (trimElements.Length == 1)
+            {
+                return TrimEnd(span, trimElements[0]);
+            }
+
+            return span;
         }
 
         /// <summary>
