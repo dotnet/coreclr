@@ -119,18 +119,6 @@ namespace System.Text
             this.iRecursionCount = 0;
         }
 
-        internal void InternalInitialize(Encoding encoding, EncoderNLS encoder, int originalCharCount)
-        {
-            // The original char count is only used for keeping track of what 'index' value needs
-            // to be passed to the abstract Fallback method. The index value is calculated by subtracting
-            // 'chars.Length' (where chars is expected to be the entire remaining input buffer)
-            // from the 'originalCharCount' value specified here.
-
-            this.encoding = encoding;
-            this.encoder = encoder;
-            this.originalCharCount = originalCharCount;
-        }
-
         internal static EncoderFallbackBuffer CreateAndInitialize(Encoding encoding, EncoderNLS encoder, int originalCharCount)
         {
             // The original char count is only used for keeping track of what 'index' value needs

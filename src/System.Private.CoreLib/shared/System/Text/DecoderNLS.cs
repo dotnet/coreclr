@@ -26,8 +26,8 @@ namespace System.Text
         private bool _mustFlush;
         internal bool _throwOnOverflow;
         internal int _bytesUsed;
-        private int _leftoverBytes;
-        private int _leftoverByteCount;
+        private int _leftoverBytes; // leftover data from a previous invocation of GetChars (up to 4 bytes)
+        private int _leftoverByteCount; // number of bytes of actual data in _leftoverBytes
 
         internal DecoderNLS(Encoding encoding)
         {
@@ -395,31 +395,40 @@ namespace System.Text
         }
 
         /// <summary>
-        /// Copies as many elements of <paramref name="srcLeft"/> followed by as many elements of <paramref name="srcRight"/>
-        /// as possible into <paramref name="dest"/>, then returns the total number of elements copied.
+        /// Given a byte buffer <paramref name="dest"/>, concatenates as much of <paramref name="srcLeft"/> followed
+        /// by <paramref name="srcRight"/> into it as will fit, then returns the total number of bytes copied.
         /// </summary>
-        private static int ConcatInto<T>(ReadOnlySpan<T> srcLeft, ReadOnlySpan<T> srcRight, Span<T> dest)
+        private static int ConcatInto(ReadOnlySpan<byte> srcLeft, ReadOnlySpan<byte> srcRight, Span<byte> dest)
         {
-            // First, copy over as much of srcLeft as possible.
+            int total = 0;
 
-            if (srcLeft.Length > dest.Length)
+            for (int i = 0; i < srcLeft.Length; i++)
             {
-                srcLeft = srcLeft.Slice(0, dest.Length);
+                if ((uint)total >= (uint)dest.Length)
+                {
+                    goto Finish;
+                }
+                else
+                {
+                    dest[total++] = srcLeft[i];
+                }
             }
-            srcLeft.CopyTo(dest);
 
-            // Then, slice dest, and copy over as much of srcRight as possible.
-
-            dest = dest.Slice(srcLeft.Length);
-            if (srcRight.Length > dest.Length)
+            for (int i = 0; i < srcRight.Length; i++)
             {
-                srcRight = srcRight.Slice(0, dest.Length);
+                if ((uint)total >= (uint)dest.Length)
+                {
+                    goto Finish;
+                }
+                else
+                {
+                    dest[total++] = srcRight[i];
+                }
             }
-            srcRight.CopyTo(dest);
 
-            // The total number of elements copied is the combined length of the two sliced inputs.
+        Finish:
 
-            return srcLeft.Length + srcRight.Length;
+            return total;
         }
     }
 }

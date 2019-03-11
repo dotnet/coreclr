@@ -86,18 +86,6 @@ namespace System.Text
             this.charEnd = charEnd;
         }
 
-        internal void InternalInitialize(Encoding encoding, DecoderNLS decoder, int originalByteCount)
-        {
-            // The original byte count is only used for keeping track of what 'index' value needs
-            // to be passed to the abstract Fallback method. The index value is calculated by subtracting
-            // 'bytes.Length' (where bytes is expected to be the entire remaining input buffer)
-            // from the 'originalByteCount' value specified here.
-
-            this._encoding = encoding;
-            this._decoder = decoder;
-            this._originalByteCount = originalByteCount;
-        }
-
         internal static DecoderFallbackBuffer CreateAndInitialize(Encoding encoding, DecoderNLS decoder, int originalByteCount)
         {
             // The original byte count is only used for keeping track of what 'index' value needs
