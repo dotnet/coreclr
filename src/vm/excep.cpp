@@ -5139,7 +5139,12 @@ LONG InternalUnhandledExceptionFilter(
 
 } // LONG InternalUnhandledExceptionFilter()
 
+
+#ifdef PLATFORM_WINDOWS
+static bool s_useEntryPointFilter = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_UseEntryPointFilter) != 0;
+#else
 static bool s_useEntryPointFilter = false;
+#endif
 
 void ParseUseEntryPointFilter(LPCWSTR value)
 {
