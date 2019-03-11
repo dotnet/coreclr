@@ -2533,6 +2533,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
     //-------------------------------------------------------------------------
 
     opts.compDbgCode = jitFlags->IsSet(JitFlags::JIT_FLAG_DEBUG_CODE);
+    /* TEMP for debugging with unoptimized builds */ opts.compDbgCode = false;
     opts.compDbgInfo = jitFlags->IsSet(JitFlags::JIT_FLAG_DEBUG_INFO);
     opts.compDbgEnC  = jitFlags->IsSet(JitFlags::JIT_FLAG_DEBUG_EnC);
 
