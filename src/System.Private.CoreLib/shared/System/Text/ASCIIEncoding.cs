@@ -390,15 +390,15 @@ namespace System.Text
                 fixed (char* pChars = &MemoryMarshal.GetReference(chars))
                 fixed (byte* pBytes = &MemoryMarshal.GetReference(bytes))
                 {
-                    // In a loop, bulk-convert as much as we can, then replace individual non-ASCII chars.
+                    // In a loop, replace the non-convertible data, then bulk-convert as much as we can.
 
                     while (idx < numElementsToConvert)
                     {
-                        idx += (int)ASCIIUtility.NarrowUtf16ToAscii(&pChars[idx], &pBytes[idx], (uint)(numElementsToConvert - idx));
+                        pBytes[idx++] = replacementByte;
 
                         if (idx < numElementsToConvert)
                         {
-                            pBytes[idx++] = replacementByte;
+                            idx += (int)ASCIIUtility.NarrowUtf16ToAscii(&pChars[idx], &pBytes[idx], (uint)(numElementsToConvert - idx));
                         }
 
                         Debug.Assert(idx <= numElementsToConvert, "Somehow went beyond bounds of source or destination buffer?");
@@ -673,15 +673,15 @@ namespace System.Text
                 fixed (byte* pBytes = &MemoryMarshal.GetReference(bytes))
                 fixed (char* pChars = &MemoryMarshal.GetReference(chars))
                 {
-                    // In a loop, bulk-convert as much as we can, then replace individual non-ASCII bytes.
+                    // In a loop, replace the non-convertible data, then bulk-convert as much as we can.
 
                     while (idx < numElementsToConvert)
                     {
-                        idx += (int)ASCIIUtility.WidenAsciiToUtf16(&pBytes[idx], &pChars[idx], (uint)(numElementsToConvert - idx));
+                        pChars[idx++] = replacementChar;
 
                         if (idx < numElementsToConvert)
                         {
-                            pChars[idx++] = replacementChar;
+                            idx += (int)ASCIIUtility.WidenAsciiToUtf16(&pBytes[idx], &pChars[idx], (uint)(numElementsToConvert - idx));
                         }
 
                         Debug.Assert(idx <= numElementsToConvert, "Somehow went beyond bounds of source or destination buffer?");

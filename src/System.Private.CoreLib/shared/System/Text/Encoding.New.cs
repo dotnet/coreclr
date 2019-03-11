@@ -323,18 +323,31 @@ namespace System.Text
 
                 do
                 {
-                    // First, run through the fast-path as far as we can.
-                    // While building up the tally we need to continually check for integer overflow
-                    // since fallbacks can change the total byte count in unexpected ways.
+                    // There's still data in the source buffer; why wasn't the previous fast-path able to consume it fully?
+                    // There are two scenarios: (a) the source buffer contained invalid / incomplete UTF-16 data;
+                    // or (b) the encoding can't translate this scalar value.
 
-                    int byteCountThisIteration = GetByteCountFast(
-                        pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
-                        charsLength: chars.Length,
-                        fallback: null, // already tried this earlier and we still fell down the common path, so skip from now on
-                        charsConsumed: out int charsConsumedThisIteration);
+                    if (Rune.DecodeUtf16(chars, out Rune firstScalarValue, out int charsConsumedThisIteration) == OperationStatus.NeedMoreData
+                           && encoder != null
+                           && !encoder.MustFlush)
+                    {
+                        // We saw a standalone high surrogate at the end of the buffer, and the
+                        // active EncoderNLS instance isn't asking us to flush. Since a call to
+                        // GetBytes would've consumed this char by storing it in EncoderNLS._charLeftOver,
+                        // we'll "consume" it by ignoring it. The next call to GetBytes will
+                        // pick it up correctly.
 
-                    Debug.Assert(byteCountThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
-                    Debug.Assert(charsConsumedThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
+                        goto Finish;
+                    }
+
+                    // We saw invalid UTF-16 data, or we saw a high surrogate that we need to flush (and
+                    // thus treat as invalid), or we saw valid UTF-16 data that this encoder doesn't support.
+                    // In any case we'll run it through the fallback mechanism.
+
+                    int byteCountThisIteration = fallbackBuffer.InternalFallbackGetByteCount(chars, out charsConsumedThisIteration);
+
+                    Debug.Assert(byteCountThisIteration >= 0, "Fallback shouldn't have returned a negative value.");
+                    Debug.Assert(charsConsumedThisIteration >= 0, "Fallback shouldn't have returned a negative value.");
 
                     totalByteCount += byteCountThisIteration;
                     if (totalByteCount < 0)
@@ -346,31 +359,18 @@ namespace System.Text
 
                     if (!chars.IsEmpty)
                     {
-                        // There's still data remaining in the source buffer.
-                        // We need to figure out why we weren't able to make progress.
-                        // There are two scenarios: (a) the source buffer contained bad UTF-16 data, or (b) the encoding can't translate this scalar value.
+                        // Still data remaining - run it through the fast-path to find the next data to fallback.
+                        // While building up the tally we need to continually check for integer overflow
+                        // since fallbacks can change the total byte count in unexpected ways.
 
-                        if (Rune.DecodeUtf16(chars, out Rune firstScalarValue, out charsConsumedThisIteration) == OperationStatus.NeedMoreData
-                            && encoder != null
-                            && !encoder.MustFlush)
-                        {
-                            // We saw a standalone high surrogate at the end of the buffer, and the
-                            // active EncoderNLS instance isn't asking us to flush. Since a call to
-                            // GetBytes would've consumed this char by storing it in EncoderNLS._charLeftOver,
-                            // we'll "consume" it by ignoring it. The next call to GetBytes will
-                            // pick it up correctly.
+                        byteCountThisIteration = GetByteCountFast(
+                            pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
+                            charsLength: chars.Length,
+                            fallback: null, // already tried this earlier and we still fell down the common path, so skip from now on
+                            charsConsumed: out charsConsumedThisIteration);
 
-                            goto Finish;
-                        }
-
-                        // We saw invalid UTF-16 data, or we saw a high surrogate that we need to flush (and
-                        // thus treat as invalid), or we saw valid UTF-16 data that this encoder doesn't support.
-                        // In any case we'll run it through the fallback mechanism.
-
-                        byteCountThisIteration = fallbackBuffer.InternalFallbackGetByteCount(chars, out charsConsumedThisIteration);
-
-                        Debug.Assert(byteCountThisIteration >= 0, "Fallback shouldn't have returned a negative value.");
-                        Debug.Assert(charsConsumedThisIteration >= 0, "Fallback shouldn't have returned a negative value.");
+                        Debug.Assert(byteCountThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
+                        Debug.Assert(charsConsumedThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
 
                         totalByteCount += byteCountThisIteration;
                         if (totalByteCount < 0)
@@ -599,68 +599,68 @@ namespace System.Text
 
                 do
                 {
-                    // First, transcode as much well-formed data as we can via the fast path.
+                    // There's still data in the source buffer; why wasn't the previous fast-path able to consume it fully?
+                    // There are two scenarios: (a) the source buffer contained invalid / incomplete UTF-16 data;
+                    // or (b) the encoding can't translate this scalar value.
 
-                    int bytesWrittenThisIteration = GetBytesFast(
-                        pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
-                        charsLength: chars.Length,
-                        pBytes: (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(bytes)),
-                        bytesLength: bytes.Length,
-                        charsConsumed: out int charsConsumedThisIteration);
+                    switch (Rune.DecodeUtf16(chars, out Rune firstScalarValue, out int charsConsumedThisIteration))
+                    {
+                        case OperationStatus.NeedMoreData:
+                            Debug.Assert(charsConsumedThisIteration == chars.Length, "If returning NeedMoreData, should out the entire buffer length as chars consumed.");
+                            if (encoder is null || encoder.MustFlush)
+                            {
+                                goto case OperationStatus.InvalidData; // see comment in GetByteCountWithFallback
+                            }
+                            else
+                            {
+                                encoder._charLeftOver = chars[0]; // squirrel away remaining high surrogate char and finish
+                                chars = ReadOnlySpan<char>.Empty;
+                                goto Finish;
+                            }
 
-                    Debug.Assert(bytesWrittenThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
-                    Debug.Assert(charsConsumedThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
+                        case OperationStatus.InvalidData:
+                            break;
+
+                        default:
+                            if (EncodeRune(firstScalarValue, bytes, out _) == OperationStatus.DestinationTooSmall)
+                            {
+                                goto Finish; // source buffer contained valid UTF-16 but encoder ran out of space in destination buffer
+                            }
+                            break; // source buffer contained valid UTF-16 but encoder doesn't support this scalar value
+                    }
+
+                    // Now we know the reason for failure was that the original input was invalid
+                    // for the encoding in use. Run it through the fallback mechanism.
+
+                    bool fallbackFinished = fallbackBuffer.TryInternalFallbackGetBytes(chars, bytes, out charsConsumedThisIteration, out int bytesWrittenThisIteration);
+
+                    // Regardless of whether the fallback finished, it did consume some number of
+                    // chars, and it may have written some number of bytes.
 
                     chars = chars.Slice(charsConsumedThisIteration);
                     bytes = bytes.Slice(bytesWrittenThisIteration);
 
+                    if (!fallbackFinished)
+                    {
+                        goto Finish; // fallback has pending state - it'll get written out on the next GetBytes call
+                    }
+
                     if (!chars.IsEmpty)
                     {
-                        // There's still data remaining in the source buffer.
-                        // We need to figure out why we weren't able to make progress.
-                        // There are two scenarios: (a) the source buffer contained bad UTF-16 data, or (b) the encoding can't translate this scalar value.
+                        // Still data remaining - run it through the fast-path to find the next data to fallback.
 
-                        switch (Rune.DecodeUtf16(chars, out Rune firstScalarValue, out charsConsumedThisIteration))
-                        {
-                            case OperationStatus.NeedMoreData:
-                                Debug.Assert(charsConsumedThisIteration == chars.Length, "If returning NeedMoreData, should out the entire buffer length as chars consumed.");
-                                if (encoder is null || encoder.MustFlush)
-                                {
-                                    goto case OperationStatus.InvalidData; // see comment in GetByteCountWithFallback
-                                }
-                                else
-                                {
-                                    encoder._charLeftOver = chars[0]; // squirrel away remaining high surrogate char and finish
-                                    chars = ReadOnlySpan<char>.Empty;
-                                    goto Finish;
-                                }
+                        bytesWrittenThisIteration = GetBytesFast(
+                            pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
+                            charsLength: chars.Length,
+                            pBytes: (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(bytes)),
+                            bytesLength: bytes.Length,
+                            charsConsumed: out charsConsumedThisIteration);
 
-                            case OperationStatus.InvalidData:
-                                break;
-
-                            default:
-                                if (EncodeRune(firstScalarValue, bytes, out _) == OperationStatus.DestinationTooSmall)
-                                {
-                                    goto Finish; // source buffer contained valid UTF-16 but encoder ran out of space in destination buffer
-                                }
-                                break; // source buffer contained valid UTF-16 but encoder doesn't support this scalar value
-                        }
-
-                        // Now we know the reason for failure was that the original input was invalid
-                        // for the encoding in use. Run it through the fallback mechanism.
-
-                        bool fallbackFinished = fallbackBuffer.TryInternalFallbackGetBytes(chars, bytes, out charsConsumedThisIteration, out bytesWrittenThisIteration);
-
-                        // Regardless of whether the fallback finished, it did consume some number of
-                        // chars, and it may have written some number of bytes.
+                        Debug.Assert(bytesWrittenThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
+                        Debug.Assert(charsConsumedThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
 
                         chars = chars.Slice(charsConsumedThisIteration);
                         bytes = bytes.Slice(bytesWrittenThisIteration);
-
-                        if (!fallbackFinished)
-                        {
-                            goto Finish; // fallback has pending state - it'll get written out on the next GetBytes call
-                        }
                     }
                 } while (!chars.IsEmpty);
 
@@ -909,18 +909,27 @@ namespace System.Text
 
                 do
                 {
-                    // First, run through the fast-path as far as we can.
-                    // While building up the tally we need to continually check for integer overflow
-                    // since fallbacks can change the total char count in unexpected ways.
+                    // There's still data in the source buffer; why wasn't the previous fast-path able to consume it fully?
+                    // There are two scenarios: (a) the source buffer contained invalid data, or it contained incomplete data.
 
-                    int charCountThisIteration = GetCharCountFast(
-                        pBytes: (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(bytes)),
-                        bytesLength: bytes.Length,
-                        fallback: null, // wasn't able to be short-circuited by our caller; don't bother trying again
-                        bytesConsumed: out int bytesConsumedThisIteration);
+                    if (DecodeFirstRune(bytes, out Rune firstScalarValue, out int bytesConsumedThisIteration) == OperationStatus.NeedMoreData
+                          && decoder != null
+                          && !decoder.MustFlush)
+                    {
+                        // We saw incomplete data at the end of the buffer, and the active DecoderNLS isntance
+                        // isn't asking us to flush. Since a call to GetChars would've consumed this data by
+                        // storing it in the DecoderNLS instance, we'll "consume" it by ignoring it.
+                        // The next call to GetChars will pick it up correctly.
 
-                    Debug.Assert(charCountThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
-                    Debug.Assert(bytesConsumedThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
+                        goto Finish;
+                    }
+
+                    // We saw invalid binary data, or we saw incomplete data that we need to flush (and thus
+                    // treat as invalid). In any case we'll run through the fallback mechanism.
+
+                    int charCountThisIteration = fallbackBuffer.InternalFallbackGetCharCount(bytes, bytesConsumedThisIteration);
+
+                    Debug.Assert(charCountThisIteration >= 0, "Fallback shouldn't have returned a negative value.");
 
                     totalCharCount += charCountThisIteration;
                     if (totalCharCount < 0)
@@ -932,28 +941,18 @@ namespace System.Text
 
                     if (!bytes.IsEmpty)
                     {
-                        // There's still data remaining in the source buffer.
-                        // We need to figure out why we weren't able to make progress.
-                        // There are two scenarios: (a) the source buffer contained invalid data, or it contained incomplete data.
+                        // Still data remaining - run it through the fast-path to find the next data to fallback.
+                        // While building up the tally we need to continually check for integer overflow
+                        // since fallbacks can change the total byte count in unexpected ways.
 
-                        if (DecodeFirstRune(bytes, out Rune firstScalarValue, out bytesConsumedThisIteration) == OperationStatus.NeedMoreData
-                            && decoder != null
-                            && !decoder.MustFlush)
-                        {
-                            // We saw incomplete data at the end of the buffer, and the active DecoderNLS isntance
-                            // isn't asking us to flush. Since a call to GetChars would've consumed this data by
-                            // storing it in the DecoderNLS instance, we'll "consume" it by ignoring it.
-                            // The next call to GetChars will pick it up correctly.
+                        charCountThisIteration = GetCharCountFast(
+                            pBytes: (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(bytes)),
+                            bytesLength: bytes.Length,
+                            fallback: null, // wasn't able to be short-circuited by our caller; don't bother trying again
+                            bytesConsumed: out bytesConsumedThisIteration);
 
-                            goto Finish;
-                        }
-
-                        // We saw invalid binary data, or we saw incomplete data that we need to flush (and thus
-                        // treat as invalid). In any case we'll run through the fallback mechanism.
-
-                        charCountThisIteration = fallbackBuffer.InternalFallbackGetCharCount(bytes, bytesConsumedThisIteration);
-
-                        Debug.Assert(charCountThisIteration >= 0, "Fallback shouldn't have returned a negative value.");
+                        Debug.Assert(charCountThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
+                        Debug.Assert(bytesConsumedThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
 
                         totalCharCount += charCountThisIteration;
                         if (totalCharCount < 0)
@@ -1182,63 +1181,67 @@ namespace System.Text
 
                 do
                 {
-                    // First, transcode as much well-formed data as we can via the fast path.
+                    // There's still data in the source buffer; why wasn't the previous fast-path able to consume it fully?
+                    // There are two scenarios: (a) the source buffer contained invalid data, or it contained incomplete data.
 
-                    int charsWrittenThisIteration = GetCharsFast(
-                        pBytes: (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(bytes)),
-                        bytesLength: bytes.Length,
-                        pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
-                        charsLength: chars.Length,
-                        bytesConsumed: out int bytesConsumedThisIteration);
+                    int charsWrittenThisIteration;
 
-                    Debug.Assert(charsWrittenThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
-                    Debug.Assert(bytesConsumedThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
+                    switch (DecodeFirstRune(bytes, out _, out int bytesConsumedThisIteration))
+                    {
+                        case OperationStatus.NeedMoreData:
+                            Debug.Assert(bytesConsumedThisIteration == bytes.Length, "If returning NeedMoreData, should out the entire buffer length as bytes consumed.");
+                            if (decoder is null || decoder.MustFlush)
+                            {
+                                goto case OperationStatus.InvalidData; // see comment in GetCharCountWithFallback
+                            }
+                            else
+                            {
+                                decoder.SetLeftoverData(bytes); // squirrel away remaining data and finish
+                                bytes = ReadOnlySpan<byte>.Empty;
+                                goto Finish;
+                            }
+
+                        case OperationStatus.InvalidData:
+                            if (fallbackBuffer.TryInternalFallbackGetChars(bytes, bytesConsumedThisIteration, chars, out charsWrittenThisIteration))
+                            {
+                                // We successfully consumed some bytes, sent it through the fallback, and wrote some chars.
+
+                                Debug.Assert(charsWrittenThisIteration >= 0, "Fallback shouldn't have returned a negative value.");
+                                break;
+                            }
+                            else
+                            {
+                                // We generated fallback data, but the destination buffer wasn't large enough to hold it.
+                                // Don't mark any of the bytes we ran through the fallback as consumed, and terminate
+                                // the loop now and let our caller handle this condition.
+
+                                goto Finish;
+                            }
+
+                        default:
+                            goto Finish; // no error on input, so destination must have been too small
+                    }
 
                     bytes = bytes.Slice(bytesConsumedThisIteration);
                     chars = chars.Slice(charsWrittenThisIteration);
 
                     if (!bytes.IsEmpty)
                     {
-                        // There's still data remaining in the source buffer.
+                        // Still data remaining - run it through the fast-path to find the next data to fallback.
                         // We need to figure out why we weren't able to make progress.
 
-                        switch (DecodeFirstRune(bytes, out _, out bytesConsumedThisIteration))
-                        {
-                            case OperationStatus.NeedMoreData:
-                                Debug.Assert(bytesConsumedThisIteration == bytes.Length, "If returning NeedMoreData, should out the entire buffer length as bytes consumed.");
-                                if (decoder is null || decoder.MustFlush)
-                                {
-                                    goto case OperationStatus.InvalidData; // see comment in GetCharCountWithFallback
-                                }
-                                else
-                                {
-                                    decoder.SetLeftoverData(bytes); // squirrel away remaining data and finish
-                                    bytes = ReadOnlySpan<byte>.Empty;
-                                    goto Finish;
-                                }
+                        charsWrittenThisIteration = GetCharsFast(
+                            pBytes: (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(bytes)),
+                            bytesLength: bytes.Length,
+                            pChars: (char*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(chars)),
+                            charsLength: chars.Length,
+                            bytesConsumed: out bytesConsumedThisIteration);
 
-                            case OperationStatus.InvalidData:
-                                if (fallbackBuffer.TryInternalFallbackGetChars(bytes, bytesConsumedThisIteration, chars, out charsWrittenThisIteration))
-                                {
-                                    // We successfully consumed some bytes, sent it through the fallback, and wrote some chars.
+                        Debug.Assert(charsWrittenThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
+                        Debug.Assert(bytesConsumedThisIteration >= 0, "Workhorse shouldn't have returned a negative value.");
 
-                                    Debug.Assert(charsWrittenThisIteration >= 0, "Fallback shouldn't have returned a negative value.");
-                                    bytes = bytes.Slice(bytesConsumedThisIteration);
-                                    chars = chars.Slice(charsWrittenThisIteration);
-                                    break;
-                                }
-                                else
-                                {
-                                    // We generated fallback data, but the destination buffer wasn't large enough to hold it.
-                                    // Don't mark any of the bytes we ran through the fallback as consumed, and terminate
-                                    // the loop now and let our caller handle this condition.
-
-                                    goto Finish;
-                                }
-
-                            default:
-                                goto Finish; // no error on input, so destination must have been too small
-                        }
+                        bytes = bytes.Slice(bytesConsumedThisIteration);
+                        chars = chars.Slice(charsWrittenThisIteration);
                     }
                 } while (!bytes.IsEmpty);
 
