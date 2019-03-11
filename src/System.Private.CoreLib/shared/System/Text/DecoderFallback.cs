@@ -98,6 +98,22 @@ namespace System.Text
             this._originalByteCount = originalByteCount;
         }
 
+        internal static DecoderFallbackBuffer CreateAndInitialize(Encoding encoding, DecoderNLS decoder, int originalByteCount)
+        {
+            // The original byte count is only used for keeping track of what 'index' value needs
+            // to be passed to the abstract Fallback method. The index value is calculated by subtracting
+            // 'bytes.Length' (where bytes is expected to be the entire remaining input buffer)
+            // from the 'originalByteCount' value specified here.
+
+            DecoderFallbackBuffer fallbackBuffer = (decoder is null) ? encoding.DecoderFallback.CreateFallbackBuffer() : decoder.FallbackBuffer;
+
+            fallbackBuffer._encoding = encoding;
+            fallbackBuffer._decoder = decoder;
+            fallbackBuffer._originalByteCount = originalByteCount;
+
+            return fallbackBuffer;
+        }
+
         // Fallback the current byte by sticking it into the remaining char buffer.
         // This can only be called by our encodings (other have to use the public fallback methods), so
         // we can use our DecoderNLS here too (except we don't).
@@ -260,7 +276,7 @@ namespace System.Text
                 if (totalCharCount < 0)
                 {
                     InternalReset();
-                    throw new ArgumentException(SR.Argument_ConversionOverflow);
+                    Encoding.ThrowConversionOverflow();
                 }
             }
 

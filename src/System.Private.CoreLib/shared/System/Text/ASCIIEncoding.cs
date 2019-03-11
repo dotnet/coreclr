@@ -490,6 +490,7 @@ namespace System.Text
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe int GetCharCountCommon(byte* pBytes, int byteCount)
         {
             // Common helper method for all non-DecoderNLS entry points to GetCharCount.
@@ -500,7 +501,7 @@ namespace System.Text
 
             // First call into the fast path.
 
-            int charCount = GetCharCountNoFallbackBuffer(pBytes, byteCount, DecoderFallback, out int bytesConsumed);
+            int totalCharCount = GetCharCountFast(pBytes, byteCount, DecoderFallback, out int bytesConsumed);
 
             if (bytesConsumed != byteCount)
             {
@@ -508,34 +509,35 @@ namespace System.Text
                 // We need to check for integer overflow since the fallback could change the required
                 // output count in unexpected ways.
 
-                charCount += GetCharCountWithFallback(pBytes, byteCount, bytesConsumed);
-                if (charCount < 0)
+                totalCharCount += GetCharCountWithFallback(pBytes, byteCount, bytesConsumed);
+                if (totalCharCount < 0)
                 {
                     ThrowConversionOverflow();
                 }
             }
 
-            return charCount;
+            return totalCharCount;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] // invoked directly by our common entry method
-        private protected sealed override unsafe int GetCharCountNoFallbackBuffer(byte* pBytes, int byteCount, DecoderFallback fallback, out int bytesConsumed)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // called directly by GetCharCountCommon
+        private protected sealed override unsafe int GetCharCountFast(byte* pBytes, int bytesLength, DecoderFallback fallback, out int bytesConsumed)
         {
-            Debug.Assert(byteCount >= 0, "Should've been checked by caller.");
+            // First: Can we short-circuit the entire calculation?
+            // If a DecoderReplacementFallback is in use, all non-ASCII bytes are replaced with
+            // the default string. If the default string consists of a single BMP value, then we
+            // know there's a 1:1 byte->char transcoding in all cases.
 
-            // See comment in ASCIIEncodingSealed.GetCharCount(char*, int) for details on why we can
-            // perform a short-circuiting computation if we know that we have an DecoderReplacementFallback
-            // whose substitution character is a single BMP char.
+            int charCount = bytesLength;
 
-            int numElementsConverted = byteCount;
-
-            if (byteCount != 0 && !(fallback is DecoderReplacementFallback replacementFallback && replacementFallback.MaxCharCount == 1))
+            if (!(fallback is DecoderReplacementFallback replacementFallback) || replacementFallback.MaxCharCount != 1)
             {
-                numElementsConverted = (int)ASCIIUtility.GetIndexOfFirstNonAsciiByte(pBytes, (uint)byteCount);
+                // Unrecognized fallback mechanism - count bytes manually.
+
+                charCount = (int)ASCIIUtility.GetIndexOfFirstNonAsciiByte(pBytes, (uint)bytesLength);
             }
 
-            bytesConsumed = numElementsConverted;
-            return numElementsConverted;
+            bytesConsumed = charCount;
+            return charCount;
         }
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
