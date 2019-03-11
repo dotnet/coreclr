@@ -1036,6 +1036,10 @@ public:
         }
 #endif // FEATURE_COMINTEROP
 
+        SString str;
+
+        m_slIL.LogILStub(jitFlags, &str);
+
         UINT   maxStack;
         size_t cbCode;
         DWORD  cbSig;
@@ -1737,7 +1741,7 @@ NDirectStubLinker::NDirectStubLinker(
             int  iLCIDParamIdx,
             BOOL fTargetHasThis, 
             BOOL fStubHasThis)
-     : ILStubLinker(pModule, signature, pTypeContext, pTargetMD, fTargetHasThis, fStubHasThis, !SF_IsCOMStub(dwStubFlags)),
+     : ILStubLinker(pModule, signature, pTypeContext, pTargetMD, fTargetHasThis, fStubHasThis, !SF_IsCOMStub(dwStubFlags), SF_IsReverseStub(dwStubFlags)),
     m_pCleanupFinallyBeginLabel(NULL),
     m_pCleanupFinallyEndLabel(NULL),
     m_pSkipExceptionCleanupLabel(NULL),
@@ -3956,6 +3960,8 @@ static void CreateNDirectStubWorker(StubState*         pss,
     // When this bool is true we change the return type to void and explicitly add a
     // return buffer argument as the first argument so as to match the native calling convention correctly.
     BOOL fMarshalReturnValueFirst = false;
+
+    BOOL fReverseWithReturnBufferArg = FALSE;
     
     // We can only change fMarshalReturnValueFirst to true when we are NOT doing HRESULT-swapping!
     // When we are HRESULT-swapping, the managed return type is actually the type of the last parameter and not the return type.
@@ -3980,9 +3986,15 @@ static void CreateNDirectStubWorker(StubState*         pss,
         fMarshalReturnValueFirst = HasRetBuffArg(&msig);
 #endif // UNIX_X86_ABI
 #elif defined(_WIN32) && defined(_TARGET_AMD64_)
-        fMarshalReturnValueFirst = SF_IsForwardStub(dwStubFlags) && (SF_IsCOMStub(dwStubFlags) || SF_IsDelegateStub(dwStubFlags));
+        fMarshalReturnValueFirst = SF_IsCOMStub(dwStubFlags) || SF_IsDelegateStub(dwStubFlags);
+        fReverseWithReturnBufferArg = SF_IsCOMStub(dwStubFlags) && SF_IsReverseStub(dwStubFlags) && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE;
 #endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+    }
 
+    // If we're doing a native->managed call and are generating a return buffer, we need to move all of the actual arguments over one and have the return value be argument 1.
+    if (fReverseWithReturnBufferArg)
+    {
+        ++argOffset;
     }
     
     if (fMarshalReturnValueFirst)
@@ -4093,6 +4105,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
     // Marshal the parameters
     int argidx = 1;
     int nativeArgIndex = 0;
+
     while (argidx <= numArgs)
     {
 #ifdef FEATURE_COMINTEROP

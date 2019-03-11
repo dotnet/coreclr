@@ -608,7 +608,8 @@ public:
             // and use byrefNativeReturn for all other structs.
             // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
 #if defined(_TARGET_AMD64_) && defined(_WIN32)
-            if (m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
+            if ((m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
+                || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags)))
             {
                 byrefNativeReturn = true;
             }
@@ -627,12 +628,23 @@ public:
 #endif
         }
 
-        if (IsHresultSwap(dwMarshalFlags) || (byrefNativeReturn && IsCLRToNative(dwMarshalFlags)))
+        if (IsHresultSwap(dwMarshalFlags) || (byrefNativeReturn))
         {
             LocalDesc extraParamType = nativeType;
             extraParamType.MakeByRef();
 
             m_pcsMarshal->SetStubTargetArgType(&extraParamType, false);
+            if (byrefNativeReturn && !IsCLRToNative(m_dwMarshalFlags))
+            {
+                // If doing a native->managed call and returning a structure by-ref,
+                // the native signature has an extra param for the struct return
+                // than the managed signature. Adjust the target stack delta to account this extra
+                // parameter.
+                m_pslNDirect->AdjustTargetStackDeltaForExtraParam();
+                // We also need to account for the lack of a return value in the native signature.
+                // To do this, we adjust the stack delta again for the return parameter.
+                m_pslNDirect->AdjustTargetStackDeltaForExtraParam();
+            }
             
             if (IsHresultSwap(dwMarshalFlags))
             {
@@ -748,6 +760,10 @@ public:
                 // we tolerate NULL here mainly for backward compatibility reasons
                 m_nativeHome.EmitCopyToByrefArgWithNullCheck(m_pcsUnmarshal, &nativeType, argidx);
                 m_pcsUnmarshal->EmitLDC(S_OK);
+            }
+            else if (byrefNativeReturn)
+            {
+                m_nativeHome.EmitCopyToByrefArg(m_pcsUnmarshal, &nativeType, argidx);
             }
             else
             {

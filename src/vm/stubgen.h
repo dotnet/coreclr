@@ -378,7 +378,7 @@ class ILStubLinker
 public:
 
     ILStubLinker(Module* pModule, const Signature &signature, SigTypeContext *pTypeContext, MethodDesc *pMD,
-                 BOOL fTargetHasThis, BOOL fStubHasThis, BOOL fIsNDirectStub = FALSE);
+                 BOOL fTargetHasThis, BOOL fStubHasThis, BOOL fIsNDirectStub = FALSE, BOOL fIsReverseStub = FALSE);
     ~ILStubLinker();
     
     void GenerateCode(BYTE* pbBuffer, size_t cbBufferSize);
@@ -424,7 +424,6 @@ public:
     void GetStubReturnType(LocalDesc * pLoc);
     void GetStubReturnType(LocalDesc * pLoc, Module * pModule);
     CorCallingConvention GetStubTargetCallingConv();
-
     
     CorElementType GetStubTargetReturnElementType() { WRAPPER_NO_CONTRACT; return m_nativeFnSigBuilder.GetReturnElementType(); }
 
@@ -503,6 +502,15 @@ protected:
     void SetStubTargetReturnType(CorElementType typ);
     void SetStubTargetReturnType(LocalDesc* pLoc);
     void SetStubTargetCallingConv(CorCallingConvention uNativeCallingConv);
+    
+    int GetReturnStackDelta()
+    {
+        if ((!m_fIsReverseStub && m_StubHasVoidReturnType) || (m_fIsReverseStub && m_StubTargetHasVoidReturnType))
+        {
+            return 0;
+        }
+        return -1;
+    }
 
     void TransformArgForJIT(LocalDesc *pLoc);
 
@@ -510,6 +518,8 @@ protected:
     SigTypeContext *GetStubSigTypeContext();
 
     BOOL    m_StubHasVoidReturnType;
+    BOOL    m_StubTargetHasVoidReturnType;
+    BOOL    m_fIsReverseStub;
     INT     m_iTargetStackDelta;
     DWORD   m_cbCurrentCompressedSigLen;
     DWORD   m_nLocals;
