@@ -7,19 +7,16 @@ namespace System.ComponentModel
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Enum | AttributeTargets.Constructor | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Event | AttributeTargets.Delegate | AttributeTargets.Interface)]
     public sealed class EditorBrowsableAttribute : Attribute
     {
-        private EditorBrowsableState browsableState;
-
         public EditorBrowsableAttribute(EditorBrowsableState state)
         {
-            browsableState = state;
+            State = state;
         }
 
-        public EditorBrowsableAttribute() : this(EditorBrowsableState.Always) { }
-
-        public EditorBrowsableState State
+        public EditorBrowsableAttribute() : this(EditorBrowsableState.Always)
         {
-            get { return browsableState; }
         }
+
+        public EditorBrowsableState State { get; }
 
         public override bool Equals(object obj)
         {
@@ -27,20 +24,14 @@ namespace System.ComponentModel
             {
                 return true;
             }
+            if (!(obj is EditorBrowsableAttribute other))
+            {
+                return false;
+            }
 
-            return (obj is EditorBrowsableAttribute other) && other.browsableState == browsableState;
+            return other.State == State;
         }
 
-        public override int GetHashCode()
-        {
-            return base.GetHashCode();
-        }
-    }
-
-    public enum EditorBrowsableState
-    {
-        Always,
-        Never,
-        Advanced
+        public override int GetHashCode() => base.GetHashCode();
     }
 }
