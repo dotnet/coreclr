@@ -230,6 +230,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
       <AllCMDs Include="@(AllCMDsPresent)" Exclude="@(AllCMDExcludeFilter)"/>
 
       <AllCommands Include="@(AllCMDs)" >
+        <_DisplayName>$([MSBuild]::MakeRelative($(XunitTestBinBase), %(AllCMDs.FullPath)))</_DisplayName>
         <_FactName Condition="'$(RunningOnUnix)' != 'true'" >$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",'').Replace(".","_").Replace("\","_").Replace("-","_"))</_FactName>
         <_ClassName Condition="'$(RunningOnUnix)' != 'true'" >$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",'').Replace("cmd","").Replace(".","_").Replace("\","_").Replace("-","_"))</_ClassName>
         <_FactName Condition="'$(RunningOnUnix)' == 'true'" >$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",'').Replace(".","_").Replace("/","_").Replace("-","_"))</_FactName>
@@ -240,7 +241,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
 
         public class %(AllCommands._ClassName)
         {
-            [Fact]
+            [Fact(DisplayName=@"%(AllCommands._DisplayName)")]
             public void %(AllCommands._FactName)()
             {
                 int ret = -100%3B
