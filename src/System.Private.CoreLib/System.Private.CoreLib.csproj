@@ -4,6 +4,14 @@
   <Import Project="../../clr.coreclr.props" />
   <Import Project="../../clr.defines.targets" />
 
+  <!-- Generate rsp -->
+  <Import Project="GenerateCompilerResponseFile.targets" />
+
+  <Target Name="GenerateTheRSPFile" BeforeTargets="CoreCompile" DependsOnTargets="GenerateCompilerResponseFile">
+    <Message Text="Call creating rsp file." Importance="High" />
+  </Target>
+
+
   <PropertyGroup>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     
@@ -29,9 +37,6 @@
       <GenerateSource>true</GenerateSource>
     </EmbeddedResource>
   </ItemGroup>
-
-  <!-- Generate rsp -->
-  <Import Project="GenerateCompilerResponseFile.targets" />
 
   <PropertyGroup>
     <AvailablePlatforms>x64,x86,arm,armel,arm64</AvailablePlatforms>
