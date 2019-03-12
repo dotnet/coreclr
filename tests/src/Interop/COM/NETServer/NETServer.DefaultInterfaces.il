@@ -28,10 +28,38 @@
         ret
     }
 
+    .method public hidebysig
+        instance void DefOnInterfaceNonVirtual() cil managed
+    {
+        // Non-virtual interface instance method
+        ret
+    }
+
+    .method public hidebysig
+        static void DefOnInterfaceStatic() cil managed
+    {
+        // Static interface method
+        ret
+    }
+
     .method public abstract virtual
         instance int32 DefOnClassRet3() cil managed
     {
         // Simple interface method
+    }
+
+    .method public hidebysig
+        static void DefOnInterfaceStatic2() cil managed
+    {
+        // Static interface method
+        ret
+    }
+
+    .method public hidebysig
+        instance void DefOnInterfaceNonVirtual2() cil managed
+    {
+        // Non-virtual interface instance method
+        ret
     }
 
     .method public abstract virtual
