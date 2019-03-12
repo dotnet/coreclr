@@ -3959,7 +3959,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
     // in the IL_STUB, (i.e if it returns a value class then the signature will use that)
     // When this bool is true we change the return type to void and explicitly add a
     // return buffer argument as the first argument so as to match the native calling convention correctly.
-    BOOL fMarshalReturnValueFirst = false;
+    BOOL fMarshalReturnValueFirst = FALSE;
 
     BOOL fReverseWithReturnBufferArg = FALSE;
     
@@ -3986,7 +3986,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
         fMarshalReturnValueFirst = HasRetBuffArg(&msig);
 #endif // UNIX_X86_ABI
 #elif defined(_WIN32) && defined(_TARGET_AMD64_)
-        fMarshalReturnValueFirst = SF_IsCOMStub(dwStubFlags) && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE;
+        fMarshalReturnValueFirst = fStubNeedsCOM && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE;
         fReverseWithReturnBufferArg = fMarshalReturnValueFirst && SF_IsReverseStub(dwStubFlags);
 #endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     }

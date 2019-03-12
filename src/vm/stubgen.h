@@ -502,14 +502,14 @@ protected:
     void SetStubTargetReturnType(CorElementType typ);
     void SetStubTargetReturnType(LocalDesc* pLoc);
     void SetStubTargetCallingConv(CorCallingConvention uNativeCallingConv);
-    
-    int GetReturnStackDelta()
+
+    bool ReturnOpcodePopsStack()
     {
         if ((!m_fIsReverseStub && m_StubHasVoidReturnType) || (m_fIsReverseStub && m_StubTargetHasVoidReturnType))
         {
-            return 0;
+            return false;
         }
-        return -1;
+        return true;
     }
 
     void TransformArgForJIT(LocalDesc *pLoc);

@@ -1530,7 +1530,7 @@ void ILCodeStream::EmitPOP()
 void ILCodeStream::EmitRET()
 {
     WRAPPER_NO_CONTRACT;
-    INT16 iStackDelta = m_pOwner->GetReturnStackDelta();
+    INT16 iStackDelta = m_pOwner->ReturnOpcodePopsStack() ? -1 : 0;
     Emit(CEE_RET, iStackDelta, 0);
 }
 void ILCodeStream::EmitSHR_UN()
