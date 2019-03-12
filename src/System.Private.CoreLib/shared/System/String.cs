@@ -335,8 +335,7 @@ namespace System
                 return Empty;
 
             string result = FastAllocateString(value.Length);
-            fixed (char* dest = &result._firstChar, src = &MemoryMarshal.GetReference(value))
-                wstrcpy(dest, src, value.Length);
+            Buffer.Memmove(ref result._firstChar, ref MemoryMarshal.GetReference(value), (uint)value.Length);
             return result;
         }
 

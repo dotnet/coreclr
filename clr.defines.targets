@@ -2,6 +2,7 @@
     <!-- Features we're currently flighting, but don't intend to ship in officially supported releases -->
     <PropertyGroup Condition="'$(IsPrerelease)' == 'true'">
         <FeatureDefaultInterfaces>true</FeatureDefaultInterfaces>
+        <FeatureUtf8String>true</FeatureUtf8String>
     </PropertyGroup>
 
     <PropertyGroup>
