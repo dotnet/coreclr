@@ -7481,7 +7481,7 @@ regMaskTP emitter::emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd)
         CorInfoHelpFunc helpFunc = Compiler::eeGetHelperNum(methHnd);
 
         // Get the set of registers that this call kills and remove it from the saved set.
-        regMaskTP savedSet = RBM_ALLINT & ~emitComp->compNoGCHelperCallKillSet(helpFunc);
+        regMaskTP savedSet = RBM_ALLINT & ~compNoGCHelperCallKillSet(helpFunc);
 
 #ifdef DEBUG
         if (emitComp->verbose)
@@ -7499,4 +7499,86 @@ regMaskTP emitter::emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd)
         // This is the saved set of registers after a normal call.
         return RBM_CALLEE_SAVED;
     }
+}
+
+//----------------------------------------------------------------------
+// compNoGCHelperCallKillSet: Gets a register mask that represents the set of registers that no longer
+// contain GC or byref pointers, for "NO GC" helper calls. This is used by the emitter when determining
+// what registers to remove from the current live GC/byref sets (and thus what to report as dead in the
+// GC info). Note that for the CORINFO_HELP_ASSIGN_BYREF helper, in particular, the kill set reported by
+// compHelperCallKillSet() doesn't match this kill set. compHelperCallKillSet() reports the dst/src
+// address registers as killed for liveness purposes, since their values change. However, they still are
+// valid byref pointers after the call, so the dst/src address registers are NOT reported as killed here.
+//
+// Note: This list may not be complete and defaults to the default RBM_CALLEE_TRASH_NOGC registers.
+//
+// Arguments:
+//   helper - The helper being inquired about
+//
+// Return Value:
+//   Mask of GC register kills
+//
+regMaskTP emitter::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
+{
+    assert(emitNoGChelper(helper));
+    regMaskTP result;
+    switch (helper)
+    {
+        case CORINFO_HELP_ASSIGN_BYREF:
+#if defined(_TARGET_X86_)
+            // This helper only trashes ECX.
+            result = RBM_ECX;
+            break;
+#elif defined(_TARGET_AMD64_)
+            // This uses and defs RDI and RSI.
+            result = RBM_CALLEE_TRASH_NOGC & ~(RBM_RDI | RBM_RSI);
+            break;
+#elif defined(_TARGET_ARMARCH_)
+            result = RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF;
+            break;
+#else
+            assert(!"unknown arch");
+#endif
+
+#if defined(_TARGET_XARCH_)
+        case CORINFO_HELP_PROF_FCN_ENTER:
+            result = RBM_PROFILER_ENTER_TRASH;
+            break;
+
+        case CORINFO_HELP_PROF_FCN_LEAVE:
+            result = RBM_PROFILER_LEAVE_TRASH;
+            break;
+
+        case CORINFO_HELP_PROF_FCN_TAILCALL:
+            result = RBM_PROFILER_TAILCALL_TRASH;
+            break;
+#endif // defined(_TARGET_XARCH_)
+
+#if defined(_TARGET_ARMARCH_)
+        case CORINFO_HELP_ASSIGN_REF:
+        case CORINFO_HELP_CHECKED_ASSIGN_REF:
+            result = RBM_CALLEE_GCTRASH_WRITEBARRIER;
+            break;
+        case CORINFO_HELP_PROF_FCN_LEAVE:
+            // In case of Leave profiler callback, we need to preserve liveness of REG_PROFILER_RET_SCRATCH on ARMARCH.
+            result = RBM_CALLEE_TRASH_NOGC & ~RBM_PROFILER_RET_SCRATCH;
+            break;
+#endif
+
+#if defined(_TARGET_X86_)
+        case CORINFO_HELP_INIT_PINVOKE_FRAME:
+            result = RBM_INIT_PINVOKE_FRAME_TRASH;
+            break;
+#endif // defined(_TARGET_X86_)
+
+        default:
+            result = RBM_CALLEE_TRASH_NOGC;
+            break;
+    }
+
+    // compHelperCallKillSet returns a superset of the registers which values are not guranteed to be the same
+    // after the call, if a register loses its GC or byref it has to be in the compHelperCallKillSet set as well.
+    assert((result & emitComp->compHelperCallKillSet(helper)) == result);
+
+    return result;
 }
