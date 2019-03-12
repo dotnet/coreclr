@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 
 namespace System
 {
-    partial class Enum
+    public abstract partial class Enum
     {
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetEnumValuesAndNames(RuntimeTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, bool getNames);
