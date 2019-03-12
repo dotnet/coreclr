@@ -608,13 +608,13 @@ public:
             // and use byrefNativeReturn for all other structs.
             // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
 #if defined(_TARGET_AMD64_) && defined(_WIN32)
-            // For Windows AMD64, we need to use a return buffer for member functions returning structures.
-            if (m_pslNDirect->TargetHasThis() && m_pslNDirect->HasThis())
+            // For Windows AMD64, we need to use a return buffer for native member functions returning structures.
+            if ((m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
+                || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags)))
             {
                 byrefNativeReturn = true;
             }
-            else
-#endif
+#else
             switch (nativeSize)
             {
 #ifndef UNIX_X86_ABI
@@ -625,6 +625,7 @@ public:
 #endif
                 default: byrefNativeReturn = true; break;
             }
+#endif
 #endif
         }
 
