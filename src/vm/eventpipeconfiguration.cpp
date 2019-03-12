@@ -311,21 +311,24 @@ size_t EventPipeConfiguration::GetCircularBufferSize() const
 EventPipeSession *EventPipeConfiguration::CreateSession(
     EventPipeSessionType sessionType,
     unsigned int circularBufferSizeInMB,
-    const EventPipeSessionProviderList &providers,
-    UINT64 multiFileTraceLengthInSeconds)
+    const EventPipeProviderConfiguration *pProviders,
+    uint32_t numProviders,
+    uint64_t multiFileTraceLengthInSeconds)
 {
     CONTRACTL
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION((numProviders == 0) || (numProviders > 0 && pProviders != nullptr));
     }
     CONTRACTL_END;
 
     return new EventPipeSession(
         sessionType,
         circularBufferSizeInMB,
-        providers,
+        pProviders,
+        numProviders,
         multiFileTraceLengthInSeconds);
 }
 

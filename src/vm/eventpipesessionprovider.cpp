@@ -8,22 +8,6 @@
 
 #ifdef FEATURE_PERFTRACING
 
-EventPipeSessionProvider::EventPipeSessionProvider(EventPipeSessionProvider &other) :
-    EventPipeSessionProvider(
-        other.m_pProviderName,
-        other.m_keywords,
-        other.m_loggingLevel,
-        other.m_pFilterData)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-}
-
 EventPipeSessionProvider::EventPipeSessionProvider(
     LPCWSTR providerName,
     UINT64 keywords,
@@ -35,7 +19,6 @@ EventPipeSessionProvider::EventPipeSessionProvider(
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(providerName != NULL);
     }
     CONTRACTL_END;
 
@@ -79,62 +62,28 @@ EventPipeSessionProvider::~EventPipeSessionProvider()
     delete[] m_pFilterData;
 }
 
-EventPipeSessionProviderList::EventPipeSessionProviderList()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    m_pProviders = new SList<SListElem<EventPipeSessionProvider *>>();
-    m_pCatchAllProvider = NULL;
-}
-
 EventPipeSessionProviderList::EventPipeSessionProviderList(
-    const EventPipeSessionProviderList &other)
+    const EventPipeProviderConfiguration *pConfigs,
+    uint32_t numConfigs)
 {
     CONTRACTL
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION((numConfigs == 0) || (numConfigs > 0 && pConfigs != nullptr));
     }
     CONTRACTL_END;
 
     m_pProviders = new SList<SListElem<EventPipeSessionProvider *>>();
     m_pCatchAllProvider = NULL;
 
-    SListElem<EventPipeSessionProvider *> *pElem = other.m_pProviders->GetHead();
-    while (pElem != NULL)
-    {
-        EventPipeSessionProvider *pProvider = pElem->GetValue();
-        m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider*>(
-            new EventPipeSessionProvider(*pProvider)));
-        pElem = m_pProviders->GetNext(pElem);
-    }
-}
+    if ((numConfigs > 0) && (pConfigs == nullptr))
+        return; // TODO: This seems the logical thing to do here.
 
-EventPipeSessionProviderList::EventPipeSessionProviderList(
-    EventPipeProviderConfiguration *pConfigs,
-    unsigned int numConfigs)
-{
-    CONTRACTL
+    for (uint32_t i = 0; i < numConfigs; ++i)
     {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    m_pProviders = new SList<SListElem<EventPipeSessionProvider *>>();
-    m_pCatchAllProvider = NULL;
-
-    for (unsigned int i = 0; i < numConfigs; i++)
-    {
-        EventPipeProviderConfiguration *pConfig = &pConfigs[i];
+        const EventPipeProviderConfiguration *pConfig = &pConfigs[i];
 
         // Enable all events if the provider name == '*', all keywords are on and the requested level == verbose.
         if ((wcscmp(W("*"), pConfig->GetProviderName()) == 0) && (pConfig->GetKeywords() == 0xFFFFFFFFFFFFFFFF) && ((EventPipeEventLevel)pConfig->GetLevel() == EventPipeEventLevel::Verbose) && (m_pCatchAllProvider == NULL))
@@ -190,17 +139,15 @@ void EventPipeSessionProviderList::AddSessionProvider(EventPipeSessionProvider *
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(pProvider != NULL);
+        PRECONDITION(pProvider != nullptr);
     }
     CONTRACTL_END;
 
-    if(pProvider != NULL)
-    {
-        m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider*>(pProvider));
-    }
+    if (pProvider != nullptr)
+        m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider *>(pProvider));
 }
 
-EventPipeSessionProvider* EventPipeSessionProviderList::GetSessionProvider(
+EventPipeSessionProvider *EventPipeSessionProviderList::GetSessionProvider(
     EventPipeProvider *pProvider)
 {
     CONTRACTL
@@ -208,29 +155,26 @@ EventPipeSessionProvider* EventPipeSessionProviderList::GetSessionProvider(
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION(pProvider != nullptr); // TODO: This seems like a reasonable pre-condition
     }
     CONTRACTL_END;
 
     // Exists when tracing was enabled at start-up and all events were requested. This is a diagnostic config.
-    if(m_pCatchAllProvider != NULL)
-    {
+    if (m_pCatchAllProvider != NULL)
         return m_pCatchAllProvider;
-    }
 
-    if(m_pProviders == NULL)
-    {
+    if (m_pProviders == NULL)
         return NULL;
-    }
 
     SString providerNameStr = pProvider->GetProviderName();
     LPCWSTR providerName = providerNameStr.GetUnicode();
 
     EventPipeSessionProvider *pSessionProvider = NULL;
-    SListElem<EventPipeSessionProvider*> *pElem = m_pProviders->GetHead();
-    while(pElem != NULL)
+    SListElem<EventPipeSessionProvider *> *pElem = m_pProviders->GetHead();
+    while (pElem != NULL)
     {
         EventPipeSessionProvider *pCandidate = pElem->GetValue();
-        if(wcscmp(providerName, pCandidate->GetProviderName()) == 0)
+        if (wcscmp(providerName, pCandidate->GetProviderName()) == 0)
         {
             pSessionProvider = pCandidate;
             break;

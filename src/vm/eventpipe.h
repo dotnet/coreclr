@@ -258,7 +258,8 @@ public:
         LPCWSTR strOutputPath,
         uint32_t circularBufferSizeInMB,
         uint64_t profilerSamplingRateInNanoseconds,
-        const EventPipeSessionProviderList &providers,
+        const EventPipeProviderConfiguration *pProviders,
+        uint32_t numProviders,
         uint64_t multiFileTraceLengthInSeconds);
 
     // Disable tracing via the event pipe.
@@ -301,11 +302,6 @@ public:
 
     // Get next event.
     static EventPipeEventInstance *GetNextEvent();
-
-    // IPC event handlers.
-    static void EnableFileTracingEventHandler(IpcStream *pStream);
-    // static void EnableStreamTracingEventHandler(IpcStream *pStream);
-    static void DisableTracingEventHandler(IpcStream *pStream);
 
 private:
     // The counterpart to WriteEvent which after the payload is constructed

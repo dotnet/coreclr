@@ -323,6 +323,7 @@ set(VM_SOURCES_WKS
     eventpipeinternal.cpp
     eventpipejsonfile.cpp
     eventpipemetadatagenerator.cpp
+    eventpipeprotocolhelper.cpp
     eventpipeprovider.cpp
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp
@@ -425,6 +426,7 @@ set(VM_HEADERS_WKS
     customattribute.h
     custommarshalerinfo.h
     diagnosticserver.h
+    diagnosticsprotocol.h
     dllimportcallback.h
     eeconfig.h
     eecontract.h
@@ -446,6 +448,7 @@ set(VM_HEADERS_WKS
     eventpipeinternal.h
     eventpipejsonfile.h
     eventpipemetadatagenerator.h
+    eventpipeprotocolhelper.h
     eventpipeprovider.h
     eventpipesession.h
     eventpipesessionprovider.h

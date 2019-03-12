@@ -5,9 +5,7 @@
 #include "common.h"
 #include "diagnosticserver.h"
 #include "diagnosticsipc.h"
-#include "eventpipe.h"
-#include "eventpipeconfiguration.h"
-#include "sampleprofiler.h"
+#include "eventpipeprotocolhelper.h"
 
 #ifdef FEATURE_PAL
 #include "pal.h"
@@ -63,11 +61,11 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
         switch (header.RequestType)
         {
         case DiagnosticMessageType::EnableEventPipe:
-            EventPipe::EnableFileTracingEventHandler(pStream);
+            EventPipeProtocolHelper::EnableFileTracingEventHandler(pStream);
             break;
 
         case DiagnosticMessageType::DisableEventPipe:
-            EventPipe::DisableTracingEventHandler(pStream);
+            EventPipeProtocolHelper::DisableTracingEventHandler(pStream);
             break;
 
         default:

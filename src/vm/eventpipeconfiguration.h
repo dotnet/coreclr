@@ -54,8 +54,9 @@ public:
     EventPipeSession *CreateSession(
         EventPipeSessionType sessionType,
         unsigned int circularBufferSizeInMB,
-        const EventPipeSessionProviderList &providers,
-        UINT64 multiFileTraceLengthInSeconds = 0);
+        const EventPipeProviderConfiguration *pProviders,
+        uint32_t numProviders,
+        uint64_t multiFileTraceLengthInSeconds = 0);
 
     // Delete a session.
     void DeleteSession(EventPipeSession *pSession);

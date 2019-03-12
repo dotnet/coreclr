@@ -48,8 +48,9 @@ public:
     EventPipeSession(
         EventPipeSessionType sessionType,
         unsigned int circularBufferSizeInMB,
-        const EventPipeSessionProviderList &providers,
-        UINT64 multiFileTraceLengthInSeconds);
+        const EventPipeProviderConfiguration *pProviders,
+        uint32_t numProviders,
+        uint64_t multiFileTraceLengthInSeconds);
     ~EventPipeSession();
 
     // Determine if the session is valid or not.  Invalid sessions can be detected before they are enabled.

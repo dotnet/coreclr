@@ -31,22 +31,12 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
 
     BEGIN_QCALL;
     {
-        EventPipeSessionProviderList providers;
-        for (uint32_t i = 0; i < numProviders; ++i)
-        {
-            const EventPipeProviderConfiguration &config = pProviders[i];
-            providers.AddSessionProvider(new EventPipeSessionProvider(
-                config.GetProviderName(),
-                config.GetKeywords(),
-                (EventPipeEventLevel)config.GetLevel(),
-                config.GetFilterData()));
-        }
-
         sessionID = EventPipe::Enable(
             outputFile,
             circularBufferSizeInMB,
             profilerSamplingRateInNanoseconds,
-            providers,
+            pProviders,
+            numProviders,
             multiFileTraceLengthInSeconds);
     }
     END_QCALL;

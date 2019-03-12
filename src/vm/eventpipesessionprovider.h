@@ -9,7 +9,6 @@ class EventPipeProvider;
 class EventPipeSessionProvider
 {
 public:
-    EventPipeSessionProvider(EventPipeSessionProvider &other);
     EventPipeSessionProvider(
         LPCWSTR providerName,
         UINT64 keywords,
@@ -49,12 +48,9 @@ class EventPipeSessionProviderList
 public:
 
     // Create a new list based on the input.
-    EventPipeSessionProviderList();
     EventPipeSessionProviderList(
-        const EventPipeSessionProviderList &other);
-    EventPipeSessionProviderList(
-        EventPipeProviderConfiguration *pConfigs,
-        unsigned int numConfigs);
+        const EventPipeProviderConfiguration *pConfigs,
+        uint32_t numConfigs);
     ~EventPipeSessionProviderList();
 
     // Add a new session provider to the list.
@@ -67,11 +63,17 @@ public:
     // Returns true if the list is empty.
     bool IsEmpty() const;
 
+    EventPipeSessionProviderList() = delete;
+    EventPipeSessionProviderList(const EventPipeSessionProviderList &other) = delete;
+    EventPipeSessionProviderList(EventPipeSessionProviderList &&other) = delete;
+    EventPipeSessionProviderList &operator=(const EventPipeSessionProviderList &rhs) = delete;
+    EventPipeSessionProviderList &&operator=(EventPipeSessionProviderList &&rhs) = delete;
+
 private:
-    SList<SListElem<EventPipeSessionProvider*>> *m_pProviders;
+    SList<SListElem<EventPipeSessionProvider*>> *m_pProviders = nullptr;
 
     // A catch-all provider used when tracing is enabled for all events.
-    EventPipeSessionProvider *m_pCatchAllProvider;
+    EventPipeSessionProvider *m_pCatchAllProvider = nullptr;
 };
 
 #endif // FEATURE_PERFTRACING
