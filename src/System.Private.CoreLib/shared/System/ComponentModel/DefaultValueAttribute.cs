@@ -218,7 +218,7 @@ namespace System.ComponentModel
             {
                 return true;
             }
-            if (!obj is DefaultValueAttribute other)
+            if (!(obj is DefaultValueAttribute other))
             {
                 return false;
             }

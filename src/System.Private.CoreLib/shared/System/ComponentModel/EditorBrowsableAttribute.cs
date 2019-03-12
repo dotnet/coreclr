@@ -24,12 +24,8 @@ namespace System.ComponentModel
             {
                 return true;
             }
-            if (!(obj is EditorBrowsableAttribute other))
-            {
-                return false;
-            }
 
-            return other.State == State;
+            return (obj is EditorBrowsableAttribute other) && other.State == State;
         }
 
         public override int GetHashCode() => base.GetHashCode();
