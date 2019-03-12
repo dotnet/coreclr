@@ -8,7 +8,6 @@
   <Import Project="GenerateCompilerResponseFile.targets" />
 
   <Target Name="GenerateTheRSPFile" BeforeTargets="CoreCompile" DependsOnTargets="GenerateCompilerResponseFile">
-    <Message Text="Call creating rsp file." Importance="High" />
   </Target>
 
 
@@ -32,9 +31,14 @@
 
   <!-- Create SR.cs -->
 
+  <PropertyGroup>
+      <GenerateResxSourceOmitGetResourceString>true</GenerateResxSourceOmitGetResourceString>
+  </PropertyGroup>
+
   <ItemGroup Label="Embedded Resources">
     <EmbeddedResource Update="$(MSBuildThisFileDirectory)Resources\Strings.resx">
       <GenerateSource>true</GenerateSource>
+      <ClassName>System.SR</ClassName>
     </EmbeddedResource>
   </ItemGroup>
 
@@ -414,9 +418,9 @@
   <Target Name="CDefineChecker" BeforeTargets="Build" Condition="'$(CheckCDefines)'=='true'">
     <!-- Compiler Definition Verification -->
     <PropertyGroup>
-      <CMakeDefinitionSaveFile>$(IntermediateOutputPath)..\cmake.definitions</CMakeDefinitionSaveFile>
+      <CMakeDefinitionSaveFile>$(__IntermediatesDir)\cmake.definitions</CMakeDefinitionSaveFile>
     </PropertyGroup>
-    <Exec Command="&quot;$(PYTHON)&quot; $(MSBuildThisFileDirectory)..\scripts\check-definitions.py &quot;$(CMakeDefinitionSaveFile)&quot; &quot;$(DefineConstants)&quot; &quot;$(IgnoreDefineConstants)&quot; " />
+    <Exec Command="python $(MSBuildThisFileDirectory)..\scripts\check-definitions.py  &quot;$(ProjectDir)&quot; &quot;$(CMakeDefinitionSaveFile)&quot; &quot;$(DefineConstants)&quot; &quot;$(IgnoreDefineConstants)&quot; " />
   </Target>
   <PropertyGroup Condition="'$(BuildOS)' == 'Windows_NT'">
     <EnableDotnetAnalyzers Condition="'$(EnableDotnetAnalyzers)'==''">true</EnableDotnetAnalyzers>
