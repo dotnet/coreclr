@@ -7481,7 +7481,7 @@ regMaskTP emitter::emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd)
         CorInfoHelpFunc helpFunc = Compiler::eeGetHelperNum(methHnd);
 
         // Get the set of registers that this call kills and remove it from the saved set.
-        regMaskTP savedSet = RBM_ALLINT & ~compNoGCHelperCallKillSet(helpFunc);
+        regMaskTP savedSet = RBM_ALLINT & ~emitGetGCRegsKilledByNoGCCall(helpFunc);
 
 #ifdef DEBUG
         if (emitComp->verbose)
@@ -7502,7 +7502,7 @@ regMaskTP emitter::emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd)
 }
 
 //----------------------------------------------------------------------
-// compNoGCHelperCallKillSet: Gets a register mask that represents the set of registers that no longer
+// emitGetGCRegsKilledByNoGCCall: Gets a register mask that represents the set of registers that no longer
 // contain GC or byref pointers, for "NO GC" helper calls. This is used by the emitter when determining
 // what registers to remove from the current live GC/byref sets (and thus what to report as dead in the
 // GC info). Note that for the CORINFO_HELP_ASSIGN_BYREF helper, in particular, the kill set reported by
@@ -7518,7 +7518,7 @@ regMaskTP emitter::emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd)
 // Return Value:
 //   Mask of GC register kills
 //
-regMaskTP emitter::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
+regMaskTP emitter::emitGetGCRegsKilledByNoGCCall(CorInfoHelpFunc helper)
 {
     assert(emitNoGChelper(helper));
     regMaskTP result;

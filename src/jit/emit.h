@@ -1928,7 +1928,7 @@ public:
     regMaskTP emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd);
 
     // Gets a register mask that represent the kill set for a NoGC helper call.
-    regMaskTP compNoGCHelperCallKillSet(CorInfoHelpFunc helper);
+    regMaskTP emitGetGCRegsKilledByNoGCCall(CorInfoHelpFunc helper);
 
 #if EMIT_TRACK_STACK_DEPTH
     unsigned emitCntStackDepth; // 0 in prolog/epilog, One DWORD elsewhere
