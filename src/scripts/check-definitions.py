@@ -27,6 +27,7 @@ from __future__ import print_function
 
 import sys
 import re
+import os
 
 debug = 0
 
@@ -151,11 +152,13 @@ arrays = getDiff(arrayNative, arrayManaged)
 # arrays[0] = array of added in managed
 # arrays[1] = array of omitted in managed (added in native)
 
+projectDir = os.environ["__ProjectDir"]
+
 print("Potentially Dangerous Compiler Definitions in clrdefinitions.cmake (omitted in native build):")
-printPotentiallyCritical(arrays[0], "../../clrdefinitions.cmake", arrayIgnore)
+printPotentiallyCritical(arrays[0], os.path.join(projectDir, "clrdefinitions.cmake"), arrayIgnore)
 
 print("Potentially Dangerous Compiler Definitions in clr.defines.targets (omitted in managed build):")
-printPotentiallyCritical(arrays[1], "../../clr.defines.targets", arrayIgnore)
+printPotentiallyCritical(arrays[1], os.path.join(projectDir, "clr.defines.targets"), arrayIgnore)
 
 print("Definition Check Completed.")
 

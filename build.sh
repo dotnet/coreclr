@@ -615,7 +615,7 @@ __CodeCoverage=
 __IgnoreWarnings=0
 
 # Set the various build properties here so that CMake and MSBuild can pick them up
-__ProjectDir="$__ProjectRoot"
+export __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
 __PackagesDir="${DotNetRestorePackagesPath:-${__ProjectDir}/packages}"
 __RootBinDir="$__ProjectDir/bin"

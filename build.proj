@@ -33,14 +33,10 @@
     target, which runs automatically before "Sync". Since no "Sync" target actually exists, go ahead and define one now so that
     the tools are fetched before "Build".
   -->
-  <Target Name="Sync" BeforeTargets="Build" DependsOnTargets="RestoreOptData;RestoreNETCorePlatforms" />
+  <Target Name="Sync" BeforeTargets="Build" DependsOnTargets="RestoreOptData" />
 
   <Target Name="RestoreOptData" Condition="'$(RestoreDuringBuild)'=='true' and '$(BuildType)'=='Release'">
     <Exec Command="$(DotnetRestoreCommand) $(SourceDir).nuget/optdata/optdata.csproj" StandardOutputImportance="Low" />
-  </Target>
-
-  <Target Name="RestoreNETCorePlatforms" Condition="'$(RestoreDuringBuild)'=='true'">
-    <Exec Command="$(DotnetRestoreCommand) $(SourceDir).nuget/init/init.csproj" StandardOutputImportance="Low" />
   </Target>
 
   <Target Name="CleanAllProjects">

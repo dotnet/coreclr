@@ -165,31 +165,3 @@ if [ -n "${DotNetBootstrapCliTarPath-}" ]; then
     # Assume ilasm is not in nuget yet when bootstrapping...
     unset ILASMCOMPILER_VERSION
 fi
-
-# Build tools only supported on x64
-if [ "${__PKG_ARCH}" != "x64" ] &&  [ "${__PKG_ARCH}" != "arm" ]; then
-    echo "Skipped installing build tools."
-else
-    echo "Initializing BuildTools..."
-    echo "Running: $__BUILD_TOOLS_PATH/init-tools.sh $__scriptpath $__DOTNET_CMD $__TOOLRUNTIME_DIR $__PACKAGES_DIR" >> "$__init_tools_log"
-
-    # Executables restored with .NET Core 2.0 do not have executable permission flags. https://github.com/NuGet/Home/issues/4424
-    chmod +x "$__BUILD_TOOLS_PATH/init-tools.sh"
-    "$__BUILD_TOOLS_PATH/init-tools.sh" "$__scriptpath" "$__DOTNET_CMD" "$__TOOLRUNTIME_DIR" "$__PACKAGES_DIR" >> "$__init_tools_log"
-    if [ "$?" != "0" ]; then
-        echo "ERROR: An error occurred when trying to initialize the tools." 1>&2
-        display_error_message
-        exit 1
-    fi
-
-    echo "Making all .sh files executable under Tools."
-    # Executables restored with .NET Core 2.0 do not have executable permission flags. https://github.com/NuGet/Home/issues/4424
-    ls "$__scriptpath/Tools/"*.sh | xargs chmod +x
-    ls "$__scriptpath/Tools/scripts/docker/"*.sh | xargs chmod +x
-
-    "$__scriptpath/Tools/crossgen.sh" "$__scriptpath/Tools" $__PKG_RID
-
-    mkdir -p "$(dirname "$__BUILD_TOOLS_SEMAPHORE")" && touch "$__BUILD_TOOLS_SEMAPHORE"
-
-    echo "Done initializing tools."
-fi

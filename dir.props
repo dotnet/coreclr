@@ -60,6 +60,9 @@
     <RootBinDir>$(__RootBinDir)\</RootBinDir>
     <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)bin\</RootBinDir>
 
+    <!-- BuildTools dependency -->
+    <RootIntermediateOutputPath Condition="$(RootIntermediateOutputPath) == ''">$(RootBinDir)obj/</RootIntermediateOutputPath>
+
     <BinDir>$(__BinDir)\</BinDir>
     <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)Product\$(BuildOS).$(BuildArch).$(BuildType)\</BinDir>
 
@@ -74,6 +77,11 @@
 
     <ToolsDir Condition="'$(ToolsDir)'==''">$(ProjectDir)Tools\</ToolsDir>
     <DotnetCliPath Condition="'$(DotnetCliPath)'==''">$(ProjectDir).dotnet\</DotnetCliPath>
+
+    <!-- BuildTools dependency -->
+    <DotnetRestoreCommand Condition="'$(DotnetRestoreCommand)'==''">$(DotnetCliPath)/dotnet restore</DotnetRestoreCommand>
+    <RunningOnUnix Condition="'$(OS)'!='Windows_NT'">true</RunningOnUnix>
+
     <OverrideToolHost>$(DotnetCliPath)dotnet</OverrideToolHost>
     <BuildToolsSemaphore Condition="'$(BuildToolsSemaphore)' == ''">$(ToolsDir)Microsoft.DotNet.Build.Tasks.dll</BuildToolsSemaphore>
 
@@ -93,16 +101,29 @@
   <PropertyGroup>
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)obj\</BaseIntermediateOutputPath>
     <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)$(BuildOS).$(BuildArch).$(BuildType)\$(MSBuildProjectName)</IntermediateOutputPath>
+    <IntermediateOutputPathNonMangled Condition="'$(IntermediateOutputPathNonMangled)' == ''">$(RootBinDir)obj\$(BuildOS).$(BuildArch).$(BuildType)\$(MSBuildProjectName)\</IntermediateOutputPathNonMangled>
     <OutputPath Condition="'$(OutputPath)' == ''">$(BinDir)</OutputPath>
   </PropertyGroup>
 
-  <!-- Explicitly set BuildVersionFile before importing common. This is used by BuildVersion.targets. -->
-  <PropertyGroup Condition="'$(OfficialBuildId)' != ''">
-    <BuildVersionFile>$(BaseIntermediateOutputPath)BuildVersion-$(OfficialBuildId).props</BuildVersionFile>
-  </PropertyGroup>
+  <!-- BuildTools dependency for writing out the BuildVersion -->
+  <Import Project="$(ToolsDir)BuildVersion.targets" Condition="'$(ArcadeBuild)' != 'True'" />
 
-  <!-- Import Build tools common props file where repo-independent properties are found -->
-  <Import Condition="Exists('$(ToolsDir)Build.Common.props')" Project="$(ToolsDir)Build.Common.props" />
+  <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
+  <Import Project="$(ProjectDir)dependencies.props" />
+
+  <!-- BuildTools dependency for package restore. This is used by SOS -->
+  <!-- Restore commands -->
+  <PropertyGroup>
+    <DotnetToolCommand>$(OverrideToolHost)</DotnetToolCommand>
+    <DotnetRestoreSource>@(DotnetSourceList -> '--source %(Identity)', ' ')</DotnetRestoreSource>
+    <DotnetRestoreCommand>"$(DotnetToolCommand)"</DotnetRestoreCommand>
+    <DotnetRestoreCommand>$(DotnetRestoreCommand) restore</DotnetRestoreCommand>
+    <DotnetRestoreCommand>$(DotnetRestoreCommand) --packages "$(PackagesDir.TrimEnd('/').TrimEnd('\'))" $(DotnetRestoreSource)</DotnetRestoreCommand>
+    <DotnetRestoreCommand Condition="'$(NuGetConfigPath)'!=''">$(DotnetRestoreCommand) --configfile $(NuGetConfigPath)</DotnetRestoreCommand>
+
+    <!-- Keeping this for legacy reasons for now but should eliminate Dnu* eventually -->
+    <DnuRestoreCommand>$(DotnetRestoreCommand)</DnuRestoreCommand>
+  </PropertyGroup>
 
   <!-- Setup common target properties that we use to conditionally include sources -->
   <PropertyGroup>
@@ -118,9 +139,6 @@
     <DistroRid Condition="'$(TargetsLinux)' == 'true'">$(__DistroRid)</DistroRid>
 
   </PropertyGroup>
-
-  <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
-  <Import Project="$(ProjectDir)dependencies.props" />
 
   <!-- Packaging properties -->
   <PropertyGroup>
