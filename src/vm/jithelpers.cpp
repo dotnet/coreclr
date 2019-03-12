@@ -3834,7 +3834,7 @@ CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc * pMD, MethodTable * p
         {
 #ifdef _DEBUG
             // Only in R2R mode are the module, dictionary index and dictionary slot provided as an input
-            _ASSERTE(dictionaryIndexAndSlot != -1);
+            _ASSERTE(dictionaryIndexAndSlot != (DWORD)-1);
             _ASSERT(ExecutionManager::FindReadyToRunModule(dac_cast<TADDR>(signature)) == pModule);
 #endif
             dictionaryIndex = (dictionaryIndexAndSlot >> 16);
@@ -3853,7 +3853,7 @@ CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc * pMD, MethodTable * p
             // prepare for every possible derived type of the type containing the method). So instead we have to locate the exactly
             // instantiated (non-shared) super-type of the class passed in.
 
-            _ASSERTE(dictionaryIndexAndSlot == -1);
+            _ASSERTE(dictionaryIndexAndSlot == (DWORD)-1);
             IfFailThrow(ptr.GetData(&dictionaryIndex));
         }
 
@@ -4828,11 +4828,6 @@ HCIMPL1(void, IL_Throw,  Object* obj)
     }
     else
     {   // We know that the object derives from System.Exception
-        if (g_CLRPolicyRequested &&
-            oref->GetMethodTable() == g_pOutOfMemoryExceptionClass)
-        {
-            EEPolicy::HandleOutOfMemory();
-        }
 
         // If the flag indicating ForeignExceptionRaise has been set,
         // then do not clear the "_stackTrace" field of the exception object.
@@ -4882,12 +4877,6 @@ HCIMPL0(void, IL_Rethrow)
     OBJECTREF throwable = GetThread()->GetThrowable();
     if (throwable != NULL)
     {
-        if (g_CLRPolicyRequested &&
-            throwable->GetMethodTable() == g_pOutOfMemoryExceptionClass)
-        {
-            EEPolicy::HandleOutOfMemory();
-        }
-
         RaiseTheExceptionInternalOnly(throwable, TRUE);
     }
     else

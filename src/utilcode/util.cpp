@@ -1208,7 +1208,7 @@ int GetCurrentProcessCpuCount()
     if (cCPUs != 0)
         return cCPUs;
 
-    int count = 0;
+    unsigned int count = 0;
     DWORD_PTR pmask, smask;
 
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
@@ -3034,21 +3034,6 @@ void EnableTerminationOnHeapCorruption()
 {
     HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
 }
-
-#ifdef FEATURE_COMINTEROP
-BOOL IsClrHostedLegacyComObject(REFCLSID rclsid)
-{
-    // let's simply check for all CLSIDs that are known to be runtime implemented and capped to 2.0
-    return (
-            rclsid == CLSID_ComCallUnmarshal ||
-            rclsid == CLSID_CorMetaDataDispenser ||
-            rclsid == CLSID_CorMetaDataDispenserRuntime ||
-            rclsid == CLSID_TypeNameFactory);
-}
-#endif // FEATURE_COMINTEROP
-
-
-
 
 namespace Clr
 {

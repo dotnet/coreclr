@@ -1197,12 +1197,12 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
         }
         else if (architecture == 'arm') {
             if (os == 'Ubuntu') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420"
+                return "mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-14.04-cross-e435274-20180426002420"
             }
         }
         else if (architecture == 'arm64') {
             if (os == 'Ubuntu16.04') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921"
+                return "mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921"
             }
         }
     }
@@ -2173,7 +2173,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 buildCommands += "tests\\runtest.cmd ${runtestArguments} CoreFXTestsAll"
 
                                 // Archive and process (only) the test results
-                                Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
+                                Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                                 Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
                             }
                             else {
@@ -2184,7 +2184,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath}"
 
                                 // Archive and process (only) the test results
-                                Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
+                                Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                                 Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
 
                                 //Archive additional build stuff to diagnose why my attempt at fault injection isn't causing CI to fail
@@ -2388,10 +2388,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests"
                             buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} generatetesthostonly"
                             buildCommands += "./tests/runtest.sh ${lowerConfiguration} --corefxtestsall --testHostDir=\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=\${WORKSPACE}"
-                            
-                            break
+
                             // Archive and process (only) the test results
-                            Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
+                            Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                             Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
                         }
                         else {
@@ -2419,7 +2418,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName}"
 
                             // Archive and process (only) the test results
-                            Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
+                            Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                             Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
                         }
                     }
@@ -3422,7 +3421,7 @@ ${runScript} \\
         Utilities.addArchival(newJob, "dasm.${os}.${architecture}.${configuration}.zip")
     }
     else if (doCoreFxTesting) {
-        Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/artifacts/bin/**/testResults.xml")
+        Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/artifacts/bin/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
         if ((os == "Ubuntu") && (architecture == 'arm')) {
             // We have a problem with the xunit plug-in, where it is consistently failing on Ubuntu arm32 test result uploading with this error:
             //
