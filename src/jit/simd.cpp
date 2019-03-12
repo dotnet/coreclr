@@ -1056,13 +1056,13 @@ GenTree* Compiler::impSIMDPopStack(var_types type, bool expectAddr, CORINFO_CLAS
     bool isParam = false;
 
     // If we are popping a struct type it must have a valid handle.
-    // If 'structHandle' is specifed:
+    // If 'structHandle' is specified:
     // - If we have an existing 'OBJ' we will change its handle if it doesn't match.
     //   This can happen when we have a retyping of a vector that doesn't translate to any
     //   actual IR.
     // - (If it's not an OBJ and it's used in a parameter context where it is required,
     //   impNormStructVal will add one).
-    // If 'structHandle' is not specified it is NO_CLASS_HANDLE), then we will use the
+    // If 'structHandle' is not specified (i.e. it is NO_CLASS_HANDLE), then we will use the
     // handle on the stack value (see ti.GetClassHandleForValueClass() below).
     //
     if (structHandle != NO_CLASS_HANDLE)
