@@ -3666,42 +3666,19 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
 
         if (SF_IsCOMStub(dwStubFlags))
         {
-            if (marshalType == MarshalInfo::MARSHAL_TYPE_VALUECLASS ||
-                marshalType == MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASS ||
+            // We don't support native methods that return VARIANTs, non-blittable structs, GUIDs, or DECIMALs directly.
+            if (marshalType == MarshalInfo::MARSHAL_TYPE_OBJECT ||
+                marshalType == MarshalInfo::MARSHAL_TYPE_VALUECLASS ||
                 marshalType == MarshalInfo::MARSHAL_TYPE_GUID ||
                 marshalType == MarshalInfo::MARSHAL_TYPE_DECIMAL)
             {
-#ifndef _TARGET_X86_
-                // We cannot optimize marshalType to MARSHAL_TYPE_GENERIC_* because the JIT works with exact types
-                // and would refuse to compile the stub if it implicitly converted between scalars and value types (also see
-                // code:MarshalInfo.MarhalInfo where we do the optimization on x86). We want to throw only if the structure
-                // is too big to be returned in registers.
-                if (marshalType != MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASS ||
-                    IsUnmanagedValueTypeReturnedByRef(returnInfo.GetNativeArgSize()))
-#endif // _TARGET_X86_
+                if (!SF_IsHRESULTSwapping(dwStubFlags) && !SF_IsCOMLateBoundStub(dwStubFlags))
                 {
-                    if (!SF_IsHRESULTSwapping(dwStubFlags) && !SF_IsCOMLateBoundStub(dwStubFlags))
-                    {
-                        // Note that this limitation is very likely not needed anymore and could be lifted if we care.
-                        COMPlusThrow(kMarshalDirectiveException, IDS_EE_COM_UNSUPPORTED_SIG);
-                    }
+                    COMPlusThrow(kMarshalDirectiveException, IDS_EE_COM_UNSUPPORTED_SIG);
                 }
-
-                pss->MarshalReturn(&returnInfo, argOffset);
             }
-            else
-            {
-                // We don't support native methods that return VARIANTs directly.
-                if (marshalType == MarshalInfo::MARSHAL_TYPE_OBJECT)
-                {
-                    if (!SF_IsHRESULTSwapping(dwStubFlags) && !SF_IsCOMLateBoundStub(dwStubFlags))
-                    {
-                        COMPlusThrow(kMarshalDirectiveException, IDS_EE_COM_UNSUPPORTED_SIG);
-                    }
-                }
 
-                pss->MarshalReturn(&returnInfo, argOffset);
-            }
+            pss->MarshalReturn(&returnInfo, argOffset);
         }
         else
 #endif // FEATURE_COMINTEROP
@@ -3970,7 +3947,6 @@ static void CreateNDirectStubWorker(StubState*         pss,
     // to make sure we match the native signature correctly (when marshalling parameters, we add them to the native stub signature).
     if (!SF_IsHRESULTSwapping(dwStubFlags))
     {
-
 #if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
         // JIT32 has problems in generating code for pinvoke ILStubs which do a return in return buffer.
         // Therefore instead we change the signature of calli to return void and make the return buffer as first
@@ -3982,13 +3958,18 @@ static void CreateNDirectStubWorker(StubState*         pss,
 #ifdef UNIX_X86_ABI
         // For functions with value type class, managed and unmanaged calling convention differ
         fMarshalReturnValueFirst = HasRetBuffArgUnmanagedFixup(&msig);
-#else // UNIX_X86_ABI
+#elif defined(_TARGET_ARM_)
         fMarshalReturnValueFirst = HasRetBuffArg(&msig);
+#else
+        // On Windows-X86, the native signature might need a return buffer when the managed doesn't (specifically when the native signature is a member function).
+        fMarshalReturnValueFirst = HasRetBuffArg(&msig) || (fStubNeedsCOM && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE);
 #endif // UNIX_X86_ABI
-#elif defined(_WIN32) && defined(_TARGET_AMD64_)
+#elif defined(_TARGET_AMD64_)
         fMarshalReturnValueFirst = fStubNeedsCOM && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE;
-        fReverseWithReturnBufferArg = fMarshalReturnValueFirst && SF_IsReverseStub(dwStubFlags);
 #endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+#ifdef _WIN32
+        fReverseWithReturnBufferArg = fMarshalReturnValueFirst && SF_IsReverseStub(dwStubFlags);
+#endif
     }
 
     // If we're doing a native->managed call and are generating a return buffer, we need to move all of the actual arguments over one and have the return value be argument 1.

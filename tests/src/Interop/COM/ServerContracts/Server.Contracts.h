@@ -54,6 +54,14 @@ struct Size
     BYTE height;
 };
 
+struct HFA_4
+{
+    float x;
+    float y;
+    float z;
+    float w;
+};
+
 //
 // Type library items
 //
@@ -202,6 +210,11 @@ INumericTesting : IUnknown
         virtual COM_DECLSPEC_NOTHROW Size STDMETHODCALLTYPE MakeSizeSmall(
         /*[in]*/ BYTE width,
         /*[in]*/ BYTE height) = 0;
+        virtual COM_DECLSPEC_NOTHROW HFA_4 STDMETHODCALLTYPE MakeHFA(
+        /*[in]*/ float x,
+        /*[in]*/ float y,
+        /*[in]*/ float z,
+        /*[in]*/ float w) = 0;
 };
 
 struct __declspec(uuid("7731cb31-e063-4cc8-bcd2-d151d6bc8f43"))
@@ -422,14 +435,6 @@ enum IDispatchTesting_Exception
 {
     IDispatchTesting_Exception_Disp,
     IDispatchTesting_Exception_HResult,
-};
-
-struct HFA_4
-{
-    float x;
-    float y;
-    float z;
-    float w;
 };
 
 struct __declspec(uuid("a5e04c1c-474e-46d2-bbc0-769d04e12b54"))

@@ -222,6 +222,18 @@ namespace NetClient
                 Assert.AreEqual(width, result.width);
                 Assert.AreEqual(height, result.height);
             }
+            Console.WriteLine("Struct return from member function marshalling with struct > 8 bytes");
+            {
+                var x = 1.0f;
+                var y = 2.0f;
+                var z = 3.0f;
+                var w = 4.0f;
+                Server.Contract.HFA_4 result = this.server.MakeHFA(x, y ,z, w);
+                Assert.AreEqual(x, result.x);
+                Assert.AreEqual(y, result.y);
+                Assert.AreEqual(z, result.z);
+                Assert.AreEqual(w, result.w);
+            }
         }
     }
 }

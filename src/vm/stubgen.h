@@ -110,11 +110,11 @@ struct LocalDesc
 
         bool lastElementTypeIsValueType = false;
         
-        if (ElementType[0] == ELEMENT_TYPE_VALUETYPE)
+        if (ElementType[cbType - 1] == ELEMENT_TYPE_VALUETYPE)
         {
             lastElementTypeIsValueType = true;
         }
-        else if ((ElementType[0] == ELEMENT_TYPE_INTERNAL) &&
+        else if ((ElementType[cbType - 1] == ELEMENT_TYPE_INTERNAL) &&
                     (InternalToken.IsNativeValueType() ||
                      InternalToken.GetMethodTable()->IsValueType()))
         {

@@ -65,6 +65,9 @@ namespace Server.Contract
         SizeF MakeSize(float width, float height);
         [PreserveSig]
         Size MakeSizeSmall(byte width, byte height);
+
+        [PreserveSig]
+        HFA_4 MakeHFA(float x, float y, float z, float w);
     }
 
     [ComVisible(true)]

@@ -210,4 +210,9 @@ public class NumericTesting : Server.Contract.INumericTesting
     {
         return new Server.Contract.Size { width = width, height = height };
     }
+
+    public Server.Contract.HFA_4 MakeHFA(float x, float y, float z, float w)
+    {
+        return new Server.Contract.HFA_4 {x = x, y = y, z = z, w = w};
+    }
 }

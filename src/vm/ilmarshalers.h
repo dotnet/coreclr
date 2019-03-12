@@ -604,26 +604,31 @@ public:
             // code for the pinvoke ILStubs which do a return using a struct type.  Therefore, we
             // change the signature of calli to return void and make the return buffer as first argument. 
 
-            // for X86 Windows we bash the return type from struct to U1, U2, U4 or U8
+            // For Windows AMD64 and x86, we need to use a return buffer for native member functions returning structures.
+            // for X86 Windows non-member functions we bash the return type from struct to U1, U2, U4 or U8
             // and use byrefNativeReturn for all other structs.
             // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
-#if defined(_TARGET_AMD64_) && defined(_WIN32)
-            // For Windows AMD64, we need to use a return buffer for native member functions returning structures.
-            if ((m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
-                || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags)))
+#if defined(_WIN32)
+            bool nativeMethodIsMemberFunction = (m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
+                || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags));
+            if (nativeMethodIsMemberFunction)
             {
                 byrefNativeReturn = true;
             }
-#else
-            switch (nativeSize)
+            else
             {
-#ifndef UNIX_X86_ABI
-                case 1: typ = ELEMENT_TYPE_U1; break;
-                case 2: typ = ELEMENT_TYPE_U2; break;
-                case 4: typ = ELEMENT_TYPE_U4; break;
-                case 8: typ = ELEMENT_TYPE_U8; break;
 #endif
-                default: byrefNativeReturn = true; break;
+                switch (nativeSize)
+                {
+#ifndef UNIX_X86_ABI
+                    case 1: typ = ELEMENT_TYPE_U1; break;
+                    case 2: typ = ELEMENT_TYPE_U2; break;
+                    case 4: typ = ELEMENT_TYPE_U4; break;
+                    case 8: typ = ELEMENT_TYPE_U8; break;
+#endif
+                    default: byrefNativeReturn = true; break;
+                }
+#if defined(_WIN32)
             }
 #endif
 #endif

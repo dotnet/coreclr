@@ -297,6 +297,16 @@ public:
         return { width, height };
     }
 
+    virtual COM_DECLSPEC_NOTHROW HFA_4 STDMETHODCALLTYPE MakeHFA(
+        /*[in]*/ float x,
+        /*[in]*/ float y,
+        /*[in]*/ float z,
+        /*[in]*/ float w
+    )
+    {
+        return { x, y, z, w };
+    }
+
 public: // IUnknown
     STDMETHOD(QueryInterface)(
         /* [in] */ REFIID riid,
