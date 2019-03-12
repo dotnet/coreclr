@@ -1608,14 +1608,6 @@ GenTree* Compiler::impSSEIntrinsic(NamedIntrinsic        intrinsic,
 
     switch (intrinsic)
     {
-        case NI_SSE_MoveMask:
-            assert(sig->numArgs == 1);
-            assert(JITtype2varType(sig->retType) == TYP_INT);
-            assert(getBaseTypeOfSIMDType(info.compCompHnd->getArgClass(sig, sig->args)) == TYP_FLOAT);
-            op1     = impSIMDPopStack(TYP_SIMD16);
-            retNode = gtNewSimdHWIntrinsicNode(TYP_INT, op1, intrinsic, TYP_FLOAT, simdSize);
-            break;
-
         case NI_SSE_Prefetch0:
         case NI_SSE_Prefetch1:
         case NI_SSE_Prefetch2:
@@ -1691,17 +1683,6 @@ GenTree* Compiler::impSSE2Intrinsic(NamedIntrinsic        intrinsic,
             break;
         }
 
-        case NI_SSE2_MoveMask:
-        {
-            assert(sig->numArgs == 1);
-            retType = JITtype2varType(sig->retType);
-            assert(retType == TYP_INT);
-            op1      = impSIMDPopStack(TYP_SIMD16);
-            baseType = getBaseTypeOfSIMDType(info.compCompHnd->getArgClass(sig, sig->args));
-            retNode  = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, simdSize);
-            break;
-        }
-
         case NI_SSE2_StoreNonTemporal:
         {
             assert(sig->numArgs == 2);
@@ -1769,29 +1750,6 @@ GenTree* Compiler::impAvxOrAvx2Intrinsic(NamedIntrinsic        intrinsic,
 
     switch (intrinsic)
     {
-        case NI_AVX_ExtractVector128:
-        case NI_AVX2_ExtractVector128:
-        {
-            GenTree* lastOp = impPopStack().val;
-            assert(lastOp->IsCnsIntOrI() || mustExpand);
-            GenTree* vectorOp = impSIMDPopStack(TYP_SIMD32);
-            if (sig->numArgs == 2)
-            {
-                baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
-                retNode  = gtNewSimdHWIntrinsicNode(TYP_SIMD16, vectorOp, lastOp, intrinsic, baseType, 32);
-            }
-            else
-            {
-                assert(sig->numArgs == 3);
-                op1                                    = impPopStack().val;
-                CORINFO_ARG_LIST_HANDLE secondArg      = info.compCompHnd->getArgNext(sig->args);
-                CORINFO_CLASS_HANDLE    secondArgClass = info.compCompHnd->getArgClass(sig, secondArg);
-                baseType                               = getBaseTypeOfSIMDType(secondArgClass);
-                retNode = gtNewSimdHWIntrinsicNode(TYP_VOID, op1, vectorOp, lastOp, intrinsic, baseType, 32);
-            }
-            break;
-        }
-
         case NI_AVX2_PermuteVar8x32:
         {
             baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);

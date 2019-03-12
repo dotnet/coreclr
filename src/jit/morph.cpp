@@ -907,6 +907,7 @@ fgArgInfo::fgArgInfo(Compiler* comp, GenTreeCall* call, unsigned numArgs)
     hasStackArgs = false;
     argsComplete = false;
     argsSorted   = false;
+    needsTemps   = false;
 
     if (argTableSize == 0)
     {
@@ -1466,6 +1467,7 @@ void fgArgInfo::ArgsComplete()
                 )
             {
                 curArgTabEntry->needTmp = true;
+                needsTemps              = true;
             }
 
             // For all previous arguments, unless they are a simple constant
@@ -1479,6 +1481,7 @@ void fgArgInfo::ArgsComplete()
                 if (prevArgTabEntry->node->gtOper != GT_CNS_INT)
                 {
                     prevArgTabEntry->needTmp = true;
+                    needsTemps               = true;
                 }
             }
         }
@@ -1524,11 +1527,13 @@ void fgArgInfo::ArgsComplete()
             if (argCount > 1) // If this is not the only argument
             {
                 curArgTabEntry->needTmp = true;
+                needsTemps              = true;
             }
             else if (varTypeIsFloating(argx->TypeGet()) && (argx->OperGet() == GT_CALL))
             {
                 // Spill all arguments that are floating point calls
                 curArgTabEntry->needTmp = true;
+                needsTemps              = true;
             }
 
             // All previous arguments may need to be evaluated into temps
@@ -1543,6 +1548,7 @@ void fgArgInfo::ArgsComplete()
                 if ((prevArgTabEntry->node->gtFlags & GTF_ALL_EFFECT) != 0)
                 {
                     prevArgTabEntry->needTmp = true;
+                    needsTemps               = true;
                 }
 #if FEATURE_FIXED_OUT_ARGS
                 // Or, if they are stored into the FIXED_OUT_ARG area
@@ -1579,6 +1585,7 @@ void fgArgInfo::ArgsComplete()
             {
                 // Spill multireg struct arguments that have Assignments or Calls embedded in them
                 curArgTabEntry->needTmp = true;
+                needsTemps              = true;
             }
             else
             {
@@ -1589,6 +1596,7 @@ void fgArgInfo::ArgsComplete()
                 {
                     // Spill multireg struct arguments that are expensive to evaluate twice
                     curArgTabEntry->needTmp = true;
+                    needsTemps              = true;
                 }
 #if defined(FEATURE_SIMD) && defined(_TARGET_ARM64_)
                 else if (isMultiRegArg && varTypeIsSIMD(argx->TypeGet()))
@@ -1599,6 +1607,7 @@ void fgArgInfo::ArgsComplete()
                          argx->AsObj()->gtOp1->gtOp.gtOp1->OperIsSimdOrHWintrinsic()))
                     {
                         curArgTabEntry->needTmp = true;
+                        needsTemps              = true;
                     }
                 }
 #endif
@@ -1625,6 +1634,7 @@ void fgArgInfo::ArgsComplete()
                                 // For now we use a a GT_CPBLK to copy the exact size into a GT_LCL_VAR temp.
                                 //
                                 curArgTabEntry->needTmp = true;
+                                needsTemps              = true;
                             }
                             break;
                         case 11:
@@ -1641,6 +1651,7 @@ void fgArgInfo::ArgsComplete()
                             // the argument.
                             //
                             curArgTabEntry->needTmp = true;
+                            needsTemps              = true;
                             break;
 
                         default:
@@ -1704,6 +1715,7 @@ void fgArgInfo::ArgsComplete()
                     if (argx->gtFlags & GTF_EXCEPT)
                     {
                         curArgTabEntry->needTmp = true;
+                        needsTemps              = true;
                         continue;
                     }
 #else
@@ -1718,6 +1730,7 @@ void fgArgInfo::ArgsComplete()
                         if (compiler->fgWalkTreePre(&argx, Compiler::fgChkLocAllocCB) == Compiler::WALK_ABORT)
                         {
                             curArgTabEntry->needTmp = true;
+                            needsTemps              = true;
                             continue;
                         }
                     }
@@ -1730,6 +1743,7 @@ void fgArgInfo::ArgsComplete()
                     if (compiler->fgWalkTreePre(&argx, Compiler::fgChkQmarkCB) == Compiler::WALK_ABORT)
                     {
                         curArgTabEntry->needTmp = true;
+                        needsTemps              = true;
                         continue;
                     }
                 }
@@ -2187,7 +2201,7 @@ GenTree* Compiler::fgMakeTmpArgNode(fgArgTabEntry* curArgTabEntry)
 
 void fgArgInfo::EvalArgsToTemps()
 {
-    assert(argsSorted == true);
+    assert(argsSorted);
 
     unsigned regArgInx = 0;
     // Now go through the argument table and perform the necessary evaluation into temps
@@ -2503,8 +2517,7 @@ int Compiler::fgEstimateCallStackSize(GenTreeCall* call)
 }
 
 //------------------------------------------------------------------------------
-// fgMakeMultiUse : If the node is a local, clone it and increase the ref count
-//                  otherwise insert a comma form temp
+// fgMakeMultiUse : If the node is a local, clone it, otherwise insert a comma form temp
 //
 // Arguments:
 //    ppTree  - a pointer to the child node we will be replacing with the comma expression that
@@ -2512,10 +2525,6 @@ int Compiler::fgEstimateCallStackSize(GenTreeCall* call)
 //
 // Return Value:
 //    A fresh GT_LCL_VAR node referencing the temp which has not been used
-//
-// Assumption:
-//    The result tree MUST be added to the tree structure since the ref counts are
-//    already incremented.
 
 GenTree* Compiler::fgMakeMultiUse(GenTree** pOp)
 {
@@ -3647,6 +3656,7 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
 #ifdef DEBUG
     if (verbose)
     {
+        JITDUMP("ArgTable for %d.%s after fgInitArgInfo:\n", call->gtTreeID, GenTree::OpName(call->gtOper));
         call->fgArgInfo->Dump(this);
         JITDUMP("\n");
     }
@@ -4270,17 +4280,12 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     // Union in the side effect flags from the call's operands
     call->gtFlags |= flagsSummary & GTF_ALL_EFFECT;
 
-    // If the register arguments have already been determined
-    // or we have no register arguments then we don't need to
-    // call SortArgs() and EvalArgsToTemps()
+    // If we are remorphing or don't have any register arguments or other arguments that need
+    // temps, then we don't need to call SortArgs() and EvalArgsToTemps().
     //
-    // For UNIX_AMD64, the condition without hasStackArgCopy cannot catch
-    // all cases of fgMakeOutgoingStructArgCopy() being called. hasStackArgCopy
-    // is added to make sure to call EvalArgsToTemp.
-    if (!reMorphing && (call->fgArgInfo->HasRegArgs()))
+    if (!reMorphing && (call->fgArgInfo->HasRegArgs() || call->fgArgInfo->NeedsTemps()))
     {
-        // This is the first time that we morph this call AND it has register arguments.
-        // Follow into the code below and do the 'defer or eval to temp' analysis.
+        // Do the 'defer or eval to temp' analysis.
 
         call->fgArgInfo->SortArgs();
 
@@ -4301,6 +4306,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #ifdef DEBUG
     if (verbose)
     {
+        JITDUMP("ArgTable for %d.%s after fgMorphArgs:\n", call->gtTreeID, GenTree::OpName(call->gtOper));
         call->fgArgInfo->Dump(this);
         JITDUMP("\n");
     }
@@ -7168,6 +7174,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 
     const unsigned maxRegArgs = MAX_REG_ARG;
+    hasTwoSlotSizedStruct     = hasTwoSlotSizedStruct || info.compHasMultiSlotArgs;
 
 // If we reached here means that callee has only those argument types which can be passed in
 // a register and if passed on stack will occupy exactly one stack slot in out-going arg area.
@@ -7242,8 +7249,12 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         return false;
     }
 
-    // Callee has a >8 and <=16 byte struct and arguments that has to go on the stack. Do not fastTailCall.
-    if (calleeStackSize > 0 && hasTwoSlotSizedStruct)
+    // Either the caller or callee has a >8 and <=16 byte struct and arguments that has to go on the stack. Do not
+    // fastTailCall.
+    //
+    // When either the caller or callee have multi-stlot stack arguments we cannot safely
+    // shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
+    if (hasStackArgs && hasTwoSlotSizedStruct)
     {
         reportFastTailCallDecision("Will not fastTailCall calleeStackSize > 0 && hasTwoSlotSizedStruct",
                                    callerStackSize, calleeStackSize);

@@ -25,7 +25,7 @@
     <CLSCompliant>true</CLSCompliant>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <NoWarn>649,1573,1591,0419</NoWarn>
+    <NoWarn>649,1573,1591,0419,BCL0020</NoWarn> <!-- Remove BCL0020 once https://github.com/dotnet/arcade/pull/2158 is available -->
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <SignAssembly>true</SignAssembly>
     <DelaySign>true</DelaySign>
@@ -118,13 +118,12 @@
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\IsolatedComponentLoadContext.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\UnsafeNativeMethods.cs" />
     <Compile Include="$(BclSourcesRoot)\System\__Canon.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Activator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppContext.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ArgIterator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Array.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Attribute.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\BadImageFormatException.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Buffer.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Buffer.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\CLRConfig.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\EmptyReadOnlyDictionaryInternal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\ArraySortHelper.CoreCLR.cs" />
@@ -241,7 +240,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NativeLibrary.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyDependencyResolver.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Serialization\FormatterServices.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RuntimeArgumentHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RuntimeHandles.cs" />
@@ -256,6 +254,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\Interlocked.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Monitor.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Overlapped.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Threading\StackCrawlMark.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Thread.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadPool.CoreCLR.cs" />
@@ -268,8 +267,6 @@
     <Compile Include="$(BclSourcesRoot)\System\ValueType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReferenceOfT.cs" />
-    <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetCurrentProcessId.cs" />
-    <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetCurrentThreadId.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetStdHandle.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.LocalAlloc.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.QueryUnbiasedInterruptTime.cs" />

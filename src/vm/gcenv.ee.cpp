@@ -742,7 +742,7 @@ void GCToEEInterface::DiagGCStart(int gen, bool isInduced)
 void GCToEEInterface::DiagUpdateGenerationBounds()
 {
 #ifdef GC_PROFILING
-    if (CORProfilerTrackGC())
+    if (CORProfilerTrackGC() || CORProfilerTrackBasicGC())
         UpdateGenerationBounds();
 #endif // GC_PROFILING
 }
@@ -750,9 +750,16 @@ void GCToEEInterface::DiagUpdateGenerationBounds()
 void GCToEEInterface::DiagGCEnd(size_t index, int gen, int reason, bool fConcurrent)
 {
 #ifdef GC_PROFILING
+    // We were only doing generation bounds and GC finish callback for non concurrent GCs so
+    // I am keeping that behavior to not break profilers. But if BasicGC monitoring is enabled
+    // we will do these for all GCs.
     if (!fConcurrent)
     {
         GCProfileWalkHeap();
+    }
+
+    if (CORProfilerTrackBasicGC() || (!fConcurrent && CORProfilerTrackGC()))
+    {
         DiagUpdateGenerationBounds();
         GarbageCollectionFinishedCallback();
     }
@@ -1550,4 +1557,51 @@ void GCToEEInterface::VerifySyncTableEntry()
 #ifdef VERIFY_HEAP
     SyncBlockCache::GetSyncBlockCache()->VerifySyncTableEntry();
 #endif // VERIFY_HEAP
+}
+
+void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPublicKeywords, int currentPrivateLevel, int currentPrivateKeywords)
+{
+#if defined(__linux__)
+    LIMITED_METHOD_CONTRACT;
+    // LTTng does not have a notion of enabling events via "keyword"/"level" but we have to 
+    // somehow implement a similar behavior to it. 
+
+    // To do this, we manaully check for events that are enabled via different provider/keywords/level.
+    // Ex 1. GCJoin_V2 is what we use to check whether the GC keyword is enabled in verbose level in the public provider
+    // Ex 2. SetGCHandle is what we use to check whether the GCHandle keyword is enabled in informational level in the public provider
+    // Refer to the comments in src/vm/gcenv.ee.h next to the EXTERN C definitions to see which events are enabled.
+
+    // WARNING: To change an event's GC level, perfcollect script needs to be updated simultaneously to reflect it.
+    BOOL keyword_gc_verbose = EventXplatEnabledGCJoin_V2();
+    BOOL keyword_gc_informational = EventXplatEnabledGCStart();
+
+    BOOL keyword_gc_heapsurvival_and_movement_informational = EventXplatEnabledGCGenerationRange();
+    BOOL keyword_gchandle_informational = EventXplatEnabledSetGCHandle();
+    BOOL keyword_gchandle_prv_informational = EventXplatEnabledPrvSetGCHandle();
+
+    BOOL prv_gcprv_informational = EventXplatEnabledBGCBegin();
+    BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime();
+
+    int publicProviderLevel = keyword_gc_verbose ? GCEventLevel_Verbose : (keyword_gc_informational ? GCEventLevel_Information : GCEventLevel_None);
+    int publicProviderKeywords = (keyword_gc_informational ? GCEventKeyword_GC : GCEventKeyword_None) | 
+                                 (keyword_gchandle_informational ? GCEventKeyword_GCHandle : GCEventKeyword_None) |
+                                 (keyword_gc_heapsurvival_and_movement_informational ? GCEventKeyword_GCHeapSurvivalAndMovement : GCEventKeyword_None);
+
+    int privateProviderLevel = prv_gcprv_verbose ? GCEventLevel_Verbose : (prv_gcprv_informational ? GCEventLevel_Information : GCEventLevel_None);
+    int privateProviderKeywords = (prv_gcprv_informational ? GCEventKeyword_GCPrivate : GCEventKeyword_None) | 
+        (keyword_gchandle_prv_informational ? GCEventKeyword_GCHandlePrivate : GCEventKeyword_None);
+
+    if (publicProviderLevel != currentPublicLevel || publicProviderKeywords != currentPublicKeywords)
+    {
+        GCEventLevel publicLevel = static_cast<GCEventLevel>(publicProviderLevel);
+        GCEventKeyword publicKeywords = static_cast<GCEventKeyword>(publicProviderKeywords);
+        GCHeapUtilities::RecordEventStateChange(true, publicKeywords, publicLevel);
+    }
+    if (privateProviderLevel != currentPrivateLevel || privateProviderKeywords != currentPrivateKeywords)
+    {
+        GCEventLevel privateLevel = static_cast<GCEventLevel>(privateProviderLevel);
+        GCEventKeyword privateKeywords = static_cast<GCEventKeyword>(privateProviderKeywords);
+        GCHeapUtilities::RecordEventStateChange(false, privateKeywords, privateLevel);
+    }
+#endif // __linux__
 }

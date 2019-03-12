@@ -185,7 +185,7 @@ using Microsoft.Win32;
 
 #if ES_BUILD_STANDALONE
 using EventDescriptor = Microsoft.Diagnostics.Tracing.EventDescriptor;
-using BitOps = Microsoft.Diagnostics.Tracing.Internal.BitOps;
+using BitOperations = Microsoft.Diagnostics.Tracing.Internal.BitOperations;
 #else
 using System.Threading.Tasks;
 #endif
@@ -433,39 +433,6 @@ namespace System.Diagnostics.Tracing
 
             eventSource.SendCommand(null, EventProviderType.ETW, 0, 0, command, true, EventLevel.LogAlways, EventKeywords.None, commandArguments);
         }
-
-#if !ES_BUILD_STANDALONE
-        /// <summary>
-        /// This property allows EventSource code to appropriately handle as "different" 
-        /// activities started on different threads that have not had an activity created on them.
-        /// </summary>
-        internal static Guid InternalCurrentThreadActivityId
-        {
-            get
-            {
-                Guid retval = CurrentThreadActivityId;
-                if (retval == Guid.Empty)
-                {
-                    retval = FallbackActivityId;
-                }
-                return retval;
-            }
-        }
-
-        internal static Guid FallbackActivityId
-        {
-            get
-            {
-                int threadID = Interop.Kernel32.GetCurrentThreadId();
-
-                // Managed thread IDs are more aggressively re-used than native thread IDs,
-                // so we'll use the latter...
-                return new Guid(unchecked((uint)threadID),
-                                unchecked((ushort)s_currentPid), unchecked((ushort)(s_currentPid >> 16)),
-                                0x94, 0x1b, 0x87, 0xd5, 0xa6, 0x5c, 0x36, 0x64);
-            }
-        }
-#endif // !ES_BUILD_STANDALONE
 
         // Error APIs.  (We don't throw by default, but you can probe for status)
         /// <summary>
@@ -1396,7 +1363,10 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_PERFTRACING
                 // Register the provider with EventPipe
                 var eventPipeProvider = new OverideEventProvider(this, EventProviderType.EventPipe);
-                eventPipeProvider.Register(this);
+                lock (EventListener.EventListenersLock)
+                {
+                    eventPipeProvider.Register(this);
+                }
 #endif
                 // Add the eventSource to the global (weak) list.  
                 // This also sets m_id, which is the index in the list. 
@@ -2728,7 +2698,7 @@ namespace System.Diagnostics.Tracing
                 // for non-BCL EventSource we must assert SecurityPermission
                 new SecurityPermission(PermissionState.Unrestricted).Assert();
 #endif
-                s_currentPid = Interop.Kernel32.GetCurrentProcessId();
+                s_currentPid = Interop.GetCurrentProcessId();
             }
         }
 
@@ -4680,7 +4650,11 @@ namespace System.Diagnostics.Tracing
             {
                 if (!m_osThreadId.HasValue)
                 {
+#if ES_BUILD_STANDALONE
+                    m_osThreadId = (long)Interop.Kernel32.GetCurrentThreadId();
+#else
                     m_osThreadId = (long)Thread.CurrentOSThreadId;
+#endif
                 }
 
                 return m_osThreadId.Value;

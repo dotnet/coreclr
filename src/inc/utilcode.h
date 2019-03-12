@@ -1346,31 +1346,10 @@ public:
     static void InitNumaNodeInfo();
 
 #if !defined(FEATURE_REDHAWK)
-private:	// apis types
-
-    //GetNumaHighestNodeNumber()
-    typedef BOOL
-    (WINAPI *PGNHNN)(PULONG);
-    //VirtualAllocExNuma()
-    typedef LPVOID
-    (WINAPI *PVAExN)(HANDLE,LPVOID,SIZE_T,DWORD,DWORD,DWORD);
-
-    // api pfns and members
-    static PGNHNN   m_pGetNumaHighestNodeNumber;
-    static PVAExN   m_pVirtualAllocExNuma;
-
 public: 	// functions
 
     static LPVOID VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T size,
                                      DWORD allocType, DWORD prot, DWORD node);
-
-private:
-    //GetNumaProcessorNodeEx()
-    typedef BOOL
-    (WINAPI *PGNPNEx)(PPROCESSOR_NUMBER, PUSHORT);
-    static PGNPNEx  m_pGetNumaProcessorNodeEx;
-
-public:
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
 #endif
 };
@@ -1398,7 +1377,6 @@ private:
     static CPU_Group_Info *m_CPUGroupInfoArray;
     static bool s_hadSingleProcessorAtStartup;
 
-    static BOOL InitCPUGroupInfoAPI();
     static BOOL InitCPUGroupInfoArray();
     static BOOL InitCPUGroupInfoRange();
     static void InitCPUGroupInfo();
@@ -1415,34 +1393,8 @@ public:
     //static void PopulateCPUUsageArray(void * infoBuffer, ULONG infoSize);
 
 #if !defined(FEATURE_REDHAWK)
-private:
-    //GetLogicalProcessorInforomationEx()
-    typedef BOOL
-    (WINAPI *PGLPIEx)(DWORD, SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *, PDWORD);
-    //SetThreadGroupAffinity()
-    typedef BOOL
-    (WINAPI *PSTGA)(HANDLE, GROUP_AFFINITY *, GROUP_AFFINITY *);
-    //GetThreadGroupAffinity()
-    typedef BOOL
-    (WINAPI *PGTGA)(HANDLE, GROUP_AFFINITY *);
-    //GetCurrentProcessorNumberEx()
-    typedef void
-    (WINAPI *PGCPNEx)(PROCESSOR_NUMBER *);
-    //GetSystemTimes()
-    typedef BOOL
-    (WINAPI *PGST)(FILETIME *, FILETIME *, FILETIME *);
-    //NtQuerySystemInformationEx()
-    //typedef int
-    //(WINAPI *PNTQSIEx)(SYSTEM_INFORMATION_CLASS, PULONG, ULONG, PVOID, ULONG, PULONG);
-    static PGLPIEx m_pGetLogicalProcessorInformationEx;
-    static PSTGA   m_pSetThreadGroupAffinity;
-    static PGTGA   m_pGetThreadGroupAffinity;
-    static PGCPNEx m_pGetCurrentProcessorNumberEx;
-    static PGST    m_pGetSystemTimes;
-    //static PNTQSIEx m_pNtQuerySystemInformationEx;
-
 public:
-    static BOOL GetLogicalProcessorInformationEx(DWORD relationship,
+    static BOOL GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
 		   SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiex, PDWORD count); 
     static BOOL SetThreadGroupAffinity(HANDLE h,
 		    GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
@@ -4248,7 +4200,7 @@ void TrimWhiteSpace(__inout_ecount(*pcch)  LPCWSTR *pwsz, __inout LPDWORD pcch);
 HRESULT Utf2Quick(
     LPCUTF8     pStr,                   // The string to convert.
     CQuickArray<WCHAR> &rStr,           // The QuickArray<WCHAR> to convert it into.
-    int         iCurLen);               // Inital characters in the array to leave (default 0).
+    int         iCurLen = 0);           // Initial characters in the array to leave (default 0).
 
 //*****************************************************************************
 //  Extract the movl 64-bit unsigned immediate from an IA64 bundle
@@ -5233,9 +5185,6 @@ HMODULE LoadLocalizedResourceDLLForSDK(_In_z_ LPCWSTR wzResourceDllName, _In_opt
 // This is a slight variation that can be used for anything else
 typedef void* (__cdecl *LocalizedFileHandler)(LPCWSTR);
 void* FindLocalizedFile(_In_z_ LPCWSTR wzResourceDllName, LocalizedFileHandler lfh, _In_opt_z_ LPCWSTR modulePath=NULL);
-
-BOOL IsClrHostedLegacyComObject(REFCLSID rclsid);
-
 
 
 

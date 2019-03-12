@@ -1632,6 +1632,7 @@ class fgArgInfo
     bool            hasStackArgs; // true if we have one or more stack arguments
     bool            argsComplete; // marker for state
     bool            argsSorted;   // marker for state
+    bool            needsTemps;   // one or more arguments must be copied to a temp by EvalArgsToTemps
     fgArgTabEntry** argTable;     // variable sized array of per argument descrption: (i.e. argTable[argTableSize])
 
 private:
@@ -1700,6 +1701,10 @@ public:
     bool HasRegArgs()
     {
         return hasRegArgs;
+    }
+    bool NeedsTemps()
+    {
+        return needsTemps;
     }
     bool HasStackArgs()
     {
@@ -3510,7 +3515,7 @@ protected:
 #ifdef _TARGET_ARM64_
     InstructionSet lookupHWIntrinsicISA(const char* className);
     NamedIntrinsic lookupHWIntrinsic(const char* className, const char* methodName);
-    bool impCheckImmediate(GenTree* immediateOp, unsigned int max);
+    GenTree* addRangeCheckIfNeeded(GenTree* lastOp, unsigned int max, bool mustExpand);
 #endif // _TARGET_ARM64_
 #endif // FEATURE_HW_INTRINSICS
     GenTree* impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,
@@ -5468,10 +5473,6 @@ public:
 
 protected:
     static fgWalkPreFn optValidRangeCheckIndex;
-    static fgWalkPreFn optRemoveTreeVisitor; // Helper passed to Compiler::fgWalkAllTreesPre() to decrement the LclVar
-                                             // usage counts
-
-    void optRemoveTree(GenTree* deadTree, GenTree* keepList);
 
     /**************************************************************************
      *
@@ -7187,11 +7188,6 @@ public:
     template <bool ForCodeGen>
     void compChangeLife(VARSET_VALARG_TP newLife);
 
-    void genChangeLife(VARSET_VALARG_TP newLife)
-    {
-        compChangeLife</*ForCodeGen*/ true>(newLife);
-    }
-
     template <bool ForCodeGen>
     inline void compUpdateLife(VARSET_VALARG_TP newLife);
 
@@ -8588,8 +8584,9 @@ public:
         unsigned  compArgsCount;     // Number of arguments (incl. implicit and     hidden)
 
 #if FEATURE_FASTTAILCALL
-        size_t compArgStackSize; // Incoming argument stack size in bytes
-#endif                           // FEATURE_FASTTAILCALL
+        size_t compArgStackSize;     // Incoming argument stack size in bytes
+        bool   compHasMultiSlotArgs; // Caller has >8 byte sized struct parameter
+#endif                               // FEATURE_FASTTAILCALL
 
         unsigned compRetBuffArg; // position of hidden return param var (0, 1) (BAD_VAR_NUM means not present);
         int compTypeCtxtArg; // position of hidden param for type context for generic code (CORINFO_CALLCONV_PARAMTYPE)
@@ -8854,8 +8851,8 @@ public:
     bool compDonotInline();
 
 #ifdef DEBUG
-    unsigned char compGetJitDefaultFill(); // Get the default fill char value
-                                           // we randomize this value when JitStress is enabled
+    // Get the default fill char value we randomize this value when JitStress is enabled.
+    static unsigned char compGetJitDefaultFill(Compiler* comp);
 
     const char* compLocalVarName(unsigned varNum, unsigned offs);
     VarName compVarName(regNumber reg, bool isFloatReg = false);

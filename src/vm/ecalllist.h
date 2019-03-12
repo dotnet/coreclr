@@ -163,10 +163,6 @@ FCFuncStart(gEnvironmentFuncs)
     FCFuncElementSig("FailFast", &gsig_SM_Str_Exception_Str_RetVoid, SystemNative::FailFastWithExceptionAndSource)
 FCFuncEnd()
 
-FCFuncStart(gSerializationFuncs)
-    FCFuncElement("nativeGetUninitializedObject", ReflectionSerialization::GetUninitializedObject)
-FCFuncEnd()
-
 FCFuncStart(gExceptionFuncs)
     FCFuncElement("IsImmutableAgileException", ExceptionNative::IsImmutableAgileException)
     FCFuncElement("nIsTransient", ExceptionNative::IsTransient)
@@ -268,6 +264,7 @@ FCFuncStart(gCOMTypeHandleFuncs)
     FCFuncElement("Allocate", RuntimeTypeHandle::Allocate) //for A.CI
     FCFuncElement("CompareCanonicalHandles", RuntimeTypeHandle::CompareCanonicalHandles)
     FCIntrinsic("GetValueInternal", RuntimeTypeHandle::GetValueInternal, CORINFO_INTRINSIC_RTH_GetValueInternal)
+    FCFuncElement("IsEquivalentTo", RuntimeTypeHandle::IsEquivalentTo)
 FCFuncEnd()
 
 FCFuncStart(gMetaDataImport)
@@ -658,6 +655,7 @@ FCFuncStart(gThreadFuncs)
     FCFuncElement("Join", ThreadNative::Join)
     QCFuncElement("GetOptimalMaxSpinWaitsPerSpinIterationInternal", ThreadNative::GetOptimalMaxSpinWaitsPerSpinIteration)
     FCFuncElement("GetCurrentProcessorNumber", ThreadNative::GetCurrentProcessorNumber)
+    FCFuncElement("GetThreadDeserializationTracker", ThreadNative::GetThreadDeserializationTracker)
 FCFuncEnd()
 
 FCFuncStart(gThreadPoolFuncs)
@@ -846,17 +844,6 @@ FCFuncStart(gInteropNativeLibraryFuncs)
     QCFuncElement("GetSymbol", NativeLibraryNative::GetSymbol)
 FCFuncEnd()
 
-#ifdef FEATURE_COMINTEROP
-
-#ifdef FEATURE_COMINTEROP_MANAGED_ACTIVATION
-FCFuncStart(gRegistrationFuncs)
-    FCFuncElement("RegisterTypeForComClientsNative", RegisterTypeForComClientsNative)
-    FCFuncElement("RegisterTypeForComClientsExNative", RegisterTypeForComClientsExNative)
-FCFuncEnd()
-#endif // FEATURE_COMINTEROP_MANAGED_ACTIVATION
-
-#endif // FEATURE_COMINTEROP
-
 FCFuncStart(gTypeLoadExceptionFuncs)
     QCFuncElement("GetTypeLoadExceptionMessage", GetTypeLoadExceptionMessage)
 FCFuncEnd()
@@ -931,6 +918,7 @@ FCFuncStart(gRuntimeHelpers)
     FCFuncElement("Equals", ObjectNative::Equals)
     FCFuncElement("EnsureSufficientExecutionStack", ReflectionInvocation::EnsureSufficientExecutionStack)
     FCFuncElement("TryEnsureSufficientExecutionStack", ReflectionInvocation::TryEnsureSufficientExecutionStack)
+    FCFuncElement("GetUninitializedObjectInternal", ReflectionSerialization::GetUninitializedObject)
 FCFuncEnd()
 
 FCFuncStart(gContextSynchronizationFuncs)
@@ -1208,7 +1196,6 @@ FCClassElement("EventPipeInternal", "System.Diagnostics.Tracing", gEventPipeInte
 #endif // FEATURE_PERFTRACING
 FCClassElement("Exception", "System", gExceptionFuncs)
 FCClassElement("FileLoadException", "System.IO", gFileLoadExceptionFuncs)
-FCClassElement("FormatterServices", "System.Runtime.Serialization", gSerializationFuncs)
 FCClassElement("GC", "System", gGCInterfaceFuncs)
 FCClassElement("GCHandle", "System.Runtime.InteropServices", gGCHandleFuncs)
 FCClassElement("GCSettings", "System.Runtime", gGCSettingsFuncs)
@@ -1254,11 +1241,6 @@ FCClassElement("OverlappedData", "System.Threading", gOverlappedFuncs)
 
 FCClassElement("PunkSafeHandle", "System.Reflection.Emit", gSymWrapperCodePunkSafeHandleFuncs)
 FCClassElement("RegisteredWaitHandleSafe", "System.Threading", gRegisteredWaitHandleFuncs)
-#ifdef FEATURE_COMINTEROP
-#ifdef FEATURE_COMINTEROP_MANAGED_ACTIVATION
-FCClassElement("RegistrationServices", "System.Runtime.InteropServices", gRegistrationFuncs)
-#endif // FEATURE_COMINTEROP_MANAGED_ACTIVATION
-#endif // FEATURE_COMINTEROP
 
 FCClassElement("RuntimeAssembly", "System.Reflection", gRuntimeAssemblyFuncs)
 #ifdef FEATURE_COMINTEROP

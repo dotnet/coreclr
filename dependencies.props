@@ -26,39 +26,23 @@
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreClrCurrentRef>f31086500dc58cefe7b1275300f6fc07b38c1bcc</CoreClrCurrentRef>
-    <BuildToolsCurrentRef>fc12d73e8ea045517fde9b4bd1c89065917a5413</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>fc12d73e8ea045517fde9b4bd1c89065917a5413</PgoDataCurrentRef>
-    <IbcDataCurrentRef>fc12d73e8ea045517fde9b4bd1c89065917a5413</IbcDataCurrentRef>
+    <CoreClrCurrentRef>9ff62111734d641ece5e5ccb873f2a463675d81b</CoreClrCurrentRef>
+    <BuildToolsCurrentRef>9ff62111734d641ece5e5ccb873f2a463675d81b</BuildToolsCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <PgoDataPackageVersion>99.99.99-master-20190208.1</PgoDataPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview-27316-02</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview4-27427-72</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.4.1</XunitPackageVersion>
-    <IbcDataPackageVersion>99.99.99-master-20190208.1</IbcDataPackageVersion>
-    <IbcMergePackageVersion>4.6.0-alpha-00001</IbcMergePackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
-    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.34</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
+    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.36</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
+    <IbcMergePackageVersion>4.6.0-alpha-00001</IbcMergePackageVersion>
     <CommandLineParserVersion>2.2.0</CommandLineParserVersion>
 
     <!-- Scenario tests install this version of Microsoft.NetCore.App, then patch coreclr binaries via xcopy. At the moment it is
          updated manually whenever breaking changes require it to move forward, but it would be nice if we could update it automatically
          as we do with many of the package versions above -->
     <BaselineMicrosoftNetCoreAppPackageVersion>2.1.0-preview3-26416-01</BaselineMicrosoftNetCoreAppPackageVersion>
-  </PropertyGroup>
-
-  <!-- Package versions used as toolsets -->
-  <PropertyGroup>
-    <FeedTasksPackage>Microsoft.DotNet.Build.Tasks.Feed</FeedTasksPackage>
-    <FeedTasksPackageVersion>3.0.0-preview1-03715-01</FeedTasksPackageVersion>
-  </PropertyGroup>
-
-  <!-- Publish symbol build task package -->
-  <PropertyGroup>
-    <PublishSymbolsPackage>Microsoft.SymbolUploader.Build.Task</PublishSymbolsPackage>
-    <PublishSymbolsPackageVersion>1.0.0-beta-63604-05</PublishSymbolsPackageVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->
@@ -83,14 +67,6 @@
       <BuildInfoPath>$(BaseDotNetBuildInfo)buildtools/$(DependencyBranch)</BuildInfoPath>
       <CurrentRef>$(BuildToolsCurrentRef)</CurrentRef>
     </RemoteDependencyBuildInfo>
-    <RemoteDependencyBuildInfo Include="PgoData">
-      <BuildInfoPath>$(BaseDotNetBuildInfo)optimization/$(DependencyBranch)/PGO</BuildInfoPath>
-      <CurrentRef>$(PgoDataCurrentRef)</CurrentRef>
-    </RemoteDependencyBuildInfo>
-    <RemoteDependencyBuildInfo Include="IbcData">
-      <BuildInfoPath>$(BaseDotNetBuildInfo)optimization/$(DependencyBranch)/IBC</BuildInfoPath>
-      <CurrentRef>$(IbcDataCurrentRef)</CurrentRef>
-    </RemoteDependencyBuildInfo>
     
     <DependencyBuildInfo Include="@(RemoteDependencyBuildInfo)">
       <RawVersionsBaseUrl>https://raw.githubusercontent.com/dotnet/versions</RawVersionsBaseUrl>
@@ -110,16 +86,6 @@
        <Path>$(MSBuildThisFileFullPath)</Path>
        <ElementName>FeedTasksPackageVersion</ElementName>
        <PackageId>$(FeedTasksPackage)</PackageId>
-    </XmlUpdateStep>
-    <XmlUpdateStep Include="PgoData">
-      <Path>$(MSBuildThisFileFullPath)</Path>
-      <ElementName>PgoDataPackageVersion</ElementName>
-      <PackageId>optimization.PGO.CoreCLR</PackageId>
-    </XmlUpdateStep>
-    <XmlUpdateStep Include="IbcData">
-      <Path>$(MSBuildThisFileFullPath)</Path>
-      <ElementName>IbcDataPackageVersion</ElementName>
-      <PackageId>optimization.IBC.CoreCLR</PackageId>
     </XmlUpdateStep>
     <UpdateStep Include="ILAsm">
       <UpdaterType>File</UpdaterType>

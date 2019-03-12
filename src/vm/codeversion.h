@@ -33,7 +33,7 @@ typedef DPTR(class CodeVersionManager) PTR_CodeVersionManager;
 
 // This HRESULT is only used as a private implementation detail. Corerror.xml has a comment in it
 //  reserving this value for our use but it doesn't appear in the public headers.
-#define CORPROF_E_RUNTIME_SUSPEND_REQUIRED 0x80131381
+#define CORPROF_E_RUNTIME_SUSPEND_REQUIRED _HRESULT_TYPEDEF_(0x80131381L)
 
 #endif
 
@@ -452,7 +452,7 @@ private:
     HRESULT UpdateJumpStampHelper(BYTE* pbCode, INT64 i64OldValue, INT64 i64NewValue, BOOL fContentionPossible);
 #endif
     PTR_MethodDesc m_pMethodDesc;
-    
+
     enum MethodDescVersioningStateFlags
     {
         JumpStampMask = 0x3,
@@ -582,7 +582,7 @@ public:
     void EnterLock();
     void LeaveLock();
 #endif
-    
+
 #ifdef DEBUG
     BOOL LockOwnedByCurrentThread() const;
 #endif
@@ -642,7 +642,7 @@ private:
 
     //closed MethodDesc -> MethodDescVersioningState
     MethodDescVersioningStateHash m_methodDescVersioningStateMap;
-    
+
     CrstExplicitInit m_crstTable;
 };
 

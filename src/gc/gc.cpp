@@ -10192,6 +10192,13 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
     yp_spin_count_unit = 32 * g_num_processors;
 #endif //MULTIPLE_HEAPS
 
+#if defined(__linux__)
+    GCToEEInterface::UpdateGCEventStatus(static_cast<int>(GCEventStatus::GetEnabledLevel(GCEventProvider_Default)),
+                                         static_cast<int>(GCEventStatus::GetEnabledKeywords(GCEventProvider_Default)),
+                                         static_cast<int>(GCEventStatus::GetEnabledLevel(GCEventProvider_Private)),
+                                         static_cast<int>(GCEventStatus::GetEnabledKeywords(GCEventProvider_Private)));
+#endif // __linux__
+
     if (!init_semi_shared())
     {
         hres = E_FAIL;
@@ -24385,7 +24392,7 @@ void gc_heap::relocate_shortened_survivor_helper (uint8_t* plug, uint8_t* plug_e
 
     while (x < plug_end)
     {
-        if (check_short_obj_p && ((plug_end - x) < min_pre_pin_obj_size))
+        if (check_short_obj_p && ((plug_end - x) < (DWORD)min_pre_pin_obj_size))
         {
             dprintf (3, ("last obj %Ix is short", x));
 
@@ -34206,7 +34213,10 @@ HRESULT GCHeap::Initialize()
 #ifdef MULTIPLE_HEAPS
     nhp_from_config = static_cast<uint32_t>(GCConfig::GetHeapCount());
     
-    uint32_t nhp_from_process = GCToOSInterface::GetCurrentProcessCpuCount();
+    // GetCurrentProcessCpuCount only returns up to 64 procs.
+    uint32_t nhp_from_process = GCToOSInterface::CanEnableGCCPUGroups() ?
+                                GCToOSInterface::GetTotalProcessorCount():
+                                GCToOSInterface::GetCurrentProcessCpuCount();
 
     if (nhp_from_config)
     {
@@ -34237,6 +34247,20 @@ HRESULT GCHeap::Initialize()
             {
                 pmask &= smask;
 
+#ifdef FEATURE_PAL
+                // GetCurrentProcessAffinityMask can return pmask=0 and smask=0 on
+                // systems with more than 1 NUMA node. The pmask decides the
+                // number of GC heaps to be used and the processors they are
+                // affinitized with. So pmask is now set to reflect that 64
+                // processors are available to begin with. The actual processors in
+                // the system may be lower and are taken into account before
+                // finalizing the number of heaps.
+                if (!pmask)
+                {
+                    pmask = SIZE_T_MAX;
+                }
+#endif // FEATURE_PAL
+
                 if (gc_thread_affinity_mask)
                 {
                     pmask &= gc_thread_affinity_mask;
@@ -34253,6 +34277,11 @@ HRESULT GCHeap::Initialize()
                 }
 
                 nhp = min (nhp, set_bits_in_pmask);
+
+#ifdef FEATURE_PAL
+                // Limit the GC heaps to the number of processors available in the system.
+                nhp = min (nhp, GCToOSInterface::GetTotalProcessorCount());
+#endif // FEATURE_PAL
             }
             else
             {
@@ -35531,6 +35560,12 @@ void gc_heap::do_pre_gc()
 
     last_gc_index = VolatileLoad(&settings.gc_index);
     GCHeap::UpdatePreGCCounters();
+#if defined(__linux__)
+    GCToEEInterface::UpdateGCEventStatus(static_cast<int>(GCEventStatus::GetEnabledLevel(GCEventProvider_Default)),
+                                         static_cast<int>(GCEventStatus::GetEnabledKeywords(GCEventProvider_Default)),
+                                         static_cast<int>(GCEventStatus::GetEnabledLevel(GCEventProvider_Private)),
+                                         static_cast<int>(GCEventStatus::GetEnabledKeywords(GCEventProvider_Private)));
+#endif // __linux__
 
     if (settings.concurrent)
     {

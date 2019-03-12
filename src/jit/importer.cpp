@@ -1357,11 +1357,22 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         assert(varTypeIsStruct(src->gtOp.gtOp2) || src->gtOp.gtOp2->gtType == TYP_BYREF);
         if (pAfterStmt)
         {
+            // Insert op1 after '*pAfterStmt'
             *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(src->gtOp.gtOp1, ilOffset));
+        }
+        else if (impTreeLast != nullptr)
+        {
+            // Do the side-effect as a separate statement.
+            impAppendTree(src->gtOp.gtOp1, curLevel, ilOffset);
         }
         else
         {
-            impAppendTree(src->gtOp.gtOp1, curLevel, ilOffset); // do the side effect
+            // In this case we have neither been given a statement to insert after, nor are we
+            // in the importer where we can append the side effect.
+            // Instead, we're going to sink the assignment below the COMMA.
+            src->gtOp.gtOp2 =
+                impAssignStructPtr(destAddr, src->gtOp.gtOp2, structHnd, curLevel, pAfterStmt, ilOffset, block);
+            return src;
         }
 
         // Evaluate the second thing using recursion.
