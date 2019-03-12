@@ -554,6 +554,10 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_pCalleeSavedFP
                     == offsetof(InlinedCallFrame, m_pCalleeSavedFP));
 
 
+#define               OFFSETOF__InlinedCallFrame__m_pThread 0x38
+ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_pThread
+                    == offsetof(InlinedCallFrame, m_pThread));
+
 #define CallDescrData__pSrc                0x00
 #define CallDescrData__numStackSlots       0x08
 #ifdef UNIX_AMD64_ABI
