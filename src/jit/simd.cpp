@@ -1055,32 +1055,27 @@ GenTree* Compiler::impSIMDPopStack(var_types type, bool expectAddr, CORINFO_CLAS
 
     bool isParam = false;
 
-    // If we are popping a struct type it must have a valid handle.
-    // If 'structHandle' is specified:
-    // - If we have an existing 'OBJ' we will change its handle if it doesn't match.
+    // If we are popping a struct type it must have a matching handle if one is specified.
+    // - If we have an existing 'OBJ' and 'structHandle' is specified, we will change its
+    //   handle if it doesn't match.
     //   This can happen when we have a retyping of a vector that doesn't translate to any
     //   actual IR.
     // - (If it's not an OBJ and it's used in a parameter context where it is required,
     //   impNormStructVal will add one).
-    // If 'structHandle' is not specified (i.e. it is NO_CLASS_HANDLE), then we will use the
-    // handle on the stack value (see ti.GetClassHandleForValueClass() below).
     //
-    if (structHandle != NO_CLASS_HANDLE)
+    if (tree->OperGet() == GT_OBJ)
     {
-        if (tree->OperGet() == GT_OBJ)
+        if ((structHandle != NO_CLASS_HANDLE) && (tree->AsObj()->gtClass != structHandle))
         {
-            if (tree->AsObj()->gtClass != structHandle)
+            // In this case we need to retain the GT_OBJ to retype the value.
+            tree->AsObj()->gtClass = structHandle;
+        }
+        else
+        {
+            GenTree* addr = tree->gtOp.gtOp1;
+            if ((addr->OperGet() == GT_ADDR) && isSIMDTypeLocal(addr->gtOp.gtOp1))
             {
-                // In this case we need to retain the GT_OBJ to retype the value.
-                tree->AsObj()->gtClass = structHandle;
-            }
-            else
-            {
-                GenTree* addr = tree->gtOp.gtOp1;
-                if ((addr->OperGet() == GT_ADDR) && isSIMDTypeLocal(addr->gtOp.gtOp1))
-                {
-                    tree = addr->gtOp.gtOp1;
-                }
+                tree = addr->gtOp.gtOp1;
             }
         }
     }
