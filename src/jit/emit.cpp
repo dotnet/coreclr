@@ -7540,7 +7540,7 @@ regMaskTP emitter::emitGetGCRegsKilledByNoGCCall(CorInfoHelpFunc helper)
             assert(!"unknown arch");
 #endif
 
-#if defined(_TARGET_XARCH_)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM_)
         case CORINFO_HELP_PROF_FCN_ENTER:
             result = RBM_PROFILER_ENTER_TRASH;
             break;
@@ -7548,22 +7548,19 @@ regMaskTP emitter::emitGetGCRegsKilledByNoGCCall(CorInfoHelpFunc helper)
         case CORINFO_HELP_PROF_FCN_LEAVE:
             result = RBM_PROFILER_LEAVE_TRASH;
             break;
-
+#if defined(_TARGET_XARCH_)
         case CORINFO_HELP_PROF_FCN_TAILCALL:
             result = RBM_PROFILER_TAILCALL_TRASH;
             break;
 #endif // defined(_TARGET_XARCH_)
+#endif // defined(_TARGET_XARCH_) || defined(_TARGET_ARM_)
 
 #if defined(_TARGET_ARMARCH_)
         case CORINFO_HELP_ASSIGN_REF:
         case CORINFO_HELP_CHECKED_ASSIGN_REF:
             result = RBM_CALLEE_GCTRASH_WRITEBARRIER;
             break;
-        case CORINFO_HELP_PROF_FCN_LEAVE:
-            // In case of Leave profiler callback, we need to preserve liveness of REG_PROFILER_RET_SCRATCH on ARMARCH.
-            result = RBM_CALLEE_TRASH_NOGC & ~RBM_PROFILER_RET_SCRATCH;
-            break;
-#endif
+#endif // defined(_TARGET_ARMARCH_)
 
 #if defined(_TARGET_X86_)
         case CORINFO_HELP_INIT_PINVOKE_FRAME:
