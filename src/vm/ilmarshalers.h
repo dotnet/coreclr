@@ -583,7 +583,10 @@ public:
         bool byrefNativeReturn = false;
         CorElementType typ = ELEMENT_TYPE_VOID;
         UINT32 nativeSize = 0;
-
+        bool nativeMethodIsMemberFunction = (m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
+            || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags))
+            || (m_pslNDirect->GetStubTargetCallingConv() == CORINFO_CALLCONV_THISCALL);
+            
         // we need to convert value type return types to primitives as
         // JIT does not inline P/Invoke calls that return structures
         if (nativeType.IsValueClass())
@@ -609,9 +612,6 @@ public:
             // and use byrefNativeReturn for all other structs.
             // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
 #if defined(_WIN32)
-            bool nativeMethodIsMemberFunction = (m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
-                || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags))
-                || (m_pslNDirect->GetStubTargetCallingConv() == CORINFO_CALLCONV_THISCALL);
             if (nativeMethodIsMemberFunction)
             {
                 byrefNativeReturn = true;
@@ -635,7 +635,7 @@ public:
 #endif // defined(_TARGET_X86_) || (defined(_TARGET_AMD64_) && defined(_WIN32))
         }
 
-        if (IsHresultSwap(dwMarshalFlags) || (byrefNativeReturn))
+        if (IsHresultSwap(dwMarshalFlags) || (byrefNativeReturn && (IsCLRToNative(m_dwMarshalFlags) || nativeMethodIsMemberFunction)))
         {
             LocalDesc extraParamType = nativeType;
             extraParamType.MakeByRef();
@@ -768,7 +768,7 @@ public:
                 m_nativeHome.EmitCopyToByrefArgWithNullCheck(m_pcsUnmarshal, &nativeType, argidx);
                 m_pcsUnmarshal->EmitLDC(S_OK);
             }
-            else if (byrefNativeReturn)
+            else if (byrefNativeReturn && nativeMethodIsMemberFunction)
             {
                 m_nativeHome.EmitCopyToByrefArg(m_pcsUnmarshal, &nativeType, argidx);
             }
