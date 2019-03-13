@@ -585,7 +585,7 @@ public:
         UINT32 nativeSize = 0;
         bool nativeMethodIsMemberFunction = (m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
             || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags))
-            || (m_pslNDirect->GetStubTargetCallingConv() == CORINFO_CALLCONV_THISCALL);
+            || ((CorInfoCallConv)m_pslNDirect->GetStubTargetCallingConv() == CORINFO_CALLCONV_THISCALL);
             
         // we need to convert value type return types to primitives as
         // JIT does not inline P/Invoke calls that return structures
