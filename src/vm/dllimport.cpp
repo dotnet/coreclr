@@ -3947,6 +3947,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
     // to make sure we match the native signature correctly (when marshalling parameters, we add them to the native stub signature).
     if (!SF_IsHRESULTSwapping(dwStubFlags))
     {
+        bool isInstanceMethod = fStubNeedsCOM || fThisCall;
 #if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
         // JIT32 has problems in generating code for pinvoke ILStubs which do a return in return buffer.
         // Therefore instead we change the signature of calli to return void and make the return buffer as first
@@ -3962,63 +3963,14 @@ static void CreateNDirectStubWorker(StubState*         pss,
         fMarshalReturnValueFirst = HasRetBuffArg(&msig);
 #else
         // On Windows-X86, the native signature might need a return buffer when the managed doesn't (specifically when the native signature is a member function).
-        fMarshalReturnValueFirst = HasRetBuffArg(&msig) || (fStubNeedsCOM && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE);
+        fMarshalReturnValueFirst = HasRetBuffArg(&msig) || (isInstanceMethod && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE);
 #endif // UNIX_X86_ABI
 #elif defined(_TARGET_AMD64_)
-        fMarshalReturnValueFirst = fStubNeedsCOM && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE;
+        fMarshalReturnValueFirst = isInstanceMethod && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE;
 #endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 #ifdef _WIN32
         fReverseWithReturnBufferArg = fMarshalReturnValueFirst && SF_IsReverseStub(dwStubFlags);
 #endif
-    }
-
-    // If we're doing a native->managed call and are generating a return buffer, we need to move all of the actual arguments over one and have the return value be argument 1.
-    if (fReverseWithReturnBufferArg)
-    {
-        ++argOffset;
-    }
-    
-    if (fMarshalReturnValueFirst)
-    {
-        marshalType = DoMarshalReturnValue(msig,
-                                           pParamTokenArray,
-                                           nlType,
-                                           nlFlags,
-                                           0,
-                                           pss,
-                                           fThisCall,
-                                           argOffset,
-                                           dwStubFlags,
-                                           pMD,
-                                           nativeStackSize,
-                                           fStubNeedsCOM,
-                                           0
-                                           DEBUG_ARG(pSigDesc->m_pDebugName)
-                                           DEBUG_ARG(pSigDesc->m_pDebugClassName)
-                                           );
-
-        if (marshalType == MarshalInfo::MARSHAL_TYPE_DATE ||
-            marshalType == MarshalInfo::MARSHAL_TYPE_CURRENCY ||
-            marshalType == MarshalInfo::MARSHAL_TYPE_ARRAYWITHOFFSET ||
-            marshalType == MarshalInfo::MARSHAL_TYPE_HANDLEREF ||
-            marshalType == MarshalInfo::MARSHAL_TYPE_ARGITERATOR
-#ifdef FEATURE_COMINTEROP
-         || marshalType == MarshalInfo::MARSHAL_TYPE_OLECOLOR
-#endif // FEATURE_COMINTEROP
-            )
-        {
-            // These are special non-blittable types returned by-ref in managed,
-            // but marshaled as primitive values returned by-value in unmanaged.
-        }
-        else
-        {
-            // This is an ordinary value type - see if it is returned by-ref.
-            MethodTable *pRetMT = msig.GetRetTypeHandleThrowing().AsMethodTable();
-            if (IsUnmanagedValueTypeReturnedByRef(pRetMT->GetNativeSize()))
-            {
-                nativeStackSize += sizeof(LPVOID);
-            }
-        }
     }
 
     //
@@ -4086,6 +4038,77 @@ static void CreateNDirectStubWorker(StubState*         pss,
     // Marshal the parameters
     int argidx = 1;
     int nativeArgIndex = 0;
+
+#if defined(_WIN32) && (defined(_TARGET_X86_) || defined(_TARGET_AMD64_))
+    // If we are generating a return buffer on Windows on a member function that is marked as thiscall (as opposed to being a COM method)
+    // then we need to marshal the this parameter first and the return buffer second.
+    if (fThisCall && fMarshalReturnValueFirst)
+    {
+        msig.NextArg();
+
+        MarshalInfo &info = pParamMarshalInfo[argidx - 1];
+        pss->MarshalArgument(&info, argOffset, GetStackOffsetFromStackSize(nativeStackSize, fThisCall));
+        nativeStackSize += info.GetNativeArgSize();
+
+        fStubNeedsCOM |= info.MarshalerRequiresCOM();
+
+        // make sure that the first parameter is enregisterable
+        if (info.GetNativeArgSize() > sizeof(SLOT))
+            COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_BADNATL_THISCALL);
+
+        argidx++;
+    }
+#endif
+
+    // If we're doing a native->managed call and are generating a return buffer,
+    // we need to move all of the actual arguments over one and have the return value be the first argument (after the this pointer if applicable).
+    if (fReverseWithReturnBufferArg)
+    {
+        ++argOffset;
+    }
+    
+    if (fMarshalReturnValueFirst)
+    {
+        marshalType = DoMarshalReturnValue(msig,
+                                           pParamTokenArray,
+                                           nlType,
+                                           nlFlags,
+                                           0,
+                                           pss,
+                                           fThisCall,
+                                           argOffset,
+                                           dwStubFlags,
+                                           pMD,
+                                           nativeStackSize,
+                                           fStubNeedsCOM,
+                                           0
+                                           DEBUG_ARG(pSigDesc->m_pDebugName)
+                                           DEBUG_ARG(pSigDesc->m_pDebugClassName)
+                                           );
+
+        if (marshalType == MarshalInfo::MARSHAL_TYPE_DATE ||
+            marshalType == MarshalInfo::MARSHAL_TYPE_CURRENCY ||
+            marshalType == MarshalInfo::MARSHAL_TYPE_ARRAYWITHOFFSET ||
+            marshalType == MarshalInfo::MARSHAL_TYPE_HANDLEREF ||
+            marshalType == MarshalInfo::MARSHAL_TYPE_ARGITERATOR
+#ifdef FEATURE_COMINTEROP
+         || marshalType == MarshalInfo::MARSHAL_TYPE_OLECOLOR
+#endif // FEATURE_COMINTEROP
+            )
+        {
+            // These are special non-blittable types returned by-ref in managed,
+            // but marshaled as primitive values returned by-value in unmanaged.
+        }
+        else
+        {
+            // This is an ordinary value type - see if it is returned by-ref.
+            MethodTable *pRetMT = msig.GetRetTypeHandleThrowing().AsMethodTable();
+            if (IsUnmanagedValueTypeReturnedByRef(pRetMT->GetNativeSize()))
+            {
+                nativeStackSize += sizeof(LPVOID);
+            }
+        }
+    }
 
     while (argidx <= numArgs)
     {

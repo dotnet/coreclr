@@ -610,7 +610,8 @@ public:
             // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
 #if defined(_WIN32)
             bool nativeMethodIsMemberFunction = (m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
-                || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags));
+                || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags))
+                || (m_pslNDirect->GetStubTargetCallingConv() == CORINFO_CALLCONV_THISCALL);
             if (nativeMethodIsMemberFunction)
             {
                 byrefNativeReturn = true;
