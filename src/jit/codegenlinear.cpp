@@ -523,11 +523,12 @@ void CodeGen::genCodeForBBlist()
         {
             isLastBlockProcessed = (block->bbNext->bbNext == nullptr);
         }
-
+#ifdef USING_VARIABLE_LIVE_RANGE
         if (compiler->opts.compDbgInfo && isLastBlockProcessed)
         {
             compiler->siEndAllVariableLiveRange(&compiler->compCurLife);
         }
+#endif
 
         if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
         {
@@ -730,10 +731,12 @@ void CodeGen::genCodeForBBlist()
         }
 
 #ifdef DEBUG
+#ifdef USING_VARIABLE_LIVE_RANGE
         if (compiler->verbose)
         {
             compiler->dumpBlockVariableLiveRanges(block);
         }
+#endif
 
         compiler->compCurBB = nullptr;
 #endif
@@ -833,6 +836,7 @@ void CodeGen::genSpillVar(GenTree* tree)
         varDsc->lvOtherReg = REG_STK;
     }
 
+#ifdef USING_VARIABLE_LIVE_RANGE
     if (needsSpill)
     {
         // We need this after "lvRegNum" has change because now we are sure that varDsc->lvIsInReg() is false.
@@ -841,6 +845,7 @@ void CodeGen::genSpillVar(GenTree* tree)
         // Report the home change for this variable
         compiler->siUpdateVariableLiveRange(varDsc);
     }
+#endif
 }
 
 //------------------------------------------------------------------------
@@ -1001,8 +1006,10 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             {
                 genUpdateVarReg(varDsc, tree);
 
+#ifdef USING_VARIABLE_LIVE_RANGE
                 // Report the home change for this variable
                 compiler->siUpdateVariableLiveRange(varDsc);
+#endif
 
 #ifdef DEBUG
                 if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))

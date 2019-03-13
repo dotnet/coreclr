@@ -2194,7 +2194,45 @@ class Compiler
     */
 
 public:
+#ifdef USING_VARIABLE_LIVE_RANGE
+
+    // Return the count of reported "VariableLiveRange"s for all the "LclVarDsc"
     unsigned int getLiveRangesCount();
+
+    // Starts or ends a "VariableLiveRange" for "varDsc" if it is borning or dying respectively.
+    // Ranges are close-open [) so nothing is done in case of being borning and dying at the same line
+    // due to be an empty range.
+    void siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying);
+
+    // Iterates the VARSET_TP* set calling "siStartOrCloseVariableLiveRange" for each of the LclVarDsc.
+    void siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying);
+
+    // Starts a "VariableLiveRange" for "varDsc"
+    void siStartVariableLiveRange(const LclVarDsc* varDsc);
+
+    // Close the last "VariableLiveRange" for "varDsc"
+    void siEndVariableLiveRange(const LclVarDsc* varDsc);
+
+    // Calls updateRegisterHome on "varDsc" with the new variable location "siVarLoc"
+    void siUpdateVariableLiveRange(const LclVarDsc* varDsc);
+
+    // Close all the "VariableLiveRanges" that are indicated in the given set
+    void siEndAllVariableLiveRange(const VARSET_TP* varsToClose);
+
+    // Open a "VariableLiveRange" for the given parameter "lclVarDsc" in the given "varLocation"
+    void psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, const LclVarDsc* lclVarDsc);
+
+    // Close all the open "VariableLiveRanges" after prolog has been generated
+    void psiClosePrologVariableRanges();
+
+    bool lastBasicBlockHasBeenEmited; // When true no more siEndVariableLiveRange is considered.
+                                      // No update/start happens when code has been generated.
+
+#ifdef DEBUG
+    void dumpBlockVariableLiveRanges(const BasicBlock* block);
+    void dumpLvaVariableLiveRanges() const;
+#endif
+#endif
 
     hashBvGlobalData hbvGlobalData; // Used by the hashBv bitvector package.
 
@@ -2235,8 +2273,6 @@ public:
     }
 
     DWORD expensiveDebugCheckLevel;
-    void dumpBlockVariableLiveRanges(const BasicBlock* block);
-    void dumpLvaVariableLiveRanges() const;
 #endif
 
 #if FEATURE_MULTIREG_RET
@@ -7396,35 +7432,6 @@ public:
     {
         return codeGen->getEmitter();
     }
-
-    // Starts or ends a "VariableLiveRange" for "varDsc" if it is borning or dying respectively.
-    // Ranges are close-open [) so nothing is done in case of being borning and dying at the same line
-    // due to be an empty range.
-    void siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorning, bool isDying);
-
-    // Iterates the VARSET_TP* set calling "siStartOrCloseVariableLiveRange" for each of the LclVarDsc.
-    void siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying);
-
-    // Starts a "VariableLiveRange" for "varDsc"
-    void siStartVariableLiveRange(const LclVarDsc* varDsc);
-
-    // Close the last "VariableLiveRange" for "varDsc"
-    void siEndVariableLiveRange(const LclVarDsc* varDsc);
-
-    // Calls updateRegisterHome on "varDsc" with the new variable location "siVarLoc"
-    void siUpdateVariableLiveRange(const LclVarDsc* varDsc);
-
-    // Close all the "VariableLiveRanges" that are indicated in the given set
-    void siEndAllVariableLiveRange(const VARSET_TP* varsToClose);
-
-    // Open a "VariableLiveRange" for the given parameter "lclVarDsc" in the given "varLocation"
-    void psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, const LclVarDsc* lclVarDsc);
-
-    // Close all the open "VariableLiveRanges" after prolog has been generated
-    void psiClosePrologVariableRanges();
-
-    bool lastBasicBlockHasBeenEmited; // When true no more siEndVariableLiveRange is considered.
-                                      // No update/start happens when code has been generated.
 
     bool isFramePointerUsed() const
     {

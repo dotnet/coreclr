@@ -11098,6 +11098,7 @@ bool Compiler::killGCRefs(GenTree* tree)
     return false;
 }
 
+#ifdef USING_VARIABLE_LIVE_RANGE
 //------------------------------------------------------------------------
 // getLiveRangesCount: Returns the count of VariableLiveRanges reported for arguments,
 //   special arguments, and local IL variables (not JIT temp variables).
@@ -11453,4 +11454,5 @@ void Compiler::dumpLvaVariableLiveRanges() const
         printf("////////////////////////////////////////\n");
     }
 }
+#endif
 #endif

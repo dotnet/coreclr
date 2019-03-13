@@ -709,8 +709,9 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             VarSetOps::RemoveElemD(this, codeGen->gcInfo.gcVarPtrSetCur, deadVarIndex);
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming dead\n", varNum);
         }
-
+#ifdef USING_VARIABLE_LIVE_RANGE
         siEndVariableLiveRange(varDsc);
+#endif
     }
 
     VarSetOps::Iter bornIter(this, bornSet);
@@ -749,7 +750,9 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming live\n", varNum);
         }
 
+#ifdef USING_VARIABLE_LIVE_RANGE
         siStartVariableLiveRange(varDsc);
+#endif
     }
 
     codeGen->siUpdate();
@@ -2302,11 +2305,13 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     genSetScopeInfo();
 
-#if DEBUG
+#ifdef USING_VARIABLE_LIVE_RANGE
+#ifdef DEBUG
     if (compiler->verbose)
     {
         compiler->dumpLvaVariableLiveRanges();
     }
+#endif
 #endif
 
 #ifdef LATE_DISASM
@@ -10557,7 +10562,7 @@ void CodeGen::genSetScopeInfoUsingsiScope()
     // eg. A register parameter is actually on the stack, before it is loaded to reg.
 
     CodeGen::psiScope* scopeP;
-    unsigned i;
+    unsigned           i;
 
     for (i = 0, scopeP = psiScopeList.scNext; i < psiScopeCnt; i++, scopeP = scopeP->scNext)
     {
@@ -10612,7 +10617,7 @@ void CodeGen::genSetScopeInfoUsingsiScope()
         siVarLoc   varLoc = getSiVarLoc(varDsc, scopeL);
 
         genSetScopeInfo(psiScopeCnt + i, startOffs, endOffs - startOffs, scopeL->scVarNum, scopeL->scLVnum,
-            scopeL->scAvailable, &varLoc);
+                        scopeL->scAvailable, &varLoc);
     }
 }
 #else
@@ -10629,7 +10634,7 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
         if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
         {
             for (LiveRangeListIterator itLiveRanges = liveRanges->begin(); itLiveRanges != liveRanges->end();
-                itLiveRanges++, liveRangeIndex++)
+                 itLiveRanges++, liveRangeIndex++)
             {
                 UNATIVE_OFFSET startOffs = itLiveRanges->startEmitLocation.CodeOffset(getEmitter());
                 UNATIVE_OFFSET endOffs   = itLiveRanges->endEmitLocation.CodeOffset(getEmitter());
@@ -10644,8 +10649,8 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
                 }
 
                 genSetScopeInfo(liveRangeIndex, startOffs, endOffs - startOffs, varNum,
-                    varNum /* I dont know what is the which in eeGetLvInfo */, true,
-                    &itLiveRanges->varLocation);
+                                varNum /* I dont know what is the which in eeGetLvInfo */, true,
+                                &itLiveRanges->varLocation);
             }
         }
     }
