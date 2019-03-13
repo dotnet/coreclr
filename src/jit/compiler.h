@@ -2937,8 +2937,6 @@ public:
     LclVarDsc* lvaTable;    // variable descriptor table
     unsigned   lvaTableCnt; // lvaTable size (>= lvaCount)
 
-    LclVarDsc** lvaRefSorted; // table sorted by refcount
-
     unsigned lvaTrackedCount;             // actual # of locals being tracked
     unsigned lvaTrackedCountInSizeTUnits; // min # of size_t's sufficient to hold a bit for all the locals being tracked
 
@@ -2960,6 +2958,7 @@ public:
     }
 
     // reverse map of tracked number to var number
+    unsigned  lvaTrackedToVarNumSize;
     unsigned* lvaTrackedToVarNum;
 
 #if DOUBLE_ALIGN
@@ -3194,9 +3193,7 @@ public:
     unsigned lvaGrabTemps(unsigned cnt DEBUGARG(const char* reason));
     unsigned lvaGrabTempWithImplicitUse(bool shortLifetime DEBUGARG(const char* reason));
 
-    void lvaSortOnly();
     void lvaSortByRefCount();
-    void lvaDumpRefCounts();
 
     void lvaMarkLocalVars(); // Local variable ref-counting
     void lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers);

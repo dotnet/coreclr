@@ -40,7 +40,8 @@ void Compiler::lvaInit()
 
     lvaGenericsContextUseCount = 0;
 
-    lvaTrackedToVarNum = nullptr;
+    lvaTrackedToVarNumSize = 0;
+    lvaTrackedToVarNum     = nullptr;
 
     lvaTrackedFixed = false; // false: We can still add new tracked variables
 
@@ -3039,12 +3040,9 @@ BasicBlock::weight_t BasicBlock::getBBWeight(Compiler* comp)
 
 int RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
 {
-    /* Make sure we preference tracked variables over untracked variables */
-
-    if (dsc1->lvTracked != dsc2->lvTracked)
-    {
-        return (dsc2->lvTracked) ? +1 : -1;
-    }
+    // We should not be sorting untracked variables
+    assert(dsc1->lvTracked);
+    assert(dsc2->lvTracked);
 
     unsigned weight1 = dsc1->lvRefCnt();
     unsigned weight2 = dsc2->lvRefCnt();
@@ -3162,12 +3160,9 @@ int RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
 
 int WtdRefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
 {
-    /* Make sure we preference tracked variables over untracked variables */
-
-    if (dsc1->lvTracked != dsc2->lvTracked)
-    {
-        return (dsc2->lvTracked) ? +1 : -1;
-    }
+    // We should not be sorting untracked variables
+    assert(dsc1->lvTracked);
+    assert(dsc2->lvTracked);
 
     unsigned weight1 = dsc1->lvRefCntWtd();
     unsigned weight2 = dsc2->lvRefCntWtd();
@@ -3274,57 +3269,6 @@ int WtdRefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
  *  Sort the local variable table by refcount and assign tracking indices.
  */
 
-void Compiler::lvaSortOnly()
-{
-    if (compCodeOpt() == SMALL_CODE)
-    {
-        auto less = [this](const LclVarDsc* v1, const LclVarDsc* v2) -> bool { return RefCntCmp(v1, v2) < 0; };
-        jitstd::sort(lvaRefSorted, lvaRefSorted + lvaCount, less);
-    }
-    else
-    {
-        auto less = [this](const LclVarDsc* v1, const LclVarDsc* v2) -> bool { return WtdRefCntCmp(v1, v2) < 0; };
-        jitstd::sort(lvaRefSorted, lvaRefSorted + lvaCount, less);
-    }
-
-    lvaDumpRefCounts();
-}
-
-void Compiler::lvaDumpRefCounts()
-{
-#ifdef DEBUG
-
-    if (verbose && lvaCount)
-    {
-        printf("refCnt table for '%s':\n", info.compMethodName);
-
-        for (unsigned lclNum = 0; lclNum < lvaCount; lclNum++)
-        {
-            unsigned refCnt = lvaRefSorted[lclNum]->lvRefCnt();
-            if (refCnt == 0)
-            {
-                break;
-            }
-            unsigned refCntWtd = lvaRefSorted[lclNum]->lvRefCntWtd();
-
-            printf("   ");
-            gtDispLclVar((unsigned)(lvaRefSorted[lclNum] - lvaTable));
-            printf(" [%6s]: refCnt = %4u, refCntWtd = %6s", varTypeName(lvaRefSorted[lclNum]->TypeGet()), refCnt,
-                   refCntWtd2str(refCntWtd));
-            printf("\n");
-        }
-
-        printf("\n");
-    }
-
-#endif
-}
-
-/*****************************************************************************
- *
- *  Sort the local variable table by refcount and assign tracking indices.
- */
-
 void Compiler::lvaSortByRefCount()
 {
     lvaTrackedCount             = 0;
@@ -3339,31 +3283,29 @@ void Compiler::lvaSortByRefCount()
         return;
     }
 
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
-    LclVarDsc** refTab;
-
     /* We'll sort the variables by ref count - allocate the sorted table */
 
-    lvaRefSorted = refTab = new (this, CMK_LvaTable) LclVarDsc*[lvaCount];
-
-    /* Fill in the table used for sorting */
-
-    for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
+    if (lvaTrackedToVarNumSize < lvaCount)
     {
-        /* Append this variable to the table for sorting */
+        lvaTrackedToVarNumSize = lvaCount;
+        lvaTrackedToVarNum     = new (getAllocator(CMK_LvaTable)) unsigned[lvaTrackedToVarNumSize];
+    }
 
-        *refTab++ = varDsc;
+    unsigned  trackedCount = 0;
+    unsigned* tracked      = lvaTrackedToVarNum;
 
-        /* For now assume we'll be able to track all locals */
+    // Fill in the table used for sorting
 
+    for (unsigned lclNum = 0; lclNum < lvaCount; lclNum++)
+    {
+        LclVarDsc* varDsc = lvaGetDesc(lclNum);
+
+        // Start by assuming that the variable will be tracked.
         varDsc->lvTracked = 1;
 
-        /* If the ref count is zero */
         if (varDsc->lvRefCnt() == 0)
         {
-            /* Zero ref count, make this untracked */
+            // Zero ref count, make this untracked.
             varDsc->lvTracked = 0;
             varDsc->setLvRefCntWtd(0);
         }
@@ -3445,84 +3387,86 @@ void Compiler::lvaSortByRefCount()
         if (opts.MinOpts() && compHndBBtabCount > 0)
         {
             lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_LiveInOutOfHandler));
-            continue;
         }
-
-        var_types type = genActualType(varDsc->TypeGet());
-
-        switch (type)
+        else
         {
+            var_types type = genActualType(varDsc->TypeGet());
+
+            switch (type)
+            {
 #if CPU_HAS_FP_SUPPORT
-            case TYP_FLOAT:
-            case TYP_DOUBLE:
+                case TYP_FLOAT:
+                case TYP_DOUBLE:
 #endif
-            case TYP_INT:
-            case TYP_LONG:
-            case TYP_REF:
-            case TYP_BYREF:
+                case TYP_INT:
+                case TYP_LONG:
+                case TYP_REF:
+                case TYP_BYREF:
 #ifdef FEATURE_SIMD
-            case TYP_SIMD8:
-            case TYP_SIMD12:
-            case TYP_SIMD16:
-            case TYP_SIMD32:
+                case TYP_SIMD8:
+                case TYP_SIMD12:
+                case TYP_SIMD16:
+                case TYP_SIMD32:
 #endif // FEATURE_SIMD
-            case TYP_STRUCT:
-                break;
+                case TYP_STRUCT:
+                    break;
 
-            case TYP_UNDEF:
-            case TYP_UNKNOWN:
-                noway_assert(!"lvType not set correctly");
-                varDsc->lvType = TYP_INT;
+                case TYP_UNDEF:
+                case TYP_UNKNOWN:
+                    noway_assert(!"lvType not set correctly");
+                    varDsc->lvType = TYP_INT;
 
-                __fallthrough;
+                    __fallthrough;
 
-            default:
-                varDsc->lvTracked = 0;
+                default:
+                    varDsc->lvTracked = 0;
+            }
         }
-    }
 
-    /* Now sort the variable table by ref-count */
-
-    lvaSortOnly();
-
-    /* Decide which variables will be worth tracking */
-
-    if (lvaCount > lclMAX_TRACKED)
-    {
-        /* Mark all variables past the first 'lclMAX_TRACKED' as untracked */
-
-        for (lclNum = lclMAX_TRACKED; lclNum < lvaCount; lclNum++)
-        {
-            lvaRefSorted[lclNum]->lvTracked = 0;
-        }
-    }
-
-    if (lvaTrackedToVarNum == nullptr)
-    {
-        lvaTrackedToVarNum = new (getAllocator(CMK_LvaTable)) unsigned[lclMAX_TRACKED];
-    }
-
-#ifdef DEBUG
-    // Re-Initialize to -1 for safety in debug build.
-    memset(lvaTrackedToVarNum, -1, lclMAX_TRACKED * sizeof(unsigned));
-#endif
-
-    /* Assign indices to all the variables we've decided to track */
-
-    for (lclNum = 0; lclNum < min(lvaCount, lclMAX_TRACKED); lclNum++)
-    {
-        varDsc = lvaRefSorted[lclNum];
         if (varDsc->lvTracked)
         {
-            noway_assert(varDsc->lvRefCnt() > 0);
-
-            /* This variable will be tracked - assign it an index */
-
-            lvaTrackedToVarNum[lvaTrackedCount] = (unsigned)(varDsc - lvaTable); // The type of varDsc and lvaTable
-            // is LclVarDsc. Subtraction will give us
-            // the index.
-            varDsc->lvVarIndex = lvaTrackedCount++;
+            tracked[trackedCount++] = lclNum;
         }
+    }
+
+    // Now sort the tracked variable table by ref-count
+    if (compCodeOpt() == SMALL_CODE)
+    {
+        auto less = [this](unsigned n1, unsigned n2) -> bool { return RefCntCmp(lvaGetDesc(n1), lvaGetDesc(n2)) < 0; };
+        jitstd::sort(tracked, tracked + trackedCount, less);
+    }
+    else
+    {
+        auto less = [this](unsigned n1, unsigned n2) -> bool {
+            return WtdRefCntCmp(lvaGetDesc(n1), lvaGetDesc(n2)) < 0;
+        };
+        jitstd::sort(tracked, tracked + trackedCount, less);
+    }
+
+    lvaTrackedCount = min(lclMAX_TRACKED, trackedCount);
+
+    JITDUMP("Tracked variable (%u out of %u) table:\n", lvaTrackedCount, lvaCount);
+
+    // Assign indices to all the variables we've decided to track
+    for (unsigned i = 0; i < lvaTrackedCount; i++)
+    {
+        LclVarDsc* varDsc = lvaGetDesc(tracked[i]);
+        assert(varDsc->lvTracked);
+        varDsc->lvVarIndex = static_cast<unsigned short>(i);
+
+        INDEBUG(if (verbose) { gtDispLclVar(tracked[i]); })
+        JITDUMP(" [%6s]: refCnt = %4u, refCntWtd = %6s\n", varTypeName(varDsc->TypeGet()), varDsc->lvRefCnt(),
+                refCntWtd2str(varDsc->lvRefCntWtd()));
+    }
+
+    JITDUMP("\n");
+
+    // Mark all variables past the first 'lclMAX_TRACKED' as untracked
+    for (unsigned i = lvaTrackedCount; i < trackedCount; i++)
+    {
+        LclVarDsc* varDsc = lvaGetDesc(tracked[i]);
+        assert(varDsc->lvTracked);
+        varDsc->lvTracked = 0;
     }
 
     // We have a new epoch, and also cache the tracked var count in terms of size_t's sufficient to hold that many bits.
