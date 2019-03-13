@@ -1036,10 +1036,6 @@ public:
         }
 #endif // FEATURE_COMINTEROP
 
-        SString str;
-
-        m_slIL.LogILStub(jitFlags, &str);
-
         UINT   maxStack;
         size_t cbCode;
         DWORD  cbSig;
