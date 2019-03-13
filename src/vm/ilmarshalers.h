@@ -617,8 +617,9 @@ public:
                 byrefNativeReturn = true;
             }
             else
+#endif // _WIN32
             {
-#endif
+#ifndef _TARGET_AMD64_
                 switch (nativeSize)
                 {
 #ifndef UNIX_X86_ABI
@@ -626,13 +627,12 @@ public:
                     case 2: typ = ELEMENT_TYPE_U2; break;
                     case 4: typ = ELEMENT_TYPE_U4; break;
                     case 8: typ = ELEMENT_TYPE_U8; break;
-#endif
+#endif // UNIX_X86_ABI
                     default: byrefNativeReturn = true; break;
                 }
-#if defined(_WIN32)
+#endif // _TARGET_AMD64_
             }
-#endif
-#endif
+#endif // defined(_TARGET_X86_) || (defined(_TARGET_AMD64_) && defined(_WIN32))
         }
 
         if (IsHresultSwap(dwMarshalFlags) || (byrefNativeReturn))
