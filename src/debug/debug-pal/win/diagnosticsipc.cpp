@@ -22,7 +22,7 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
     if (pIpcName == nullptr)
         return nullptr;
 
-    char namedPipeName[256]{};
+    char namedPipeName[MaxNamedPipeNameLength]{};
     const int nCharactersWritten = sprintf_s(
         namedPipeName,
         sizeof(namedPipeName),
