@@ -4096,8 +4096,6 @@ void Compiler::lvaMarkLocalVars()
     {
         lvaTable[info.compTypeCtxtArg].lvImplicitlyReferenced = 1;
     }
-
-    lvaSortByRefCount();
 }
 
 //------------------------------------------------------------------------
