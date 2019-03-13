@@ -2755,13 +2755,6 @@ VOID DECLSPEC_NORETURN RaiseTheException(OBJECTREF throwable, BOOL rethrow
         EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
     }
 
-    if (g_CLRPolicyRequested &&
-        throwable->GetMethodTable() == g_pOutOfMemoryExceptionClass)
-    {
-        // We depends on UNINSTALL_UNWIND_AND_CONTINUE_HANDLER to handle out of memory escalation.
-        // We should throw c++ exception instead.
-        ThrowOutOfMemory();
-    }
     _ASSERTE(throwable != CLRException::GetPreallocatedStackOverflowException());
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
@@ -3007,13 +3000,6 @@ static VOID DECLSPEC_NORETURN RealCOMPlusThrowWorker(OBJECTREF throwable, BOOL r
     // Unfortunately, COMPlusFrameHandler installed here, will try to create managed exception object.
     // We may hit a recursion.
 
-    if (g_CLRPolicyRequested &&
-        throwable->GetMethodTable() == g_pOutOfMemoryExceptionClass)
-    {
-        // We depends on UNINSTALL_UNWIND_AND_CONTINUE_HANDLER to handle out of memory escalation.
-        // We should throw c++ exception instead.
-        ThrowOutOfMemory();
-    }
     _ASSERTE(throwable != CLRException::GetPreallocatedStackOverflowException());
 
     // TODO: Do we need to install COMPlusFrameHandler here?
@@ -4798,12 +4784,6 @@ LONG InternalUnhandledExceptionFilter_Worker(
     }
 #endif
 
-#ifdef _DEBUG_ADUNLOAD
-    printf("%x InternalUnhandledExceptionFilter_Worker: Called for %x\n",
-           ((pThread == NULL) ? NULL : pThread->GetThreadId()), pExceptionInfo->ExceptionRecord->ExceptionCode);
-    fflush(stdout);
-#endif
-
     // This shouldn't be possible, but MSVC re-installs us... for now, just bail if this happens.
     if (g_fNoExceptions)
     {
@@ -4840,22 +4820,8 @@ LONG InternalUnhandledExceptionFilter_Worker(
     // simply return back. See comment in threads.h for details for the flag
     // below.
     //
-    if (pThread && (pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) || pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled)))
+    if (pThread && pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException))
     {
-        // This assert shouldnt be hit in CoreCLR since:
-        //
-        // 1) It has no concept of managed entry point that is invoked by the shim. You can
-        //    only run managed code via hosting APIs that will run code in non-default domains.
-        //
-        // 2) Managed threads cannot be created in DefaultDomain since no user code executes
-        //    in default domain.
-        //
-        // So, if this is hit, something is not right!
-        if (pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException))
-        {
-            _ASSERTE(!"How come a thread with TSNC_ProcessedUnhandledException state entered the UEF on CoreCLR?");
-        }
-
         LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter_Worker: have already processed unhandled exception for this thread.\n"));
         return EXCEPTION_CONTINUE_SEARCH;
     }
@@ -5172,10 +5138,20 @@ LONG InternalUnhandledExceptionFilter(
 
 } // LONG InternalUnhandledExceptionFilter()
 
+static bool s_useEntryPointFilter = false;
+
+void ParseUseEntryPointFilter(LPCWSTR value)
+{
+#ifdef PLATFORM_WINDOWS // This feature has only been tested on Windows, keep it disabled on other platforms
+    // set s_useEntryPointFilter true if value != "0"
+    if (value && (_wcsicmp(value, W("0")) != 0))
+    {
+        s_useEntryPointFilter = true;
+    }
+#endif
+}
+
 // This filter is used to trigger unhandled exception processing for the entrypoint thread
-// incase an exception goes unhandled from it. This makes us independent of the OS
-// UEF mechanism to invoke our registered UEF to trigger CLR specific unhandled exception 
-// processing since that can be skipped if another UEF registered over ours and not chain back.
 LONG EntryPointFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOID _pData)
 {
     CONTRACTL
@@ -5188,20 +5164,38 @@ LONG EntryPointFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOID _pData)
 
     LONG ret = -1;
 
-    // Invoke the UEF worker to perform unhandled exception processing
-    ret = InternalUnhandledExceptionFilter_Worker (pExceptionInfo);
+    ret = CLRNoCatchHandler(pExceptionInfo, _pData);
+
+    if (ret != EXCEPTION_CONTINUE_SEARCH)
+    {
+        return ret;
+    }
+
+    if (!s_useEntryPointFilter)
+    {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
 
     Thread* pThread = GetThread();
-    if (pThread)
+    if (pThread && !GetThread()->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException))
     {
+        // Invoke the UEF worker to perform unhandled exception processing
+        ret = InternalUnhandledExceptionFilter_Worker (pExceptionInfo);
+
         // Set the flag that we have done unhandled exception processing for this thread
         // so that we dont duplicate the effort in the UEF.
         //
         // For details on this flag, refer to threads.h.
         LOG((LF_EH, LL_INFO100, "EntryPointFilter: setting TSNC_ProcessedUnhandledException\n"));
         pThread->SetThreadStateNC(Thread::TSNC_ProcessedUnhandledException);
+
+        if (ret == EXCEPTION_EXECUTE_HANDLER)
+        {
+            // Do not swallow the exception, we just want to log it
+            return EXCEPTION_CONTINUE_SEARCH;
+        }
     }
-    
+
     return ret;
 }
 
@@ -5241,8 +5235,7 @@ LONG __stdcall COMUnhandledExceptionFilter(     // EXCEPTION_CONTINUE_SEARCH or 
     // various runtimes again.
     //
     // Thus, check if this UEF has already been invoked in context of this thread and runtime and if so, dont invoke it again.
-    if (GetThread() && (GetThread()->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) ||
-                        GetThread()->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled)))
+    if (GetThread() && (GetThread()->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException)))
     {
         LOG((LF_EH, LL_INFO10, "Exiting COMUnhandledExceptionFilter since we have already done UE processing for this thread!\n"));
         return retVal;
@@ -5471,11 +5464,6 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
     const int buf_size = 128;
     WCHAR buf[buf_size] = {0};
 
-    // See detailed explanation of this flag in threads.cpp.  But the basic idea is that we already
-    // reported the exception in the AppDomain where it went unhandled, so we don't need to report
-    // it at the process level.
-    // Print the unhandled exception message.
-    if (!pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled))
     {
         EX_TRY
         {
@@ -5609,12 +5597,6 @@ BOOL NotifyAppDomainsOfUnhandledException(
         _ASSERTE(g_fEEShutDown);
         return FALSE;
     }
-
-    // See detailed explanation of this flag in threads.cpp.  But the basic idea is that we already
-    // reported the exception in the AppDomain where it went unhandled, so we don't need to report
-    // it at the process level.
-    if (pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled))
-        return FALSE;
 
     ThreadPreventAsyncHolder prevAsync;
 
@@ -5789,7 +5771,7 @@ static LONG ThreadBaseExceptionFilter_Worker(PEXCEPTION_POINTERS pExceptionInfo,
         {
             // No, don't swallow unhandled exceptions...
 
-            // ...except if the exception is of a type that is always swallowed (ThreadAbort, AppDomainUnload)...
+            // ...except if the exception is of a type that is always swallowed (ThreadAbort, ...)
             if (ExceptionIsAlwaysSwallowed(pExceptionInfo))
             {   // ...return EXCEPTION_EXECUTE_HANDLER to swallow the exception anyway.
                 return EXCEPTION_EXECUTE_HANDLER;
@@ -6580,7 +6562,7 @@ LONG FilterAccessViolation(PEXCEPTION_POINTERS pExceptionPointers, LPVOID lpvPar
 }
 
 /*
- * IsContinuableException
+ * IsInterceptableException
  *
  * Returns whether this is an exception the EE knows how to intercept and continue from.
  *
@@ -8304,19 +8286,6 @@ VOID DECLSPEC_NORETURN UnwindAndContinueRethrowHelperAfterCatch(Frame* pEntryFra
         OBJECTREFToObject(orThrowable)));
 
     Exception::Delete(pException);
-
-    if (orThrowable != NULL && g_CLRPolicyRequested)
-    {
-        if (orThrowable->GetMethodTable() == g_pOutOfMemoryExceptionClass)
-        {
-            EEPolicy::HandleOutOfMemory();
-        }
-        else if (orThrowable->GetMethodTable() == g_pStackOverflowExceptionClass)
-        {
-            /* The parameters of the function do not matter here */
-            EEPolicy::HandleStackOverflow(SOD_UnmanagedFrameHandler, NULL);
-        }
-    }
 
     RaiseTheExceptionInternalOnly(orThrowable, FALSE);
 }

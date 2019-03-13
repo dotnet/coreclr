@@ -1989,11 +1989,23 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
     op2 = op1->gtCall.gtCallLateArgs->gtOp.gtOp2;
     op1 = op1->gtCall.gtCallLateArgs;
 
+    // For the assertion, ensure op1 is the object being tested.
+    // Morph may have swizzled the operand order.
+    GenTree* op1op = op1->gtOp.gtOp1;
+
+    if (op1op->TypeGet() == TYP_I_IMPL)
+    {
+        jitstd::swap(op1, op2);
+        op1op = op1->gtOp.gtOp1;
+    }
+
+    assert(op1op->TypeGet() == TYP_REF);
+
     // Reverse the assertion
     assert(assertionKind == OAK_EQUAL || assertionKind == OAK_NOT_EQUAL);
     assertionKind = (assertionKind == OAK_EQUAL) ? OAK_NOT_EQUAL : OAK_EQUAL;
 
-    if (op1->gtOp.gtOp1->gtOper == GT_LCL_VAR)
+    if (op1op->OperIs(GT_LCL_VAR))
     {
         return optCreateJtrueAssertions(op1, op2, assertionKind);
     }
@@ -4651,8 +4663,8 @@ struct VNAssertionPropVisitorInfo
 
 //------------------------------------------------------------------------------
 // optPrepareTreeForReplacement
-//    Updates ref counts and extracts side effects from a tree so it can be
-//    replaced with a comma separated list of side effects + a new tree.
+//    Extracts side effects from a tree so it can be replaced with a comma
+//    separated list of side effects + a new tree.
 //
 // Note:
 //    The old and new trees may be the same. In this case, the tree will be
@@ -4674,10 +4686,6 @@ struct VNAssertionPropVisitorInfo
 //      2. When no side-effects are present, returns null.
 //
 // Description:
-//    Decrements ref counts for the "oldTree" that is going to be replaced. If there
-//    are side effects in the tree, then ref counts for variables in the side effects
-//    are incremented because they need to be kept in the stmt expr.
-//
 //    Either the "newTree" is returned when no side effects are present or a comma
 //    separated side effect list with "newTree" is returned.
 //

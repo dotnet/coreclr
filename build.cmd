@@ -240,7 +240,6 @@ if defined __Priority (
     ) else (
         set __PassThroughArgs=-priority=%__Priority%
     )
-    set __UnprocessedBuildArgs=!__UnprocessedBuildArgs! /p:CLRTestPriorityToBuild=%__Priority%
 )
 
 if defined __BuildAll goto BuildAll
@@ -675,7 +674,7 @@ if %__BuildCoreLib% EQU 1 (
         set IbcMergePath=%__PackagesDir%\microsoft.dotnet.ibcmerge\!__IbcMergeVersion!\lib\net45\ibcmerge.exe
         if exist !IbcMergePath! (
             echo %__MsgPrefix%Optimizing using IBC training data
-            set OptimizationDataDir=%__PackagesDir%\optimization.%__BuildOS%-%__BuildArch%.IBC.CoreCLR\!__IbcOptDataVersion!\data\System.Private.CoreLib\
+            set OptimizationDataDir=%__PackagesDir%\optimization.%__BuildOS%-%__BuildArch%.IBC.CoreCLR\!__IbcOptDataVersion!\data\System.Private.CoreLib.dll\
             set InputAssemblyFile=!OptimizationDataDir!System.Private.CoreLib.dll
             set TargetOptimizationDataFile=!OptimizationDataDir!System.Private.CoreLib.pgo
 
@@ -877,7 +876,11 @@ REM ============================================================================
 if %__BuildTests% EQU 1 (
     echo %__MsgPrefix%Commencing build of tests for %__BuildOS%.%__BuildArch%.%__BuildType%
 
-    set NEXTCMD=call %__ProjectDir%\build-test.cmd %__BuildArch% %__BuildType% %__UnprocessedBuildArgs%
+    set  __PriorityArg=
+    if defined __Priority (
+        set __PriorityArg=-priority=%__Priority%
+    )
+    set NEXTCMD=call %__ProjectDir%\build-test.cmd %__BuildArch% %__BuildType% !__PriorityArg! %__UnprocessedBuildArgs%
     echo %__MsgPrefix%!NEXTCMD!
     !NEXTCMD!
 
