@@ -297,7 +297,7 @@ namespace System.Runtime.InteropServices
         {
             if (array == null)
             {
-                if (start != 0 || length != 0)
+                if ((start | length) != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException();
                 return default;
             }
