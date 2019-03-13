@@ -297,6 +297,7 @@ enum RefCountState
     RCS_NORMAL,  // normal ref counts (from lvaMarkRefs onward)
 };
 
+// A variable lives in a location (represented by a "siVarLoc") given two assembly offsets.
 class VariableLiveRange
 {
 public:
@@ -312,46 +313,19 @@ public:
         this->startEmitLocation = startEmitLocation;
         this->endEmitLocation   = endEmitLocation;
     }
-
-#if DEBUG
-    // Dump just the emitLocation as they are, we haven't generated the whole method yet
-    void dump(const CodeGenInterface* codeGen) const
-    {
-        // "codeGen" will be dereferenced
-        noway_assert(codeGen != nullptr);
-
-        codeGen->dumpSiVarLoc(&varLocation);
-        printf(" [ ");
-        startEmitLocation.Print();
-        printf(", ");
-        if (endEmitLocation.Valid())
-        {
-            endEmitLocation.Print();
-        }
-        else
-        {
-            printf("NON_CLOSED_RANGE");
-        }
-        printf(" ]; ");
-    }
-
-    void dump(emitter* _emitter, const CodeGenInterface* codeGen) const
-    {
-        codeGen->dumpSiVarLoc(&varLocation);
-
-        // this could be a non closed range so endEmitLocation could be a non valid emit Location
-        // live -1 in case of not being defined
-        UNATIVE_OFFSET endAssemblyOffset = endEmitLocation.Valid() ? endEmitLocation.CodeOffset(_emitter) : -1;
-
-        printf(" [%X , %X )", startEmitLocation.CodeOffset(_emitter), endEmitLocation.CodeOffset(_emitter));
-    }
-#endif
 };
 
 typedef jitstd::list<VariableLiveRange> LiveRangeList;
 typedef LiveRangeList::iterator         LiveRangeListIterator;
 
 #if DEBUG
+// Dump "VariableLiveRange" when code has not been generated and we don't have so the assembly native offset
+// but at least "emitLocation"s and "siVarLoc"
+void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, const CodeGenInterface* codeGen);
+
+// Dump "VariableLiveRange" when code has been generated and we have the assembly native offset of each "emitLocation"
+void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emitter, const CodeGenInterface* codeGen);
+
 struct LiveRangeBarrier
 {
     LiveRangeListIterator beginLastBlock;
@@ -457,7 +431,7 @@ public:
             for (LiveRangeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end();
                  it++)
             {
-                it->dump(codeGen);
+                dumpVariableLiveRange(&it, codeGen);
             }
             printf("]\n");
         }
@@ -481,7 +455,7 @@ public:
             printf("[");
             for (LiveRangeList::iterator it = variableLiveRanges->begin(); it != variableLiveRanges->end(); it++)
             {
-                it->dump(_emitter, codeGen);
+                dumpVariableLiveRange(&it, _emitter, codeGen);
             }
             printf("]\n");
         }

@@ -11454,5 +11454,48 @@ void Compiler::dumpLvaVariableLiveRanges() const
         printf("////////////////////////////////////////\n");
     }
 }
+
+// Dump "VariableLiveRange" when code has not been generated and we don't have so the assembly native offset
+// but at least "emitLocation"s and "siVarLoc"
+void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, const CodeGenInterface* codeGen)
+{
+    // Check pointers parameter are not nullptr
+    noway_assert(codeGen != nullptr);
+    noway_assert(varLiveRange != nullptr);
+
+    codeGen->dumpSiVarLoc(&varLiveRange->varLocation);
+    printf(" [ ");
+    varLiveRange->startEmitLocation.Print();
+    printf(", ");
+    if (varLiveRange->endEmitLocation.Valid())
+    {
+        varLiveRange->endEmitLocation.Print();
+    }
+    else
+    {
+        printf("NON_CLOSED_RANGE");
+    }
+    printf(" ]; ");
+}
+
+// Dump "VariableLiveRange" when code has been generated and we have the assembly native offset of each "emitLocation"
+void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emitter, const CodeGenInterface* codeGen)
+{
+    // Check pointers parameter are not nullptr
+    noway_assert(varLiveRange != nullptr);
+    noway_assert(_emitter != nullptr);
+    noway_assert(codeGen != nullptr);
+
+    // "VariableLiveRanges" are created setting its location ("varLocation") and the initial assembly offset
+    // ("startEmitLocation")
+    codeGen->dumpSiVarLoc(&varLiveRange->varLocation);
+
+    // If this is an open "VariableLiveRange", "endEmitLocation" is non-valid and print -1
+    UNATIVE_OFFSET endAssemblyOffset =
+        varLiveRange->endEmitLocation.Valid() ? varLiveRange->endEmitLocation.CodeOffset(_emitter) : -1;
+
+    printf(" [%X , %X )", varLiveRange->startEmitLocation.CodeOffset(_emitter),
+           varLiveRange->endEmitLocation.CodeOffset(_emitter));
+}
 #endif
 #endif
