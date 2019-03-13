@@ -178,9 +178,49 @@ namespace System
 
             return result;
         }
-#endregion
+        #endregion
 
 #region Public Static Methods
+        public static bool IsDefined(Type enumType, object value)
+        {
+            if (enumType == null)
+                throw new ArgumentNullException(nameof(enumType));
+
+            return enumType.IsEnumDefined(value);
+        }
+
+        public static Type GetUnderlyingType(Type enumType)
+        {
+            if (enumType == null)
+                throw new ArgumentNullException(nameof(enumType));
+
+            return enumType.GetEnumUnderlyingType();
+        }
+
+        public static Array GetValues(Type enumType)
+        {
+            if (enumType == null)
+                throw new ArgumentNullException(nameof(enumType));
+
+            return enumType.GetEnumValues();
+        }
+
+        public static string GetName(Type enumType, object value)
+        {
+            if (enumType == null)
+                throw new ArgumentNullException(nameof(enumType));
+
+            return enumType.GetEnumName(value);
+        }
+
+        public static string[] GetNames(Type enumType)
+        {
+            if (enumType == null)
+                throw new ArgumentNullException(nameof(enumType));
+
+            return enumType.GetEnumNames();
+        }
+
         public static object Parse(Type enumType, string value) =>
             Parse(enumType, value, ignoreCase: false);
 
@@ -212,7 +252,6 @@ namespace System
 
         public static bool TryParse<TEnum>(string value, bool ignoreCase, out TEnum result) where TEnum : struct =>
             TryParse<TEnum>(value, ignoreCase, throwOnFailure: false, out result);
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool StartsNumber(char c) => char.IsInRange(c, '0', '9') || c == '-' || c == '+';

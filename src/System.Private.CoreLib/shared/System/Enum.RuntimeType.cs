@@ -40,38 +40,6 @@ namespace System
             return InternalHasFlag(flag);
         }
 
-        public static Type GetUnderlyingType(Type enumType)
-        {
-            if (enumType == null)
-                throw new ArgumentNullException(nameof(enumType));
-
-            return enumType.GetEnumUnderlyingType();
-        }
-
-        public static Array GetValues(Type enumType)
-        {
-            if (enumType == null)
-                throw new ArgumentNullException(nameof(enumType));
-
-            return enumType.GetEnumValues();
-        }
-
-        public static string GetName(Type enumType, object value)
-        {
-            if (enumType == null)
-                throw new ArgumentNullException(nameof(enumType));
-
-            return enumType.GetEnumName(value);
-        }
-
-        public static string[] GetNames(Type enumType)
-        {
-            if (enumType == null)
-                throw new ArgumentNullException(nameof(enumType));
-
-            return enumType.GetEnumNames();
-        }
-
         private static string InternalFormat(RuntimeType eT, ulong value)
         {
             Debug.Assert(eT != null);
@@ -747,14 +715,6 @@ namespace System
 
             // Try to see if its one of the enum values, then we return a String back else the value
             return InternalFormat((RuntimeType)GetType(), ToUInt64()) ?? ValueToString();
-        }
-
-        public static bool IsDefined(Type enumType, object value)
-        {
-            if (enumType == null)
-                throw new ArgumentNullException(nameof(enumType));
-
-            return enumType.IsEnumDefined(value);
         }
 
         #region IComparable
