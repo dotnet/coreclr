@@ -11,7 +11,10 @@
     </RestoreSources>
   </PropertyGroup>
 
-  <Import Project="eng/Versions.props" />
+  <!-- eng/Versions.props will be automatically included by arcade.          -->
+  <!-- Therefore, do not include it explicitely, we will be warnings that    -->
+  <!-- it is being included twice.                                           -->
+  <Import Project="eng/Versions.props" Condition="'$(ArcadeBuild)' != 'true'" />
 
   <PropertyGroup>
     <!-- Central place to set the versions of all nuget packages produced in the repo -->

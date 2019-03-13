@@ -1,15 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
-  <Import Project="../../clr.coreclr.props" />
-  <Import Project="../../clr.defines.targets" />
 
   <!-- Generate rsp -->
   <Import Project="GenerateCompilerResponseFile.targets" />
 
   <Target Name="GenerateTheRSPFile" BeforeTargets="CoreCompile" DependsOnTargets="GenerateCompilerResponseFile">
   </Target>
-
 
   <PropertyGroup>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
@@ -23,9 +20,6 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <!-- Arcade Specific  -->
-    <SPCArcifactsObjDir Condition="'$(SPCArcifactsObjDir)'==''">$(ProjectDir)obj\System.Private.CoreLib\$(BuildOS).$(BuildArch).$(BuildType)\$(TargetFramework)\</SPCArcifactsObjDir>
-
     <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)bin\</RootBinDir>
   </PropertyGroup>
 
@@ -66,6 +60,8 @@
 
     <NoWarn>649,1573,1591,0419,3021</NoWarn>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>true</DelaySign>
     <DefineConstants>$(DefineConstants);CORECLR;netcoreapp</DefineConstants>
     <!-- We don't use any of MSBuild's resolution logic for resolving the framework, so just set these two properties to any folder that exists to skip
          the GenerateReferenceAssemblyPaths task (not target) and to prevent it from outputting a warning (MSB3644). -->
@@ -437,5 +433,19 @@
     <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.ComVisible(false)]" />
     <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute(System.Runtime.InteropServices.DllImportSearchPath.AssemblyDirectory | System.Runtime.InteropServices.DllImportSearchPath.System32)]" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <!-- Overwrite the key that we are going to use for signing -->
+    <AssemblyOriginatorKeyFile>$(ToolsDir)SilverlightPlatformPublicKey.snk</AssemblyOriginatorKeyFile>
+    <!-- Don't need a strong name signature because we only ship the native image -->
+    <StrongNameSig>None</StrongNameSig>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Overwrite the key that we are going to use for signing -->
+    <AssemblyOriginatorKeyFile>$(ToolsDir)SilverlightPlatformPublicKey.snk</AssemblyOriginatorKeyFile>
+    <!-- Don't need a strong name signature because we only ship the native image -->
+    <StrongNameSig>None</StrongNameSig>
+  </PropertyGroup>
 
 </Project>

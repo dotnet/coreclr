@@ -63,6 +63,8 @@
     <!-- BuildTools dependency -->
     <RootIntermediateOutputPath Condition="$(RootIntermediateOutputPath) == ''">$(RootBinDir)obj/</RootIntermediateOutputPath>
 
+    <BuildArch Condition="'$(BuildArch)' != ''">x64</BuildArch>
+
     <BinDir>$(__BinDir)\</BinDir>
     <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)Product\$(BuildOS).$(BuildArch).$(BuildType)\</BinDir>
 
