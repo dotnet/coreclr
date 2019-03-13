@@ -3043,6 +3043,9 @@ int RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
     // We should not be sorting untracked variables
     assert(dsc1->lvTracked);
     assert(dsc2->lvTracked);
+    // We should not be sorting after registers have been allocated
+    assert(!dsc1->lvRegister);
+    assert(!dsc2->lvRegister);
 
     unsigned weight1 = dsc1->lvRefCnt();
     unsigned weight2 = dsc2->lvRefCnt();
@@ -3103,11 +3106,6 @@ int RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
         {
             weight1 += BB_UNITY_WEIGHT / 2;
         }
-
-        if (dsc1->lvRegister)
-        {
-            weight1 += BB_UNITY_WEIGHT / 2;
-        }
     }
 
     if (weight2)
@@ -3118,11 +3116,6 @@ int RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
         }
 
         if (varTypeIsGC(dsc2->TypeGet()))
-        {
-            weight2 += BB_UNITY_WEIGHT / 2;
-        }
-
-        if (dsc2->lvRegister)
         {
             weight2 += BB_UNITY_WEIGHT / 2;
         }
@@ -3163,6 +3156,9 @@ int WtdRefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
     // We should not be sorting untracked variables
     assert(dsc1->lvTracked);
     assert(dsc2->lvTracked);
+    // We should not be sorting after registers have been allocated
+    assert(!dsc1->lvRegister);
+    assert(!dsc2->lvRegister);
 
     unsigned weight1 = dsc1->lvRefCntWtd();
     unsigned weight2 = dsc2->lvRefCntWtd();
@@ -3222,21 +3218,6 @@ int WtdRefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
     if (varTypeIsGC(dsc1->TypeGet()) != varTypeIsGC(dsc2->TypeGet()))
     {
         if (varTypeIsGC(dsc1->TypeGet()))
-        {
-            diff = -1;
-        }
-        else
-        {
-            diff = +1;
-        }
-
-        return diff;
-    }
-
-    /* If one was enregistered in the previous pass then it wins */
-    if (dsc1->lvRegister != dsc2->lvRegister)
-    {
-        if (dsc1->lvRegister)
         {
             diff = -1;
         }
