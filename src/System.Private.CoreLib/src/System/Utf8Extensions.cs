@@ -72,7 +72,7 @@ namespace System
         {
             if (text == null)
             {
-                if ((start | length) != 0)
+                if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
                 return default;
             }
@@ -143,7 +143,7 @@ namespace System
         {
             if (text == null)
             {
-                if ((start | length) != 0)
+                if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
                 return default;
             }
@@ -225,7 +225,7 @@ namespace System
         {
             if (text == null)
             {
-                if ((start | length) != 0)
+                if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
                 return default;
             }
@@ -327,7 +327,7 @@ namespace System
         {
             if (text == null)
             {
-                if ((start | length) != 0)
+                if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
                 return default;
             }
