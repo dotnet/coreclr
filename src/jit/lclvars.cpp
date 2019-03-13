@@ -3033,12 +3033,9 @@ BasicBlock::weight_t BasicBlock::getBBWeight(Compiler* comp)
 *
 *  Compare function passed to qsort() by Compiler::lclVars.lvaSortByRefCount().
 *  when generating SMALL_CODE.
-*    Return positive if dsc2 has a higher ref count
-*    Return negative if dsc1 has a higher ref count
-*    Return zero     if the ref counts are the same
 */
 
-int RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
+bool RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
 {
     // We should not be sorting untracked variables
     assert(dsc1->lvTracked);
@@ -3054,48 +3051,42 @@ int RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
     // ARM-TODO: this was disabled for ARM under !FEATURE_FP_REGALLOC; it was probably a left-over from
     // legacy backend. It should be enabled and verified.
 
-    /* Force integer candidates to sort above float candidates */
-
-    bool isFloat1 = isFloatRegType(dsc1->lvType);
-    bool isFloat2 = isFloatRegType(dsc2->lvType);
+    // Force integer candidates to sort above float candidates.
+    const bool isFloat1 = isFloatRegType(dsc1->lvType);
+    const bool isFloat2 = isFloatRegType(dsc2->lvType);
 
     if (isFloat1 != isFloat2)
     {
-        if (weight2 && isFloat1)
+        if ((weight2 != 0) && isFloat1)
         {
-            return +1;
+            return false;
         }
-        if (weight1 && isFloat2)
+
+        if ((weight1 != 0) && isFloat2)
         {
-            return -1;
+            return true;
         }
     }
 #endif
 
-    int diff = weight2 - weight1;
-
-    if (diff != 0)
+    if (weight1 != weight2)
     {
-        return diff;
+        return weight1 > weight2;
     }
 
-    /* The unweighted ref counts were the same */
-    /* If the weighted ref counts are different then use their difference */
-    diff = dsc2->lvRefCntWtd() - dsc1->lvRefCntWtd();
-
-    if (diff != 0)
+    // If the weighted ref counts are different then use their difference.
+    if (dsc1->lvRefCntWtd() != dsc2->lvRefCntWtd())
     {
-        return diff;
+        return dsc1->lvRefCntWtd() > dsc2->lvRefCntWtd();
     }
 
-    /* We have equal ref counts and weighted ref counts */
+    // We have equal ref counts and weighted ref counts.
+    // Break the tie by:
+    //   - Increasing the weight by 2   if we are a register arg.
+    //   - Increasing the weight by 0.5 if we are a GC type.
+    //   - Increasing the weight by 0.5 if we were enregistered in the previous pass.
 
-    /* Break the tie by: */
-    /* Increasing the weight by 2   if we are a register arg */
-    /* Increasing the weight by 0.5 if we are a GC type */
-    /* Increasing the weight by 0.5 if we were enregistered in the previous pass  */
-
-    if (weight1)
+    if (weight1 != 0)
     {
         if (dsc1->lvIsRegArg)
         {
@@ -3108,7 +3099,7 @@ int RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
         }
     }
 
-    if (weight2)
+    if (weight2 != 0)
     {
         if (dsc2->lvIsRegArg)
         {
@@ -3121,37 +3112,22 @@ int RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
         }
     }
 
-    diff = weight2 - weight1;
-
-    if (diff != 0)
+    if (weight1 != weight2)
     {
-        return diff;
+        return weight1 > weight2;
     }
 
-    /* To achieve a Stable Sort we use the LclNum (by way of the pointer address) */
-
-    if (dsc1 < dsc2)
-    {
-        return -1;
-    }
-    if (dsc1 > dsc2)
-    {
-        return +1;
-    }
-
-    return 0;
+    // To achieve a stable sort we use the LclNum (by way of the pointer address).
+    return dsc1 < dsc2;
 }
 
 /*****************************************************************************
  *
  *  Compare function passed to qsort() by Compiler::lclVars.lvaSortByRefCount().
  *  when not generating SMALL_CODE.
- *    Return positive if dsc2 has a higher weighted ref count
- *    Return negative if dsc1 has a higher weighted ref count
- *    Return zero     if the ref counts are the same
  */
 
-int WtdRefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
+bool WtdRefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
 {
     // We should not be sorting untracked variables
     assert(dsc1->lvTracked);
@@ -3167,82 +3143,53 @@ int WtdRefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
     // ARM-TODO: this was disabled for ARM under !FEATURE_FP_REGALLOC; it was probably a left-over from
     // legacy backend. It should be enabled and verified.
 
-    /* Force integer candidates to sort above float candidates */
-
-    bool isFloat1 = isFloatRegType(dsc1->lvType);
-    bool isFloat2 = isFloatRegType(dsc2->lvType);
+    // Force integer candidates to sort above float candidates.
+    const bool isFloat1 = isFloatRegType(dsc1->lvType);
+    const bool isFloat2 = isFloatRegType(dsc2->lvType);
 
     if (isFloat1 != isFloat2)
     {
-        if (weight2 && isFloat1)
+        if ((weight2 != 0) && isFloat1)
         {
-            return +1;
+            return false;
         }
-        if (weight1 && isFloat2)
+
+        if ((weight1 != 0) && isFloat2)
         {
-            return -1;
+            return true;
         }
     }
 #endif
 
-    if (weight1 && dsc1->lvIsRegArg)
+    if ((weight1 != 0) && dsc1->lvIsRegArg)
     {
         weight1 += 2 * BB_UNITY_WEIGHT;
     }
 
-    if (weight2 && dsc2->lvIsRegArg)
+    if ((weight2 != 0) && dsc2->lvIsRegArg)
     {
         weight2 += 2 * BB_UNITY_WEIGHT;
     }
 
-    if (weight2 > weight1)
+    if (weight1 != weight2)
     {
-        return 1;
-    }
-    else if (weight2 < weight1)
-    {
-        return -1;
+        return weight1 > weight2;
     }
 
-    // Otherwise, we have equal weighted ref counts.
-
-    /* If the unweighted ref counts are different then use their difference */
-    int diff = (int)dsc2->lvRefCnt() - (int)dsc1->lvRefCnt();
-
-    if (diff != 0)
+    // If the unweighted ref counts are different then try the unweighted ref counts.
+    if (dsc1->lvRefCnt() != dsc2->lvRefCnt())
     {
-        return diff;
+        return dsc1->lvRefCnt() > dsc2->lvRefCnt();
     }
 
-    /* If one is a GC type and the other is not the GC type wins */
+    // If one is a GC type and the other is not the GC type wins.
     if (varTypeIsGC(dsc1->TypeGet()) != varTypeIsGC(dsc2->TypeGet()))
     {
-        if (varTypeIsGC(dsc1->TypeGet()))
-        {
-            diff = -1;
-        }
-        else
-        {
-            diff = +1;
-        }
-
-        return diff;
+        return varTypeIsGC(dsc1->TypeGet());
     }
 
-    /* We have a tie! */
-
-    /* To achieve a Stable Sort we use the LclNum (by way of the pointer address) */
-
-    if (dsc1 < dsc2)
-    {
-        return -1;
-    }
-    if (dsc1 > dsc2)
-    {
-        return +1;
-    }
-
-    return 0;
+    // To achieve a stable sort we use the LclNum (by way of the pointer address).
+    return dsc1 < dsc2;
 }
 
 /*****************************************************************************
@@ -3413,14 +3360,12 @@ void Compiler::lvaSortByRefCount()
     // Now sort the tracked variable table by ref-count
     if (compCodeOpt() == SMALL_CODE)
     {
-        auto less = [this](unsigned n1, unsigned n2) -> bool { return RefCntCmp(lvaGetDesc(n1), lvaGetDesc(n2)) < 0; };
+        auto less = [this](unsigned n1, unsigned n2) -> bool { return RefCntCmp(lvaGetDesc(n1), lvaGetDesc(n2)); };
         jitstd::sort(tracked, tracked + trackedCount, less);
     }
     else
     {
-        auto less = [this](unsigned n1, unsigned n2) -> bool {
-            return WtdRefCntCmp(lvaGetDesc(n1), lvaGetDesc(n2)) < 0;
-        };
+        auto less = [this](unsigned n1, unsigned n2) -> bool { return WtdRefCntCmp(lvaGetDesc(n1), lvaGetDesc(n2)); };
         jitstd::sort(tracked, tracked + trackedCount, less);
     }
 
