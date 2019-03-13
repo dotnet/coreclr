@@ -1829,7 +1829,7 @@ void UnwindInfo::HotColdSplitCodes(UnwindInfo* puwi)
 // expand!) during issuing (although this is extremely rare in any case, and may not
 // actually occur on ARM), so we don't finalize actual sizes or offsets.
 //
-// ARM64 has very similar limitations, except functions can be up to 1MB. TODO-ARM64-Bug?: make sure this works!
+// ARM64 has very similar limitations, except functions can be up to 1MB.
 //
 // We don't split any prolog or epilog. Ideally, we might not split an instruction,
 // although that doesn't matter because the unwind at any point would still be
@@ -1844,6 +1844,15 @@ void UnwindInfo::Split()
 #ifdef DEBUG
     // Consider COMPlus_JitSplitFunctionSize
     unsigned splitFunctionSize = (unsigned)JitConfig.JitSplitFunctionSize();
+    if (uwiComp->compStressCompile(Compiler::STRESS_UNWIND, 10))
+    {
+        // Stress splitting functions. The size to split here is arbitrarily chosen to
+        // kick in frequently, but not maximally.
+        splitFunctionSize = 75;
+    }
+
+    // TESTING ONLY: force splitting all the time
+    splitFunctionSize = 75;
 
     if (splitFunctionSize != 0)
         if (splitFunctionSize < maxFragmentSize)

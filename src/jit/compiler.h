@@ -8446,6 +8446,7 @@ public:
         STRESS_MODE(PINVOKE_RESTORE_ESP)                                                        \
         STRESS_MODE(RANDOM_INLINE)                                                              \
         STRESS_MODE(SWITCH_CMP_BR_EXPANSION)                                                    \
+        STRESS_MODE(UNWIND)                                                                     \
         STRESS_MODE(GENERIC_VARN)                                                               \
                                                                                                 \
         /* After COUNT_VARN, stress level 2 does all of these all the time */                   \
