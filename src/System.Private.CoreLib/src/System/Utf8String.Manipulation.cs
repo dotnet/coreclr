@@ -103,14 +103,7 @@ namespace System
         [StackTraceHidden]
         private void ValidateStartIndexAndLength_Throw(int startIndex, int length)
         {
-            if ((uint)startIndex > (uint)this.Length)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex);
-            }
-            else
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
-            }
+            throw new ArgumentOutOfRangeException(paramName: ((uint)startIndex > (uint)this.Length) ? nameof(startIndex) : nameof(length));
         }
     }
 }
