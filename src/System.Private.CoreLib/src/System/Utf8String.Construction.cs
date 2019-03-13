@@ -14,27 +14,9 @@ namespace System
         /*
          * CONSTRUCTORS
          *
-         * The constructors of Utf8String are special since the JIT will replace newobj instructions
-         * with calls to the corresponding 'Ctor' method. Depending on the CLR in use, the ctor methods
-         * may be instance methods (with a null 'this' parameter) or static methods.
-         *
-         * To add a new ctor overload, make changes to the following files:
-         *
-         * - src/vm/ecall.cpp, update the definition of "NumberOfUtf8StringConstructors" and add the
-         *   appropriate static asserts immediately above the definition.
-         *
-         * - src/vm/ecall.h, search for "Utf8StringCtor" and add the DYNAMICALLY_ASSIGNED_FCALL_IMPL
-         *   definitions corresponding to the new overloads.
-         *
-         * - src/vm/ecalllist.h, search for "FCFuncStart(gUtf8StringFuncs)" and add the overloads
-         *   within that block.
-         *
-         * - src/vm/metasig.h, add the new Utf8String-returning metasig declarations; and, if necessary,
-         *   add any void-returning metasig declarations if they haven't already been defined elsewhere.
-         *   search "String_RetUtf8Str" for an example of how to do this.
-         *
-         * - src/vm/mscorlib.h, search "DEFINE_CLASS(UTF8_STRING" and add the new DEFINE_METHOD
-         *   declarations for the Utf8String-returning Ctor methods, referencing the new metasig declarations.
+         * Defining a new constructor for string-like types (like Utf8String) requires changes both
+         * to the managed code below and to the native VM code. See the comment at the top of
+         * src/vm/ecall.cpp for instructions on how to add new overloads.
          *
          * The default behavior of each ctor is to validate the input, replacing invalid sequences with the
          * Unicode replacement character U+FFFD. The resulting Utf8String instance will be well-formed but
