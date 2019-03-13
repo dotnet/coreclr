@@ -57,9 +57,10 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
     PAL_GetTransportPipeName(
         sizeof(serverAddress.sun_path),
         serverAddress.sun_path,
+        pIpcName,
         pd.m_Pid,
         pd.m_ApplicationGroupId,
-        ""); // TODO: should we add `socket` as suffix?
+        "socket");
 
     const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
     if (fSuccessBind == -1)

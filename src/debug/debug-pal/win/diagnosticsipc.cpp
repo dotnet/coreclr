@@ -6,7 +6,6 @@
 #include <new>
 #include <stdio.h>
 #include "diagnosticsipc.h"
-#include "processdescriptor.h"
 
 IpcStream::DiagnosticsIpc::DiagnosticsIpc(const char(&namedPipeName)[MaxNamedPipeNameLength])
 {
@@ -20,15 +19,16 @@ IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, ErrorCallback callback)
 {
     assert(pIpcName != nullptr);
-    const ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
-    char namedPipeName[256]{};
+    if (pIpcName == nullptr)
+        return nullptr;
 
+    char namedPipeName[256]{};
     const int nCharactersWritten = sprintf_s(
         namedPipeName,
         sizeof(namedPipeName),
         "\\\\.\\pipe\\%s-%d",
         pIpcName,
-        pd.m_Pid);
+        ::GetCurrentProcessId());
 
     if (nCharactersWritten == -1)
     {

@@ -1549,7 +1549,8 @@ static uint64_t HashSemaphoreName(uint64_t a, uint64_t b)
 #define HashSemaphoreName(a,b) a,b
 #endif
 
-static const char* PipeNameFormat = "clr-debug-pipe-%d-%llu-%s";
+static const char *const TwoWayNamedPipePrefix = "clr-debug-pipe";
+static const char* IpcNameFormat = "%s-%d-%llu-%s";
 
 class PAL_RuntimeStartupHelper
 {
@@ -1799,7 +1800,7 @@ public:
     {
         char pipeName[MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH];
 
-        PAL_GetTransportPipeName(MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, pipeName, m_processId, GetApplicationGroupId(), "in");
+        PAL_GetTransportPipeName(pipeName, m_processId, GetApplicationGroupId(), "in");
 
         struct stat buf;
         if (stat(pipeName, &buf) == 0)
@@ -2288,15 +2289,16 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
 
 /*++
  Function:
-  PAL_GetTransportPipeName
+  PAL_GetTransportName
 
-  Builds the transport pipe names from the process id.
+  Builds the transport IPC names from the process id.
 --*/
 VOID
 PALAPI
-PAL_GetTransportPipeName(
+PAL_GetTransportName(
     const int MAX_TRANSPORT_NAME_LENGTH,
     OUT char *name,
+    IN const char *prefix,
     IN DWORD id,
     IN const char *applicationGroupId,
     IN const char *suffix)
@@ -2361,14 +2363,37 @@ PAL_GetTransportPipeName(
         }
     }
 
-    if (strncat_s(formatBuffer, MAX_TRANSPORT_NAME_LENGTH, PipeNameFormat, strlen(PipeNameFormat)) == STRUNCATE)
+    if (strncat_s(formatBuffer, MAX_TRANSPORT_NAME_LENGTH, IpcNameFormat, strlen(IpcNameFormat)) == STRUNCATE)
     {
         ERROR("TransportPipeName was larger than MAX_TRANSPORT_NAME_LENGTH");
         return;
     }
 
-    int chars = snprintf(name, MAX_TRANSPORT_NAME_LENGTH, formatBuffer, id, disambiguationKey, suffix);
+    int chars = snprintf(name, MAX_TRANSPORT_NAME_LENGTH, formatBuffer, prefix, id, disambiguationKey, suffix);
     _ASSERTE(chars > 0 && chars < MAX_TRANSPORT_NAME_LENGTH);
+}
+
+/*++
+ Function:
+  PAL_GetTransportPipeName
+
+  Builds the transport pipe names from the process id.
+--*/
+VOID
+PALAPI
+PAL_GetTransportPipeName(
+    OUT char *name,
+    IN DWORD id,
+    IN const char *applicationGroupId,
+    IN const char *suffix)
+{
+    PAL_GetTransportName(
+        MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH,
+        name,
+        TwoWayNamedPipePrefix,
+        id,
+        applicationGroupId,
+        suffix);
 }
 
 /*++
