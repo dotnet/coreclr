@@ -36,12 +36,12 @@ namespace System
         /// <summary>
         /// Compares two <see cref="Utf8String"/> instances for equality using a <see cref="StringComparison.Ordinal"/> comparer.
         /// </summary>
-        public static bool operator ==(Utf8String a, Utf8String b) => Equals(a, b);
+        public static bool operator ==(Utf8String left, Utf8String right) => Equals(left, right);
 
         /// <summary>
         /// Compares two <see cref="Utf8String"/> instances for inequality using a <see cref="StringComparison.Ordinal"/> comparer.
         /// </summary>
-        public static bool operator !=(Utf8String a, Utf8String b) => !Equals(a, b);
+        public static bool operator !=(Utf8String left, Utf8String right) => !Equals(left, right);
 
         /// <summary>
         /// Projects a <see cref="Utf8String"/> instance as a <see cref="ReadOnlySpan{Byte}"/>.
@@ -156,21 +156,21 @@ namespace System
         /// <summary>
         /// Compares two <see cref="Utf8String"/> instances using a <see cref="StringComparison.Ordinal"/> comparer.
         /// </summary>
-        public static bool Equals(Utf8String a, Utf8String b)
+        public static bool Equals(Utf8String left, Utf8String right)
         {
             // First, a very quick check for referential equality.
 
-            if (ReferenceEquals(a, b))
+            if (ReferenceEquals(left, right))
             {
                 return true;
             }
 
             // Otherwise, perform a simple bitwise equality check.
 
-            return !(a is null)
-                && !(b is null)
-                && a.Length == b.Length
-                && SpanHelpers.SequenceEqual(ref a.DangerousGetMutableReference(), ref b.DangerousGetMutableReference(), (uint)a.Length);
+            return !(left is null)
+                && !(right is null)
+                && left.Length == right.Length
+                && SpanHelpers.SequenceEqual(ref left.DangerousGetMutableReference(), ref right.DangerousGetMutableReference(), (uint)left.Length);
         }
 
         /// <summary>
@@ -178,7 +178,7 @@ namespace System
         /// </summary>
         public override int GetHashCode()
         {
-            // TODO: Should this be using a different seed than String.GetHashCode?
+            // TODO_UTF8STRING: Consider whether this should use a different seed than String.GetHashCode.
 
             ulong seed = Marvin.DefaultSeed;
             return Marvin.ComputeHash32(ref DangerousGetMutableReference(), _length /* in bytes */, (uint)seed, (uint)(seed >> 32));
@@ -244,7 +244,7 @@ namespace System
         /// </remarks>
         public override string ToString()
         {
-            // TODO: Replace me with a better implementation.
+            // TODO_UTF8STRING: Call into optimized transcoding routine when it's available.
 
             return Encoding.UTF8.GetString(new ReadOnlySpan<byte>(ref DangerousGetMutableReference(), Length));
         }

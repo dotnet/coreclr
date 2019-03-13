@@ -101,7 +101,6 @@ namespace System
         }
 
         [StackTraceHidden]
-        [MethodImpl(MethodImplOptions.NoInlining)]
         private void ValidateStartIndexAndLength_Throw(int startIndex, int length)
         {
             if ((uint)startIndex > (uint)this.Length)

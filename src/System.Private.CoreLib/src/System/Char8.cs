@@ -9,36 +9,36 @@ namespace System
     /// </summary>
     public readonly struct Char8 : IComparable<Char8>, IEquatable<Char8>
     {
-        private readonly byte Value;
+        private readonly byte _value;
 
         private Char8(byte value)
         {
-            Value = value;
+            _value = value;
         }
 
-        public static bool operator ==(Char8 a, Char8 b) => a.Value == b.Value;
-        public static bool operator !=(Char8 a, Char8 b) => a.Value != b.Value;
-        public static bool operator <(Char8 a, Char8 b) => a.Value < b.Value;
-        public static bool operator <=(Char8 a, Char8 b) => a.Value <= b.Value;
-        public static bool operator >(Char8 a, Char8 b) => a.Value > b.Value;
-        public static bool operator >=(Char8 a, Char8 b) => a.Value >= b.Value;
+        public static bool operator ==(Char8 left, Char8 right) => left._value == right._value;
+        public static bool operator !=(Char8 left, Char8 right) => left._value != right._value;
+        public static bool operator <(Char8 left, Char8 right) => left._value < right._value;
+        public static bool operator <=(Char8 left, Char8 right) => left._value <= right._value;
+        public static bool operator >(Char8 left, Char8 right) => left._value > right._value;
+        public static bool operator >=(Char8 left, Char8 right) => left._value >= right._value;
 
         // Operators from Utf8Char to <other primitives>
         // TODO: Once C# gets support for checked operators, we should add those here.
 
-        public static implicit operator byte(Char8 value) => value.Value;
+        public static implicit operator byte(Char8 value) => value._value;
         [CLSCompliant(false)]
-        public static explicit operator sbyte(Char8 value) => (sbyte)value.Value; // explicit because can integer overflow
-        public static explicit operator char(Char8 value) => (char)value.Value; // explicit because don't want to encourage char conversion
-        public static implicit operator short(Char8 value) => value.Value;
+        public static explicit operator sbyte(Char8 value) => (sbyte)value._value; // explicit because can integer overflow
+        public static explicit operator char(Char8 value) => (char)value._value; // explicit because don't want to encourage char conversion
+        public static implicit operator short(Char8 value) => value._value;
         [CLSCompliant(false)]
-        public static implicit operator ushort(Char8 value) => value.Value;
-        public static implicit operator int(Char8 value) => value.Value;
+        public static implicit operator ushort(Char8 value) => value._value;
+        public static implicit operator int(Char8 value) => value._value;
         [CLSCompliant(false)]
-        public static implicit operator uint(Char8 value) => value.Value;
-        public static implicit operator long(Char8 value) => value.Value;
+        public static implicit operator uint(Char8 value) => value._value;
+        public static implicit operator long(Char8 value) => value._value;
         [CLSCompliant(false)]
-        public static implicit operator ulong(Char8 value) => value.Value;
+        public static implicit operator ulong(Char8 value) => value._value;
 
         // Operators from <other primitives> to Char8; most are explicit because narrowing conversions could be lossy
         // TODO: Once C# gets support for checked operators, we should add those here.
@@ -57,13 +57,13 @@ namespace System
         [CLSCompliant(false)]
         public static explicit operator Char8(ulong value) => new Char8((byte)value);
 
-        public int CompareTo(Char8 other) => this.Value.CompareTo(other.Value);
+        public int CompareTo(Char8 other) => this._value.CompareTo(other._value);
 
         public override bool Equals(object obj) => (obj is Char8 other) && (this == other);
         public bool Equals(Char8 other) => this == other;
 
-        public override int GetHashCode() => Value;
+        public override int GetHashCode() => _value;
 
-        public override string ToString() => Value.ToString("X2");
+        public override string ToString() => _value.ToString("X2");
     }
 }

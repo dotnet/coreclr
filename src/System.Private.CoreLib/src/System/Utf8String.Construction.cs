@@ -138,7 +138,7 @@ namespace System
                 return Empty;
             }
 
-            // TODO: Replace me with a better implementation.
+            // TODO_UTF8STRING: Call into optimized transcoding routine when it's available.
 
             Utf8String newString = FastAllocate(Encoding.UTF8.GetByteCount(value));
             Encoding.UTF8.GetBytes(value, new Span<byte>(ref newString.DangerousGetMutableReference(), newString.Length));

@@ -25,7 +25,7 @@ namespace System.Text.Unicode
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetIndexOfFirstInvalidUtf8Sequence(ReadOnlySpan<byte> utf8Data, out bool isAscii)
         {
-            // TODO: Make this slow implementation faster.
+            // TODO_UTF8STRING: Replace this with the faster drop-in replacement when it's available (coreclr #21948).
 
             bool tempIsAscii = true;
             int originalDataLength = utf8Data.Length;
@@ -67,7 +67,8 @@ namespace System.Text.Unicode
                 return value;
             }
 
-            // TODO: Make this slow implementation faster.
+            // TODO_UTF8STRING: Replace this with the faster implementation once it's available.
+            // (The faster implementation is in the dev/utf8string_bak branch currently.)
 
             MemoryStream memStream = new MemoryStream();
             memStream.Write(valueAsBytes.Slice(0, idxOfFirstInvalidData));

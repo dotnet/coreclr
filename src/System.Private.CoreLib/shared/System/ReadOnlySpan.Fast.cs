@@ -246,7 +246,7 @@ namespace System
 #if FEATURE_UTF8STRING
             else if (typeof(T) == typeof(Char8))
             {
-                // TODO_UTF8STRING: Improve the performance of the below line.
+                // TODO_UTF8STRING: Call into optimized transcoding routine when it's available.
                 return Encoding.UTF8.GetString(new ReadOnlySpan<byte>(ref Unsafe.As<T, byte>(ref _pointer.Value), _length));
             }
 #endif // FEATURE_UTF8STRING
