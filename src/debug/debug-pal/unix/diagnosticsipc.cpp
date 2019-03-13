@@ -54,7 +54,7 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
     sockaddr_un serverAddress{};
     serverAddress.sun_family = AF_UNIX;
     const ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
-    PAL_GetTransportPipeName(
+    PAL_GetTransportName(
         sizeof(serverAddress.sun_path),
         serverAddress.sun_path,
         pIpcName,
