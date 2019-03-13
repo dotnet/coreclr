@@ -11335,7 +11335,7 @@ void Compiler::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
 }
 
 //------------------------------------------------------------------------
-// psiStartVariableLiveRange: Open a "VariableLiveRange" for the 
+// psiStartVariableLiveRange: Open a "VariableLiveRange" for the
 //  given parameter variable ("lclVarDsc") in the given location ("varLocation").
 //
 // Arguments:
@@ -11343,12 +11343,12 @@ void Compiler::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
 //  lclVarDsc   - the variable descriptor.
 //
 // Notes:
-//  This function is expected to be called from preffix "psi" functions that starts 
+//  This function is expected to be called from preffix "psi" functions that starts
 //  VariableLiveRanges for parameter of the method.
-void Compiler::psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, const LclVarDsc *lclVarDsc)
+void Compiler::psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, const LclVarDsc* lclVarDsc)
 {
     noway_assert(lclVarDsc != nullptr);
-    
+
     // This descriptor has to correspond to a parameter. The first slots in lvaTable
     // are arguments and special arguments.
     noway_assert(lclVarDsc->lvSlotNum < info.compArgsCount);
@@ -11366,7 +11366,7 @@ void Compiler::psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation,
 void Compiler::psiClosePrologVariableRanges()
 {
     unsigned int varNum;
-    LclVarDsc* parameterDsc;
+    LclVarDsc*   parameterDsc;
     for (varNum = 0, parameterDsc = lvaTable; varNum < info.compArgsCount; varNum++, parameterDsc++)
     {
         if (parameterDsc->hasVariableLiveRangeOpen())

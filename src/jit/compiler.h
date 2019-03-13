@@ -432,7 +432,7 @@ public:
     void endBlockLiveRanges()
     {
         noway_assert(variableLifeBarrier != nullptr);
-        
+
         // make "variableLifeBarrier->beginLastBlock" now points to nullptr for printing purposes
         variableLifeBarrier->reset(variableLiveRanges);
     }
@@ -548,7 +548,7 @@ public:
 
         // Using [close, open) ranges so as to not compute the size of the last instruction
         variableLiveRanges->back().endEmitLocation.CaptureLocation(_emitter);
-        
+
         // No endEmitLocation has to be Valid
         noway_assert(variableLiveRanges->back().endEmitLocation.Valid());
     }
@@ -564,7 +564,7 @@ public:
         // Creates new live range with invalid end
         variableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
         variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
-        
+
         // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
         noway_assert(variableLiveRanges->back().startEmitLocation.Valid());
         noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
@@ -606,7 +606,7 @@ public:
     // getLastVarLocation: Return the last reported position of the variable.
     //
     // Return Value:
-    //  The last "siVarLoc" position where the variable was (or is if the last "VariableLiveRange" 
+    //  The last "siVarLoc" position where the variable was (or is if the last "VariableLiveRange"
     //  has not been closed).
     // Notes:
     //  There has to be at least one.
@@ -7416,9 +7416,9 @@ public:
 
     // Close all the "VariableLiveRanges" that are indicated in the given set
     void siEndAllVariableLiveRange(const VARSET_TP* varsToClose);
-    
+
     // Open a "VariableLiveRange" for the given parameter "lclVarDsc" in the given "varLocation"
-    void psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, const LclVarDsc *lclVarDsc);
+    void psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, const LclVarDsc* lclVarDsc);
 
     // Close all the open "VariableLiveRanges" after prolog has been generated
     void psiClosePrologVariableRanges();

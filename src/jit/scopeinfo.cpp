@@ -333,13 +333,13 @@ void CodeGenInterface::siVarLoc::storeVariableOnRegisters(regNumber reg, regNumb
     if (otherReg == REG_NA)
     {
         // Only one register is used
-        vlType = VLT_REG;
+        vlType       = VLT_REG;
         vlReg.vlrReg = reg;
     }
     else
     {
         // Two register are used
-        vlType = VLT_REG_REG;
+        vlType            = VLT_REG_REG;
         vlRegReg.vlrrReg1 = reg;
         vlRegReg.vlrrReg2 = otherReg;
     }
@@ -354,9 +354,9 @@ void CodeGenInterface::siVarLoc::storeVariableOnRegisters(regNumber reg, regNumb
 //    varStackOffset    - a 'NATIVE_OFFSET' indicating the offset from the base.
 void CodeGenInterface::siVarLoc::storeVariableOnStack(regNumber stackBaseReg, NATIVE_OFFSET varStackOffset)
 {
-    vlType = VLT_STK;
+    vlType           = VLT_STK;
     vlStk.vlsBaseReg = stackBaseReg;
-    vlStk.vlsOffset = varStackOffset;
+    vlStk.vlsOffset  = varStackOffset;
 }
 
 //------------------------------------------------------------------------
@@ -1338,14 +1338,14 @@ void CodeGen::siDispOpenScopes()
  *============================================================================
  */
 
-// Enable these macros to get psiScopes info or either VariableLiveRange info 
+// Enable these macros to get psiScopes info or either VariableLiveRange info
 // reporting variables' home location on the prolog and epilog of the method.
 // Both can be used at the same time but only one will be sent to the debugger.
 #if 1
-    #define USING_SCOPE_INFO
+#define USING_SCOPE_INFO
 #endif
 #if 1
-    #define USING_VARIABLE_LIVE_RANGE
+#define USING_VARIABLE_LIVE_RANGE
 #endif
 
 /*****************************************************************************
@@ -1415,17 +1415,17 @@ void CodeGen::psiEndPrologScope(psiScope* scope)
  *============================================================================
  */
 
- //------------------------------------------------------------------------
- // psiSetScopeOffset: Set the offset of the newScope to the offset of the LslVar
- //
- // Arguments:
- //    'newScope'  the new scope object whose offset is to be set to the lclVarDsc offset.
- //    'lclVarDsc' is an op that will now be contained by its parent.
+//------------------------------------------------------------------------
+// psiSetScopeOffset: Set the offset of the newScope to the offset of the LslVar
+//
+// Arguments:
+//    'newScope'  the new scope object whose offset is to be set to the lclVarDsc offset.
+//    'lclVarDsc' is an op that will now be contained by its parent.
 void CodeGen::psiSetScopeOffset(psiScope* newScope, const LclVarDsc* lclVarDsc) const
 {
     newScope->scRegister   = false;
     newScope->u2.scBaseReg = REG_SPBASE;
-    newScope->u2.scOffset = psiGetVarStackOffset(lclVarDsc);
+    newScope->u2.scOffset  = psiGetVarStackOffset(lclVarDsc);
 }
 
 //------------------------------------------------------------------------
@@ -1443,7 +1443,8 @@ NATIVE_OFFSET CodeGen::psiGetVarStackOffset(const LclVarDsc* lclVarDsc) const
 #ifdef _TARGET_AMD64_
     // scOffset = offset from caller SP - REGSIZE_BYTES
     // TODO-Cleanup - scOffset needs to be understood.  For now just matching with the existing definition.
-    stackOffset  = compiler->lvaToCallerSPRelativeOffset(lclVarDsc->lvStkOffs, lclVarDsc->lvFramePointerBased) + REGSIZE_BYTES;
+    stackOffset =
+        compiler->lvaToCallerSPRelativeOffset(lclVarDsc->lvStkOffs, lclVarDsc->lvFramePointerBased) + REGSIZE_BYTES;
 #else  // !_TARGET_AMD64_
     if (doubleAlignOrFramePointerUsed())
     {
@@ -1464,13 +1465,10 @@ NATIVE_OFFSET CodeGen::psiGetVarStackOffset(const LclVarDsc* lclVarDsc) const
 *============================================================================
 */
 
-/*****************************************************************************
- *                          psiBegProlog
- *
- * Initializes the PrologScopeInfo, and creates open scopes for all the
- * parameters of the method.
- */
-
+//------------------------------------------------------------------------
+// psiBegProlog: Initializes the PrologScopeInfo creating open psiScopes or
+//  VariableLiveRanges for all the parameters of the method depending on which
+//  flag is being used.
 void CodeGen::psiBegProlog()
 {
     assert(compiler->compGeneratingProlog);
@@ -1546,10 +1544,10 @@ void CodeGen::psiBegProlog()
 #ifdef USING_VARIABLE_RANGE
                     varLocation.storeVariableOnRegisters(regNum, otherRegNum);
 #endif
-    }
+                }
                 else
                 {
-                    // Stack passed argument. Get the offset from the  caller's frame.
+// Stack passed argument. Get the offset from the  caller's frame.
 #ifdef USING_SCOPE_INFO
                     psiSetScopeOffset(newScope, lclVarDsc);
 #endif
@@ -1559,7 +1557,7 @@ void CodeGen::psiBegProlog()
                 }
 
                 isStructHandled = true;
-}
+            }
 #endif // !defined(UNIX_AMD64_ABI)
             if (!isStructHandled)
             {
@@ -1612,13 +1610,15 @@ void CodeGen::psiBegProlog()
 #define ACCURATE_PROLOG_DEBUG_INFO
 #endif
 
-/*****************************************************************************
- *                          psiAdjustStackLevel
- *
- * When ESP changes, all scopes relative to ESP have to be updated.
- */
-
-void CodeGen::psiAdjustStackLevel(unsigned size)
+//------------------------------------------------------------------------
+// psiAdjustStackLevel: When ESP changes, all scopes relative to ESP have
+//  to be updated. Close parameter variables' open "psiScope" on the stack
+//  and create new ones adding "stackLevelSizeChange" to previous offset.
+//
+// Arguments:
+//  stackLevelSizeChange  - an 'unsigned' amount of bytes to add to each
+//  existing offset.
+void CodeGen::psiAdjustStackLevel(unsigned stackLevelSizeChange)
 {
     if (!compiler->opts.compScopeInfo || (compiler->info.compVarScopesCount == 0))
     {
@@ -1645,7 +1645,7 @@ void CodeGen::psiAdjustStackLevel(unsigned size)
         psiScope* newScope     = psiNewPrologScope(scope->scLVnum, scope->scSlotNum);
         newScope->scRegister   = false;
         newScope->u2.scBaseReg = REG_SPBASE;
-        newScope->u2.scOffset  = scope->u2.scOffset + size;
+        newScope->u2.scOffset  = scope->u2.scOffset + stackLevelSizeChange;
 
         psiEndPrologScope(scope);
     }
@@ -1653,13 +1653,11 @@ void CodeGen::psiAdjustStackLevel(unsigned size)
 #endif // ACCURATE_PROLOG_DEBUG_INFO
 }
 
-/*****************************************************************************
- *                          psiMoveESPtoEBP
- *
- * For EBP-frames, the parameters are accessed via ESP on entry to the function,
- * but via EBP right after a "mov ebp,esp" instruction
- */
-
+//------------------------------------------------------------------------
+// psiMoveESPtoEBP:  For EBP-frames, the parameters are accessed via ESP on
+//  entry to the function, but via EBP right after a "mov ebp,esp" instruction.
+//  Close open "psiScope"s of variables on stack and create new changing
+//  "vlsBaseReg" to "REG_FPBASE".
 void CodeGen::psiMoveESPtoEBP()
 {
     if (!compiler->opts.compScopeInfo || (compiler->info.compVarScopesCount == 0))
@@ -1696,15 +1694,24 @@ void CodeGen::psiMoveESPtoEBP()
 #endif // ACCURATE_PROLOG_DEBUG_INFO
 }
 
-/*****************************************************************************
- *                          psiMoveToReg
- *
- * Called when a parameter is loaded into its assigned register from the stack,
- * or when parameters are moved around due to circular dependancy.
- * If reg != REG_NA, then the parameter is being moved into its assigned
- * register, else it may be being moved to a temp register.
- */
-
+//------------------------------------------------------------------------
+// psiMoveToReg: Search the open "psiScope" that corresponds to
+//  the parameter with index "varNum" on "lvaTable", close it and open a
+//  new one considering "reg" and "otherReg" as the new location.
+//  If reg != REG_NA, then the parameter is being moved into its assigned
+//  register, else it may be being moved to a temp register.
+//
+// Arguments:
+//  varNum      - the index in "lvaTable" of the "LclVarDsc" it is being
+//      move to the given registers.
+//  reg         - the register in which the variable is located (or the
+//      first part if otherReg != REG_NA)
+//  otherReg    - the register in which the second part of the variable
+//      is located or REG_NA if it is not used.
+//
+// Notes:
+//  Called when a parameter is loaded into its assigned register from the
+//  stack, or when parameters are moved around due to circular dependancy.
 void CodeGen::psiMoveToReg(unsigned varNum, regNumber reg, regNumber otherReg)
 {
     assert(compiler->compGeneratingProlog);
@@ -1762,13 +1769,15 @@ void CodeGen::psiMoveToReg(unsigned varNum, regNumber reg, regNumber otherReg)
 #endif // ACCURATE_PROLOG_DEBUG_INFO
 }
 
-/*****************************************************************************
- *                      CodeGen::psiMoveToStack
- *
- * A incoming register-argument is being moved to its final home on the stack
- * (ie. all adjustments to {F/S}PBASE have been made
- */
-
+//------------------------------------------------------------------------
+// psiMoveToStack: A incoming register-argument is being moved to its final
+//  home on the stack (ie. all adjustments to {F/S}PBASE have been made.
+//  Search the open "psiScope" of the "varNum" parameter, close it and open
+//  a new one using "LclVarDsc" fields.
+//
+// Arguments:
+//  varNum - the index in "lvaTable" of the "LclVarDsc" it is being
+//      move to the stack.
 void CodeGen::psiMoveToStack(unsigned varNum)
 {
     if (!compiler->opts.compScopeInfo || (compiler->info.compVarScopesCount == 0))
@@ -1813,10 +1822,12 @@ void CodeGen::psiMoveToStack(unsigned varNum)
 #endif // ACCURATE_PROLOG_DEBUG_INFO
 }
 
-/*****************************************************************************
- *                          psiEndProlog
- */
-
+//------------------------------------------------------------------------
+// psiEndProlog: Close all the open "psiScope" or "VariableLiveRanges"
+//  after prolog has been generated.
+//
+// Notes:
+//  This function is expected to be called after prolog code has been generated.
 void CodeGen::psiEndProlog()
 {
     assert(compiler->compGeneratingProlog);
