@@ -558,6 +558,8 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                          siVarLoc*      varLoc);
 
     void genSetScopeInfo();
+    void genSetScopeInfoUsingsiScope();
+    void genSetScopeInfoUsingVariableRanges();
 
 protected:
     /*

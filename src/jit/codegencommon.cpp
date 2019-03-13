@@ -10483,6 +10483,16 @@ void CodeGen::genPopRegs(regMaskTP regs, regMaskTP byrefRegs, regMaskTP noRefReg
 #endif // FEATURE_FIXED_OUT_ARGS
 }
 
+// Enable these macros to get psiScopes info or either VariableLiveRange info
+// reporting variables' home location on the prolog and epilog of the method.
+// Both can be used at the same time but only one will be sent to the debugger.
+#if 0
+#define USING_SCOPE_INFO
+#endif
+#if 1
+#define USING_VARIABLE_LIVE_RANGE
+#endif
+
 /*****************************************************************************
  *                          genSetScopeInfo
  *
@@ -10504,36 +10514,60 @@ void CodeGen::genSetScopeInfo()
     }
 #endif
 
-    unsigned int liveRangesCount = compiler->getLiveRangesCount();
+    unsigned int lvCount;
 
-    if (liveRangesCount == 0)
+#ifdef USING_SCOPE_INFO
+    lvCount = siScopeCnt + psiScopeCnt;
+#else
+    lvCount = compiler->getLiveRangesCount();
+#endif
+
+#ifdef USING_SCOPE_INFO
+    if (compiler->info.compVarScopesCount == 0)
+#else
+    if (lvCount == 0)
+#endif
     {
         compiler->eeSetLVcount(0);
         compiler->eeSetLVdone();
         return;
     }
 
-    // psiScopeInfo is not used anymore for variable tracking but I can leave its assertions
+#ifdef USING_SCOPE_INFO
     noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
     noway_assert(psiOpenScopeList.scNext == nullptr);
-    // unsigned scopeCnt = siScopeCnt + psiScopeCnt;
+#endif
 
-    compiler->eeSetLVcount(liveRangesCount);
+    // Initialize the table where the reported variables' home will be placed
+    compiler->eeSetLVcount(lvCount);
 
 #ifdef DEBUG
-    genTrnslLocalVarCount = liveRangesCount;
-    if (liveRangesCount)
+    genTrnslLocalVarCount = lvCount;
+    if (lvCount)
     {
-        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[liveRangesCount];
+        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[lvCount];
     }
 #endif
 
+#ifdef USING_SCOPE_INFO
+    genSetScopeInfoUsingsiScope();
+#else
+    genSetScopeInfoUsingVariableRanges();
+#endif
+
+    compiler->eeSetLVdone();
+}
+
+#ifdef USING_SCOPE_INFO
+void CodeGen::genSetScopeInfoUsingsiScope()
+{
     // Record the scopes found for the parameters over the prolog.
     // The prolog needs to be treated differently as a variable may not
     // have the same info in the prolog block as is given by compiler->lvaTable.
     // eg. A register parameter is actually on the stack, before it is loaded to reg.
-    /*
+
     CodeGen::psiScope* scopeP;
+    unsigned i;
 
     for (i = 0, scopeP = psiScopeList.scNext; i < psiScopeCnt; i++, scopeP = scopeP->scNext)
     {
@@ -10588,10 +10622,12 @@ void CodeGen::genSetScopeInfo()
         siVarLoc   varLoc = getSiVarLoc(varDsc, scopeL);
 
         genSetScopeInfo(psiScopeCnt + i, startOffs, endOffs - startOffs, scopeL->scVarNum, scopeL->scLVnum,
-                        scopeL->scAvailable, &varLoc);
+            scopeL->scAvailable, &varLoc);
     }
-    */
-
+}
+#else
+void CodeGen::genSetScopeInfoUsingVariableRanges()
+{
     unsigned int varNum;
     LclVarDsc*   varDsc;
     unsigned int liveRangeIndex = 0;
@@ -10603,19 +10639,11 @@ void CodeGen::genSetScopeInfo()
         if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
         {
             for (LiveRangeListIterator itLiveRanges = liveRanges->begin(); itLiveRanges != liveRanges->end();
-                 itLiveRanges++, liveRangeIndex++)
+                itLiveRanges++, liveRangeIndex++)
             {
                 UNATIVE_OFFSET startOffs = itLiveRanges->startEmitLocation.CodeOffset(getEmitter());
                 UNATIVE_OFFSET endOffs   = itLiveRanges->endEmitLocation.CodeOffset(getEmitter());
 
-                // a case that should only be considered for arguments
-                // The range may be 0 if the prolog is empty. For such a case,
-                // report the liveness of arguments to span at least the first
-                // instruction in the method. This will be incorrect (except on
-                // entry to the method) if the very first instruction of the method
-                // is part of a loop. However, this should happen
-                // very rarely, and the incorrectness is worth being able to look
-                // at the argument on entry to the method.
                 if (varDsc->lvIsParam && startOffs == endOffs)
                 {
                     // If the length is zero, it means that the prolog is empty. In that case,
@@ -10626,14 +10654,13 @@ void CodeGen::genSetScopeInfo()
                 }
 
                 genSetScopeInfo(liveRangeIndex, startOffs, endOffs - startOffs, varNum,
-                                varNum /* I dont know what is the which in eeGetLvInfo */, true,
-                                &itLiveRanges->varLocation);
+                    varNum /* I dont know what is the which in eeGetLvInfo */, true,
+                    &itLiveRanges->varLocation);
             }
         }
     }
-
-    compiler->eeSetLVdone();
 }
+#endif
 
 //------------------------------------------------------------------------
 // genSetScopeInfo: Record scope information for debug info
