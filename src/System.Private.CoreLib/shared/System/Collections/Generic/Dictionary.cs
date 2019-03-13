@@ -70,13 +70,11 @@ namespace System.Collections.Generic
             if (capacity < 0) ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
             if (capacity > 0)
             {
-                Initialize(capacity);
+                Initialize(HashHelpers.GetPrime(capacity));
             }
             else
             {
-                _freeList = -1;
-                _buckets = HashHelpers.SizeOneIntArray;
-                _entries = Array.Empty<Entry>();
+                InitializeEmpty();
             }
             if (comparer != EqualityComparer<TKey>.Default)
             {
@@ -461,15 +459,18 @@ namespace System.Collections.Generic
             return i;
         }
 
-        private int Initialize(int capacity)
+        private void Initialize(int size)
         {
-            int size = HashHelpers.GetPrime(capacity);
-
             _freeList = -1;
             _buckets = new int[size];
             _entries = new Entry[size];
+        }
 
-            return size;
+        private void InitializeEmpty()
+        {
+            _freeList = -1;
+            _buckets = HashHelpers.SizeOneIntArray;
+            _entries = Array.Empty<Entry>();
         }
 
         private bool TryInsert(TKey key, TValue value, InsertionBehavior behavior)
@@ -678,7 +679,7 @@ namespace System.Collections.Generic
 
             if (hashsize != 0)
             {
-                Initialize(hashsize);
+                Initialize(HashHelpers.GetPrime(hashsize));
 
                 KeyValuePair<TKey, TValue>[] array = (KeyValuePair<TKey, TValue>[])
                     siInfo.GetValue(KeyValuePairsName, typeof(KeyValuePair<TKey, TValue>[]));
@@ -699,9 +700,7 @@ namespace System.Collections.Generic
             }
             else
             {
-                _freeList = -1;
-                _buckets = HashHelpers.SizeOneIntArray;
-                _entries = Array.Empty<Entry>();
+                InitializeEmpty();
             }
 
             _version = realVersion;
