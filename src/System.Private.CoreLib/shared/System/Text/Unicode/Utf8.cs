@@ -29,10 +29,16 @@ namespace System.Text.Unicode
          * guaranteed never to return OperationStatus.NeedMoreData.
          */
 
+        /// <summary>
+        /// Transcodes the UTF-16 <paramref name="source"/> buffer to <paramref name="destination"/> as UTF-8.
+        /// </summary>
+        /// <remarks>
+        /// If <paramref name="replaceInvalidSequences"/> is <see langword="true"/>, invalid UTF-16 sequences
+        /// in <paramref name="source"/> will be replaced with U+FFFD in <paramref name="destination"/>, and
+        /// this method will not return <see cref="OperationStatus.InvalidData"/>.
+        /// </remarks>
         public static OperationStatus FromUtf16(ReadOnlySpan<char> source, Span<byte> destination, out int numCharsRead, out int numBytesWritten, bool replaceInvalidSequences = true, bool isFinalBlock = true)
         {
-            // TODO: Replace this slow implementation with a bulk transcoder.
-
             int originalSourceLength = source.Length;
             int originalDestinationLength = destination.Length;
             OperationStatus status = OperationStatus.Done;
@@ -106,10 +112,16 @@ namespace System.Text.Unicode
             return status;
         }
 
+        /// <summary>
+        /// Transcodes the UTF-8 <paramref name="source"/> buffer to <paramref name="destination"/> as UTF-16.
+        /// </summary>
+        /// <remarks>
+        /// If <paramref name="replaceInvalidSequences"/> is <see langword="true"/>, invalid UTF-8 sequences
+        /// in <paramref name="source"/> will be replaced with U+FFFD in <paramref name="destination"/>, and
+        /// this method will not return <see cref="OperationStatus.InvalidData"/>.
+        /// </remarks>
         public static OperationStatus ToUtf16(ReadOnlySpan<byte> source, Span<char> destination, out int numBytesRead, out int numCharsWritten, bool replaceInvalidSequences = true, bool isFinalBlock = true)
         {
-            // TODO: Replace this slow implementation with a bulk transcoder.
-
             int originalSourceLength = source.Length;
             int originalDestinationLength = destination.Length;
             OperationStatus status = OperationStatus.Done;

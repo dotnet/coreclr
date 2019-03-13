@@ -2,32 +2,32 @@
 <Dependencies>
   <ProductDependencies></ProductDependencies>
   <ToolsetDependencies>
-    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="1.0.0-beta.19159.2">
+    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="1.0.0-beta.19160.2">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>9006be3d7a82737fc359442e08376516f3e6573e</Sha>
+      <Sha>89ab8b2b806397e5e444809a6ac12e275e0e20a2</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19159.2">
+    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19160.2">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>9006be3d7a82737fc359442e08376516f3e6573e</Sha>
+      <Sha>89ab8b2b806397e5e444809a6ac12e275e0e20a2</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-preview4.19160.1">
+    <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-preview4.19161.10">
       <Uri>https://github.com/dotnet/corefx</Uri>
-      <Sha>1f8a77c4a96c476741b2ed35ec4faf7c92e14a8f</Sha>
+      <Sha>a7098b8893a0ebf53a881d43b333dcda5b2c8716</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.NETCore.Platforms" Version="3.0.0-preview4.19160.1">
+    <Dependency Name="Microsoft.NETCore.Platforms" Version="3.0.0-preview4.19161.10">
       <Uri>https://github.com/dotnet/corefx</Uri>
-      <Sha>1f8a77c4a96c476741b2ed35ec4faf7c92e14a8f</Sha>
+      <Sha>a7098b8893a0ebf53a881d43b333dcda5b2c8716</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.NETCore.App" Version="3.0.0-preview4-27508-16">
+    <Dependency Name="Microsoft.NETCore.App" Version="3.0.0-preview4-27511-01">
       <Uri>https://github.com/dotnet/core-setup</Uri>
-      <Sha>ac7856f5c717a730b0f09b1ab30f419cb726ab22</Sha>
+      <Sha>10b856b0402bc70f2190baa22df989bc0e9dac99</Sha>
     </Dependency>
     <Dependency Name="optimization.IBC.CoreCLR" Version="99.99.99-master-20190308.5">
-      <Uri>https://dnceng@dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
+      <Uri>https://dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
       <Sha>5fdf7f90d84111d4897438d4e5d8e88e0af4f3fb</Sha>
     </Dependency>
     <Dependency Name="optimization.PGO.CoreCLR" Version="99.99.99-master-20190308.5">
-      <Uri>https://dnceng@dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
+      <Uri>https://dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
       <Sha>5fdf7f90d84111d4897438d4e5d8e88e0af4f3fb</Sha>
     </Dependency>
   </ToolsetDependencies>
