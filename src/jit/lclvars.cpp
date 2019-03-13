@@ -17,9 +17,10 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #ifdef _MSC_VER
 #pragma hdrstop
 #endif
-#include "emit.h"
 
+#include "emit.h"
 #include "register_arg_convention.h"
+#include "jitstd/algorithm.h"
 
 /*****************************************************************************/
 
@@ -3028,20 +3029,16 @@ BasicBlock::weight_t BasicBlock::getBBWeight(Compiler* comp)
 }
 
 /*****************************************************************************
- *
- *  Compare function passed to qsort() by Compiler::lclVars.lvaSortByRefCount().
- *  when generating SMALL_CODE.
- *    Return positive if dsc2 has a higher ref count
- *    Return negative if dsc1 has a higher ref count
- *    Return zero     if the ref counts are the same
- */
+*
+*  Compare function passed to qsort() by Compiler::lclVars.lvaSortByRefCount().
+*  when generating SMALL_CODE.
+*    Return positive if dsc2 has a higher ref count
+*    Return negative if dsc1 has a higher ref count
+*    Return zero     if the ref counts are the same
+*/
 
-/* static */
-int __cdecl Compiler::RefCntCmp(const void* op1, const void* op2)
+int RefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
 {
-    LclVarDsc* dsc1 = *(LclVarDsc**)op1;
-    LclVarDsc* dsc2 = *(LclVarDsc**)op2;
-
     /* Make sure we preference tracked variables over untracked variables */
 
     if (dsc1->lvTracked != dsc2->lvTracked)
@@ -3163,12 +3160,8 @@ int __cdecl Compiler::RefCntCmp(const void* op1, const void* op2)
  *    Return zero     if the ref counts are the same
  */
 
-/* static */
-int __cdecl Compiler::WtdRefCntCmp(const void* op1, const void* op2)
+int WtdRefCntCmp(const LclVarDsc* dsc1, const LclVarDsc* dsc2)
 {
-    LclVarDsc* dsc1 = *(LclVarDsc**)op1;
-    LclVarDsc* dsc2 = *(LclVarDsc**)op2;
-
     /* Make sure we preference tracked variables over untracked variables */
 
     if (dsc1->lvTracked != dsc2->lvTracked)
@@ -3283,9 +3276,17 @@ int __cdecl Compiler::WtdRefCntCmp(const void* op1, const void* op2)
 
 void Compiler::lvaSortOnly()
 {
-    /* Now sort the variable table by ref-count */
+    if (compCodeOpt() == SMALL_CODE)
+    {
+        auto less = [this](const LclVarDsc* v1, const LclVarDsc* v2) -> bool { return RefCntCmp(v1, v2) < 0; };
+        jitstd::sort(lvaRefSorted, lvaRefSorted + lvaCount, less);
+    }
+    else
+    {
+        auto less = [this](const LclVarDsc* v1, const LclVarDsc* v2) -> bool { return WtdRefCntCmp(v1, v2) < 0; };
+        jitstd::sort(lvaRefSorted, lvaRefSorted + lvaCount, less);
+    }
 
-    qsort(lvaRefSorted, lvaCount, sizeof(*lvaRefSorted), (compCodeOpt() == SMALL_CODE) ? RefCntCmp : WtdRefCntCmp);
     lvaDumpRefCounts();
 }
 

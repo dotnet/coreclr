@@ -2910,9 +2910,6 @@ public:
                                     //   but its field locals depend on its parent struct local.
     };
 
-    static int __cdecl RefCntCmp(const void* op1, const void* op2);
-    static int __cdecl WtdRefCntCmp(const void* op1, const void* op2);
-
     /*****************************************************************************/
 
     enum FrameLayoutState
