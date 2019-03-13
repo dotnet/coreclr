@@ -3948,6 +3948,8 @@ static void CreateNDirectStubWorker(StubState*         pss,
     if (!SF_IsHRESULTSwapping(dwStubFlags))
     {
         bool isInstanceMethod = fStubNeedsCOM || fThisCall;
+        // We cannot just use pSig.GetReturnType() here since it will return ELEMENT_TYPE_VALUETYPE for enums.
+        bool isReturnTypeValueType = msig.GetRetTypeHandleThrowing().GetVerifierCorElementType() == ELEMENT_TYPE_VALUETYPE;
 #if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
         // JIT32 has problems in generating code for pinvoke ILStubs which do a return in return buffer.
         // Therefore instead we change the signature of calli to return void and make the return buffer as first
@@ -3963,10 +3965,10 @@ static void CreateNDirectStubWorker(StubState*         pss,
         fMarshalReturnValueFirst = HasRetBuffArg(&msig);
 #else
         // On Windows-X86, the native signature might need a return buffer when the managed doesn't (specifically when the native signature is a member function).
-        fMarshalReturnValueFirst = HasRetBuffArg(&msig) || (isInstanceMethod && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE);
+        fMarshalReturnValueFirst = HasRetBuffArg(&msig) || (isInstanceMethod && isReturnTypeValueType);
 #endif // UNIX_X86_ABI
 #elif defined(_TARGET_AMD64_)
-        fMarshalReturnValueFirst = isInstanceMethod && msig.GetReturnType() == ELEMENT_TYPE_VALUETYPE;
+        fMarshalReturnValueFirst = isInstanceMethod && isReturnTypeValueType;
 #endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 #ifdef _WIN32
         fReverseWithReturnBufferArg = fMarshalReturnValueFirst && SF_IsReverseStub(dwStubFlags);
@@ -4039,9 +4041,9 @@ static void CreateNDirectStubWorker(StubState*         pss,
     int argidx = 1;
     int nativeArgIndex = 0;
 
-#if defined(_WIN32) && (defined(_TARGET_X86_) || defined(_TARGET_AMD64_))
-    // If we are generating a return buffer on Windows on a member function that is marked as thiscall (as opposed to being a COM method)
+    // If we are generating a return buffer on a member function that is marked as thiscall (as opposed to being a COM method)
     // then we need to marshal the this parameter first and the return buffer second.
+    // We don't need to do this for COM methods because the "this" is implied as argument 0 by the signature of the stub.
     if (fThisCall && fMarshalReturnValueFirst)
     {
         msig.NextArg();
@@ -4058,7 +4060,6 @@ static void CreateNDirectStubWorker(StubState*         pss,
 
         argidx++;
     }
-#endif
 
     // If we're doing a native->managed call and are generating a return buffer,
     // we need to move all of the actual arguments over one and have the return value be the first argument (after the this pointer if applicable).
