@@ -745,7 +745,9 @@ protected:
 
     void psiEndPrologScope(psiScope* scope);
 
-    void psSetScopeOffset(psiScope* newScope, LclVarDsc* lclVarDsc1);
+    void psiSetScopeOffset(psiScope* newScope, const LclVarDsc* lclVarDsc1) const;
+
+    NATIVE_OFFSET psiGetVarStackOffset(const LclVarDsc* lclVarDsc) const;
 
 /*****************************************************************************
  *                        TrnslLocalVarInfo

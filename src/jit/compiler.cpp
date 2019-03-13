@@ -11334,6 +11334,48 @@ void Compiler::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
     lastBasicBlockHasBeenEmited = true;
 }
 
+//------------------------------------------------------------------------
+// psiStartVariableLiveRange: Open a "VariableLiveRange" for the 
+//  given parameter variable ("lclVarDsc") in the given location ("varLocation").
+//
+// Arguments:
+//  varLcation  - a "siVarLoc" that indicates where the variable lives
+//  lclVarDsc   - the variable descriptor.
+//
+// Notes:
+//  This function is expected to be called from preffix "psi" functions that starts 
+//  VariableLiveRanges for parameter of the method.
+void Compiler::psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, const LclVarDsc *lclVarDsc)
+{
+    noway_assert(lclVarDsc != nullptr);
+    
+    // This descriptor has to correspond to a parameter. The first slots in lvaTable
+    // are arguments and special arguments.
+    noway_assert(lclVarDsc->lvSlotNum < info.compArgsCount);
+
+    lclVarDsc->startLiveRangeFromEmitter(varLocation, getEmitter());
+}
+
+//------------------------------------------------------------------------
+// psiClosePrologVariableRanges: Close all the open "VariableLiveRanges"
+//  after prolog has been generated.
+//
+// Notes:
+//  This function is expected to be called from preffix "psiEndProlog" after
+//  code for prolog has been generated.
+void Compiler::psiClosePrologVariableRanges()
+{
+    unsigned int varNum;
+    LclVarDsc* parameterDsc;
+    for (varNum = 0, parameterDsc = lvaTable; varNum < info.compArgsCount; varNum++, parameterDsc++)
+    {
+        if (parameterDsc->hasVariableLiveRangeOpen())
+        {
+            parameterDsc->endLiveRangeAtEmitter(getEmitter());
+        }
+    }
+}
+
 #ifdef DEBUG
 void Compiler::dumpBlockVariableLiveRanges(const BasicBlock* block)
 {
