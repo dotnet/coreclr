@@ -121,7 +121,7 @@ void EventPipeProtocolHelper::EnableFileTracingEventHandler(IpcStream *pStream)
     }
 
     EventPipeSessionID sessionId = (EventPipeSessionID) nullptr;
-    if (!providerConfigs.Size() == 0)
+    if (providerConfigs.Size() > 0)
     {
         sessionId = EventPipe::Enable(
             strOutputPath,                                 // outputFile
