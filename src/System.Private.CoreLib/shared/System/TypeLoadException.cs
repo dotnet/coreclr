@@ -46,7 +46,7 @@ namespace System
             }
         }
 
-        public string TypeName => _className == null ? string.Empty : _className;
+        public string TypeName => _className ?? string.Empty;
 
         // This is called from inside the EE. 
         private TypeLoadException(string className,
