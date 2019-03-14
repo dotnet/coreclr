@@ -33,7 +33,10 @@ bool TryParseString(uint8_t *&bufferCursor, uint32_t &bufferLen, const T *&resul
     if (!TryParse(bufferCursor, bufferLen, stringLen))
         return false;
     if (stringLen == 0)
+    {
+        result = nullptr;
         return true;
+    }
     if (stringLen > (bufferLen / sizeof(T)))
         return false;
     if ((reinterpret_cast<const T *>(bufferCursor))[stringLen - 1] != 0)

@@ -9,24 +9,11 @@
 
 #ifdef FEATURE_PERFTRACING
 
-//! x is clamped to the range [Minimum , Maximum]
-//! Returns Minimum if x is less than Minimum.
-//! Returns Maximum if x is greater than Maximum.
-//! Returns x otherwise.
-template <typename T>
-const T &Clamp(const T &x, const T &Minimum, const T &Maximum)
-{
-    return (x < Minimum) ? Minimum : (Maximum < x) ? Maximum : x;
-}
-
-//! Read a list of providers in the following format: "Provider[,Provider]"
-//!     Provider:       "(GUID|KnownProviderName)[:Flags[:Level][:KeyValueArgs]]"
-//!     KeyValueArgs:   "[key1=value1][;key2=value2]"
 bool EventPipeProtocolHelper::TryParseProviderConfigurations(uint8_t *&bufferCursor, uint32_t &bufferLen, CQuickArray<EventPipeProviderConfiguration> &result)
 {
     // Picking an arbitrary upper bound,
     // This should be larger than any reasonable client request.
-    const uint32_t MaxCountConfigs = 1000;
+    const uint32_t MaxCountConfigs = 1000; // TODO: This might be too large.
 
     uint32_t countConfigs = 0;
     if (!TryParse(bufferCursor, bufferLen, countConfigs))
@@ -46,7 +33,8 @@ bool EventPipeProtocolHelper::TryParseProviderConfigurations(uint8_t *&bufferCur
         uint32_t logLevel = 0;
         if (!TryParse(bufferCursor, bufferLen, logLevel))
             return false;
-        logLevel = Clamp(logLevel, /*LogAlways*/ uint32_t(0), /*Verbose*/ uint32_t(5));
+        if (logLevel > 5) // (logLevel > EventPipeEventLevel::Verbose)
+            return false;
 
         LPCWSTR pProviderName = nullptr;
         if (!TryParseString(bufferCursor, bufferLen, pProviderName))
@@ -61,16 +49,6 @@ bool EventPipeProtocolHelper::TryParseProviderConfigurations(uint8_t *&bufferCur
     }
     return true;
 }
-
-/*
-struct
-{
-    OutputPath: String
-    CircularMB: UINT32
-    MultiFileSec: UINT64
-    Providers: PROVIDERS[]
-};
- */
 
 void EventPipeProtocolHelper::EnableFileTracingEventHandler(IpcStream *pStream)
 {
@@ -102,7 +80,7 @@ void EventPipeProtocolHelper::EnableFileTracingEventHandler(IpcStream *pStream)
     // ulong = 8 little endian bytes
     // wchar = 2 little endian bytes, UTF16 encoding
     // array<T> = uint length, length # of Ts
-    // string = array<char> where the last char must = 0
+    // string = (array<char> where the last char must = 0) or (length = 0)
     // provider_config = ulong keywords, uint logLevel, string provider_name, string filter_data
 
     LPCWSTR strOutputPath;
