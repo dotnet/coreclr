@@ -31,7 +31,7 @@
 #if 1
 #define USING_SCOPE_INFO
 #endif
-#if 1
+#if 0
 #define USING_VARIABLE_LIVE_RANGE
 #endif
 
