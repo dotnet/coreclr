@@ -48,24 +48,6 @@ namespace System
 
         public string TypeName => _className ?? string.Empty;
 
-        // This is called from inside the EE. 
-        private TypeLoadException(string className,
-                                  string assemblyName,
-                                  string messageArg,
-                                  int resourceId)
-        : base(null)
-        {
-            HResult = HResults.COR_E_TYPELOAD;
-            _className = className;
-            _assemblyName = assemblyName;
-            _messageArg = messageArg;
-            _resourceId = resourceId;
-
-            // Set the _message field eagerly; debuggers look at this field to 
-            // display error info. They don't call the Message property.
-            SetMessageField();
-        }
-
         protected TypeLoadException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
             _className = info.GetString("TypeLoadClassName");

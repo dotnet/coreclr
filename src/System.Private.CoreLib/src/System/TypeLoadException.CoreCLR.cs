@@ -18,6 +18,24 @@ namespace System
 {
     public partial class TypeLoadException : SystemException
     {
+        // This is called from inside the EE. 
+        private TypeLoadException(string className,
+            string assemblyName,
+            string messageArg,
+            int resourceId)
+            : base(null)
+        {
+            HResult = HResults.COR_E_TYPELOAD;
+            _className = className;
+            _assemblyName = assemblyName;
+            _messageArg = messageArg;
+            _resourceId = resourceId;
+
+            // Set the _message field eagerly; debuggers look at this field to 
+            // display error info. They don't call the Message property.
+            SetMessageField();
+        }
+
         private void SetMessageField()
         {
             if (_message == null)
