@@ -2475,6 +2475,15 @@ void emitter::emitSplit(emitLocation*         startLoc,
         {
             // We can't update the candidate
         }
+        else if (ig->igFlags & IGF_EMIT_ADD)
+        {
+            // We can't split on emit add (overflow) groups: IGs are allocated using a fixed allocation size on the
+            // host, and filled with as many instrDescs as will fit. However, these instrDescs contain host
+            // architecture pointers, so in a cross-bitness scenario, the number of instrDescs in an IG will
+            // differ between the cross and native crossgen generation. This breaks our testing that checks
+            // for bit equality between the cross-bitness and native generated code. So, only split on
+            // non-emitAdd labels, those which have program semantic meaning, like jump labels.
+        }
         else
         {
             igLastCandidate = ig;
