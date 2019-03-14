@@ -206,6 +206,84 @@ typedef HRESULT __stdcall DLLGETCLASSOBJECT(REFCLSID rclsid,
 EXTERN_C const IID _IID_IClassFactory = 
     {0x00000001, 0x0000, 0x0000, {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46}};
 
+namespace
+{
+    HRESULT FakeCoCallDllGetClassObject(
+        REFCLSID rclsid,
+        LPCWSTR wszDllPath,
+        REFIID riid,
+        void **ppv,
+        HMODULE *phmodDll)
+    {
+        CONTRACTL
+        {
+            THROWS;
+        }
+        CONTRACTL_END;
+
+        _ASSERTE(ppv != nullptr);
+
+        HRESULT hr = S_OK;
+
+        // Initialize [out] HMODULE (if it was requested)
+        if (phmodDll != nullptr)
+            *phmodDll = nullptr;
+
+        bool fIsDllPathPrefix = (wszDllPath != nullptr) && (wszDllPath[wcslen(wszDllPath) - 1] == W('\\'));
+
+        // - An empty string will be treated as NULL.
+        // - A string ending will a backslash will be treated as a prefix for where to look for the DLL
+        //   if the InProcServer32 value is just a DLL name and not a full path.
+        StackSString ssDllName;
+        if ((wszDllPath == nullptr) || (wszDllPath[0] == W('\0')) || fIsDllPathPrefix)
+        {
+#ifndef FEATURE_PAL
+            IfFailRet(Clr::Util::Com::FindInprocServer32UsingCLSID(rclsid, ssDllName));
+
+            EX_TRY
+            {
+                if (fIsDllPathPrefix)
+                {
+                    SString::Iterator i = ssDllName.Begin();
+                    if (!ssDllName.Find(i, W('\\')))
+                    {   // If the InprocServer32 is just a DLL name (not a fully qualified path), then
+                        // prefix wszFilePath with wszDllPath.
+                        ssDllName.Insert(i, wszDllPath);
+                    }
+                }
+            }
+            EX_CATCH_HRESULT(hr);
+            IfFailRet(hr);
+
+            wszDllPath = ssDllName.GetUnicode();
+#else // !FEATURE_PAL
+            return E_FAIL;
+#endif // !FEATURE_PAL
+        }
+        _ASSERTE(wszDllPath != nullptr);
+
+        // We've got the name of the DLL to load, so load it.
+        HModuleHolder hDll = WszLoadLibraryEx(wszDllPath, nullptr, GetLoadWithAlteredSearchPathFlag());
+        if (hDll == nullptr)
+            return HRESULT_FROM_GetLastError();
+
+        // We've loaded the DLL, so find the DllGetClassObject function.
+        DLLGETCLASSOBJECT *dllGetClassObject = (DLLGETCLASSOBJECT*)GetProcAddress(hDll, "DllGetClassObject");
+        if (dllGetClassObject == nullptr)
+            return HRESULT_FROM_GetLastError();
+
+        // Call the function to get a class object for the rclsid and riid passed in.
+        IfFailRet(dllGetClassObject(rclsid, riid, ppv));
+
+        hDll.SuppressRelease();
+
+        if (phmodDll != nullptr)
+            *phmodDll = hDll.GetValue();
+
+        return hr;
+    }
+}
+
 // ----------------------------------------------------------------------------
 // FakeCoCreateInstanceEx
 // 
@@ -223,8 +301,7 @@ EXTERN_C const IID _IID_IClassFactory =
 //        If the path ends in a backslash, FakeCoCreateInstanceEx will treat this as a prefix
 //        if the InprocServer32 found in the registry is a simple filename (not a full path).
 //        This allows the caller to specify the directory in which the InprocServer32 should
-//        be found. Also, if this path is provided and the InprocServer32 is MSCOREE.DLL, then
-//        the Server value is used instead, if it exists.
+//        be found.
 //    * riid - [in] IID of interface on object to return in ppv
 //    * ppv - [out] Pointer to implementation of requested interface
 //    * phmodDll - [out] HMODULE of DLL that was loaded to instantiate the COM object.
@@ -264,100 +341,6 @@ HRESULT FakeCoCreateInstanceEx(REFCLSID       rclsid,
     // Ask the class factory to create an instance of the
     // necessary object.
     IfFailRet(classFactory->CreateInstance(NULL, riid, ppv));
-
-    hDll.SuppressRelease();
-
-    if (phmodDll != NULL)
-    {
-        *phmodDll = hDll.GetValue();
-    }
-
-    return hr;
-}
-
-HRESULT FakeCoCallDllGetClassObject(REFCLSID       rclsid,
-                               LPCWSTR        wszDllPath,
-                               REFIID riid,
-                               void **        ppv,
-                               HMODULE *      phmodDll)
-{
-    CONTRACTL
-    {
-        THROWS;
-    }
-    CONTRACTL_END;
-
-    _ASSERTE(ppv != NULL);
-    
-    HRESULT hr = S_OK;
-    
-    if (phmodDll != NULL)
-    {   // Initialize [out] HMODULE (if it was requested)
-        *phmodDll = NULL;
-    }
-
-    bool fIsDllPathPrefix = (wszDllPath != NULL) && (wszDllPath[wcslen(wszDllPath) - 1] == W('\\'));
-
-    // - An empty string will be treated as NULL.
-    // - A string ending will a backslash will be treated as a prefix for where to look for the DLL
-    //   if the InProcServer32 value is just a DLL name and not a full path.
-    StackSString ssDllName;
-    if ((wszDllPath == NULL) || (wszDllPath[0] == W('\0')) || fIsDllPathPrefix)
-    {
-#ifndef FEATURE_PAL    
-        IfFailRet(Clr::Util::Com::FindInprocServer32UsingCLSID(rclsid, ssDllName));
-
-        EX_TRY
-        {
-            if (fIsDllPathPrefix)
-            {
-                if (Clr::Util::Com::IsMscoreeInprocServer32(ssDllName))
-                {   // If the InprocServer32 is mscoree.dll, then we skip the shim and look for
-                    // the corresponding server DLL (if it exists) in the directory provided.
-                    hr = Clr::Util::Com::FindServerUsingCLSID(rclsid, ssDllName);
-
-                    if (FAILED(hr))
-                    {   // We don't fail if there is no server object, because in this case we assume that
-                        // the clsid is implemented in the runtime itself (clr.dll) and we do not place 
-                        // entries in the registry for this case.
-                        ssDllName.Set(MAIN_CLR_MODULE_NAME_W);
-                    }
-                }
-
-                SString::Iterator i = ssDllName.Begin();
-                if (!ssDllName.Find(i, W('\\')))
-                {   // If the InprocServer32 is just a DLL name (not a fully qualified path), then
-                    // prefix wszFilePath with wszDllPath.
-                    ssDllName.Insert(i, wszDllPath);
-                }
-            }
-        }
-        EX_CATCH_HRESULT(hr);
-        IfFailRet(hr);
-
-        wszDllPath = ssDllName.GetUnicode();
-#else // !FEATURE_PAL
-        return E_FAIL;
-#endif // !FEATURE_PAL
-    }
-    _ASSERTE(wszDllPath != NULL);
-
-    // We've got the name of the DLL to load, so load it.
-    HModuleHolder hDll = WszLoadLibraryEx(wszDllPath, NULL, GetLoadWithAlteredSearchPathFlag());
-    if (hDll == NULL)
-    {
-        return HRESULT_FROM_GetLastError();
-    }
-
-    // We've loaded the DLL, so find the DllGetClassObject function.
-    DLLGETCLASSOBJECT *dllGetClassObject = (DLLGETCLASSOBJECT*)GetProcAddress(hDll, "DllGetClassObject");
-    if (dllGetClassObject == NULL)
-    {
-        return HRESULT_FROM_GetLastError();
-    }
-
-    // Call the function to get a class object for the rclsid and riid passed in.
-    IfFailRet(dllGetClassObject(rclsid, riid, ppv));
 
     hDll.SuppressRelease();
 
@@ -3298,47 +3281,6 @@ namespace Com
 
             return hkcrResult;
         }
-
-        __success(return == S_OK)
-        static
-        HRESULT FindSubKeyDefaultValueForCLSID(REFCLSID rclsid, LPCWSTR wszSubKeyName, __deref_out __deref_out_z LPWSTR* pwszValue)
-        {
-            CONTRACTL {
-                NOTHROW;
-                GC_NOTRIGGER;
-            } CONTRACTL_END;
-
-            HRESULT hr = S_OK;
-            EX_TRY
-            {
-                StackSString ssValue;
-                if (SUCCEEDED(hr = FindSubKeyDefaultValueForCLSID(rclsid, wszSubKeyName, ssValue)))
-                {
-                    *pwszValue = new WCHAR[ssValue.GetCount() + 1];
-                    wcscpy_s(*pwszValue, ssValue.GetCount() + 1, ssValue.GetUnicode());
-                }
-            }
-            EX_CATCH_HRESULT(hr);
-            return hr;
-        }
-    }
-
-    HRESULT FindServerUsingCLSID(REFCLSID rclsid, __deref_out __deref_out_z LPWSTR* pwszServerName)
-    {
-        WRAPPER_NO_CONTRACT;
-        return __imp::FindSubKeyDefaultValueForCLSID(rclsid, W("Server"), pwszServerName);
-    }
-
-    HRESULT FindServerUsingCLSID(REFCLSID rclsid, SString & ssServerName)
-    {
-        WRAPPER_NO_CONTRACT;
-        return __imp::FindSubKeyDefaultValueForCLSID(rclsid, W("Server"), ssServerName);
-    }
-
-    HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, __deref_out __deref_out_z LPWSTR* pwszInprocServer32Name)
-    {
-        WRAPPER_NO_CONTRACT;
-        return __imp::FindSubKeyDefaultValueForCLSID(rclsid, W("InprocServer32"), pwszInprocServer32Name);
     }
 
     HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, SString & ssInprocServer32Name)
@@ -3346,24 +3288,6 @@ namespace Com
         WRAPPER_NO_CONTRACT;
         return __imp::FindSubKeyDefaultValueForCLSID(rclsid, W("InprocServer32"), ssInprocServer32Name);
     }
-
-    BOOL IsMscoreeInprocServer32(const SString & ssInprocServer32Name)
-    {
-        WRAPPER_NO_CONTRACT;
-
-        return (ssInprocServer32Name.EqualsCaseInsensitive(SL(MSCOREE_SHIM_W)) ||
-                ssInprocServer32Name.EndsWithCaseInsensitive(SL(W("\\") MSCOREE_SHIM_W)));
-    }
-
-    BOOL CLSIDHasMscoreeAsInprocServer32(REFCLSID rclsid)
-    {
-        WRAPPER_NO_CONTRACT;
-
-        StackSString ssInprocServer32;
-        FindInprocServer32UsingCLSID(rclsid, ssInprocServer32);
-        return IsMscoreeInprocServer32(ssInprocServer32);
-    }
-
 } // namespace Com
 #endif //  FEATURE_PAL
 
