@@ -38,6 +38,7 @@ jobs:
 
       # Public Linux Build Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
+        # TODO: Change it back to NetCorePublic-Int-Pool when core-eng issue is fixed.
         name: Hosted Ubuntu 1604
 
       # Official Build Linux Pool
