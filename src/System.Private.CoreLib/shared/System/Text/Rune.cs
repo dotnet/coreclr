@@ -182,7 +182,7 @@ namespace System.Text
             Span<char> original = stackalloc char[2]; // worst case scenario = 2 code units (for a surrogate pair)
             Span<char> modified = stackalloc char[2]; // case change should preserve UTF-16 code unit count
 
-            int charCount = rune.EncodeToUtf16(original);
+            int charCount = rune.Encode(original);
             original = original.Slice(0, charCount);
             modified = modified.Slice(0, charCount);
 
@@ -662,13 +662,40 @@ namespace System.Text
             }
         }
 
-        // returns the number of chars written
-        private int EncodeToUtf16(Span<char> destination)
+        /// <summary>
+        /// Encodes this <see cref="Rune"/> to a UTF-16 destination buffer.
+        /// </summary>
+        /// <param name="destination">The buffer to which to write this value as UTF-16.</param>
+        /// <returns>The number of <see cref="char"/>s written to <paramref name="destination"/>.</returns>
+        /// <exception cref="ArgumentException">
+        /// If <paramref name="destination"/> is not large enough to hold the output.
+        /// </exception>
+        public int Encode(Span<char> destination)
         {
-            Debug.Assert(destination.Length >= Utf16SequenceLength, "Caller should've provided a large enough buffer.");
-            bool success = TryEncode(destination, out int charsWritten);
-            Debug.Assert(success, "TryEncode should never fail given a large enough buffer.");
+            if (!TryEncode(destination, out int charsWritten))
+            {
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            }
+
             return charsWritten;
+        }
+
+        /// <summary>
+        /// Encodes this <see cref="Rune"/> to a UTF-8 destination buffer.
+        /// </summary>
+        /// <param name="destination">The buffer to which to write this value as UTF-8.</param>
+        /// <returns>The number of <see cref="byte"/>s written to <paramref name="destination"/>.</returns>
+        /// <exception cref="ArgumentException">
+        /// If <paramref name="destination"/> is not large enough to hold the output.
+        /// </exception>
+        public int EncodeAsUtf8(Span<byte> destination)
+        {
+            if (!TryEncodeAsUtf8(destination, out int bytesWritten))
+            {
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            }
+
+            return bytesWritten;
         }
 
         public override bool Equals(object obj) => (obj is Rune other) && this.Equals(other);
@@ -929,10 +956,8 @@ namespace System.Text
         /// The <see cref="Utf8SequenceLength"/> property can be queried ahead of time to determine
         /// the required size of the <paramref name="destination"/> buffer.
         /// </remarks>
-        public bool TryEncodeToUtf8Bytes(Span<byte> destination, out int bytesWritten)
+        public bool TryEncodeAsUtf8(Span<byte> destination, out int bytesWritten)
         {
-            // TODO: Optimize some of these writes by using BMI2 instructions.
-
             // The bit patterns below come from the Unicode Standard, Table 3-6.
 
             if (destination.Length >= 1)
@@ -985,6 +1010,15 @@ namespace System.Text
 
             bytesWritten = default;
             return false;
+        }
+
+        public bool TryEncodeToUtf8Bytes(Span<byte> destination, out int bytesWritten)
+        {
+            // This method was renamed to TryEncodeAsUtf8. We'll leave this copy of
+            // the method here temporarily so that we don't break corefx consumers
+            // while the rename takes place.
+
+            return TryEncodeAsUtf8(destination, out bytesWritten);
         }
 
         /// <summary>
