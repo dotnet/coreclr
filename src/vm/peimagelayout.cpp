@@ -9,7 +9,7 @@
 #include "peimagelayout.h"
 #include "peimagelayout.inl"
 
-#if !defined(PLATFORM_UNIX) && !defined(CROSSGEN_COMPILE)
+#if defined(PLATFORM_WINDOWS) && !defined(CROSSGEN_COMPILE)
 #include "amsi.h"
 #endif
 
@@ -312,7 +312,7 @@ RawImageLayout::RawImageLayout(const void *flat, COUNT_T size, PEImage* pOwner)
 
     if (size)
     {
-#if !defined(PLATFORM_UNIX) && !defined(CROSSGEN_COMPILE)
+#if defined(PLATFORM_WINDOWS) && !defined(CROSSGEN_COMPILE)
         if (Amsi::IsBlockedByAmsiScan((void*)flat, size))
         {
             // This is required to throw a BadImageFormatException for compatibility, but
@@ -321,7 +321,7 @@ RawImageLayout::RawImageLayout(const void *flat, COUNT_T size, PEImage* pOwner)
             GetHRMsg(HRESULT_FROM_WIN32(ERROR_VIRUS_INFECTED), virusHrString);
             ThrowHR(COR_E_BADIMAGEFORMAT, virusHrString);
         }
-#endif // !defined(PLATFORM_UNIX) && !defined(CROSSGEN_COMPILE)
+#endif // defined(PLATFORM_WINDOWS) && !defined(CROSSGEN_COMPILE)
 
         HandleHolder mapping(WszCreateFileMapping(INVALID_HANDLE_VALUE,
                                                   NULL,
