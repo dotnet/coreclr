@@ -1580,7 +1580,8 @@ void CodeGen::psiBegProlog()
 
 #ifdef USING_VARIABLE_LIVE_RANGE
         // Start a VariableLiveRange for this LclVarDsc on the built location
-        compiler->psiStartVariableLiveRange(varLocation, lclVarDsc);
+        VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
+        varLvKeeper->psiStartVariableLiveRange(varLocation, varScope->vsdVarNum);
 #endif
     }
 }
@@ -1829,6 +1830,7 @@ void CodeGen::psiEndProlog()
 #endif
 
 #ifdef USING_VARIABLE_LIVE_RANGE
-    compiler->psiClosePrologVariableRanges();
+    VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
+    varLiveKeeper->psiClosePrologVariableRanges();
 #endif
 }

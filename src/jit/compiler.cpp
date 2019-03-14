@@ -11099,6 +11099,60 @@ bool Compiler::killGCRefs(GenTree* tree)
 }
 
 #ifdef USING_VARIABLE_LIVE_RANGE
+void Compiler::initializeVariableLiveKeeper()
+{
+    CompAllocator allocator = getAllocator(CMK_VariableLiveRanges);
+    
+    int amountTrackedVariables = opts.compDbgInfo ? info.compLocalsCount : 0;
+    int amountTrackedArgs = opts.compDbgInfo ? info.compArgsCount : 0;
+
+    varLiveKeeper = allocator.allocate<VariableLiveKeeper>(1);
+    memset(varLiveKeeper, 0, sizeof(*varLiveKeeper));
+    new (varLiveKeeper, jitstd::placement_t()) VariableLiveKeeper(amountTrackedVariables, amountTrackedArgs, this);
+}
+
+VariableLiveKeeper* Compiler::getVariableLiveKeeper() const
+{
+    return varLiveKeeper;
+};
+
+//------------------------------------------------------------------------
+// VariableLiveKeeper: Create an instance of the object in charge of managing
+//  VariableLiveRanges and intialize the array "lvaLiveDsc".
+//
+// Arguments:
+//    totalLocalCount   - the amount of args, special args and IL Local 
+//      variables in the method.
+//    argsCount         - the amount of args and special args in the method.
+//    compiler          - a compiler instance
+//
+// Notes:
+//    This method should be called after compiler has been initialized and before
+//    genCodeForBBList starts generating code.
+VariableLiveKeeper::VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* compiler)
+{
+    // Fill internal properties
+    lvLiveDscCount = totalLocalCount;
+    lvLiveArgsCount = argsCount;
+    compiler = compiler;
+    lastBasicBlockHasBeenEmited = false;
+
+    // Get the allocator used for all the VariableLiveRange objects
+    CompAllocator allocator = compiler->getAllocator(CMK_VariableLiveRanges);
+    
+    // Allocate memory for "lvaLiveDsc" and initialize each "VariableLiveDescriptor"
+    lvaLiveDsc = allocator.allocate<VariableLiveDescriptor>(lvLiveDscCount);
+    size_t lvaLiveDscSize = sizeof(*lvaLiveDsc);
+    memset(lvaLiveDsc, 0, lvaLiveDscSize);
+
+    unsigned int varNum;
+    VariableLiveDescriptor* varLiveDsc;
+    for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
+    {
+        new (varLiveDsc, jitstd::placement_t()) VariableLiveDescriptor(allocator);
+    }
+}
+
 //------------------------------------------------------------------------
 // getLiveRangesCount: Returns the count of VariableLiveRanges reported for arguments,
 //   special arguments, and local IL variables (not JIT temp variables).
@@ -11109,26 +11163,25 @@ bool Compiler::killGCRefs(GenTree* tree)
 // Notes:
 //    This method is being called from genSetScopeInfo to know the count of "varResultInfo"
 //    that should be created on eeSetLVcount.
-unsigned int Compiler::getLiveRangesCount()
+unsigned int VariableLiveKeeper::getLiveRangesCount() const
 {
-
-    unsigned int amountOfLiveRanges = 0;
-
-    if (opts.compDbgInfo)
+    unsigned int liveRangesCount = 0;
+    
+    if (compiler->opts.compDbgInfo)
     {
         unsigned int varNum;
-        LclVarDsc*   varDsc;
-
-        for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
+        VariableLiveDescriptor*   varLiveDsc;
+        
+        for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
         {
-            if (compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
+            if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
             {
-                amountOfLiveRanges += (unsigned int)varDsc->getAmountLiveRanges();
+                liveRangesCount += (unsigned int) varLiveDsc->getAmountLiveRanges();
             }
         }
     }
 
-    return amountOfLiveRanges;
+    return liveRangesCount;
 }
 
 //------------------------------------------------------------------------
@@ -11151,12 +11204,14 @@ unsigned int Compiler::getLiveRangesCount()
 // Notes:
 //    This method is being called from treeLifeUpdater where the variable is becoming dead, live
 //    or both.
-void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorn, bool isDying)
+void VariableLiveKeeper::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isBorn, bool isDying)
 {
+    noway_assert(varDsc != nullptr);
+
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
-    if (opts.compDbgInfo && varDsc->lvSlotNum < info.compLocalsCount)
+    if (compiler->opts.compDbgInfo && varDsc->lvSlotNum < lvLiveDscCount)
     {
         if (isBorn && !isDying)
         {
@@ -11166,7 +11221,7 @@ void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isB
         if (isDying && !isBorn)
         {
             // "varDsc" live range is no more valid from this point
-            siEndVariableLiveRange(varDsc);
+            siEndVariableLiveRange(varDsc->lvSlotNum);
         }
     }
 }
@@ -11190,27 +11245,28 @@ void Compiler::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, bool isB
 // Notes:
 //    This method is being called from treeLifeUpdater where the variable is becoming dead, live
 //    or both.
-void Compiler::siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying)
+void VariableLiveKeeper::siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying)
 {
-    if (opts.compDbgInfo)
+    noway_assert(varsIndexSet != nullptr);
+
+    if (compiler->opts.compDbgInfo)
     {
-        VarSetOps::Iter iter(this, *varsIndexSet);
+        VarSetOps::Iter iter(compiler, *varsIndexSet);
         unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
-            unsigned         lclNum = lvaTrackedToVarNum[varIndex];
-            const LclVarDsc* lclVar = &lvaTable[lclNum];
-
-            siStartOrCloseVariableLiveRange(lclVar, isBorn, isDying);
+            unsigned int varNum = compiler->lvaTrackedToVarNum[varIndex];
+            const LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
+            siStartOrCloseVariableLiveRange(varDsc, isBorn, isDying);
         }
     }
 }
 
 //------------------------------------------------------------------------
-// siStartVariableLiveRange: Starts a "VariableLiveRange" for the given "varDsc".
+// siStartVariableLiveRange: Starts a "VariableLiveRange" for the given "varNum".
 //
 // Arguments:
-//    varDsc    - the LclVarDsc of the variable for which a location changed will be reported.
+//    varNum    - the index of the variable to report home in lvLiveDsc
 //
 // Assumptions:
 //    The emitter should be pointing to the first instruction from where the VariableLiveRange is
@@ -11219,18 +11275,21 @@ void Compiler::siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, b
 //
 // Notes:
 //    This method should be called on every place a Variable is becoming alive.
-void Compiler::siStartVariableLiveRange(const LclVarDsc* varDsc)
+void VariableLiveKeeper::siStartVariableLiveRange(const LclVarDsc* varDsc)
 {
+    noway_assert(varDsc != nullptr);
+
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
-    if (opts.compDbgInfo && varDsc->lvSlotNum < info.compLocalsCount)
+    if (compiler->opts.compDbgInfo && varDsc->lvSlotNum < lvLiveDscCount)
     {
         // Build siVarLoc for this borning "varDsc"
-        CodeGenInterface::siVarLoc varLocation = codeGen->getSiVarLoc(varDsc, codeGen->getCurrentStackLevel());
+        CodeGenInterface::siVarLoc varLocation = compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
 
+        VariableLiveDescriptor* varLiveDsc = &lvaLiveDsc[varDsc->lvSlotNum];
         // "varDsc" live range is valid from this point
-        varDsc->startLiveRangeFromEmitter(varLocation, getEmitter());
+        varLiveDsc->startLiveRangeFromEmitter(varLocation, compiler->getEmitter());
     }
 }
 
@@ -11238,7 +11297,7 @@ void Compiler::siStartVariableLiveRange(const LclVarDsc* varDsc)
 // siEndVariableLiveRange: Ends a "VariableLiveRange" for the given "varDsc".
 //
 // Arguments:
-//    varDsc    - the LclVarDsc of the variable for which a location changed will be reported.
+//    varNum    - the LclVarDsc of the variable for which a location changed will be reported.
 //
 // Assumptions:
 //    The emitter should be pointing to the first instruction from where the VariableLiveRange is
@@ -11247,7 +11306,7 @@ void Compiler::siStartVariableLiveRange(const LclVarDsc* varDsc)
 //
 // Notes:
 //    This method should be called on every place a Variable is becoming dead.
-void Compiler::siEndVariableLiveRange(const LclVarDsc* varDsc)
+void VariableLiveKeeper::siEndVariableLiveRange(unsigned int varNum)
 {
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
@@ -11258,10 +11317,10 @@ void Compiler::siEndVariableLiveRange(const LclVarDsc* varDsc)
     // a valid IG so we don't report the close of a VariableLifeRange after code is
     // emitted.
 
-    if (opts.compDbgInfo && varDsc->lvSlotNum < info.compLocalsCount && !lastBasicBlockHasBeenEmited)
+    if (compiler->opts.compDbgInfo && varNum < lvLiveDscCount && !lastBasicBlockHasBeenEmited)
     {
         // "varDsc" live range is no more valid from this point
-        varDsc->endLiveRangeAtEmitter(getEmitter());
+        lvaLiveDsc[varNum].endLiveRangeAtEmitter(compiler->getEmitter());
     }
 }
 
@@ -11279,8 +11338,10 @@ void Compiler::siEndVariableLiveRange(const LclVarDsc* varDsc)
 //
 // Notes:
 //    This method should be called on every place a Variable is changing its home.
-void Compiler::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
+void VariableLiveKeeper::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
 {
+    noway_assert(varDsc != nullptr);
+
     // Only the variables that exists in the IL, "this", and special arguments
     // will be reported. This are locals and arguments, and are counted in
     // "info.compLocalsCount".
@@ -11288,13 +11349,15 @@ void Compiler::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
     // When generating the prolog (after all code for "BasicBlock"s), "recordVarLocationsAtStartOfBB",
     // which called this function to update variable's home at each BasicBlock beginnnings,
     // is called to restore the positions of the variables at the beginning of the first block.
-    if (opts.compDbgInfo && varDsc->lvSlotNum < info.compLocalsCount && !lastBasicBlockHasBeenEmited)
+    if (compiler->opts.compDbgInfo && varDsc->lvSlotNum < lvLiveDscCount && !lastBasicBlockHasBeenEmited)
     {
         // Build the location of the variable
-        CodeGenInterface::siVarLoc siVarLoc = codeGen->getSiVarLoc(varDsc, codeGen->getCurrentStackLevel());
-
+        CodeGenInterface::siVarLoc siVarLoc = compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
+        
         // Report the home change for this variable
-        varDsc->UpdateRegisterHome(siVarLoc, getEmitter());
+        VariableLiveDescriptor* varLiveDsc = &lvaLiveDsc[varDsc->lvSlotNum];
+        
+        varLiveDsc->UpdateRegisterHome(siVarLoc, compiler->getEmitter());
     }
 }
 
@@ -11317,18 +11380,17 @@ void Compiler::siUpdateVariableLiveRange(const LclVarDsc* varDsc)
 //    on the last block being generated and set a flag so no call to
 //    "siEndVariableLiveRange" from "genUpdateLife" get to close a "VariableLiveRange"
 //    outside the loop.
-void Compiler::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
+void VariableLiveKeeper::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
 {
-    if (opts.compDbgInfo)
+    noway_assert(varsToClose != nullptr);
+    if (compiler->opts.compDbgInfo)
     {
-        VarSetOps::Iter iter(this, *varsToClose);
+        VarSetOps::Iter iter(compiler, *varsToClose);
         unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
-            unsigned         lclNum = lvaTrackedToVarNum[varIndex];
-            const LclVarDsc* lclVar = &lvaTable[lclNum];
-
-            siEndVariableLiveRange(lclVar);
+            unsigned int varNum = compiler->lvaTrackedToVarNum[varIndex];
+            siEndVariableLiveRange(varNum);
         }
     }
 
@@ -11346,15 +11408,14 @@ void Compiler::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
 // Notes:
 //  This function is expected to be called from preffix "psi" functions that starts
 //  VariableLiveRanges for parameter of the method.
-void Compiler::psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, const LclVarDsc* lclVarDsc)
+void VariableLiveKeeper::psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, unsigned int varNum)
 {
-    noway_assert(lclVarDsc != nullptr);
-
     // This descriptor has to correspond to a parameter. The first slots in lvaTable
     // are arguments and special arguments.
-    noway_assert(lclVarDsc->lvSlotNum < info.compArgsCount);
+    noway_assert(varNum < compiler->info.compArgsCount);
 
-    lclVarDsc->startLiveRangeFromEmitter(varLocation, getEmitter());
+    VariableLiveDescriptor* varLiveDsc = &lvaLiveDsc[varNum];
+    varLiveDsc->startLiveRangeFromEmitter(varLocation, compiler->getEmitter());
 }
 
 //------------------------------------------------------------------------
@@ -11364,46 +11425,180 @@ void Compiler::psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation,
 // Notes:
 //  This function is expected to be called from preffix "psiEndProlog" after
 //  code for prolog has been generated.
-void Compiler::psiClosePrologVariableRanges()
+void VariableLiveKeeper::psiClosePrologVariableRanges()
 {
+    noway_assert(compiler->info.compArgsCount <= lvLiveDscCount);
+    
     unsigned int varNum;
-    LclVarDsc*   parameterDsc;
-    for (varNum = 0, parameterDsc = lvaTable; varNum < info.compArgsCount; varNum++, parameterDsc++)
+    VariableLiveDescriptor* varLiveDsc;
+    
+    for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < compiler->info.compArgsCount; varNum++, varLiveDsc++)
     {
-        if (parameterDsc->hasVariableLiveRangeOpen())
+        if (varLiveDsc->hasVariableLiveRangeOpen())
         {
-            parameterDsc->endLiveRangeAtEmitter(getEmitter());
+            varLiveDsc->endLiveRangeAtEmitter(compiler->getEmitter());
         }
     }
 }
 
+bool VariableLiveDescriptor::hasVariableLiveRangeOpen() const
+{
+    noway_assert(variableLiveRanges != nullptr);
+
+    return !variableLiveRanges->empty() && !variableLiveRanges->back().endEmitLocation.Valid();
+}
+
+// Initialize an empty list and a barrier pointing to its end
+VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
+{
+    variableLiveRanges = allocator.allocate<LiveRangeList>(1);
+
+    size_t variableLiveRangesSize = sizeof(*variableLiveRanges);
+    memset(variableLiveRanges, 0, variableLiveRangesSize);
+
+    new (variableLiveRanges, jitstd::placement_t()) LiveRangeList(allocator);
+
+#if DEBUG
+    variableLifeBarrier = allocator.allocate<LiveRangeBarrier>(1);
+
+    size_t variableLifeBarrierSize = sizeof(*variableLifeBarrier);
+    memset(variableLifeBarrier, 0, variableLifeBarrierSize);
+
+    new (variableLifeBarrier, jitstd::placement_t()) LiveRangeBarrier(variableLiveRanges);
+#endif
+}
+
+size_t VariableLiveDescriptor::getAmountLiveRanges() const
+{
+    size_t result = 0;
+    if (variableLiveRanges != nullptr)
+    {
+        result = variableLiveRanges->size();
+    }
+    return result;
+}
+
+LiveRangeListIterator VariableLiveDescriptor::getLiveRangesIterator() const
+{
+    // "variableLiveRanges" should has been initialized
+    noway_assert(variableLiveRanges != nullptr);
+
+    return variableLiveRanges->begin();
+}
+
+LiveRangeList* VariableLiveDescriptor::getLiveRanges() const
+{
+    return variableLiveRanges;
+}
+
+void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* _emitter) const
+{
+#if DEBUG
+    // There should be VariableLiveRanges reported during this basic block
+    noway_assert(hasBeenAlive());
+#endif
+    noway_assert(hasVariableLiveRangeOpen());
+
+    // Using [close, open) ranges so as to not compute the size of the last instruction
+    variableLiveRanges->back().endEmitLocation.CaptureLocation(_emitter);
+
+    // No endEmitLocation has to be Valid
+    noway_assert(variableLiveRanges->back().endEmitLocation.Valid());
+}
+
+/*
+*   Creates a new live range from in the given "varLocation" from the assembly native offset of the emitter
+*/
+void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
+{
+    // Is the first "VariableLiveRange" or the previous one has been closed so its "endEmitLocation" is valid
+    noway_assert(variableLiveRanges->empty() || variableLiveRanges->back().endEmitLocation.Valid());
+
+    // Creates new live range with invalid end
+    variableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
+    variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
+
+    // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
+    noway_assert(variableLiveRanges->back().startEmitLocation.Valid());
+    noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
+
+#if DEBUG
+    noway_assert(variableLifeBarrier != nullptr);
+    // Restart barrier so we can print from here
+    variableLifeBarrier->setBarrierAtLastPositionInRegisterHistory(variableLiveRanges);
+#endif
+}
+
+void VariableLiveDescriptor::UpdateRegisterHome(CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
+{
+#if DEBUG
+    // There should be VariableLiveRanges reported during this basic block
+    noway_assert(hasBeenAlive());
+#endif
+    // This variable is changing home so it has been started before during this block
+    noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
+
+    // And its last endEmitLocation has to be invalid
+    noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
+
+    // If we are reporting again the same home, that means we are doing something twice?
+    // noway_assert(variableLiveRanges->back().varLocation != varLocation);
+
+    // Close previous live range
+    endLiveRangeAtEmitter(_emitter);
+
+    // Open new live range with invalid end
+    variableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
+    variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
+
+    // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
+    noway_assert(variableLiveRanges->back().startEmitLocation.Valid());
+    noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
+}
+
+//------------------------------------------------------------------------
+// getLastVarLocation: Return the last reported position of the variable.
+//
+// Return Value:
+//  The last "siVarLoc" position where the variable was (or is if the last "VariableLiveRange"
+//  has not been closed).
+// Notes:
+//  There has to be at least one.
+CodeGenInterface::siVarLoc VariableLiveDescriptor::getLastVarLocation() const
+{
+    // There should have at least one VariableLiveRange reported for this variable
+    noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
+
+    return variableLiveRanges->back().varLocation;
+}
+
 #ifdef DEBUG
-void Compiler::dumpBlockVariableLiveRanges(const BasicBlock* block)
+void VariableLiveKeeper::dumpBlockVariableLiveRanges(const BasicBlock* block)
 {
     // "block" will be dereferenced
     noway_assert(block != nullptr);
 
     bool hasDumpedHistory = false;
 
-    if (verbose)
+    if (compiler->verbose)
     {
         printf("////////////////////////////////////////\n");
         printf("////////////////////////////////////////\n");
         printf("Var History Dump for Block %d \n", block->bbNum);
 
-        if (opts.compDbgInfo)
+        if (compiler->opts.compDbgInfo)
         {
             unsigned   varNum;
-            LclVarDsc* varDsc;
+            VariableLiveDescriptor* varLiveDsc;
 
-            for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
+            for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
             {
-                if (varDsc->hasBeenAlive())
+                if (varLiveDsc->hasBeenAlive())
                 {
                     hasDumpedHistory = true;
                     printf("Var %d:\n", varNum);
-                    varDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(codeGen);
-                    varDsc->endBlockLiveRanges();
+                    varLiveDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(compiler->codeGen);
+                    varLiveDsc->endBlockLiveRanges();
                 }
             }
         }
@@ -11419,28 +11614,28 @@ void Compiler::dumpBlockVariableLiveRanges(const BasicBlock* block)
     }
 }
 
-void Compiler::dumpLvaVariableLiveRanges() const
+void VariableLiveKeeper::dumpLvaVariableLiveRanges() const
 {
     bool hasDumpedHistory = false;
 
-    if (verbose)
+    if (compiler->verbose)
     {
         printf("////////////////////////////////////////\n");
         printf("////////////////////////////////////////\n");
         printf("PRINTING REGISTER LIVE RANGES:\n");
 
-        if (opts.compDbgInfo)
+        if (compiler->opts.compDbgInfo)
         {
             unsigned   varNum;
-            LclVarDsc* varDsc;
+            VariableLiveDescriptor* varLiveDsc;
 
-            for (varNum = 0, varDsc = lvaTable; varNum < info.compLocalsCount; varNum++, varDsc++)
+            for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
             {
-                if (varDsc->hasBeenAlive())
+                if (varLiveDsc->hasBeenAlive())
                 {
                     hasDumpedHistory = true;
-                    printf("IL Var Num %d:\n", compMap2ILvarNum(varNum));
-                    varDsc->dumpAllRegisterLiveRangesForBlock(getEmitter(), codeGen);
+                    printf("IL Var Num %d:\n", compiler->compMap2ILvarNum(varNum));
+                    varLiveDsc->dumpAllRegisterLiveRangesForBlock(compiler->getEmitter(), compiler->codeGen);
                 }
             }
         }
@@ -11528,6 +11723,64 @@ void LiveRangeBarrier::setBarrierAtLastPositionInRegisterHistory(const LiveRange
 
     haveReadAtLeastOneOfBlock = true;
     beginLastBlock = liveRanges->backPosition();
+}
+
+// Modified the barrier to print on next block only just that changes
+void VariableLiveDescriptor::endBlockLiveRanges()
+{
+    noway_assert(variableLifeBarrier != nullptr);
+
+    // make "variableLifeBarrier->beginLastBlock" now points to nullptr for printing purposes
+    variableLifeBarrier->reset(variableLiveRanges);
+}
+
+// Returns true if a live range for this variable has been recorded from last call to EndBlock
+bool VariableLiveDescriptor::hasBeenAlive() const
+{
+    // "variableLifeBarrier" should has been initialized
+    noway_assert(variableLifeBarrier != nullptr);
+
+    return variableLifeBarrier->haveReadAtLeastOneOfBlock;
+}
+
+void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const
+{
+    // "variableLifeBarrier" should has been initialized
+    noway_assert(variableLifeBarrier != nullptr);
+
+    if (hasBeenAlive())
+    {
+        printf("[");
+        for (LiveRangeListIterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end();
+            it++)
+        {
+            dumpVariableLiveRange(&it, codeGen);
+        }
+        printf("]\n");
+    }
+    else
+    {
+        printf("None history\n");
+    }
+}
+void VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(emitter* _emitter, const CodeGenInterface* codeGen) const
+{
+    // "variableLiveRanges" should has been initialized
+    noway_assert(variableLiveRanges != nullptr);
+
+    if (variableLiveRanges->empty())
+    {
+        printf("None history\n");
+    }
+    else
+    {
+        printf("[");
+        for (LiveRangeListIterator it = variableLiveRanges->begin(); it != variableLiveRanges->end(); it++)
+        {
+            dumpVariableLiveRange(&it, _emitter, codeGen);
+        }
+        printf("]\n");
+    }
 }
 #endif
 #endif

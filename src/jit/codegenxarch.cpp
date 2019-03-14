@@ -4843,7 +4843,8 @@ void CodeGen::genRegCopy(GenTree* treeNode)
 
 #ifdef USING_VARIABLE_LIVE_RANGE
                     // Report the home change for this variable
-                    compiler->siUpdateVariableLiveRange(varDsc);
+                    VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
+                    varLvKeeper->siUpdateVariableLiveRange(varDsc);
 #endif
 
                     // The new location is going live

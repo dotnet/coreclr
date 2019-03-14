@@ -710,7 +710,8 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming dead\n", varNum);
         }
 #ifdef USING_VARIABLE_LIVE_RANGE
-        siEndVariableLiveRange(varDsc);
+        VariableLiveKeeper* varLiveKeeper = getVariableLiveKeeper();
+        varLiveKeeper->siEndVariableLiveRange(varNum);
 #endif
     }
 
@@ -751,7 +752,8 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
         }
 
 #ifdef USING_VARIABLE_LIVE_RANGE
-        siStartVariableLiveRange(varDsc);
+        VariableLiveKeeper* varLiveKeeper = getVariableLiveKeeper();
+        varLiveKeeper->siStartVariableLiveRange(varDsc);
 #endif
     }
 
@@ -2309,7 +2311,8 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 #ifdef DEBUG
     if (compiler->verbose)
     {
-        compiler->dumpLvaVariableLiveRanges();
+        VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
+        varLiveKeeper->dumpLvaVariableLiveRanges();
     }
 #endif
 #endif
@@ -10514,7 +10517,8 @@ void CodeGen::genSetScopeInfo()
 #ifdef USING_SCOPE_INFO
     lvCount = siScopeCnt + psiScopeCnt;
 #else
-    lvCount = compiler->getLiveRangesCount();
+    const VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
+    lvCount = varLiveKeeper->getLiveRangesCount();
 #endif
 
 #ifdef USING_SCOPE_INFO

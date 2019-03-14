@@ -91,6 +91,11 @@ void CodeGen::genInitialize()
         siInit();
     }
 
+#ifdef USING_VARIABLE_LIVE_RANGE
+    // Initialize Structures for VariableLiveRanges
+    compiler->initializeVariableLiveKeeper();
+#endif
+
     // The current implementation of switch tables requires the first block to have a label so it
     // can generate offsets to the switch label targets.
     // TODO-CQ: remove this when switches have been re-implemented to not use this.
@@ -131,7 +136,6 @@ void CodeGen::genInitialize()
 //
 void CodeGen::genCodeForBBlist()
 {
-    compiler->lastBasicBlockHasBeenEmited = false;
     unsigned savedStkLvl;
 
 #ifdef DEBUG
@@ -526,7 +530,8 @@ void CodeGen::genCodeForBBlist()
 #ifdef USING_VARIABLE_LIVE_RANGE
         if (compiler->opts.compDbgInfo && isLastBlockProcessed)
         {
-            compiler->siEndAllVariableLiveRange(&compiler->compCurLife);
+            VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
+            varLvKeeper->siEndAllVariableLiveRange(&compiler->compCurLife);
         }
 #endif
 
@@ -734,7 +739,8 @@ void CodeGen::genCodeForBBlist()
 #ifdef USING_VARIABLE_LIVE_RANGE
         if (compiler->verbose)
         {
-            compiler->dumpBlockVariableLiveRanges(block);
+            VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
+            varLiveKeeper->dumpBlockVariableLiveRanges(block);
         }
 #endif
 
@@ -843,7 +849,8 @@ void CodeGen::genSpillVar(GenTree* tree)
         // "SiVarLoc" constructor uses the "LclVarDsc" of the variable.
 
         // Report the home change for this variable
-        compiler->siUpdateVariableLiveRange(varDsc);
+        VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
+        varLvKeeper->siUpdateVariableLiveRange(varDsc);
     }
 #endif
 }
@@ -1008,7 +1015,8 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
 #ifdef USING_VARIABLE_LIVE_RANGE
                 // Report the home change for this variable
-                compiler->siUpdateVariableLiveRange(varDsc);
+                VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
+                varLvKeeper->siUpdateVariableLiveRange(varDsc);
 #endif
 
 #ifdef DEBUG
