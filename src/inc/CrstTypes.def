@@ -372,6 +372,7 @@ End
 
 // Leaflock leveling, used for crsts that explicitly want to be a leaf lock
 Crst LeafLock
+	Leaf
 End
 
 Crst LoaderAllocator

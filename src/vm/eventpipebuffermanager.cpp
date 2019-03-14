@@ -16,7 +16,7 @@ __declspec(thread) ThreadEventBufferList ThreadEventBufferList::gCurrentThreadEv
 thread_local ThreadEventBufferList ThreadEventBufferList::gCurrentThreadEventBufferList;
 #endif // !__GNUC__
 
-EventPipeBufferManager::EventPipeBufferManager()
+EventPipeBufferManager::EventPipeBufferManager() : m_lock(CrstLeafLock, CRST_UNSAFE_ANYMODE) 
 {
     CONTRACTL
     {
@@ -28,7 +28,6 @@ EventPipeBufferManager::EventPipeBufferManager()
 
     m_pPerThreadBufferList = new SList<SListElem<EventPipeBufferList*>>();
     m_sizeOfAllBuffers = 0;
-    m_lock.Init(LOCK_TYPE_DEFAULT);
 
 #ifdef _DEBUG
     m_numBuffersAllocated = 0;
@@ -85,7 +84,7 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
     CONTRACTL_END;
 
     // Allocating a buffer requires us to take the lock.
-    SpinLockHolder _slh(&m_lock);
+    CrstHolder _ch(&m_lock);
 
     // Determine if the requesting thread has at least one buffer.
     // If not, we guarantee that each thread gets at least one (to prevent thrashing when the circular buffer size is too small).
@@ -431,7 +430,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
     // 10. Continue until there are no more buffers to process.
 
     // Take the lock before walking the buffer list.
-    SpinLockHolder _slh(&m_lock);
+    CrstHolder _ch(&m_lock);
 
     // Naively walk the circular buffer, writing the event stream in timestamp order.
     while(true)
@@ -490,7 +489,7 @@ EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
     CONTRACTL_END;
 
     // Take the lock before walking the buffer list.
-    SpinLockHolder _slh(&m_lock);
+    CrstHolder _ch(&m_lock);
 
     // Naively walk the circular buffer, getting the event stream in timestamp order.
     LARGE_INTEGER stopTimeStamp;
@@ -550,7 +549,7 @@ void EventPipeBufferManager::DeAllocateBuffers()
     _ASSERTE(EnsureConsistency());
 
     // Take the buffer manager manipulation lock
-    SpinLockHolder _slh(&m_lock);
+    CrstHolder _ch(&m_lock);
 
     SListElem<EventPipeBufferList*> *pElem = m_pPerThreadBufferList->GetHead();
     while(pElem != NULL)

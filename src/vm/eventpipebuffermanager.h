@@ -61,7 +61,7 @@ private:
     size_t m_sizeOfAllBuffers;
 
     // Lock to protect access to the per-thread buffer list and total allocation size.
-    SpinLock m_lock;
+    Crst m_lock;
 
 
 #ifdef _DEBUG

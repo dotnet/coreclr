@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -22,6 +22,7 @@
 //                      |   'AcquiredAfter' <Crst type name>*
 //                      |   'SameLevelAs' <Crst type name>*
 //                      |   'Unordered'
+//                      |   'Leaf'
 //
 // Crst type names match the CrstType enums used in the source code minus the 'Crst' prefix. For example
 // CrstAppDomainCache is written as 'AppDomainCache' in the .def file.
@@ -31,12 +32,14 @@
 // 'AcquiredBefore' B" is logically equivalent to "B 'AcquiredAfter' A" and authors may enter the dependency
 // is whichever seems to make the most sense to them (or add both rules if they so desire).
 //
-// 'Unordered' indicates that the Crst type does not participate in ranking (there should be very few Crsts
-// like this and those that are know how to avoid or deal with deadlocks manually).
-//
 // 'SameLevelAs' indicates the given Crst type may be acquired alongside any number of instances of the Crst
 // types indicated. "A 'SameLevel' B" automatically implies "B 'SameLevel' A" so it's not necessary to specify
 // the dependency both ways though authors can do so if they wish.
+//
+// 'Unordered' indicates that the Crst type does not participate in ranking (there should be very few Crsts
+// like this and those that are know how to avoid or deal with deadlocks manually).
+// 
+// 'Leaf' indicates that no other Crst can be acquired after this Crst is acquired.
 //
 // Simple validation of the .def file (over and above syntax checking) is performed by this tool prior to
 // emitting the header file. This will catch logic errors such as referencing a Crst type that is not
@@ -513,6 +516,21 @@ class TypeFileParser
             // OK, parse the rest of this single Crst type definition.
             ParseCrst();
         }
+        foreach (CrstType crst in this.m_crsts.Values)
+        {            
+            if (crst.Leaf)
+            {
+                // To ensure no crst is taken after a leaf crst is taken, it is required that
+                // all other crsts must be acquired before the leafCrst.
+                foreach (CrstType other in this.m_crsts.Values)
+                {
+                    if (other != crst && other.Level != CrstType.CrstUnordered)
+                    {
+                        other.AcquiredBeforeList.Add(crst);
+                    }
+                }
+            }
+        }
     }
 
     // Parse a single Crst type definition.
@@ -583,6 +601,10 @@ class TypeFileParser
 
                 case KeywordId.Unordered:
                     crst.Level = CrstType.CrstUnordered;
+                    break;
+
+                case KeywordId.Leaf:
+                    crst.Leaf = true;
                     break;
 
                 case KeywordId.End:
@@ -699,6 +721,7 @@ class TypeFileParser
         AcquiredAfter,
         Unordered,
         SameLevelAs,
+        Leaf,
     }
 
     // Class encapsulating a single token captured from the input file.
@@ -731,6 +754,7 @@ class TypeFileParser
             s_keywords.Add("acquiredafter", KeywordId.AcquiredAfter);
             s_keywords.Add("unordered", KeywordId.Unordered);
             s_keywords.Add("samelevelas", KeywordId.SameLevelAs);
+            s_keywords.Add("leaf", KeywordId.Leaf);
         }
 
         public Token(string file, string text, int line, int column)
@@ -848,6 +872,8 @@ class CrstType : IComparable
     // referenced without definitions.
     bool m_defined;
 
+    bool m_leaf;
+
     public CrstType(string name)
     {
         m_name = name;
@@ -855,6 +881,7 @@ class CrstType : IComparable
         m_acquiredBeforeCrsts = new List<CrstType>();
         m_group = null;
         m_defined = false;
+        m_leaf = false;
     }
 
     public string Name { get { return m_name; } }
@@ -862,6 +889,7 @@ class CrstType : IComparable
     public List<CrstType> AcquiredBeforeList { get { return m_acquiredBeforeCrsts; } set { m_acquiredBeforeCrsts = value; } }
     public CrstTypeGroup Group { get { return m_group; } set { m_group = value; } }
     public bool Defined { get { return m_defined; } set { m_defined = value; } }
+    public bool Leaf { get { return m_leaf; } set { m_leaf = value; } }
 
     // Helper used to sort CrstTypes. The sort order is lexical based on the type name.
     public int CompareTo(object other)
