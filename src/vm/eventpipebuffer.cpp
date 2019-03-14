@@ -75,6 +75,15 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
 
         // Placement-new the EventPipeEventInstance.
         // if pthread is NULL, it's likely we are running in something like a GC thread which is not a Thread object, so it can't have an activity ID set anyway
+
+        StackContents s;
+        memset((void*)&s, 0, sizeof(s));
+        if (event.NeedStack() && !session.RundownEnabled() && pStack == NULL)
+        {
+            EventPipe::WalkManagedStackForCurrentThread(s);
+            pStack = &s;
+        }
+
         EventPipeEventInstance *pInstance = new (m_pCurrent) EventPipeEventInstance(
             session,
             event,
@@ -85,7 +94,7 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
             pRelatedActivityId);
 
         // Copy the stack if a separate stack trace was provided.
-        if(pStack != NULL)
+        if (pStack != NULL)
         {
             StackContents *pInstanceStack = pInstance->GetStack();
             pStack->CopyTo(pInstanceStack);

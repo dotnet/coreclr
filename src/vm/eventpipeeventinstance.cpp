@@ -34,7 +34,7 @@ EventPipeEventInstance::EventPipeEventInstance(
 #endif // _DEBUG
     m_pEvent = &event;
     m_threadID = threadID;
-    if(pActivityId != NULL)
+    if (pActivityId != NULL)
     {
         m_activityId = *pActivityId;
     }
@@ -42,7 +42,7 @@ EventPipeEventInstance::EventPipeEventInstance(
     {
         m_activityId = {0};
     }
-    if(pRelatedActivityId != NULL)
+    if (pRelatedActivityId != NULL)
     {
         m_relatedActivityId = *pRelatedActivityId;
     }
@@ -55,15 +55,17 @@ EventPipeEventInstance::EventPipeEventInstance(
     m_dataLength = length;
     QueryPerformanceCounter(&m_timeStamp);
     _ASSERTE(m_timeStamp.QuadPart > 0);
-
-    if(event.NeedStack() && !session.RundownEnabled())
-    {
-        EventPipe::WalkManagedStackForCurrentThread(m_stackContents);
-    }
-
 #ifdef _DEBUG
     EnsureConsistency();
 #endif // _DEBUG
+}
+
+void EventPipeEventInstance::EnsureStack(const EventPipeSession &session)
+{
+    if (m_pEvent->NeedStack() && !session.RundownEnabled())
+    {
+        EventPipe::WalkManagedStackForCurrentThread(m_stackContents);
+    }
 }
 
 unsigned int EventPipeEventInstance::GetAlignedTotalSize() const
@@ -154,11 +156,5 @@ bool EventPipeEventInstance::EnsureConsistency()
     return true;
 }
 #endif // _DEBUG
-
-SampleProfilerEventInstance::SampleProfilerEventInstance(EventPipeSession &session, EventPipeEvent &event, Thread *pThread, BYTE *pData, unsigned int length)
-    :EventPipeEventInstance(session, event, pThread->GetOSThreadId(), pData, length, NULL /* pActivityId */, NULL /* pRelatedActivityId */)
-{
-    LIMITED_METHOD_CONTRACT;
-}
 
 #endif // FEATURE_PERFTRACING
