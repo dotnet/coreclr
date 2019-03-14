@@ -27,7 +27,7 @@ class ThisCallNative
     public static extern IntPtr FreeInstanceOfC(IntPtr instance);
 }
 
-class HandleRefTest
+class ThisCallTest
 {
     public unsafe static int Main(string[] args)
     {
