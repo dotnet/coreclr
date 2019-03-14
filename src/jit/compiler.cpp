@@ -11450,7 +11450,7 @@ bool VariableLiveDescriptor::hasVariableLiveRangeOpen() const
 {
     noway_assert(variableLiveRanges != nullptr);
 
-    return !variableLiveRanges->empty() && !variableLiveRanges->back().endEmitLocation.Valid();
+    return !variableLiveRanges->empty() && !variableLiveRanges->back().m_EndEmitLocation.Valid();
 }
 
 // Initialize an empty list and a barrier pointing to its end
@@ -11505,10 +11505,10 @@ void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* _emitter) const
     noway_assert(hasVariableLiveRangeOpen());
 
     // Using [close, open) ranges so as to not compute the size of the last instruction
-    variableLiveRanges->back().endEmitLocation.CaptureLocation(_emitter);
+    variableLiveRanges->back().m_EndEmitLocation.CaptureLocation(_emitter);
 
-    // No endEmitLocation has to be Valid
-    noway_assert(variableLiveRanges->back().endEmitLocation.Valid());
+    // No m_EndEmitLocation has to be Valid
+    noway_assert(variableLiveRanges->back().m_EndEmitLocation.Valid());
 }
 
 /*
@@ -11516,16 +11516,16 @@ void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* _emitter) const
 */
 void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
 {
-    // Is the first "VariableLiveRange" or the previous one has been closed so its "endEmitLocation" is valid
-    noway_assert(variableLiveRanges->empty() || variableLiveRanges->back().endEmitLocation.Valid());
+    // Is the first "VariableLiveRange" or the previous one has been closed so its "m_EndEmitLocation" is valid
+    noway_assert(variableLiveRanges->empty() || variableLiveRanges->back().m_EndEmitLocation.Valid());
 
     // Creates new live range with invalid end
     variableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
-    variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
+    variableLiveRanges->back().m_StartEmitLocation.CaptureLocation(_emitter);
 
     // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
-    noway_assert(variableLiveRanges->back().startEmitLocation.Valid());
-    noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
+    noway_assert(variableLiveRanges->back().m_StartEmitLocation.Valid());
+    noway_assert(!variableLiveRanges->back().m_EndEmitLocation.Valid());
 
 #if DEBUG
     noway_assert(variableLifeBarrier != nullptr);
@@ -11543,22 +11543,22 @@ void VariableLiveDescriptor::UpdateRegisterHome(CodeGenInterface::siVarLoc varLo
     // This variable is changing home so it has been started before during this block
     noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
 
-    // And its last endEmitLocation has to be invalid
-    noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
+    // And its last m_EndEmitLocation has to be invalid
+    noway_assert(!variableLiveRanges->back().m_EndEmitLocation.Valid());
 
     // If we are reporting again the same home, that means we are doing something twice?
-    // noway_assert(variableLiveRanges->back().varLocation != varLocation);
+    // noway_assert(variableLiveRanges->back().m_VarLocation != varLocation);
 
     // Close previous live range
     endLiveRangeAtEmitter(_emitter);
 
     // Open new live range with invalid end
     variableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
-    variableLiveRanges->back().startEmitLocation.CaptureLocation(_emitter);
+    variableLiveRanges->back().m_StartEmitLocation.CaptureLocation(_emitter);
 
     // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
-    noway_assert(variableLiveRanges->back().startEmitLocation.Valid());
-    noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
+    noway_assert(variableLiveRanges->back().m_StartEmitLocation.Valid());
+    noway_assert(!variableLiveRanges->back().m_EndEmitLocation.Valid());
 }
 
 //------------------------------------------------------------------------
@@ -11574,7 +11574,7 @@ CodeGenInterface::siVarLoc VariableLiveDescriptor::getLastVarLocation() const
     // There should have at least one VariableLiveRange reported for this variable
     noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
 
-    return variableLiveRanges->back().varLocation;
+    return variableLiveRanges->back().m_VarLocation;
 }
 
 //------------------------------------------------------------------------
@@ -11686,13 +11686,13 @@ void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, const CodeGenI
     noway_assert(codeGen != nullptr);
     noway_assert(varLiveRange != nullptr);
 
-    codeGen->dumpSiVarLoc(&varLiveRange->varLocation);
+    codeGen->dumpSiVarLoc(&varLiveRange->m_VarLocation);
     printf(" [ ");
-    varLiveRange->startEmitLocation.Print();
+    varLiveRange->m_StartEmitLocation.Print();
     printf(", ");
-    if (varLiveRange->endEmitLocation.Valid())
+    if (varLiveRange->m_EndEmitLocation.Valid())
     {
-        varLiveRange->endEmitLocation.Print();
+        varLiveRange->m_EndEmitLocation.Print();
     }
     else
     {
@@ -11709,16 +11709,16 @@ void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emit
     noway_assert(_emitter != nullptr);
     noway_assert(codeGen != nullptr);
 
-    // "VariableLiveRanges" are created setting its location ("varLocation") and the initial assembly offset
-    // ("startEmitLocation")
-    codeGen->dumpSiVarLoc(&varLiveRange->varLocation);
+    // "VariableLiveRanges" are created setting its location ("m_VarLocation") and the initial assembly offset
+    // ("m_StartEmitLocation")
+    codeGen->dumpSiVarLoc(&varLiveRange->m_VarLocation);
 
-    // If this is an open "VariableLiveRange", "endEmitLocation" is non-valid and print -1
+    // If this is an open "VariableLiveRange", "m_EndEmitLocation" is non-valid and print -1
     UNATIVE_OFFSET endAssemblyOffset =
-        varLiveRange->endEmitLocation.Valid() ? varLiveRange->endEmitLocation.CodeOffset(_emitter) : -1;
+        varLiveRange->m_EndEmitLocation.Valid() ? varLiveRange->m_EndEmitLocation.CodeOffset(_emitter) : -1;
 
-    printf(" [%X , %X )", varLiveRange->startEmitLocation.CodeOffset(_emitter),
-           varLiveRange->endEmitLocation.CodeOffset(_emitter));
+    printf(" [%X , %X )", varLiveRange->m_StartEmitLocation.CodeOffset(_emitter),
+           varLiveRange->m_EndEmitLocation.CodeOffset(_emitter));
 }
 
 void LiveRangeBarrier::reset(const LiveRangeList* liveRanges)
@@ -11729,7 +11729,7 @@ void LiveRangeBarrier::reset(const LiveRangeList* liveRanges)
     // There must have reported something in order to reset
     noway_assert(haveReadAtLeastOneOfBlock);
 
-    if (liveRanges->back().endEmitLocation.Valid())
+    if (liveRanges->back().m_EndEmitLocation.Valid())
     {
         haveReadAtLeastOneOfBlock = false;
     }

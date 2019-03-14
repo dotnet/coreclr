@@ -10642,8 +10642,8 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
             for (LiveRangeListIterator itLiveRanges = liveRanges->begin(); itLiveRanges != liveRanges->end();
                  itLiveRanges++, liveRangeIndex++)
             {
-                UNATIVE_OFFSET startOffs = itLiveRanges->startEmitLocation.CodeOffset(getEmitter());
-                UNATIVE_OFFSET endOffs   = itLiveRanges->endEmitLocation.CodeOffset(getEmitter());
+                UNATIVE_OFFSET startOffs = itLiveRanges->m_StartEmitLocation.CodeOffset(getEmitter());
+                UNATIVE_OFFSET endOffs   = itLiveRanges->m_EndEmitLocation.CodeOffset(getEmitter());
 
                 if (varDsc->lvIsParam && startOffs == endOffs)
                 {
@@ -10656,7 +10656,7 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
 
                 genSetScopeInfo(liveRangeIndex, startOffs, endOffs - startOffs, varNum,
                                 varNum /* I dont know what is the which in eeGetLvInfo */, true,
-                                &itLiveRanges->varLocation);
+                                &itLiveRanges->m_VarLocation);
             }
         }
     }
