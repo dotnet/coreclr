@@ -377,7 +377,7 @@ public:
 
     LiveRangeListIterator getLiveRangesIterator() const;
 
-    LiveRangeList* getLiveRanges() const;
+    const LiveRangeList* getLiveRanges() const;
 
     void endLiveRangeAtEmitter(emitter* _emitter) const;
 
@@ -436,6 +436,9 @@ public:
 
     // Close all the open "VariableLiveRanges" after prolog has been generated
     void psiClosePrologVariableRanges();
+
+    // Return the "VariableLiveRange" that correspond to the given "varNum".
+    const LiveRangeList* getLiveRangesForVar(unsigned int varNum) const;
 
 #ifdef DEBUG
     void dumpBlockVariableLiveRanges(const BasicBlock* block);

@@ -11489,7 +11489,7 @@ LiveRangeListIterator VariableLiveDescriptor::getLiveRangesIterator() const
     return variableLiveRanges->begin();
 }
 
-LiveRangeList* VariableLiveDescriptor::getLiveRanges() const
+const LiveRangeList* VariableLiveDescriptor::getLiveRanges() const
 {
     return variableLiveRanges;
 }
@@ -11573,6 +11573,29 @@ CodeGenInterface::siVarLoc VariableLiveDescriptor::getLastVarLocation() const
     noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
 
     return variableLiveRanges->back().varLocation;
+}
+
+//------------------------------------------------------------------------
+// getLiveRangesForVar: Return the "VariableLiveRange" that correspond to
+//  the given "varNum".
+//
+// Arguments:
+//  varNum  - the index of the variable in lvaTable, which is the same as
+//      in lvaLiveDsc.
+//
+// Return Value:
+//  A const pointer to the "LiveRangeList" containing all the "VariableLiveRange"s
+//  of the variable with index "varNum".
+//
+// Notes:
+//  "varNum" should be always a valid inde ("varnum" < "lvLiveDscCount")
+const LiveRangeList* VariableLiveKeeper::getLiveRangesForVar(unsigned int varNum) const
+{
+    // There should be at least one variable for which its liveness is tracked
+    noway_assert(0 < lvLiveDscCount);
+    noway_assert(varNum < lvLiveDscCount);
+
+    return lvaLiveDsc[varNum].getLiveRanges();
 }
 
 #ifdef DEBUG
