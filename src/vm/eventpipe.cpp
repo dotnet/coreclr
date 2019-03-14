@@ -269,6 +269,9 @@ EventPipeSessionID EventPipe::Enable(
     }
     CONTRACTL_END;
 
+    // Take the lock before enabling tracing.
+    CrstHolder _crst(GetLock());
+
     // Create a new session.
     SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
     EventPipeSession *pSession = s_pConfig->CreateSession(
@@ -290,6 +293,7 @@ EventPipeSessionID EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pS
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pSession != NULL);
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -302,10 +306,7 @@ EventPipeSessionID EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pS
         return 0;
 
     // Enable the EventPipe EventSource.
-    s_pEventSource->Enable(pSession); // TODO: Should this be under the lock?
-
-    // Take the lock before enabling tracing.
-    CrstHolder _crst(GetLock());
+    s_pEventSource->Enable(pSession);
 
     // Initialize the next file index.
     s_nextFileIndex = 1;
