@@ -208,7 +208,7 @@ include(clrdefinitions.cmake)
 #-------------------------------------
 # Include the basic prebuilt headers - required for getting fileversion resource details.
 include_directories("src/pal/prebuilt/inc")
-include_directories("bin/obj")
+include_directories("artifacts/bin/obj")
 
 if(FEATURE_STANDALONE_GC)
   add_definitions(-DFEATURE_STANDALONE_GC)

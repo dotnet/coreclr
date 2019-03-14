@@ -1,9 +1,9 @@
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\dir.props"/>
   
   <!-- List the projects that need to be built -->
   <ItemGroup>
-    <Project Condition="$(SkipSOS) != 'true'" Include="ToolBox\SOS\NETCore\SOS.NETCore.csproj" />
+    <Project Condition="$(SkipSOS) != 'true' and '$(ArcadeBuild)' != 'true'" Include="ToolBox\SOS\NETCore\SOS.NETCore.csproj" />
     <Project Include="System.Private.CoreLib\System.Private.CoreLib.csproj" />
   </ItemGroup>
 

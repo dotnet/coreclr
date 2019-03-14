@@ -256,7 +256,6 @@ build_native()
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
             "$__ProjectRoot/dotnet.sh" msbuild /nologo /verbosity:minimal /clp:Summary \
-                                       /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
                                        /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
                                        /p:UsePartialNGENOptimization=false /maxcpucount \
                                        "$__ProjectDir/build.proj" /p:GenerateVersionSourceFile=true /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile \
@@ -438,8 +437,7 @@ build_CoreLib()
         __ExtraBuildArgs="$__ExtraBuildArgs /p:BuildManagedTools=true"
     fi
 
-    $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
-                             /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
+    $__ProjectRoot/dotnet.sh build /nologo /verbosity:minimal /clp:Summary \
                              /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
                              /p:UsePartialNGENOptimization=false /maxcpucount \
                              $__ProjectDir/build.proj \
@@ -503,7 +501,6 @@ generate_NugetPackages()
     echo "ROOTFS_DIR is "$ROOTFS_DIR
     # Build the packages
     $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
-                             /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
                              /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
                              /p:UsePartialNGENOptimization=false /maxcpucount \
                              $__SourceDir/.nuget/packages.builds \
@@ -619,7 +616,7 @@ export __ProjectDir="$__ProjectRoot"
 export ArcadeBuild="true"
 __SourceDir="$__ProjectDir/src"
 __PackagesDir="${DotNetRestorePackagesPath:-${__ProjectDir}/packages}"
-__RootBinDir="$__ProjectDir/bin"
+__RootBinDir="$__ProjectDir/artifacts"
 __UnprocessedBuildArgs=
 __CommonMSBuildArgs=
 __MSBCleanBuildArgs=
@@ -964,7 +961,7 @@ while :; do
     shift
 done
 
-__CommonMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS $__OfficialBuildIdArg $__SignTypeArg $__SkipRestoreArg"
+__CommonMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS $__OfficialBuildIdArg $__SignTypeArg $__SkipRestoreArg /p:ArcadeBuild=true /p:Platform=${__BuildArch} /p:BuildOs=${__HostOS}"
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
@@ -997,11 +994,11 @@ __LogsDir="$__RootBinDir/Logs"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 
 # Set the remaining variables based upon the determined build configuration
-__BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
+__BinDir="$__RootBinDir/bin/${__BuildOS}/${__BuildArch}/${__BuildType}"
 __PackagesBinDir="$__BinDir/.nuget"
 __ToolsDir="$__RootBinDir/tools"
 __TestWorkingDir="$__RootBinDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
-export __IntermediatesDir="$__RootBinDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
+export __IntermediatesDir="$__RootBinDir/obj/${__BuildOS}/${__BuildArch}/${__BuildType}"
 __TestIntermediatesDir="$__RootBinDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
 __isMSBuildOnNETCoreSupported=0
 __CrossComponentBinDir="$__BinDir"

@@ -58,7 +58,7 @@
     <PackagesDir Condition="'$(PackagesDir)'==''">$(ProjectDir)packages\</PackagesDir>
 
     <RootBinDir>$(__RootBinDir)\</RootBinDir>
-    <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)bin\</RootBinDir>
+    <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)\artifacts\</RootBinDir>
 
     <!-- BuildTools dependency -->
     <RootIntermediateOutputPath Condition="$(RootIntermediateOutputPath) == ''">$(RootBinDir)obj/</RootIntermediateOutputPath>
@@ -66,9 +66,9 @@
     <BuildArch Condition="'$(BuildArch)' != ''">x64</BuildArch>
 
     <BinDir>$(__BinDir)\</BinDir>
-    <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)Product\$(BuildOS).$(BuildArch).$(BuildType)\</BinDir>
+    <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)\$(BuildOS)\$(BuildArch)\$(BuildType)\</BinDir>
 
-    <__IntermediatesDir Condition="'$(__IntermediatesDir)' == ''">$(RootBinDir)obj\$(BuildOS).$(BuildArch).$(BuildType)</__IntermediatesDir>
+    <__IntermediatesDir Condition="'$(__IntermediatesDir)' == ''">$(RootBinDir)obj\$(BuildOS)\$(BuildArch)\$(BuildType)</__IntermediatesDir>
     <IntermediateOutputRootPath Condition="'$(IntermediateOutputRootPath)' == ''">$(__IntermediatesDir)\</IntermediateOutputRootPath>
 
     <!-- We don't append back slash because this path is used by nuget.exe as output directory and it
@@ -88,7 +88,7 @@
     <BuildToolsSemaphore Condition="'$(BuildToolsSemaphore)' == ''">$(ToolsDir)Microsoft.DotNet.Build.Tasks.dll</BuildToolsSemaphore>
 
     <TestWorkingDir>$(__TestWorkingDir)\</TestWorkingDir>
-    <TestWorkingDir Condition="'$(__TestWorkingDir)'==''">$(RootBinDir)tests\$(BuildOS).$(BuildArch).$(BuildType)\</TestWorkingDir>
+    <TestWorkingDir Condition="'$(__TestWorkingDir)'==''">$(RootBinDir)tests\$(BuildOS)\$(BuildArch)\$(BuildType)\</TestWorkingDir>
 
     <Platform Condition="'$(Platform)' == ''">$(BuildArch)</Platform>
     <Platform Condition="'$(Platform)' == 'amd64'">x64</Platform>
@@ -102,13 +102,13 @@
   <!-- Output paths -->
   <PropertyGroup>
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)obj\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)$(BuildOS).$(BuildArch).$(BuildType)\$(MSBuildProjectName)</IntermediateOutputPath>
-    <IntermediateOutputPathNonMangled Condition="'$(IntermediateOutputPathNonMangled)' == ''">$(RootBinDir)obj\$(BuildOS).$(BuildArch).$(BuildType)\$(MSBuildProjectName)\</IntermediateOutputPathNonMangled>
+    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)$(BuildOS)\$(BuildArch)\$(BuildType)\$(MSBuildProjectName)</IntermediateOutputPath>
+    <IntermediateOutputPathNonMangled Condition="'$(IntermediateOutputPathNonMangled)' == ''">$(RootBinDir)obj\$(BuildOS)\$(BuildArch)\$(BuildType)\$(MSBuildProjectName)\</IntermediateOutputPathNonMangled>
     <OutputPath Condition="'$(OutputPath)' == ''">$(BinDir)</OutputPath>
   </PropertyGroup>
 
   <!-- BuildTools dependency for writing out the BuildVersion -->
-  <Import Project="$(ToolsDir)BuildVersion.targets" Condition="'$(ArcadeBuild)' != 'True'" />
+  <Import Project="$(ToolsDir)BuildVersion.targets" Condition="'$(ArcadeBuild)' != 'true'" />
 
   <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
   <Import Project="$(ProjectDir)dependencies.props" />
