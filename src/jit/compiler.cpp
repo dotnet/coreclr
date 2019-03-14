@@ -11129,12 +11129,12 @@ VariableLiveKeeper* Compiler::getVariableLiveKeeper() const
 // Notes:
 //    This method should be called after compiler has been initialized and before
 //    genCodeForBBList starts generating code.
-VariableLiveKeeper::VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* compiler)
+VariableLiveKeeper::VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* comp)
 {
     // Fill internal properties
     lvLiveDscCount = totalLocalCount;
     lvLiveArgsCount = argsCount;
-    compiler = compiler;
+    compiler = comp;
     lastBasicBlockHasBeenEmited = false;
 
     // Get the allocator used for all the VariableLiveRange objects
