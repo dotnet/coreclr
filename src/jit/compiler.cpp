@@ -11137,19 +11137,22 @@ VariableLiveKeeper::VariableLiveKeeper(unsigned int totalLocalCount, unsigned in
     compiler = comp;
     lastBasicBlockHasBeenEmited = false;
 
-    // Get the allocator used for all the VariableLiveRange objects
-    CompAllocator allocator = compiler->getAllocator(CMK_VariableLiveRanges);
-    
-    // Allocate memory for "lvaLiveDsc" and initialize each "VariableLiveDescriptor"
-    lvaLiveDsc = allocator.allocate<VariableLiveDescriptor>(lvLiveDscCount);
-    size_t lvaLiveDscSize = sizeof(*lvaLiveDsc);
-    memset(lvaLiveDsc, 0, lvaLiveDscSize);
-
-    unsigned int varNum;
-    VariableLiveDescriptor* varLiveDsc;
-    for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
+    if (0 < lvLiveDscCount)
     {
-        new (varLiveDsc, jitstd::placement_t()) VariableLiveDescriptor(allocator);
+        // Get the allocator used for all the VariableLiveRange objects
+        CompAllocator allocator = compiler->getAllocator(CMK_VariableLiveRanges);
+    
+        // Allocate memory for "lvaLiveDsc" and initialize each "VariableLiveDescriptor"
+        lvaLiveDsc = allocator.allocate<VariableLiveDescriptor>(lvLiveDscCount);
+        size_t lvaLiveDscSize = sizeof(*lvaLiveDsc);
+        memset(lvaLiveDsc, 0, lvaLiveDscSize);
+
+        unsigned int varNum;
+        VariableLiveDescriptor* varLiveDsc;
+        for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
+        {
+            new (varLiveDsc, jitstd::placement_t()) VariableLiveDescriptor(allocator);
+        }
     }
 }
 
