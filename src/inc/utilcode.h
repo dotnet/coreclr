@@ -5242,6 +5242,8 @@ namespace Win32
         SString & ssPathName,
         DWORD * pdwFilePartIdx,
         bool fAllowLongFileNames = false);
+
+    HRESULT GetCurrentProcessIntegrity(DWORD *integrity);
 }
 
 }}

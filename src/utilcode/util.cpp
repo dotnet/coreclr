@@ -3127,6 +3127,39 @@ namespace Util
         return hr;
     }
 
+    // Struct used to scope suspension of client impersonation for the current thread.
+    // https://docs.microsoft.com/en-us/windows/desktop/secauthz/client-impersonation
+    class SuspendImpersonation
+    {
+    public:
+        SuspendImpersonation()
+            : _token(nullptr)
+        {
+            // The approach used here matches what is used elsewhere in CLR (RevertIfImpersonated).
+            // In general, OpenThreadToken fails with ERROR_NO_TOKEN if impersonation is not active,
+            // fails with ERROR_CANT_OPEN_ANONYMOUS if anonymous impersonation is active, and otherwise
+            // succeeds and returns the active impersonation token.
+            BOOL res = ::OpenThreadToken(::GetCurrentThread(), TOKEN_IMPERSONATE, /* OpenAsSelf */ TRUE, &_token);
+            if (res != FALSE)
+            {
+                ::RevertToSelf();
+            }
+            else
+            {
+                _token = nullptr;
+            }
+        }
+
+        ~SuspendImpersonation()
+        {
+            if (_token != nullptr)
+                ::SetThreadToken(nullptr, _token);
+        }
+
+    private:
+        HandleHolder _token;
+    };
+
 #ifndef FEATURE_PAL
 namespace Reg
 {
@@ -3223,8 +3256,6 @@ namespace Com
         {
             STANDARD_VM_CONTRACT;
 
-            HRESULT hr = S_OK;
-
             WCHAR wszClsid[39];
             if (GuidToLPWSTR(rclsid, wszClsid, NumItems(wszClsid)) == 0)
                 return E_UNEXPECTED;
@@ -3235,7 +3266,37 @@ namespace Com
             ssKeyName.Append(SL(W("\\")));
             ssKeyName.Append(wszSubKeyName);
 
-            return Clr::Util::Reg::ReadStringValue(HKEY_CLASSES_ROOT, ssKeyName.GetUnicode(), NULL, ssValue);
+            // Query HKCR first to retain backwards compat with previous implementation where HKCR was only queried.
+            // This is being done due to registry caching. This value will be used if the process integrity is medium or less.
+            HRESULT hkcrResult = Clr::Util::Reg::ReadStringValue(HKEY_CLASSES_ROOT, ssKeyName.GetUnicode(), nullptr, ssValue);
+
+            // HKCR is a virtualized registry hive that weaves together HKCU\Software\Classes and HKLM\Software\Classes
+            // Processes with high integrity or greater should only read from HKLM to avoid being hijacked by medium
+            // integrity processes writing to HKCU.
+            DWORD integrity = SECURITY_MANDATORY_PROTECTED_PROCESS_RID;
+            HRESULT hr = Clr::Util::Win32::GetCurrentProcessIntegrity(&integrity);
+            if (hr != S_OK)
+            {
+                // In the event that we are unable to get the current process integrity,
+                // we assume that this process is running in an elevated state.
+                // GetCurrentProcessIntegrity may fail if the process has insufficient rights to get the integrity level
+                integrity = SECURITY_MANDATORY_PROTECTED_PROCESS_RID;
+            }
+
+            if (integrity > SECURITY_MANDATORY_MEDIUM_RID)
+            {
+                Clr::Util::SuspendImpersonation si;
+
+                // Clear the previous HKCR queried value
+                ssValue.Clear();
+
+                // Force to use HKLM
+                StackSString ssHklmKeyName(SL(W("SOFTWARE\\Classes\\")));
+                ssHklmKeyName.Append(ssKeyName);
+                return Clr::Util::Reg::ReadStringValue(HKEY_LOCAL_MACHINE, ssHklmKeyName.GetUnicode(), nullptr, ssValue);
+            }
+
+            return hkcrResult;
         }
 
         __success(return == S_OK)
@@ -3385,7 +3446,68 @@ namespace Win32
         // Overly defensive? Perhaps.
         if (!(dwLengthWritten < dwLengthRequired))
             ThrowHR(E_UNEXPECTED);
+    }
 
+    struct ProcessIntegrityResult
+    {
+        BOOL Success;
+        DWORD Integrity;
+        HRESULT LastError;
+
+        HRESULT RecordAndReturnError(HRESULT hr)
+        {
+            LastError = hr;
+            return hr;
+        }
+    };
+
+    // The system calls in this code can fail if run with reduced privileges.
+    // It is the caller's responsibility to choose an appropriate default in the event
+    // that this function fails to retrieve the current process integrity.
+    HRESULT GetCurrentProcessIntegrity(DWORD *integrity)
+    {
+        static ProcessIntegrityResult s_Result = { FALSE, 0, S_FALSE };
+
+        if (FALSE != InterlockedCompareExchangeT(&s_Result.Success, FALSE, FALSE))
+        {
+            *integrity = s_Result.Integrity;
+            return S_OK;
+        }
+
+        // Temporarily suspend impersonation (if possible) while computing the integrity level.
+        // If impersonation is active, the OpenProcessToken call below will check the impersonation
+        // token against the process token ACL, and will generally fail with ERROR_ACCESS_DENIED if
+        // the impersonation token is less privileged than this process's primary token.
+        Clr::Util::SuspendImpersonation si;
+
+        HandleHolder hToken;
+        if(!OpenProcessToken(GetCurrentProcess(), TOKEN_READ, &hToken))
+            return s_Result.RecordAndReturnError(HRESULT_FROM_GetLastError());
+
+        DWORD dwSize = 0;
+        DWORD err = ERROR_SUCCESS;
+        if(!GetTokenInformation(hToken, (TOKEN_INFORMATION_CLASS)TokenIntegrityLevel, nullptr, 0, &dwSize))
+            err = GetLastError();
+
+        // We need to make sure that GetTokenInformation failed in a predictable manner so we know that
+        // dwSize has the correct buffer size in it.
+        if (err != ERROR_INSUFFICIENT_BUFFER || dwSize == 0)
+            return s_Result.RecordAndReturnError((err == ERROR_SUCCESS) ? E_FAIL : HRESULT_FROM_WIN32(err));
+
+        NewArrayHolder<BYTE> pLabel = new (nothrow) BYTE[dwSize];
+        if (pLabel == NULL)
+            return s_Result.RecordAndReturnError(E_OUTOFMEMORY);
+
+        if(!GetTokenInformation(hToken, (TOKEN_INFORMATION_CLASS)TokenIntegrityLevel, pLabel, dwSize, &dwSize))
+            return s_Result.RecordAndReturnError(HRESULT_FROM_GetLastError());
+
+        TOKEN_MANDATORY_LABEL *ptml = (TOKEN_MANDATORY_LABEL *)(void*)pLabel;
+        PSID psidIntegrityLevelLabel = ptml->Label.Sid;
+
+        s_Result.Integrity = *GetSidSubAuthority(psidIntegrityLevelLabel, (*GetSidSubAuthorityCount(psidIntegrityLevelLabel) - 1));
+        *integrity = s_Result.Integrity;
+        InterlockedExchangeT(&s_Result.Success, TRUE);
+        return S_OK;
     }
 } // namespace Win32
 
