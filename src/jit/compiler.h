@@ -316,7 +316,7 @@ public:
 };
 
 typedef jitstd::list<VariableLiveRange> LiveRangeList;
-typedef LiveRangeList::iterator         LiveRangeListIterator;
+typedef LiveRangeList::const_iterator         LiveRangeListIterator;
 
 #if DEBUG
 // Dump "VariableLiveRange" when code has not been generated and we don't have so the assembly native offset
@@ -326,42 +326,26 @@ void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, const CodeGenI
 // Dump "VariableLiveRange" when code has been generated and we have the assembly native offset of each "emitLocation"
 void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emitter, const CodeGenInterface* codeGen);
 
-struct LiveRangeBarrier
+class LiveRangeBarrier
 {
+public:
     LiveRangeListIterator beginLastBlock;
     bool                  haveReadAtLeastOneOfBlock; // True if a live range for this variable has been
                                                      // reported from last call to EndBlock
 
-    LiveRangeBarrier(LiveRangeList* list)
+    LiveRangeBarrier(const LiveRangeList* liveRanges)
     {
-        // "list" should be a valid pointer
-        noway_assert(list != nullptr);
+        noway_assert(liveRanges != nullptr);
 
         haveReadAtLeastOneOfBlock = false;
-        beginLastBlock            = list->end();
+        beginLastBlock            = liveRanges->end();
     }
 
-    void reset(LiveRangeList* list)
-    {
-        // "list" should be a valid pointer
-        noway_assert(list != nullptr);
-
-        // There must have reported something in order to reset
-        noway_assert(haveReadAtLeastOneOfBlock);
-
-        if (list->back().endEmitLocation.Valid())
-        {
-            haveReadAtLeastOneOfBlock = false;
-        }
-        else
-        {
-            // This live range will remain open until next block.
-            // If it is in "bbliveIn" in the next "BasicBlock", there is no problem.
-            // If it is not, then "compiler->compCurLife" will have a difference with "block->bbliveIn"
-            // and it will be indicated as dead.
-            beginLastBlock = list->backPosition();
-        }
-    }
+    void reset(const LiveRangeList* list);
+    
+    // Move the barrier to the last position of variableLiveRanges
+    // This is used to print only the changes in the last block
+    void setBarrierAtLastPositionInRegisterHistory(const LiveRangeList* liveRanges);
 };
 #endif
 
@@ -392,16 +376,6 @@ public:
 #if DEBUG
     LiveRangeBarrier* variableLifeBarrier;
 
-    // Move the barrier to the last position of variableLiveRanges
-    // This is used to print only the changes in the last block
-    void setBarrierAtLastPositionInRegisterHistory() const
-    {
-        noway_assert(variableLiveRanges != nullptr);
-
-        variableLifeBarrier->haveReadAtLeastOneOfBlock = true;
-        variableLifeBarrier->beginLastBlock            = variableLiveRanges->backPosition();
-    }
-
     // Modified the barrier to print on next block only just that changes
     void endBlockLiveRanges()
     {
@@ -428,7 +402,7 @@ public:
         if (hasBeenAlive())
         {
             printf("[");
-            for (LiveRangeList::iterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end();
+            for (LiveRangeListIterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end();
                  it++)
             {
                 dumpVariableLiveRange(&it, codeGen);
@@ -453,7 +427,7 @@ public:
         else
         {
             printf("[");
-            for (LiveRangeList::iterator it = variableLiveRanges->begin(); it != variableLiveRanges->end(); it++)
+            for (LiveRangeListIterator it = variableLiveRanges->begin(); it != variableLiveRanges->end(); it++)
             {
                 dumpVariableLiveRange(&it, _emitter, codeGen);
             }
@@ -544,8 +518,9 @@ public:
         noway_assert(!variableLiveRanges->back().endEmitLocation.Valid());
 
 #if DEBUG
+        noway_assert(variableLifeBarrier != nullptr);
         // Restart barrier so we can print from here
-        setBarrierAtLastPositionInRegisterHistory();
+        variableLifeBarrier->setBarrierAtLastPositionInRegisterHistory(variableLiveRanges);
 #endif
     }
 

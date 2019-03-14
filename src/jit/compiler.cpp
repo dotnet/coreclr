@@ -11497,5 +11497,37 @@ void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emit
     printf(" [%X , %X )", varLiveRange->startEmitLocation.CodeOffset(_emitter),
            varLiveRange->endEmitLocation.CodeOffset(_emitter));
 }
+
+void LiveRangeBarrier::reset(const LiveRangeList *liveRanges)
+{
+    // "list" should be a valid pointer
+    noway_assert(liveRanges != nullptr);
+
+    // There must have reported something in order to reset
+    noway_assert(haveReadAtLeastOneOfBlock);
+
+    if (liveRanges->back().endEmitLocation.Valid())
+    {
+        haveReadAtLeastOneOfBlock = false;
+    }
+    else
+    {
+        // This live range will remain open until next block.
+        // If it is in "bbliveIn" in the next "BasicBlock", there is no problem.
+        // If it is not, then "compiler->compCurLife" will have a difference with "block->bbliveIn"
+        // and it will be indicated as dead.
+        beginLastBlock = liveRanges->backPosition();
+    }
+}
+
+// Move the barrier to the last position of variableLiveRanges
+// This is used to print only the changes in the last block
+void LiveRangeBarrier::setBarrierAtLastPositionInRegisterHistory(const LiveRangeList* liveRanges)
+{
+    noway_assert(liveRanges != nullptr);
+
+    haveReadAtLeastOneOfBlock = true;
+    beginLastBlock = liveRanges->backPosition();
+}
 #endif
 #endif
