@@ -321,15 +321,22 @@ typedef long time_t;
 #define PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER     0x08
 #define PAL_INITIALIZE_DEBUGGER_EXCEPTIONS          0x10
 #define PAL_INITIALIZE_ENSURE_STACK_SIZE            0x20
+#define PAL_INITIALIZE_REGISTER_SIGNALS             0x40
 
 // PAL_Initialize() flags
-#define PAL_INITIALIZE                 (PAL_INITIALIZE_SYNC_THREAD | PAL_INITIALIZE_STD_HANDLES)
+#define PAL_INITIALIZE                 (PAL_INITIALIZE_SYNC_THREAD | \
+                                        PAL_INITIALIZE_STD_HANDLES)
 
-// PAL_InitializeDLL() flags - don't start any of the helper threads
-#define PAL_INITIALIZE_DLL             PAL_INITIALIZE_NONE       
+// PAL_InitializeDLL() flags - don't start any of the helper threads or register any exceptions
+#define PAL_INITIALIZE_DLL              PAL_INITIALIZE_NONE       
 
 // PAL_InitializeCoreCLR() flags
-#define PAL_INITIALIZE_CORECLR         (PAL_INITIALIZE | PAL_INITIALIZE_EXEC_ALLOCATOR | PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER | PAL_INITIALIZE_DEBUGGER_EXCEPTIONS | PAL_INITIALIZE_ENSURE_STACK_SIZE)
+#define PAL_INITIALIZE_CORECLR         (PAL_INITIALIZE | \
+                                        PAL_INITIALIZE_EXEC_ALLOCATOR | \
+                                        PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER | \
+                                        PAL_INITIALIZE_DEBUGGER_EXCEPTIONS | \
+                                        PAL_INITIALIZE_ENSURE_STACK_SIZE | \
+                                        PAL_INITIALIZE_REGISTER_SIGNALS)
 
 typedef DWORD (PALAPI *PTHREAD_START_ROUTINE)(LPVOID lpThreadParameter);
 typedef PTHREAD_START_ROUTINE LPTHREAD_START_ROUTINE;
@@ -344,9 +351,22 @@ PAL_Initialize(
     const char * const argv[]);
 
 PALIMPORT
+void
+PALAPI
+PAL_InitializeWithFlags(
+    DWORD flags);
+
+PALIMPORT
 int
 PALAPI
-PAL_InitializeDLL(VOID);
+PAL_InitializeDLL(
+    VOID);
+
+PALIMPORT
+void
+PALAPI
+PAL_SetInitializeDLLFlags(
+    DWORD flags);
 
 PALIMPORT
 DWORD
@@ -407,6 +427,7 @@ DWORD
 PALAPI
 PAL_RegisterForRuntimeStartup(
     IN DWORD dwProcessId,
+    IN LPCWSTR lpApplicationGroupId,
     IN PPAL_STARTUP_CALLBACK pfnCallback,
     IN PVOID parameter,
     OUT PVOID *ppUnregisterToken);
@@ -422,6 +443,13 @@ BOOL
 PALAPI
 PAL_NotifyRuntimeStarted(VOID);
 
+#ifdef __APPLE__
+PALIMPORT
+LPCSTR
+PALAPI
+PAL_GetApplicationGroupId();
+#endif
+
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = MAX_PATH;
 
 PALIMPORT
@@ -430,6 +458,7 @@ PALAPI
 PAL_GetTransportPipeName(
     OUT char *name,
     IN DWORD id,
+    IN const char *applicationGroupId, 
     IN const char *suffix);
 
 PALIMPORT
@@ -1259,6 +1288,12 @@ PALIMPORT
 DWORD
 PALAPI
 GetCurrentThreadId(
+           VOID);
+
+PALIMPORT
+size_t
+PALAPI
+PAL_GetCurrentOSThreadId(
            VOID);
 
 // To work around multiply-defined symbols in the Carbon framework.
@@ -4980,6 +5015,16 @@ PALAPI
 PAL_SetTerminationRequestHandler(
     IN PTERMINATION_REQUEST_HANDLER terminationRequestHandler);
 
+PALIMPORT
+VOID
+PALAPI
+PAL_CatchHardwareExceptionHolderEnter();
+
+PALIMPORT
+VOID
+PALAPI
+PAL_CatchHardwareExceptionHolderExit();
+
 //
 // This holder is used to indicate that a hardware
 // exception should be raised as a C++ exception
@@ -4988,9 +5033,15 @@ PAL_SetTerminationRequestHandler(
 class CatchHardwareExceptionHolder
 {
 public:
-    CatchHardwareExceptionHolder();
+    CatchHardwareExceptionHolder()
+    {
+        PAL_CatchHardwareExceptionHolderEnter();
+    }
 
-    ~CatchHardwareExceptionHolder();
+    ~CatchHardwareExceptionHolder()
+    {
+        PAL_CatchHardwareExceptionHolderExit();
+    }
 
     static bool IsEnabled();
 };
@@ -5007,6 +5058,13 @@ public:
 #endif // FEATURE_ENABLE_HARDWARE_EXCEPTIONS
 
 #ifdef FEATURE_PAL_SXS
+
+class NativeExceptionHolderBase;
+
+PALIMPORT
+NativeExceptionHolderBase **
+PALAPI
+PAL_GetNativeExceptionHolderHead();
 
 extern "C++" {
 
@@ -5026,9 +5084,22 @@ class NativeExceptionHolderBase
     NativeExceptionHolderBase *m_next;
 
 protected:
-    NativeExceptionHolderBase();
+    NativeExceptionHolderBase()
+    {
+        m_head = nullptr;
+        m_next = nullptr;
+    }
 
-    ~NativeExceptionHolderBase();
+    ~NativeExceptionHolderBase()
+    {
+        // Only destroy if Push was called
+        if (m_head != nullptr)
+        {
+            *m_head = m_next;
+            m_head = nullptr;
+            m_next = nullptr;
+        }
+    }
 
 public:
     // Calls the holder's filter handler.
@@ -5037,7 +5108,13 @@ public:
     // Adds the holder to the "stack" of holders. This is done explicitly instead
     // of in the constructor was to avoid the mess of move constructors combined
     // with return value optimization (in CreateHolder).
-    void Push();
+    void Push()
+    {
+        NativeExceptionHolderBase **head = PAL_GetNativeExceptionHolderHead();
+        m_head = head;
+        m_next = *head;
+        *head = this;
+    }
 
     // Given the currentHolder and locals stack range find the next holder starting with this one
     // To find the first holder, pass nullptr as the currentHolder.

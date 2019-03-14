@@ -17,6 +17,7 @@
 extern "C"
 int InitializeDllTest1()
 {
+    PAL_SetInitializeDLLFlags(PAL_INITIALIZE_DLL | PAL_INITIALIZE_REGISTER_SIGNALS);
     return PAL_InitializeDLL();
 }
 

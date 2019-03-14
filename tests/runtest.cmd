@@ -1,28 +1,31 @@
 @if not defined _echo @echo off
-setlocal EnableDelayedExpansion
-
-:: Set the default arguments
-set __BuildArch=x64
-set __BuildType=Debug
-set __BuildOS=Windows_NT
-set __MSBuildBuildArch=x64
-
-set "__ProjectDir=%~dp0"
+setlocal EnableDelayedExpansion EnableExtensions
 
 :: Define a prefix for most output progress messages that come from this script. That makes
 :: it easier to see where these are coming from. Note that there is a trailing space here.
 set "__MsgPrefix=RUNTEST: "
 
-call "%__ProjectDir%"\..\setup_vs_tools.cmd
+set __ThisScriptDir="%~dp0"
 
-REM setup_vs_tools.cmd will correctly echo error message.
-if NOT '%ERRORLEVEL%' == '0' exit /b 1
+if /I not "%PROCESSOR_ARCHITECTURE%"=="arm64" (
+    if /I not "%PROCESSOR_ARCHITECTURE%"=="arm" (
+        call "%__ThisScriptDir%"\..\setup_vs_tools.cmd
+        if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
-set __VSVersion=vs2017
+        if defined VS150COMNTOOLS (
+            set __VSVersion=vs2017
+        ) else (
+            set __VSVersion=vs2015
+        )
+    )
+)   
 
-if defined VS140COMNTOOLS set __VSVersion=vs2015
-if defined VS150COMNTOOLS set __VSVersion=vs2017
+:: Set the default arguments
+set __BuildArch=x64
+set __BuildType=Debug
+set __BuildOS=Windows_NT
 
+set "__ProjectDir=%~dp0"
 :: remove trailing slash
 if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__ProjectFilesDir=%__ProjectDir%"
@@ -40,6 +43,9 @@ set __CollectDumps=
 set __DoCrossgen=
 set __CrossgenAltJit=
 set __PerfTests=
+set __SkipGenerateLayout=
+set __BuildXUnitWrappers=
+set __PrintLastResultsOnly=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -51,10 +57,10 @@ if /i "%1" == "-h"    goto Usage
 if /i "%1" == "/help" goto Usage
 if /i "%1" == "-help" goto Usage
 
-if /i "%1" == "x64"                   (set __BuildArch=x64&set __MSBuildBuildArch=x64&shift&goto Arg_Loop)
-if /i "%1" == "x86"                   (set __BuildArch=x86&set __MSBuildBuildArch=x86&shift&goto Arg_Loop)
-if /i "%1" == "arm"                   (set __BuildArch=arm&set __MSBuildBuildArch=arm&shift&goto Arg_Loop)
-if /i "%1" == "arm64"                 (set __BuildArch=arm64&set __MSBuildBuildArch=arm64&shift&goto Arg_Loop)
+if /i "%1" == "x64"                   (set __BuildArch=x64&shift&goto Arg_Loop)
+if /i "%1" == "x86"                   (set __BuildArch=x86&shift&goto Arg_Loop)
+if /i "%1" == "arm"                   (set __BuildArch=arm&shift&goto Arg_Loop)
+if /i "%1" == "arm64"                 (set __BuildArch=arm64&shift&goto Arg_Loop)
 
 if /i "%1" == "debug"                 (set __BuildType=Debug&shift&goto Arg_Loop)
 if /i "%1" == "release"               (set __BuildType=Release&shift&goto Arg_Loop)
@@ -77,15 +83,19 @@ if /i "%1" == "jitforcerelocs"        (set COMPlus_ForceRelocs=1&shift&goto Arg_
 if /i "%1" == "jitdisasm"             (set __JitDisasm=1&shift&goto Arg_Loop)
 if /i "%1" == "ilasmroundtrip"        (set __IlasmRoundTrip=1&shift&goto Arg_Loop)
 if /i "%1" == "GenerateLayoutOnly"    (set __GenerateLayoutOnly=1&shift&goto Arg_Loop)
+if /i "%1" == "skipgeneratelayout"    (set __SkipGenerateLayout=1&shift&goto Arg_Loop)
+if /i "%1" == "buildxunitwrappers"    (set __BuildXunitWrappers=1&shift&goto Arg_Loop)
+if /i "%1" == "printlastresultsonly"  (set __PrintLastResultsOnly=1&shift&goto Arg_Loop)
 if /i "%1" == "PerfTests"             (set __PerfTests=true&shift&goto Arg_Loop)
 if /i "%1" == "runcrossgentests"      (set RunCrossGen=true&shift&goto Arg_Loop)
 if /i "%1" == "link"                  (set DoLink=true&set ILLINK=%2&shift&shift&goto Arg_Loop)
+REM tieredcompilation is on by default now, but setting this environment variable is harmless and I didn't want to break any automation that might be using it just yet
 if /i "%1" == "tieredcompilation"     (set COMPLUS_TieredCompilation=1&shift&goto Arg_Loop)
 if /i "%1" == "gcname"                (set COMPlus_GCName=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "timeout"               (set __TestTimeout=%2&shift&shift&goto Arg_Loop)
 
 REM change it to COMPlus_GCStress when we stop using xunit harness
-if /i "%1" == "gcstresslevel"         (set __GCSTRESSLEVEL=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
+if /i "%1" == "gcstresslevel"         (set COMPlus_GCStress=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
 if /i "%1" == "collectdumps"          (set __CollectDumps=true&shift&goto Arg_Loop)
 
 if /i not "%1" == "msbuildargs" goto SkipMsbuildArgs
@@ -108,6 +118,8 @@ if defined __TestEnv (if not exist %__TestEnv% echo %__MsgPrefix%Error: Test Env
 if "%__PerfTests%"=="true" (if defined __GenerateLayoutOnly echo %__MsgPrefix%Error: Don't specify both "PerfTests" and "GenerateLayoutOnly" && exit /b 1)
 
 :: Set the remaining variables based upon the determined configuration
+set __MSBuildBuildArch=%__BuildArch%
+
 set "__BinDir=%__RootBinDir%\Product\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__TestWorkingDir=%__RootBinDir%\tests\%__BuildOS%.%__BuildArch%.%__BuildType%"
 
@@ -116,6 +128,80 @@ set "__TestWorkingDir=%__RootBinDir%\tests\%__BuildOS%.%__BuildArch%.%__BuildTyp
 :: REVIEW: XunitTestReportDirBase is not used in this script. Who needs to have it set?
 if not defined XunitTestBinBase       set  XunitTestBinBase=%__TestWorkingDir%
 if not defined XunitTestReportDirBase set  XunitTestReportDirBase=%XunitTestBinBase%\Reports\
+
+REM At this point in the script there will be a divergence in how the tests are run.
+REM For official builds we will continue to run tests using the un-unified scripting
+REM which relies on msbuild and calls runtest.proj directly. For all other scenarios
+REM runtest.py will handle setup and will then call runtest.proj
+
+if defined __AgainstPackages goto SetupMSBuildAndCallRuntestProj
+if "%__PerfTests%"=="true" goto SetupMSBuildAndCallRuntestProj
+if defined __GenerateLayoutOnly goto SetupMSBuildAndCallRuntestProj
+
+REM We are not running in the official build scenario, call runtest.py
+
+set __RuntestPyArgs=-arch %__BuildArch% -build_type %__BuildType%
+
+if defined DoLink (
+    set __RuntestPyArgs=%__RuntestPyArgs% --il_link
+)
+
+if defined __LongGCTests (
+    set __RuntestPyArgs=%__RuntestPyArgs% --long_gc
+)
+
+if defined __GCSimulatorTests (
+    set __RuntestPyArgs=%__RuntestPyArgs% --gcsimulator
+)
+
+if defined __JitDisasm (
+    set __RuntestPyArgs=%__RuntestPyArgs% --jitdisasm
+)
+
+if defined __IlasmRoundTrip (
+    set __RuntestPyArgs=%__RuntestPyArgs% --ilasmroundtrip
+)
+
+if defined __TestEnv (
+    set __RuntestPyArgs=%__RuntestPyArgs% -test_env %__TestEnv%
+)
+
+if defined __Sequential (
+    set __RuntestPyArgs=%__RuntestPyArgs% --sequential
+)
+
+if not defined __SkipGenerateLayout (
+    set __RuntestPyArgs=%__RuntestPyArgs% --generate_layout
+)
+
+if defined __GenerateLayoutOnly (
+    set __RuntestPyArgs=%__RuntestPyArgs% --generate_layout_only
+)
+
+if defined __BuildXUnitWrappers (
+    set __RuntestPyArgs=%__RuntestPyArgs% --build_xunit_test_wrappers
+)
+
+if defined RunCrossGen (
+    set __RuntestPyArgs=%__RuntestPyArgs% --run_crossgen_tests
+)
+
+if defined __DoCrossgen (
+    set __RuntestPyArgs=%__RuntestPyArgs% --precompile_core_root
+)
+
+if defined __PrintLastResultsOnly (
+    set __RuntestPyArgs=%__RuntestPyArgs% --analyze_results_only
+)
+
+REM __ProjectDir is poorly named, it is actually <projectDir>/tests
+set NEXTCMD=python "%__ProjectDir%\runtest.py" %__RuntestPyArgs%
+echo !NEXTCMD!
+!NEXTCMD!
+
+exit /b %ERRORLEVEL%
+
+:SetupMSBuildAndCallRuntestProj
 
 :: Set up msbuild and tools environment. Check if msbuild and VS exist.
 
@@ -214,12 +300,16 @@ call :SetTestEnvironment
 call :ResolveDependencies
 if errorlevel 1 exit /b 1
 
-if defined __DoCrossgen call :PrecompileFX
+if defined __DoCrossgen (
+    echo %__MsgPrefix%Running crossgen on framework assemblies
+    call :PrecompileFX
+)
 
 REM Delete the unecessary mscorlib.ni file.
 if exist %CORE_ROOT%\mscorlib.ni.dll del %CORE_ROOT%\mscorlib.ni.dll
 
 if defined __GenerateLayoutOnly (
+    echo %__MsgPrefix%Done generating layout.
     exit /b 0
 )
 
@@ -247,7 +337,7 @@ if "%__CollectDumps%"=="true" (
 )
 
 echo %__MsgPrefix%CORE_ROOT that will be used is: %CORE_ROOT%
-echo %__MsgPrefix%Starting the test run ...
+echo %__MsgPrefix%Starting test run at %TIME%
 
 set __BuildLogRootName=TestRunResults
 call :msbuild "%__ProjectFilesDir%\runtest.proj" /p:Runtests=true /clp:showcommandline
@@ -258,7 +348,7 @@ if "%__CollectDumps%"=="true" (
 )
 
 if %__errorlevel% GEQ 1 (
-    echo Test Run failed. Refer to the following:
+    echo %__MsgPrefix%Test Run failed. Refer to the following:
     echo     Html report: %__TestRunHtmlLog%
     exit /b 1
 )
@@ -273,7 +363,7 @@ REM ============================================================================
 
 :RunPerfTests 
 echo %__MsgPrefix%CORE_ROOT that will be used is: %CORE_ROOT%  
-echo %__MsgPrefix%Starting the test run ...  
+echo %__MsgPrefix%Starting test run at %TIME%
 
 set __BuildLogRootName=PerfTestRunResults  
 echo %__MsgPrefix%Running perf tests  
@@ -294,7 +384,7 @@ REM ============================================================================
 
 :TestsDone
 
-echo %__MsgPrefix%Test run successful. Refer to the log files for details:
+echo %__MsgPrefix%Test run successful. Finished at %TIME%. Refer to the log files for details:
 echo     %__TestRunHtmlLog%
 echo     %__TestRunXmlLog%
 exit /b 0
@@ -496,6 +586,7 @@ echo VSVersion ^<vs_version^>    - VS2015 or VS2017 ^(default: VS2017^).
 echo TestEnv ^<test_env_script^> - Run a custom script before every test to set custom test environment settings.
 echo AgainstPackages           - This indicates that we are running tests that were built against packages.
 echo GenerateLayoutOnly        - If specified will not run the tests and will only create the Runtime Dependency Layout
+echo skipgeneratelayout        - Do not generate the core root. Used for cross target testing.
 echo sequential                - Run tests sequentially (no parallelism).
 echo crossgen                  - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests.
 echo crossgenaltjit ^<altjit^>   - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests, using the given altjit.
@@ -521,6 +612,7 @@ echo timeout ^<n^>               - Sets the per-test timeout in milliseconds ^(d
 echo                             Note: some options override this ^(gcstresslevel, longgc, gcsimulator^).
 echo msbuildargs ^<args...^>     - Pass all subsequent args directly to msbuild invocations.
 echo ^<CORE_ROOT^>               - Path to the runtime to test ^(if specified^).
+echo printlastresultsonly        - Print the last test results without running tests.
 echo.
 echo Note that arguments are not case-sensitive.
 echo.
