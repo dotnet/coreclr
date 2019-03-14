@@ -3110,6 +3110,7 @@ namespace Util
         return hr;
     }
 
+#ifndef FEATURE_PAL
     // Struct used to scope suspension of client impersonation for the current thread.
     // https://docs.microsoft.com/en-us/windows/desktop/secauthz/client-impersonation
     class SuspendImpersonation
@@ -3143,7 +3144,68 @@ namespace Util
         HandleHolder _token;
     };
 
-#ifndef FEATURE_PAL
+    struct ProcessIntegrityResult
+    {
+        BOOL Success;
+        DWORD Integrity;
+        HRESULT LastError;
+
+        HRESULT RecordAndReturnError(HRESULT hr)
+        {
+            LastError = hr;
+            return hr;
+        }
+    };
+
+    // The system calls in this code can fail if run with reduced privileges.
+    // It is the caller's responsibility to choose an appropriate default in the event
+    // that this function fails to retrieve the current process integrity.
+    HRESULT GetCurrentProcessIntegrity(DWORD *integrity)
+    {
+        static ProcessIntegrityResult s_Result = { FALSE, 0, S_FALSE };
+
+        if (FALSE != InterlockedCompareExchangeT(&s_Result.Success, FALSE, FALSE))
+        {
+            *integrity = s_Result.Integrity;
+            return S_OK;
+        }
+
+        // Temporarily suspend impersonation (if possible) while computing the integrity level.
+        // If impersonation is active, the OpenProcessToken call below will check the impersonation
+        // token against the process token ACL, and will generally fail with ERROR_ACCESS_DENIED if
+        // the impersonation token is less privileged than this process's primary token.
+        Clr::Util::SuspendImpersonation si;
+
+        HandleHolder hToken;
+        if(!OpenProcessToken(GetCurrentProcess(), TOKEN_READ, &hToken))
+            return s_Result.RecordAndReturnError(HRESULT_FROM_GetLastError());
+
+        DWORD dwSize = 0;
+        DWORD err = ERROR_SUCCESS;
+        if(!GetTokenInformation(hToken, (TOKEN_INFORMATION_CLASS)TokenIntegrityLevel, nullptr, 0, &dwSize))
+            err = GetLastError();
+
+        // We need to make sure that GetTokenInformation failed in a predictable manner so we know that
+        // dwSize has the correct buffer size in it.
+        if (err != ERROR_INSUFFICIENT_BUFFER || dwSize == 0)
+            return s_Result.RecordAndReturnError((err == ERROR_SUCCESS) ? E_FAIL : HRESULT_FROM_WIN32(err));
+
+        NewArrayHolder<BYTE> pLabel = new (nothrow) BYTE[dwSize];
+        if (pLabel == NULL)
+            return s_Result.RecordAndReturnError(E_OUTOFMEMORY);
+
+        if(!GetTokenInformation(hToken, (TOKEN_INFORMATION_CLASS)TokenIntegrityLevel, pLabel, dwSize, &dwSize))
+            return s_Result.RecordAndReturnError(HRESULT_FROM_GetLastError());
+
+        TOKEN_MANDATORY_LABEL *ptml = (TOKEN_MANDATORY_LABEL *)(void*)pLabel;
+        PSID psidIntegrityLevelLabel = ptml->Label.Sid;
+
+        s_Result.Integrity = *GetSidSubAuthority(psidIntegrityLevelLabel, (*GetSidSubAuthorityCount(psidIntegrityLevelLabel) - 1));
+        *integrity = s_Result.Integrity;
+        InterlockedExchangeT(&s_Result.Success, TRUE);
+        return S_OK;
+    }
+
 namespace Reg
 {
     HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKeyName, LPCWSTR wszValueName, SString & ssValue)
@@ -3257,7 +3319,7 @@ namespace Com
             // Processes with high integrity or greater should only read from HKLM to avoid being hijacked by medium
             // integrity processes writing to HKCU.
             DWORD integrity = SECURITY_MANDATORY_PROTECTED_PROCESS_RID;
-            HRESULT hr = Clr::Util::Win32::GetCurrentProcessIntegrity(&integrity);
+            HRESULT hr = Clr::Util::GetCurrentProcessIntegrity(&integrity);
             if (hr != S_OK)
             {
                 // In the event that we are unable to get the current process integrity,
@@ -3370,68 +3432,6 @@ namespace Win32
         // Overly defensive? Perhaps.
         if (!(dwLengthWritten < dwLengthRequired))
             ThrowHR(E_UNEXPECTED);
-    }
-
-    struct ProcessIntegrityResult
-    {
-        BOOL Success;
-        DWORD Integrity;
-        HRESULT LastError;
-
-        HRESULT RecordAndReturnError(HRESULT hr)
-        {
-            LastError = hr;
-            return hr;
-        }
-    };
-
-    // The system calls in this code can fail if run with reduced privileges.
-    // It is the caller's responsibility to choose an appropriate default in the event
-    // that this function fails to retrieve the current process integrity.
-    HRESULT GetCurrentProcessIntegrity(DWORD *integrity)
-    {
-        static ProcessIntegrityResult s_Result = { FALSE, 0, S_FALSE };
-
-        if (FALSE != InterlockedCompareExchangeT(&s_Result.Success, FALSE, FALSE))
-        {
-            *integrity = s_Result.Integrity;
-            return S_OK;
-        }
-
-        // Temporarily suspend impersonation (if possible) while computing the integrity level.
-        // If impersonation is active, the OpenProcessToken call below will check the impersonation
-        // token against the process token ACL, and will generally fail with ERROR_ACCESS_DENIED if
-        // the impersonation token is less privileged than this process's primary token.
-        Clr::Util::SuspendImpersonation si;
-
-        HandleHolder hToken;
-        if(!OpenProcessToken(GetCurrentProcess(), TOKEN_READ, &hToken))
-            return s_Result.RecordAndReturnError(HRESULT_FROM_GetLastError());
-
-        DWORD dwSize = 0;
-        DWORD err = ERROR_SUCCESS;
-        if(!GetTokenInformation(hToken, (TOKEN_INFORMATION_CLASS)TokenIntegrityLevel, nullptr, 0, &dwSize))
-            err = GetLastError();
-
-        // We need to make sure that GetTokenInformation failed in a predictable manner so we know that
-        // dwSize has the correct buffer size in it.
-        if (err != ERROR_INSUFFICIENT_BUFFER || dwSize == 0)
-            return s_Result.RecordAndReturnError((err == ERROR_SUCCESS) ? E_FAIL : HRESULT_FROM_WIN32(err));
-
-        NewArrayHolder<BYTE> pLabel = new (nothrow) BYTE[dwSize];
-        if (pLabel == NULL)
-            return s_Result.RecordAndReturnError(E_OUTOFMEMORY);
-
-        if(!GetTokenInformation(hToken, (TOKEN_INFORMATION_CLASS)TokenIntegrityLevel, pLabel, dwSize, &dwSize))
-            return s_Result.RecordAndReturnError(HRESULT_FROM_GetLastError());
-
-        TOKEN_MANDATORY_LABEL *ptml = (TOKEN_MANDATORY_LABEL *)(void*)pLabel;
-        PSID psidIntegrityLevelLabel = ptml->Label.Sid;
-
-        s_Result.Integrity = *GetSidSubAuthority(psidIntegrityLevelLabel, (*GetSidSubAuthorityCount(psidIntegrityLevelLabel) - 1));
-        *integrity = s_Result.Integrity;
-        InterlockedExchangeT(&s_Result.Success, TRUE);
-        return S_OK;
     }
 } // namespace Win32
 
