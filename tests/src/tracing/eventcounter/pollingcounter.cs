@@ -8,6 +8,7 @@ using Microsoft.Diagnostics.Tracing;
 using System.Diagnostics.Tracing;
 #endif
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Reflection;
 
@@ -23,25 +24,8 @@ namespace BasicEventSourceTests
             private Func<float> _getFailureCount;
             private Func<float> _getSuccessCount;
 
-            public SimpleEventSource(Func<float> getFailureCount, Func<float> getSuccessCount)
+            public SimpleEventSource(Func<float> getFailureCount, Func<float> getSuccessCount, Type PollingCounterType)
             {
-                _getFailureCount = getFailureCount;
-                _getSuccessCount = getSuccessCount;
-
-                // Reflect over System.Private.CoreLib and get the PollingCounter type.
-                Assembly SPC = typeof(System.Diagnostics.Tracing.EventSource).Assembly;
-                if(SPC == null)
-                {
-                    Console.WriteLine("Failed to get System.Private.CoreLib assembly.");
-                    return;
-                }
-                Type PollingCounterType = SPC.GetType("System.Diagnostics.Tracing.PollingCounter");
-                if(PollingCounterType == null)
-                {
-                    Console.WriteLine("Failed to get System.Diagnostics.Tracing.PollingCounter type.");
-                    return;
-                }
-
                 _failureCounter = Activator.CreateInstance(PollingCounterType, "failureCount", this, getSuccessCount);
                 _successCounter = Activator.CreateInstance(PollingCounterType, "successCount", this, getFailureCount);
             }
@@ -80,6 +64,8 @@ namespace BasicEventSourceTests
                 {
                     for (int i = 0; i < eventData.Payload.Count; i++)
                     {
+
+                        // Decode the payload
                         IDictionary<string, object> eventPayload = eventData.Payload[i] as IDictionary<string, object>;
 
                         string min = "";
@@ -133,20 +119,18 @@ namespace BasicEventSourceTests
             }
         }
 
-        private int _fail;
-        private int _success;
 
         public static int failureCountCalled = 0;
         public static int successCountCalled = 0;
 
         public static float getFailureCount()
         {
-            return 2;
+            return failureCountCalled++;
         }
 
         public static float getSuccessCount()
         {
-            return 3;
+            return successCountCalled++;
         }
 
         public static int Main(string[] args)
@@ -154,7 +138,21 @@ namespace BasicEventSourceTests
             // Create an EventListener.
             using (SimpleEventListener myListener = new SimpleEventListener("SimpleEventSource", EventLevel.Verbose))
             {
-                SimpleEventSource eventSource = new SimpleEventSource(getFailureCount, getSuccessCount);
+                 // Reflect over System.Private.CoreLib and get the PollingCounter type.
+                Assembly SPC = typeof(System.Diagnostics.Tracing.EventSource).Assembly;
+                if(SPC == null)
+                {
+                    Console.WriteLine("Failed to get System.Private.CoreLib assembly.");
+                    return 1;
+                }
+                Type PollingCounterType = SPC.GetType("System.Diagnostics.Tracing.PollingCounter");
+                if(PollingCounterType == null)
+                {
+                    Console.WriteLine("Failed to get System.Diagnostics.Tracing.PollingCounter type.");
+                    return 1;
+                }
+
+                SimpleEventSource eventSource = new SimpleEventSource(getFailureCount, getSuccessCount, PollingCounterType);
 
                 // Want to sleep for 5000 ms to get some counters piling up.
                 Thread.Sleep(5000);
