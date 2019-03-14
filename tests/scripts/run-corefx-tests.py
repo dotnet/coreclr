@@ -305,6 +305,8 @@ def main(args):
         # It is needed under docker where LC_ALL is not configured.
         common_config_args += ' --warnAsError false'
 
+    common_config_args += ' /p:EnableNgenOptimization=false'
+
     build_command = 'build.cmd' if Is_windows else './build.sh'
 
     command = ' '.join((build_command, common_config_args, build_args))
