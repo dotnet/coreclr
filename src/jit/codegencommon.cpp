@@ -10627,13 +10627,15 @@ void CodeGen::genSetScopeInfoUsingsiScope()
 #else
 void CodeGen::genSetScopeInfoUsingVariableRanges()
 {
+    VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
+
     unsigned int varNum;
     LclVarDsc*   varDsc;
     unsigned int liveRangeIndex = 0;
 
     for (varDsc = compiler->lvaTable, varNum = 0; varNum < compiler->info.compLocalsCount; varNum++, varDsc++)
     {
-        LiveRangeList* liveRanges = varDsc->getLiveRanges();
+        const LiveRangeList* liveRanges = varLiveKeeper->getLiveRangesForVar(varNum);
 
         if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
         {
@@ -10682,16 +10684,18 @@ void CodeGen::genSetScopeInfo(unsigned       which,
                               unsigned       varNum,
                               unsigned       LVnum,
                               bool           avail,
-                              siVarLoc*      varLoc)
+                              const siVarLoc*      varLoc)
 {
     // We need to do some mapping while reporting back these variables.
 
     unsigned ilVarNum = compiler->compMap2ILvarNum(varNum);
     noway_assert((int)ilVarNum != ICorDebugInfo::UNKNOWN_ILNUM);
 
-#ifdef _TARGET_X86_
+#ifdef DEBUG
     // Non-x86 platforms are allowed to access all arguments directly
     // so we don't need this code.
+
+    siVarLoc newVarLoc;
 
     // Is this a varargs function?
 
@@ -10723,8 +10727,12 @@ void CodeGen::genSetScopeInfo(unsigned       which,
         noway_assert(offset < stkArgSize);
         offset = stkArgSize - offset;
 
-        varLoc->vlType                   = VLT_FIXED_VA;
-        varLoc->vlFixedVarArg.vlfvOffset = offset;
+        newVarLoc = *varLoc;
+
+        newVarLoc.vlType                   = VLT_FIXED_VA;
+        newVarLoc.vlFixedVarArg.vlfvOffset = offset;
+        
+        varLoc = &newVarLoc;
     }
 
 #endif // _TARGET_X86_
