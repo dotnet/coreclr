@@ -317,7 +317,7 @@ public:
 };
 
 typedef jitstd::list<VariableLiveRange> LiveRangeList;
-typedef LiveRangeList::const_iterator         LiveRangeListIterator;
+typedef LiveRangeList::const_iterator   LiveRangeListIterator;
 
 #if DEBUG
 // Dump "VariableLiveRange" when code has not been generated and we don't have so the assembly native offset
@@ -343,7 +343,7 @@ public:
     }
 
     void reset(const LiveRangeList* list);
-    
+
     // Move the barrier to the last position of variableLiveRanges
     // This is used to print only the changes in the last block
     void setBarrierAtLastPositionInRegisterHistory(const LiveRangeList* liveRanges);
@@ -370,9 +370,9 @@ public:
 #endif
 
     bool hasVariableLiveRangeOpen() const;
-    
+
     VariableLiveDescriptor(CompAllocator allocator);
-    
+
     size_t getAmountLiveRanges() const;
 
     LiveRangeListIterator getLiveRangesIterator() const;
@@ -395,16 +395,16 @@ public:
 class VariableLiveKeeper
 {
 private:
-    unsigned int lvLiveDscCount;        // count of args, special args, and IL local variables to report home
-    unsigned int lvLiveArgsCount;       // count of arguments to report home
-    
+    unsigned int lvLiveDscCount;  // count of args, special args, and IL local variables to report home
+    unsigned int lvLiveArgsCount; // count of arguments to report home
+
     Compiler* compiler;
 
     VariableLiveDescriptor* lvaLiveDsc; // Array of descriptors that manage VariableLiveRanges.
                                         // It's indexes correspond to lvaTable indexes (or lvSlotNum).
 
-    bool lastBasicBlockHasBeenEmited;   // When true no more siEndVariableLiveRange is considered.
-                                        // No update/start happens when code has been generated.
+    bool lastBasicBlockHasBeenEmited; // When true no more siEndVariableLiveRange is considered.
+                                      // No update/start happens when code has been generated.
 public:
     VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* compiler);
 
@@ -468,7 +468,7 @@ public:
         lvPerSsaData()
     {
     }
-    
+
     // note this only packs because var_types is a typedef of unsigned char
     var_types lvType : 5; // TYP_INT/LONG/FLOAT/DOUBLE/REF
 

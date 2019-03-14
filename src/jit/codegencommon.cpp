@@ -10518,7 +10518,7 @@ void CodeGen::genSetScopeInfo()
     lvCount = siScopeCnt + psiScopeCnt;
 #else
     const VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
-    lvCount = varLiveKeeper->getLiveRangesCount();
+    lvCount                                 = varLiveKeeper->getLiveRangesCount();
 #endif
 
 #ifdef USING_SCOPE_INFO
@@ -10678,13 +10678,13 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
 // Notes:
 //    Called for every scope info piece to record by the main genSetScopeInfo()
 
-void CodeGen::genSetScopeInfo(unsigned       which,
-                              UNATIVE_OFFSET startOffs,
-                              UNATIVE_OFFSET length,
-                              unsigned       varNum,
-                              unsigned       LVnum,
-                              bool           avail,
-                              const siVarLoc*      varLoc)
+void CodeGen::genSetScopeInfo(unsigned        which,
+                              UNATIVE_OFFSET  startOffs,
+                              UNATIVE_OFFSET  length,
+                              unsigned        varNum,
+                              unsigned        LVnum,
+                              bool            avail,
+                              const siVarLoc* varLoc)
 {
     // We need to do some mapping while reporting back these variables.
 
@@ -10731,7 +10731,7 @@ void CodeGen::genSetScopeInfo(unsigned       which,
 
         newVarLoc.vlType                   = VLT_FIXED_VA;
         newVarLoc.vlFixedVarArg.vlfvOffset = offset;
-        
+
         varLoc = &newVarLoc;
     }
 

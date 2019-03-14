@@ -28,10 +28,10 @@
 // Enable these macros to get psiScopes info or either VariableLiveRange info
 // reporting variables' home location on the prolog and epilog of the method.
 // Both can be used at the same time but only one will be sent to the debugger.
-#if 1
+#if 0
 #define USING_SCOPE_INFO
 #endif
-#if 0
+#if 1
 #define USING_VARIABLE_LIVE_RANGE
 #endif
 
