@@ -400,7 +400,7 @@ private:
     
     Compiler* compiler;
 
-    VariableLiveDescriptor* lvaLiveDsc; // Array of descriptos that manage VariableLiveRanges.
+    VariableLiveDescriptor* lvaLiveDsc; // Array of descriptors that manage VariableLiveRanges.
                                         // It's indexes correspond to lvaTable indexes (or lvSlotNum).
 
     bool lastBasicBlockHasBeenEmited;   // When true no more siEndVariableLiveRange is considered.
