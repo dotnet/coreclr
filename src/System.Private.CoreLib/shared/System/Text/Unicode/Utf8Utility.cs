@@ -12,6 +12,12 @@ namespace System.Text.Unicode
     internal static class Utf8Utility
     {
         /// <summary>
+        /// The maximum number of bytes that can result from UTF-8 transcoding
+        /// any Unicode scalar value.
+        /// </summary>
+        internal const int MaxBytesPerScalar = 4;
+
+        /// <summary>
         /// The UTF-8 representation of <see cref="UnicodeUtility.ReplacementChar"/>.
         /// </summary>
         private static ReadOnlySpan<byte> ReplacementCharSequence => new byte[] { 0xEF, 0xBF, 0xBD };
