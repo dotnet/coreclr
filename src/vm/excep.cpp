@@ -11945,6 +11945,7 @@ void ExceptionNotifications::GetEventArgsForNotification(ExceptionNotificationHa
 static LONG ExceptionNotificationFilter(PEXCEPTION_POINTERS pExceptionInfo, LPVOID pParam)
 {
     EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+    return -1;
 }
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
