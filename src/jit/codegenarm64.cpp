@@ -280,16 +280,32 @@ void CodeGen::genPrologSaveReg(regNumber reg1, int spOffset, int spDelta, regNum
     assert(spDelta <= 0);
     assert((spDelta % 16) == 0); // SP changes must be 16-byte aligned
 
+    bool needToSaveRegs = true;
     if (spDelta != 0)
     {
-        // generate sub SP,SP,imm
-        genStackPointerAdjustment(spDelta, tmpReg, pTmpRegIsZero, /* reportUnwindData */ true);
+        if ((spOffset == 0) && (spDelta >= -256))
+        {
+            // We can use pre-index addressing.
+            // str REG, [SP, #spDelta]!
+            getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, reg1, REG_SPBASE, spDelta, INS_OPTS_PRE_INDEX);
+            compiler->unwindSaveRegPreindexed(reg1, spDelta);
+
+            needToSaveRegs = false;
+        }
+        else // (spOffset != 0) || (spDelta < -256)
+        {
+            // generate sub SP,SP,imm
+            genStackPointerAdjustment(spDelta, tmpReg, pTmpRegIsZero, /* reportUnwindData */ true);
+        }
     }
 
-    // str REG, [SP, #offset]
-    // 64-bit STR offset range: 0 to 32760, multiple of 8.
-    getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, reg1, REG_SPBASE, spOffset);
-    compiler->unwindSaveReg(reg1, spOffset);
+    if (needToSaveRegs)
+    {
+        // str REG, [SP, #offset]
+        // 64-bit STR offset range: 0 to 32760, multiple of 8.
+        getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, reg1, REG_SPBASE, spOffset);
+        compiler->unwindSaveReg(reg1, spOffset);
+    }
 }
 
 //------------------------------------------------------------------------
@@ -385,14 +401,30 @@ void CodeGen::genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, reg
     assert(spDelta >= 0);
     assert((spDelta % 16) == 0); // SP changes must be 16-byte aligned
 
-    // ldr reg1, [SP, #offset]
-    getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, reg1, REG_SPBASE, spOffset);
-    compiler->unwindSaveReg(reg1, spOffset);
-
     if (spDelta != 0)
     {
-        // generate add SP,SP,imm
-        genStackPointerAdjustment(spDelta, tmpReg, pTmpRegIsZero, /* reportUnwindData */ true);
+        if ((spOffset == 0) && (spDelta <= 255))
+        {
+            // We can use post-index addressing.
+            // ldr REG, [SP], #spDelta
+            getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, reg1, REG_SPBASE, spDelta, INS_OPTS_POST_INDEX);
+            compiler->unwindSaveRegPreindexed(reg1, -spDelta);
+        }
+        else // (spOffset != 0) || (spDelta > 255)
+        {
+            // ldr reg1, [SP, #offset]
+            getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, reg1, REG_SPBASE, spOffset);
+            compiler->unwindSaveReg(reg1, spOffset);
+
+            // generate add SP,SP,imm
+            genStackPointerAdjustment(spDelta, tmpReg, pTmpRegIsZero, /* reportUnwindData */ true);
+        }
+    }
+    else
+    {
+        // ldr reg1, [SP, #offset]
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, reg1, REG_SPBASE, spOffset);
+        compiler->unwindSaveReg(reg1, spOffset);
     }
 }
 
@@ -617,28 +649,22 @@ void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowe
     // We also can save FP and LR, even though they are not in RBM_CALLEE_SAVED.
     assert(regsToSaveCount <= genCountBits(RBM_CALLEE_SAVED | RBM_FP | RBM_LR));
 
-    if (genSaveFpLrWithAllCalleeSavedRegisters)
+    // Save integer registers at higher addresses than floating-point registers.
+
+    regMaskTP maskSaveRegsFloat = regsToSaveMask & RBM_ALLFLOAT;
+    regMaskTP maskSaveRegsInt   = regsToSaveMask & ~maskSaveRegsFloat;
+
+    if (maskSaveRegsFloat != RBM_NONE)
     {
-        // TODO: always save int regs higher than float, to be consistent?
-        regMaskTP maskSaveRegsFloat = regsToSaveMask & RBM_ALLFLOAT;
-        regMaskTP maskSaveRegsInt   = regsToSaveMask & ~maskSaveRegsFloat;
-
-        if (maskSaveRegsFloat != RBM_NONE)
-        {
-            genSaveCalleeSavedRegisterGroup(maskSaveRegsFloat, spDelta, lowestCalleeSavedOffset);
-            spDelta = 0;
-            lowestCalleeSavedOffset += genCountBits(maskSaveRegsFloat) * FPSAVE_REGSIZE_BYTES;
-        }
-
-        if (maskSaveRegsInt != RBM_NONE)
-        {
-            genSaveCalleeSavedRegisterGroup(maskSaveRegsInt, spDelta, lowestCalleeSavedOffset);
-            // No need to update spDelta, lowestCalleeSavedOffset since they're not used after this.
-        }
+        genSaveCalleeSavedRegisterGroup(maskSaveRegsFloat, spDelta, lowestCalleeSavedOffset);
+        spDelta = 0;
+        lowestCalleeSavedOffset += genCountBits(maskSaveRegsFloat) * FPSAVE_REGSIZE_BYTES;
     }
-    else
+
+    if (maskSaveRegsInt != RBM_NONE)
     {
-        genSaveCalleeSavedRegisterGroup(regsToSaveMask, spDelta, lowestCalleeSavedOffset);
+        genSaveCalleeSavedRegisterGroup(maskSaveRegsInt, spDelta, lowestCalleeSavedOffset);
+        // No need to update spDelta, lowestCalleeSavedOffset since they're not used after this.
     }
 }
 
@@ -740,31 +766,25 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
     static_assert_no_msg(REGSIZE_BYTES == FPSAVE_REGSIZE_BYTES);
     int spOffset = lowestCalleeSavedOffset + regsToRestoreCount * REGSIZE_BYTES;
 
-    if (genSaveFpLrWithAllCalleeSavedRegisters)
+    // Save integer registers at higher addresses than floating-point registers.
+
+    regMaskTP maskRestoreRegsFloat = regsToRestoreMask & RBM_ALLFLOAT;
+    regMaskTP maskRestoreRegsInt   = regsToRestoreMask & ~maskRestoreRegsFloat;
+
+    // Restore in the opposite order of saving.
+
+    if (maskRestoreRegsInt != RBM_NONE)
     {
-        // TODO: always save int regs higher than float, to be consistent?
-        regMaskTP maskRestoreRegsFloat = regsToRestoreMask & RBM_ALLFLOAT;
-        regMaskTP maskRestoreRegsInt   = regsToRestoreMask & ~maskRestoreRegsFloat;
-
-        // Restore in the opposite order of saving.
-
-        if (maskRestoreRegsInt != RBM_NONE)
-        {
-            int spIntDelta = (maskRestoreRegsFloat != RBM_NONE) ? 0 : spDelta; // should we delay the SP adjustment?
-            genRestoreCalleeSavedRegisterGroup(maskRestoreRegsInt, spIntDelta, spOffset);
-            spOffset -= genCountBits(maskRestoreRegsInt) * REGSIZE_BYTES;
-        }
-
-        if (maskRestoreRegsFloat != RBM_NONE)
-        {
-            // If there is any spDelta, it must be used here.
-            genRestoreCalleeSavedRegisterGroup(maskRestoreRegsFloat, spDelta, spOffset);
-            // No need to update spOffset since it's not used after this.
-        }
+        int spIntDelta = (maskRestoreRegsFloat != RBM_NONE) ? 0 : spDelta; // should we delay the SP adjustment?
+        genRestoreCalleeSavedRegisterGroup(maskRestoreRegsInt, spIntDelta, spOffset);
+        spOffset -= genCountBits(maskRestoreRegsInt) * REGSIZE_BYTES;
     }
-    else
+
+    if (maskRestoreRegsFloat != RBM_NONE)
     {
-        genRestoreCalleeSavedRegisterGroup(regsToRestoreMask, spDelta, spOffset);
+        // If there is any spDelta, it must be used here.
+        genRestoreCalleeSavedRegisterGroup(maskRestoreRegsFloat, spDelta, spOffset);
+        // No need to update spOffset since it's not used after this.
     }
 }
 

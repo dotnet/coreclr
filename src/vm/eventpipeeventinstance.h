@@ -23,6 +23,8 @@ public:
 
     EventPipeEventInstance(EventPipeSession &session, EventPipeEvent &event, DWORD threadID, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 
+    void EnsureStack(const EventPipeSession &session);
+
     StackContents* GetStack()
     {
         LIMITED_METHOD_CONTRACT;
@@ -136,17 +138,6 @@ private:
     // the metadata event is created after the first instance of the event
     // but must be inserted into the file before the first instance of the event.
     void SetTimeStamp(LARGE_INTEGER timeStamp);
-};
-
-// A specific type of event instance for use by the SampleProfiler.
-// This is needed because the SampleProfiler knows how to walk stacks belonging
-// to threads other than the current thread.
-class SampleProfilerEventInstance : public EventPipeEventInstance
-{
-
-public:
-
-    SampleProfilerEventInstance(EventPipeSession &session, EventPipeEvent &event, Thread *pThread, BYTE *pData, unsigned int length);
 };
 
 #endif // FEATURE_PERFTRACING
