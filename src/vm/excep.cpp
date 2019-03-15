@@ -2983,6 +2983,7 @@ VOID DECLSPEC_NORETURN RaiseTheExceptionInternalOnly(OBJECTREF throwable, BOOL r
     // User hits 'g'
     // Then debugger can bring us here.
     EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+    UNREACHABLE();
 }
 
 
