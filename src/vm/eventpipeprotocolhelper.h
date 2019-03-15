@@ -10,6 +10,8 @@
 #include "common.h"
 #include "eventpipe.h"
 
+class IpcStream;
+
 class EventPipeProtocolHelper
 {
 public:

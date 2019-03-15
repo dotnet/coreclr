@@ -14,16 +14,12 @@ class EventPipeConfiguration;
 class EventPipeEvent;
 class EventPipeEventInstance;
 class EventPipeFile;
-class EventPipeStream;
 class EventPipeBufferManager;
 class EventPipeEventSource;
 class EventPipeProvider;
-class EventPipeSessionProvider;
-class EventPipeSessionProviderList;
 class MethodDesc;
 struct EventPipeProviderConfiguration;
 class EventPipeSession;
-class IpcStream;
 
 // EVENT_FILTER_DESCRIPTOR (This type does not exist on non-Windows platforms.)
 //  https://docs.microsoft.com/en-us/windows/desktop/api/evntprov/ns-evntprov-_event_filter_descriptor
@@ -241,7 +237,6 @@ class EventPipe
     // Declare friends.
     friend class EventPipeConfiguration;
     friend class EventPipeFile;
-    friend class EventPipeStream;
     friend class EventPipeProvider;
     friend class EventPipeBufferManager;
     friend class SampleProfiler;
