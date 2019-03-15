@@ -169,13 +169,6 @@ class Constants {
     // Valid PR trigger combinations.
     def static prTriggeredValidInnerLoopCombos = [
         'Windows_NT': [
-            'x64': [
-                'Checked'
-            ], 
-            'x86': [
-                'Checked',
-                'Release'
-            ], 
             'arm': [
                 'Debug',
                 'Checked'
@@ -186,41 +179,9 @@ class Constants {
             ]
         ],
         'Windows_NT_BuildOnly': [
-            'x64': [
-                'Checked',
-                'Release'
-            ],
-            'x86': [
-                'Checked',
-                'Release'
-            ], 
             'arm': [
                 'Checked'
             ], 
-        ],
-        'Ubuntu': [
-            'x64': [
-                'Checked'
-            ],
-            'arm': [
-                'Checked'
-            ]
-        ],
-        'Ubuntu16.04': [
-            'arm64': [
-                'Checked'
-            ]
-        ],
-        'CentOS7.1': [
-            'x64': [
-                'Debug',
-                'Checked'
-            ]
-        ],
-        'OSX10.12': [
-            'x64': [
-                'Checked'
-            ]
         ]
     ]
 
