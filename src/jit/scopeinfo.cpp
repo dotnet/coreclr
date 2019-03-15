@@ -185,10 +185,12 @@ bool CodeGenInterface::siVarLoc::Equals(const siVarLoc* lhs, const siVarLoc* rhs
         {
             case VLT_STK:
             case VLT_STK_BYREF:
-                return (lhs->vlStk.vlsBaseReg == rhs->vlStk.vlsBaseReg) && (lhs->vlStk.vlsOffset == rhs->vlStk.vlsOffset);
+                return (lhs->vlStk.vlsBaseReg == rhs->vlStk.vlsBaseReg) &&
+                       (lhs->vlStk.vlsOffset == rhs->vlStk.vlsOffset);
 
             case VLT_STK2:
-                return (lhs->vlStk2.vls2BaseReg == rhs->vlStk2.vls2BaseReg) && (lhs->vlStk2.vls2Offset == rhs->vlStk2.vls2Offset);
+                return (lhs->vlStk2.vls2BaseReg == rhs->vlStk2.vls2BaseReg) &&
+                       (lhs->vlStk2.vls2Offset == rhs->vlStk2.vls2Offset);
 
             case VLT_REG:
             case VLT_REG_FP:
@@ -196,13 +198,18 @@ bool CodeGenInterface::siVarLoc::Equals(const siVarLoc* lhs, const siVarLoc* rhs
                 return (lhs->vlReg.vlrReg == rhs->vlReg.vlrReg);
 
             case VLT_REG_REG:
-                return (lhs->vlRegReg.vlrrReg1 == rhs->vlRegReg.vlrrReg1) && (lhs->vlRegReg.vlrrReg2 == rhs->vlRegReg.vlrrReg2);
+                return (lhs->vlRegReg.vlrrReg1 == rhs->vlRegReg.vlrrReg1) &&
+                       (lhs->vlRegReg.vlrrReg2 == rhs->vlRegReg.vlrrReg2);
 
             case VLT_REG_STK:
-                return (lhs->vlRegStk.vlrsReg == rhs->vlRegStk.vlrsReg) && (lhs->vlRegStk.vlrsStk.vlrssBaseReg == rhs->vlRegStk.vlrsStk.vlrssBaseReg) && (lhs->vlRegStk.vlrsStk.vlrssOffset == rhs->vlRegStk.vlrsStk.vlrssOffset);
+                return (lhs->vlRegStk.vlrsReg == rhs->vlRegStk.vlrsReg) &&
+                       (lhs->vlRegStk.vlrsStk.vlrssBaseReg == rhs->vlRegStk.vlrsStk.vlrssBaseReg) &&
+                       (lhs->vlRegStk.vlrsStk.vlrssOffset == rhs->vlRegStk.vlrsStk.vlrssOffset);
 
             case VLT_STK_REG:
-                return (lhs->vlStkReg.vlsrReg == rhs->vlStkReg.vlsrReg) && (lhs->vlStkReg.vlsrStk.vlsrsBaseReg == rhs->vlStkReg.vlsrStk.vlsrsBaseReg) && (lhs->vlStkReg.vlsrStk.vlsrsOffset == rhs->vlStkReg.vlsrStk.vlsrsOffset);
+                return (lhs->vlStkReg.vlsrReg == rhs->vlStkReg.vlsrReg) &&
+                       (lhs->vlStkReg.vlsrStk.vlsrsBaseReg == rhs->vlStkReg.vlsrStk.vlsrsBaseReg) &&
+                       (lhs->vlStkReg.vlsrStk.vlsrsOffset == rhs->vlStkReg.vlsrStk.vlsrsOffset);
 
             case VLT_FPSTK:
                 return (lhs->vlFPstk.vlfReg == rhs->vlFPstk.vlfReg);
