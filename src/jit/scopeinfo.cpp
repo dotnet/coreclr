@@ -177,53 +177,53 @@ bool CodeGenInterface::siVarLoc::Equals(const siVarLoc* lhs, const siVarLoc* rhs
         // Just one of them is a nullptr
         return false;
     }
-
-    if (lhs->vlType == rhs->vlType)
+    if (lhs->vlType != rhs->vlType)
     {
-        // If neither is nullptr, and are not the same reference, compare values
-        switch (lhs->vlType)
-        {
-            case VLT_STK:
-            case VLT_STK_BYREF:
-                return (lhs->vlStk.vlsBaseReg == rhs->vlStk.vlsBaseReg) &&
-                       (lhs->vlStk.vlsOffset == rhs->vlStk.vlsOffset);
+        return false;
+    }
+    assert(lhs->vlType == rhs->vlType);
+    // If neither is nullptr, and are not the same reference, compare values
+    switch (lhs->vlType)
+    {
+        case VLT_STK:
+        case VLT_STK_BYREF:
+            return (lhs->vlStk.vlsBaseReg == rhs->vlStk.vlsBaseReg) && (lhs->vlStk.vlsOffset == rhs->vlStk.vlsOffset);
 
-            case VLT_STK2:
-                return (lhs->vlStk2.vls2BaseReg == rhs->vlStk2.vls2BaseReg) &&
-                       (lhs->vlStk2.vls2Offset == rhs->vlStk2.vls2Offset);
+        case VLT_STK2:
+            return (lhs->vlStk2.vls2BaseReg == rhs->vlStk2.vls2BaseReg) &&
+                   (lhs->vlStk2.vls2Offset == rhs->vlStk2.vls2Offset);
 
-            case VLT_REG:
-            case VLT_REG_FP:
-            case VLT_REG_BYREF:
-                return (lhs->vlReg.vlrReg == rhs->vlReg.vlrReg);
+        case VLT_REG:
+        case VLT_REG_FP:
+        case VLT_REG_BYREF:
+            return (lhs->vlReg.vlrReg == rhs->vlReg.vlrReg);
 
-            case VLT_REG_REG:
-                return (lhs->vlRegReg.vlrrReg1 == rhs->vlRegReg.vlrrReg1) &&
-                       (lhs->vlRegReg.vlrrReg2 == rhs->vlRegReg.vlrrReg2);
+        case VLT_REG_REG:
+            return (lhs->vlRegReg.vlrrReg1 == rhs->vlRegReg.vlrrReg1) &&
+                   (lhs->vlRegReg.vlrrReg2 == rhs->vlRegReg.vlrrReg2);
 
-            case VLT_REG_STK:
-                return (lhs->vlRegStk.vlrsReg == rhs->vlRegStk.vlrsReg) &&
-                       (lhs->vlRegStk.vlrsStk.vlrssBaseReg == rhs->vlRegStk.vlrsStk.vlrssBaseReg) &&
-                       (lhs->vlRegStk.vlrsStk.vlrssOffset == rhs->vlRegStk.vlrsStk.vlrssOffset);
+        case VLT_REG_STK:
+            return (lhs->vlRegStk.vlrsReg == rhs->vlRegStk.vlrsReg) &&
+                   (lhs->vlRegStk.vlrsStk.vlrssBaseReg == rhs->vlRegStk.vlrsStk.vlrssBaseReg) &&
+                   (lhs->vlRegStk.vlrsStk.vlrssOffset == rhs->vlRegStk.vlrsStk.vlrssOffset);
 
-            case VLT_STK_REG:
-                return (lhs->vlStkReg.vlsrReg == rhs->vlStkReg.vlsrReg) &&
-                       (lhs->vlStkReg.vlsrStk.vlsrsBaseReg == rhs->vlStkReg.vlsrStk.vlsrsBaseReg) &&
-                       (lhs->vlStkReg.vlsrStk.vlsrsOffset == rhs->vlStkReg.vlsrStk.vlsrsOffset);
+        case VLT_STK_REG:
+            return (lhs->vlStkReg.vlsrReg == rhs->vlStkReg.vlsrReg) &&
+                   (lhs->vlStkReg.vlsrStk.vlsrsBaseReg == rhs->vlStkReg.vlsrStk.vlsrsBaseReg) &&
+                   (lhs->vlStkReg.vlsrStk.vlsrsOffset == rhs->vlStkReg.vlsrStk.vlsrsOffset);
 
-            case VLT_FPSTK:
-                return (lhs->vlFPstk.vlfReg == rhs->vlFPstk.vlfReg);
+        case VLT_FPSTK:
+            return (lhs->vlFPstk.vlfReg == rhs->vlFPstk.vlfReg);
 
-            case VLT_FIXED_VA:
-                return (lhs->vlFixedVarArg.vlfvOffset == rhs->vlFixedVarArg.vlfvOffset);
+        case VLT_FIXED_VA:
+            return (lhs->vlFixedVarArg.vlfvOffset == rhs->vlFixedVarArg.vlfvOffset);
 
-            case VLT_COUNT:
-            case VLT_INVALID:
-                return true;
+        case VLT_COUNT:
+        case VLT_INVALID:
+            return true;
 
-            default:
-                unreached();
-        }
+        default:
+            unreached();
     }
 
     return false;
