@@ -165,54 +165,64 @@ CodeGenInterface::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg,
 //    Return true if both are nullptr.
 bool CodeGenInterface::siVarLoc::Equals(const siVarLoc* lhs, const siVarLoc* rhs)
 {
-    // are both nullptr or the same reference
-    bool areEquals = lhs == rhs;
+    if (lhs == rhs)
+    { 
+        // Are both nullptr or the same reference
+        return true;
+    }
+    if ((nullptr == lhs) || (nullptr == rhs))
+    {
+        // Just one of them is a nullptr
+        return false;
+    }
 
-    if (!areEquals && nullptr != lhs && nullptr != rhs && lhs->vlType == rhs->vlType)
+    bool areEquals = true;
+
+    if (lhs->vlType == rhs->vlType)
     {
         // If neither is nullptr, and are not the same reference, compare values
         switch (lhs->vlType)
         {
             case VLT_STK:
             case VLT_STK_BYREF:
-                areEquals = lhs->vlStk.vlsBaseReg == rhs->vlStk.vlsBaseReg;
+                areEquals &= lhs->vlStk.vlsBaseReg == rhs->vlStk.vlsBaseReg;
                 areEquals &= lhs->vlStk.vlsOffset == rhs->vlStk.vlsOffset;
                 break;
 
             case VLT_STK2:
-                areEquals = lhs->vlStk2.vls2BaseReg == rhs->vlStk2.vls2BaseReg;
+                areEquals &= lhs->vlStk2.vls2BaseReg == rhs->vlStk2.vls2BaseReg;
                 areEquals &= lhs->vlStk2.vls2Offset == rhs->vlStk2.vls2Offset;
                 break;
 
             case VLT_REG:
             case VLT_REG_FP:
             case VLT_REG_BYREF:
-                areEquals = lhs->vlReg.vlrReg == rhs->vlReg.vlrReg;
+                areEquals &= lhs->vlReg.vlrReg == rhs->vlReg.vlrReg;
                 break;
 
             case VLT_REG_REG:
-                areEquals = lhs->vlRegReg.vlrrReg1 == rhs->vlRegReg.vlrrReg1;
+                areEquals &= lhs->vlRegReg.vlrrReg1 == rhs->vlRegReg.vlrrReg1;
                 areEquals &= lhs->vlRegReg.vlrrReg2 == rhs->vlRegReg.vlrrReg2;
                 break;
 
             case VLT_REG_STK:
-                areEquals = lhs->vlRegStk.vlrsReg == rhs->vlRegStk.vlrsReg;
+                areEquals &= lhs->vlRegStk.vlrsReg == rhs->vlRegStk.vlrsReg;
                 areEquals &= lhs->vlRegStk.vlrsStk.vlrssBaseReg == rhs->vlRegStk.vlrsStk.vlrssBaseReg;
                 areEquals &= lhs->vlRegStk.vlrsStk.vlrssOffset == rhs->vlRegStk.vlrsStk.vlrssOffset;
                 break;
 
             case VLT_STK_REG:
-                areEquals = lhs->vlStkReg.vlsrReg == rhs->vlStkReg.vlsrReg;
+                areEquals &= lhs->vlStkReg.vlsrReg == rhs->vlStkReg.vlsrReg;
                 areEquals &= lhs->vlStkReg.vlsrStk.vlsrsBaseReg == rhs->vlStkReg.vlsrStk.vlsrsBaseReg;
                 areEquals &= lhs->vlStkReg.vlsrStk.vlsrsOffset == rhs->vlStkReg.vlsrStk.vlsrsOffset;
                 break;
 
             case VLT_FPSTK:
-                areEquals = lhs->vlFPstk.vlfReg == rhs->vlFPstk.vlfReg;
+                areEquals &= lhs->vlFPstk.vlfReg == rhs->vlFPstk.vlfReg;
                 break;
 
             case VLT_FIXED_VA:
-                areEquals = lhs->vlFixedVarArg.vlfvOffset == rhs->vlFixedVarArg.vlfvOffset;
+                areEquals &= lhs->vlFixedVarArg.vlfvOffset == rhs->vlFixedVarArg.vlfvOffset;
                 break;
 
             case VLT_COUNT:
