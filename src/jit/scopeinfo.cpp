@@ -155,6 +155,13 @@ CodeGenInterface::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg,
 }
 
 //------------------------------------------------------------------------
+// An overload for the inequality comparator
+bool CodeGenInterface::siVarLoc::operator!=(const siVarLoc* rhs) const
+{
+    return !this->operator==(rhs);
+}
+
+//------------------------------------------------------------------------
 // An overload for the equality comparator
 bool CodeGenInterface::siVarLoc::operator==(const siVarLoc* rhs) const
 {
