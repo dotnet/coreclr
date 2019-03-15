@@ -8,8 +8,17 @@
 
   <Import Project="Sdk.props" Sdk="Microsoft.DotNet.Arcade.Sdk" Condition="'$(ArcadeBuild)' == 'True'"/>
 
+  <PropertyGroup>
+    <!-- Need to set ProjectAssetsFile to something so it doesn't get set to the Tools.proj assets file when we import the generated props -->
+    <ProjectAssetsFile Condition="'$(ProjectAssetsFile)' == ''">unused</ProjectAssetsFile>
+  </PropertyGroup>
+
   <!-- Import Microsoft.DotNet.Build.Tasks.Packaging -->
-  <Import Project="$(ToolSetCommonDirectory)Tools.proj.nuget.g.props" Condition="Exists('$(ToolSetCommonDirectory)Tools.proj.nuget.g.props')" />
+  <Import Project="$(ToolSetCommonDirectory)Tools.proj.nuget.g.props" Condition="Exists('$(ToolSetCommonDirectory)Tools.proj.nuget.g.props') and '$(BuildPackages)' !='true'" />
+  
+  <PropertyGroup>
+    <ProjectAssetsFile Condition="'$(ProjectAssetsFile)' == 'unused'"></ProjectAssetsFile>
+  </PropertyGroup>
   
   <PropertyGroup Condition="'$(CopyrightNetFoundation)' != ''">
     <Copyright>$(CopyrightNetFoundation)</Copyright>
