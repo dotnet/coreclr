@@ -225,8 +225,6 @@ bool CodeGenInterface::siVarLoc::Equals(const siVarLoc* lhs, const siVarLoc* rhs
         default:
             unreached();
     }
-
-    return false;
 }
 
 //------------------------------------------------------------------------
