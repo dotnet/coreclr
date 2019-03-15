@@ -561,6 +561,9 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                          siVarLoc*      varLoc);
 
     void genSetScopeInfo();
+#ifdef USING_SCOPE_INFO
+    void genSetScopeInfoUsingsiScope();
+#endif
 
 protected:
     /*

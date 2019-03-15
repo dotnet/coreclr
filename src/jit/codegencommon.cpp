@@ -10495,20 +10495,32 @@ void CodeGen::genSetScopeInfo()
     }
 
     noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
-    noway_assert(psiOpenScopeList.scNext == nullptr);
 
-    unsigned i;
-    unsigned scopeCnt = siScopeCnt + psiScopeCnt;
-
-    compiler->eeSetLVcount(scopeCnt);
+    unsigned varsHomeCount = 0;
+#ifdef USING_SCOPE_INFO
+    varsHomeCount = siScopeCnt + psiScopeCnt;
+#endif
+    compiler->eeSetLVcount(varsHomeCount);
 
 #ifdef DEBUG
-    genTrnslLocalVarCount = scopeCnt;
-    if (scopeCnt)
+    genTrnslLocalVarCount = varsHomeCount;
+    if (varsHomeCount)
     {
-        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[scopeCnt];
+        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[varsHomeCount];
     }
 #endif
+
+#ifdef USING_SCOPE_INFO
+    genSetScopeInfoUsingsiScope();
+#endif
+
+    compiler->eeSetLVdone();
+}
+
+#ifdef USING_SCOPE_INFO
+void CodeGen::genSetScopeInfoUsingsiScope()
+{
+    noway_assert(psiOpenScopeList.scNext == nullptr);
 
     // Record the scopes found for the parameters over the prolog.
     // The prolog needs to be treated differently as a variable may not
@@ -10516,6 +10528,7 @@ void CodeGen::genSetScopeInfo()
     // eg. A register parameter is actually on the stack, before it is loaded to reg.
 
     CodeGen::psiScope* scopeP;
+    unsigned           i;
 
     for (i = 0, scopeP = psiScopeList.scNext; i < psiScopeCnt; i++, scopeP = scopeP->scNext)
     {
@@ -10572,9 +10585,8 @@ void CodeGen::genSetScopeInfo()
         genSetScopeInfo(psiScopeCnt + i, startOffs, endOffs - startOffs, scopeL->scVarNum, scopeL->scLVnum,
                         scopeL->scAvailable, &varLoc);
     }
-
-    compiler->eeSetLVdone();
 }
+#endif
 
 //------------------------------------------------------------------------
 // genSetScopeInfo: Record scope information for debug info
