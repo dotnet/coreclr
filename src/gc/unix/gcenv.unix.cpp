@@ -449,8 +449,12 @@ the processors enabled.
 --*/
 static uintptr_t GetFullAffinityMask(int cpuCount)
 {
-    assert((cpuCount > 0) && (cpuCount <= sizeof(uintptr_t) * 8));
-    return (((uintptr_t)1 << (cpuCount - 1)) << 1) - 1;
+    if (cpuCount < sizeof(uintptr_t) * 8)
+    {
+        return ((uintptr_t)1 << cpuCount) - 1;
+    }
+
+    return ~(uintptr_t)0;
 }
 
 // Get affinity mask of the current process
