@@ -178,8 +178,6 @@ bool CodeGenInterface::siVarLoc::Equals(const siVarLoc* lhs, const siVarLoc* rhs
         return false;
     }
 
-    bool areEquals = true;
-
     if (lhs->vlType == rhs->vlType)
     {
         // If neither is nullptr, and are not the same reference, compare values
@@ -187,57 +185,41 @@ bool CodeGenInterface::siVarLoc::Equals(const siVarLoc* lhs, const siVarLoc* rhs
         {
             case VLT_STK:
             case VLT_STK_BYREF:
-                areEquals &= lhs->vlStk.vlsBaseReg == rhs->vlStk.vlsBaseReg;
-                areEquals &= lhs->vlStk.vlsOffset == rhs->vlStk.vlsOffset;
-                break;
+                return (lhs->vlStk.vlsBaseReg == rhs->vlStk.vlsBaseReg) && (lhs->vlStk.vlsOffset == rhs->vlStk.vlsOffset);
 
             case VLT_STK2:
-                areEquals &= lhs->vlStk2.vls2BaseReg == rhs->vlStk2.vls2BaseReg;
-                areEquals &= lhs->vlStk2.vls2Offset == rhs->vlStk2.vls2Offset;
-                break;
+                return (lhs->vlStk2.vls2BaseReg == rhs->vlStk2.vls2BaseReg) && (lhs->vlStk2.vls2Offset == rhs->vlStk2.vls2Offset);
 
             case VLT_REG:
             case VLT_REG_FP:
             case VLT_REG_BYREF:
-                areEquals &= lhs->vlReg.vlrReg == rhs->vlReg.vlrReg;
-                break;
+                return (lhs->vlReg.vlrReg == rhs->vlReg.vlrReg);
 
             case VLT_REG_REG:
-                areEquals &= lhs->vlRegReg.vlrrReg1 == rhs->vlRegReg.vlrrReg1;
-                areEquals &= lhs->vlRegReg.vlrrReg2 == rhs->vlRegReg.vlrrReg2;
-                break;
+                return (lhs->vlRegReg.vlrrReg1 == rhs->vlRegReg.vlrrReg1) && (lhs->vlRegReg.vlrrReg2 == rhs->vlRegReg.vlrrReg2);
 
             case VLT_REG_STK:
-                areEquals &= lhs->vlRegStk.vlrsReg == rhs->vlRegStk.vlrsReg;
-                areEquals &= lhs->vlRegStk.vlrsStk.vlrssBaseReg == rhs->vlRegStk.vlrsStk.vlrssBaseReg;
-                areEquals &= lhs->vlRegStk.vlrsStk.vlrssOffset == rhs->vlRegStk.vlrsStk.vlrssOffset;
-                break;
+                return (lhs->vlRegStk.vlrsReg == rhs->vlRegStk.vlrsReg) && (lhs->vlRegStk.vlrsStk.vlrssBaseReg == rhs->vlRegStk.vlrsStk.vlrssBaseReg) && (lhs->vlRegStk.vlrsStk.vlrssOffset == rhs->vlRegStk.vlrsStk.vlrssOffset);
 
             case VLT_STK_REG:
-                areEquals &= lhs->vlStkReg.vlsrReg == rhs->vlStkReg.vlsrReg;
-                areEquals &= lhs->vlStkReg.vlsrStk.vlsrsBaseReg == rhs->vlStkReg.vlsrStk.vlsrsBaseReg;
-                areEquals &= lhs->vlStkReg.vlsrStk.vlsrsOffset == rhs->vlStkReg.vlsrStk.vlsrsOffset;
-                break;
+                return (lhs->vlStkReg.vlsrReg == rhs->vlStkReg.vlsrReg) && (lhs->vlStkReg.vlsrStk.vlsrsBaseReg == rhs->vlStkReg.vlsrStk.vlsrsBaseReg) && (lhs->vlStkReg.vlsrStk.vlsrsOffset == rhs->vlStkReg.vlsrStk.vlsrsOffset);
 
             case VLT_FPSTK:
-                areEquals &= lhs->vlFPstk.vlfReg == rhs->vlFPstk.vlfReg;
-                break;
+                return (lhs->vlFPstk.vlfReg == rhs->vlFPstk.vlfReg);
 
             case VLT_FIXED_VA:
-                areEquals &= lhs->vlFixedVarArg.vlfvOffset == rhs->vlFixedVarArg.vlfvOffset;
-                break;
+                return (lhs->vlFixedVarArg.vlfvOffset == rhs->vlFixedVarArg.vlfvOffset);
 
             case VLT_COUNT:
             case VLT_INVALID:
-                // To assert on default if enum "siVarLocType" can take new values
-                break;
+                return true;
 
             default:
                 unreached();
         }
     }
 
-    return areEquals;
+    return false;
 }
 
 //------------------------------------------------------------------------
