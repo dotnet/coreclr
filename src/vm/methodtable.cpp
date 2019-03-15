@@ -6989,6 +6989,11 @@ MethodTable::FindDispatchImpl(
 
                 if (foundDefaultInterfaceImplementation)
                 {
+                    if (pDefaultMethod->IsAbstract())
+                    {
+                        ThrowMethodAccessException(pIfcMD, pDefaultMethod);
+                    }
+
                     // Now, construct a DispatchSlot to return in *pImplSlot
                     DispatchSlot ds(pDefaultMethod->GetMethodEntryPoint());
 

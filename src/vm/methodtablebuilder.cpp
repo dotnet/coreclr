@@ -10759,6 +10759,18 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(bmtRTType *pDeclType,
     if (!pDeclMD->IsAbstract())
         return TRUE;
 
+    // If the method is an abstract MethodImpl, this is a reabstraction:
+    //
+    // interface IFoo { void Frob() { } }
+    // interface IBar : IFoo { abstract void IFoo.Frob() }
+    //
+    // We don't require these to have an implementation because they're final anyway.
+    if (pDeclMD->IsMethodImpl())
+    {
+        assert(pDeclMD->IsFinal());
+        return TRUE;
+    }
+
     int targetSlot = pDeclMD->GetSlot();
 
     // Iterate over all the interfaces this type implements
