@@ -166,7 +166,8 @@ the processors enabled.
 --*/
 KAFFINITY GetFullAffinityMask(int cpuCount)
 {
-    return ((KAFFINITY)1 << (cpuCount)) - 1;
+    _ASSERTE((cpuCount > 0) && (cpuCount <= sizeof(KAFFINITY) * 8));
+    return (((KAFFINITY)1 << (cpuCount - 1)) << 1) - 1;
 }
 
 /*++
