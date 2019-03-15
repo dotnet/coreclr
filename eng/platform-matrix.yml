@@ -34,7 +34,8 @@ jobs:
         helixQueues:
           ${{ if eq(variables['System.TeamProject'], 'public') }}:
             asString: 'Ubuntu.1404.Arm32.Open'
-            asArray: []
+            asArray:
+            - Ubuntu.1404.Arm32.Open
           ${{ if eq(variables['System.TeamProject'], 'internal') }}:
             # We don't have any Linux/arm32 internal Helix queues
             asString: ''
