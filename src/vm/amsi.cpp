@@ -64,29 +64,6 @@ namespace
 
         return true;
     }
-
-    bool HasLoadLibrarySearchSystem32()
-    {
-        static int loadlibrarySearchSystem32Enabled = -1;
-        if (loadlibrarySearchSystem32Enabled == -1)
-        {
-            // KB2533623 introduced the LOAD_LIBRARY_SEARCH_SYSTEM32 flag. It also introduced
-            // the AddDllDirectory function. We test for presence of AddDllDirectory as an
-            // indirect evidence for the support of LOAD_LIBRARY_SEARCH_SYSTEM32 flag.
-            HMODULE kernel32 = GetModuleHandleW(WINDOWS_KERNEL32_DLLNAME_W);
-            if (kernel32 != nullptr)
-            {
-                loadlibrarySearchSystem32Enabled = 0;
-                if (GetProcAddress(kernel32, "AddDllDirectory") != nullptr)
-                {
-                    // This system supports the LOAD_LIBRARY_SEARCH_SYSTEM32 flag
-                    loadlibrarySearchSystem32Enabled = 1;
-                }
-            }
-        }
-
-        return (loadlibrarySearchSystem32Enabled == 1);
-    }
 }
 
 // Here we will invoke into AmsiScanBuffer, a centralized area for non-OS
@@ -109,23 +86,19 @@ bool Amsi::IsBlockedByAmsiScan(PVOID flatImageBytes, COUNT_T size)
         static bool amsiInitializationAttempted = false;
         if (s_amsiContext == nullptr && !amsiInitializationAttempted)
         {
-            // Only OSes that support LOAD_LIBRARY_SEARCH_SYSTEM32 have AMSI
-            if (HasLoadLibrarySearchSystem32())
+            HMODULE amsi = CLRLoadLibraryEx(W("amsi.dll"), nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+            if (amsi != nullptr)
             {
-                HMODULE amsi = CLRLoadLibraryEx(W("amsi.dll"), nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                if (amsi != nullptr)
+                PAMSI_AMSIINITIALIZE_API AmsiInitialize = (PAMSI_AMSIINITIALIZE_API)GetProcAddress(amsi, "AmsiInitialize");
+                if (AmsiInitialize != nullptr)
                 {
-                    PAMSI_AMSIINITIALIZE_API AmsiInitialize = (PAMSI_AMSIINITIALIZE_API)GetProcAddress(amsi, "AmsiInitialize");
-                    if (AmsiInitialize != nullptr)
+                    HAMSICONTEXT amsiContext = nullptr;
+                    if (AmsiInitialize(W("coreclr"), &amsiContext) == S_OK)
                     {
-                        HAMSICONTEXT amsiContext = nullptr;
-                        if (AmsiInitialize(W("coreclr"), &amsiContext) == S_OK)
+                        AmsiScanBuffer = (PAMSI_AMSISCANBUFFER_API)GetProcAddress(amsi, "AmsiScanBuffer");
+                        if (AmsiScanBuffer != nullptr)
                         {
-                            AmsiScanBuffer = (PAMSI_AMSISCANBUFFER_API)GetProcAddress(amsi, "AmsiScanBuffer");
-                            if (AmsiScanBuffer != nullptr)
-                            {
-                                s_amsiContext = amsiContext;
-                            }
+                            s_amsiContext = amsiContext;
                         }
                     }
                 }
