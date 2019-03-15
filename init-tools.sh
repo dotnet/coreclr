@@ -130,6 +130,8 @@ case $OSName in
 esac
 __PKG_RID=$__PKG_RID-$__PKG_ARCH
 
+$__scriptpath/eng/common/build.sh --restore --projects $__scriptpath/eng/empty.csproj
+
 if [ ! -e "$__DOTNET_CMD" ]; then
     source $__scriptpath/eng/configure-toolset.sh
     source $__scriptpath/eng/common/tools.sh

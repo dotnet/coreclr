@@ -15,7 +15,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
 
     <!-- Force System.Private.CoreLib.dll to be put in $(BinFolder)/IL -->
     <OutputPath>$(OutputPath)IL\</OutputPath>
