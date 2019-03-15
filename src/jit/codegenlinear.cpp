@@ -85,11 +85,12 @@ void CodeGen::genInitializeRegisterState()
 void CodeGen::genInitialize()
 {
     // Initialize the line# tracking logic
-
+#ifdef USING_SCOPE_INFO
     if (compiler->opts.compScopeInfo)
     {
         siInit();
     }
+#endif
 
     // The current implementation of switch tables requires the first block to have a label so it
     // can generate offsets to the switch label targets.
@@ -350,9 +351,9 @@ void CodeGen::genCodeForBBlist()
         /* Tell everyone which basic block we're working on */
 
         compiler->compCurBB = block;
-
+#ifdef USUSING_SCOPE_INFOING_
         siBeginBlock(block);
-
+#endif
         // BBF_INTERNAL blocks don't correspond to any single IL instruction.
         if (compiler->opts.compDbgInfo && (block->bbFlags & BBF_INTERNAL) &&
             !compiler->fgBBisScratch(block)) // If the block is the distinguished first scratch block, then no need to
@@ -508,7 +509,7 @@ void CodeGen::genCodeForBBlist()
         // This can lead to problems when debugging the generated code. To prevent these issues, make sure
         // we've generated code for the last IL offset we saw in the block.
         genEnsureCodeEmitted(currentILOffset);
-
+#ifdef USING_SCOPE_INFO
         if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
         {
             siEndBlock(block);
@@ -533,6 +534,7 @@ void CodeGen::genCodeForBBlist()
                 siCloseAllOpenScopes();
             }
         }
+#endif
 
         SubtractStackLevel(savedStkLvl);
 
