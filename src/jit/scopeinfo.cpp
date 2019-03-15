@@ -172,7 +172,7 @@ bool CodeGenInterface::siVarLoc::Equals(const siVarLoc* lhs, const siVarLoc* rhs
         // Are both nullptr or the same reference
         return true;
     }
-    if ((nullptr == lhs) || (nullptr == rhs))
+    if ((lhs == nullptr) || (rhs == nullptr))
     {
         // Just one of them is a nullptr
         return false;
