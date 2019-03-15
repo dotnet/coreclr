@@ -227,6 +227,80 @@ bool CodeGenInterface::siVarLoc::operator==(const siVarLoc* rhs) const
 }
 
 //------------------------------------------------------------------------
+// Equals: Compares first reference and then values of the structures.
+//
+// Arguments:
+//    lhs   - a "siVarLoc *" to compare.
+//    rhs   - a "siVarLoc *" to compare.
+//
+// Notes:
+//    Return true if both are nullptr.
+bool CodeGenInterface::siVarLoc::Equals(const siVarLoc* lhs, const siVarLoc* rhs)
+{
+    // are both nullptr or the same reference
+    bool areEquals = lhs == rhs;
+
+    if (!areEquals && nullptr != lhs && nullptr != rhs && lhs->vlType == rhs->vlType)
+    {
+        // If neither is nullptr, and are not the same reference, compare values
+        switch (lhs->vlType)
+        {
+            case VLT_STK:
+            case VLT_STK_BYREF:
+                areEquals = lhs->vlStk.vlsBaseReg == rhs->vlStk.vlsBaseReg;
+                areEquals &= lhs->vlStk.vlsOffset == rhs->vlStk.vlsOffset;
+                break;
+
+            case VLT_STK2:
+                areEquals = lhs->vlStk2.vls2BaseReg == rhs->vlStk2.vls2BaseReg;
+                areEquals &= lhs->vlStk2.vls2Offset == rhs->vlStk2.vls2Offset;
+                break;
+
+            case VLT_REG:
+            case VLT_REG_FP:
+            case VLT_REG_BYREF:
+                areEquals = lhs->vlReg.vlrReg == rhs->vlReg.vlrReg;
+                break;
+
+            case VLT_REG_REG:
+                areEquals = lhs->vlRegReg.vlrrReg1 == rhs->vlRegReg.vlrrReg1;
+                areEquals &= lhs->vlRegReg.vlrrReg2 == rhs->vlRegReg.vlrrReg2;
+                break;
+
+            case VLT_REG_STK:
+                areEquals = lhs->vlRegStk.vlrsReg == rhs->vlRegStk.vlrsReg;
+                areEquals &= lhs->vlRegStk.vlrsStk.vlrssBaseReg == rhs->vlRegStk.vlrsStk.vlrssBaseReg;
+                areEquals &= lhs->vlRegStk.vlrsStk.vlrssOffset == rhs->vlRegStk.vlrsStk.vlrssOffset;
+                break;
+
+            case VLT_STK_REG:
+                areEquals = lhs->vlStkReg.vlsrReg == rhs->vlStkReg.vlsrReg;
+                areEquals &= lhs->vlStkReg.vlsrStk.vlsrsBaseReg == rhs->vlStkReg.vlsrStk.vlsrsBaseReg;
+                areEquals &= lhs->vlStkReg.vlsrStk.vlsrsOffset == rhs->vlStkReg.vlsrStk.vlsrsOffset;
+                break;
+
+            case VLT_FPSTK:
+                areEquals = lhs->vlFPstk.vlfReg == rhs->vlFPstk.vlfReg;
+                break;
+
+            case VLT_FIXED_VA:
+                areEquals = lhs->vlFixedVarArg.vlfvOffset == rhs->vlFixedVarArg.vlfvOffset;
+                break;
+
+            case VLT_COUNT:
+            case VLT_INVALID:
+                // To assert on default if enum "siVarLocType" can take new values
+                break;
+
+            default:
+                unreached();
+        }
+    }
+
+    return areEquals;
+}
+
+//------------------------------------------------------------------------
 // getSiVarLoc: Creates a "CodegenInterface::siVarLoc" instance from using the properties
 // of the "psiScope" instance.
 //
