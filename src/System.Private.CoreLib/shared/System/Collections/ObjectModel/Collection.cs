@@ -125,7 +125,7 @@ namespace System.Collections.ObjectModel
 
             if (collection == null)
             {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.list);
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
             }
 
             if ((uint)index > (uint)items.Count)
@@ -198,7 +198,7 @@ namespace System.Collections.ObjectModel
 
             if (collection == null)
             {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.list);
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
             }
 
             ReplaceItemsRange(index, count, collection);
