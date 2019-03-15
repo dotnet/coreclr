@@ -8,8 +8,21 @@ using System.Reflection;
 using System.Text;
 using TestLibrary;
 
-class ThisCallNative
+unsafe class ThisCallNative
 {
+    public struct C
+    {
+        public struct VtableLayout
+        {
+            public IntPtr getSize;
+        }
+
+        public VtableLayout* vtable;
+        private int c;
+        private float width;
+        private float height;
+    }
+
     public struct SizeF
     {
         public float width;
@@ -17,14 +30,12 @@ class ThisCallNative
     }
 
     [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
-    public delegate SizeF GetSizeFn(IntPtr c);
+    public delegate SizeF GetSizeFn(C* c);
 
     [DllImport(nameof(ThisCallNative))]
-    public static extern IntPtr CreateInstanceOfC(float width, float height);
+    public static extern C* CreateInstanceOfC(float width, float height);
     [DllImport(nameof(ThisCallNative))]
-    public static extern GetSizeFn GetSizeMemberFunction();
-    [DllImport(nameof(ThisCallNative))]
-    public static extern IntPtr FreeInstanceOfC(IntPtr instance);
+    public static extern void FreeInstanceOfC(C* instance);
 }
 
 class ThisCallTest
@@ -35,8 +46,8 @@ class ThisCallTest
         {
             float width = 1.0f;
             float height = 2.0f;
-            IntPtr instance = ThisCallNative.CreateInstanceOfC(width, height);
-            ThisCallNative.GetSizeFn callback = ThisCallNative.GetSizeMemberFunction();
+            ThisCallNative.C* instance = ThisCallNative.CreateInstanceOfC(width, height);
+            ThisCallNative.GetSizeFn callback = Marshal.GetDelegateForFunctionPointer<ThisCallNative.GetSizeFn>(instance->vtable->getSize);
 
             ThisCallNative.SizeF result = callback(instance);
 

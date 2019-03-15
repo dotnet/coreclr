@@ -24,7 +24,7 @@ public:
         height(height)
     {}
 
-    SizeF GetSize()
+    virtual SizeF GetSize()
     {
         return {width, height};
     }
@@ -34,13 +34,6 @@ public:
 extern "C" DLL_EXPORT C* STDMETHODCALLTYPE CreateInstanceOfC(float width, float height)
 {
     return new C(width, height);
-}
-
-using GetSizeFn_t = SizeF(C::*)();
-
-extern "C" DLL_EXPORT GetSizeFn_t STDMETHODCALLTYPE GetSizeMemberFunction()
-{
-    return &C::GetSize;
 }
 
 extern "C" DLL_EXPORT void STDMETHODCALLTYPE FreeInstanceOfC(C* instance)
