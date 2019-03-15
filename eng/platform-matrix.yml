@@ -33,7 +33,7 @@ jobs:
         containerName: ubuntu_1404_arm_cross_build_image
         helixQueues:
           ${{ if eq(variables['System.TeamProject'], 'public') }}:
-            asString: 'Ubuntu.1404.Arm32'
+            asString: 'Ubuntu.1404.Arm32.Open'
             asArray: []
           ${{ if eq(variables['System.TeamProject'], 'internal') }}:
             # We don't have any Linux/arm32 internal Helix queues

@@ -170,11 +170,9 @@ class Constants {
     def static prTriggeredValidInnerLoopCombos = [
         'Windows_NT': [
             'arm': [
-                'Debug',
                 'Checked'
             ],
             'arm64': [
-                'Debug',
                 'Checked'
             ]
         ],
