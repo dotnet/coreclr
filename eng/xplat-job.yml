@@ -38,8 +38,7 @@ jobs:
 
       # Public Linux Build Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
-        name:  NetCorePublic-Int-Pool
-        queue: BuildPool.Ubuntu.1604.Amd64.Open
+        name: Hosted Ubuntu 1604
 
       # Official Build Linux Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
@@ -50,21 +49,20 @@ jobs:
         name: dnceng-freebsd-internal
 
       # Public OSX Build Pool
-      ${{ if and(eq(parameters.osGroup, 'OSX'), ne(variables['System.TeamProject'], 'public')) }}:
-        name: Hosted Mac Internal
-
-      # Official Build OSX Pool
       ${{ if and(eq(parameters.osGroup, 'OSX'), eq(variables['System.TeamProject'], 'public')) }}:
         name: Hosted MacOS
 
-      # Public Windows Build Pool
+      # Official Build OSX Pool
+      ${{ if and(eq(parameters.osGroup, 'OSX'), ne(variables['System.TeamProject'], 'public')) }}:
+        name: Hosted Mac Internal
+
+      # Public Build Windows Pool
+      ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
+        name: Hosted VS2017
+
+      # Official Windows Build Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), ne(variables['System.TeamProject'], 'public')) }}:
         name: dotnet-internal-temp
-
-      # Official Build Windows Pool
-      ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
-        name: NetCorePublic-Int-Pool
-        queue: BuildPool.Windows.10.Amd64.VS2017.Open
 
     workspace:
       clean: all
