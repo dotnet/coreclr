@@ -254,6 +254,8 @@ CONFIG_INTEGER(EnablePOPCNT, W("EnablePOPCNT"), 1)           // Enable POPCNT
 CONFIG_INTEGER(EnableAVX, W("EnableAVX"), 0)
 #endif                                                       // !defined(_TARGET_AMD64_) && !defined(_TARGET_X86_)
 
+// clang-format off
+
 #if defined(_TARGET_ARM64_)
 CONFIG_INTEGER(EnableArm64Aes      , W("EnableArm64Aes"), 1)
 CONFIG_INTEGER(EnableArm64Atomics  , W("EnableArm64Atomics"), 1)
@@ -277,6 +279,8 @@ CONFIG_INTEGER(EnableArm64Sm3      , W("EnableArm64Sm3"), 1)
 CONFIG_INTEGER(EnableArm64Sm4      , W("EnableArm64Sm4"), 1)
 CONFIG_INTEGER(EnableArm64Sve      , W("EnableArm64Sve"), 1)
 #endif // defined(_TARGET_ARM64_)
+
+// clang-format on
 
 ///
 /// JIT
