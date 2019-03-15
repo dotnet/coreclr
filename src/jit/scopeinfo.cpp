@@ -166,7 +166,7 @@ CodeGenInterface::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg,
 bool CodeGenInterface::siVarLoc::Equals(const siVarLoc* lhs, const siVarLoc* rhs)
 {
     if (lhs == rhs)
-    { 
+    {
         // Are both nullptr or the same reference
         return true;
     }
