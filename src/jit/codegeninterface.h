@@ -519,7 +519,7 @@ public:
         siVarLoc(){};
 
         // An overload for the equality comparator
-        bool operator==(const siVarLoc& rhs) const;
+        bool operator==(const siVarLoc* rhs) const;
 
     private:
         // Fill "siVarLoc" properties indicating the register position of the variable
