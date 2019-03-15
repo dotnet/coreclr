@@ -150,7 +150,7 @@ namespace System.Diagnostics.Tracing
             {
                 yield return new KeyValuePair<string, object>("Name", Name);
                 yield return new KeyValuePair<string, object>("DisplayName", DisplayName);
-                yield return new KeyValuePair<string, object>("DisplayRateTimeScale");
+                yield return new KeyValuePair<string, object>("DisplayRateTimeScale", DisplayRateTimeScale);
                 yield return new KeyValuePair<string, object>("Increment", Increment);
                 yield return new KeyValuePair<string, object>("IntervalSec", IntervalSec);
                 yield return new KeyValuePair<string, object>("Series", $"Interval={IntervalSec}");
