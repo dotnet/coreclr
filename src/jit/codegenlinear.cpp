@@ -84,8 +84,8 @@ void CodeGen::genInitializeRegisterState()
 //    iterated.
 void CodeGen::genInitialize()
 {
-    // Initialize the line# tracking logic
 #ifdef USING_SCOPE_INFO
+    // Initialize the line# tracking logic
     if (compiler->opts.compScopeInfo)
     {
         siInit();
