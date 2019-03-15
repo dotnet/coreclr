@@ -130,7 +130,7 @@ namespace System.Collections.ObjectModel
 
             if ((uint)index > (uint)items.Count)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_ListInsert);
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
             }
 
             InsertItemsRange(index, collection);
