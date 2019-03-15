@@ -638,8 +638,9 @@ def static addPeriodicTriggerHelper(def job, String cronString, boolean alwaysRu
 }
 
 def static addGithubPushTriggerHelper(def job) {
-    addToMergeView(job)
-    Utilities.addGithubPushTrigger(job)
+    // Disable all Push trigger jobs. All jobs will need to be requested.
+    // addToMergeView(job)
+    // Utilities.addGithubPushTrigger(job)
 }
 
 
