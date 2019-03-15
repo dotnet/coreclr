@@ -518,11 +518,9 @@ public:
         siVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int offset, bool isFramePointerUsed);
         siVarLoc(){};
 
-        // An overload for the inequality comparator
-        bool operator!=(const siVarLoc* rhs) const;
-
-        // An overload for the equality comparator
-        bool operator==(const siVarLoc* rhs) const;
+        // Live this commented because there is already an Equals definition below
+        // bool operator!=(const siVarLoc* rhs) const;
+        // bool operator==(const siVarLoc* rhs) const;
 
         // An overload for the equality comparator
         static bool Equals(const siVarLoc* lhs, const siVarLoc* rhs);
