@@ -1,4 +1,5 @@
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Directory.Build.props" />
   <Import Project="$(MSBuildThisFileDirectory)..\..\dir.props" />
 
   <PropertyGroup>
@@ -29,7 +30,7 @@
     <Project Include="Microsoft.NETCore.ILDAsm\Microsoft.NETCore.ILDAsm.builds" />
   </ItemGroup>
 
-  <Import Project="$(ToolsDir)versioning.targets" />
+  <Import Project="$(MSBuildThisFileDirectory)../../generateversionsourcefile.targets" />
   <!-- Make sure we create version.txt file since it will be packaged -->
   <Target Name="EnsureVersionInfoFileExists" BeforeTargets="Build" DependsOnTargets="CreateVersionInfoFile" />
 

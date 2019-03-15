@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <Import Project="Sdk.targets" Sdk="Microsoft.DotNet.Arcade.Sdk" Condition="'$(ArcadeBuild)' == 'True'"/>
+  
+  <!-- Import Microsoft.DotNet.Build.Tasks.Packaging -->
+  <Import Project="$(ToolSetCommonDirectory)Tools.proj.nuget.g.targets" Condition="Exists('$(ToolSetCommonDirectory)Tools.proj.nuget.g.targets')" />
+
+  <!-- Define this target to override the workaround in arcade as we don't need it for our pkgprojs -->
+  <Target Name="InitializeStandardNuspecProperties" />
+
 </Project>
