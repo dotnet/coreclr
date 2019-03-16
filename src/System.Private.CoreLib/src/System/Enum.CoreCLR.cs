@@ -35,6 +35,36 @@ namespace System
             return entry;
         }
 
+        [Intrinsic]
+        public bool HasFlag(Enum flag)
+        {
+            if (flag == null)
+                throw new ArgumentNullException(nameof(flag));
+
+            if (!this.GetType().IsEquivalentTo(flag.GetType()))
+            {
+                throw new ArgumentException(SR.Format(SR.Argument_EnumTypeDoesNotMatch, flag.GetType(), this.GetType()));
+            }
+
+            return InternalHasFlag(flag);
+        }
+
+        private static RuntimeType ValidateRuntimeType(Type enumType)
+        {
+            if (enumType == null)
+                throw new ArgumentNullException(nameof(enumType));
+            if (!enumType.IsEnum)
+                throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
+            if (!(enumType is RuntimeType rtType))
+                throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
+            return rtType;
+        }
+
+        private static object ToObjectWorker(Type enumType, long value)
+        {
+            return InternalBoxEnum(ValidateRuntimeType(enumType), value);
+        }
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern override bool Equals(object obj);
 
