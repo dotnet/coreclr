@@ -782,42 +782,10 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool StartsNumber(char c) => char.IsInRange(c, '0', '9') || c == '-' || c == '+';
 
-        public static Type GetUnderlyingType(Type enumType)
-        {
-            if (enumType == null)
-                throw new ArgumentNullException(nameof(enumType));
-
-            return enumType.GetEnumUnderlyingType();
-        }
-
-        public static Array GetValues(Type enumType)
-        {
-            if (enumType == null)
-                throw new ArgumentNullException(nameof(enumType));
-
-            return enumType.GetEnumValues();
-        }
-
         internal static ulong[] InternalGetValues(RuntimeType enumType)
         {
             // Get all of the values
             return GetCachedValuesAndNames(enumType, false).Values;
-        }
-
-        public static string GetName(Type enumType, object value)
-        {
-            if (enumType == null)
-                throw new ArgumentNullException(nameof(enumType));
-
-            return enumType.GetEnumName(value);
-        }
-
-        public static string[] GetNames(Type enumType)
-        {
-            if (enumType == null)
-                throw new ArgumentNullException(nameof(enumType));
-
-            return enumType.GetEnumNames();
         }
 
         internal static string[] InternalGetNames(RuntimeType enumType)
