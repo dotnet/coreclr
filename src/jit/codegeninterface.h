@@ -391,7 +391,9 @@ private:
     bool m_cgFullPtrRegMap;
 
 public:
+#ifdef USING_SCOPE_INFO
     virtual void siUpdate() = 0;
+#endif
 
     /* These are the different addressing modes used to access a local var.
      * The JIT has to report the location of the locals back to the EE
