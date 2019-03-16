@@ -316,6 +316,7 @@ enum RefCountState
 //    typedefs LiveRangeList and LiveRangeListIterator, which are
 //    basically a list of this class and a const_iterator of that
 //    list.
+//
 class VariableLiveRange
 {
 public:
@@ -343,26 +344,42 @@ void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, const CodeGenI
 // Dump "VariableLiveRange" when code has been generated and we have the assembly native offset of each "emitLocation"
 void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emitter, const CodeGenInterface* codeGen);
 
-class LiveRangeBarrier
+//--------------------------------------------
+//
+// LiveRangeDumper: Used for debugging purposes during code
+//  generation on genCodeForBBList. Keeps an iterator to the fist
+//  edited/added "VariableLiveRange" of a variable during the
+//  generation of code of one block.
+//
+// Notes:
+//  The first "VariableLiveRange" reported for a variable during
+//  a BasicBlock is sent to "setDumperStartAt" so we can dump all
+//  the "VariableLiveRange"s from that one.
+//  After we dump all the "VariableLiveRange"s we call "reset" with
+//  the "liveRangeList" to set the barrier to nullptr or the last
+//  "VariableLiveRange" if it is opened.
+//  If no "VariableLiveRange" was edited/added during block,
+//  the iterator points to the end of variable's LiveRangeList.
+//
+class LiveRangeDumper
 {
 public:
-    LiveRangeListIterator beginLastBlock;
-    bool                  haveReadAtLeastOneOfBlock; // True if a live range for this variable has been
-                                                     // reported from last call to EndBlock
+    LiveRangeListIterator m_StartingLiveRange; // Iterator to the first edited/added position
+                                               // during actual block code generation. If last
+                                               // block had a closed "VariableLiveRange" (with
+                                               // a valid "m_EndEmitLocation") and not changes
+                                               // were applied to variable liveness, it points
+                                               // to the end of variable's LiveRangeList.
+    bool m_hasLiveRangestoDump;                // True if a live range for this variable has been
+                                               // reported from last call to EndBlock
 
-    LiveRangeBarrier(const LiveRangeList* liveRanges)
-    {
-        noway_assert(liveRanges != nullptr);
+    LiveRangeDumper(const LiveRangeList* liveRanges);
 
-        haveReadAtLeastOneOfBlock = false;
-        beginLastBlock            = liveRanges->end();
-    }
+    void resetDumper(const LiveRangeList* list);
 
-    void reset(const LiveRangeList* list);
-
-    // Move the barrier to the last position of variableLiveRanges
-    // This is used to print only the changes in the last block
-    void setBarrierAtLastPositionInRegisterHistory(const LiveRangeList* liveRanges);
+    //  Make "LiveRangeDumper" instance points the last "VariableLifeRange" added so we can
+    // starts dumping from there after the actual "BasicBlock"s code is generated.
+    void setDumperStartAt(const LiveRangeListIterator liveRangeIt);
 };
 #endif
 
@@ -372,7 +389,7 @@ public:
     LiveRangeList* variableLiveRanges;
 
 #if DEBUG
-    LiveRangeBarrier* variableLifeBarrier;
+    LiveRangeDumper* variableLifeBarrier;
 
     // Modified the barrier to print on next block only just that changes
     void endBlockLiveRanges();

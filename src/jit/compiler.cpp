@@ -11464,12 +11464,12 @@ VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
     new (variableLiveRanges, jitstd::placement_t()) LiveRangeList(allocator);
 
 #if DEBUG
-    variableLifeBarrier = allocator.allocate<LiveRangeBarrier>(1);
+    variableLifeBarrier = allocator.allocate<LiveRangeDumper>(1);
 
     size_t variableLifeBarrierSize = sizeof(*variableLifeBarrier);
     memset(variableLifeBarrier, 0, variableLifeBarrierSize);
 
-    new (variableLifeBarrier, jitstd::placement_t()) LiveRangeBarrier(variableLiveRanges);
+    new (variableLifeBarrier, jitstd::placement_t()) LiveRangeDumper(variableLiveRanges);
 #endif
 }
 
@@ -11530,7 +11530,7 @@ void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLo
 #if DEBUG
     noway_assert(variableLifeBarrier != nullptr);
     // Restart barrier so we can print from here
-    variableLifeBarrier->setBarrierAtLastPositionInRegisterHistory(variableLiveRanges);
+    variableLifeBarrier->setBarrierAtLastPositionInRegisterHistory(variableLiveRanges->backPosition());
 #endif
 }
 
@@ -11721,36 +11721,65 @@ void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emit
            varLiveRange->m_EndEmitLocation.CodeOffset(_emitter));
 }
 
-void LiveRangeBarrier::reset(const LiveRangeList* liveRanges)
+LiveRangeDumper::LiveRangeDumper(const LiveRangeList* liveRanges)
 {
-    // "list" should be a valid pointer
     noway_assert(liveRanges != nullptr);
 
+    m_hasLiveRangestoDump = false;
+    m_StartingLiveRange   = liveRanges->end();
+}
+
+//------------------------------------------------------------------------
+// resetDumper: If the the "liveRange" has its last "VariableLiveRange" closed, it makes
+//  the "LiveRangeDumper" points to end of "liveRange" (nullptr). In other case,
+//  it makes the "LiveRangeDumper" points to the last "VariableLiveRange" of
+//  "liveRange", which is opened.
+//
+// Arguments:
+//  liveRanges - the "LiveRangeList" of the "VariableLiveDescriptor" we want to
+//      udpate its "LiveRangeDumper".
+//
+// Notes:
+//  This method is expected to be called once a the code for a BasicBlock has been
+//  generated and all the new "VariableLiveRange"s of the variable during this block
+//  has been dumped.
+void LiveRangeDumper::resetDumper(const LiveRangeList* liveRanges)
+{
+    noway_assert(liveRanges != nullptr);
     // There must have reported something in order to reset
-    noway_assert(haveReadAtLeastOneOfBlock);
+    noway_assert(m_hasLiveRangestoDump);
 
     if (liveRanges->back().m_EndEmitLocation.Valid())
     {
-        haveReadAtLeastOneOfBlock = false;
+        // the last "VariableLiveRange" is closed and the variable
+        // is no longer alive
+        m_hasLiveRangestoDump = false;
     }
     else
     {
-        // This live range will remain open until next block.
-        // If it is in "bbliveIn" in the next "BasicBlock", there is no problem.
-        // If it is not, then "compiler->compCurLife" will have a difference with "block->bbliveIn"
-        // and it will be indicated as dead.
-        beginLastBlock = liveRanges->backPosition();
+        // the last "VariableLiveRange" remains opened because it is
+        // live at "BasicBlock"s "bbLiveOut".
+        m_StartingLiveRange = liveRanges->backPosition();
     }
 }
 
-// Move the barrier to the last position of variableLiveRanges
-// This is used to print only the changes in the last block
-void LiveRangeBarrier::setBarrierAtLastPositionInRegisterHistory(const LiveRangeList* liveRanges)
+//------------------------------------------------------------------------
+// setDumperStartAt: Make "LiveRangeDumper" instance points the last "VariableLifeRange"
+// added so we can starts dumping from there after the actual "BasicBlock"s code is generated.
+//
+// Arguments:
+//  liveRangeIt - an iterator to a position in "VariableLiveDescriptor::variableLiveRanges"
+//
+// Return Value:
+//  A const pointer to the "LiveRangeList" containing all the "VariableLiveRange"s
+//  of the variable with index "varNum".
+//
+// Notes:
+//  "varNum" should be always a valid inde ("varnum" < "lvLiveDscCount")
+void LiveRangeDumper::setDumperStartAt(const LiveRangeListIterator liveRangeIt)
 {
-    noway_assert(liveRanges != nullptr);
-
-    haveReadAtLeastOneOfBlock = true;
-    beginLastBlock            = liveRanges->backPosition();
+    m_hasLiveRangestoDump = true;
+    m_StartingLiveRange   = liveRangeIt;
 }
 
 // Modified the barrier to print on next block only just that changes
@@ -11758,8 +11787,8 @@ void VariableLiveDescriptor::endBlockLiveRanges()
 {
     noway_assert(variableLifeBarrier != nullptr);
 
-    // make "variableLifeBarrier->beginLastBlock" now points to nullptr for printing purposes
-    variableLifeBarrier->reset(variableLiveRanges);
+    // make "variableLifeBarrier->m_StartingLiveRange" now points to nullptr for printing purposes
+    variableLifeBarrier->resetDumper(variableLiveRanges);
 }
 
 // Returns true if a live range for this variable has been recorded from last call to EndBlock
@@ -11768,7 +11797,7 @@ bool VariableLiveDescriptor::hasBeenAlive() const
     // "variableLifeBarrier" should has been initialized
     noway_assert(variableLifeBarrier != nullptr);
 
-    return variableLifeBarrier->haveReadAtLeastOneOfBlock;
+    return variableLifeBarrier->m_hasLiveRangestoDump;
 }
 
 void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const
@@ -11779,7 +11808,7 @@ void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(c
     if (hasBeenAlive())
     {
         printf("[");
-        for (LiveRangeListIterator it = variableLifeBarrier->beginLastBlock; it != variableLiveRanges->end(); it++)
+        for (LiveRangeListIterator it = variableLifeBarrier->m_StartingLiveRange; it != variableLiveRanges->end(); it++)
         {
             dumpVariableLiveRange(&it, codeGen);
         }
