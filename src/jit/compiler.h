@@ -363,7 +363,7 @@ void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emit
 //
 class LiveRangeDumper
 {
-public:
+private:
     LiveRangeListIterator m_StartingLiveRange; // Iterator to the first edited/added position
                                                // during actual block code generation. If last
                                                // block had a closed "VariableLiveRange" (with
@@ -373,13 +373,23 @@ public:
     bool m_hasLiveRangestoDump;                // True if a live range for this variable has been
                                                // reported from last call to EndBlock
 
+public:
     LiveRangeDumper(const LiveRangeList* liveRanges);
 
+    // Make the dumper point to the last "VariableLiveRange" opened or nullptr if all are closed
     void resetDumper(const LiveRangeList* list);
 
     //  Make "LiveRangeDumper" instance points the last "VariableLifeRange" added so we can
     // starts dumping from there after the actual "BasicBlock"s code is generated.
     void setDumperStartAt(const LiveRangeListIterator liveRangeIt);
+
+    // Return an iterator to the first "VariableLiveRange" edited/added during the current
+    // "BasicBlock"
+    LiveRangeListIterator getStartForDump() const;
+
+    // Retutn wheter at least a "VariableLiveRange" was alive during the current "BasicBlock"'s
+    // code generation
+    bool hasLiveRangesToDump() const;
 };
 #endif
 

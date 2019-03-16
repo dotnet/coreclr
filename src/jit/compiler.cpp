@@ -11530,7 +11530,7 @@ void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLo
 #if DEBUG
     noway_assert(variableLifeBarrier != nullptr);
     // Restart barrier so we can print from here
-    variableLifeBarrier->setBarrierAtLastPositionInRegisterHistory(variableLiveRanges->backPosition());
+    variableLifeBarrier->setDumperStartAt(variableLiveRanges->backPosition());
 #endif
 }
 
@@ -11782,6 +11782,32 @@ void LiveRangeDumper::setDumperStartAt(const LiveRangeListIterator liveRangeIt)
     m_StartingLiveRange   = liveRangeIt;
 }
 
+//------------------------------------------------------------------------
+// getStartForDump: Return an iterator to the first "VariableLiveRange" edited/added
+//  during the current "BasicBlock"
+//
+// Return Value:
+//  A LiveRangeListIterator to the first "VariableLiveRange" in "LiveRangeList" which
+//  was used during last "BasicBlock".
+//
+LiveRangeListIterator LiveRangeDumper::getStartForDump() const
+{
+    return m_StartingLiveRange;
+}
+
+//------------------------------------------------------------------------
+// hasLiveRangesToDump: Retutn wheter at least a "VariableLiveRange" was alive during
+//  the current "BasicBlock"'s code generation
+//
+// Return Value:
+//  A boolean indicating indicating if there is at least a "VariableLiveRange"
+//  that has been used for the variable during last "BasicBlock".
+//
+bool LiveRangeDumper::hasLiveRangesToDump() const
+{
+    return m_hasLiveRangestoDump;
+}
+
 // Modified the barrier to print on next block only just that changes
 void VariableLiveDescriptor::endBlockLiveRanges()
 {
@@ -11797,7 +11823,7 @@ bool VariableLiveDescriptor::hasBeenAlive() const
     // "variableLifeBarrier" should has been initialized
     noway_assert(variableLifeBarrier != nullptr);
 
-    return variableLifeBarrier->m_hasLiveRangestoDump;
+    return variableLifeBarrier->hasLiveRangesToDump();
 }
 
 void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const
@@ -11808,7 +11834,7 @@ void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(c
     if (hasBeenAlive())
     {
         printf("[");
-        for (LiveRangeListIterator it = variableLifeBarrier->m_StartingLiveRange; it != variableLiveRanges->end(); it++)
+        for (LiveRangeListIterator it = variableLifeBarrier->getStartForDump(); it != variableLiveRanges->end(); it++)
         {
             dumpVariableLiveRange(&it, codeGen);
         }
