@@ -13,6 +13,24 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetEnumValuesAndNames(RuntimeTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, bool getNames);
 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public override extern bool Equals(object obj);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern object InternalBoxEnum(RuntimeType enumType, long value);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern int InternalCompareTo(object o1, object o2);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private extern CorElementType InternalGetCorElementType();
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern RuntimeType InternalGetUnderlyingType(RuntimeType enumType);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private extern bool InternalHasFlag(Enum flags);
+
         private static TypeValuesAndNames GetCachedValuesAndNames(RuntimeType enumType, bool getNames)
         {
             TypeValuesAndNames entry = enumType.GenericCache as TypeValuesAndNames;
@@ -59,28 +77,5 @@ namespace System
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return rtType;
         }
-
-        private static object ToObjectWorker(Type enumType, long value)
-        {
-            return InternalBoxEnum(ValidateRuntimeType(enumType), value);
-        }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern override bool Equals(object obj);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern object InternalBoxEnum(RuntimeType enumType, long value);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern int InternalCompareTo(object o1, object o2);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern CorElementType InternalGetCorElementType();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern RuntimeType InternalGetUnderlyingType(RuntimeType enumType);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern bool InternalHasFlag(Enum flags);
     }
 }
