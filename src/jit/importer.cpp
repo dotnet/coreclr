@@ -108,10 +108,10 @@ void Compiler::impPushOnStack(GenTree* tree, typeInfo ti)
         // attempts to do that have proved too difficult.  Instead, we'll assume that in checks like this,
         // when there's a mismatch, it's because of this reason -- the typeInfo::AreEquivalentModuloNativeInt
         // method used in the last disjunct allows exactly this mismatch.
-        assert(ti.IsDead() || ti.IsByRef() && (tree->TypeGet() == TYP_I_IMPL || tree->TypeGet() == TYP_BYREF) ||
-               ti.IsUnboxedGenericTypeVar() && tree->TypeGet() == TYP_REF ||
-               ti.IsObjRef() && tree->TypeGet() == TYP_REF || ti.IsMethod() && tree->TypeGet() == TYP_I_IMPL ||
-               ti.IsType(TI_STRUCT) && tree->TypeGet() != TYP_REF ||
+        assert(ti.IsDead() || (ti.IsByRef() && (tree->TypeGet() == TYP_I_IMPL) || tree->TypeGet() == TYP_BYREF) ||
+               (ti.IsUnboxedGenericTypeVar() && tree->TypeGet() == TYP_REF) ||
+               (ti.IsObjRef() && tree->TypeGet() == TYP_REF) || (ti.IsMethod() && tree->TypeGet() == TYP_I_IMPL) ||
+               (ti.IsType(TI_STRUCT) && tree->TypeGet() != TYP_REF) ||
                typeInfo::AreEquivalentModuloNativeInt(NormaliseForStack(ti),
                                                       NormaliseForStack(typeInfo(tree->TypeGet()))));
 
@@ -18169,8 +18169,8 @@ BOOL Compiler::impIsAddressInLocal(GenTree* tree, GenTree** lclVarTreeOut)
 
 void Compiler::impMakeDiscretionaryInlineObservations(InlineInfo* pInlineInfo, InlineResult* inlineResult)
 {
-    assert(pInlineInfo != nullptr && compIsForInlining() || // Perform the actual inlining.
-           pInlineInfo == nullptr && !compIsForInlining()   // Calculate the static inlining hint for ngen.
+    assert((pInlineInfo != nullptr && compIsForInlining()) || // Perform the actual inlining.
+           (pInlineInfo == nullptr && !compIsForInlining())   // Calculate the static inlining hint for ngen.
            );
 
     // If we're really inlining, we should just have one result in play.

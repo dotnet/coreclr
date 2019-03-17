@@ -2484,7 +2484,7 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode)
     }
 
     assert(dstAddr->isUsedFromReg());
-    assert(initVal->isUsedFromReg() && !initVal->IsIntegralConst(0) || initVal->IsIntegralConst(0));
+    assert((initVal->isUsedFromReg() && !initVal->IsIntegralConst(0)) || initVal->IsIntegralConst(0));
     assert(size != 0);
     assert(size <= INITBLK_UNROLL_LIMIT);
 
