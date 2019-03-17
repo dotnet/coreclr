@@ -2155,7 +2155,7 @@ const SignedMagic<int32_t>* TryGetSignedMagic(int32_t divisor)
         {},
         {0x66666667, 1}, // 5
         {0x2aaaaaab, 0}, // 6
-        {0x92492493, 2}, // 7
+        {(int32_t)0x92492493, 2}, // 7
         {},
         {0x38e38e39, 1}, // 9
         {0x66666667, 2}, // 10
