@@ -539,8 +539,8 @@ FCFuncStart(gLoaderAllocatorFuncs)
 FCFuncEnd()
 
 FCFuncStart(gAssemblyFuncs)
-    QCFuncElement("GetEntryAssembly", AssemblyNative::GetEntryAssembly)
-    QCFuncElement("GetExecutingAssembly", AssemblyNative::GetExecutingAssembly)
+    QCFuncElement("GetEntryAssemblyNative", AssemblyNative::GetEntryAssembly)
+    QCFuncElement("GetExecutingAssemblyNative", AssemblyNative::GetExecutingAssembly)
 FCFuncEnd()
 
 FCFuncStart(gAssemblyBuilderFuncs)
