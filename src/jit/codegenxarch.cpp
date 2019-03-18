@@ -1125,7 +1125,7 @@ void CodeGen::genStructReturn(GenTree* treeNode)
     if (op1->OperGet() == GT_LCL_VAR)
     {
         GenTreeLclVarCommon* lclVar = op1->AsLclVarCommon();
-        LclVarDsc*           varDsc = &(compiler->lvaTable[lclVar->gtLclNum]);
+        LclVarDsc*           varDsc = &(compiler->lvaTable[lclVar->GetLclNum()]);
         assert(varDsc->lvIsMultiRegRet);
 
         ReturnTypeDesc retTypeDesc;
@@ -1183,7 +1183,7 @@ void CodeGen::genStructReturn(GenTree* treeNode)
             {
                 var_types type = retTypeDesc.GetReturnRegType(i);
                 regNumber reg  = retTypeDesc.GetABIReturnReg(i);
-                getEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), reg, lclVar->gtLclNum, offset);
+                getEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), reg, lclVar->GetLclNum(), offset);
                 offset += genTypeSize(type);
             }
         }
@@ -1305,16 +1305,16 @@ void CodeGen::genFloatReturn(GenTree* treeNode)
     GenTree* op1 = treeNode->gtGetOp1();
     // Spill the return value register from an XMM register to the stack, then load it on the x87 stack.
     // If it already has a home location, use that. Otherwise, we need a temp.
-    if (genIsRegCandidateLocal(op1) && compiler->lvaTable[op1->gtLclVarCommon.gtLclNum].lvOnFrame)
+    if (genIsRegCandidateLocal(op1) && compiler->lvaTable[op1->gtLclVarCommon.GetLclNum()].lvOnFrame)
     {
-        if (compiler->lvaTable[op1->gtLclVarCommon.gtLclNum].lvRegNum != REG_STK)
+        if (compiler->lvaTable[op1->gtLclVarCommon.GetLclNum()].lvRegNum != REG_STK)
         {
             op1->gtFlags |= GTF_SPILL;
-            inst_TT_RV(ins_Store(op1->gtType, compiler->isSIMDTypeLocalAligned(op1->gtLclVarCommon.gtLclNum)), op1,
+            inst_TT_RV(ins_Store(op1->gtType, compiler->isSIMDTypeLocalAligned(op1->gtLclVarCommon.GetLclNum())), op1,
                        op1->gtRegNum);
         }
         // Now, load it to the fp stack.
-        getEmitter()->emitIns_S(INS_fld, emitTypeSize(op1), op1->AsLclVarCommon()->gtLclNum, 0);
+        getEmitter()->emitIns_S(INS_fld, emitTypeSize(op1), op1->AsLclVarCommon()->GetLclNum(), 0);
     }
     else
     {
@@ -2005,7 +2005,7 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTree* treeNode)
     // Assumption: current x64 Unix implementation requires that a multi-reg struct
     // var in 'var = call' is flagged as lvIsMultiRegRet to prevent it from
     // being struct promoted.
-    unsigned   lclNum = treeNode->AsLclVarCommon()->gtLclNum;
+    unsigned   lclNum = treeNode->AsLclVarCommon()->GetLclNum();
     LclVarDsc* varDsc = &(compiler->lvaTable[lclNum]);
     noway_assert(varDsc->lvIsMultiRegRet);
 
@@ -2116,7 +2116,7 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTree* treeNode)
     // Assumption: current x86 implementation requires that a multi-reg long
     // var in 'var = call' is flagged as lvIsMultiRegRet to prevent it from
     // being promoted.
-    unsigned   lclNum = treeNode->AsLclVarCommon()->gtLclNum;
+    unsigned   lclNum = treeNode->AsLclVarCommon()->GetLclNum();
     LclVarDsc* varDsc = &(compiler->lvaTable[lclNum]);
     noway_assert(varDsc->lvIsMultiRegRet);
 
@@ -3074,7 +3074,7 @@ void CodeGen::genCodeForLoadOffset(instruction ins, emitAttr size, regNumber dst
         {
             offset += baseNode->gtLclFld.gtLclOffs;
         }
-        emit->emitIns_R_S(ins, size, dst, baseNode->gtLclVarCommon.gtLclNum, offset);
+        emit->emitIns_R_S(ins, size, dst, baseNode->gtLclVarCommon.GetLclNum(), offset);
     }
     else
     {
@@ -3634,12 +3634,12 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
         bool     isDstAddrLiveOut = false;
         if (genIsRegCandidateLocal(actualSrcAddr))
         {
-            srcLclVarNum     = actualSrcAddr->AsLclVarCommon()->gtLclNum;
+            srcLclVarNum     = actualSrcAddr->AsLclVarCommon()->GetLclNum();
             isSrcAddrLiveOut = ((actualSrcAddr->gtFlags & (GTF_VAR_DEATH | GTF_SPILL)) == 0);
         }
         if (genIsRegCandidateLocal(actualDstAddr))
         {
-            dstLclVarNum     = actualDstAddr->AsLclVarCommon()->gtLclNum;
+            dstLclVarNum     = actualDstAddr->AsLclVarCommon()->GetLclNum();
             isDstAddrLiveOut = ((actualDstAddr->gtFlags & (GTF_VAR_DEATH | GTF_SPILL)) == 0);
         }
         assert((actualSrcAddr->gtRegNum != REG_RSI) || !isSrcAddrLiveOut ||
@@ -4550,7 +4550,7 @@ void CodeGen::genCodeForLclFld(GenTreeLclFld* tree)
 
     emitAttr size   = emitTypeSize(targetType);
     unsigned offs   = tree->gtLclOffs;
-    unsigned varNum = tree->gtLclNum;
+    unsigned varNum = tree->GetLclNum();
     assert(varNum < compiler->lvaCount);
 
     getEmitter()->emitIns_R_S(ins_Load(targetType), size, targetReg, varNum, offs);
@@ -4571,7 +4571,7 @@ void CodeGen::genCodeForLclVar(GenTreeLclVar* tree)
     // lcl_vars are not defs
     assert((tree->gtFlags & GTF_VAR_DEF) == 0);
 
-    bool isRegCandidate = compiler->lvaTable[tree->gtLclNum].lvIsRegCandidate();
+    bool isRegCandidate = compiler->lvaTable[tree->GetLclNum()].lvIsRegCandidate();
 
     // If this is a register candidate that has been spilled, genConsumeReg() will
     // reload it at the point of use.  Otherwise, if it's not in a register, we load it here.
@@ -4587,8 +4587,8 @@ void CodeGen::genCodeForLclVar(GenTreeLclVar* tree)
         }
 #endif // defined(FEATURE_SIMD) && defined(_TARGET_X86_)
 
-        getEmitter()->emitIns_R_S(ins_Load(tree->TypeGet(), compiler->isSIMDTypeLocalAligned(tree->gtLclNum)),
-                                  emitTypeSize(tree), tree->gtRegNum, tree->gtLclNum, 0);
+        getEmitter()->emitIns_R_S(ins_Load(tree->TypeGet(), compiler->isSIMDTypeLocalAligned(tree->GetLclNum())),
+                                  emitTypeSize(tree), tree->gtRegNum, tree->GetLclNum(), 0);
         genProduceReg(tree);
     }
 }
@@ -4650,7 +4650,7 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
         noway_assert(targetType != TYP_STRUCT);
         assert(!varTypeIsFloating(targetType) || (targetType == op1->TypeGet()));
 
-        unsigned   lclNum = tree->gtLclNum;
+        unsigned   lclNum = tree->GetLclNum();
         LclVarDsc* varDsc = &(compiler->lvaTable[lclNum]);
 
         // Ensure that lclVar nodes are typed correctly.
@@ -4960,7 +4960,7 @@ void CodeGen::genRegCopy(GenTree* treeNode)
 
             if ((lcl->gtFlags & GTF_VAR_DEATH) == 0 && (treeNode->gtFlags & GTF_VAR_DEATH) == 0)
             {
-                LclVarDsc* varDsc = &compiler->lvaTable[lcl->gtLclNum];
+                LclVarDsc* varDsc = &compiler->lvaTable[lcl->GetLclNum()];
 
                 // If we didn't just spill it (in genConsumeReg, above), then update the register info
                 if (varDsc->lvRegNum != REG_STK)
@@ -4974,7 +4974,7 @@ void CodeGen::genRegCopy(GenTree* treeNode)
 
 #ifdef USING_VARIABLE_LIVE_RANGE
                     // Report the home change for this variable
-                    varLiveKeeper->siUpdateVariableLiveRange(varDsc, lcl->gtLclNum);
+                    varLiveKeeper->siUpdateVariableLiveRange(varDsc, lcl->GetLclNum());
 #endif // USING_VARIABLE_LIVE_RANGE
 
                     // The new location is going live
@@ -5157,10 +5157,10 @@ void CodeGen::genCodeForSwap(GenTreeOp* tree)
     assert(genIsRegCandidateLocal(tree->gtOp1) && genIsRegCandidateLocal(tree->gtOp2));
 
     GenTreeLclVarCommon* lcl1    = tree->gtOp1->AsLclVarCommon();
-    LclVarDsc*           varDsc1 = &(compiler->lvaTable[lcl1->gtLclNum]);
+    LclVarDsc*           varDsc1 = &(compiler->lvaTable[lcl1->GetLclNum()]);
     var_types            type1   = varDsc1->TypeGet();
     GenTreeLclVarCommon* lcl2    = tree->gtOp2->AsLclVarCommon();
-    LclVarDsc*           varDsc2 = &(compiler->lvaTable[lcl2->gtLclNum]);
+    LclVarDsc*           varDsc2 = &(compiler->lvaTable[lcl2->GetLclNum()]);
     var_types            type2   = varDsc2->TypeGet();
 
     // We must have both int or both fp regs
@@ -7350,7 +7350,7 @@ void CodeGen::genSSE41RoundOp(GenTreeOp* treeNode)
                 case GT_LCL_VAR:
                 {
                     assert(srcNode->IsRegOptional() ||
-                           !compiler->lvaTable[srcNode->gtLclVar.gtLclNum].lvIsRegCandidate());
+                           !compiler->lvaTable[srcNode->gtLclVar.GetLclNum()].lvIsRegCandidate());
 
                     varNum = srcNode->AsLclVar()->GetLclNum();
                     offset = 0;
@@ -8215,7 +8215,7 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
         {
             assert(srcAddr->OperIsLocalAddr());
 
-            srcLclNum = srcAddr->AsLclVarCommon()->gtLclNum;
+            srcLclNum = srcAddr->AsLclVarCommon()->GetLclNum();
             if (srcAddr->OperGet() == GT_LCL_FLD_ADDR)
             {
                 srcLclOffset = srcAddr->AsLclFld()->gtLclOffs;

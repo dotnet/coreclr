@@ -2690,7 +2690,6 @@ public:
     {
         return _gtLclNum;
     }
-    __declspec(property(get = GetLclNum)) unsigned gtLclNum;
 
     void SetLclNum(unsigned lclNum)
     {

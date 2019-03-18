@@ -273,7 +273,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_LCL_FLD:
         {
             // We should only encounter this for lclVars that are lvDoNotEnregister.
-            verifyLclFldDoNotEnregister(node->AsLclVarCommon()->gtLclNum);
+            verifyLclFldDoNotEnregister(node->AsLclVarCommon()->GetLclNum());
             break;
         }
 
@@ -506,7 +506,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     assert(node->gtOper == GT_SWITCH);
     GenTree* temp = node->gtOp.gtOp1;
     assert(temp->gtOper == GT_LCL_VAR);
-    unsigned  tempLclNum  = temp->gtLclVarCommon.gtLclNum;
+    unsigned  tempLclNum  = temp->gtLclVarCommon.GetLclNum();
     var_types tempLclType = temp->TypeGet();
 
     BasicBlock* defaultBB   = jumpTab[jumpCnt - 1];
@@ -2044,7 +2044,7 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                 // is getting over-written by setting up of a stack arg and there are further uses of
                 // any of its fields if such a struct is type-dependently promoted.  In this case too
                 // we need to introduce a temp.
-                if ((lcl->gtLclNum == callerArgNum) || (lcl->gtLclNum == callerArgLclNum))
+                if ((lcl->GetLclNum() == callerArgNum) || (lcl->GetLclNum() == callerArgLclNum))
                 {
                     // Create tmp and use it in place of callerArgDsc
                     if (tmpLclNum == BAD_VAR_NUM)
@@ -2055,7 +2055,7 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                             true DEBUGARG("Fast tail call lowering is creating a new local variable"));
 
                         comp->lvaTable[tmpLclNum].lvType            = tmpType;
-                        comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->gtLclNum].lvDoNotEnregister;
+                        comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->GetLclNum()].lvDoNotEnregister;
                     }
 
                     lcl->SetLclNum(tmpLclNum);
@@ -3927,7 +3927,7 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
     unsigned lclNum;
     if (thisPtr->IsLocal())
     {
-        lclNum = thisPtr->gtLclVarCommon.gtLclNum;
+        lclNum = thisPtr->gtLclVarCommon.GetLclNum();
     }
     else
     {
@@ -5494,7 +5494,7 @@ bool Lowering::NodesAreEquivalentLeaves(GenTree* tree1, GenTree* tree2)
                    tree1->IsIconHandle() == tree2->IsIconHandle();
         case GT_LCL_VAR:
         case GT_LCL_VAR_ADDR:
-            return tree1->gtLclVarCommon.gtLclNum == tree2->gtLclVarCommon.gtLclNum;
+            return tree1->gtLclVarCommon.GetLclNum() == tree2->gtLclVarCommon.GetLclNum();
         case GT_CLS_VAR_ADDR:
             return tree1->gtClsVar.gtClsVarHnd == tree2->gtClsVar.gtClsVarHnd;
         default:
