@@ -4491,6 +4491,7 @@ void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
     genConsumeRegs(op1);
     getEmitter()->emitInsBinary(ins_Store(targetType), emitTypeSize(tree), tree, op1);
 
+    // Updating variable liveness after instruction was emitted
     genUpdateLife(tree);
 }
 

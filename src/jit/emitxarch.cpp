@@ -2856,6 +2856,8 @@ void emitter::emitInsLoadInd(instruction ins, emitAttr attr, regNumber dstReg, G
     {
         GenTreeLclVarCommon* varNode = addr->AsLclVarCommon();
         emitIns_R_S(ins, attr, dstReg, varNode->GetLclNum(), 0);
+
+        // Updating variable liveness after instruction was emitted
         codeGen->genUpdateLife(varNode);
         return;
     }
@@ -2914,6 +2916,8 @@ void emitter::emitInsStoreInd(instruction ins, emitAttr attr, GenTreeStoreInd* m
             assert(!data->isContained());
             emitIns_S_R(ins, attr, data->gtRegNum, varNode->GetLclNum(), 0);
         }
+
+        // Updating variable liveness after instruction was emitted
         codeGen->genUpdateLife(varNode);
         return;
     }
@@ -2972,6 +2976,8 @@ void emitter::emitInsStoreLcl(instruction ins, emitAttr attr, GenTreeLclVarCommo
         assert(!data->isContained());
         emitIns_S_R(ins, attr, data->gtRegNum, varNode->GetLclNum(), 0);
     }
+
+    // Updating variable liveness after instruction was emitted
     codeGen->genUpdateLife(varNode);
 }
 
