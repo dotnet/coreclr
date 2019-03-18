@@ -6774,8 +6774,8 @@ bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
     //
     if (loopVarCount >= availRegCount)
     {
-        // Don't hoist expressions that are not heavy: tree->gtCostEx < (2*IND_COST_EX)
-        if (tree->gtCostEx < (2 * IND_COST_EX))
+        // Don't hoist expressions that are not heavy: tree->GetCostEx() < (2*IND_COST_EX)
+        if (tree->GetCostEx() < (2 * IND_COST_EX))
         {
             return false;
         }
@@ -6791,8 +6791,8 @@ bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
     //
     if (varInOutCount > availRegCount)
     {
-        // Don't hoist expressions that barely meet CSE cost requirements: tree->gtCostEx == MIN_CSE_COST
-        if (tree->gtCostEx <= MIN_CSE_COST + 1)
+        // Don't hoist expressions that barely meet CSE cost requirements: tree->GetCostEx() == MIN_CSE_COST
+        if (tree->GetCostEx() <= MIN_CSE_COST + 1)
         {
             return false;
         }
@@ -8866,7 +8866,7 @@ void Compiler::optOptimizeBools()
 
             gtPrepareCost(c2);
 
-            if (c2->gtCostEx > 12)
+            if (c2->GetCostEx() > 12)
             {
                 continue;
             }
