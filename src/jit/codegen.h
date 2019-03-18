@@ -682,12 +682,18 @@ public:
 public:
     void psiBegProlog();
 
+    // When ESP changes, all scopes relative to ESP have to be updated.
     void psiAdjustStackLevel(unsigned size);
 
+    // For EBP-frames, the parameters are accessed via ESP on entry to the function,
+    // but via EBP right after a "mov ebp,esp" instruction.
     void psiMoveESPtoEBP();
 
+    // Close previous psiScope and open a new one on the location described by the registers.
     void psiMoveToReg(unsigned varNum, regNumber reg = REG_NA, regNumber otherReg = REG_NA);
 
+    // Search the open "psiScope" of the "varNum" parameter, close it and open
+    // a new one using "LclVarDsc" fields.
     void psiMoveToStack(unsigned varNum);
 
     void psiEndProlog();
