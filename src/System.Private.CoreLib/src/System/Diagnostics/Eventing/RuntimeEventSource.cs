@@ -41,11 +41,11 @@ namespace System.Diagnostics.Tracing
                 // overhead by at all times even when counters aren't enabled.
 
                 // On disable, PollingCounters will stop polling for values so it should be fine to leave them around.
-                if (_gcHeapSizeCounter == null) { _gcHeapSizeCounter = new PollingCounter("GC Heap Size", this, () => GC.GetTotalMemory(false)); }
-                if (_gen0GCCounter == null) { _gen0GCCounter = new IncrementingPollingCounter("Gen 0 GC Count", this, () => GC.CollectionCount(0)); }
-                if (_gen1GCCounter == null) { _gen1GCCounter = new IncrementingPollingCounter("Gen 1 GC Count", this, () => GC.CollectionCount(1)); }
-                if (_gen2GCCounter == null) { _gen2GCCounter = new IncrementingPollingCounter("Gen 2 GC Count", this, () => GC.CollectionCount(2)); }
-                if (_exceptionCounter == null) { _exceptionCounter = new IncrementingPollingCounter("Exception Count", this, () => Exception.GetExceptionCount()); }
+                _gcHeapSizeCounter = _gcHeapSizeCounter ?? new PollingCounter("GC Heap Size", this, () => GC.GetTotalMemory(false));
+                _gen0GCCounter = _gen0GCCounter ?? new IncrementingPollingCounter("Gen 0 GC Count", this, () => GC.CollectionCount(0));
+                _gen1GCCounter = _gen1GCCounter ?? new IncrementingPollingCounter("Gen 1 GC Count", this, () => GC.CollectionCount(1));
+                _gen2GCCounter = _gen2GCCounter ?? new IncrementingPollingCounter("Gen 2 GC Count", this, () => GC.CollectionCount(2));
+                _exceptionCounter = _exceptionCounter ?? new IncrementingPollingCounter("Exception Count", this, () => Exception.GetExceptionCount());
             }
         }
     }
