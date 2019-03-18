@@ -7173,7 +7173,6 @@ public:
     // convenience and backward compatibility, but the properties can only be set by invoking
     // the setter on CodeGenContext directly.
 
-    __declspec(property(get = getEmitter)) emitter* genEmitter;
     emitter* getEmitter() const
     {
         return codeGen->getEmitter();

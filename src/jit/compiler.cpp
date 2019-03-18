@@ -240,7 +240,7 @@ void Compiler::compDspSrcLinesByNativeIP(UNATIVE_OFFSET curIP)
 
     if (nextMappingDsc)
     {
-        UNATIVE_OFFSET offset = nextMappingDsc->ipmdNativeLoc.CodeOffset(genEmitter);
+        UNATIVE_OFFSET offset = nextMappingDsc->ipmdNativeLoc.CodeOffset(getEmitter());
 
         if (offset <= curIP)
         {
@@ -5372,7 +5372,7 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 
         /* Tell the emitter that we're done with this function */
 
-        genEmitter->emitEndCG();
+        getEmitter()->emitEndCG();
 
     DoneCleanUp:
         compDone();

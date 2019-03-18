@@ -255,7 +255,7 @@ void Compiler::unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdC
     }
     else
     {
-        startOffset = func->startLoc->CodeOffset(genEmitter);
+        startOffset = func->startLoc->CodeOffset(getEmitter());
     }
 
     if (func->endLoc == nullptr)
@@ -264,7 +264,7 @@ void Compiler::unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdC
     }
     else
     {
-        endOffset = func->endLoc->CodeOffset(genEmitter);
+        endOffset = func->endLoc->CodeOffset(getEmitter());
     }
 
     DWORD size = (DWORD)func->cfiCodes->size();
@@ -300,7 +300,7 @@ void Compiler::unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdC
         }
         else
         {
-            startOffset = func->coldStartLoc->CodeOffset(genEmitter);
+            startOffset = func->coldStartLoc->CodeOffset(getEmitter());
         }
 
         if (func->coldEndLoc == nullptr)
@@ -309,7 +309,7 @@ void Compiler::unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdC
         }
         else
         {
-            endOffset = func->coldEndLoc->CodeOffset(genEmitter);
+            endOffset = func->coldEndLoc->CodeOffset(getEmitter());
         }
 
 #ifdef DEBUG
@@ -397,13 +397,13 @@ UNATIVE_OFFSET Compiler::unwindGetCurrentOffset(FuncInfoDsc* func)
     UNATIVE_OFFSET offset;
     if (func->funKind == FUNC_ROOT)
     {
-        offset = genEmitter->emitGetPrologOffsetEstimate();
+        offset = getEmitter()->emitGetPrologOffsetEstimate();
     }
     else
     {
 #if defined(_TARGET_AMD64_) || (defined(_TARGET_UNIX_) && (defined(_TARGET_ARMARCH_) || defined(_TARGET_X86_)))
         assert(func->startLoc != nullptr);
-        offset = func->startLoc->GetFuncletPrologOffset(genEmitter);
+        offset = func->startLoc->GetFuncletPrologOffset(getEmitter());
 #else
         offset = 0; // TODO ???
 #endif

@@ -1100,7 +1100,7 @@ void* Compiler::ehEmitCookie(BasicBlock* block)
 
 UNATIVE_OFFSET Compiler::ehCodeOffset(BasicBlock* block)
 {
-    return genEmitter->emitCodeOffset(ehEmitCookie(block), 0);
+    return getEmitter()->emitCodeOffset(ehEmitCookie(block), 0);
 }
 
 /****************************************************************************/
@@ -2962,9 +2962,9 @@ void Compiler::dispOutgoingEHClause(unsigned num, const CORINFO_EH_CLAUSE& claus
     if (opts.dspDiffable)
     {
         /* (( brace matching editor workaround to compensate for the following line */
-        printf("EH#%u: try [%s..%s) handled by [%s..%s) ", num, genEmitter->emitOffsetToLabel(clause.TryOffset),
-               genEmitter->emitOffsetToLabel(clause.TryLength), genEmitter->emitOffsetToLabel(clause.HandlerOffset),
-               genEmitter->emitOffsetToLabel(clause.HandlerLength));
+        printf("EH#%u: try [%s..%s) handled by [%s..%s) ", num, getEmitter()->emitOffsetToLabel(clause.TryOffset),
+               getEmitter()->emitOffsetToLabel(clause.TryLength), getEmitter()->emitOffsetToLabel(clause.HandlerOffset),
+               getEmitter()->emitOffsetToLabel(clause.HandlerLength));
     }
     else
     {
@@ -2988,8 +2988,8 @@ void Compiler::dispOutgoingEHClause(unsigned num, const CORINFO_EH_CLAUSE& claus
             if (opts.dspDiffable)
             {
                 /* ( brace matching editor workaround to compensate for the following line */
-                printf("filter at [%s..%s)", genEmitter->emitOffsetToLabel(clause.ClassToken),
-                       genEmitter->emitOffsetToLabel(clause.HandlerOffset));
+                printf("filter at [%s..%s)", getEmitter()->emitOffsetToLabel(clause.ClassToken),
+                       getEmitter()->emitOffsetToLabel(clause.HandlerOffset));
             }
             else
             {

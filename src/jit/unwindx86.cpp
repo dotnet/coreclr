@@ -192,7 +192,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            startOffset = startLoc->CodeOffset(genEmitter);
+            startOffset = startLoc->CodeOffset(getEmitter());
         }
 
         if (endLoc == nullptr)
@@ -201,7 +201,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            endOffset = endLoc->CodeOffset(genEmitter);
+            endOffset = endLoc->CodeOffset(getEmitter());
         }
     }
     else
@@ -220,7 +220,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            startOffset = coldStartLoc->CodeOffset(genEmitter);
+            startOffset = coldStartLoc->CodeOffset(getEmitter());
         }
 
         if (coldEndLoc == nullptr)
@@ -229,7 +229,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            endOffset = coldEndLoc->CodeOffset(genEmitter);
+            endOffset = coldEndLoc->CodeOffset(getEmitter());
         }
     }
 

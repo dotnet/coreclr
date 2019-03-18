@@ -460,7 +460,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
                 int offs = varDsc->lvStkOffs;
 
                 printf("GCINFO: untrckd %s lcl at [%s", varTypeGCstring(varDsc->TypeGet()),
-                       compiler->genEmitter->emitGetFrameReg());
+                       compiler->getEmitter()->emitGetFrameReg());
 
                 if (offs < 0)
                 {
@@ -509,7 +509,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
             int offs = tempThis->tdTempOffs();
 
             printf("GCINFO: untrck %s Temp at [%s", varTypeGCstring(varDsc->TypeGet()),
-                   compiler->genEmitter->emitGetFrameReg());
+                   compiler->getEmitter()->emitGetFrameReg());
 
             if (offs < 0)
             {
