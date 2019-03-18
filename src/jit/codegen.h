@@ -757,6 +757,8 @@ protected:
      * This struct holds the LocalVarInfo in terms of the generated native code
      * after a call to genSetScopeInfo()
      */
+
+protected:
 #ifdef DEBUG
 
     struct TrnslLocalVarInfo
