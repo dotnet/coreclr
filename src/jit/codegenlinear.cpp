@@ -1697,7 +1697,7 @@ void CodeGen::genConsumeBlockOp(GenTreeBlk* blkNode, regNumber dstReg, regNumber
 
 //-------------------------------------------------------------------------
 // genProduceReg: do liveness update for register produced by the current
-// node in codegen.
+// node in codegen after code has been emitted for it.
 //
 // Arguments:
 //     tree   -  Gentree node
