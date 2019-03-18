@@ -6,6 +6,7 @@
 #define __DIAGNOSTIC_SERVER_H__
 
 #include <stdint.h>
+#include "diagnosticsipc.h"
 
 #ifdef FEATURE_PERFTRACING // This macro should change to something more generic than performance.
 
@@ -51,6 +52,9 @@ public:
 
     //! Shutdown the event pipe.
     static bool Shutdown();
+
+private:
+    static IpcStream::DiagnosticsIpc *s_pIpc;
 };
 
 #endif // FEATURE_PERFTRACING
