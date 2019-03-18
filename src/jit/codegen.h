@@ -563,10 +563,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     void genSetScopeInfo();
 #ifdef USING_SCOPE_INFO
     void genSetScopeInfoUsingsiScope();
-#endif // USING_SCOPE_INFO
 
-#ifdef USING_SCOPE_INFO
-protected:
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -672,7 +669,6 @@ public:
     const char* siStackVarName(size_t offs, size_t size, unsigned reg, unsigned stkOffs);
 #endif // LATE_DISASM
 
-public:
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -754,13 +750,13 @@ protected:
 
     void psSetScopeOffset(psiScope* newScope, LclVarDsc* lclVarDsc1);
 #endif // USING_SCOPE_INFO
-       /*****************************************************************************
-        *                        TrnslLocalVarInfo
-        *
-        * This struct holds the LocalVarInfo in terms of the generated native code
-        * after a call to genSetScopeInfo()
-        */
 
+    /*****************************************************************************
+     *                        TrnslLocalVarInfo
+     *
+     * This struct holds the LocalVarInfo in terms of the generated native code
+     * after a call to genSetScopeInfo()
+     */
 #ifdef DEBUG
 
     struct TrnslLocalVarInfo
