@@ -578,6 +578,7 @@ protected:
     struct instrDesc
     {
     private:
+
 // The assembly instruction
 #if defined(_TARGET_XARCH_)
         static_assert_no_msg(INS_count <= 1024);
@@ -589,6 +590,7 @@ protected:
         static_assert_no_msg(INS_count <= 256);
         instruction _idIns : 8;
 #endif // !(defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_))
+
        // The format for the instruction
 #if defined(_TARGET_XARCH_)
         static_assert_no_msg(IF_COUNT <= 128);
