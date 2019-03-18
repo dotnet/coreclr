@@ -233,7 +233,7 @@ DLLEXPORT ICorJitCompiler* __stdcall getJit()
 
 #ifndef __GNUC__
 __declspec(thread) void* gJitTls = nullptr;
-#else // !__GNUC__
+#else  // !__GNUC__
 thread_local void* gJitTls = nullptr;
 #endif // !__GNUC__
 
