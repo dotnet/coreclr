@@ -35,8 +35,3 @@ extern "C" DLL_EXPORT C* STDMETHODCALLTYPE CreateInstanceOfC(float width, float 
 {
     return new C(width, height);
 }
-
-extern "C" DLL_EXPORT void STDMETHODCALLTYPE FreeInstanceOfC(C* instance)
-{
-    delete instance;
-}

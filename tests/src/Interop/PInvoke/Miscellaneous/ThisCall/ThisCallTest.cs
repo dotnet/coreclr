@@ -34,8 +34,6 @@ unsafe class ThisCallNative
 
     [DllImport(nameof(ThisCallNative))]
     public static extern C* CreateInstanceOfC(float width, float height);
-    [DllImport(nameof(ThisCallNative))]
-    public static extern void FreeInstanceOfC(C* instance);
 }
 
 class ThisCallTest
@@ -53,8 +51,6 @@ class ThisCallTest
 
             Assert.AreEqual(width, result.width);
             Assert.AreEqual(height, result.height);
-
-            ThisCallNative.FreeInstanceOfC(instance);
         }
         catch (System.Exception ex)
         {
