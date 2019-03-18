@@ -2631,7 +2631,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
 
     // This GenTree node has data about GC pointers, this means we're dealing
     // with CpObj.
-    assert(cpObjNode->gtGcPtrCount > 0);
+    assert(cpObjNode->GetGcPtrCount() > 0);
 #endif // DEBUG
 
     // Consume the operands and get them into the right registers.
@@ -2699,7 +2699,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     }
     else
     {
-        unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
+        unsigned gcPtrCount = cpObjNode->GetGcPtrCount();
 
         unsigned i = 0;
         while (i < slots)

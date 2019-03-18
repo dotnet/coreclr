@@ -237,7 +237,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
     if (!isInitBlk)
     {
         // CopyObj or CopyBlk
-        if ((blkNode->OperGet() == GT_STORE_OBJ) && ((blkNode->AsObj()->gtGcPtrCount == 0) || blkNode->gtBlkOpGcUnsafe))
+        if ((blkNode->OperGet() == GT_STORE_OBJ) && ((blkNode->AsObj()->GetGcPtrCount() == 0) || blkNode->gtBlkOpGcUnsafe))
         {
             blkNode->SetOper(GT_STORE_BLK);
         }
@@ -309,7 +309,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 
 #ifdef DEBUG
             // CpObj must always have at least one GC-Pointer as a member.
-            assert(objNode->gtGcPtrCount > 0);
+            assert(objNode->GetGcPtrCount() > 0);
 
             assert(dstAddr->gtType == TYP_BYREF || dstAddr->gtType == TYP_I_IMPL);
 

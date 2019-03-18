@@ -2823,7 +2823,7 @@ void CodeGen::genCodeForStoreBlk(GenTreeBlk* storeBlkNode)
 
     if (storeBlkNode->OperIs(GT_STORE_OBJ) && storeBlkNode->OperIsCopyBlkOp() && !storeBlkNode->gtBlkOpGcUnsafe)
     {
-        assert(storeBlkNode->AsObj()->gtGcPtrCount != 0);
+        assert(storeBlkNode->AsObj()->GetGcPtrCount() != 0);
         genCodeForCpObj(storeBlkNode->AsObj());
         return;
     }
@@ -3618,7 +3618,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
 
     // If the GenTree node has data about GC pointers, this means we're dealing
     // with CpObj, so this requires special logic.
-    assert(cpObjNode->gtGcPtrCount > 0);
+    assert(cpObjNode->GetGcPtrCount() > 0);
 
     // MovSp (alias for movsq on x64 and movsd on x86) instruction is used for copying non-gcref fields
     // and it needs src = RSI and dst = RDI.
@@ -3684,7 +3684,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     else
     {
         BYTE*    gcPtrs     = cpObjNode->gtGcPtrs;
-        unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
+        unsigned gcPtrCount = cpObjNode->GetGcPtrCount();
 
         unsigned i = 0;
         while (i < slots)

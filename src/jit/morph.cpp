@@ -10101,7 +10101,7 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
 void Compiler::fgMorphUnsafeBlk(GenTreeObj* dest)
 {
 #if defined(CPBLK_UNROLL_LIMIT) && !defined(JIT32_GCENCODER)
-    assert(dest->gtGcPtrCount != 0);
+    assert(dest->GetGcPtrCount() != 0);
     unsigned blockWidth = dest->AsBlk()->gtBlkSize;
 #ifdef DEBUG
     bool     destOnStack = false;

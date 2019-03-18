@@ -6455,10 +6455,10 @@ void Compiler::gtBlockOpInit(GenTree* result, GenTree* dst, GenTree* srcOrFillVa
         GenTreeObj* objNode = dst->AsObj();
         assert(objNode->gtGcPtrs != nullptr);
         assert(!IsUninitialized(objNode->gtGcPtrs));
-        assert(!IsUninitialized(objNode->gtGcPtrCount));
+        assert(!IsUninitialized(objNode->GetGcPtrCount()));
         assert(!IsUninitialized(objNode->gtSlots) && objNode->gtSlots > 0);
 
-        for (unsigned i = 0; i < objNode->gtGcPtrCount; ++i)
+        for (unsigned i = 0; i < objNode->GetGcPtrCount(); ++i)
         {
             CorInfoGCType t = (CorInfoGCType)objNode->gtGcPtrs[i];
             switch (t)

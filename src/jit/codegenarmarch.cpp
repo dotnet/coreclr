@@ -3320,7 +3320,7 @@ void CodeGen::genCodeForStoreBlk(GenTreeBlk* blkOp)
 
     if (blkOp->OperIs(GT_STORE_OBJ) && blkOp->OperIsCopyBlkOp())
     {
-        assert(blkOp->AsObj()->gtGcPtrCount != 0);
+        assert(blkOp->AsObj()->GetGcPtrCount() != 0);
         genCodeForCpObj(blkOp->AsObj());
         return;
     }
