@@ -48,7 +48,7 @@ namespace System.Text.Unicode
 
             while (!source.IsEmpty)
             {
-                status = Rune.DecodeUtf16(source, out Rune firstScalarValue, out int charsConsumed);
+                status = Rune.DecodeFromUtf16(source, out Rune firstScalarValue, out int charsConsumed);
 
                 switch (status)
                 {
@@ -131,7 +131,7 @@ namespace System.Text.Unicode
 
             while (!source.IsEmpty)
             {
-                status = Rune.DecodeUtf8(source, out Rune firstScalarValue, out int bytesConsumed);
+                status = Rune.DecodeFromUtf8(source, out Rune firstScalarValue, out int bytesConsumed);
 
                 switch (status)
                 {
