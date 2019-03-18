@@ -4322,7 +4322,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 //                             call fgMorphMultiregStructArg on each of them.
 //
 // Arguments:
-//    call    :    a GenTreeCall node that has one or more TYP_STRUCT arguments\
+//    call    :    a GenTreeCall node that has one or more TYP_STRUCT arguments\.
 //
 // Notes:
 //    We only call fgMorphMultiregStructArg for struct arguments that are not passed as simple types.
@@ -6447,7 +6447,7 @@ GenTree* Compiler::fgMorphField(GenTree* tree, MorphAddrContext* mac)
             // Build this tree:  IND(*) #
             //                    |
             //                   ADD(I_IMPL)
-            //                   / \
+            //                   / \.
             //                  /  CNS(fldOffset)
             //                 /
             //                /
@@ -6455,9 +6455,9 @@ GenTree* Compiler::fgMorphField(GenTree* tree, MorphAddrContext* mac)
             //             IND(I_IMPL) == [Base of this DLL's TLS]
             //              |
             //             ADD(I_IMPL)
-            //             / \
+            //             / \.
             //            /   CNS(IdValue*4) or MUL
-            //           /                      / \
+            //           /                      / \.
             //          IND(I_IMPL)            /  CNS(4)
             //           |                    /
             //          CNS(TLS_HDL,0x2C)    IND
@@ -7372,6 +7372,12 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     if (call->IsVirtualStub())
     {
         GenTree* stubAddrArg = fgGetStubAddrArg(call);
+
+        // We don't need this arg to be in the normal stub register, so
+        // clear out the register assignment.
+        assert(stubAddrArg->gtRegNum == virtualStubParamInfo->GetReg());
+        stubAddrArg->gtRegNum = REG_NA;
+
         // And push the stub address onto the list of arguments
         call->gtCallArgs = gtNewListNode(stubAddrArg, call->gtCallArgs);
     }
@@ -7606,6 +7612,12 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     if (call->IsVirtualStub())
     {
         GenTree* stubAddrArg = fgGetStubAddrArg(call);
+
+        // We don't need this arg to be in the normal stub register, so
+        // clear out the register assignment.
+        assert(stubAddrArg->gtRegNum == virtualStubParamInfo->GetReg());
+        stubAddrArg->gtRegNum = REG_NA;
+
         // And push the stub address onto the list of arguments
         call->gtCallArgs = gtNewListNode(stubAddrArg, call->gtCallArgs);
     }
@@ -9048,7 +9060,7 @@ GenTree* Compiler::fgMorphOneAsgBlockOp(GenTree* tree)
     //  See if we can do a simple transformation:
     //
     //          GT_ASG <TYP_size>
-    //          /   \
+    //          /   \.
     //      GT_IND GT_IND or CNS_INT
     //         |      |
     //       [dest] [src]
@@ -12408,8 +12420,8 @@ DONE_MORPHING_CHILDREN:
             // Here we look for the following tree
             //
             //                        EQ/NE
-            //                        /  \
-                //                      op1   CNS 0/1
+            //                        /  \.
+            //                      op1   CNS 0/1
             //
             ival2 = INT_MAX; // The value of INT_MAX for ival2 just means that the constant value is not 0 or 1
 
@@ -12433,12 +12445,12 @@ DONE_MORPHING_CHILDREN:
                     // Here we look for the following transformation
                     //
                     //                  EQ/NE                    Possible REVERSE(RELOP)
-                    //                  /  \                           /      \
-                        //               COMMA CNS 0/1             ->   COMMA   relop_op2
-                    //              /   \                          /    \
-                        //             x  RELOP                       x     relop_op1
-                    //               /    \
-                        //         relop_op1  relop_op2
+                    //                  /  \                           /      \.
+                    //               COMMA CNS 0/1             ->   COMMA   relop_op2
+                    //              /   \                          /    \.
+                    //             x  RELOP                       x     relop_op1
+                    //               /    \.
+                    //         relop_op1  relop_op2
                     //
                     //
                     //
@@ -12476,14 +12488,14 @@ DONE_MORPHING_CHILDREN:
                     // and when the LCL_VAR is a temp we can fold the tree:
                     //
                     //                        EQ/NE                  EQ/NE
-                    //                        /  \                   /  \
-                        //                     COMMA  CNS 0/1  ->     RELOP CNS 0/1
-                    //                     /   \                   / \
-                        //                   ASG  LCL_VAR
-                    //                  /  \
-                        //           LCL_VAR   RELOP
-                    //                      / \
-                        //
+                    //                        /  \                   /  \.
+                    //                     COMMA  CNS 0/1  ->     RELOP CNS 0/1
+                    //                     /   \                   / \.
+                    //                   ASG  LCL_VAR
+                    //                  /  \.
+                    //           LCL_VAR   RELOP
+                    //                      / \.
+                    //
 
                     GenTree* asg = op1->gtOp.gtOp1;
                     GenTree* lcl = op1->gtOp.gtOp2;
@@ -12550,9 +12562,9 @@ DONE_MORPHING_CHILDREN:
                     // Here we look for the following tree
                     //
                     //                        EQ/NE           ->      RELOP/!RELOP
-                    //                        /  \                       /    \
+                    //                        /  \                       /    \.
                     //                     RELOP  CNS 0/1
-                    //                     /   \
+                    //                     /   \.
                     //
                     // Note that we will remove/destroy the EQ/NE node and move
                     // the RELOP up into it's location.
@@ -12582,12 +12594,12 @@ DONE_MORPHING_CHILDREN:
                 // Here we look for the following transformation:
                 //
                 //                        EQ/NE                  EQ/NE
-                //                        /  \                   /  \
-                    //                      AND   CNS 0/1  ->      AND   CNS 0
-                //                     /   \                  /   \
-                    //                RSZ/RSH   CNS 1            x     CNS (1 << y)
-                //                  /  \
-                    //                 x   CNS_INT +y
+                //                        /  \                   /  \.
+                //                      AND   CNS 0/1  ->      AND   CNS 0
+                //                     /   \                  /   \.
+                //                RSZ/RSH   CNS 1            x     CNS (1 << y)
+                //                  /  \.
+                //                 x   CNS_INT +y
 
                 if (op1->gtOper == GT_AND)
                 {
@@ -13640,8 +13652,15 @@ DONE_MORPHING_CHILDREN:
 
                 if (isZeroOffset)
                 {
+                    // The "op1" node might already be annotated with a zero-offset field sequence.
+                    FieldSeqNode* existingZeroOffsetFldSeq = nullptr;
+                    if (GetZeroOffsetFieldMap()->Lookup(op1, &existingZeroOffsetFldSeq))
+                    {
+                        // Append the zero field sequences
+                        zeroFieldSeq = GetFieldSeqStore()->Append(existingZeroOffsetFldSeq, zeroFieldSeq);
+                    }
                     // Transfer the annotation to the new GT_ADDR node.
-                    GetZeroOffsetFieldMap()->Set(op1, zeroFieldSeq);
+                    GetZeroOffsetFieldMap()->Set(op1, zeroFieldSeq, NodeToFieldSeqMap::Overwrite);
                 }
                 commaNode->gtOp.gtOp2 = op1;
                 // Originally, I gave all the comma nodes type "byref".  But the ADDR(IND(x)) == x transform
@@ -14001,12 +14020,12 @@ GenTree* Compiler::fgMorphSmpOpOptional(GenTreeOp* tree)
         {
             // This takes
             //       + (tree)
-            //      / \
-            //     /   \
-            //    /     \
+            //      / \.
+            //     /   \.
+            //    /     \.
             //   + (op1) op2
-            //  / \
-            //     \
+            //  / \.
+            //     \.
             //     ad2
             //
             // And it swaps ad2 and op2.  If (op2) is varTypeIsGC, then this implies that (tree) is
@@ -14341,13 +14360,13 @@ GenTree* Compiler::fgRecognizeAndMorphBitwiseRotation(GenTree* tree)
     // Check for a rotation pattern, e.g.,
     //
     //                         OR                      ROL
-    //                      /      \                   / \
+    //                      /      \                   / \.
     //                    LSH      RSZ      ->        x   y
-    //                    / \      / \
+    //                    / \      / \.
     //                   x  AND   x  AND
-    //                      / \      / \
+    //                      / \      / \.
     //                     y  31   ADD  31
-    //                             / \
+    //                             / \.
     //                            NEG 32
     //                             |
     //                             y
@@ -18743,7 +18762,16 @@ void Compiler::fgAddFieldSeqForZeroOffset(GenTree* op1, FieldSeqNode* fieldSeq)
 
         default:
             // Record in the general zero-offset map.
-            GetZeroOffsetFieldMap()->Set(op1, fieldSeq);
+
+            // The "op1" node might already be annotated with a zero-offset field sequence.
+            FieldSeqNode* existingZeroOffsetFldSeq = nullptr;
+            if (GetZeroOffsetFieldMap()->Lookup(op1, &existingZeroOffsetFldSeq))
+            {
+                // Append the zero field sequences
+                fieldSeq = GetFieldSeqStore()->Append(existingZeroOffsetFldSeq, fieldSeq);
+            }
+            // Set the new field sequence annotation for op1
+            GetZeroOffsetFieldMap()->Set(op1, fieldSeq, NodeToFieldSeqMap::Overwrite);
             break;
     }
 }
