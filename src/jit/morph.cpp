@@ -7372,6 +7372,12 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     if (call->IsVirtualStub())
     {
         GenTree* stubAddrArg = fgGetStubAddrArg(call);
+
+        // We don't need this arg to be in the normal stub register, so
+        // clear out the register assignment.
+        assert(stubAddrArg->gtRegNum == virtualStubParamInfo->GetReg());
+        stubAddrArg->gtRegNum = REG_NA;
+
         // And push the stub address onto the list of arguments
         call->gtCallArgs = gtNewListNode(stubAddrArg, call->gtCallArgs);
     }
@@ -7606,6 +7612,12 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     if (call->IsVirtualStub())
     {
         GenTree* stubAddrArg = fgGetStubAddrArg(call);
+
+        // We don't need this arg to be in the normal stub register, so
+        // clear out the register assignment.
+        assert(stubAddrArg->gtRegNum == virtualStubParamInfo->GetReg());
+        stubAddrArg->gtRegNum = REG_NA;
+
         // And push the stub address onto the list of arguments
         call->gtCallArgs = gtNewListNode(stubAddrArg, call->gtCallArgs);
     }
@@ -13640,8 +13652,15 @@ DONE_MORPHING_CHILDREN:
 
                 if (isZeroOffset)
                 {
+                    // The "op1" node might already be annotated with a zero-offset field sequence.
+                    FieldSeqNode* existingZeroOffsetFldSeq = nullptr;
+                    if (GetZeroOffsetFieldMap()->Lookup(op1, &existingZeroOffsetFldSeq))
+                    {
+                        // Append the zero field sequences
+                        zeroFieldSeq = GetFieldSeqStore()->Append(existingZeroOffsetFldSeq, zeroFieldSeq);
+                    }
                     // Transfer the annotation to the new GT_ADDR node.
-                    GetZeroOffsetFieldMap()->Set(op1, zeroFieldSeq);
+                    GetZeroOffsetFieldMap()->Set(op1, zeroFieldSeq, NodeToFieldSeqMap::Overwrite);
                 }
                 commaNode->gtOp.gtOp2 = op1;
                 // Originally, I gave all the comma nodes type "byref".  But the ADDR(IND(x)) == x transform
@@ -18743,7 +18762,16 @@ void Compiler::fgAddFieldSeqForZeroOffset(GenTree* op1, FieldSeqNode* fieldSeq)
 
         default:
             // Record in the general zero-offset map.
-            GetZeroOffsetFieldMap()->Set(op1, fieldSeq);
+
+            // The "op1" node might already be annotated with a zero-offset field sequence.
+            FieldSeqNode* existingZeroOffsetFldSeq = nullptr;
+            if (GetZeroOffsetFieldMap()->Lookup(op1, &existingZeroOffsetFldSeq))
+            {
+                // Append the zero field sequences
+                fieldSeq = GetFieldSeqStore()->Append(existingZeroOffsetFldSeq, fieldSeq);
+            }
+            // Set the new field sequence annotation for op1
+            GetZeroOffsetFieldMap()->Set(op1, fieldSeq, NodeToFieldSeqMap::Overwrite);
             break;
     }
 }
