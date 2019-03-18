@@ -419,7 +419,7 @@ namespace System
                 return TrimEnd(span, trimElements[0]);
             }
 
-            return span;
+            return span1;
         }
 
         /// <summary>
