@@ -19,19 +19,27 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
 {
     public static class ActivationFactoryLoader
     {
-        public static void GetActivationFactory(
+        public static int GetActivationFactory(
             [MarshalAs(UnmanagedType.HString)] string typeName,
             [MarshalAs(UnmanagedType.Interface)] out IActivationFactory activationFactory)
         {
             activationFactory = null;
-            if (typeName is null)
+            try
             {
-                throw new ArgumentNullException(nameof(typeName));
-            }
-            
-            Type winRTType = System.StubHelpers.WinRTTypeNameConverter.GetTypeFromWinRTTypeName(typeName, out bool _);
+                if (typeName is null)
+                {
+                    throw new ArgumentNullException(nameof(typeName));
+                }
+                
+                Type winRTType = System.StubHelpers.WinRTTypeNameConverter.GetTypeFromWinRTTypeName(typeName, out bool _);
 
-            activationFactory = new ManagedActivationFactory(winRTType);
+                activationFactory = new ManagedActivationFactory(winRTType);
+            }
+            catch (System.Exception ex)
+            {
+                return ex.HResult;
+            }
+            return 0;
         }
     }
 }
