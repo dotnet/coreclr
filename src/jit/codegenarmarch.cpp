@@ -3865,7 +3865,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
     {
         psiAdjustStackLevel(frameSize);
     }
-#endif
+#endif // USING_SCOPE_INFO
 #endif // _TARGET_ARM_
 }
 

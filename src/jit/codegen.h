@@ -563,7 +563,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     void genSetScopeInfo();
 #ifdef USING_SCOPE_INFO
     void genSetScopeInfoUsingsiScope();
-#endif
+#endif // USING_SCOPE_INFO
 
 #ifdef USING_SCOPE_INFO
 protected:
@@ -753,13 +753,13 @@ protected:
     void psiEndPrologScope(psiScope* scope);
 
     void psSetScopeOffset(psiScope* newScope, LclVarDsc* lclVarDsc1);
-#endif
-/*****************************************************************************
- *                        TrnslLocalVarInfo
- *
- * This struct holds the LocalVarInfo in terms of the generated native code
- * after a call to genSetScopeInfo()
- */
+#endif // USING_SCOPE_INFO
+       /*****************************************************************************
+        *                        TrnslLocalVarInfo
+        *
+        * This struct holds the LocalVarInfo in terms of the generated native code
+        * after a call to genSetScopeInfo()
+        */
 
 #ifdef DEBUG
 

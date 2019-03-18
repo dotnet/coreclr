@@ -1614,4 +1614,4 @@ void CodeGen::psiEndProlog()
         psiEndPrologScope(scope);
     }
 }
-#endif
+#endif // USING_SCOPE_INFO

@@ -734,7 +734,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
     }
 #ifdef USING_SCOPE_INFO
     codeGen->siUpdate();
-#endif
+#endif // USING_SCOPE_INFO
 }
 
 // Need an explicit instantiation.
@@ -3810,7 +3810,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             {
                 psiMoveToStack(varNum);
             }
-#endif
+#endif // USING_SCOPE_INFO
         }
 
         /* mark the argument as processed */
@@ -3957,7 +3957,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumSrc);
                 psiMoveToReg(varNumDest);
-#endif
+#endif // USING_SCOPE_INFO
             }
             else
 #endif // _TARGET_XARCH_
@@ -4021,7 +4021,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 *pXtraRegClobbered = true;
 #ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumDest, xtraReg);
-#endif
+#endif // USING_SCOPE_INFO
                 /* start moving everything to its right place */
 
                 while (srcReg != begReg)
@@ -4088,7 +4088,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 regSet.verifyRegUsed(destRegNum);
 #ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumSrc);
-#endif
+#endif // USING_SCOPE_INFO
                 /* mark the beginning register as processed */
 
                 regArgTab[srcReg].processed = true;
@@ -4274,7 +4274,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 getEmitter()->emitIns_R_R(ins_Copy(destMemType), size, destRegNum, regNum);
 #ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNum);
-#endif
+#endif // USING_SCOPE_INFO
             }
 
             /* mark the argument as processed */
@@ -4410,7 +4410,7 @@ void CodeGen::genEnregisterIncomingStackArgs()
         regSet.verifyRegUsed(regNum);
 #ifdef USING_SCOPE_INFO
         psiMoveToReg(varNum);
-#endif
+#endif // USING_SCOPE_INFO
     }
 }
 
@@ -5257,7 +5257,7 @@ void          CodeGen::genPushCalleeSavedRegisters()
             {
                 psiAdjustStackLevel(REGSIZE_BYTES);
             }
-#endif
+#endif // USING_SCOPE_INFO
             rsPushRegs &= ~regBit;
         }
     }
@@ -7538,7 +7538,7 @@ void CodeGen::genEstablishFramePointer(int delta, bool reportUnwindData)
         getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_SPBASE);
 #ifdef USING_SCOPE_INFO
         psiMoveESPtoEBP();
-#endif
+#endif // USING_SCOPE_INFO
     }
     else
     {
@@ -7646,7 +7646,7 @@ void CodeGen::genFnProlog()
         // Create new scopes for the method-parameters for the prolog-block.
         psiBegProlog();
     }
-#endif
+#endif // USING_SCOPE_INFO
 
 #ifdef DEBUG
 
@@ -7973,7 +7973,7 @@ void CodeGen::genFnProlog()
         compiler->unwindPush(REG_FPBASE);
 #ifdef USING_SCOPE_INFO
         psiAdjustStackLevel(REGSIZE_BYTES);
-#endif
+#endif                 // USING_SCOPE_INFO
 #ifndef _TARGET_AMD64_ // On AMD64, establish the frame pointer after the "sub rsp"
         genEstablishFramePointer(0, /*reportUnwindData*/ true);
 #endif // !_TARGET_AMD64_
@@ -8298,7 +8298,7 @@ void CodeGen::genFnProlog()
     {
         psiEndProlog();
     }
-#endif
+#endif // USING_SCOPE_INFO
     if (hasGCRef)
     {
         getEmitter()->emitSetFrameRangeGCRs(GCrefLo, GCrefHi);
@@ -10499,7 +10499,7 @@ void CodeGen::genSetScopeInfo()
     unsigned varsHomeCount = 0;
 #ifdef USING_SCOPE_INFO
     varsHomeCount = siScopeCnt + psiScopeCnt;
-#endif
+#endif // USING_SCOPE_INFO
     compiler->eeSetLVcount(varsHomeCount);
 
 #ifdef DEBUG
@@ -10512,7 +10512,7 @@ void CodeGen::genSetScopeInfo()
 
 #ifdef USING_SCOPE_INFO
     genSetScopeInfoUsingsiScope();
-#endif
+#endif // USING_SCOPE_INFO
 
     compiler->eeSetLVdone();
 }
@@ -10586,7 +10586,7 @@ void CodeGen::genSetScopeInfoUsingsiScope()
                         scopeL->scAvailable, &varLoc);
     }
 }
-#endif
+#endif // USING_SCOPE_INFO
 
 //------------------------------------------------------------------------
 // genSetScopeInfo: Record scope information for debug info

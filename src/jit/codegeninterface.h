@@ -29,7 +29,7 @@
 // variables' home location during the method/prolog code.
 #if 0
 #define USING_SCOPE_INFO
-#endif
+#endif // USING_SCOPE_INFO
 
 // Forward reference types
 
@@ -393,7 +393,7 @@ private:
 public:
 #ifdef USING_SCOPE_INFO
     virtual void siUpdate() = 0;
-#endif
+#endif // USING_SCOPE_INFO
 
     /* These are the different addressing modes used to access a local var.
      * The JIT has to report the location of the locals back to the EE

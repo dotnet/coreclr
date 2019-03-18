@@ -90,7 +90,7 @@ void CodeGen::genInitialize()
     {
         siInit();
     }
-#endif
+#endif // USING_SCOPE_INFO
 
     // The current implementation of switch tables requires the first block to have a label so it
     // can generate offsets to the switch label targets.
@@ -353,7 +353,7 @@ void CodeGen::genCodeForBBlist()
         compiler->compCurBB = block;
 #ifdef USING_SCOPE_INFO
         siBeginBlock(block);
-#endif
+#endif // USING_SCOPE_INFO
         // BBF_INTERNAL blocks don't correspond to any single IL instruction.
         if (compiler->opts.compDbgInfo && (block->bbFlags & BBF_INTERNAL) &&
             !compiler->fgBBisScratch(block)) // If the block is the distinguished first scratch block, then no need to
@@ -534,7 +534,7 @@ void CodeGen::genCodeForBBlist()
                 siCloseAllOpenScopes();
             }
         }
-#endif
+#endif // USING_SCOPE_INFO
 
         SubtractStackLevel(savedStkLvl);
 
