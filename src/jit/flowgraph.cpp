@@ -3955,7 +3955,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
             GenTreeStmt* stmt = top->firstStmt();
             while (stmt->gtNext)
             {
-                stmt = stmt->gtNextStmt;
+                stmt = stmt->getNextStmt();
             }
             fgRemoveStmt(top, stmt);
             fgInsertStmtAtEnd(bottom, stmt);
@@ -9642,7 +9642,7 @@ void Compiler::fgFindOperOrder()
     for (block = fgFirstBB; block; block = block->bbNext)
     {
         compCurBB = block;
-        for (stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (stmt = block->firstStmt(); stmt; stmt = stmt->getNextStmt())
         {
             /* Recursively process the statement */
 
@@ -10041,9 +10041,9 @@ void Compiler::fgRemoveStmt(BasicBlock* block, GenTreeStmt* stmt)
     }
     else // The statement is in the middle.
     {
-        assert(stmt->gtPrevStmt != nullptr && stmt->gtNext != nullptr);
+        assert(stmt->getPrevStmt() != nullptr && stmt->gtNext != nullptr);
 
-        tree = stmt->gtPrevStmt;
+        tree = stmt->getPrevStmt();
 
         tree->gtNext         = stmt->gtNext;
         stmt->gtNext->gtPrev = tree;
@@ -10734,7 +10734,7 @@ void Compiler::fgUnreachableBlock(BasicBlock* block)
             block->setBBTreeList(firstNonPhi);
         }
 
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->getNextStmt())
         {
             fgRemoveStmt(block, stmt);
         }
@@ -14821,7 +14821,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
     assert(!bDest->IsLIR());
 
     unsigned estDupCostSz = 0;
-    for (GenTreeStmt* stmt = bDest->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+    for (GenTreeStmt* stmt = bDest->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
         GenTree* expr = stmt->gtStmtExpr;
 
@@ -21689,7 +21689,7 @@ void Compiler::fgDebugCheckLinks(bool morphTrees)
 
 void Compiler::fgDebugCheckStmtsList(BasicBlock* block, bool morphTrees)
 {
-    for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+    for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
         /* Verify that getBBTreeList() is threaded correctly */
         /* Note that for the GT_STMT list, the gtPrev list is circular. The gtNext list is not: gtNext of the
@@ -21867,7 +21867,7 @@ void Compiler::fgDebugCheckNodesUniqueness()
         }
         else
         {
-            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
             {
                 GenTree* root = stmt->gtStmtExpr;
                 fgWalkTreePre(&root, UniquenessCheckWalker::MarkTreeId, &walker);
@@ -21955,7 +21955,7 @@ void Compiler::fgInline()
 
     for (; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->getNextStmt())
         {
             stmt->gtInlineContext = rootContext;
         }
@@ -21969,7 +21969,7 @@ void Compiler::fgInline()
         // Make the current basic block address available globally
         compCurBB = block;
 
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
 
 #ifdef DEBUG
@@ -22057,7 +22057,7 @@ void Compiler::fgInline()
     {
         GenTreeStmt* stmt;
 
-        for (stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (stmt = block->firstStmt(); stmt; stmt = stmt->getNextStmt())
         {
             // Call Compiler::fgDebugCheckInlineCandidates on each node
             fgWalkTreePre(&stmt->gtStmtExpr, fgDebugCheckInlineCandidates);
@@ -22931,7 +22931,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
 
     for (block = InlineeCompiler->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->getNextStmt())
         {
             stmt->gtInlineContext = calleeContext;
         }
@@ -23271,7 +23271,7 @@ GenTreeStmt* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     BasicBlock*  block        = inlineInfo->iciBlock;
     GenTreeStmt* callStmt     = inlineInfo->iciStmt;
     IL_OFFSETX   callILOffset = callStmt->gtStmtILoffsx;
-    GenTreeStmt* postStmt     = callStmt->gtNextStmt;
+    GenTreeStmt* postStmt     = callStmt->getNextStmt();
     GenTreeStmt* afterStmt    = callStmt; // afterStmt is the place where the new statements should be inserted after.
     GenTreeStmt* newStmt      = nullptr;
     GenTreeCall* call         = inlineInfo->iciCall->AsCall();
@@ -23623,7 +23623,7 @@ GenTreeStmt* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     // Update any newly added statements with the appropriate context.
     InlineContext* context = callStmt->gtInlineContext;
     assert(context != nullptr);
-    for (GenTreeStmt* addedStmt = callStmt->gtNextStmt; addedStmt != postStmt; addedStmt = addedStmt->gtNextStmt)
+    for (GenTreeStmt* addedStmt = callStmt->getNextStmt(); addedStmt != postStmt; addedStmt = addedStmt->getNextStmt())
     {
         assert(addedStmt->gtInlineContext == nullptr);
         addedStmt->gtInlineContext = context;
@@ -23944,7 +23944,7 @@ void Compiler::fgRemoveEmptyFinally()
         // Limit for now to finallys that contain only a GT_RETFILT.
         bool isEmpty = true;
 
-        for (GenTreeStmt* stmt = firstBlock->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = firstBlock->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
             GenTree* stmtExpr = stmt->gtStmtExpr;
 
@@ -24391,7 +24391,7 @@ void Compiler::fgRemoveEmptyTry()
             // If we're in a non-funclet model, decrement the nesting
             // level of any GT_END_LFIN we find in the handler region,
             // since we're removing the enclosing handler.
-            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
             {
                 GenTree* expr = stmt->gtStmtExpr;
                 if (expr->gtOper == GT_END_LFIN)
@@ -24596,7 +24596,7 @@ void Compiler::fgCloneFinally()
 
             // Should we compute statement cost here, or is it
             // premature...? For now just count statements I guess.
-            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
             {
                 regionStmtCount++;
             }
@@ -25256,7 +25256,7 @@ void Compiler::fgCleanupContinuation(BasicBlock* continuation)
     // Remove the GT_END_LFIN from the continuation,
     // Note we only expect to see one such statement.
     bool foundEndLFin = false;
-    for (GenTreeStmt* stmt = continuation->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+    for (GenTreeStmt* stmt = continuation->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
         GenTree* expr = stmt->gtStmtExpr;
         if (expr->gtOper == GT_END_LFIN)

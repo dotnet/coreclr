@@ -679,7 +679,7 @@ GenTreeStmt* Compiler::impExtractLastStmt()
     assert(impLastStmt != nullptr);
 
     GenTreeStmt* stmt = impLastStmt;
-    impLastStmt       = impLastStmt->gtPrevStmt;
+    impLastStmt       = impLastStmt->getPrevStmt();
     if (impLastStmt == nullptr)
     {
         impStmtList = nullptr;
@@ -19444,7 +19444,7 @@ BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*    ad
         return FALSE;
     }
 
-    for (GenTreeStmt* stmt = impStmtList; stmt != nullptr; stmt = stmt->gtNextStmt)
+    for (GenTreeStmt* stmt = impStmtList; stmt != nullptr; stmt = stmt->getNextStmt())
     {
         GenTree* expr = stmt->gtStmtExpr;
         if (GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS(expr->gtFlags))

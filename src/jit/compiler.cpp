@@ -8573,7 +8573,7 @@ GenTree* dFindTree(unsigned id)
 
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->getNextStmt())
         {
             tree = dFindTree(stmt, id);
             if (tree != nullptr)
@@ -8597,7 +8597,7 @@ GenTreeStmt* dFindStmt(unsigned id)
     unsigned stmtId = 0;
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->getNextStmt())
         {
             stmtId++;
             if (stmtId == id)
@@ -8790,7 +8790,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
     if (!block->IsLIR())
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->getNextStmt())
         {
             // Print current stmt.
 
