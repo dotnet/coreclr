@@ -351,7 +351,7 @@ void CodeGen::genCodeForBBlist()
         /* Tell everyone which basic block we're working on */
 
         compiler->compCurBB = block;
-#ifdef USUSING_SCOPE_INFOING_
+#ifdef USING_SCOPE_INFO
         siBeginBlock(block);
 #endif
         // BBF_INTERNAL blocks don't correspond to any single IL instruction.
