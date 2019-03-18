@@ -5946,10 +5946,10 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
         GenTreeLclVarCommon* phiArg = phiArgs->Current()->AsLclVarCommon();
         phiArgs                     = phiArgs->Rest();
 
-        phiAppVNP.SetBoth(vnStore->VNForIntCon(phiArg->gtSsaNum));
+        phiAppVNP.SetBoth(vnStore->VNForIntCon(phiArg->GetSsaNum()));
         bool allSameLib  = true;
         bool allSameCons = true;
-        sameVNPair       = lvaTable[phiArg->gtLclNum].GetPerSsaData(phiArg->gtSsaNum)->m_vnPair;
+        sameVNPair       = lvaTable[phiArg->gtLclNum].GetPerSsaData(phiArg->GetSsaNum())->m_vnPair;
         if (!sameVNPair.BothDefined())
         {
             allSameLib  = false;
@@ -5959,7 +5959,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
         {
             phiArg = phiArgs->Current()->AsLclVarCommon();
             // Set the VN of the phi arg.
-            phiArg->gtVNPair = lvaTable[phiArg->gtLclNum].GetPerSsaData(phiArg->gtSsaNum)->m_vnPair;
+            phiArg->gtVNPair = lvaTable[phiArg->gtLclNum].GetPerSsaData(phiArg->GetSsaNum())->m_vnPair;
             if (phiArg->gtVNPair.BothDefined())
             {
                 if (phiArg->gtVNPair.GetLiberal() != sameVNPair.GetLiberal())
@@ -5977,7 +5977,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
                 allSameCons = false;
             }
             ValueNumPair phiArgSsaVNP;
-            phiArgSsaVNP.SetBoth(vnStore->VNForIntCon(phiArg->gtSsaNum));
+            phiArgSsaVNP.SetBoth(vnStore->VNForIntCon(phiArg->GetSsaNum()));
             phiAppVNP = vnStore->VNPairForFunc(newSsaVar->TypeGet(), VNF_Phi, phiArgSsaVNP, phiAppVNP);
             phiArgs   = phiArgs->Rest();
         }
@@ -6908,7 +6908,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                         lclNum = varDsc->lvFieldLclStart;
                     }
 
-                    if (lcl->gtSsaNum == SsaConfig::RESERVED_SSA_NUM)
+                    if (lcl->GetSsaNum() == SsaConfig::RESERVED_SSA_NUM)
                     {
                         // Not an SSA variable.
 
@@ -6929,7 +6929,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                     }
                     else
                     {
-                        ValueNumPair wholeLclVarVNP = varDsc->GetPerSsaData(lcl->gtSsaNum)->m_vnPair;
+                        ValueNumPair wholeLclVarVNP = varDsc->GetPerSsaData(lcl->GetSsaNum())->m_vnPair;
 
                         // Check for mismatched LclVar size
                         //
@@ -7011,10 +7011,10 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                     // This flag propagates to the "local" on the RHS.  So we'll assume that this is correct,
                     // and treat it as a def (to a new, unique VN).
                     //
-                    if (lcl->gtSsaNum != SsaConfig::RESERVED_SSA_NUM)
+                    if (lcl->GetSsaNum() != SsaConfig::RESERVED_SSA_NUM)
                     {
                         ValueNum uniqVN = vnStore->VNForExpr(compCurBB, lcl->TypeGet());
-                        varDsc->GetPerSsaData(lcl->gtSsaNum)->m_vnPair.SetBoth(uniqVN);
+                        varDsc->GetPerSsaData(lcl->GetSsaNum())->m_vnPair.SetBoth(uniqVN);
                     }
 
                     lcl->gtVNPair = ValueNumPair(); // Avoid confusion -- we don't set the VN of a lcl being defined.
