@@ -1,3 +1,4 @@
+Microsoft.Win32.SystemEvents.Tests                      # https://github.com/dotnet/coreclr/issues/22442 -- timeout
 System.ComponentModel.Composition.Tests                 # https://github.com/dotnet/coreclr/issues/18913
 System.Drawing.Common.Tests                             # https://github.com/dotnet/corefx/issues/35424
 System.Management.Tests                                 # https://github.com/dotnet/corefx/issues/34030
