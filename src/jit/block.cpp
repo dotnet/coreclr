@@ -1380,14 +1380,16 @@ void BasicBlock::DisplayStaticSizes(FILE* fout)
     fprintf(fout, "\n");
     fprintf(fout, "Offset / size of bbNext                = %3u / %3u\n", offsetof(BasicBlock, bbNext),
         sizeof(bbDummy->bbNext));
+    fprintf(fout, "Offset / size of bbPrev                = %3u / %3u\n", offsetof(BasicBlock, bbPrev),
+        sizeof(bbDummy->bbPrev));
+    fprintf(fout, "Offset / size of bbFlags               = %3u / %3u\n", offsetof(BasicBlock, bbFlags),
+        sizeof(bbDummy->bbFlags));
     fprintf(fout, "Offset / size of bbNum                 = %3u / %3u\n", offsetof(BasicBlock, bbNum),
         sizeof(bbDummy->bbNum));
     fprintf(fout, "Offset / size of bbPostOrderNum        = %3u / %3u\n", offsetof(BasicBlock, bbPostOrderNum),
         sizeof(bbDummy->bbPostOrderNum));
     fprintf(fout, "Offset / size of bbRefs                = %3u / %3u\n", offsetof(BasicBlock, bbRefs),
         sizeof(bbDummy->bbRefs));
-    fprintf(fout, "Offset / size of bbFlags               = %3u / %3u\n", offsetof(BasicBlock, bbFlags),
-        sizeof(bbDummy->bbFlags));
     fprintf(fout, "Offset / size of bbWeight              = %3u / %3u\n", offsetof(BasicBlock, bbWeight),
         sizeof(bbDummy->bbWeight));
     fprintf(fout, "Offset / size of bbJumpKind            = %3u / %3u\n", offsetof(BasicBlock, bbJumpKind),
@@ -1414,6 +1416,8 @@ void BasicBlock::DisplayStaticSizes(FILE* fout)
         sizeof(bbDummy->bbStkDepth));
     fprintf(fout, "Offset / size of bbFPinVars            = %3u / %3u\n", offsetof(BasicBlock, bbFPinVars),
         sizeof(bbDummy->bbFPinVars));
+    fprintf(fout, "Offset / size of bbCheapPreds          = %3u / %3u\n", offsetof(BasicBlock, bbCheapPreds),
+        sizeof(bbDummy->bbCheapPreds));
     fprintf(fout, "Offset / size of bbPreds               = %3u / %3u\n", offsetof(BasicBlock, bbPreds),
         sizeof(bbDummy->bbPreds));
     fprintf(fout, "Offset / size of bbReach               = %3u / %3u\n", offsetof(BasicBlock, bbReach),
@@ -1434,21 +1438,33 @@ void BasicBlock::DisplayStaticSizes(FILE* fout)
         sizeof(bbDummy->bbLiveIn));
     fprintf(fout, "Offset / size of bbLiveOut             = %3u / %3u\n", offsetof(BasicBlock, bbLiveOut),
         sizeof(bbDummy->bbLiveOut));
-    fprintf(fout, "Offset / size of bbMemorySsaPhiFunc      = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaPhiFunc),
+    // Can't do bitfield bbMemoryUse, bbMemoryDef, bbMemoryLiveIn, bbMemoryLiveOut, bbMemoryHavoc
+    fprintf(fout, "Offset / size of bbMemorySsaPhiFunc    = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaPhiFunc),
         sizeof(bbDummy->bbMemorySsaPhiFunc));
-    fprintf(fout, "Offset / size of bbMemorySsaNumIn        = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaNumIn),
+    fprintf(fout, "Offset / size of bbMemorySsaNumIn      = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaNumIn),
         sizeof(bbDummy->bbMemorySsaNumIn));
-    fprintf(fout, "Offset / size of bbMemorySsaNumOut       = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaNumOut),
+    fprintf(fout, "Offset / size of bbMemorySsaNumOut     = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaNumOut),
         sizeof(bbDummy->bbMemorySsaNumOut));
     fprintf(fout, "Offset / size of bbScope               = %3u / %3u\n", offsetof(BasicBlock, bbScope),
         sizeof(bbDummy->bbScope));
     fprintf(fout, "Offset / size of bbCseGen              = %3u / %3u\n", offsetof(BasicBlock, bbCseGen),
         sizeof(bbDummy->bbCseGen));
+#if ASSERTION_PROP
+    fprintf(fout, "Offset / size of bbAssertionGen        = %3u / %3u\n", offsetof(BasicBlock, bbAssertionGen),
+        sizeof(bbDummy->bbAssertionGen));
+#endif // ASSERTION_PROP
     fprintf(fout, "Offset / size of bbCseIn               = %3u / %3u\n", offsetof(BasicBlock, bbCseIn),
         sizeof(bbDummy->bbCseIn));
+#if ASSERTION_PROP
+    fprintf(fout, "Offset / size of bbAssertionIn         = %3u / %3u\n", offsetof(BasicBlock, bbAssertionIn),
+        sizeof(bbDummy->bbAssertionIn));
+#endif // ASSERTION_PROP
     fprintf(fout, "Offset / size of bbCseOut              = %3u / %3u\n", offsetof(BasicBlock, bbCseOut),
         sizeof(bbDummy->bbCseOut));
-
+#if ASSERTION_PROP
+    fprintf(fout, "Offset / size of bbAssertionOut        = %3u / %3u\n", offsetof(BasicBlock, bbAssertionOut),
+        sizeof(bbDummy->bbAssertionOut));
+#endif // ASSERTION_PROP
     fprintf(fout, "Offset / size of bbEmitCookie          = %3u / %3u\n", offsetof(BasicBlock, bbEmitCookie),
         sizeof(bbDummy->bbEmitCookie));
 
@@ -1473,8 +1489,11 @@ void BasicBlock::DisplayStaticSizes(FILE* fout)
         sizeof(bbDummy->bbLoopNum));
 #endif // DEBUG
 
+    fprintf(fout, "Offset / size of bbNatLoopNum          = %3u / %3u\n", offsetof(BasicBlock, bbNatLoopNum),
+        sizeof(bbDummy->bbNatLoopNum));
+
     fprintf(fout, "\n");
-    fprintf(fout, "Size   of BasicBlock                   = %3u\n", sizeof(BasicBlock));
+    fprintf(fout, "Size of BasicBlock                     = %3u\n", sizeof(BasicBlock));
 
 #endif // MEASURE_BLOCK_SIZE
 }
