@@ -5,15 +5,11 @@
   </Target>
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
     <AssemblyName>SOS.NETCore</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>;1591;1701</NoWarn>
     <Description>.NET Core SOS</Description>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)bin\</RootBinDir>
   </PropertyGroup>
 
   <ItemGroup>
