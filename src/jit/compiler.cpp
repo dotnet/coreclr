@@ -8821,7 +8821,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
     }
     else
     {
-        for (GenTree* node = block->bbTreeList; node != nullptr; node = node->gtNext)
+        for (GenTree* node = block->getBBTreeList(); node != nullptr; node = node->gtNext)
         {
             cNodeIR(comp, node);
         }

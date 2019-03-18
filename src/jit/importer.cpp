@@ -430,7 +430,7 @@ inline void Compiler::impEndTreeList(BasicBlock* block, GenTreeStmt* firstStmt, 
 
     /* Store the tree list in the basic block */
 
-    block->bbTreeList = firstStmt;
+    block->setBBTreeList(firstStmt);
 
     /* The block should not already be marked as imported */
     assert((block->bbFlags & BBF_IMPORTED) == 0);
@@ -2557,7 +2557,7 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
     if ((hndBlk->bbFlags & (BBF_IMPORTED | BBF_INTERNAL | BBF_DONT_REMOVE | BBF_HAS_LABEL | BBF_JMP_TARGET)) ==
         (BBF_IMPORTED | BBF_INTERNAL | BBF_DONT_REMOVE | BBF_HAS_LABEL | BBF_JMP_TARGET))
     {
-        GenTree* tree = hndBlk->bbTreeList;
+        GenTree* tree = hndBlk->getBBTreeList();
 
         if (tree != nullptr && tree->gtOper == GT_STMT)
         {

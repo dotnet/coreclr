@@ -97,13 +97,13 @@ void Compiler::fgResetForSsa()
         {
             blk->bbMemorySsaPhiFunc[memoryKind] = nullptr;
         }
-        if (blk->bbTreeList != nullptr)
+        if (blk->getBBTreeList() != nullptr)
         {
-            GenTree* last   = blk->bbTreeList->gtPrev;
-            blk->bbTreeList = blk->FirstNonPhiDef();
-            if (blk->bbTreeList != nullptr)
+            GenTree* last   = blk->getBBTreeList()->gtPrev;
+            blk->setBBTreeList(blk->FirstNonPhiDef());
+            if (blk->getBBTreeList() != nullptr)
             {
-                blk->bbTreeList->gtPrev = last;
+                blk->getBBTreeList()->gtPrev = last;
             }
         }
 
@@ -1631,7 +1631,7 @@ void SsaBuilder::Print(BasicBlock** postOrder, int count)
     for (int i = count - 1; i >= 0; --i)
     {
         printf("After SSA " FMT_BB ":\n", postOrder[i]->bbNum);
-        m_pCompiler->gtDispTreeList(postOrder[i]->bbTreeList);
+        m_pCompiler->gtDispTreeList(postOrder[i]->getBBTreeList());
     }
 }
 #endif // DEBUG

@@ -741,8 +741,6 @@ struct BasicBlock : private LIR::Range
         return bbRefs;
     }
 
-    __declspec(property(get = getBBTreeList, put = setBBTreeList)) GenTree* bbTreeList; // the body of the block.
-
     GenTree* getBBTreeList() const
     {
         return m_firstNode;

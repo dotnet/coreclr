@@ -8569,7 +8569,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         hasTailCalls = true;
 
         noway_assert(block->bbJumpKind == BBJ_RETURN);
-        noway_assert(block->bbTreeList != nullptr);
+        noway_assert(block->getBBTreeList() != nullptr);
 
         /* figure out what jump we have */
         GenTree* jmpNode = lastNode;
@@ -8925,7 +8925,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
     if (jmpEpilog)
     {
         noway_assert(block->bbJumpKind == BBJ_RETURN);
-        noway_assert(block->bbTreeList);
+        noway_assert(block->getBBTreeList());
 
         // figure out what jump we have
         GenTree* jmpNode = block->lastNode();
