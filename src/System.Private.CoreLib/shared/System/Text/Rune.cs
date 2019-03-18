@@ -182,7 +182,7 @@ namespace System.Text
             Span<char> original = stackalloc char[2]; // worst case scenario = 2 code units (for a surrogate pair)
             Span<char> modified = stackalloc char[2]; // case change should preserve UTF-16 code unit count
 
-            int charCount = rune.Encode(original);
+            int charCount = rune.EncodeToUtf16(original);
             original = original.Slice(0, charCount);
             modified = modified.Slice(0, charCount);
 
@@ -670,9 +670,9 @@ namespace System.Text
         /// <exception cref="ArgumentException">
         /// If <paramref name="destination"/> is not large enough to hold the output.
         /// </exception>
-        public int Encode(Span<char> destination)
+        public int EncodeToUtf16(Span<char> destination)
         {
-            if (!TryEncode(destination, out int charsWritten))
+            if (!TryEncodeToUtf16(destination, out int charsWritten))
             {
                 ThrowHelper.ThrowArgumentException_DestinationTooShort();
             }
@@ -688,9 +688,9 @@ namespace System.Text
         /// <exception cref="ArgumentException">
         /// If <paramref name="destination"/> is not large enough to hold the output.
         /// </exception>
-        public int EncodeAsUtf8(Span<byte> destination)
+        public int EncodeToUtf8(Span<byte> destination)
         {
-            if (!TryEncodeAsUtf8(destination, out int bytesWritten))
+            if (!TryEncodeToUtf8(destination, out int bytesWritten))
             {
                 ThrowHelper.ThrowArgumentException_DestinationTooShort();
             }
@@ -920,7 +920,7 @@ namespace System.Text
         /// The <see cref="Utf16SequenceLength"/> property can be queried ahead of time to determine
         /// the required size of the <paramref name="destination"/> buffer.
         /// </remarks>
-        public bool TryEncode(Span<char> destination, out int charsWritten)
+        public bool TryEncodeToUtf16(Span<char> destination, out int charsWritten)
         {
             if (destination.Length >= 1)
             {
@@ -944,6 +944,16 @@ namespace System.Text
             return false;
         }
 
+        public bool TryEncode(Span<char> destination, out int charsWritten)
+        {
+            // This method was renamed to TryEncodeToUtf16. We'll leave this copy of
+            // the method here temporarily so that we don't break corefx consumers
+            // while the rename takes place.
+            // Tracking issue: https://github.com/dotnet/coreclr/issues/23319
+
+            return TryEncodeToUtf16(destination, out charsWritten);
+        }
+
         /// <summary>
         /// Encodes this <see cref="Rune"/> to a destination buffer as UTF-8 bytes.
         /// </summary>
@@ -956,7 +966,7 @@ namespace System.Text
         /// The <see cref="Utf8SequenceLength"/> property can be queried ahead of time to determine
         /// the required size of the <paramref name="destination"/> buffer.
         /// </remarks>
-        public bool TryEncodeAsUtf8(Span<byte> destination, out int bytesWritten)
+        public bool TryEncodeToUtf8(Span<byte> destination, out int bytesWritten)
         {
             // The bit patterns below come from the Unicode Standard, Table 3-6.
 
@@ -1014,11 +1024,12 @@ namespace System.Text
 
         public bool TryEncodeToUtf8Bytes(Span<byte> destination, out int bytesWritten)
         {
-            // This method was renamed to TryEncodeAsUtf8. We'll leave this copy of
+            // This method was renamed to TryEncodeToUtf8. We'll leave this copy of
             // the method here temporarily so that we don't break corefx consumers
             // while the rename takes place.
+            // Tracking issue: https://github.com/dotnet/coreclr/issues/23319
 
-            return TryEncodeAsUtf8(destination, out bytesWritten);
+            return TryEncodeToUtf8(destination, out bytesWritten);
         }
 
         /// <summary>
