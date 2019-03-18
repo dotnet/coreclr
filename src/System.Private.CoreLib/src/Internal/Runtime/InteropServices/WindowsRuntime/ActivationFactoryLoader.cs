@@ -33,7 +33,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
                 
                 Type winRTType = System.StubHelpers.WinRTTypeNameConverter.GetTypeFromWinRTTypeName(typeName, out bool _);
 
-                activationFactory = new ManagedActivationFactory(winRTType);
+                activationFactory = WindowsRuntimeMarshal.GetManagedActivationFactory(winRTType);
             }
             catch (System.Exception ex)
             {
