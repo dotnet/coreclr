@@ -191,7 +191,7 @@ void CodeGenInterface::genMarkTreeInReg(GenTree* tree, regNumber reg)
 // Return value:
 //    Frame size
 
-int CodeGenInterface::genTotalFrameSize()
+int CodeGenInterface::genTotalFrameSize() const
 {
     assert(!IsUninitialized(compiler->compCalleeRegsPushed));
 
@@ -208,7 +208,7 @@ int CodeGenInterface::genTotalFrameSize()
 //
 // There must be a frame pointer to call this function!
 
-int CodeGenInterface::genSPtoFPdelta()
+int CodeGenInterface::genSPtoFPdelta() const
 {
     assert(isFramePointerUsed());
 
@@ -227,7 +227,7 @@ int CodeGenInterface::genSPtoFPdelta()
 //
 // There must be a frame pointer to call this function!
 
-int CodeGenInterface::genCallerSPtoFPdelta()
+int CodeGenInterface::genCallerSPtoFPdelta() const
 {
     assert(isFramePointerUsed());
     int callerSPtoFPdelta = 0;
@@ -255,7 +255,7 @@ int CodeGenInterface::genCallerSPtoFPdelta()
 //
 // This number will be negative.
 
-int CodeGenInterface::genCallerSPtoInitialSPdelta()
+int CodeGenInterface::genCallerSPtoInitialSPdelta() const
 {
     int callerSPtoSPdelta = 0;
 
@@ -615,72 +615,6 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 
         default:
             return RBM_CALLEE_TRASH;
-    }
-}
-
-//----------------------------------------------------------------------
-// compNoGCHelperCallKillSet: Gets a register mask that represents the set of registers that no longer
-// contain GC or byref pointers, for "NO GC" helper calls. This is used by the emitter when determining
-// what registers to remove from the current live GC/byref sets (and thus what to report as dead in the
-// GC info). Note that for the CORINFO_HELP_ASSIGN_BYREF helper, in particular, the kill set reported by
-// compHelperCallKillSet() doesn't match this kill set. compHelperCallKillSet() reports the dst/src
-// address registers as killed for liveness purposes, since their values change. However, they still are
-// valid byref pointers after the call, so the dst/src address registers are NOT reported as killed here.
-//
-// Note: This list may not be complete and defaults to the default RBM_CALLEE_TRASH_NOGC registers.
-//
-// Arguments:
-//   helper - The helper being inquired about
-//
-// Return Value:
-//   Mask of GC register kills
-//
-regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
-{
-    assert(emitter::emitNoGChelper(helper));
-
-    switch (helper)
-    {
-        case CORINFO_HELP_ASSIGN_BYREF:
-#if defined(_TARGET_X86_)
-            // This helper only trashes ECX.
-            return RBM_ECX;
-#elif defined(_TARGET_AMD64_)
-            // This uses and defs RDI and RSI.
-            return RBM_CALLEE_TRASH_NOGC & ~(RBM_RDI | RBM_RSI);
-#elif defined(_TARGET_ARMARCH_)
-            return RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF;
-#else
-            assert(!"unknown arch");
-#endif
-
-#if defined(_TARGET_XARCH_)
-        case CORINFO_HELP_PROF_FCN_ENTER:
-            return RBM_PROFILER_ENTER_TRASH;
-
-        case CORINFO_HELP_PROF_FCN_LEAVE:
-            return RBM_PROFILER_LEAVE_TRASH;
-
-        case CORINFO_HELP_PROF_FCN_TAILCALL:
-            return RBM_PROFILER_TAILCALL_TRASH;
-#endif // defined(_TARGET_XARCH_)
-
-#if defined(_TARGET_ARMARCH_)
-        case CORINFO_HELP_ASSIGN_REF:
-        case CORINFO_HELP_CHECKED_ASSIGN_REF:
-            return RBM_CALLEE_GCTRASH_WRITEBARRIER;
-        case CORINFO_HELP_PROF_FCN_LEAVE:
-            // In case of Leave profiler callback, we need to preserve liveness of REG_PROFILER_RET_SCRATCH on ARMARCH.
-            return RBM_CALLEE_TRASH_NOGC & ~RBM_PROFILER_RET_SCRATCH;
-#endif
-
-#if defined(_TARGET_X86_)
-        case CORINFO_HELP_INIT_PINVOKE_FRAME:
-            return RBM_INIT_PINVOKE_FRAME_TRASH;
-#endif // defined(_TARGET_X86_)
-
-        default:
-            return RBM_CALLEE_TRASH_NOGC;
     }
 }
 
@@ -10882,7 +10816,7 @@ void CodeGen::genIPmappingAdd(IL_OFFSETX offsx, bool isLabel)
 
         default:
 
-            if (offsx != ICorDebugInfo::NO_MAPPING)
+            if (offsx != (IL_OFFSETX)ICorDebugInfo::NO_MAPPING)
             {
                 noway_assert(jitGetILoffs(offsx) <= compiler->info.compILCodeSize);
             }

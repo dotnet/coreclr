@@ -1351,7 +1351,7 @@ unsigned Compiler::compMapILvarNum(unsigned ILvarNum)
  * Returns UNKNOWN_ILNUM if it can't be mapped.
  */
 
-unsigned Compiler::compMap2ILvarNum(unsigned varNum)
+unsigned Compiler::compMap2ILvarNum(unsigned varNum) const
 {
     if (compIsForInlining())
     {
@@ -1949,7 +1949,7 @@ Compiler::lvaStructFieldInfo Compiler::StructPromotionHelper::GetFieldInfo(CORIN
             fieldInfo.fldType = compiler->getSIMDTypeForSize(simdSize);
             fieldInfo.fldSize = simdSize;
 #ifdef DEBUG
-            retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+            retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType, RetypedAsScalarFieldsMap::Overwrite);
 #endif // DEBUG
         }
     }
@@ -2053,7 +2053,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     fieldInfo.fldType = fieldVarType;
     fieldInfo.fldSize = fieldSize;
 #ifdef DEBUG
-    retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+    retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType, RetypedAsScalarFieldsMap::Overwrite);
 #endif // DEBUG
     return true;
 }
@@ -7290,7 +7290,7 @@ int Compiler::lvaGetCallerSPRelativeOffset(unsigned varNum)
     return lvaToCallerSPRelativeOffset(varDsc->lvStkOffs, varDsc->lvFramePointerBased);
 }
 
-int Compiler::lvaToCallerSPRelativeOffset(int offset, bool isFpBased)
+int Compiler::lvaToCallerSPRelativeOffset(int offset, bool isFpBased) const
 {
     assert(lvaDoneFrameLayout == FINAL_FRAME_LAYOUT);
 

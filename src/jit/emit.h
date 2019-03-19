@@ -153,7 +153,7 @@ public:
     // A constructor for code that needs to call it explicitly.
     void Init()
     {
-        this->emitLocation::emitLocation();
+        *this = emitLocation();
     }
 
     void CaptureLocation(emitter* emit);
@@ -1926,6 +1926,9 @@ public:
     bool emitFullyInt;    // fully interruptible code?
 
     regMaskTP emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd);
+
+    // Gets a register mask that represent the kill set for a NoGC helper call.
+    regMaskTP emitGetGCRegsKilledByNoGCCall(CorInfoHelpFunc helper);
 
 #if EMIT_TRACK_STACK_DEPTH
     unsigned emitCntStackDepth; // 0 in prolog/epilog, One DWORD elsewhere
