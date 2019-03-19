@@ -229,12 +229,16 @@ void GCLogConfig (const char *fmt, ... );
 #ifdef MULTIPLE_HEAPS
 #define THREAD_NUMBER_DCL ,int thread
 #define THREAD_NUMBER_ARG ,thread
+#define ONLY_THREAD_NUMBER_DCL int thread
+#define ONLY_THREAD_NUMBER_ARG thread
 #define THREAD_NUMBER_FROM_CONTEXT int thread = sc->thread_number;
 #define THREAD_FROM_HEAP  int thread = heap_number;
 #define HEAP_FROM_THREAD  gc_heap* hpt = gc_heap::g_heaps[thread];
 #else
 #define THREAD_NUMBER_DCL
 #define THREAD_NUMBER_ARG
+#define ONLY_THREAD_NUMBER_DCL
+#define ONLY_THREAD_NUMBER_ARG
 #define THREAD_NUMBER_FROM_CONTEXT
 #define THREAD_FROM_HEAP
 #define HEAP_FROM_THREAD  gc_heap* hpt = 0;
@@ -1907,7 +1911,7 @@ protected:
     gc_heap* heap_of_gc (uint8_t* object);
 
     PER_HEAP_ISOLATED
-    size_t&  promoted_bytes (int);
+    size_t&  promoted_bytes (ONLY_THREAD_NUMBER_DCL);
 
     PER_HEAP
     uint8_t* find_object (uint8_t* o, uint8_t* low);
@@ -1973,7 +1977,7 @@ protected:
 #endif
 #ifdef BACKGROUND_GC
     PER_HEAP_ISOLATED
-    size_t&  bpromoted_bytes (int);
+    size_t&  bpromoted_bytes (ONLY_THREAD_NUMBER_DCL);
     PER_HEAP
     void make_background_mark_stack (uint8_t** arr);
     PER_HEAP

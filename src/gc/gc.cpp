@@ -19,6 +19,12 @@
 
 #include "gcpriv.h"
 
+#ifdef _DEBUG
+#define DEBUG_ARG(x)  , x
+#else
+#define DEBUG_ARG(x) 
+#endif
+
 #define USE_INTROSORT
 
 // We just needed a simple random number generator for testing.
@@ -6499,12 +6505,11 @@ void gc_heap::make_mark_stack (mark* arr)
 
 #ifdef BACKGROUND_GC
 inline
-size_t& gc_heap::bpromoted_bytes(int thread)
+size_t& gc_heap::bpromoted_bytes(ONLY_THREAD_NUMBER_DCL)
 {
 #ifdef MULTIPLE_HEAPS
     return g_bpromoted [thread*16];
 #else //MULTIPLE_HEAPS
-    UNREFERENCED_PARAMETER(thread);
     return g_bpromoted;
 #endif //MULTIPLE_HEAPS
 }
@@ -17361,12 +17366,11 @@ done:
 #define mark_stack_empty_p() (mark_stack_base == mark_stack_tos)
 
 inline
-size_t& gc_heap::promoted_bytes(int thread)
+size_t& gc_heap::promoted_bytes(ONLY_THREAD_NUMBER_DCL)
 {
 #ifdef MULTIPLE_HEAPS
     return g_promoted [thread*16];
 #else //MULTIPLE_HEAPS
-    UNREFERENCED_PARAMETER(thread);
     return g_promoted;
 #endif //MULTIPLE_HEAPS
 }
@@ -18102,10 +18106,14 @@ void go_through_object_cl_lambda(MethodTable* mt, uint8_t* o, size_t size, lambd
 
 #if defined (MULTIPLE_HEAPS)
 #define CAPTURE_HEAP_AND(...) this, __VA_ARGS__
+#define CAPTURE_HEAP_AND_THREAD_AND(...) this, thread, __VA_ARGS__
 #define CAPTURE_HEAP this
+#define CAPTURE_HEAP_AND_THREAD this, thread
 #else
 #define CAPTURE_HEAP
 #define CAPTURE_HEAP_AND(...) __VA_ARGS__
+#define CAPTURE_HEAP_AND_THREAD_AND(...) __VA_ARGS__
+#define CAPTURE_HEAP_AND_THREAD
 #endif
 
 // This starts a plug. But mark_stack_tos isn't increased until set_pinned_info is called.
@@ -18369,7 +18377,7 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                 {
                     dprintf(3,("pushing mark for %Ix ", (size_t)oo));
 
-                    go_through_object_cl_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND(full_p, thread, &mark_stack_tos)](uint8_t** ppslot)
+                    go_through_object_cl_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND_THREAD_AND(full_p, &mark_stack_tos)](uint8_t** ppslot)
                                           {
                                               uint8_t* o = *ppslot;
                                               Prefetch(o);
@@ -18384,7 +18392,7 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                                                       m_boundary (o);
                                                   }
                                                   size_t obj_size = size (o);
-                                                  promoted_bytes (thread) += obj_size;
+                                                  promoted_bytes (ONLY_THREAD_NUMBER_ARG) += obj_size;
                                                   if (contain_pointers_or_collectible (o))
                                                   {
                                                       *(mark_stack_tos++) = o;
@@ -18429,7 +18437,7 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                             }
 
                             size_t obj_size = size (class_obj);
-                            promoted_bytes (thread) += obj_size;
+                            promoted_bytes (ONLY_THREAD_NUMBER_ARG) += obj_size;
                             *(mark_stack_tos++) = class_obj;
                             // The code below expects that the oo is still stored in the stack slot that was
                             // just popped and it "pushes" it back just by incrementing the mark_stack_tos. 
@@ -18469,7 +18477,7 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                     uint8_t* ref_to_continue = 0;
 
                     if (!go_through_object_lambda (method_table(oo), oo, s,
-                                       start, (oo + s), [CAPTURE_HEAP_AND(full_p, thread, &mark_stack_tos, &ref_to_continue, &i)](uint8_t ** ppslot)
+                                       start, (oo + s), [CAPTURE_HEAP_AND_THREAD_AND(full_p, &mark_stack_tos, &ref_to_continue, &i)](uint8_t ** ppslot)
                                        {
                                            uint8_t* o = *ppslot;
                                            Prefetch(o);
@@ -18484,7 +18492,7 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                                                     m_boundary (o);
                                                 }
                                                 size_t obj_size = size (o);
-                                                promoted_bytes (thread) += obj_size;
+                                                promoted_bytes (ONLY_THREAD_NUMBER_ARG) += obj_size;
                                                 if (contain_pointers_or_collectible (o))
                                                 {
                                                     *(mark_stack_tos++) = o;
@@ -18912,16 +18920,16 @@ gc_heap::mark_object_simple (uint8_t** po THREAD_NUMBER_DCL)
         {
             m_boundary (o);
             size_t s = size (o);
-            promoted_bytes (thread) += s;
+            promoted_bytes (ONLY_THREAD_NUMBER_ARG) += s;
             {
-                go_through_object_cl_lambda (method_table(o), o, s, [CAPTURE_HEAP_AND(thread)] (uint8_t**poo)
+                go_through_object_cl_lambda (method_table(o), o, s, [CAPTURE_HEAP_AND_THREAD] (uint8_t**poo)
                                         {
                                             uint8_t* oo = *poo;
                                             if (gc_mark (oo, gc_low, gc_high))
                                             {
                                                 m_boundary (oo);
                                                 size_t obj_size = size (oo);
-                                                promoted_bytes (thread) += obj_size;
+                                                promoted_bytes (ONLY_THREAD_NUMBER_ARG) += obj_size;
 
                                                 if (contain_pointers_or_collectible (oo))
                                                     mark_object_simple1 (oo, oo THREAD_NUMBER_ARG);
@@ -18998,7 +19006,7 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                 {
                     dprintf(3,("pushing mark for %Ix ", (size_t)oo));
 
-                    go_through_object_cl_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND(thread)](uint8_t** ppslot)
+                    go_through_object_cl_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND_THREAD](uint8_t** ppslot)
                     {
                         uint8_t* o = *ppslot;
                         Prefetch(o);
@@ -19008,7 +19016,7 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                         {
                             //m_boundary (o);
                             size_t obj_size = size (o);
-                            bpromoted_bytes (thread) += obj_size;
+                            bpromoted_bytes (ONLY_THREAD_NUMBER_ARG) += obj_size;
                             if (contain_pointers_or_collectible (o))
                             {
                                 *(background_mark_stack_tos++) = o;
@@ -19047,7 +19055,7 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                                             background_saved_highest_address))
                         {
                             size_t obj_size = size (class_obj);
-                            bpromoted_bytes (thread) += obj_size;
+                            bpromoted_bytes (ONLY_THREAD_NUMBER_ARG) += obj_size;
 
                             *(background_mark_stack_tos++) = class_obj;
                         }
@@ -19103,7 +19111,7 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                         {
                             //m_boundary (o);
                             size_t obj_size = size (o);
-                            bpromoted_bytes (thread) += obj_size;
+                            bpromoted_bytes (ONLY_THREAD_NUMBER_ARG) += obj_size;
                             if (contain_pointers_or_collectible (o))
                             {
                                 *(background_mark_stack_tos++) = o;
@@ -19184,7 +19192,7 @@ gc_heap::background_mark_simple (uint8_t* o THREAD_NUMBER_DCL)
         {
             //m_boundary (o);
             size_t s = size (o);
-            bpromoted_bytes (thread) += s;
+            bpromoted_bytes (ONLY_THREAD_NUMBER_ARG) += s;
 
             if (contain_pointers_or_collectible (o))
             {
@@ -19386,7 +19394,7 @@ void gc_heap::background_mark_through_object (uint8_t* oo THREAD_NUMBER_DCL)
     {
         size_t total_refs = 0;
         size_t s = size (oo);
-        go_through_object_nostart_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND(&total_refs, thread)](uint8_t **po)
+        go_through_object_nostart_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND_THREAD_AND(&total_refs)](uint8_t **po)
                           {
                             uint8_t* o = *po;
                             total_refs++;
@@ -19528,7 +19536,7 @@ void gc_heap::background_process_mark_overflow_internal (int condemned_gen_numbe
                 if (background_object_marked(o, FALSE) && contain_pointers_or_collectible(o))
                 {
                     total_marked_objects++;
-                    go_through_object_cl_lambda(method_table(o), o, s, [CAPTURE_HEAP_AND(thread)](uint8_t** poo)
+                    go_through_object_cl_lambda(method_table(o), o, s, [CAPTURE_HEAP_AND_THREAD](uint8_t** poo)
                     {
                         uint8_t* oo = *poo;
                         background_mark_object(oo THREAD_NUMBER_ARG);
@@ -19721,7 +19729,7 @@ void gc_heap::mark_through_object (uint8_t* oo, BOOL mark_class_object_p THREAD_
 
         if (contain_pointers (oo))
         {
-            go_through_object_nostart_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND(thread)](uint8_t **po)
+            go_through_object_nostart_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND_THREAD](uint8_t **po)
                             {
                                 uint8_t* o = *po;
                                 mark_object (o THREAD_NUMBER_ARG);
@@ -19888,7 +19896,8 @@ void fire_mark_event (int heap_num, int root_type, size_t bytes_marked)
 //returns TRUE is an overflow happened.
 BOOL gc_heap::process_mark_overflow(int condemned_gen_number)
 {
-    size_t last_promoted_bytes = promoted_bytes (heap_number);
+    THREAD_FROM_HEAP;
+    size_t last_promoted_bytes = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
     BOOL  overflow_p = FALSE;
 recheck:
     if ((! (max_overflow_address == 0) ||
@@ -19926,7 +19935,7 @@ recheck:
         goto recheck;
     }
 
-    size_t current_promoted_bytes = promoted_bytes (heap_number);
+    size_t current_promoted_bytes = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
 
     if (current_promoted_bytes != last_promoted_bytes)
         fire_mark_event (heap_number, ETW::GC_ROOT_OVERFLOW, (current_promoted_bytes - last_promoted_bytes));
@@ -20227,7 +20236,8 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
 
     size_t last_promoted_bytes = 0;
 
-    promoted_bytes (heap_number) = 0;
+    THREAD_FROM_HEAP;
+    promoted_bytes (ONLY_THREAD_NUMBER_ARG) = 0;
     reset_mark_stack();
 
 #ifdef SNOOP_STATS
@@ -20320,8 +20330,8 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
         if ((condemned_gen_number == max_generation) && (num_sizedrefs > 0))
         {
             GCScan::GcScanSizedRefs(GCHeap::Promote, condemned_gen_number, max_generation, &sc);
-            fire_mark_event (heap_number, ETW::GC_ROOT_SIZEDREF, (promoted_bytes (heap_number) - last_promoted_bytes));
-            last_promoted_bytes = promoted_bytes (heap_number);
+            fire_mark_event (heap_number, ETW::GC_ROOT_SIZEDREF, (promoted_bytes (ONLY_THREAD_NUMBER_ARG) - last_promoted_bytes));
+            last_promoted_bytes = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
 
 #ifdef MULTIPLE_HEAPS
             gc_t_join.join(this, gc_join_scan_sizedref_done);
@@ -20339,8 +20349,8 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
                                 condemned_gen_number, max_generation,
                                 &sc);
 
-        fire_mark_event (heap_number, ETW::GC_ROOT_STACK, (promoted_bytes (heap_number) - last_promoted_bytes));
-        last_promoted_bytes = promoted_bytes (heap_number);
+        fire_mark_event (heap_number, ETW::GC_ROOT_STACK, (promoted_bytes (ONLY_THREAD_NUMBER_ARG) - last_promoted_bytes));
+        last_promoted_bytes = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
 
 #ifdef BACKGROUND_GC
         if (recursive_gc_sync::background_running_p())
@@ -20354,8 +20364,8 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
         finalize_queue->GcScanRoots(GCHeap::Promote, heap_number, 0);
 #endif // FEATURE_PREMORTEM_FINALIZATION
 
-        fire_mark_event (heap_number, ETW::GC_ROOT_FQ, (promoted_bytes (heap_number) - last_promoted_bytes));
-        last_promoted_bytes = promoted_bytes (heap_number);
+        fire_mark_event (heap_number, ETW::GC_ROOT_FQ, (promoted_bytes (ONLY_THREAD_NUMBER_ARG) - last_promoted_bytes));
+        last_promoted_bytes = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
 
 // MTHTS
         {
@@ -20364,12 +20374,12 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
             GCScan::GcScanHandles(GCHeap::Promote,
                                       condemned_gen_number, max_generation,
                                       &sc);
-            fire_mark_event (heap_number, ETW::GC_ROOT_HANDLES, (promoted_bytes (heap_number) - last_promoted_bytes));
-            last_promoted_bytes = promoted_bytes (heap_number);
+            fire_mark_event (heap_number, ETW::GC_ROOT_HANDLES, (promoted_bytes (ONLY_THREAD_NUMBER_ARG) - last_promoted_bytes));
+            last_promoted_bytes = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
         }
 
 #ifdef TRACE_GC
-        size_t promoted_before_cards = promoted_bytes (heap_number);
+        size_t promoted_before_cards = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
 #endif //TRACE_GC
 
         dprintf (3, ("before cards: %Id", promoted_before_cards));
@@ -20416,9 +20426,9 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
             mark_through_cards_for_large_objects (mark_object_fn, FALSE);
 
             dprintf (3, ("marked by cards: %Id", 
-                (promoted_bytes (heap_number) - promoted_before_cards)));
-            fire_mark_event (heap_number, ETW::GC_ROOT_OLDER, (promoted_bytes (heap_number) - last_promoted_bytes));
-            last_promoted_bytes = promoted_bytes (heap_number);
+                (promoted_bytes (ONLY_THREAD_NUMBER_ARG) - promoted_before_cards)));
+            fire_mark_event (heap_number, ETW::GC_ROOT_OLDER, (promoted_bytes (ONLY_THREAD_NUMBER_ARG) - last_promoted_bytes));
+            last_promoted_bytes = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
         }
     }
 
@@ -20484,7 +20494,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
     }
 
     //Handle finalization.
-    size_t promoted_bytes_live = promoted_bytes (heap_number);
+    size_t promoted_bytes_live = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
 
 #ifdef FEATURE_PREMORTEM_FINALIZATION
     dprintf (3, ("Finalize marking"));
@@ -20539,7 +20549,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
                 promoted_all_heaps += promoted_bytes (i);
             }
 #else
-            promoted_all_heaps = promoted_bytes (heap_number);
+            promoted_all_heaps = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
 #endif //MULTIPLE_HEAPS
             GCToEEInterface::RecordTotalSurvivedBytes(promoted_all_heaps);
         }
@@ -20572,7 +20582,11 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
                                          dd_new_allocation (dd)));
 
                 if ((m > (older_gen_size)) ||
+#ifdef MULTIPLE_HEAPS
                     (promoted_bytes (i) > m))
+#else
+                    (promoted_bytes() > m))
+#endif // MULTIPLE_HEAPS
                 {
                     settings.promotion = TRUE;
                 }
@@ -20654,10 +20668,10 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
                                      dd_new_allocation (dd)));
 
             dprintf (2, ("promotion threshold: %Id, promoted bytes: %Id size n+1: %Id",
-                         m, promoted_bytes (heap_number), older_gen_size));
+                         m, promoted_bytes (ONLY_THREAD_NUMBER_ARG), older_gen_size));
 
             if ((m > older_gen_size) ||
-                    (promoted_bytes (heap_number) > m))
+                    (promoted_bytes (ONLY_THREAD_NUMBER_ARG) > m))
             {
                 settings.promotion = TRUE;
             }
@@ -20677,10 +20691,10 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
 #endif //MULTIPLE_HEAPS
 
 #ifdef BACKGROUND_GC
-    total_promoted_bytes = promoted_bytes (heap_number);
+    total_promoted_bytes = promoted_bytes (ONLY_THREAD_NUMBER_ARG);
 #endif //BACKGROUND_GC
 
-    promoted_bytes (heap_number) -= promoted_bytes_live;
+    promoted_bytes (ONLY_THREAD_NUMBER_ARG) -= promoted_bytes_live;
 
 #ifdef TIME_GC
         finish = GetCycleCount32();
@@ -26394,7 +26408,7 @@ void gc_heap::background_mark_phase ()
     background_loh_alloc_count = 0;
     bgc_overflow_count = 0;
 
-    bpromoted_bytes (heap_number) = 0;
+    bpromoted_bytes (ONLY_THREAD_NUMBER_ARG) = 0;
     static uint32_t num_sizedrefs = 0;
 
     background_min_overflow_address = MAX_PTR;
@@ -27089,7 +27103,7 @@ void gc_heap::revisit_written_page (uint8_t* page,
                 background_marked (o)))
             {
                 dprintf (3, ("going through %Ix", (size_t)o));
-                if (!go_through_object_lambda (method_table(o), o, s, start_address, (o + s), [CAPTURE_HEAP_AND(high_address_or_write_watch_end_of_page, &no_more_loop_p, &num_marked_objects, thread)](uint8_t **poo)
+                if (!go_through_object_lambda (method_table(o), o, s, start_address, (o + s), [CAPTURE_HEAP_AND_THREAD_AND(high_address_or_write_watch_end_of_page, &no_more_loop_p, &num_marked_objects)](uint8_t **poo)
                 {
                                     if ((uint8_t*)poo >= high_address_or_write_watch_end_of_page)
                                     {
@@ -30797,7 +30811,8 @@ void gc_heap::compute_new_dynamic_data (int gen_number)
             //compensate for dead finalizable objects promotion.
             //they shoudn't be counted for growth.
             size_t final_promoted = 0;
-            final_promoted = min (promoted_bytes (heap_number), out);
+            THREAD_FROM_HEAP;
+            final_promoted = min (promoted_bytes (ONLY_THREAD_NUMBER_ARG), out);
             // Prefast: this is clear from above but prefast needs to be told explicitly
             PREFIX_ASSUME(final_promoted <= out);
 
@@ -34159,7 +34174,7 @@ gc_heap::verify_heap (BOOL begin_gc_p)
                         if (contain_pointers(curr_object))
                         {
                             go_through_object_nostart_lambda
-                                (method_table(curr_object), curr_object, s, [CAPTURE_HEAP_AND(&crd, &found_card_p, &need_card_p, next_boundary, curr_object, s, align_const)](uint8_t **oo)
+                                (method_table(curr_object), curr_object, s, [CAPTURE_HEAP_AND(&crd, &found_card_p, &need_card_p, next_boundary DEBUG_ARG(curr_object) DEBUG_ARG(s) DEBUG_ARG(align_const))](uint8_t **oo)
                                 {
                                     if ((crd != card_of ((uint8_t*)oo)) && !found_card_p)
                                     {
@@ -34708,17 +34723,17 @@ bool GCHeap::IsPromoted(Object* object)
     }
 }
 
-size_t GCHeap::GetPromotedBytes(int heap_index)
+size_t GCHeap::GetPromotedBytes(int thread)
 {
 #ifdef BACKGROUND_GC
     if (gc_heap::settings.concurrent)
     {
-        return gc_heap::bpromoted_bytes (heap_index);
+        return gc_heap::bpromoted_bytes (ONLY_THREAD_NUMBER_ARG);
     }
     else
 #endif //BACKGROUND_GC
     {
-        return gc_heap::promoted_bytes (heap_index);
+        return gc_heap::promoted_bytes (ONLY_THREAD_NUMBER_ARG);
     }
 }
 
@@ -34886,7 +34901,7 @@ void GCHeap::Promote(Object** ppObject, ScanContext* sc, uint32_t flags)
 #endif //STRESS_PINNING
 
 #ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    size_t promoted_size_begin = hp->promoted_bytes (thread);
+    size_t promoted_size_begin = hp->promoted_bytes (ONLY_THREAD_NUMBER_ARG);
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     if ((o >= hp->gc_low) && (o < hp->gc_high))
@@ -34895,7 +34910,7 @@ void GCHeap::Promote(Object** ppObject, ScanContext* sc, uint32_t flags)
     }
 
 #ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    size_t promoted_size_end = hp->promoted_bytes (thread);
+    size_t promoted_size_end = hp->promoted_bytes (ONLY_THREAD_NUMBER_ARG);
     if (g_fEnableAppDomainMonitoring)
     {
         if (sc->pCurrentDomain)
