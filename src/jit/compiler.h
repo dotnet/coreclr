@@ -1453,7 +1453,7 @@ public:
 #endif
     }
 
-    __declspec(property(get = GetHfaType)) var_types hfaType;
+
     var_types GetHfaType()
     {
 #ifdef FEATURE_HFA
@@ -1577,7 +1577,7 @@ public:
         {
 #ifdef _TARGET_ARM_
             // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
-            if (hfaType == TYP_DOUBLE)
+            if (GetHfaType() == TYP_DOUBLE)
             {
                 assert(!isSplit);
                 size <<= 1;
