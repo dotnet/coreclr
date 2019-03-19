@@ -215,7 +215,7 @@ class GitHub_18582
         else
         {
             Console.WriteLine($"FAILED, got {s_x}, expected {expected}");
-            return 100;
+            return -1;
         }
     }
 }
