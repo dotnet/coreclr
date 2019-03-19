@@ -874,12 +874,28 @@ namespace System.Numerics
         /// <exception cref="ArgumentException">If number of elements in source vector is greater than those available in destination span</exception>
         public void CopyTo(Span<byte> destination)
         {
-            if ((uint)destination.Length < (uint)Vector<byte>.Count)
+            if ((typeof(T) == typeof(byte))
+                || (typeof(T) == typeof(sbyte))
+                || (typeof(T) == typeof(ushort))
+                || (typeof(T) == typeof(short))
+                || (typeof(T) == typeof(uint))
+                || (typeof(T) == typeof(int))
+                || (typeof(T) == typeof(ulong))
+                || (typeof(T) == typeof(long))
+                || (typeof(T) == typeof(float))
+                || (typeof(T) == typeof(double)))
             {
-                ThrowHelper.ThrowArgumentException_DestinationTooShort();
-            }
+                if ((uint)destination.Length < (uint)Vector<byte>.Count)
+                {
+                    ThrowHelper.ThrowArgumentException_DestinationTooShort();
+                }
 
-            Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
+                Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
+            }
+            else
+            {
+                throw new NotSupportedException(SR.Arg_TypeNotSupported);
+            }
         }
 
         /// <summary>
@@ -1687,13 +1703,29 @@ namespace System.Numerics
         /// <paramref name="destination"/> is not large enough to hold the source vector.</returns>
         public bool TryCopyTo(Span<byte> destination)
         {
-            if ((uint)destination.Length < (uint)Vector<byte>.Count)
+            if ((typeof(T) == typeof(byte))
+                || (typeof(T) == typeof(sbyte))
+                || (typeof(T) == typeof(ushort))
+                || (typeof(T) == typeof(short))
+                || (typeof(T) == typeof(uint))
+                || (typeof(T) == typeof(int))
+                || (typeof(T) == typeof(ulong))
+                || (typeof(T) == typeof(long))
+                || (typeof(T) == typeof(float))
+                || (typeof(T) == typeof(double)))
             {
-                return false;
-            }
+                if ((uint)destination.Length < (uint)Vector<byte>.Count)
+                {
+                    return false;
+                }
 
-            Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
-            return true;
+                Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
+                return true;
+            }
+            else
+            {
+                throw new NotSupportedException(SR.Arg_TypeNotSupported);
+            }
         }
 
         /// <summary>
