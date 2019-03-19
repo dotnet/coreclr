@@ -389,6 +389,7 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
     {
         varDsc->lvIsParam = 1;
         varDsc->lvIsPtr   = 1;
+        varDsc->lvSlotNum = varDscInfo->varNum;
 
         lvaArg0Var = info.compThisArg = varDscInfo->varNum;
         noway_assert(info.compThisArg == 0);
@@ -471,6 +472,7 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
         varDsc->lvType      = TYP_BYREF;
         varDsc->lvIsParam   = 1;
         varDsc->lvIsRegArg  = 1;
+        varDsc->lvSlotNum   = varDscInfo->varNum;
 
         if (hasFixedRetBuffReg())
         {
@@ -1041,6 +1043,7 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
         LclVarDsc* varDsc = varDscInfo->varDsc;
         varDsc->lvIsParam = 1;
         varDsc->lvType    = TYP_I_IMPL;
+        varDsc->lvSlotNum = varDscInfo->varNum;
 
         if (varDscInfo->canEnreg(TYP_I_IMPL))
         {
@@ -1094,6 +1097,8 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
         LclVarDsc* varDsc = varDscInfo->varDsc;
         varDsc->lvType    = TYP_I_IMPL;
         varDsc->lvIsParam = 1;
+        varDsc->lvSlotNum = varDscInfo->varNum;
+
         // Make sure this lives in the stack -- address may be reported to the VM.
         // TODO-CQ: This should probably be:
         //   lvaSetVarDoNotEnregister(varDscInfo->varNum DEBUGARG(DNER_VMNeedsStackAddr));
