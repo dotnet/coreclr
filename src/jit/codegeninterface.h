@@ -523,7 +523,7 @@ public:
         // Helper functions
 
         bool vlIsInReg(regNumber reg) const;
-        bool vlIsOnStk(regNumber reg, signed offset) const;
+        bool vlIsOnStack(regNumber reg, signed offset) const;
         bool vlIsOnStack() const;
 
         void storeVariableOnRegisters(regNumber reg, regNumber otherReg);

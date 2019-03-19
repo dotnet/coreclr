@@ -96,7 +96,7 @@ bool CodeGenInterface::siVarLoc::vlIsInReg(regNumber reg) const
     }
 }
 
-bool CodeGenInterface::siVarLoc::vlIsOnStk(regNumber reg, signed offset) const
+bool CodeGenInterface::siVarLoc::vlIsOnStack(regNumber reg, signed offset) const
 {
     regNumber actualReg;
 
