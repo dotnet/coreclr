@@ -1446,8 +1446,8 @@ public:
 #endif
     }
 
-    __declspec(property(get = getIsVararg, put = setIsVararg)) bool isVararg;
-    bool getIsVararg()
+
+    bool GetIsVararg()
     {
 #ifdef FEATURE_VARARG
         return _isVararg;
@@ -1455,7 +1455,7 @@ public:
         return false;
 #endif
     }
-    void setIsVararg(bool value)
+    void SetIsVararg(bool value)
     {
 #ifdef FEATURE_VARARG
         _isVararg = value;
