@@ -8,6 +8,11 @@
 
 std::set<HINSTANCE> g_modulesQueried = {};
 
+#if defined _X86_
+#pragma comment(linker, "/export:_CorDllMain=__CorDllMain@12")
+#pragma comment(linker, "/export:GetTokenForVTableEntry=_GetTokenForVTableEntry@8")
+#endif
+
 // Entry-point that coreclr looks for.
 extern "C" INT32 STDMETHODCALLTYPE GetTokenForVTableEntry(HINSTANCE hInst, BYTE **ppVTEntry)
 {
