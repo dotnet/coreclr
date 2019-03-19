@@ -17889,6 +17889,225 @@ uint8_t* gc_heap::next_end (heap_segment* seg, uint8_t* f)
 }
 #endif //COLLECTIBLE_CLASS
 
+// Go through object calling the lambda for each gc pointer, but if the lambda returns false, return immediately (with false)
+template <class lambda_t>
+bool go_through_object_lambda(MethodTable* mt, uint8_t* o, size_t size, uint8_t* start, uint8_t* limit, lambda_t exp)
+{
+    CGCDesc* map = CGCDesc::GetCGCDescFromMT((MethodTable*)(mt));
+    CGCDescSeries* cur = map->GetHighestSeries();
+    ptrdiff_t cnt = (ptrdiff_t)map->GetNumSeries();
+
+    if (cnt >= 0)
+    {
+        CGCDescSeries* last = map->GetLowestSeries();
+        uint8_t** parm = 0;
+        do
+        {
+            assert(parm <= (uint8_t**)((o)+cur->GetSeriesOffset()));
+            parm = (uint8_t**)((o)+cur->GetSeriesOffset());
+            uint8_t** ppstop = (uint8_t**)((uint8_t*)parm + cur->GetSeriesSize() + (size));
+            if ((uint8_t*)ppstop > (start))
+            {
+                if ((uint8_t*)parm < (start)) parm = (uint8_t**)(start);
+                while (parm < ppstop)
+                {
+                    if (!exp(parm))
+                        return false;
+                    parm++;
+                }
+            }
+            cur--;
+
+        } while (cur >= last);
+    }
+    else
+    {
+        /* Handle the repeating case - array of valuetypes */
+        uint8_t** parm = (uint8_t**)((o)+cur->startoffset);
+        if (start > (uint8_t*)parm)
+        {
+            ptrdiff_t cs = mt->RawGetComponentSize();
+            parm = (uint8_t**)((uint8_t*)parm + (((start)-(uint8_t*)parm) / cs)*cs);
+        }
+        while ((uint8_t*)parm < ((o)+(size)-plug_skew))
+        {
+            for (ptrdiff_t __i = 0; __i > cnt; __i--)
+            {
+                HALF_SIZE_T skip = cur->val_serie[__i].skip;
+                HALF_SIZE_T nptrs = cur->val_serie[__i].nptrs;
+                uint8_t** ppstop = parm + nptrs;
+                if ((uint8_t*)ppstop > (start))
+                {
+                    if ((uint8_t*)parm < (start)) parm = (uint8_t**)(start);
+                    do
+                    {
+                        if (!exp(parm))
+                            return false;
+                        parm++;
+                    } while (parm < ppstop);
+                }
+                parm = (uint8_t**)((uint8_t*)ppstop + skip);
+            }
+        }
+    }
+
+    return true;
+}
+
+enum class go_through_object_next_behavior
+{
+    continue_scanning,
+    new_start,
+    finish_incomplete
+};
+// Go through object calling the lambda for each gc pointer, but if the lambda returns finish_incomplete, return immediately (with false)
+// the lambda may also return go_through_object_next_behavior::new_start if it updates start and/or ppstop
+template <class lambda_t>
+bool go_through_object_update_start_and_ppstop_lambda(MethodTable* mt, uint8_t* o, size_t size, uint8_t*& start, uint8_t* limit, lambda_t exp)
+{
+    CGCDesc* map = CGCDesc::GetCGCDescFromMT((MethodTable*)(mt));
+    CGCDescSeries* cur = map->GetHighestSeries();
+    ptrdiff_t cnt = (ptrdiff_t)map->GetNumSeries();
+
+    if (cnt >= 0)
+    {
+        CGCDescSeries* last = map->GetLowestSeries();
+        uint8_t** parm = 0;
+        do
+        {
+            assert(parm <= (uint8_t**)((o)+cur->GetSeriesOffset()));
+            parm = (uint8_t**)((o)+cur->GetSeriesOffset());
+            uint8_t** ppstop = (uint8_t**)((uint8_t*)parm + cur->GetSeriesSize() + (size));
+            if ((uint8_t*)ppstop > (start))
+            {
+                if ((uint8_t*)parm < (start)) parm = (uint8_t**)(start);
+                while (parm < ppstop)
+                {
+                    go_through_object_next_behavior next_behavior = exp(start, ppstop, parm);
+                    if (next_behavior == go_through_object_next_behavior::new_start)
+                        break;
+                    if (next_behavior == go_through_object_next_behavior::finish_incomplete)
+                        return false;
+                    parm++;
+                }
+            }
+            cur--;
+
+        } while (cur >= last);
+    }
+    else
+    {
+        /* Handle the repeating case - array of valuetypes */
+        uint8_t** parm = (uint8_t**)((o)+cur->startoffset);
+        if (start > (uint8_t*)parm)
+        {
+            ptrdiff_t cs = mt->RawGetComponentSize();
+            parm = (uint8_t**)((uint8_t*)parm + (((start)-(uint8_t*)parm) / cs)*cs);
+        }
+        while ((uint8_t*)parm < ((o)+(size)-plug_skew))
+        {
+            for (ptrdiff_t __i = 0; __i > cnt; __i--)
+            {
+                HALF_SIZE_T skip = cur->val_serie[__i].skip;
+                HALF_SIZE_T nptrs = cur->val_serie[__i].nptrs;
+                uint8_t** ppstop = parm + nptrs;
+                if ((uint8_t*)ppstop > (start))
+                {
+                    if ((uint8_t*)parm < (start)) parm = (uint8_t**)(start);
+                    do
+                    {
+                        go_through_object_next_behavior next_behavior = exp(start, ppstop, parm);
+                        if (next_behavior == go_through_object_next_behavior::new_start)
+                            break;
+                        if (next_behavior == go_through_object_next_behavior::finish_incomplete)
+                            return false;
+                        parm++;
+                    } while (parm < ppstop);
+                }
+                parm = (uint8_t**)((uint8_t*)ppstop + skip);
+            }
+        }
+    }
+
+    return true;
+}
+
+template <class lambda_t>
+void go_through_object_nostart_lambda(MethodTable* mt, uint8_t* o, size_t size, lambda_t exp)
+{
+    uint8_t* limit = o + size;
+    CGCDesc* map = CGCDesc::GetCGCDescFromMT((MethodTable*)(mt));
+    CGCDescSeries* cur = map->GetHighestSeries();
+    ptrdiff_t cnt = (ptrdiff_t)map->GetNumSeries();
+
+    if (cnt >= 0)
+    {
+        CGCDescSeries* last = map->GetLowestSeries();
+        uint8_t** parm = 0;
+        do
+        {
+            assert(parm <= (uint8_t**)((o)+cur->GetSeriesOffset()));
+            parm = (uint8_t**)((o)+cur->GetSeriesOffset());
+            uint8_t** ppstop = (uint8_t**)((uint8_t*)parm + cur->GetSeriesSize() + (size));
+            while (parm < ppstop)
+            {
+                exp(parm);
+                parm++;
+            }
+            cur--;
+
+        } while (cur >= last);
+    }
+    else
+    {
+        /* Handle the repeating case - array of valuetypes */
+        uint8_t** parm = (uint8_t**)((o)+cur->startoffset);
+        while ((uint8_t*)parm < ((o)+(size)-plug_skew))
+        {
+            for (ptrdiff_t __i = 0; __i > cnt; __i--)
+            {
+                HALF_SIZE_T skip = cur->val_serie[__i].skip;
+                HALF_SIZE_T nptrs = cur->val_serie[__i].nptrs;
+                uint8_t** ppstop = parm + nptrs;
+                do
+                {
+                    exp(parm);
+                    parm++;
+                } while (parm < ppstop);
+                parm = (uint8_t**)((uint8_t*)ppstop + skip);
+            }
+        }
+    }
+}
+
+// 1 thing to note about this function:
+// 1) you can use *parm safely but in general you don't want to use parm 
+// because for the collectible types it's not an address on the managed heap.
+template <class lambda_t>
+void go_through_object_cl_lambda(MethodTable* mt, uint8_t* o, size_t size, lambda_t exp)
+{
+#ifdef COLLECTIBLE_CLASS
+    if (header(o)->Collectible())
+    {
+        uint8_t* class_obj = get_class_object(o);
+        uint8_t** parm = &class_obj;
+        exp(parm);
+    }
+#endif //COLLECTIBLE_CLASS
+    if (header(o)->ContainsPointers())
+    {
+        go_through_object_nostart_lambda(mt, o, size, exp);
+    }
+}
+
+#if defined (MULTIPLE_HEAPS)
+#define CAPTURE_HEAP_AND(...) this, __VA_ARGS__
+#define CAPTURE_HEAP this
+#else
+#define CAPTURE_HEAP
+#define CAPTURE_HEAP_AND(...) __VA_ARGS__
+#endif
+
 // This starts a plug. But mark_stack_tos isn't increased until set_pinned_info is called.
 void gc_heap::enque_pinned_plug (uint8_t* plug,
                                  BOOL save_pre_plug_info_p, 
@@ -17954,7 +18173,7 @@ void gc_heap::enque_pinned_plug (uint8_t* plug,
             {
                 dprintf (3, ("short object: %Ix(%Ix)", last_object_in_last_plug, last_obj_size));
 
-                go_through_object_nostart (method_table(last_object_in_last_plug), last_object_in_last_plug, last_obj_size, pval,
+                go_through_object_nostart_lambda (method_table(last_object_in_last_plug), last_object_in_last_plug, last_obj_size, [plug, &m](uint8_t **pval)
                     {
                         size_t gap_offset = (((size_t)pval - (size_t)(plug - sizeof (gap_reloc_pair) - plug_skew))) / sizeof (uint8_t*);
                         dprintf (3, ("member: %Ix->%Ix, %Id ptrs from beginning of gap", (uint8_t*)pval, *pval, gap_offset));
@@ -18025,7 +18244,7 @@ void gc_heap::save_post_plug_info (uint8_t* last_pinned_plug, uint8_t* last_obje
 
             // TODO: since we won't be able to walk this object in relocation, we still need to
             // take care of collectible assemblies here.
-            go_through_object_nostart (method_table(last_object_in_last_plug), last_object_in_last_plug, last_obj_size, pval,
+            go_through_object_nostart_lambda (method_table(last_object_in_last_plug), last_object_in_last_plug, last_obj_size, [post_plug, &m](uint8_t **pval)
                 {
                     size_t gap_offset = (((size_t)pval - (size_t)(post_plug - sizeof (gap_reloc_pair) - plug_skew))) / sizeof (uint8_t*);
                     dprintf (3, ("member: %Ix->%Ix, %Id ptrs from beginning of gap", (uint8_t*)pval, *pval, gap_offset));
@@ -18150,7 +18369,7 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                 {
                     dprintf(3,("pushing mark for %Ix ", (size_t)oo));
 
-                    go_through_object_cl (method_table(oo), oo, s, ppslot,
+                    go_through_object_cl_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND(full_p, thread, &mark_stack_tos)](uint8_t** ppslot)
                                           {
                                               uint8_t* o = *ppslot;
                                               Prefetch(o);
@@ -18249,8 +18468,8 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                     int i = num_partial_refs; 
                     uint8_t* ref_to_continue = 0;
 
-                    go_through_object (method_table(oo), oo, s, ppslot,
-                                       start, use_start, (oo + s),
+                    if (!go_through_object_lambda (method_table(oo), oo, s,
+                                       start, (oo + s), [CAPTURE_HEAP_AND(full_p, thread, &mark_stack_tos, &ref_to_continue, &i)](uint8_t ** ppslot)
                                        {
                                            uint8_t* o = *ppslot;
                                            Prefetch(o);
@@ -18272,14 +18491,16 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                                                     if (--i == 0)
                                                     {
                                                         ref_to_continue = (uint8_t*)((size_t)(ppslot+1) | partial);
-                                                        goto more_to_do;
+                                                        return false; // goto more_to_do;
                                                     }
 
                                                 }
                                            }
-
+                                           return true;
                                        }
-                        );
+                    ))
+                        goto more_to_do;
+
                     //we are finished with this object
                     assert (ref_to_continue == 0);
 #ifdef MH_SC_MARK
@@ -18693,7 +18914,7 @@ gc_heap::mark_object_simple (uint8_t** po THREAD_NUMBER_DCL)
             size_t s = size (o);
             promoted_bytes (thread) += s;
             {
-                go_through_object_cl (method_table(o), o, s, poo,
+                go_through_object_cl_lambda (method_table(o), o, s, [CAPTURE_HEAP_AND(thread)] (uint8_t**poo)
                                         {
                                             uint8_t* oo = *poo;
                                             if (gc_mark (oo, gc_low, gc_high))
@@ -18777,7 +18998,7 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                 {
                     dprintf(3,("pushing mark for %Ix ", (size_t)oo));
 
-                    go_through_object_cl (method_table(oo), oo, s, ppslot,
+                    go_through_object_cl_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND(thread)](uint8_t** ppslot)
                     {
                         uint8_t* o = *ppslot;
                         Prefetch(o);
@@ -18870,8 +19091,8 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
 
                     int i = num_partial_refs; 
 
-                    go_through_object (method_table(oo), oo, s, ppslot,
-                                       start, use_start, (oo + s),
+                    if (!go_through_object_lambda (method_table(oo), oo, s,
+                                       start, (oo + s),[CAPTURE_HEAP_AND(thread, place, &i)](uint8_t ** ppslot)
                     {
                         uint8_t* o = *ppslot;
                         Prefetch(o);
@@ -18890,14 +19111,16 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                                 {
                                     //update the start
                                     *place = (uint8_t*)(ppslot+1);
-                                    goto more_to_do;
+                                    return false;
                                 }
 
                             }
                         }
+                        return true;
+                        }
+                    ))
+                        goto more_to_do;
 
-                    }
-                        );
                     //we are finished with this object
                     *place = 0; 
                     *(place+1) = 0;
@@ -19155,11 +19378,15 @@ gc_heap::scan_background_roots (promote_func* fn, int hn, ScanContext *pSC)
 inline
 void gc_heap::background_mark_through_object (uint8_t* oo THREAD_NUMBER_DCL)
 {
+#ifndef MULTIPLE_HEAPS
+    const int thread = 0;
+#endif
+
     if (contain_pointers (oo))
     {
         size_t total_refs = 0;
         size_t s = size (oo);
-        go_through_object_nostart (method_table(oo), oo, s, po,
+        go_through_object_nostart_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND(&total_refs, thread)](uint8_t **po)
                           {
                             uint8_t* o = *po;
                             total_refs++;
@@ -19239,6 +19466,8 @@ void gc_heap::background_process_mark_overflow_internal (int condemned_gen_numbe
 
 #ifdef MULTIPLE_HEAPS
     int thread = heap_number;
+#else //MULTIPLE_HEAPS
+    const int thread = 0;
 #endif //MULTIPLE_HEAPS
 
     exclusive_sync* loh_alloc_lock = 0;
@@ -19296,12 +19525,14 @@ void gc_heap::background_process_mark_overflow_internal (int condemned_gen_numbe
                     s = size (o);
                 }
 
-                if (background_object_marked (o, FALSE) && contain_pointers_or_collectible (o))
+                if (background_object_marked(o, FALSE) && contain_pointers_or_collectible(o))
                 {
                     total_marked_objects++;
-                    go_through_object_cl (method_table(o), o, s, poo,
-                                          uint8_t* oo = *poo;
-                                          background_mark_object (oo THREAD_NUMBER_ARG);
+                    go_through_object_cl_lambda(method_table(o), o, s, [CAPTURE_HEAP_AND(thread)](uint8_t** poo)
+                    {
+                        uint8_t* oo = *poo;
+                        background_mark_object(oo THREAD_NUMBER_ARG);
+                    }
                                          );
                 }
 
@@ -19466,6 +19697,9 @@ recheck:
 inline
 void gc_heap::mark_through_object (uint8_t* oo, BOOL mark_class_object_p THREAD_NUMBER_DCL)
 {
+#ifndef MULTIPLE_HEAPS
+    const int thread = 0;
+#endif
 #ifndef COLLECTIBLE_CLASS
     UNREFERENCED_PARAMETER(mark_class_object_p);
     BOOL to_mark_class_object = FALSE;
@@ -19487,10 +19721,11 @@ void gc_heap::mark_through_object (uint8_t* oo, BOOL mark_class_object_p THREAD_
 
         if (contain_pointers (oo))
         {
-            go_through_object_nostart (method_table(oo), oo, s, po,
+            go_through_object_nostart_lambda (method_table(oo), oo, s, [CAPTURE_HEAP_AND(thread)](uint8_t **po)
+                            {
                                 uint8_t* o = *po;
                                 mark_object (o THREAD_NUMBER_ARG);
-                                );
+                            });
         }
     }
 }
@@ -21704,7 +21939,7 @@ void gc_heap::relocate_in_loh_compact()
             check_class_object_demotion (o);
             if (contain_pointers (o))
             {
-                go_through_object_nostart (method_table (o), o, size(o), pval,
+                go_through_object_nostart_lambda (method_table (o), o, size(o), [CAPTURE_HEAP](uint8_t ** pval)
                 {
                     reloc_survivor_helper (pval);
                 });
@@ -24145,7 +24380,7 @@ gc_heap::relocate_obj_helper (uint8_t* x, size_t s)
     {
         dprintf (3, ("$%Ix$", (size_t)x));
 
-        go_through_object_nostart (method_table(x), x, s, pval,
+        go_through_object_nostart_lambda (method_table(x), x, s, [CAPTURE_HEAP](uint8_t ** pval)
                             {
                                 uint8_t* child = *pval;
                                 reloc_survivor_helper (pval);
@@ -24259,7 +24494,6 @@ void gc_heap::relocate_shortened_obj_helper (uint8_t* x, size_t s, uint8_t* end,
     }
     
     uint8_t** current_saved_info_to_relocate = 0;
-    uint8_t* child = 0;
 
     dprintf (3, ("x: %Ix, pp: %Ix, end: %Ix", x, plug, end));
 
@@ -24267,14 +24501,14 @@ void gc_heap::relocate_shortened_obj_helper (uint8_t* x, size_t s, uint8_t* end,
     {
         dprintf (3,("$%Ix$", (size_t)x));
 
-        go_through_object_nostart (method_table(x), x, s, pval,
+        go_through_object_nostart_lambda (method_table(x), x, s, [CAPTURE_HEAP_AND(end, &current_saved_info_to_relocate, saved_info_to_relocate, saved_plug_info_start)](uint8_t **pval)
         {
             dprintf (3, ("obj %Ix, member: %Ix->%Ix", x, (uint8_t*)pval, *pval));
 
             if ((uint8_t*)pval >= end)
             {
                 current_saved_info_to_relocate = saved_info_to_relocate + ((uint8_t*)pval - saved_plug_info_start) / sizeof (uint8_t**);
-                child = *current_saved_info_to_relocate;
+                uint8_t* child = *current_saved_info_to_relocate;
                 reloc_ref_in_shortened_obj (pval, current_saved_info_to_relocate);
                 dprintf (3, ("last part: R-%Ix(saved: %Ix)->%Ix ->%Ix",
                     (uint8_t*)pval, current_saved_info_to_relocate, child, *current_saved_info_to_relocate));
@@ -26796,11 +27030,12 @@ void gc_heap::revisit_written_page (uint8_t* page,
         }
     }
 
+    uint8_t* high_address_or_write_watch_end_of_page = min(high_address, page + WRITE_WATCH_UNIT_SIZE);
+
     dprintf (3,("page %Ix start: %Ix, %Ix[ ",
                (size_t)page, (size_t)o,
-               (size_t)(min (high_address, page + WRITE_WATCH_UNIT_SIZE))));
-
-    while (o < (min (high_address, page + WRITE_WATCH_UNIT_SIZE)))
+               (size_t)(high_address_or_write_watch_end_of_page)));
+    while (o < (high_address_or_write_watch_end_of_page))
     {
         size_t s;
 
@@ -26854,17 +27089,21 @@ void gc_heap::revisit_written_page (uint8_t* page,
                 background_marked (o)))
             {
                 dprintf (3, ("going through %Ix", (size_t)o));
-                go_through_object (method_table(o), o, s, poo, start_address, use_start, (o + s),
-                                    if ((uint8_t*)poo >= min (high_address, page + WRITE_WATCH_UNIT_SIZE))
+                if (!go_through_object_lambda (method_table(o), o, s, start_address, (o + s), [CAPTURE_HEAP_AND(high_address_or_write_watch_end_of_page, &no_more_loop_p, &num_marked_objects, thread)](uint8_t **poo)
+                {
+                                    if ((uint8_t*)poo >= high_address_or_write_watch_end_of_page)
                                     {
                                         no_more_loop_p = TRUE;
-                                        goto end_limit;
+                                        return false;
                                     }
                                     uint8_t* oo = *poo;
 
                                     num_marked_objects++;
                                     background_mark_object (oo THREAD_NUMBER_ARG);
-                                );
+                                    return true;
+                }
+                                    ))
+                    goto end_limit;
             }
             else if (
                 concurrent_p &&
@@ -26872,7 +27111,7 @@ void gc_heap::revisit_written_page (uint8_t* page,
                 large_objects_p &&
 #endif // !FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
                 ((CObjectHeader*)o)->IsFree() &&
-                (next_o > min (high_address, page + WRITE_WATCH_UNIT_SIZE)))
+                (next_o > high_address_or_write_watch_end_of_page))
             {
                 // We need to not skip the object here because of this corner scenario:
                 // A large object was being allocated during BGC mark so we first made it 
@@ -32422,7 +32661,7 @@ void gc_heap::relocate_in_large_objects ()
             if (contain_pointers (o))
             {
                 dprintf(3, ("Relocating through large object %Ix", (size_t)o));
-                go_through_object_nostart (method_table (o), o, size(o), pval,
+                go_through_object_nostart_lambda (method_table (o), o, size(o), [CAPTURE_HEAP](uint8_t **pval)
                         {
                             reloc_survivor_helper (pval);
                         });
@@ -32613,8 +32852,11 @@ go_through_refs:
                 {
                     dprintf(3,("Going through %Ix", (size_t)o));
 
-                    go_through_object (method_table(o), o, s, poo,
-                                       start_address, use_start, (o + s),
+                    if (!go_through_object_update_start_and_ppstop_lambda (method_table(o), o, s,
+                                       start_address, (o + s), [CAPTURE_HEAP_AND(&card, card_word_end, end, &cg_pointers_found, 
+                                                                                 &n_eph, &n_card_set, &end_card, &foundp,
+                                                                                 &limit, &total_cards_cleared, next_o, &n_gen, fn, 
+                                                                                next_boundary, nhigh)](uint8_t*&start_address, uint8_t**&ppstop, uint8_t **&poo)
                        {
                            if (card_of ((uint8_t*)poo) > card)
                            {
@@ -32633,14 +32875,16 @@ go_through_refs:
                                         //new_start();
                                         {
                                             if (ppstop <= (uint8_t**)start_address)
-                                            {break;}
+                                            {
+                                                return go_through_object_next_behavior::new_start;
+                                            }
                                             else if (poo < (uint8_t**)start_address)
                                             {poo = (uint8_t**)start_address;}
                                         }
                                     }
                                     else
                                     {
-                                        goto end_object;
+                                        return go_through_object_next_behavior::finish_incomplete; // goto end_object;
                                     }
                                 }
                             }
@@ -32648,8 +32892,10 @@ go_through_refs:
                            mark_through_cards_helper (poo, n_gen,
                                                       cg_pointers_found, fn,
                                                       nhigh, next_boundary);
-                       }
-                        );
+                           return go_through_object_next_behavior::continue_scanning;
+                        }
+                    ))
+                        goto end_object;
                 }
 
             end_object:
@@ -33419,7 +33665,7 @@ void gc_heap::verify_partial ()
 
             if (marked_p)
             {
-                go_through_object_cl (method_table (o), o, s, oo,
+                go_through_object_cl_lambda (method_table (o), o, s, [CAPTURE_HEAP_AND(&free_ref_p, &bad_ref_p, &mark_missed_p, marked_p)](uint8_t **oo)
                     {
                         if (*oo)
                         {
@@ -33912,8 +34158,8 @@ gc_heap::verify_heap (BOOL begin_gc_p)
 
                         if (contain_pointers(curr_object))
                         {
-                            go_through_object_nostart
-                                (method_table(curr_object), curr_object, s, oo,
+                            go_through_object_nostart_lambda
+                                (method_table(curr_object), curr_object, s, [CAPTURE_HEAP_AND(&crd, &found_card_p, &need_card_p, next_boundary, curr_object, s, align_const)](uint8_t **oo)
                                 {
                                     if ((crd != card_of ((uint8_t*)oo)) && !found_card_p)
                                     {
@@ -34030,7 +34276,7 @@ void GCHeap::ValidateObjectMember (Object* obj)
     size_t s = size (obj);
     uint8_t* o = (uint8_t*)obj;
 
-    go_through_object_cl (method_table (obj), o, s, oo,
+    go_through_object_cl_lambda (method_table (obj), o, s, [](uint8_t **oo)
                                 {
                                     uint8_t* child_o = *oo;
                                     if (child_o)
@@ -37366,7 +37612,7 @@ void GCHeap::DiagWalkObject (Object* obj, walk_fn fn, void* context)
     uint8_t* o = (uint8_t*)obj;
     if (o)
     {
-        go_through_object_cl (method_table (o), o, size(o), oo,
+        go_through_object_cl_lambda (method_table (o), o, size(o), [fn, context](uint8_t **oo)
                                     {
                                         if (*oo)
                                         {
@@ -37576,7 +37822,7 @@ void testGCShadowHelper (uint8_t* x)
     size_t s = size (x);
     if (contain_pointers (x))
     {
-        go_through_object_nostart (method_table(x), x, s, oo,
+        go_through_object_nostart_lambda (method_table(x), x, s, [](uint8_t **oo)
                            { testGCShadow((Object**) oo); });
     }
 }
@@ -37656,7 +37902,7 @@ void gc_heap::walk_read_only_segment(heap_segment *seg, void *pvContext, object_
 
         if (contain_pointers (o))
         {
-            go_through_object_nostart (method_table (o), o, size(o), oo,
+            go_through_object_nostart_lambda (method_table (o), o, size(o), [pfnObjRef, pvContext](uint8_t**oo)
                    {
                        if (*oo)
                            pfnObjRef(pvContext, oo);
