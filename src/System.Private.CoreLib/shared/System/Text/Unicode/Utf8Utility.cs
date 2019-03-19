@@ -38,7 +38,7 @@ namespace System.Text.Unicode
 
             while (!utf8Data.IsEmpty)
             {
-                if (Rune.DecodeUtf8(utf8Data, out Rune result, out int bytesConsumed) != OperationStatus.Done)
+                if (Rune.DecodeFromUtf8(utf8Data, out Rune result, out int bytesConsumed) != OperationStatus.Done)
                 {
                     break;
                 }
@@ -82,7 +82,7 @@ namespace System.Text.Unicode
             valueAsBytes = valueAsBytes.Slice(idxOfFirstInvalidData);
             do
             {
-                if (Rune.DecodeUtf8(valueAsBytes, out _, out int bytesConsumed) == OperationStatus.Done)
+                if (Rune.DecodeFromUtf8(valueAsBytes, out _, out int bytesConsumed) == OperationStatus.Done)
                 {
                     //  Valid scalar value - copy data as-is to MemoryStream
                     memStream.Write(valueAsBytes.Slice(0, bytesConsumed));

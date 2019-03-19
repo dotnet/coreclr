@@ -24,7 +24,7 @@ namespace System
             // the other which operates on a multi-byte (non-ASCII) search value.
 
             Span<byte> runeBytes = stackalloc byte[Utf8Utility.MaxBytesPerScalar];
-            value.TryEncodeToUtf8Bytes(runeBytes, out int runeBytesWritten);
+            int runeBytesWritten = value.EncodeToUtf8(runeBytes);
 
             return SpanHelpers.IndexOf(
                 ref DangerousGetMutableReference(), Length,
@@ -45,7 +45,7 @@ namespace System
             // the other which operates on a multi-byte (non-ASCII) search value.
 
             Span<byte> runeBytes = stackalloc byte[Utf8Utility.MaxBytesPerScalar];
-            value.TryEncodeToUtf8Bytes(runeBytes, out int runeBytesWritten);
+            int runeBytesWritten = value.EncodeToUtf8(runeBytes);
 
             return this.AsBytes().EndsWith(runeBytes.Slice(0, runeBytesWritten));
         }
@@ -64,7 +64,7 @@ namespace System
             // the other which operates on a multi-byte (non-ASCII) search value.
 
             Span<byte> runeBytes = stackalloc byte[Utf8Utility.MaxBytesPerScalar];
-            value.TryEncodeToUtf8Bytes(runeBytes, out int runeBytesWritten);
+            int runeBytesWritten = value.EncodeToUtf8(runeBytes);
 
             return SpanHelpers.IndexOf(
                 ref DangerousGetMutableReference(), Length,
@@ -85,7 +85,7 @@ namespace System
             // the other which operates on a multi-byte (non-ASCII) search value.
 
             Span<byte> runeBytes = stackalloc byte[Utf8Utility.MaxBytesPerScalar];
-            value.TryEncodeToUtf8Bytes(runeBytes, out int runeBytesWritten);
+            int runeBytesWritten = value.EncodeToUtf8(runeBytes);
 
             return this.AsBytes().StartsWith(runeBytes.Slice(0, runeBytesWritten));
         }
