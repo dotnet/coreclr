@@ -2139,11 +2139,16 @@ public:
 
     static unsigned emitTotalInsCnt;
 
+    static unsigned emitCurPrologInsCnt; // current number of prolog instrDescs
+    static size_t   emitCurPrologIGSize; // current size of prolog instrDescs
+    static unsigned emitMaxPrologInsCnt; // maximum number of prolog instrDescs
+    static size_t   emitMaxPrologIGSize; // maximum size of prolog instrDescs
+
     static unsigned emitTotalIGcnt;   // total number of insGroup allocated
     static unsigned emitTotalPhIGcnt; // total number of insPlaceholderGroupData allocated
     static unsigned emitTotalIGicnt;
     static size_t   emitTotalIGsize;
-    static unsigned emitTotalIGmcnt; // total method count
+    static unsigned emitTotalIGmcnt;    // total method count
     static unsigned emitTotalIGEmitAdd; // total number of 'emitAdd' (overflow) groups
     static unsigned emitTotalIGjmps;
     static unsigned emitTotalIGptrs;

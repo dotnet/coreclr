@@ -267,6 +267,10 @@ size_t emitter::emitSizeMethod;
 
 size_t   emitter::emitTotMemAlloc;
 unsigned emitter::emitTotalInsCnt;
+unsigned emitter::emitCurPrologInsCnt;
+size_t   emitter::emitCurPrologIGSize;
+unsigned emitter::emitMaxPrologInsCnt;
+size_t   emitter::emitMaxPrologIGSize;
 unsigned emitter::emitTotalIGcnt;
 unsigned emitter::emitTotalPhIGcnt;
 unsigned emitter::emitTotalIGjmps;
@@ -450,12 +454,12 @@ void emitterStats(FILE* fout)
         if ((c > 0) && (1000 * c >= ic))
         {
             dc += c;
-            fprintf(fout, "          %-13s %8u (%5.2f%%)\n", emitter::emitIfName(f), c, 100.0 * c / ic);
+            fprintf(fout, "          %-14s %8u (%5.2f%%)\n", emitter::emitIfName(f), c, 100.0 * c / ic);
         }
     }
 
-    fprintf(fout, "         --------------------------------\n");
-    fprintf(fout, "          %-13s %8u (%5.2f%%)\n", "Total shown", dc, 100.0 * dc / ic);
+    fprintf(fout, "         ---------------------------------\n");
+    fprintf(fout, "          %-14s %8u (%5.2f%%)\n", "Total shown", dc, 100.0 * dc / ic);
 
     if (emitter::emitTotalIGmcnt > 0)
     {
@@ -467,6 +471,9 @@ void emitterStats(FILE* fout)
         fprintf(fout, "Total of %8u instructions\n", emitter::emitTotalIGicnt);
         fprintf(fout, "Total of %8u jumps\n", emitter::emitTotalIGjmps);
         fprintf(fout, "Total of %8u GC livesets\n", emitter::emitTotalIGptrs);
+        fprintf(fout, "\n");
+        fprintf(fout, "Max prolog instrDesc count: %8u\n", emitter::emitMaxPrologInsCnt);
+        fprintf(fout, "Max prolog insGroup size  : %8u\n", emitter::emitMaxPrologIGSize);
         fprintf(fout, "\n");
         fprintf(fout, "Average of %8.1lf insGroup     per method\n",
                 (double)emitter::emitTotalIGcnt / emitter::emitTotalIGmcnt);
@@ -900,6 +907,22 @@ insGroup* emitter::emitSavIG(bool emitAdd)
     emitTotalIGicnt += emitCurIGinsCnt;
     emitTotalIGsize += sz;
     emitSizeMethod += sz;
+
+    if (emitIGisInProlog(ig))
+    {
+        emitCurPrologInsCnt += emitCurIGinsCnt;
+        emitCurPrologIGSize += sz;
+
+        // Keep track of the maximums.
+        if (emitCurPrologInsCnt > emitMaxPrologInsCnt)
+        {
+            emitMaxPrologInsCnt = emitCurPrologInsCnt;
+        }
+        if (emitCurPrologIGSize > emitMaxPrologIGSize)
+        {
+            emitMaxPrologIGSize = emitCurPrologIGSize;
+        }
+    }
 #endif
 
     // printf("Group [%08X]%3u has %2u instructions (%4u bytes at %08X)\n", ig, ig->igNum, emitCurIGinsCnt, sz, id);
@@ -1130,7 +1153,9 @@ void emitter::emitBegFN(bool hasFramePtr
 
 #if EMITTER_STATS
     emitTotalIGmcnt++;
-    emitSizeMethod = 0;
+    emitSizeMethod      = 0;
+    emitCurPrologInsCnt = 0;
+    emitCurPrologIGSize = 0;
 #endif
 
     emitInsCount = 0;
