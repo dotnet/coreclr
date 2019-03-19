@@ -103,13 +103,11 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetOffset(int length)
         {
-            int offset;
-
+            int offset = _value;
             if (IsFromEnd)
-                offset = length - (~_value);
-            else
-                offset = _value;
-
+            {
+                offset += length + 1;
+            }
             return offset;
         }
 
