@@ -31,7 +31,7 @@ TreeLifeUpdater<ForCodeGen>::TreeLifeUpdater(Compiler* compiler)
 //    intervals when calling "siStartOrCloseVariableLiveRange".
 //
 // Notes:
-//  If "ForCodeGen" is true, then the register mask use by CodeGen and the "LiveRangeList" of the "LclVadDsc"
+//  If "ForCodeGen" is true, then the register mask use by CodeGen and the "LiveRangeList" of the "LclVarDsc"
 //  are updated given the new updated value of the variable ("isBorn"/"isDead"/"spill")
 template <bool ForCodeGen>
 void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
