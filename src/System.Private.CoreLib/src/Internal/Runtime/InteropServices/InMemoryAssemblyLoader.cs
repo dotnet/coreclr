@@ -11,8 +11,16 @@ using System.Runtime.Loader;
 
 namespace Internal.Runtime.InteropServices
 {
+    /// <summary>
+    /// This class enables the .NET IJW host to load an in-memory module as a .NET assembly
+    /// </summary>
     public static class InMemoryAssemblyLoader
     {
+        /// <summary>
+        /// Loads into an isolated AssemblyLoadContext an assembly that has already been loaded into memory by the OS loader as a native module.
+        /// </summary>
+        /// <param name="handle">The native handle for the assembly.</param>
+        /// <param name="assemblyPath">The path to the assembly (as a pointer to a UTF-16 C string).</param>
         public static unsafe void LoadInMemoryAssembly(IntPtr handle, IntPtr assemblyPath)
         {
             AssemblyLoadContext context = new IsolatedComponentLoadContext(Marshal.PtrToStringUni(assemblyPath));

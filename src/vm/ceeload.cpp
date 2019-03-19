@@ -6489,22 +6489,18 @@ static HMODULE GetIJWHostForModule(Module* module)
             }
         }
     }
-
-    return nullptr;
-#else
-    return nullptr;
 #endif
+    return nullptr;
 }
 
 static GetTokenForVTableEntry_t GetTokenGetterFromHostModule(HMODULE ijwHost)
 {
-    GetTokenForVTableEntry_t getTokenForVTableEntryWithHost = nullptr;
     if (ijwHost != nullptr)
     {
-        getTokenForVTableEntryWithHost = (GetTokenForVTableEntry_t)GetProcAddress(ijwHost, "GetTokenForVTableEntry");
+        return (GetTokenForVTableEntry_t)GetProcAddress(ijwHost, "GetTokenForVTableEntry");
     }
 
-    return getTokenForVTableEntryWithHost;
+    return nullptr;
 }
 
 //=================================================================================

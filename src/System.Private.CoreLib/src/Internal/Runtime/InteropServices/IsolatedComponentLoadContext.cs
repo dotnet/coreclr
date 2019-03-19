@@ -44,5 +44,4 @@ namespace Internal.Runtime.InteropServices
             return IntPtr.Zero;
         }
     }
-
 }
