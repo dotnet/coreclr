@@ -114,7 +114,7 @@ void CodeGen::genInitialize()
     // allocation at the start of each basic block.
     VarSetOps::AssignNoCopy(compiler, compiler->compCurLife, VarSetOps::MakeEmpty(compiler));
 
-    // We initialize the stack level before fist "BasicBlock" code is generated in case we need to report stack
+    // We initialize the stack level before first "BasicBlock" code is generated in case we need to report stack
     // variable needs home and so its stack offset.
     SetStackLevel(0);
 }
