@@ -1487,7 +1487,7 @@ void CodeGen::psiBegProlog()
 #endif
 #ifdef USING_VARIABLE_LIVE_RANGE
         siVarLoc varLocation;
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
         if (lclVarDsc->lvIsRegArg)
         {
             bool isStructHandled = false;
@@ -1543,7 +1543,7 @@ void CodeGen::psiBegProlog()
 #endif
 #ifdef USING_VARIABLE_LIVE_RANGE
                     varLocation.storeVariableOnStack(REG_SPBASE, psiGetVarStackOffset(lclVarDsc));
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
                 }
 
                 isStructHandled = true;
@@ -1565,7 +1565,7 @@ void CodeGen::psiBegProlog()
 #endif
 #ifdef USING_VARIABLE_LIVE_RANGE
                 varLocation.storeVariableOnRegisters(lclVarDsc->lvArgReg, REG_NA);
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
             }
         }
         else
@@ -1575,14 +1575,14 @@ void CodeGen::psiBegProlog()
 #endif
 #ifdef USING_VARIABLE_LIVE_RANGE
             varLocation.storeVariableOnStack(REG_SPBASE, psiGetVarStackOffset(lclVarDsc));
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
         }
 
 #ifdef USING_VARIABLE_LIVE_RANGE
         // Start a VariableLiveRange for this LclVarDsc on the built location
         VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
         varLvKeeper->psiStartVariableLiveRange(varLocation, varScope->vsdVarNum);
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
     }
 }
 
@@ -1832,5 +1832,5 @@ void CodeGen::psiEndProlog()
 #ifdef USING_VARIABLE_LIVE_RANGE
     VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
     varLiveKeeper->psiClosePrologVariableRanges();
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
 }

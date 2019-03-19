@@ -712,7 +712,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
 #ifdef USING_VARIABLE_LIVE_RANGE
         VariableLiveKeeper* varLiveKeeper = getVariableLiveKeeper();
         varLiveKeeper->siEndVariableLiveRange(varNum);
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
     }
 
     VarSetOps::Iter bornIter(this, bornSet);
@@ -754,7 +754,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
 #ifdef USING_VARIABLE_LIVE_RANGE
         VariableLiveKeeper* varLiveKeeper = getVariableLiveKeeper();
         varLiveKeeper->siStartVariableLiveRange(varDsc);
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
     }
 
     codeGen->siUpdate();
@@ -2314,8 +2314,8 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
         VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
         varLiveKeeper->dumpLvaVariableLiveRanges();
     }
-#endif
-#endif
+#endif // DEBUG
+#endif // USING_VARIABLE_LIVE_RANGE
 
 #ifdef LATE_DISASM
     unsigned finalHotCodeSize;

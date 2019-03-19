@@ -11470,7 +11470,7 @@ VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
     memset(variableLifeBarrier, 0, variableLifeBarrierSize);
 
     new (variableLifeBarrier, jitstd::placement_t()) LiveRangeDumper(variableLiveRanges);
-#endif
+#endif // DEBUG
 }
 
 size_t VariableLiveDescriptor::getAmountLiveRanges() const
@@ -11501,7 +11501,7 @@ void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* _emitter) const
 #if DEBUG
     // There should be VariableLiveRanges reported during this basic block
     noway_assert(hasBeenAlive());
-#endif
+#endif // DEBUG
     noway_assert(hasVariableLiveRangeOpen());
 
     // Using [close, open) ranges so as to not compute the size of the last instruction
@@ -11531,7 +11531,7 @@ void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLo
     noway_assert(variableLifeBarrier != nullptr);
     // Restart barrier so we can print from here
     variableLifeBarrier->setDumperStartAt(variableLiveRanges->backPosition());
-#endif
+#endif // DEBUG
 }
 
 void VariableLiveDescriptor::UpdateRegisterHome(CodeGenInterface::siVarLoc varLocation, emitter* _emitter) const
@@ -11539,7 +11539,7 @@ void VariableLiveDescriptor::UpdateRegisterHome(CodeGenInterface::siVarLoc varLo
 #if DEBUG
     // There should be VariableLiveRanges reported during this basic block
     noway_assert(hasBeenAlive());
-#endif
+#endif // DEBUG
     // This variable is changing home so it has been started before during this block
     noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
 
@@ -11864,5 +11864,5 @@ void VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(emitter* _emitter
         printf("]\n");
     }
 }
-#endif
-#endif
+#endif // DEBUG
+#endif // USING_VARIABLE_LIVE_RANGE

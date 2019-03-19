@@ -410,7 +410,7 @@ public:
     void dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const;
 
     void dumpAllRegisterLiveRangesForBlock(emitter* _emitter, const CodeGenInterface* codeGen) const;
-#endif
+#endif // DEBUG
 
     bool hasVariableLiveRangeOpen() const;
 
@@ -486,9 +486,9 @@ public:
 #ifdef DEBUG
     void dumpBlockVariableLiveRanges(const BasicBlock* block);
     void dumpLvaVariableLiveRanges() const;
-#endif
+#endif // DEBUG
 };
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
 
 class LclVarDsc
 {
@@ -2095,7 +2095,7 @@ public:
     void initializeVariableLiveKeeper();
 
     VariableLiveKeeper* getVariableLiveKeeper() const;
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
 
     hashBvGlobalData hbvGlobalData; // Used by the hashBv bitvector package.
 

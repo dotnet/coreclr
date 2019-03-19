@@ -94,7 +94,7 @@ void CodeGen::genInitialize()
 #ifdef USING_VARIABLE_LIVE_RANGE
     // Initialize Structures for VariableLiveRanges
     compiler->initializeVariableLiveKeeper();
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
 
     // The current implementation of switch tables requires the first block to have a label so it
     // can generate offsets to the switch label targets.
@@ -533,7 +533,7 @@ void CodeGen::genCodeForBBlist()
             VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
             varLvKeeper->siEndAllVariableLiveRange(&compiler->compCurLife);
         }
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
 
         if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
         {
@@ -742,11 +742,11 @@ void CodeGen::genCodeForBBlist()
             VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
             varLiveKeeper->dumpBlockVariableLiveRanges(block);
         }
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
 
         compiler->compCurBB = nullptr;
-#endif
-    } //------------------ END-FOR each block of the method -------------------
+#endif // DEBUG
+    }  //------------------ END-FOR each block of the method -------------------
 
     // There could be variables alive at this point. For example see lvaKeepAliveAndReportThis.
     // This method would clean the GC ref
@@ -768,7 +768,7 @@ void CodeGen::genCodeForBBlist()
                compiler->compSizeEstimate);
         printf("%s\n", compiler->info.compFullName);
     }
-#endif
+#endif // DEBUG
 }
 
 /*
@@ -852,7 +852,7 @@ void CodeGen::genSpillVar(GenTree* tree)
         VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
         varLvKeeper->siUpdateVariableLiveRange(varDsc);
     }
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
 }
 
 //------------------------------------------------------------------------
@@ -1017,7 +1017,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
                 // Report the home change for this variable
                 VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
                 varLvKeeper->siUpdateVariableLiveRange(varDsc);
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
 
 #ifdef DEBUG
                 if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))

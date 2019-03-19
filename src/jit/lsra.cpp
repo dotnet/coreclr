@@ -1266,7 +1266,7 @@ void LinearScan::recordVarLocationsAtStartOfBB(BasicBlock* bb)
                 VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
                 varLvKeeper->siUpdateVariableLiveRange(varDsc);
             }
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
         }
         else if (newRegNum != REG_STK)
         {

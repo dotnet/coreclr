@@ -263,7 +263,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
             // For each of the LclVarDsc that are reporting change, variable or fields
             VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
             varLiveKeeper->siStartOrCloseVariableLiveRanges(&varDeltaSet, isBorn, isDying);
-#endif
+#endif // USING_VARIABLE_LIVE_RANGE
             compiler->codeGen->siUpdate();
         }
     }
