@@ -12,6 +12,7 @@
     <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview6.19226.9</MicrosoftPrivateCoreFxNETCoreAppVersion>
     <MicrosoftNETCorePlatformsVersion>3.0.0-preview6.19226.9</MicrosoftNETCorePlatformsVersion>
     <MicrosoftNETCoreAppVersion>3.0.0-preview5-27620-01</MicrosoftNETCoreAppVersion>
+    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19162.7</MicrosoftDotNetBuildTasksFeedVersion>
     <optimizationIBCCoreCLRVersion>99.99.99-master-20190424.1</optimizationIBCCoreCLRVersion>
     <optimizationPGOCoreCLRVersion>99.99.99-master-20190424.1</optimizationPGOCoreCLRVersion>
   </PropertyGroup>
