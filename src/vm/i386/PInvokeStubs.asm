@@ -30,7 +30,7 @@ extern @JIT_RareDisableHelper@0:proc
 .686P
 .XMM
 
-REMOVE_FRAME_FROM_THREAD macro frameReg, threadReg, trashReg
+POP_FRAME_FROM_THREAD macro frameReg, threadReg, trashReg
 
         mov             trashReg, dword ptr [frameReg + Frame__m_Next]
         mov             dword ptr [threadReg + Thread_m_pFrame], trashReg
@@ -107,7 +107,7 @@ _JIT_PInvokeEnd@4 PROC public
 
         ;; pThread->m_pFrame = pFrame->m_Next
         ;; Trashes eax
-        REMOVE_FRAME_FROM_THREAD ecx, edx, eax
+        POP_FRAME_FROM_THREAD ecx, edx, eax
 
         ret
 
@@ -132,7 +132,7 @@ _JIT_PInvokeEndRarePath@8 PROC public
 
         ;; pThread->m_pFrame = pFrame->m_Next
         ;; Trashes eax
-        REMOVE_FRAME_FROM_THREAD ecx, edx, eax
+        POP_FRAME_FROM_THREAD ecx, edx, eax
 
         ret
 

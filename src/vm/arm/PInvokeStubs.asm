@@ -114,7 +114,7 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
 ;
         MACRO
 
-        REMOVE_FRAME_FROM_THREAD $frameReg, $threadReg, $trashReg
+        POP_FRAME_FROM_THREAD $frameReg, $threadReg, $trashReg
 
         ;; pThread->m_pFrame = pFrame->m_Next;
         ldr     $trashReg, [$frameReg, #Frame__m_Next]
@@ -198,7 +198,7 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
             cbnz    r2, JIT_PInvokeEndRarePath
 
             ;; pThread->m_pFrame = pFrame->m_Next
-            REMOVE_FRAME_FROM_THREAD r0, r1, r2
+            POP_FRAME_FROM_THREAD r0, r1, r2
 
             bx      lr
         
@@ -224,7 +224,7 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
             bl          JIT_RareDisableHelper
             
             ;; pThread->m_pFrame = pFrame->m_Next
-            REMOVE_FRAME_FROM_THREAD r4, r5, r0
+            POP_FRAME_FROM_THREAD r4, r5, r0
         
             EPILOG_STACK_RESTORE    r7
             EPILOG_POP              {r4,r5,r7,lr}

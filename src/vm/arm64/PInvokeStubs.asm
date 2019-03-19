@@ -118,7 +118,7 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
 ;
         MACRO
 
-        REMOVE_FRAME_FROM_THREAD $frameReg, $threadReg, $trashReg
+        POP_FRAME_FROM_THREAD $frameReg, $threadReg, $trashReg
 
         ldr     $trashReg, [$frameReg, #Frame__m_Next]
         str     $trashReg, [$threadReg, #Thread_m_pFrame]
@@ -196,7 +196,7 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
             cbnz    x9, JIT_PInvokeEndRarePath
 
             ;; pThread->m_pFrame = pFrame->m_Next
-            REMOVE_FRAME_FROM_THREAD x0, x1, x9
+            POP_FRAME_FROM_THREAD x0, x1, x9
 
             ret
             
@@ -221,7 +221,7 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
             bl          JIT_RareDisableHelper
 
             ;; pThread->m_pFrame = pFrame->m_Next
-            REMOVE_FRAME_FROM_THREAD x19, x20, x9
+            POP_FRAME_FROM_THREAD x19, x20, x9
         
             EPILOG_RESTORE_REG_PAIR   x19, x20, #16
             EPILOG_RESTORE_REG_PAIR   fp, lr, #32!

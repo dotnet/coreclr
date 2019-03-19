@@ -22,7 +22,7 @@ extern g_TrapReturningThreads:DWORD
 ; Min amount of stack space that a nested function should allocate.
 MIN_SIZE equ 28h
 
-REMOVE_FRAME_FROM_THREAD macro frameReg, threadReg, trashReg
+POP_FRAME_FROM_THREAD macro frameReg, threadReg, trashReg
 
         mov             trashReg, qword ptr [frameReg + OFFSETOF__Frame__m_Next]
         mov             qword ptr [threadReg + OFFSETOF__Thread__m_pFrame], trashReg
@@ -217,7 +217,7 @@ LEAF_ENTRY JIT_PInvokeEnd, _TEXT
 
         ;; pThread->m_pFrame = pFrame->m_Next
         ;; Trashes rax
-        REMOVE_FRAME_FROM_THREAD rcx, rdx, rax
+        POP_FRAME_FROM_THREAD rcx, rdx, rax
 
         ret
 
@@ -244,7 +244,7 @@ NESTED_ENTRY JIT_PInvokeEndRarePath, _TEXT
         call            JIT_RareDisableHelper
 
         ;; pThread->m_pFrame = pFrame->m_Next
-        REMOVE_FRAME_FROM_THREAD r14, r15, rax
+        POP_FRAME_FROM_THREAD r14, r15, rax
 
         mov             r14, qword ptr [rsp + MIN_SIZE + 08h]
         mov             r15, qword ptr [rsp + MIN_SIZE + 10h]
