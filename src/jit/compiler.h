@@ -391,7 +391,7 @@ public:
     // code generation
     bool hasLiveRangesToDump() const;
 };
-#endif
+#endif // DEBUG
 
 class VariableLiveDescriptor
 {
