@@ -6,7 +6,7 @@ add_definitions(-DPAL_STDCPP_COMPAT=1)
 
 if(WIN32)
     #use static crt
-    add_definitions(-MT) 
+    #add_definitions(-MT)
     add_definitions(-DWIN32_LEAN_AND_MEAN)
     include_directories(../../inc) #needed for warning control
 
