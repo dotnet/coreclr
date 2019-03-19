@@ -6491,6 +6491,33 @@ interface ICorDebugObjectValue2 : IUnknown
                                     [out] ICorDebugType **ppType);
 };
 
+[
+    object,
+    local,
+    uuid(3AF70CC7-6047-47F6-A5C5-090A1A622638),
+    pointer_default(unique)
+]
+interface ICorDebugDelegateObjectValue : ICorDebugObjectValue
+{
+    /*
+     * GetTarget retrieves the object on which the delegate calls the function.
+     * Returns:
+     *  - S_OK:
+     *      - The ICorDebugObjectValue object targeted by the function.
+     *      - NULL if the delegate function is a static function.
+     *  - HRESULT XXX for multicast delegates.
+     */
+
+    HRESULT GetTarget([out] ICorDebugObjectValue **ppObject);
+
+    /*
+     * GetFunction returns the function that gets run by the delegate.
+     */
+
+    HRESULT GetFunction([out] ICorDebugFunction **ppFunction);
+}
+
+
 /*
  * ICorDebugBoxValue is a subclass of ICorDebugValue which
  * represents a boxed value class object.
