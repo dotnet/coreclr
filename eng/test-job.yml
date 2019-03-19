@@ -7,6 +7,8 @@ parameters:
   readyToRun: false
   helixQueues: ''
   crossrootfsDir: ''
+  # If true, run the corefx tests instead of the coreclr ones
+  corefxTests: false
 
 ### Test job
 
@@ -126,7 +128,7 @@ jobs:
     - template: /eng/send-to-helix-step.yml
       parameters:
         displayName: Send tests to Helix
-        buildConfig: ${{ parameters.buildConfig }}
+        buildConfig: $(buildConfigUpper)
         archType: ${{ parameters.archType }}
         osGroup: ${{ parameters.osGroup }}
 
@@ -177,6 +179,12 @@ jobs:
           # Access token variable for internal project from the
           # DotNet-HelixApi-Access variable group
           helixAccessToken: $(HelixApiAccessToken)
+
+        # Sets up the template to run the corefx tests
+        ${{ if eq(parameters.corefxTests, 'true') }}:
+          helixProjectFile: 'eng/helixcorefxtests.proj /t:Test /p:ArcadeBuild=True'
+        ${{ if ne(parameters.corefxTests, 'true') }}:
+          helixProjectFile: 'tests/helixpublishwitharcade.proj'
 
         ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
           scenarios:
