@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <!-- Import Microsoft.DotNet.Build.Tasks.Packaging -->
-  <Import Project="$(ToolSetCommonDirectory)Tools.proj.nuget.g.props" Condition="Exists('$(ToolSetCommonDirectory)Tools.proj.nuget.g.props') and '$(BuildPackages)' !='true'" />
+  <Import Project="$(ToolSetCommonDirectory)Tools.proj.nuget.g.props" Condition="Exists('$(ToolSetCommonDirectory)Tools.proj.nuget.g.props') and '$(BuildPackages)' == 'true'" />
   
   <PropertyGroup>
     <ProjectAssetsFile Condition="'$(ProjectAssetsFile)' == 'unused'"></ProjectAssetsFile>

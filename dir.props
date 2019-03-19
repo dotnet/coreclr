@@ -47,6 +47,9 @@
     <ProjectDir>$(__ProjectDir)\</ProjectDir>
     <ProjectDir Condition="'$(__ProjectDir)'==''">$(MSBuildThisFileDirectory)</ProjectDir>
 
+    <NuGetPackageRoot Condition="'$(NuGetPackageRoot)' == '' AND '$(OS)' == 'Windows_NT'">$(UserProfile)\.nuget\packages\</NuGetPackageRoot>
+    <NuGetPackageRoot Condition="'$(NuGetPackageRoot)' == '' AND '$(OS)' != 'Windows_NT'">$(HOME)/.nuget/packages/</NuGetPackageRoot>
+
     <SourceDir>$(__SourceDir)\</SourceDir>
     <SourceDir Condition="'$(__SourceDir)'==''">$(ProjectDir)src\</SourceDir>
 
@@ -55,10 +58,10 @@
 
     <PackagesDir>$(DotNetRestorePackagesPath)</PackagesDir>
     <PackagesDir Condition="'$(PackagesDir)'=='' and '$(__PackagesDir)'!=''">$(__PackagesDir)\</PackagesDir>
-    <PackagesDir Condition="'$(PackagesDir)'==''">$(ProjectDir)packages\</PackagesDir>
+    <PackagesDir Condition="'$(PackagesDir)'==''">$(NuGetPackageRoot)</PackagesDir>
 
     <RootBinDir>$(__RootBinDir)\</RootBinDir>
-    <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)\artifacts\</RootBinDir>
+    <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)\artifacts</RootBinDir>
 
     <!-- BuildTools dependency -->
     <RootIntermediateOutputPath Condition="$(RootIntermediateOutputPath) == ''">$(RootBinDir)obj/</RootIntermediateOutputPath>
@@ -66,7 +69,7 @@
     <BuildArch Condition="'$(BuildArch)' != ''">x64</BuildArch>
 
     <BinDir>$(__BinDir)\</BinDir>
-    <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)\$(BuildOS)\$(BuildArch)\$(BuildType)\</BinDir>
+    <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)\bin\$(BuildOS)\$(BuildArch)\$(BuildType)\</BinDir>
 
     <__IntermediatesDir Condition="'$(__IntermediatesDir)' == ''">$(RootBinDir)obj\$(BuildOS)\$(BuildArch)\$(BuildType)</__IntermediatesDir>
     <IntermediateOutputRootPath Condition="'$(IntermediateOutputRootPath)' == ''">$(__IntermediatesDir)\</IntermediateOutputRootPath>
@@ -156,7 +159,7 @@
     <IsPrerelease>true</IsPrerelease>
 
     <!-- This should be kept in sync with package details in src/.nuget/init/project.json -->
-    <RuntimeIdGraphDefinitionVersion>1.0.2-beta-24224-02</RuntimeIdGraphDefinitionVersion>
+    <RuntimeIdGraphDefinitionVersion>3.0.0-preview.19073.11</RuntimeIdGraphDefinitionVersion>
     <RuntimeIdGraphDefinitionFile>$(PackagesDir)/microsoft.netcore.platforms/$(RuntimeIdGraphDefinitionVersion)/runtime.json</RuntimeIdGraphDefinitionFile>
 
     <!-- This link should be updated for each release milestone, currently this points to 1.1.0-beta -->

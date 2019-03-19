@@ -13,7 +13,7 @@
     <MicrosoftNETCoreAppVersion>3.0.0-preview4-27511-01</MicrosoftNETCoreAppVersion>
     <optimizationIBCCoreCLRVersion>99.99.99-master-20190314.1</optimizationIBCCoreCLRVersion>
     <optimizationPGOCoreCLRVersion>99.99.99-master-20190314.1</optimizationPGOCoreCLRVersion>
-    <MicrosoftDotNetBuildTasksPackagingPackageVersion>1.0.0-beta.19128.2</MicrosoftDotNetBuildTasksPackagingPackageVersion>
+    <MicrosoftDotNetBuildTasksPackagingPackageVersion>1.0.0-beta.19162.7</MicrosoftDotNetBuildTasksPackagingPackageVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>

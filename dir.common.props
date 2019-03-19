@@ -6,7 +6,8 @@
 
   <PropertyGroup>
     <CoreclrDir>$(MSBuildThisFileDirectory)</CoreclrDir>
-    <PackagesDir>$(CoreclrDir)/packages</PackagesDir>
+    <PackagesDir Condition="'$(ArcadeBuild)' != 'true'">$(CoreclrDir)/packages</PackagesDir>
+    <PackagesDir Condition="'$(ArcadeBuild)' == 'true'">$(NugetPackageRoot)</PackagesDir>
   </PropertyGroup>
 
   <!-- Set default Configuration and Platform -->
