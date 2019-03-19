@@ -5,10 +5,10 @@
 #ifndef __DIAGNOSTIC_SERVER_H__
 #define __DIAGNOSTIC_SERVER_H__
 
+#ifdef FEATURE_PERFTRACING // This macro should change to something more generic than performance.
+
 #include <stdint.h>
 #include "diagnosticsipc.h"
-
-#ifdef FEATURE_PERFTRACING // This macro should change to something more generic than performance.
 
 //! TODO: Temp class.
 enum class DiagnosticMessageType : uint32_t
