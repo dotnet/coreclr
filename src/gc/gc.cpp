@@ -19100,7 +19100,7 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                     int i = num_partial_refs; 
 
                     if (!go_through_object_lambda (method_table(oo), oo, s,
-                                       start, (oo + s),[CAPTURE_HEAP_AND(thread, place, &i)](uint8_t ** ppslot)
+                                       start, (oo + s),[CAPTURE_HEAP_AND_THREAD(place, &i)](uint8_t ** ppslot)
                     {
                         uint8_t* o = *ppslot;
                         Prefetch(o);
