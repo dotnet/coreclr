@@ -19,7 +19,27 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
 {
     public static class ActivationFactoryLoader
     {
+        // Collection of all ALCs used for WinRT activation.
+        private static Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIgnoreCase);
+        
+        private static AssemblyLoadContext GetALC(string assemblyPath)
+        {
+            AssemblyLoadContext alc;
+
+            lock (s_AssemblyLoadContexts)
+            {
+                if (!s_AssemblyLoadContexts.TryGetValue(assemblyPath, out alc))
+                {
+                    alc = new IsolatedComponentLoadContext(assemblyPath);
+                    s_AssemblyLoadContexts.Add(assemblyPath, alc);
+                }
+            }
+
+            return alc;
+        }
+
         public static int GetActivationFactory(
+            IntPtr componentPath,
             [MarshalAs(UnmanagedType.HString)] string typeName,
             [MarshalAs(UnmanagedType.Interface)] out IActivationFactory activationFactory)
         {
@@ -30,9 +50,15 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
                 {
                     throw new ArgumentNullException(nameof(typeName));
                 }
-                
-                Type winRTType = System.StubHelpers.WinRTTypeNameConverter.GetTypeFromWinRTTypeName(typeName, out bool _);
 
+                AssemblyLoadContext context = GetALC(Marshal.PtrToStringUni(componentPath));
+                
+                Type winRTType = context.LoadTypeForWinRTTypeNameInContext(typeName);
+
+                if (winRTType is null)
+                {
+                    throw new TypeLoadException(typeName);
+                }
                 activationFactory = WindowsRuntimeMarshal.GetManagedActivationFactory(winRTType);
             }
             catch (System.Exception ex)

@@ -217,6 +217,27 @@ namespace System.Runtime.Loader
 
             return IntPtr.Zero;
         }
+
+        
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void LoadTypeForWinRTTypeNameInContextInternal(IntPtr ptrNativeAssemblyLoadContext, string typeName, ObjectHandleOnStack loadedType);
+
+        internal Type LoadTypeForWinRTTypeNameInContext(string typeName)
+        {
+            if (typeName is null)
+            {
+                throw new ArgumentNullException(typeName);
+            }
+
+            lock (_unloadLock)
+            {
+                VerifyIsAlive();
+
+                Type type = null;
+                LoadTypeForWinRTTypeNameInContextInternal(_nativeAssemblyLoadContext, typeName, JitHelpers.GetObjectHandleOnStack(ref type));
+                return type;
+            }
+        }
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern IntPtr GetLoadContextForAssembly(RuntimeAssembly assembly);
