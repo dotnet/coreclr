@@ -8378,7 +8378,7 @@ void* CodeGen::genCreateAndStoreGCInfoJIT32(unsigned codeSize,
 
 #if DISPLAY_SIZES
 
-    if (genInterruptible)
+    if (getInterruptible())
     {
         gcHeaderISize += compiler->compInfoBlkSize;
         gcPtrMapISize += ptrMapSize;

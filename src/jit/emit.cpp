@@ -7159,7 +7159,7 @@ void emitter::emitStackPop(BYTE* addr, bool isCall, unsigned char callInstrSize,
         // recorded (when we're doing the ptr reg map for a non-fully-interruptible method).
         if (emitFullGCinfo
 #ifndef JIT32_GCENCODER
-            || (emitComp->genFullPtrRegMap && (!emitComp->genInterruptible) && isCall)
+            || (emitComp->genFullPtrRegMap && (!emitComp->getInterruptible()) && isCall)
 #endif // JIT32_GCENCODER
                 )
         {

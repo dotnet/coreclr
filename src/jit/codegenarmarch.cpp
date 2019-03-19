@@ -3433,7 +3433,7 @@ void CodeGen::genLeaInstruction(GenTreeAddrMode* lea)
             // When generating fully interruptible code we have to use the "large offset" sequence
             // when calculating a EA_BYREF as we can't report a byref that points outside of the object
             //
-            bool useLargeOffsetSeq = compiler->genInterruptible && (size == EA_BYREF);
+            bool useLargeOffsetSeq = compiler->getInterruptible() && (size == EA_BYREF);
 
             if (!useLargeOffsetSeq && emitter::emitIns_valid_imm_for_add(offset))
             {

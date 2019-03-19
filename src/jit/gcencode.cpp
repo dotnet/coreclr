@@ -1549,7 +1549,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
     if (compiler->codeGen->regSet.rsRegsModified(RBM_EBX))
         header->ebxSaved = 1;
 
-    header->interruptible = compiler->codeGen->genInterruptible;
+    header->interruptible = compiler->codeGen->getInterruptible();
 
     if (!compiler->isFramePointerUsed())
     {
@@ -1758,7 +1758,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
 
     if (mask)
     {
-        if (compiler->codeGen->genInterruptible)
+        if (compiler->codeGen->getInterruptible())
         {
             genMethodICnt++;
         }
@@ -2556,7 +2556,7 @@ DONE_VLT:
 
     lastOffset = 0;
 
-    if (compiler->codeGen->genInterruptible)
+    if (compiler->codeGen->getInterruptible())
     {
 #ifdef _TARGET_X86_
         assert(compiler->genFullPtrRegMap);
@@ -2890,7 +2890,7 @@ DONE_VLT:
         dest -= mask;
         totalSize++;
     }
-    else if (compiler->isFramePointerUsed()) // genInterruptible is false
+    else if (compiler->isFramePointerUsed()) // getInterruptible() is false
     {
 #ifdef _TARGET_X86_
         /*
@@ -3177,7 +3177,7 @@ DONE_VLT:
         dest -= mask;
         totalSize++;
     }
-    else // genInterruptible is false and we have an EBP-less frame
+    else // getInterruptible() is false and we have an EBP-less frame
     {
         assert(compiler->genFullPtrRegMap);
 
@@ -4037,7 +4037,7 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
 
         // A VM requirement due to how the decoder works (it ignores partially interruptible frames when
         // an exception has escaped, but the VM requires the security object to live on).
-        assert(compiler->codeGen->genInterruptible);
+        assert(compiler->codeGen->getInterruptible());
 
         // The lv offset is FP-relative, and the using code expects caller-sp relative, so translate.
         // The normal GC lifetime reporting mechanisms will report a proper lifetime to the GC.
@@ -4082,7 +4082,7 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
 
 #if DISPLAY_SIZES
 
-    if (compiler->codeGen->genInterruptible)
+    if (compiler->codeGen->getInterruptible())
     {
         genMethodICnt++;
     }
@@ -4382,7 +4382,7 @@ void GCInfo::gcMakeRegPtrTable(
      **************************************************************************
      */
 
-    if (compiler->codeGen->genInterruptible)
+    if (compiler->codeGen->getInterruptible())
     {
         assert(compiler->genFullPtrRegMap);
 
@@ -4486,7 +4486,7 @@ void GCInfo::gcMakeRegPtrTable(
             }
         }
     }
-    else if (compiler->isFramePointerUsed()) // genInterruptible is false, and we're using EBP as a frame pointer.
+    else if (compiler->isFramePointerUsed()) // getInterruptible() is false, and we're using EBP as a frame pointer.
     {
         assert(compiler->genFullPtrRegMap == false);
 
@@ -4592,7 +4592,7 @@ void GCInfo::gcMakeRegPtrTable(
             gcInfoEncoderWithLog->DefineCallSites(pCallSites, pCallSiteSizes, numCallSites);
         }
     }
-    else // genInterruptible is false and we have an EBP-less frame
+    else // getInterruptible() is false and we have an EBP-less frame
     {
         assert(compiler->genFullPtrRegMap);
 
@@ -4852,7 +4852,7 @@ void GCInfo::gcInfoRecordGCStackArgLive(GcInfoEncoder* gcInfoEncoder, MakeRegPtr
     assert(genStackPtr->rpdArgTypeGet() == rpdARG_PUSH);
 
     // We only need to report these when we're doing fuly-interruptible
-    assert(compiler->codeGen->genInterruptible);
+    assert(compiler->codeGen->getInterruptible());
 
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
 
@@ -4889,7 +4889,7 @@ void GCInfo::gcInfoRecordGCStackArgsDead(GcInfoEncoder* gcInfoEncoder,
     // earlier, as going dead after the call.
 
     // We only need to report these when we're doing fuly-interruptible
-    assert(compiler->codeGen->genInterruptible);
+    assert(compiler->codeGen->getInterruptible());
 
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
 

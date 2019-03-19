@@ -7755,7 +7755,7 @@ inline void Compiler::fgMarkLoopHead(BasicBlock* block)
 
     /* Have we decided to generate fully interruptible code already? */
 
-    if (genInterruptible)
+    if (getInterruptible())
     {
 #ifdef DEBUG
         if (verbose)
@@ -7836,7 +7836,7 @@ inline void Compiler::fgMarkLoopHead(BasicBlock* block)
     // only enable fully interruptible code for if we're hijacking.
     if (GCPOLL_NONE == opts.compGCPollType)
     {
-        genInterruptible = true;
+        setInterruptible(true);
     }
 }
 
@@ -19004,11 +19004,11 @@ void Compiler::fgSetBlockOrder()
                 // DDB 204533:
                 // The GC encoding for fully interruptible methods does not
                 // support more than 1023 pushed arguments, so we can't set
-                // genInterruptible here when we have 1024 or more pushed args
+                // getInterruptible() here when we have 1024 or more pushed args
                 //
                 if (compCanEncodePtrArgCntMax())
                 {
-                    genInterruptible = true;
+      		    setInterruptible(true);
                 }
                 break;
             }
@@ -19041,7 +19041,7 @@ void Compiler::fgSetBlockOrder()
             // loop.  Thus we need to either add a poll, or make the method
             // fully interruptible.  I chose the later because that's what
             // JIT64 does.
-            genInterruptible = true;
+            setInterruptible(true);
         }
 #endif // !JIT32_GCENCODER
 #endif // FEATURE_FASTTAILCALL
