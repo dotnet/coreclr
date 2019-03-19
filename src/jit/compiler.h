@@ -1417,7 +1417,7 @@ public:
 #endif
     }
 
-    __declspec(property(get = getIsVararg, put = setIsVararg)) bool isVararg;
+
     bool getIsVararg()
     {
 #ifdef FEATURE_VARARG
