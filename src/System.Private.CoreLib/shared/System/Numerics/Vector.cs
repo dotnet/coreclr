@@ -778,7 +778,65 @@ namespace System.Numerics
 
 #if netcoreapp
         /// <summary>
-        /// Constructs a vector from the given span. The span must contain at least Vector'T.Count elements.
+        /// Constructs a vector from the given <see cref="ReadOnlySpan{Byte}"/>. The span must contain at least <see cref="Vector{Byte}.Count"/> elements.
+        /// </summary>
+        public Vector(ReadOnlySpan<byte> values)
+            : this()
+        {
+            if ((typeof(T) == typeof(byte))
+                || (typeof(T) == typeof(sbyte))
+                || (typeof(T) == typeof(ushort))
+                || (typeof(T) == typeof(short))
+                || (typeof(T) == typeof(uint))
+                || (typeof(T) == typeof(int))
+                || (typeof(T) == typeof(ulong))
+                || (typeof(T) == typeof(long))
+                || (typeof(T) == typeof(float))
+                || (typeof(T) == typeof(double)))
+            {
+                if (values.Length < Vector<byte>.Count)
+                {
+                    throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, Vector<byte>.Count, nameof(values)));
+                }
+                this = Unsafe.ReadUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(values));
+            }
+            else
+            {
+                throw new NotSupportedException(SR.Arg_TypeNotSupported);
+            }
+        }
+        
+        /// <summary>
+        /// Constructs a vector from the given <see cref="ReadOnlySpan{T}"/>. The span must contain at least <see cref="Vector{T}.Count"/> elements.
+        /// </summary>
+        public Vector(ReadOnlySpan<T> values)
+            : this()
+        {
+            if ((typeof(T) == typeof(byte))
+                || (typeof(T) == typeof(sbyte))
+                || (typeof(T) == typeof(ushort))
+                || (typeof(T) == typeof(short))
+                || (typeof(T) == typeof(uint))
+                || (typeof(T) == typeof(int))
+                || (typeof(T) == typeof(ulong))
+                || (typeof(T) == typeof(long))
+                || (typeof(T) == typeof(float))
+                || (typeof(T) == typeof(double)))
+            {
+                if (values.Length < Count)
+                {
+                    throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, Vector<T>.Count, nameof(values)));
+                }
+                this = Unsafe.ReadUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(values)));
+            }
+            else
+            {
+                throw new NotSupportedException(SR.Arg_TypeNotSupported);
+            }
+        }
+
+        /// <summary>
+        /// Constructs a vector from the given <see cref="Span{T}"/>. The span must contain at least <see cref="Vector{T}.Count"/> elements.
         /// </summary>
         public Vector(Span<T> values)
             : this()
@@ -809,6 +867,36 @@ namespace System.Numerics
         #endregion Constructors
 
         #region Public Instance Methods
+        /// <summary>
+        /// Copies the vector to the given <see cref="Span{Byte}"/>. The destination span must be at least size <see cref="Vector{Byte}.Count"/>.
+        /// </summary>
+        /// <param name="destination">The destination span which the values are copied into</param>
+        /// <exception cref="ArgumentException">If number of elements in source vector is greater than those available in destination span</exception>
+        public void CopyTo(Span<byte> destination)
+        {
+            if ((uint)destination.Length < (uint)Vector<byte>.Count)
+            {
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            }
+
+            Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
+        }
+
+        /// <summary>
+        /// Copies the vector to the given <see cref="Span{T}"/>. The destination span must be at least size <see cref="Vector{T}.Count"/>.
+        /// </summary>
+        /// <param name="destination">The destination span which the values are copied into</param>
+        /// <exception cref="ArgumentException">If number of elements in source vector is greater than those available in destination span</exception>
+        public void CopyTo(Span<T> destination)
+        {
+            if ((uint)destination.Length < (uint)Count)
+            {
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            }
+
+            Unsafe.WriteUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(destination)), this);
+        }
+
         /// <summary>
         /// Copies the vector to the given destination array. The destination array must be at least size Vector'T.Count.
         /// </summary>
@@ -1589,6 +1677,40 @@ namespace System.Numerics
             sb.Append(((IFormattable)this[Count - 1]).ToString(format, formatProvider));
             sb.Append('>');
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Attempts to copy the vector to the given <see cref="Span{Byte}"/>. The destination span must be at least size <see cref="Vector{Byte}.Count"/>.
+        /// </summary>
+        /// <param name="destination">The destination span which the values are copied into</param>
+        /// <returns>True if the source vector was successfully copied to <paramref name="destination"/>. False if
+        /// <paramref name="destination"/> is not large enough to hold the source vector.</returns>
+        public bool TryCopyTo(Span<byte> destination)
+        {
+            if ((uint)destination.Length < (uint)Vector<byte>.Count)
+            {
+                return false;
+            }
+
+            Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
+            return true;
+        }
+
+        /// <summary>
+        /// Attempts to copy the vector to the given <see cref="Span{T}"/>. The destination span must be at least size <see cref="Vector{T}.Count"/>.
+        /// </summary>
+        /// <param name="destination">The destination span which the values are copied into</param>
+        /// <returns>True if the source vector was successfully copied to <paramref name="destination"/>. False if
+        /// <paramref name="destination"/> is not large enough to hold the source vector.</returns>
+        public bool TryCopyTo(Span<T> destination)
+        {
+            if ((uint)destination.Length < (uint)Count)
+            {
+                return false;
+            }
+
+            Unsafe.WriteUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(destination)), this);
+            return true;
         }
         #endregion Public Instance Methods
 
