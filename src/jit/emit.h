@@ -1614,9 +1614,9 @@ private:
 // and must store them all to the frame on entry. If the frame is very large, we generate
 // ugly code like "movw r10, 0x488; add r10, sp; vstr s0, [r10]" for each store, which
 // eats up our insGroup buffer.
-#define SC_IG_BUFFER_SIZE (100 * sizeof(instrDesc) + 14 * SMALL_IDSC_SIZE)
+#define SC_IG_BUFFER_SIZE (100 * sizeof(emitter::instrDesc) + 14 * SMALL_IDSC_SIZE)
 #else // !_TARGET_ARMARCH_
-#define SC_IG_BUFFER_SIZE (50 * sizeof(instrDesc) + 14 * SMALL_IDSC_SIZE)
+#define SC_IG_BUFFER_SIZE (50 * sizeof(emitter::instrDesc) + 14 * SMALL_IDSC_SIZE)
 #endif // !_TARGET_ARMARCH_
 
     size_t emitIGbuffSize;

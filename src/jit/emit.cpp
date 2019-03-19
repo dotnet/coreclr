@@ -382,6 +382,26 @@ void emitterStaticStats(FILE* fout)
 #endif // _TARGET_ARM_
 
     fprintf(fout, "\n");
+    fprintf(fout, "SC_IG_BUFFER_SIZE             = %2u\n", SC_IG_BUFFER_SIZE);
+    fprintf(fout, "SMALL_IDSC_SIZE per IG buffer = %2u\n", SC_IG_BUFFER_SIZE / SMALL_IDSC_SIZE);
+    fprintf(fout, "instrDesc per IG buffer       = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDesc));
+    fprintf(fout, "instrDescJmp per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescJmp));
+#if !defined(_TARGET_ARM64_)
+    fprintf(fout, "instrDescLbl per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescLbl));
+#endif // !defined(_TARGET_ARM64_)
+    fprintf(fout, "instrDescCns per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCns));
+    fprintf(fout, "instrDescDsp per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescDsp));
+    fprintf(fout, "instrDescCnsDsp per IG buffer = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCnsDsp));
+#ifdef _TARGET_XARCH_
+    fprintf(fout, "instrDescAmd per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescAmd));
+    fprintf(fout, "instrDescCnsAmd per IG buffer = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCnsAmd));
+#endif // _TARGET_XARCH_
+    fprintf(fout, "instrDescCGCA per IG buffer   = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCGCA));
+#ifdef _TARGET_ARM_
+    fprintf(fout, "instrDescReloc per IG buffer  = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescReloc));
+#endif // _TARGET_ARM_
+
+    fprintf(fout, "\n");
     fprintf(fout, "GCInfo::regPtrDsc:\n");
     fprintf(fout, "Offset of rpdNext           = %2u\n", offsetof(GCInfo::regPtrDsc, rpdNext));
     fprintf(fout, "Offset of rpdOffs           = %2u\n", offsetof(GCInfo::regPtrDsc, rpdOffs));
