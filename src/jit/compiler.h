@@ -387,7 +387,7 @@ public:
     // "BasicBlock"
     LiveRangeListIterator getStartForDump() const;
 
-    // Retutn wheter at least a "VariableLiveRange" was alive during the current "BasicBlock"'s
+    // Return whether at least a "VariableLiveRange" was alive during the current "BasicBlock"'s
     // code generation
     bool hasLiveRangesToDump() const;
 };
