@@ -2144,6 +2144,7 @@ public:
     static unsigned emitTotalIGicnt;
     static size_t   emitTotalIGsize;
     static unsigned emitTotalIGmcnt; // total method count
+    static unsigned emitTotalIGEmitAdd; // total number of 'emitAdd' (overflow) groups
     static unsigned emitTotalIGjmps;
     static unsigned emitTotalIGptrs;
 
@@ -2420,7 +2421,7 @@ inline emitter::instrDesc* emitter::emitNewInstrCns(emitAttr attr, target_ssize_
 
 #if EMITTER_STATS
         emitSmallCnsCnt++;
-        if (cns - ID_MIN_SMALL_CNS >= SMALL_CNS_TSZ - 1)
+        if ((cns - ID_MIN_SMALL_CNS) >= (SMALL_CNS_TSZ - 1))
             emitSmallCns[SMALL_CNS_TSZ - 1]++;
         else
             emitSmallCns[cns - ID_MIN_SMALL_CNS]++;
@@ -2479,7 +2480,7 @@ inline emitter::instrDesc* emitter::emitNewInstrSC(emitAttr attr, target_ssize_t
 
 #if EMITTER_STATS
         emitSmallCnsCnt++;
-        if (cns - ID_MIN_SMALL_CNS >= SMALL_CNS_TSZ - 1)
+        if ((cns - ID_MIN_SMALL_CNS) >= (SMALL_CNS_TSZ - 1))
             emitSmallCns[SMALL_CNS_TSZ - 1]++;
         else
             emitSmallCns[cns - ID_MIN_SMALL_CNS]++;

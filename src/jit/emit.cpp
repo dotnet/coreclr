@@ -274,6 +274,7 @@ unsigned emitter::emitTotalIGptrs;
 unsigned emitter::emitTotalIGicnt;
 size_t   emitter::emitTotalIGsize;
 unsigned emitter::emitTotalIGmcnt;
+unsigned emitter::emitTotalIGEmitAdd;
 
 unsigned emitter::emitTotalIDescSmallCnt;
 unsigned emitter::emitTotalIDescCnt;
@@ -462,6 +463,7 @@ void emitterStats(FILE* fout)
         fprintf(fout, "Total of %8u methods\n", emitter::emitTotalIGmcnt);
         fprintf(fout, "Total of %8u insGroup\n", emitter::emitTotalIGcnt);
         fprintf(fout, "Total of %8u insPlaceholderGroupData\n", emitter::emitTotalPhIGcnt);
+        fprintf(fout, "Total of %8u emitAdd insGroup\n", emitter::emitTotalIGEmitAdd);
         fprintf(fout, "Total of %8u instructions\n", emitter::emitTotalIGicnt);
         fprintf(fout, "Total of %8u jumps\n", emitter::emitTotalIGjmps);
         fprintf(fout, "Total of %8u GC livesets\n", emitter::emitTotalIGptrs);
@@ -470,6 +472,8 @@ void emitterStats(FILE* fout)
                 (double)emitter::emitTotalIGcnt / emitter::emitTotalIGmcnt);
         fprintf(fout, "Average of %8.1lf insPhGroup   per method\n",
                 (double)emitter::emitTotalPhIGcnt / emitter::emitTotalIGmcnt);
+        fprintf(fout, "Average of %8.1lf emitAdd IG   per method\n",
+                (double)emitter::emitTotalIGEmitAdd / emitter::emitTotalIGmcnt);
         fprintf(fout, "Average of %8.1lf instructions per method\n",
                 (double)emitter::emitTotalIGicnt / emitter::emitTotalIGmcnt);
         fprintf(fout, "Average of %8.1lf desc.  bytes per method\n",
@@ -2261,7 +2265,7 @@ emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, target_ssize_t cn
 
 #if EMITTER_STATS
             emitSmallCnsCnt++;
-            if (cns - ID_MIN_SMALL_CNS >= SMALL_CNS_TSZ - 1)
+            if ((cns - ID_MIN_SMALL_CNS) >= (SMALL_CNS_TSZ - 1))
                 emitSmallCns[SMALL_CNS_TSZ - 1]++;
             else
                 emitSmallCns[cns - ID_MIN_SMALL_CNS]++;
@@ -2296,7 +2300,7 @@ emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, target_ssize_t cn
 #if EMITTER_STATS
             emitLargeDspCnt++;
             emitSmallCnsCnt++;
-            if (cns - ID_MIN_SMALL_CNS >= SMALL_CNS_TSZ - 1)
+            if ((cns - ID_MIN_SMALL_CNS) >= (SMALL_CNS_TSZ - 1))
                 emitSmallCns[SMALL_CNS_TSZ - 1]++;
             else
                 emitSmallCns[cns - ID_MIN_SMALL_CNS]++;
@@ -6971,6 +6975,10 @@ void emitter::emitNxtIG(bool emitAdd)
     if (emitAdd)
     {
         emitCurIG->igFlags |= IGF_EMIT_ADD;
+
+#if EMITTER_STATS
+        emitTotalIGEmitAdd++;
+#endif // EMITTER_STATS
     }
 
     // We've created a new IG; no need to force another one.
