@@ -1619,7 +1619,7 @@ BOOL ClassLoader::FindClassModuleThrowing(
 
     EEClassHashEntry_t * pBucket = foundEntry.GetClassHashBasedEntryValue();
 
-    if (pBucket == NULL && needsToBuildHashtable)
+    if (pBucket == NULL)
     {
         AvailableClasses_LockHolder lh(this);
 
@@ -1629,7 +1629,7 @@ BOOL ClassLoader::FindClassModuleThrowing(
         pBucket = foundEntry.GetClassHashBasedEntryValue();
 
 #ifndef DACCESS_COMPILE
-        if ((pBucket == NULL) && (m_cUnhashedModules > 0))
+        if (needsToBuildHashtable && (pBucket == NULL) && (m_cUnhashedModules > 0))
         {
             _ASSERT(needsToBuildHashtable);
 
@@ -1651,6 +1651,7 @@ BOOL ClassLoader::FindClassModuleThrowing(
 #endif
     }
 
+    // Same check as above, but this time we've checked with the lock so the table will be populated
     if (pBucket == NULL)
     {
 #if defined(_DEBUG_IMPL) && !defined(DACCESS_COMPILE)
