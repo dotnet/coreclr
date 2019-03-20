@@ -695,8 +695,10 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming dead\n", varNum);
         }
 
+#ifdef USING_VARIABLE_LIVE_RANGE
         VariableLiveKeeper* varLiveKeeper = getVariableLiveKeeper();
         varLiveKeeper->siEndVariableLiveRange(varNum);
+#endif // USING_VARIABLE_LIVE_RANGE
     }
 
     VarSetOps::Iter bornIter(this, bornSet);
@@ -735,9 +737,12 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming live\n", varNum);
         }
 
+#ifdef USING_VARIABLE_LIVE_RANGE
         VariableLiveKeeper* varLiveKeeper = getVariableLiveKeeper();
         varLiveKeeper->siStartVariableLiveRange(varDsc, varNum);
+#endif // USING_VARIABLE_LIVE_RANGE
     }
+
 #ifdef USING_SCOPE_INFO
     codeGen->siUpdate();
 #endif // USING_SCOPE_INFO

@@ -824,6 +824,7 @@ void CodeGen::genSpillVar(GenTree* tree)
         varDsc->lvOtherReg = REG_STK;
     }
 
+#ifdef USING_VARIABLE_LIVE_RANGE
     if (needsSpill)
     {
         // We need this after "lvRegNum" has change because now we are sure that varDsc->lvIsInReg() is false.
@@ -832,6 +833,7 @@ void CodeGen::genSpillVar(GenTree* tree)
         VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
         varLvKeeper->siUpdateVariableLiveRange(varDsc, varNum);
     }
+#endif // USING_VARIABLE_LIVE_RANGE
 }
 
 //------------------------------------------------------------------------
@@ -992,9 +994,11 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             {
                 genUpdateVarReg(varDsc, tree);
 
+#ifdef USING_VARIABLE_LIVE_RANGE
                 // Report the home change for this variable
                 VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
                 varLvKeeper->siUpdateVariableLiveRange(varDsc, lcl->gtLclNum);
+#endif // USING_VARIABLE_LIVE_RANGE
 
 #ifdef DEBUG
                 if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))

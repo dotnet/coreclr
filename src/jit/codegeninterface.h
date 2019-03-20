@@ -25,11 +25,14 @@
 #include "jitgcinfo.h"
 #include "treelifeupdater.h"
 
-// Disable this flag to avoid using psiScope/siScope info to report reporting
-// variables' home location during the method/prolog code.
+// Disable this flag to avoid using psiScope/siScope or VariableLiveRange
+// info to report reporting variables' home location during the method/prolog code.
 #if 1
 #define USING_SCOPE_INFO
 #endif // USING_SCOPE_INFO
+#if 1
+#define USING_VARIABLE_LIVE_RANGE
+#endif
 
 // Forward reference types
 
