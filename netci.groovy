@@ -3532,6 +3532,15 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
         }
     }
 
+    // Disable flow jobs for innerloop pr.
+    //
+    // The only exception is windows arm(64)
+    if (isInnerloopTestScenario(scenario) && isPR && os != 'Windows_NT') {
+        assert scenario != 'corefx_innerloop'
+
+        return false;
+    }
+
     // Filter based on OS and architecture.
 
     switch (architecture) {
