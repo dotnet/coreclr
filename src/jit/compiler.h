@@ -324,7 +324,7 @@ public:
     CodeGenInterface::siVarLoc m_VarHome;           // variable home
 
     VariableLiveRange(CodeGenInterface::siVarLoc varHome, emitLocation startEmitLocation, emitLocation endEmitLocation)
-        : m_VarHome(varHome), m_StartEmitLocation(startEmitLocation), m_EndEmitLocation(endEmitLocation)
+        : m_StartEmitLocation(startEmitLocation), m_EndEmitLocation(endEmitLocation), m_VarHome(varHome)
     {
     }
 };
