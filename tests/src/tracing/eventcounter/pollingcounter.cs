@@ -101,6 +101,14 @@ namespace BasicEventSourceTests
                             }
                         }
 
+                        // Check if the mean is what we expect it to be
+                        // subtracting 1 from failureCountCalled because it got incremented by 1 after it was previously polled, so PollingCounter should report 1 less than this.
+                        if (!mean.Equals((failureCountCalled-1).ToString()))  
+                        {
+                            Console.WriteLine($"Mean is not what we expected: {mean} vs {failureCountCalled}");
+                            Failed = true;
+                        }
+
                         // In PollingCounter, min/max/mean should have the same value since we aggregate value only once per counter
                         if (!min.Equals(mean) || !min.Equals(max))
                         {
