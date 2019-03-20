@@ -1838,7 +1838,7 @@ DWORD PEDecoder::ReadResourceDictionary(DWORD rvaOfResourceSection, DWORD rva, L
             if (!(entryName & IMAGE_RESOURCE_NAME_IS_STRING))
                 continue;
             
-            DWORD entryNameRva = entryName & ~IMAGE_RESOURCE_NAME_IS_STRING;
+            DWORD entryNameRva = (entryName & ~IMAGE_RESOURCE_NAME_IS_STRING) + rvaOfResourceSection;
 
             if (!CheckRva(entryNameRva, sizeof(WORD)))
                 return 0;
@@ -1850,7 +1850,7 @@ DWORD PEDecoder::ReadResourceDictionary(DWORD rvaOfResourceSection, DWORD rva, L
             if (!CheckRva(entryNameRva, (COUNT_T)(sizeof(WORD) * (1 + entryNameLen))))
                 return 0;
             
-            if (wcscmp((WCHAR*)GetRvaData(entryNameRva + sizeof(WORD)), name) == 0)
+            if (memcmp((WCHAR*)GetRvaData(entryNameRva + sizeof(WORD)), name, entryNameLen * sizeof(WCHAR)) == 0)
                 foundEntry = TRUE;
         }
 
@@ -1924,7 +1924,7 @@ void * PEDecoder::GetWin32Resource(LPCWSTR lpName, LPCWSTR lpType, COUNT_T *pSiz
     // This translates to LANGID 0 as the initial lookup point, which is sufficient for the needs of this api at this time
     // (FindResource in the Windows api implements a large number of fallback paths which this api does not implement)
 
-    DWORD resourceDataEntryRva = ReadResourceDictionary(pDir->VirtualAddress, nameTableRva, lpName, &isDictionary);
+    DWORD resourceDataEntryRva = ReadResourceDictionary(pDir->VirtualAddress, languageTableRva, 0, &isDictionary);
     if (isDictionary) // This must not be a resource dictionary itself
         return NULL;
 
