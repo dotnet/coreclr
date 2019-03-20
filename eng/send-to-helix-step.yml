@@ -31,7 +31,7 @@ steps:
       _HelixAccessToken: ${{ parameters.helixAccessToken }}
       _HelixBuild: ${{ parameters.helixBuild }}
       _HelixSource: ${{ parameters.helixSource }}
-      _HelixTargetQueues: ${{ parameters.helixQueues.asString }}
+      _HelixTargetQueues: ${{ parameters.helixQueues }}
       _HelixType: ${{ parameters.helixType }}
       _RunCrossGen: ${{ parameters.runCrossGen }}
       _Scenarios: ${{ parameters.scenarios.asString }}
@@ -54,7 +54,7 @@ steps:
       _HelixAccessToken: ${{ parameters.helixAccessToken }}
       _HelixBuild: ${{ parameters.helixBuild }}
       _HelixSource: ${{ parameters.helixSource }}
-      _HelixTargetQueues: ${{ parameters.helixQueues.asString }}
+      _HelixTargetQueues: ${{ parameters.helixQueues }}
       _HelixType: ${{ parameters.helixType }}
       _RunCrossGen: ${{ parameters.runCrossGen }}
       _Scenarios: ${{ parameters.scenarios.asString }}
