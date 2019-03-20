@@ -155,7 +155,7 @@ jobs:
 
         helixQueues: ${{ parameters.helixQueues }}
 
-        ${{ if eq(parameters.helixQueues.asString, '') }}:
+        ${{ if eq(join('-', parameters.helixQueues), '') }}:
           condition: false
 
         publishTestResults: true
