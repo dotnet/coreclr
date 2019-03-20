@@ -412,6 +412,37 @@ CodeGenInterface::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg,
     }
 }
 
+//------------------------------------------------------------------------
+// getSiVarLoc: Returns a "siVarLoc" instance representing the variable home.
+//
+// Arguments:
+//    varDsc       - the variable it is desired to build the "siVarLoc".
+//    stackLevel   - the stack variables in case frame is not hold by ebp
+//
+// Return Value:
+//    A "siVarLoc" representing the variable home, which could live
+//    in a register, an stack position, or a combination of both.
+//
+CodeGenInterface::siVarLoc CodeGenInterface::getSiVarLoc(const LclVarDsc* varDsc, unsigned int stackLevel) const
+{
+    // For stack vars, find the base register, and offset
+
+    regNumber baseReg;
+    signed    offset = varDsc->lvStkOffs;
+
+    if (!varDsc->lvFramePointerBased)
+    {
+        baseReg = REG_SPBASE;
+        offset += stackLevel;
+    }
+    else
+    {
+        baseReg = REG_FPBASE;
+    }
+
+    return CodeGenInterface::siVarLoc(varDsc, baseReg, offset, isFramePointerUsed());
+}
+
 #ifdef USING_SCOPE_INFO
 //------------------------------------------------------------------------
 // getSiVarLoc: Returns a "siVarLoc" instance representing the place where the variable

@@ -543,6 +543,8 @@ public:
     };
 
 public:
+    siVarLoc getSiVarLoc(const LclVarDsc* varDsc, unsigned int stackLevel) const;
+
     unsigned getCurrentStackLevel() const;
 
 protected:
