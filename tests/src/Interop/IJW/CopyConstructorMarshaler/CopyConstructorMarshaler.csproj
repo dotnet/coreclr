@@ -38,7 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="CMakeLists.txt" />
-    <ProjectReference Include="../FakeMscoree/CMakeLists.txt" />
+    <ProjectReference Include="../ijwhostmock/CMakeLists.txt" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
