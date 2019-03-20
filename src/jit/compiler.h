@@ -331,6 +331,9 @@ public:
     }
 };
 
+typedef jitstd::list<VariableLiveRange> LiveRangeList;
+typedef LiveRangeList::const_iterator   LiveRangeListIterator;
+
 class LclVarDsc
 {
 public:
