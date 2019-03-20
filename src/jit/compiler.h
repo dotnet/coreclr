@@ -3044,11 +3044,15 @@ public:
         return &lvaTable[lclVar->GetLclNum()];
     }
 
+#ifdef DEBUG
+    // This method should only be used on debug code. The substraction needs a division,
+    // which is more expensive than forwarding the varNum and indexing.
     unsigned int lvaGetVarNum(const LclVarDsc* varDsc)
     {
         assert(varDsc != nullptr);
         return (unsigned int)(varDsc - lvaTable);
     }
+#endif // DEBUG
 
     unsigned lvaLclSize(unsigned varNum);
     unsigned lvaLclExactSize(unsigned varNum);
