@@ -516,18 +516,27 @@ void CodeGen::genCodeForBBlist()
         // This can lead to problems when debugging the generated code. To prevent these issues, make sure
         // we've generated code for the last IL offset we saw in the block.
         genEnsureCodeEmitted(currentILOffset);
+
+        /* Is this the last block, and are there any open scopes left ? */
+
+        bool isLastBlockProcessed = (block->bbNext == nullptr);
+        if (block->isBBCallAlwaysPair())
+        {
+            isLastBlockProcessed = (block->bbNext->bbNext == nullptr);
+        }
+
+#ifdef USING_VARIABLE_LIVE_RANGE
+        if (compiler->opts.compDbgInfo && isLastBlockProcessed)
+        {
+            VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
+            varLvKeeper->siEndAllVariableLiveRange(&compiler->compCurLife);
+        }
+#endif // USING_VARIABLE_LIVE_RANGE
+
 #ifdef USING_SCOPE_INFO
         if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
         {
             siEndBlock(block);
-
-            /* Is this the last block, and are there any open scopes left ? */
-
-            bool isLastBlockProcessed = (block->bbNext == nullptr);
-            if (block->isBBCallAlwaysPair())
-            {
-                isLastBlockProcessed = (block->bbNext->bbNext == nullptr);
-            }
 
             if (isLastBlockProcessed && siOpenScopeList.scNext)
             {
