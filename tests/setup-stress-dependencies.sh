@@ -76,7 +76,7 @@ fi
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "Running init-tools.sh"
-"${scriptDir}"/../init-tools.sh
+source "${scriptDir}"/../init-tools.sh
 
 dotnet=$"${scriptDir}"/../.dotnet/dotnet
 packageDir="${scriptDir}"/../packages
@@ -147,7 +147,7 @@ initDistroRidGlobal ${__BuildOS} x64 ${isPortable}
 # The CoreDisTools package is currently manually packaged and we only have
 # 14.04 and 16.04 packages. Use the oldest package which will work on newer
 # platforms.
-if [[ ${__DistroRid} == "ubuntu"* ]]; then
+if [[ ${__BuildOS} == "Linux" ]]; then
    __DistroRid=ubuntu.14.04
 fi
 
