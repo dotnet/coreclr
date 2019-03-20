@@ -1803,7 +1803,7 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, R
 #ifdef DEBUG
     if (comp->verbose)
     {
-        unsigned varNum = (unsigned)(this - comp->lvaTable);
+        unsigned varNum = comp->lvaGetVarNum(this);
         assert(&comp->lvaTable[varNum] == this);
         printf("New refCnts for V%02u: refCnt = %2u, refCntWtd = %s\n", varNum, lvRefCnt(state),
                refCntWtd2str(lvRefCntWtd(state)));

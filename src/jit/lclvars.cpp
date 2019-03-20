@@ -2286,7 +2286,7 @@ unsigned Compiler::lvaGetFieldLocal(const LclVarDsc* varDsc, unsigned int fldOff
     for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
     {
         noway_assert(lvaTable[i].lvIsStructField);
-        noway_assert(lvaTable[i].lvParentLcl == (unsigned)(varDsc - lvaTable));
+        noway_assert(lvaTable[i].lvParentLcl == lvaGetVarNum(varDsc));
         if (lvaTable[i].lvFldOffset == fldOffset)
         {
             return i;
@@ -3245,7 +3245,7 @@ void Compiler::lvaDumpRefCounts()
             unsigned refCntWtd = lvaRefSorted[lclNum]->lvRefCntWtd();
 
             printf("   ");
-            gtDispLclVar((unsigned)(lvaRefSorted[lclNum] - lvaTable));
+            gtDispLclVar(lvaGetVarNum(lvaRefSorted[lclNum]));
             printf(" [%6s]: refCnt = %4u, refCntWtd = %6s", varTypeName(lvaRefSorted[lclNum]->TypeGet()), refCnt,
                    refCntWtd2str(refCntWtd));
             printf("\n");
@@ -3455,7 +3455,7 @@ void Compiler::lvaSortByRefCount()
 
             /* This variable will be tracked - assign it an index */
 
-            lvaTrackedToVarNum[lvaTrackedCount] = (unsigned)(varDsc - lvaTable); // The type of varDsc and lvaTable
+            lvaTrackedToVarNum[lvaTrackedCount] = lvaGetVarNum(varDsc); // The type of varDsc and lvaTable
             // is LclVarDsc. Subtraction will give us
             // the index.
             varDsc->lvVarIndex = lvaTrackedCount++;

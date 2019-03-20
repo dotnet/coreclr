@@ -262,7 +262,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
 #ifdef DEBUG
                 if (compiler->verbose)
                 {
-                    printf("\t\t\t\t\t\t\tVar V%02u becoming live\n", varDsc - compiler->lvaTable);
+                    printf("\t\t\t\t\t\t\tVar V%02u becoming live\n", compiler->lvaGetVarNum(varDsc));
                 }
 #endif // DEBUG
             }
