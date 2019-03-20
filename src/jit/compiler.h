@@ -3047,7 +3047,7 @@ public:
     unsigned int lvaGetVarNum(const LclVarDsc* varDsc)
     {
         assert(varDsc != nullptr);
-        return varDsc - lvaTable;
+        return (unsigned int)(varDsc - lvaTable);
     }
 
     unsigned lvaLclSize(unsigned varNum);
