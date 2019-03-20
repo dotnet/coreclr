@@ -686,7 +686,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             {
                 codeGen->gcInfo.gcRegByrefSetCur &= ~regMask;
             }
-            codeGen->genUpdateRegLife(varDsc, varNum, false /*isBorn*/, true /*isDying*/ DEBUGARG(nullptr));
+            codeGen->genUpdateRegLife(varDsc, false /*isBorn*/, true /*isDying*/ DEBUGARG(nullptr));
         }
         // This isn't in a register, so update the gcVarPtrSetCur.
         else if (isGCRef || isByRef)
