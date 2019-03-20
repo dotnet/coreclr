@@ -10973,3 +10973,162 @@ bool Compiler::killGCRefs(GenTree* tree)
 
     return false;
 }
+
+//------------------------------------------------------------------------
+//                      VariableLiveDescriptor
+//------------------------------------------------------------------------
+
+VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
+{
+    // Initialize an empty list
+    variableLiveRanges = allocator.allocate<LiveRangeList>(1);
+
+    size_t variableLiveRangesSize = sizeof(*variableLiveRanges);
+    memset(variableLiveRanges, 0, variableLiveRangesSize);
+
+    new (variableLiveRanges, jitstd::placement_t()) LiveRangeList(allocator);
+}
+
+VariableLiveDescriptor::~VariableLiveDescriptor()
+{
+    noway_assert(variableLiveRanges != nullptr);
+
+    variableLiveRanges->~list();
+}
+
+//------------------------------------------------------------------------
+// hasVariableLiveRangeOpen: Return true if the variable is still alive,
+//  false in other case.
+//
+bool VariableLiveDescriptor::hasVariableLiveRangeOpen() const
+{
+    noway_assert(variableLiveRanges != nullptr);
+
+    return !variableLiveRanges->empty() && !variableLiveRanges->back().m_EndEmitLocation.Valid();
+}
+
+//------------------------------------------------------------------------
+// getAmountLiveRanges: Return amount of variable homes reported for this
+//  variable.
+//
+// Return Value:
+//  A boolean.
+//
+size_t VariableLiveDescriptor::getAmountLiveRanges() const
+{
+    size_t result = 0;
+    if (variableLiveRanges != nullptr)
+    {
+        result = variableLiveRanges->size();
+    }
+    return result;
+}
+
+//------------------------------------------------------------------------
+// getAmountLiveRanges: Return the list of variable homes for this variable.
+//
+// Return Value:
+//  A const LiveRangeList* pointing to the first variable home if it has
+//  any or the end of the list in other case.
+//
+const LiveRangeList* VariableLiveDescriptor::getLiveRanges() const
+{
+    return variableLiveRanges;
+}
+
+//------------------------------------------------------------------------
+// startLiveRangeFromEmitter: Report this variable as being born in "varHome"
+//  since the instruction where "_emitter" is located.
+//
+// Arguments:
+//  varHome  - the home of the variable.
+//  _emitter - an emitter* instance located at the first instruction from
+//   where "varHome" becomes valid.
+//
+// Assumptions:
+//  This variable is being born so it should be dead.
+//
+// Notes:
+//  The position of "_emitter" matters to ensure intervals inclusive of the
+//  beginning and exclusive of the end.
+//
+void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const
+{
+    noway_assert(_emitter != nullptr);
+
+    // Is the first "VariableLiveRange" or the previous one has been closed so its "m_EndEmitLocation" is valid
+    noway_assert(variableLiveRanges->empty() || variableLiveRanges->back().m_EndEmitLocation.Valid());
+
+    // Creates new live range with invalid end
+    variableLiveRanges->emplace_back(varHome, emitLocation(), emitLocation());
+    variableLiveRanges->back().m_StartEmitLocation.CaptureLocation(_emitter);
+
+    // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
+    noway_assert(variableLiveRanges->back().m_StartEmitLocation.Valid());
+    noway_assert(!variableLiveRanges->back().m_EndEmitLocation.Valid());
+}
+
+//------------------------------------------------------------------------
+// endLiveRangeAtEmitter: Report this variable as becoming dead since the
+//  instruction where "_emitter" is located.
+//
+// Arguments:
+//  _emitter - an emitter* instance located at the first instruction from
+//   this variable becomes dead.
+//
+// Assumptions:
+//  This variable is becoming dead so it should be alive.
+//
+// Notes:
+//  The position of "_emitter" matters to ensure intervals inclusive of the
+//  beginning and exclusive of the end.
+//
+void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* _emitter) const
+{
+    noway_assert(hasVariableLiveRangeOpen());
+
+    // Using [close, open) ranges so as to not compute the size of the last instruction
+    variableLiveRanges->back().m_EndEmitLocation.CaptureLocation(_emitter);
+
+    // No m_EndEmitLocation has to be Valid
+    noway_assert(variableLiveRanges->back().m_EndEmitLocation.Valid());
+}
+
+//------------------------------------------------------------------------
+// UpdateLiveRangeAtEmitter: Report this variable as changing its variable
+//  home to "varHome" since the instruction where "_emitter" is located.
+//
+// Arguments:
+//  varHome  - the new variable home.
+//  _emitter - an emitter* instance located at the first instruction from
+//   where "varHome" becomes valid.
+//
+// Assumptions:
+//  This variable is being born so it should be dead.
+//
+// Notes:
+//  The position of "_emitter" matters to ensure intervals inclusive of the
+//  beginning and exclusive of the end.
+//
+void VariableLiveDescriptor::UpdateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const
+{
+    // This variable is changing home so it has been started before during this block
+    noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
+
+    // And its last m_EndEmitLocation has to be invalid
+    noway_assert(!variableLiveRanges->back().m_EndEmitLocation.Valid());
+
+    // If we are reporting again the same home, that means we are doing something twice?
+    // noway_assert(variableLiveRanges->back().m_VarLocation != varLocation);
+
+    // Close previous live range
+    endLiveRangeAtEmitter(_emitter);
+
+    // Open new live range with invalid end
+    variableLiveRanges->emplace_back(varHome, emitLocation(), emitLocation());
+    variableLiveRanges->back().m_StartEmitLocation.CaptureLocation(_emitter);
+
+    // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
+    noway_assert(variableLiveRanges->back().m_StartEmitLocation.Valid());
+    noway_assert(!variableLiveRanges->back().m_EndEmitLocation.Valid());
+}

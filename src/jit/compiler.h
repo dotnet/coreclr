@@ -321,18 +321,49 @@ class VariableLiveRange
 public:
     emitLocation               m_StartEmitLocation; // first position from where "m_VarLocation" becomes valid
     emitLocation               m_EndEmitLocation;   // last position where "m_VarLocation" is valid
-    CodeGenInterface::siVarLoc m_VarLocation;       // variable home
+    CodeGenInterface::siVarLoc m_VarHome;           // variable home
 
-    VariableLiveRange(CodeGenInterface::siVarLoc varLocation,
-                      emitLocation               startEmitLocation,
-                      emitLocation               endEmitLocation)
-        : m_VarLocation(varLocation), m_StartEmitLocation(startEmitLocation), m_EndEmitLocation(endEmitLocation)
+    VariableLiveRange(CodeGenInterface::siVarLoc varHome, emitLocation startEmitLocation, emitLocation endEmitLocation)
+        : m_VarHome(varHome), m_StartEmitLocation(startEmitLocation), m_EndEmitLocation(endEmitLocation)
     {
     }
 };
 
 typedef jitstd::list<VariableLiveRange> LiveRangeList;
 typedef LiveRangeList::const_iterator   LiveRangeListIterator;
+
+//--------------------------------------------
+//
+// VariableLiveDescriptor: This class persist and update all the changes
+//  on the variable home of a variable. It has an instance of "LiveRangeList"
+//  and methods to report the start/end of a VariableLiveRange.
+//
+// Notes:
+//  It has an instance of "LiveRangeList"
+//  and methods to report the start/end of a VariableLiveRange.
+//
+class VariableLiveDescriptor
+{
+private:
+    LiveRangeList* variableLiveRanges; // the variable homes of this variable
+
+public:
+    VariableLiveDescriptor(CompAllocator allocator);
+
+    ~VariableLiveDescriptor();
+
+    bool hasVariableLiveRangeOpen() const;
+
+    size_t getAmountLiveRanges() const;
+
+    const LiveRangeList* getLiveRanges() const;
+
+    void startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const;
+
+    void endLiveRangeAtEmitter(emitter* _emitter) const;
+
+    void UpdateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const;
+};
 
 class LclVarDsc
 {
