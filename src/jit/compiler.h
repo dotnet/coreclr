@@ -362,7 +362,56 @@ public:
 
     void endLiveRangeAtEmitter(emitter* _emitter) const;
 
-    void UpdateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const;
+    void updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const;
+};
+
+//--------------------------------------------
+//
+// VariableLiveDescriptor: Holds an array of "VariableLiveDescriptor", one per each variable
+//  that is desired to track its variable homes. It provides start/end/update/count operations
+//  over the "LiveRangeList" of any variable.
+//
+// Notes:
+//  This methoud could be implemented on Compiler class too, but the intention is to move code
+//  out of that class, which is huge. With this solution the only code needed in Compiler is
+//  a getter and an initializer of this class.
+//  The index of each variable in this array corresponds to the one in "compiler->lvaTable".
+//  We care about tracking the variable homes of arguments, special arguments, and local IL
+//  variables, and we ignore any other variable (like JIT temporal variables).
+//
+class VariableLiveKeeper
+{
+private:
+    unsigned int lvLiveDscCount;  // count of args, special args, and IL local variables to report home
+    unsigned int lvLiveArgsCount; // count of arguments to report home
+
+    Compiler* compiler;
+
+    VariableLiveDescriptor* lvaLiveDsc; // Array of descriptors that manage VariableLiveRanges.
+                                        // It's indexes correspond to lvaTable indexes (or lvSlotNum).
+
+    bool lastBasicBlockHasBeenEmited; // When true no more siEndVariableLiveRange is considered.
+                                      // No update/start happens when code has been generated.
+public:
+    VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* compiler);
+
+    ~VariableLiveKeeper();
+
+    unsigned int getLiveRangesCount() const;
+
+    void siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum, bool isBorning, bool isDying);
+
+    void siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying);
+
+    void siStartVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum);
+
+    void siEndVariableLiveRange(unsigned int varNum);
+
+    void siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum);
+
+    void siEndAllVariableLiveRange(const VARSET_TP* varsToClose);
+
+    const LiveRangeList* getLiveRangesForVar(unsigned int varNum) const;
 };
 
 class LclVarDsc

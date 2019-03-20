@@ -11110,7 +11110,7 @@ void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* _emitter) const
 //  The position of "_emitter" matters to ensure intervals inclusive of the
 //  beginning and exclusive of the end.
 //
-void VariableLiveDescriptor::UpdateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const
+void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const
 {
     // This variable is changing home so it has been started before during this block
     noway_assert(variableLiveRanges != nullptr && !variableLiveRanges->empty());
@@ -11131,4 +11131,317 @@ void VariableLiveDescriptor::UpdateLiveRangeAtEmitter(CodeGenInterface::siVarLoc
     // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
     noway_assert(variableLiveRanges->back().m_StartEmitLocation.Valid());
     noway_assert(!variableLiveRanges->back().m_EndEmitLocation.Valid());
+}
+
+//------------------------------------------------------------------------
+//                      VariableLiveKeeper
+//------------------------------------------------------------------------
+
+//------------------------------------------------------------------------
+// VariableLiveKeeper: Create an instance of the object in charge of managing
+//  VariableLiveRanges and intialize the array "lvaLiveDsc".
+//
+// Arguments:
+//    totalLocalCount   - the amount of args, special args and IL Local
+//      variables in the method.
+//    argsCount         - the amount of args and special args in the method.
+//    compiler          - a compiler instance
+//
+VariableLiveKeeper::VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* comp)
+{
+    // Fill internal properties
+    lvLiveDscCount              = totalLocalCount;
+    lvLiveArgsCount             = argsCount;
+    compiler                    = comp;
+    lastBasicBlockHasBeenEmited = false;
+
+    if (0 < lvLiveDscCount)
+    {
+        // Get the allocator used for all the VariableLiveRange objects
+        CompAllocator allocator = compiler->getAllocator(CMK_VariableLiveRanges);
+
+        // Allocate memory for "lvaLiveDsc" and initialize each "VariableLiveDescriptor"
+        lvaLiveDsc            = allocator.allocate<VariableLiveDescriptor>(lvLiveDscCount);
+        size_t lvaLiveDscSize = sizeof(*lvaLiveDsc);
+        memset(lvaLiveDsc, 0, lvaLiveDscSize);
+
+        unsigned int            varNum;
+        VariableLiveDescriptor* varLiveDsc;
+        for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
+        {
+            new (varLiveDsc, jitstd::placement_t()) VariableLiveDescriptor(allocator);
+        }
+    }
+}
+
+VariableLiveKeeper::~VariableLiveKeeper()
+{
+    // Iterates all the VariableLiveDescriptor and clal its destructor
+
+    unsigned int            varNum;
+    VariableLiveDescriptor* varLiveDescriptor;
+    for (varNum = 0, varLiveDescriptor = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDescriptor++)
+    {
+        varLiveDescriptor->~VariableLiveDescriptor();
+    }
+}
+
+//------------------------------------------------------------------------
+// getLiveRangesCount: Returns the count of variable homes reported for the tracked
+//  variables, which are arguments, special arguments, and local IL variables.
+//
+// Return Value:
+//    unsinged int - the count of variable homes
+//
+// Notes:
+//    This method is being called from "genSetScopeInfo" to know the count of
+//    "varResultInfo" that should be created on eeSetLVcount.
+//
+unsigned int VariableLiveKeeper::getLiveRangesCount() const
+{
+    unsigned int liveRangesCount = 0;
+
+    if (compiler->opts.compDbgInfo)
+    {
+        unsigned int            varNum;
+        VariableLiveDescriptor* varLiveDsc;
+
+        for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
+        {
+            if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
+            {
+                liveRangesCount += (unsigned int)varLiveDsc->getAmountLiveRanges();
+            }
+        }
+    }
+
+    return liveRangesCount;
+}
+
+//------------------------------------------------------------------------
+// siStartOrCloseVariableLiveRange: Reports the given variable as beign born
+//  or becoming dead.
+//
+// Arguments:
+//    varDsc    - the variable for which a location changed will be reported
+//    varNum    - the index of the variable in the "compiler->lvaTable"
+//    isBorn    - whether the variable is being born from where the emitter is located.
+//    isDying   - whether the variable is dying from where the emitter is located.
+//
+// Assumptions:
+//    The emitter should be located on the first instruction from where is true that
+//    the variable becoming valid (when isBorn is true) or invalid (when isDying is true).
+//
+// Notes:
+//    This method is being called from treeLifeUpdater when the variable is being born,
+//    becoming dead, or both.
+//
+void VariableLiveKeeper::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc,
+                                                         unsigned int     varNum,
+                                                         bool             isBorn,
+                                                         bool             isDying)
+{
+    noway_assert(varDsc != nullptr);
+
+    // Only the variables that exists in the IL, "this", and special arguments
+    // are reported.
+    if (compiler->opts.compDbgInfo && varNum < lvLiveDscCount)
+    {
+        if (isBorn && !isDying)
+        {
+            // "varDsc" is valid from this point
+            siStartVariableLiveRange(varDsc, varNum);
+        }
+        if (isDying && !isBorn)
+        {
+            // this variable live range is no more valid from this point
+            siEndVariableLiveRange(varNum);
+        }
+    }
+}
+
+//------------------------------------------------------------------------
+// siStartOrCloseVariableLiveRanges: Iterates the given set of variables
+//  calling "siStartOrCloseVariableLiveRange" with each one.
+//
+// Arguments:
+//    varsIndexSet    - the set of variables to report start/end "VariableLiveRange"
+//    isBorn    - whether the set is being born from where the emitter is located.
+//    isDying   - whether the set is dying from where the emitter is located.
+//
+// Assumptions:
+//    The emitter should be located on the first instruction from where is true that
+//    the variable becoming valid (when isBorn is true) or invalid (when isDying is true).
+//
+// Notes:
+//    This method is being called from treeLifeUpdater when a set of variables
+//    is being born, becoming dead, or both.
+//
+void VariableLiveKeeper::siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying)
+{
+    noway_assert(varsIndexSet != nullptr);
+
+    if (compiler->opts.compDbgInfo)
+    {
+        VarSetOps::Iter iter(compiler, *varsIndexSet);
+        unsigned        varIndex = 0;
+        while (iter.NextElem(&varIndex))
+        {
+            unsigned int     varNum = compiler->lvaTrackedToVarNum[varIndex];
+            const LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
+            siStartOrCloseVariableLiveRange(varDsc, varNum, isBorn, isDying);
+        }
+    }
+}
+
+//------------------------------------------------------------------------
+// siStartVariableLiveRange: Reports the given variable as being born.
+//
+// Arguments:
+//    varDsc    - the variable for which a location changed will be reported
+//    varNum    - the index of the variable to report home in lvLiveDsc
+//
+// Assumptions:
+//    The emitter should be pointing to the first instruction from where the VariableLiveRange is
+//    becoming valid.
+//    The given "varDsc" should have its VariableRangeLists initialized.
+//
+// Notes:
+//    This method should be called on every place a Variable is becoming alive.
+void VariableLiveKeeper::siStartVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum)
+{
+    noway_assert(varDsc != nullptr);
+
+    // Only the variables that exists in the IL, "this", and special arguments
+    // are reported.
+    if (compiler->opts.compDbgInfo && varNum < lvLiveDscCount)
+    {
+        // Build siVarLoc for this borning "varDsc"
+        CodeGenInterface::siVarLoc varLocation =
+            compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
+
+        VariableLiveDescriptor* varLiveDsc = &lvaLiveDsc[varNum];
+        // this variable live range is valid from this point
+        varLiveDsc->startLiveRangeFromEmitter(varLocation, compiler->getEmitter());
+    }
+}
+
+//------------------------------------------------------------------------
+// siEndVariableLiveRange: Reports the variable as becoming dead.
+//
+// Arguments:
+//    varNum    - the index of the variable at lvaLiveDsc or lvaTable in that
+//       is becoming dead.
+//
+// Assumptions:
+//    The given variable should be alive.
+//    The emitter should be pointing to the first instruction from where the VariableLiveRange is
+//    becoming invalid.
+//
+// Notes:
+//    This method should be called on every place a Variable is becoming dead.
+void VariableLiveKeeper::siEndVariableLiveRange(unsigned int varNum)
+{
+    // Only the variables that exists in the IL, "this", and special arguments
+    // will be reported.
+
+    // This method is being called from genUpdateLife, and that one is called after
+    // code for BasicBlock have been generated, but the emitter has no longer
+    // a valid IG so we don't report the close of a VariableLifeRange after code is
+    // emitted.
+
+    if (compiler->opts.compDbgInfo && varNum < lvLiveDscCount && !lastBasicBlockHasBeenEmited)
+    {
+        // this variable live range is no more valid from this point
+        lvaLiveDsc[varNum].endLiveRangeAtEmitter(compiler->getEmitter());
+    }
+}
+
+//------------------------------------------------------------------------
+// siUpdateVariableLiveRange: Reports the change of variable home for the
+//  given variable.
+//
+// Arguments:
+//    varDsc    - the variable for which tis home has changed.
+//    varNum    - the index of the variable to report home in lvLiveDsc
+//
+// Assumptions:
+//    The given variable should be alive.
+//    The emitter should be pointing to the first instruction from where
+//    the new variable home is becoming valid.
+//
+void VariableLiveKeeper::siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum)
+{
+    noway_assert(varDsc != nullptr);
+
+    // Only the variables that exists in the IL, "this", and special arguments
+    // will be reported. This are locals and arguments, and are counted in
+    // "info.compLocalsCount".
+
+    // This method is being called when the prolog is being generated, and
+    // the emitter has no longer a valid IG so we don't report the close of
+    //  a VariableLifeRange after code is emitted.
+    if (compiler->opts.compDbgInfo && varNum < lvLiveDscCount && !lastBasicBlockHasBeenEmited)
+    {
+        // Build the location of the variable
+        CodeGenInterface::siVarLoc siVarLoc =
+            compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
+
+        // Report the home change for this variable
+        VariableLiveDescriptor* varLiveDsc = &lvaLiveDsc[varNum];
+        varLiveDsc->updateLiveRangeAtEmitter(siVarLoc, compiler->getEmitter());
+    }
+}
+
+//------------------------------------------------------------------------
+// siEndAllVariableLiveRange: Reports the set of variables as becoming death.
+//
+// Arguments:
+//    newLife    - the set of variables that are becoming dead.
+//
+// Assumptions:
+//    All the variables in the set are alive.
+//
+// Notes:
+//    This method is called when the last block being generated to killed all
+//    the live variables and set a flag to avoid reporting variable homes for
+//    on next calls to method that update variable liveness.
+void VariableLiveKeeper::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
+{
+    noway_assert(varsToClose != nullptr);
+    if (compiler->opts.compDbgInfo)
+    {
+        VarSetOps::Iter iter(compiler, *varsToClose);
+        unsigned        varIndex = 0;
+        while (iter.NextElem(&varIndex))
+        {
+            unsigned int varNum = compiler->lvaTrackedToVarNum[varIndex];
+            siEndVariableLiveRange(varNum);
+        }
+    }
+
+    lastBasicBlockHasBeenEmited = true;
+}
+
+//------------------------------------------------------------------------
+// getLiveRangesForVar: Return the "VariableLiveRange" that correspond to
+//  the given "varNum".
+//
+// Arguments:
+//  varNum  - the index of the variable in lvaLiveDsc, which is the same as
+//      in lvaTable.
+//
+// Return Value:
+//  A const pointer to the list of variable homes reported for the variable.
+//
+// Assumtions:
+//  This variable should be an argument, a special argument or an IL local
+//  variable.
+const LiveRangeList* VariableLiveKeeper::getLiveRangesForVar(unsigned int varNum) const
+{
+    // There should be at least one variable for which its liveness is tracked
+    noway_assert(0 < lvLiveDscCount);
+    noway_assert(varNum < lvLiveDscCount);
+
+    return lvaLiveDsc[varNum].getLiveRanges();
 }
