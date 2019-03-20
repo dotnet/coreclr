@@ -208,7 +208,7 @@ include(clrdefinitions.cmake)
 #-------------------------------------
 # Include the basic prebuilt headers - required for getting fileversion resource details.
 include_directories("src/pal/prebuilt/inc")
-include_directories("artifacts/bin/obj")
+include_directories("artifacts/obj")
 
 if(FEATURE_STANDALONE_GC)
   add_definitions(-DFEATURE_STANDALONE_GC)
@@ -220,10 +220,6 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc/rt")
   include_directories("src/pal/src/safecrt")
 endif (CLR_CMAKE_PLATFORM_UNIX)
-
-# Microsoft.Dotnet.BuildTools.Coreclr version
-set(BuildToolsVersion "1.0.4-prerelease")
-set(BuildToolsDir "${CLR_CMAKE_PACKAGES_DIR}/Microsoft.DotNet.BuildTools.CoreCLR/${BuildToolsVersion}")
 
 #------------------------------
 # Add Product Directory

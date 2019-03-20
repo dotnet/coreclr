@@ -8,9 +8,9 @@
 
   <Import Project="dir.traversal.targets" />
 
-  <Import Project="$(ToolsDir)clean.targets" Condition="'$(ArcadeBuild)' != 'true' " />
+  <Import Project="eng\Version.targets" />
 
-  <Import Project="generateversionsourcefile.targets" />
+  <Import Project="$(ToolsDir)clean.targets" Condition="'$(ArcadeBuild)' != 'true' " />
 
   <!-- The following properties are in place to keep the behavior of build.cmd while we work on the dev workflow steps. -->
   <PropertyGroup>

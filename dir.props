@@ -38,9 +38,9 @@
     <SourceDir Condition="'$(__SourceDir)'==''">$(ProjectDir)src\</SourceDir>
     
     <BinDir>$(__BinDir)\</BinDir>
-    <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)Product\$(BuildOS)\$(BuildArch)\$(BuildType)\</BinDir>
+    <BinDir Condition="'$(__BinDir)'==''">$(__RootArtifactsDir)Product\$(BuildOS)\$(BuildArch)\$(BuildType)\</BinDir>
 
-    <__IntermediatesDir Condition="'$(__IntermediatesDir)' == ''">$(RootBinDir)obj\$(BuildOS)\$(BuildArch)\$(BuildType)</__IntermediatesDir>
+    <__IntermediatesDir Condition="'$(__IntermediatesDir)' == ''">$(__RootArtifactsDir)\obj\$(BuildOS)\$(BuildArch)\$(BuildType)</__IntermediatesDir>
     <IntermediateOutputRootPath Condition="'$(IntermediateOutputRootPath)' == ''">$(__IntermediatesDir)\</IntermediateOutputRootPath>
 
     <!-- We don't append back slash because this path is used by nuget.exe as output directory and it
@@ -73,7 +73,7 @@
 
   <!-- Output paths -->
   <PropertyGroup>
-    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)obj\</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(__RootArtifactsDir)obj\</BaseIntermediateOutputPath>
     <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)$(BuildOS)\$(BuildArch)\$(BuildType)\$(MSBuildProjectName)</IntermediateOutputPath>
     <IntermediateOutputPathNonMangled Condition="'$(IntermediateOutputPathNonMangled)' == ''">$(RootBinDir)obj\$(BuildOS)\$(BuildArch)\$(BuildType)\$(MSBuildProjectName)\</IntermediateOutputPathNonMangled>
     <OutputPath Condition="'$(OutputPath)' == ''">$(BinDir)</OutputPath>
