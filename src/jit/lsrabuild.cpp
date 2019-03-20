@@ -1859,12 +1859,12 @@ void LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
 
         if (isFloat)
         {
-            JITDUMP("Float arg V%02u in reg %s\n", compiler->lvaGetVarNum(varDsc), getRegName(argDsc->lvArgReg));
+            JITDUMP("Float arg V%02u in reg %s\n", compiler->lvaGetVarNum(argDsc), getRegName(argDsc->lvArgReg));
             compiler->raUpdateRegStateForArg(floatRegState, argDsc);
         }
         else
         {
-            JITDUMP("Int arg V%02u in reg %s\n", compiler->lvaGetVarNum(varDsc), getRegName(argDsc->lvArgReg));
+            JITDUMP("Int arg V%02u in reg %s\n", compiler->lvaGetVarNum(argDsc), getRegName(argDsc->lvArgReg));
 #if FEATURE_MULTIREG_ARGS
             if (argDsc->lvOtherArgReg != REG_NA)
             {
