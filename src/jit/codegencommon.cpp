@@ -686,7 +686,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             {
                 codeGen->gcInfo.gcRegByrefSetCur &= ~regMask;
             }
-            codeGen->genUpdateRegLife(varDsc, false /*isBorn*/, true /*isDying*/ DEBUGARG(nullptr));
+            codeGen->genUpdateRegLife(varDsc, varNum, false /*isBorn*/, true /*isDying*/ DEBUGARG(nullptr));
         }
         // This isn't in a register, so update the gcVarPtrSetCur.
         else if (isGCRef || isByRef)
@@ -694,6 +694,9 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             VarSetOps::RemoveElemD(this, codeGen->gcInfo.gcVarPtrSetCur, deadVarIndex);
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming dead\n", varNum);
         }
+
+        VariableLiveKeeper* varLiveKeeper = getVariableLiveKeeper();
+        varLiveKeeper->siEndVariableLiveRange(varNum);
     }
 
     VarSetOps::Iter bornIter(this, bornSet);
@@ -731,6 +734,9 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             VarSetOps::AddElemD(this, codeGen->gcInfo.gcVarPtrSetCur, bornVarIndex);
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming live\n", varNum);
         }
+
+        VariableLiveKeeper* varLiveKeeper = getVariableLiveKeeper();
+        varLiveKeeper->siStartVariableLiveRange(varDsc, varNum);
     }
 #ifdef USING_SCOPE_INFO
     codeGen->siUpdate();
