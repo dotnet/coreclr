@@ -319,8 +319,8 @@ enum RefCountState
 class VariableLiveRange
 {
 public:
-    emitLocation               m_StartEmitLocation; // first position from where "m_VarLocation" becomes valid
-    emitLocation               m_EndEmitLocation;   // last position where "m_VarLocation" is valid
+    emitLocation               m_StartEmitLocation; // first position from where "m_VarHome" becomes valid
+    emitLocation               m_EndEmitLocation;   // last position where "m_VarHome" is valid
     CodeGenInterface::siVarLoc m_VarHome;           // variable home
 
     VariableLiveRange(CodeGenInterface::siVarLoc varHome, emitLocation startEmitLocation, emitLocation endEmitLocation)
@@ -331,6 +331,65 @@ public:
 
 typedef jitstd::list<VariableLiveRange> LiveRangeList;
 typedef LiveRangeList::const_iterator   LiveRangeListIterator;
+
+#if DEBUG
+// Dump "VariableLiveRange" when code has not been generated and we don't have so the assembly native offset
+// but at least "emitLocation"s and "siVarLoc"
+void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, const CodeGenInterface* codeGen);
+
+// Dump "VariableLiveRange" when code has been generated and we have the assembly native offset of each "emitLocation"
+void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emitter, const CodeGenInterface* codeGen);
+
+//--------------------------------------------
+//
+// LiveRangeDumper: Used for debugging purposes during code
+//  generation on genCodeForBBList. Keeps an iterator to the fist
+//  edited/added "VariableLiveRange" of a variable during the
+//  generation of code of one block.
+//
+// Notes:
+//  The first "VariableLiveRange" reported for a variable during
+//  a BasicBlock is sent to "setDumperStartAt" so we can dump all
+//  the "VariableLiveRange"s from that one.
+//  After we dump all the "VariableLiveRange"s we call "reset" with
+//  the "liveRangeList" to set the barrier to nullptr or the last
+//  "VariableLiveRange" if it is opened.
+//  If no "VariableLiveRange" was edited/added during block,
+//  the iterator points to the end of variable's LiveRangeList.
+//
+class LiveRangeDumper
+{
+private:
+    LiveRangeListIterator m_StartingLiveRange; // Iterator to the first edited/added position
+                                               // during actual block code generation. If last
+                                               // block had a closed "VariableLiveRange" (with
+                                               // a valid "m_EndEmitLocation") and not changes
+                                               // were applied to variable liveness, it points
+                                               // to the end of variable's LiveRangeList.
+    bool m_hasLiveRangestoDump;                // True if a live range for this variable has been
+                                               // reported from last call to EndBlock
+
+public:
+    LiveRangeDumper(const LiveRangeList* liveRanges);
+
+    ~LiveRangeDumper(){};
+
+    // Make the dumper point to the last "VariableLiveRange" opened or nullptr if all are closed
+    void resetDumper(const LiveRangeList* list);
+
+    //  Make "LiveRangeDumper" instance points the last "VariableLifeRange" added so we can
+    // starts dumping from there after the actual "BasicBlock"s code is generated.
+    void setDumperStartAt(const LiveRangeListIterator liveRangeIt);
+
+    // Return an iterator to the first "VariableLiveRange" edited/added during the current
+    // "BasicBlock"
+    LiveRangeListIterator getStartForDump() const;
+
+    // Return whether at least a "VariableLiveRange" was alive during the current "BasicBlock"'s
+    // code generation
+    bool hasLiveRangesToDump() const;
+};
+#endif // DEBUG
 
 //--------------------------------------------
 //
@@ -345,7 +404,11 @@ typedef LiveRangeList::const_iterator   LiveRangeListIterator;
 class VariableLiveDescriptor
 {
 private:
-    LiveRangeList* variableLiveRanges; // the variable homes of this variable
+    LiveRangeList* m_VariableLiveRanges; // the variable homes of this variable
+
+#ifdef DEBUG
+    LiveRangeDumper* m_VariableLifeBarrier;
+#endif // DEBUG
 
 public:
     VariableLiveDescriptor(CompAllocator allocator);
@@ -363,6 +426,16 @@ public:
     void endLiveRangeAtEmitter(emitter* _emitter) const;
 
     void updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const;
+
+#ifdef DEBUG
+    void dumpAllRegisterLiveRangesForBlock(emitter* _emitter, const CodeGenInterface* codeGen) const;
+
+    void dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const;
+
+    bool hasVarHomesToDump() const;
+
+    void endBlockLiveRanges();
+#endif // DEBUG
 };
 
 //--------------------------------------------
@@ -418,6 +491,12 @@ public:
     void psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, unsigned int varNum);
 
     void psiClosePrologVariableRanges();
+
+#ifdef DEBUG
+    void dumpBlockVariableLiveRanges(const BasicBlock* block);
+
+    void dumpLvaVariableLiveRanges() const;
+#endif // DEBUG
 };
 
 class LclVarDsc

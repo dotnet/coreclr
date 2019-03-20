@@ -499,6 +499,87 @@ CodeGenInterface::siVarLoc CodeGenInterface::getSiVarLoc(const LclVarDsc* varDsc
     return CodeGenInterface::siVarLoc(varDsc, baseReg, offset, isFramePointerUsed());
 }
 
+#if DEBUG
+void CodeGenInterface::dumpSiVarLoc(const siVarLoc* varLoc) const
+{
+    // "varLoc" cannot be null
+    noway_assert(varLoc != nullptr);
+
+    switch (varLoc->vlType)
+    {
+        case VLT_REG:
+        case VLT_REG_BYREF:
+        case VLT_REG_FP:
+            printf("%s", getRegName(varLoc->vlReg.vlrReg));
+            if (varLoc->vlType == VLT_REG_BYREF)
+            {
+                printf(" byref");
+            }
+            break;
+
+        case VLT_STK:
+        case VLT_STK_BYREF:
+            if ((int)varLoc->vlStk.vlsBaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
+            {
+                printf("%s[%d] (1 slot)", getRegName(varLoc->vlStk.vlsBaseReg), varLoc->vlStk.vlsOffset);
+            }
+            else
+            {
+                printf(STR_SPBASE "'[%d] (1 slot)", varLoc->vlStk.vlsOffset);
+            }
+            if (varLoc->vlType == VLT_REG_BYREF)
+            {
+                printf(" byref");
+            }
+            break;
+
+#ifndef _TARGET_AMD64_
+        case VLT_REG_REG:
+            printf("%s-%s", getRegName(varLoc->vlRegReg.vlrrReg1), getRegName(varLoc->vlRegReg.vlrrReg2));
+            break;
+
+        case VLT_REG_STK:
+            if ((int)varLoc->vlRegStk.vlrsStk.vlrssBaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
+            {
+                printf("%s-%s[%d]", getRegName(varLoc->vlRegStk.vlrsReg),
+                       getRegName(varLoc->vlRegStk.vlrsStk.vlrssBaseReg), varLoc->vlRegStk.vlrsStk.vlrssOffset);
+            }
+            else
+            {
+                printf("%s-" STR_SPBASE "'[%d]", getRegName(varLoc->vlRegStk.vlrsReg),
+                       varLoc->vlRegStk.vlrsStk.vlrssOffset);
+            }
+            break;
+
+        case VLT_STK_REG:
+            unreached(); // unexpected
+
+        case VLT_STK2:
+            if ((int)varLoc->vlStk2.vls2BaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
+            {
+                printf("%s[%d] (2 slots)", getRegName(varLoc->vlStk2.vls2BaseReg), varLoc->vlStk2.vls2Offset);
+            }
+            else
+            {
+                printf(STR_SPBASE "'[%d] (2 slots)", varLoc->vlStk2.vls2Offset);
+            }
+            break;
+
+        case VLT_FPSTK:
+            printf("ST(L-%d)", varLoc->vlFPstk.vlfReg);
+            break;
+
+        case VLT_FIXED_VA:
+            printf("fxd_va[%d]", varLoc->vlFixedVarArg.vlfvOffset);
+            break;
+#endif // !_TARGET_AMD64_
+
+        default:
+            unreached(); // unexpected
+    }
+}
+#endif
+
 #ifdef USING_SCOPE_INFO
 //------------------------------------------------------------------------
 // getSiVarLoc: Returns a "siVarLoc" instance representing the place where the variable

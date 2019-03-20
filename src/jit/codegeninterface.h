@@ -552,6 +552,10 @@ public:
 public:
     siVarLoc getSiVarLoc(const LclVarDsc* varDsc, unsigned int stackLevel) const;
 
+#if DEBUG
+    void dumpSiVarLoc(const siVarLoc* varLoc) const;
+#endif
+
     unsigned getCurrentStackLevel() const;
 
 protected:

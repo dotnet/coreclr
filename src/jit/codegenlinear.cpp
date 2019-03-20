@@ -727,8 +727,16 @@ void CodeGen::genCodeForBBlist()
         }
 
 #ifdef DEBUG
+#ifdef USING_VARIABLE_LIVE_RANGE
+        if (compiler->verbose)
+        {
+            VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
+            varLiveKeeper->dumpBlockVariableLiveRanges(block);
+        }
+#endif // USING_VARIABLE_LIVE_RANGE
+
         compiler->compCurBB = nullptr;
-#endif
+#endif // DEBUG
 
     } //------------------ END-FOR each block of the method -------------------
 
