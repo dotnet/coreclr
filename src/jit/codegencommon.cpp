@@ -10522,6 +10522,15 @@ void CodeGen::genSetScopeInfo()
 
 #ifdef USING_SCOPE_INFO
     genSetScopeInfoUsingsiScope();
+#else // USING_SCOPE_INFO
+#ifdef USING_VARIABLE_LIVE_RANGE
+    // We can have one of both flags defined, both, or none. Specially if we need to compare both
+    // both results. But we cannot report both to the debugger, since there would be overlapping
+    // intervals, and may not indicate the same variable home.
+
+    genSetScopeInfoUsingVariableRanges();
+
+#endif // USING_VARIABLE_LIVE_RANGE
 #endif // USING_SCOPE_INFO
 
     compiler->eeSetLVdone();
@@ -10598,6 +10607,45 @@ void CodeGen::genSetScopeInfoUsingsiScope()
 }
 #endif // USING_SCOPE_INFO
 
+#ifdef USING_VARIABLE_LIVE_RANGE
+void CodeGen::genSetScopeInfoUsingVariableRanges()
+{
+    VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
+
+    unsigned int varNum;
+    LclVarDsc*   varDsc;
+    unsigned int liveRangeIndex = 0;
+
+    for (varDsc = compiler->lvaTable, varNum = 0; varNum < compiler->info.compLocalsCount; varNum++, varDsc++)
+    {
+        const LiveRangeList* liveRanges = varLiveKeeper->getLiveRangesForVar(varNum);
+
+        if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
+        {
+            for (LiveRangeListIterator itLiveRanges = liveRanges->begin(); itLiveRanges != liveRanges->end();
+                 itLiveRanges++, liveRangeIndex++)
+            {
+                UNATIVE_OFFSET startOffs = itLiveRanges->m_StartEmitLocation.CodeOffset(getEmitter());
+                UNATIVE_OFFSET endOffs   = itLiveRanges->m_EndEmitLocation.CodeOffset(getEmitter());
+
+                if (varDsc->lvIsParam && (startOffs == endOffs))
+                {
+                    // If the length is zero, it means that the prolog is empty. In that case,
+                    // CodeGen::genSetScopeInfo will report the liveness of all arguments
+                    // as spanning the first instruction in the method, so that they can
+                    // at least be inspected on entry to the method.
+                    endOffs++;
+                }
+
+                genSetScopeInfo(liveRangeIndex, startOffs, endOffs - startOffs, varNum,
+                                varNum /* I dont know what is the which in eeGetLvInfo */, true,
+                                &itLiveRanges->m_VarHome);
+            }
+        }
+    }
+}
+#endif // USING_VARIABLE_LIVE_RANGE
+
 //------------------------------------------------------------------------
 // genSetScopeInfo: Record scope information for debug info
 //
@@ -10613,13 +10661,13 @@ void CodeGen::genSetScopeInfoUsingsiScope()
 // Notes:
 //    Called for every scope info piece to record by the main genSetScopeInfo()
 
-void CodeGen::genSetScopeInfo(unsigned       which,
-                              UNATIVE_OFFSET startOffs,
-                              UNATIVE_OFFSET length,
-                              unsigned       varNum,
-                              unsigned       LVnum,
-                              bool           avail,
-                              siVarLoc*      varLoc)
+void CodeGen::genSetScopeInfo(unsigned        which,
+                              UNATIVE_OFFSET  startOffs,
+                              UNATIVE_OFFSET  length,
+                              unsigned        varNum,
+                              unsigned        LVnum,
+                              bool            avail,
+                              const siVarLoc* varLoc)
 {
     // We need to do some mapping while reporting back these variables.
 
@@ -10629,6 +10677,8 @@ void CodeGen::genSetScopeInfo(unsigned       which,
 #ifdef _TARGET_X86_
     // Non-x86 platforms are allowed to access all arguments directly
     // so we don't need this code.
+
+    siVarLoc newVarLoc;
 
     // Is this a varargs function?
 
@@ -10660,8 +10710,11 @@ void CodeGen::genSetScopeInfo(unsigned       which,
         noway_assert(offset < stkArgSize);
         offset = stkArgSize - offset;
 
-        varLoc->vlType                   = VLT_FIXED_VA;
-        varLoc->vlFixedVarArg.vlfvOffset = offset;
+        newVarLoc                          = *varLoc;
+        newVarLoc.vlType                   = VLT_FIXED_VA;
+        newVarLoc.vlFixedVarArg.vlfvOffset = offset;
+
+        varLoc = &newVarLoc;
     }
 
 #endif // _TARGET_X86_

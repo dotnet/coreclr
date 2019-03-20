@@ -549,15 +549,19 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     //-------------------------------------------------------------------------
     // scope info for the variables
 
-    void genSetScopeInfo(unsigned       which,
-                         UNATIVE_OFFSET startOffs,
-                         UNATIVE_OFFSET length,
-                         unsigned       varNum,
-                         unsigned       LVnum,
-                         bool           avail,
-                         siVarLoc*      varLoc);
+    void genSetScopeInfo(unsigned        which,
+                         UNATIVE_OFFSET  startOffs,
+                         UNATIVE_OFFSET  length,
+                         unsigned        varNum,
+                         unsigned        LVnum,
+                         bool            avail,
+                         const siVarLoc* varLoc);
 
     void genSetScopeInfo();
+#ifdef USING_VARIABLE_LIVE_RANGE
+    void genSetScopeInfoUsingVariableRanges();
+#endif // USING_VARIABLE_LIVE_RANGE
+
 #ifdef USING_SCOPE_INFO
     void genSetScopeInfoUsingsiScope();
 
