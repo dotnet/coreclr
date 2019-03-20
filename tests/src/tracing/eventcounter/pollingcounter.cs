@@ -21,8 +21,6 @@ namespace BasicEventSourceTests
         {
             private object _failureCounter;
             private object _successCounter;
-            private Func<float> _getFailureCount;
-            private Func<float> _getSuccessCount;
 
             public SimpleEventSource(Func<float> getFailureCount, Func<float> getSuccessCount, Type PollingCounterType)
             {
@@ -68,6 +66,7 @@ namespace BasicEventSourceTests
                         // Decode the payload
                         IDictionary<string, object> eventPayload = eventData.Payload[i] as IDictionary<string, object>;
 
+                        string name = "";
                         string min = "";
                         string max = "";
                         string mean = "";
@@ -77,9 +76,10 @@ namespace BasicEventSourceTests
                         {
                             if (payload.Key.Equals("Name"))
                             {
-                                if (payload.Value.Equals("failureCount"))
+                                name = payload.Value.ToString();
+                                if (name.Equals("failureCount"))
                                     FailureEventCount++;
-                                else if (payload.Value.Equals("successCount"))
+                                else if (name.Equals("successCount"))
                                     SuccessEventCount++;
                             }
 
@@ -102,11 +102,20 @@ namespace BasicEventSourceTests
                         }
 
                         // Check if the mean is what we expect it to be
-                        // subtracting 1 from failureCountCalled because it got incremented by 1 after it was previously polled, so PollingCounter should report 1 less than this.
-                        if (!mean.Equals(failureCountCalled.ToString()))  
+                        if (name.Equals("failureCount"))
                         {
-                            Console.WriteLine($"Mean is not what we expected: {mean} vs {failureCountCalled}");
-                            Failed = true;
+                            if (Int32.Parse(mean) != successCountCalled)  
+                            {
+                                Console.WriteLine($"Mean is not what we expected: {mean} vs {successCountCalled}");
+                                Failed = true;
+                            }
+                        }
+                        else if (name.Equals("successCount"))
+                        {
+                            if (Int32.Parse(mean) != failureCountCalled)
+                            {
+                                Console.WriteLine($"Mean is not what we expected: {mean} vs {failureCountCalled}");
+                            }
                         }
 
                         // In PollingCounter, min/max/mean should have the same value since we aggregate value only once per counter
@@ -133,12 +142,14 @@ namespace BasicEventSourceTests
 
         public static float getFailureCount()
         {
-            return failureCountCalled++;
+            failureCountCalled++;
+            return failureCountCalled;
         }
 
         public static float getSuccessCount()
         {
-            return successCountCalled++;
+            successCountCalled++;
+            return successCountCalled;
         }
 
         public static int Main(string[] args)
