@@ -670,23 +670,26 @@ public:
     const char* siStackVarName(size_t offs, size_t size, unsigned reg, unsigned stkOffs);
 #endif // LATE_DISASM
 
-    /*
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XX                                                                           XX
-    XX                          PrologScopeInfo                                  XX
-    XX                                                                           XX
-    XX We need special handling in the prolog block, as the parameter variables  XX
-    XX may not be in the same position described by genLclVarTable - they all    XX
-    XX start out on the stack                                                    XX
-    XX                                                                           XX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    */
-
+/*
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XX                                                                           XX
+XX                          PrologScopeInfo                                  XX
+XX                                                                           XX
+XX We need special handling in the prolog block, as the parameter variables  XX
+XX may not be in the same position described by genLclVarTable - they all    XX
+XX start out on the stack                                                    XX
+XX                                                                           XX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+*/
+#endif // USING_SCOPE_INFO
 public:
     void psiBegProlog();
 
+    void psiEndProlog();
+
+#ifdef USING_SCOPE_INFO
     void psiAdjustStackLevel(unsigned size);
 
     void psiMoveESPtoEBP();
@@ -694,8 +697,6 @@ public:
     void psiMoveToReg(unsigned varNum, regNumber reg = REG_NA, regNumber otherReg = REG_NA);
 
     void psiMoveToStack(unsigned varNum);
-
-    void psiEndProlog();
 
     /**************************************************************************
      *                          PROTECTED
@@ -749,8 +750,10 @@ protected:
 
     void psiEndPrologScope(psiScope* scope);
 
-    void psSetScopeOffset(psiScope* newScope, LclVarDsc* lclVarDsc1);
+    void psiSetScopeOffset(psiScope* newScope, const LclVarDsc* lclVarDsc) const;
 #endif // USING_SCOPE_INFO
+
+    NATIVE_OFFSET psiGetVarStackOffset(const LclVarDsc* lclVarDsc) const;
 
     /*****************************************************************************
      *                        TrnslLocalVarInfo

@@ -11462,3 +11462,48 @@ const LiveRangeList* VariableLiveKeeper::getLiveRangesForVar(unsigned int varNum
 
     return lvaLiveDsc[varNum].getLiveRanges();
 }
+
+//------------------------------------------------------------------------
+// psiStartVariableLiveRange: Reports the given variable as being born.
+//
+// Arguments:
+//  varLcation  - the variable home
+//  varNum      - the index of the variable in "compiler->lvaTable" or
+//      "VariableLivekeeper->lvaLiveDsc"
+//
+// Notes:
+//  This function is expected to be called from "psiBegProlog" during
+//  prolog code generation.
+//
+void VariableLiveKeeper::psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, unsigned int varNum)
+{
+    // This descriptor has to correspond to a parameter. The first slots in lvaTable
+    // are arguments and special arguments.
+    noway_assert(varNum < compiler->info.compArgsCount);
+
+    VariableLiveDescriptor* varLiveDsc = &lvaLiveDsc[varNum];
+    varLiveDsc->startLiveRangeFromEmitter(varLocation, compiler->getEmitter());
+}
+
+//------------------------------------------------------------------------
+// psiClosePrologVariableRanges: Report all the parameters as becoming dead.
+//
+// Notes:
+//  This function is expected to be called from preffix "psiEndProlog" after
+//  code for prolog has been generated.
+//
+void VariableLiveKeeper::psiClosePrologVariableRanges()
+{
+    noway_assert(compiler->info.compArgsCount <= lvLiveDscCount);
+
+    unsigned int            varNum;
+    VariableLiveDescriptor* varLiveDsc;
+
+    for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < compiler->info.compArgsCount; varNum++, varLiveDsc++)
+    {
+        if (varLiveDsc->hasVariableLiveRangeOpen())
+        {
+            varLiveDsc->endLiveRangeAtEmitter(compiler->getEmitter());
+        }
+    }
+}

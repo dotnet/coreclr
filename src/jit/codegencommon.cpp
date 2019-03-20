@@ -7650,13 +7650,12 @@ void CodeGen::genFnProlog()
         printf("\n__prolog:\n");
     }
 #endif
-#ifdef USING_SCOPE_INFO
+
     if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
     {
         // Create new scopes for the method-parameters for the prolog-block.
         psiBegProlog();
     }
-#endif // USING_SCOPE_INFO
 
 #ifdef DEBUG
 
@@ -8303,12 +8302,11 @@ void CodeGen::genFnProlog()
         genPrologPadForReJit();
         getEmitter()->emitMarkPrologEnd();
     }
-#ifdef USING_SCOPE_INFO
     if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
     {
         psiEndProlog();
     }
-#endif // USING_SCOPE_INFO
+
     if (hasGCRef)
     {
         getEmitter()->emitSetFrameRangeGCRs(GCrefLo, GCrefHi);

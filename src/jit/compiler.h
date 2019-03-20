@@ -412,6 +412,12 @@ public:
     void siEndAllVariableLiveRange(const VARSET_TP* varsToClose);
 
     const LiveRangeList* getLiveRangesForVar(unsigned int varNum) const;
+
+    // For parameters variable homes on prolog
+
+    void psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, unsigned int varNum);
+
+    void psiClosePrologVariableRanges();
 };
 
 class LclVarDsc
