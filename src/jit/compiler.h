@@ -2012,6 +2012,12 @@ class Compiler
     */
 
 public:
+    VariableLiveKeeper* varLiveKeeper; // Used to manage VariableLiveRanges of variables
+
+    void initializeVariableLiveKeeper();
+
+    VariableLiveKeeper* getVariableLiveKeeper() const;
+
     hashBvGlobalData hbvGlobalData; // Used by the hashBv bitvector package.
 
 #ifdef DEBUG

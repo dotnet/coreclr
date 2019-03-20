@@ -11137,6 +11137,23 @@ void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc
 //                      VariableLiveKeeper
 //------------------------------------------------------------------------
 
+void Compiler::initializeVariableLiveKeeper()
+{
+    CompAllocator allocator = getAllocator(CMK_VariableLiveRanges);
+
+    int amountTrackedVariables = opts.compDbgInfo ? info.compLocalsCount : 0;
+    int amountTrackedArgs      = opts.compDbgInfo ? info.compArgsCount : 0;
+
+    varLiveKeeper = allocator.allocate<VariableLiveKeeper>(1);
+    memset(varLiveKeeper, 0, sizeof(*varLiveKeeper));
+    new (varLiveKeeper, jitstd::placement_t()) VariableLiveKeeper(amountTrackedVariables, amountTrackedArgs, this);
+}
+
+VariableLiveKeeper* Compiler::getVariableLiveKeeper() const
+{
+    return varLiveKeeper;
+};
+
 //------------------------------------------------------------------------
 // VariableLiveKeeper: Create an instance of the object in charge of managing
 //  VariableLiveRanges and intialize the array "lvaLiveDsc".

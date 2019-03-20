@@ -92,6 +92,9 @@ void CodeGen::genInitialize()
     }
 #endif // USING_SCOPE_INFO
 
+    // Initialize Structures for VariableLiveRanges
+    compiler->initializeVariableLiveKeeper();
+
     // The current implementation of switch tables requires the first block to have a label so it
     // can generate offsets to the switch label targets.
     // TODO-CQ: remove this when switches have been re-implemented to not use this.
