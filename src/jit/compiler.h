@@ -297,6 +297,40 @@ enum RefCountState
     RCS_NORMAL,  // normal ref counts (from lvaMarkRefs onward)
 };
 
+//--------------------------------------------
+//
+// VariableLiveRange: Represent part of the life of a variable. A
+//      variable lives in a location (represented with struct "siVarLoc")
+//      between two assembly offsets.
+//
+// Notes:
+//    We use emitLocation and not NATTIVE_OFFSET because location
+//    is captured when code is being generated (genCodeForBBList
+//    and genGeneratePrologsAndEpilogs) but only once the whole
+//    methodit's code is done the NATTIVE_OFFSET won't change.
+//    It is also IL_OFFSET, but this is more accurate and the
+//    debugger is expeecting assembly offsets.
+//    This class doesn't have behaviour attached to itself, it is
+//    just putting a name to a representation. It is used to build
+//    typedefs LiveRangeList and LiveRangeListIterator, which are
+//    basically a list of this class and a const_iterator of that
+//    list.
+//
+class VariableLiveRange
+{
+public:
+    emitLocation               m_StartEmitLocation; // first position from where "m_VarLocation" becomes valid
+    emitLocation               m_EndEmitLocation;   // last position where "m_VarLocation" is valid
+    CodeGenInterface::siVarLoc m_VarLocation;       // variable home
+
+    VariableLiveRange(CodeGenInterface::siVarLoc varLocation,
+                      emitLocation               startEmitLocation,
+                      emitLocation               endEmitLocation)
+        : m_VarLocation(varLocation), m_StartEmitLocation(startEmitLocation), m_EndEmitLocation(endEmitLocation)
+    {
+    }
+};
+
 class LclVarDsc
 {
 public:
