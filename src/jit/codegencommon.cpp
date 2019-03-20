@@ -2295,6 +2295,16 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     genSetScopeInfo();
 
+#ifdef USING_VARIABLE_LIVE_RANGE
+#ifdef DEBUG
+    if (compiler->verbose)
+    {
+        VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
+        varLiveKeeper->dumpLvaVariableLiveRanges();
+    }
+#endif // DEBUG
+#endif // USING_VARIABLE_LIVE_RANGE
+
 #ifdef LATE_DISASM
     unsigned finalHotCodeSize;
     unsigned finalColdCodeSize;
@@ -10495,7 +10505,23 @@ void CodeGen::genSetScopeInfo()
     }
 #endif
 
-    if (compiler->info.compVarScopesCount == 0)
+    unsigned varsHomeCount = 0;
+
+#ifdef USING_SCOPE_INFO
+    if (compiler->info.compVarScopesCount > 0)
+    {
+        varsHomeCount = siScopeCnt + psiScopeCnt;
+    }
+#else // USING_SCOPE_INFO
+
+#ifdef USING_VARIABLE_LIVE_RANGE
+    const VariableLiveKeeper varLiveKeeper = compiler->getVariableLiveKeeper();
+    varsHomeCount                          = varLiveKeeper->getLiveRangesCount();
+#endif // USING_VARIABLE_LIVE_RANGE
+
+#endif // USING_SCOPE_INFO
+
+    if (varsHomeCount == 0)
     {
         compiler->eeSetLVcount(0);
         compiler->eeSetLVdone();
@@ -10504,10 +10530,6 @@ void CodeGen::genSetScopeInfo()
 
     noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
 
-    unsigned varsHomeCount = 0;
-#ifdef USING_SCOPE_INFO
-    varsHomeCount = siScopeCnt + psiScopeCnt;
-#endif // USING_SCOPE_INFO
     compiler->eeSetLVcount(varsHomeCount);
 
 #ifdef DEBUG
@@ -10798,7 +10820,7 @@ const char* CodeGen::siStackVarName(size_t offs, size_t size, unsigned reg, unsi
 
     for (unsigned i = 0; i < genTrnslLocalVarCount; i++)
     {
-        if ((genTrnslLocalVarInfo[i].tlviVarLoc.vlIsOnStk((regNumber)reg, stkOffs)) &&
+        if ((genTrnslLocalVarInfo[i].tlviVarLoc.vlIsOnStack((regNumber)reg, stkOffs)) &&
             (genTrnslLocalVarInfo[i].tlviAvailable == true) && (genTrnslLocalVarInfo[i].tlviStartPC <= offs + size) &&
             (genTrnslLocalVarInfo[i].tlviStartPC + genTrnslLocalVarInfo[i].tlviLength > offs))
         {
