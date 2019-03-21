@@ -148,7 +148,8 @@ public:
         } CONTRACTL_END;
 
         m_RWLock = 0;
-        m_spinCount = (GetCurrentProcessCpuCount() == 1) ? 0 : 4000;
+        // Passing false here reduces ASP.NET Core Plaintext benchmark results from 1.2M to 0.8M RPS.
+        m_spinCount = (GetCurrentProcessCpuCount(true) == 1) ? 0 : 4000;
         m_WriterWaiting = FALSE;
 
 #ifdef _DEBUG

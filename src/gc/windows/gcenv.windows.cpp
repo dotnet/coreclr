@@ -1011,7 +1011,7 @@ const AffinitySet* GCToOSInterface::SetGCThreadsAffinitySet(uintptr_t configAffi
 // Get number of processors assigned to the current process
 // Return:
 //  The number of processors
-uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
+uint32_t GCToOSInterface::GetCurrentProcessCpuCount(bool withCpuLimit)
 {
     static int cCPUs = 0;
 

@@ -1413,7 +1413,7 @@ public:
     }
 };
 
-int GetCurrentProcessCpuCount();
+int GetCurrentProcessCpuCount(bool withCpuLimit = false);
 DWORD_PTR GetCurrentProcessCpuMask();
 
 uint32_t GetOsPageSize();

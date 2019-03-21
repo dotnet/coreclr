@@ -34103,7 +34103,7 @@ HRESULT GCHeap::Initialize()
 
     nhp_from_config = static_cast<uint32_t>(GCConfig::GetHeapCount());
     
-    uint32_t nhp_from_process = GCToOSInterface::GetCurrentProcessCpuCount();
+    uint32_t nhp_from_process = GCToOSInterface::GetCurrentProcessCpuCount(true);
 
     if (nhp_from_config)
     {

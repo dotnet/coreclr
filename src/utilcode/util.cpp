@@ -1191,7 +1191,7 @@ BOOL CPUGroupInfo::GetCPUGroupRange(WORD group_number, WORD* group_begin, WORD* 
 //******************************************************************************
 // Returns the number of processors that a process has been configured to run on
 //******************************************************************************
-int GetCurrentProcessCpuCount()
+int GetCurrentProcessCpuCount(bool withCpuLimit)
 {
     CONTRACTL
     {
@@ -1236,7 +1236,7 @@ int GetCurrentProcessCpuCount()
 #ifdef FEATURE_PAL
     uint32_t cpuLimit;
 
-    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < count)
+    if (withCpuLimit && PAL_GetCpuLimit(&cpuLimit) && cpuLimit < count)
         count = cpuLimit;
 #endif
 

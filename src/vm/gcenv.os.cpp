@@ -476,14 +476,14 @@ const AffinitySet* GCToOSInterface::SetGCThreadsAffinitySet(uintptr_t configAffi
 // Get number of processors assigned to the current process
 // Return:
 //  The number of processors
-uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
+uint32_t GCToOSInterface::GetCurrentProcessCpuCount(bool withCpuLimit)
 {
     LIMITED_METHOD_CONTRACT;
 
     // GetCurrentProcessCpuCount only returns up to 64 procs.
     return CPUGroupInfo::CanEnableGCCPUGroups() ?
                 GCToOSInterface::GetTotalProcessorCount():
-                ::GetCurrentProcessCpuCount();
+                ::GetCurrentProcessCpuCount(withCpuLimit);
 }
 
 // Return the size of the user-mode portion of the virtual address space of this process.
