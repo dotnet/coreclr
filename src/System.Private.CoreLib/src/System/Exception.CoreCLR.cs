@@ -16,7 +16,6 @@ namespace System
         partial void RestoreRemoteStackTrace(SerializationInfo info, StreamingContext context)
         {
             _remoteStackTraceString = info.GetString("RemoteStackTraceString"); // Do not rename (binary serialization)
-            _remoteStackIndex = info.GetInt32("RemoteStackIndex"); // Do not rename (binary serialization)
 
 
             // Get the WatsonBuckets that were serialized - this is particularly
@@ -233,48 +232,6 @@ namespace System
             return null;
         }
 
-        public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-            {
-                throw new ArgumentNullException(nameof(info));
-            }
-
-            string tempStackTraceString = _stackTraceString;
-
-            if (_stackTrace != null)
-            {
-                if (tempStackTraceString == null)
-                {
-                    tempStackTraceString = GetStackTrace(true, this);
-                }
-                if (_exceptionMethod == null)
-                {
-                    _exceptionMethod = GetExceptionMethodFromStackTrace();
-                }
-            }
-
-            if (_source == null)
-            {
-                _source = Source; // Set the Source information correctly before serialization
-            }
-
-            info.AddValue("ClassName", GetClassName(), typeof(string)); // Do not rename (binary serialization)
-            info.AddValue("Message", _message, typeof(string)); // Do not rename (binary serialization)
-            info.AddValue("Data", _data, typeof(IDictionary)); // Do not rename (binary serialization)
-            info.AddValue("InnerException", _innerException, typeof(Exception)); // Do not rename (binary serialization)
-            info.AddValue("HelpURL", _helpURL, typeof(string)); // Do not rename (binary serialization)
-            info.AddValue("StackTraceString", tempStackTraceString, typeof(string)); // Do not rename (binary serialization)
-            info.AddValue("RemoteStackTraceString", _remoteStackTraceString, typeof(string)); // Do not rename (binary serialization)
-            info.AddValue("RemoteStackIndex", _remoteStackIndex, typeof(int)); // Do not rename (binary serialization)
-            info.AddValue("ExceptionMethod", null, typeof(string)); // Do not rename (binary serialization)
-            info.AddValue("HResult", HResult); // Do not rename (binary serialization)
-            info.AddValue("Source", _source, typeof(string)); // Do not rename (binary serialization)
-
-            // Serialize the Watson bucket details as well
-            info.AddValue("WatsonBuckets", _watsonBuckets, typeof(byte[])); // Do not rename (binary serialization)
-        }
-
         // This method will clear the _stackTrace of the exception object upon deserialization
         // to ensure that references from another AD/Process dont get accidentally used.
         [OnDeserialized]
@@ -437,7 +394,6 @@ namespace System
         private object _watsonBuckets;
         private string _stackTraceString; //Needed for serialization.  
         private string _remoteStackTraceString;
-        private int _remoteStackIndex;
 #pragma warning disable 414  // Field is not used from managed.        
         // _dynamicMethods is an array of System.Resolver objects, used to keep
         // DynamicMethodDescs alive for the lifetime of the exception. We do this because
@@ -475,6 +431,32 @@ namespace System
             get
             {
                 return nIsTransient(HResult);
+            }
+        }
+
+        private string SerializationRemoteStackTraceString => _remoteStackTraceString;
+
+        private object SerializationWatsonBuckets => _watsonBuckets;
+
+        private string SerializationStackTraceString
+        {
+            get
+            {
+                string tempStackTraceString = _stackTraceString;
+
+                if (_stackTrace != null)
+                {
+                    if (tempStackTraceString == null)
+                    {
+                        tempStackTraceString = GetStackTrace(true, this);
+                    }
+                    if (_exceptionMethod == null)
+                    {
+                        _exceptionMethod = GetExceptionMethodFromStackTrace();
+                    }
+                }
+
+                return tempStackTraceString;
             }
         }
 

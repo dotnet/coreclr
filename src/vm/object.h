@@ -2723,7 +2723,6 @@ private:
 
     IN_WIN64(void* _xptrs;)
     IN_WIN64(UINT_PTR    _ipForWatsonBuckets;) // Contains the IP of exception for watson bucketing
-    INT32       _remoteStackIndex;
     INT32       _HResult;
     IN_WIN32(void* _xptrs;)
     INT32       _xcode;

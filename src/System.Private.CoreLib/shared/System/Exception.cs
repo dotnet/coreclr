@@ -13,7 +13,7 @@ namespace System
     {
         public Exception()
         {
-            HResult = HResults.COR_E_EXCEPTION;
+            _HResult = HResults.COR_E_EXCEPTION;
         }
 
         public Exception(string message)
@@ -126,6 +126,33 @@ namespace System
             {
                 _source = value;
             }
+        }
+
+        public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+            {
+                throw new ArgumentNullException(nameof(info));
+            }
+
+            if (_source == null)
+            {
+                _source = Source; // Set the Source information correctly before serialization
+            }
+
+            info.AddValue("ClassName", GetClassName(), typeof(string)); // Do not rename (binary serialization)
+            info.AddValue("Message", _message, typeof(string)); // Do not rename (binary serialization)
+            info.AddValue("Data", _data, typeof(IDictionary)); // Do not rename (binary serialization)
+            info.AddValue("InnerException", _innerException, typeof(Exception)); // Do not rename (binary serialization)
+            info.AddValue("HelpURL", _helpURL, typeof(string)); // Do not rename (binary serialization)
+            info.AddValue("StackTraceString", SerializationStackTraceString, typeof(string)); // Do not rename (binary serialization)
+            info.AddValue("ExceptionMethod", null, typeof(string)); // Do not rename (binary serialization)
+            info.AddValue("HResult", _HResult); // Do not rename (binary serialization)
+            info.AddValue("Source", _source, typeof(string)); // Do not rename (binary serialization)
+            info.AddValue("RemoteStackIndex", 0, typeof(int)); // Do not rename (binary serialization)
+
+            info.AddValue("RemoteStackTraceString", SerializationRemoteStackTraceString, typeof(string)); // Do not rename (binary serialization)
+            info.AddValue("WatsonBuckets", SerializationWatsonBuckets, typeof(byte[])); // Do not rename (binary serialization)
         }
 
         public override string ToString()
