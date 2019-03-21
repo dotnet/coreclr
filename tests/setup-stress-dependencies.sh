@@ -76,7 +76,7 @@ fi
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "Running init-tools.sh"
-source "${scriptDir}"/../init-tools.sh
+"${scriptDir}"/../init-tools.sh
 
 dotnet=$"${scriptDir}"/../.dotnet/dotnet
 packageDir="${scriptDir}"/../packages
