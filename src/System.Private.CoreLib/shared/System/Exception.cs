@@ -135,16 +135,11 @@ namespace System
 
         private string ToString(bool needFileLineInfo, bool needMessage)
         {
-            string message = needMessage ? Message : null;
-            string s;
+            string s = GetClassName();
 
-            if (string.IsNullOrEmpty(message))
+            if (needMessage && _message != string.Empty)
             {
-                s = GetClassName();
-            }
-            else
-            {
-                s = GetClassName() + ": " + message;
+                s += ": " + Message;
             }
 
             if (_innerException != null)
