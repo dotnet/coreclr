@@ -143,6 +143,7 @@ bool emitIsFuncEnd(emitLocation* emitLoc, emitLocation* emitLocNextFragment = NU
 
 void emitSplit(emitLocation*         startLoc,
                emitLocation*         endLoc,
+               UNATIVE_OFFSET        requestedSplitSize,
                UNATIVE_OFFSET        maxSplitSize,
                void*                 context,
                emitSplitCallbackType callbackFunc);

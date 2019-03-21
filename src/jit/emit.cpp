@@ -2382,58 +2382,120 @@ bool emitter::emitIsFuncEnd(emitLocation* emitLoc, emitLocation* emitLocNextFrag
     return false;
 }
 
-/*****************************************************************************
- *
- * Split the region from 'startLoc' to 'endLoc' into fragments by calling
- * a callback function to indicate the beginning of a fragment. The initial code,
- * starting at 'startLoc', doesn't get a callback, but the first code fragment,
- * about 'maxSplitSize' bytes out does, as does the beginning of each fragment
- * after that. There is no callback for the end (only the beginning of the last
- * fragment gets a callback). A fragment must contain at least one instruction
- * group. It should be smaller than 'maxSplitSize', although it may be larger to
- * satisfy the "at least one instruction group" rule. Do not split prologs or
- * epilogs. (Currently, prologs exist in a single instruction group at the main
- * function beginning, so they aren't split. Funclets, however, might span IGs,
- * so we can't split in between them.)
- *
- * Note that the locations must be the start of instruction groups; the part of
- * the location indicating offset within a group must be zero.
- *
- * If 'startLoc' is NULL, it means the start of the code.
- * If 'endLoc'   is NULL, it means the end   of the code.
- */
-
+//------------------------------------------------------------------------
+// emitSplit: Split a region of code into multiple fragments.
+//
+// Split the region from 'startLoc' to 'endLoc' into fragments by calling
+// a callback function to indicate the beginning of a fragment. The initial code,
+// starting at 'startLoc', doesn't get a callback, but the first code fragment,
+// about 'maxSplitSize' bytes out does, as does the beginning of each fragment
+// after that. There is no callback for the end (only the beginning of the last
+// fragment gets a callback). A fragment must contain at least one instruction
+// group. It should be smaller than 'maxSplitSize', although it may be larger to
+// satisfy the "at least one instruction group" rule. Do not split prologs or
+// epilogs. (Currently, prologs exist in a single instruction group at the main
+// function beginning, so they aren't split. Funclets, however, might span IGs,
+// so we can't split in between them.)
+//
+// Note that the locations must be the start of instruction groups; the part of
+// the location indicating offset within a group must be zero.
+//
+// Arguments:
+//    startLoc           - Start location for considering splitting. If nullptr, indicates the start of the code.
+//    endLoc             - End location for considering splitting. If nullptr, indicates the end of the code.
+//    requestedSplitSize - Split code size will be as large as possible but smaller than this.
+//    maxSplitSize       - Split code size must be smaller than this. If this is not possible, an IMPL_LIMITATION
+//                         failure is thrown.
+//    context            - passed as the first argument to the provided `callbackFunc`.
+//    callbackFunc       - callback function called to report a location at which to split.
+//
+// Return Value:
+//    None
+//
+// Note:
+//    Typically, requestedSplitSize and maxSplitSize are the same: they are passed as the maximum fragment size
+//    allowed by the unwind information (512K code for arm32, 1MB code for arm64). To enable stress scenarios,
+//    however, requestedSplitSize will be a smaller size, specified by the stress mode. In this case, we might
+//    split larger than this size if there is nothing smaller available, such as an extremely large basic block.
+//    We can never exceed maxSplitSize, as that would we can't legally generate code.
+//
+//    We attempt to ignore `emitAdd` (overflow) instruction groups. These can be created at different instruction
+//    boundaries in different build flavors (DEBUG versus non-DEBUG) or on architectures with different pointer
+//    sizes (e.g., in cross-bitness cross-compilation scenarios). If we split on the `emitAdd` groups, we could
+//    end up generating different unwind information in a cross-bitness cross-compilation scenario than we do
+//    for native compilation. See https://github.com/dotnet/coreclr/issues/23365 for a discussion of fixing this
+//    problem. However, if we avoid `emitAdd` but then encounter a problem where we can't split, we fall back
+//    to splitting using the first `emitAdd` block we saw. Note that this means we'll generate different code
+//    in cross-bitness cross-compilation scenarios.
+//
 void emitter::emitSplit(emitLocation*         startLoc,
                         emitLocation*         endLoc,
+                        UNATIVE_OFFSET        requestedSplitSize,
                         UNATIVE_OFFSET        maxSplitSize,
                         void*                 context,
                         emitSplitCallbackType callbackFunc)
 {
-    insGroup*      igStart = (startLoc == NULL) ? emitIGlist : startLoc->GetIG();
-    insGroup*      igEnd   = (endLoc == NULL) ? NULL : endLoc->GetIG();
+    insGroup*      igStart = (startLoc == nullptr) ? emitIGlist : startLoc->GetIG();
+    insGroup*      igEnd   = (endLoc == nullptr) ? nullptr : endLoc->GetIG();
     insGroup*      igPrev;
     insGroup*      ig;
-    insGroup*      igLastReported;
-    insGroup*      igLastCandidate;
-    UNATIVE_OFFSET curSize;
-    UNATIVE_OFFSET candidateSize;
+    insGroup*      igFirstCandidate = nullptr; // The first candidate that we might be able to use for splitting.
+    insGroup*      igLastCandidate = nullptr;  // The last (biggest) candidate we can use for splitting.
+    insGroup*      igLastReported = igStart;   // Don't report the first IG in the range.
+    UNATIVE_OFFSET curSize = 0;
+    UNATIVE_OFFSET firstCandidateSize = 0;
+    UNATIVE_OFFSET lastCandidateSize = 0;
 
-    for (igPrev = NULL, ig = igLastReported = igStart, igLastCandidate = NULL, candidateSize = 0, curSize = 0;
-         ig != igEnd && ig != NULL; igPrev = ig, ig = ig->igNext)
+    for (curSize = 0, igPrev = nullptr, ig = igStart;           //
+         ;                                                      //
+         curSize += ig->igSize, igPrev = ig, ig = ig->igNext)   //
     {
-        // Keep looking until we've gone past the maximum split size
-        if (curSize >= maxSplitSize)
+        // Keep looking until we've gone past the requested split size, then try to report the last IG
+        // that appeared to be a viable split point.
+        if (curSize >= requestedSplitSize)
         {
             bool reportCandidate = true;
 
             // Is there a candidate?
-            if (igLastCandidate == NULL)
+            if (igLastCandidate == nullptr)
             {
+                // Can we fall back to using an emitAdd group?
+
+                if (igFirstCandidate == nullptr)
+                {
 #ifdef DEBUG
-                if (EMITVERBOSE)
-                    printf("emitSplit: can't split at IG%02u; we don't have a candidate to report\n", ig->igNum);
+                    if (EMITVERBOSE)
+                        printf("emitSplit: can't split; we don't have a candidate to report\n");
 #endif
-                reportCandidate = false;
+                    reportCandidate = false;
+                }
+                else
+                {
+#ifdef DEBUG
+                    if (EMITVERBOSE)
+                        printf("emitSplit: split using first emitAdd candidate, not last candidate, at IG%02u, size %u\n", igFirstCandidate->igNum, firstCandidateSize);
+#endif
+
+                    assert(igFirstCandidate->igFlags & IGF_EMIT_ADD);
+
+                    // Reset the iteration to immediately after seeing igFirstCandidate.
+                    ig = igFirstCandidate->igNext;
+                    igPrev = igFirstCandidate;
+                    curSize = firstCandidateSize + igFirstCandidate->igSize;
+
+#ifdef DEBUG
+                    if (EMITVERBOSE)
+                        printf("emitSplit: new iteration, IG%02u, prev IG%02u, curSize %u\n", (ig != nullptr) ? ig->igNum : 0, (igPrev != nullptr) ? igPrev->igNum : 0, curSize);
+#endif
+
+                    // Set up the last candidate as the first emitAdd group instead.
+                    igLastCandidate = igFirstCandidate;
+                    lastCandidateSize = firstCandidateSize;
+
+                    // Clear out the first candidate option.
+                    igFirstCandidate = nullptr;
+                    firstCandidateSize = 0;
+                }
             }
 
             // Don't report the same thing twice (this also happens for the first block, since igLastReported is
@@ -2451,18 +2513,40 @@ void emitter::emitSplit(emitLocation*         startLoc,
             if (reportCandidate)
             {
 #ifdef DEBUG
-                if (EMITVERBOSE && (candidateSize >= maxSplitSize))
+                if (EMITVERBOSE && (lastCandidateSize >= requestedSplitSize))
                     printf("emitSplit: split at IG%02u is size %d, larger than requested maximum size of %d\n",
-                           igLastCandidate->igNum, candidateSize, maxSplitSize);
+                           igLastCandidate->igNum, lastCandidateSize, requestedSplitSize);
 #endif
+
+                if (curSize >= maxSplitSize)
+                {
+                    // This should never happen, since we'll fall back to using emitAdd groups, and those are
+                    // guaranteed to be smaller than the ABI defined max unwind fragment size.
+                    noway_assert(!"Could not split unwind fragments");
+                }
 
                 // hand memory ownership to the callback function
                 emitLocation* pEmitLoc = new (emitComp, CMK_Unknown) emitLocation(igLastCandidate);
                 callbackFunc(context, pEmitLoc);
-                igLastReported  = igLastCandidate;
-                igLastCandidate = NULL;
-                curSize -= candidateSize;
+                curSize -= lastCandidateSize;
+
+                // We reported this one; done report it again.
+                igLastReported = igLastCandidate;
+
+                // Clear the last candidate we reported.
+                igLastCandidate = nullptr;
+                lastCandidateSize = 0;
+
+                // Clear out possible emitAdd group.
+                igFirstCandidate = nullptr;
+                firstCandidateSize = 0;
             }
+        }
+
+        if ((ig == igEnd) && (ig == nullptr))
+        {
+            // We're done!
+            break;
         }
 
         // Update the current candidate to be this block, if it isn't in the middle of a
@@ -2470,27 +2554,35 @@ void emitter::emitSplit(emitLocation*         startLoc,
         // IGs are marked as prolog or epilog. We don't actually know if two adjacent
         // IGs are part of the *same* prolog or epilog, so we have to assume they are.
 
-        if (igPrev && (((igPrev->igFlags & IGF_FUNCLET_PROLOG) && (ig->igFlags & IGF_FUNCLET_PROLOG)) ||
-                       ((igPrev->igFlags & IGF_EPILOG) && (ig->igFlags & IGF_EPILOG))))
+        if ((igPrev != nullptr) && (((igPrev->igFlags & IGF_FUNCLET_PROLOG) && (ig->igFlags & IGF_FUNCLET_PROLOG)) ||
+                                    ((igPrev->igFlags & IGF_EPILOG) && (ig->igFlags & IGF_EPILOG))))
         {
             // We can't update the candidate
         }
         else if (ig->igFlags & IGF_EMIT_ADD)
         {
-            // We can't split on emit add (overflow) groups: IGs are allocated using a fixed allocation size on the
+            // We avoid splitting on emit add (overflow) groups: IGs are allocated using a fixed allocation size on the
             // host, and filled with as many instrDescs as will fit. However, these instrDescs contain host
             // architecture pointers, so in a cross-bitness scenario, the number of instrDescs in an IG will
             // differ between the cross and native crossgen generation. This breaks our testing that checks
-            // for bit equality between the cross-bitness and native generated code. So, only split on
+            // for bit equality between the cross-bitness and native generated code. So, split on
             // non-emitAdd labels, those which have program semantic meaning, like jump labels.
+            // However, if that leads to an extremely large function we might require splitting emitAdd groups
+            // to create a legal program. So, fall back to that if necessary.
+
+            if (igFirstCandidate == nullptr)
+            {
+                // If we haven't found an emitAdd candidate, then use this one.
+                // But only if we haven't already reported it.
+                igFirstCandidate = ig;
+                firstCandidateSize = curSize;
+            }
         }
         else
         {
             igLastCandidate = ig;
-            candidateSize   = curSize;
+            lastCandidateSize = curSize;
         }
-
-        curSize += ig->igSize;
 
     } // end for loop
 }

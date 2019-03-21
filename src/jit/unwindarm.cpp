@@ -1852,7 +1852,7 @@ void UnwindInfo::Split()
     }
 
     // TESTING ONLY: force splitting all the time
-    splitFunctionSize = 75;
+    splitFunctionSize = 10;
 
     if (splitFunctionSize != 0)
         if (splitFunctionSize < maxFragmentSize)
@@ -1930,8 +1930,8 @@ void UnwindInfo::Split()
 #endif // DEBUG
 
     // Call the emitter to do the split, and call us back for every split point it chooses.
-    uwiComp->genEmitter->emitSplit(uwiFragmentLast->ufiEmitLoc, uwiEndLoc, maxFragmentSize, (void*)this,
-                                   EmitSplitCallback);
+    uwiComp->genEmitter->emitSplit(uwiFragmentLast->ufiEmitLoc, uwiEndLoc, maxFragmentSize, UW_MAX_FRAGMENT_SIZE_BYTES,
+                                   (void*)this, EmitSplitCallback);
 
 #ifdef DEBUG
     // Did the emitter split the function/funclet into as many fragments as we asked for?
