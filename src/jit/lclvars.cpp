@@ -3455,7 +3455,7 @@ void Compiler::lvaSortByRefCount()
 
             /* This variable will be tracked - assign it an index */
 
-            lvaTrackedToVarNum[lvaTrackedCount] = lvaGetVarNum(varDsc); // The type of varDsc and lvaTable
+            lvaTrackedToVarNum[lvaTrackedCount] = (unsigned int)(varDsc - lvaTable); // The type of varDsc and lvaTable
             // is LclVarDsc. Subtraction will give us
             // the index.
             varDsc->lvVarIndex = lvaTrackedCount++;
