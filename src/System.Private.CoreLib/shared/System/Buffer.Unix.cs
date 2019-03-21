@@ -16,11 +16,11 @@ namespace System
             // Managed code is currently faster than glibc unoptimized memmove
             // TODO-ARM64-UNIX-OPT revisit when glibc optimized memmove is in Linux distros
             // https://github.com/dotnet/coreclr/issues/13844
-            const nuint MemmoveNativeThreshold = ulong.MaxValue;
+            private const nuint MemmoveNativeThreshold = ulong.MaxValue;
 #elif ARM
-            const nuint MemmoveNativeThreshold = 512;
+            private const nuint MemmoveNativeThreshold = 512;
 #else
-            const nuint MemmoveNativeThreshold = 2048;
+            private const nuint MemmoveNativeThreshold = 2048;
 #endif
     }
 }
