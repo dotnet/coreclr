@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include <assert.h>
-#include <new>
 #include <stdio.h>
 #include "diagnosticsipc.h"
 
@@ -71,10 +70,7 @@ IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
         return nullptr;
     }
 
-    auto pIpcStream = new (std::nothrow) IpcStream(hPipe);
-    if (pIpcStream == nullptr && callback != nullptr)
-        callback("Failed to allocate an IpcStream object.", 1);
-    return pIpcStream;
+    return new IpcStream(hPipe);
 }
 
 void IpcStream::DiagnosticsIpc::Unlink(ErrorCallback callback)
