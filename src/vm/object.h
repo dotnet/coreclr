@@ -2709,7 +2709,6 @@ public:
     // If you modify the order of these fields, make sure to update the definition in 
     // BCL for this object.
 private:
-    STRINGREF   _className;  //Needed for serialization.
     OBJECTREF   _exceptionMethod;  //Needed for serialization.
     STRINGREF   _message;
     OBJECTREF   _data;

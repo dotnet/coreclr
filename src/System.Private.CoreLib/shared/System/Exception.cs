@@ -39,7 +39,6 @@ namespace System
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
 
-            _className = info.GetString("ClassName"); // Do not rename (binary serialization)
             _message = info.GetString("Message"); // Do not rename (binary serialization)
             _data = (IDictionary)(info.GetValueNoThrow("Data", typeof(IDictionary))); // Do not rename (binary serialization)
             _innerException = (Exception)(info.GetValue("InnerException", typeof(Exception))); // Do not rename (binary serialization)
@@ -77,14 +76,7 @@ namespace System
             }
         }
 
-        private string GetClassName()
-        {
-            // Will include namespace but not full instantiation and assembly name.
-            if (_className == null)
-                _className = GetType().ToString();
-
-            return _className;
-        }
+        private string GetClassName() => GetType().ToString();
 
         // Retrieves the lowest exception (inner most) for the given Exception.
         // This will traverse exceptions using the innerException property.

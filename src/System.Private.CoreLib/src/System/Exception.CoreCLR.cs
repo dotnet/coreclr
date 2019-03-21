@@ -27,6 +27,7 @@ namespace System
             // get null.
             _watsonBuckets = (object)info.GetValueNoThrow("WatsonBuckets", typeof(byte[])); // Do not rename (binary serialization)
 
+            string _className = info.GetString("ClassName"); // Do not rename (binary serialization)
 
             if (_className == null || HResult == 0)
                 throw new SerializationException(SR.Serialization_InsufficientState);
@@ -426,7 +427,6 @@ namespace System
             }
         }
 
-        private string _className;  //Needed for serialization.  
         private MethodBase _exceptionMethod;  //Needed for serialization.  
         internal string _message;
         private IDictionary _data;

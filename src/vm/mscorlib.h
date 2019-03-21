@@ -341,7 +341,6 @@ DEFINE_CLASS(EVENT_HANDLERGENERIC,  System,                 EventHandler`1)
 DEFINE_CLASS(EVENT_INFO,            Reflection,             EventInfo)
 
 DEFINE_CLASS_U(System,                 Exception,      ExceptionObject)
-DEFINE_FIELD_U(_className,         ExceptionObject,    _className)
 DEFINE_FIELD_U(_exceptionMethod,   ExceptionObject,    _exceptionMethod)
 DEFINE_FIELD_U(_message,           ExceptionObject,    _message)
 DEFINE_FIELD_U(_data,              ExceptionObject,    _data)
