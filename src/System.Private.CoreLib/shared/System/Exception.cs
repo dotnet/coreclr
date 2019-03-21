@@ -80,7 +80,6 @@ namespace System
 
         // Retrieves the lowest exception (inner most) for the given Exception.
         // This will traverse exceptions using the innerException property.
-        //
         public virtual Exception GetBaseException()
         {
             Exception inner = InnerException;
@@ -100,7 +99,6 @@ namespace System
         // Sets the help link for this exception.
         // This should be in a URL/URN form, such as:
         // "file:///C:/Applications/Bazzal/help.html#ErrorNum42"
-        // Changed to be a read-write String and not return an exception
         public virtual string HelpLink
         {
             get
