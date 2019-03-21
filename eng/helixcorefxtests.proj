@@ -17,9 +17,7 @@
     <HelixConfiguration>$(__BuildType)</HelixConfiguration>
 
     <!--
-      TODO: these should be moved to Directory.Build.props (from dir.props)
-      So dir.props doesn't need to be included. It wouldn't work anyway because it uses BuildOS, BuildArch and
-      BuildType, etc. instead of __BuildOS, __BuildArch, etc. to set the properties.
+      TODO: ProjectDir, RootBinDir, TestWorkingDir, and TargetsWindows are global properties set in dir.props, remove the property assignment here when we port to arcade.
      -->
     <ProjectDir Condition="'$(__ProjectDir)'==''">$(MSBuildThisFileDirectory)..\</ProjectDir>
     <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)bin\</RootBinDir>
