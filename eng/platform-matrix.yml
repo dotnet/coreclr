@@ -60,14 +60,14 @@ jobs:
             - (Ubuntu.18.04.Arm64.Open)Ubuntu.1604.Arm64.Docker.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm64v8-0a0ebdd-20190312220351
           ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
             # TODO: add Ubuntu.1604.Arm64.Open once Jenkins has been shutdown
-            asString: 'Debian.9.Arm64.Open,(Ubuntu.18.04.Arm64.Open)Ubuntu.1604.Arm64.Docker.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm64v8-0a0ebdd-20190312220351'
+            asString: '(Debian.9.Arm64 on Docker)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm64v8-0a0ebdd-20190312215438.Open on Docker)Ubuntu.1604.Arm64.Docker.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm64v8-0a0ebdd-20190312215438,(Ubuntu.18.04.Arm64.Open)Ubuntu.1604.Arm64.Docker.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm64v8-0a0ebdd-20190312220351'
             asArray:
-            - Debian.9.Arm64.Open
+            - (Debian.9.Arm64 on Docker)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm64v8-0a0ebdd-20190312215438.Open on Docker)Ubuntu.1604.Arm64.Docker.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm64v8-0a0ebdd-20190312215438
             - (Ubuntu.18.04.Arm64.Open)Ubuntu.1604.Arm64.Docker.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm64v8-0a0ebdd-20190312220351
           ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-            asString: 'Debian.9.Arm64,Ubuntu.1604.Arm64,(Ubuntu.18.04.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm64v8-0a0ebdd-20190312220351'
+            asString: '(Debian.9.Arm64 on Docker)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm64v8-0a0ebdd-20190312215438,Ubuntu.1604.Arm64,(Ubuntu.18.04.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm64v8-0a0ebdd-20190312220351'
             asArray:
-            - Debian.9.Arm64
+            - (Debian.9.Arm64 on Docker)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm64v8-0a0ebdd-20190312215438
             - Ubuntu.1604.Arm64
             - (Ubuntu.18.04.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm64v8-0a0ebdd-20190312220351
         crossrootfsDir: '/crossrootfs/arm64'
