@@ -2671,7 +2671,10 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                 case NI_AVX2_BroadcastScalarToVector128:
                 case NI_AVX2_BroadcastScalarToVector256:
                 {
-                    return (node->TypeGet() != TYP_SIMD16);
+                    // The memory form of this already takes a pointer, and cannot be further contained.
+                    // The containable form is the one that takes a SIMD value, that may be in memory.
+                    supportsGeneralLoads = (node->TypeGet() == TYP_SIMD16);
+                    break;
                 }
 
                 case NI_SSE_ConvertScalarToVector128Single:
