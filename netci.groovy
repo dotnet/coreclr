@@ -2558,6 +2558,12 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
         return false
     }
 
+    if (isInnerloopTestScenario(scenario) && isPR) {
+        assert scenario != 'corefx_innerloop'
+
+        return false;
+    }
+
     // Filter based on architecture.
 
     switch (architecture) {
