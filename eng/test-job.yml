@@ -70,6 +70,16 @@ jobs:
       - name: clangArg
         value: '-clang5.0'
 
+    - name: testhostArg
+      value: ''
+    - ${{ if eq(parameters.corefxTests, true) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - name: testhostArg
+          value: 'generatetesthostonly'
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        - name: testhostArg
+          value: 'buildtesthostonly'
+
     # FreeBSD test jobs are disabled since we don't have any FreeBSD helix queues.
     ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
       condition: false
@@ -117,10 +127,10 @@ jobs:
     # Build tests
     # TODO: enable crossgen in build-test.sh
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg)
+      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg) $(testhostArg)
         displayName: Build tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
+      - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg) $(testhostArg)
         displayName: Build tests
 
 
@@ -181,9 +191,9 @@ jobs:
           helixAccessToken: $(HelixApiAccessToken)
 
         # Sets up the template to run the corefx tests
-        ${{ if eq(parameters.corefxTests, 'true') }}:
+        ${{ if eq(parameters.corefxTests, true) }}:
           helixProjectFile: 'eng/helixcorefxtests.proj /t:Test /p:ArcadeBuild=True'
-        ${{ if ne(parameters.corefxTests, 'true') }}:
+        ${{ if eq(parameters.corefxTests, false) }}:
           helixProjectFile: 'tests/helixpublishwitharcade.proj'
 
         ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
