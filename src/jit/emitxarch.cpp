@@ -5249,6 +5249,38 @@ void emitter::emitIns_AR_R(instruction ins, emitAttr attr, regNumber ireg, regNu
     emitAdjustStackDepthPushPop(ins);
 }
 
+//------------------------------------------------------------------------
+// emitIns_S_R_I: emits the code for an instruction that takes a stack operand,
+//                a register operand, and an immediate.
+//
+// Arguments:
+//    ins       - The instruction being emitted
+//    attr      - The emit attribute
+//    varNum    - The varNum of the stack operand
+//    offs      - The offset for the stack operand
+//    reg       - The register operand
+//    ival      - The immediate value
+//
+void emitter::emitIns_S_R_I(instruction ins, emitAttr attr, int varNum, int offs, regNumber reg, int ival)
+{
+    assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+    instrDesc* id = emitNewInstrAmdCns(attr, 0, ival);
+
+    id->idIns(ins);
+    id->idInsFmt(IF_SWR_RRD_CNS);
+    id->idReg1(reg);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varNum, offs);
+#ifdef DEBUG
+    id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
+#endif
+
+    UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeMR(ins), varNum, offs, ival);
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
 void emitter::emitIns_AR_R_I(instruction ins, emitAttr attr, regNumber base, int disp, regNumber ireg, int ival)
 {
     assert(ins == INS_vextracti128 || ins == INS_vextractf128);
@@ -8564,6 +8596,31 @@ void emitter::emitDispIns(
                 {
                     goto PRINT_CONSTANT;
                 }
+            }
+            break;
+
+        case IF_SWR_RRD_CNS:
+            assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+            assert(UseVEXEncoding());
+            emitGetInsAmdCns(id, &cnsVal);
+
+            printf("%s", sstr);
+
+            emitDispFrameRef(id->idAddr()->iiaLclVar.lvaVarNum(), id->idAddr()->iiaLclVar.lvaOffset(),
+                             id->idDebugOnlyInfo()->idVarRefOffs, asmfm);
+
+            printf(", %s", emitRegName(id->idReg1(), attr));
+
+            val = cnsVal.cnsVal;
+            printf(", ");
+
+            if (cnsVal.cnsReloc)
+            {
+                emitDispReloc(val);
+            }
+            else
+            {
+                goto PRINT_CONSTANT;
             }
             break;
 
@@ -13118,6 +13175,15 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             emitGetInsCns(id, &cnsVal);
             dst = emitOutputSV(dst, id, insCodeMR(ins), &cnsVal);
             sz  = emitSizeOfInsDsc(id);
+            break;
+
+        case IF_SWR_RRD_CNS:
+            assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+            assert(UseVEXEncoding());
+            emitGetInsAmdCns(id, &cnsVal);
+            code = insCodeMR(ins);
+            dst  = emitOutputSV(dst, id, insCodeMR(ins), &cnsVal);
+            sz   = emitSizeOfInsDsc(id);
             break;
 
         case IF_RRW_SRD_CNS:
