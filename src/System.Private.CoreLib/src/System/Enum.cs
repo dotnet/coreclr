@@ -295,7 +295,46 @@ namespace System
                 return bridge;
             }
 
-            protected static EnumBridge Create(Type enumType)
+            protected static EnumBridge<TEnum> Create<TEnum>()
+                where TEnum : struct
+            {
+                CorElementType? corElementType = GetCorElementType(typeof(TEnum));
+                switch (corElementType)
+                {
+                    case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                        return new EnumBridge<TEnum, bool, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_CHAR:
+                        return new EnumBridge<TEnum, char, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_I1:
+                        return new EnumBridge<TEnum, sbyte, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_U1:
+                        return new EnumBridge<TEnum, byte, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_I2:
+                        return new EnumBridge<TEnum, short, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_U2:
+                        return new EnumBridge<TEnum, ushort, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_I4:
+                        return new EnumBridge<TEnum, int, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_U4:
+                        return new EnumBridge<TEnum, uint, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_I8:
+                        return new EnumBridge<TEnum, long, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_U8:
+                        return new EnumBridge<TEnum, ulong, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_R4:
+                        return new EnumBridge<TEnum, float, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_R8:
+                        return new EnumBridge<TEnum, double, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_I:
+                        return new EnumBridge<TEnum, IntPtr, UnderlyingOperations>();
+                    case CorElementType.ELEMENT_TYPE_U:
+                        return new EnumBridge<TEnum, UIntPtr, UnderlyingOperations>();
+                    default:
+                        return null;
+                }
+            }
+
+            private static CorElementType? GetCorElementType(Type enumType)
             {
                 if (!enumType.IsEnum)
                 {
@@ -316,7 +355,7 @@ namespace System
                     underlyingType = underlyingType.GetEnumUnderlyingType();
                 }
 
-                return (EnumBridge)Activator.CreateInstance(typeof(EnumBridge<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations)));
+                return RuntimeTypeHandle.GetCorElementType((RuntimeType)underlyingType);
             }
 
             public readonly Type UnderlyingType;
@@ -326,15 +365,7 @@ namespace System
             public EnumCache Cache
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => _cache ?? InitializeCache();
-            }
-
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            private EnumCache InitializeCache()
-            {
-                EnumCache cache = (EnumCache)typeof(EnumCache<,,>).MakeGenericType(_enumType, UnderlyingType, typeof(UnderlyingOperations)).GetField(nameof(EnumCache<DayOfWeek, int, UnderlyingOperations>.Instance), BindingFlags.Static | BindingFlags.Public).GetValue(null);
-                _cache = cache;
-                return cache;
+                get => _cache ?? GetCache();
             }
 
             protected EnumBridge(Type enumType, Type underlyingType)
@@ -346,12 +377,14 @@ namespace System
             public abstract Array GetValuesNonGeneric();
             public abstract bool IsEnum(object value);
             public abstract object ToObjectNonGeneric(ulong value);
+            protected abstract EnumCache GetCache();
         }
 
         // Try to minimize code here due to generic code explosion with an Enum generic type argument
         internal abstract class EnumBridge<TEnum> : EnumBridge
+            where TEnum : struct
         {
-            public static readonly EnumBridge<TEnum> Instance = (EnumBridge<TEnum>)Create(typeof(TEnum));
+            public static readonly EnumBridge<TEnum> Instance = Create<TEnum>();
 
             protected EnumBridge(Type underlyingType)
                 : base(typeof(TEnum), underlyingType)
@@ -367,7 +400,7 @@ namespace System
         // Not storing the generic Cache as a static field here allows methods like ToObject to not
         // require the cache to be generated.
         private sealed class EnumBridge<TEnum, TUnderlying, TUnderlyingOperations> : EnumBridge<TEnum>
-            where TEnum : struct, Enum
+            where TEnum : struct
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
@@ -403,6 +436,8 @@ namespace System
             }
 
             public override object ToObjectNonGeneric(ulong value) => ToObject(value);
+
+            protected override EnumCache GetCache() => EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
         }
         #endregion
 
@@ -925,7 +960,7 @@ namespace System
 
         // Simply stores the static instance of the generic Cache
         private static class EnumCache<TEnum, TUnderlying, TUnderlyingOperations>
-            where TEnum : struct, Enum
+            where TEnum : struct
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
