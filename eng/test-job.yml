@@ -192,9 +192,9 @@ jobs:
 
         # Sets up the template to run the corefx tests
         ${{ if eq(parameters.corefxTests, true) }}:
-          helixProjectFile: 'eng/helixcorefxtests.proj /t:Test /p:ArcadeBuild=True'
+          helixProjectArguments: 'eng/helixcorefxtests.proj /t:Test /p:ArcadeBuild=True'
         ${{ if eq(parameters.corefxTests, false) }}:
-          helixProjectFile: 'tests/helixpublishwitharcade.proj'
+          helixProjectArguments: 'tests/helixpublishwitharcade.proj'
 
         ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
           scenarios:
