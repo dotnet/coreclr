@@ -1026,12 +1026,7 @@ FCIMPLEND
 
 FCIMPL1(Object*, MarshalNative::GetUniqueObjectForIUnknownWithoutUnboxing, IUnknown* pUnk)
 {
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(pUnk, NULL_OK));
-    }
-    CONTRACTL_END;
+    FCALL_CONTRACT;
 
     OBJECTREF oref = NULL;
     HELPER_METHOD_FRAME_BEGIN_RET_1(oref);
