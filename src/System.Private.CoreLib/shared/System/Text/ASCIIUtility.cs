@@ -163,7 +163,7 @@ namespace System.Text
 #if DEBUG
                     long numBytesRead = pBuffer - pOriginalBuffer;
                     Debug.Assert(0 < numBytesRead && numBytesRead <= SizeOfVectorInBytes, "We should've made forward progress of at least one byte.");
-                    Debug.Assert(numBytesRead <= bufferLength, "We shouldn't have read past the end of the input buffer.");
+                    Debug.Assert((nuint)numBytesRead <= bufferLength, "We shouldn't have read past the end of the input buffer.");
 #endif
 
                     Debug.Assert(pBuffer <= pFinalVectorReadPos, "Should be able to read at least one vector.");
@@ -325,7 +325,7 @@ namespace System.Text
 #if DEBUG
             long numBytesRead = pBuffer - pOriginalBuffer;
             Debug.Assert(0 < numBytesRead && numBytesRead <= SizeOfVector128, "We should've made forward progress of at least one byte.");
-            Debug.Assert(numBytesRead <= bufferLength, "We shouldn't have read past the end of the input buffer.");
+            Debug.Assert((nuint)numBytesRead <= bufferLength, "We shouldn't have read past the end of the input buffer.");
 #endif
 
             // Adjust the remaining length to account for what we just read.
@@ -589,7 +589,7 @@ namespace System.Text
 #if DEBUG
                     long numCharsRead = pBuffer - pOriginalBuffer;
                     Debug.Assert(0 < numCharsRead && numCharsRead <= SizeOfVectorInChars, "We should've made forward progress of at least one char.");
-                    Debug.Assert(numCharsRead <= bufferLength, "We shouldn't have read past the end of the input buffer.");
+                    Debug.Assert((nuint)numCharsRead <= bufferLength, "We shouldn't have read past the end of the input buffer.");
 #endif
 
                     Debug.Assert(pBuffer <= pFinalVectorReadPos, "Should be able to read at least one vector.");
@@ -776,7 +776,7 @@ namespace System.Text
 #if DEBUG
             long numCharsRead = pBuffer - pOriginalBuffer;
             Debug.Assert(0 < numCharsRead && numCharsRead <= SizeOfVector128InChars, "We should've made forward progress of at least one char.");
-            Debug.Assert(numCharsRead <= bufferLength, "We shouldn't have read past the end of the input buffer.");
+            Debug.Assert((nuint)numCharsRead <= bufferLength, "We shouldn't have read past the end of the input buffer.");
 #endif
 
             // Adjust remaining buffer length.
