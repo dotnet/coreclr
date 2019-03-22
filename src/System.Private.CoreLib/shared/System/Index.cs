@@ -106,6 +106,9 @@ namespace System
             int offset = _value;
             if (IsFromEnd)
             {
+                // offset = length - value
+                // offset = length + (~value + 1)
+                // offset = length + _value + 1
                 offset += length + 1;
             }
             return offset;
