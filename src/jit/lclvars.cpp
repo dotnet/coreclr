@@ -887,7 +887,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #ifdef _TARGET_ARM_
             if (varDsc->TypeGet() == TYP_LONG)
             {
-                varDsc->lvOtherReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_INT);
+                varDsc->GetOtherReg() = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_INT);
             }
 #endif // _TARGET_ARM_
 
@@ -6015,7 +6015,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
             bool allocateOnFrame = varDsc->lvOnFrame;
 
             if (varDsc->lvRegister && (lvaDoneFrameLayout == REGALLOC_FRAME_LAYOUT) &&
-                ((varDsc->TypeGet() != TYP_LONG) || (varDsc->lvOtherReg != REG_STK)))
+                ((varDsc->TypeGet() != TYP_LONG) || (varDsc->GetOtherReg() != REG_STK)))
             {
                 allocateOnFrame = false;
             }

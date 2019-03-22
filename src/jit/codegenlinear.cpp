@@ -831,7 +831,7 @@ void CodeGen::genSpillVar(GenTree* tree)
     varDsc->lvRegNum = REG_STK;
     if (varTypeIsMultiReg(tree))
     {
-        varDsc->lvOtherReg = REG_STK;
+        varDsc->SetOtherReg(REG_STK);
     }
 
 #ifdef USING_VARIABLE_LIVE_RANGE

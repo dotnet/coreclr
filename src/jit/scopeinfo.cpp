@@ -381,11 +381,11 @@ void CodeGenInterface::siVarLoc::siFillRegisterVarLoc(
 #if !CPU_HAS_FP_SUPPORT
         case TYP_DOUBLE:
 #endif
-            if (varDsc->lvOtherReg != REG_STK)
+            if (varDsc->GetOtherReg() != REG_STK)
             {
                 this->vlType            = VLT_REG_REG;
                 this->vlRegReg.vlrrReg1 = varDsc->lvRegNum;
-                this->vlRegReg.vlrrReg2 = varDsc->lvOtherReg;
+                this->vlRegReg.vlrrReg2 = varDsc->GetOtherReg();
             }
             else
             {
@@ -1806,7 +1806,7 @@ void CodeGen::psiMoveToReg(unsigned varNum, regNumber reg, regNumber otherReg)
         // Grab the assigned registers.
 
         reg      = compiler->lvaTable[varNum].lvRegNum;
-        otherReg = compiler->lvaTable[varNum].lvOtherReg;
+        otherReg = compiler->lvaTable[varNum].GetOtherReg();
     }
 
     psiScope* scope;

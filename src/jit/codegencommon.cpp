@@ -3549,11 +3549,11 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 }
 
 #if !defined(_TARGET_64BIT_)
-                if ((i == 1) && varTypeIsStruct(varDsc) && (varDsc->lvOtherReg == regNum))
+                if ((i == 1) && varTypeIsStruct(varDsc) && (varDsc->GetOtherReg() == regNum))
                 {
                     goto NON_DEP;
                 }
-                if ((i == 1) && (genActualType(varDsc->TypeGet()) == TYP_LONG) && (varDsc->lvOtherReg == regNum))
+                if ((i == 1) && (genActualType(varDsc->TypeGet()) == TYP_LONG) && (varDsc->GetOtherReg() == regNum))
                 {
                     goto NON_DEP;
                 }
@@ -3638,7 +3638,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #elif !defined(_TARGET_64BIT_)
                 else if (regArgTab[argNum].slot == 2 && genActualType(varDsc->TypeGet()) == TYP_LONG)
                 {
-                    destRegNum = varDsc->lvOtherReg;
+                    destRegNum = varDsc->GetOtherReg();
                 }
                 else
                 {
@@ -3732,7 +3732,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             {
                 continue;
             }
-            else if (varDsc->lvOtherReg != REG_STK)
+            else if (varDsc->GetOtherReg() != REG_STK)
             {
                 continue;
             }
@@ -3763,7 +3763,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         noway_assert(varDsc->lvIsParam);
         noway_assert(varDsc->lvIsRegArg);
         noway_assert(varDsc->lvIsInReg() == false ||
-                     (varDsc->lvType == TYP_LONG && varDsc->lvOtherReg == REG_STK && regArgTab[argNum].slot == 2));
+                     (varDsc->lvType == TYP_LONG && varDsc->GetOtherReg() == REG_STK && regArgTab[argNum].slot == 2));
 
         var_types storeType = TYP_UNDEF;
         unsigned  slotSize  = TARGET_POINTER_SIZE;
@@ -4192,7 +4192,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 }
                 else
                 {
-                    destRegNum = varDsc->lvOtherReg;
+                    destRegNum = varDsc->GetOtherReg();
                 }
 
                 assert(destRegNum != REG_STK);
@@ -4543,7 +4543,7 @@ void CodeGen::genCheckUseBlockInit()
                         else
                         {
                             // Var is partially enregistered
-                            noway_assert(genTypeSize(varDsc->TypeGet()) > sizeof(int) && varDsc->lvOtherReg == REG_STK);
+                            noway_assert(genTypeSize(varDsc->TypeGet()) > sizeof(int) && varDsc->GetOtherReg() == REG_STK);
                             initStkLclCnt += genTypeStSz(TYP_INT);
                             counted = true;
                         }
@@ -7794,9 +7794,9 @@ void CodeGen::genFnProlog()
 
                 if (varTypeIsMultiReg(varDsc))
                 {
-                    if (varDsc->lvOtherReg != REG_STK)
+                    if (varDsc->GetOtherReg() != REG_STK)
                     {
-                        initRegs |= genRegMask(varDsc->lvOtherReg);
+                        initRegs |= genRegMask(varDsc->GetOtherReg());
                     }
                     else
                     {

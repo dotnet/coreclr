@@ -2647,9 +2647,9 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             getEmitter()->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, varDsc->lvRegNum, varNum, 0);
 
             // Is the upper half also enregistered?
-            if (varDsc->lvOtherReg != REG_STK)
+            if (varDsc->GetOtherReg() != REG_STK)
             {
-                getEmitter()->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, varDsc->lvOtherReg, varNum, sizeof(int));
+                getEmitter()->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, varDsc->GetOtherReg(), varNum, sizeof(int));
             }
         }
         else
