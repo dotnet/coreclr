@@ -3443,7 +3443,8 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumBridge.Get(this).IsDefined(value);
+            Enum.EnumBridge bridge = Enum.EnumBridge.Get(this);
+            return bridge.Cache.IsDefined(value, bridge.IsEnum(value));
         }
 
         public override string GetEnumName(object value)
@@ -3451,7 +3452,8 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumBridge.Get(this).GetName(value);
+            Enum.EnumBridge bridge = Enum.EnumBridge.Get(this);
+            return bridge.Cache.GetName(value, bridge.IsEnum(value));
         }
         #endregion
 

@@ -94,8 +94,9 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            EnumBridge.Get(enumType).TryParse(value, ignoreCase, throwOnFailure: true, out object result);
-            return result;
+            EnumBridge bridge = EnumBridge.Get(enumType);
+            bridge.Cache.TryParse(value, ignoreCase, throwOnFailure: true, out ulong result);
+            return bridge.ToObjectNonGeneric(result);
         }
 
         public static TEnum Parse<TEnum>(string value) where TEnum : struct =>
@@ -113,15 +114,20 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            bridge.TryParse(value, ignoreCase, throwOnFailure: true, out TEnum result);
-            return result;
+            bridge.Cache.TryParse(value, ignoreCase, throwOnFailure: true, out ulong result);
+            return bridge.ToObject(result);
         }
 
         public static bool TryParse(Type enumType, string value, out object result) =>
             TryParse(enumType, value, ignoreCase: false, out result);
 
-        public static bool TryParse(Type enumType, string value, bool ignoreCase, out object result) =>
-            EnumBridge.Get(enumType).TryParse(value, ignoreCase, throwOnFailure: false, out result);
+        public static bool TryParse(Type enumType, string value, bool ignoreCase, out object result)
+        {
+            EnumBridge bridge = EnumBridge.Get(enumType);
+            bool success = bridge.Cache.TryParse(value, ignoreCase, throwOnFailure: false, out ulong uint64Result);
+            result = success ? bridge.ToObjectNonGeneric(uint64Result) : null;
+            return success;
+        }
 
         public static bool TryParse<TEnum>(string value, out TEnum result) where TEnum : struct =>
             TryParse(value, ignoreCase: false, out result);
@@ -133,7 +139,9 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            return bridge.TryParse(value, ignoreCase, throwOnFailure: false, out result);
+            bool success = bridge.Cache.TryParse(value, ignoreCase, throwOnFailure: false, out ulong uint64Result);
+            result = success ? bridge.ToObject(uint64Result) : default;
+            return success;
         }
 
         public static Type GetUnderlyingType(Type enumType)
@@ -193,7 +201,8 @@ namespace System
                 throw new ArgumentNullException(nameof(format));
             }
 
-            return EnumBridge.Get(enumType).Format(value, format);
+            EnumBridge bridge = EnumBridge.Get(enumType);
+            return bridge.Cache.Format(value, format, bridge.IsEnum(value));
         }
         #endregion
 
@@ -310,36 +319,64 @@ namespace System
                 return (EnumBridge)Activator.CreateInstance(typeof(EnumBridge<,,>).MakeGenericType(enumType, underlyingType, typeof(UnderlyingOperations)));
             }
 
-            #region Static Method Generic Implementation
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            protected static string Format<TEnum, TUnderlying, TUnderlyingOperations>(object value, string format)
-                where TEnum : struct, Enum
-                where TUnderlying : struct, IEquatable<TUnderlying>
-                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
+            public readonly Type UnderlyingType;
+            private readonly Type _enumType;
+            private EnumCache _cache;
+
+            public EnumCache Cache
             {
-                EnumCache<TUnderlying, TUnderlyingOperations> cache = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
-                return value is TEnum enumValue ?
-                    cache.Format(Unsafe.As<TEnum, TUnderlying>(ref enumValue), format) :
-                    cache.Format(value, format);
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => _cache ?? InitializeCache();
             }
 
             [MethodImpl(MethodImplOptions.NoInlining)]
-            protected static string GetName<TEnum, TUnderlying, TUnderlyingOperations>(object value)
-                where TEnum : struct, Enum
-                where TUnderlying : struct, IEquatable<TUnderlying>
-                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
+            private EnumCache InitializeCache()
             {
-                EnumCache<TUnderlying, TUnderlyingOperations> cache = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
-                return value is TEnum enumValue ?
-                    cache.GetName(Unsafe.As<TEnum, TUnderlying>(ref enumValue)) :
-                    cache.GetName(value);
+                EnumCache cache = (EnumCache)typeof(EnumCache<,,>).MakeGenericType(_enumType, UnderlyingType, typeof(UnderlyingOperations)).GetField(nameof(EnumCache<DayOfWeek, int, UnderlyingOperations>.Instance), BindingFlags.Static | BindingFlags.Public).GetValue(null);
+                _cache = cache;
+                return cache;
             }
 
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            protected static Array GetValuesNonGeneric<TEnum, TUnderlying, TUnderlyingOperations>()
-                where TEnum : struct, Enum
-                where TUnderlying : struct, IEquatable<TUnderlying>
-                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
+            protected EnumBridge(Type enumType, Type underlyingType)
+            {
+                _enumType = enumType;
+                UnderlyingType = underlyingType;
+            }
+
+            public abstract Array GetValuesNonGeneric();
+            public abstract bool IsEnum(object value);
+            public abstract object ToObjectNonGeneric(ulong value);
+        }
+
+        // Try to minimize code here due to generic code explosion with an Enum generic type argument
+        internal abstract class EnumBridge<TEnum> : EnumBridge
+        {
+            public static readonly EnumBridge<TEnum> Instance = (EnumBridge<TEnum>)Create(typeof(TEnum));
+
+            protected EnumBridge(Type underlyingType)
+                : base(typeof(TEnum), underlyingType)
+            {
+            }
+
+            public abstract TEnum ToObject(ulong value);
+
+            public sealed override bool IsEnum(object value) => value is TEnum;
+        }
+
+        // Try to minimize code here due to generic code explosion with an Enum generic type argument.
+        // Not storing the generic Cache as a static field here allows methods like ToObject to not
+        // require the cache to be generated.
+        private sealed class EnumBridge<TEnum, TUnderlying, TUnderlyingOperations> : EnumBridge<TEnum>
+            where TEnum : struct, Enum
+            where TUnderlying : struct, IEquatable<TUnderlying>
+            where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
+        {
+            public EnumBridge()
+                : base(typeof(TUnderlying))
+            {
+            }
+
+            public override Array GetValuesNonGeneric()
             {
                 EnumCache<TUnderlying, TUnderlyingOperations> cache = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
                 TUnderlying[] values = cache._values;
@@ -359,120 +396,13 @@ namespace System
             }
 
             [MethodImpl(MethodImplOptions.NoInlining)]
-            protected static bool IsDefined<TEnum, TUnderlying, TUnderlyingOperations>(object value)
-                where TEnum : struct, Enum
-                where TUnderlying : struct, IEquatable<TUnderlying>
-                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
-            {
-                EnumCache<TUnderlying, TUnderlyingOperations> cache = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
-                return value is TEnum enumValue ?
-                    cache.IsDefined(Unsafe.As<TEnum, TUnderlying>(ref enumValue)) :
-                    cache.IsDefined(value);
-            }
-
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            protected static object ToObject<TEnum, TUnderlying, TUnderlyingOperations>(ulong value)
-                where TEnum : struct, Enum
-                where TUnderlying : struct, IEquatable<TUnderlying>
-                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
+            public override TEnum ToObject(ulong value)
             {
                 TUnderlying underlying = default(TUnderlyingOperations).ToObject(value);
                 return Unsafe.As<TUnderlying, TEnum>(ref underlying);
             }
 
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            protected static bool TryParse<TEnum, TUnderlying, TUnderlyingOperations>(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TEnum result)
-                where TEnum : struct, Enum
-                where TUnderlying : struct, IEquatable<TUnderlying>
-                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
-            {
-                bool success = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance.TryParse(value, ignoreCase, throwOnFailure, out TUnderlying underlying);
-                result = Unsafe.As<TUnderlying, TEnum>(ref underlying);
-                return success;
-            }
-
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            protected static bool TryParse<TEnum, TUnderlying, TUnderlyingOperations>(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out object result)
-                where TEnum : struct, Enum
-                where TUnderlying : struct, IEquatable<TUnderlying>
-                where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
-            {
-                bool success = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance.TryParse(value, ignoreCase, throwOnFailure, out TUnderlying underlying);
-                TEnum enumResult = Unsafe.As<TUnderlying, TEnum>(ref underlying);
-                result = success ? (object)enumResult : null;
-                return success;
-            }
-            #endregion
-
-            public readonly Type UnderlyingType;
-            private EnumCache _cache;
-
-            public EnumCache Cache
-            {
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => _cache ?? InitializeCache();
-            }
-
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            private EnumCache InitializeCache() => _cache = GetCache();
-
-            protected EnumBridge(Type underlyingType)
-            {
-                UnderlyingType = underlyingType;
-            }
-
-            public abstract string Format(object value, string format);
-            public abstract string GetName(object value);
-            public abstract Array GetValuesNonGeneric();
-            public abstract bool IsDefined(object value);
-            public abstract object ToObjectNonGeneric(ulong value);
-            public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out object result);
-            protected abstract EnumCache GetCache();
-        }
-
-        // Try to minimize code here due to generic code explosion with an Enum generic type argument
-        internal abstract class EnumBridge<TEnum> : EnumBridge
-        {
-            public static readonly EnumBridge<TEnum> Instance = (EnumBridge<TEnum>)Create(typeof(TEnum));
-
-            protected EnumBridge(Type underlyingType)
-                : base(underlyingType)
-            {
-            }
-            
-            public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TEnum result);
-        }
-
-        // Try to minimize code here due to generic code explosion with an Enum generic type argument.
-        // Many methods in here delegate their logic to generic static methods to avoid JITing their
-        // entire bodies on any use of the enum.
-        // Not storing the generic Cache as a static field here allows methods like ToObject to not
-        // require the cache to be generated.
-        private sealed class EnumBridge<TEnum, TUnderlying, TUnderlyingOperations> : EnumBridge<TEnum>
-            where TEnum : struct, Enum
-            where TUnderlying : struct, IEquatable<TUnderlying>
-            where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
-        {
-            public EnumBridge()
-                : base(typeof(TUnderlying))
-            {
-            }
-
-            public override string Format(object value, string format) => Format<TEnum, TUnderlying, TUnderlyingOperations>(value, format);
-
-            public override string GetName(object value) => GetName<TEnum, TUnderlying, TUnderlyingOperations>(value);
-
-            public override Array GetValuesNonGeneric() => GetValuesNonGeneric<TEnum, TUnderlying, TUnderlyingOperations>();
-
-            public override bool IsDefined(object value) => IsDefined<TEnum, TUnderlying, TUnderlyingOperations>(value);
-
-            public override object ToObjectNonGeneric(ulong value) => ToObject<TEnum, TUnderlying, TUnderlyingOperations>(value);
-
-            public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TEnum result) => TryParse<TEnum, TUnderlying, TUnderlyingOperations>(value, ignoreCase, throwOnFailure, out result);
-
-            public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out object result) => TryParse<TEnum, TUnderlying, TUnderlyingOperations>(value, ignoreCase, throwOnFailure, out result);
-
-            protected override EnumCache GetCache() => EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
+            public override object ToObjectNonGeneric(ulong value) => ToObject(value);
         }
         #endregion
 
@@ -504,9 +434,12 @@ namespace System
                 return namesCopy;
             }
 
+            public abstract string Format(object value, string format, bool isEnum);
+            public abstract string GetName(object value, bool isEnum);
+            public abstract bool IsDefined(object value, bool isEnum);
             public abstract string ToString(Enum value);
-
             public abstract string ToStringFlags(Enum value);
+            public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out ulong result);
         }
 
         private sealed class EnumCache<TUnderlying, TUnderlyingOperations> : EnumCache
@@ -589,9 +522,13 @@ namespace System
                 return null;
             }
 
-            public string GetName(object value)
+            public override string GetName(object value, bool isEnum)
             {
-                Debug.Assert(value?.GetType() != _enumType);
+                if (isEnum)
+                {
+                    return GetName(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()));
+                }
+
                 if (value == null)
                 {
                     throw new ArgumentNullException(nameof(value));
@@ -612,9 +549,12 @@ namespace System
                 return HybridSearch(_values, value) >= 0;
             }
 
-            public bool IsDefined(object value)
+            public override bool IsDefined(object value, bool isEnum)
             {
-                Debug.Assert(value?.GetType() != _enumType);
+                if (isEnum)
+                {
+                    return IsDefined(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()));
+                }
 
                 switch (value)
                 {
@@ -682,10 +622,12 @@ namespace System
                 throw new FormatException(SR.Format_InvalidEnumFormatSpecification);
             }
 
-            public string Format(object value, string format)
+            public override string Format(object value, string format, bool isEnum)
             {
-                Debug.Assert(value?.GetType() != _enumType);
-
+                if (isEnum)
+                {
+                    return Format(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()), format);
+                }
                 if (value is TUnderlying underlyingValue)
                 {
                     return Format(underlyingValue, format);
@@ -827,7 +769,7 @@ namespace System
                 return result;
             }
 
-            public bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out TUnderlying result)
+            public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out ulong result)
             {
                 value = value.TrimStart();
                 
@@ -843,25 +785,26 @@ namespace System
                 
                 TUnderlyingOperations operations = default;
                 char firstNonWhitespaceChar = value[0];
+                TUnderlying underlying = default;
                 if (char.IsInRange(firstNonWhitespaceChar, '0', '9') || firstNonWhitespaceChar == '-' || firstNonWhitespaceChar == '+')
                 {
-                    Number.ParsingStatus status = operations.TryParse(value, out result);
+                    Number.ParsingStatus status = operations.TryParse(value, out underlying);
                     if (status == Number.ParsingStatus.OK)
                     {
+                        result = operations.ToUInt64(underlying);
                         return true;
                     }
-                    result = default;
                     if (status == Number.ParsingStatus.Overflow)
                     {
                         if (throwOnFailure)
                         {
                             Number.ThrowOverflowException(operations.OverflowTypeCode);
                         }
+                        result = default;
                         return false;
                     }
                 }
 
-                result = default;
                 string[] names = _names;
                 TUnderlying[] values = _values;
                 bool parsed;
@@ -895,7 +838,7 @@ namespace System
                         {
                             if (subvalue.EqualsOrdinalIgnoreCase(names[i]))
                             {
-                                result = operations.Or(result, values[i]);
+                                underlying = operations.Or(underlying, values[i]);
                                 parsed = true;
                                 break;
                             }
@@ -907,7 +850,7 @@ namespace System
                         {
                             if (subvalue.EqualsOrdinal(names[i]))
                             {
-                                result = operations.Or(result, values[i]);
+                                underlying = operations.Or(underlying, values[i]);
                                 parsed = true;
                                 break;
                             }
@@ -917,6 +860,7 @@ namespace System
 
                 if (parsed)
                 {
+                    result = operations.ToUInt64(underlying);
                     return true;
                 }
 
@@ -985,7 +929,7 @@ namespace System
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
-            internal static readonly EnumCache<TUnderlying, TUnderlyingOperations> Instance = new EnumCache<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
+            public static readonly EnumCache<TUnderlying, TUnderlyingOperations> Instance = new EnumCache<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
         }
         #endregion
 
@@ -1002,6 +946,7 @@ namespace System
             TUnderlying Subtract(TUnderlying left, TUnderlying right);
             string ToHexStr(TUnderlying value);
             TUnderlying ToObject(ulong value);
+            ulong ToUInt64(TUnderlying value);
             Number.ParsingStatus TryParse(ReadOnlySpan<char> span, out TUnderlying result);
         }
 
@@ -1421,6 +1366,36 @@ namespace System
                 return (UIntPtr)(uint)value;
 #endif
             }
+            #endregion
+
+            #region ToUInt64
+            public ulong ToUInt64(byte value) => value;
+
+            public ulong ToUInt64(sbyte value) => (ulong)value;
+
+            public ulong ToUInt64(short value) => (ulong)value;
+
+            public ulong ToUInt64(ushort value) => value;
+
+            public ulong ToUInt64(int value) => (ulong)value;
+
+            public ulong ToUInt64(uint value) => value;
+
+            public ulong ToUInt64(long value) => (ulong)value;
+
+            public ulong ToUInt64(ulong value) => value;
+
+            public ulong ToUInt64(bool value) => Convert.ToByte(value);
+
+            public ulong ToUInt64(char value) => value;
+
+            public ulong ToUInt64(float value) => Unsafe.As<float, uint>(ref value);
+
+            public ulong ToUInt64(double value) => Unsafe.As<double, ulong>(ref value);
+
+            public ulong ToUInt64(IntPtr value) => (ulong)(long)value;
+
+            public ulong ToUInt64(UIntPtr value) => (ulong)value;
             #endregion
 
             #region TryParse
