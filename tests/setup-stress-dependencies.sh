@@ -170,6 +170,8 @@ fi
 
 # Get library path
 libPath=`find $packageDir | grep $rid | grep -m 1 libcoredistools`
+echo "libPath to be used: ${libPath}"
+
 if [ ! -e $libPath ] || [ -z "$libPath" ]; then
     exit_with_error 1 'Failed to locate the downloaded library'
 fi
