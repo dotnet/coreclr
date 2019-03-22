@@ -17,7 +17,6 @@ namespace System
         {
             _remoteStackTraceString = info.GetString("RemoteStackTraceString"); // Do not rename (binary serialization)
 
-
             // Get the WatsonBuckets that were serialized - this is particularly
             // done to support exceptions going across AD transitions.
             // 
@@ -25,11 +24,6 @@ namespace System
             // exception object that may not have this entry. In such a case, we would
             // get null.
             _watsonBuckets = (object)info.GetValueNoThrow("WatsonBuckets", typeof(byte[])); // Do not rename (binary serialization)
-
-            string _className = info.GetString("ClassName"); // Do not rename (binary serialization)
-
-            if (_className == null || HResult == 0)
-                throw new SerializationException(SR.Serialization_InsufficientState);
 
             // If we are constructing a new exception after a cross-appdomain call...
             if (context.State == StreamingContextStates.CrossAppDomain)
@@ -390,7 +384,6 @@ namespace System
         private Exception _innerException;
         private string _helpURL;
         private object _stackTrace;
-        [OptionalField] // This isnt present in pre-V4 exception objects that would be serialized.
         private object _watsonBuckets;
         private string _stackTraceString; //Needed for serialization.  
         private string _remoteStackTraceString;
@@ -402,19 +395,15 @@ namespace System
         private object _dynamicMethods;
 #pragma warning restore 414
 
-        // @MANAGED: HResult is used from within the EE!  Rename with care - check VM directory
-        private int _HResult;       // HResult
-
-        private string _source;         // Mainly used by VB. 
-        // WARNING: Don't delete/rename _xptrs and _xcode - used by functions
-        // on Marshal class.  Native functions are in COMUtilNative.cpp & AppDomain
+        private string _source;         // Mainly used by VB.
+        private UIntPtr _ipForWatsonBuckets; // Used to persist the IP for Watson Bucketing
         private IntPtr _xptrs;             // Internal EE stuff 
 #pragma warning disable 414  // Field is not used from managed.
         private int _xcode = _COMPlusExceptionCode;             // Internal EE stuff 
 #pragma warning restore 414
-        [OptionalField]
-        private UIntPtr _ipForWatsonBuckets; // Used to persist the IP for Watson Bucketing
 
+        // @MANAGED: HResult is used from within the EE!  Rename with care - check VM directory
+        private int _HResult;       // HResult
 
         // See src\inc\corexcep.h's EXCEPTION_COMPLUS definition:
         private const int _COMPlusExceptionCode = unchecked((int)0xe0434352);   // Win32 exception code for COM+ exceptions
@@ -442,21 +431,14 @@ namespace System
         {
             get
             {
-                string tempStackTraceString = _stackTraceString;
+                string stackTraceString = _stackTraceString;
 
-                if (_stackTrace != null)
+                if (stackTraceString == null && _stackTrace != null)
                 {
-                    if (tempStackTraceString == null)
-                    {
-                        tempStackTraceString = GetStackTrace(true, this);
-                    }
-                    if (_exceptionMethod == null)
-                    {
-                        _exceptionMethod = GetExceptionMethodFromStackTrace();
-                    }
+                    stackTraceString = GetStackTrace(true, this);
                 }
 
-                return tempStackTraceString;
+                return stackTraceString;
             }
         }
 

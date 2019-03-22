@@ -54,14 +54,7 @@ namespace System
         {
             get
             {
-                if (_message == null)
-                {
-                    return SR.Format(SR.Exception_WasThrown, GetClassName());
-                }
-                else
-                {
-                    return _message;
-                }
+                return _message ?? SR.Format(SR.Exception_WasThrown, GetClassName());
             }
         }
 
@@ -69,10 +62,7 @@ namespace System
         {
             get
             {
-                if (_data == null)
-                    _data = CreateDataContainer();
-
-                return _data;
+                return _data ?? (_data = CreateDataContainer());
             }
         }
 
@@ -115,12 +105,7 @@ namespace System
         {
             get
             {
-                if (_source == null)
-                {
-                    _source = CreateSourceName();
-                }
-
-                return _source;
+                return _source ?? (_source = CreateSourceName());
             }
             set
             {
@@ -146,12 +131,11 @@ namespace System
             info.AddValue("InnerException", _innerException, typeof(Exception)); // Do not rename (binary serialization)
             info.AddValue("HelpURL", _helpURL, typeof(string)); // Do not rename (binary serialization)
             info.AddValue("StackTraceString", SerializationStackTraceString, typeof(string)); // Do not rename (binary serialization)
+            info.AddValue("RemoteStackTraceString", SerializationRemoteStackTraceString, typeof(string)); // Do not rename (binary serialization)
+            info.AddValue("RemoteStackIndex", 0, typeof(int)); // Do not rename (binary serialization)
             info.AddValue("ExceptionMethod", null, typeof(string)); // Do not rename (binary serialization)
             info.AddValue("HResult", _HResult); // Do not rename (binary serialization)
             info.AddValue("Source", _source, typeof(string)); // Do not rename (binary serialization)
-            info.AddValue("RemoteStackIndex", 0, typeof(int)); // Do not rename (binary serialization)
-
-            info.AddValue("RemoteStackTraceString", SerializationRemoteStackTraceString, typeof(string)); // Do not rename (binary serialization)
             info.AddValue("WatsonBuckets", SerializationWatsonBuckets, typeof(byte[])); // Do not rename (binary serialization)
         }
 
@@ -164,9 +148,10 @@ namespace System
         {
             string s = GetClassName();
 
-            if (needMessage && _message != string.Empty)
+            string message = (needMessage ? Message : null);
+            if (!string.IsNullOrEmpty(message))
             {
-                s += ": " + Message;
+                s += ": " + message;
             }
 
             if (_innerException != null)
