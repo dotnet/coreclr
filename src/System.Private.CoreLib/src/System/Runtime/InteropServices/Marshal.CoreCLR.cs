@@ -391,9 +391,6 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern object GetUniqueObjectForIUnknown(IntPtr unknown);
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern object GetUniqueObjectForIUnknownWithoutUnboxing(IntPtr unknown);
-
         /// <summary>
         /// Return an Object for IUnknown, using the Type T.
         /// Type T should be either a COM imported Type or a sub-type of COM imported Type

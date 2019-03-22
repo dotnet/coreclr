@@ -1276,6 +1276,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern object GetUniqueObjectForIUnknownWithoutUnboxing(IntPtr unknown);
+
         [Conditional("_LOGGING")]
         private static void Log(string s)
         {

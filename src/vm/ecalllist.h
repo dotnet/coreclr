@@ -823,7 +823,6 @@ FCFuncStart(gInteropMarshalFuncs)
     FCFuncElement("IsComObject", MarshalNative::IsComObject)
     FCFuncElement("GetObjectForIUnknown", MarshalNative::GetObjectForIUnknown)
     FCFuncElement("GetUniqueObjectForIUnknown", MarshalNative::GetUniqueObjectForIUnknown)
-    FCFuncElement("GetUniqueObjectForIUnknownWithoutUnboxing", MarshalNative::GetUniqueObjectForIUnknownWithoutUnboxing)
     FCFuncElement("AddRef", MarshalNative::AddRef)
     FCFuncElement("GetNativeVariantForObject", MarshalNative::GetNativeVariantForObject)
     FCFuncElement("GetObjectForNativeVariant", MarshalNative::GetObjectForNativeVariant)
@@ -850,6 +849,12 @@ FCFuncStart(gInteropMarshalFuncs)
     FCFuncElement("CleanupUnusedObjectsInCurrentContext", MarshalNative::CleanupUnusedObjectsInCurrentContext)
 #endif // FEATURE_COMINTEROP
 FCFuncEnd()
+
+#ifdef FEATURE_COMINTEROP
+FCFuncStart(gWindowsRuntimeMarshalFuncs)
+    FCFuncElement("GetUniqueObjectForIUnknownWithoutUnboxing", MarshalNative::GetUniqueObjectForIUnknownWithoutUnboxing)
+FCFuncEnd()
+#endif
 
 FCFuncStart(gInteropNativeLibraryFuncs)
     QCFuncElement("LoadFromPath", NativeLibraryNative::LoadFromPath)
@@ -1301,6 +1306,7 @@ FCClassElement("WeakReference`1", "System", gWeakReferenceOfTFuncs)
 
 #ifdef FEATURE_COMINTEROP
 FCClassElement("WinRTTypeNameConverter", "System.StubHelpers", gWinRTTypeNameConverterFuncs)
+FCClassElement("WindowsRuntimeMarshal", "System.Runtime.InteropServices.WindowsRuntime", gWindowsRuntimeMarshalFuncs)
 #endif // FEATURE_COMINTEROP
 
 
