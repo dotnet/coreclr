@@ -11,24 +11,25 @@
 #include "eventpipeblock.h"
 #include "eventpipeeventinstance.h"
 #include "fastserializableobject.h"
-#include "fastserializer.h"
 
-class EventPipeFile : public FastSerializableObject
+class FastSerializer;
+
+class EventPipeFile final : public FastSerializableObject
 {
 public:
-    EventPipeFile(SString &outputFilePath);
+    EventPipeFile(SString &outputFilePath, uint64_t multiFileTraceLengthInSeconds);
     ~EventPipeFile();
 
     void WriteEvent(EventPipeEventInstance &instance);
     void WriteEnd();
 
-    const char *GetTypeName()
+    const char *GetTypeName() override
     {
         LIMITED_METHOD_CONTRACT;
         return "Trace";
     }
 
-    void FastSerialize(FastSerializer *pSerializer)
+    void FastSerialize(FastSerializer *pSerializer) override
     {
         CONTRACTL
         {
@@ -48,6 +49,12 @@ public:
         pSerializer->WriteBuffer((BYTE *)&m_currentProcessId, sizeof(m_currentProcessId));
         pSerializer->WriteBuffer((BYTE *)&m_numberOfProcessors, sizeof(m_numberOfProcessors));
         pSerializer->WriteBuffer((BYTE *)&m_samplingRateInNs, sizeof(m_samplingRateInNs));
+    }
+
+    uint64_t GetMultiFileTraceLengthInSeconds() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_multiFileTraceLengthInSeconds;
     }
 
 private:
@@ -72,13 +79,10 @@ private:
     // The frequency of the timestamps used for this file.
     LARGE_INTEGER m_timeStampFrequency;
 
-    unsigned int m_pointerSize;
-
-    unsigned int m_currentProcessId;
-
-    unsigned int m_numberOfProcessors;
-
-    unsigned int m_samplingRateInNs;
+    const uint32_t m_pointerSize;
+    const uint32_t m_currentProcessId;
+    uint32_t m_numberOfProcessors;
+    uint32_t m_samplingRateInNs;
 
     // The serialization which is responsible for making sure only a single event
     // or block of events gets written to the file at once.
@@ -88,6 +92,8 @@ private:
     MapSHashWithRemove<EventPipeEvent *, unsigned int> *m_pMetadataIds;
 
     Volatile<LONG> m_metadataIdCounter;
+
+    const uint64_t m_multiFileTraceLengthInSeconds;
 };
 
 #endif // FEATURE_PERFTRACING

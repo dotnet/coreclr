@@ -11,7 +11,11 @@
 
 #ifdef FEATURE_PERFTRACING
 
-EventPipeFile::EventPipeFile(SString &outputFilePath)
+EventPipeFile::EventPipeFile(SString &outputFilePath, uint64_t multiFileTraceLengthInSeconds) :
+    FastSerializableObject(3, 0),
+    m_pointerSize(TARGET_POINTER_SIZE),
+    m_currentProcessId(GetCurrentProcessId()),
+    m_multiFileTraceLengthInSeconds(multiFileTraceLengthInSeconds)
 {
     CONTRACTL
     {
@@ -21,19 +25,12 @@ EventPipeFile::EventPipeFile(SString &outputFilePath)
     }
     CONTRACTL_END;
 
-    SetObjectVersion(3);
-    SetMinReaderVersion(0);
-
     m_pBlock = new EventPipeBlock(100 * 1024);
 
     // File start time information.
     GetSystemTime(&m_fileOpenSystemTime);
     QueryPerformanceCounter(&m_fileOpenTimeStamp);
     QueryPerformanceFrequency(&m_timeStampFrequency);
-
-    m_pointerSize = TARGET_POINTER_SIZE;
-
-    m_currentProcessId = GetCurrentProcessId();
 
     SYSTEM_INFO sysinfo = {};
     GetSystemInfo(&sysinfo);
@@ -45,7 +42,7 @@ EventPipeFile::EventPipeFile(SString &outputFilePath)
     m_pSerializer = new FastSerializer(new FileStreamWriter(outputFilePath));
 
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
-    m_pMetadataIds = new MapSHashWithRemove<EventPipeEvent*, unsigned int>();
+    m_pMetadataIds = new MapSHashWithRemove<EventPipeEvent *, unsigned int>();
 
     // Start and 0 - The value is always incremented prior to use, so the first ID will be 1.
     m_metadataIdCounter = 0;
@@ -65,21 +62,11 @@ EventPipeFile::~EventPipeFile()
     CONTRACTL_END;
 
     if (m_pBlock != NULL && m_pSerializer != NULL)
-    {
         WriteEnd();
-    }
 
-    if (m_pBlock != NULL)
-    {
-        delete(m_pBlock);
-        m_pBlock = NULL;
-    }
-
-    if(m_pSerializer != NULL)
-    {
-        delete(m_pSerializer);
-        m_pSerializer = NULL;
-    }
+    delete m_pBlock;
+    delete m_pSerializer;
+    delete m_pMetadataIds;
 }
 
 void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
@@ -95,18 +82,18 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     // Check to see if we've seen this event type before.
     // If not, then write the event metadata to the event stream first.
     unsigned int metadataId = GetMetadataId(*instance.GetEvent());
-    if(metadataId == 0)
+    if (metadataId == 0)
     {
         metadataId = GenerateMetadataId();
 
-        EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance, metadataId);
+        EventPipeEventInstance *pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance, metadataId);
 
         WriteToBlock(*pMetadataInstance, 0); // 0 breaks recursion and represents the metadata event.
 
         SaveMetadataId(*instance.GetEvent(), metadataId);
 
-        delete[] (pMetadataInstance->GetData());
-        delete (pMetadataInstance);
+        delete[] pMetadataInstance->GetData();
+        delete pMetadataInstance;
     }
 
     WriteToBlock(instance, metadataId);
@@ -186,7 +173,7 @@ unsigned int EventPipeFile::GetMetadataId(EventPipeEvent &event)
     CONTRACTL_END;
 
     unsigned int metadataId;
-    if(m_pMetadataIds->Lookup(&event, &metadataId))
+    if (m_pMetadataIds->Lookup(&event, &metadataId))
     {
         _ASSERTE(metadataId != 0);
         return metadataId;
@@ -208,7 +195,7 @@ void EventPipeFile::SaveMetadataId(EventPipeEvent &event, unsigned int metadataI
 
     // If a pre-existing metadata label exists, remove it.
     unsigned int oldId;
-    if(m_pMetadataIds->Lookup(&event, &oldId))
+    if (m_pMetadataIds->Lookup(&event, &oldId))
     {
         m_pMetadataIds->Remove(&event);
     }

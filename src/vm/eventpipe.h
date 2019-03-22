@@ -303,7 +303,7 @@ private:
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
     // Enable the specified EventPipe session.
-    static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
+    static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession, uint64_t multiFileTraceLengthInSeconds);
 
     static void CreateFileSwitchTimer();
 
@@ -319,7 +319,7 @@ private:
 
     // Generate the file path for the next trace file.
     // This is used when event pipe has been configured to create multiple trace files with a specified maximum length of time.
-    static void GetNextFilePath(EventPipeSession *pSession, SString &nextTraceFilePath);
+    static void GetNextFilePath(SString &nextTraceFilePath);
 
     // Callback function for the stack walker.  For each frame walked, this callback is invoked.
     static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
