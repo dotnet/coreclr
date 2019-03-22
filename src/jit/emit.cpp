@@ -154,7 +154,7 @@ void emitter::MapFunc(int                imgOff,
             {
                 pDst->slotNum = pSrc->lvSlotNum;
                 pDst->isReg   = pSrc->lvRegister;
-                pDst->reg     = (pSrc->lvRegister ? pSrc->lvRegNum : frameReg);
+                pDst->reg     = (pSrc->lvRegister ? pSrc->GetRegNum() : frameReg);
                 pDst->off     = pSrc->lvStkOffs + stkAdjust;
             }
         }
@@ -4715,7 +4715,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
         if (thisDsc->lvRegister)
         {
-            emitSyncThisObjReg = thisDsc->lvRegNum;
+            emitSyncThisObjReg = thisDsc->GetRegNum();
 
             if (emitSyncThisObjReg == (int)REG_ARG_0 &&
                 (codeGen->intRegState.rsCalleeRegArgMaskLiveIn & genRegMask(REG_ARG_0)))
