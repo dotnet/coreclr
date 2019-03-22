@@ -4419,7 +4419,7 @@ void CodeGen::genEnregisterIncomingStackArgs()
 
         /* Figure out the home offset of the incoming argument */
 
-        regNumber regNum = varDsc->lvArgInitReg;
+        regNumber regNum = varDsc->GetArgInitReg();
         assert(regNum != REG_STK);
 
         getEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), regNum, varNum, 0);
