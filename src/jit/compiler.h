@@ -725,7 +725,7 @@ public:
 
     /////////////////////
 
-    __declspec(property(get = GetArgInitReg, put = SetArgInitReg)) regNumber lvArgInitReg;
+
 
     regNumber GetArgInitReg() const
     {
