@@ -392,7 +392,7 @@ namespace System.Runtime.InteropServices
         public static extern object GetUniqueObjectForIUnknown(IntPtr unknown);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern object GetUniqueObjectForIUnknownIgnoreWinRT(IntPtr unknown);
+        public static extern object GetUniqueObjectForIUnknownWithoutUnboxing(IntPtr unknown);
 
         /// <summary>
         /// Return an Object for IUnknown, using the Type T.

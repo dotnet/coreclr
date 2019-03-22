@@ -124,7 +124,7 @@ public:
     //====================================================================
     // return a unique cacheless Object for IUnknown
     //====================================================================
-    static FCDECL1(Object*, GetUniqueObjectForIUnknownIgnoreWinRT, IUnknown* pUnk);
+    static FCDECL1(Object*, GetUniqueObjectForIUnknownWithoutUnboxing, IUnknown* pUnk);
 
     //====================================================================
     // return an Object for IUnknown, using the Type T, 

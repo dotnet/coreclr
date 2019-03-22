@@ -1024,7 +1024,7 @@ FCIMPL1(Object*, MarshalNative::GetUniqueObjectForIUnknown, IUnknown* pUnk)
 }
 FCIMPLEND
 
-FCIMPL1(Object*, MarshalNative::GetUniqueObjectForIUnknownIgnoreWinRT, IUnknown* pUnk)
+FCIMPL1(Object*, MarshalNative::GetUniqueObjectForIUnknownWithoutUnboxing, IUnknown* pUnk)
 {
     CONTRACTL
     {
