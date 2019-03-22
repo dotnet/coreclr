@@ -819,7 +819,7 @@ void fgArgTabEntry::Dump()
     printf(", align=%u", alignment);
     if (isLateArg())
     {
-        printf(", lateArgInx=%u", lateArgInx);
+        printf(", lateArgInx=%u", GetLateArgInx());
     }
     if (isSplit)
     {
@@ -1118,7 +1118,7 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned          argNum,
     curArgTabEntry->numRegs    = numRegs;
     curArgTabEntry->numSlots   = 0;
     curArgTabEntry->alignment  = alignment;
-    curArgTabEntry->lateArgInx = UINT_MAX;
+    curArgTabEntry->SetLateArgInx(UINT_MAX);
     curArgTabEntry->tmpNum     = BAD_VAR_NUM;
     curArgTabEntry->isSplit    = false;
     curArgTabEntry->isTmp      = false;
@@ -1200,7 +1200,7 @@ fgArgTabEntry* fgArgInfo::AddStkArg(unsigned          argNum,
 #endif // defined(UNIX_AMD64_ABI)
     curArgTabEntry->numSlots   = numSlots;
     curArgTabEntry->alignment  = alignment;
-    curArgTabEntry->lateArgInx = UINT_MAX;
+    curArgTabEntry->SetLateArgInx(UINT_MAX);
     curArgTabEntry->tmpNum     = BAD_VAR_NUM;
     curArgTabEntry->isSplit    = false;
     curArgTabEntry->isTmp      = false;
@@ -1257,7 +1257,7 @@ void fgArgInfo::UpdateRegArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
         if (reMorphing)
         {
             // Find the arg in the late args list.
-            GenTree* argx = Compiler::gtArgNodeByLateArgInx(callTree, curArgTabEntry->lateArgInx);
+            GenTree* argx = Compiler::gtArgNodeByLateArgInx(callTree, curArgTabEntry->GetLateArgInx());
             if (curArgTabEntry->node != argx)
             {
                 curArgTabEntry->node = argx;
@@ -1301,7 +1301,7 @@ void fgArgInfo::UpdateStkArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
         if (isLateArg)
         {
             GenTree* argx       = nullptr;
-            unsigned lateArgInx = curArgTabEntry->lateArgInx;
+            unsigned lateArgInx = curArgTabEntry->GetLateArgInx();
 
             // Traverse the late argument list to find this argument so that we can update it.
             unsigned listInx = 0;
@@ -1316,7 +1316,7 @@ void fgArgInfo::UpdateStkArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
                 listInx++;
             }
             assert(listInx == lateArgInx);
-            assert(lateArgInx == curArgTabEntry->lateArgInx);
+            assert(lateArgInx == curArgTabEntry->GetLateArgInx());
 
             if (curArgTabEntry->node != argx)
             {
@@ -2442,7 +2442,7 @@ void fgArgInfo::EvalArgsToTemps()
         }
 
         curArgTabEntry->node       = defArg;
-        curArgTabEntry->lateArgInx = regArgInx++;
+        curArgTabEntry->SetLateArgInx(regArgInx++);
     }
 
 #ifdef DEBUG
