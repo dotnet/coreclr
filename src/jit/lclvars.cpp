@@ -451,7 +451,7 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
 
         varDsc->lvArgReg = genMapRegArgNumToRegNum(varDscInfo->allocRegArg(TYP_INT), varDsc->TypeGet());
 #if FEATURE_MULTIREG_ARGS
-        varDsc->lvOtherArgReg = REG_NA;
+        varDsc->SetOtherArgReg(REG_NA);
 #endif
         varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 
@@ -495,7 +495,7 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
         }
 
 #if FEATURE_MULTIREG_ARGS
-        varDsc->lvOtherArgReg = REG_NA;
+        varDsc->SetOtherArgReg(REG_NA);
 #endif
         varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 
@@ -807,7 +807,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             unsigned firstAllocatedRegArgNum = 0;
 
 #if FEATURE_MULTIREG_ARGS
-            varDsc->lvOtherArgReg = REG_NA;
+            varDsc->SetOtherArgReg(REG_NA);
 #endif // FEATURE_MULTIREG_ARGS
 
 #if defined(UNIX_AMD64_ABI)
@@ -869,7 +869,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
                 if (secondEightByteType != TYP_UNDEF)
                 {
-                    varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(secondAllocatedRegArgNum, secondEightByteType);
+                    varDsc->SetOtherArgReg(genMapRegArgNumToRegNum(secondAllocatedRegArgNum, secondEightByteType));
                 }
             }
 #else  // ARM32
@@ -1078,7 +1078,7 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
             varDsc->lvIsRegArg = 1;
             varDsc->lvArgReg   = genMapRegArgNumToRegNum(varDscInfo->regArgNum(TYP_INT), varDsc->TypeGet());
 #if FEATURE_MULTIREG_ARGS
-            varDsc->lvOtherArgReg = REG_NA;
+            varDsc->SetOtherArgReg(REG_NA);
 #endif
             varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 
@@ -1140,7 +1140,7 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
             varDsc->lvIsRegArg = 1;
             varDsc->lvArgReg   = genMapRegArgNumToRegNum(varArgHndArgNum, TYP_I_IMPL);
 #if FEATURE_MULTIREG_ARGS
-            varDsc->lvOtherArgReg = REG_NA;
+            varDsc->SetOtherArgReg(REG_NA);
 #endif
             varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 #ifdef _TARGET_ARM_
@@ -1326,7 +1326,7 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
 #endif
 
 #if FEATURE_MULTIREG_ARGS
-    varDsc->lvOtherArgReg = REG_NA;
+    varDsc->SetOtherArgReg(REG_NA);
 #endif // FEATURE_MULTIREG_ARGS
 }
 
@@ -2197,7 +2197,7 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
                 // a SIMD field of an enregisterable struct, it is the only field.
                 // We will assert that, in case future changes are made to the ABI.
                 assert(varDsc->lvFieldCnt == 1);
-                fieldVarDsc->lvOtherArgReg = varDsc->lvOtherArgReg;
+                fieldVarDsc->SetOtherArgReg(varDsc->GetOtherArgReg());
             }
 #endif // FEATURE_MULTIREG_ARGS && defined(FEATURE_SIMD)
         }
@@ -5402,7 +5402,7 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
 #if FEATURE_ARG_SPLIT
         if (this->info.compIsVarArgs)
         {
-            if (varDsc->lvType == TYP_STRUCT && varDsc->lvOtherArgReg >= MAX_REG_ARG && varDsc->lvOtherArgReg != REG_NA)
+            if (varDsc->lvType == TYP_STRUCT && varDsc->GetOtherArgReg() >= MAX_REG_ARG && varDsc->GetOtherArgReg() != REG_NA)
             {
                 // This is a split struct. It will account for an extra (8 bytes)
                 // of alignment.
