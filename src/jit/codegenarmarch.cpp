@@ -2237,7 +2237,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         // GT_RELOAD/GT_COPY use the child node
         argNode = argNode->gtSkipReloadOrCopy();
 
-        if (curArgTabEntry->regNum == REG_STK)
+        if (curArgTabEntry->getRegNum() == REG_STK)
             continue;
 
         // Deal with multi register passed struct args.
@@ -2245,7 +2245,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         {
             GenTreeArgList* argListPtr   = argNode->AsArgList();
             unsigned        iterationNum = 0;
-            regNumber       argReg       = curArgTabEntry->regNum;
+            regNumber       argReg       = curArgTabEntry->getRegNum();
             for (; argListPtr != nullptr; argListPtr = argListPtr->Rest(), iterationNum++)
             {
                 GenTree* putArgRegNode = argListPtr->gtOp.gtOp1;
@@ -2287,7 +2287,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 #endif // FEATURE_ARG_SPLIT
         else
         {
-            regNumber argReg = curArgTabEntry->regNum;
+            regNumber argReg = curArgTabEntry->getRegNum();
             genConsumeReg(argNode);
             if (argNode->GetRegNum() != argReg)
             {

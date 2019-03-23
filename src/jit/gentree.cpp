@@ -11243,7 +11243,7 @@ void Compiler::gtGetLateArgMsg(
 
     fgArgTabEntry* curArgTabEntry = gtArgEntryByLateArgIndex(call, lateArgIndex);
     assert(curArgTabEntry);
-    regNumber argReg = curArgTabEntry->regNum;
+    regNumber argReg = curArgTabEntry->getRegNum();
 
 #if !FEATURE_FIXED_OUT_ARGS
     assert(lateArgIndex < call->regArgListCount);

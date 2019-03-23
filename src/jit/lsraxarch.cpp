@@ -1153,7 +1153,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
         assert(curArgTabEntry);
 
-        if (curArgTabEntry->regNum == REG_STK)
+        if (curArgTabEntry->getRegNum() == REG_STK)
         {
             // late arg that is not passed in a register
             assert(argNode->gtOper == GT_PUTARG_STK);
@@ -1181,7 +1181,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
             int i = 0;
             for (GenTreeFieldList* entry = argNode->AsFieldList(); entry != nullptr; entry = entry->Rest())
             {
-                const regNumber argReg = (i == 0) ? curArgTabEntry->regNum : curArgTabEntry->getOtherRegNum();
+                const regNumber argReg = (i == 0) ? curArgTabEntry->getRegNum() : curArgTabEntry->getOtherRegNum();
                 assert(entry->Current()->GetRegNum() == argReg);
                 assert(i < 2);
                 i++;
@@ -1190,7 +1190,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         else
 #endif // UNIX_AMD64_ABI
         {
-            const regNumber argReg = curArgTabEntry->regNum;
+            const regNumber argReg = curArgTabEntry->getRegNum();
             assert(argNode->GetRegNum() == argReg);
         }
 #endif // DEBUG
