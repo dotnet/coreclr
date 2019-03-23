@@ -2090,7 +2090,7 @@ void CodeGen::genLclHeap(GenTree* tree)
         assert(size->isContained());
 
         // If amount is zero then return null in targetReg
-        amount = size->gtIntCon.gtIconVal;
+        amount = size->AsIntCon()->gtIconVal;
         if (amount == 0)
         {
             instGen_Set_Reg_To_Zero(EA_PTRSIZE, targetReg);
@@ -3673,7 +3673,7 @@ void CodeGen::genCodeForJumpCompare(GenTreeOp* tree)
 
     if (tree->gtFlags & GTF_JCMP_TST)
     {
-        ssize_t compareImm = op2->gtIntCon.IconValue();
+        ssize_t compareImm = op2->AsIntCon()->IconValue();
 
         assert(isPow2(compareImm));
 
@@ -4699,7 +4699,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
     {
         assert(op2->isContained());
 
-        ssize_t index = op2->gtIntCon.gtIconVal;
+        ssize_t index = op2->AsIntCon()->gtIconVal;
 
         // We only need to generate code for the get if the index is valid
         // If the index is invalid, previously generated for the range check will throw

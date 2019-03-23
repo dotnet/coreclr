@@ -59,11 +59,11 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
         // Make sure we have an actual immediate
         if (!childNode->IsCnsIntOrI())
             return false;
-        if (childNode->gtIntCon.ImmedValNeedsReloc(comp))
+        if (childNode->AsIntCon()->ImmedValNeedsReloc(comp))
             return false;
 
         // TODO-CrossBitness: we wouldn't need the cast below if GenTreeIntCon::gtIconVal had target_ssize_t type.
-        target_ssize_t immVal = (target_ssize_t)childNode->gtIntCon.gtIconVal;
+        target_ssize_t immVal = (target_ssize_t)childNode->AsIntCon()->gtIconVal;
         emitAttr       attr   = emitActualTypeSize(childNode->TypeGet());
         emitAttr       size   = EA_SIZE(attr);
 #ifdef _TARGET_ARM_
@@ -273,18 +273,18 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             // it to a larger constant whose size is sufficient to support
             // the largest width store of the desired inline expansion.
 
-            ssize_t fill = initVal->gtIntCon.gtIconVal & 0xFF;
+            ssize_t fill = initVal->AsIntCon()->gtIconVal & 0xFF;
             if (fill == 0)
             {
                 MakeSrcContained(blkNode, source);
             }
             else if (size < REGSIZE_BYTES)
             {
-                initVal->gtIntCon.gtIconVal = 0x01010101 * fill;
+                initVal->AsIntCon()->gtIconVal = 0x01010101 * fill;
             }
             else
             {
-                initVal->gtIntCon.gtIconVal = 0x0101010101010101LL * fill;
+                initVal->AsIntCon()->gtIconVal = 0x0101010101010101LL * fill;
                 initVal->gtType             = TYP_LONG;
             }
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
@@ -441,9 +441,9 @@ void Lowering::LowerRotate(GenTree* tree)
 
         if (rotateLeftIndexNode->IsCnsIntOrI())
         {
-            ssize_t rotateLeftIndex                 = rotateLeftIndexNode->gtIntCon.gtIconVal;
+            ssize_t rotateLeftIndex                 = rotateLeftIndexNode->AsIntCon()->gtIconVal;
             ssize_t rotateRightIndex                = rotatedValueBitSize - rotateLeftIndex;
-            rotateLeftIndexNode->gtIntCon.gtIconVal = rotateRightIndex;
+            rotateLeftIndexNode->AsIntCon()->gtIconVal = rotateRightIndex;
         }
         else
         {

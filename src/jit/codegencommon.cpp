@@ -1118,14 +1118,14 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignme
         {
             if (op2->IsIconHandle(GTF_ICON_CLASS_HDL))
             {
-                CORINFO_CLASS_HANDLE clsHnd = (CORINFO_CLASS_HANDLE)op2->gtIntCon.gtIconVal;
+                CORINFO_CLASS_HANDLE clsHnd = (CORINFO_CLASS_HANDLE)op2->AsIntCon()->gtIconVal;
                 opSize = roundUp(compiler->info.compCompHnd->getClassSize(clsHnd), TARGET_POINTER_SIZE);
                 alignment =
                     roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd), TARGET_POINTER_SIZE);
             }
             else
             {
-                opSize       = (unsigned)op2->gtIntCon.gtIconVal;
+                opSize       = (unsigned)op2->AsIntCon()->gtIconVal;
                 GenTree* op1 = op->AsOp()->gtOp1;
                 assert(op1->OperGet() == GT_LIST);
                 GenTree* dstAddr = op1->AsOp()->gtOp1;
@@ -1405,9 +1405,9 @@ AGAIN:
                 break;
             }
 
-            if (op1->AsOp()->gtOp2->IsIntCnsFitsInI32() && FitsIn<INT32>(cns + op1->AsOp()->gtOp2->gtIntCon.gtIconVal))
+            if (op1->AsOp()->gtOp2->IsIntCnsFitsInI32() && FitsIn<INT32>(cns + op1->AsOp()->gtOp2->AsIntCon()->gtIconVal))
             {
-                cns += op1->AsOp()->gtOp2->gtIntCon.gtIconVal;
+                cns += op1->AsOp()->gtOp2->AsIntCon()->gtIconVal;
                 op1 = op1->AsOp()->gtOp1;
 
                 goto AGAIN;
@@ -1486,9 +1486,9 @@ AGAIN:
                 break;
             }
 
-            if (op2->AsOp()->gtOp2->IsIntCnsFitsInI32() && FitsIn<INT32>(cns + op2->AsOp()->gtOp2->gtIntCon.gtIconVal))
+            if (op2->AsOp()->gtOp2->IsIntCnsFitsInI32() && FitsIn<INT32>(cns + op2->AsOp()->gtOp2->AsIntCon()->gtIconVal))
             {
-                cns += op2->AsOp()->gtOp2->gtIntCon.gtIconVal;
+                cns += op2->AsOp()->gtOp2->AsIntCon()->gtIconVal;
                 op2 = op2->AsOp()->gtOp1;
 
                 goto AGAIN;

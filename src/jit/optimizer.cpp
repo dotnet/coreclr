@@ -732,7 +732,7 @@ bool Compiler::optPopulateInitInfo(unsigned loopInd, GenTree* init, unsigned ite
     if (rhs->gtOper == GT_CNS_INT && rhs->TypeGet() == TYP_INT)
     {
         optLoopTable[loopInd].lpFlags |= LPFLG_CONST_INIT;
-        optLoopTable[loopInd].lpConstInit = (int)rhs->gtIntCon.gtIconVal;
+        optLoopTable[loopInd].lpConstInit = (int)rhs->AsIntCon()->gtIconVal;
     }
     else if (rhs->gtOper == GT_LCL_VAR)
     {
@@ -3669,11 +3669,10 @@ void Compiler::optUnrollLoops()
         /* Make sure everything looks ok */
         if ((init->gtOper != GT_ASG) || (init->AsOp()->gtOp1->gtOper != GT_LCL_VAR) ||
             (init->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() != lvar) || (init->AsOp()->gtOp2->gtOper != GT_CNS_INT) ||
-            (init->AsOp()->gtOp2->gtIntCon.gtIconVal != lbeg) ||
-
+            (init->AsOp()->gtOp2->AsIntCon()->gtIconVal != lbeg) ||
             !((incr->gtOper == GT_ADD) || (incr->gtOper == GT_SUB)) || (incr->AsOp()->gtOp1->gtOper != GT_LCL_VAR) ||
             (incr->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() != lvar) || (incr->AsOp()->gtOp2->gtOper != GT_CNS_INT) ||
-            (incr->AsOp()->gtOp2->gtIntCon.gtIconVal != iterInc) ||
+            (incr->AsOp()->gtOp2->AsIntCon()->gtIconVal != iterInc) ||
             (test->gtOper != GT_JTRUE))
         {
             noway_assert(!"Bad precondition in Compiler::optUnrollLoops()");
@@ -5611,7 +5610,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                 {
                     tree->ChangeOperConst(GT_CNS_INT);
                     tree->gtType             = TYP_INT;
-                    tree->gtIntCon.gtIconVal = (int)lval;
+                    tree->AsIntCon()->gtIconVal = (int)lval;
                     if (vnStore != nullptr)
                     {
                         fgValueNumberTreeConst(tree);
@@ -5624,7 +5623,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
             case GT_CNS_INT:
 
                 ssize_t ival;
-                ival = tree->gtIntCon.gtIconVal;
+                ival = tree->AsIntCon()->gtIconVal;
                 ssize_t imask;
                 imask = 0;
 
@@ -5664,7 +5663,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                 if (doit)
                 {
                     tree->gtType             = TYP_INT;
-                    tree->gtIntCon.gtIconVal = (int)ival;
+                    tree->AsIntCon()->gtIconVal = (int)ival;
                     if (vnStore != nullptr)
                     {
                         fgValueNumberTreeConst(tree);
@@ -8658,7 +8657,7 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
         return nullptr;
     }
 
-    ssize_t ival2 = opr2->gtIntCon.gtIconVal;
+    ssize_t ival2 = opr2->AsIntCon()->gtIconVal;
 
     /* Is the value a boolean?
      * We can either have a boolean expression (marked GTF_BOOLEAN) or
@@ -8693,7 +8692,7 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
         if (isBool)
         {
             gtReverseCond(cond);
-            opr2->gtIntCon.gtIconVal = 0;
+            opr2->AsIntCon()->gtIconVal = 0;
         }
         else
         {

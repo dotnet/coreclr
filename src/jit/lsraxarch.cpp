@@ -1675,7 +1675,7 @@ int LinearScan::BuildLclHeap(GenTree* tree)
     {
         assert(size->isContained());
         srcCount       = 0;
-        size_t sizeVal = size->gtIntCon.gtIconVal;
+        size_t sizeVal = size->AsIntCon()->gtIconVal;
 
         if (sizeVal == 0)
         {
@@ -2154,7 +2154,7 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
                     unsigned baseSize           = genTypeSize(baseType);
                     if (baseSize == 1)
                     {
-                        if ((op2->gtIntCon.gtIconVal % 2) == 1)
+                        if ((op2->AsIntCon()->gtIconVal % 2) == 1)
                         {
                             ZeroOrSignExtnReqd = (baseType == TYP_BYTE);
                         }
