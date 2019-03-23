@@ -5644,7 +5644,7 @@ void Lowering::ContainCheckArrOffset(GenTreeArrOffs* node)
     // we don't want to generate code for this
     if (node->gtOffset->IsIntegralConst(0))
     {
-        MakeSrcContained(node, node->gtArrOffs.gtOffset);
+        MakeSrcContained(node, node->AsArrOffs()->gtOffset);
     }
 }
 
