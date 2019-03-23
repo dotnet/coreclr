@@ -3384,8 +3384,8 @@ GenTree* Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* t
 {
     assert(tree->gtOper == GT_CAST);
 
-    var_types toType = tree->gtCast.gtCastType;
-    GenTree*  op1    = tree->gtCast.CastOp();
+    var_types toType = tree->AsCast()->gtCastType;
+    GenTree*  op1    = tree->AsCast()->CastOp();
 
     // If we have a cast involving floating point types, then bail.
     if (varTypeIsFloating(toType) || varTypeIsFloating(op1->TypeGet()))
