@@ -7075,9 +7075,9 @@ void Compiler::CopyTestDataToCloneTree(GenTree* from, GenTree* to)
             return;
 
         case GT_CMPXCHG:
-            CopyTestDataToCloneTree(from->gtCmpXchg.gtOpLocation, to->gtCmpXchg.gtOpLocation);
-            CopyTestDataToCloneTree(from->gtCmpXchg.gtOpValue, to->gtCmpXchg.gtOpValue);
-            CopyTestDataToCloneTree(from->gtCmpXchg.gtOpComparand, to->gtCmpXchg.gtOpComparand);
+            CopyTestDataToCloneTree(from->AsCmpXchg()->gtOpLocation, to->AsCmpXchg()->gtOpLocation);
+            CopyTestDataToCloneTree(from->AsCmpXchg()->gtOpValue, to->AsCmpXchg()->gtOpValue);
+            CopyTestDataToCloneTree(from->AsCmpXchg()->gtOpComparand, to->AsCmpXchg()->gtOpComparand);
             return;
 
         case GT_ARR_BOUNDS_CHECK:
