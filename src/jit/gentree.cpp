@@ -670,7 +670,7 @@ bool GenTree::gtHasReg() const
     }
     else
     {
-        hasReg = (gtRegNum != REG_NA);
+        hasReg = (GetRegNum() != REG_NA);
     }
 
     return hasReg;
@@ -748,7 +748,7 @@ regMaskTP GenTree::gtGetRegMask() const
     if (IsMultiRegCall())
     {
         // temporarily cast away const-ness as AsCall() method is not declared const
-        resultMask    = genRegMask(gtRegNum);
+        resultMask    = genRegMask(GetRegNum());
         GenTree* temp = const_cast<GenTree*>(this);
         resultMask |= temp->AsCall()->GetOtherRegMask();
     }
@@ -791,7 +791,7 @@ regMaskTP GenTree::gtGetRegMask() const
 #endif // FEATURE_ARG_SPLIT
     else
     {
-        resultMask = genRegMask(gtRegNum);
+        resultMask = genRegMask(GetRegNum());
     }
 
     return resultMask;
@@ -6636,7 +6636,7 @@ GenTree* Compiler::gtNewPutArgReg(var_types type, GenTree* arg, regNumber argReg
 #else
     node          = gtNewOperNode(GT_PUTARG_REG, type, arg);
 #endif
-    node->gtRegNum = argReg;
+    node->SetRegNum(argReg);
 
     return node;
 }
@@ -9815,7 +9815,7 @@ void Compiler::gtDispRegVal(GenTree* tree)
         // case GenTree::GT_REGTAG_NONE:       printf(" NOREG");   break;
 
         case GenTree::GT_REGTAG_REG:
-            printf(" REG %s", compRegVarName(tree->gtRegNum));
+            printf(" REG %s", compRegVarName(tree->GetRegNum()));
             break;
 
         default:
@@ -10338,7 +10338,7 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
             }
             else if (tree->InReg())
             {
-                printf(" %s", compRegVarName(tree->gtRegNum));
+                printf(" %s", compRegVarName(tree->GetRegNum()));
             }
 
             if (varDsc->lvPromoted)

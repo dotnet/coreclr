@@ -1098,7 +1098,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
                 argSplit->m_regType[index] = regType;
 
                 // Clear the register assignments on the fieldList nodes, as these are contained.
-                fieldListPtr->gtRegNum = REG_NA;
+                fieldListPtr->GetRegNum() = REG_NA;
             }
         }
     }
@@ -1129,7 +1129,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
                     regIndex++;
 
                     // Initialize all the gtRegNum's since the list won't be traversed in an LIR traversal.
-                    fieldListPtr->gtRegNum = REG_NA;
+                    fieldListPtr->SetRegNum(REG_NA);
                 }
 
                 // Just return arg. The GT_FIELD_LIST is not replaced.
@@ -1378,7 +1378,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
             // Only the first fieldList node (GTF_FIELD_LIST_HEAD) is in the instruction sequence.
             (void)new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldList);
             GenTree* putArg  = NewPutArg(call, fieldList, info, type);
-            putArg->gtRegNum = info->regNum;
+            putArg->GetRegNum() = info->regNum;
 
             // We can't call ReplaceArgWithPutArgOrBitcast here because it presumes that we are keeping the original
             // arg.
@@ -1500,7 +1500,7 @@ GenTree* Lowering::LowerFloatArgReg(GenTree* arg, regNumber regNum)
     assert(varTypeIsFloating(floatType));
     var_types intType = (floatType == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
     GenTree*  intArg  = comp->gtNewBitCastNode(intType, arg);
-    intArg->gtRegNum  = regNum;
+    intArg->SetRegNum(regNum);
 #ifdef _TARGET_ARM_
     if (floatType == TYP_DOUBLE)
     {
@@ -5592,7 +5592,7 @@ void Lowering::ContainCheckNode(GenTree* node)
         case GT_PUTARG_SPLIT:
 #endif // FEATURE_ARG_SPLIT
             // The regNum must have been set by the lowering of the call.
-            assert(node->gtRegNum != REG_NA);
+            assert(node->GetRegNum() != REG_NA);
             break;
 #ifdef _TARGET_XARCH_
         case GT_INTRINSIC:

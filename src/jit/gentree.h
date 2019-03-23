@@ -526,7 +526,7 @@ public:
     // The register number is stored in a small format (8 bits), but the getters return and the setters take
     // a full-size (unsigned) format, to localize the casts here.
 
-    __declspec(property(get = GetRegNum, put = SetRegNum)) regNumber gtRegNum;
+
 
     bool canBeContained() const;
 
@@ -1912,7 +1912,7 @@ public:
     bool DefinesLocalAddr(Compiler* comp, unsigned width, GenTreeLclVarCommon** pLclVarTree, bool* pIsEntire);
 
     // These are only used for dumping.
-    // The gtRegNum is only valid in LIR, but the dumping methods are not easily
+    // The AsRegNum() is only valid in LIR, but the dumping methods are not easily
     // modified to check this.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
@@ -1923,7 +1923,7 @@ public:
     }
     regNumber GetReg() const
     {
-        return (GetRegTag() != GT_REGTAG_NONE) ? gtRegNum : REG_NA;
+        return (GetRegTag() != GT_REGTAG_NONE) ? GetRegNum() : REG_NA;
     }
 #endif
 
@@ -2473,8 +2473,8 @@ struct GenTreeIntConCommon : public GenTree
 // node representing a read from a physical register
 struct GenTreePhysReg : public GenTree
 {
-    // physregs need a field beyond gtRegNum because
-    // gtRegNum indicates the destination (and can be changed)
+    // physregs need a field beyond AsRegNum() because
+    // AsRegNum() indicates the destination (and can be changed)
     // whereas reg indicates the source
     regNumber gtSrcReg;
     GenTreePhysReg(regNumber r, var_types type = TYP_I_IMPL) : GenTree(GT_PHYSREG, type), gtSrcReg(r)
@@ -3170,7 +3170,7 @@ struct GenTreeCall final : public GenTree
     // TODO-AllArch: enable for all call nodes to unify single-reg and multi-reg returns.
     ReturnTypeDesc gtReturnTypeDesc;
 
-    // gtRegNum would always be the first return reg.
+    // AsRegNum() would always be the first return reg.
     // The following array holds the other reg numbers of multi-reg return.
     regNumberSmall gtOtherRegs[MAX_RET_REG_COUNT - 1];
 
@@ -3224,7 +3224,7 @@ struct GenTreeCall final : public GenTree
 
         if (idx == 0)
         {
-            return gtRegNum;
+	    return GetRegNum();
         }
 
 #if FEATURE_MULTIREG_RET
@@ -3250,7 +3250,7 @@ struct GenTreeCall final : public GenTree
 
         if (idx == 0)
         {
-            gtRegNum = reg;
+	    SetRegNum(reg);
         }
 #if FEATURE_MULTIREG_RET
         else
@@ -3811,7 +3811,7 @@ struct GenTreeMultiRegOp : public GenTreeOp
 
     unsigned GetRegCount() const
     {
-        if (gtRegNum == REG_NA || gtRegNum == REG_STK)
+        if (AsRegNum() == REG_NA || AsRegNum() == REG_STK)
         {
             return 0;
         }
@@ -3833,7 +3833,7 @@ struct GenTreeMultiRegOp : public GenTreeOp
 
         if (idx == 0)
         {
-            return gtRegNum;
+            return AsRegNum();
         }
 
         return gtOtherReg;
@@ -5183,7 +5183,7 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
     // Type required to support multi-reg struct arg.
     var_types m_regType[MAX_REG_ARG];
 
-    // First reg of struct is always given by gtRegNum.
+    // First reg of struct is always given by AsRegNum().
     // gtOtherRegs holds the other reg numbers of struct.
     regNumberSmall gtOtherRegs[MAX_REG_ARG - 1];
 
@@ -5210,7 +5210,7 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
 
         if (idx == 0)
         {
-            return gtRegNum;
+            return AsRegNum();
         }
 
         return (regNumber)gtOtherRegs[idx - 1];
@@ -5231,7 +5231,7 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
         assert(idx < MAX_REG_ARG);
         if (idx == 0)
         {
-            gtRegNum = reg;
+            SetRegNum(reg);
         }
         else
         {
@@ -5372,7 +5372,7 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 {
 #if FEATURE_MULTIREG_RET
     // State required to support copy/reload of a multi-reg call node.
-    // The first register is always given by gtRegNum.
+    // The first register is always given by AsRegNum().
     //
     regNumberSmall gtOtherRegs[MAX_RET_REG_COUNT - 1];
 #endif
@@ -5411,7 +5411,7 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 
         if (idx == 0)
         {
-            return gtRegNum;
+	    return GetRegNum();
         }
 
 #if FEATURE_MULTIREG_RET
@@ -5437,7 +5437,7 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 
         if (idx == 0)
         {
-            gtRegNum = reg;
+	    SetRegNum(reg);
         }
 #if FEATURE_MULTIREG_RET
         else
@@ -5481,8 +5481,8 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
     {
 #if FEATURE_MULTIREG_RET
         // We need to return the highest index for which we have a valid register.
-        // Note that the gtOtherRegs array is off by one (the 0th register is gtRegNum).
-        // If there's no valid register in gtOtherRegs, gtRegNum must be valid.
+        // Note that the gtOtherRegs array is off by one (the 0th register is AsRegNum()).
+        // If there's no valid register in gtOtherRegs, AsRegNum() must be valid.
         // Note that for most nodes, the set of valid registers must be contiguous,
         // but for COPY or RELOAD there is only a valid register for the register positions
         // that must be copied or reloaded.
@@ -5496,13 +5496,13 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
         }
 #endif
         // We should never have a COPY or RELOAD with no valid registers.
-        assert(gtRegNum != REG_NA);
+        assert(GetRegNum() != REG_NA);
         return 1;
     }
 
     GenTreeCopyOrReload(genTreeOps oper, var_types type, GenTree* op1) : GenTreeUnOp(oper, type, op1)
     {
-        gtRegNum = REG_NA;
+        SetRegNum(REG_NA);
         ClearOtherRegs();
     }
 
@@ -6307,7 +6307,7 @@ inline regNumber GenTree::GetRegByIndex(int regIndex)
 {
     if (regIndex == 0)
     {
-        return gtRegNum;
+        return GetRegNum();
     }
 
 #if FEATURE_MULTIREG_RET

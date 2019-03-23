@@ -1133,7 +1133,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         if (argNode->OperIsPutArgReg())
         {
             srcCount++;
-            BuildUse(argNode, genRegMask(argNode->gtRegNum));
+            BuildUse(argNode, genRegMask(argNode->GetRegNum()));
         }
 #ifdef UNIX_AMD64_ABI
         else if (argNode->OperGet() == GT_FIELD_LIST)
@@ -1142,7 +1142,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
             {
                 assert(entry->Current()->OperIsPutArgReg());
                 srcCount++;
-                BuildUse(entry->Current(), genRegMask(entry->Current()->gtRegNum));
+                BuildUse(entry->Current(), genRegMask(entry->Current()->GetRegNum()));
             }
         }
 #endif // UNIX_AMD64_ABI
@@ -1182,7 +1182,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
             for (GenTreeFieldList* entry = argNode->AsFieldList(); entry != nullptr; entry = entry->Rest())
             {
                 const regNumber argReg = (i == 0) ? curArgTabEntry->regNum : curArgTabEntry->getOtherRegNum();
-                assert(entry->Current()->gtRegNum == argReg);
+                assert(entry->Current()->GetRegNum() == argReg);
                 assert(i < 2);
                 i++;
             }
@@ -1191,7 +1191,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
 #endif // UNIX_AMD64_ABI
         {
             const regNumber argReg = curArgTabEntry->regNum;
-            assert(argNode->gtRegNum == argReg);
+            assert(argNode->GetRegNum() == argReg);
         }
 #endif // DEBUG
     }

@@ -906,7 +906,7 @@ inline GenTree::GenTree(genTreeOps oper, var_types type DEBUGARG(bool largeNode)
 
     gtNext   = nullptr;
     gtPrev   = nullptr;
-    gtRegNum = REG_NA;
+    SetRegNum(REG_NA);
     INDEBUG(gtRegTag = GT_REGTAG_NONE;)
 
     INDEBUG(gtCostsInitialized = false;)
