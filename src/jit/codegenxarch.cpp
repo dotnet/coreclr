@@ -5960,7 +5960,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             //
             // If we need to generate a tail call profiler hook, then spill all
             // arg regs to free them up for the callback.
-            if (!compiler->compIsProfilerHookNeeded() && (varDsc->GetRegNum() == varDsc->lvArgReg))
+            if (!compiler->compIsProfilerHookNeeded() && (varDsc->GetRegNum() == varDsc->GetArgReg()))
             {
                 continue;
             }
@@ -6051,16 +6051,16 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             // Move the values into the right registers.
             //
 
-            // Update varDsc->lvArgReg and lvOtherArgReg life and GC Info to indicate varDsc stack slot is dead and
+            // Update varDsc->GetArgReg() and lvOtherArgReg life and GC Info to indicate varDsc stack slot is dead and
             // argReg is going live. Note that we cannot modify varDsc->GetRegNum() and lvOtherArgReg here because another
             // basic block may not be expecting it. Therefore manually update life of argReg.  Note that GT_JMP marks
             // the end of the basic block and after which reg life and gc info will be recomputed for the new block in
             // genCodeForBBList().
             if (type0 != TYP_UNKNOWN)
             {
-                getEmitter()->emitIns_R_S(ins_Load(type0), emitTypeSize(type0), varDsc->lvArgReg, varNum, offset0);
-                regSet.SetMaskVars(regSet.GetMaskVars() | genRegMask(varDsc->lvArgReg));
-                gcInfo.gcMarkRegPtrVal(varDsc->lvArgReg, type0);
+                getEmitter()->emitIns_R_S(ins_Load(type0), emitTypeSize(type0), varDsc->GetArgReg(), varNum, offset0);
+                regSet.SetMaskVars(regSet.GetMaskVars() | genRegMask(varDsc->GetArgReg()));
+                gcInfo.gcMarkRegPtrVal(varDsc->GetArgReg(), type0);
             }
 
             if (type1 != TYP_UNKNOWN)
@@ -6084,7 +6084,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             // Is register argument already in the right register?
             // If not load it from its stack location.
             var_types loadType = varDsc->lvaArgType();
-            regNumber argReg   = varDsc->lvArgReg; // incoming arg register
+            regNumber argReg   = varDsc->GetArgReg(); // incoming arg register
 
             if (varDsc->GetRegNum() != argReg)
             {
@@ -6124,7 +6124,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
         {
             regNumber intArgReg;
             var_types loadType = varDsc->lvaArgType();
-            regNumber argReg   = varDsc->lvArgReg; // incoming arg register
+            regNumber argReg   = varDsc->GetArgReg(); // incoming arg register
 
             if (varTypeIsFloating(loadType))
             {
@@ -7466,10 +7466,10 @@ unsigned CodeGen::getBaseVarForPutArgStk(GenTree* treeNode)
         assert(varDsc != nullptr);
 
 #ifdef UNIX_AMD64_ABI
-        assert(!varDsc->lvIsRegArg && varDsc->lvArgReg == REG_STK);
+        assert(!varDsc->lvIsRegArg && varDsc->GetArgReg() == REG_STK);
 #else  // !UNIX_AMD64_ABI
         // On Windows this assert is always true. The first argument will always be in REG_ARG_0 or REG_FLTARG_0.
-        assert(varDsc->lvIsRegArg && (varDsc->lvArgReg == REG_ARG_0 || varDsc->lvArgReg == REG_FLTARG_0));
+        assert(varDsc->lvIsRegArg && (varDsc->GetArgReg() == REG_ARG_0 || varDsc->GetArgReg() == REG_FLTARG_0));
 #endif // !UNIX_AMD64_ABI
 #endif // !DEBUG
     }

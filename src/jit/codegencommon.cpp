@@ -1740,7 +1740,7 @@ void CodeGen::genExitCode(BasicBlock* block)
             {
                 noway_assert(varDsc->lvIsParam);
 
-                gcInfo.gcMarkRegPtrVal(varDsc->lvArgReg, varDsc->TypeGet());
+                gcInfo.gcMarkRegPtrVal(varDsc->GetArgReg(), varDsc->TypeGet());
             }
 
             getEmitter()->emitThisGCrefRegs = getEmitter()->emitInitGCrefRegs = gcInfo.gcRegGCrefSetCur;
@@ -3303,7 +3303,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         {
             // A struct might be passed  partially in XMM register for System V calls.
             // So a single arg might use both register files.
-            if (emitter::isFloatReg(varDsc->lvArgReg) != doingFloat)
+            if (emitter::isFloatReg(varDsc->GetArgReg()) != doingFloat)
             {
                 continue;
             }
@@ -3399,7 +3399,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #endif // defined(UNIX_AMD64_ABI)
         {
             // Bingo - add it to our table
-            regArgNum = genMapRegNumToRegArgNum(varDsc->lvArgReg, regType);
+            regArgNum = genMapRegNumToRegArgNum(varDsc->GetArgReg(), regType);
 
             noway_assert(regArgNum < argMax);
             // We better not have added it already (there better not be multiple vars representing this argument
@@ -3479,7 +3479,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             regNumber regNum = genMapRegArgNumToRegNum(regArgNum + i, regType);
 
 #if !defined(UNIX_AMD64_ABI)
-            assert((i > 0) || (regNum == varDsc->lvArgReg));
+            assert((i > 0) || (regNum == varDsc->GetArgReg()));
 #endif // defined(UNIX_AMD64_ABI)
 
             // Is the arg dead on entry to the method ?
@@ -3522,7 +3522,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #endif // _TARGET_ARM_
             {
 #if !defined(UNIX_AMD64_ABI)
-                noway_assert(xtraReg != (varDsc->lvArgReg + i));
+                noway_assert(xtraReg != (varDsc->GetArgReg() + i));
 #endif
                 noway_assert(regArgMaskLive & genRegMask(regNum));
             }
@@ -3958,18 +3958,18 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                     size = EA_GCREF;
                 }
 
-                noway_assert(varDscDest->lvArgReg == varDscSrc->GetRegNum());
+                noway_assert(varDscDest->GetArgReg() == varDscSrc->GetRegNum());
 
-                getEmitter()->emitIns_R_R(INS_xchg, size, varDscSrc->GetRegNum(), varDscSrc->lvArgReg);
+                getEmitter()->emitIns_R_R(INS_xchg, size, varDscSrc->GetRegNum(), varDscSrc->GetArgReg());
                 regSet.verifyRegUsed(varDscSrc->GetRegNum());
-                regSet.verifyRegUsed(varDscSrc->lvArgReg);
+                regSet.verifyRegUsed(varDscSrc->GetArgReg());
 
                 /* mark both arguments as processed */
                 regArgTab[destReg].processed = true;
                 regArgTab[srcReg].processed  = true;
 
-                regArgMaskLive &= ~genRegMask(varDscSrc->lvArgReg);
-                regArgMaskLive &= ~genRegMask(varDscDest->lvArgReg);
+                regArgMaskLive &= ~genRegMask(varDscSrc->GetArgReg());
+                regArgMaskLive &= ~genRegMask(varDscDest->GetArgReg());
 #ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumSrc);
                 psiMoveToReg(varNumDest);
@@ -5359,7 +5359,7 @@ regMaskTP CodeGen::genJmpCallArgMask()
         const LclVarDsc& desc = compiler->lvaTable[varNum];
         if (desc.lvIsRegArg)
         {
-            argMask |= genRegMask(desc.lvArgReg);
+            argMask |= genRegMask(desc.GetArgReg());
         }
     }
     return argMask;
@@ -6436,7 +6436,7 @@ void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegZeroed
     // Load from the argument register only if it is not prespilled.
     if (compiler->lvaIsRegArgument(contextArg) && !isPrespilledForProfiling)
     {
-        reg = varDsc->lvArgReg;
+        reg = varDsc->GetArgReg();
     }
     else
     {
@@ -6601,7 +6601,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
             }
 
             var_types storeType = varDsc->lvaArgType();
-            regNumber argReg    = varDsc->lvArgReg;
+            regNumber argReg    = varDsc->GetArgReg();
 
             instruction store_ins = ins_Store(storeType);
 
@@ -6674,7 +6674,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
         }
 
         var_types loadType = varDsc->lvaArgType();
-        regNumber argReg   = varDsc->lvArgReg;
+        regNumber argReg   = varDsc->GetArgReg();
 
         instruction load_ins = ins_Load(loadType);
 
@@ -10335,7 +10335,7 @@ unsigned CodeGen::getFirstArgWithStackSlot()
         // we find any non-parameters.
         assert(varDsc->lvIsParam);
 
-        if (varDsc->lvArgReg == REG_STK)
+        if (varDsc->GetArgReg() == REG_STK)
         {
             baseVarNum = i;
             break;
