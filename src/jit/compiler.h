@@ -7194,10 +7194,10 @@ public:
     }
 
 #ifdef _TARGET_ARMARCH_
-    __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
+
     bool getHasTailCalls()
     {
-        return codeGen->hasTailCalls;
+        return codeGen->getHasTailCalls();
     }
     void setHasTailCalls(bool value)
     {
