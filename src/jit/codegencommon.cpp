@@ -4446,6 +4446,8 @@ void CodeGen::genCheckUseBlockInit()
 
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
+        bool counted = false;
+
         if (varDsc->lvIsParam)
         {
             continue;
@@ -4517,6 +4519,7 @@ void CodeGen::genCheckUseBlockInit()
                                 // Var is on the stack at entry.
                                 initStkLclCnt +=
                                     roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
+                                counted = true;
                             }
                         }
                         else
@@ -4524,6 +4527,7 @@ void CodeGen::genCheckUseBlockInit()
                             // Var is partially enregistered
                             noway_assert(genTypeSize(varDsc->TypeGet()) > sizeof(int) && varDsc->lvOtherReg == REG_STK);
                             initStkLclCnt += genTypeStSz(TYP_INT);
+                            counted = true;
                         }
                     }
                 }
@@ -4545,9 +4549,14 @@ void CodeGen::genCheckUseBlockInit()
                 varDsc->lvOnFrame &&
                 (!varDsc->lvIsTemp || varTypeIsGC(varDsc->TypeGet()) || (varDsc->lvStructGcCount > 0)))
             {
+
                 varDsc->lvMustInit = true;
 
-                initStkLclCnt += roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
+                if (!counted)
+                {
+                    initStkLclCnt += roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
+                    counted = true;
+                }
             }
 
             continue;
@@ -4578,7 +4587,10 @@ void CodeGen::genCheckUseBlockInit()
 
         if (varDsc->lvMustInit && varDsc->lvOnFrame)
         {
-            initStkLclCnt += varDsc->lvStructGcCount;
+            if (!counted)
+            {
+                initStkLclCnt += varDsc->lvStructGcCount;
+            }
         }
 
         if ((compiler->lvaLclSize(varNum) > (3 * TARGET_POINTER_SIZE)) && (largeGcStructs <= 4))
@@ -4608,12 +4620,20 @@ void CodeGen::genCheckUseBlockInit()
     // zero init the stack using a block operation instead of a 'case by case' basis.
     genInitStkLclCnt = initStkLclCnt;
 
-    /* If we have more than 4 untracked locals, use block initialization */
-    /* TODO-Review: If we have large structs, bias toward not using block initialization since
-       we waste all the other slots.  Really need to compute the correct
-       and compare that against zeroing the slots individually */
+/* If we have more than 4 untracked locals, use block initialization */
+/* TODO-Review: If we have large structs, bias toward not using block initialization since
+   we waste all the other slots.  Really need to compute the correct
+   and compare that against zeroing the slots individually */
+
+#ifdef _TARGET_64BIT_
+
+    genUseBlockInit = (genInitStkLclCnt > (largeGcStructs + 8));
+
+#else
 
     genUseBlockInit = (genInitStkLclCnt > (largeGcStructs + 4));
+
+#endif // _TARGET_64BIT_
 
     if (genUseBlockInit)
     {
