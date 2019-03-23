@@ -2559,7 +2559,7 @@ DONE_VLT:
     if (compiler->codeGen->getInterruptible())
     {
 #ifdef _TARGET_X86_
-        assert(compiler->genFullPtrRegMap);
+        assert(compiler->getFullPtrRegMap());
 
         unsigned ptrRegs = 0;
 
@@ -3008,7 +3008,7 @@ DONE_VLT:
         */
 
         /* If "this" is enregistered, note it. We do this explicitly here as
-           genFullPtrRegMap==false, and so we don't have any regPtrDsc's. */
+           getFullPtrRegMap()==false, and so we don't have any regPtrDsc's. */
 
         if (compiler->lvaKeepAliveAndReportThis() && compiler->lvaTable[compiler->info.compThisArg].lvRegister)
         {
@@ -3025,7 +3025,7 @@ DONE_VLT:
 
         CallDsc* call;
 
-        assert(compiler->genFullPtrRegMap == false);
+        assert(compiler->getFullPtrRegMap() == false);
 
         /* Walk the list of pointer register/argument entries */
 
@@ -3179,7 +3179,7 @@ DONE_VLT:
     }
     else // getInterruptible() is false and we have an EBP-less frame
     {
-        assert(compiler->genFullPtrRegMap);
+        assert(compiler->getFullPtrRegMap());
 
 #ifdef _TARGET_X86_
 
@@ -4384,7 +4384,7 @@ void GCInfo::gcMakeRegPtrTable(
 
     if (compiler->codeGen->getInterruptible())
     {
-        assert(compiler->genFullPtrRegMap);
+        assert(compiler->getFullPtrRegMap());
 
         regMaskSmall ptrRegs          = 0;
         regPtrDsc*   regStackArgFirst = nullptr;
@@ -4488,7 +4488,7 @@ void GCInfo::gcMakeRegPtrTable(
     }
     else if (compiler->isFramePointerUsed()) // getInterruptible() is false, and we're using EBP as a frame pointer.
     {
-        assert(compiler->genFullPtrRegMap == false);
+        assert(compiler->getFullPtrRegMap() == false);
 
         // Walk the list of pointer register/argument entries.
 
@@ -4594,7 +4594,7 @@ void GCInfo::gcMakeRegPtrTable(
     }
     else // getInterruptible() is false and we have an EBP-less frame
     {
-        assert(compiler->genFullPtrRegMap);
+        assert(compiler->getFullPtrRegMap());
 
         // Walk the list of pointer register/argument entries */
         // First count them.

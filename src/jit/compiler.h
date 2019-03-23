@@ -7216,10 +7216,9 @@ public:
                            unsigned refCntWtdStkDbl);
 #endif // DOUBLE_ALIGN
 
-    __declspec(property(get = getFullPtrRegMap, put = setFullPtrRegMap)) bool genFullPtrRegMap;
     bool getFullPtrRegMap()
     {
-        return codeGen->genFullPtrRegMap;
+        return codeGen->doFullPtrRegMap();
     }
     void setFullPtrRegMap(bool value)
     {
