@@ -612,7 +612,7 @@ private:
             // Sanity check the ret expr if non-null: it should refer to the original call.
             if (retExpr != nullptr)
             {
-                assert(retExpr->gtRetExpr.gtInlineCandidate == origCall);
+                assert(retExpr->AsRetExpr()->gtInlineCandidate == origCall);
             }
 
             if (origCall->TypeGet() != TYP_VOID)
@@ -629,7 +629,7 @@ private:
 
                 JITDUMP("Updating GT_RET_EXPR [%06u] to refer to temp V%02u\n", compiler->dspTreeID(retExpr),
                         returnTemp);
-                retExpr->gtRetExpr.gtInlineCandidate = tempTree;
+                retExpr->AsRetExpr()->gtInlineCandidate = tempTree;
             }
             else if (retExpr != nullptr)
             {
@@ -643,7 +643,7 @@ private:
                 JITDUMP("Updating GT_RET_EXPR [%06u] for VOID return to refer to a NOP\n",
                         compiler->dspTreeID(retExpr));
                 GenTree* nopTree                     = compiler->gtNewNothingNode();
-                retExpr->gtRetExpr.gtInlineCandidate = nopTree;
+                retExpr->AsRetExpr()->gtInlineCandidate = nopTree;
             }
             else
             {
