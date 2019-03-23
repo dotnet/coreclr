@@ -4840,7 +4840,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
 #endif // !_TARGET_64BIT_
         }
 
-        divisor->gtIntConCommon.SetIconValue(magic);
+        divisor->AsIntConCommon()->SetIconValue(magic);
 
         // Insert a new GT_MULHI node in front of the existing GT_DIV/GT_MOD node.
         // The existing node will later be transformed into a GT_ADD/GT_SUB that
