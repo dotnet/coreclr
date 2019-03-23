@@ -14100,7 +14100,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 #ifdef FEATURE_READYTORUN_COMPILER
                         if (fieldInfo.fieldAccessor == CORINFO_FIELD_INSTANCE_WITH_BASE)
                         {
-                            op1->gtField.gtFieldLookup = fieldInfo.fieldLookup;
+                            op1->AsField()->gtFieldLookup = fieldInfo.fieldLookup;
                         }
 #endif
 
@@ -14121,7 +14121,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         DWORD typeFlags = info.compCompHnd->getClassAttribs(resolvedToken.hClass);
                         if (StructHasOverlappingFields(typeFlags))
                         {
-                            op1->gtField.gtFldMayOverlap = true;
+                            op1->AsField()->gtFldMayOverlap = true;
                         }
 
                         // wrap it in a address of operator if necessary
@@ -14417,13 +14417,13 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         DWORD typeFlags = info.compCompHnd->getClassAttribs(resolvedToken.hClass);
                         if (StructHasOverlappingFields(typeFlags))
                         {
-                            op1->gtField.gtFldMayOverlap = true;
+                            op1->AsField()->gtFldMayOverlap = true;
                         }
 
 #ifdef FEATURE_READYTORUN_COMPILER
                         if (fieldInfo.fieldAccessor == CORINFO_FIELD_INSTANCE_WITH_BASE)
                         {
-                            op1->gtField.gtFieldLookup = fieldInfo.fieldLookup;
+                            op1->AsField()->gtFieldLookup = fieldInfo.fieldLookup;
                         }
 #endif
 
@@ -18099,7 +18099,7 @@ BOOL Compiler::impIsAddressInLocal(GenTree* tree, GenTree** lclVarTreeOut)
     GenTree* op = tree->AsOp()->gtOp1;
     while (op->gtOper == GT_FIELD)
     {
-        op = op->gtField.gtFldObj;
+        op = op->AsField()->gtFldObj;
         if (op && op->gtOper == GT_ADDR) // Skip static fields where op will be NULL.
         {
             op = op->AsOp()->gtOp1;
