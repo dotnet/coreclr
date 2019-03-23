@@ -9145,7 +9145,7 @@ void LinearScan::lsraDispNode(GenTree* tree, LsraTupleDumpMode mode, bool hasDes
     unsigned   varNum = UINT_MAX;
     if (tree->IsLocal())
     {
-        varNum = tree->gtLclVarCommon.GetLclNum();
+        varNum = tree->AsLclVarCommon()->GetLclNum();
         varDsc = &(compiler->lvaTable[varNum]);
         if (varDsc->lvLRACandidate)
         {

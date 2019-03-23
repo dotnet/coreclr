@@ -2555,7 +2555,7 @@ void CodeGen::genCodeForLoadPairOffset(regNumber dst, regNumber dst2, GenTree* b
         if (base->gtOper == GT_LCL_FLD_ADDR)
             offset += base->gtLclFld.gtLclOffs;
 
-        emit->emitIns_R_R_S_S(INS_ldp, EA_8BYTE, EA_8BYTE, dst, dst2, base->gtLclVarCommon.GetLclNum(), offset);
+        emit->emitIns_R_R_S_S(INS_ldp, EA_8BYTE, EA_8BYTE, dst, dst2, base->AsLclVarCommon()->GetLclNum(), offset);
     }
     else
     {
@@ -2575,7 +2575,7 @@ void CodeGen::genCodeForStorePairOffset(regNumber src, regNumber src2, GenTree* 
         if (base->gtOper == GT_LCL_FLD_ADDR)
             offset += base->gtLclFld.gtLclOffs;
 
-        emit->emitIns_S_S_R_R(INS_stp, EA_8BYTE, EA_8BYTE, src, src2, base->gtLclVarCommon.GetLclNum(), offset);
+        emit->emitIns_S_S_R_R(INS_stp, EA_8BYTE, EA_8BYTE, src, src2, base->AsLclVarCommon()->GetLclNum(), offset);
     }
     else
     {
@@ -4717,7 +4717,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
 
                 if (op1->OperIsLocal())
                 {
-                    unsigned varNum = op1->gtLclVarCommon.GetLclNum();
+                    unsigned varNum = op1->AsLclVarCommon()->GetLclNum();
 
                     getEmitter()->emitIns_R_S(ins, baseTypeSize, targetReg, varNum, offset);
                 }
@@ -4776,7 +4776,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
             assert(!op1->isUsedFromReg());
             if (op1->OperIsLocal())
             {
-                unsigned varNum = op1->gtLclVarCommon.GetLclNum();
+                unsigned varNum = op1->AsLclVarCommon()->GetLclNum();
 
                 baseReg = simdNode->ExtractTempReg();
 
@@ -5088,7 +5088,7 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
     assert((treeNode->OperGet() == GT_STORE_LCL_FLD) || (treeNode->OperGet() == GT_STORE_LCL_VAR));
 
     unsigned offs   = 0;
-    unsigned varNum = treeNode->gtLclVarCommon.GetLclNum();
+    unsigned varNum = treeNode->AsLclVarCommon()->GetLclNum();
     assert(varNum < compiler->lvaCount);
 
     if (treeNode->OperGet() == GT_STORE_LCL_FLD)
