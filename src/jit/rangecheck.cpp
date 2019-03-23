@@ -197,7 +197,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreeStmt* stmt, GenTre
     }
 
     // If we are not looking at array bounds check, bail.
-    GenTree* tree = treeParent->gtOp.gtOp1;
+    GenTree* tree = treeParent->AsOp()->gtOp1;
     if (!tree->OperIsBoundsCheck())
     {
         return;
@@ -405,7 +405,7 @@ bool RangeCheck::IsMonotonicallyIncreasing(GenTree* expr, bool rejectNegativeCon
     }
     else if (expr->OperGet() == GT_PHI)
     {
-        for (GenTreeArgList* args = expr->gtOp.gtOp1->AsArgList(); args != nullptr; args = args->Rest())
+        for (GenTreeArgList* args = expr->AsOp()->gtOp1->AsArgList(); args != nullptr; args = args->Rest())
         {
             // If the arg is already in the path, skip.
             if (m_pSearchPath->Lookup(args->Current()))
@@ -986,7 +986,7 @@ bool RangeCheck::DoesVarDefOverflow(GenTreeLclVarCommon* lcl)
 
 bool RangeCheck::DoesPhiOverflow(BasicBlock* block, GenTree* expr)
 {
-    for (GenTreeArgList* args = expr->gtOp.gtOp1->AsArgList(); args != nullptr; args = args->Rest())
+    for (GenTreeArgList* args = expr->AsOp()->gtOp1->AsArgList(); args != nullptr; args = args->Rest())
     {
         GenTree* arg = args->Current();
         if (m_pSearchPath->Lookup(arg))
@@ -1123,7 +1123,7 @@ Range RangeCheck::ComputeRange(BasicBlock* block, GenTree* expr, bool monotonic 
     // If phi, then compute the range for arguments, calling the result "dependent" when looping begins.
     else if (expr->OperGet() == GT_PHI)
     {
-        for (GenTreeArgList* args = expr->gtOp.gtOp1->AsArgList(); args != nullptr; args = args->Rest())
+        for (GenTreeArgList* args = expr->AsOp()->gtOp1->AsArgList(); args != nullptr; args = args->Rest())
         {
             Range argRange = Range(Limit(Limit::keUndef));
             if (m_pSearchPath->Lookup(args->Current()))

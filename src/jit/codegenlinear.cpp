@@ -465,7 +465,7 @@ void CodeGen::genCodeForBBlist()
         GenTree* blockLastNode = block->lastNode();
         if ((blockLastNode != nullptr) && (blockLastNode->gtOper == GT_RETURN) &&
             (varTypeIsGC(compiler->info.compRetType) ||
-             (blockLastNode->gtOp.gtOp1 != nullptr && varTypeIsGC(blockLastNode->gtOp.gtOp1->TypeGet()))))
+             (blockLastNode->AsOp()->gtOp1 != nullptr && varTypeIsGC(blockLastNode->AsOp()->gtOp1->TypeGet()))))
         {
             nonVarPtrRegs &= ~RBM_INTRET;
         }
@@ -878,8 +878,8 @@ GenTree* sameRegAsDst(GenTree* tree, GenTree*& other /*out*/)
         return nullptr;
     }
 
-    GenTree* op1 = tree->gtOp.gtOp1;
-    GenTree* op2 = tree->gtOp.gtOp2;
+    GenTree* op1 = tree->AsOp()->gtOp1;
+    GenTree* op2 = tree->AsOp()->gtOp2;
     if (op1->GetRegNum() == tree->GetRegNum())
     {
         other = op2;
@@ -917,7 +917,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
     if (tree->gtOper == GT_RELOAD)
     {
-        unspillTree = tree->gtOp.gtOp1;
+        unspillTree = tree->AsOp()->gtOp1;
     }
 
     if ((unspillTree->gtFlags & GTF_SPILLED) != 0)
@@ -1634,7 +1634,7 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk, unsigned outArg
     for (GenTreeFieldList* fieldListPtr = putArgStk->gtOp1->AsFieldList(); fieldListPtr != nullptr;
          fieldListPtr                   = fieldListPtr->Rest())
     {
-        GenTree* nextArgNode = fieldListPtr->gtOp.gtOp1;
+        GenTree* nextArgNode = fieldListPtr->AsOp()->gtOp1;
         genConsumeReg(nextArgNode);
 
         regNumber reg  = nextArgNode->GetRegNum();
@@ -1696,7 +1696,7 @@ void CodeGen::genConsumeBlockSrc(GenTreeBlk* blkNode)
         // For a CopyBlk we need the address of the source.
         if (src->OperGet() == GT_IND)
         {
-            src = src->gtOp.gtOp1;
+            src = src->AsOp()->gtOp1;
         }
         else
         {
@@ -1732,7 +1732,7 @@ void CodeGen::genSetBlockSrc(GenTreeBlk* blkNode, regNumber srcReg)
         // For a CopyBlk we need the address of the source.
         if (src->OperGet() == GT_IND)
         {
-            src = src->gtOp.gtOp1;
+            src = src->AsOp()->gtOp1;
         }
         else
         {
@@ -2229,7 +2229,7 @@ void CodeGen::genStoreLongLclVar(GenTree* treeNode)
     LclVarDsc*           varDsc  = &(compiler->lvaTable[lclNum]);
     assert(varDsc->TypeGet() == TYP_LONG);
     assert(!varDsc->lvPromoted);
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
 
     // A GT_LONG is always contained, so it cannot have RELOAD or COPY inserted between it and its consumer,
     // but a MUL_LONG may.

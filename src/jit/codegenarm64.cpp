@@ -2067,7 +2067,7 @@ void CodeGen::genLclHeap(GenTree* tree)
     assert(tree->OperGet() == GT_LCLHEAP);
     assert(compiler->compLocallocUsed);
 
-    GenTree* size = tree->gtOp.gtOp1;
+    GenTree* size = tree->AsOp()->gtOp1;
     noway_assert((genActualType(size->gtType) == TYP_INT) || (genActualType(size->gtType) == TYP_I_IMPL));
 
     regNumber   targetReg       = tree->GetRegNum();
@@ -2753,8 +2753,8 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
 void CodeGen::genTableBasedSwitch(GenTree* treeNode)
 {
     genConsumeOperands(treeNode->AsOp());
-    regNumber idxReg  = treeNode->gtOp.gtOp1->GetRegNum();
-    regNumber baseReg = treeNode->gtOp.gtOp2->GetRegNum();
+    regNumber idxReg  = treeNode->AsOp()->gtOp1->GetRegNum();
+    regNumber baseReg = treeNode->AsOp()->gtOp2->GetRegNum();
 
     regNumber tmpReg = treeNode->GetSingleTempReg();
 
@@ -2815,8 +2815,8 @@ void CodeGen::genJumpTable(GenTree* treeNode)
 //
 void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
 {
-    GenTree*  data      = treeNode->gtOp.gtOp2;
-    GenTree*  addr      = treeNode->gtOp.gtOp1;
+    GenTree*  data      = treeNode->AsOp()->gtOp2;
+    GenTree*  addr      = treeNode->AsOp()->gtOp1;
     regNumber targetReg = treeNode->GetRegNum();
     regNumber dataReg   = data->GetRegNum();
     regNumber addrReg   = addr->GetRegNum();
@@ -3370,7 +3370,7 @@ void CodeGen::genIntToFloatCast(GenTree* treeNode)
     regNumber targetReg = treeNode->GetRegNum();
     assert(genIsValidFloatReg(targetReg));
 
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());             // Cannot be contained
     assert(genIsValidIntReg(op1->GetRegNum())); // Must be a valid int reg.
 
@@ -3448,7 +3448,7 @@ void CodeGen::genFloatToIntCast(GenTree* treeNode)
     regNumber targetReg = treeNode->GetRegNum();
     assert(genIsValidIntReg(targetReg)); // Must be a valid int reg.
 
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());               // Cannot be contained
     assert(genIsValidFloatReg(op1->GetRegNum())); // Must be a valid float reg.
 
@@ -3520,7 +3520,7 @@ void CodeGen::genCkfinite(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_CKFINITE);
 
-    GenTree*  op1         = treeNode->gtOp.gtOp1;
+    GenTree*  op1         = treeNode->AsOp()->gtOp1;
     var_types targetType  = treeNode->TypeGet();
     int       expMask     = (targetType == TYP_FLOAT) ? 0x7F8 : 0x7FF; // Bit mask to extract exponent.
     int       shiftAmount = targetType == TYP_FLOAT ? 20 : 52;
@@ -5005,8 +5005,8 @@ void CodeGen::genStoreIndTypeSIMD12(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_STOREIND);
 
-    GenTree* addr = treeNode->gtOp.gtOp1;
-    GenTree* data = treeNode->gtOp.gtOp2;
+    GenTree* addr = treeNode->AsOp()->gtOp1;
+    GenTree* data = treeNode->AsOp()->gtOp2;
 
     // addr and data should not be contained.
     assert(!data->isContained());
@@ -5050,7 +5050,7 @@ void CodeGen::genLoadIndTypeSIMD12(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_IND);
 
-    GenTree*  addr      = treeNode->gtOp.gtOp1;
+    GenTree*  addr      = treeNode->AsOp()->gtOp1;
     regNumber targetReg = treeNode->GetRegNum();
 
     assert(!addr->isContained());
@@ -5096,7 +5096,7 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
         offs = treeNode->gtLclFld.gtLclOffs;
     }
 
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());
     regNumber operandReg = genConsumeReg(op1);
 

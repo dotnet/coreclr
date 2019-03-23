@@ -509,9 +509,9 @@ inline void Compiler::impAppendStmtCheck(GenTreeStmt* stmt, unsigned chkLevel)
         // variable have to be spilled. If it is aliased, all calls and
         // indirect accesses have to be spilled
 
-        if (tree->gtOp.gtOp1->gtOper == GT_LCL_VAR)
+        if (tree->AsOp()->gtOp1->gtOper == GT_LCL_VAR)
         {
-            unsigned lclNum = tree->gtOp.gtOp1->gtLclVarCommon.GetLclNum();
+            unsigned lclNum = tree->AsOp()->gtOp1->gtLclVarCommon.GetLclNum();
             for (unsigned level = 0; level < chkLevel; level++)
             {
                 assert(!gtHasRef(verCurrentState.esStack[level].val, lclNum, false));
@@ -522,7 +522,7 @@ inline void Compiler::impAppendStmtCheck(GenTreeStmt* stmt, unsigned chkLevel)
 
         // If the access may be to global memory, all side effects have to be spilled.
 
-        else if (tree->gtOp.gtOp1->gtFlags & GTF_GLOB_REF)
+        else if (tree->AsOp()->gtOp1->gtFlags & GTF_GLOB_REF)
         {
             for (unsigned level = 0; level < chkLevel; level++)
             {
@@ -561,10 +561,10 @@ inline void Compiler::impAppendStmt(GenTreeStmt* stmt, unsigned chkLevel)
         // we handle them specially using impSpillLclRefs(). Temp locals should
         // be fine too.
 
-        if ((expr->gtOper == GT_ASG) && (expr->gtOp.gtOp1->gtOper == GT_LCL_VAR) &&
-            ((expr->gtOp.gtOp1->gtFlags & GTF_GLOB_REF) == 0) && !gtHasLocalsWithAddrOp(expr->gtOp.gtOp2))
+        if ((expr->gtOper == GT_ASG) && (expr->AsOp()->gtOp1->gtOper == GT_LCL_VAR) &&
+            ((expr->AsOp()->gtOp1->gtFlags & GTF_GLOB_REF) == 0) && !gtHasLocalsWithAddrOp(expr->AsOp()->gtOp2))
         {
-            unsigned op2Flags = expr->gtOp.gtOp2->gtFlags & GTF_GLOB_EFFECT;
+            unsigned op2Flags = expr->AsOp()->gtOp2->gtFlags & GTF_GLOB_EFFECT;
             assert(flags == (op2Flags | GTF_ASG));
             flags = op2Flags;
         }
@@ -1098,20 +1098,20 @@ GenTree* Compiler::impAssignStruct(GenTree*             dest,
     while (dest->gtOper == GT_COMMA)
     {
         // Second thing is the struct.
-        assert(varTypeIsStruct(dest->gtOp.gtOp2));
+        assert(varTypeIsStruct(dest->AsOp()->gtOp2));
 
         // Append all the op1 of GT_COMMA trees before we evaluate op2 of the GT_COMMA tree.
         if (pAfterStmt)
         {
-            *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(dest->gtOp.gtOp1, ilOffset));
+            *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(dest->AsOp()->gtOp1, ilOffset));
         }
         else
         {
-            impAppendTree(dest->gtOp.gtOp1, curLevel, ilOffset); // do the side effect
+            impAppendTree(dest->AsOp()->gtOp1, curLevel, ilOffset); // do the side effect
         }
 
         // set dest to the second thing
-        dest = dest->gtOp.gtOp2;
+        dest = dest->AsOp()->gtOp2;
     }
 
     assert(dest->gtOper == GT_LCL_VAR || dest->gtOper == GT_RETURN || dest->gtOper == GT_FIELD ||
@@ -1130,7 +1130,7 @@ GenTree* Compiler::impAssignStruct(GenTree*             dest,
 
     if (dest->gtOper == GT_IND || dest->OperIsBlk())
     {
-        destAddr = dest->gtOp.gtOp1;
+        destAddr = dest->AsOp()->gtOp1;
     }
     else
     {
@@ -1224,12 +1224,12 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
 
             // First we try to change this to "LclVar/LclFld = call"
             //
-            if ((destAddr->gtOper == GT_ADDR) && (destAddr->gtOp.gtOp1->gtOper == GT_LCL_VAR))
+            if ((destAddr->gtOper == GT_ADDR) && (destAddr->AsOp()->gtOp1->gtOper == GT_LCL_VAR))
             {
                 // If it is a multi-reg struct return, don't change the oper to GT_LCL_FLD.
                 // That is, the IR will be of the form lclVar = call for multi-reg return
                 //
-                GenTreeLclVar* lcl = destAddr->gtOp.gtOp1->AsLclVar();
+                GenTree* lcl = destAddr->AsOp()->gtOp1;
                 if (src->AsCall()->HasMultiRegRetVal())
                 {
                     // Mark the struct LclVar as used in a MultiReg return context
@@ -1351,7 +1351,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
             gtNewOperNode(GT_IND, TYP_I_IMPL, gtNewOperNode(GT_ADD, destAddr->gtType, destAddrClone, typeFieldOffset));
 
         // append the assign of the pointer value
-        GenTree* asg = gtNewAssignNode(ptrSlot, src->gtOp.gtOp1);
+        GenTree* asg = gtNewAssignNode(ptrSlot, src->AsOp()->gtOp1);
         if (pAfterStmt)
         {
             *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(asg, ilOffset));
@@ -1362,34 +1362,34 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         }
 
         // return the assign of the type value, to be appended
-        return gtNewAssignNode(typeSlot, src->gtOp.gtOp2);
+        return gtNewAssignNode(typeSlot, src->AsOp()->gtOp2);
     }
     else if (src->gtOper == GT_COMMA)
     {
         // The second thing is the struct or its address.
-        assert(varTypeIsStruct(src->gtOp.gtOp2) || src->gtOp.gtOp2->gtType == TYP_BYREF);
+        assert(varTypeIsStruct(src->AsOp()->gtOp2) || src->AsOp()->gtOp2->gtType == TYP_BYREF);
         if (pAfterStmt)
         {
             // Insert op1 after '*pAfterStmt'
-            *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(src->gtOp.gtOp1, ilOffset));
+            *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(src->AsOp()->gtOp1, ilOffset));
         }
         else if (impLastStmt != nullptr)
         {
             // Do the side-effect as a separate statement.
-            impAppendTree(src->gtOp.gtOp1, curLevel, ilOffset);
+            impAppendTree(src->AsOp()->gtOp1, curLevel, ilOffset);
         }
         else
         {
             // In this case we have neither been given a statement to insert after, nor are we
             // in the importer where we can append the side effect.
             // Instead, we're going to sink the assignment below the COMMA.
-            src->gtOp.gtOp2 =
-                impAssignStructPtr(destAddr, src->gtOp.gtOp2, structHnd, curLevel, pAfterStmt, ilOffset, block);
+            src->AsOp()->gtOp2 =
+                impAssignStructPtr(destAddr, src->AsOp()->gtOp2, structHnd, curLevel, pAfterStmt, ilOffset, block);
             return src;
         }
 
         // Evaluate the second thing using recursion.
-        return impAssignStructPtr(destAddr, src->gtOp.gtOp2, structHnd, curLevel, pAfterStmt, ilOffset, block);
+        return impAssignStructPtr(destAddr, src->AsOp()->gtOp2, structHnd, curLevel, pAfterStmt, ilOffset, block);
     }
     else if (src->IsLocal())
     {
@@ -1477,10 +1477,10 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
     }
     else if (oper == GT_COMMA)
     {
-        assert(structVal->gtOp.gtOp2->gtType == type); // Second thing is the struct
+        assert(structVal->AsOp()->gtOp2->gtType == type); // Second thing is the struct
 
         GenTreeStmt* oldLastStmt = impLastStmt;
-        structVal->gtOp.gtOp2    = impGetStructAddr(structVal->gtOp.gtOp2, structHnd, curLevel, willDeref);
+        structVal->AsOp()->gtOp2    = impGetStructAddr(structVal->AsOp()->gtOp2, structHnd, curLevel, willDeref);
         structVal->gtType        = TYP_BYREF;
 
         if (oldLastStmt != impLastStmt)
@@ -1501,8 +1501,8 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
                 beforeStmt = oldLastStmt->getNextStmt();
             }
 
-            impInsertTreeBefore(structVal->gtOp.gtOp1, impCurStmtOffs, beforeStmt);
-            structVal->gtOp.gtOp1 = gtNewNothingNode();
+            impInsertTreeBefore(structVal->AsOp()->gtOp1, impCurStmtOffs, beforeStmt);
+            structVal->AsOp()->gtOp1 = gtNewNothingNode();
         }
 
         return (structVal);
@@ -1714,7 +1714,7 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
         case GT_COMMA:
         {
             // The second thing could either be a block node or a GT_FIELD or a GT_SIMD or a GT_COMMA node.
-            GenTree* blockNode = structVal->gtOp.gtOp2;
+            GenTree* blockNode = structVal->AsOp()->gtOp2;
             assert(blockNode->gtType == structType);
 
             // Is this GT_COMMA(op1, GT_COMMA())?
@@ -1726,7 +1726,7 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
                 {
                     assert(blockNode->gtType == structType);
                     parent    = blockNode;
-                    blockNode = blockNode->gtOp.gtOp2;
+                    blockNode = blockNode->AsOp()->gtOp2;
                 } while (blockNode->OperGet() == GT_COMMA);
             }
 
@@ -1739,7 +1739,7 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
 #ifdef FEATURE_SIMD
             if (blockNode->OperIsSimdOrHWintrinsic())
             {
-                parent->gtOp.gtOp2 = impNormStructVal(blockNode, structHnd, curLevel, forceNormalization);
+                parent->AsOp()->gtOp2 = impNormStructVal(blockNode, structHnd, curLevel, forceNormalization);
                 alreadyNormalized  = true;
             }
             else
@@ -1753,12 +1753,12 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
                 //
                 // In case of a chained GT_COMMA case, we sink the last
                 // GT_COMMA below the blockNode addr.
-                GenTree* blockNodeAddr = blockNode->gtOp.gtOp1;
+                GenTree* blockNodeAddr = blockNode->AsOp()->gtOp1;
                 assert(blockNodeAddr->gtType == TYP_BYREF);
                 GenTree* commaNode    = parent;
                 commaNode->gtType     = TYP_BYREF;
-                commaNode->gtOp.gtOp2 = blockNodeAddr;
-                blockNode->gtOp.gtOp1 = commaNode;
+                commaNode->AsOp()->gtOp2 = blockNodeAddr;
+                blockNode->AsOp()->gtOp1 = commaNode;
                 if (parent == structVal)
                 {
                     structVal = blockNode;
@@ -2564,10 +2564,10 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
             tree = tree->gtStmt.gtStmtExpr;
             assert(tree != nullptr);
 
-            if ((tree->gtOper == GT_ASG) && (tree->gtOp.gtOp1->gtOper == GT_LCL_VAR) &&
-                (tree->gtOp.gtOp2->gtOper == GT_CATCH_ARG))
+            if ((tree->gtOper == GT_ASG) && (tree->AsOp()->gtOp1->gtOper == GT_LCL_VAR) &&
+                (tree->AsOp()->gtOp2->gtOper == GT_CATCH_ARG))
             {
-                tree = gtNewLclvNode(tree->gtOp.gtOp1->gtLclVarCommon.GetLclNum(), TYP_REF);
+                tree = gtNewLclvNode(tree->AsOp()->gtOp1->gtLclVarCommon.GetLclNum(), TYP_REF);
 
                 impPushOnStack(tree, typeInfo(TI_REF, clsHnd));
 
@@ -3071,7 +3071,7 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
 
     if (fieldTokenNode->gtOper == GT_IND)
     {
-        fieldTokenNode = fieldTokenNode->gtOp.gtOp1;
+        fieldTokenNode = fieldTokenNode->AsOp()->gtOp1;
     }
 
     // Check for constant
@@ -3103,9 +3103,9 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
     // that the target of the assignment is the array passed to InitializeArray.
     //
     GenTree* arrayAssignment = impLastStmt->gtStmtExpr;
-    if ((arrayAssignment->gtOper != GT_ASG) || (arrayAssignment->gtOp.gtOp1->gtOper != GT_LCL_VAR) ||
+    if ((arrayAssignment->gtOper != GT_ASG) || (arrayAssignment->AsOp()->gtOp1->gtOper != GT_LCL_VAR) ||
         (arrayLocalNode->gtOper != GT_LCL_VAR) ||
-        (arrayAssignment->gtOp.gtOp1->gtLclVarCommon.GetLclNum() != arrayLocalNode->gtLclVarCommon.GetLclNum()))
+        (arrayAssignment->AsOp()->gtOp1->gtLclVarCommon.GetLclNum() != arrayLocalNode->gtLclVarCommon.GetLclNum()))
     {
         return nullptr;
     }
@@ -3114,7 +3114,7 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
     // Make sure that the object being assigned is a helper call.
     //
 
-    GenTree* newArrayCall = arrayAssignment->gtOp.gtOp2;
+    GenTree* newArrayCall = arrayAssignment->AsOp()->gtOp2;
     if ((newArrayCall->gtOper != GT_CALL) || (newArrayCall->gtCall.gtCallType != CT_HELPER))
     {
         return nullptr;
@@ -3712,7 +3712,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                     assert(typeHandleHelper == CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL);
                     typeHandleHelper = CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL;
                 }
-                assert(op1->gtCall.gtCallArgs->gtOp.gtOp2 == nullptr);
+                assert(op1->gtCall.gtCallArgs->AsOp()->gtOp2 == nullptr);
                 op1         = gtNewHelperCallNode(typeHandleHelper, TYP_REF, op1->gtCall.gtCallArgs);
                 op1->gtType = TYP_REF;
                 retNode     = op1;
@@ -3739,8 +3739,8 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 // Get native TypeHandle argument to old helper
                 op1 = op1->gtCall.gtCallArgs;
                 assert(op1->OperIsList());
-                assert(op1->gtOp.gtOp2 == nullptr);
-                op1     = op1->gtOp.gtOp1;
+                assert(op1->AsOp()->gtOp2 == nullptr);
+                op1     = op1->AsOp()->gtOp1;
                 retNode = op1;
             }
             // Call the regular function.
@@ -6284,7 +6284,7 @@ GenTree* Compiler::impTransformThis(GenTree*                thisPtr,
 
                     // Obj could point anywhere, example a boxed class static int
                     obj->gtFlags |= GTF_IND_TGTANYWHERE;
-                    obj->gtOp.gtOp2 = nullptr; // must be zero for tree walkers
+                    obj->AsOp()->gtOp2 = nullptr; // must be zero for tree walkers
                 }
 
                 obj->gtType = JITtype2varType(jitTyp);
@@ -8029,7 +8029,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         GenTree* cookieConst = cookie;
         if (cookie->gtOper == GT_IND)
         {
-            cookieConst = cookie->gtOp.gtOp1;
+            cookieConst = cookie->AsOp()->gtOp1;
         }
         assert(cookieConst->gtOper == GT_CNS_INT);
 
@@ -8343,9 +8343,9 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 
             if (clsFlags & CORINFO_FLG_VALUECLASS)
             {
-                assert(newobjThis->gtOper == GT_ADDR && newobjThis->gtOp.gtOp1->gtOper == GT_LCL_VAR);
+                assert(newobjThis->gtOper == GT_ADDR && newobjThis->AsOp()->gtOp1->gtOper == GT_LCL_VAR);
 
-                unsigned tmp = newobjThis->gtOp.gtOp1->gtLclVarCommon.GetLclNum();
+                unsigned tmp = newobjThis->AsOp()->gtOp1->gtLclVarCommon.GetLclNum();
                 impPushOnStack(gtNewLclvNode(tmp, lvaGetRealType(tmp)), verMakeTypeInfo(clsHnd).NormaliseForStack());
             }
             else
@@ -8356,7 +8356,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                     // so we cannot rely on tiVerificationNeeded alone
 
                     // We must have inserted the callout. Get the real newobj.
-                    newobjThis = newobjThis->gtOp.gtOp2;
+                    newobjThis = newobjThis->AsOp()->gtOp2;
                 }
 
                 assert(newobjThis->gtOper == GT_LCL_VAR);
@@ -8788,7 +8788,7 @@ var_types Compiler::impImportJitTestLabelMark(int numArgs)
         GenTree* helperCall = nullptr;
         assert(node->OperGet() == GT_IND);
         tlAndN.m_num -= 100;
-        GetNodeTestData()->Set(node->gtOp.gtOp1, tlAndN);
+        GetNodeTestData()->Set(node->AsOp()->gtOp1, tlAndN);
         GetNodeTestData()->Remove(node);
     }
     else
@@ -9106,10 +9106,10 @@ REDO_RETURN_NODE:
         //     TYP_REF than an array of TYP_STRUCT (which simply wraps a TYP_REF)
         //     Also refer to the GTF_INX_REFARR_LAYOUT flag
         //
-        if ((op1->gtOper == GT_ADDR) && (op1->gtOp.gtOp1->gtOper != GT_INDEX))
+        if ((op1->gtOper == GT_ADDR) && (op1->AsOp()->gtOp1->gtOper != GT_INDEX))
         {
             // Change '*(&X)' to 'X' and see if we can do better
-            op = op1->gtOp.gtOp1;
+            op = op1->AsOp()->gtOp1;
             goto REDO_RETURN_NODE;
         }
         op->gtObj.gtClass = NO_CLASS_HANDLE;
@@ -9161,7 +9161,7 @@ REDO_RETURN_NODE:
 #endif
     else if (op->gtOper == GT_COMMA)
     {
-        op->gtOp.gtOp2 = impFixupStructReturnType(op->gtOp.gtOp2, retClsHnd);
+        op->AsOp()->gtOp2 = impFixupStructReturnType(op->AsOp()->gtOp2, retClsHnd);
     }
 
     op->gtType = info.compRetNativeType;
@@ -11840,9 +11840,9 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 // Check for assignment to same array, ie. arrLcl[i] = arrLcl[j]
                 // This does not need CORINFO_HELP_ARRADDR_ST
-                if (arrayNodeFrom->OperGet() == GT_INDEX && arrayNodeFrom->gtOp.gtOp1->gtOper == GT_LCL_VAR &&
+                if (arrayNodeFrom->OperGet() == GT_INDEX && arrayNodeFrom->AsOp()->gtOp1->gtOper == GT_LCL_VAR &&
                     arrayNodeTo->gtOper == GT_LCL_VAR &&
-                    arrayNodeTo->gtLclVarCommon.GetLclNum() == arrayNodeFrom->gtOp.gtOp1->gtLclVarCommon.GetLclNum() &&
+                    arrayNodeTo->gtLclVarCommon.GetLclNum() == arrayNodeFrom->AsOp()->gtOp1->gtLclVarCommon.GetLclNum() &&
                     !lvaTable[arrayNodeTo->gtLclVarCommon.GetLclNum()].lvAddrExposed)
                 {
                     JITDUMP("\nstelem of ref from same array: skipping covariant store check\n");
@@ -12836,7 +12836,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 if (varTypeIsSmall(lclTyp) && !ovfl && op1->gtType == TYP_INT && op1->gtOper == GT_AND)
                 {
-                    op2 = op1->gtOp.gtOp2;
+                    op2 = op1->AsOp()->gtOp2;
 
                     if (op2->gtOper == GT_CNS_INT)
                     {
@@ -12873,7 +12873,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                             /* Toss the masking, it's a waste of time, since
                                we sign-extend from the small value anyways */
 
-                            op1 = op1->gtOp.gtOp1;
+                            op1 = op1->AsOp()->gtOp1;
                         }
                     }
                 }
@@ -12979,7 +12979,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // of fgMorphCall() on the forms of tail call nodes that we assert.
                     if ((op1->gtOper == GT_CAST) && !op1->gtOverflow())
                     {
-                        op1 = op1->gtOp.gtOp1;
+                        op1 = op1->AsOp()->gtOp1;
                     }
 
                     // If 'op1' is an expression, create an assignment node.
@@ -14971,7 +14971,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 if (op1->gtOper == GT_OBJ)
                 {
                     // Get the address of the refany
-                    op1 = op1->gtOp.gtOp1;
+                    op1 = op1->AsOp()->gtOp1;
 
                     // Fetch the type from the correct slot
                     op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
@@ -14983,16 +14983,16 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     assertImp(op1->gtOper == GT_MKREFANY);
 
                     // The pointer may have side-effects
-                    if (op1->gtOp.gtOp1->gtFlags & GTF_SIDE_EFFECT)
+                    if (op1->AsOp()->gtOp1->gtFlags & GTF_SIDE_EFFECT)
                     {
-                        impAppendTree(op1->gtOp.gtOp1, (unsigned)CHECK_SPILL_ALL, impCurStmtOffs);
+                        impAppendTree(op1->AsOp()->gtOp1, (unsigned)CHECK_SPILL_ALL, impCurStmtOffs);
 #ifdef DEBUG
                         impNoteLastILoffs();
 #endif
                     }
 
                     // We already have the class handle
-                    op1 = op1->gtOp.gtOp2;
+                    op1 = op1->AsOp()->gtOp2;
                 }
 
                 // convert native TypeHandle to RuntimeTypeHandle
@@ -15655,7 +15655,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 }
                 if (op2->OperGet() == GT_ADDR)
                 {
-                    op2 = op2->gtOp.gtOp1;
+                    op2 = op2->AsOp()->gtOp1;
                 }
                 else
                 {
@@ -16578,7 +16578,7 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
 #endif // defined(_TARGET_ARM64_)
                 {
                     assert(iciCall->HasRetBufArg());
-                    GenTree* dest = gtCloneExpr(iciCall->gtCallArgs->gtOp.gtOp1);
+                    GenTree* dest = gtCloneExpr(iciCall->gtCallArgs->AsOp()->gtOp1);
                     // spill temp only exists if there are multiple return points
                     if (fgNeedReturnSpillTemp())
                     {
@@ -17212,34 +17212,34 @@ SPILLSTACK:
 
                 if (addTree->gtOper == GT_JTRUE)
                 {
-                    GenTree* relOp = addTree->gtOp.gtOp1;
+                    GenTree* relOp = addTree->AsOp()->gtOp1;
                     assert(relOp->OperIsCompare());
 
-                    var_types type = genActualType(relOp->gtOp.gtOp1->TypeGet());
+                    var_types type = genActualType(relOp->AsOp()->gtOp1->TypeGet());
 
-                    if (gtHasRef(relOp->gtOp.gtOp1, tempNum, false))
+                    if (gtHasRef(relOp->AsOp()->gtOp1, tempNum, false))
                     {
                         unsigned temp = lvaGrabTemp(true DEBUGARG("spill addStmt JTRUE ref Op1"));
-                        impAssignTempGen(temp, relOp->gtOp.gtOp1, level);
+                        impAssignTempGen(temp, relOp->AsOp()->gtOp1, level);
                         type              = genActualType(lvaTable[temp].TypeGet());
-                        relOp->gtOp.gtOp1 = gtNewLclvNode(temp, type);
+                        relOp->AsOp()->gtOp1 = gtNewLclvNode(temp, type);
                     }
 
-                    if (gtHasRef(relOp->gtOp.gtOp2, tempNum, false))
+                    if (gtHasRef(relOp->AsOp()->gtOp2, tempNum, false))
                     {
                         unsigned temp = lvaGrabTemp(true DEBUGARG("spill addStmt JTRUE ref Op2"));
-                        impAssignTempGen(temp, relOp->gtOp.gtOp2, level);
+                        impAssignTempGen(temp, relOp->AsOp()->gtOp2, level);
                         type              = genActualType(lvaTable[temp].TypeGet());
-                        relOp->gtOp.gtOp2 = gtNewLclvNode(temp, type);
+                        relOp->AsOp()->gtOp2 = gtNewLclvNode(temp, type);
                     }
                 }
                 else
                 {
-                    assert(addTree->gtOper == GT_SWITCH && genActualTypeIsIntOrI(addTree->gtOp.gtOp1->TypeGet()));
+                    assert(addTree->gtOper == GT_SWITCH && genActualTypeIsIntOrI(addTree->AsOp()->gtOp1->TypeGet()));
 
                     unsigned temp = lvaGrabTemp(true DEBUGARG("spill addStmt SWITCH"));
-                    impAssignTempGen(temp, addTree->gtOp.gtOp1, level);
-                    addTree->gtOp.gtOp1 = gtNewLclvNode(temp, genActualType(addTree->gtOp.gtOp1->TypeGet()));
+                    impAssignTempGen(temp, addTree->AsOp()->gtOp1, level);
+                    addTree->AsOp()->gtOp1 = gtNewLclvNode(temp, genActualType(addTree->AsOp()->gtOp1->TypeGet()));
                 }
             }
 
@@ -18096,13 +18096,13 @@ BOOL Compiler::impIsAddressInLocal(GenTree* tree, GenTree** lclVarTreeOut)
         return FALSE;
     }
 
-    GenTree* op = tree->gtOp.gtOp1;
+    GenTree* op = tree->AsOp()->gtOp1;
     while (op->gtOper == GT_FIELD)
     {
         op = op->gtField.gtFldObj;
         if (op && op->gtOper == GT_ADDR) // Skip static fields where op will be NULL.
         {
-            op = op->gtOp.gtOp1;
+            op = op->AsOp()->gtOp1;
         }
         else
         {
@@ -18594,7 +18594,7 @@ void Compiler::impInlineRecordArgInfo(InlineInfo*   pInlineInfo,
     }
 
     if ((curArgVal->OperKind() & GTK_CONST) ||
-        ((curArgVal->gtOper == GT_ADDR) && (curArgVal->gtOp.gtOp1->gtOper == GT_LCL_VAR)))
+        ((curArgVal->gtOper == GT_ADDR) && (curArgVal->AsOp()->gtOp1->gtOper == GT_LCL_VAR)))
     {
         inlCurArgInfo->argIsInvariant = true;
         if (inlCurArgInfo->argIsThis && (curArgVal->gtOper == GT_CNS_INT) && (curArgVal->gtIntCon.gtIconVal == 0))
@@ -18746,7 +18746,7 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
     unsigned typeCtxtArg = methInfo->args.totalILArgs();
 #endif // USER_ARGS_COME_LAST
 
-    for (GenTree* argTmp = argList; argTmp; argTmp = argTmp->gtOp.gtOp2)
+    for (GenTree* argTmp = argList; argTmp; argTmp = argTmp->AsOp()->gtOp2)
     {
         if (argTmp == argList && hasRetBuffArg)
         {
@@ -18762,7 +18762,7 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         }
 
         assert(argTmp->gtOper == GT_LIST);
-        GenTree* arg       = argTmp->gtOp.gtOp1;
+        GenTree* arg       = argTmp->AsOp()->gtOp1;
         GenTree* actualArg = arg->gtRetExprVal();
         impInlineRecordArgInfo(pInlineInfo, actualArg, argCnt, inlineResult);
 

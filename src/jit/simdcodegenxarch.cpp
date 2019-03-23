@@ -2811,8 +2811,8 @@ void CodeGen::genStoreIndTypeSIMD12(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_STOREIND);
 
-    GenTree* addr = treeNode->gtOp.gtOp1;
-    GenTree* data = treeNode->gtOp.gtOp2;
+    GenTree* addr = treeNode->AsOp()->gtOp1;
+    GenTree* data = treeNode->AsOp()->gtOp2;
 
     // addr and data should not be contained.
     assert(!data->isContained());
@@ -2856,7 +2856,7 @@ void CodeGen::genLoadIndTypeSIMD12(GenTree* treeNode)
     assert(treeNode->OperGet() == GT_IND);
 
     regNumber targetReg = treeNode->GetRegNum();
-    GenTree*  op1       = treeNode->gtOp.gtOp1;
+    GenTree*  op1       = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());
     regNumber operandReg = genConsumeReg(op1);
 
@@ -2900,7 +2900,7 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
         offs = treeNode->gtLclFld.gtLclOffs;
     }
 
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());
     regNumber operandReg = genConsumeReg(op1);
 
@@ -3004,7 +3004,7 @@ void CodeGen::genPutArgStkSIMD12(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_PUTARG_STK);
 
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());
     regNumber operandReg = genConsumeReg(op1);
 

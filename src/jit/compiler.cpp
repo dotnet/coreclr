@@ -7016,14 +7016,14 @@ void Compiler::CopyTestDataToCloneTree(GenTree* from, GenTree* to)
 
     if (kind & GTK_SMPOP)
     {
-        if (from->gtOp.gtOp1 != nullptr)
+        if (from->AsOp()->gtOp1 != nullptr)
         {
-            assert(to->gtOp.gtOp1 != nullptr);
-            CopyTestDataToCloneTree(from->gtOp.gtOp1, to->gtOp.gtOp1);
+            assert(to->AsOp()->gtOp1 != nullptr);
+            CopyTestDataToCloneTree(from->AsOp()->gtOp1, to->AsOp()->gtOp1);
         }
         else
         {
-            assert(to->gtOp.gtOp1 == nullptr);
+            assert(to->AsOp()->gtOp1 == nullptr);
         }
 
         if (from->gtGetOp2IfPresent() != nullptr)
@@ -10733,10 +10733,10 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
     else if (op == GT_PHI)
     {
-        if (tree->gtOp.gtOp1 != nullptr)
+        if (tree->AsOp()->gtOp1 != nullptr)
         {
             bool first = true;
-            for (GenTreeArgList* args = tree->gtOp.gtOp1->AsArgList(); args != nullptr; args = args->Rest())
+            for (GenTreeArgList* args = tree->AsOp()->gtOp1->AsArgList(); args != nullptr; args = args->Rest())
             {
                 child = args->Current();
                 if (!first)

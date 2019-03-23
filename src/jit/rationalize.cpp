@@ -210,7 +210,7 @@ void Rationalizer::RewriteIntrinsicAsUserCall(GenTree** use, ArrayStack<GenTree*
     GenTreeIntrinsic* intrinsic = (*use)->AsIntrinsic();
 
     GenTreeArgList* args;
-    if (intrinsic->gtOp.gtOp2 == nullptr)
+    if (intrinsic->AsOp()->gtOp2 == nullptr)
     {
         args = comp->gtNewArgList(intrinsic->gtGetOp1());
     }
@@ -344,13 +344,13 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
             if (location->OperGet() == GT_LCL_VAR)
             {
                 var_types simdType = location->TypeGet();
-                GenTree*  initVal  = assignment->gtOp.gtOp2;
+                GenTree*  initVal  = assignment->AsOp()->gtOp2;
                 var_types baseType = comp->getBaseTypeOfSIMDLocal(location);
                 if (baseType != TYP_UNKNOWN)
                 {
                     GenTreeSIMD* simdTree = new (comp, GT_SIMD)
                         GenTreeSIMD(simdType, initVal, SIMDIntrinsicInit, baseType, genTypeSize(simdType));
-                    assignment->gtOp.gtOp2 = simdTree;
+                    assignment->AsOp()->gtOp2 = simdTree;
                     value                  = simdTree;
                     initVal->gtNext        = simdTree;
                     simdTree->gtPrev       = initVal;

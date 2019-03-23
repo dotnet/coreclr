@@ -973,9 +973,9 @@ inline GenTree* Compiler::gtNewOperNode(genTreeOps oper, var_types type, GenTree
             // IND(ADDR(IND(x)) == IND(x)
             if (op1->gtOper == GT_ADDR)
             {
-                if (op1->gtOp.gtOp1->gtOper == GT_IND && (op1->gtOp.gtOp1->gtFlags & GTF_IND_ARR_INDEX) == 0)
+                if (op1->AsOp()->gtOp1->gtOper == GT_IND && (op1->AsOp()->gtOp1->gtFlags & GTF_IND_ARR_INDEX) == 0)
                 {
-                    op1 = op1->gtOp.gtOp1->gtOp.gtOp1;
+                    op1 = op1->AsOp()->gtOp1->AsOp()->gtOp1;
                 }
             }
         }
@@ -984,7 +984,7 @@ inline GenTree* Compiler::gtNewOperNode(genTreeOps oper, var_types type, GenTree
             // if "x" is not an array index, ADDR(IND(x)) == x
             if (op1->gtOper == GT_IND && (op1->gtFlags & GTF_IND_ARR_INDEX) == 0)
             {
-                return op1->gtOp.gtOp1;
+                return op1->AsOp()->gtOp1;
             }
         }
     }
@@ -1187,10 +1187,10 @@ inline GenTree* Compiler::gtNewFieldRef(var_types typ, CORINFO_FIELD_HANDLE fldH
     GenTree* tree = new (this, GT_FIELD) GenTreeField(typ, obj, fldHnd, offset);
 
     // If "obj" is the address of a local, note that a field of that struct local has been accessed.
-    if (obj != nullptr && obj->OperGet() == GT_ADDR && varTypeIsStruct(obj->gtOp.gtOp1) &&
-        obj->gtOp.gtOp1->OperGet() == GT_LCL_VAR)
+    if (obj != nullptr && obj->OperGet() == GT_ADDR && varTypeIsStruct(obj->AsOp()->gtOp1) &&
+        obj->AsOp()->gtOp1->OperGet() == GT_LCL_VAR)
     {
-        unsigned lclNum                  = obj->gtOp.gtOp1->gtLclVarCommon.GetLclNum();
+        unsigned lclNum                  = obj->AsOp()->gtOp1->gtLclVarCommon.GetLclNum();
         lvaTable[lclNum].lvFieldAccessed = 1;
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
         // These structs are passed by reference; we should probably be able to treat these
@@ -1286,7 +1286,7 @@ inline void GenTree::gtBashToNOP()
     ChangeOper(GT_NOP);
 
     gtType     = TYP_VOID;
-    gtOp.gtOp1 = gtOp.gtOp2 = nullptr;
+    AsOp()->gtOp1 = AsOp()->gtOp2 = nullptr;
 
     gtFlags &= ~(GTF_ALL_EFFECT | GTF_REVERSE_OPS);
 }
@@ -1358,7 +1358,7 @@ inline void GenTree::SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
     // a gtUnOp...)
     if (OperKind(oper) == GTK_UNOP)
     {
-        gtOp.gtOp2 = nullptr;
+        AsOp()->gtOp2 = nullptr;
     }
 #endif // DEBUG
 
@@ -3338,8 +3338,8 @@ inline void Compiler::LoopDsc::VERIFY_lpIterTree()
 
     assert(lpIterTree->OperIs(GT_ASG));
 
-    GenTree* lhs = lpIterTree->gtOp.gtOp1;
-    GenTree* rhs = lpIterTree->gtOp.gtOp2;
+    GenTree* lhs = lpIterTree->AsOp()->gtOp1;
+    GenTree* rhs = lpIterTree->AsOp()->gtOp2;
     assert(lhs->OperGet() == GT_LCL_VAR);
 
     switch (rhs->gtOper)
@@ -3353,9 +3353,9 @@ inline void Compiler::LoopDsc::VERIFY_lpIterTree()
         default:
             assert(!"Unknown operator for loop increment");
     }
-    assert(rhs->gtOp.gtOp1->OperGet() == GT_LCL_VAR);
-    assert(rhs->gtOp.gtOp1->AsLclVarCommon()->GetLclNum() == lhs->AsLclVarCommon()->GetLclNum());
-    assert(rhs->gtOp.gtOp2->OperGet() == GT_CNS_INT);
+    assert(rhs->AsOp()->gtOp1->OperGet() == GT_LCL_VAR);
+    assert(rhs->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() == lhs->AsLclVarCommon()->GetLclNum());
+    assert(rhs->AsOp()->gtOp2->OperGet() == GT_CNS_INT);
 #endif
 }
 
@@ -3364,7 +3364,7 @@ inline void Compiler::LoopDsc::VERIFY_lpIterTree()
 inline unsigned Compiler::LoopDsc::lpIterVar()
 {
     VERIFY_lpIterTree();
-    return lpIterTree->gtOp.gtOp1->gtLclVarCommon.GetLclNum();
+    return lpIterTree->AsOp()->gtOp1->gtLclVarCommon.GetLclNum();
 }
 
 //-----------------------------------------------------------------------------
@@ -3372,8 +3372,8 @@ inline unsigned Compiler::LoopDsc::lpIterVar()
 inline int Compiler::LoopDsc::lpIterConst()
 {
     VERIFY_lpIterTree();
-    GenTree* rhs = lpIterTree->gtOp.gtOp2;
-    return (int)rhs->gtOp.gtOp2->gtIntCon.gtIconVal;
+    GenTree* rhs = lpIterTree->AsOp()->gtOp2;
+    return (int)rhs->AsOp()->gtOp2->gtIntCon.gtIconVal;
 }
 
 //-----------------------------------------------------------------------------
@@ -3381,7 +3381,7 @@ inline int Compiler::LoopDsc::lpIterConst()
 inline genTreeOps Compiler::LoopDsc::lpIterOper()
 {
     VERIFY_lpIterTree();
-    GenTree* rhs = lpIterTree->gtOp.gtOp2;
+    GenTree* rhs = lpIterTree->AsOp()->gtOp2;
     return rhs->OperGet();
 }
 
@@ -3411,16 +3411,16 @@ inline void Compiler::LoopDsc::VERIFY_lpTestTree()
 
     GenTree* iterator = nullptr;
     GenTree* limit    = nullptr;
-    if ((lpTestTree->gtOp.gtOp2->gtOper == GT_LCL_VAR) && (lpTestTree->gtOp.gtOp2->gtFlags & GTF_VAR_ITERATOR) != 0)
+    if ((lpTestTree->AsOp()->gtOp2->gtOper == GT_LCL_VAR) && (lpTestTree->AsOp()->gtOp2->gtFlags & GTF_VAR_ITERATOR) != 0)
     {
-        iterator = lpTestTree->gtOp.gtOp2;
-        limit    = lpTestTree->gtOp.gtOp1;
+        iterator = lpTestTree->AsOp()->gtOp2;
+        limit    = lpTestTree->AsOp()->gtOp1;
     }
-    else if ((lpTestTree->gtOp.gtOp1->gtOper == GT_LCL_VAR) &&
-             (lpTestTree->gtOp.gtOp1->gtFlags & GTF_VAR_ITERATOR) != 0)
+    else if ((lpTestTree->AsOp()->gtOp1->gtOper == GT_LCL_VAR) &&
+             (lpTestTree->AsOp()->gtOp1->gtFlags & GTF_VAR_ITERATOR) != 0)
     {
-        iterator = lpTestTree->gtOp.gtOp1;
-        limit    = lpTestTree->gtOp.gtOp2;
+        iterator = lpTestTree->AsOp()->gtOp1;
+        limit    = lpTestTree->AsOp()->gtOp2;
     }
     else
     {
@@ -3448,8 +3448,8 @@ inline void Compiler::LoopDsc::VERIFY_lpTestTree()
 inline bool Compiler::LoopDsc::lpIsReversed()
 {
     VERIFY_lpTestTree();
-    return ((lpTestTree->gtOp.gtOp2->gtOper == GT_LCL_VAR) &&
-            (lpTestTree->gtOp.gtOp2->gtFlags & GTF_VAR_ITERATOR) != 0);
+    return ((lpTestTree->AsOp()->gtOp2->gtOper == GT_LCL_VAR) &&
+            (lpTestTree->AsOp()->gtOp2->gtFlags & GTF_VAR_ITERATOR) != 0);
 }
 
 //-----------------------------------------------------------------------------
@@ -3467,7 +3467,7 @@ inline GenTree* Compiler::LoopDsc::lpIterator()
 {
     VERIFY_lpTestTree();
 
-    return lpIsReversed() ? lpTestTree->gtOp.gtOp2 : lpTestTree->gtOp.gtOp1;
+    return lpIsReversed() ? lpTestTree->AsOp()->gtOp2 : lpTestTree->AsOp()->gtOp1;
 }
 
 //-----------------------------------------------------------------------------
@@ -3476,7 +3476,7 @@ inline GenTree* Compiler::LoopDsc::lpLimit()
 {
     VERIFY_lpTestTree();
 
-    return lpIsReversed() ? lpTestTree->gtOp.gtOp1 : lpTestTree->gtOp.gtOp2;
+    return lpIsReversed() ? lpTestTree->AsOp()->gtOp1 : lpTestTree->AsOp()->gtOp2;
 }
 
 //-----------------------------------------------------------------------------
@@ -4584,7 +4584,7 @@ inline void DEBUG_DESTROY_NODE(GenTree* tree)
     tree->gtFlags |= 0xFFFFFFFF & ~GTF_NODE_MASK;
     if (tree->OperIsSimple())
     {
-        tree->gtOp.gtOp1 = tree->gtOp.gtOp2 = nullptr;
+        tree->AsOp()->gtOp1 = tree->AsOp()->gtOp2 = nullptr;
     }
     // Must do this last, because the "gtOp" check above will fail otherwise.
     // Don't call SetOper, because GT_COUNT is not a valid value
