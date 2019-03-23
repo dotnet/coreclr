@@ -138,7 +138,7 @@ esac
 
 isPortable=0
 
-"${scriptDir}"/../init-distro-rid.sh
+source "${scriptDir}"/../init-distro-rid.sh
 initDistroRidGlobal ${__BuildOS} x64 ${isPortable}
 
 # Hack, replace the rid to ubuntu.14.04 which has a valid non-portable
