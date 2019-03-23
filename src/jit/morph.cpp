@@ -846,7 +846,7 @@ void fgArgTabEntry::Dump()
     {
         printf(", lateArgInx=%u", getLateArgInx());
     }
-    if (isSplit)
+    if (getIsSplit())
     {
         printf(", isSplit");
     }
@@ -1149,7 +1149,7 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned  argNum,
     curArgTabEntry->alignment  = alignment;
     curArgTabEntry->setLateArgInx(UINT_MAX);
     curArgTabEntry->tmpNum     = BAD_VAR_NUM;
-    curArgTabEntry->isSplit    = false;
+    curArgTabEntry->setIsSplit(false);
     curArgTabEntry->isTmp      = false;
     curArgTabEntry->needTmp    = false;
     curArgTabEntry->needPlace  = false;
@@ -1223,7 +1223,7 @@ fgArgTabEntry* fgArgInfo::AddStkArg(unsigned argNum,
     curArgTabEntry->alignment  = alignment;
     curArgTabEntry->setLateArgInx(UINT_MAX);
     curArgTabEntry->tmpNum     = BAD_VAR_NUM;
-    curArgTabEntry->isSplit    = false;
+    curArgTabEntry->setIsSplit(false);
     curArgTabEntry->isTmp      = false;
     curArgTabEntry->needTmp    = false;
     curArgTabEntry->needPlace  = false;
@@ -1312,7 +1312,7 @@ void fgArgInfo::UpdateStkArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
            (!isLateArg && ((node->gtFlags & GTF_LATE_ARG) == 0)));
 
     noway_assert(curArgTabEntry->parent != nullptr);
-    assert((curArgTabEntry->getRegNum() == REG_STK) || curArgTabEntry->isSplit);
+    assert((curArgTabEntry->getRegNum() == REG_STK) || curArgTabEntry->getIsSplit());
     assert(curArgTabEntry->parent->OperIsList());
     assert(curArgTabEntry->parent->Current() == node);
     nextSlotNum = (unsigned)roundUp(nextSlotNum, curArgTabEntry->alignment);
@@ -1372,14 +1372,14 @@ void fgArgInfo::SplitArg(unsigned argNum, unsigned numRegs, unsigned numSlots)
 
     if (argsComplete)
     {
-        assert(curArgTabEntry->isSplit == true);
+        assert(curArgTabEntry->getIsSplit() == true);
         assert(curArgTabEntry->numRegs == numRegs);
         assert(curArgTabEntry->numSlots == numSlots);
         assert(hasStackArgs == true);
     }
     else
     {
-        curArgTabEntry->isSplit  = true;
+        curArgTabEntry->setIsSplit(true);
         curArgTabEntry->numRegs  = numRegs;
         curArgTabEntry->numSlots = numSlots;
         hasStackArgs             = true;
