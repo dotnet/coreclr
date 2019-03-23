@@ -6059,14 +6059,14 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             if (type0 != TYP_UNKNOWN)
             {
                 getEmitter()->emitIns_R_S(ins_Load(type0), emitTypeSize(type0), varDsc->lvArgReg, varNum, offset0);
-                regSet.rsMaskVars |= genRegMask(varDsc->lvArgReg);
+                regSet.SetMaskVars(regSet.GetMaskVars() | genRegMask(varDsc->lvArgReg));
                 gcInfo.gcMarkRegPtrVal(varDsc->lvArgReg, type0);
             }
 
             if (type1 != TYP_UNKNOWN)
             {
                 getEmitter()->emitIns_R_S(ins_Load(type1), emitTypeSize(type1), varDsc->GetOtherArgReg(), varNum, offset1);
-                regSet.rsMaskVars |= genRegMask(varDsc->GetOtherArgReg());
+                regSet.SetMaskVars(regSet.GetMaskVars() | genRegMask(varDsc->GetOtherArgReg()));
                 gcInfo.gcMarkRegPtrVal(varDsc->GetOtherArgReg(), type1);
             }
 
@@ -8611,7 +8611,7 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
                 // The call target must not overwrite any live variable, though it may not be in the
                 // kill set for the call.
                 regMaskTP callTargetMask = genRegMask(callTargetReg);
-                noway_assert((callTargetMask & regSet.rsMaskVars) == RBM_NONE);
+                noway_assert((callTargetMask & regSet.GetMaskVars()) == RBM_NONE);
             }
 #endif
 
