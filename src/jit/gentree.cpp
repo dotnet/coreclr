@@ -1413,20 +1413,20 @@ AGAIN:
 
         case GT_CALL:
 
-            if (op1->gtCall.gtCallType != op2->gtCall.gtCallType)
+            if (op1->AsCall()->gtCallType != op2->AsCall()->gtCallType)
             {
                 return false;
             }
 
-            if (op1->gtCall.gtCallType != CT_INDIRECT)
+            if (op1->AsCall()->gtCallType != CT_INDIRECT)
             {
-                if (op1->gtCall.gtCallMethHnd != op2->gtCall.gtCallMethHnd)
+                if (op1->AsCall()->gtCallMethHnd != op2->AsCall()->gtCallMethHnd)
                 {
                     return false;
                 }
 
 #ifdef FEATURE_READYTORUN_COMPILER
-                if (op1->gtCall.gtEntryPoint.addr != op2->gtCall.gtEntryPoint.addr)
+                if (op1->AsCall()->gtEntryPoint.addr != op2->AsCall()->gtEntryPoint.addr)
                 {
                     return false;
                 }
@@ -1434,16 +1434,16 @@ AGAIN:
             }
             else
             {
-                if (!Compare(op1->gtCall.gtCallAddr, op2->gtCall.gtCallAddr))
+                if (!Compare(op1->AsCall()->gtCallAddr, op2->AsCall()->gtCallAddr))
                 {
                     return false;
                 }
             }
 
-            if (Compare(op1->gtCall.gtCallLateArgs, op2->gtCall.gtCallLateArgs) &&
-                Compare(op1->gtCall.gtCallArgs, op2->gtCall.gtCallArgs) &&
-                Compare(op1->gtCall.gtControlExpr, op2->gtCall.gtControlExpr) &&
-                Compare(op1->gtCall.gtCallObjp, op2->gtCall.gtCallObjp))
+            if (Compare(op1->AsCall()->gtCallLateArgs, op2->AsCall()->gtCallLateArgs) &&
+                Compare(op1->AsCall()->gtCallArgs, op2->AsCall()->gtCallArgs) &&
+                Compare(op1->AsCall()->gtControlExpr, op2->AsCall()->gtControlExpr) &&
+                Compare(op1->AsCall()->gtCallObjp, op2->AsCall()->gtCallObjp))
             {
                 return true;
             }
@@ -1622,45 +1622,45 @@ AGAIN:
 
         case GT_CALL:
 
-            if (tree->gtCall.gtCallObjp)
+            if (tree->AsCall()->gtCallObjp)
             {
-                if (gtHasRef(tree->gtCall.gtCallObjp, lclNum, defOnly))
+                if (gtHasRef(tree->AsCall()->gtCallObjp, lclNum, defOnly))
                 {
                     return true;
                 }
             }
 
-            if (tree->gtCall.gtCallArgs)
+            if (tree->AsCall()->gtCallArgs)
             {
-                if (gtHasRef(tree->gtCall.gtCallArgs, lclNum, defOnly))
+                if (gtHasRef(tree->AsCall()->gtCallArgs, lclNum, defOnly))
                 {
                     return true;
                 }
             }
 
-            if (tree->gtCall.gtCallLateArgs)
+            if (tree->AsCall()->gtCallLateArgs)
             {
-                if (gtHasRef(tree->gtCall.gtCallLateArgs, lclNum, defOnly))
+                if (gtHasRef(tree->AsCall()->gtCallLateArgs, lclNum, defOnly))
                 {
                     return true;
                 }
             }
 
-            if (tree->gtCall.gtControlExpr)
+            if (tree->AsCall()->gtControlExpr)
             {
-                if (gtHasRef(tree->gtCall.gtControlExpr, lclNum, defOnly))
+                if (gtHasRef(tree->AsCall()->gtControlExpr, lclNum, defOnly))
                 {
                     return true;
                 }
             }
 
-            if (tree->gtCall.gtCallType == CT_INDIRECT)
+            if (tree->AsCall()->gtCallType == CT_INDIRECT)
             {
                 // pinvoke-calli cookie is a constant, or constant indirection
-                assert(tree->gtCall.gtCallCookie == nullptr || tree->gtCall.gtCallCookie->gtOper == GT_CNS_INT ||
-                       tree->gtCall.gtCallCookie->gtOper == GT_IND);
+                assert(tree->AsCall()->gtCallCookie == nullptr || tree->AsCall()->gtCallCookie->gtOper == GT_CNS_INT ||
+                       tree->AsCall()->gtCallCookie->gtOper == GT_IND);
 
-                tree = tree->gtCall.gtCallAddr;
+                tree = tree->AsCall()->gtCallAddr;
             }
             else
             {
@@ -2100,34 +2100,34 @@ AGAIN:
 
         case GT_CALL:
 
-            if (tree->gtCall.gtCallObjp && tree->gtCall.gtCallObjp->gtOper != GT_NOP)
+            if (tree->AsCall()->gtCallObjp && tree->AsCall()->gtCallObjp->gtOper != GT_NOP)
             {
-                temp = tree->gtCall.gtCallObjp;
+                temp = tree->AsCall()->gtCallObjp;
                 assert(temp);
                 hash = genTreeHashAdd(hash, gtHashValue(temp));
             }
 
-            if (tree->gtCall.gtCallArgs)
+            if (tree->AsCall()->gtCallArgs)
             {
-                temp = tree->gtCall.gtCallArgs;
+                temp = tree->AsCall()->gtCallArgs;
                 assert(temp);
                 hash = genTreeHashAdd(hash, gtHashValue(temp));
             }
 
-            if (tree->gtCall.gtCallType == CT_INDIRECT)
+            if (tree->AsCall()->gtCallType == CT_INDIRECT)
             {
-                temp = tree->gtCall.gtCallAddr;
+                temp = tree->AsCall()->gtCallAddr;
                 assert(temp);
                 hash = genTreeHashAdd(hash, gtHashValue(temp));
             }
             else
             {
-                hash = genTreeHashAdd(hash, tree->gtCall.gtCallMethHnd);
+                hash = genTreeHashAdd(hash, tree->AsCall()->gtCallMethHnd);
             }
 
-            if (tree->gtCall.gtCallLateArgs)
+            if (tree->AsCall()->gtCallLateArgs)
             {
-                temp = tree->gtCall.gtCallLateArgs;
+                temp = tree->AsCall()->gtCallLateArgs;
                 assert(temp);
                 hash = genTreeHashAdd(hash, gtHashValue(temp));
             }
@@ -4122,9 +4122,9 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 
             /* Evaluate the 'this' argument, if present */
 
-            if (tree->gtCall.gtCallObjp)
+            if (tree->AsCall()->gtCallObjp)
             {
-                GenTree* thisVal = tree->gtCall.gtCallObjp;
+                GenTree* thisVal = tree->AsCall()->gtCallObjp;
 
                 lvl2 = gtSetEvalOrder(thisVal);
                 if (level < lvl2)
@@ -4137,43 +4137,43 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 
             /* Evaluate the arguments, right to left */
 
-            if (tree->gtCall.gtCallArgs)
+            if (tree->AsCall()->gtCallArgs)
             {
                 const bool isListCallArgs = true;
                 const bool callArgsInRegs = false;
-                lvl2                      = gtSetListOrder(tree->gtCall.gtCallArgs, isListCallArgs, callArgsInRegs);
+                lvl2                      = gtSetListOrder(tree->AsCall()->gtCallArgs, isListCallArgs, callArgsInRegs);
                 if (level < lvl2)
                 {
                     level = lvl2;
                 }
-                costEx += tree->gtCall.gtCallArgs->GetCostEx();
-                costSz += tree->gtCall.gtCallArgs->GetCostSz();
+                costEx += tree->AsCall()->gtCallArgs->GetCostEx();
+                costSz += tree->AsCall()->gtCallArgs->GetCostSz();
             }
 
             /* Evaluate the temp register arguments list
              * This is a "hidden" list and its only purpose is to
              * extend the life of temps until we make the call */
 
-            if (tree->gtCall.gtCallLateArgs)
+            if (tree->AsCall()->gtCallLateArgs)
             {
                 const bool isListCallArgs = true;
                 const bool callArgsInRegs = true;
-                lvl2                      = gtSetListOrder(tree->gtCall.gtCallLateArgs, isListCallArgs, callArgsInRegs);
+                lvl2                      = gtSetListOrder(tree->AsCall()->gtCallLateArgs, isListCallArgs, callArgsInRegs);
                 if (level < lvl2)
                 {
                     level = lvl2;
                 }
-                costEx += tree->gtCall.gtCallLateArgs->GetCostEx();
-                costSz += tree->gtCall.gtCallLateArgs->GetCostSz();
+                costEx += tree->AsCall()->gtCallLateArgs->GetCostEx();
+                costSz += tree->AsCall()->gtCallLateArgs->GetCostSz();
             }
 
-            if (tree->gtCall.gtCallType == CT_INDIRECT)
+            if (tree->AsCall()->gtCallType == CT_INDIRECT)
             {
                 // pinvoke-calli cookie is a constant, or constant indirection
-                assert(tree->gtCall.gtCallCookie == nullptr || tree->gtCall.gtCallCookie->gtOper == GT_CNS_INT ||
-                       tree->gtCall.gtCallCookie->gtOper == GT_IND);
+                assert(tree->AsCall()->gtCallCookie == nullptr || tree->AsCall()->gtCallCookie->gtOper == GT_CNS_INT ||
+                       tree->AsCall()->gtCallCookie->gtOper == GT_IND);
 
-                GenTree* indirect = tree->gtCall.gtCallAddr;
+                GenTree* indirect = tree->AsCall()->gtCallAddr;
 
                 lvl2 = gtSetEvalOrder(indirect);
                 if (level < lvl2)
@@ -4186,12 +4186,12 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             else
             {
 #ifdef _TARGET_ARM_
-                if (tree->gtCall.IsVirtualStub())
+                if (tree->AsCall()->IsVirtualStub())
                 {
                     // We generate movw/movt/ldr
                     costEx += (1 + IND_COST_EX);
                     costSz += 8;
-                    if (tree->gtCall.gtCallMoreFlags & GTF_CALL_M_VIRTSTUB_REL_INDIRECT)
+                    if (tree->AsCall()->gtCallMoreFlags & GTF_CALL_M_VIRTSTUB_REL_INDIRECT)
                     {
                         // Must use R12 for the ldr target -- REG_JUMP_THUNK_PARAM
                         costSz += 2;
@@ -4212,7 +4212,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             level += 1;
 
             /* Virtual calls are a bit more expensive */
-            if (tree->gtCall.IsVirtual())
+            if (tree->AsCall()->IsVirtual())
             {
                 costEx += 2 * IND_COST_EX;
                 costSz += 2;
@@ -6126,7 +6126,7 @@ GenTree* Compiler::gtArgNodeByLateArgInx(GenTreeCall* call, unsigned lateArgInx)
     GenTree* argx     = nullptr;
     unsigned regIndex = 0;
 
-    for (GenTreeArgList *list = call->gtCall.gtCallLateArgs; list != nullptr; regIndex++, list = list->Rest())
+    for (GenTreeArgList *list = call->AsCall()->gtCallLateArgs; list != nullptr; regIndex++, list = list->Rest())
     {
         argx = list->Current();
         assert(!argx->IsArgPlaceHolderNode()); // No placeholder nodes are in gtCallLateArgs;
@@ -7319,7 +7319,7 @@ GenTree* Compiler::gtCloneExpr(
 
             // We can't safely clone calls that have GT_RET_EXPRs via gtCloneExpr.
             // You must use gtCloneCandidateCall for these calls (and then do appropriate other fixup)
-            if (tree->gtCall.IsInlineCandidate() || tree->gtCall.IsGuardedDevirtualizationCandidate())
+            if (tree->AsCall()->IsInlineCandidate() || tree->AsCall()->IsGuardedDevirtualizationCandidate())
             {
                 NO_WAY("Cloning of calls with associated GT_RET_EXPR nodes is not supported");
             }
@@ -7545,7 +7545,7 @@ GenTreeCall* Compiler::gtCloneExprCallHelper(GenTreeCall* tree, unsigned addFlag
 
 #if defined(DEBUG) || defined(INLINE_DATA)
     copy->gtInlineObservation = tree->gtInlineObservation;
-    copy->gtRawILOffset       = tree->gtCall.gtRawILOffset;
+    copy->gtRawILOffset       = tree->AsCall()->gtRawILOffset;
 #endif
 
     copy->CopyOtherRegFlags(tree);
@@ -9069,18 +9069,18 @@ void Compiler::gtDispNodeName(GenTree* tree)
         const char* ctType   = "";
         char        gtfTypeBuf[100];
 
-        if (tree->gtCall.gtCallType == CT_USER_FUNC)
+        if (tree->AsCall()->gtCallType == CT_USER_FUNC)
         {
-            if (tree->gtCall.IsVirtual())
+            if (tree->AsCall()->IsVirtual())
             {
                 callType = "CALLV";
             }
         }
-        else if (tree->gtCall.gtCallType == CT_HELPER)
+        else if (tree->AsCall()->gtCallType == CT_HELPER)
         {
             ctType = " help";
         }
-        else if (tree->gtCall.gtCallType == CT_INDIRECT)
+        else if (tree->AsCall()->gtCallType == CT_INDIRECT)
         {
             ctType = " ind";
         }
@@ -9093,16 +9093,16 @@ void Compiler::gtDispNodeName(GenTree* tree)
         {
             gtfType = " nullcheck";
         }
-        if (tree->gtCall.IsVirtualVtable())
+        if (tree->AsCall()->IsVirtualVtable())
         {
             gtfType = " ind";
         }
-        else if (tree->gtCall.IsVirtualStub())
+        else if (tree->AsCall()->IsVirtualStub())
         {
             gtfType = " stub";
         }
 #ifdef FEATURE_READYTORUN_COMPILER
-        else if (tree->gtCall.IsR2RRelativeIndir())
+        else if (tree->AsCall()->IsR2RRelativeIndir())
         {
             gtfType = " r2r_ind";
         }
@@ -9115,7 +9115,7 @@ void Compiler::gtDispNodeName(GenTree* tree)
             {
                 gtfTypeBufWalk += SimpleSprintf_s(gtfTypeBufWalk, gtfTypeBuf, sizeof(gtfTypeBuf), " popargs");
             }
-            if (tree->gtCall.gtCallMoreFlags & GTF_CALL_M_UNMGD_THISCALL)
+            if (tree->AsCall()->gtCallMoreFlags & GTF_CALL_M_UNMGD_THISCALL)
             {
                 gtfTypeBufWalk += SimpleSprintf_s(gtfTypeBufWalk, gtfTypeBuf, sizeof(gtfTypeBuf), " thiscall");
             }
@@ -9488,9 +9488,9 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                 goto DASH;
 
             case GT_CALL:
-                if (tree->gtCall.IsInlineCandidate())
+                if (tree->AsCall()->IsInlineCandidate())
                 {
-                    if (tree->gtCall.IsGuardedDevirtualizationCandidate())
+                    if (tree->AsCall()->IsGuardedDevirtualizationCandidate())
                     {
                         printf("&");
                     }
@@ -9501,13 +9501,13 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                     --msgLength;
                     break;
                 }
-                else if (tree->gtCall.IsGuardedDevirtualizationCandidate())
+                else if (tree->AsCall()->IsGuardedDevirtualizationCandidate())
                 {
                     printf("G");
                     --msgLength;
                     break;
                 }
-                if (tree->gtCall.gtCallMoreFlags & GTF_CALL_M_RETBUFFARG)
+                if (tree->AsCall()->gtCallMoreFlags & GTF_CALL_M_RETBUFFARG)
                 {
                     printf("S");
                     --msgLength;
@@ -12023,8 +12023,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
     if (op1IsFromHandle && op2IsFromHandle)
     {
         JITDUMP("Optimizing compare of types-from-handles to instead compare handles\n");
-        GenTree*             op1ClassFromHandle = tree->AsOp()->gtOp1->gtCall.gtCallArgs->AsOp()->gtOp1;
-        GenTree*             op2ClassFromHandle = tree->AsOp()->gtOp2->gtCall.gtCallArgs->AsOp()->gtOp1;
+        GenTree*             op1ClassFromHandle = tree->AsOp()->gtOp1->AsCall()->gtCallArgs->AsOp()->gtOp1;
+        GenTree*             op2ClassFromHandle = tree->AsOp()->gtOp2->AsCall()->gtCallArgs->AsOp()->gtOp1;
         GenTree*             op1TunneledHandle  = nullptr;
         GenTree*             op2TunneledHandle  = nullptr;
         CORINFO_CLASS_HANDLE cls1Hnd            = NO_CLASS_HANDLE;
@@ -12125,7 +12125,7 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
     GenTree* const opOther  = op1IsFromHandle ? op2 : op1;
 
     // Tunnel through the handle operand to get at the class handle involved.
-    GenTree* const       opHandleArgument = opHandle->gtCall.gtCallArgs->AsOp()->gtOp1;
+    GenTree* const       opHandleArgument = opHandle->AsCall()->gtCallArgs->AsOp()->gtOp1;
     CORINFO_CLASS_HANDLE clsHnd           = gtGetHelperArgClassHandle(opHandleArgument);
 
     // If we couldn't find the class handle, give up.
@@ -12161,7 +12161,7 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
     else
     {
         assert(opOther->OperGet() == GT_CALL);
-        objOp = opOther->gtCall.gtCallObjp;
+        objOp = opOther->AsCall()->gtCallObjp;
     }
 
     GenTree* const objMT = gtNewOperNode(GT_IND, TYP_I_IMPL, objOp);
@@ -14821,7 +14821,7 @@ bool Compiler::gtTreeHasSideEffects(GenTree* tree, unsigned flags /* = GTF_SIDE_
         {
             // Generally all trees that contain GT_CALL nodes are considered to have side-effects.
             //
-            if (tree->gtCall.gtCallType == CT_HELPER)
+            if (tree->AsCall()->gtCallType == CT_HELPER)
             {
                 // If this node is a helper call we may not care about the side-effects.
                 // Note that gtNodeHasSideEffects checks the side effects of the helper itself
@@ -15274,16 +15274,16 @@ Compiler::TypeProducerKind Compiler::gtGetTypeProducerKind(GenTree* tree)
 {
     if (tree->gtOper == GT_CALL)
     {
-        if (tree->gtCall.gtCallType == CT_HELPER)
+        if (tree->AsCall()->gtCallType == CT_HELPER)
         {
             if (gtIsTypeHandleToRuntimeTypeHelper(tree->AsCall()))
             {
                 return TPK_Handle;
             }
         }
-        else if (tree->gtCall.gtCallMoreFlags & GTF_CALL_M_SPECIAL_INTRINSIC)
+        else if (tree->AsCall()->gtCallMoreFlags & GTF_CALL_M_SPECIAL_INTRINSIC)
         {
-            if (info.compCompHnd->getIntrinsicID(tree->gtCall.gtCallMethHnd) == CORINFO_INTRINSIC_Object_GetType)
+            if (info.compCompHnd->getIntrinsicID(tree->AsCall()->gtCallMethHnd) == CORINFO_INTRINSIC_Object_GetType)
             {
                 return TPK_GetType;
             }
@@ -16509,7 +16509,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
                 structHnd = tree->gtObj.gtClass;
                 break;
             case GT_CALL:
-                structHnd = tree->gtCall.gtRetClsHnd;
+                structHnd = tree->AsCall()->gtRetClsHnd;
                 break;
             case GT_RET_EXPR:
                 structHnd = tree->AsRetExpr()->gtRetClsHnd;

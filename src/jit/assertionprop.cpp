@@ -1968,21 +1968,21 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
         jitstd::swap(op1, op2);
     }
     // Validate op1 and op2
-    if ((op1->gtOper != GT_CALL) || (op1->gtCall.gtCallType != CT_HELPER) || (op1->TypeGet() != TYP_REF) || // op1
+    if ((op1->gtOper != GT_CALL) || (op1->AsCall()->gtCallType != CT_HELPER) || (op1->TypeGet() != TYP_REF) || // op1
         (op2->gtOper != GT_CNS_INT) || (op2->gtIntCon.gtIconVal != 0))                                      // op2
     {
         return NO_ASSERTION_INDEX;
     }
-    if (op1->gtCall.gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFINTERFACE) &&
-        op1->gtCall.gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFARRAY) &&
-        op1->gtCall.gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFCLASS) &&
-        op1->gtCall.gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFANY))
+    if (op1->AsCall()->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFINTERFACE) &&
+        op1->AsCall()->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFARRAY) &&
+        op1->AsCall()->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFCLASS) &&
+        op1->AsCall()->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFANY))
     {
         return NO_ASSERTION_INDEX;
     }
 
-    op2 = op1->gtCall.gtCallLateArgs->AsOp()->gtOp2;
-    op1 = op1->gtCall.gtCallLateArgs;
+    op2 = op1->AsCall()->gtCallLateArgs->AsOp()->gtOp2;
+    op1 = op1->AsCall()->gtCallLateArgs;
 
     // For the assertion, ensure op1 is the object being tested.
     // Morph may have swizzled the operand order.
@@ -2117,7 +2117,7 @@ void Compiler::optAssertionGen(GenTree* tree)
                 {
                     // For tail calls we lose the this pointer in the argument list but that's OK because a null check
                     // was made explicit, so we get the assertion when we walk the GT_IND in the argument list.
-                    noway_assert(tree->gtCall.IsTailCall());
+                    noway_assert(tree->AsCall()->IsTailCall());
                     break;
                 }
 #endif // _TARGET_X86_ || _TARGET_AMD64_ || _TARGET_ARM_

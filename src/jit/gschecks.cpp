@@ -190,29 +190,29 @@ Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTree** pTree, fgWa
             newState.isUnderIndir = false;
             newState.isAssignSrc  = false;
             {
-                if (tree->gtCall.gtCallObjp)
+                if (tree->AsCall()->gtCallObjp)
                 {
                     newState.isUnderIndir = true;
-                    comp->fgWalkTreePre(&tree->gtCall.gtCallObjp, gsMarkPtrsAndAssignGroups, (void*)&newState);
+                    comp->fgWalkTreePre(&tree->AsCall()->gtCallObjp, gsMarkPtrsAndAssignGroups, (void*)&newState);
                 }
 
-                for (GenTreeArgList* args = tree->gtCall.gtCallArgs; args; args = args->Rest())
+                for (GenTreeArgList* args = tree->AsCall()->gtCallArgs; args; args = args->Rest())
                 {
                     comp->fgWalkTreePre(&args->Current(), gsMarkPtrsAndAssignGroups, (void*)&newState);
                 }
-                for (GenTreeArgList* args = tree->gtCall.gtCallLateArgs; args; args = args->Rest())
+                for (GenTreeArgList* args = tree->AsCall()->gtCallLateArgs; args; args = args->Rest())
                 {
                     comp->fgWalkTreePre(&args->Current(), gsMarkPtrsAndAssignGroups, (void*)&newState);
                 }
 
-                if (tree->gtCall.gtCallType == CT_INDIRECT)
+                if (tree->AsCall()->gtCallType == CT_INDIRECT)
                 {
                     newState.isUnderIndir = true;
 
                     // A function pointer is treated like a write-through pointer since
                     // it controls what code gets executed, and so indirectly can cause
                     // a write to memory.
-                    comp->fgWalkTreePre(&tree->gtCall.gtCallAddr, gsMarkPtrsAndAssignGroups, (void*)&newState);
+                    comp->fgWalkTreePre(&tree->AsCall()->gtCallAddr, gsMarkPtrsAndAssignGroups, (void*)&newState);
                 }
             }
             return WALK_SKIP_SUBTREES;

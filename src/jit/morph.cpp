@@ -63,26 +63,26 @@ GenTree* Compiler::fgMorphIntoHelperCall(GenTree* tree, int helper, GenTreeArgLi
     // The helper call ought to be semantically equivalent to the original node, so preserve its VN.
     tree->ChangeOper(GT_CALL, GenTree::PRESERVE_VN);
 
-    tree->gtCall.gtCallType            = CT_HELPER;
-    tree->gtCall.gtCallMethHnd         = eeFindHelper(helper);
-    tree->gtCall.gtCallArgs            = args;
-    tree->gtCall.gtCallObjp            = nullptr;
-    tree->gtCall.gtCallLateArgs        = nullptr;
-    tree->gtCall.fgArgInfo             = nullptr;
-    tree->gtCall.gtRetClsHnd           = nullptr;
-    tree->gtCall.gtCallMoreFlags       = 0;
-    tree->gtCall.gtInlineCandidateInfo = nullptr;
-    tree->gtCall.gtControlExpr         = nullptr;
+    tree->AsCall()->gtCallType            = CT_HELPER;
+    tree->AsCall()->gtCallMethHnd         = eeFindHelper(helper);
+    tree->AsCall()->gtCallArgs            = args;
+    tree->AsCall()->gtCallObjp            = nullptr;
+    tree->AsCall()->gtCallLateArgs        = nullptr;
+    tree->AsCall()->fgArgInfo             = nullptr;
+    tree->AsCall()->gtRetClsHnd           = nullptr;
+    tree->AsCall()->gtCallMoreFlags       = 0;
+    tree->AsCall()->gtInlineCandidateInfo = nullptr;
+    tree->AsCall()->gtControlExpr         = nullptr;
 
 #if DEBUG
     // Helper calls are never candidates.
 
-    tree->gtCall.gtInlineObservation = InlineObservation::CALLSITE_IS_CALL_TO_HELPER;
+    tree->AsCall()->gtInlineObservation = InlineObservation::CALLSITE_IS_CALL_TO_HELPER;
 #endif // DEBUG
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    tree->gtCall.gtEntryPoint.addr       = nullptr;
-    tree->gtCall.gtEntryPoint.accessType = IAT_VALUE;
+    tree->AsCall()->gtEntryPoint.addr       = nullptr;
+    tree->AsCall()->gtEntryPoint.accessType = IAT_VALUE;
 #endif
 
 #ifndef _TARGET_64BIT_
@@ -933,7 +933,7 @@ fgArgInfo::fgArgInfo(Compiler* comp, GenTreeCall* call, unsigned numArgs)
  */
 fgArgInfo::fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall)
 {
-    fgArgInfo* oldArgInfo = oldCall->gtCall.fgArgInfo;
+    fgArgInfo* oldArgInfo = oldCall->AsCall()->fgArgInfo;
 
     compiler    = oldArgInfo->compiler;
     callTree    = newCall;
@@ -1328,7 +1328,7 @@ void fgArgInfo::UpdateStkArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
 
             // Traverse the late argument list to find this argument so that we can update it.
             unsigned listInx = 0;
-            for (GenTreeArgList *list = callTree->gtCall.gtCallLateArgs; list; list = list->Rest(), listInx++)
+            for (GenTreeArgList *list = callTree->AsCall()->gtCallLateArgs; list; list = list->Rest(), listInx++)
             {
                 argx = list->Current();
                 assert(!argx->IsArgPlaceHolderNode()); // No place holders nodes are in gtCallLateArgs;
@@ -2035,8 +2035,8 @@ void fgArgInfo::SortArgs()
 #if !FEATURE_FIXED_OUT_ARGS
     // Finally build the regArgList
     //
-    callTree->gtCall.regArgList      = NULL;
-    callTree->gtCall.regArgListCount = regCount;
+    callTree->AsCall()->regArgList      = NULL;
+    callTree->AsCall()->regArgListCount = regCount;
 
     unsigned regInx = 0;
     for (curInx = 0; curInx < argCount; curInx++)
@@ -2047,7 +2047,7 @@ void fgArgInfo::SortArgs()
         {
             // Encode the argument register in the register mask
             //
-            callTree->gtCall.regArgList[regInx] = curArgTabEntry->getRegNum();
+            callTree->AsCall()->regArgList[regInx] = curArgTabEntry->getRegNum();
             regInx++;
         }
     }
@@ -2446,9 +2446,9 @@ void fgArgInfo::EvalArgsToTemps()
             else
             {
                 /* must be the gtCallObjp */
-                noway_assert(callTree->gtCall.gtCallObjp == argx);
+                noway_assert(callTree->AsCall()->gtCallObjp == argx);
 
-                callTree->gtCall.gtCallObjp = setupArg;
+                callTree->AsCall()->gtCallObjp = setupArg;
             }
         }
 
@@ -2457,7 +2457,7 @@ void fgArgInfo::EvalArgsToTemps()
         if (tmpRegArgNext == nullptr)
         {
             tmpRegArgNext                   = compiler->gtNewArgList(defArg);
-            callTree->gtCall.gtCallLateArgs = tmpRegArgNext;
+            callTree->AsCall()->gtCallLateArgs = tmpRegArgNext;
         }
         else
         {
@@ -8790,8 +8790,8 @@ NO_TAIL_CALL:
 
         GenTree* innerCall = call->gtCallLateArgs->AsOp()->gtOp1;
 
-        if (innerCall->gtOper == GT_CALL && (innerCall->gtCall.gtCallMoreFlags & GTF_CALL_M_SPECIAL_INTRINSIC) &&
-            info.compCompHnd->getIntrinsicID(innerCall->gtCall.gtCallMethHnd) ==
+        if (innerCall->gtOper == GT_CALL && (innerCall->AsCall()->gtCallMoreFlags & GTF_CALL_M_SPECIAL_INTRINSIC) &&
+            info.compCompHnd->getIntrinsicID(innerCall->AsCall()->gtCallMethHnd) ==
                 CORINFO_INTRINSIC_GetCurrentManagedThread)
         {
             // substitute expression with call to helper
@@ -11065,7 +11065,7 @@ GenTree* Compiler::fgMorphRecognizeBoxNullable(GenTree* compare)
     }
 
     // Get the nullable struct argument
-    GenTree* arg = opCall->gtCall.gtCallArgs->AsOp()->gtOp2->AsOp()->gtOp1;
+    GenTree* arg = opCall->AsCall()->gtCallArgs->AsOp()->gtOp2->AsOp()->gtOp1;
 
     // Check for cases that are unsafe to optimize and return the unchanged tree
     if (arg->IsArgPlaceHolderNode() || arg->IsNothingNode() || ((arg->gtFlags & GTF_LATE_ARG) != 0))
@@ -11634,10 +11634,10 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
                 ((tree->gtFlags & GTF_UNSIGNED) == (op1->gtFlags & GTF_UNSIGNED)) &&
                 ((tree->gtFlags & GTF_UNSIGNED) == (op2->gtFlags & GTF_UNSIGNED)))
             {
-                if (op2->gtOper == GT_CAST && op2->gtCast.CastOp()->gtOper == GT_CNS_INT &&
-                    op2->gtCast.CastOp()->gtIntCon.gtIconVal >= 2 &&
-                    op2->gtCast.CastOp()->gtIntCon.gtIconVal <= 0x3fffffff &&
-                    (tree->gtFlags & GTF_UNSIGNED) == (op2->gtCast.CastOp()->gtFlags & GTF_UNSIGNED))
+                if (op2->gtOper == GT_CAST && op2->AsCast()->CastOp()->gtOper == GT_CNS_INT &&
+                    op2->AsCast()->CastOp()->gtIntCon.gtIconVal >= 2 &&
+                    op2->AsCast()->CastOp()->gtIntCon.gtIconVal <= 0x3fffffff &&
+                    (tree->gtFlags & GTF_UNSIGNED) == (op2->AsCast()->CastOp()->gtFlags & GTF_UNSIGNED))
                 {
                     tree->AsOp()->gtOp2 = op2 = fgMorphCast(op2);
                     noway_assert(op2->gtOper == GT_CNS_NATIVELONG);
