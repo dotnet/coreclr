@@ -1412,7 +1412,7 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
                     bool alreadyArg = false;
                     for (GenTreeArgList* curArgs = argList; curArgs != nullptr; curArgs = curArgs->Rest())
                     {
-                        if (curArgs->Current()->gtPhiArg.GetSsaNum() == ssaNum)
+                        if (curArgs->Current()->AsPhiArg()->GetSsaNum() == ssaNum)
                         {
                             alreadyArg = true;
                             break;
