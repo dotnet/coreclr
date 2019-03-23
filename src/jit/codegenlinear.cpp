@@ -309,7 +309,7 @@ void CodeGen::genCodeForBBlist()
         genUpdateCurrentFunclet(block);
 
 #ifdef _TARGET_XARCH_
-        if (genAlignLoops && block->bbFlags & BBF_LOOP_HEAD)
+        if (doAlignLoops() && block->bbFlags & BBF_LOOP_HEAD)
         {
             getEmitter()->emitLoopAlign();
         }

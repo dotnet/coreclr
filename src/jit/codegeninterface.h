@@ -75,7 +75,7 @@ public:
     //-------------------------------------------------------------------------
     //  The following property indicates whether to align loops.
     //  (Used to avoid effects of loop alignment when diagnosing perf issues.)
-    __declspec(property(get = doAlignLoops, put = setAlignLoops)) bool genAlignLoops;
+
     bool doAlignLoops()
     {
         return m_genAlignLoops;
