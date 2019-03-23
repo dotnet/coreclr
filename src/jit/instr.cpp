@@ -584,7 +584,7 @@ AGAIN:
 
         case GT_LCL_FLD:
 
-            offs += tree->gtLclFld.gtLclOffs;
+            offs += tree->AsLclFld()->gtLclOffs;
             goto LCL;
 
         LCL:
@@ -691,7 +691,7 @@ AGAIN:
 
         case GT_LCL_FLD:
         case GT_STORE_LCL_FLD:
-            offs += tree->gtLclFld.gtLclOffs;
+            offs += tree->AsLclFld()->gtLclOffs;
             goto LCL;
 
         LCL:
@@ -840,7 +840,7 @@ AGAIN:
 
         case GT_LCL_FLD_ADDR:
         case GT_LCL_FLD:
-            offs += tree->gtLclFld.gtLclOffs;
+            offs += tree->AsLclFld()->gtLclOffs;
             goto LCL;
 
         LCL:

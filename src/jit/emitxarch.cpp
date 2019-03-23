@@ -3258,7 +3258,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
                 {
                     GenTreeLclFld* lclField = memOp->AsLclFld();
                     varNum                  = lclField->GetLclNum();
-                    offset                  = lclField->gtLclFld.gtLclOffs;
+                    offset                  = lclField->AsLclFld()->gtLclOffs;
                     break;
                 }
 
