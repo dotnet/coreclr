@@ -491,7 +491,7 @@ void Compiler::getStructGcPtrsFromOp(GenTree* op, BYTE* gcPtrsOut)
 #ifdef _TARGET_ARM64_
     if (op->OperGet() == GT_OBJ)
     {
-        CORINFO_CLASS_HANDLE objClass = op->gtObj.gtClass;
+        CORINFO_CLASS_HANDLE objClass = op->AsObj()->gtClass;
 
         int structSize = info.compCompHnd->getClassSize(objClass);
         assert(structSize <= 2 * TARGET_POINTER_SIZE);

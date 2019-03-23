@@ -1068,7 +1068,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
             {
                 // Set GC Pointer info
                 gcLayout = new (comp, CMK_Codegen) BYTE[info->numSlots + info->numRegs];
-                numRefs  = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
+                numRefs  = comp->info.compCompHnd->getClassGClayout(arg->AsObj()->gtClass, gcLayout);
                 argSplit->setGcPointers(numRefs, gcLayout);
             }
 
@@ -1193,7 +1193,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
                     unsigned numRefs  = 0;
                     BYTE*    gcLayout = new (comp, CMK_Codegen) BYTE[info->numSlots];
                     assert(!varTypeIsSIMD(arg));
-                    numRefs = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
+                    numRefs = comp->info.compCompHnd->getClassGClayout(arg->AsObj()->gtClass, gcLayout);
                     putArg->AsPutArgStk()->setGcPointers(numRefs, gcLayout);
 
 #ifdef _TARGET_X86_
