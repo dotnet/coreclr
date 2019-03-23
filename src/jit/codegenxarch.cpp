@@ -5358,7 +5358,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 else
                 {
                     assert(iterationNum == 1);
-                    argReg = curArgTabEntry->otherRegNum;
+                    argReg = curArgTabEntry->getOtherRegNum();
                 }
 
                 genConsumeReg(putArgRegNode);

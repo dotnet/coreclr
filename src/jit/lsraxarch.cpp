@@ -1181,7 +1181,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
             int i = 0;
             for (GenTreeFieldList* entry = argNode->AsFieldList(); entry != nullptr; entry = entry->Rest())
             {
-                const regNumber argReg = (i == 0) ? curArgTabEntry->regNum : curArgTabEntry->otherRegNum;
+                const regNumber argReg = (i == 0) ? curArgTabEntry->regNum : curArgTabEntry->getOtherRegNum();
                 assert(entry->Current()->gtRegNum == argReg);
                 assert(i < 2);
                 i++;
