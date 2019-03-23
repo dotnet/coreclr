@@ -2056,7 +2056,7 @@ AGAIN:
                 case GT_RUNTIMELOOKUP:
                     hash =
                         genTreeHashAdd(hash,
-                                       static_cast<unsigned>(reinterpret_cast<uintptr_t>(tree->gtRuntimeLookup.gtHnd)));
+                                       static_cast<unsigned>(reinterpret_cast<uintptr_t>(tree->AsRuntimeLookup()->gtHnd)));
                     break;
                 case GT_BLK:
                 case GT_OBJ:
@@ -10019,12 +10019,12 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
             if (tree->gtOper == GT_RUNTIMELOOKUP)
             {
 #ifdef _TARGET_64BIT_
-                printf(" 0x%llx", dspPtr(tree->gtRuntimeLookup.gtHnd));
+                printf(" 0x%llx", dspPtr(tree->AsRuntimeLookup()->gtHnd));
 #else
-                printf(" 0x%x", dspPtr(tree->gtRuntimeLookup.gtHnd));
+                printf(" 0x%x", dspPtr(tree->AsRuntimeLookup()->gtHnd));
 #endif
 
-                switch (tree->gtRuntimeLookup.gtHndType)
+                switch (tree->AsRuntimeLookup()->gtHndType)
                 {
                     case CORINFO_HANDLETYPE_CLASS:
                         printf(" class");
