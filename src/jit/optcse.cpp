@@ -319,7 +319,7 @@ int __cdecl Compiler::optCSEcostCmpSz(const void* op1, const void* op2)
 
     int diff;
 
-    diff = (int)(exp2->gtCostSz - exp1->gtCostSz);
+    diff = (int)(exp2->GetCostSz() - exp1->GetCostSz());
 
     if (diff != 0)
     {
@@ -591,7 +591,7 @@ unsigned Compiler::optValnumCSE_Index(GenTree* tree, GenTreeStmt* stmt)
             printf("\nCSE candidate #%02u, vn=", CSEindex);
             vnPrint(key, 0);
             printf(" cseMask=%s in " FMT_BB ", [cost=%2u, size=%2u]: \n", genES2str(cseTraits, tempMask),
-                   compCurBB->bbNum, tree->GetCostEx(), tree->gtCostSz);
+                   compCurBB->bbNum, tree->GetCostEx(), tree->GetCostSz());
             gtDispTree(tree);
         }
 #endif // DEBUG
@@ -1577,15 +1577,15 @@ public:
         {
             if (m_context->CodeOptKind() == Compiler::SMALL_CODE)
             {
-                m_Cost     = Expr()->gtCostSz;      // the estimated code size
-                m_Size     = Expr()->gtCostSz;      // always the gtCostSz
+                m_Cost     = Expr()->GetCostSz();      // the estimated code size
+                m_Size     = Expr()->GetCostSz();      // always the gtCostSz
                 m_defCount = m_CseDsc->csdDefCount; // def count
                 m_useCount = m_CseDsc->csdUseCount; // use count (excluding the implicit uses at defs)
             }
             else
             {
                 m_Cost     = Expr()->GetCostEx();      // the estimated execution cost
-                m_Size     = Expr()->gtCostSz;      // always the gtCostSz
+                m_Size     = Expr()->GetCostSz();      // always the gtCostSz
                 m_defCount = m_CseDsc->csdDefWtCnt; // weighted def count
                 m_useCount = m_CseDsc->csdUseWtCnt; // weighted use count (excluding the implicit uses at defs)
             }
@@ -2606,7 +2606,7 @@ bool Compiler::optIsCSEcandidate(GenTree* tree)
     unsigned cost;
     if (compCodeOpt() == SMALL_CODE)
     {
-        cost = tree->gtCostSz;
+        cost = tree->GetCostSz();
     }
     else
     {

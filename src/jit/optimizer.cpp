@@ -3711,7 +3711,7 @@ void Compiler::optUnrollLoops()
                     gtSetStmtInfo(stmt);
 
                     /* Update loopCostSz */
-                    loopCostSz += stmt->gtCostSz;
+                    loopCostSz += stmt->GetCostSz();
                 }
 
                 if (block == bottom)
@@ -4157,7 +4157,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
     /* We call gtPrepareCost to measure the cost of duplicating this tree */
 
     gtPrepareCost(condTree);
-    unsigned estDupCostSz = condTree->gtCostSz;
+    unsigned estDupCostSz = condTree->GetCostSz();
 
     double loopIterations = (double)BB_LOOP_WEIGHT;
 
