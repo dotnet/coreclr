@@ -5589,8 +5589,8 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
     GenTreeIndex* asIndex = tree->AsIndex();
 
     var_types            elemTyp        = tree->TypeGet();
-    unsigned             elemSize       = tree->gtIndex.gtIndElemSize;
-    CORINFO_CLASS_HANDLE elemStructType = tree->gtIndex.gtStructElemClass;
+    unsigned             elemSize       = tree->AsIndex()->gtIndElemSize;
+    CORINFO_CLASS_HANDLE elemStructType = tree->AsIndex()->gtStructElemClass;
 
     noway_assert(elemTyp != TYP_STRUCT || elemStructType != nullptr);
 

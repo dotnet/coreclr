@@ -1301,7 +1301,7 @@ AGAIN:
                     }
                     break;
                 case GT_INDEX:
-                    if (op1->gtIndex.gtIndElemSize != op2->gtIndex.gtIndElemSize)
+                    if (op1->AsIndex()->gtIndElemSize != op2->AsIndex()->gtIndElemSize)
                     {
                         return false;
                     }
@@ -1933,7 +1933,7 @@ AGAIN:
                     hash ^= tree->AsCast()->gtCastType;
                     break;
                 case GT_INDEX:
-                    hash += tree->gtIndex.gtIndElemSize;
+                    hash += tree->AsIndex()->gtIndElemSize;
                     break;
                 case GT_INDEX_ADDR:
                     hash += tree->AsIndexAddr()->gtElemSize;
@@ -16518,7 +16518,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
                 structHnd = tree->AsArgPlace()->gtArgPlaceClsHnd;
                 break;
             case GT_INDEX:
-                structHnd = tree->gtIndex.gtStructElemClass;
+                structHnd = tree->AsIndex()->gtStructElemClass;
                 break;
             case GT_INDEX_ADDR:
                 structHnd = tree->AsIndexAddr()->gtStructElemClass;
