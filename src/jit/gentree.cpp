@@ -11449,7 +11449,7 @@ void Compiler::gtGetLateArgMsg(
 
     fgArgTabEntry* curArgTabEntry = gtArgEntryByLateArgIndex(call, lateArgIndex);
     assert(curArgTabEntry);
-    regNumber argReg = curArgTabEntry->regNum;
+    regNumber argReg = curArgTabEntry->GetRegNum();
 
 #if !FEATURE_FIXED_OUT_ARGS
     assert(lateArgIndex < call->regArgListCount);
@@ -11539,7 +11539,7 @@ void Compiler::gtGetLateArgMsg(
                 assert(listCount <= MAX_ARG_REG_COUNT);
                 char separator = (curArgTabEntry->numRegs == 2) ? ',' : '-';
                 sprintf_s(bufp, bufLength, "arg%d %s%c%s%c", curArgTabEntry->argNum, compRegVarName(argReg), separator,
-                          compRegVarName(curArgTabEntry->getRegNum(curArgTabEntry->numRegs - 1)), 0);
+                          compRegVarName(curArgTabEntry->GetRegNum(curArgTabEntry->numRegs - 1)), 0);
             }
             else
 #endif
