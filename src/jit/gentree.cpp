@@ -2075,7 +2075,7 @@ AGAIN:
             break;
 
         case GT_STMT:
-            temp = tree->gtStmt.gtStmtExpr;
+            temp = tree->AsStmt()->gtStmtExpr;
             assert(temp);
             hash = genTreeHashAdd(hash, gtHashValue(temp));
             break;
@@ -7311,8 +7311,8 @@ GenTree* Compiler::gtCloneExpr(
     switch (oper)
     {
         case GT_STMT:
-            copy = gtCloneExpr(tree->gtStmt.gtStmtExpr, addFlags, deepVarNum, deepVarVal);
-            copy = gtNewStmt(copy, tree->gtStmt.gtStmtILoffsx);
+            copy = gtCloneExpr(tree->AsStmt()->gtStmtExpr, addFlags, deepVarNum, deepVarVal);
+            copy = gtNewStmt(copy, tree->AsStmt()->gtStmtILoffsx);
             goto DONE;
 
         case GT_CALL:
@@ -9317,7 +9317,7 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
     {
         if (tree->gtOper == GT_STMT)
         {
-            prev = tree->gtStmt.gtStmtExpr;
+            prev = tree->AsStmt()->gtStmtExpr;
         }
         else
         {
@@ -10463,13 +10463,13 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
 
         case GT_IL_OFFSET:
             printf(" IL offset: ");
-            if (tree->gtStmt.gtStmtILoffsx == BAD_IL_OFFSET)
+            if (tree->AsStmt()->gtStmtILoffsx == BAD_IL_OFFSET)
             {
                 printf("???");
             }
             else
             {
-                printf("0x%x", jitGetILoffs(tree->gtStmt.gtStmtILoffsx));
+                printf("0x%x", jitGetILoffs(tree->AsStmt()->gtStmtILoffsx));
             }
             break;
 
@@ -11010,7 +11010,7 @@ void Compiler::gtDispTree(GenTree*     tree,
 
             if (!topOnly)
             {
-                gtDispChild(tree->gtStmt.gtStmtExpr, indentStack, IIArcBottom);
+                gtDispChild(tree->AsStmt()->gtStmtExpr, indentStack, IIArcBottom);
             }
             break;
 
@@ -15420,7 +15420,7 @@ bool GenTree::IsPhiDefnStmt()
     {
         return false;
     }
-    GenTree* asg = gtStmt.gtStmtExpr;
+    GenTree* asg = AsStmt()->gtStmtExpr;
     return asg->IsPhiDefn();
 }
 

@@ -2561,7 +2561,7 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
 
         if (tree != nullptr && tree->gtOper == GT_STMT)
         {
-            tree = tree->gtStmt.gtStmtExpr;
+            tree = tree->AsStmt()->gtStmtExpr;
             assert(tree != nullptr);
 
             if ((tree->gtOper == GT_ASG) && (tree->AsOp()->gtOp1->gtOper == GT_LCL_VAR) &&
@@ -2767,7 +2767,7 @@ void Compiler::impNoteLastILoffs()
 /*****************************************************************************
  * We don't create any GenTree (excluding spills) for a branch.
  * For debugging info, we need a placeholder so that we can note
- * the IL offset in gtStmt.gtStmtOffs. So append an empty statement.
+ * the IL offset in AsStmt()->gtStmtOffs. So append an empty statement.
  */
 
 void Compiler::impNoteBranchOffs()

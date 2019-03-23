@@ -608,7 +608,7 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                 // until we get to the statement containing the null check.
                                                 // We only need to check the side effects at the root of each statement.
                                                 GenTree* curStmt = compCurStmt->gtPrev;
-                                                currentTree      = curStmt->gtStmt.gtStmtExpr;
+                                                currentTree      = curStmt->AsStmt()->gtStmtExpr;
                                                 while (canRemoveNullCheck && (currentTree != defParent))
                                                 {
                                                     if ((nodesWalked++ > maxNodesWalked) ||
@@ -618,9 +618,9 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                     }
                                                     else
                                                     {
-                                                        curStmt = curStmt->gtStmt.getPrevStmt();
+                                                        curStmt = curStmt->AsStmt()->getPrevStmt();
                                                         assert(curStmt != nullptr);
-                                                        currentTree = curStmt->gtStmt.gtStmtExpr;
+                                                        currentTree = curStmt->AsStmt()->gtStmtExpr;
                                                     }
                                                 }
 
