@@ -103,16 +103,14 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetOffset(int length)
         {
-            int offset = _value;
-            if (IsFromEnd)
-            {
-                // offset = length - (~value)
-                // offset = length + (~(~value) + 1)
-                // offset = length + value + 1
-
-                offset += length + 1;
-            }
-            return offset;
+            //
+            // Branchless bit-twiddle from ones-complement to ordinary index.
+            // Same as:
+            //      return IsFromEnd ? length - (~_value) : _value;
+            //
+            // NB: There is no dependency between operands of `&`, and one cycle should be enough to compute both
+            //     thus making the whole thing very cheap.
+            return unchecked(_value + ((length + 1) & (_value >> 31)));
         }
 
         /// <summary>Indicates whether the current Index object is equal to another object of the same type.</summary>
