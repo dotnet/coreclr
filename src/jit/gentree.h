@@ -5500,7 +5500,7 @@ public:
     pointers) must be flagged as 'large' in GenTree::InitNodeSize().
  */
 
-/* gtClsVar -- 'static data member' (GT_CLS_VAR) */
+/* AsClsVar() -- 'static data member' (GT_CLS_VAR) */
 
 struct GenTreeClsVar : public GenTree
 {
