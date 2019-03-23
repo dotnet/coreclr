@@ -913,7 +913,7 @@ void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
     emit->emitIns_S_R(ins, attr, data->GetRegNum(), varNum, offset);
 
     genUpdateLife(tree);
-    varDsc->GetRegNum() = REG_STK;
+    varDsc->SetRegNum(REG_STK);
 }
 
 //------------------------------------------------------------------------
@@ -966,7 +966,7 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
 
             genUpdateLife(tree);
 
-            varDsc->GetRegNum() = REG_STK;
+            varDsc->SetRegNum(REG_STK);
         }
         else // store into register (i.e move into register)
         {

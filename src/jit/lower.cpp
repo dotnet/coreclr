@@ -1028,7 +1028,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
 
 #if FEATURE_ARG_SPLIT
     // Struct can be split into register(s) and stack on ARM
-    if (info->isSplit)
+    if (info->getIsSplit())
     {
         assert(arg->OperGet() == GT_OBJ || arg->OperGet() == GT_FIELD_LIST);
         // TODO: Need to check correctness for FastTailCall
@@ -1098,7 +1098,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
                 argSplit->m_regType[index] = regType;
 
                 // Clear the register assignments on the fieldList nodes, as these are contained.
-                fieldListPtr->GetRegNum() = REG_NA;
+                fieldListPtr->SetRegNum(REG_NA);
             }
         }
     }
@@ -1346,7 +1346,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
 #if !defined(_TARGET_64BIT_)
     if (varTypeIsLong(type))
     {
-        bool isReg = (info->regNum != REG_STK);
+        bool isReg = (info->getRegNum() != REG_STK);
         if (isReg)
         {
             noway_assert(arg->OperGet() == GT_LONG);
@@ -1377,8 +1377,8 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
             GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList(argLo, 0, TYP_INT, nullptr);
             // Only the first fieldList node (GTF_FIELD_LIST_HEAD) is in the instruction sequence.
             (void)new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldList);
-            GenTree* putArg  = NewPutArg(call, fieldList, info, type);
-            putArg->GetRegNum() = info->regNum;
+            GenTree* putArg     = NewPutArg(call, fieldList, info, type);
+            putArg->SetRegNum(info->getRegNum());
 
             // We can't call ReplaceArgWithPutArgOrBitcast here because it presumes that we are keeping the original
             // arg.

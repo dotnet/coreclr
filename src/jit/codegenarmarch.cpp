@@ -2270,13 +2270,13 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
             }
         }
 #if FEATURE_ARG_SPLIT
-        else if (curArgTabEntry->isSplit)
+        else if (curArgTabEntry->getIsSplit())
         {
             assert(curArgTabEntry->numRegs >= 1);
             genConsumeArgSplitStruct(argNode->AsPutArgSplit());
             for (unsigned idx = 0; idx < curArgTabEntry->numRegs; idx++)
             {
-                regNumber argReg   = (regNumber)((unsigned)curArgTabEntry->regNum + idx);
+                regNumber argReg   = (regNumber)((unsigned)curArgTabEntry->getRegNum() + idx);
                 regNumber allocReg = argNode->AsPutArgSplit()->GetRegNumByIdx(idx);
                 if (argReg != allocReg)
                 {

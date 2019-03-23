@@ -887,7 +887,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #ifdef _TARGET_ARM_
             if (varDsc->TypeGet() == TYP_LONG)
             {
-                varDsc->GetOtherReg() = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_INT);
+                varDsc->SetOtherReg(genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_INT));
             }
 #endif // _TARGET_ARM_
 

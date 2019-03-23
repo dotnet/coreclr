@@ -1431,7 +1431,7 @@ void fgArgInfo::ArgsComplete()
 #endif
         }
 #if FEATURE_ARG_SPLIT
-        else if (curArgTabEntry->isSplit)
+        else if (curArgTabEntry->getIsSplit())
         {
             hasStructRegArg = true;
             hasStackArgs    = true;
@@ -1562,7 +1562,7 @@ void fgArgInfo::ArgsComplete()
                     prevArgTabEntry->needPlace = true;
                 }
 #if FEATURE_ARG_SPLIT
-                else if (prevArgTabEntry->isSplit)
+                else if (prevArgTabEntry->getIsSplit())
                 {
                     prevArgTabEntry->needPlace = true;
                 }
@@ -2337,10 +2337,10 @@ void fgArgInfo::EvalArgsToTemps()
                     // might have left holes in the used registers (see
                     // fgAddSkippedRegsInPromotedStructArg).
                     // Too bad we're not that smart for these intermediate temps...
-                    if (isValidIntArgReg(curArgTabEntry->regNum) && (curArgTabEntry->numRegs > 1))
+                    if (isValidIntArgReg(curArgTabEntry->getRegNum()) && (curArgTabEntry->numRegs > 1))
                     {
-                        regNumber argReg      = curArgTabEntry->regNum;
-                        regMaskTP allUsedRegs = genRegMask(curArgTabEntry->regNum);
+                        regNumber argReg      = curArgTabEntry->getRegNum();
+                        regMaskTP allUsedRegs = genRegMask(curArgTabEntry->getRegNum());
                         for (unsigned i = 1; i < curArgTabEntry->numRegs; i++)
                         {
                             argReg = genRegArgNext(argReg);
@@ -4475,8 +4475,8 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 #endif
 
 #ifdef _TARGET_ARM_
-    if ((fgEntryPtr->isSplit && fgEntryPtr->numSlots + fgEntryPtr->numRegs > 4) ||
-        (!fgEntryPtr->isSplit && fgEntryPtr->regNum == REG_STK))
+    if ((fgEntryPtr->getIsSplit() && fgEntryPtr->numSlots + fgEntryPtr->numRegs > 4) ||
+        (!fgEntryPtr->getIsSplit() && fgEntryPtr->getRegNum() == REG_STK))
 #else
     if (fgEntryPtr->getRegNum() == REG_STK)
 #endif
@@ -7418,7 +7418,7 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
         // We don't need this arg to be in the normal stub register, so
         // clear out the register assignment.
         assert(stubAddrArg->GetRegNum() == virtualStubParamInfo->GetReg());
-        stubAddrArg->GetRegNum() = REG_NA;
+        stubAddrArg->SetRegNum(REG_NA);
 
         // And push the stub address onto the list of arguments
         call->gtCallArgs = gtNewListNode(stubAddrArg, call->gtCallArgs);

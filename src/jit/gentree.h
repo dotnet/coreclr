@@ -3809,7 +3809,7 @@ struct GenTreeMultiRegOp : public GenTreeOp
 
     unsigned GetRegCount() const
     {
-        if (AsRegNum() == REG_NA || AsRegNum() == REG_STK)
+        if (GetRegNum() == REG_NA || GetRegNum() == REG_STK)
         {
             return 0;
         }
@@ -3831,7 +3831,7 @@ struct GenTreeMultiRegOp : public GenTreeOp
 
         if (idx == 0)
         {
-            return AsRegNum();
+            return GetRegNum();
         }
 
         return gtOtherReg;
@@ -5208,7 +5208,7 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
 
         if (idx == 0)
         {
-            return AsRegNum();
+            return GetRegNum();
         }
 
         return (regNumber)gtOtherRegs[idx - 1];
