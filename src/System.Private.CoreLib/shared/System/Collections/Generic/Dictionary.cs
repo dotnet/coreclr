@@ -641,6 +641,8 @@ namespace System.Collections.Generic
 
             if (updateFreeList)
             {
+                Debug.Assert((StartOfFreeList - entries[_freeList].next) >= -2, "shouldn't underflow because max hashtable length is MaxPrimeArrayLength = 0x7FEFFFFD");
+
                 _freeList = StartOfFreeList - entries[_freeList].next;
             }
             entry.hashCode = hashCode;
@@ -740,7 +742,7 @@ namespace System.Collections.Generic
             {
                 if (entries[i].next >= -1)
                 {
-                    int bucket = (int)(entries[i].hashCode % (uint)newSize);
+                    uint bucket = entries[i].hashCode % (uint)newSize;
                     // Value in _buckets is 1-based
                     entries[i].next = buckets[bucket] - 1;
                     // Value in _buckets is 1-based
@@ -768,7 +770,7 @@ namespace System.Collections.Generic
             if (buckets != null)
             {
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
-                int bucket = (int)(hashCode % (uint)buckets.Length);
+                uint bucket = hashCode % (uint)buckets.Length;
                 int last = -1;
                 // Value in buckets is 1-based
                 int i = buckets[bucket] - 1;
@@ -787,6 +789,8 @@ namespace System.Collections.Generic
                         {
                             entries[last].next = entry.next;
                         }
+
+                        Debug.Assert((StartOfFreeList - _freeList) >= -2, "shouldn't underflow because max hashtable length is MaxPrimeArrayLength = 0x7FEFFFFD");
 
                         entry.next = StartOfFreeList - _freeList;
 
@@ -833,7 +837,7 @@ namespace System.Collections.Generic
             if (buckets != null)
             {
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
-                int bucket = (int)(hashCode % (uint)buckets.Length);
+                uint bucket = hashCode % (uint)buckets.Length;
                 int last = -1;
                 // Value in buckets is 1-based
                 int i = buckets[bucket] - 1;
@@ -854,6 +858,8 @@ namespace System.Collections.Generic
                         }
 
                         value = entry.value;
+
+                        Debug.Assert((StartOfFreeList - _freeList) >= -2, "shouldn't underflow because max hashtable length is MaxPrimeArrayLength = 0x7FEFFFFD");
 
                         entry.next = StartOfFreeList - _freeList;
 
@@ -1025,7 +1031,7 @@ namespace System.Collections.Generic
                 {
                     ref Entry entry = ref entries[count];
                     entry = oldEntries[i];
-                    int bucket = (int)(hashCode % (uint)newSize);
+                    uint bucket = hashCode % (uint)newSize;
                     // Value in _buckets is 1-based
                     entry.next = buckets[bucket] - 1;
                     // Value in _buckets is 1-based
