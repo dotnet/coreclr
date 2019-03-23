@@ -482,7 +482,7 @@ void CodeGen::inst_set_SV_var(GenTree* tree)
     assert(tree && (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_VAR_ADDR || tree->gtOper == GT_STORE_LCL_VAR));
     assert(tree->AsLclVarCommon()->GetLclNum() < compiler->lvaCount);
 
-    getEmitter()->emitVarRefOffs = tree->gtLclVar.gtLclILoffs;
+    getEmitter()->emitVarRefOffs = tree->AsLclVar()->gtLclILoffs;
 
 #endif // DEBUG
 }

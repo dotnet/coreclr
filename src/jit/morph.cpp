@@ -8690,7 +8690,7 @@ NO_TAIL_CALL:
             {
                 structHnd = call->gtRetClsHnd;
                 if (info.compCompHnd->isStructRequiringStackAllocRetBuf(structHnd) &&
-                    !(dest->OperGet() == GT_LCL_VAR && dest->gtLclVar.GetLclNum() == info.compRetBuffArg))
+                    !(dest->OperGet() == GT_LCL_VAR && dest->AsLclVar()->GetLclNum() == info.compRetBuffArg))
                 {
                     origDest = dest;
 
@@ -8814,7 +8814,7 @@ NO_TAIL_CALL:
             {
                 GenTree* var = origDest->AsOp()->gtOp1;
                 origDest     = gtNewOperNode(GT_COMMA, var->TypeGet(), origDest,
-                                         gtNewLclvNode(var->gtLclVar.GetLclNum(), var->TypeGet()));
+                                         gtNewLclvNode(var->AsLclVar()->GetLclNum(), var->TypeGet()));
             }
         }
         GenTree* copyBlk = gtNewCpObjNode(origDest, retValVarAddr, structHnd, false);
@@ -16857,7 +16857,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTreeStmt* stmt)
     if (dst != nullptr)
     {
         assert(dst->gtOper == GT_LCL_VAR);
-        lclNum = dst->gtLclVar.GetLclNum();
+        lclNum = dst->AsLclVar()->GetLclNum();
     }
     else
     {

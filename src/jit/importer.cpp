@@ -18590,7 +18590,7 @@ void Compiler::impInlineRecordArgInfo(InlineInfo*   pInlineInfo,
         inlCurArgInfo->argIsLclVar = true;
 
         /* Remember the "original" argument number */
-        INDEBUG(curArgVal->gtLclVar.gtLclILoffs = argNum;)
+        INDEBUG(curArgVal->AsLclVar()->gtLclILoffs = argNum;)
     }
 
     if ((curArgVal->OperKind() & GTK_CONST) ||
@@ -19248,7 +19248,7 @@ GenTree* Compiler::impInlineFetchArg(unsigned lclNum, InlArgInfo* inlArgInfo, In
         if (argInfo.argIsUsed || (op1->TypeGet() != lclTyp))
         {
             assert(op1->gtOper == GT_LCL_VAR);
-            assert(lclNum == op1->gtLclVar.gtLclILoffs);
+            assert(lclNum == op1->AsLclVar()->gtLclILoffs);
 
             var_types newTyp = lclTyp;
 
@@ -19258,7 +19258,7 @@ GenTree* Compiler::impInlineFetchArg(unsigned lclNum, InlArgInfo* inlArgInfo, In
             }
 
             // Create a new lcl var node - remember the argument lclNum
-            op1 = gtNewLclvNode(op1->AsLclVarCommon()->GetLclNum(), newTyp DEBUGARG(op1->gtLclVar.gtLclILoffs));
+            op1 = gtNewLclvNode(op1->AsLclVarCommon()->GetLclNum(), newTyp DEBUGARG(op1->AsLclVar()->gtLclILoffs));
         }
     }
     else if (argInfo.argIsByRefToStructLocal && !argInfo.argHasStargOp)

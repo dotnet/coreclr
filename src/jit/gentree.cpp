@@ -1858,7 +1858,7 @@ AGAIN:
         {
             UINT64 bits;
             case GT_LCL_VAR:
-                add = tree->gtLclVar.GetLclNum();
+                add = tree->AsLclVar()->GetLclNum();
                 break;
             case GT_LCL_FLD:
                 hash = genTreeHashAdd(hash, tree->AsLclFld()->GetLclNum());
@@ -2607,8 +2607,8 @@ bool Compiler::gtIsLikelyRegVar(GenTree* tree)
         return false;
     }
 
-    assert(tree->gtLclVar.GetLclNum() < lvaTableCnt);
-    LclVarDsc* varDsc = lvaTable + tree->gtLclVar.GetLclNum();
+    assert(tree->AsLclVar()->GetLclNum() < lvaTableCnt);
+    LclVarDsc* varDsc = lvaTable + tree->AsLclVar()->GetLclNum();
 
     if (varDsc->lvDoNotEnregister)
     {
@@ -3232,7 +3232,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     costEx = 1;
                     costSz = 1;
                     /* Sign-extend and zero-extend are more expensive to load */
-                    if (lvaTable[tree->gtLclVar.GetLclNum()].lvNormalizeOnLoad())
+                    if (lvaTable[tree->AsLclVar()->GetLclNum()].lvNormalizeOnLoad())
                     {
                         costEx += 1;
                         costSz += 1;
@@ -6784,7 +6784,7 @@ GenTree* Compiler::gtClone(GenTree* tree, bool complexOK)
             // Remember that the LclVar node has been cloned. The flag will be set
             // on 'copy' as well.
             tree->gtFlags |= GTF_VAR_CLONED;
-            copy = gtNewLclvNode(tree->AsLclVarCommon()->GetLclNum(), tree->gtType DEBUGARG(tree->gtLclVar.gtLclILoffs));
+            copy = gtNewLclvNode(tree->AsLclVarCommon()->GetLclNum(), tree->gtType DEBUGARG(tree->AsLclVar()->gtLclILoffs));
             break;
 
         case GT_LCL_FLD:
@@ -6968,7 +6968,7 @@ GenTree* Compiler::gtCloneExpr(
                     // Remember that the LclVar node has been cloned. The flag will
                     // be set on 'copy' as well.
                     tree->gtFlags |= GTF_VAR_CLONED;
-                    copy = gtNewLclvNode(tree->gtLclVar.GetLclNum(), tree->gtType DEBUGARG(tree->gtLclVar.gtLclILoffs));
+                    copy = gtNewLclvNode(tree->AsLclVar()->GetLclNum(), tree->gtType DEBUGARG(tree->AsLclVar()->gtLclILoffs));
                     copy->AsLclVarCommon()->SetSsaNum(tree->AsLclVarCommon()->GetSsaNum());
                 }
                 copy->gtFlags = tree->gtFlags;
@@ -14467,9 +14467,9 @@ GenTree* Compiler::gtNewTempAssign(
     }
 
     var_types valTyp = val->TypeGet();
-    if (val->OperGet() == GT_LCL_VAR && lvaTable[val->gtLclVar.GetLclNum()].lvNormalizeOnLoad())
+    if (val->OperGet() == GT_LCL_VAR && lvaTable[val->AsLclVar()->GetLclNum()].lvNormalizeOnLoad())
     {
-        valTyp      = lvaGetRealType(val->gtLclVar.GetLclNum());
+        valTyp      = lvaGetRealType(val->AsLclVar()->GetLclNum());
         val->gtType = valTyp;
     }
     var_types dstTyp = varDsc->TypeGet();
