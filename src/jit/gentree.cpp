@@ -1210,7 +1210,7 @@ AGAIN:
                 return true;
 
             case GT_CLS_VAR:
-                if (op1->gtClsVar.gtClsVarHnd != op2->gtClsVar.gtClsVarHnd)
+                if (op1->AsClsVar()->gtClsVarHnd != op2->AsClsVar()->gtClsVarHnd)
                 {
                     break;
                 }
@@ -6799,7 +6799,7 @@ GenTree* Compiler::gtClone(GenTree* tree, bool complexOK)
 
         case GT_CLS_VAR:
             copy = new (this, GT_CLS_VAR)
-                GenTreeClsVar(tree->gtType, tree->gtClsVar.gtClsVarHnd, tree->gtClsVar.gtFieldSeq);
+                GenTreeClsVar(tree->gtType, tree->AsClsVar()->gtClsVarHnd, tree->AsClsVar()->gtFieldSeq);
             break;
 
         default:
@@ -6993,7 +6993,7 @@ GenTree* Compiler::gtCloneExpr(
 
             case GT_CLS_VAR:
                 copy = new (this, GT_CLS_VAR)
-                    GenTreeClsVar(tree->TypeGet(), tree->gtClsVar.gtClsVarHnd, tree->gtClsVar.gtFieldSeq);
+                    GenTreeClsVar(tree->TypeGet(), tree->AsClsVar()->gtClsVarHnd, tree->AsClsVar()->gtFieldSeq);
                 goto DONE;
 
             case GT_RET_EXPR:
@@ -7910,7 +7910,7 @@ bool Compiler::gtCompareTree(GenTree* op1, GenTree* op2)
                 break;
 
             case GT_CLS_VAR:
-                if (op1->gtClsVar.gtClsVarHnd == op2->gtClsVar.gtClsVarHnd)
+                if (op1->AsClsVar()->gtClsVarHnd == op2->AsClsVar()->gtClsVarHnd)
                 {
                     return true;
                 }
@@ -10411,12 +10411,12 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
         break;
 
         case GT_CLS_VAR:
-            printf(" Hnd=%#x", dspPtr(tree->gtClsVar.gtClsVarHnd));
-            gtDispFieldSeq(tree->gtClsVar.gtFieldSeq);
+            printf(" Hnd=%#x", dspPtr(tree->AsClsVar()->gtClsVarHnd));
+            gtDispFieldSeq(tree->AsClsVar()->gtFieldSeq);
             break;
 
         case GT_CLS_VAR_ADDR:
-            printf(" Hnd=%#x", dspPtr(tree->gtClsVar.gtClsVarHnd));
+            printf(" Hnd=%#x", dspPtr(tree->AsClsVar()->gtClsVarHnd));
             break;
 
         case GT_LABEL:
@@ -15930,7 +15930,7 @@ ssize_t GenTreeIndir::Offset()
     }
     else if (Addr()->gtOper == GT_CLS_VAR_ADDR)
     {
-        return static_cast<ssize_t>(reinterpret_cast<intptr_t>(Addr()->gtClsVar.gtClsVarHnd));
+        return static_cast<ssize_t>(reinterpret_cast<intptr_t>(Addr()->AsClsVar()->gtClsVarHnd));
     }
     else if (Addr()->IsCnsIntOrI() && Addr()->isContained())
     {

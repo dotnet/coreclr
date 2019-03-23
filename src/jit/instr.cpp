@@ -611,11 +611,11 @@ AGAIN:
 
             if (shfv)
             {
-                getEmitter()->emitIns_C_I(ins, size, tree->gtClsVar.gtClsVarHnd, offs, shfv);
+                getEmitter()->emitIns_C_I(ins, size, tree->AsClsVar()->gtClsVarHnd, offs, shfv);
             }
             else
             {
-                getEmitter()->emitIns_C(ins, size, tree->gtClsVar.gtClsVarHnd, offs);
+                getEmitter()->emitIns_C(ins, size, tree->AsClsVar()->gtClsVarHnd, offs);
             }
             return;
 
@@ -741,7 +741,7 @@ AGAIN:
             else
 #endif // CPU_LOAD_STORE_ARCH
             {
-                getEmitter()->emitIns_C_R(ins, size, tree->gtClsVar.gtClsVarHnd, reg, offs);
+                getEmitter()->emitIns_C_R(ins, size, tree->AsClsVar()->gtClsVarHnd, reg, offs);
             }
             return;
 
@@ -890,7 +890,7 @@ AGAIN:
 #if CPU_LOAD_STORE_ARCH
             assert(!"GT_CLS_VAR not supported in ARM backend");
 #else  // CPU_LOAD_STORE_ARCH
-            getEmitter()->emitIns_R_C(ins, size, reg, tree->gtClsVar.gtClsVarHnd, offs);
+            getEmitter()->emitIns_R_C(ins, size, reg, tree->AsClsVar()->gtClsVarHnd, offs);
 #endif // CPU_LOAD_STORE_ARCH
             return;
 

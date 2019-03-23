@@ -461,7 +461,7 @@ void CodeGen::genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emi
 
                 case GT_CLS_VAR_ADDR:
                 {
-                    emit->emitIns_R_C(ins, attr, targetReg, addr->gtClsVar.gtClsVarHnd, 0);
+                    emit->emitIns_R_C(ins, attr, targetReg, addr->AsClsVar()->gtClsVarHnd, 0);
                     return;
                 }
 
@@ -647,7 +647,7 @@ void CodeGen::genHWIntrinsic_R_R_RM(
 
                 case GT_CLS_VAR_ADDR:
                 {
-                    emit->emitIns_SIMD_R_R_C(ins, attr, targetReg, op1Reg, addr->gtClsVar.gtClsVarHnd, 0);
+                    emit->emitIns_SIMD_R_R_C(ins, attr, targetReg, op1Reg, addr->AsClsVar()->gtClsVarHnd, 0);
                     return;
                 }
 
@@ -812,7 +812,7 @@ void CodeGen::genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins,
 
                 case GT_CLS_VAR_ADDR:
                 {
-                    emit->emitIns_SIMD_R_R_C_I(ins, simdSize, targetReg, op1Reg, addr->gtClsVar.gtClsVarHnd, 0, ival);
+                    emit->emitIns_SIMD_R_R_C_I(ins, simdSize, targetReg, op1Reg, addr->AsClsVar()->gtClsVarHnd, 0, ival);
                     return;
                 }
 
@@ -976,7 +976,7 @@ void CodeGen::genHWIntrinsic_R_R_RM_R(GenTreeHWIntrinsic* node, instruction ins)
 
                 case GT_CLS_VAR_ADDR:
                 {
-                    emit->emitIns_SIMD_R_R_C_R(ins, simdSize, targetReg, op1Reg, op3Reg, addr->gtClsVar.gtClsVarHnd, 0);
+                    emit->emitIns_SIMD_R_R_C_R(ins, simdSize, targetReg, op1Reg, op3Reg, memBase->AsClsVar()->gtClsVarHnd, 0);
                     return;
                 }
 
