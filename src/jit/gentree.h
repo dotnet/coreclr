@@ -4279,7 +4279,7 @@ struct GenTreeBoundsChk : public GenTree
     {
         if (gtArrLen->OperGet() == GT_ARR_LENGTH)
         {
-            return gtArrLen->gtArrLen.ArrRef();
+            return gtArrLen->AsArrLen()->ArrRef();
         }
         else
         {
