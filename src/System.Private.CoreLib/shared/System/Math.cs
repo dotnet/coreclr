@@ -39,29 +39,19 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static short Abs(short value)
         {
-            if (value < 0)
+            unchecked
             {
-                value = (short)-value;
-                if (value < 0)
-                {
-                    ThrowAbsOverflow();
-                }
+                return (short)((value + 0xFFFF) ^ 0xFFFF);
             }
-            return value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Abs(int value)
         {
-            if (value < 0)
+            unchecked
             {
-                value = -value;
-                if (value < 0)
-                {
-                    ThrowAbsOverflow();
-                }
+                return (int)((value + 0xFFFFFFFF) ^ 0xFFFFFFFF);
             }
-            return value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -82,15 +72,10 @@ namespace System
         [CLSCompliant(false)]
         public static sbyte Abs(sbyte value)
         {
-            if (value < 0)
+            unchecked
             {
-                value = (sbyte)-value;
-                if (value < 0)
-                {
-                    ThrowAbsOverflow();
-                }
+                return (sbyte)((value + 0xFF) ^ 0xFF);
             }
-            return value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
