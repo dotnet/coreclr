@@ -335,10 +335,6 @@ struct GenTree
     {                                                                                                                  \
         assert(OperIsSimple());                                                                                        \
         return reinterpret_cast<const GenTree##fn*>(this);                                                             \
-    }                                                                                                                  \
-    GenTree##fn& As##fn##Ref()                                                                                         \
-    {                                                                                                                  \
-        return *As##fn();                                                                                              \
     }
 
 #define GTSTRUCT_N(fn, ...)                                                                                            \
@@ -351,10 +347,6 @@ struct GenTree
     {                                                                                                                  \
         assert(OperIs(__VA_ARGS__));                                                                                   \
         return reinterpret_cast<const GenTree##fn*>(this);                                                             \
-    }                                                                                                                  \
-    GenTree##fn& As##fn##Ref()                                                                                         \
-    {                                                                                                                  \
-        return *As##fn();                                                                                              \
     }
 
 #define GTSTRUCT_1(fn, en) GTSTRUCT_N(fn, en)

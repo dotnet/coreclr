@@ -6765,7 +6765,7 @@ GenTree* Compiler::gtClone(GenTree* tree, bool complexOK)
             {
                 copy = gtNewIconHandleNode(tree->AsIntCon()->gtIconVal, tree->gtFlags, tree->AsIntCon()->gtFieldSeq);
                 copy->AsIntCon()->gtCompileTimeHandle = tree->AsIntCon()->gtCompileTimeHandle;
-                copy->gtType                       = tree->gtType;
+                copy->gtType                            = tree->gtType;
             }
             else
 #endif
@@ -6929,12 +6929,12 @@ GenTree* Compiler::gtCloneExpr(
                 {
                     copy = gtNewIconHandleNode(tree->AsIntCon()->gtIconVal, tree->gtFlags, tree->AsIntCon()->gtFieldSeq);
                     copy->AsIntCon()->gtCompileTimeHandle = tree->AsIntCon()->gtCompileTimeHandle;
-                    copy->gtType                       = tree->gtType;
+                    copy->gtType                            = tree->gtType;
                 }
                 else
 #endif
                 {
-                    copy                               = gtNewIconNode(tree->AsIntCon()->gtIconVal, tree->gtType);
+                    copy = gtNewIconNode(tree->AsIntCon()->gtIconVal, tree->gtType);
                     copy->AsIntCon()->gtCompileTimeHandle = tree->AsIntCon()->gtCompileTimeHandle;
                     copy->AsIntCon()->gtFieldSeq          = tree->AsIntCon()->gtFieldSeq;
                 }
@@ -12156,7 +12156,7 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
     // Note we may see intrinsified or regular calls to GetType
     if (opOther->OperGet() == GT_INTRINSIC)
     {
-        objOp = opOther->AsUnOpRef().gtOp1;
+        objOp = opOther->AsUnOp()->gtOp1;
     }
     else
     {
@@ -13533,7 +13533,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
 #endif
                         // Fold into GT_IND of null byref
                         tree->ChangeOperConst(GT_CNS_INT);
-                        tree->gtType              = TYP_BYREF;
+                        tree->gtType                   = TYP_BYREF;
                         tree->AsIntCon()->gtIconVal  = 0;
                         tree->AsIntCon()->gtFieldSeq = FieldSeqStore::NotAField();
                         if (vnStore != nullptr)
@@ -13812,7 +13812,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
              * GT_JTRUE has to be a GT_CNS_INT - value 0 or 1 */
 
             tree->ChangeOperConst(GT_CNS_INT);
-            tree->gtType              = TYP_INT;
+            tree->gtType                   = TYP_INT;
             tree->AsIntCon()->gtIconVal  = i1;
             tree->AsIntCon()->gtFieldSeq = fieldSeq;
             if (vnStore != nullptr)
