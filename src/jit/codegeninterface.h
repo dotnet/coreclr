@@ -25,12 +25,12 @@
 #include "jitgcinfo.h"
 #include "treelifeupdater.h"
 
-// Disable this flag to avoid using psiScope/siScope or VariableLiveRange
-// info to report reporting variables' home location during the method/prolog code.
 #if 1
+// Disable this flag to prevent using psiScope/siScope info to report variables' locations.
 #define USING_SCOPE_INFO
-#endif // USING_SCOPE_INFO
+#endif
 #if 1
+// Disable this flag to prevent using VariableLiveRange info to report variables' locations.
 #define USING_VARIABLE_LIVE_RANGE
 #endif
 
@@ -527,7 +527,7 @@ public:
         bool vlIsOnStack(regNumber reg, signed offset) const;
         bool vlIsOnStack() const;
 
-        void storeVariableOnRegisters(regNumber reg, regNumber otherReg);
+        void storeVariableInRegisters(regNumber reg, regNumber otherReg);
         void storeVariableOnStack(regNumber stackBaseReg, NATIVE_OFFSET variableStackOffset);
 
         siVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int offset, bool isFramePointerUsed);

@@ -10628,25 +10628,32 @@ void CodeGen::genSetScopeInfoUsingsiScope()
 #endif // USING_SCOPE_INFO
 
 #ifdef USING_VARIABLE_LIVE_RANGE
+//------------------------------------------------------------------------
+// genSetScopeInfoUsingVariableRanges: Call "genSetScopeInfo" with the
+//  "VariableLiveRanges" created for the arguments, special arguments and
+//  IL local variables.
+//
+// Notes:
+//  This function is called from "genSetScopeInfo" once the code is generated
+//  and we want to send debug info to the debugger.
+//
 void CodeGen::genSetScopeInfoUsingVariableRanges()
 {
-    VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
+    VariableLiveKeeper* varLiveKeeper  = compiler->getVariableLiveKeeper();
+    unsigned int        liveRangeIndex = 0;
 
-    unsigned int varNum;
-    LclVarDsc*   varDsc;
-    unsigned int liveRangeIndex = 0;
-
-    for (varDsc = compiler->lvaTable, varNum = 0; varNum < compiler->info.compLocalsCount; varNum++, varDsc++)
+    for (unsigned int varNum = 0; varNum < compiler->info.compLocalsCount; varNum++)
     {
-        const LiveRangeList* liveRanges = varLiveKeeper->getLiveRangesForVar(varNum);
+        LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
 
         if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
         {
-            for (LiveRangeListIterator itLiveRanges = liveRanges->begin(); itLiveRanges != liveRanges->end();
-                 itLiveRanges++, liveRangeIndex++)
+            const LiveRangeList* liveRanges = varLiveKeeper->getLiveRangesForVar(varNum);
+
+            for (const VariableLiveRange& liveRange : *liveRanges)
             {
-                UNATIVE_OFFSET startOffs = itLiveRanges->m_StartEmitLocation.CodeOffset(getEmitter());
-                UNATIVE_OFFSET endOffs   = itLiveRanges->m_EndEmitLocation.CodeOffset(getEmitter());
+                UNATIVE_OFFSET startOffs = liveRange.m_StartEmitLocation.CodeOffset(getEmitter());
+                UNATIVE_OFFSET endOffs   = liveRange.m_EndEmitLocation.CodeOffset(getEmitter());
 
                 if (varDsc->lvIsParam && (startOffs == endOffs))
                 {
@@ -10658,8 +10665,7 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
                 }
 
                 genSetScopeInfo(liveRangeIndex, startOffs, endOffs - startOffs, varNum,
-                                varNum /* I dont know what is the which in eeGetLvInfo */, true,
-                                &itLiveRanges->m_VarHome);
+                                varNum /* I dont know what is the which in eeGetLvInfo */, true, &liveRange.m_VarHome);
             }
         }
     }

@@ -10981,19 +10981,15 @@ bool Compiler::killGCRefs(GenTree* tree)
 
 // Dump "VariableLiveRange" when code has not been generated and we don't have so the assembly native offset
 // but at least "emitLocation"s and "siVarLoc"
-void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, const CodeGenInterface* codeGen)
+void VariableLiveRange::dumpVariableLiveRange(const CodeGenInterface* codeGen) const
 {
-    // Check pointers parameter are not nullptr
-    noway_assert(codeGen != nullptr);
-    noway_assert(varLiveRange != nullptr);
-
-    codeGen->dumpSiVarLoc(&varLiveRange->m_VarHome);
+    codeGen->dumpSiVarLoc(&m_VarHome);
     printf(" [ ");
-    varLiveRange->m_StartEmitLocation.Print();
+    m_StartEmitLocation.Print();
     printf(", ");
-    if (varLiveRange->m_EndEmitLocation.Valid())
+    if (m_EndEmitLocation.Valid())
     {
-        varLiveRange->m_EndEmitLocation.Print();
+        m_EndEmitLocation.Print();
     }
     else
     {
@@ -11003,23 +10999,19 @@ void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, const CodeGenI
 }
 
 // Dump "VariableLiveRange" when code has been generated and we have the assembly native offset of each "emitLocation"
-void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emitter, const CodeGenInterface* codeGen)
+void VariableLiveRange::dumpVariableLiveRange(emitter* emit, const CodeGenInterface* codeGen) const
 {
     // Check pointers parameter are not nullptr
-    noway_assert(varLiveRange != nullptr);
-    noway_assert(_emitter != nullptr);
-    noway_assert(codeGen != nullptr);
+    assert(emit != nullptr);
 
     // "VariableLiveRanges" are created setting its location ("m_VarLocation") and the initial assembly offset
     // ("m_StartEmitLocation")
-    codeGen->dumpSiVarLoc(&varLiveRange->m_VarHome);
+    codeGen->dumpSiVarLoc(&m_VarHome);
 
     // If this is an open "VariableLiveRange", "m_EndEmitLocation" is non-valid and print -1
-    UNATIVE_OFFSET endAssemblyOffset =
-        varLiveRange->m_EndEmitLocation.Valid() ? varLiveRange->m_EndEmitLocation.CodeOffset(_emitter) : -1;
+    UNATIVE_OFFSET endAssemblyOffset = m_EndEmitLocation.Valid() ? m_EndEmitLocation.CodeOffset(emit) : -1;
 
-    printf(" [%X , %X )", varLiveRange->m_StartEmitLocation.CodeOffset(_emitter),
-           varLiveRange->m_EndEmitLocation.CodeOffset(_emitter));
+    printf(" [%X , %X )", m_StartEmitLocation.CodeOffset(emit), m_EndEmitLocation.CodeOffset(emit));
 }
 
 //------------------------------------------------------------------------
@@ -11028,8 +11020,6 @@ void dumpVariableLiveRange(const VariableLiveRange* varLiveRange, emitter* _emit
 
 LiveRangeDumper::LiveRangeDumper(const LiveRangeList* liveRanges)
 {
-    noway_assert(liveRanges != nullptr);
-
     m_hasLiveRangestoDump = false;
     m_StartingLiveRange   = liveRanges->end();
 }
@@ -11050,9 +11040,8 @@ LiveRangeDumper::LiveRangeDumper(const LiveRangeList* liveRanges)
 //  has been dumped.
 void LiveRangeDumper::resetDumper(const LiveRangeList* liveRanges)
 {
-    noway_assert(liveRanges != nullptr);
     // There must have reported something in order to reset
-    noway_assert(m_hasLiveRangestoDump);
+    assert(m_hasLiveRangestoDump);
 
     if (liveRanges->back().m_EndEmitLocation.Valid())
     {
@@ -11069,7 +11058,7 @@ void LiveRangeDumper::resetDumper(const LiveRangeList* liveRanges)
 }
 
 //------------------------------------------------------------------------
-// setDumperStartAt: Make "LiveRangeDumper" instance points the last "VariableLifeRange"
+// setDumperStartAt: Make "LiveRangeDumper" instance points the last "VariableLiveRange"
 // added so we can starts dumping from there after the actual "BasicBlock"s code is generated.
 //
 // Arguments:
@@ -11144,9 +11133,7 @@ VariableLiveDescriptor::~VariableLiveDescriptor()
 
     m_VariableLiveRanges->~list();
 
-#ifdef DEBUG
-    m_VariableLifeBarrier->~LiveRangeDumper();
-#endif // DEBUG
+    INDEBUG(m_VariableLifeBarrier->~LiveRangeDumper());
 }
 
 //------------------------------------------------------------------------
@@ -11161,13 +11148,13 @@ bool VariableLiveDescriptor::hasVariableLiveRangeOpen() const
 }
 
 //------------------------------------------------------------------------
-// getAmountLiveRanges: Return amount of variable homes reported for this
+// getLiveRangesCount: Return amount of variable homes reported for this
 //  variable.
 //
 // Return Value:
 //  A boolean.
 //
-size_t VariableLiveDescriptor::getAmountLiveRanges() const
+size_t VariableLiveDescriptor::getLiveRangesCount() const
 {
     size_t result = 0;
     if (m_VariableLiveRanges != nullptr)
@@ -11178,7 +11165,7 @@ size_t VariableLiveDescriptor::getAmountLiveRanges() const
 }
 
 //------------------------------------------------------------------------
-// getAmountLiveRanges: Return the list of variable homes for this variable.
+// getLiveRanges: Return the list of variable homes for this variable.
 //
 // Return Value:
 //  A const LiveRangeList* pointing to the first variable home if it has
@@ -11191,30 +11178,30 @@ const LiveRangeList* VariableLiveDescriptor::getLiveRanges() const
 
 //------------------------------------------------------------------------
 // startLiveRangeFromEmitter: Report this variable as being born in "varHome"
-//  since the instruction where "_emitter" is located.
+//  since the instruction where "emit" is located.
 //
 // Arguments:
 //  varHome  - the home of the variable.
-//  _emitter - an emitter* instance located at the first instruction from
-//   where "varHome" becomes valid.
+//  emit - an emitter* instance located at the first instruction from
+//  where "varHome" becomes valid.
 //
 // Assumptions:
 //  This variable is being born so it should be dead.
 //
 // Notes:
-//  The position of "_emitter" matters to ensure intervals inclusive of the
+//  The position of "emit" matters to ensure intervals inclusive of the
 //  beginning and exclusive of the end.
 //
-void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const
+void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varHome, emitter* emit) const
 {
-    noway_assert(_emitter != nullptr);
+    noway_assert(emit != nullptr);
 
     // Is the first "VariableLiveRange" or the previous one has been closed so its "m_EndEmitLocation" is valid
     noway_assert(m_VariableLiveRanges->empty() || m_VariableLiveRanges->back().m_EndEmitLocation.Valid());
 
     // Creates new live range with invalid end
     m_VariableLiveRanges->emplace_back(varHome, emitLocation(), emitLocation());
-    m_VariableLiveRanges->back().m_StartEmitLocation.CaptureLocation(_emitter);
+    m_VariableLiveRanges->back().m_StartEmitLocation.CaptureLocation(emit);
 
     // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
     noway_assert(m_VariableLiveRanges->back().m_StartEmitLocation.Valid());
@@ -11223,25 +11210,26 @@ void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLo
 
 //------------------------------------------------------------------------
 // endLiveRangeAtEmitter: Report this variable as becoming dead since the
-//  instruction where "_emitter" is located.
+//  instruction where "emit" is located.
 //
 // Arguments:
-//  _emitter - an emitter* instance located at the first instruction from
+//  emit - an emitter* instance located at the first instruction from
 //   this variable becomes dead.
 //
 // Assumptions:
 //  This variable is becoming dead so it should be alive.
 //
 // Notes:
-//  The position of "_emitter" matters to ensure intervals inclusive of the
+//  The position of "emit" matters to ensure intervals inclusive of the
 //  beginning and exclusive of the end.
 //
-void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* _emitter) const
+void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* emit) const
 {
+    noway_assert(emit != nullptr);
     noway_assert(hasVariableLiveRangeOpen());
 
     // Using [close, open) ranges so as to not compute the size of the last instruction
-    m_VariableLiveRanges->back().m_EndEmitLocation.CaptureLocation(_emitter);
+    m_VariableLiveRanges->back().m_EndEmitLocation.CaptureLocation(emit);
 
     // No m_EndEmitLocation has to be Valid
     noway_assert(m_VariableLiveRanges->back().m_EndEmitLocation.Valid());
@@ -11249,21 +11237,21 @@ void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* _emitter) const
 
 //------------------------------------------------------------------------
 // UpdateLiveRangeAtEmitter: Report this variable as changing its variable
-//  home to "varHome" since the instruction where "_emitter" is located.
+//  home to "varHome" since the instruction where "emit" is located.
 //
 // Arguments:
 //  varHome  - the new variable home.
-//  _emitter - an emitter* instance located at the first instruction from
+//  emit - an emitter* instance located at the first instruction from
 //   where "varHome" becomes valid.
 //
 // Assumptions:
 //  This variable is being born so it should be dead.
 //
 // Notes:
-//  The position of "_emitter" matters to ensure intervals inclusive of the
+//  The position of "emit" matters to ensure intervals inclusive of the
 //  beginning and exclusive of the end.
 //
-void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varHome, emitter* _emitter) const
+void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varHome, emitter* emit) const
 {
     // This variable is changing home so it has been started before during this block
     noway_assert(m_VariableLiveRanges != nullptr && !m_VariableLiveRanges->empty());
@@ -11275,11 +11263,11 @@ void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc
     // noway_assert(! CodeGenInterface::siVarLoc::Equals(&m_VariableLiveRanges->back().m_VarHome, varLocation));
 
     // Close previous live range
-    endLiveRangeAtEmitter(_emitter);
+    endLiveRangeAtEmitter(emit);
 
     // Open new live range with invalid end
     m_VariableLiveRanges->emplace_back(varHome, emitLocation(), emitLocation());
-    m_VariableLiveRanges->back().m_StartEmitLocation.CaptureLocation(_emitter);
+    m_VariableLiveRanges->back().m_StartEmitLocation.CaptureLocation(emit);
 
     // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
     noway_assert(m_VariableLiveRanges->back().m_StartEmitLocation.Valid());
@@ -11287,7 +11275,7 @@ void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc
 }
 
 #ifdef DEBUG
-void VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(emitter* _emitter, const CodeGenInterface* codeGen) const
+void VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(emitter* emit, const CodeGenInterface* codeGen) const
 {
     // "m_VariableLiveRanges" should has been initialized
     noway_assert(m_VariableLiveRanges != nullptr);
@@ -11301,7 +11289,7 @@ void VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(emitter* _emitter
         printf("[");
         for (LiveRangeListIterator it = m_VariableLiveRanges->begin(); it != m_VariableLiveRanges->end(); it++)
         {
-            dumpVariableLiveRange(&it, _emitter, codeGen);
+            it->dumpVariableLiveRange(emit, codeGen);
         }
         printf("]\n");
     }
@@ -11311,6 +11299,7 @@ void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(c
 {
     // "m_VariableLifeBarrier" should has been initialized
     noway_assert(m_VariableLifeBarrier != nullptr);
+    noway_assert(codeGen != nullptr);
 
     if (hasVarHomesToDump())
     {
@@ -11318,7 +11307,7 @@ void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(c
         for (LiveRangeListIterator it = m_VariableLifeBarrier->getStartForDump(); it != m_VariableLiveRanges->end();
              it++)
         {
-            dumpVariableLiveRange(&it, codeGen);
+            it->dumpVariableLiveRange(codeGen);
         }
         printf("]\n");
     }
@@ -11380,42 +11369,26 @@ VariableLiveKeeper* Compiler::getVariableLiveKeeper() const
 //    compiler          - a compiler instance
 //
 VariableLiveKeeper::VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* comp)
+    : lvLiveDscCount(totalLocalCount), lvLiveArgsCount(argsCount), compiler(comp), lastBasicBlockHasBeenEmited(false)
 {
-    // Fill internal properties
-    lvLiveDscCount              = totalLocalCount;
-    lvLiveArgsCount             = argsCount;
-    compiler                    = comp;
-    lastBasicBlockHasBeenEmited = false;
-
     if (0 < lvLiveDscCount)
     {
         // Get the allocator used for all the VariableLiveRange objects
         CompAllocator allocator = compiler->getAllocator(CMK_VariableLiveRanges);
 
         // Allocate memory for "lvaLiveDsc" and initialize each "VariableLiveDescriptor"
-        lvaLiveDsc            = allocator.allocate<VariableLiveDescriptor>(lvLiveDscCount);
-        size_t lvaLiveDscSize = sizeof(*lvaLiveDsc);
-        memset(lvaLiveDsc, 0, lvaLiveDscSize);
+        lvaLiveDsc = allocator.allocate<VariableLiveDescriptor>(lvLiveDscCount);
 
-        unsigned int            varNum;
-        VariableLiveDescriptor* varLiveDsc;
-        for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
+        for (unsigned int varNum = 0; varNum < lvLiveDscCount; varNum++)
         {
-            new (varLiveDsc, jitstd::placement_t()) VariableLiveDescriptor(allocator);
+            new (lvaLiveDsc + varNum, jitstd::placement_t()) VariableLiveDescriptor(allocator);
         }
     }
 }
 
 VariableLiveKeeper::~VariableLiveKeeper()
 {
-    // Iterates all the VariableLiveDescriptor and clal its destructor
-
-    unsigned int            varNum;
-    VariableLiveDescriptor* varLiveDescriptor;
-    for (varNum = 0, varLiveDescriptor = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDescriptor++)
-    {
-        varLiveDescriptor->~VariableLiveDescriptor();
-    }
+    delete[] lvaLiveDsc;
 }
 
 //------------------------------------------------------------------------
@@ -11435,14 +11408,13 @@ unsigned int VariableLiveKeeper::getLiveRangesCount() const
 
     if (compiler->opts.compDbgInfo)
     {
-        unsigned int            varNum;
-        VariableLiveDescriptor* varLiveDsc;
-
-        for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
+        for (unsigned int varNum = 0; varNum < lvLiveDscCount; varNum++)
         {
+            VariableLiveDescriptor* varLiveDsc = lvaLiveDsc + varNum;
+
             if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
             {
-                liveRangesCount += (unsigned int)varLiveDsc->getAmountLiveRanges();
+                liveRangesCount += (unsigned int)varLiveDsc->getLiveRangesCount();
             }
         }
     }
@@ -11486,7 +11458,7 @@ void VariableLiveKeeper::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc
         }
         if (isDying && !isBorn)
         {
-            // this variable live range is no more valid from this point
+            // this variable live range is no longer valid from this point
             siEndVariableLiveRange(varNum);
         }
     }
@@ -11579,12 +11551,12 @@ void VariableLiveKeeper::siEndVariableLiveRange(unsigned int varNum)
 
     // This method is being called from genUpdateLife, and that one is called after
     // code for BasicBlock have been generated, but the emitter has no longer
-    // a valid IG so we don't report the close of a VariableLifeRange after code is
+    // a valid IG so we don't report the close of a "VariableLiveRange" after code is
     // emitted.
 
     if (compiler->opts.compDbgInfo && varNum < lvLiveDscCount && !lastBasicBlockHasBeenEmited)
     {
-        // this variable live range is no more valid from this point
+        // this variable live range is no longer valid from this point
         lvaLiveDsc[varNum].endLiveRangeAtEmitter(compiler->getEmitter());
     }
 }
@@ -11612,7 +11584,7 @@ void VariableLiveKeeper::siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsi
 
     // This method is being called when the prolog is being generated, and
     // the emitter has no longer a valid IG so we don't report the close of
-    //  a VariableLifeRange after code is emitted.
+    //  a "VariableLiveRange" after code is emitted.
     if (compiler->opts.compDbgInfo && varNum < lvLiveDscCount && !lastBasicBlockHasBeenEmited)
     {
         // Build the location of the variable
@@ -11711,11 +11683,10 @@ void VariableLiveKeeper::psiClosePrologVariableRanges()
 {
     noway_assert(compiler->info.compArgsCount <= lvLiveDscCount);
 
-    unsigned int            varNum;
-    VariableLiveDescriptor* varLiveDsc;
-
-    for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < compiler->info.compArgsCount; varNum++, varLiveDsc++)
+    for (unsigned int varNum = 0; varNum < compiler->info.compArgsCount; varNum++)
     {
+        VariableLiveDescriptor* varLiveDsc = lvaLiveDsc + varNum;
+
         if (varLiveDsc->hasVariableLiveRangeOpen())
         {
             varLiveDsc->endLiveRangeAtEmitter(compiler->getEmitter());
@@ -11739,11 +11710,10 @@ void VariableLiveKeeper::dumpBlockVariableLiveRanges(const BasicBlock* block)
 
         if (compiler->opts.compDbgInfo)
         {
-            unsigned                varNum;
-            VariableLiveDescriptor* varLiveDsc;
-
-            for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
+            for (unsigned int varNum = 0; varNum < lvLiveDscCount; varNum++)
             {
+                VariableLiveDescriptor* varLiveDsc = lvaLiveDsc + varNum;
+
                 if (varLiveDsc->hasVarHomesToDump())
                 {
                     hasDumpedHistory = true;
@@ -11777,11 +11747,10 @@ void VariableLiveKeeper::dumpLvaVariableLiveRanges() const
 
         if (compiler->opts.compDbgInfo)
         {
-            unsigned                varNum;
-            VariableLiveDescriptor* varLiveDsc;
-
-            for (varNum = 0, varLiveDsc = lvaLiveDsc; varNum < lvLiveDscCount; varNum++, varLiveDsc++)
+            for (unsigned int varNum = 0; varNum < lvLiveDscCount; varNum++)
             {
+                VariableLiveDescriptor* varLiveDsc = lvaLiveDsc + varNum;
+
                 if (varLiveDsc->hasVarHomesToDump())
                 {
                     hasDumpedHistory = true;

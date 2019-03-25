@@ -92,7 +92,7 @@ void CodeGen::genInitialize()
     }
 #endif // USING_SCOPE_INFO
 
-    // Initialize Structures for VariableLiveRanges
+    // Initialize structures for VariableLiveRanges
     compiler->initializeVariableLiveKeeper();
 
     // The current implementation of switch tables requires the first block to have a label so it

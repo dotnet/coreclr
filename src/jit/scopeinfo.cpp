@@ -145,7 +145,7 @@ bool CodeGenInterface::siVarLoc::vlIsOnStack() const
 }
 
 //------------------------------------------------------------------------
-// storeVariableOnRegisters: Convert the siVarLoc instance in a regsiter
+// storeVariableInRegisters: Convert the siVarLoc instance in a regsiter
 //  location using the given registers.
 //
 // Arguments:
@@ -153,7 +153,7 @@ bool CodeGenInterface::siVarLoc::vlIsOnStack() const
 //    otherReg  - the second register where the variable is placed
 //      or REG_NA if does not apply.
 //
-void CodeGenInterface::siVarLoc::storeVariableOnRegisters(regNumber reg, regNumber otherReg)
+void CodeGenInterface::siVarLoc::storeVariableInRegisters(regNumber reg, regNumber otherReg)
 {
     if (otherReg == REG_NA)
     {
@@ -177,7 +177,7 @@ void CodeGenInterface::siVarLoc::storeVariableOnRegisters(regNumber reg, regNumb
 // Arguments:
 //    stackBaseReg      - the base of the stack.
 //    varStackOffset    - the offset from the base where the variable is
-//      is placed.
+//                        is placed.
 //
 void CodeGenInterface::siVarLoc::storeVariableOnStack(regNumber stackBaseReg, NATIVE_OFFSET varStackOffset)
 {
@@ -473,7 +473,9 @@ CodeGenInterface::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg,
 //
 // Arguments:
 //    varDsc       - the variable it is desired to build the "siVarLoc".
-//    stackLevel   - the stack variables in case frame is not hold by ebp
+//    stackLevel   - the current stack level. If the stack pointer changes in
+//                   the function, we must adjust stack pointer-based local
+//                   variable offsets to compensate.
 //
 // Return Value:
 //    A "siVarLoc" representing the variable home, which could live
@@ -552,7 +554,7 @@ void CodeGenInterface::dumpSiVarLoc(const siVarLoc* varLoc) const
             break;
 
         case VLT_STK_REG:
-            unreached(); // unexpected
+            unreached();
 
         case VLT_STK2:
             if ((int)varLoc->vlStk2.vls2BaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
@@ -575,7 +577,7 @@ void CodeGenInterface::dumpSiVarLoc(const siVarLoc* varLoc) const
 #endif // !_TARGET_AMD64_
 
         default:
-            unreached(); // unexpected
+            unreached();
     }
 }
 #endif
@@ -1541,7 +1543,7 @@ void CodeGen::psiBegProlog()
 #endif // USING_SCOPE_INFO
 
 #ifdef USING_VARIABLE_RANGE
-                    varHome.storeVariableOnRegisters(regNum, otherRegNum);
+                    varHome.storeVariableInRegisters(regNum, otherRegNum);
 #endif // USING_VARIABLE_RANGE
                 }
                 else
@@ -1574,7 +1576,7 @@ void CodeGen::psiBegProlog()
                 newScope->u1.scRegNum = (regNumberSmall)lclVarDsc->lvArgReg;
 #endif // USING_SCOPE_INFO
 #ifdef USING_VARIABLE_LIVE_RANGE
-                varHome.storeVariableOnRegisters(lclVarDsc->lvArgReg, REG_NA);
+                varHome.storeVariableInRegisters(lclVarDsc->lvArgReg, REG_NA);
 #endif // USING_VARIABLE_LIVE_RANGE
             }
         }
