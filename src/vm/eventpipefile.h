@@ -19,7 +19,6 @@ public:
     EventPipeFile(SString &outputFilePath);
     ~EventPipeFile();
 
-    void WriteEnd();
     bool WriteEvent(EventPipeEventInstance &instance) override;
 
     const char *GetTypeName() override
@@ -51,6 +50,8 @@ public:
     }
 
 private:
+    void WriteEnd();
+
     unsigned int GenerateMetadataId();
 
     unsigned int GetMetadataId(EventPipeEvent &event);

@@ -327,9 +327,7 @@ EventPipeSessionID EventPipe::Enable(EventPipeSession *const pSession)
     // Enable the sample profiler
     SampleProfiler::Enable();
 
-    // Enable the file switch timer if needed.
-    if (s_pFastSerializableObject != nullptr && s_multiFileTraceLengthInSeconds > 0)
-        CreateFileSwitchTimer();
+    CreateFileSwitchTimer();
 
     // Return the session ID.
     return (EventPipeSessionID)s_pSession;
@@ -441,11 +439,13 @@ void EventPipe::CreateFileSwitchTimer()
     }
     CONTRACTL_END
 
+    if (s_pFastSerializableObject == nullptr || s_multiFileTraceLengthInSeconds == 0)
+        return;
+
     NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder = new (nothrow) ThreadpoolMgr::TimerInfoContext();
     if (timerContextHolder == NULL)
-    {
         return;
-    }
+
     timerContextHolder->TimerId = 0;
 
     bool success = false;
