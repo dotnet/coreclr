@@ -19,7 +19,10 @@
 #define __RPC_USER
 #define __RPC_FAR
 
+#ifndef DECLSPEC_UUID
 #define DECLSPEC_UUID(x) __declspec(uuid(x))
+#endif
+
 #define MIDL_INTERFACE(x)   struct DECLSPEC_UUID(x) DECLSPEC_NOVTABLE
 
 #define EXTERN_GUID(itf,l1,s1,s2,c1,c2,c3,c4,c5,c6,c7,c8) \
