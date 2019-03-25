@@ -11,6 +11,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
+using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
+using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 using Internal.Runtime.CompilerServices;
 
 namespace System
@@ -475,6 +477,8 @@ namespace System
         /// <summary>
         /// Returns a reference to the first element of the String. If the string is null, an access will throw a NullReferenceException.
         /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [NonVersionable]
         public ref readonly char GetPinnableReference() => ref _firstChar;
 
         internal ref char GetRawStringData() => ref _firstChar;
