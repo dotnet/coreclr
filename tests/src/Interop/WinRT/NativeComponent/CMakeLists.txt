@@ -30,6 +30,7 @@ set (MIDL_COMMAND_LINE_ARGS
   /ns_prefix 
   /target "NT60"  
   /nomidl 
+  /h "nul"
   /reference "C:\\Program Files (x86)\\Windows Kits\\10\\References\\10.0.17763.0\\Windows.Foundation.FoundationContract\\3.0.0.0\\Windows.Foundation.FoundationContract.winmd" 
   /reference "C:\\Program Files (x86)\\Windows Kits\\10\\References\\10.0.17763.0\\Windows.Foundation.UniversalApiContract\\7.0.0.0\\Windows.Foundation.UniversalApiContract.winmd"
 )
