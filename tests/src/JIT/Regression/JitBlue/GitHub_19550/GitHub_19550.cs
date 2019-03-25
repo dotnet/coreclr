@@ -51,9 +51,17 @@ public class Program
                     // and the vector passed in was all ones, so now we have a one at offset 2.
                     Sse2.StoreScalar(p + alignmentOffset + 2, Sse2.Subtract(v, Sse2.LoadAlignedVector128(p + offset + alignmentOffset + 4)));
 
-                    // Now do a non-temporal load from the aligned location.
+                    // Now do a load from the aligned location.
                     // That should give us {0, 0, 1, 0}.
-                    Vector128<float> v2 = Sse41.LoadAlignedVector128NonTemporal((byte*)(p + alignmentOffset)).AsSingle();
+                    Vector128<float> v2;
+                    if (Sse41.IsSupported)
+                    {
+                        v2 = Sse41.LoadAlignedVector128NonTemporal((byte*)(p + alignmentOffset)).AsSingle();
+                    }
+                    else
+                    {
+                        v2 = Sse2.LoadVector128((byte*)(p + alignmentOffset)).AsSingle();
+                    }
                     if (!v2.Equals(Vector128.Create(0.0F, 0.0F, 1.0F, 0.0F)))
                     {
                         Console.WriteLine("Aligned case FAILED: v2 = " + v2);
