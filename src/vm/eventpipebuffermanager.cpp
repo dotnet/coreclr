@@ -263,7 +263,7 @@ EventPipeBufferList* EventPipeBufferManager::FindThreadToStealFrom()
                 pOldestContainingList = pCandidate;
             }
             // Otherwise, to replace the existing candidate, this candidate must have an older timestamp in its oldest buffer.
-            else if((pOldestContainingList->GetHead()->GetMostRecentTimeStamp().QuadPart) > 
+            else if((pOldestContainingList->GetHead()->GetMostRecentTimeStamp().QuadPart) >
                       (pCandidate->GetHead()->GetMostRecentTimeStamp().QuadPart))
             {
                 pOldestContainingList = pCandidate;
@@ -407,14 +407,14 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     return !allocNewBuffer;
 }
 
-void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
+void EventPipeBufferManager::WriteAllBuffersToFile(FastSerializableObject *pFastSerializableObject, LARGE_INTEGER stopTimeStamp)
 {
     CONTRACTL
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(pFile != NULL);
+        PRECONDITION(pFastSerializableObject != nullptr);
     }
     CONTRACTL_END;
 
@@ -451,7 +451,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
             {
                 // If it's the oldest event we've seen, then save it.
                 if((pOldestInstance == NULL) ||
-                   (pOldestInstance->GetTimeStamp()->QuadPart > pNext->GetTimeStamp()->QuadPart)) 
+                   (pOldestInstance->GetTimeStamp()->QuadPart > pNext->GetTimeStamp()->QuadPart))
                 {
                     pOldestInstance = pNext;
                     pOldestContainingBuffer = pContainingBuffer;
@@ -469,7 +469,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
         }
 
         // Write the oldest event.
-        pFile->WriteEvent(*pOldestInstance);
+        pFastSerializableObject->WriteEvent(*pOldestInstance);
 #ifdef _DEBUG
         m_numEventsWritten++;
 #endif // _DEBUG

@@ -12,6 +12,7 @@
 #include "eventpipeevent.h"
 #include "eventpipeeventsource.h"
 #include "eventpipefile.h"
+#include "eventpipestream.h"
 #include "eventpipeprovider.h"
 #include "eventpipesession.h"
 #include "eventpipejsonfile.h"
@@ -31,12 +32,13 @@ EventPipeConfiguration *EventPipe::s_pConfig = NULL;
 EventPipeSession *EventPipe::s_pSession = NULL;
 EventPipeBufferManager *EventPipe::s_pBufferManager = NULL;
 LPCWSTR EventPipe::s_pOutputPath = NULL;
-EventPipeFile *EventPipe::s_pFile = NULL;
+FastSerializableObject *EventPipe::s_pFastSerializableObject = NULL;
 EventPipeEventSource *EventPipe::s_pEventSource = NULL;
 LPCWSTR EventPipe::s_pCommandLine = NULL;
 unsigned long EventPipe::s_nextFileIndex;
 HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
 ULONGLONG EventPipe::s_lastFileSwitchTime = 0;
+uint64_t EventPipe::s_multiFileTraceLengthInSeconds = 0;
 
 #ifdef FEATURE_PAL
 // This function is auto-generated from /src/scripts/genEventPipe.py
@@ -44,24 +46,6 @@ extern "C" void InitProvidersAndEvents();
 #else
 void InitProvidersAndEvents();
 #endif
-
-EventPipeEventPayload::EventPipeEventPayload(BYTE *pData, unsigned int length)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    m_pData = pData;
-    m_pEventData = NULL;
-    m_eventDataCount = 0;
-    m_allocatedData = false;
-
-    m_size = length;
-}
 
 EventPipeEventPayload::EventPipeEventPayload(EventData *pEventData, unsigned int eventDataCount)
 {
@@ -272,40 +256,15 @@ EventPipeSessionID EventPipe::Enable(
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());
 
+    s_multiFileTraceLengthInSeconds = multiFileTraceLengthInSeconds;
+
     // Create a new session.
     SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
     EventPipeSession *pSession = s_pConfig->CreateSession(
-        (strOutputPath != NULL) ? EventPipeSessionType::File : EventPipeSessionType::Streaming,
+        (strOutputPath != nullptr) ? EventPipeSessionType::File : EventPipeSessionType::Streaming,
         circularBufferSizeInMB,
         pProviders,
         numProviders);
-
-    // Enable the session.
-    return Enable(strOutputPath, pSession, multiFileTraceLengthInSeconds);
-}
-
-EventPipeSessionID EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession, uint64_t multiFileTraceLengthInSeconds)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(pSession != NULL);
-        PRECONDITION(GetLock()->OwnedByCurrentThread());
-    }
-    CONTRACTL_END;
-
-    // If tracing is not initialized or is already enabled, bail here.
-    if (!s_tracingInitialized || s_pConfig == NULL || s_pConfig->Enabled())
-        return 0;
-
-    // If the state or arguments are invalid, bail here.
-    if (pSession == NULL || !pSession->IsValid())
-        return 0;
-
-    // Enable the EventPipe EventSource.
-    s_pEventSource->Enable(pSession);
 
     // Initialize the next file index.
     s_nextFileIndex = 1;
@@ -318,6 +277,7 @@ EventPipeSessionID EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pS
     // This is used in the EventListener streaming case.
     if (strOutputPath != NULL)
     {
+
         // Save the output file path.
         SString outputPath(strOutputPath);
         SIZE_T outputPathLen = outputPath.GetCount();
@@ -329,8 +289,34 @@ EventPipeSessionID EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pS
         SString nextTraceFilePath;
         GetNextFilePath(nextTraceFilePath);
 
-        s_pFile = new EventPipeFile(nextTraceFilePath, multiFileTraceLengthInSeconds);
+        s_pFastSerializableObject = new EventPipeFile(nextTraceFilePath);
     }
+
+    return Enable(pSession);
+}
+
+EventPipeSessionID EventPipe::Enable(EventPipeSession *const pSession)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(pSession != nullptr);
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
+    // If tracing is not initialized or is already enabled, bail here.
+    if (!s_tracingInitialized || s_pConfig == nullptr || s_pConfig->Enabled())
+        return 0;
+
+    // If the state or arguments are invalid, bail here.
+    if (pSession == NULL || !pSession->IsValid())
+        return 0;
+
+    // Enable the EventPipe EventSource.
+    s_pEventSource->Enable(pSession);
 
     // Save the session.
     s_pSession = pSession;
@@ -342,7 +328,7 @@ EventPipeSessionID EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pS
     SampleProfiler::Enable();
 
     // Enable the file switch timer if needed.
-    if (s_pFile != nullptr)
+    if (s_pFastSerializableObject != nullptr && s_multiFileTraceLengthInSeconds > 0)
         CreateFileSwitchTimer();
 
     // Return the session ID.
@@ -384,6 +370,8 @@ void EventPipe::Disable(EventPipeSessionID id)
         // Disable tracing.
         s_pConfig->Disable(s_pSession);
 
+        s_multiFileTraceLengthInSeconds = 0;
+
         // Delete the session.
         s_pConfig->DeleteSession(s_pSession);
         s_pSession = NULL;
@@ -395,11 +383,11 @@ void EventPipe::Disable(EventPipeSessionID id)
         FlushProcessWriteBuffers();
 
         // Write to the file.
-        if (s_pFile != NULL)
+        if (s_pFastSerializableObject != nullptr)
         {
             LARGE_INTEGER disableTimeStamp;
             QueryPerformanceCounter(&disableTimeStamp);
-            s_pBufferManager->WriteAllBuffersToFile(s_pFile, disableTimeStamp);
+            s_pBufferManager->WriteAllBuffersToFile(s_pFastSerializableObject, disableTimeStamp);
 
             if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
             {
@@ -429,8 +417,8 @@ void EventPipe::Disable(EventPipeSessionID id)
                 s_pSession = NULL;
             }
 
-            delete s_pFile;
-            s_pFile = NULL;
+            delete s_pFastSerializableObject;
+            s_pFastSerializableObject = nullptr;
         }
 
         // De-allocate buffers.
@@ -480,7 +468,6 @@ void EventPipe::CreateFileSwitchTimer()
     {
     }
     EX_END_CATCH(RethrowTerminalExceptions);
-
     if (!success)
     {
         _ASSERTE(s_fileSwitchTimerHandle == NULL);
@@ -507,14 +494,14 @@ void EventPipe::DeleteFileSwitchTimer()
     }
 }
 
-void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID pParameter, BOOLEAN timerFired)
+void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(s_pFile != nullptr);
+        PRECONDITION(s_pFastSerializableObject != nullptr);
         PRECONDITION(timerFired);
     }
     CONTRACTL_END;
@@ -523,12 +510,12 @@ void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID pParameter, BOOLEAN t
     CrstHolder _crst(GetLock());
 
     // Make sure that we should actually switch files.
-    if (!Enabled() || s_pSession->GetSessionType() != EventPipeSessionType::File || s_pFile->GetMultiFileTraceLengthInSeconds() == 0)
+    if (!Enabled() || s_pSession->GetSessionType() != EventPipeSessionType::File || s_multiFileTraceLengthInSeconds == 0)
         return;
 
     GCX_PREEMP();
 
-    if (CLRGetTickCount64() > (s_lastFileSwitchTime + (s_pFile->GetMultiFileTraceLengthInSeconds() * 1000)))
+    if (CLRGetTickCount64() > (s_lastFileSwitchTime + (s_multiFileTraceLengthInSeconds * 1000)))
     {
         SwitchToNextFile();
         s_lastFileSwitchTime = CLRGetTickCount64();
@@ -542,33 +529,33 @@ void EventPipe::SwitchToNextFile()
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(s_pFile != nullptr);
+        PRECONDITION(s_pFastSerializableObject != nullptr);
         PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END
 
     // Get the current time stamp.
-    // WriteAllBuffersToFile will use this to ensure that no events after the
-    // current timestamp are written into the file.
+    // WriteAllBuffersToFile will use this to ensure that no events after the current timestamp are written into the file.
     LARGE_INTEGER stopTimeStamp;
     QueryPerformanceCounter(&stopTimeStamp);
-    s_pBufferManager->WriteAllBuffersToFile(s_pFile, stopTimeStamp);
+    s_pBufferManager->WriteAllBuffersToFile(s_pFastSerializableObject, stopTimeStamp);
 
     // Open the new file.
     SString nextTraceFilePath;
     GetNextFilePath(nextTraceFilePath);
-    EventPipeFile *pFile = new (nothrow) EventPipeFile(nextTraceFilePath, s_pFile->GetMultiFileTraceLengthInSeconds());
-    if (pFile == nullptr)
+
+    EventPipeFile *pFile = new (nothrow) EventPipeFile(nextTraceFilePath);
+    if (pFile == NULL)
     {
         // TODO: Add error handling.
         return;
     }
 
     // Close the previous file.
-    delete s_pFile;
+    delete s_pFastSerializableObject;
 
     // Swap in the new file.
-    s_pFile = pFile;
+    s_pFastSerializableObject = pFile;
 }
 
 void EventPipe::GetNextFilePath(SString &nextTraceFilePath)
@@ -578,7 +565,6 @@ void EventPipe::GetNextFilePath(SString &nextTraceFilePath)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(s_pFile != nullptr);
         PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -587,7 +573,7 @@ void EventPipe::GetNextFilePath(SString &nextTraceFilePath)
     nextTraceFilePath.Set(s_pOutputPath);
 
     // If multiple files have been requested, then add a sequence number to the trace file name.
-    if (s_pFile->GetMultiFileTraceLengthInSeconds() > 0)
+    if (s_multiFileTraceLengthInSeconds > 0)
     {
         // Remove the ".netperf" file extension if it exists.
         SString::Iterator netPerfExtension = nextTraceFilePath.End();
@@ -794,14 +780,14 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
                 pRelatedActivityId);
             instance.EnsureStack(*s_pSession);
 
-            if (s_pFile != NULL)
+            if (s_pFastSerializableObject != NULL)
             {
                 // EventPipeFile::WriteEvent needs to allocate a metadata event
                 // and can therefore throw. In this context we will silently
                 // fail rather than disrupt the caller
                 EX_TRY
                 {
-                    s_pFile->WriteEvent(instance);
+                    s_pFastSerializableObject->WriteEvent(instance);
                 }
                 EX_CATCH {}
                 EX_END_CATCH(SwallowAllExceptions);
