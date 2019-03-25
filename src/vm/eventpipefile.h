@@ -11,17 +11,16 @@
 #include "eventpipeblock.h"
 #include "eventpipeeventinstance.h"
 #include "fastserializableobject.h"
-
-class FastSerializer;
+#include "fastserializer.h"
 
 class EventPipeFile final : public FastSerializableObject
 {
 public:
-    EventPipeFile(SString &outputFilePath, uint64_t multiFileTraceLengthInSeconds);
+    EventPipeFile(SString &outputFilePath);
     ~EventPipeFile();
 
-    void WriteEvent(EventPipeEventInstance &instance);
     void WriteEnd();
+    bool WriteEvent(EventPipeEventInstance &instance) override;
 
     const char *GetTypeName() override
     {
@@ -51,12 +50,6 @@ public:
         pSerializer->WriteBuffer((BYTE *)&m_samplingRateInNs, sizeof(m_samplingRateInNs));
     }
 
-    uint64_t GetMultiFileTraceLengthInSeconds() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_multiFileTraceLengthInSeconds;
-    }
-
 private:
     unsigned int GenerateMetadataId();
 
@@ -68,6 +61,7 @@ private:
 
     // The object responsible for serialization.
     FastSerializer *m_pSerializer;
+
     EventPipeBlock *m_pBlock;
 
     // The system time when the file was opened.
@@ -79,10 +73,13 @@ private:
     // The frequency of the timestamps used for this file.
     LARGE_INTEGER m_timeStampFrequency;
 
-    const uint32_t m_pointerSize;
-    const uint32_t m_currentProcessId;
-    uint32_t m_numberOfProcessors;
-    uint32_t m_samplingRateInNs;
+    unsigned int m_pointerSize;
+
+    unsigned int m_currentProcessId;
+
+    unsigned int m_numberOfProcessors;
+
+    unsigned int m_samplingRateInNs;
 
     // The serialization which is responsible for making sure only a single event
     // or block of events gets written to the file at once.
@@ -92,8 +89,6 @@ private:
     MapSHashWithRemove<EventPipeEvent *, unsigned int> *m_pMetadataIds;
 
     Volatile<LONG> m_metadataIdCounter;
-
-    const uint64_t m_multiFileTraceLengthInSeconds;
 };
 
 #endif // FEATURE_PERFTRACING

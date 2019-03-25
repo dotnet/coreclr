@@ -7,14 +7,18 @@
 
 #ifdef FEATURE_PERFTRACING
 
+class EventPipeEventInstance;
 class FastSerializer;
 
 class FastSerializableObject
 {
 public:
-    FastSerializableObject(int objectVersion, int minReaderVersion) : m_objectVersion(objectVersion), m_minReaderVersion(minReaderVersion) {}
+    FastSerializableObject(int objectVersion, int minReaderVersion) :
+        m_objectVersion(objectVersion), m_minReaderVersion(minReaderVersion)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
 
-    // Virtual destructor to ensure that derived class destructors get called.
     virtual ~FastSerializableObject()
     {
         LIMITED_METHOD_CONTRACT;
@@ -25,6 +29,8 @@ public:
 
     // Get the type name for the current object.
     virtual const char *GetTypeName() = 0;
+
+    virtual bool WriteEvent(EventPipeEventInstance &instance) = 0;
 
     int GetObjectVersion() const
     {
