@@ -60,6 +60,8 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
         pd.m_ApplicationGroupId,
         "socket");
 
+    ::unlink(serverAddress.sun_path);
+
     const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
     if (fSuccessBind == -1)
     {
