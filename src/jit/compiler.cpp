@@ -11481,13 +11481,11 @@ void VariableLiveKeeper::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc
 //    This method is being called from treeLifeUpdater when a set of variables
 //    is being born, becoming dead, or both.
 //
-void VariableLiveKeeper::siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying)
+void VariableLiveKeeper::siStartOrCloseVariableLiveRanges(VARSET_VALARG_TP varsIndexSet, bool isBorn, bool isDying)
 {
-    noway_assert(varsIndexSet != nullptr);
-
     if (compiler->opts.compDbgInfo)
     {
-        VarSetOps::Iter iter(compiler, *varsIndexSet);
+        VarSetOps::Iter iter(compiler, varsIndexSet);
         unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
@@ -11610,12 +11608,11 @@ void VariableLiveKeeper::siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsi
 //    This method is called when the last block being generated to killed all
 //    the live variables and set a flag to avoid reporting variable homes for
 //    on next calls to method that update variable liveness.
-void VariableLiveKeeper::siEndAllVariableLiveRange(const VARSET_TP* varsToClose)
+void VariableLiveKeeper::siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose)
 {
-    noway_assert(varsToClose != nullptr);
     if (compiler->opts.compDbgInfo)
     {
-        VarSetOps::Iter iter(compiler, *varsToClose);
+        VarSetOps::Iter iter(compiler, varsToClose);
         unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {

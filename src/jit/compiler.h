@@ -466,7 +466,7 @@ public:
 
     void siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum, bool isBorn, bool isDying);
 
-    void siStartOrCloseVariableLiveRanges(const VARSET_TP* varsIndexSet, bool isBorn, bool isDying);
+    void siStartOrCloseVariableLiveRanges(VARSET_VALARG_TP varsIndexSet, bool isBorn, bool isDying);
 
     void siStartVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum);
 
@@ -474,7 +474,7 @@ public:
 
     void siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum);
 
-    void siEndAllVariableLiveRange(const VARSET_TP* varsToClose);
+    void siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose);
 
     const LiveRangeList* getLiveRangesForVar(unsigned int varNum) const;
 

@@ -529,7 +529,7 @@ void CodeGen::genCodeForBBlist()
         if (compiler->opts.compDbgInfo && isLastBlockProcessed)
         {
             VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
-            varLvKeeper->siEndAllVariableLiveRange(&compiler->compCurLife);
+            varLvKeeper->siEndAllVariableLiveRange(compiler->compCurLife);
         }
 #endif // USING_VARIABLE_LIVE_RANGE
 
