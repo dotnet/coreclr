@@ -20,17 +20,8 @@ enum class DiagnosticMessageType : uint32_t
     // EventPipe
     EnableEventPipe = 1024,
     DisableEventPipe,
-
-    // TODO: Define what else is available on the out-of-proc interface?
-    // GetSessionInfo,
-    // CreateProvider,
-    // DefineEvent,
-    // GetProvider,
-    // DeleteProvider,
-    // EventActivityIdControl,
-    // WriteEvent,
-    // WriteEventData,
-    // GetNextEvent,
+    AttachEventPipe,
+    DetachEventPipe,
 
     ///////////////////////////////////////////////////////////////////////////
     // Profiler = 2048

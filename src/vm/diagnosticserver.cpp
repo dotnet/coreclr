@@ -62,7 +62,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
             break;
 
         case DiagnosticMessageType::DisableEventPipe:
-            EventPipeProtocolHelper::DisableTracingEventHandler(pStream);
+            EventPipeProtocolHelper::DisableFileTracingEventHandler(pStream);
             break;
 
         default:
