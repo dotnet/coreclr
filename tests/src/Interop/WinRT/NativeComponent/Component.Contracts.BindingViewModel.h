@@ -6,7 +6,7 @@ namespace winrt::Component::Contracts::implementation
 {
     struct BindingViewModel : BindingViewModelT<BindingViewModel>
     {
-        BindingViewModel() = delete;
+        BindingViewModel() = default;
 
         Windows::UI::Xaml::Interop::INotifyCollectionChanged Collection();
         void AddElement(int32_t i);
@@ -17,5 +17,12 @@ namespace winrt::Component::Contracts::implementation
 
     private:
         winrt::event<Windows::UI::Xaml::Data::PropertyChangedEventHandler> m_propertyChangedEvent;
+    };
+}
+
+namespace winrt::Component::Contracts::factory_implementation
+{
+    struct BindingViewModel : BindingViewModelT<BindingViewModel, implementation::BindingViewModel>
+    {
     };
 }

@@ -63,6 +63,7 @@ namespace Component.Contracts
     [interface_name("Component.Contracts.IBindingViewModel", 4bb923ae-986a-4aad-9bfb-13e0b5ecffa4)]
     runtimeclass BindingViewModel : Windows.UI.Xaml.Data.INotifyPropertyChanged
     {
+        BindingViewModel();
         Windows.UI.Xaml.Interop.INotifyCollectionChanged Collection { get; };
         void AddElement(Int32 i);
         String Name { get; set; };
