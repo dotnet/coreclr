@@ -10974,6 +10974,7 @@ bool Compiler::killGCRefs(GenTree* tree)
     return false;
 }
 
+#ifdef USING_VARIABLE_LIVE_RANGE
 #ifdef DEBUG
 //------------------------------------------------------------------------
 //                      VariableLiveRanges dumpers
@@ -11811,3 +11812,4 @@ void VariableLiveKeeper::dumpLvaVariableLiveRanges() const
     }
 }
 #endif // DEBUG
+#endif // USING_VARIABLE_LIVE_RANGE
