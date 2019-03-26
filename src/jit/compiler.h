@@ -426,6 +426,8 @@ public:
 
     bool hasVarHomesToDump() const;
 
+    bool hasVarLocationsOfLastBlockToDump() const;
+
     void endBlockLiveRanges();
 #endif // DEBUG
 };
@@ -475,6 +477,7 @@ public:
     void siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum);
 
     void siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose);
+    void siEndAllVariableLiveRange();
 
     const LiveRangeList* getLiveRangesForVar(unsigned int varNum) const;
 

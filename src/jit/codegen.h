@@ -592,8 +592,23 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 public:
     void siInit();
 
+#endif // USING_VARIABLE_LIVE_RANGE
+
+    void checkICodeDebugInfo();
+
     void siBeginBlock(BasicBlock* block);
 
+    // VariableLiveRange and siScope needs this method to report variables on debug code
+    void siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned int lastBlockILEndOffset);
+
+protected:
+#if FEATURE_EH_FUNCLETS
+    bool siInFuncletRegion; // Have we seen the start of the funclet region?
+#endif                      // FEATURE_EH_FUNCLETS
+
+#ifdef USING_SCOPE_INFO
+
+public:
     void siEndBlock(BasicBlock* block);
     // Closes the "ScopeInfo" of the tracked variables that has become dead.
     virtual void siUpdate();
@@ -641,10 +656,6 @@ protected:
     siScope** siLatestTrackedScopes;
 
     IL_OFFSET siLastEndOffs; // IL offset of the (exclusive) end of the last block processed
-
-#if FEATURE_EH_FUNCLETS
-    bool siInFuncletRegion; // Have we seen the start of the funclet region?
-#endif                      // FEATURE_EH_FUNCLETS
 
     // Functions
 

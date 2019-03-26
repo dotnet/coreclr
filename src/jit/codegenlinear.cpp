@@ -84,13 +84,11 @@ void CodeGen::genInitializeRegisterState()
 //    iterated.
 void CodeGen::genInitialize()
 {
-#ifdef USING_SCOPE_INFO
     // Initialize the line# tracking logic
     if (compiler->opts.compScopeInfo)
     {
         siInit();
     }
-#endif // USING_SCOPE_INFO
 
     // Initialize structures for VariableLiveRanges
     compiler->initializeVariableLiveKeeper();
@@ -358,9 +356,10 @@ void CodeGen::genCodeForBBlist()
         /* Tell everyone which basic block we're working on */
 
         compiler->compCurBB = block;
-#ifdef USING_SCOPE_INFO
+
+        // Needed when jitting debug code
         siBeginBlock(block);
-#endif // USING_SCOPE_INFO
+
         // BBF_INTERNAL blocks don't correspond to any single IL instruction.
         if (compiler->opts.compDbgInfo && (block->bbFlags & BBF_INTERNAL) &&
             !compiler->fgBBisScratch(block)) // If the block is the distinguished first scratch block, then no need to

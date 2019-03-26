@@ -841,14 +841,17 @@ bool CodeGen::siVerifyLocalVarTab()
     return true;
 }
 
-#endif
+#endif // DEBUG
+#endif // USING_SCOPE_INFO
 
 /*============================================================================
  *           INTERFACE (public) Functions for ScopeInfo
  *============================================================================
  */
 
-void CodeGen::siInit()
+// Check every CodeGenInterface::siVarLocType and CodeGenInterface::siVarLoc
+// are what ICodeDebugInfo is expetecting.
+void CodeGen::checkICodeDebugInfo()
 {
 #ifdef _TARGET_X86_
     assert((unsigned)ICorDebugInfo::REGNUM_EAX == REG_EAX);
@@ -878,9 +881,22 @@ void CodeGen::siInit()
      */
 
     assert(sizeof(ICorDebugInfo::VarLoc) == sizeof(CodeGenInterface::siVarLoc));
+}
+
+void CodeGen::siInit()
+{
+    checkICodeDebugInfo();
 
     assert(compiler->opts.compScopeInfo);
 
+#if FEATURE_EH_FUNCLETS
+    if (compiler->info.compVarScopesCount > 0)
+    {
+        siInFuncletRegion = false;
+    }
+#endif // FEATURE_EH_FUNCLETS
+
+#ifdef USING_SCOPE_INFO
     siOpenScopeList.scNext = nullptr;
     siOpenScopeLast        = &siOpenScopeList;
     siScopeLast            = &siScopeList;
@@ -896,10 +912,6 @@ void CodeGen::siInit()
     }
     else
     {
-#if FEATURE_EH_FUNCLETS
-        siInFuncletRegion = false;
-#endif // FEATURE_EH_FUNCLETS
-
         unsigned scopeCount = compiler->lvaTrackedCount;
 
         if (scopeCount == 0)
@@ -913,6 +925,7 @@ void CodeGen::siInit()
 
         compiler->compResetScopeLists();
     }
+#endif // USING_SCOPE_INFO
 }
 
 /*****************************************************************************
@@ -977,6 +990,7 @@ void CodeGen::siBeginBlock(BasicBlock* block)
     // locals, untracked locals will fail to be reported.
     if (compiler->lvaTrackedCount > 0)
     {
+#ifdef USING_SCOPE_INFO
         // End scope of variables which are not live for this block
         siUpdate();
 
@@ -996,100 +1010,134 @@ void CodeGen::siBeginBlock(BasicBlock* block)
 
             siCheckVarScope(varNum, beginOffs);
         }
+#endif
     }
     else
     {
-        // There aren't any tracked locals.
-        //
-        // For debuggable or minopts code, scopes can begin only on block boundaries.
-        // For other codegen modes (eg minopts/tier0) we currently won't report any
-        // untracked locals.
-        if (compiler->opts.OptimizationDisabled())
-        {
-            // Check if there are any scopes on the current block's start boundary.
-            VarScopeDsc* varScope = nullptr;
-
-#if FEATURE_EH_FUNCLETS
-
-            // If we find a spot where the code offset isn't what we expect, because
-            // there is a gap, it might be because we've moved the funclets out of
-            // line. Catch up with the enter and exit scopes of the current block.
-            // Ignore the enter/exit scope changes of the missing scopes, which for
-            // funclets must be matched.
-            if (siLastEndOffs != beginOffs)
-            {
-                assert(beginOffs > 0);
-                assert(siLastEndOffs < beginOffs);
-
-                JITDUMP("Scope info: found offset hole. lastOffs=%u, currOffs=%u\n", siLastEndOffs, beginOffs);
-
-                // Skip enter scopes
-                while ((varScope = compiler->compGetNextEnterScope(beginOffs - 1, true)) != nullptr)
-                {
-                    /* do nothing */
-                    JITDUMP("Scope info: skipping enter scope, LVnum=%u\n", varScope->vsdLVnum);
-                }
-
-                // Skip exit scopes
-                while ((varScope = compiler->compGetNextExitScope(beginOffs - 1, true)) != nullptr)
-                {
-                    /* do nothing */
-                    JITDUMP("Scope info: skipping exit scope, LVnum=%u\n", varScope->vsdLVnum);
-                }
-            }
-
-#else // FEATURE_EH_FUNCLETS
-
-            if (siLastEndOffs != beginOffs)
-            {
-                assert(siLastEndOffs < beginOffs);
-                return;
-            }
-
-#endif // FEATURE_EH_FUNCLETS
-
-            while ((varScope = compiler->compGetNextEnterScope(beginOffs)) != nullptr)
-            {
-                LclVarDsc* lclVarDsc1 = &compiler->lvaTable[varScope->vsdVarNum];
-
-                // Only report locals that were referenced, if we're not doing debug codegen
-                if (compiler->opts.compDbgCode || (lclVarDsc1->lvRefCnt() > 0))
-                {
-                    // brace-matching editor workaround for following line: (
-                    JITDUMP("Scope info: opening scope, LVnum=%u [%03X..%03X)\n", varScope->vsdLVnum,
-                            varScope->vsdLifeBeg, varScope->vsdLifeEnd);
-
-                    siNewScope(varScope->vsdLVnum, varScope->vsdVarNum);
-
-#ifdef DEBUG
-                    if (VERBOSE)
-                    {
-                        printf("Scope info: >> new scope, VarNum=%u, tracked? %s, VarIndex=%u, bbLiveIn=%s ",
-                               varScope->vsdVarNum, lclVarDsc1->lvTracked ? "yes" : "no", lclVarDsc1->lvVarIndex,
-                               VarSetOps::ToString(compiler, block->bbLiveIn));
-                        dumpConvertedVarSet(compiler, block->bbLiveIn);
-                        printf("\n");
-                    }
-                    assert(!lclVarDsc1->lvTracked ||
-                           VarSetOps::IsMember(compiler, block->bbLiveIn, lclVarDsc1->lvVarIndex));
-#endif // DEBUG
-                }
-                else
-                {
-                    JITDUMP("Skipping open scope for V%02u, unreferenced\n", varScope->vsdVarNum);
-                }
-            }
-        }
+        siOpenScopesForNonTrackedVars(block, siLastEndOffs);
     }
 
+#ifdef USING_SCOPE_INFO
 #ifdef DEBUG
     if (verbose)
     {
         siDispOpenScopes();
     }
-#endif
+#endif // DEBUG
+#endif // USING_SCOPE_INFO
 }
 
+//------------------------------------------------------------------------
+// siOpenScopesForNonTrackedVars: If optimizations are disable, it will open
+//  a "siScope" for each variable which has a "VarScopeDsc" (input of the JIT)
+//  and is referenced at least once. If optimizations are applied, nothing is done.
+//
+// Arguments:
+//    block   - the block whose code is going to be generated.
+//    lastBlockILEndOffset         - the IL offset at the ending of the last generated basic block.
+//
+// Notes:
+//    When there we are jitting methods compiled in debug mode, no variable is
+//    tracked and there is no info that shows variable liveness like block->bbLiveIn.
+//    On debug code variables are not enregistered the whole method so we can just
+//    report them as beign born from here on the stack until the whole method is
+//    generated.
+//
+void CodeGen::siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned int lastBlockILEndOffset)
+{
+    unsigned int beginOffs = block->bbCodeOffs;
+
+    // There aren't any tracked locals.
+    //
+    // For debuggable or minopts code, scopes can begin only on block boundaries.
+    // For other codegen modes (eg minopts/tier0) we currently won't report any
+    // untracked locals.
+    if (compiler->opts.OptimizationDisabled())
+    {
+        // Check if there are any scopes on the current block's start boundary.
+        VarScopeDsc* varScope = nullptr;
+
+#if FEATURE_EH_FUNCLETS
+
+        // If we find a spot where the code offset isn't what we expect, because
+        // there is a gap, it might be because we've moved the funclets out of
+        // line. Catch up with the enter and exit scopes of the current block.
+        // Ignore the enter/exit scope changes of the missing scopes, which for
+        // funclets must be matched.
+        if (lastBlockILEndOffset != beginOffs)
+        {
+            assert(beginOffs > 0);
+            assert(lastBlockILEndOffset < beginOffs);
+
+            JITDUMP("Scope info: found offset hole. lastOffs=%u, currOffs=%u\n", lastBlockILEndOffset, beginOffs);
+
+            // Skip enter scopes
+            while ((varScope = compiler->compGetNextEnterScope(beginOffs - 1, true)) != nullptr)
+            {
+                /* do nothing */
+                JITDUMP("Scope info: skipping enter scope, LVnum=%u\n", varScope->vsdLVnum);
+            }
+
+            // Skip exit scopes
+            while ((varScope = compiler->compGetNextExitScope(beginOffs - 1, true)) != nullptr)
+            {
+                /* do nothing */
+                JITDUMP("Scope info: skipping exit scope, LVnum=%u\n", varScope->vsdLVnum);
+            }
+        }
+
+#else // FEATURE_EH_FUNCLETS
+
+        if (lastBlockILEndOffset != beginOffs)
+        {
+            assert(lastBlockILEndOffset < beginOffs);
+            return;
+        }
+
+#endif // FEATURE_EH_FUNCLETS
+
+        while ((varScope = compiler->compGetNextEnterScope(beginOffs)) != nullptr)
+        {
+            LclVarDsc* lclVarDsc = &compiler->lvaTable[varScope->vsdVarNum];
+
+            // Only report locals that were referenced, if we're not doing debug codegen
+            if (compiler->opts.compDbgCode || (lclVarDsc->lvRefCnt() > 0))
+            {
+                // brace-matching editor workaround for following line: (
+                JITDUMP("Scope info: opening scope, LVnum=%u [%03X..%03X)\n", varScope->vsdLVnum, varScope->vsdLifeBeg,
+                        varScope->vsdLifeEnd);
+
+#ifdef USING_SCOPE_INFO
+                siNewScope(varScope->vsdLVnum, varScope->vsdVarNum);
+#endif // USING_SCOPE_INFO
+#ifdef USING_VARIABLE_LIVE_RANGE
+                compiler->getVariableLiveKeeper()->siStartVariableLiveRange(lclVarDsc, varScope->vsdVarNum);
+#endif // USING_VARIABLE_LIVE_RANGE
+
+#ifdef DEBUG
+#ifdef USING_SCOPE_INFO
+                if (VERBOSE)
+                {
+                    printf("Scope info: >> new scope, VarNum=%u, tracked? %s, VarIndex=%u, bbLiveIn=%s ",
+                           varScope->vsdVarNum, lclVarDsc->lvTracked ? "yes" : "no", lclVarDsc->lvVarIndex,
+                           VarSetOps::ToString(compiler, block->bbLiveIn));
+                    dumpConvertedVarSet(compiler, block->bbLiveIn);
+                    printf("\n");
+                }
+#endif // USING_SCOPE_INFO
+
+                assert(!lclVarDsc->lvTracked || VarSetOps::IsMember(compiler, block->bbLiveIn, lclVarDsc->lvVarIndex));
+#endif // DEBUG
+            }
+            else
+            {
+                JITDUMP("Skipping open scope for V%02u, unreferenced\n", varScope->vsdVarNum);
+            }
+        }
+    }
+}
+
+#ifdef USING_SCOPE_INFO
 /*****************************************************************************
  *                          siEndBlock
  *

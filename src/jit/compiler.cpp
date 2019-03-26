@@ -11317,15 +11317,23 @@ void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(c
     }
 }
 
-// Returns true if a live range for this variable has been recorded from last call to EndBlock
+// Returns true if a live range for this variable has been recorded
 bool VariableLiveDescriptor::hasVarHomesToDump() const
+{
+    // "m_VariableLifeBarrier" should has been initialized
+    noway_assert(m_VariableLiveRanges != nullptr);
+
+    return !m_VariableLiveRanges->empty();
+}
+
+// Returns true if a live range for this variable has been recorded from last call to EndBlock
+bool VariableLiveDescriptor::hasVarLocationsOfLastBlockToDump() const
 {
     // "m_VariableLifeBarrier" should has been initialized
     noway_assert(m_VariableLifeBarrier != nullptr);
 
     return m_VariableLifeBarrier->hasLiveRangesToDump();
 }
-
 // Reset the barrier so as to dump only next block changes on next block
 void VariableLiveDescriptor::endBlockLiveRanges()
 {
@@ -11599,7 +11607,7 @@ void VariableLiveKeeper::siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsi
 }
 
 //------------------------------------------------------------------------
-// siEndAllVariableLiveRange: Reports the set of variables as becoming death.
+// siEndAllVariableLiveRange: Reports the set of variables as becoming dead.
 //
 // Arguments:
 //    newLife    - the set of variables that are becoming dead.
@@ -11615,16 +11623,49 @@ void VariableLiveKeeper::siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose)
 {
     if (m_Compiler->opts.compDbgInfo)
     {
-        VarSetOps::Iter iter(m_Compiler, varsToClose);
-        unsigned        varIndex = 0;
-        while (iter.NextElem(&varIndex))
+        if (m_Compiler->lvaTrackedCount > 0 || !m_Compiler->opts.OptimizationDisabled())
         {
-            unsigned int varNum = m_Compiler->lvaTrackedToVarNum[varIndex];
-            siEndVariableLiveRange(varNum);
+            VarSetOps::Iter iter(m_Compiler, varsToClose);
+            unsigned        varIndex = 0;
+            while (iter.NextElem(&varIndex))
+            {
+                unsigned int varNum = m_Compiler->lvaTrackedToVarNum[varIndex];
+                siEndVariableLiveRange(varNum);
+            }
+        }
+        else
+        {
+            // It seems we are jitting debug code, so we don't have variable
+            //  liveness info
+            siEndAllVariableLiveRange();
         }
     }
 
     m_LastBasicBlockHasBeenEmited = true;
+}
+
+//------------------------------------------------------------------------
+// siEndAllVariableLiveRange: Reports all live variables as dead.
+//
+// Notes:
+//    This overload exists for the case we are jitting code compiled in
+//    debug mode. When that happen we don't have variable liveness info
+//    as "BaiscBlock::bbLiveIn" or "BaiscBlock::bbLiveOut" and there is no
+//    tracked variable.
+//
+void VariableLiveKeeper::siEndAllVariableLiveRange()
+{
+    // TODO: we can improve this keeping a set for the variables with
+    // open VariableLiveRanges
+
+    for (unsigned int varNum = 0; varNum < m_LiveDscCount; varNum++)
+    {
+        const VariableLiveDescriptor* varLiveDsc = lvaLiveDsc + varNum;
+        if (varLiveDsc->hasVariableLiveRangeOpen())
+        {
+            siEndVariableLiveRange(varNum);
+        }
+    }
 }
 
 //------------------------------------------------------------------------
@@ -11714,7 +11755,7 @@ void VariableLiveKeeper::dumpBlockVariableLiveRanges(const BasicBlock* block)
             {
                 VariableLiveDescriptor* varLiveDsc = lvaLiveDsc + varNum;
 
-                if (varLiveDsc->hasVarHomesToDump())
+                if (varLiveDsc->hasVarLocationsOfLastBlockToDump())
                 {
                     hasDumpedHistory = true;
                     printf("Var %d:\n", varNum);
