@@ -132,7 +132,7 @@ namespace System
             return Parse(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
-        private static ushort Parse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo? info)
+        private static ushort Parse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info)
         {
             Number.ParsingStatus status = Number.TryParseUInt32(s, style, info, out uint i);
             if (status != Number.ParsingStatus.OK)
@@ -183,7 +183,7 @@ namespace System
             return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
-        private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo? info, out ushort result)
+        private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info, out ushort result)
         {
             if (Number.TryParseUInt32(s, style, info, out uint i) != Number.ParsingStatus.OK
                 || i > MaxValue)

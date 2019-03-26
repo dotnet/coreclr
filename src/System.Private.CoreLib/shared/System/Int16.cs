@@ -136,7 +136,7 @@ namespace System
             return Parse(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
-        private static short Parse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo? info)
+        private static short Parse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info)
         {
             Number.ParsingStatus status = Number.TryParseInt32(s, style, info, out int i);
             if (status != Number.ParsingStatus.OK)
@@ -188,7 +188,7 @@ namespace System
             return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
-        private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo? info, out short result)
+        private static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, NumberFormatInfo info, out short result)
         {
             // For hex number styles AllowHexSpecifier << 6 == 0x8000 and cancels out MinValue so the check is effectively: (uint)i > ushort.MaxValue
             // For integer styles it's zero and the effective check is (uint)(i - MinValue) > ushort.MaxValue
