@@ -25,6 +25,12 @@
 #include "jitgcinfo.h"
 #include "treelifeupdater.h"
 
+// Disable this flag to avoid using psiScope/siScope info to report reporting
+// variables' home location during the method/prolog code.
+#if 1
+#define USING_SCOPE_INFO
+#endif // USING_SCOPE_INFO
+
 // Forward reference types
 
 class CodeGenInterface;
@@ -171,14 +177,14 @@ public:
     }
 
 public:
-    int genCallerSPtoFPdelta();
-    int genCallerSPtoInitialSPdelta();
-    int genSPtoFPdelta();
-    int genTotalFrameSize();
+    int genCallerSPtoFPdelta() const;
+    int genCallerSPtoInitialSPdelta() const;
+    int genSPtoFPdelta() const;
+    int genTotalFrameSize() const;
 
 #ifdef _TARGET_ARM64_
     virtual void SetSaveFpLrWithAllCalleeSavedRegisters(bool value) = 0;
-    virtual bool IsSaveFpLrWithAllCalleeSavedRegisters()            = 0;
+    virtual bool IsSaveFpLrWithAllCalleeSavedRegisters() const      = 0;
 #endif // _TARGET_ARM64_
 
     regNumber genGetThisArgReg(GenTreeCall* call) const;
@@ -304,7 +310,7 @@ public:
     TempDsc* getSpillTempDsc(GenTree* tree);
 
 public:
-    emitter* getEmitter()
+    emitter* getEmitter() const
     {
         return m_cgEmitter;
     }
@@ -385,7 +391,9 @@ private:
     bool m_cgFullPtrRegMap;
 
 public:
+#ifdef USING_SCOPE_INFO
     virtual void siUpdate() = 0;
+#endif // USING_SCOPE_INFO
 
     /* These are the different addressing modes used to access a local var.
      * The JIT has to report the location of the locals back to the EE
@@ -512,8 +520,8 @@ public:
 
         // Helper functions
 
-        bool vlIsInReg(regNumber reg);
-        bool vlIsOnStk(regNumber reg, signed offset);
+        bool vlIsInReg(regNumber reg) const;
+        bool vlIsOnStk(regNumber reg, signed offset) const;
 
         siVarLoc(const LclVarDsc* varDsc, regNumber baseReg, int offset, bool isFramePointerUsed);
         siVarLoc(){};
@@ -533,6 +541,13 @@ public:
         void siFillStackVarLoc(
             const LclVarDsc* varDsc, var_types type, regNumber baseReg, int offset, bool isFramePointerUsed);
     };
+
+public:
+    unsigned getCurrentStackLevel() const;
+
+protected:
+    //  Keeps track of how many bytes we've pushed on the processor's stack.
+    unsigned genStackLevel;
 
 #ifdef LATE_DISASM
 public:

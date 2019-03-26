@@ -84,12 +84,13 @@ void CodeGen::genInitializeRegisterState()
 //    iterated.
 void CodeGen::genInitialize()
 {
+#ifdef USING_SCOPE_INFO
     // Initialize the line# tracking logic
-
     if (compiler->opts.compScopeInfo)
     {
         siInit();
     }
+#endif // USING_SCOPE_INFO
 
     // The current implementation of switch tables requires the first block to have a label so it
     // can generate offsets to the switch label targets.
@@ -113,6 +114,10 @@ void CodeGen::genInitialize()
     // Make sure a set is allocated for compiler->compCurLife (in the long case), so we can set it to empty without
     // allocation at the start of each basic block.
     VarSetOps::AssignNoCopy(compiler, compiler->compCurLife, VarSetOps::MakeEmpty(compiler));
+
+    // We initialize the stack level before first "BasicBlock" code is generated in case we need to report stack
+    // variable needs home and so its stack offset.
+    SetStackLevel(0);
 }
 
 //------------------------------------------------------------------------
@@ -350,9 +355,9 @@ void CodeGen::genCodeForBBlist()
         /* Tell everyone which basic block we're working on */
 
         compiler->compCurBB = block;
-
+#ifdef USING_SCOPE_INFO
         siBeginBlock(block);
-
+#endif // USING_SCOPE_INFO
         // BBF_INTERNAL blocks don't correspond to any single IL instruction.
         if (compiler->opts.compDbgInfo && (block->bbFlags & BBF_INTERNAL) &&
             !compiler->fgBBisScratch(block)) // If the block is the distinguished first scratch block, then no need to
@@ -508,7 +513,7 @@ void CodeGen::genCodeForBBlist()
         // This can lead to problems when debugging the generated code. To prevent these issues, make sure
         // we've generated code for the last IL offset we saw in the block.
         genEnsureCodeEmitted(currentILOffset);
-
+#ifdef USING_SCOPE_INFO
         if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
         {
             siEndBlock(block);
@@ -533,6 +538,7 @@ void CodeGen::genCodeForBBlist()
                 siCloseAllOpenScopes();
             }
         }
+#endif // USING_SCOPE_INFO
 
         SubtractStackLevel(savedStkLvl);
 
@@ -1141,7 +1147,7 @@ void CodeGen::genConsumeRegAndCopy(GenTree* node, regNumber needReg)
     {
         return;
     }
-    regNumber treeReg = genConsumeReg(node);
+    genConsumeReg(node);
     genCopyRegIfNeeded(node, needReg);
 }
 
@@ -1840,9 +1846,8 @@ void CodeGen::genProduceReg(GenTree* tree)
 
                 for (unsigned i = 0; i < regCount; ++i)
                 {
-                    var_types type    = retTypeDesc->GetReturnRegType(i);
-                    regNumber fromReg = call->GetRegNumByIdx(i);
-                    regNumber toReg   = copy->GetRegNumByIdx(i);
+                    var_types type  = retTypeDesc->GetReturnRegType(i);
+                    regNumber toReg = copy->GetRegNumByIdx(i);
 
                     if (toReg != REG_NA)
                     {
