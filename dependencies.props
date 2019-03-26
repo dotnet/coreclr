@@ -23,21 +23,21 @@
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>139d174fa87f35164137ba19b52cec7361325475</CoreFxCurrentRef>
-    <CoreClrCurrentRef>139d174fa87f35164137ba19b52cec7361325475</CoreClrCurrentRef>
+    <CoreFxCurrentRef>567561745a6fe843843055d31511c66af0c7eaef</CoreFxCurrentRef>
+    <CoreClrCurrentRef>567561745a6fe843843055d31511c66af0c7eaef</CoreClrCurrentRef>
     <BuildToolsCurrentRef>139d174fa87f35164137ba19b52cec7361325475</BuildToolsCurrentRef>
     <PgoDataCurrentRef>139d174fa87f35164137ba19b52cec7361325475</PgoDataCurrentRef>
-    <CoreSetupCurrentRef>139d174fa87f35164137ba19b52cec7361325475</CoreSetupCurrentRef>
+    <CoreSetupCurrentRef>567561745a6fe843843055d31511c66af0c7eaef</CoreSetupCurrentRef>
     <IbcDataCurrentRef>139d174fa87f35164137ba19b52cec7361325475</IbcDataCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.6.0-preview4.19155.4</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
-    <MicrosoftNETCorePlatformsPackageVersion>3.0.0-preview4.19155.4</MicrosoftNETCorePlatformsPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.6.0-preview4.19164.7</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftNETCorePlatformsPackageVersion>3.0.0-preview4.19164.7</MicrosoftNETCorePlatformsPackageVersion>
     <PgoDataPackageVersion>99.99.99-master-20190305.1</PgoDataPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview4-27505-72</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
-    <MicrosoftNETCoreAppPackageVersion>3.0.0-preview4-27505-5</MicrosoftNETCoreAppPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview4-27525-72</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftNETCoreAppPackageVersion>3.0.0-preview4-27525-12</MicrosoftNETCoreAppPackageVersion>
     <XunitPackageVersion>2.4.1-pre.build.4059</XunitPackageVersion>
     <IbcDataPackageVersion>99.99.99-master-20190305.1</IbcDataPackageVersion>
     <IbcMergePackageVersion>4.6.0-alpha-00001</IbcMergePackageVersion>
