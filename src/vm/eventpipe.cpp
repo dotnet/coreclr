@@ -5,6 +5,7 @@
 #include "common.h"
 #include "clrtypes.h"
 #include "safemath.h"
+#include "diagnosticsipc.h"
 #include "eventpipe.h"
 #include "eventpipebuffermanager.h"
 #include "eventpipeconfiguration.h"
@@ -329,7 +330,19 @@ EventPipeSessionID EventPipe::Enable(
         pProviders,
         numProviders);
 
-    // TODO: Reply back the session Id?
+    // Reply back to client with the SessionId
+    uint32_t nBytesWritten = 0;
+    EventPipeSessionID sessionId = (EventPipeSessionID) pSession;
+    bool fSuccess = pStream->Write(&sessionId, sizeof(sessionId), nBytesWritten);
+    if (!fSuccess)
+    {
+        // TODO: Add error handling.
+        s_pConfig->Disable(pSession);
+        s_pConfig->DeleteSession(pSession);
+
+        delete pStream;
+        return (EventPipeSessionID) nullptr;
+    }
 
     s_pFastSerializableObject = new EventPipeStream(pStream);
 

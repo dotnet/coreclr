@@ -217,11 +217,10 @@ void EventPipeProtocolHelper::AttachTracingEventHandler(IpcStream *pStream)
         return;
     }
 
-    EventPipeSessionID sessionId = (EventPipeSessionID) nullptr;
     if (providerConfigs.Size() > 0)
     {
-        sessionId = EventPipe::Enable(
-            pStream,
+        EventPipe::Enable(
+            pStream,                                        // IPC stream
             circularBufferSizeInMB,                         // circularBufferSizeInMB
             DefaultProfilerSamplingRateInNanoseconds,       // ProfilerSamplingRateInNanoseconds
             providerConfigs.Ptr(),                          // pConfigs
