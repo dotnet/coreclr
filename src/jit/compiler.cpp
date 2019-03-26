@@ -11360,37 +11360,6 @@ VariableLiveKeeper::VariableLiveKeeper(unsigned int totalLocalCount, unsigned in
 }
 
 //------------------------------------------------------------------------
-// getLiveRangesCount: Returns the count of variable locations reported for the tracked
-//  variables, which are arguments, special arguments, and local IL variables.
-//
-// Return Value:
-//    size_t - the count of variable locations
-//
-// Notes:
-//    This method is being called from "genSetScopeInfo" to know the count of
-//    "varResultInfo" that should be created on eeSetLVcount.
-//
-size_t VariableLiveKeeper::getLiveRangesCount() const
-{
-    size_t liveRangesCount = 0;
-
-    if (m_Compiler->opts.compDbgInfo)
-    {
-        for (unsigned int varNum = 0; varNum < m_LiveDscCount; varNum++)
-        {
-            VariableLiveDescriptor* varLiveDsc = lvaLiveDsc + varNum;
-
-            if (m_Compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
-            {
-                liveRangesCount += varLiveDsc->getLiveRanges()->size();
-            }
-        }
-    }
-
-    return liveRangesCount;
-}
-
-//------------------------------------------------------------------------
 // siStartOrCloseVariableLiveRange: Reports the given variable as beign born
 //  or becoming dead.
 //
@@ -11645,6 +11614,36 @@ const LiveRangeList* VariableLiveKeeper::getLiveRangesForVar(unsigned int varNum
     noway_assert(varNum < m_LiveDscCount);
 
     return lvaLiveDsc[varNum].getLiveRanges();
+}
+
+//------------------------------------------------------------------------
+// getLiveRangesCount: Returns the count of variable locations reported for the tracked
+//  variables, which are arguments, special arguments, and local IL variables.
+//
+// Return Value:
+//    size_t - the count of variable locations
+//
+// Notes:
+//    This method is being called from "genSetScopeInfo" to know the count of
+//    "varResultInfo" that should be created on eeSetLVcount.
+//
+size_t VariableLiveKeeper::getLiveRangesCount() const
+{
+    size_t liveRangesCount = 0;
+
+    if (m_Compiler->opts.compDbgInfo)
+    {
+        for (unsigned int varNum = 0; varNum < m_LiveDscCount; varNum++)
+        {
+            VariableLiveDescriptor* varLiveDsc = lvaLiveDsc + varNum;
+
+            if (m_Compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
+            {
+                liveRangesCount += varLiveDsc->getLiveRanges()->size();
+            }
+        }
+    }
+    return liveRangesCount;
 }
 
 //------------------------------------------------------------------------

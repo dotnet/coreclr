@@ -402,31 +402,23 @@ public:
 class VariableLiveDescriptor
 {
     LiveRangeList* m_VariableLiveRanges; // the variable locations of this variable
-
     INDEBUG(LiveRangeDumper* m_VariableLifeBarrier);
 
 public:
     VariableLiveDescriptor(CompAllocator allocator);
 
-    bool hasVariableLiveRangeOpen() const;
-
+    bool                 hasVariableLiveRangeOpen() const;
     const LiveRangeList* getLiveRanges() const;
 
     void startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation, emitter* emit) const;
-
     void endLiveRangeAtEmitter(emitter* emit) const;
-
     void updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varLocation, emitter* emit) const;
 
 #ifdef DEBUG
     void dumpAllRegisterLiveRangesForBlock(emitter* emit, const CodeGenInterface* codeGen) const;
-
     void dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const;
-
     bool hasVarLiveRangesToDump() const;
-
     bool hasVarLiverRangesFromLastBlockToDump() const;
-
     void endBlockLiveRanges();
 #endif // DEBUG
 };
@@ -461,32 +453,24 @@ class VariableLiveKeeper
 public:
     VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* compiler);
 
-    size_t getLiveRangesCount() const;
-
+    // For tracking locations during code generation
     void siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum, bool isBorn, bool isDying);
-
     void siStartOrCloseVariableLiveRanges(VARSET_VALARG_TP varsIndexSet, bool isBorn, bool isDying);
-
     void siStartVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum);
-
     void siEndVariableLiveRange(unsigned int varNum);
-
     void siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum);
-
     void siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose);
     void siEndAllVariableLiveRange();
 
     const LiveRangeList* getLiveRangesForVar(unsigned int varNum) const;
+    size_t getLiveRangesCount() const;
 
-    // For parameters variable locations on prolog
-
+    // For parameters locations on prolog
     void psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, unsigned int varNum);
-
     void psiClosePrologVariableRanges();
 
 #ifdef DEBUG
     void dumpBlockVariableLiveRanges(const BasicBlock* block);
-
     void dumpLvaVariableLiveRanges() const;
 #endif // DEBUG
 };
