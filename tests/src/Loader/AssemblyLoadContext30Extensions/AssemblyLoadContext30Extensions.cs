@@ -33,9 +33,9 @@ public class Program
         return false;
     }
 
-    public static bool ContextsContainContext(AssemblyLoadContext alc)
+    public static bool PropertyAllContainsContext(AssemblyLoadContext alc)
     {
-        foreach (AssemblyLoadContext c in AssemblyLoadContext.Contexts)
+        foreach (AssemblyLoadContext c in AssemblyLoadContext.All)
         {
             if (alc == c)
             {
@@ -53,7 +53,7 @@ public class Program
 
             AssemblyLoadContext alc = AssemblyLoadContext.Default;
             Assert(alc == AssemblyLoadContext.GetLoadContext(typeof(Program).Assembly));
-            Assert(ContextsContainContext(alc));
+            Assert(PropertyAllContainsContext(alc));
             Assert(AssembliesContainAssembly(alc, typeof(Program).Assembly));
 
             Console.WriteLine(alc.Name);
@@ -85,7 +85,7 @@ public class Program
             Assert(a != typeof(Program).Assembly);
 
             AssemblyLoadContext alc = AssemblyLoadContext.GetLoadContext(a);
-            Assert(ContextsContainContext(alc));
+            Assert(PropertyAllContainsContext(alc));
             Assert(AssembliesContainAssembly(alc, a));
             Assert(alc != AssemblyLoadContext.Default);
 
@@ -118,7 +118,7 @@ public class Program
             Byte [] byteArray = System.IO.File.ReadAllBytes(path);
             Assembly a = Assembly.Load(byteArray);
             AssemblyLoadContext alc = AssemblyLoadContext.GetLoadContext(a);
-            Assert(ContextsContainContext(alc));
+            Assert(PropertyAllContainsContext(alc));
             Assert(AssembliesContainAssembly(alc, a));
 
             Console.WriteLine(alc.Name);
@@ -148,7 +148,7 @@ public class Program
 
             // ALC should be a concrete class
             AssemblyLoadContext alc = new AssemblyLoadContext();
-            Assert(ContextsContainContext(alc));
+            Assert(PropertyAllContainsContext(alc));
 
             Console.WriteLine(alc.Name);
             Assert(alc.Name == null);
@@ -175,7 +175,7 @@ public class Program
 
             // ALC should be a concrete class
             AssemblyLoadContext alc = new AssemblyLoadContext("CustomName");
-            Assert(ContextsContainContext(alc));
+            Assert(PropertyAllContainsContext(alc));
 
             Console.WriteLine(alc.Name);
             Assert(alc.Name == "CustomName");
@@ -196,7 +196,7 @@ public class Program
 
     public static int Main()
     {
-        foreach (AssemblyLoadContext alc in AssemblyLoadContext.Contexts)
+        foreach (AssemblyLoadContext alc in AssemblyLoadContext.All)
         {
             Console.WriteLine(alc.ToString());
             foreach (Assembly a in alc.Assemblies)
@@ -211,7 +211,7 @@ public class Program
         CustomWOName();
         CustomName();
 
-        foreach (AssemblyLoadContext alc in AssemblyLoadContext.Contexts)
+        foreach (AssemblyLoadContext alc in AssemblyLoadContext.All)
         {
             Console.WriteLine(alc.ToString());
             foreach (Assembly a in alc.Assemblies)

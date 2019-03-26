@@ -194,7 +194,7 @@ namespace System.Runtime.Loader
 
         public override string ToString() => "\"" + Name + "\" " + GetType().ToString() + " #" + _id;
 
-        public static IEnumerable<AssemblyLoadContext> Contexts
+        public static IEnumerable<AssemblyLoadContext> All
         {
             get
             {
