@@ -7666,21 +7666,8 @@ protected:
     {
         LIMITED_METHOD_CONTRACT;
     };
-    void InitForFinalizer(AppDomain* AppDomain,ADCallBackFcnType Target,LPVOID Args)
-    {
-        LIMITED_METHOD_CONTRACT;
-        filterType=FinalizerThread;
-        pUnsafeAppDomain=AppDomain;
-        pTarget=Target;
-        args=Args;
-    };
-
     friend void ManagedThreadBase_NoADTransition(ADCallBackFcnType pTarget,
                                              UnhandledExceptionLocation filterType);
-    friend void ManagedThreadBase::FinalizerAppDomain(AppDomain* pAppDomain,
-                                           ADCallBackFcnType pTarget,
-                                           LPVOID args,
-                                           ManagedThreadCallState *pTurnAround);
 };
 
 // The following static helpers are outside of the ManagedThreadBase struct because I
@@ -8009,16 +7996,6 @@ void ManagedThreadBase::FinalizerBase(ADCallBackFcnType pTarget)
 {
     WRAPPER_NO_CONTRACT;
     ManagedThreadBase_NoADTransition(pTarget, FinalizerThread);
-}
-
-void ManagedThreadBase::FinalizerAppDomain(AppDomain *pAppDomain,
-                                           ADCallBackFcnType pTarget,
-                                           LPVOID args,
-                                           ManagedThreadCallState *pTurnAround)
-{
-    WRAPPER_NO_CONTRACT;
-    pTurnAround->InitForFinalizer(pAppDomain,pTarget,args);
-    ManagedThreadBase_DispatchInner(pTurnAround);
 }
 
 //+----------------------------------------------------------------------------

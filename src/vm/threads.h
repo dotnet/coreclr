@@ -6791,19 +6791,8 @@ struct ManagedThreadBase
     // the ThreadPool
     static void ThreadPool(ADID pAppDomain, ADCallBackFcnType pTarget, LPVOID args);
 
-    // The Finalizer thread separates the tasks of establishing exception handling at its
-    // base and transitioning into AppDomains.  The turnaround structure that ties the 2 calls together
-    // is the ManagedThreadCallState.
-
-
-    // For the case (like Finalization) where the base transition and the AppDomain transition are
-    // separated, an opaque structure is used to tie together the two calls.
-
+    // The Finalizer thread uses this path
     static void FinalizerBase(ADCallBackFcnType pTarget);
-    static void FinalizerAppDomain(AppDomain* pAppDomain,
-                                   ADCallBackFcnType pTarget,
-                                   LPVOID args,
-                                   ManagedThreadCallState *pTurnAround);
 };
 
 

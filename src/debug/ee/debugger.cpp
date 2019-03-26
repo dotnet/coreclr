@@ -15635,7 +15635,7 @@ HRESULT Debugger::SetReference(void *objectRefAddress,
         OBJECTREF *dst = (OBJECTREF*)objectRefAddress;
         OBJECTREF  src = *((OBJECTREF*)&newReference);
 
-        SetObjectReferenceUnchecked(dst, src);
+        SetObjectReference(dst, src);
     }
     else
     {
@@ -15674,7 +15674,7 @@ HRESULT Debugger::SetValueClass(void *oldData, void *newData, DebuggerIPCE_Basic
         return CORDBG_E_CLASS_NOT_LOADED;
 
     // Update the value class.
-    CopyValueClassUnchecked(oldData, newData, th.GetMethodTable());
+    CopyValueClass(oldData, newData, th.GetMethodTable());
 
     // Free the buffer that is holding the new data. This is a buffer that was created in response to a GET_BUFFER
     // message, so we release it with ReleaseRemoteBuffer.

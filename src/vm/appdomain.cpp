@@ -199,11 +199,8 @@ LargeHeapHandleBucket::LargeHeapHandleBucket(LargeHeapHandleBucket *pNext, DWORD
                 ClassLoader::LoadArrayTypeThrowing(g_pObjectClass),
                 (INT32 *)(&Size),
                 1,
-                TRUE
-                DEBUG_ARG(TRUE));
+                TRUE);
         }
-
-        array->SetAppDomain(pAD);
 
         HandleArrayObj = (PTRARRAYREF)array;
     }
@@ -549,7 +546,7 @@ void LargeHeapHandleTable::ReleaseHandles(OBJECTREF *pObjRef, DWORD nReleased)
     // Add the released handles to the list of available handles.
     for (DWORD i = 0; i < nReleased; i++)
     {
-        SetObjectReference(&pObjRef[i], pPreallocatedSentinalObject, NULL);
+        SetObjectReference(&pObjRef[i], pPreallocatedSentinalObject);
     }
 
     m_cEmbeddedFree += nReleased;
@@ -5211,7 +5208,7 @@ void AppDomain::SetupSharedStatics()
     FieldDesc * pEmptyStringFD = MscorlibBinder::GetField(FIELD__STRING__EMPTY);
     OBJECTREF* pEmptyStringHandle = (OBJECTREF*)
         ((TADDR)pLocalModule->GetPrecomputedGCStaticsBasePointer()+pEmptyStringFD->GetOffset());
-    SetObjectReference( pEmptyStringHandle, StringObject::GetEmptyString(), this );
+    SetObjectReference( pEmptyStringHandle, StringObject::GetEmptyString());
 #endif // CROSSGEN_COMPILE
 }
 

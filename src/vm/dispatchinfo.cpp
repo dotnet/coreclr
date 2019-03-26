@@ -1326,7 +1326,7 @@ void DispatchInfo::InvokeMemberWorker(DispatchMemberInfo*   pDispMemberInfo,
 
         // If the variant is a byref static array, then remember the property value.
         if (IsVariantByrefStaticArray(pSrcOleVariant))
-            SetObjectReference(&pObjs->ByrefStaticArrayBackupPropVal, pObjs->PropVal, pAppDomain);
+            SetObjectReference(&pObjs->ByrefStaticArrayBackupPropVal, pObjs->PropVal);
     }
 
 

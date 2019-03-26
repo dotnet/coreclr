@@ -1180,7 +1180,7 @@ void ThreadBaseObject::SetDelegate(OBJECTREF delegate)
     }
 #endif
 
-    SetObjectReferenceUnchecked( (OBJECTREF *)&m_Delegate, delegate );
+    SetObjectReference( (OBJECTREF *)&m_Delegate, delegate );
 
     // If the delegate is being set then initialize the other data members.
     if (m_Delegate != NULL)

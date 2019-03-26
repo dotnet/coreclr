@@ -4496,7 +4496,7 @@ OBJECTHANDLE Module::ResolveStringRef(DWORD token, BaseDomain *pDomain, bool bNe
         OBJECTREF* pRef = pDomain->AllocateObjRefPtrsInLargeTable(1);
 
         STRINGREF str = AllocateStringObject(&strData);
-        SetObjectReference(pRef, str, NULL);
+        SetObjectReference(pRef, str);
 
         #ifdef LOGGING 
         int length = strData.GetCharCount();

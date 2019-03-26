@@ -3173,7 +3173,7 @@ void MethodTable::AllocateRegularStaticBoxes()
             LOG((LF_CLASSLOADER, LL_INFO10000, "\tInstantiating static of type %s\n", pFieldMT->GetDebugClassName()));
             OBJECTREF obj = AllocateStaticBox(pFieldMT, pClassCtorInfoEntry->hasFixedAddressVTStatics);
 
-            SetObjectReference( &(pStaticSlots[i]), obj, GetAppDomain() );
+            SetObjectReference( &(pStaticSlots[i]), obj);
         }
         GCPROTECT_END();
     }
@@ -3198,7 +3198,7 @@ void MethodTable::AllocateRegularStaticBoxes()
                 LOG((LF_CLASSLOADER, LL_INFO10000, "\tInstantiating static of type %s\n", pFieldMT->GetDebugClassName()));
                 OBJECTREF obj = AllocateStaticBox(pFieldMT, HasFixedAddressVTStatics());
 
-                SetObjectReference( (OBJECTREF*)(pStaticBase + pField->GetOffset()), obj, GetAppDomain() );
+                SetObjectReference( (OBJECTREF*)(pStaticBase + pField->GetOffset()), obj);
             }
 
             pField++;
@@ -3783,7 +3783,7 @@ OBJECTREF MethodTable::FastBox(void** data)
         return Nullable::Box(*data, this);
 
     OBJECTREF ref = Allocate();
-    CopyValueClass(ref->UnBox(), *data, this, ref->GetAppDomain());
+    CopyValueClass(ref->UnBox(), *data, this);
     return ref;
 }
 

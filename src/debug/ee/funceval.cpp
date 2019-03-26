@@ -980,7 +980,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
                     if (size <= sizeof(ARG_SLOT))
                     {
                         // Its not ByRef, so we need to copy the value class onto the ARG_SLOT.
-                        CopyValueClassUnchecked(ArgSlotEndianessFixup(pArgument, sizeof(LPVOID)), pData, o1->GetMethodTable());
+                        CopyValueClass(ArgSlotEndianessFixup(pArgument, sizeof(LPVOID)), pData, o1->GetMethodTable());
                     }
                     else
                     {
@@ -2774,16 +2774,14 @@ void UnpackFuncEvalResult(DebuggerEval *pDE,
             // box the object
             CopyValueClass(retObject->GetData(),
                            pRetBuff,
-                           RetValueType.GetMethodTable(),
-                           retObject->GetAppDomain());
+                           RetValueType.GetMethodTable());
         }
         else
         {
             // box the primitive returned, retObject is a true nullable for nullabes, It will be Normalized later
             CopyValueClass(retObject->GetData(),
                            pDE->m_result,
-                           RetValueType.GetMethodTable(),
-                           retObject->GetAppDomain());
+                           RetValueType.GetMethodTable());
         }
 
         pDE->m_result[0] = ObjToArgSlot(retObject);

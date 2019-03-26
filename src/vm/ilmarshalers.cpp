@@ -4258,7 +4258,7 @@ FCIMPL4(void, MngdNativeArrayMarshaler::ConvertSpaceToManaged, MngdNativeArrayMa
 
     if (*pNativeHome == NULL)
     {
-        SetObjectReference(pManagedHome, NULL, GetAppDomain());
+        SetObjectReference(pManagedHome, NULL);
     }
     else
     {
@@ -4273,7 +4273,7 @@ FCIMPL4(void, MngdNativeArrayMarshaler::ConvertSpaceToManaged, MngdNativeArrayMa
         //
         // Allocate array
         //
-        SetObjectReference(pManagedHome, AllocateArrayEx(pThis->m_Array, &cElements, 1), GetAppDomain());
+        SetObjectReference(pManagedHome, AllocateArrayEx(pThis->m_Array, &cElements, 1));
     }    
     HELPER_METHOD_FRAME_END();
 }
@@ -4559,11 +4559,11 @@ FCIMPL3(void, MngdSafeArrayMarshaler::ConvertSpaceToManaged, MngdSafeArrayMarsha
         SetObjectReference(pManagedHome,
             (OBJECTREF) OleVariant::CreateArrayRefForSafeArray((SAFEARRAY*) *pNativeHome,
                                                             pThis->m_vt,
-                                                            pThis->m_pElementMT), GetAppDomain());
+                                                            pThis->m_pElementMT));
     }
     else
     {
-        SetObjectReference(pManagedHome, NULL, GetAppDomain());
+        SetObjectReference(pManagedHome, NULL);
     }
 
     HELPER_METHOD_FRAME_END();
@@ -5300,13 +5300,13 @@ FCIMPL4(void, MngdHiddenLengthArrayMarshaler::ConvertSpaceToManaged, MngdHiddenL
 
     if (*pNativeHome == NULL)
     {
-        SetObjectReference(pManagedHome, NULL, GetAppDomain());
+        SetObjectReference(pManagedHome, NULL);
     }
     else
     {
         TypeHandle elementType(pThis->m_pElementMT);
         TypeHandle arrayType = ClassLoader::LoadArrayTypeThrowing(elementType);
-        SetObjectReference(pManagedHome, AllocateArrayEx(arrayType, &cElements, 1), GetAppDomain());
+        SetObjectReference(pManagedHome, AllocateArrayEx(arrayType, &cElements, 1));
     }
 
     HELPER_METHOD_FRAME_END();
@@ -5623,7 +5623,7 @@ FCIMPL3(void, MngdRefCustomMarshaler::ConvertContentsToManaged, MngdRefCustomMar
     
     HELPER_METHOD_FRAME_BEGIN_0();
 
-    SetObjectReference(pManagedHome, pThis->m_pCMHelper->InvokeMarshalNativeToManagedMeth(*pNativeHome), GetAppDomain());
+    SetObjectReference(pManagedHome, pThis->m_pCMHelper->InvokeMarshalNativeToManagedMeth(*pNativeHome));
     
     HELPER_METHOD_FRAME_END();
 }

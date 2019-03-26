@@ -721,7 +721,7 @@ AppDomain *GetAppDomainForObject(UINT_PTR obj)
     }
     CONTRACTL_END;
 
-    return ((Object*)obj)->GetAppDomain();
+    return (AppDomain*)((Object*)obj)->GetMethodTable()->GetDomain();
 }
 
 ADIndex GetAppDomainIndexForObject(UINT_PTR obj)
