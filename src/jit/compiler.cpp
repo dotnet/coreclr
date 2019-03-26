@@ -11488,12 +11488,12 @@ void VariableLiveKeeper::siStartOrCloseVariableLiveRanges(VARSET_VALARG_TP varsI
 {
     if (m_Compiler->opts.compDbgInfo)
     {
-        VarSetOps::Iter iter(compiler, varsIndexSet);
+        VarSetOps::Iter iter(m_Compiler, varsIndexSet);
         unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
-            unsigned int     varNum = compiler->lvaTrackedToVarNum[varIndex];
-            const LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
+            unsigned int     varNum = m_Compiler->lvaTrackedToVarNum[varIndex];
+            const LclVarDsc* varDsc = m_Compiler->lvaGetDesc(varNum);
             siStartOrCloseVariableLiveRange(varDsc, varNum, isBorn, isDying);
         }
     }
@@ -11523,11 +11523,11 @@ void VariableLiveKeeper::siStartVariableLiveRange(const LclVarDsc* varDsc, unsig
     {
         // Build siVarLoc for this borning "varDsc"
         CodeGenInterface::siVarLoc varLocation =
-            compiler->codeGen->getSiVarLoc(varDsc, compiler->codeGen->getCurrentStackLevel());
+            m_Compiler->codeGen->getSiVarLoc(varDsc, m_Compiler->codeGen->getCurrentStackLevel());
 
         VariableLiveDescriptor* varLiveDsc = &lvaLiveDsc[varNum];
         // this variable live range is valid from this point
-        varLiveDsc->startLiveRangeFromEmitter(varLocation, compiler->getEmitter());
+        varLiveDsc->startLiveRangeFromEmitter(varLocation, m_Compiler->getEmitter());
     }
 }
 
@@ -11755,7 +11755,7 @@ void VariableLiveKeeper::dumpLvaVariableLiveRanges() const
                 {
                     hasDumpedHistory = true;
                     printf("IL Var Num %d:\n", m_Compiler->compMap2ILvarNum(varNum));
-                    varLiveDsc->dumpAllRegisterLiveRangesForBlock(compiler->getEmitter(), compiler->codeGen);
+                    varLiveDsc->dumpAllRegisterLiveRangesForBlock(m_Compiler->getEmitter(), m_Compiler->codeGen);
                 }
             }
         }
