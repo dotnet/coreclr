@@ -65,6 +65,10 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
             EventPipeProtocolHelper::DisableFileTracingEventHandler(pStream);
             break;
 
+        case DiagnosticMessageType::StreamEventPipe:
+            EventPipeProtocolHelper::AttachTracingEventHandler(pStream);
+            break;
+
         default:
             LOG((LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknow request type (%d)\n", header.RequestType));
             break;

@@ -292,10 +292,57 @@ EventPipeSessionID EventPipe::Enable(
         s_pFastSerializableObject = new EventPipeFile(nextTraceFilePath);
     }
 
-    return Enable(pSession);
+    const DWORD FileSwitchTimerPeriodMS = 1000;
+    return Enable(pSession, SwitchToNextFileTimerCallback, FileSwitchTimerPeriodMS, FileSwitchTimerPeriodMS);
 }
 
-EventPipeSessionID EventPipe::Enable(EventPipeSession *const pSession)
+EventPipeSessionID EventPipe::Enable(
+    IpcStream *pStream,
+    uint32_t circularBufferSizeInMB,
+    uint64_t profilerSamplingRateInNanoseconds,
+    const EventPipeProviderConfiguration *pProviders,
+    uint32_t numProviders)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(pStream != nullptr);
+        PRECONDITION((numProviders == 0) || (numProviders > 0 && pProviders != nullptr));
+    }
+    CONTRACTL_END;
+
+    if (numProviders == 0 || pProviders == nullptr)
+        return (EventPipeSessionID) nullptr;
+
+    // Take the lock before enabling tracing.
+    CrstHolder _crst(GetLock());
+
+    // FIXME: Change `void* operator new (std::size_t count)` to `NewHolder`
+
+    // Create a new session.
+    SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
+    EventPipeSession *pSession = s_pConfig->CreateSession(
+        EventPipeSessionType::IpcStream,
+        circularBufferSizeInMB,
+        pProviders,
+        numProviders);
+
+    // TODO: Reply back the session Id?
+
+    s_pFastSerializableObject = new EventPipeStream(pStream);
+
+    // Enable the session.
+    const DWORD FlushTimerPeriodMS = 100; // TODO: Define a good number here for streaming.
+    return Enable(pSession, FlushTimer, FlushTimerPeriodMS, FlushTimerPeriodMS);
+}
+
+EventPipeSessionID EventPipe::Enable(
+    EventPipeSession *const pSession,
+    WAITORTIMERCALLBACK Callback,
+    DWORD DueTime,
+    DWORD Period)
 {
     CONTRACTL
     {
@@ -303,6 +350,9 @@ EventPipeSessionID EventPipe::Enable(EventPipeSession *const pSession)
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pSession != nullptr);
+        PRECONDITION(Callback != nullptr);
+        PRECONDITION(DueTime > 0);
+        PRECONDITION(Period > 0);
         PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -327,7 +377,7 @@ EventPipeSessionID EventPipe::Enable(EventPipeSession *const pSession)
     // Enable the sample profiler
     SampleProfiler::Enable();
 
-    CreateFileSwitchTimer();
+    CreateFlushTimerCallback(Callback, DueTime, Period);
 
     // Return the session ID.
     return (EventPipeSessionID)s_pSession;
@@ -375,7 +425,7 @@ void EventPipe::Disable(EventPipeSessionID id)
         s_pSession = NULL;
 
         // Delete the file switch timer.
-        DeleteFileSwitchTimer();
+        DeleteFlushTimerCallback();
 
         // Flush all write buffers to make sure that all threads see the change.
         FlushProcessWriteBuffers();
@@ -428,18 +478,21 @@ void EventPipe::Disable(EventPipeSessionID id)
     }
 }
 
-void EventPipe::CreateFileSwitchTimer()
+void EventPipe::CreateFlushTimerCallback(WAITORTIMERCALLBACK Callback, DWORD DueTime, DWORD Period)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(Callback != nullptr);
+        PRECONDITION(DueTime > 0);
+        PRECONDITION(Period > 0);
         PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END
 
-    if (s_pFastSerializableObject == nullptr || s_multiFileTraceLengthInSeconds == 0)
+    if (s_pFastSerializableObject == nullptr)
         return;
 
     NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder = new (nothrow) ThreadpoolMgr::TimerInfoContext();
@@ -454,10 +507,10 @@ void EventPipe::CreateFileSwitchTimer()
     {
         if (ThreadpoolMgr::CreateTimerQueueTimer(
                 &s_fileSwitchTimerHandle,
-                SwitchToNextFileTimerCallback,
+                Callback,
                 timerContextHolder,
-                FileSwitchTimerPeriodMS,
-                FileSwitchTimerPeriodMS,
+                DueTime,
+                Period,
                 0 /* flags */))
         {
             _ASSERTE(s_fileSwitchTimerHandle != NULL);
@@ -468,6 +521,7 @@ void EventPipe::CreateFileSwitchTimer()
     {
     }
     EX_END_CATCH(RethrowTerminalExceptions);
+
     if (!success)
     {
         _ASSERTE(s_fileSwitchTimerHandle == NULL);
@@ -477,7 +531,7 @@ void EventPipe::CreateFileSwitchTimer()
     timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
 }
 
-void EventPipe::DeleteFileSwitchTimer()
+void EventPipe::DeleteFlushTimerCallback()
 {
     CONTRACTL
     {
@@ -489,9 +543,7 @@ void EventPipe::DeleteFileSwitchTimer()
     CONTRACTL_END
 
     if ((s_fileSwitchTimerHandle != NULL) && (ThreadpoolMgr::DeleteTimerQueueTimer(s_fileSwitchTimerHandle, NULL)))
-    {
         s_fileSwitchTimerHandle = NULL;
-    }
 }
 
 void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired)
@@ -510,7 +562,7 @@ void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN ti
     CrstHolder _crst(GetLock());
 
     // Make sure that we should actually switch files.
-    if (!Enabled() || s_pSession->GetSessionType() != EventPipeSessionType::File || s_multiFileTraceLengthInSeconds == 0)
+    if (!Enabled() || s_pSession == nullptr || s_pSession->GetSessionType() != EventPipeSessionType::File || s_multiFileTraceLengthInSeconds == 0)
         return;
 
     GCX_PREEMP();
@@ -518,6 +570,40 @@ void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN ti
     if (CLRGetTickCount64() > (s_lastFileSwitchTime + (s_multiFileTraceLengthInSeconds * 1000)))
     {
         SwitchToNextFile();
+        s_lastFileSwitchTime = CLRGetTickCount64();
+    }
+}
+
+void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(s_pFastSerializableObject != nullptr);
+        PRECONDITION(timerFired);
+    }
+    CONTRACTL_END;
+
+    // Take the lock control lock to make sure that tracing isn't disabled during this operation.
+    CrstHolder _crst(GetLock());
+
+    // Make sure that we should actually switch files.
+    if (!Enabled() || s_pSession == nullptr || s_pSession->GetSessionType() != EventPipeSessionType::IpcStream)
+        return;
+
+    GCX_PREEMP();
+
+    if (CLRGetTickCount64() > (s_lastFileSwitchTime + 100))
+    {
+        // Get the current time stamp.
+        // WriteAllBuffersToFile will use this to ensure that no events after
+        // the current timestamp are written into the file.
+        LARGE_INTEGER stopTimeStamp;
+        QueryPerformanceCounter(&stopTimeStamp);
+        s_pBufferManager->WriteAllBuffersToFile(s_pFastSerializableObject, stopTimeStamp);
+
         s_lastFileSwitchTime = CLRGetTickCount64();
     }
 }

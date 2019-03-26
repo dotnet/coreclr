@@ -231,6 +231,7 @@ public:
 };
 
 typedef UINT64 EventPipeSessionID;
+typedef void (*FlushTimerCallback)();
 
 class EventPipe
 {
@@ -257,6 +258,13 @@ public:
         const EventPipeProviderConfiguration *pProviders,
         uint32_t numProviders,
         uint64_t multiFileTraceLengthInSeconds);
+
+    static EventPipeSessionID Enable(
+        IpcStream *pStream,
+        uint32_t circularBufferSizeInMB,
+        uint64_t profilerSamplingRateInNanoseconds,
+        const EventPipeProviderConfiguration *pProviders,
+        uint32_t numProviders);
 
     // Disable tracing via the event pipe.
     static void Disable(EventPipeSessionID id);
@@ -304,16 +312,22 @@ private:
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
     // Enable the specified EventPipe session.
-    static EventPipeSessionID Enable(EventPipeSession *const pSession);
+    static EventPipeSessionID Enable(
+        EventPipeSession *const pSession,
+        WAITORTIMERCALLBACK Callback,
+        DWORD DueTime,
+        DWORD Period);
 
-    static void CreateFileSwitchTimer();
+    static void CreateFlushTimerCallback(WAITORTIMERCALLBACK Callback, DWORD DueTime, DWORD Period);
 
-    static void DeleteFileSwitchTimer();
+    static void DeleteFlushTimerCallback();
 
     // Performs one polling operation to determine if it is necessary to switch to a new file.
     // If the polling operation decides it is time, it will perform the switch.
     // Called directly from the timer when the timer is triggered.
     static void WINAPI SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired);
+
+    static void WINAPI FlushTimer(PVOID parameter, BOOLEAN timerFired);
 
     // If event pipe has been configured to write multiple files, switch to the next file.
     static void SwitchToNextFile();
@@ -342,7 +356,6 @@ private:
     static FastSerializableObject *s_pFastSerializableObject;
     static EventPipeEventSource *s_pEventSource;
     static LPCWSTR s_pCommandLine;
-    const static DWORD FileSwitchTimerPeriodMS = 1000;
     static HANDLE s_fileSwitchTimerHandle;
     static ULONGLONG s_lastFileSwitchTime;
     static uint64_t s_multiFileTraceLengthInSeconds;

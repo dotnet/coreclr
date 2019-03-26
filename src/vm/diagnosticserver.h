@@ -20,6 +20,7 @@ enum class DiagnosticMessageType : uint32_t
     // EventPipe
     EnableEventPipe = 1024,
     DisableEventPipe,
+    StreamEventPipe,
     AttachEventPipe,
     DetachEventPipe,
 

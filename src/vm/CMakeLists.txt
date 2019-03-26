@@ -329,6 +329,7 @@ set(VM_SOURCES_WKS
     eventpipebuffermanager.cpp
     eventpipesession.cpp
     eventpipesessionprovider.cpp
+    eventpipestream.cpp
     eventstore.cpp
     fastserializer.cpp
     fcall.cpp
@@ -452,6 +453,7 @@ set(VM_HEADERS_WKS
     eventpipeprovider.h
     eventpipesession.h
     eventpipesessionprovider.h
+    eventpipestream.h
     eventstore.hpp
     fastserializer.h
     fcall.h

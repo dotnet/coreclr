@@ -200,12 +200,16 @@ void EventPipeProtocolHelper::AttachTracingEventHandler(IpcStream *pStream)
     // string = (array<char> where the last char must = 0) or (length = 0)
     // provider_config = ulong keywords, uint logLevel, string provider_name, string filter_data
 
+    LPCWSTR strOutputPath;
     uint32_t circularBufferSizeInMB = EventPipeProtocolHelper::DefaultCircularBufferMB;
+    uint64_t multiFileTraceLengthInSeconds = EventPipeProtocolHelper::DefaultMultiFileTraceLengthInSeconds;
     CQuickArray<EventPipeProviderConfiguration> providerConfigs;
 
     uint8_t *pBufferCursor = buffer;
     uint32_t bufferLen = nNumberOfBytesRead;
     if (!TryParse(pBufferCursor, bufferLen, circularBufferSizeInMB) ||
+        !TryParse(pBufferCursor, bufferLen, multiFileTraceLengthInSeconds) ||
+        !TryParseString(pBufferCursor, bufferLen, strOutputPath) ||
         !TryParseProviderConfiguration(pBufferCursor, bufferLen, providerConfigs))
     {
         // TODO: error handling
@@ -216,24 +220,13 @@ void EventPipeProtocolHelper::AttachTracingEventHandler(IpcStream *pStream)
     EventPipeSessionID sessionId = (EventPipeSessionID) nullptr;
     if (providerConfigs.Size() > 0)
     {
-        // TODO:
+        sessionId = EventPipe::Enable(
+            pStream,
+            circularBufferSizeInMB,                         // circularBufferSizeInMB
+            DefaultProfilerSamplingRateInNanoseconds,       // ProfilerSamplingRateInNanoseconds
+            providerConfigs.Ptr(),                          // pConfigs
+            static_cast<uint32_t>(providerConfigs.Size())); // numConfigs
     }
-
-    uint32_t nBytesWritten = 0;
-    fSuccess = pStream->Write(&sessionId, sizeof(sessionId), nBytesWritten);
-    if (!fSuccess)
-    {
-        // TODO: Add error handling.
-        delete pStream;
-        return;
-    }
-
-    fSuccess = pStream->Flush();
-    if (!fSuccess)
-    {
-        // TODO: Add error handling.
-    }
-    delete pStream;
 }
 
 #endif // FEATURE_PERFTRACING
