@@ -5,11 +5,11 @@ namespace winrt::Component::Contracts::implementation
 {
     hstring UriTesting::GetFromUri(Windows::Foundation::Uri const& uri)
     {
-        throw hresult_not_implemented();
+        return uri.ToString();
     }
 
     Windows::Foundation::Uri UriTesting::CreateUriFromString(hstring const& uri)
     {
-        throw hresult_not_implemented();
+        return {uri};
     }
 }

@@ -5,11 +5,11 @@ namespace winrt::Component::Contracts::implementation
 {
     bool NullableTesting::IsNull(Windows::Foundation::IReference<int32_t> const& value)
     {
-        throw hresult_not_implemented();
+        return value == nullptr;
     }
 
     int32_t NullableTesting::GetIntValue(Windows::Foundation::IReference<int32_t> const& value)
     {
-        throw hresult_not_implemented();
+        return value.GetInt32();
     }
 }

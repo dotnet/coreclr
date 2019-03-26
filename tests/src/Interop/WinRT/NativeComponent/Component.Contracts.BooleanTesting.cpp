@@ -5,6 +5,6 @@ namespace winrt::Component::Contracts::implementation
 {
     bool BooleanTesting::And(bool left, bool right)
     {
-        throw hresult_not_implemented();
+        return left && right;
     }
 }

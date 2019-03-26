@@ -5,6 +5,6 @@ namespace winrt::Component::Contracts::implementation
 {
     hstring StringTesting::ConcatStrings(hstring const& left, hstring const& right)
     {
-        throw hresult_not_implemented();
+        return left + right;
     }
 }
