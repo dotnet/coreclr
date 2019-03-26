@@ -10983,7 +10983,7 @@ bool Compiler::killGCRefs(GenTree* tree)
 // but at least "emitLocation"s and "siVarLoc"
 void VariableLiveRange::dumpVariableLiveRange(const CodeGenInterface* codeGen) const
 {
-    codeGen->dumpSiVarLoc(&m_VarHome);
+    codeGen->dumpSiVarLoc(&m_VarLocation);
     printf(" [ ");
     m_StartEmitLocation.Print();
     printf(", ");
@@ -11006,7 +11006,7 @@ void VariableLiveRange::dumpVariableLiveRange(emitter* emit, const CodeGenInterf
 
     // "VariableLiveRanges" are created setting its location ("m_VarLocation") and the initial assembly offset
     // ("m_StartEmitLocation")
-    codeGen->dumpSiVarLoc(&m_VarHome);
+    codeGen->dumpSiVarLoc(&m_VarLocation);
 
     // If this is an open "VariableLiveRange", "m_EndEmitLocation" is non-valid and print -1
     UNATIVE_OFFSET endAssemblyOffset = m_EndEmitLocation.Valid() ? m_EndEmitLocation.CodeOffset(emit) : -1;
@@ -11148,7 +11148,7 @@ bool VariableLiveDescriptor::hasVariableLiveRangeOpen() const
 }
 
 //------------------------------------------------------------------------
-// getLiveRangesCount: Return amount of variable homes reported for this
+// getLiveRangesCount: Return amount of variable locations reported for this
 //  variable.
 //
 // Return Value:
@@ -11165,10 +11165,10 @@ size_t VariableLiveDescriptor::getLiveRangesCount() const
 }
 
 //------------------------------------------------------------------------
-// getLiveRanges: Return the list of variable homes for this variable.
+// getLiveRanges: Return the list of variable locations for this variable.
 //
 // Return Value:
-//  A const LiveRangeList* pointing to the first variable home if it has
+//  A const LiveRangeList* pointing to the first variable location if it has
 //  any or the end of the list in other case.
 //
 const LiveRangeList* VariableLiveDescriptor::getLiveRanges() const
@@ -11240,7 +11240,7 @@ void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* emit) const
 //  home to "varHome" since the instruction where "emit" is located.
 //
 // Arguments:
-//  varHome  - the new variable home.
+//  varHome  - the new variable location.
 //  emit - an emitter* instance located at the first instruction from
 //   where "varHome" becomes valid.
 //
@@ -11260,7 +11260,7 @@ void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc
     noway_assert(!m_VariableLiveRanges->back().m_EndEmitLocation.Valid());
 
     // If we are reporting again the same home, that means we are doing something twice?
-    // noway_assert(! CodeGenInterface::siVarLoc::Equals(&m_VariableLiveRanges->back().m_VarHome, varLocation));
+    // noway_assert(! CodeGenInterface::siVarLoc::Equals(&m_VariableLiveRanges->back().m_VarLocation, varLocation));
 
     // Close previous live range
     endLiveRangeAtEmitter(emit);
@@ -11392,11 +11392,11 @@ VariableLiveKeeper::~VariableLiveKeeper()
 }
 
 //------------------------------------------------------------------------
-// getLiveRangesCount: Returns the count of variable homes reported for the tracked
+// getLiveRangesCount: Returns the count of variable locations reported for the tracked
 //  variables, which are arguments, special arguments, and local IL variables.
 //
 // Return Value:
-//    unsinged int - the count of variable homes
+//    unsinged int - the count of variable locations
 //
 // Notes:
 //    This method is being called from "genSetScopeInfo" to know the count of
@@ -11560,7 +11560,7 @@ void VariableLiveKeeper::siEndVariableLiveRange(unsigned int varNum)
 }
 
 //------------------------------------------------------------------------
-// siUpdateVariableLiveRange: Reports the change of variable home for the
+// siUpdateVariableLiveRange: Reports the change of variable location for the
 //  given variable.
 //
 // Arguments:
@@ -11570,7 +11570,7 @@ void VariableLiveKeeper::siEndVariableLiveRange(unsigned int varNum)
 // Assumptions:
 //    The given variable should be alive.
 //    The emitter should be pointing to the first instruction from where
-//    the new variable home is becoming valid.
+//    the new variable location is becoming valid.
 //
 void VariableLiveKeeper::siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum)
 {
@@ -11606,7 +11606,7 @@ void VariableLiveKeeper::siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsi
 //
 // Notes:
 //    This method is called when the last block being generated to killed all
-//    the live variables and set a flag to avoid reporting variable homes for
+//    the live variables and set a flag to avoid reporting variable locations for
 //    on next calls to method that update variable liveness.
 void VariableLiveKeeper::siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose)
 {
@@ -11633,7 +11633,7 @@ void VariableLiveKeeper::siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose)
 //      in lvaTable.
 //
 // Return Value:
-//  A const pointer to the list of variable homes reported for the variable.
+//  A const pointer to the list of variable locations reported for the variable.
 //
 // Assumtions:
 //  This variable should be an argument, a special argument or an IL local
@@ -11651,7 +11651,7 @@ const LiveRangeList* VariableLiveKeeper::getLiveRangesForVar(unsigned int varNum
 // psiStartVariableLiveRange: Reports the given variable as being born.
 //
 // Arguments:
-//  varLcation  - the variable home
+//  varLcation  - the variable location
 //  varNum      - the index of the variable in "compiler->lvaTable" or
 //      "VariableLivekeeper->lvaLiveDsc"
 //

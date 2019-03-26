@@ -10546,7 +10546,7 @@ void CodeGen::genSetScopeInfo()
 #ifdef USING_VARIABLE_LIVE_RANGE
     // We can have one of both flags defined, both, or none. Specially if we need to compare both
     // both results. But we cannot report both to the debugger, since there would be overlapping
-    // intervals, and may not indicate the same variable home.
+    // intervals, and may not indicate the same variable location.
 
     genSetScopeInfoUsingVariableRanges();
 
@@ -10665,7 +10665,8 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
                 }
 
                 genSetScopeInfo(liveRangeIndex, startOffs, endOffs - startOffs, varNum,
-                                varNum /* I dont know what is the which in eeGetLvInfo */, true, &liveRange.m_VarHome);
+                                varNum /* I dont know what is the which in eeGetLvInfo */, true,
+                                &liveRange.m_VarLocation);
             }
         }
     }

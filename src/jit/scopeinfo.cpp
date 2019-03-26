@@ -469,7 +469,7 @@ CodeGenInterface::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg,
 }
 
 //------------------------------------------------------------------------
-// getSiVarLoc: Returns a "siVarLoc" instance representing the variable home.
+// getSiVarLoc: Returns a "siVarLoc" instance representing the variable location.
 //
 // Arguments:
 //    varDsc       - the variable it is desired to build the "siVarLoc".
@@ -478,7 +478,7 @@ CodeGenInterface::siVarLoc::siVarLoc(const LclVarDsc* varDsc, regNumber baseReg,
 //                   variable offsets to compensate.
 //
 // Return Value:
-//    A "siVarLoc" representing the variable home, which could live
+//    A "siVarLoc" representing the variable location, which could live
 //    in a register, an stack position, or a combination of both.
 //
 CodeGenInterface::siVarLoc CodeGenInterface::getSiVarLoc(const LclVarDsc* varDsc, unsigned int stackLevel) const

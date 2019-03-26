@@ -321,12 +321,12 @@ enum RefCountState
 class VariableLiveRange
 {
 public:
-    emitLocation               m_StartEmitLocation; // first position from where "m_VarHome" becomes valid
-    emitLocation               m_EndEmitLocation;   // last position where "m_VarHome" is valid
-    CodeGenInterface::siVarLoc m_VarHome;           // variable home
+    emitLocation               m_StartEmitLocation; // first position from where "m_VarLocation" becomes valid
+    emitLocation               m_EndEmitLocation;   // last position where "m_VarLocation" is valid
+    CodeGenInterface::siVarLoc m_VarLocation;       // variable location
 
     VariableLiveRange(CodeGenInterface::siVarLoc varHome, emitLocation startEmitLocation, emitLocation endEmitLocation)
-        : m_StartEmitLocation(startEmitLocation), m_EndEmitLocation(endEmitLocation), m_VarHome(varHome)
+        : m_StartEmitLocation(startEmitLocation), m_EndEmitLocation(endEmitLocation), m_VarLocation(varHome)
     {
     }
 
@@ -398,7 +398,7 @@ public:
 //
 class VariableLiveDescriptor
 {
-    LiveRangeList* m_VariableLiveRanges; // the variable homes of this variable
+    LiveRangeList* m_VariableLiveRanges; // the variable locations of this variable
 
     INDEBUG(LiveRangeDumper* m_VariableLifeBarrier);
 
@@ -442,7 +442,7 @@ public:
 //  out of that class, which is huge. With this solution the only code needed in Compiler is
 //  a getter and an initializer of this class.
 //  The index of each variable in this array corresponds to the one in "compiler->lvaTable".
-//  We care about tracking the variable homes of arguments, special arguments, and local IL
+//  We care about tracking the variable locations of arguments, special arguments, and local IL
 //  variables, and we ignore any other variable (like JIT temporary variables).
 //
 class VariableLiveKeeper
@@ -478,7 +478,7 @@ public:
 
     const LiveRangeList* getLiveRangesForVar(unsigned int varNum) const;
 
-    // For parameters variable homes on prolog
+    // For parameters variable locations on prolog
 
     void psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, unsigned int varNum);
 
