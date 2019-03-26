@@ -7,6 +7,8 @@
     <AssemblyName>FromNativePaths</AssemblyName>
     <ProjectGuid>{649A239B-AB4B-4E20-BDCA-3BA736E8B790}</ProjectGuid>
     <OutputType>Exe</OutputType>
+    <!-- This test requires the ability to place a native library next to Core_Root to test that the runtime correctly finds it. -->
+    <CLRTestRequiresModifiableCoreRoot>true</CLRTestRequiresModifiableCoreRoot>
     <!-- The test cannot be run twice in the same process since it moves a native dll that it uses for pinvoke later -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
     <CLRTestPriority>1</CLRTestPriority>

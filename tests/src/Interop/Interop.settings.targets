@@ -2,6 +2,8 @@
   <!-- Properties for all Interop managed test assets -->
   <PropertyGroup>
     <InteropCommonDir>$(MSBuildThisFileDirectory)common/</InteropCommonDir>
+    <!-- This test needs to be able to place hostpolicy.dll in the Core_Root folder next to System.Private.CoreLib. -->
+    <CLRTestRequiresModifiableCoreRoot Condition="'$(RequiresMockHostPolicy)' == 'true'">true</CLRTestRequiresModifiableCoreRoot>
   </PropertyGroup>
 
   <!-- Environment properties -->
@@ -20,7 +22,7 @@
        Compile in relevant files used for testing interop. -->
   <ItemGroup Condition="('$(IgnoreCoreCLRTestLibraryDependency)' != 'true') And ('$(ReferenceSystemPrivateCoreLib)' == 'true')">
     <Compile Include="$(MSBuildThisFileDirectory)\..\Common\CoreCLRTestLibrary\Assertion.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)\..\Common\CoreCLRTestLibrary\HostPolicyMock.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)\..\Common\CoreCLRTestLibrary\HostPolicyMock.cs" Condition="'$(RequiresMockHostPolicy)' == 'true'"/>
     <Compile Include="$(MSBuildThisFileDirectory)\..\Common\CoreCLRTestLibrary\XPlatformUtils.cs" />
   </ItemGroup>
 
@@ -30,5 +32,10 @@
 
     <None Include="$(VCToolsRedistDir)onecore/debug_nonredist/$(Platform)/Microsoft.VC*.DebugCRT/vcruntime*d.dll" CopyToOutputDirectory="Always" />
     <None Include="$(ExtensionSdkDir)/Microsoft.UniversalCRT.Debug/$(UCRTVersion)/Redist/Debug/$(Platform)/ucrtbased.dll" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+  <!-- Mock host policy (if needed) -->
+  <ItemGroup Condition="'$(RequiresMockHostPolicy)' == 'true'">
+      <ProjectReference Include="$(MSBuildThisFileDirectory)\..\Common\hostpolicymock\CMakeLists.txt" />
   </ItemGroup>
 </Project>
