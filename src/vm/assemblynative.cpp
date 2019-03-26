@@ -420,7 +420,7 @@ void QCALLTYPE AssemblyNative::LoadTypeForWinRTTypeNameInContext(INT_PTR ptrAsse
 
     BEGIN_QCALL;
 
-    TypeHandle loadedType = WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(pwzTypeName, nullptr, (ICLRPrivBinder*)ptrAssemblyLoadContext);
+    TypeHandle loadedType = WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(pwzTypeName, (ICLRPrivBinder*)ptrAssemblyLoadContext, /* pbIsPrimitive */ nullptr);
 
     if (!loadedType.IsNull())
     {

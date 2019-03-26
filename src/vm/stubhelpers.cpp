@@ -899,7 +899,7 @@ FCIMPL2(ReflectClassBaseObject *, StubHelpers::WinRTTypeNameConverter__GetTypeFr
     HELPER_METHOD_FRAME_BEGIN_RET_2(refClass, refString);
 
     bool isPrimitive;
-    TypeHandle th = WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(refString->GetBuffer(), &isPrimitive);
+    TypeHandle th = WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(refString->GetBuffer(), /* pLoadBinder */ nullptr, &isPrimitive);
     *pbIsPrimitive = isPrimitive;
     
     refClass = th.GetManagedClassObject();

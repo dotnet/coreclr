@@ -828,7 +828,7 @@ bool WinRTTypeNameConverter::IsRedirectedWinRTSourceType(MethodTable *pMT)
 // Get TypeHandle from a WinRT type name
 // Parse the WinRT type name in the form of WinRTType=TypeName[<WinRTType[, WinRTType, ...]>]
 //
-TypeHandle WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(LPCWSTR wszWinRTTypeName, bool *pbIsPrimitive, ICLRPrivBinder* loadBinder /* = nullptr */)
+TypeHandle WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(LPCWSTR wszWinRTTypeName, ICLRPrivBinder * loadBinder, bool *pbIsPrimitive)
 {
     CONTRACTL
     {
@@ -842,7 +842,7 @@ TypeHandle WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(LPCWSTR wszWi
 
     SString ssTypeName(SString::Literal, wszWinRTTypeName);
     
-    TypeHandle th = LoadManagedTypeForWinRTTypeNameInternal(&ssTypeName, pbIsPrimitive, loadBinder);
+    TypeHandle th = LoadManagedTypeForWinRTTypeNameInternal(&ssTypeName, loadBinder, pbIsPrimitive);
     if (th.IsNull())
     {
         COMPlusThrowArgumentException(W("typeName"), NULL);    
@@ -900,7 +900,7 @@ extern "C" HRESULT WINAPI CrossgenRoParseTypeName(SString* typeName, DWORD *part
 // Return TypeHandle for the specified WinRT type name (supports generic type)
 // Updates wszWinRTTypeName pointer as it parse the string    
 //
-TypeHandle WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeNameInternal(SString *ssTypeName, bool *pbIsPrimitive, ICLRPrivBinder* loadBinder)
+TypeHandle WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeNameInternal(SString *ssTypeName, ICLRPrivBinder* loadBinder, bool *pbIsPrimitive)
 {
     CONTRACTL
     {
@@ -944,7 +944,7 @@ TypeHandle WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeNameInternal(SStri
             PCWSTR wszPart = WindowsGetStringRawBuffer(rhsPartNames[i], &cchPartLength);
 
             StackSString ssPartName(wszPart, cchPartLength);
-            rqPartTypes[i] = GetManagedTypeFromSimpleWinRTNameInternal(&ssPartName, NULL, loadBinder);
+            rqPartTypes[i] = GetManagedTypeFromSimpleWinRTNameInternal(&ssPartName, loadBinder, nullptr);
         }
 
 #else //CROSSGEN_COMPILE
@@ -963,7 +963,7 @@ TypeHandle WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeNameInternal(SStri
         // load the components
         for (DWORD i = 0; i < dwPartsCount; i++)
         {
-            rqPartTypes[i] = GetManagedTypeFromSimpleWinRTNameInternal(&rhsPartNames[i], NULL, loadBinder);
+            rqPartTypes[i] = GetManagedTypeFromSimpleWinRTNameInternal(&rhsPartNames[i], loadBinder, NULL);
         }
 
         delete[] rhsPartNames;
@@ -980,7 +980,7 @@ TypeHandle WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeNameInternal(SStri
     }
     else
     {
-        return GetManagedTypeFromSimpleWinRTNameInternal(ssTypeName, pbIsPrimitive, loadBinder);
+        return GetManagedTypeFromSimpleWinRTNameInternal(ssTypeName, loadBinder, pbIsPrimitive);
     }
 }
 
@@ -988,7 +988,7 @@ TypeHandle WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeNameInternal(SStri
 // Return MethodTable* for the specified WinRT primitive type name (non-generic type)
 // Updates wszWinRTTypeName pointer as it parse the string
 //
-TypeHandle WinRTTypeNameConverter::GetManagedTypeFromSimpleWinRTNameInternal(SString *ssTypeName, bool *pbIsPrimitive, ICLRPrivBinder* loadBinder)
+TypeHandle WinRTTypeNameConverter::GetManagedTypeFromSimpleWinRTNameInternal(SString *ssTypeName, ICLRPrivBinder* loadBinder, bool *pbIsPrimitive)
 {
     CONTRACTL
     {
