@@ -672,16 +672,17 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 {
     STANDARD_VM_CONTRACT;
 
+    PCODE pEntryPoint = NULL;
     mdToken token = pMD->GetMemberDef();
     int rid = RidFromToken(token);
     if (rid == 0)
-        return NULL;
+        goto done;
 
     uint offset;
     if (pMD->HasClassOrMethodInstantiation())
     {
         if (m_instMethodEntryPoints.IsNull())
-            return NULL;
+            goto done;
 
         NativeHashtable::Enumerator lookup = m_instMethodEntryPoints.Lookup(GetVersionResilientMethodHashCode(pMD));
         NativeParser entryParser;
@@ -703,12 +704,12 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
         }
 
         if (offset == (uint)-1)
-            return NULL;
+            goto done;
     }
     else
     {
         if (!m_methodDefEntryPoints.TryGetAt(rid - 1, &offset))
-            return NULL;
+            goto done;
     }
 
 #ifndef CROSSGEN_COMPILE
@@ -723,7 +724,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
         if (!fShouldSearchCache)
         {
             pConfig->SetProfilerRejectedPrecompiledCode();
-            return NULL;
+            goto done;
         }
 #endif // PROFILING_SUPPORTED
 #endif // CROSSGEN_COMPILE
@@ -747,7 +748,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 #ifndef CROSSGEN_COMPILE
                 pConfig->SetReadyToRunRejectedPrecompiledCode();
 #endif // CROSSGEN_COMPILE
-                return NULL;
+                goto done;
             }
         }
 
@@ -759,7 +760,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
     }
 
     _ASSERTE(id < m_nRuntimeFunctions);
-    PCODE pEntryPoint = dac_cast<TADDR>(m_pLayout->GetBase()) + m_pRuntimeFunctions[id].BeginAddress;
+    pEntryPoint = dac_cast<TADDR>(m_pLayout->GetBase()) + m_pRuntimeFunctions[id].BeginAddress;
 
     {
         CrstHolder ch(&m_Crst);
@@ -786,6 +787,14 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 #else
         g_pDebugInterface->JITComplete(pConfig->GetCodeVersion(), pEntryPoint);
 #endif
+    }
+
+done:
+    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, R2RGetEntryPoint))
+    {
+        SString fullMethodSignature;
+        pMD->GetFullMethodInfo(fullMethodSignature);
+        FireEtwR2RGetEntryPoint((UINT64)pMD, fullMethodSignature.GetUnicode(), pEntryPoint, GetClrInstanceId());
     }
 
     return pEntryPoint;
