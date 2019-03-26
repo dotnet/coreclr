@@ -11,13 +11,9 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Runtime.Loader;
 
-//
-// Types in this file marked as 'public' are done so only to aid in
-// testing of functionality and should not be considered publicly consumable.
-//
 namespace Internal.Runtime.InteropServices.WindowsRuntime
 {
-    public static class ActivationFactoryLoader
+    internal static class ActivationFactoryLoader
     {
         // Collection of all ALCs used for WinRT activation.
         // Since each of the assemblies that act as the "key" here are WinRT assemblies
@@ -45,7 +41,6 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
         /// <param name="componentPath">The path to the WinRT component that the type is expected to be defined in.</param>
         /// <param name="typeName">The name of the component type to activate</param>
         /// <param name="activationFactory">The activation factory</param>
-        [CLSCompliant(false)]
         public unsafe static int GetActivationFactory(
             char* componentPath,
             [MarshalAs(UnmanagedType.HString)] string typeName,
