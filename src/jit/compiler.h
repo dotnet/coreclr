@@ -373,7 +373,8 @@ class LiveRangeDumper
                                                  // reported from last call to EndBlock
 
 public:
-    LiveRangeDumper(const LiveRangeList* liveRanges);
+    LiveRangeDumper(const LiveRangeList* liveRanges)
+        : m_StartingLiveRange(liveRanges->end()), m_hasLiveRangestoDump(false){};
 
     // Make the dumper point to the last "VariableLiveRange" opened or nullptr if all are closed
     void resetDumper(const LiveRangeList* list);

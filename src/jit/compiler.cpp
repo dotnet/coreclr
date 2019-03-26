@@ -11018,10 +11018,6 @@ void VariableLiveRange::dumpVariableLiveRange(emitter* emit, const CodeGenInterf
 //------------------------------------------------------------------------
 //                      LiveRangeDumper
 //------------------------------------------------------------------------
-
-LiveRangeDumper::LiveRangeDumper(const LiveRangeList* liveRanges)
-    : m_StartingLiveRange(liveRanges->end()), m_hasLiveRangestoDump(false){};
-
 //------------------------------------------------------------------------
 // resetDumper: If the the "liveRange" has its last "VariableLiveRange" closed, it makes
 //  the "LiveRangeDumper" points to end of "liveRange" (nullptr). In other case,
