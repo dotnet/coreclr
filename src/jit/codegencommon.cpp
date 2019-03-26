@@ -10505,23 +10505,23 @@ void CodeGen::genSetScopeInfo()
     }
 #endif
 
-    unsigned varsHomeCount = 0;
+    unsigned varsLocationsCount = 0;
 
 #ifdef USING_SCOPE_INFO
     if (compiler->info.compVarScopesCount > 0)
     {
-        varsHomeCount = siScopeCnt + psiScopeCnt;
+        varsLocationsCount = siScopeCnt + psiScopeCnt;
     }
 #else // USING_SCOPE_INFO
 
 #ifdef USING_VARIABLE_LIVE_RANGE
     const VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
-    varsHomeCount                           = varLiveKeeper->getLiveRangesCount();
+    varsLocationsCount                      = varLiveKeeper->getLiveRangesCount();
 #endif // USING_VARIABLE_LIVE_RANGE
 
 #endif // USING_SCOPE_INFO
 
-    if (varsHomeCount == 0)
+    if (varsLocationsCount == 0)
     {
         compiler->eeSetLVcount(0);
         compiler->eeSetLVdone();
@@ -10530,13 +10530,13 @@ void CodeGen::genSetScopeInfo()
 
     noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
 
-    compiler->eeSetLVcount(varsHomeCount);
+    compiler->eeSetLVcount(varsLocationsCount);
 
 #ifdef DEBUG
-    genTrnslLocalVarCount = varsHomeCount;
-    if (varsHomeCount)
+    genTrnslLocalVarCount = varsLocationsCount;
+    if (varsLocationsCount)
     {
-        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[varsHomeCount];
+        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[varsLocationsCount];
     }
 #endif
 
