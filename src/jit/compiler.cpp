@@ -11121,15 +11121,6 @@ VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
 #endif // DEBUG
 }
 
-VariableLiveDescriptor::~VariableLiveDescriptor()
-{
-    noway_assert(m_VariableLiveRanges != nullptr);
-
-    m_VariableLiveRanges->~list();
-
-    INDEBUG(m_VariableLifeBarrier->~LiveRangeDumper());
-}
-
 //------------------------------------------------------------------------
 // hasVariableLiveRangeOpen: Return true if the variable is still alive,
 //  false in other case.
@@ -11366,11 +11357,6 @@ VariableLiveKeeper::VariableLiveKeeper(unsigned int totalLocalCount, unsigned in
             new (lvaLiveDsc + varNum, jitstd::placement_t()) VariableLiveDescriptor(allocator);
         }
     }
-}
-
-VariableLiveKeeper::~VariableLiveKeeper()
-{
-    delete[] lvaLiveDsc;
 }
 
 //------------------------------------------------------------------------

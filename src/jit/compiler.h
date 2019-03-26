@@ -408,8 +408,6 @@ class VariableLiveDescriptor
 public:
     VariableLiveDescriptor(CompAllocator allocator);
 
-    ~VariableLiveDescriptor();
-
     bool hasVariableLiveRangeOpen() const;
 
     const LiveRangeList* getLiveRanges() const;
@@ -462,8 +460,6 @@ class VariableLiveKeeper
                                         // No update/start happens when code has been generated.
 public:
     VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* compiler);
-
-    ~VariableLiveKeeper();
 
     size_t getLiveRangesCount() const;
 
