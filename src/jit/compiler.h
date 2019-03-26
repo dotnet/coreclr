@@ -310,7 +310,7 @@ enum RefCountState
 //    and genGeneratePrologsAndEpilogs) but only after the whole
 //    method's code is generated can we obtain a final, fixed
 //    NATIVE_OFFSET representing the actual generated code offset.
-//    It is also IL_OFFSET, but this is more accurate and the
+//    There is also a IL_OFFSET, but this is more accurate and the
 //    debugger is expecting assembly offsets.
 //    This class doesn't have behaviour attached to itself, it is
 //    just putting a name to a representation. It is used to build
@@ -447,16 +447,16 @@ public:
 //
 class VariableLiveKeeper
 {
-    unsigned int lvLiveDscCount;  // count of args, special args, and IL local variables to report home
-    unsigned int lvLiveArgsCount; // count of arguments to report home
+    unsigned int m_LiveDscCount;  // count of args, special args, and IL local variables to report home
+    unsigned int m_LiveArgsCount; // count of arguments to report home
 
-    Compiler* compiler;
+    Compiler* m_Compiler;
 
     VariableLiveDescriptor* lvaLiveDsc; // Array of descriptors that manage VariableLiveRanges.
                                         // Its indices correspond to lvaTable indexes (or lvSlotNum).
 
-    bool lastBasicBlockHasBeenEmited; // When true no more siEndVariableLiveRange is considered.
-                                      // No update/start happens when code has been generated.
+    bool m_LastBasicBlockHasBeenEmited; // When true no more siEndVariableLiveRange is considered.
+                                        // No update/start happens when code has been generated.
 public:
     VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* compiler);
 
