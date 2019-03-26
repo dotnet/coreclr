@@ -1,7 +1,7 @@
 include(clrfeatures.cmake)
 
 # If set, indicates that this is not an officially supported release
-# Keep in sync with IsPrerelease in dir.props
+# Keep in sync with IsPrerelease in Directory.Build.Props
 set(PRERELEASE 1)
 
 # Features we're currently flighting, but don't intend to ship in officially supported releases

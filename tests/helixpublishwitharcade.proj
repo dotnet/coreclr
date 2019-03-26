@@ -19,7 +19,7 @@
 
       <_PropertiesToPass>
         __BuildArch=$(__BuildArch);
-        __BuildOS=$(__BuildOS);
+        __BuildOS=$(BuildOS);
         __BuildType=$(__BuildType);
         Creator=$(_Creator);
         HelixAccessToken=$(_HelixAccessToken);

@@ -86,7 +86,7 @@ setup_dirs()
 {
     echo Setting up directories for build
 
-    mkdir -p "$__RootBinDir"
+    mkdir -p "$__RootArtifactsDir"
     mkdir -p "$__BinDir"
     mkdir -p "$__LogsDir"
     mkdir -p "$__MsbuildDebugLogsDir"
@@ -442,7 +442,7 @@ build_CoreLib()
                              /p:UsePartialNGENOptimization=false /maxcpucount \
                              $__ProjectDir/build.proj \
                              /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
-                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false \
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootArtifactsDir=$__RootArtifactsDir /p:BuildNugetPackage=false \
                              $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
@@ -505,7 +505,7 @@ generate_NugetPackages()
                              /p:UsePartialNGENOptimization=false /maxcpucount \
                              $__SourceDir/.nuget/packages.builds \
                              /flp:Verbosity=normal\;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log \
-                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackages=false /p:__DoCrossArchBuild=$__CrossBuild \
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootArtifactsDir=$__RootArtifactsDir /p:BuildNugetPackages=false /p:__DoCrossArchBuild=$__CrossBuild \
                              $__CommonMSBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
@@ -615,8 +615,8 @@ __IgnoreWarnings=0
 export __ProjectDir="$__ProjectRoot"
 export ArcadeBuild="true"
 __SourceDir="$__ProjectDir/src"
-__PackagesDir="${DotNetRestorePackagesPath:-${__ProjectDir}/packages}"
-__RootBinDir="$__ProjectDir/artifacts"
+__PackagesDir="${DotNetRestorePackagesPath:-${HOME}/.nuget/packages/}"
+__RootArtifactsDir="$__ProjectDir/artifacts/"
 __UnprocessedBuildArgs=
 __CommonMSBuildArgs=
 __MSBCleanBuildArgs=
@@ -637,7 +637,6 @@ __SkipRestoreOptData=0
 __SkipCrossgen=0
 __CrossgenOnly=0
 __PartialNgen=0
-__SkipTests=0
 __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
@@ -868,10 +867,6 @@ while :; do
             __PartialNgen=1
             ;;
 
-        skiptests|-skiptests)
-            __SkipTests=1
-            ;;
-
         skipnuget|-skipnuget|skipbuildpackages|-skipbuildpackages)
             __SkipNuget=1
             ;;
@@ -893,13 +888,13 @@ while :; do
 
         bindir|-bindir)
             if [ -n "$2" ]; then
-                __RootBinDir="$2"
-                if [ ! -d $__RootBinDir ]; then
-                    mkdir $__RootBinDir
+                __RootArtifactsDir="$2"
+                if [ ! -d $__RootArtifactsDir ]; then
+                    mkdir $__RootArtifactsDir
                 fi
-                __RootBinParent=$(dirname $__RootBinDir)
-                __RootBinName=${__RootBinDir##*/}
-                __RootBinDir="$(cd $__RootBinParent &>/dev/null && printf %s/%s $PWD $__RootBinName)"
+                __RootBinParent=$(dirname $__RootArtifactsDir)
+                __RootBinName=${__RootArtifactsDir##*/}
+                __RootArtifactsDir="$(cd $__RootBinParent &>/dev/null && printf %s/%s $PWD $__RootBinName)"
                 shift
             else
                 echo "ERROR: 'bindir' requires a non-empty option argument"
@@ -990,16 +985,16 @@ if [ $__PortableBuild == 0 ]; then
 fi
 
 # Set dependent variables
-__LogsDir="$__RootBinDir/Logs"
+__LogsDir="$__RootArtifactsDir/log/${__BuildType}"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 
 # Set the remaining variables based upon the determined build configuration
-__BinDir="$__RootBinDir/bin/${__BuildOS}/${__BuildArch}/${__BuildType}"
+__BinDir="$__RootArtifactsDir/Product/${__BuildOS}/${__BuildArch}/${__BuildType}"
 __PackagesBinDir="$__BinDir/.nuget"
-__ToolsDir="$__RootBinDir/tools"
-__TestWorkingDir="$__RootBinDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
-export __IntermediatesDir="$__RootBinDir/obj/${__BuildOS}/${__BuildArch}/${__BuildType}"
-__TestIntermediatesDir="$__RootBinDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
+__ToolsDir="$__RootArtifactsDir/tools"
+__TestWorkingDir="$__RootArtifactsDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
+export __IntermediatesDir="$__RootArtifactsDir/obj/${__BuildOS}/${__BuildArch}/${__BuildType}"
+__TestIntermediatesDir="$__RootArtifactsDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
 __isMSBuildOnNETCoreSupported=0
 __CrossComponentBinDir="$__BinDir"
 
@@ -1054,12 +1049,6 @@ generate_event_logging
 
 # Build the coreclr (native) components.
 __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
-
-# [TODO] Remove this when the `build-test.sh` script properly builds and deploys test assets.
-if [ $__SkipTests != 1 ]; then
-    echo "Adding CMake flags to build native tests for $__BuildOS.$__BuildArch.$__BuildType"
-    __ExtraCmakeArgs="$__ExtraCmakeArgs -DCLR_CMAKE_BUILD_TESTS=ON"
-fi
 
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 

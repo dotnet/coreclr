@@ -32,7 +32,7 @@ set ghprbCommentBody=
 ::      __BuildArch         -- default: x64
 ::      __BuildType         -- default: Debug
 ::      __BuildOS           -- default: Windows_NT
-::      __ProjectDir        -- default: directory of the dir.props file
+::      __ProjectDir        -- default: directory of the Directory.Build.Props file
 ::      __SourceDir         -- default: %__ProjectDir%\src\
 ::      __PackagesDir       -- default: %__ProjectDir%\packages\
 ::      __RootBinDir        -- default: %__ProjectDir%\bin\

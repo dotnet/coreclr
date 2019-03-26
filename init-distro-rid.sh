@@ -172,5 +172,6 @@ initDistroRidGlobal()
         echo "__RuntimeId: ${__DistroRid}"
         
         export __RuntimeId=${__DistroRid}
+        export PackageRID=${__DistroRid}
     fi
 }

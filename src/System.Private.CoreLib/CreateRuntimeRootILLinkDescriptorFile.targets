@@ -1,10 +1,6 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <PropertyGroup>
-    <CompileDependsOn>_CreateILLinkRuntimeRootDescriptorFile;$(CompileDependsOn)</CompileDependsOn>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <_ILLinkRuntimeRootDescriptorFileName Condition=" '$(_ILLinkRuntimeRootDescriptorFileName)' == '' ">System.Private.CoreLib.xml</_ILLinkRuntimeRootDescriptorFileName>
     <_ILLinkRuntimeRootDescriptorFilePath Condition=" '$(_ILLinkRuntimeRootDescriptorFilePath)' == '' ">$(IntermediateOutputPath)$(_ILLinkRuntimeRootDescriptorFileName)</_ILLinkRuntimeRootDescriptorFilePath>
     <_NamespaceFilePath Condition=" '$(_NamespaceFilePath)' == '' ">$(MSBuildThisFileDirectory)..\vm\namespace.h</_NamespaceFilePath>

@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), Directory.Build.Props))\Directory.Build.Props" />
 
   <Target Name="HackToRestoreAracde" BeforeTargets="BeforeBuild" DependsOnTargets="Restore">
   </Target>
@@ -17,16 +17,15 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
 
+    <!-- Default is embedded overwrite this -->
+    <DebugType>Portable</DebugType>
+
     <!-- Force System.Private.CoreLib.dll to be put in $(BinFolder)/IL -->
-    <OutputPath>$(OutputPath)IL\</OutputPath>
+    <OutputPath>$(BinDir)IL\</OutputPath>
   </PropertyGroup>
 
   <PropertyGroup>
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)bin\</RootBinDir>
   </PropertyGroup>
 
   <!-- Create SR.cs -->
@@ -74,8 +73,16 @@
     <_TargetFrameworkDirectories>$(MSBuildThisFileDirectory)/Documentation</_TargetFrameworkDirectories>
     <_FullFrameworkReferenceAssemblyPaths>$(MSBuildThisFileDirectory)/Documentation</_FullFrameworkReferenceAssemblyPaths>
     <SkipCommonResourcesIncludes>true</SkipCommonResourcesIncludes>
-    <DocumentationFile>$(OutputPath)$(MSBuildProjectName).xml</DocumentationFile>
+    <DocumentationFile>$(BinDir)$(MSBuildProjectName).xml</DocumentationFile>
   </PropertyGroup>
+
+  <!-- Add Serviceable attribute to the project's metadata -->
+  <ItemGroup>
+    <AssemblyMetadata Include="Serviceable">
+      <Value>True</Value>
+      <Visible>false</Visible>
+    </AssemblyMetadata>
+  </ItemGroup>
 
   <!-- Platform specific properties -->
   <PropertyGroup Condition="'$(Platform)' == 'x64'">
@@ -413,6 +420,7 @@
   <ItemGroup>
     <Compile Include="src\System\Runtime\RuntimeImports.cs" />
   </ItemGroup>
+
   <Import Project="shared\System.Private.CoreLib.Shared.projitems" />
   <PropertyGroup>
     <CheckCDefines Condition="'$(CheckCDefines)'==''">true</CheckCDefines>
@@ -420,7 +428,7 @@
   <Target Name="CDefineChecker" BeforeTargets="Build" Condition="'$(CheckCDefines)'=='true'">
     <!-- Compiler Definition Verification -->
     <PropertyGroup>
-      <CMakeDefinitionSaveFile>$(__IntermediatesDir)\cmake.definitions</CMakeDefinitionSaveFile>
+      <CMakeDefinitionSaveFile>$(IntermediatesDir)\cmake.definitions</CMakeDefinitionSaveFile>
     </PropertyGroup>
     <Exec Command="python $(MSBuildThisFileDirectory)..\scripts\check-definitions.py  &quot;$(ProjectDir)&quot; &quot;$(CMakeDefinitionSaveFile)&quot; &quot;$(DefineConstants)&quot; &quot;$(IgnoreDefineConstants)&quot; " />
   </Target>
@@ -447,11 +455,29 @@
     <StrongNameSig>None</StrongNameSig>
   </PropertyGroup>
 
+  <!-- Globals used by ILLink.targets -->
   <PropertyGroup>
-    <!-- Overwrite the key that we are going to use for signing -->
-    <AssemblyOriginatorKeyFile>$(ToolsDir)SilverlightPlatformPublicKey.snk</AssemblyOriginatorKeyFile>
-    <!-- Don't need a strong name signature because we only ship the native image -->
-    <StrongNameSig>None</StrongNameSig>
+    <TargetName>$(MSBuildProjectName)</TargetName>
+    <TargetExt>.dll</TargetExt>
   </PropertyGroup>
+
+  <!-- Setup ILLink.targets -->
+  <ItemGroup>
+    <PackageReference Include="$(ILLinkTasksPackage)">
+      <Version>$(ILLinkTasksPackageVersion)</Version>
+    </PackageReference>
+  </ItemGroup>
+
+  <Import Project="CreateRuntimeRootILLinkDescriptorFile.targets" />
+
+  <Target Name="CreateRuntimeRootIlLinkDescFile" BeforeTargets="CoreCompile" DependsOnTargets="_CreateILLinkRuntimeRootDescriptorFile">
+  </Target>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(_ILLinkRuntimeRootDescriptorFilePath)">
+      <LogicalName>$(MSBuildProjectName).xml</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <Import Project="ILLink.targets" />
 
 </Project>

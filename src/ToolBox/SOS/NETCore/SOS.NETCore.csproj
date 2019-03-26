@@ -1,5 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), Directory.Build.Props))\Directory.Build.Props" />
 
   <Target Name="HackToRestoreAracde" BeforeTargets="BeforeBuild" DependsOnTargets="Restore">
   </Target>

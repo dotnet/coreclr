@@ -1,6 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk" DefaultTargets="Build">
-  <Import Project="dir.props" />
-
   <ItemGroup>
     <!-- We use build.proj instead of dirs.proj so we don't conflict with the TFS build-->
     <Project Include="src\build.proj" />
@@ -40,8 +38,8 @@
   </Target>
 
   <Target Name="CleanAllProjects">
-    <Message Condition="Exists($(RootBinDir))" Importance="High" Text="Removing $(RootBinDir)"/>
-    <RemoveDir Directories="$(RootBinDir)" />
+    <Message Condition="Exists($(RootArtifactsDir))" Importance="High" Text="Removing $(RootArtifactsDir)"/>
+    <RemoveDir Directories="$(RootArtifactsDir)" />
   </Target>
 
 </Project>
