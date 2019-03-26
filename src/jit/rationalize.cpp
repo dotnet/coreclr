@@ -761,9 +761,12 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::Ge
             break;
 
         case GT_OBJ:
-            // Rewrite these as GT_IND.
             assert(node->TypeGet() == TYP_STRUCT || !use.User()->OperIsInitBlkOp());
-            RewriteSIMDOperand(use, false);
+            if (varTypeIsSIMD(node))
+            {
+                // Rewrite these as GT_IND.
+                RewriteSIMDOperand(use, false);
+            }
             break;
 
 #ifdef FEATURE_SIMD

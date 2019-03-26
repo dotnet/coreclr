@@ -1765,8 +1765,8 @@ public:
             CORINFO_CLASS_HANDLE structHnd = m_pCompiler->gtGetStructHandleIfPresent(candidate->Expr());
             assert((structHnd != NO_CLASS_HANDLE) || (cseLclVarTyp != TYP_STRUCT));
             unsigned size = m_pCompiler->info.compCompHnd->getClassSize(structHnd);
-            // Note that this is a bit conservative because it doesn't take into account that we
-            // might use a vector register for struct copies.
+            // Note that the slotCount is used to estimate the reference cost, but it may overestimate this
+            // because it doesn't take into account that we might use a vector register for struct copies.
             slotCount = (size + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE;
         }
 
