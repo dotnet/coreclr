@@ -20,6 +20,9 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
     public static class ActivationFactoryLoader
     {
         // Collection of all ALCs used for WinRT activation.
+        // Since each of the assemblies that act as the "key" here are WinRT assemblies
+        // we don't need to share this dictionary with the COM activation dictionary
+        // since there will be no overlap.
         private static Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIgnoreCase);
         
         private static AssemblyLoadContext GetALC(string assemblyPath)
@@ -38,8 +41,13 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
             return alc;
         }
 
-        public static int GetActivationFactory(
-            IntPtr componentPath,
+        /// <summary>Get a WinRT activation factory for a given type name.</summary>
+        /// <param name="componentPath">The path to the WinRT component that the type is expected (although not required) to be defined in.</param>
+        /// <param name="typeName">The name of the component type to activate</param>
+        /// <param name="activationFactory">The activation factory</param>
+        [CLSCompliant(false)]
+        public unsafe static int GetActivationFactory(
+            char* componentPath,
             [MarshalAs(UnmanagedType.HString)] string typeName,
             [MarshalAs(UnmanagedType.Interface)] out IActivationFactory activationFactory)
         {
@@ -51,7 +59,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
                     throw new ArgumentNullException(nameof(typeName));
                 }
 
-                AssemblyLoadContext context = GetALC(Marshal.PtrToStringUni(componentPath));
+                AssemblyLoadContext context = GetALC(Marshal.PtrToStringUni((IntPtr)componentPath));
                 
                 Type winRTType = context.LoadTypeForWinRTTypeNameInContext(typeName);
 

@@ -226,7 +226,7 @@ namespace System.Runtime.Loader
         {
             if (typeName is null)
             {
-                throw new ArgumentNullException(typeName);
+                throw new ArgumentNullException(nameof(typeName));
             }
 
             lock (_unloadLock)

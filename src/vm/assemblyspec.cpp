@@ -872,18 +872,14 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
             // If the AssemblySpec does not correspond to WinRT type but our parent assembly binder is a WinRT binder,
             // then such an assembly will not be found by the binder.
             // In such a case, the parent binder should be the fallback binder for the WinRT assembly if one exists.
+            pParentAssemblyBinder = NULL;
             ReleaseHolder<ICLRPrivAssemblyID_WinRT> assembly;
-
             if (SUCCEEDED(pParentAssemblyBinder->QueryInterface<ICLRPrivAssemblyID_WinRT>(&assembly)))
             {
                 pParentAssemblyBinder = dac_cast<PTR_CLRPrivAssemblyWinRT>(assembly.GetValue())->GetFallbackBinder();
 
                 // The fallback binder should not be a WinRT binder.
                 _ASSERTE(!AreSameBinderInstance(pWinRTBinder, pParentAssemblyBinder));
-            }
-            else
-            {
-                pParentAssemblyBinder = NULL;
             }
         }
     }
