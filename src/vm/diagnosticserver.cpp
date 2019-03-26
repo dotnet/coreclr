@@ -47,8 +47,8 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
         // TODO: Read operation should happen in a loop.
         uint32_t nNumberOfBytesRead = 0;
         MessageHeader header;
-        bool fSuccess = pStream->Read(&header, sizeof(header), nNumberOfBytesRead);
-        if (!fSuccess || nNumberOfBytesRead != sizeof(header))
+        pStream->Read(&header, sizeof(header), nNumberOfBytesRead);
+        if (nNumberOfBytesRead != sizeof(header))
         {
             delete pStream;
             continue;

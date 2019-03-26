@@ -21,17 +21,17 @@ public:
     // Returns:
     //  - true: The write succeeded.
     //  - false: The write failed.  In this case, the block should be considered full.
-    bool WriteEvent(EventPipeEventInstance &instance);
+    bool WriteEvent(EventPipeEventInstance &instance) override;
 
     void Clear();
 
-    const char *GetTypeName()
+    const char *GetTypeName() override
     {
         LIMITED_METHOD_CONTRACT;
         return "EventBlock";
     }
 
-    void FastSerialize(FastSerializer *pSerializer)
+    void FastSerialize(FastSerializer *pSerializer) override
     {
         CONTRACTL
         {
@@ -58,7 +58,7 @@ public:
             unsigned int paddingLength = ALIGNMENT_SIZE - (currentPosition % ALIGNMENT_SIZE);
             pSerializer->WriteBuffer(maxPadding, paddingLength); // we write zeros here, the reader is going to always read from the first aligned address of the serialized content
 
-            _ASSERTE(pSerializer->GetCurrentPosition() % ALIGNMENT_SIZE == 0);
+            _ASSERTE(pSerializer->HasWriteErrors() || (pSerializer->GetCurrentPosition() % ALIGNMENT_SIZE == 0));
         }
 
         pSerializer->WriteBuffer(m_pBlock, eventsSize);

@@ -9,6 +9,8 @@
 
 #ifdef FEATURE_PERFTRACING
 
+const uint32_t IpcStreamReadBufferSize = 8192;
+
 bool EventPipeProtocolHelper::TryParseProviderConfiguration(uint8_t *&bufferCursor, uint32_t &bufferLen, CQuickArray<EventPipeProviderConfiguration> &result)
 {
     // Picking an arbitrary upper bound,
@@ -62,8 +64,7 @@ void EventPipeProtocolHelper::EnableFileTracingEventHandler(IpcStream *pStream)
     CONTRACTL_END;
 
     // TODO: Read within a loop.
-    const uint32_t BufferSize = 8192;
-    uint8_t buffer[BufferSize]{};
+    uint8_t buffer[IpcStreamReadBufferSize]{};
     uint32_t nNumberOfBytesRead = 0;
     bool fSuccess = pStream->Read(buffer, sizeof(buffer), nNumberOfBytesRead);
     if (!fSuccess)
@@ -180,8 +181,7 @@ void EventPipeProtocolHelper::AttachTracingEventHandler(IpcStream *pStream)
     CONTRACTL_END;
 
     // TODO: Read within a loop.
-    const uint32_t BufferSize = 8192;
-    uint8_t buffer[BufferSize]{};
+    uint8_t buffer[IpcStreamReadBufferSize]{};
     uint32_t nNumberOfBytesRead = 0;
     bool fSuccess = pStream->Read(buffer, sizeof(buffer), nNumberOfBytesRead);
     if (!fSuccess)

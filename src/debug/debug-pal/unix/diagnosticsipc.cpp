@@ -40,7 +40,7 @@ IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 
 IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, ErrorCallback callback)
 {
-    const int serverSocket = ::socket(AF_UNIX, SOCK_STREAM, 0);
+    const int serverSocket = ::socket(AF_UNIX, SOCK_DGRAM, 0);
     if (serverSocket == -1)
     {
         if (callback != nullptr)
@@ -59,8 +59,6 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
         pd.m_Pid,
         pd.m_ApplicationGroupId,
         "socket");
-
-    ::unlink(serverAddress.sun_path);
 
     const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
     if (fSuccessBind == -1)
