@@ -3775,7 +3775,7 @@ void Compiler::optUnrollLoops()
                 {
                     BasicBlock* newBlock = insertAfter =
                         fgNewBBafter(block->bbJumpKind, insertAfter, /*extendRegion*/ true);
-                    blockMap.Set(block, newBlock);
+                    blockMap.Set(block, newBlock, BlockToBlockMap::Overwrite);
 
                     if (!BasicBlock::CloneBlockState(this, newBlock, block, lvar, lval))
                     {
@@ -7914,8 +7914,6 @@ void Compiler::optRemoveRangeCheck(GenTree* tree, GenTree* stmt)
     GenTree* bndsChkTree = tree->gtOp.gtOp1;
 
     noway_assert(bndsChkTree->OperIsBoundsCheck());
-
-    GenTreeBoundsChk* bndsChk = tree->gtOp.gtOp1->AsBoundsChk();
 
 #ifdef DEBUG
     if (verbose)
