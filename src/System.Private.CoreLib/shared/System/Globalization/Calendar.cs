@@ -323,7 +323,7 @@ namespace System.Globalization
         /// Get the list of era values.
         /// </summary>
         /// <returns>The int array of the era names supported in this calendar or null if era is not used.</returns>
-        public abstract int[] Eras { get; }
+        public abstract int[]? Eras { get; }
 
         // Returns the hour part of the specified DateTime. The returned value is an
         // integer between 0 and 23.
