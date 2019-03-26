@@ -42,7 +42,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
         }
 
         /// <summary>Get a WinRT activation factory for a given type name.</summary>
-        /// <param name="componentPath">The path to the WinRT component that the type is expected (although not required) to be defined in.</param>
+        /// <param name="componentPath">The path to the WinRT component that the type is expected to be defined in.</param>
         /// <param name="typeName">The name of the component type to activate</param>
         /// <param name="activationFactory">The activation factory</param>
         [CLSCompliant(false)]
@@ -63,7 +63,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
                 
                 Type winRTType = context.LoadTypeForWinRTTypeNameInContext(typeName);
 
-                if (winRTType is null)
+                if (winRTType is null || !winRTType.IsExportedToWindowsRuntime)
                 {
                     throw new TypeLoadException(typeName);
                 }
