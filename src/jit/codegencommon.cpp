@@ -10516,7 +10516,7 @@ void CodeGen::genSetScopeInfo()
 
 #ifdef USING_VARIABLE_LIVE_RANGE
     const VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
-    varsLocationsCount                      = varLiveKeeper->getLiveRangesCount();
+    varsLocationsCount                      = (unsigned int)varLiveKeeper->getLiveRangesCount();
 #endif // USING_VARIABLE_LIVE_RANGE
 
 #endif // USING_SCOPE_INFO

@@ -1543,7 +1543,7 @@ void CodeGen::psiBegProlog()
         psiScope* newScope = psiNewPrologScope(varScope->vsdLVnum, varScope->vsdVarNum);
 #endif // USING_SCOPE_INFO
 #ifdef USING_VARIABLE_LIVE_RANGE
-        siVarLoc varHome;
+        siVarLoc varLocation;
 #endif // USING_VARIABLE_LIVE_RANGE
 
         if (lclVarDsc->lvIsRegArg)
@@ -1591,7 +1591,7 @@ void CodeGen::psiBegProlog()
 #endif // USING_SCOPE_INFO
 
 #ifdef USING_VARIABLE_RANGE
-                    varHome.storeVariableInRegisters(regNum, otherRegNum);
+                    varLocation.storeVariableInRegisters(regNum, otherRegNum);
 #endif // USING_VARIABLE_RANGE
                 }
                 else
@@ -1601,7 +1601,7 @@ void CodeGen::psiBegProlog()
                     psiSetScopeOffset(newScope, lclVarDsc);
 #endif // USING_SCOPE_INFO
 #ifdef USING_VARIABLE_LIVE_RANGE
-                    varHome.storeVariableOnStack(REG_SPBASE, psiGetVarStackOffset(lclVarDsc));
+                    varLocation.storeVariableOnStack(REG_SPBASE, psiGetVarStackOffset(lclVarDsc));
 #endif // USING_VARIABLE_LIVE_RANGE
                 }
 
@@ -1624,7 +1624,7 @@ void CodeGen::psiBegProlog()
                 newScope->u1.scRegNum = (regNumberSmall)lclVarDsc->lvArgReg;
 #endif // USING_SCOPE_INFO
 #ifdef USING_VARIABLE_LIVE_RANGE
-                varHome.storeVariableInRegisters(lclVarDsc->lvArgReg, REG_NA);
+                varLocation.storeVariableInRegisters(lclVarDsc->lvArgReg, REG_NA);
 #endif // USING_VARIABLE_LIVE_RANGE
             }
         }
@@ -1634,14 +1634,14 @@ void CodeGen::psiBegProlog()
             psiSetScopeOffset(newScope, lclVarDsc);
 #endif // USING_SCOPE_INFO
 #ifdef USING_VARIABLE_LIVE_RANGE
-            varHome.storeVariableOnStack(REG_SPBASE, psiGetVarStackOffset(lclVarDsc));
+            varLocation.storeVariableOnStack(REG_SPBASE, psiGetVarStackOffset(lclVarDsc));
 #endif // USING_VARIABLE_LIVE_RANGE
         }
 
 #ifdef USING_VARIABLE_LIVE_RANGE
         // Start a VariableLiveRange for this LclVarDsc on the built location
         VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
-        varLvKeeper->psiStartVariableLiveRange(varHome, varScope->vsdVarNum);
+        varLvKeeper->psiStartVariableLiveRange(varLocation, varScope->vsdVarNum);
 #endif // USING_VARIABLE_LIVE_RANGE
     }
 }

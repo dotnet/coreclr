@@ -325,8 +325,10 @@ public:
     emitLocation               m_EndEmitLocation;   // last position where "m_VarLocation" is valid
     CodeGenInterface::siVarLoc m_VarLocation;       // variable location
 
-    VariableLiveRange(CodeGenInterface::siVarLoc varHome, emitLocation startEmitLocation, emitLocation endEmitLocation)
-        : m_StartEmitLocation(startEmitLocation), m_EndEmitLocation(endEmitLocation), m_VarLocation(varHome)
+    VariableLiveRange(CodeGenInterface::siVarLoc varLocation,
+                      emitLocation               startEmitLocation,
+                      emitLocation               endEmitLocation)
+        : m_StartEmitLocation(startEmitLocation), m_EndEmitLocation(endEmitLocation), m_VarLocation(varLocation)
     {
     }
 
@@ -409,24 +411,22 @@ public:
 
     bool hasVariableLiveRangeOpen() const;
 
-    size_t getLiveRangesCount() const;
-
     const LiveRangeList* getLiveRanges() const;
 
-    void startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varHome, emitter* emit) const;
+    void startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation, emitter* emit) const;
 
     void endLiveRangeAtEmitter(emitter* emit) const;
 
-    void updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varHome, emitter* emit) const;
+    void updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varLocation, emitter* emit) const;
 
 #ifdef DEBUG
     void dumpAllRegisterLiveRangesForBlock(emitter* emit, const CodeGenInterface* codeGen) const;
 
     void dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const;
 
-    bool hasVarHomesToDump() const;
+    bool hasVarLiveRangesToDump() const;
 
-    bool hasVarLocationsOfLastBlockToDump() const;
+    bool hasVarLiverRangesFromLastBlockToDump() const;
 
     void endBlockLiveRanges();
 #endif // DEBUG
@@ -464,7 +464,7 @@ public:
 
     ~VariableLiveKeeper();
 
-    unsigned int getLiveRangesCount() const;
+    size_t getLiveRangesCount() const;
 
     void siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum, bool isBorn, bool isDying);
 
