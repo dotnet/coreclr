@@ -20,7 +20,6 @@ namespace BasicEventSourceTests
         private sealed class SimpleEventSource : EventSource
         {
             private object _failureCounter;
-            private object _successCounter;
 
             public SimpleEventSource(Func<float> getFailureCount, Type IncrementingPollingCounterType)
             {
@@ -67,8 +66,6 @@ namespace BasicEventSourceTests
 
                         string name = "";
                         string increment = "";
-                        string displayName = "";
-                        string displayInterval = "";
 
                         foreach (KeyValuePair<string, object> payload in eventPayload)
                         {
