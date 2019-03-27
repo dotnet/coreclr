@@ -1025,8 +1025,8 @@ HANDLE ZapImage::GenerateFile(LPCWSTR wszOutputFileName, CORCOMPILE_NGEN_SIGNATU
     {    
         // Write the debug directory entry for the NGEN PDB
         RSDS rsds = {0};
-        
-        rsds.magic = 'SDSR';
+
+        rsds.magic = VAL32(0x53445352); // "SDSR";
         rsds.age = 1;
         // our PDB signature will be the same as our NGEN signature.  
         // However we want the printed version of the GUID to be be the same as the
@@ -2177,7 +2177,7 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
             // We skip the compilation of such methods and we don't want to
             // issue a warning or error
             //
-            if ((hrException == E_NOTIMPL) || (hrException == IDS_CLASSLOAD_GENERAL))
+            if ((hrException == E_NOTIMPL) || (hrException == (HRESULT)IDS_CLASSLOAD_GENERAL))
             {
                 result = NOT_COMPILED;
                 level = CORZAP_LOGLEVEL_INFO;

@@ -943,7 +943,6 @@ Debugger::Debugger()
     m_pModules(NULL),
     m_RSRequestedSync(FALSE),
     m_sendExceptionsOutsideOfJMC(TRUE),
-    m_pIDbgThreadControl(NULL),
     m_forceNonInterceptable(FALSE),
     m_pLazyData(NULL),
     m_defines(_defines),
@@ -978,7 +977,7 @@ Debugger::Debugger()
     //------------------------------------------------------------------------------
     // Metadata data structure version numbers
     //
-    // 1 - initial state of the layouts ( .Net 4.5.2 )
+    // 1 - initial state of the layouts ( .NET Framework 4.5.2 )
     //
     // as data structure layouts change, add a new version number
     // and comment the changes
@@ -10039,8 +10038,6 @@ LExit:
 
 // Called when this module is completely gone from ALL AppDomains, regardless of
 // whether a debugger is attached.
-// Note that this doesn't get called until after the ADUnload is complete, which happens
-// asyncronously in Whidbey (and won't happen at all if the process shuts down first).
 // This is normally not called only domain-neutral assemblies because they can't be unloaded.
 // However, it may be called if the loader fails to completely load a domain-neutral assembly.
 void Debugger::DestructModule(Module *pModule)
@@ -11103,7 +11100,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             {
                 // Get the appdomain
                 IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
-                ADIndex appDomainIndex = ADIndex(reinterpret_cast<DWORD>(mgr->GetHandleContext(objectHandle)));
+                ADIndex appDomainIndex = ADIndex((DWORD)(SIZE_T)(mgr->GetHandleContext(objectHandle)));
                 pAppDomain = SystemDomain::GetAppDomainAtIndex(appDomainIndex);
 
                 _ASSERTE(pAppDomain != NULL);
@@ -13619,7 +13616,6 @@ void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRec
     // processed this unhandled exception.  Thus, we should not call into CLR UEF again if it is the case.
     if (pThread &&
         (pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) ||
-         pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled) ||
          fSOException))
     {
 
@@ -16084,24 +16080,6 @@ HRESULT Debugger::UpdateSpecialThreadList(DWORD cThreadArrayLength,
     pIPC->m_specialThreadListDirty = true;
 
     return (S_OK);
-}
-
-// Updates the pointer for the debugger services
-void Debugger::SetIDbgThreadControl(IDebuggerThreadControl *pIDbgThreadControl)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-    if (m_pIDbgThreadControl)
-        m_pIDbgThreadControl->Release();
-
-    m_pIDbgThreadControl = pIDbgThreadControl;
-
-    if (m_pIDbgThreadControl)
-        m_pIDbgThreadControl->AddRef();
 }
 
 //

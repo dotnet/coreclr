@@ -61,6 +61,7 @@ usage()
     echo "-msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     echo "-numproc - set the number of build processes."
     echo "-portablebuild - pass -portablebuild=false to force a non-portable build."
+    echo "-staticanalyzer - build with clang static analyzer enabled."
     exit 1
 }
 
@@ -150,7 +151,7 @@ restore_optdata()
 
     if [ $__isMSBuildOnNETCoreSupported == 1 ]; then
         # Parse the optdata package versions out of msbuild so that we can pass them on to CMake
-        local DotNetCli="$__ProjectRoot/Tools/dotnetcli/dotnet"
+        local DotNetCli="$__ProjectRoot/.dotnet/dotnet"
         if [ ! -f $DotNetCli ]; then
             source "$__ProjectRoot/init-tools.sh"
             if [ $? != 0 ]; then
@@ -187,7 +188,7 @@ generate_event_logging_sources()
     fi
 
     echo "Laying out dynamically generated EventPipe Implementation"
-    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir/eventpipe"
+    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst" --intermediate "$__OutputEventingDir/eventpipe"
 
     echo "Laying out dynamically generated EventSource classes"
     $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genRuntimeEventSources.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir"
@@ -275,12 +276,17 @@ build_native()
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
 
+        scriptDir="$__ProjectRoot/src/pal/tools"
         if [[ $__GccBuild == 0 ]]; then
-            echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion \"$__ClangMinorVersion\" $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
-            "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion "$__ClangMinorVersion" $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
+            scan_build=
+            if [[ $__StaticAnalyzer == 1 ]]; then
+                scan_build=scan-build
+            fi
+            echo "Invoking \"$scriptDir/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion \"$__ClangMinorVersion\" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $scan_build $generator $extraCmakeArguments $__cmakeargs"
+            source "$scriptDir/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion "$__ClangMinorVersion" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $scan_build $generator "$extraCmakeArguments" "$__cmakeargs"
         else
-            echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-gcc.sh\" \"$__ProjectRoot\" $__GccMajorVersion \"$__GccMinorVersion\" $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
-            "$__ProjectRoot/src/pal/tools/gen-buildsys-gcc.sh" "$__ProjectRoot" "$__GccMajorVersion" "$__CGccMinorVersion" $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
+            echo "Invoking \"$scriptDir/gen-buildsys-gcc.sh\" \"$__ProjectRoot\" $__GccMajorVersion \"$__GccMinorVersion\" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
+            source "$scriptDir/gen-buildsys-gcc.sh" "$__ProjectRoot" "$__GccMajorVersion" "$__CGccMinorVersion" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
         fi
         popd
     fi
@@ -298,6 +304,10 @@ build_native()
 
     # Check that the makefiles were created.
     pushd "$intermediatesForBuild"
+
+    if [ $__StaticAnalyzer == 1 ]; then
+        buildTool="$SCAN_BUILD_COMMAND $buildTool"
+    fi
 
     echo "Executing $buildTool install -j $__NumProc"
 
@@ -649,6 +659,7 @@ __BuildManagedTools=1
 __SkipRestoreArg=""
 __SignTypeArg=""
 __OfficialBuildIdArg=""
+__StaticAnalyzer=0
 
 # Get the number of processors available to the scheduler
 # Other techniques such as `nproc` only get the number of
@@ -778,8 +789,20 @@ while :; do
             __GccBuild=1
             ;;
 
+        gcc6|-gcc6)
+            __GccMajorVersion=6
+            __GccMinorVersion=
+            __GccBuild=1
+            ;;
+
         gcc7|-gcc7)
             __GccMajorVersion=7
+            __GccMinorVersion=
+            __GccBuild=1
+            ;;
+
+        gcc8|-gcc8)
+            __GccMajorVersion=8
             __GccMinorVersion=
             __GccBuild=1
             ;;
@@ -935,6 +958,10 @@ while :; do
         -officialbuildid=*)
             __Id=$(echo $1| cut -d'=' -f 2)
             __OfficialBuildIdArg="/p:OfficialBuildId=$__Id"
+            ;;
+
+        -staticanalyzer)
+            __StaticAnalyzer=1
             ;;
 
         --)

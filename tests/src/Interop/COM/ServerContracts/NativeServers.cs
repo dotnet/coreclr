@@ -142,6 +142,47 @@ namespace Server.Contract.Servers
     internal class ColorTestingClass
     {
     }
+
+    /// <summary>
+    /// Managed definition of CoClass
+    /// </summary>
+    [ComImport]
+    [CoClass(typeof(LicenseTestingClass))]
+    [Guid("6C9E230E-411F-4219-ABFD-E71F2B84FD50")]
+    internal interface LicenseTesting : Server.Contract.ILicenseTesting
+    {
+    }
+
+    /// <summary>
+    /// Managed activation for CoClass
+    /// </summary>
+    [ComImport]
+    [Guid(Server.Contract.Guids.LicenseTesting)]
+    internal class LicenseTestingClass
+    {
+    }
+
+/** Implement when main line C# compiler supports default interfaces.
+
+    /// <summary>
+    /// Managed definition of CoClass
+    /// </summary>
+    [ComImport]
+    [CoClass(typeof(DefaultInterfaceTestingClass))]
+    [Guid("FB6DF997-4CEF-4DF7-ADBD-E7FA395A7E0C")]
+    internal interface DefaultInterfaceTesting : Server.Contract.IDefaultInterfaceTesting
+    {
+    }
+
+    /// <summary>
+    /// Managed activation for CoClass
+    /// </summary>
+    [ComImport]
+    [Guid(Server.Contract.Guids.DefaultInterfaceTesting)]
+    internal class DefaultInterfaceTestingClass
+    {
+    }
+*/
 }
 
 #pragma warning restore 618 // Must test deprecated features

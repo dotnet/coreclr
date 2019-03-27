@@ -6868,7 +6868,7 @@ ClrDataAccess::GetMDImport(const PEFile* peFile, const ReflectionModule* reflect
     PVOID       mdBaseHost = NULL;
     bool        isAlternate = false;
 
-    _ASSERTE(peFile == NULL && reflectionModule != NULL || peFile != NULL && reflectionModule == NULL);
+    _ASSERTE((peFile == NULL && reflectionModule != NULL) || (peFile != NULL && reflectionModule == NULL));
     TADDR       peFileAddr = (peFile != NULL) ? dac_cast<TADDR>(peFile) : dac_cast<TADDR>(reflectionModule);
 
     //
@@ -7507,8 +7507,8 @@ STDAPI CLRDataAccessCreateInstance(ICLRDataTarget * pLegacyTarget,
 // This is the legacy entrypoint to DAC, used by dbgeng/dbghelp (windbg, SOS, watson, etc).
 //
 //----------------------------------------------------------------------------
-DLLEXPORT 
 STDAPI
+DLLEXPORT
 CLRDataCreateInstance(REFIID iid,
                       ICLRDataTarget * pLegacyTarget,
                       void ** iface)
@@ -7554,8 +7554,8 @@ BOOL OutOfProcessExceptionEventGetProcessIdAndThreadId(HANDLE hProcess, HANDLE h
 
 #ifdef FEATURE_PAL
     // UNIXTODO: mikem 1/13/15 Need appropriate PAL functions for getting ids
-    *pPId = (DWORD)hProcess;
-    *pThreadId = (DWORD)hThread;
+    *pPId = (DWORD)(SIZE_T)hProcess;
+    *pThreadId = (DWORD)(SIZE_T)hThread;
 #else
 #if !defined(FEATURE_CORESYSTEM)
     HMODULE hKernel32 = WszGetModuleHandle(W("kernel32.dll"));

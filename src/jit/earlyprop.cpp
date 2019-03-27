@@ -322,7 +322,6 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
                         GenTree* comma = check->gtGetParent(nullptr);
                         if ((comma != nullptr) && comma->OperIs(GT_COMMA) && (comma->gtGetOp1() == check))
                         {
-                            GenTree* next = check->gtNext;
                             optRemoveRangeCheck(comma, compCurStmt);
                             // Both `tree` and `check` have been removed from the statement.
                             // 'tree' was replaced with 'nop' or side effect list under 'comma'.
@@ -497,11 +496,11 @@ void Compiler::optFoldNullCheck(GenTree* tree)
     // Check for a pattern like this:
     //
     //                         =
-    //                       /   \
+    //                       /   \.
     //                      x    comma
-    //                           /   \
+    //                           /   \.
     //                     nullcheck  +
-    //                         |     / \
+    //                         |     / \.
     //                         y    y  const
     //
     //
@@ -517,9 +516,9 @@ void Compiler::optFoldNullCheck(GenTree* tree)
     // and transform it into
     //
     //                         =
-    //                       /   \
+    //                       /   \.
     //                      x     +
-    //                           / \
+    //                           / \.
     //                          y  const
     //
     //

@@ -7020,7 +7020,7 @@ void emitter::emitIns_R_AI(instruction ins, emitAttr attr, regNumber ireg, ssize
         // add reg, reg, imm
         ins           = INS_add;
         fmt           = IF_DI_2A;
-        instrDesc* id = emitAllocInstr(attr);
+        instrDesc* id = emitNewInstr(attr);
         assert(id->idIsReloc());
 
         id->idIns(ins);
@@ -11009,8 +11009,9 @@ void emitter::emitDispIns(
 
         case IF_LS_3E: // LS_3E   .X.........mmmmm ......nnnnnttttt      Rm Rt Rn ARMv8.1 LSE Atomics
             assert(insOptsNone(id->idInsOpt()));
-            emitDispReg(id->idReg1(), emitInsTargetRegSize(id), true);
-            emitDispReg(id->idReg2(), emitInsTargetRegSize(id), true);
+            assert((EA_SIZE(size) == 4) || (EA_SIZE(size) == 8));
+            emitDispReg(id->idReg1(), size, true);
+            emitDispReg(id->idReg2(), size, true);
             emitDispAddrRI(id->idReg3(), id->idInsOpt(), 0);
             break;
 

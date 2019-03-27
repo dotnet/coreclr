@@ -169,58 +169,17 @@ class Constants {
     // Valid PR trigger combinations.
     def static prTriggeredValidInnerLoopCombos = [
         'Windows_NT': [
-            'x64': [
-                'Checked'
-            ], 
-            'x86': [
-                'Checked',
-                'Release'
-            ], 
             'arm': [
-                'Debug',
                 'Checked'
             ],
             'arm64': [
-                'Debug',
                 'Checked'
             ]
         ],
         'Windows_NT_BuildOnly': [
-            'x64': [
-                'Checked',
-                'Release'
-            ],
-            'x86': [
-                'Checked',
-                'Release'
-            ], 
             'arm': [
                 'Checked'
             ], 
-        ],
-        'Ubuntu': [
-            'x64': [
-                'Checked'
-            ],
-            'arm': [
-                'Checked'
-            ]
-        ],
-        'Ubuntu16.04': [
-            'arm64': [
-                'Checked'
-            ]
-        ],
-        'CentOS7.1': [
-            'x64': [
-                'Debug',
-                'Checked'
-            ]
-        ],
-        'OSX10.12': [
-            'x64': [
-                'Checked'
-            ]
         ]
     ]
 
@@ -679,8 +638,9 @@ def static addPeriodicTriggerHelper(def job, String cronString, boolean alwaysRu
 }
 
 def static addGithubPushTriggerHelper(def job) {
-    addToMergeView(job)
-    Utilities.addGithubPushTrigger(job)
+    // Disable all Push trigger jobs. All jobs will need to be requested.
+    // addToMergeView(job)
+    // Utilities.addGithubPushTrigger(job)
 }
 
 
@@ -1197,12 +1157,12 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
         }
         else if (architecture == 'arm') {
             if (os == 'Ubuntu') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420"
+                return "mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-14.04-cross-e435274-20180426002420"
             }
         }
         else if (architecture == 'arm64') {
             if (os == 'Ubuntu16.04') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921"
+                return "mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921"
             }
         }
     }
@@ -1661,7 +1621,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
         'pgodeq',
         'RussKeldorph',
         'sandreenko',
-        'sdmaclea',
         'swaroop-sridhar',
         'jkotas',
         'markwilkie',
@@ -2174,7 +2133,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 buildCommands += "tests\\runtest.cmd ${runtestArguments} CoreFXTestsAll"
 
                                 // Archive and process (only) the test results
-                                Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
+                                Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                                 Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
                             }
                             else {
@@ -2185,7 +2144,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath}"
 
                                 // Archive and process (only) the test results
-                                Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
+                                Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                                 Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
 
                                 //Archive additional build stuff to diagnose why my attempt at fault injection isn't causing CI to fail
@@ -2389,10 +2348,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests"
                             buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} generatetesthostonly"
                             buildCommands += "./tests/runtest.sh ${lowerConfiguration} --corefxtestsall --testHostDir=\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=\${WORKSPACE}"
-                            
-                            break
+
                             // Archive and process (only) the test results
-                            Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
+                            Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                             Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
                         }
                         else {
@@ -2420,7 +2378,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName}"
 
                             // Archive and process (only) the test results
-                            Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
+                            Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
                             Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml")
                         }
                     }
@@ -2524,14 +2482,14 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
                         buildCommands += "python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} --skip_diffs"
 
-                        // ZIP what we created.
-                        buildCommands += "zip -r product.${os}.${architecture}.${lowerConfiguration}.zip ./bin/Product/Linux.${architecture}.${configuration}"
-                        buildCommands += "zip -r product.baseline.${os}.${architecture}.${lowerConfiguration}.zip ./_/pmi/base/bin/Product/Linux.${architecture}.${configuration}"
-                        buildCommands += "zip -r coreroot.${os}.${architecture}.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
-                        buildCommands += "zip -r coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip ./_/pmi/base/bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
+                        // Archive what we created.
+                        buildCommands += "tar -czf product.${os}.${architecture}.${lowerConfiguration}.tgz ./bin/Product/Linux.${architecture}.${configuration}"
+                        buildCommands += "tar -czf product.baseline.${os}.${architecture}.${lowerConfiguration}.tgz ./_/pmi/base/bin/Product/Linux.${architecture}.${configuration}"
+                        buildCommands += "tar -czf coreroot.${os}.${architecture}.${lowerConfiguration}.tgz ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
+                        buildCommands += "tar -czf coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.tgz ./_/pmi/base/bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
 
                         // Archive the built artifacts
-                        Utilities.addArchival(newJob, "product.${os}.${architecture}.${lowerConfiguration}.zip,product.baseline.${os}.${architecture}.${lowerConfiguration}.zip,coreroot.${os}.${architecture}.${lowerConfiguration}.zip,coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip")
+                        Utilities.addArchival(newJob, "product.${os}.${architecture}.${lowerConfiguration}.tgz,product.baseline.${os}.${architecture}.${lowerConfiguration}.tgz,coreroot.${os}.${architecture}.${lowerConfiguration}.tgz,coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.tgz")
                     }
                     else {
                         // Then, using the same docker image, build the tests and generate the CORE_ROOT layout.
@@ -2583,7 +2541,17 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 // Returns true if the job should be generated.
 def static shouldGenerateJob(def scenario, def isPR, def architecture, def configuration, def os, def isBuildOnly)
 {
-    // The various "innerloop" jobs are only available as PR triggered.
+    // Innerloop jobs (except corefx_innerloop) are no longer created in Jenkins
+    if (isInnerloopTestScenario(scenario)) {
+        assert scenario != 'corefx_innerloop'
+        return false;
+    }
+
+    if (!isPR) {
+        if (scenario == 'corefx_innerloop') {
+            return false
+        }
+    }
 
     if (!isPR) {
         if (isInnerloopTestScenario(scenario)) {
@@ -3292,10 +3260,10 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 if (isPmiAsmDiffsScenario) {
                     def workspaceRelativeRootLinux = "_/pmi"
                     shell("mkdir -p ${workspaceRelativeRootLinux}")
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/product.${os}.${architecture}.${lowerConfiguration}.zip")
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/product.baseline.${os}.${architecture}.${lowerConfiguration}.zip")
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/coreroot.${os}.${architecture}.${lowerConfiguration}.zip")
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/product.${os}.${architecture}.${lowerConfiguration}.tgz")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/product.baseline.${os}.${architecture}.${lowerConfiguration}.tgz")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/coreroot.${os}.${architecture}.${lowerConfiguration}.tgz")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.tgz")
                 }
                 else if (doCoreFxTesting) {
                     shell("mkdir -p ${workspaceRelativeFxRootLinux}")
@@ -3327,11 +3295,10 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             }
 
             if (isPmiAsmDiffsScenario) {
-                // TODO: add back "-q" when we know it works
-                shell("unzip -o ./product.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
-                shell("unzip -o ./product.baseline.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
-                shell("unzip -o ./coreroot.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
-                shell("unzip -o ./coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
+                shell("tar -xzf ./product.${os}.${architecture}.${lowerConfiguration}.tgz || exit 0")
+                shell("tar -xzf ./product.baseline.${os}.${architecture}.${lowerConfiguration}.tgz || exit 0")
+                shell("tar -xzf ./coreroot.${os}.${architecture}.${lowerConfiguration}.tgz || exit 0")
+                shell("tar -xzf ./coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.tgz || exit 0")
             }
             // CoreFX testing downloads the CoreFX tests, not the coreclr tests. Also, unzip the built CoreFX layout/runtime directories.
             else if (doCoreFxTesting) {
@@ -3378,7 +3345,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell("""\
 python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} --skip_baseline_build""")
 
-                shell("zip -r dasm.${os}.${architecture}.${configuration}.zip ./_/pmi/asm")
+                shell("tar -czf dasm.${os}.${architecture}.${configuration}.tgz ./_/pmi/asm")
             }
             else if (doCoreFxTesting) {
                 shell("""\
@@ -3420,10 +3387,10 @@ ${runScript} \\
 
     if (isPmiAsmDiffsScenario) {
         // Archive the asm
-        Utilities.addArchival(newJob, "dasm.${os}.${architecture}.${configuration}.zip")
+        Utilities.addArchival(newJob, "dasm.${os}.${architecture}.${configuration}.tgz")
     }
     else if (doCoreFxTesting) {
-        Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/artifacts/bin/**/testResults.xml")
+        Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/artifacts/bin/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
         if ((os == "Ubuntu") && (architecture == 'arm')) {
             // We have a problem with the xunit plug-in, where it is consistently failing on Ubuntu arm32 test result uploading with this error:
             //
@@ -3490,8 +3457,8 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
         } // steps
     }  // job
 
-    Utilities.addArchival(newJob, "${workspaceRelativeNativeArchResultDir}/**")
-    Utilities.addArchival(newJob, "${workspaceRelativeCrossArchResultDir}/**")
+    Utilities.addArchival(newJob, "${workspaceRelativeNativeArchResultDir}/**", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
+    Utilities.addArchival(newJob, "${workspaceRelativeCrossArchResultDir}/**", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
 
     return newJob
 }
@@ -3572,6 +3539,15 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
         if (scenario == 'corefx_innerloop') {
             return false
         }
+    }
+
+    // Disable flow jobs for innerloop pr.
+    //
+    // The only exception is windows arm(64)
+    if (isInnerloopTestScenario(scenario) && isPR && os != 'Windows_NT') {
+        assert scenario != 'corefx_innerloop'
+
+        return false;
     }
 
     // Filter based on OS and architecture.

@@ -364,7 +364,8 @@ void Compiler::lvaInitArgs(InitVarDscInfo* varDscInfo)
     // Save the stack usage information
     // We can get register usage information using codeGen->intRegState and
     // codeGen->floatRegState
-    info.compArgStackSize = varDscInfo->stackArgSize;
+    info.compArgStackSize     = varDscInfo->stackArgSize;
+    info.compHasMultiSlotArgs = varDscInfo->hasMultiSlotStruct;
 #endif // FEATURE_FASTTAILCALL
 
     // The total argument size must be aligned.
@@ -549,7 +550,10 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
     const unsigned argSigLen = info.compMethodInfo->args.numArgs;
 
+#ifdef _TARGET_ARM_
     regMaskTP doubleAlignMask = RBM_NONE;
+#endif // _TARGET_ARM_
+
     for (unsigned i = 0; i < argSigLen;
          i++, varDscInfo->varNum++, varDscInfo->varDsc++, argLst = info.compCompHnd->getArgNext(argLst))
     {
@@ -568,8 +572,12 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
         }
 
         // For ARM, ARM64, and AMD64 varargs, all arguments go in integer registers
-        var_types argType     = mangleVarArgsType(varDsc->TypeGet());
+        var_types argType = mangleVarArgsType(varDsc->TypeGet());
+
+#ifdef _TARGET_ARM_
         var_types origArgType = argType;
+#endif // TARGET_ARM
+
         // ARM softfp calling convention should affect only the floating point arguments.
         // Otherwise there appear too many surplus pre-spills and other memory operations
         // with the associated locations .
@@ -827,8 +835,9 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 // If there is a second eightbyte, get a register for it too and map the arg to the reg number.
                 if (structDesc.eightByteCount >= 2)
                 {
-                    secondEightByteType      = GetEightByteType(structDesc, 1);
-                    secondAllocatedRegArgNum = varDscInfo->allocRegArg(secondEightByteType, 1);
+                    secondEightByteType            = GetEightByteType(structDesc, 1);
+                    secondAllocatedRegArgNum       = varDscInfo->allocRegArg(secondEightByteType, 1);
+                    varDscInfo->hasMultiSlotStruct = true;
                 }
 
                 if (secondEightByteType != TYP_UNDEF)
@@ -840,7 +849,8 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #ifdef _TARGET_ARM64_
                 if (cSlots == 2)
                 {
-                    varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
+                    varDsc->lvOtherArgReg          = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
+                    varDscInfo->hasMultiSlotStruct = true;
                 }
 #endif //  _TARGET_ARM64_
 #endif // defined(UNIX_AMD64_ABI)
@@ -1348,7 +1358,7 @@ unsigned Compiler::compMapILvarNum(unsigned ILvarNum)
  * Returns UNKNOWN_ILNUM if it can't be mapped.
  */
 
-unsigned Compiler::compMap2ILvarNum(unsigned varNum)
+unsigned Compiler::compMap2ILvarNum(unsigned varNum) const
 {
     if (compIsForInlining())
     {
@@ -1946,7 +1956,7 @@ Compiler::lvaStructFieldInfo Compiler::StructPromotionHelper::GetFieldInfo(CORIN
             fieldInfo.fldType = compiler->getSIMDTypeForSize(simdSize);
             fieldInfo.fldSize = simdSize;
 #ifdef DEBUG
-            retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+            retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType, RetypedAsScalarFieldsMap::Overwrite);
 #endif // DEBUG
         }
     }
@@ -1989,8 +1999,6 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
         return false;
     }
 
-    COMP_HANDLE compHandl = compiler->info.compCompHnd;
-
     // Do not promote if the single field is not aligned at its natural boundary within
     // the struct field.
     CORINFO_FIELD_HANDLE innerFieldHndl   = compHandle->getFieldInClass(fieldInfo.fldTypeHnd, 0);
@@ -2004,27 +2012,34 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     var_types   fieldVarType = JITtype2varType(fieldCorType);
     unsigned    fieldSize    = genTypeSize(fieldVarType);
 
-    // Do not promote if either not a primitive type or size equal to ptr size on
-    // target or a struct containing a single floating-point field.
+    // Do not promote if the field is not a primitive type, is floating-point,
+    // or is not properly aligned.
     //
     // TODO-PERF: Structs containing a single floating-point field on Amd64
     // need to be passed in integer registers. Right now LSRA doesn't support
     // passing of floating-point LCL_VARS in integer registers.  Enabling promotion
     // of such structs results in an assert in lsra right now.
     //
-    // TODO-PERF: Right now promotion is confined to struct containing a ptr sized
-    // field (int/uint/ref/byref on 32-bits and long/ulong/ref/byref on 64-bits).
-    // Though this would serve the purpose of promoting Span<T> containing ByReference<T>,
-    // this can be extended to other primitive types as long as they are aligned at their
-    // natural boundary.
-    //
     // TODO-CQ: Right now we only promote an actual SIMD typed field, which would cause
     // a nested SIMD type to fail promotion.
-    if (fieldSize == 0 || fieldSize != TARGET_POINTER_SIZE || varTypeIsFloating(fieldVarType))
+    if (fieldSize == 0 || fieldSize > TARGET_POINTER_SIZE || varTypeIsFloating(fieldVarType))
     {
         JITDUMP("Promotion blocked: struct contains struct field with one field,"
                 " but that field has invalid size or type");
         return false;
+    }
+
+    if (fieldSize != TARGET_POINTER_SIZE)
+    {
+        unsigned outerFieldOffset = compHandle->getFieldOffset(fieldInfo.fldHnd);
+
+        if ((outerFieldOffset % fieldSize) != 0)
+        {
+            JITDUMP("Promotion blocked: struct contains struct field with one field,"
+                    " but the outer struct offset %u is not a multiple of the inner field size %u",
+                    outerFieldOffset, fieldSize);
+            return false;
+        }
     }
 
     // Insist this wrapped field occupy all of its parent storage.
@@ -2043,7 +2058,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     fieldInfo.fldType = fieldVarType;
     fieldInfo.fldSize = fieldSize;
 #ifdef DEBUG
-    retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+    retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType, RetypedAsScalarFieldsMap::Overwrite);
 #endif // DEBUG
     return true;
 }
@@ -2441,7 +2456,6 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
     }
 
     // Set the type and associated info if we haven't already set it.
-    var_types structType = varDsc->lvType;
     if (varDsc->lvType == TYP_UNDEF)
     {
         varDsc->lvType = TYP_STRUCT;
@@ -7280,7 +7294,7 @@ int Compiler::lvaGetCallerSPRelativeOffset(unsigned varNum)
     return lvaToCallerSPRelativeOffset(varDsc->lvStkOffs, varDsc->lvFramePointerBased);
 }
 
-int Compiler::lvaToCallerSPRelativeOffset(int offset, bool isFpBased)
+int Compiler::lvaToCallerSPRelativeOffset(int offset, bool isFpBased) const
 {
     assert(lvaDoneFrameLayout == FINAL_FRAME_LAYOUT);
 

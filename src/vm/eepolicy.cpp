@@ -455,9 +455,7 @@ void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction 
     GCX_PREEMP_NO_DTOR();
     
     FastInterlockExchange((LONG*)&g_fForbidEnterEE, TRUE);
-    
-    ProcessEventForHost(Event_ClrDisabled, NULL);
-    
+
     // Note that for free and retail builds StressLog must also be enabled
     if (g_pConfig && g_pConfig->StressLog())
     {
@@ -504,7 +502,7 @@ void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction 
     if (sca == SCA_ExitProcessWhenShutdownComplete)
     {
         // disabled because if we fault in this code path we will trigger our
-        // Watson code via EntryPointFilter which is THROWS (see Dev11 317016)
+        // Watson code
         CONTRACT_VIOLATION(ThrowsViolation);
 
 #ifdef FEATURE_PAL
@@ -580,7 +578,6 @@ void DisableRuntime(ShutdownCompleteAction sca)
 
     GCX_PREEMP_NO_DTOR();
     
-    ProcessEventForHost(Event_ClrDisabled, NULL);
     ClrFlsClearThreadType(ThreadType_Shutdown);
 
     if (g_pDebugInterface != NULL)
@@ -663,12 +660,6 @@ EPolicyAction EEPolicy::DetermineResourceConstraintAction(Thread *pThread)
     // If it is default domain, we can not unload the appdomain 
     if (pDomain == SystemDomain::System()->DefaultDomain() &&
         (action == eUnloadAppDomain || action == eRudeUnloadAppDomain))
-    {
-        action = eThrowException;
-    }
-    // If the current thread is AD unload helper thread, it should not block itself.
-    else if (pThread->HasThreadStateNC(Thread::TSNC_ADUnloadHelper) &&
-        action < eExitProcess) 
     {
         action = eThrowException;
     }
@@ -763,12 +754,7 @@ void EEPolicy::HandleStackOverflow(StackOverflowDetector detector, void * pLimit
 
     if (pThread == NULL)
     {
-        //_ASSERTE (detector != SOD_ManagedFrameHandler);
-        // ProcessSOEventForHost(NULL, FALSE);
-
         // For security reason, it is not safe to continue execution if stack overflow happens
-        // unless a host tells us to do something different.
-        // EEPolicy::HandleFatalStackOverflow(NULL);
         return;
     }
 
@@ -776,8 +762,6 @@ void EEPolicy::HandleStackOverflow(StackOverflowDetector detector, void * pLimit
     GetCurrentExceptionPointers(&exceptionInfo);
 
     _ASSERTE(exceptionInfo.ExceptionRecord);
-
-    ProcessSOEventForHost(&exceptionInfo, false /* fInSoTolerant */);
 
     EEPolicy::HandleFatalStackOverflow(&exceptionInfo);
 }
@@ -1210,10 +1194,26 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
     UNREACHABLE();
 }
 
+#if defined(_TARGET_X86_) && defined(PLATFORM_WINDOWS)
+// This noinline method is required to ensure that RtlCaptureContext captures
+// the context of HandleFatalError. On x86 RtlCaptureContext will not capture
+// the current method's context
+// NOTE: explicitly turning off optimizations to force the compiler to spill to the
+//       stack and establish a stack frame. This is required to ensure that 
+//       RtlCaptureContext captures the context of HandleFatalError
+#pragma optimize("", off)
+int NOINLINE WrapperClrCaptureContext(CONTEXT* context)
+{
+    ClrCaptureContext(context);
+    return 0;
+}
+#pragma optimize("", on)
+#endif // defined(_TARGET_X86_) && defined(PLATFORM_WINDOWS)
 
-
-
-void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, LPCWSTR errorSource /* = NULL */, LPCWSTR argExceptionString /* = NULL */)
+// This method must return a value to avoid getting non-actionable dumps on x86.
+// If this method were a DECLSPEC_NORETURN then dumps would not provide the necessary
+// context at the point of the failure
+int NOINLINE EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, LPCWSTR errorSource /* = NULL */, LPCWSTR argExceptionString /* = NULL */)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1231,7 +1231,12 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
         ZeroMemory(&context, sizeof(context));
         
         context.ContextFlags = CONTEXT_CONTROL;
+#if defined(_TARGET_X86_) && defined(PLATFORM_WINDOWS)
+        // Add a frame to ensure that the context captured is this method and not the caller
+        WrapperClrCaptureContext(&context);
+#else // defined(_TARGET_X86_) && defined(PLATFORM_WINDOWS)
         ClrCaptureContext(&context);
+#endif
 
         exceptionRecord.ExceptionCode = exitCode;
         exceptionRecord.ExceptionAddress = reinterpret_cast< PVOID >(address);
@@ -1285,6 +1290,7 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
     }
 
     UNREACHABLE();
+    return -1;
 }
 
 void EEPolicy::HandleExitProcessFromEscalation(EPolicyAction action, UINT exitCode)

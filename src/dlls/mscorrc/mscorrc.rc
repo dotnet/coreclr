@@ -557,6 +557,7 @@ BEGIN
     IDS_EE_BADMARSHAL_DECIMALARRAY          "Invalid managed/unmanaged type combination (Decimal[] must be paired with an ArraySubType of Struct or Currency)."
     IDS_EE_BADMARSHAL_WINRT_MARSHAL_AS      "Invalid managed/unmanaged type combination (Windows Runtime parameters and fields must not have a MarshalAs attribute set)."
     IDS_EE_BADMARSHAL_WINRT_MISSING_GUID    "Invalid managed/unmanaged type combination (Windows Runtime interfaces, classes and delegates must have a Guid or a default interface)."
+    IDS_EE_BADMARSHAL_WINRT_COPYCTOR        "Windows Runtime marshaler does not support types with copy constructor."
     IDS_EE_BADMARSHAL_WINRT_DELEGATE        "Invalid managed/unmanaged type combination (Delegates must be Windows Runtime delegates)."
     IDS_EE_BADMARSHAL_DEFAULTIFACE_NOT_WINRT_IFACE "The default interface must refer to a Windows Runtime interface with a GUID."
     IDS_EE_BADMARSHAL_DEFAULTIFACE_NOT_SUBTYPE "The default interface must refer to an interface that is implemented by the type."
@@ -611,6 +612,7 @@ BEGIN
     IDS_EE_BADMARSHAL_ASANYRESTRICTION      "AsAny cannot be used on return types, ByRef parameters, ArrayWithOffset, or parameters passed from unmanaged to managed."
     IDS_EE_BADMARSHAL_VBBYVALSTRRESTRICTION "VBByRefStr can only be used in combination with in/out, ByRef managed-to-unmanaged strings."
     IDS_EE_BADMARSHAL_AWORESTRICTION        "ArrayWithOffsets can only be marshaled as inout, non-ByRef, managed-to-unmanaged parameters."
+    IDS_EE_BADMARSHAL_COPYCTORRESTRICTION   "Classes with copy-ctors can only be marshaled by value."
     IDS_EE_BADMARSHAL_ARGITERATORRESTRICTION "ArgIterators cannot be marshaled ByRef."
     IDS_EE_BADMARSHAL_HANDLEREFRESTRICTION  "HandleRefs cannot be marshaled ByRef or from unmanaged to managed."
     IDS_EE_BADMARSHAL_SAFEHANDLENATIVETOCOM "SafeHandles cannot be marshaled from unmanaged to managed."
@@ -907,7 +909,7 @@ BEGIN
     IDS_CLASSLOAD_CONSTRAINT_MISMATCH_ON_INTERFACE_METHOD_IMPL "Method '%3' on type '%1' from assembly '%2' tried to explicitly implement an interface method with weaker type parameter constraints."
     IDS_CLASSLOAD_EXPLICIT_GENERIC "Could not load type '%1' from assembly '%2' because generic types cannot have explicit layout."
     
-    IDS_EE_COM_INVISIBLE_PARENT "This type has a ComVisible(false) parent in its hierarchy, therefore QueryInterface calls for IDispatch or class interfaces are disallowed."
+    IDS_EE_COM_INVISIBLE_PARENT "Type '%1' has a ComVisible(false) parent '%2' in its hierarchy, therefore QueryInterface calls for IDispatch or class interfaces are disallowed."
 
     IDS_EE_COMIMPORT_METHOD_NO_INTERFACE    "Method '%1' in ComImport class '%2' must implement an interface method."
     IDS_EE_ATTEMPT_TO_CREATE_GENERIC_CCW    "Generic types cannot be marshaled to COM interface pointers."
@@ -1077,6 +1079,7 @@ BEGIN
         BFA_UNEXPECTED_TOKEN_AFTER_GENINST      "A valid typedef or typeref token is expected to follow a ELEMENT_TYPE_GENERICINST."
         BFA_TYPEDBYREFCANNOTHAVEBYREF           "An ELEMENT_TYPE_TYPEDBYREF cannot have a ELEMENT_TYPE_BYREF modifier."
         BFA_REFERENCE_ASSEMBLY                  "Cannot load a reference assembly for execution."
+        BFA_IJW_IN_COLLECTIBLE_ALC              "Cannot load a mixed assembly into a collectible AssemblyLoadContext."
 
 #ifdef FEATURE_COMINTEROP
         BFA_WINRT_INVALID_NAMESPACE_FOR_TYPE    "Windows Runtime type '%1' has invalid namespace that does not begin with the file name in assembly '%2'."

@@ -5295,6 +5295,7 @@ void CEEInfo::getCallInfo(
     //
 
     MethodDesc * pTargetMD = pMDAfterConstraintResolution;
+    DWORD dwTargetMethodAttrs = pTargetMD->GetAttrs();
 
     if (pTargetMD->HasMethodInstantiation())
     {
@@ -5352,12 +5353,6 @@ void CEEInfo::getCallInfo(
         directCall = true;
     }
     else
-    // Backwards compat: calls to abstract interface methods are treated as callvirt
-    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsAbstract())
-    {
-        directCall = false;
-    }
-    else
     if (!(flags & CORINFO_CALLINFO_CALLVIRT) || fResolvedConstraint)
     {
         directCall = true;
@@ -5398,12 +5393,11 @@ void CEEInfo::getCallInfo(
         if (pTargetMD->GetMethodTable()->IsInterface())
         {
             // Handle interface methods specially because the Sealed bit has no meaning on interfaces.
-            devirt = !IsMdVirtual(pTargetMD->GetAttrs());
+            devirt = !IsMdVirtual(dwTargetMethodAttrs);
         }
         else
         {
-            DWORD dwMethodAttrs = pTargetMD->GetAttrs();
-            devirt = !IsMdVirtual(dwMethodAttrs) || IsMdFinal(dwMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
+            devirt = !IsMdVirtual(dwTargetMethodAttrs) || IsMdFinal(dwTargetMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
         }
 
         if (devirt)
@@ -5415,6 +5409,14 @@ void CEEInfo::getCallInfo(
 
     if (directCall)
     {
+        // Direct calls to abstract methods are not allowed
+        if (IsMdAbstract(dwTargetMethodAttrs) &&
+            // Compensate for always treating delegates as direct calls above
+            !(((flags & CORINFO_CALLINFO_LDFTN) && (flags & CORINFO_CALLINFO_CALLVIRT) && !resolvedCallVirt)))
+        {
+            COMPlusThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
+        }
+
         bool allowInstParam = (flags & CORINFO_CALLINFO_ALLOWINSTPARAM);
 
         // Create instantiating stub if necesary
@@ -7038,7 +7040,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
             // Call CompareTo method on the primitive type
             int tokCompareTo = pCompareToMD->GetMemberDef();
 
-            int index = (et - ELEMENT_TYPE_I1);
+            unsigned int index = (et - ELEMENT_TYPE_I1);
             _ASSERTE(index < _countof(ilcode));
 
             ilcode[index][0] = CEE_LDARGA_S;
@@ -7476,6 +7478,56 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
         static const BYTE returnFalse[] = { CEE_LDC_I4_0, CEE_RET };
 
         if (!methodTable->IsValueType() || methodTable->ContainsPointers())
+        {
+            methInfo->ILCode = const_cast<BYTE*>(returnTrue);
+        }
+        else
+        {
+            methInfo->ILCode = const_cast<BYTE*>(returnFalse);
+        }
+
+        methInfo->ILCodeSize = sizeof(returnTrue);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+
+    if (tk == MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__IS_BITWISE_EQUATABLE)->GetMemberDef())
+    {
+        _ASSERTE(ftn->HasMethodInstantiation());
+        Instantiation inst = ftn->GetMethodInstantiation();
+
+        _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
+        TypeHandle typeHandle = inst[0];
+        MethodTable * methodTable = typeHandle.GetMethodTable();
+
+        static const BYTE returnTrue[] = { CEE_LDC_I4_1, CEE_RET };
+        static const BYTE returnFalse[] = { CEE_LDC_I4_0, CEE_RET };
+
+        // Ideally we could detect automatically whether a type is trivially equatable
+        // (i.e., its operator == could be implemented via memcmp). But for now we'll
+        // do the simple thing and hardcode the list of types we know fulfill this contract.
+        // n.b. This doesn't imply that the type's CompareTo method can be memcmp-implemented,
+        // as a method like CompareTo may need to take a type's signedness into account.
+
+        if (methodTable == MscorlibBinder::GetClass(CLASS__BOOLEAN)
+            || methodTable == MscorlibBinder::GetClass(CLASS__BYTE)
+            || methodTable == MscorlibBinder::GetClass(CLASS__SBYTE)
+#ifdef FEATURE_UTF8STRING
+            || methodTable == MscorlibBinder::GetClass(CLASS__CHAR8)
+#endif // FEATURE_UTF8STRING
+            || methodTable == MscorlibBinder::GetClass(CLASS__CHAR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT16)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT16)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT32)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT32)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT64)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT64)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INTPTR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINTPTR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__RUNE)
+            || methodTable->IsEnum())
         {
             methInfo->ILCode = const_cast<BYTE*>(returnTrue);
         }

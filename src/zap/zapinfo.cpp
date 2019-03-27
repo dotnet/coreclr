@@ -549,7 +549,7 @@ class MethodCodeComparer
         if (k1 == k2)
             return TRUE;
 
-        for (int i = 0; i < _countof(equivalentNodes); i++)
+        for (unsigned int i = 0; i < _countof(equivalentNodes); i++)
         {
             if (k1 == equivalentNodes[i][0] && k2 == equivalentNodes[i][1])
                 return TRUE;
@@ -734,7 +734,7 @@ COUNT_T ZapImage::MethodCodeTraits::Hash(key_t k)
             case ZapNodeType_Import_ClassHandle:
             case ZapNodeType_MethodHandle:
             case ZapNodeType_Import_MethodHandle:
-                hash = ((hash << 5) + hash) ^ (COUNT_T)(pTarget);
+                hash = ((hash << 5) + hash) ^ (COUNT_T)((SIZE_T)pTarget);
                 break;
             default:
                 break;

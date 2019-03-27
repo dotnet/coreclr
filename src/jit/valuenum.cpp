@@ -2525,12 +2525,16 @@ TailCall:
             }
         }
 
-        // Otherwise, assign a new VN for the function application.
-        Chunk*   c                                                     = GetAllocChunk(typ, CEA_Func2);
-        unsigned offsetWithinChunk                                     = c->AllocVN();
-        res                                                            = c->m_baseVN + offsetWithinChunk;
-        reinterpret_cast<VNDefFunc2Arg*>(c->m_defs)[offsetWithinChunk] = fstruct;
-        GetVNFunc2Map()->Set(fstruct, res);
+        // We may have run out of budget and already assigned a result
+        if (!GetVNFunc2Map()->Lookup(fstruct, &res))
+        {
+            // Otherwise, assign a new VN for the function application.
+            Chunk*   c                                                     = GetAllocChunk(typ, CEA_Func2);
+            unsigned offsetWithinChunk                                     = c->AllocVN();
+            res                                                            = c->m_baseVN + offsetWithinChunk;
+            reinterpret_cast<VNDefFunc2Arg*>(c->m_defs)[offsetWithinChunk] = fstruct;
+            GetVNFunc2Map()->Set(fstruct, res);
+        }
         return res;
     }
 }

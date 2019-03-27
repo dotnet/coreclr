@@ -215,6 +215,7 @@
 #include "perfmap.h"
 #endif
 
+#include "diagnosticserver.h"
 #include "eventpipe.h"
 
 #ifndef FEATURE_PAL
@@ -632,10 +633,6 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-#ifdef _DEBUG
-        DisableGlobalAllocStore();
-#endif //_DEBUG
-
 #ifndef FEATURE_PAL
         ::SetConsoleCtrlHandler(DbgCtrlCHandler, TRUE/*add*/);
 #endif
@@ -671,6 +668,7 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifdef FEATURE_PERFTRACING
         // Initialize the event pipe.
+        DiagnosticServer::Initialize();
         EventPipe::Initialize();
 #endif // FEATURE_PERFTRACING
 
@@ -1466,6 +1464,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 #ifdef FEATURE_PERFTRACING
     // Shutdown the event pipe.
     EventPipe::Shutdown();
+    DiagnosticServer::Shutdown();
 #endif // FEATURE_PERFTRACING
 
 #if defined(FEATURE_COMINTEROP)
@@ -1519,11 +1518,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     {
         ClrFlsSetThreadType(ThreadType_Shutdown);
 
-        if (!fIsDllUnloading)
-        {
-            ProcessEventForHost(Event_ClrDisabled, NULL);
-        }
-        else if (g_fEEShutDown)
+        if (fIsDllUnloading && g_fEEShutDown)
         {
             // I'm in the final shutdown and the first part has already been run.
             goto part2;

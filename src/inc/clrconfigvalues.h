@@ -102,7 +102,6 @@
 ///
 /// AppDomain
 ///
-CONFIG_DWORD_INFO(INTERNAL_ADBreakOnCannotUnload, W("ADBreakOnCannotUnload"), 0, "Used to troubleshoot failures to unload appdomain (e.g. someone sitting in unmanged code). In some cases by the time we throw the appropriate exception the thread has moved from the offending call. This setting allows in an instrumented build to stop exactly at the right moment.")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_AddRejitNops, W("AddRejitNops"), "Control for the profiler rejit feature infrastructure")
 CONFIG_DWORD_INFO(INTERNAL_ADDumpSB, W("ADDumpSB"), 0, "Not used")
 CONFIG_DWORD_INFO(INTERNAL_ADForceSB, W("ADForceSB"), 0, "Forces sync block creation for all objects")
@@ -110,8 +109,6 @@ CONFIG_DWORD_INFO(INTERNAL_ADLogMemory, W("ADLogMemory"), 0, "Superseded by test
 CONFIG_DWORD_INFO(INTERNAL_ADTakeDHSnapShot, W("ADTakeDHSnapShot"), 0, "Superseded by test hooks")
 CONFIG_DWORD_INFO(INTERNAL_ADTakeSnapShot, W("ADTakeSnapShot"), 0, "Superseded by test hooks")
 CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_EnableFullDebug, W("EnableFullDebug"), "Heavy-weight checking for AD boundary violations (AD leaks)")
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ADULazyMemoryRelease, W("ADULazyMemoryRelease"), 1, "On by default. Turned off in cases when people try to catch memory leaks, in which case AD unload should be immediately followed by GC)")
-RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_ADURetryCount, W("ADURetryCount"), "Controls timeout of AD unload. Used for workarounds when machine is too slow, there are network issues etc.")
 
 // For the proposal and discussion on why finalizers are not run on shutdown by default anymore in CoreCLR, see the API review:
 // https://github.com/dotnet/corefx/issues/5205
@@ -525,17 +522,17 @@ CONFIG_DWORD_INFO_EX(INTERNAL_SymDiffDump, W("SymDiffDump"), 0, "Used to create 
 /// NGEN
 ///
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_NGen_JitName, W("NGen_JitName"), "", CLRConfig::REGUTIL_default)
-RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_NGenFramed, W("NGenFramed"), -1, "Same as JitFramed, but for ngen", CLRConfig::REGUTIL_default)
+RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_NGenFramed, W("NGenFramed"), (DWORD)-1, "Same as JitFramed, but for ngen", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NGenOnlyOneMethod, W("NGenOnlyOneMethod"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NgenOrder, W("NgenOrder"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_partialNGenStress, W("partialNGenStress"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_ZapDoNothing, W("ZapDoNothing"), 0, "", CLRConfig::REGUTIL_default)
-CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureMask, W("NgenForceFailureMask"), -1, "Bitmask used to control which locations will check and raise the failure (defaults to bits: -1)", CLRConfig::REGUTIL_default)
+CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureMask, W("NgenForceFailureMask"), (DWORD)-1, "Bitmask used to control which locations will check and raise the failure (defaults to bits: -1)", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureCount, W("NgenForceFailureCount"), 0, "If set to >0 and we have IBC data we will force a failure after we reference an IBC data item <value> times", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureKind, W("NgenForceFailureKind"), 1, "If set to 1, We will throw a TypeLoad exception; If set to 2, We will cause an A/V", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_NGenEnableCreatePdb, W("NGenEnableCreatePdb"), 0, "If set to >0 ngen.exe displays help on, recognizes createpdb in the command line")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_NGenSimulateDiskFull, W("NGenSimulateDiskFull"), 0, "If set to 1, ngen will throw a Disk full exception in ZapWriter.cpp:Save()")
-RETAIL_CONFIG_DWORD_INFO(INTERNAL_PartialNGen, W("PartialNGen"), -1, "Generate partial NGen images")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_PartialNGen, W("PartialNGen"), (DWORD)-1, "Generate partial NGen images")
 
 CONFIG_DWORD_INFO(INTERNAL_NoASLRForNgen, W("NoASLRForNgen"), 0, "Turn off IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE bit in generated ngen images. Makes nidump output repeatable from run to run.")
 

@@ -453,9 +453,6 @@ void Compiler::optAddCopies()
             noway_assert(tree && op1 && tree->OperIs(GT_ASG) && (op1->gtOper == GT_LCL_VAR) &&
                          (op1->gtLclVarCommon.gtLclNum == lclNum));
 
-            /*  TODO-Review: BB_UNITY_WEIGHT is not the correct block weight */
-            unsigned blockWeight = BB_UNITY_WEIGHT;
-
             /* Assign the old expression into the new temp */
 
             GenTree* newAsgn = gtNewTempAssign(copyLclNum, tree->gtOp.gtOp2);
@@ -1309,7 +1306,6 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
         {
             unsigned lclNum = op1->gtLclVarCommon.gtLclNum;
             noway_assert(lclNum < lvaCount);
-            LclVarDsc* lclVar = &lvaTable[lclNum];
 
             //  If the local variable is not in SSA then bail
             if (!lvaInSsa(lclNum))
@@ -1989,11 +1985,23 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
     op2 = op1->gtCall.gtCallLateArgs->gtOp.gtOp2;
     op1 = op1->gtCall.gtCallLateArgs;
 
+    // For the assertion, ensure op1 is the object being tested.
+    // Morph may have swizzled the operand order.
+    GenTree* op1op = op1->gtOp.gtOp1;
+
+    if (op1op->TypeGet() == TYP_I_IMPL)
+    {
+        jitstd::swap(op1, op2);
+        op1op = op1->gtOp.gtOp1;
+    }
+
+    assert(op1op->TypeGet() == TYP_REF);
+
     // Reverse the assertion
     assert(assertionKind == OAK_EQUAL || assertionKind == OAK_NOT_EQUAL);
     assertionKind = (assertionKind == OAK_EQUAL) ? OAK_NOT_EQUAL : OAK_EQUAL;
 
-    if (op1->gtOp.gtOp1->gtOper == GT_LCL_VAR)
+    if (op1op->OperIs(GT_LCL_VAR))
     {
         return optCreateJtrueAssertions(op1, op2, assertionKind);
     }
@@ -2191,8 +2199,6 @@ AssertionIndex Compiler::optFindComplementary(AssertionIndex assertIndex)
         return index;
     }
 
-    optAssertionKind complementaryAssertionKind =
-        (inputAssertion->assertionKind == OAK_EQUAL) ? OAK_NOT_EQUAL : OAK_EQUAL;
     for (AssertionIndex index = 1; index <= optAssertionCount; ++index)
     {
         // Make sure assertion kinds are complementary and op1, op2 kinds match.
@@ -2392,8 +2398,7 @@ GenTree* Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTree* stmt, Gen
         return nullptr;
     }
 
-    GenTree* newTree     = tree;
-    GenTree* sideEffList = nullptr;
+    GenTree* newTree = tree;
     switch (vnStore->TypeOfVN(vnCns))
     {
         case TYP_FLOAT:
@@ -3528,8 +3533,6 @@ GenTree* Compiler::optAssertionProp_Ind(ASSERT_VALARG_TP assertions, GenTree* tr
         return nullptr;
     }
 
-    unsigned lclNum = op1->gtLclVarCommon.gtLclNum;
-
 #ifdef DEBUG
     bool           vnBased = false;
     AssertionIndex index   = NO_ASSERTION_INDEX;
@@ -4425,7 +4428,6 @@ private:
     ASSERT_TP* mJumpDestOut;
     ASSERT_TP* mJumpDestGen;
 
-    Compiler*     m_pCompiler;
     BitVecTraits* apTraits;
 
 public:
@@ -4434,7 +4436,6 @@ public:
         , preMergeJumpDestOut(BitVecOps::UninitVal())
         , mJumpDestOut(jumpDestOut)
         , mJumpDestGen(jumpDestGen)
-        , m_pCompiler(pCompiler)
         , apTraits(pCompiler->apTraits)
     {
     }
@@ -4651,8 +4652,8 @@ struct VNAssertionPropVisitorInfo
 
 //------------------------------------------------------------------------------
 // optPrepareTreeForReplacement
-//    Updates ref counts and extracts side effects from a tree so it can be
-//    replaced with a comma separated list of side effects + a new tree.
+//    Extracts side effects from a tree so it can be replaced with a comma
+//    separated list of side effects + a new tree.
 //
 // Note:
 //    The old and new trees may be the same. In this case, the tree will be
@@ -4674,10 +4675,6 @@ struct VNAssertionPropVisitorInfo
 //      2. When no side-effects are present, returns null.
 //
 // Description:
-//    Decrements ref counts for the "oldTree" that is going to be replaced. If there
-//    are side effects in the tree, then ref counts for variables in the side effects
-//    are incremented because they need to be kept in the stmt expr.
-//
 //    Either the "newTree" is returned when no side effects are present or a comma
 //    separated side effect list with "newTree" is returned.
 //
@@ -4777,8 +4774,9 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, Ge
     //
     assert((relop->gtFlags & GTF_RELOP_JMP_USED) != 0);
 
-    ValueNum vnCns = relop->gtVNPair.GetConservative();
-    ValueNum vnLib = relop->gtVNPair.GetLiberal();
+    // We want to use the Normal ValueNumber when checking for constants.
+    ValueNum vnCns = vnStore->VNConservativeNormalValue(relop->gtVNPair);
+    ValueNum vnLib = vnStore->VNLiberalNormalValue(relop->gtVNPair);
     if (!vnStore->IsVNConstant(vnCns))
     {
         return nullptr;

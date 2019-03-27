@@ -31,7 +31,6 @@
 #endif // FEATURE_PREJIT
 
 // Forward refernces
-class EEClassLayoutInfo;
 class FieldDesc;
 class MethodTable;
 
@@ -89,24 +88,35 @@ enum NStructFieldType
 #define DEFAULT_PACKING_SIZE 32
 
 
-//=======================================================================
-// This is invoked from the class loader while building the data structures for a type.
-// This function checks if explicit layout metadata exists.
-//
-// Returns:
-//  TRUE    - yes, there's layout metadata
-//  FALSE   - no, there's no layout.
-//  fail    - throws a typeload exception
-//
-// If S_OK,
-//   *pNLType            gets set to nltAnsi or nltUnicode
-//   *pPackingSize       declared packing size
-//   *pfExplicitoffsets  offsets explicit in metadata or computed?
-//=======================================================================
-BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport *pInternalImport, mdTypeDef cl, 
-                            MethodTable *pParentMT, BYTE *pPackingSize, BYTE *pNLTType,
-                            BOOL *pfExplicitOffsets);
+enum class ParseNativeTypeFlags
+{
+    None    = 0x00,
+    IsAnsi  = 0x01,
+#ifdef FEATURE_COMINTEROP
+    IsWinRT = 0x02,
+#endif // FEATURE_COMINTEROP
+};
 
+VOID ParseNativeType(Module*    pModule,
+    PCCOR_SIGNATURE             pCOMSignature,
+    DWORD                       cbCOMSignature,
+    ParseNativeTypeFlags        flags,
+    LayoutRawFieldInfo*         pfwalk,
+    PCCOR_SIGNATURE             pNativeType,
+    ULONG                       cbNativeType,
+    IMDInternalImport*          pInternalImport,
+    mdTypeDef                   cl,
+    const SigTypeContext *      pTypeContext,
+    BOOL                       *pfDisqualifyFromManagedSequential
+#ifdef _DEBUG
+    ,
+    LPCUTF8                     szNamespace,
+    LPCUTF8                     szClassName,
+    LPCUTF8                     szFieldName
+#endif
+);
+
+BOOL IsFieldBlittable(FieldMarshaler* pFM);
 
 //=======================================================================
 // This function returns TRUE if the type passed in is either a value class or a class and if it has layout information 
@@ -455,7 +465,6 @@ protected:
 #endif // FEATURE_PREJIT
     }
 #endif // _DEBUG
-
 
     RelativeFixupPointer<PTR_FieldDesc> m_pFD;      // FieldDesc
     UINT32           m_dwExternalOffset;    // offset of field in the fixed portion
