@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Reflection;
 
 namespace System
@@ -76,7 +77,7 @@ namespace System
             get
             {
 #if CORECLR
-                RuntimeType rt = this as RuntimeType;
+                RuntimeType? rt = this as RuntimeType;
                 if (rt != null)
                     return RuntimeTypeHandle.IsVisible(rt);
 #endif //CORECLR
@@ -87,8 +88,8 @@ namespace System
                 if (HasElementType)
                     return GetElementType().IsVisible;
 
-                Type type = this;
-                while (type.IsNested)
+                Type? type = this;
+                while (type != null && type.IsNested)
                 {
                     if (!type.IsNestedPublic)
                         return false;
@@ -98,7 +99,7 @@ namespace System
                 }
 
                 // Now "type" should be a top level type
-                if (!type.IsPublic)
+                if (type != null && !type.IsPublic)
                     return false;
 
                 if (IsGenericType && !IsGenericTypeDefinition)
@@ -114,12 +115,12 @@ namespace System
             }
         }
 
-        public virtual Type[] FindInterfaces(TypeFilter filter, object filterCriteria)
+        public virtual Type?[] FindInterfaces(TypeFilter filter, object? filterCriteria)
         {
             if (filter == null)
                 throw new ArgumentNullException(nameof(filter));
 
-            Type[] c = GetInterfaces();
+            Type?[] c = GetInterfaces();
             int cnt = 0;
             for (int i = 0; i < c.Length; i++)
             {
@@ -131,7 +132,7 @@ namespace System
             if (cnt == c.Length)
                 return c;
 
-            Type[] ret = new Type[cnt];
+            Type?[] ret = new Type[cnt];
             cnt = 0;
             for (int i = 0; i < c.Length; i++)
             {
@@ -141,15 +142,15 @@ namespace System
             return ret;
         }
 
-        public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter filter, object filterCriteria)
+        public virtual MemberInfo?[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter? filter, object? filterCriteria)
         {
             // Define the work arrays
-            MethodInfo[] m = null;
-            ConstructorInfo[] c = null;
-            FieldInfo[] f = null;
-            PropertyInfo[] p = null;
-            EventInfo[] e = null;
-            Type[] t = null;
+            MethodInfo?[]? m = null;
+            ConstructorInfo?[]? c = null;
+            FieldInfo?[]? f = null;
+            PropertyInfo?[]? p = null;
+            EventInfo?[]? e = null;
+            Type?[]? t = null;
 
             int i = 0;
             int cnt = 0;            // Total Matchs
@@ -263,7 +264,7 @@ namespace System
             }
 
             // Allocate the Member Info
-            MemberInfo[] ret = new MemberInfo[cnt];
+            MemberInfo?[] ret = new MemberInfo[cnt];
 
             // Copy the Methods
             cnt = 0;
@@ -331,7 +332,7 @@ namespace System
             return false;
         }
 
-        public virtual bool IsAssignableFrom(Type c)
+        public virtual bool IsAssignableFrom(Type? c)
         {
             if (c == null)
                 return false;
