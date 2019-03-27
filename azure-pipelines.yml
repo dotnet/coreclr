@@ -26,4 +26,4 @@ jobs:
       targetPath: $(Build.SourcesDirectory)/artifactDir
   - script: |
           ls $(Build.SourcesDirectory)
-          echo $(Build.SourcesDirectory)/artifactDir/test.txt
+          cat $(Build.SourcesDirectory)/artifactDir/test.txt
