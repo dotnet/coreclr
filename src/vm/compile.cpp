@@ -161,14 +161,10 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
     {
         GCX_COOP();
 
-        ENTER_DOMAIN_PTR(pCompilationDomain,ADV_COMPILATION)
-        {
-            pCompilationDomain->CreateFusionContext();
+        pCompilationDomain->CreateFusionContext();
 
-            pCompilationDomain->SetFriendlyName(W("Compilation Domain"));
-            SystemDomain::System()->LoadDomain(pCompilationDomain);
-        }
-        END_DOMAIN_TRANSITION;
+        pCompilationDomain->SetFriendlyName(W("Compilation Domain"));
+        SystemDomain::System()->LoadDomain(pCompilationDomain);
     }
 
     COOPERATIVE_TRANSITION_END();
@@ -218,27 +214,7 @@ HRESULT CEECompileInfo::MakeCrossDomainCallback(
 
     HRESULT hrRetVal = E_UNEXPECTED;
 
-    COOPERATIVE_TRANSITION_BEGIN();
-
-    {
-        // Switch to cooperative mode to switch appdomains
-        GCX_COOP();
-
-        ENTER_DOMAIN_PTR((CompilationDomain*)pDomain,ADV_COMPILATION)
-        {
-            //
-            // Switch to preemptive mode on before calling back into
-            // the zapper
-            //
-            
-            GCX_PREEMP();
-            
-            hrRetVal = MakeCrossDomainCallbackWorker(pfnCallback, pArgs);
-        }
-        END_DOMAIN_TRANSITION;
-    }
-
-    COOPERATIVE_TRANSITION_END();
+    hrRetVal = MakeCrossDomainCallbackWorker(pfnCallback, pArgs);
 
     return hrRetVal;
 }

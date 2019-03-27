@@ -2382,12 +2382,9 @@ void ComCallWrapper::Cleanup()
         }
     }
 
-    // get this info before the simple wrapper gets cleaned up.
-    ADID domainId=CURRENT_APPDOMAIN_ID;
     if (m_pSimpleWrapper)
     {
         m_pSimpleWrapper->Cleanup();
-        domainId=m_pSimpleWrapper->GetDomainID();
     }
 
     if (g_fEEStarted || m_pSimpleWrapper->GetOuter() == NULL) 

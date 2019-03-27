@@ -21,7 +21,6 @@ typedef DelegateInfo* DelegateInfoPtr;
 
 struct DelegateInfo
 {
-    ADID            m_appDomainId;
     OBJECTHANDLE    m_stateHandle;
     OBJECTHANDLE    m_eventHandle;
     OBJECTHANDLE    m_registeredWaitHandle;

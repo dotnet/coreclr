@@ -2289,7 +2289,6 @@ BOOL ThreadpoolMgr::RegisterWaitForSingleObject(PHANDLE phNewWaitObject,
         waitInfo->refCount = 1;     // safe to do this since no wait has yet been queued, so no other thread could be modifying this
         waitInfo->ExternalCompletionEvent = INVALID_HANDLE;
         waitInfo->ExternalEventSafeHandle = NULL;
-        waitInfo->handleOwningAD = (ADID) 0;
 
         waitInfo->timer.startTime = GetTickCount();
         waitInfo->timer.remainingTime = timeout;
@@ -4488,7 +4487,6 @@ BOOL ThreadpoolMgr::CreateTimerQueueTimer(PHANDLE phNewTimer,
     timerInfo->flag = Flag;
     timerInfo->ExternalCompletionEvent = INVALID_HANDLE;
     timerInfo->ExternalEventSafeHandle = NULL;
-    timerInfo->handleOwningAD = (ADID) 0;
 
     BOOL status = QueueUserAPC((PAPCFUNC)InsertNewTimer,TimerThread,(size_t)timerInfo);
     if (FALSE == status)

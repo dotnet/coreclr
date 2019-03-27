@@ -501,7 +501,6 @@ FCIMPL2(FC_BOOL_RET, ThreadPoolNative::CorUnregisterWait, LPVOID WaitHandle, Obj
     {
         // Create a GCHandle in the WaitInfo, so that it can hold on to the safe handle
         pWaitInfo->ExternalEventSafeHandle = GetAppDomain()->CreateHandle(NULL);
-        pWaitInfo->handleOwningAD = GetAppDomain()->GetId();
 
         // Holder will now release objecthandle in face of exceptions
         wiHolder.Assign(pWaitInfo);
@@ -647,7 +646,7 @@ void __stdcall BindIoCompletionCallbackStubEx(DWORD ErrorCode,
     GCX_COOP();
 
     BindIoCompletion_Args args = {ErrorCode, numBytesTransferred, lpOverlapped};
-    ManagedThreadBase::ThreadPool((ADID)DefaultADID, BindIoCompletionCallBack_Worker, &args);
+    ManagedThreadBase::ThreadPool(BindIoCompletionCallBack_Worker, &args);
 
     LOG((LF_INTEROP, LL_INFO10000, "Leaving IO_CallBackStub thread 0x%x retCode 0x%x, overlap 0x%x\n",  pThread, ErrorCode, lpOverlapped));
         // We should have released all locks.
@@ -815,10 +814,8 @@ HANDLE QCALLTYPE AppDomainTimerNative::CreateAppDomainTimer(INT32 dueTime, INT32
     _ASSERTE(timerId >= 0);
 
     AppDomain* pAppDomain = GetThread()->GetDomain();
-    ADID adid = pAppDomain->GetId();
 
     ThreadpoolMgr::TimerInfoContext* timerContext = new ThreadpoolMgr::TimerInfoContext();
-    timerContext->AppDomainId = adid;
     timerContext->TimerId = timerId;
     NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder(timerContext);
 

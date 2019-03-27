@@ -53,7 +53,7 @@ struct SharedState
         }
         CONTRACTL_END;
 
-        AppDomain *ad = SystemDomain::GetAppDomainFromId(internal->GetKickOffDomainId(), ADV_CURRENTAD);
+        AppDomain *ad = ::GetAppDomain();
     
         m_Threadable = ad->CreateHandle(threadable);
         m_ThreadStartArg = ad->CreateHandle(threadStartArg);
@@ -357,7 +357,7 @@ ULONG WINAPI ThreadNative::KickOffThread(void* pass)
         // we can adjust the delegate we are going to invoke on.
 
         _ASSERTE(GetThread() == pThread);        // Now that it's started
-        ManagedThreadBase::KickOff(pThread->GetKickOffDomainId(), KickOffThread_Worker, &args);
+        ManagedThreadBase::KickOff(KickOffThread_Worker, &args);
 
         // If TS_FailStarted is set then the args are deleted in ThreadNative::StartInner
         if ((args.share) && !pThread->HasThreadState(Thread::TS_FailStarted))

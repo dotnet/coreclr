@@ -30,7 +30,7 @@ private:
     GCHandleUtilities() = delete;
 };
 
-void ValidateObjectAndAppDomain(OBJECTREF objRef, ADIndex appDomainIndex);
+void ValidateObject(OBJECTREF objRef);
 void ValidateHandleAssignment(OBJECTHANDLE handle, OBJECTREF objRef);
 void DiagHandleCreated(OBJECTHANDLE handle, OBJECTREF object);
 void DiagHandleDestroyed(OBJECTHANDLE handle);
@@ -45,7 +45,7 @@ inline OBJECTREF ObjectFromHandle(OBJECTHANDLE handle)
     DWORD context = (DWORD)GCHandleUtilities::GetGCHandleManager()->GetHandleContext(handle);
     OBJECTREF objRef = ObjectToOBJECTREF(*(Object**)handle);
 
-    ValidateObjectAndAppDomain(objRef, ADIndex(context));
+    ValidateObject(objRef);
 #endif // defined(_DEBUG_IMPL) && !defined(DACCESS_COMPILE)
 
     // Wrap the raw OBJECTREF and return it

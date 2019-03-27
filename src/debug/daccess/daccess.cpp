@@ -8105,7 +8105,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
                         if (mask & 1)
                         {
                             dac_handle_table *pTable = hTable;
-                            PTR_AppDomain pDomain = SystemDomain::GetAppDomainAtIndex(ADIndex(pTable->uADIndex));
+                            PTR_AppDomain pDomain = ::GetAppDomain();
                             param.AppDomain = TO_CDADDR(pDomain.GetAddr());
                             param.Type = handleType;
 

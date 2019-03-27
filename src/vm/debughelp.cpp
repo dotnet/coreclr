@@ -712,60 +712,6 @@ Thread * CurrentThreadInfo ()
     return GetThread ();
 }
 
-AppDomain *GetAppDomainForObject(UINT_PTR obj)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    return (AppDomain*)((Object*)obj)->GetMethodTable()->GetDomain();
-}
-
-ADIndex GetAppDomainIndexForObject(UINT_PTR obj)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    return ((Object*)obj)->GetHeader()->GetAppDomainIndex();
-}
-
-AppDomain *GetAppDomainForObjectHeader(UINT_PTR hdr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    ADIndex indx = ((ObjHeader*)hdr)->GetAppDomainIndex();
-    if (!indx.m_dwIndex)
-    {
-        return NULL;
-    }
-
-    return SystemDomain::GetAppDomainAtIndex(indx);
-}
-
-ADIndex GetAppDomainIndexForObjectHeader(UINT_PTR hdr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    return ((ObjHeader*)hdr)->GetAppDomainIndex();
-}
-
 SyncBlock *GetSyncBlockForObject(UINT_PTR obj)
 {
     CONTRACTL

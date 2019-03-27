@@ -1492,14 +1492,8 @@ void BulkStaticsLogger::LogAllStatics()
     }
     CONTRACTL_END;
 
-    // Enumerate only active app domains (first parameter).  We use the unsafe
-    // iterator here because this method is called under the threadstore lock
-    // and it's safe to use while the runtime is suspended.
-    UnsafeAppDomainIterator appIter(TRUE);
-    appIter.Init();
-    while (appIter.Next())
     {
-        AppDomain *domain = appIter.GetDomain();
+        AppDomain *domain = ::GetAppDomain(); // There is only 1 AppDomain, so no iterator here.
 
         AppDomain::AssemblyIterator assemblyIter = domain->IterateAssembliesEx((AssemblyIterationFlags)(kIncludeLoaded|kIncludeExecution));
         CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;

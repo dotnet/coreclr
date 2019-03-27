@@ -516,8 +516,6 @@ HRESULT CorHost2::ExecuteInDefaultAppDomain(LPCWSTR pwzAssemblyPath,
 
     _ASSERTE (!pThread->PreemptiveGCDisabled());
 
-    _ASSERTE (SystemDomain::GetCurrentDomain()->GetId().m_dwId == DefaultADID);
-
     INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
@@ -602,6 +600,10 @@ HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
     if( pCallback == NULL)
         return E_POINTER;
 
+    // This is currently supported in default domain only
+    if (dwAppDomainId != DefaultADID)
+        return HOST_E_INVALIDOPERATION;
+
     CONTRACTL
     {
         NOTHROW;
@@ -615,14 +617,13 @@ HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
     BEGIN_ENTRYPOINT_NOTHROW;
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
     GCX_COOP_THREAD_EXISTS(GET_THREAD());
-    ENTER_DOMAIN_ID(ADID(dwAppDomainId))
+
+    // We are calling an unmanaged function pointer, either an unmanaged function, or a marshaled out delegate.
+    // The thread should be in preemptive mode.
     {
-        // We are calling an unmanaged function pointer, either an unmanaged function, or a marshaled out delegate.
-        // The thread should be in preemptive mode.
         GCX_PREEMP();
         hr=ExecuteInAppDomainHelper (pCallback, cookie);
     }
-    END_DOMAIN_TRANSITION;
     END_EXTERNAL_ENTRYPOINT;
     END_ENTRYPOINT_NOTHROW;
 
@@ -825,6 +826,10 @@ HRESULT CorHost2::_CreateDelegate(
     if(wszMethodName == NULL)
         return E_INVALIDARG;
     
+    // This is currently supported in default domain only
+    if (appDomainID != DefaultADID)
+        return HOST_E_INVALIDOPERATION;
+
     BEGIN_ENTRYPOINT_NOTHROW;
 
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
@@ -833,11 +838,6 @@ HRESULT CorHost2::_CreateDelegate(
     MAKE_UTF8PTR_FROMWIDE(szAssemblyName, wszAssemblyName);
     MAKE_UTF8PTR_FROMWIDE(szClassName, wszClassName);
     MAKE_UTF8PTR_FROMWIDE(szMethodName, wszMethodName);
-
-    ADID id;
-    id.m_dwId=appDomainID;
-
-    ENTER_DOMAIN_ID(id)
 
     GCX_PREEMP();
 
@@ -868,8 +868,6 @@ HRESULT CorHost2::_CreateDelegate(
 
     UMEntryThunk *pUMEntryThunk = pMD->GetLoaderAllocator()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
     *fnPtr = (INT_PTR)pUMEntryThunk->GetCode();
-
-    END_DOMAIN_TRANSITION;
 
     END_EXTERNAL_ENTRYPOINT;
 
@@ -2365,11 +2363,6 @@ HRESULT CorHost2::DllGetActivationFactory(DWORD appDomainID, LPCWSTR wszTypeName
         {
             return hr;
         }
-    }
-
-    if(SystemDomain::GetCurrentDomain()->GetId().m_dwId != DefaultADID)
-    {
-        return HOST_E_INVALIDOPERATION;
     }
 
     return DllGetActivationFactoryImpl(NULL, wszTypeName, NULL, factory);

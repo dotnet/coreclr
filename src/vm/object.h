@@ -262,8 +262,6 @@ class Object
         return GetHeader()->GetSyncBlockIndex();
     }
 
-    ADIndex GetAppDomainIndex();
-
     // DO NOT ADD ANY ASSERTS TO THIS METHOD.
     // DO NOT USE THIS METHOD.
     // Yes folks, for better or worse the debugger pokes supposed object addresses 

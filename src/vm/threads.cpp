@@ -1578,14 +1578,6 @@ Thread::Thread()
 
     Thread *pThread = GetThread();
     InitContext();
-    if (pThread)
-    {
-        _ASSERTE(pThread->GetDomain());
-        // Start off the new thread in the default context of
-        // the creating thread's appDomain. This could be changed by SetDelegate
-        SetKickOffDomainId(pThread->GetDomain()->GetId());
-    } else
-        SetKickOffDomainId((ADID)DefaultADID);
 
     // Do not expose thread until it is fully constructed
     g_pThinLockThreadIdDispenser->NewId(this, this->m_ThreadId);
@@ -7280,114 +7272,6 @@ bool Thread::GetDebugCantStop(void)
     return m_debuggerCantStop != 0;
 }
 
-
-//-----------------------------------------------------------------------------
-// Call w/a  wrapper.
-// We've already transitioned AppDomains here. This just places a 1st-pass filter to sniff
-// for catch-handler found callbacks for the debugger.
-//-----------------------------------------------------------------------------
-void MakeADCallDebuggerWrapper(
-    FPAPPDOMAINCALLBACK fpCallback,
-    CtxTransitionBaseArgs * args,
-    ContextTransitionFrame* pFrame)
-{
-    STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_MODE_ANY;
-
-    BYTE * pCatcherStackAddr = (BYTE*) pFrame;
-
-    struct Param : NotifyOfCHFFilterWrapperParam
-    {
-        FPAPPDOMAINCALLBACK fpCallback;
-        CtxTransitionBaseArgs *args;
-    } param;
-    param.pFrame = pCatcherStackAddr;
-    param.fpCallback = fpCallback;
-    param.args = args;
-
-    PAL_TRY(Param *, pParam, &param)
-    {
-        pParam->fpCallback(pParam->args);
-    }
-    PAL_EXCEPT_FILTER(AppDomainTransitionExceptionFilter)
-    {
-        // Should never reach here b/c handler should always continue search.
-        _ASSERTE(false);
-    }
-    PAL_ENDTRY
-}
-
-
-// Invoke a callback in another appdomain.
-// Caller should have checked that we're actually transitioning domains here.
-void MakeCallWithAppDomainTransition(
-    ADID TargetDomain,
-    FPAPPDOMAINCALLBACK fpCallback,
-    CtxTransitionBaseArgs * args)
-{
-    DEBUG_ASSURE_NO_RETURN_BEGIN(MAKECALL)
-
-    Thread*     _ctx_trans_pThread          = GetThread();
-    TESTHOOKCALL(EnteringAppDomain((TargetDomain.m_dwId)));     
-    AppDomain* pTargetDomain = SystemDomain::GetAppDomainFromId(TargetDomain, ADV_CURRENTAD);
-    _ASSERTE(_ctx_trans_pThread != NULL);
-    _ASSERTE(_ctx_trans_pThread->GetDomain()->GetId()!= TargetDomain);
-
-    bool        _ctx_trans_fRaiseNeeded     = false;
-    Exception* _ctx_trans_pTargetDomainException=NULL;                   \
-
-    FrameWithCookie<ContextTransitionFrame>  _ctx_trans_Frame;
-    ContextTransitionFrame* _ctx_trans_pFrame = &_ctx_trans_Frame;
-
-    args->pCtxFrame = _ctx_trans_pFrame;
-    TESTHOOKCALL(EnteredAppDomain((TargetDomain.m_dwId))); 
-    /* work around unreachable code warning */
-    EX_TRY
-    {
-        // Invoke the callback
-        if (CORDebuggerAttached())
-        {
-            // If a debugger is attached, do it through a wrapper that will sniff for CHF callbacks.
-            MakeADCallDebuggerWrapper(fpCallback, args, GET_CTX_TRANSITION_FRAME());
-        }
-        else
-        {
-            // If no debugger is attached, call directly.
-            fpCallback(args);
-        }
-    }
-    EX_CATCH
-    {
-        LOG((LF_EH|LF_APPDOMAIN, LL_INFO1000, "ENTER_DOMAIN(%s, %s, %d): exception in flight\n",
-            __FUNCTION__, __FILE__, __LINE__));
-
-        _ctx_trans_pTargetDomainException=EXTRACT_EXCEPTION();
-        _ctx_trans_fRaiseNeeded = true;
-    }
-    /* SwallowAllExceptions is fine because we don't get to this point */
-    /* unless fRaiseNeeded = true or no exception was thrown */
-    EX_END_CATCH(SwallowAllExceptions);
-    TESTHOOKCALL(LeavingAppDomain((TargetDomain.m_dwId)));     
-    if (_ctx_trans_fRaiseNeeded)
-    {
-        LOG((LF_EH, LL_INFO1000, "RaiseCrossContextException(%s, %s, %d)\n",
-            __FUNCTION__, __FILE__, __LINE__));
-        _ctx_trans_pThread->RaiseCrossContextException(_ctx_trans_pTargetDomainException,_ctx_trans_pFrame);
-    }
-
-    LOG((LF_APPDOMAIN, LL_INFO1000, "LEAVE_DOMAIN(%s, %s, %d)\n",
-            __FUNCTION__, __FILE__, __LINE__));
-
-#ifdef FEATURE_TESTHOOKS
-        TESTHOOKCALL(LeftAppDomain(TargetDomain.m_dwId));
-#endif
-    
-    DEBUG_ASSURE_NO_RETURN_END(MAKECALL)
-}
-
-
-
 void Thread::InitContext()
 {
     CONTRACTL {
@@ -7631,23 +7515,12 @@ void Thread::DoExtraWorkForFinalizer()
 
 struct ManagedThreadCallState
 {
-    ADID                         pAppDomainId;
-    AppDomain*                   pUnsafeAppDomain;
-    BOOL                         bDomainIsAsID;
-
     ADCallBackFcnType   pTarget;
     LPVOID                       args;
     UnhandledExceptionLocation   filterType;
-    BOOL IsAppDomainEqual(AppDomain* pApp)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return bDomainIsAsID?(pApp->GetId()==pAppDomainId):(pUnsafeAppDomain==pApp);
-    }
-    ManagedThreadCallState(ADID AppDomainId,ADCallBackFcnType Target,LPVOID Args,
+
+    ManagedThreadCallState(ADCallBackFcnType Target,LPVOID Args,
                         UnhandledExceptionLocation   FilterType):
-          pAppDomainId(AppDomainId),
-          pUnsafeAppDomain(NULL),
-          bDomainIsAsID(TRUE),
           pTarget(Target),
           args(Args),
           filterType(FilterType)
@@ -7655,11 +7528,8 @@ struct ManagedThreadCallState
         LIMITED_METHOD_CONTRACT;
     };
 protected:
-    ManagedThreadCallState(AppDomain* AppDomain,ADCallBackFcnType Target,LPVOID Args,
+    ManagedThreadCallState(ADCallBackFcnType Target,LPVOID Args,
                         UnhandledExceptionLocation   FilterType):
-          pAppDomainId(ADID(0)),
-          pUnsafeAppDomain(AppDomain),
-          bDomainIsAsID(FALSE),
           pTarget(Target),
           args(Args),
           filterType(FilterType)
@@ -7931,8 +7801,7 @@ static void ManagedThreadBase_DispatchOuter(ManagedThreadCallState *pCallState)
 // For the implementation, there are three variants of work possible:
 
 // 1.  Establish the base of a managed thread, and switch to the correct AppDomain.
-static void ManagedThreadBase_FullTransitionWithAD(ADID pAppDomain,
-                                                   ADCallBackFcnType pTarget,
+static void ManagedThreadBase_FullTransition(ADCallBackFcnType pTarget,
                                                    LPVOID args,
                                                    UnhandledExceptionLocation filterType)
 {
@@ -7944,7 +7813,7 @@ static void ManagedThreadBase_FullTransitionWithAD(ADID pAppDomain,
     }
     CONTRACTL_END;
 
-    ManagedThreadCallState CallState(pAppDomain, pTarget, args, filterType);
+    ManagedThreadCallState CallState(pTarget, args, filterType);
     ManagedThreadBase_DispatchOuter(&CallState);
 }
 
@@ -7977,17 +7846,17 @@ void ManagedThreadBase_NoADTransition(ADCallBackFcnType pTarget,
 // And here are the various exposed entrypoints for base thread behavior
 
 // The 'new Thread(...).Start()' case from COMSynchronizable kickoff thread worker
-void ManagedThreadBase::KickOff(ADID pAppDomain, ADCallBackFcnType pTarget, LPVOID args)
+void ManagedThreadBase::KickOff(ADCallBackFcnType pTarget, LPVOID args)
 {
     WRAPPER_NO_CONTRACT;
-    ManagedThreadBase_FullTransitionWithAD(pAppDomain, pTarget, args, ManagedThread);
+    ManagedThreadBase_FullTransition(pTarget, args, ManagedThread);
 }
 
 // The IOCompletion, QueueUserWorkItem, AddTimer, RegisterWaitForSingleObject cases in the ThreadPool
-void ManagedThreadBase::ThreadPool(ADID pAppDomain, ADCallBackFcnType pTarget, LPVOID args)
+void ManagedThreadBase::ThreadPool(ADCallBackFcnType pTarget, LPVOID args)
 {
     WRAPPER_NO_CONTRACT;
-    ManagedThreadBase_FullTransitionWithAD(pAppDomain, pTarget, args, ThreadPoolThread);
+    ManagedThreadBase_FullTransition(pTarget, args, ThreadPoolThread);
 }
 
 // The Finalizer thread establishes exception handling at its base, but defers all the AppDomain

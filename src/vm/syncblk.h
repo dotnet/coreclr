@@ -849,12 +849,6 @@ class SyncBlock
     // space for the minimum, which is the pointer within an SLink.
     SLink       m_Link;
 
-    // This is the index for the appdomain to which the object belongs. If we
-    // can't set it in the object header, then we set it here. Note that an
-    // object doesn't always have this filled in. Only for COM interop, 
-    // finalizers and objects in handles
-    ADIndex m_dwAppDomainIndex;
-
     // This is the hash code for the object. It can either have been transfered
     // from the header dword, in which case it will be limited to 26 bits, or
     // have been generated right into this member variable here, when it will
@@ -987,19 +981,6 @@ class SyncBlock
     // Store information about fields added to this object by the Debugger's Edit and Continue support
     void SetEnCInfo(EnCSyncBlockInfo *pEnCInfo);
 #endif // EnC_SUPPORTED
-
-    ADIndex GetAppDomainIndex()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return m_dwAppDomainIndex;
-    }
-
-    void SetAppDomainIndex(ADIndex dwAppDomainIndex)
-    {
-        WRAPPER_NO_CONTRACT;
-        SetPrecious();
-        m_dwAppDomainIndex = dwAppDomainIndex;
-    }
 
     DWORD GetHashCode()
     {
@@ -1255,8 +1236,6 @@ class SyncBlockCache
 
     void    CleanupSyncBlocks();
 
-    void    CleanupSyncBlocksInAppDomain(AppDomain *pDomain);
-
     int GetTableEntryCount()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1359,18 +1338,6 @@ class ObjHeader
         }
         CONTRACTL_END
 
-
-#ifdef _DEBUG
-        // if we have an index here, make sure we already transferred it to the syncblock
-        // before we clear it out
-        ADIndex adIndex = GetRawAppDomainIndex();
-        if (adIndex.m_dwIndex)
-        {
-            SyncBlock *pSyncBlock = SyncTableEntry::GetSyncTableEntry() [indx & ~BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX].m_SyncBlock;
-            _ASSERTE(pSyncBlock && pSyncBlock->GetAppDomainIndex() == adIndex);
-        }
-#endif
-
         LONG newValue;
         LONG oldValue;
         while (TRUE) {
@@ -1406,12 +1373,6 @@ class ObjHeader
 
         m_SyncBlockValue.RawValue() &=~(BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX | BIT_SBLK_IS_HASHCODE | MASK_SYNCBLOCKINDEX);
     }
-
-    void SetAppDomainIndex(ADIndex);
-    void ResetAppDomainIndex(ADIndex);
-    void ResetAppDomainIndexNoFailure(ADIndex);
-    ADIndex GetRawAppDomainIndex();
-    ADIndex GetAppDomainIndex();
 
     // For now, use interlocked operations to twiddle bits in the bitfield portion.
     // If we ever have high-performance requirements where we can guarantee that no

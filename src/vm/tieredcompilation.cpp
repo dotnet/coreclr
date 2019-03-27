@@ -75,7 +75,7 @@ TieredCompilationManager::TieredCompilationManager() :
 }
 
 // Called at AppDomain Init
-void TieredCompilationManager::Init(ADID appDomainId)
+void TieredCompilationManager::Init()
 {
     CONTRACTL
     {
@@ -86,7 +86,6 @@ void TieredCompilationManager::Init(ADID appDomainId)
     CONTRACTL_END;
 
     CrstHolder holder(&m_lock);
-    m_domainId = appDomainId;
 }
 
 #endif // FEATURE_TIERED_COMPILATION && !DACCESS_COMPILE
@@ -582,11 +581,7 @@ void TieredCompilationManager::OptimizeMethodsCallback()
     EX_TRY
     {
         GCX_COOP();
-        ENTER_DOMAIN_ID(m_domainId);
-        {
-            OptimizeMethods();
-        }
-        END_DOMAIN_TRANSITION;
+        OptimizeMethods();
     }
     EX_CATCH
     {
