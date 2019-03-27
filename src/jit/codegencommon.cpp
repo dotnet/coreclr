@@ -2298,8 +2298,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 #if defined(USING_VARIABLE_LIVE_RANGE) && defined(DEBUG)
     if (compiler->verbose)
     {
-        VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
-        varLiveKeeper->dumpLvaVariableLiveRanges();
+        compiler->getVariableLiveKeeper()->dumpLvaVariableLiveRanges();
     }
 #endif // defined(USING_VARIABLE_LIVE_RANGE) && defined(DEBUG)
 
@@ -10513,8 +10512,7 @@ void CodeGen::genSetScopeInfo()
 #else // USING_SCOPE_INFO
 
 #ifdef USING_VARIABLE_LIVE_RANGE
-    const VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
-    varsLocationsCount                      = (unsigned int)varLiveKeeper->getLiveRangesCount();
+    varsLocationsCount = (unsigned int)compiler->getVariableLiveKeeper()->getLiveRangesCount();
 #endif // USING_VARIABLE_LIVE_RANGE
 
 #endif // USING_SCOPE_INFO

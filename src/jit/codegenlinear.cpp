@@ -527,8 +527,7 @@ void CodeGen::genCodeForBBlist()
 #ifdef USING_VARIABLE_LIVE_RANGE
         if (compiler->opts.compDbgInfo && isLastBlockProcessed)
         {
-            VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
-            varLvKeeper->siEndAllVariableLiveRange(compiler->compCurLife);
+            compiler->getVariableLiveKeeper()->siEndAllVariableLiveRange(compiler->compCurLife);
         }
 #endif // USING_VARIABLE_LIVE_RANGE
 
@@ -737,8 +736,7 @@ void CodeGen::genCodeForBBlist()
 #if defined(DEBUG) && defined(USING_VARIABLE_LIVE_RANGE)
         if (compiler->verbose)
         {
-            VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
-            varLiveKeeper->dumpBlockVariableLiveRanges(block);
+            compiler->getVariableLiveKeeper()->dumpBlockVariableLiveRanges(block);
         }
 #endif // defined(DEBUG) && defined(USING_VARIABLE_LIVE_RANGE)
 
@@ -843,9 +841,7 @@ void CodeGen::genSpillVar(GenTree* tree)
     {
         // We need this after "lvRegNum" has change because now we are sure that varDsc->lvIsInReg() is false.
         // "SiVarLoc" constructor uses the "LclVarDsc" of the variable.
-
-        VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
-        varLvKeeper->siUpdateVariableLiveRange(varDsc, varNum);
+        compiler->getVariableLiveKeeper()->siUpdateVariableLiveRange(varDsc, varNum);
     }
 #endif // USING_VARIABLE_LIVE_RANGE
 }
@@ -1015,8 +1011,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
                 if ((unspillTree->gtFlags & GTF_VAR_DEATH) == 0)
                 {
                     // Report the home change for this variable
-                    VariableLiveKeeper* varLvKeeper = compiler->getVariableLiveKeeper();
-                    varLvKeeper->siUpdateVariableLiveRange(varDsc, lcl->gtLclNum);
+                    compiler->getVariableLiveKeeper()->siUpdateVariableLiveRange(varDsc, lcl->gtLclNum);
                 }
 #endif // USING_VARIABLE_LIVE_RANGE
 
