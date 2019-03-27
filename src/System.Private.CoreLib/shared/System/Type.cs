@@ -375,9 +375,9 @@ namespace System
                 if (s_defaultBinder == null)
                 {
                     DefaultBinder binder = new DefaultBinder();
-                    Interlocked.CompareExchange<Binder>(ref s_defaultBinder, binder, null);
+                    Interlocked.CompareExchange<Binder?>(ref s_defaultBinder!, binder, null);
                 }
-                return s_defaultBinder;
+                return s_defaultBinder!;
             }
         }
 

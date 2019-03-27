@@ -88,18 +88,18 @@ namespace System
                 if (HasElementType)
                     return GetElementType().IsVisible;
 
-                Type? type = this;
-                while (type != null && type.IsNested)
+                Type type = this;
+                while (type.IsNested)
                 {
                     if (!type.IsNestedPublic)
                         return false;
 
                     // this should be null for non-nested types.
-                    type = type.DeclaringType;
+                    type = type.DeclaringType!;
                 }
 
                 // Now "type" should be a top level type
-                if (type != null && !type.IsPublic)
+                if (!type.IsPublic)
                     return false;
 
                 if (IsGenericType && !IsGenericTypeDefinition)
