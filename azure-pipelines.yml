@@ -21,8 +21,9 @@ jobs:
           rmdir $(Build.SourcesDirectory)/artifactDir
   - script: ls $(Build.SourcesDirectory)
   - task: DownloadPipelineArtifact@0
-    artifactName: myartifact
-    targetPath: $(Build.SourcesDirectory)/artifactDir
+    inputs:
+      artifactName: myartifact
+      targetPath: $(Build.SourcesDirectory)/artifactDir
   - script: |
           ls $(Build.SourcesDirectory)
           echo $(Build.SourcesDirectory)/artifactDir/test.txt
