@@ -51,6 +51,7 @@ namespace winrt::Component::Contracts::implementation
         void PropertyChanged(winrt::event_token const& token) noexcept;
 
     private:
+        hstring m_name;
         winrt::event<Windows::UI::Xaml::Data::PropertyChangedEventHandler> m_propertyChangedEvent;
         ObservableCollection<int> m_collection;
     };
