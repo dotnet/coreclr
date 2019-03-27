@@ -10662,7 +10662,7 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
 
                 genSetScopeInfo(liveRangeIndex, startOffs, endOffs - startOffs, varNum,
                                 varNum /* I dont know what is the which in eeGetLvInfo */, true,
-                                liveRange.m_VarLocation);
+                                &liveRange.m_VarLocation);
                 liveRangeIndex++;
             }
         }
@@ -10691,7 +10691,7 @@ void CodeGen::genSetScopeInfo(unsigned       which,
                               unsigned       varNum,
                               unsigned       LVnum,
                               bool           avail,
-                              siVarLoc&      varLoc)
+                              siVarLoc*      varLoc)
 {
     // We need to do some mapping while reporting back these variables.
 
@@ -10706,7 +10706,7 @@ void CodeGen::genSetScopeInfo(unsigned       which,
     if (compiler->info.compIsVarArgs && varNum != compiler->lvaVarargsHandleArg &&
         varNum < compiler->info.compArgsCount && !compiler->lvaTable[varNum].lvIsRegArg)
     {
-        noway_assert(varLoc.vlType == VLT_STK || varLoc.vlType == VLT_STK2);
+        noway_assert(varLoc->vlType == VLT_STK || varLoc->vlType == VLT_STK2);
 
         // All stack arguments (except the varargs handle) have to be
         // accessed via the varargs cookie. Discard generated info,
@@ -10731,8 +10731,8 @@ void CodeGen::genSetScopeInfo(unsigned       which,
         noway_assert(offset < stkArgSize);
         offset = stkArgSize - offset;
 
-        varLoc.vlType                   = VLT_FIXED_VA;
-        varLoc.vlFixedVarArg.vlfvOffset = offset;
+        varLoc->vlType                   = VLT_FIXED_VA;
+        varLoc->vlFixedVarArg.vlfvOffset = offset;
     }
 
 #endif // _TARGET_X86_
@@ -10759,11 +10759,11 @@ void CodeGen::genSetScopeInfo(unsigned       which,
     tlvi.tlviStartPC   = startOffs;
     tlvi.tlviLength    = length;
     tlvi.tlviAvailable = avail;
-    tlvi.tlviVarLoc    = varLoc;
+    tlvi.tlviVarLoc    = *varLoc;
 
 #endif // DEBUG
 
-    compiler->eeSetLVinfo(which, startOffs, length, ilVarNum, varLoc);
+    compiler->eeSetLVinfo(which, startOffs, length, ilVarNum, *varLoc);
 }
 
 /*****************************************************************************/

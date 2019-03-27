@@ -555,7 +555,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                          unsigned       varNum,
                          unsigned       LVnum,
                          bool           avail,
-                         siVarLoc&      varLoc);
+                         siVarLoc*      varLoc);
 
     void genSetScopeInfo();
 #ifdef USING_VARIABLE_LIVE_RANGE
