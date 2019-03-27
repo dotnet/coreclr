@@ -58,12 +58,12 @@ jobs:
       ${{ if and(eq(parameters.osGroup, 'OSX'), eq(variables['System.TeamProject'], 'public')) }}:
         name: Hosted MacOS
 
-      # Public Windows Build Pool
+      # Official Build Windows Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), ne(variables['System.TeamProject'], 'public')) }}:
         name: NetCoreInternal-Int-Pool
         queue: BuildPool.Windows.10.Amd64.VS2017
 
-      # Official Build Windows Pool
+      # Public Windows Build Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
         name: NetCorePublic-Int-Pool
         queue: BuildPool.Windows.10.Amd64.VS2017.Open
