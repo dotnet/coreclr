@@ -106,7 +106,7 @@ namespace BasicEventSourceTests
             // Create an EventListener.
             using (SimpleEventListener myListener = new SimpleEventListener("SimpleEventSource", EventLevel.Verbose))
             {
-                 // Reflect over System.Private.CoreLib and get the PollingCounter type.
+                 // Reflect over System.Private.CoreLib and get the IncrementingPollingCounter type.
                 Assembly SPC = typeof(System.Diagnostics.Tracing.EventSource).Assembly;
                 if(SPC == null)
                 {
