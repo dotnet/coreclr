@@ -566,37 +566,38 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #ifdef USING_SCOPE_INFO
     void genSetScopeInfoUsingsiScope();
 
-    /*
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XX                                                                           XX
-    XX                           ScopeInfo                                       XX
-    XX                                                                           XX
-    XX  Keeps track of the scopes during code-generation.                        XX
-    XX  This is used to translate the local-variable debugging information       XX
-    XX  from IL offsets to native code offsets.                                  XX
-    XX                                                                           XX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    */
+/*
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XX                                                                           XX
+XX                           ScopeInfo                                       XX
+XX                                                                           XX
+XX  Keeps track of the scopes during code-generation.                        XX
+XX  This is used to translate the local-variable debugging information       XX
+XX  from IL offsets to native code offsets.                                  XX
+XX                                                                           XX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+*/
 
-    /*****************************************************************************/
-    /*****************************************************************************
-     *                              ScopeInfo
-     *
-     * This class is called during code gen at block-boundaries, and when the
-     * set of live variables changes. It keeps track of the scope of the variables
-     * in terms of the native code PC.
-     */
-
-public:
-    void siInit();
+/*****************************************************************************/
+/*****************************************************************************
+ *                              ScopeInfo
+ *
+ * This class is called during code gen at block-boundaries, and when the
+ * set of live variables changes. It keeps track of the scope of the variables
+ * in terms of the native code PC.
+ */
 
 #endif // USING_VARIABLE_LIVE_RANGE
-
+public:
+    void siInit();
     void checkICodeDebugInfo();
 
+    // The logic used to report debug info on debug code is the same for ScopeInfo and
+    // VariableLiveRange
     void siBeginBlock(BasicBlock* block);
+    void siEndBlock(BasicBlock* block);
 
     // VariableLiveRange and siScope needs this method to report variables on debug code
     void siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned int lastBlockILEndOffset);
@@ -606,10 +607,11 @@ protected:
     bool siInFuncletRegion; // Have we seen the start of the funclet region?
 #endif                      // FEATURE_EH_FUNCLETS
 
+    IL_OFFSET siLastEndOffs; // IL offset of the (exclusive) end of the last block processed
+
 #ifdef USING_SCOPE_INFO
 
 public:
-    void siEndBlock(BasicBlock* block);
     // Closes the "ScopeInfo" of the tracked variables that has become dead.
     virtual void siUpdate();
 
@@ -654,8 +656,6 @@ protected:
     // Tracks the last entry for each tracked register variable
 
     siScope** siLatestTrackedScopes;
-
-    IL_OFFSET siLastEndOffs; // IL offset of the (exclusive) end of the last block processed
 
     // Functions
 

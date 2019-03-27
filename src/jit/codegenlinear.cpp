@@ -532,11 +532,11 @@ void CodeGen::genCodeForBBlist()
         }
 #endif // USING_VARIABLE_LIVE_RANGE
 
-#ifdef USING_SCOPE_INFO
         if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
         {
             siEndBlock(block);
 
+#ifdef USING_SCOPE_INFO
             if (isLastBlockProcessed && siOpenScopeList.scNext)
             {
                 /* This assert no longer holds, because we may insert a throw
@@ -548,8 +548,8 @@ void CodeGen::genCodeForBBlist()
 
                 siCloseAllOpenScopes();
             }
-        }
 #endif // USING_SCOPE_INFO
+        }
 
         SubtractStackLevel(savedStkLvl);
 

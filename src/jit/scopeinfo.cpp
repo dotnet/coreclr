@@ -896,6 +896,8 @@ void CodeGen::siInit()
     }
 #endif // FEATURE_EH_FUNCLETS
 
+    siLastEndOffs = 0;
+
 #ifdef USING_SCOPE_INFO
     siOpenScopeList.scNext = nullptr;
     siOpenScopeLast        = &siOpenScopeList;
@@ -904,7 +906,6 @@ void CodeGen::siInit()
     siScopeCnt = 0;
 
     VarSetOps::AssignNoCopy(compiler, siLastLife, VarSetOps::MakeEmpty(compiler));
-    siLastEndOffs = 0;
 
     if (compiler->info.compVarScopesCount == 0)
     {
@@ -1137,7 +1138,6 @@ void CodeGen::siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned in
     }
 }
 
-#ifdef USING_SCOPE_INFO
 /*****************************************************************************
  *                          siEndBlock
  *
@@ -1157,14 +1157,14 @@ void CodeGen::siEndBlock(BasicBlock* block)
     }
 #endif // FEATURE_EH_FUNCLETS
 
-#ifdef DEBUG
+#if defined(USING_SCOPE_INFO) && defined(DEBUG)
     if (verbose)
     {
         printf("\nScope info: end block " FMT_BB ", IL range ", block->bbNum);
         block->dspBlockILRange();
         printf("\n");
     }
-#endif // DEBUG
+#endif // defined(USING_SCOPE_INFO) && defined(DEBUG)
 
     unsigned endOffs = block->bbCodeOffsEnd;
 
@@ -1174,6 +1174,7 @@ void CodeGen::siEndBlock(BasicBlock* block)
         return;
     }
 
+#ifdef USING_SCOPE_INFO
     // If non-debuggable code, find all scopes which end over this block
     // and close them. For debuggable code, scopes will only end on block
     // boundaries.
@@ -1199,17 +1200,19 @@ void CodeGen::siEndBlock(BasicBlock* block)
             siEndScope(varNum);
         }
     }
+#endif // USING_SCOPE_INFO
 
     siLastEndOffs = endOffs;
 
-#ifdef DEBUG
+#if defined(USING_SCOPE_INFO) && defined(DEBUG)
     if (verbose)
     {
         siDispOpenScopes();
     }
-#endif
+#endif // defined(USING_SCOPE_INFO) && defined(DEBUG)
 }
 
+#ifdef USING_SCOPE_INFO
 //------------------------------------------------------------------------
 // siUpdate: Closes the "ScopeInfo" of the tracked variables that has become dead.
 //
