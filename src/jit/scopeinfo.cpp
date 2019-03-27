@@ -176,8 +176,7 @@ void CodeGenInterface::siVarLoc::storeVariableInRegisters(regNumber reg, regNumb
 //
 // Arguments:
 //    stackBaseReg      - the base of the stack.
-//    varStackOffset    - the offset from the base where the variable is
-//                        is placed.
+//    varStackOffset    - the offset from the base where the variable is placed.
 //
 void CodeGenInterface::siVarLoc::storeVariableOnStack(regNumber stackBaseReg, NATIVE_OFFSET varStackOffset)
 {
