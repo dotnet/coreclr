@@ -24,6 +24,7 @@ jobs:
     inputs:
       artifactName: myartifact
       targetPath: $(Build.SourcesDirectory)/artifactDir
+  - script: ls $(Build.SourcesDirectory)/artifactDir
   - script: |
           ls $(Build.SourcesDirectory)
           cat $(Build.SourcesDirectory)/artifactDir/test.txt
