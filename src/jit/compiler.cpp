@@ -11171,6 +11171,13 @@ void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLo
     m_VariableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
     m_VariableLiveRanges->back().m_StartEmitLocation.CaptureLocation(emit);
 
+#ifdef DEBUG
+    if (!m_VariableLifeBarrier->hasLiveRangesToDump())
+    {
+        m_VariableLifeBarrier->setDumperStartAt(m_VariableLiveRanges->backPosition());
+    }
+#endif // DEBUG
+
     // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
     noway_assert(m_VariableLiveRanges->back().m_StartEmitLocation.Valid());
     noway_assert(!m_VariableLiveRanges->back().m_EndEmitLocation.Valid());
