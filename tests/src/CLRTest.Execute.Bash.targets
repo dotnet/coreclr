@@ -273,6 +273,8 @@ if [ ! -z ${RunCrossGen+x} ]%3B then
   TakeLock
 fi
 
+$(BashCopyLocalCoreRoot)
+
 if [ ! -z "$CLRCustomTestLauncher" ];
 then
     LAUNCHER="$CLRCustomTestLauncher $PWD/"
