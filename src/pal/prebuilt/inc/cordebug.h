@@ -6,7 +6,7 @@
  /* File created by MIDL compiler version 8.01.0622 */
 /* at Mon Jan 18 19:14:07 2038
  */
-/* Compiler settings for /coreclr/src/inc/cordebug.idl:
+/* Compiler settings for E:/repos/coreclr2/src/inc/cordebug.idl:
     Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 8.01.0622 
     protocol : dce , ms_ext, c_ext, robust
     error checks: allocation ref bounds_check enum stub_data 
@@ -14705,7 +14705,7 @@ EXTERN_C const IID IID_ICorDebugDelegateObjectValue;
 #if defined(__cplusplus) && !defined(CINTERFACE)
 
     MIDL_INTERFACE("3AF70CC7-6047-47F6-A5C5-090A1A622638")
-    ICorDebugDelegateObjectValue : public ICorDebugObjectValue
+    ICorDebugDelegateObjectValue : public IUnknown
     {
     public:
         virtual HRESULT STDMETHODCALLTYPE GetTarget(
@@ -14734,53 +14734,6 @@ EXTERN_C const IID IID_ICorDebugDelegateObjectValue;
 
         ULONG ( STDMETHODCALLTYPE *Release )(
             ICorDebugDelegateObjectValue * This);
-
-        HRESULT ( STDMETHODCALLTYPE *GetType )(
-            ICorDebugDelegateObjectValue * This,
-            /* [out] */ CorElementType *pType);
-
-        HRESULT ( STDMETHODCALLTYPE *GetSize )(
-            ICorDebugDelegateObjectValue * This,
-            /* [out] */ ULONG32 *pSize);
-
-        HRESULT ( STDMETHODCALLTYPE *GetAddress )(
-            ICorDebugDelegateObjectValue * This,
-            /* [out] */ CORDB_ADDRESS *pAddress);
-
-        HRESULT ( STDMETHODCALLTYPE *CreateBreakpoint )(
-            ICorDebugDelegateObjectValue * This,
-            /* [out] */ ICorDebugValueBreakpoint **ppBreakpoint);
-
-        HRESULT ( STDMETHODCALLTYPE *GetClass )(
-            ICorDebugDelegateObjectValue * This,
-            /* [out] */ ICorDebugClass **ppClass);
-
-        HRESULT ( STDMETHODCALLTYPE *GetFieldValue )(
-            ICorDebugDelegateObjectValue * This,
-            /* [in] */ ICorDebugClass *pClass,
-            /* [in] */ mdFieldDef fieldDef,
-            /* [out] */ ICorDebugValue **ppValue);
-
-        HRESULT ( STDMETHODCALLTYPE *GetVirtualMethod )(
-            ICorDebugDelegateObjectValue * This,
-            /* [in] */ mdMemberRef memberRef,
-            /* [out] */ ICorDebugFunction **ppFunction);
-
-        HRESULT ( STDMETHODCALLTYPE *GetContext )(
-            ICorDebugDelegateObjectValue * This,
-            /* [out] */ ICorDebugContext **ppContext);
-
-        HRESULT ( STDMETHODCALLTYPE *IsValueClass )(
-            ICorDebugDelegateObjectValue * This,
-            /* [out] */ BOOL *pbIsValueClass);
-
-        HRESULT ( STDMETHODCALLTYPE *GetManagedCopy )(
-            ICorDebugDelegateObjectValue * This,
-            /* [out] */ IUnknown **ppObject);
-
-        HRESULT ( STDMETHODCALLTYPE *SetFromManagedCopy )(
-            ICorDebugDelegateObjectValue * This,
-            /* [in] */ IUnknown *pObject);
 
         HRESULT ( STDMETHODCALLTYPE *GetTarget )(
             ICorDebugDelegateObjectValue * This,
@@ -14811,41 +14764,6 @@ EXTERN_C const IID IID_ICorDebugDelegateObjectValue;
 
 #define ICorDebugDelegateObjectValue_Release(This)	\
     ( (This)->lpVtbl -> Release(This) )
-
-
-#define ICorDebugDelegateObjectValue_GetType(This,pType)	\
-    ( (This)->lpVtbl -> GetType(This,pType) )
-
-#define ICorDebugDelegateObjectValue_GetSize(This,pSize)	\
-    ( (This)->lpVtbl -> GetSize(This,pSize) )
-
-#define ICorDebugDelegateObjectValue_GetAddress(This,pAddress)	\
-    ( (This)->lpVtbl -> GetAddress(This,pAddress) )
-
-#define ICorDebugDelegateObjectValue_CreateBreakpoint(This,ppBreakpoint)	\
-    ( (This)->lpVtbl -> CreateBreakpoint(This,ppBreakpoint) )
-
-
-#define ICorDebugDelegateObjectValue_GetClass(This,ppClass)	\
-    ( (This)->lpVtbl -> GetClass(This,ppClass) )
-
-#define ICorDebugDelegateObjectValue_GetFieldValue(This,pClass,fieldDef,ppValue)	\
-    ( (This)->lpVtbl -> GetFieldValue(This,pClass,fieldDef,ppValue) )
-
-#define ICorDebugDelegateObjectValue_GetVirtualMethod(This,memberRef,ppFunction)	\
-    ( (This)->lpVtbl -> GetVirtualMethod(This,memberRef,ppFunction) )
-
-#define ICorDebugDelegateObjectValue_GetContext(This,ppContext)	\
-    ( (This)->lpVtbl -> GetContext(This,ppContext) )
-
-#define ICorDebugDelegateObjectValue_IsValueClass(This,pbIsValueClass)	\
-    ( (This)->lpVtbl -> IsValueClass(This,pbIsValueClass) )
-
-#define ICorDebugDelegateObjectValue_GetManagedCopy(This,ppObject)	\
-    ( (This)->lpVtbl -> GetManagedCopy(This,ppObject) )
-
-#define ICorDebugDelegateObjectValue_SetFromManagedCopy(This,pObject)	\
-    ( (This)->lpVtbl -> SetFromManagedCopy(This,pObject) )
 
 
 #define ICorDebugDelegateObjectValue_GetTarget(This,ppObject)	\

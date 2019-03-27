@@ -3406,6 +3406,57 @@ BOOL DacDbiInterfaceImpl::IsExceptionObject(MethodTable* pMT)
     return FALSE;
 }
 
+BOOL DacDbiInterfaceImpl::IsDelegate(VMPTR_Object vmObject)
+{
+    DD_ENTER_MAY_THROW;
+
+    Object* pObj = vmObject.GetDacPtr();
+    return pObj->GetGCSafeMethodTable()->IsDelegate();
+}
+
+HRESULT DacDbiInterfaceImpl::GetMethodDescFromIP(CORDB_ADDRESS funcIp, VMPTR_MethodDesc* ppMD)
+{
+    DD_ENTER_MAY_THROW
+
+    CLRDATA_ADDRESS mdAddr;
+    HRESULT hr = g_dacImpl->GetMethodDescPtrFromIP(funcIp, &mdAddr);
+    if (S_OK == hr)
+    {
+        ppMD->SetDacTargetPtr(CLRDATA_ADDRESS_TO_TADDR(mdAddr));
+    }
+    else
+    {
+        DacpCodeHeaderData headerData;
+        hr = ClrDataAccess::GetCodeHeaderData(funcIp, &headerData);
+        ppMD->SetDacTargetPtr(CLRDATA_ADDRESS_TO_TADDR(headerData.MethodDescPtr));
+    }
+    return hr;
+}
+
+// DacDbiInterfaceImpl dbi;
+// BOOL IsSupportedDelegate(VMPTR_Object vmObject)
+// {
+
+// #ifdef _DEBUG
+//     // ensure we have a Delegate object
+//     dbi.IsDelegate(vmObject);
+// #endif
+
+//     // This might be brittle, would make sense to DACize the DelegateObject class.
+//     PTR_DelegateObject pDelObj = dac_cast<PTR_DelegateObject>(vmObject.GetDacPtr());
+
+
+// }
+
+// HRESULT DacDbiInterfaceImpl::GetDelegateTargetAndFunction()
+// {
+// #ifdef _DEBUG
+//     // ensure we have a Delegate object
+//     IsDelegate(vmObject);
+// #endif
+
+// }
+
 void DacDbiInterfaceImpl::GetStackFramesFromException(VMPTR_Object vmObject, DacDbiArrayList<DacExceptionCallStackData>& dacStackFrames)
 {
     DD_ENTER_MAY_THROW;

@@ -2710,6 +2710,17 @@ public:
     virtual
         HRESULT EnableGCNotificationEvents(BOOL fEnable) = 0;
 
+    // Returns true if the object is a type deriving from System.Delegate
+    //
+    // Arguments:
+    //    vmObject - object to identify as delegate.
+    //
+    virtual
+    BOOL IsDelegate(VMPTR_Object vmObject) = 0;
+
+    virtual
+    HRESULT GetMethodDescFromIP(CORDB_ADDRESS funcIp, VMPTR_MethodDesc* ppMD) = 0;
+
     // The following tag tells the DD-marshalling tool to stop scanning.
     // END_MARSHAL
     

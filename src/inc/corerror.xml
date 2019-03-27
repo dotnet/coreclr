@@ -2183,6 +2183,12 @@
   <Comment>Couldn't find a native image.</Comment>
 </HRESULT>
 
+<HRESULT NumericValue="0x80131c68">
+  <SymbolicName>CORDBG_E_MULTIFUNC_DELEGATE</SymbolicName>
+  <Message>"The delegate contains more than one function to invoke, currently an unsupported scenario."</Message>
+  <Comment>The delegate contains more than one function to invoke, currently an unsupported scenario.</Comment>
+</HRESULT>
+
 <HRESULT NumericValue="0x80131d02">
 	<SymbolicName>PEFMT_E_64BIT</SymbolicName>
 	<Message>"File is PE32+."</Message>

@@ -6497,7 +6497,7 @@ interface ICorDebugObjectValue2 : IUnknown
     uuid(3AF70CC7-6047-47F6-A5C5-090A1A622638),
     pointer_default(unique)
 ]
-interface ICorDebugDelegateObjectValue : ICorDebugObjectValue
+interface ICorDebugDelegateObjectValue : IUnknown
 {
     /*
      * GetTarget retrieves the object on which the delegate calls the function.

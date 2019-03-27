@@ -1730,7 +1730,7 @@ CordbObjectValue::CordbObjectValue(CordbAppDomain *          pAppdomain,
       m_info(*pObjectData),
       m_pObjectCopy(NULL), m_objectLocalVars(NULL), m_stringBuffer(NULL),
       m_valueHome(pAppdomain->GetProcess(), remoteValue), 
-      m_fIsExceptionObject(FALSE), m_fIsRcw(FALSE)
+      m_fIsExceptionObject(FALSE), m_fIsRcw(FALSE), m_fIsDelegate(FALSE)
 {
     _ASSERTE(pAppdomain != NULL);
 
@@ -1754,6 +1754,15 @@ CordbObjectValue::CordbObjectValue(CordbAppDomain *          pAppdomain,
 
     if (hr == S_OK)
         m_fIsRcw = TRUE;
+
+    hr = S_FALSE;
+    ALLOW_DATATARGET_MISSING_MEMORY
+    (
+        hr = IsDelegate();
+    );
+
+    if (hr == S_OK)
+        m_fIsDelegate = TRUE;
 } // CordbObjectValue::CordbObjectValue
 
 // destructor
@@ -1826,6 +1835,10 @@ HRESULT CordbObjectValue::QueryInterface(REFIID id, void **pInterface)
     else if (id == IID_ICorDebugComObjectValue && m_fIsRcw)
     {
         *pInterface = static_cast<ICorDebugComObjectValue*>(this);
+    }
+    else if (id == IID_ICorDebugDelegateObjectValue && m_fIsDelegate)
+    {
+        *pInterface = static_cast<ICorDebugDelegateObjectValue*>(this);
     }
     else if (id == IID_IUnknown)
     {
@@ -2515,6 +2528,88 @@ HRESULT CordbObjectValue::IsRcw()
     }
 
     return hr;
+}
+
+HRESULT CordbObjectValue::IsDelegate()
+{
+    HRESULT hr = S_OK;
+
+    if (m_info.objTypeData.elementType != ELEMENT_TYPE_CLASS)
+    {
+        hr = S_FALSE;
+    }
+    else
+    {
+        CORDB_ADDRESS objAddr = m_valueHome.GetAddress();
+
+        if (objAddr == NULL)
+        {
+            // object is a literal
+            hr = S_FALSE;
+        }
+        else
+        {
+            IDacDbiInterface* pDAC = GetProcess()->GetDAC();
+
+            VMPTR_Object vmObj = pDAC->GetObject(objAddr);
+            BOOL fIsDelegate = pDAC->IsDelegate(vmObj);
+
+            if (!fIsDelegate)
+                hr = S_FALSE;
+        }
+    }
+
+    return hr;
+}
+
+HRESULT CordbObjectValue::GetTarget(ICorDebugObjectValue** ppObject)
+{
+
+    PUBLIC_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(ppObject, ICorDebugObjectValue**);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
+    _ASSERTE(GetProcess()->ThreadHoldsProcessLock());
+    _ASSERTE(m_fIsDelegate);
+
+    HRESULT hr = S_OK;
+
+    EX_TRY
+    {
+        IDacDbiInterface* pDAC = GetProcess()->GetDAC();
+    }
+    EX_CATCH_HRESULT(hr);
+    IfFailRet(hr);
+
+    return hr;
+}
+
+HRESULT CordbObjectValue::GetFunction(ICorDebugFunction** ppFunction)
+{
+    PUBLIC_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(ppFunction, ICorDebugFunction**);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
+    _ASSERTE(GetProcess()->ThreadHoldsProcessLock());
+    _ASSERTE(m_fIsDelegate);
+
+    HRESULT hr = S_OK;
+
+    EX_TRY
+    {
+        CORDB_ADDRESS delegateAddr = m_valueHome.GetAddress();
+
+        IDacDbiInterface* pDAC = GetProcess()->GetDAC();
+        // pDAC->
+
+        mdMethodDef methodDef = 0;
+
+        // hr = S_OK;
+    }
+    EX_CATCH_HRESULT(hr);
+    IfFailRet(hr);
+
+    return CORDBG_E_MULTIFUNC_DELEGATE;
 }
 
 HRESULT CordbObjectValue::GetCachedInterfaceTypes(

@@ -9159,7 +9159,8 @@ class CordbObjectValue : public CordbValue,
                          public ICorDebugHeapValue2,
                          public ICorDebugHeapValue3,
                          public ICorDebugExceptionObjectValue,
-                         public ICorDebugComObjectValue
+                         public ICorDebugComObjectValue,
+                         public ICorDebugDelegateObjectValue
 {
 public:
     
@@ -9287,6 +9288,12 @@ public:
                         CORDB_ADDRESS * ptrs);
 
     //-----------------------------------------------------------
+    // ICorDebugComObjectValue
+    //-----------------------------------------------------------
+    COM_METHOD GetTarget(ICorDebugObjectValue** ppObject);
+    COM_METHOD GetFunction(ICorDebugFunction** ppFunction);
+
+    //-----------------------------------------------------------
     // Non-COM methods
     //-----------------------------------------------------------
 
@@ -9324,6 +9331,10 @@ private:
     HRESULT IsRcw();
 
     BOOL                     m_fIsRcw;
+
+    HRESULT IsDelegate();
+
+    BOOL                     m_fIsDelegate;
 };
 
 /* ------------------------------------------------------------------------- *
