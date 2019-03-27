@@ -501,7 +501,7 @@ CodeGenInterface::siVarLoc CodeGenInterface::getSiVarLoc(const LclVarDsc* varDsc
     return CodeGenInterface::siVarLoc(varDsc, baseReg, offset, isFramePointerUsed());
 }
 
-#if DEBUG
+#ifdef DEBUG
 void CodeGenInterface::dumpSiVarLoc(const siVarLoc* varLoc) const
 {
     // "varLoc" cannot be null
@@ -1018,14 +1018,12 @@ void CodeGen::siBeginBlock(BasicBlock* block)
         siOpenScopesForNonTrackedVars(block, siLastEndOffs);
     }
 
-#ifdef USING_SCOPE_INFO
-#ifdef DEBUG
+#if defined(USING_SCOPE_INFO) && defined(DEBUG)
     if (verbose)
     {
         siDispOpenScopes();
     }
-#endif // DEBUG
-#endif // USING_SCOPE_INFO
+#endif // defined(USING_SCOPE_INFO) && defined(DEBUG)
 }
 
 //------------------------------------------------------------------------
@@ -1115,8 +1113,7 @@ void CodeGen::siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned in
                 compiler->getVariableLiveKeeper()->siStartVariableLiveRange(lclVarDsc, varScope->vsdVarNum);
 #endif // USING_VARIABLE_LIVE_RANGE
 
-#ifdef DEBUG
-#ifdef USING_SCOPE_INFO
+#if defined(DEBUG) && defined(USING_SCOPE_INFO)
                 if (VERBOSE)
                 {
                     printf("Scope info: >> new scope, VarNum=%u, tracked? %s, VarIndex=%u, bbLiveIn=%s ",
@@ -1125,10 +1122,10 @@ void CodeGen::siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned in
                     dumpConvertedVarSet(compiler, block->bbLiveIn);
                     printf("\n");
                 }
-#endif // USING_SCOPE_INFO
+#endif // defined(DEBUG) && defined(USING_SCOPE_INFO)
 
-                assert(!lclVarDsc->lvTracked || VarSetOps::IsMember(compiler, block->bbLiveIn, lclVarDsc->lvVarIndex));
-#endif // DEBUG
+                INDEBUG(assert(!lclVarDsc->lvTracked ||
+                               VarSetOps::IsMember(compiler, block->bbLiveIn, lclVarDsc->lvVarIndex)));
             }
             else
             {

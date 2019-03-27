@@ -11111,7 +11111,7 @@ VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
 
     new (m_VariableLiveRanges, jitstd::placement_t()) LiveRangeList(allocator);
 
-#if DEBUG
+#ifdef DEBUG
     m_VariableLifeBarrier = allocator.allocate<LiveRangeDumper>(1);
 
     size_t m_VariableLifeBarrierSize = sizeof(*m_VariableLifeBarrier);
@@ -11311,7 +11311,6 @@ void VariableLiveDescriptor::endBlockLiveRanges()
     // make "m_VariableLifeBarrier->m_StartingLiveRange" now points to nullptr for printing purposes
     m_VariableLifeBarrier->resetDumper(m_VariableLiveRanges);
 }
-
 #endif // DEBUG
 
 //------------------------------------------------------------------------

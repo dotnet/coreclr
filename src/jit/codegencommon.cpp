@@ -2295,15 +2295,13 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     genSetScopeInfo();
 
-#ifdef USING_VARIABLE_LIVE_RANGE
-#ifdef DEBUG
+#if defined(USING_VARIABLE_LIVE_RANGE) && defined(DEBUG)
     if (compiler->verbose)
     {
         VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
         varLiveKeeper->dumpLvaVariableLiveRanges();
     }
-#endif // DEBUG
-#endif // USING_VARIABLE_LIVE_RANGE
+#endif // defined(USING_VARIABLE_LIVE_RANGE) && defined(DEBUG)
 
 #ifdef LATE_DISASM
     unsigned finalHotCodeSize;

@@ -734,17 +734,15 @@ void CodeGen::genCodeForBBlist()
                 break;
         }
 
-#ifdef DEBUG
-#ifdef USING_VARIABLE_LIVE_RANGE
+#if defined(DEBUG) && defined(USING_VARIABLE_LIVE_RANGE)
         if (compiler->verbose)
         {
             VariableLiveKeeper* varLiveKeeper = compiler->getVariableLiveKeeper();
             varLiveKeeper->dumpBlockVariableLiveRanges(block);
         }
-#endif // USING_VARIABLE_LIVE_RANGE
+#endif // defined(DEBUG) && defined(USING_VARIABLE_LIVE_RANGE)
 
-        compiler->compCurBB = nullptr;
-#endif // DEBUG
+        INDEBUG(compiler->compCurBB = nullptr);
 
     } //------------------ END-FOR each block of the method -------------------
 
