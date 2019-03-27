@@ -22,7 +22,7 @@ namespace winrt::Component::Contracts::implementation
     void BindingViewModel::Name(hstring const& value)
     {
         m_name = value;
-        m_propertyChangedEvent(Windows::UI::Xaml::Data::PropertyChangedEventArgs(hstring(W("Name"))));
+        m_propertyChangedEvent(*this, Windows::UI::Xaml::Data::PropertyChangedEventArgs(hstring(W("Name"))));
     }
 
     winrt::event_token BindingViewModel::PropertyChanged(Windows::UI::Xaml::Data::PropertyChangedEventHandler const& handler)

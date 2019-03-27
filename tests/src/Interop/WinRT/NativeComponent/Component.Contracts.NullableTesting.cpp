@@ -10,6 +10,6 @@ namespace winrt::Component::Contracts::implementation
 
     int32_t NullableTesting::GetIntValue(Windows::Foundation::IReference<int32_t> const& value)
     {
-        return value.GetInt32();
+        return winrt::unbox_value<int32_t>(value);
     }
 }

@@ -3,6 +3,98 @@
 #include "Component.Contracts.BindingViewModel.g.h"
 #include <vector>
 
+template<typename T>
+struct BindableIteratorWrapper : winrt::implements<BindableIteratorWrapper<T>, winrt::Windows::UI::Xaml::Interop::IBindableIterator>
+{
+    BindableIteratorWrapper(winrt::Windows::Foundation::Collections::IIterator<T>&& iterator)
+        :m_iterator(std::move(iterator))
+    {}
+
+    winrt::Windows::Foundation::IInspectable Current()
+    {
+        return winrt::box_value(m_iterator.Current());
+    }
+
+    bool HasCurrent()
+    {
+        return m_iterator.HasCurrent();
+    }
+
+    bool MoveNext()
+    {
+        return m_iterator.MoveNext();
+    }
+
+private:
+    winrt::Windows::Foundation::Collections::IIterator<T> m_iterator;
+};
+
+template<typename T>
+struct BindableVectorWrapper : winrt::implements<BindableVectorWrapper<T>, winrt::Windows::UI::Xaml::Interop::IBindableVector>
+{
+    BindableVectorWrapper(winrt::Windows::Foundation::Collections::IVector<T>&& elements)
+        :m_elements(std::move(elements))
+    {
+    }
+
+    winrt::Windows::UI::Xaml::Interop::IBindableIterator First()
+    {
+        return BindableIteratorWrapper<int32_t>(m_elements.First());
+    }
+
+    uint32_t Size()
+    {
+        return m_elements.Size();
+    }
+
+    void Append(winrt::Windows::Foundation::IInspectable const& value)
+    {
+        m_elements.Append(winrt::unbox_value<T>(value));
+    }
+
+    void Clear()
+    {
+        m_elements.Clear();
+    }
+
+    winrt::Windows::Foundation::IInspectable GetAt(uint32_t index)
+    {
+        return winrt::box_value(m_elements.GetAt(index));
+    }
+
+    winrt::Windows::UI::Xaml::Interop::IBindableVectorView GetView()
+    {
+        throw winrt::hresult_not_implemented();
+    }
+
+    bool IndexOf(winrt::Windows::Foundation::IInspectable const& value, uint32_t& index)
+    {
+        return m_elements.IndexOf(winrt::unbox_value<T>(value), index);
+    }
+
+    void InsertAt(uint32_t index, winrt::Windows::Foundation::IInspectable const& value)
+    {
+        m_elements.InsertAt(index, winrt::unbox_value<int32_t>(value));
+    }
+
+    void RemoveAt(uint32_t index)
+    {
+        m_elements.RemoveAt(index);
+    }
+
+    void RemoveAtEnd()
+    {
+        m_elements.RemoveAtEnd();
+    }
+
+    void SetAt(uint32_t index, winrt::Windows::Foundation::IInspectable const& value)
+    {
+        m_elements.SetAt(index, winrt::unbox_value<int32_t>(value));
+    }
+private:
+    winrt::Windows::Foundation::Collections::IVector<T> m_elements;
+};
+
 template<typename T, typename Container = std::vector<T>>
 struct ObservableCollection : winrt::implements<ObservableCollection<T, Container>, winrt::Windows::UI::Xaml::Interop::INotifyCollectionChanged>
 {
@@ -22,13 +114,14 @@ struct ObservableCollection : winrt::implements<ObservableCollection<T, Containe
     {
         m_elements.push_back(value);
         winrt::Windows::UI::Xaml::Interop::NotifyCollectionChangedEventArgs args
-        {
+        (
             winrt::Windows::UI::Xaml::Interop::NotifyCollectionChangedAction::Add,
-            std::vector<T>{value},
+            BindableVectorWrapper<int32_t>(winrt::single_threaded_vector(std::vector<T>{value})),
             nullptr,
-            m_elements.size() - 1,
+            (int32_t)(m_elements.size() - 1),
             -1
-        };
+        );
+        m_CollectionChangedEvent(*this, args);
     }
 
 private:
