@@ -641,7 +641,7 @@ namespace System.Collections.Generic
 
             if (updateFreeList)
             {
-                Debug.Assert((StartOfFreeList - entries[_freeList].next) >= -2, "shouldn't underflow because max hashtable length is MaxPrimeArrayLength = 0x7FEFFFFD");
+                Debug.Assert((StartOfFreeList - entries[_freeList].next) >= -1, "shouldn't overflow because `next` cannot underflow");
 
                 _freeList = StartOfFreeList - entries[_freeList].next;
             }
@@ -790,7 +790,7 @@ namespace System.Collections.Generic
                             entries[last].next = entry.next;
                         }
 
-                        Debug.Assert((StartOfFreeList - _freeList) >= -2, "shouldn't underflow because max hashtable length is MaxPrimeArrayLength = 0x7FEFFFFD");
+                        Debug.Assert((StartOfFreeList - _freeList) < 0, "shouldn't underflow because max hashtable length is MaxPrimeArrayLength = 0x7FEFFFFD(2146435069) _freelist underflow threshold 2147483646");
 
                         entry.next = StartOfFreeList - _freeList;
 
@@ -859,7 +859,7 @@ namespace System.Collections.Generic
 
                         value = entry.value;
 
-                        Debug.Assert((StartOfFreeList - _freeList) >= -2, "shouldn't underflow because max hashtable length is MaxPrimeArrayLength = 0x7FEFFFFD");
+                        Debug.Assert((StartOfFreeList - _freeList) < 0, "shouldn't underflow because max hashtable length is MaxPrimeArrayLength = 0x7FEFFFFD(2146435069) _freelist underflow threshold 2147483646");
 
                         entry.next = StartOfFreeList - _freeList;
 
