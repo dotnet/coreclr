@@ -73,7 +73,7 @@ namespace System.Runtime.CompilerServices
         {
             unsafe
             {
-                _PrepareMethod(method.GetMethodInfo(), null, 0);
+                _PrepareMethod(method.GetMethodInfo()!, null, 0);
             }
         }
 
@@ -82,10 +82,10 @@ namespace System.Runtime.CompilerServices
             unsafe
             {
                 int length;
-                IntPtr[] instantiationHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(instantiation, out length);
+                IntPtr[]? instantiationHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(instantiation, out length);
                 fixed (IntPtr* pInstantiation = instantiationHandles)
                 {
-                    _PrepareMethod(method.GetMethodInfo(), pInstantiation, length);
+                    _PrepareMethod(method.GetMethodInfo()!, pInstantiation, length);
                     GC.KeepAlive(instantiation);
                 }
             }

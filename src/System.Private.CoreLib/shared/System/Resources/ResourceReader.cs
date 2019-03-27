@@ -506,7 +506,7 @@ namespace System.Resources
                 ResourceTypeCode typeCode = (ResourceTypeCode)typeIndex;
                 if (typeCode != ResourceTypeCode.String && typeCode != ResourceTypeCode.Null)
                 {
-                    string typeString;
+                    string? typeString;
                     if (typeCode < ResourceTypeCode.StartOfUserTypes)
                         typeString = typeCode.ToString();
                     else
@@ -795,19 +795,19 @@ namespace System.Resources
 
         private void InitializeBinaryFormatter()
         {
-            LazyInitializer.EnsureInitialized(ref s_binaryFormatterType, () =>
+            LazyInitializer.EnsureInitialized(ref s_binaryFormatterType!, () =>
                 Type.GetType("System.Runtime.Serialization.Formatters.Binary.BinaryFormatter, System.Runtime.Serialization.Formatters, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
                 throwOnError: true));
 
             LazyInitializer.EnsureInitialized(ref s_deserializeMethod, () =>
                {
-                   MethodInfo binaryFormatterDeserialize = s_binaryFormatterType.GetMethod("Deserialize", new Type[] { typeof(Stream) });
+                   MethodInfo? binaryFormatterDeserialize = s_binaryFormatterType.GetMethod("Deserialize", new Type[] { typeof(Stream) });
 
                     // create an unbound delegate that can accept a BinaryFormatter instance as object
                     return (Func<object?, Stream, object>)typeof(ResourceReader)
-                            .GetMethod(nameof(CreateUntypedDelegate), BindingFlags.NonPublic | BindingFlags.Static)
-                            .MakeGenericMethod(s_binaryFormatterType)
-                            .Invoke(null, new object[] { binaryFormatterDeserialize });
+                            .GetMethod(nameof(CreateUntypedDelegate), BindingFlags.NonPublic | BindingFlags.Static)!
+                            .MakeGenericMethod(s_binaryFormatterType)!
+                            .Invoke(null, new object?[] { binaryFormatterDeserialize })!;
                });
 
             _binaryFormatter = Activator.CreateInstance(s_binaryFormatterType);

@@ -30,7 +30,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 target = proxy.GetTarget();
 
             // Only return public instance/static properties
-            PropertyInfo propertyInfo = target.GetType().GetProperty(
+            PropertyInfo? propertyInfo = target.GetType().GetProperty(
                 propertyName,
                 BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public);
 
@@ -64,12 +64,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 target = proxy.GetTarget();
 
             // Only return public instance/static properties
-            PropertyInfo propertyInfo = target.GetType().GetProperty(
+            PropertyInfo? propertyInfo = target.GetType().GetProperty(
                 propertyName,
                 BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public,
                 null,                                                                   // default binder
                 null,                                                                   // ignore return type
-                new Type?[] { indexedParamType },                                        // indexed parameter type
+                new Type[] { indexedParamType! },                                        // indexed parameter type
                 null                                                                    // ignore type modifier
                 );
 
