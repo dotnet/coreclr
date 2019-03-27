@@ -10667,6 +10667,7 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
                 genSetScopeInfo(liveRangeIndex, startOffs, endOffs - startOffs, varNum,
                                 varNum /* I dont know what is the which in eeGetLvInfo */, true,
                                 &liveRange.m_VarLocation);
+                liveRangeIndex++;
             }
         }
     }
