@@ -60,7 +60,8 @@ jobs:
 
       # Public Windows Build Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), ne(variables['System.TeamProject'], 'public')) }}:
-        name: dotnet-internal-temp
+        name: NetCoreInternal-Int-Pool
+        queue: BuildPool.Windows.10.Amd64.VS2017
 
       # Official Build Windows Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
