@@ -11104,21 +11104,9 @@ bool LiveRangeDumper::hasLiveRangesToDump() const
 VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
 {
     // Initialize an empty list
-    m_VariableLiveRanges = allocator.allocate<LiveRangeList>(1);
+    m_VariableLiveRanges = new (allocator) LiveRangeList(allocator);
 
-    size_t m_VariableLiveRangesSize = sizeof(*m_VariableLiveRanges);
-    memset(m_VariableLiveRanges, 0, m_VariableLiveRangesSize);
-
-    new (m_VariableLiveRanges, jitstd::placement_t()) LiveRangeList(allocator);
-
-#ifdef DEBUG
-    m_VariableLifeBarrier = allocator.allocate<LiveRangeDumper>(1);
-
-    size_t m_VariableLifeBarrierSize = sizeof(*m_VariableLifeBarrier);
-    memset(m_VariableLifeBarrier, 0, m_VariableLifeBarrierSize);
-
-    new (m_VariableLifeBarrier, jitstd::placement_t()) LiveRangeDumper(m_VariableLiveRanges);
-#endif // DEBUG
+    INDEBUG(m_VariableLifeBarrier = new (allocator) LiveRangeDumper(m_VariableLiveRanges));
 }
 
 //------------------------------------------------------------------------
