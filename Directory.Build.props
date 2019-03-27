@@ -1,19 +1,41 @@
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
+  <!-- Include global shared properties.                                     -->
+  <Import Project="dir.common.props" />
+
+  <!-- Properties set here will influence/modify the default behavior of the -->
+  <!-- Arcade sdk.                                                           -->
+  <!--                                                                       -->
+  <!-- Arcade will default to producing an Artifacts dir with the following  -->
+  <!-- layout:                                        :                      -->
+  <!-- ./artifacts/$(ProjectName)/$(Arch)/$(Config)/$(TargetFramework)       -->
+  <!--                                                                       -->
+  <!-- This layout will be changed for coreclr to match the native layout:   -->
+  <!-- ./artifacts/$(BuildOs)/$(Arch)/$(Config)                              -->
+  <!--                                                                       -->
+  <!-- In order to do this, before we import Arcade we set BaseOutputPath to -->
+  <!-- include the BuildOs and we unset AppendTargetFrameworkToOutputPath    -->
+  <!--                                                                       -->
+  <!-- ToolSetCommonDirectory: Set a restore location for the sdk's tools    -->
+  <!--                         this will be used by package creation         -->
   <PropertyGroup>
-    <BaseOutputPath>$(MSBuildThisFileDirectory)/artifacts/bin/$(BuildOS)/</BaseOutputPath>
+    <BaseOutputPath>$(MSBuildThisFileDirectory)/artifacts/Product/$(BuildOS)/</BaseOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootArtifactsDir)obj/$(BuildOS)/$(BuildArch)/$(BuildType)/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <ToolSetCommonDirectory>$(MSBuildThisFileDirectory)artifacts\toolset\Common\</ToolSetCommonDirectory>
   </PropertyGroup>
 
+  <!-- Arcade SDK import -->
   <Import Project="Sdk.props" Sdk="Microsoft.DotNet.Arcade.Sdk" Condition="'$(ArcadeBuild)' == 'True'"/>
 
   <PropertyGroup>
-    <!-- Need to set ProjectAssetsFile to something so it doesn't get set to the Tools.proj assets file when we import the generated props -->
+    <!-- Hack: Set ProjectAssetsFile to something so it doesn't get set to   -->
+    <!-- the Tools.proj assets file when we import the generated props       -->
     <ProjectAssetsFile Condition="'$(ProjectAssetsFile)' == ''">unused</ProjectAssetsFile>
   </PropertyGroup>
 
   <!-- Import Microsoft.DotNet.Build.Tasks.Packaging -->
+  <!-- This is used only for packaging -->
   <Import Project="$(ToolSetCommonDirectory)Tools.proj.nuget.g.props" Condition="Exists('$(ToolSetCommonDirectory)Tools.proj.nuget.g.props') and '$(BuildPackages)' == 'true'" />
   
   <PropertyGroup>
@@ -28,8 +50,117 @@
   <PropertyGroup>
     <CL_MPCount>$(NumberOfCores)</CL_MPCount>
   </PropertyGroup>
+
   <PropertyGroup>
     <!-- Enables Strict mode for Roslyn compiler -->
     <Features>strict</Features>
   </PropertyGroup>
+
+  <!-- Global properties. These are set after Arcade to override their       -->
+  <!-- Arcade defaults.                                                      -->
+
+  <PropertyGroup>
+    <LangVersion>8.0</LangVersion>
+    <UseSharedCompilation>true</UseSharedCompilation>
+  </PropertyGroup>
+
+    <!-- Set the kind of PDB to Portable and turn on SourceLink (fetching source from GitHub) -->
+  <PropertyGroup>
+    <!-- Arcade will set DebugType to embedded, reset this to portable. -->
+    <DebugType Condition="'$(DebugType)' == '' or $(DebugType) == 'embedded'">Portable</DebugType> 
+    <UseSourceLink>true</UseSourceLink>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+      <!-- This name is used to create a GIT repository URL https://github.com/dotnet/$(GitHubRepositoryName) used to find source code for debugging -->
+    <GitHubRepositoryName Condition="'$(GitHubRepositoryName)' == ''">coreclr</GitHubRepositoryName>
+    
+    <DotnetCliPath Condition="'$(DotnetCliPath)'==''">$(ProjectDir).dotnet\</DotnetCliPath>
+
+    <!-- BuildTools dependency -->
+    <DotnetRestoreCommand Condition="'$(DotnetRestoreCommand)'==''">$(DotnetCliPath)/dotnet restore</DotnetRestoreCommand>
+    <RunningOnUnix Condition="'$(OS)'!='Windows_NT'">true</RunningOnUnix>
+
+    <OverrideToolHost>$(DotnetCliPath)dotnet</OverrideToolHost>
+    <BuildToolsSemaphore Condition="'$(BuildToolsSemaphore)' == ''">$(ToolsDir)Microsoft.DotNet.Build.Tasks.dll</BuildToolsSemaphore>
+
+    <!-- Default to portable build if not explicitly set -->
+    <PortableBuild Condition="'$(PortableBuild)' == ''">true</PortableBuild>
+
+    <OverrideRestoreOutputPath>true</OverrideRestoreOutputPath>
+  </PropertyGroup>
+
+    <!-- Output paths -->
+  <PropertyGroup>
+    <IntermediateOutputPathNonMangled Condition="'$(IntermediateOutputPathNonMangled)' == ''">$(RootArtifactsDir)obj/$(BuildOS)/$(BuildArch)/$(BuildType)/$(MSBuildProjectName)/</IntermediateOutputPathNonMangled>
+    <OutputPath Condition="'$(OutputPath)' == ''">$(BinDir)</OutputPath>
+  </PropertyGroup>
+
+  <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
+  <Import Project="$(ProjectDir)dependencies.props" />
+
+  <!-- Packaging properties -->
+  <PropertyGroup>
+    <LicenseUrl>https://github.com/dotnet/coreclr/blob/master/LICENSE.TXT</LicenseUrl>
+    <PackageDescriptionFile>$(SourceDir).nuget/descriptions.json</PackageDescriptionFile>
+    <PackageLicenseFile>$(ProjectDir)LICENSE.TXT</PackageLicenseFile>
+    <PackageThirdPartyNoticesFile>$(ProjectDir)THIRD-PARTY-NOTICES.TXT</PackageThirdPartyNoticesFile>
+    <SyncInfoDirectory>$(BaseIntermediateOutputPath)</SyncInfoDirectory>
+
+    <!-- If true, indicates that this is not an officially supported release -->
+    <!-- It is important to flip this to false in official release branches -->
+    <!-- Keep it in sync with PRERELEASE in clrdefinitions.cmake -->
+    <IsPrerelease>true</IsPrerelease>
+
+    <!-- This should be kept in sync with package details in src/.nuget/init/project.json -->
+    <RuntimeIdGraphDefinitionVersion>3.0.0-preview.19073.11</RuntimeIdGraphDefinitionVersion>
+    <RuntimeIdGraphDefinitionFile>$(PackagesDir)/microsoft.netcore.platforms/$(RuntimeIdGraphDefinitionVersion)/runtime.json</RuntimeIdGraphDefinitionFile>
+
+    <!-- This link should be updated for each release milestone, currently this points to 1.1.0-beta -->
+    <ReleaseNotes>https://go.microsoft.com/fwlink/?LinkID=799421</ReleaseNotes>
+
+    <ProjectUrl>https://dot.net</ProjectUrl>
+
+    <!-- On Windows, MSbuild can still run against Desktop FX while it runs on .NET Core on non-Windows. this requires
+         pulling in different packaging dependencies.
+     -->
+    <PackagingTaskDir Condition="'$(MSBuildRuntimeType)' != 'core'">$(ToolsDir)net46/</PackagingTaskDir>
+    <!-- defined in buildtools packaging.targets, but we need this before targets are imported -->
+    <PackagePlatform Condition="'$(PackagePlatform)' == ''">$(Platform)</PackagePlatform>
+    <PackagePlatform Condition="'$(PackagePlatform)' == 'amd64'">x64</PackagePlatform>
+    <MinOSForArch>win7</MinOSForArch>
+    <MinOSForArch Condition="'$(PackagePlatform)' == 'arm'">win8</MinOSForArch>
+    <MinOSForArch Condition="'$(PackagePlatform)' == 'arm64'">win10</MinOSForArch>
+    <!-- This property must be set to disable local package installation -->
+    <SkipInstallLocallyBuiltPackages>true</SkipInstallLocallyBuiltPackages>
+
+    <!-- Define packaging attributes for cross target components -->
+    <HasCrossTargetComponents Condition="'$(TargetsWindows)' == 'true' and ('$(PackagePlatform)' =='arm64' or '$(PackagePlatform)' =='arm')">true</HasCrossTargetComponents>
+    <HasCrossTargetComponents Condition="'$(TargetsLinux)' == 'true' and ('$(PackagePlatform)' =='arm64' or '$(PackagePlatform)' =='arm') and '$(__DoCrossArchBuild)' == '1'">true</HasCrossTargetComponents>
+    <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm64'">x64</CrossTargetComponentFolder>
+    <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm' and '$(TargetsWindows)' == 'true'">x86</CrossTargetComponentFolder>
+    <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm' and '$(TargetsLinux)' == 'true'">x64</CrossTargetComponentFolder>
+
+    <PackageOutputPath Condition="'$(PackageOutputPath)' == ''">$(PackagesBinDir)/pkg/</PackageOutputPath>
+    <SymbolPackageOutputPath Condition="'$(SymbolPackageOutputPath)' == ''">$(PackagesBinDir)/symbolpkg/</SymbolPackageOutputPath>
+    <PackageIndexFile>$(MSBuildThisFileDirectory)/src/.nuget/packageIndex.json</PackageIndexFile>
+
+    <!-- coreclr doesn't currently use the index so don't force it to be in sync -->
+    <SkipIndexCheck>true</SkipIndexCheck>
+  </PropertyGroup>
+
+  <!-- Add required legal files to packages -->
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.pkgproj'">
+    <File Condition="Exists('$(PackageLicenseFile)')"
+          Include="$(PackageLicenseFile)" >
+      <SkipPackageFileCheck>true</SkipPackageFileCheck>
+    </File>
+    <File Condition="Exists('$(PackageThirdPartyNoticesFile)')"
+          Include="$(PackageThirdPartyNoticesFile)" >
+      <SkipPackageFileCheck>true</SkipPackageFileCheck>
+    </File>
+    <PackageIndex Include="$(PackageIndexFile)" />
+  </ItemGroup>
+
+
 </Project>

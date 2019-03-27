@@ -1,6 +1,6 @@
 <Project>
   <Import Project="$(MSBuildThisFileDirectory)..\..\Directory.Build.props" />
-  <Import Project="$(MSBuildThisFileDirectory)..\..\dir.props" />
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Directory.Build.Props" />
 
   <PropertyGroup>
     <!-- This property must be set to the same value as $(PackageOutputPath) for the nuspecs and nupkgs to be binplaced to the intended location. -->

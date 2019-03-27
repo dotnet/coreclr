@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\dir.props"/>
+  <Import Project="..\Directory.Build.Props"/>
   
   <!-- List the projects that need to be built -->
   <ItemGroup>
