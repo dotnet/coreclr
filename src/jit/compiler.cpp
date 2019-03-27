@@ -11312,7 +11312,7 @@ void Compiler::initializeVariableLiveKeeper()
     int amountTrackedVariables = opts.compDbgInfo ? info.compLocalsCount : 0;
     int amountTrackedArgs      = opts.compDbgInfo ? info.compArgsCount : 0;
 
-    varLiveKeeper = new (allocator) VariableLiveKeeper(amountTrackedArgs, amountTrackedArgs, this, allocator);
+    varLiveKeeper = new (allocator) VariableLiveKeeper(amountTrackedVariables, amountTrackedArgs, this, allocator);
 }
 
 VariableLiveKeeper* Compiler::getVariableLiveKeeper() const
