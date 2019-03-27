@@ -45,14 +45,14 @@ IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
     const uint32_t nInBufferSize = 16 * 1024;
     const uint32_t nOutBufferSize = 16 * 1024;
     HANDLE hPipe = ::CreateNamedPipeA(
-        _pNamedPipeName,                                                                    // pipe name
-        PIPE_ACCESS_DUPLEX,                                                                 // read/write access
-        PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, // message type pipe, message-read and blocking mode
-        PIPE_UNLIMITED_INSTANCES,                                                           // max. instances
-        nOutBufferSize,                                                                     // output buffer size
-        nInBufferSize,                                                                      // input buffer size
-        0,                                                                                  // default client time-out
-        NULL);                                                                              // default security attribute
+        _pNamedPipeName,                                            // pipe name
+        PIPE_ACCESS_DUPLEX,                                         // read/write access
+        PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,    // message type pipe, message-read and blocking mode
+        PIPE_UNLIMITED_INSTANCES,                                   // max. instances
+        nOutBufferSize,                                             // output buffer size
+        nInBufferSize,                                              // input buffer size
+        0,                                                          // default client time-out
+        NULL);                                                      // default security attribute
 
     if (hPipe == INVALID_HANDLE_VALUE)
     {
