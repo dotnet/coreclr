@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 using System.Runtime.Serialization;
 using System.Threading;
 
@@ -420,7 +421,13 @@ namespace System
         // Wrapper function to reduce the need for ifdefs.
         internal static RuntimeType GetTypeByName(string name, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark, bool loadTypeFromPartialName)
         {
-            return GetTypeByName(name, throwOnError, ignoreCase, ref stackMark, IntPtr.Zero, loadTypeFromPartialName);
+            IntPtr nativeAssemblyLoadContext = IntPtr.Zero;
+            if (AssemblyLoadContext.CurrentContextualReflectionContext != null)
+            {
+                nativeAssemblyLoadContext = AssemblyLoadContext.CurrentContextualReflectionContext.GetNativeAssemblyLoadContext();
+            }
+
+            return GetTypeByName(name, throwOnError, ignoreCase, ref stackMark, nativeAssemblyLoadContext, loadTypeFromPartialName);
         }
 
         internal static RuntimeType GetTypeByName(string name, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark,

@@ -6,12 +6,13 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Security;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
+using System.Runtime.Versioning;
+using System.Security;
 using System.Text;
 using System.Threading;
-using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
 
 namespace System
@@ -190,9 +191,15 @@ namespace System
 
             if (assemblyResolver == null)
             {
+                IntPtr nativeAssemblyLoadContext = IntPtr.Zero;
+                if (AssemblyLoadContext.CurrentContextualReflectionContext != null)
+                {
+                    nativeAssemblyLoadContext = AssemblyLoadContext.CurrentContextualReflectionContext.GetNativeAssemblyLoadContext();
+                }
+
                 if (throwOnError)
                 {
-                    assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark);
+                    assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark, nativeAssemblyLoadContext);
                 }
                 else
                 {
@@ -200,7 +207,7 @@ namespace System
                     // Other exceptions like BadImangeFormatException should still fly.
                     try
                     {
-                        assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark);
+                        assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark, nativeAssemblyLoadContext);
                     }
                     catch (FileNotFoundException)
                     {

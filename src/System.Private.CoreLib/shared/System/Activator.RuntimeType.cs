@@ -4,6 +4,7 @@
 
 using System.Reflection;
 using System.Globalization;
+using System.Runtime.Loader;
 using System.Runtime.Remoting;
 using System.Threading;
 
@@ -124,9 +125,15 @@ namespace System
                 }
                 else
                 {
+                    IntPtr nativeAssemblyLoadContext = IntPtr.Zero;
+                    if (AssemblyLoadContext.CurrentContextualReflectionContext != null)
+                    {
+                        nativeAssemblyLoadContext = AssemblyLoadContext.CurrentContextualReflectionContext.GetNativeAssemblyLoadContext();
+                    }
+
                     // Classic managed type
                     assembly = RuntimeAssembly.InternalLoadAssemblyName(
-                        assemblyName, ref stackMark);
+                        assemblyName, ref stackMark, nativeAssemblyLoadContext);
                 }
             }
 

@@ -10,6 +10,7 @@ using System.IO;
 using StringBuilder = System.Text.StringBuilder;
 using System.Configuration.Assemblies;
 using StackCrawlMark = System.Threading.StackCrawlMark;
+using System.Runtime.Loader;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
@@ -153,7 +154,8 @@ namespace System.Reflection
                                                         bool throwOnError,
                                                         bool ignoreCase,
                                                         ObjectHandleOnStack type,
-                                                        ObjectHandleOnStack keepAlive);
+                                                        ObjectHandleOnStack keepAlive,
+                                                        IntPtr ptrLoadContextBinder);
 
         public override Type GetType(string name, bool throwOnError, bool ignoreCase)
         {
@@ -161,9 +163,15 @@ namespace System.Reflection
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
+            IntPtr nativeAssemblyLoadContext = IntPtr.Zero;
+            if (AssemblyLoadContext.CurrentContextualReflectionContext != null)
+            {
+                nativeAssemblyLoadContext = AssemblyLoadContext.CurrentContextualReflectionContext.GetNativeAssemblyLoadContext();
+            }
+
             RuntimeType type = null;
             object keepAlive = null;
-            GetType(GetNativeHandle(), name, throwOnError, ignoreCase, JitHelpers.GetObjectHandleOnStack(ref type), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
+            GetType(GetNativeHandle(), name, throwOnError, ignoreCase, JitHelpers.GetObjectHandleOnStack(ref type), JitHelpers.GetObjectHandleOnStack(ref keepAlive), nativeAssemblyLoadContext);
             GC.KeepAlive(keepAlive);
 
             return type;
@@ -293,7 +301,7 @@ namespace System.Reflection
             return CustomAttributeData.GetCustomAttributesInternal(this);
         }
 
-        internal static RuntimeAssembly InternalLoad(string assemblyString, ref StackCrawlMark stackMark)
+        internal static RuntimeAssembly InternalLoad(string assemblyString, ref StackCrawlMark stackMark, IntPtr ptrLoadContextBinder = default)
         {
             RuntimeAssembly assembly;
             AssemblyName an = CreateAssemblyName(assemblyString, out assembly);
@@ -304,7 +312,7 @@ namespace System.Reflection
                 return assembly;
             }
 
-            return InternalLoadAssemblyName(an, ref stackMark);
+            return InternalLoadAssemblyName(an, ref stackMark, ptrLoadContextBinder);
         }
 
         // Creates AssemblyName. Fills assembly if AssemblyResolve event has been raised.

@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -396,6 +397,50 @@ namespace System.Runtime.Loader
                 throw new InvalidOperationException(SR.AssemblyLoadContext_Verify_NotUnloading);
             }
         }
+
+        private static readonly AsyncLocal<AssemblyLoadContext> _asyncLocalCurrentContextualReflectionContext = new AsyncLocal<AssemblyLoadContext>();
+
+        public static AssemblyLoadContext CurrentContextualReflectionContext
+        {
+            get { return _asyncLocalCurrentContextualReflectionContext.Value; }
+        }
+
+        public ContextualReflectionScope EnterContextualReflection()
+        {
+            return new ContextualReflectionScope(this);
+        }
+
+        static public ContextualReflectionScope EnterContextualReflection(Assembly activating)
+        {
+            return activating != null ?
+                GetLoadContext(activating).EnterContextualReflection() :
+                new ContextualReflectionScope(null);
+        }
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public struct ContextualReflectionScope : IDisposable
+        {
+            private bool disposed;
+            private AssemblyLoadContext predecessor;
+
+            public ContextualReflectionScope(AssemblyLoadContext activating)
+            {
+                predecessor = AssemblyLoadContext.CurrentContextualReflectionContext;
+                disposed = false;
+                AssemblyLoadContext._asyncLocalCurrentContextualReflectionContext.Value = activating;
+            }
+
+            public void Dispose()
+            {
+                if(!this.disposed)
+                {
+                    AssemblyLoadContext._asyncLocalCurrentContextualReflectionContext.Value = predecessor;
+                    disposed = true;
+                }
+            }
+        }
+
+        internal IntPtr GetNativeAssemblyLoadContext() => _nativeAssemblyLoadContext;
     }
 
     internal sealed class DefaultAssemblyLoadContext : AssemblyLoadContext
