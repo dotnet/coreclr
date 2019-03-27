@@ -141,7 +141,6 @@ parser.add_argument("-test_native_bin_location", dest="test_native_bin_location"
 ################################################################################
 
 g_verbose = False
-gc_stress_c = False
 gc_stress = False
 coredump_pattern = ""
 file_name_cache = defaultdict(lambda: None)
@@ -451,7 +450,6 @@ def create_and_use_test_env(_os, env, func):
         on windows, until xunit is used on unix there is no managed code run
         in runtest.sh.
     """
-    global gc_stress_c
     global gc_stress
 
     ret_code = 0
@@ -507,9 +505,6 @@ def create_and_use_test_env(_os, env, func):
                 else:
                     command = "export"
 
-                if key.lower() == "complus_gcstress" and "c" in value.lower():
-                    gc_stress_c = True
-
                 if key.lower() == "complus_gcstress":
                     gc_stress = True
 
@@ -560,7 +555,6 @@ def get_environment(test_env=None):
         On Windows, os.environ keys (the environment variable names) are all upper case,
         and map lookup is case-insensitive on the key.
     """
-    global gc_stress_c
     global gc_stress
 
     complus_vars = defaultdict(lambda: "")
@@ -600,9 +594,6 @@ def get_environment(test_env=None):
 
         if "complus_gcstress" in complus_vars:
             gc_stress = True
-
-        if "c" in complus_vars["COMPlus_GCStress"].lower():
-            gc_stress_c = True
 
     return complus_vars
 
@@ -2352,11 +2343,7 @@ def do_setup(host_os,
 
     if unprocessed_args.precompile_core_root:
         precompile_core_root(test_location, host_os, arch, core_root, use_jit_disasm=args.jitdisasm, altjit_name=unprocessed_args.crossgen_altjit)
-
-    # If COMPlus_GCStress is set then we need to setup cordistools
-    if gc_stress_c:
-        setup_coredis_tools(coreclr_repo_location, host_os, arch, core_root)
-    
+  
     build_info = None
     is_same_os = None
     is_same_arch = None
