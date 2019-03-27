@@ -26,8 +26,8 @@ namespace System.Globalization
             {
                 DateTimeOffset dateOffset;
 
-                string eraName;
-                string abbreviatedEraName;
+                string? eraName;
+                string? abbreviatedEraName;
 
                 if (!GetJapaneseEraInfo(i, out dateOffset, out eraName, out abbreviatedEraName))
                 {
@@ -37,7 +37,7 @@ namespace System.Globalization
                 DateTime dt = new DateTime(dateOffset.Ticks);
 
                 eras[erasCount - i] = new EraInfo(i, dt.Year, dt.Month, dt.Day, dt.Year - 1, 1, lastMaxYear - dt.Year + 1,
-                                                   eraName, abbreviatedEraName, GetJapaneseEnglishEraName(i));    // era #4 start year/month/day, yearOffset, minEraYear
+                                                   eraName!, abbreviatedEraName!, GetJapaneseEnglishEraName(i));    // era #4 start year/month/day, yearOffset, minEraYear
 
                 lastMaxYear = dt.Year;
             }
