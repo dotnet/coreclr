@@ -353,9 +353,9 @@ EventPipeSessionID EventPipe::Enable(
 
 EventPipeSessionID EventPipe::Enable(
     EventPipeSession *const pSession,
-    WAITORTIMERCALLBACK Callback,
-    DWORD DueTime,
-    DWORD Period)
+    WAITORTIMERCALLBACK callback,
+    DWORD dueTime,
+    DWORD period)
 {
     CONTRACTL
     {
@@ -363,9 +363,9 @@ EventPipeSessionID EventPipe::Enable(
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pSession != nullptr);
-        PRECONDITION(Callback != nullptr);
-        PRECONDITION(DueTime > 0);
-        PRECONDITION(Period > 0);
+        PRECONDITION(callback != nullptr);
+        PRECONDITION(dueTime > 0);
+        PRECONDITION(period > 0);
         PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -390,7 +390,7 @@ EventPipeSessionID EventPipe::Enable(
     // Enable the sample profiler
     SampleProfiler::Enable();
 
-    CreateFlushTimerCallback(Callback, DueTime, Period);
+    CreateFlushTimerCallback(callback, dueTime, period);
 
     // Return the session ID.
     return (EventPipeSessionID)s_pSession;
@@ -491,16 +491,16 @@ void EventPipe::Disable(EventPipeSessionID id)
     }
 }
 
-void EventPipe::CreateFlushTimerCallback(WAITORTIMERCALLBACK Callback, DWORD DueTime, DWORD Period)
+void EventPipe::CreateFlushTimerCallback(WAITORTIMERCALLBACK callback, DWORD dueTime, DWORD period)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(Callback != nullptr);
-        PRECONDITION(DueTime > 0);
-        PRECONDITION(Period > 0);
+        PRECONDITION(callback != nullptr);
+        PRECONDITION(dueTime > 0);
+        PRECONDITION(period > 0);
         PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END
@@ -520,10 +520,10 @@ void EventPipe::CreateFlushTimerCallback(WAITORTIMERCALLBACK Callback, DWORD Due
     {
         if (ThreadpoolMgr::CreateTimerQueueTimer(
                 &s_fileSwitchTimerHandle,
-                Callback,
+                callback,
                 timerContextHolder,
-                DueTime,
-                Period,
+                dueTime,
+                period,
                 0 /* flags */))
         {
             _ASSERTE(s_fileSwitchTimerHandle != NULL);

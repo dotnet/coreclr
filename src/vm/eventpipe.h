@@ -314,9 +314,9 @@ private:
     // Enable the specified EventPipe session.
     static EventPipeSessionID Enable(
         EventPipeSession *const pSession,
-        WAITORTIMERCALLBACK Callback,
-        DWORD DueTime,
-        DWORD Period);
+        WAITORTIMERCALLBACK callback,
+        DWORD dueTime,
+        DWORD period);
 
     static void CreateFlushTimerCallback(WAITORTIMERCALLBACK Callback, DWORD DueTime, DWORD Period);
 
