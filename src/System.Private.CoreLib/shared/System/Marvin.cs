@@ -36,7 +36,17 @@ namespace System
 
             if (count < 8)
             {
-                goto InputTooSmallToEnterMainLoop;
+                // We can't run the main loop, but we might still have 4 or more bytes available to us.
+                // If so, jump to the 4 .. 7 bytes logic immediately after the main loop.
+
+                if (count >= 4)
+                {
+                    goto Between4And7BytesRemain;
+                }
+                else
+                {
+                    goto InputTooSmallToEnterMainLoop;
+                }
             }
 
             // Main loop - read 8 bytes at a time.
@@ -119,17 +129,19 @@ namespace System
             // count mod 4 = 2 -> [ ## ## ## ## | AA BB       ] -> 0xBBAA_####             -> 0x0080_BBAA
             // count mod 4 = 3 -> [ ## ## ## ## | AA BB CC    ] -> 0xCCBB_AA##             -> 0x80CC_BBAA
 
+            count = ~count << 3;
+
             if (BitConverter.IsLittleEndian)
             {
                 partialResult >>= 8; // make some room for the 0x80 byte
                 partialResult |= 0x8000_0000u; // put the 0x80 byte at the beginning
-                partialResult >>= (int)(~count << 3) & 0x1F; // shift out all previously consumed bytes
+                partialResult >>= (int)count & 0x1F; // shift out all previously consumed bytes
             }
             else
             {
                 partialResult <<= 8; // make some room for the 0x80 byte
                 partialResult |= 0x80u; // put the 0x80 byte at the end
-                partialResult <<= (int)(~count << 3) & 0x1F; // shift out all previously consumed bytes
+                partialResult <<= (int)count & 0x1F; // shift out all previously consumed bytes
             }
 
         DoFinalRoundsAndReturn:
@@ -144,14 +156,6 @@ namespace System
             return (int)(p1 ^ p0);
 
         InputTooSmallToEnterMainLoop:
-
-            // We can't run the main loop, but we might still have 4 or more bytes available to us.
-            // If so, jump to the 4 .. 7 bytes logic immediately after the main loop.
-
-            if ((count & 0b_0100) != 0)
-            {
-                goto Between4And7BytesRemain;
-            }
 
             // We had only 0 .. 3 bytes to begin with, so we can't perform any 32-bit reads.
             // This means that we're going to be building up the final result right away and
