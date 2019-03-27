@@ -8,6 +8,16 @@ using System.IO;
 
 using Console = Internal.Console;
 
+namespace My
+{
+    public class CustomAssemblyLoadContext : AssemblyLoadContext
+    {
+        public CustomAssemblyLoadContext() : base()
+        {
+        }
+    }
+}
+
 public class Program
 {
     private static bool passed = true;
@@ -139,7 +149,6 @@ public class Program
 #endif
     }
 
-
     public static void CustomWOName()
     {
         try
@@ -147,18 +156,18 @@ public class Program
             Console.WriteLine("CustomWOName()");
 
             // ALC should be a concrete class
-            AssemblyLoadContext alc = new AssemblyLoadContext();
+            AssemblyLoadContext alc = new My.CustomAssemblyLoadContext();
             Assert(PropertyAllContainsContext(alc));
 
             Console.WriteLine(alc.Name);
             Assert(alc.Name == null);
 
             Console.WriteLine(alc.GetType().ToString());
-            Assert(alc.GetType().ToString() == "System.Runtime.Loader.AssemblyLoadContext");
+            Assert(alc.GetType().ToString() == "My.CustomAssemblyLoadContext");
 
             Console.WriteLine(alc.ToString());
             Assert(alc.ToString().Contains("\"\" "));
-            Assert(alc.ToString().Contains("\" System.Runtime.Loader.AssemblyLoadContext"));
+            Assert(alc.ToString().Contains("\" My.CustomAssemblyLoadContext"));
             Assert(alc.ToString().Contains(" #"));
         }
         catch (Exception e)

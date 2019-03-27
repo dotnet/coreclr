@@ -44,11 +44,11 @@ namespace System.Runtime.Loader
         // Contains the reference to VM's representation of the AssemblyLoadContext
         private readonly IntPtr _nativeAssemblyLoadContext;
 
-        public AssemblyLoadContext() : this(false, false, null)
+        protected AssemblyLoadContext() : this(false, false, null)
         {
         }
 
-        public AssemblyLoadContext(bool isCollectible) : this(false, isCollectible, null)
+        protected AssemblyLoadContext(bool isCollectible) : this(false, isCollectible, null)
         {
         }
 
