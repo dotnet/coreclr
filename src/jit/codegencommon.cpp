@@ -10644,9 +10644,9 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
 
         if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
         {
-            const LiveRangeList* liveRanges = varLiveKeeper->getLiveRangesForVar(varNum);
+            LiveRangeList* liveRanges = varLiveKeeper->getLiveRangesForVar(varNum);
 
-            for (const VariableLiveRange& liveRange : *liveRanges)
+            for (VariableLiveRange& liveRange : *liveRanges)
             {
                 UNATIVE_OFFSET startOffs = liveRange.m_StartEmitLocation.CodeOffset(getEmitter());
                 UNATIVE_OFFSET endOffs   = liveRange.m_EndEmitLocation.CodeOffset(getEmitter());
@@ -10662,7 +10662,7 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
 
                 genSetScopeInfo(liveRangeIndex, startOffs, endOffs - startOffs, varNum,
                                 varNum /* I dont know what is the which in eeGetLvInfo */, true,
-                                &liveRange.m_VarLocation);
+                                liveRange.m_VarLocation);
                 liveRangeIndex++;
             }
         }
@@ -10685,13 +10685,13 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
 // Notes:
 //    Called for every scope info piece to record by the main genSetScopeInfo()
 
-void CodeGen::genSetScopeInfo(unsigned        which,
-                              UNATIVE_OFFSET  startOffs,
-                              UNATIVE_OFFSET  length,
-                              unsigned        varNum,
-                              unsigned        LVnum,
-                              bool            avail,
-                              const siVarLoc* varLoc)
+void CodeGen::genSetScopeInfo(unsigned       which,
+                              UNATIVE_OFFSET startOffs,
+                              UNATIVE_OFFSET length,
+                              unsigned       varNum,
+                              unsigned       LVnum,
+                              bool           avail,
+                              siVarLoc&      varLoc)
 {
     // We need to do some mapping while reporting back these variables.
 
@@ -10702,14 +10702,11 @@ void CodeGen::genSetScopeInfo(unsigned        which,
     // Non-x86 platforms are allowed to access all arguments directly
     // so we don't need this code.
 
-    siVarLoc newVarLoc;
-
     // Is this a varargs function?
-
     if (compiler->info.compIsVarArgs && varNum != compiler->lvaVarargsHandleArg &&
         varNum < compiler->info.compArgsCount && !compiler->lvaTable[varNum].lvIsRegArg)
     {
-        noway_assert(varLoc->vlType == VLT_STK || varLoc->vlType == VLT_STK2);
+        noway_assert(varLoc.vlType == VLT_STK || varLoc.vlType == VLT_STK2);
 
         // All stack arguments (except the varargs handle) have to be
         // accessed via the varargs cookie. Discard generated info,
@@ -10734,11 +10731,8 @@ void CodeGen::genSetScopeInfo(unsigned        which,
         noway_assert(offset < stkArgSize);
         offset = stkArgSize - offset;
 
-        newVarLoc                          = *varLoc;
-        newVarLoc.vlType                   = VLT_FIXED_VA;
-        newVarLoc.vlFixedVarArg.vlfvOffset = offset;
-
-        varLoc = &newVarLoc;
+        varLoc.vlType                   = VLT_FIXED_VA;
+        varLoc.vlFixedVarArg.vlfvOffset = offset;
     }
 
 #endif // _TARGET_X86_
@@ -10765,7 +10759,7 @@ void CodeGen::genSetScopeInfo(unsigned        which,
     tlvi.tlviStartPC   = startOffs;
     tlvi.tlviLength    = length;
     tlvi.tlviAvailable = avail;
-    tlvi.tlviVarLoc    = *varLoc;
+    tlvi.tlviVarLoc    = varLoc;
 
 #endif // DEBUG
 

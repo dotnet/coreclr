@@ -11139,7 +11139,7 @@ bool VariableLiveDescriptor::hasVariableLiveRangeOpen() const
 //  A const LiveRangeList* pointing to the first variable location if it has
 //  any or the end of the list in other case.
 //
-const LiveRangeList* VariableLiveDescriptor::getLiveRanges() const
+LiveRangeList* VariableLiveDescriptor::getLiveRanges() const
 {
     return m_VariableLiveRanges;
 }
@@ -11614,7 +11614,7 @@ void VariableLiveKeeper::siEndAllVariableLiveRange()
 // Assumtions:
 //  This variable should be an argument, a special argument or an IL local
 //  variable.
-const LiveRangeList* VariableLiveKeeper::getLiveRangesForVar(unsigned int varNum) const
+LiveRangeList* VariableLiveKeeper::getLiveRangesForVar(unsigned int varNum) const
 {
     // There should be at least one variable for which its liveness is tracked
     noway_assert(varNum < m_LiveDscCount);

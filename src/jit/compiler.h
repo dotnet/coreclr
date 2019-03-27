@@ -407,8 +407,8 @@ class VariableLiveDescriptor
 public:
     VariableLiveDescriptor(CompAllocator allocator);
 
-    bool                 hasVariableLiveRangeOpen() const;
-    const LiveRangeList* getLiveRanges() const;
+    bool           hasVariableLiveRangeOpen() const;
+    LiveRangeList* getLiveRanges() const;
 
     void startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation, emitter* emit) const;
     void endLiveRangeAtEmitter(emitter* emit) const;
@@ -462,7 +462,7 @@ public:
     void siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose);
     void siEndAllVariableLiveRange();
 
-    const LiveRangeList* getLiveRangesForVar(unsigned int varNum) const;
+    LiveRangeList* getLiveRangesForVar(unsigned int varNum) const;
     size_t getLiveRangesCount() const;
 
     // For parameters locations on prolog
@@ -7148,7 +7148,7 @@ public:
                      unsigned                          LVnum,
                      VarName                           namex,
                      bool                              avail,
-                     const CodeGenInterface::siVarLoc* loc);
+                     const CodeGenInterface::siVarLoc& loc);
     void eeSetLVdone();
 
 #ifdef DEBUG
