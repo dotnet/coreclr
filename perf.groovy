@@ -94,7 +94,7 @@ def static getOSGroup(def os) {
                                 batchFile("${python} \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py\"")
                                 batchFile("set __TestIntermediateDir=int&&build.cmd ${configuration} ${architecture}")
 
-                                batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
+                                batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly crossgen")
 
                                 def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -os ${os} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -stabilityPrefix \"START \\\"CORECLR_PERF_RUN\\\" /B /WAIT /HIGH /AFFINITY 0x2\""
 
@@ -689,7 +689,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
                             batchFile("${python} \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py\"")
                             batchFile("set __TestIntermediateDir=int&&build.cmd ${configuration} ${architecture}")
 
-                            batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
+                            batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly crossgen")
 
                             def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -os ${os} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -stabilityPrefix \"START \\\"CORECLR_PERF_RUN\\\" /B /WAIT /HIGH\" -scenarioTest"
 
@@ -804,7 +804,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
 
                 // Build CoreCLR and gnerate test layout
                 batchFile("set __TestIntermediateDir=int&&build.cmd ${configuration} ${architecture}")
-                batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
+                batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly crossgen")
 
                 // Run the size on disk benchmark
                 batchFile("\"${coreRoot}\\CoreRun.exe\" \"${testBin}\\sizeondisk\\sodbench\\SoDBench\\SoDBench.exe\" -o \"%WORKSPACE%\\sodbench.csv\" --architecture ${arch} --channel ${channel}")
@@ -895,7 +895,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
                             batchFile("${python} \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py\"")
                             batchFile("set __TestIntermediateDir=int&&build.cmd ${configuration} ${architecture}")
 
-                            batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
+                            batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly crossgen")
 
                             def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -os ${os} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -scenarioTest"
 
