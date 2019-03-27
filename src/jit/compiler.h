@@ -7145,9 +7145,6 @@ public:
                      UNATIVE_OFFSET                    startOffs,
                      UNATIVE_OFFSET                    length,
                      unsigned                          varNum,
-                     unsigned                          LVnum,
-                     VarName                           namex,
-                     bool                              avail,
                      const CodeGenInterface::siVarLoc& loc);
     void eeSetLVdone();
 

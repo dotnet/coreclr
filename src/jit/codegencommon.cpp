@@ -10763,7 +10763,7 @@ void CodeGen::genSetScopeInfo(unsigned       which,
 
 #endif // DEBUG
 
-    compiler->eeSetLVinfo(which, startOffs, length, ilVarNum, LVnum, name, avail, varLoc);
+    compiler->eeSetLVinfo(which, startOffs, length, ilVarNum, varLoc);
 }
 
 /*****************************************************************************/

@@ -652,9 +652,6 @@ void Compiler::eeSetLVinfo(unsigned                          which,
                            UNATIVE_OFFSET                    startOffs,
                            UNATIVE_OFFSET                    length,
                            unsigned                          varNum,
-                           unsigned                          LVnum,
-                           VarName                           name,
-                           bool                              avail,
                            const CodeGenInterface::siVarLoc& varLoc)
 {
     // ICorDebugInfo::VarLoc and CodeGenInterface::siVarLoc have to overlap
