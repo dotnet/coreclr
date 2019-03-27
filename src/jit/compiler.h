@@ -451,7 +451,10 @@ class VariableLiveKeeper
     bool m_LastBasicBlockHasBeenEmited; // When true no more siEndVariableLiveRange is considered.
                                         // No update/start happens when code has been generated.
 public:
-    VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* compiler);
+    VariableLiveKeeper(unsigned int  totalLocalCount,
+                       unsigned int  argsCount,
+                       Compiler*     compiler,
+                       CompAllocator allocator);
 
     // For tracking locations during code generation
     void siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum, bool isBorn, bool isDying);

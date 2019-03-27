@@ -11324,9 +11324,7 @@ void Compiler::initializeVariableLiveKeeper()
     int amountTrackedVariables = opts.compDbgInfo ? info.compLocalsCount : 0;
     int amountTrackedArgs      = opts.compDbgInfo ? info.compArgsCount : 0;
 
-    varLiveKeeper = allocator.allocate<VariableLiveKeeper>(1);
-    memset(varLiveKeeper, 0, sizeof(*varLiveKeeper));
-    new (varLiveKeeper, jitstd::placement_t()) VariableLiveKeeper(amountTrackedVariables, amountTrackedArgs, this);
+    varLiveKeeper = new (allocator) VariableLiveKeeper(amountTrackedArgs, amountTrackedArgs, this, allocator);
 }
 
 VariableLiveKeeper* Compiler::getVariableLiveKeeper() const
@@ -11344,7 +11342,10 @@ VariableLiveKeeper* Compiler::getVariableLiveKeeper() const
 //    argsCount         - the count of args and special args in the method.
 //    compiler          - a compiler instance
 //
-VariableLiveKeeper::VariableLiveKeeper(unsigned int totalLocalCount, unsigned int argsCount, Compiler* comp)
+VariableLiveKeeper::VariableLiveKeeper(unsigned int  totalLocalCount,
+                                       unsigned int  argsCount,
+                                       Compiler*     comp,
+                                       CompAllocator allocator)
     : m_LiveDscCount(totalLocalCount)
     , m_LiveArgsCount(argsCount)
     , m_Compiler(comp)
@@ -11352,9 +11353,6 @@ VariableLiveKeeper::VariableLiveKeeper(unsigned int totalLocalCount, unsigned in
 {
     if (m_LiveDscCount > 0)
     {
-        // Get the allocator used for all the VariableLiveRange objects
-        CompAllocator allocator = m_Compiler->getAllocator(CMK_VariableLiveRanges);
-
         // Allocate memory for "lvaLiveDsc" and initialize each "VariableLiveDescriptor"
         lvaLiveDsc = allocator.allocate<VariableLiveDescriptor>(m_LiveDscCount);
 
