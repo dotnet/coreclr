@@ -24,10 +24,7 @@ namespace BasicEventSourceTests
 
             public SimpleEventSource(Func<float> getFailureCount, Type IncrementingPollingCounterType)
             {
-                _failureCounter = Activator.CreateInstance(IncrementingPollingCounterType, "failureCount", this, getFailureCount);
-
-                // Set DisplayName and DisplayRateTimeScale
-                _failureCounter.GetType().InvokeMember("DisplayName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.SetProperty, Type.DefaultBinder, _failureCounter, "Failure Count");
+                _failureCounter = Activator.CreateInstance(IncrementingPollingCounterType, "failureCount", this, getFailureCount);    
             }
         }
 
@@ -79,27 +76,16 @@ namespace BasicEventSourceTests
                             {
                                 name = payload.Value.ToString();
                             }
-
-                            else if (payload.Key.Equals("DisplayName"))
-                            {
-                                displayName = payload.Value.ToString();
-                            }
-                            else if (payload.Key.Equals("Increment")
+                            else if (payload.Key.Equals("Increment"))
                             {
                                 increment = payload.Value.ToString();
                             }
                         }
 
                         // Check if the mean is what we expect it to be
-                        if (!increment.Equals(1)) // Increment should always be 1
+                        if (!increment.Equals("1")) // Increment should always be 1
                         {
-                            Console.WriteLine("Incorrect increment.");
-                            Failed = true;
-                        }
-
-                        if (!displayName.Equals("Failure Count"))
-                        {
-                            Console.WriteLine("Incorrect display name in payload");
+                            Console.WriteLine($"Incorrect increment: {increment}.");
                             Failed = true;
                         }
                     }
@@ -127,7 +113,7 @@ namespace BasicEventSourceTests
                     Console.WriteLine("Failed to get System.Private.CoreLib assembly.");
                     return 1;
                 }
-                Type IncrementingPollingCounterType = SPC.GetType("System.Diagnostics.Tracing.IncrementingPollingCounterType");
+                Type IncrementingPollingCounterType = SPC.GetType("System.Diagnostics.Tracing.IncrementingPollingCounter");
                 if(IncrementingPollingCounterType == null)
                 {
                     Console.WriteLine("Failed to get System.Diagnostics.Tracing.IncrementingPollingCounterType type.");
