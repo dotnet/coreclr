@@ -1589,9 +1589,9 @@ void CodeGen::psiBegProlog()
                     newScope->u1.scOtherReg = (regNumberSmall)otherRegNum;
 #endif // USING_SCOPE_INFO
 
-#ifdef USING_VARIABLE_RANGE
+#ifdef USING_VARIABLE_LIVE_RANGE
                     varLocation.storeVariableInRegisters(regNum, otherRegNum);
-#endif // USING_VARIABLE_RANGE
+#endif // USING_VARIABLE_LIVE_RANGE
                 }
                 else
                 {
