@@ -238,7 +238,6 @@ class EventPipe
     // Declare friends.
     friend class EventPipeConfiguration;
     friend class EventPipeFile;
-    friend class EventPipeStream;
     friend class EventPipeProvider;
     friend class EventPipeBufferManager;
     friend class SampleProfiler;

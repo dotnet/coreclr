@@ -11,12 +11,13 @@
 #include "eventpipeblock.h"
 #include "eventpipeeventinstance.h"
 #include "fastserializableobject.h"
-#include "fastserializer.h"
+
+class FastSerializer;
 
 class EventPipeFile final : public FastSerializableObject
 {
 public:
-    EventPipeFile(SString &outputFilePath);
+    EventPipeFile(StreamWriter *pStreamWriter);
     ~EventPipeFile();
 
     bool WriteEvent(EventPipeEventInstance &instance) override;

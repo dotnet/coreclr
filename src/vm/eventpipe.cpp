@@ -13,7 +13,6 @@
 #include "eventpipeevent.h"
 #include "eventpipeeventsource.h"
 #include "eventpipefile.h"
-#include "eventpipestream.h"
 #include "eventpipeprovider.h"
 #include "eventpipesession.h"
 #include "eventpipejsonfile.h"
@@ -290,7 +289,7 @@ EventPipeSessionID EventPipe::Enable(
         SString nextTraceFilePath;
         GetNextFilePath(nextTraceFilePath);
 
-        s_pFastSerializableObject = new EventPipeFile(nextTraceFilePath);
+        s_pFastSerializableObject = new EventPipeFile(new FileStreamWriter(nextTraceFilePath));
     }
 
     const DWORD FileSwitchTimerPeriodMS = 1000;
@@ -344,7 +343,7 @@ EventPipeSessionID EventPipe::Enable(
         return (EventPipeSessionID) nullptr;
     }
 
-    s_pFastSerializableObject = new EventPipeStream(pStream);
+    s_pFastSerializableObject = new EventPipeFile(new IpcStreamWriter(pStream));
 
     // Enable the session.
     const DWORD FlushTimerPeriodMS = 100; // TODO: Define a good number here for streaming.
@@ -647,7 +646,14 @@ void EventPipe::SwitchToNextFile()
     SString nextTraceFilePath;
     GetNextFilePath(nextTraceFilePath);
 
-    EventPipeFile *pFile = new (nothrow) EventPipeFile(nextTraceFilePath);
+    StreamWriter *pStreamWriter = new (nothrow) FileStreamWriter(nextTraceFilePath);
+    if (pStreamWriter == nullptr)
+    {
+        // TODO: Add error handling.
+        return;
+    }
+
+    EventPipeFile *pFile = new (nothrow) EventPipeFile(pStreamWriter);
     if (pFile == NULL)
     {
         // TODO: Add error handling.
