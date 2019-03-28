@@ -150,6 +150,39 @@ namespace Utility
     }
 }
 
+bool TryLoadHostPolicy(const WCHAR* hostPolicyPath)
+{
+    const WCHAR *hostpolicyName = W("hostpolicy.dll");
+    HMODULE hMod = ::GetModuleHandleW(hostpolicyName);
+    if (hMod != nullptr)
+    {
+        return true;
+    }
+
+    // Check if a hostpolicy exists and if it does, load it.
+    if (INVALID_FILE_ATTRIBUTES != ::GetFileAttributesW(hostPolicyPath))
+    {
+        hMod = ::LoadLibraryExW(hostPolicyPath, nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        if (hMod == nullptr)
+            return false;
+
+        // Initialize the hostpolicy mock to a default state
+        using Set_corehost_resolve_component_dependencies_Values_fn = void(__cdecl *)(
+            int returnValue,
+            const WCHAR *assemblyPaths,
+            const WCHAR *nativeSearchPaths,
+            const WCHAR *resourceSearchPaths);
+        auto set_comp_depend_values = (Set_corehost_resolve_component_dependencies_Values_fn)
+            ::GetProcAddress(hMod, "Set_corehost_resolve_component_dependencies_Values");
+
+        if (set_comp_depend_values != nullptr)
+        {
+            set_comp_depend_values(0, W(""), W(""), W(""));
+        }
+    }
+    return true;
+}
+
 HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ const WCHAR *path)
 {
     if (s_CoreClrInstance != nullptr)
@@ -158,39 +191,12 @@ HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ cons
         return S_FALSE;
     }
 
-    // Since the CoreShim is being loaded, there is a chance the scenario depends on
-    // other aspects of the offical host platform (e.g. hostpolicy). Verify a hostpolicy
-    // is _not_ already loaded and if not, attempt to load a hostpolicy library adjacent
-    // to the coreshim. If there isn't one, just keep going.
-    const WCHAR *hostpolicyName = W("hostpolicy.dll");
-    HMODULE hMod = ::GetModuleHandleW(hostpolicyName);
-    if (hMod == nullptr)
+    const wchar_t* mockHostPolicyEnvVar = W("MOCK_HOSTPOLICY");
+    if (::GetEnvironmentVariableW(mockHostPolicyEnvVar, nullptr, 0) != 0)
     {
-        HRESULT hr;
-        std::wstring coreShimPath;
-        RETURN_IF_FAILED(Utility::GetCoreShimDirectory(coreShimPath));
-
-        std::wstring hostpolicyPath{ coreShimPath };
-        hostpolicyPath.append(hostpolicyName);
-
-        // Check if a hostpolicy exists and if it does, load it.
-        if (INVALID_FILE_ATTRIBUTES != ::GetFileAttributesW(hostpolicyPath.c_str()))
+        if(!TryLoadHostPolicy(GetEnvVar(mockHostPolicyEnvVar).c_str()))
         {
-            hMod = ::LoadLibraryExW(hostpolicyPath.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-            if (hMod == nullptr)
-                return E_UNEXPECTED;
-
-            // Initialize the hostpolicy mock to a default state
-            using Set_corehost_resolve_component_dependencies_Values_fn = void(__cdecl *)(
-                int returnValue,
-                const WCHAR *assemblyPaths,
-                const WCHAR *nativeSearchPaths,
-                const WCHAR *resourceSearchPaths);
-            auto set_comp_depend_values = (Set_corehost_resolve_component_dependencies_Values_fn)
-                ::GetProcAddress(hMod, "Set_corehost_resolve_component_dependencies_Values");
-
-            assert(set_comp_depend_values != nullptr);
-            set_comp_depend_values(0, W(""), W(""), W(""));
+            return E_UNEXPECTED;
         }
     }
 
