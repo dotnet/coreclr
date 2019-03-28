@@ -133,6 +133,8 @@ IpcStream::~IpcStream()
 {
     if (_clientSocket != -1)
     {
+        Flush();
+
         const int fSuccessClose = ::close(_clientSocket);
         _ASSERTE(fSuccessClose != -1);
     }
