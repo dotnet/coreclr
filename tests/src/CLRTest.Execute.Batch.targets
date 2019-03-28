@@ -279,17 +279,7 @@ REM Local CoreShim requested - see MSBuild property 'CLRTestScriptLocalCoreShim'
 ECHO Copying '%CORE_ROOT%\CoreShim.dll'...
 COPY /y %CORE_ROOT%\CoreShim.dll .
       ]]></BatchCopyCoreShimLocalCmds>
-      <BatchCopyLocalCoreRoot Condition="'$(CLRTestRequiresModifiableCoreRoot)' == 'true'">
-    <![CDATA[
-REM Read-Write Core_Root requested - see MSBuild property 'CLRTestRequiresModifiableCoreRoot'
-ECHO Copying '%CORE_ROOT%' to '%scriptPath%Local_Core_Root'
-MKDIR Local_Core_Root > nul 2> nul
-ROBOCOPY %CORE_ROOT% %scriptPath%Local_Core_Root > nul 2> nul
-set CORE_ROOT=%scriptPath%Local_Core_Root
-    ]]>
-      </BatchCopyLocalCoreRoot>
       <BatchCLRTestLaunchCmds><![CDATA[
-$(BatchCopyLocalCoreRoot)
 IF NOT "%CLRCustomTestLauncher%"=="" (
   set LAUNCHER=call %CLRCustomTestLauncher% %scriptPath%
 ) ELSE (

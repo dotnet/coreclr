@@ -251,17 +251,7 @@ fi
 ]]>
           </BashLinkerTestCleanupCmds>
       </PropertyGroup>
-      <PropertyGroup>
-      <BashCopyLocalCoreRoot Condition="'$(CLRTestRequiresModifiableCoreRoot)' == 'true'">
-    <![CDATA[
-# Read-Write Core_Root requested - see MSBuild property 'CLRTestRequiresModifiableCoreRoot'
-echo Copying $CORE_ROOT to $(pwd)/Local_Core_Root
-mkdir $(pwd)/Local_Core_Root > /dev/null 2> /dev/null
-cp $CORE_ROOT/* $(pwd)/Local_Core_Root/ > /dev/null 2> /dev/null
-CORE_ROOT=$(pwd)/Local_Core_Root/
-      ]]>
-      </BashCopyLocalCoreRoot>
-      
+      <PropertyGroup>      
       <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"$CORE_ROOT/corerun"</_CLRTestRunFile>
       <BashCLRTestLaunchCmds>$(BashIlrtTestLaunchCmds)</BashCLRTestLaunchCmds>
 
@@ -272,8 +262,6 @@ $(BashCLRTestLaunchCmds)
 if [ ! -z ${RunCrossGen+x} ]%3B then
   TakeLock
 fi
-
-$(BashCopyLocalCoreRoot)
 
 if [ ! -z "$CLRCustomTestLauncher" ];
 then
