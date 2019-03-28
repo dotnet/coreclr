@@ -11002,7 +11002,6 @@ void VariableLiveRange::dumpVariableLiveRange(const CodeGenInterface* codeGen) c
 // Dump "VariableLiveRange" when code has been generated and we have the assembly native offset of each "emitLocation"
 void VariableLiveRange::dumpVariableLiveRange(emitter* emit, const CodeGenInterface* codeGen) const
 {
-    // Check pointers parameter are not nullptr
     assert(emit != nullptr);
 
     // "VariableLiveRanges" are created setting its location ("m_VarLocation") and the initial native offset
@@ -11115,8 +11114,6 @@ VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
 //
 bool VariableLiveDescriptor::hasVariableLiveRangeOpen() const
 {
-    noway_assert(m_VariableLiveRanges != nullptr);
-
     return !m_VariableLiveRanges->empty() && !m_VariableLiveRanges->back().m_EndEmitLocation.Valid();
 }
 
@@ -11234,9 +11231,6 @@ void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc
 #ifdef DEBUG
 void VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(emitter* emit, const CodeGenInterface* codeGen) const
 {
-    // "m_VariableLiveRanges" should has been initialized
-    noway_assert(m_VariableLiveRanges != nullptr);
-
     if (m_VariableLiveRanges->empty())
     {
         printf("None history\n");
@@ -11254,8 +11248,6 @@ void VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(emitter* emit, co
 
 void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const
 {
-    // "m_VariableLifeBarrier" should has been initialized
-    noway_assert(m_VariableLifeBarrier != nullptr);
     noway_assert(codeGen != nullptr);
 
     if (hasVarLiveRangesToDump())
@@ -11277,25 +11269,18 @@ void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(c
 // Returns true if a live range for this variable has been recorded
 bool VariableLiveDescriptor::hasVarLiveRangesToDump() const
 {
-    // "m_VariableLifeBarrier" should has been initialized
-    noway_assert(m_VariableLiveRanges != nullptr);
-
     return !m_VariableLiveRanges->empty();
 }
 
 // Returns true if a live range for this variable has been recorded from last call to EndBlock
 bool VariableLiveDescriptor::hasVarLiverRangesFromLastBlockToDump() const
 {
-    // "m_VariableLifeBarrier" should has been initialized
-    noway_assert(m_VariableLifeBarrier != nullptr);
-
     return m_VariableLifeBarrier->hasLiveRangesToDump();
 }
+
 // Reset the barrier so as to dump only next block changes on next block
 void VariableLiveDescriptor::endBlockLiveRanges()
 {
-    noway_assert(m_VariableLifeBarrier != nullptr);
-
     // make "m_VariableLifeBarrier->m_StartingLiveRange" now points to nullptr for printing purposes
     m_VariableLifeBarrier->resetDumper(m_VariableLiveRanges);
 }
