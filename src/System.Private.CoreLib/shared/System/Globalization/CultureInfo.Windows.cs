@@ -70,7 +70,7 @@ namespace System.Globalization
         }
 
 #if FEATURE_APPX
-        internal static CultureInfo GetCultureInfoForUserPreferredLanguageInAppX()
+        internal static CultureInfo? GetCultureInfoForUserPreferredLanguageInAppX()
         {
             // If a call to GetCultureInfoForUserPreferredLanguageInAppX() generated a recursive
             // call to itself, return null, since we don't want to stack overflow.  For example,
@@ -82,7 +82,7 @@ namespace System.Globalization
                 return null;
             }
 
-            CultureInfo toReturn = null;
+            CultureInfo toReturn;
 
             try
             {
