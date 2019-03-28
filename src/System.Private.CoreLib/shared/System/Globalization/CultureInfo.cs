@@ -1113,7 +1113,7 @@ namespace System.Globalization
         internal static CultureInfo? GetCultureInfoHelper(int lcid, string? name, string? altName)
         {
             // retval is our return value.
-            CultureInfo retval;
+            CultureInfo? retval;
 
             // Temporary hashtable for the names.
             Dictionary<string, CultureInfo>? tempNameHT = s_NameCachedCultures;
