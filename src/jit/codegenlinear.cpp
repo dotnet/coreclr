@@ -1007,7 +1007,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 #ifdef USING_VARIABLE_LIVE_RANGE
                 // We want "VariableLiveRange" inclusive on the beginbing and exclusive on the ending.
                 // For that we shouldn't report an update of the variable location if is becoming dead
-                // on the same assembly offset.
+                // on the same native offset.
                 if ((unspillTree->gtFlags & GTF_VAR_DEATH) == 0)
                 {
                     // Report the home change for this variable

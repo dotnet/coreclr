@@ -302,7 +302,7 @@ enum RefCountState
 //
 // VariableLiveRange: Represent part of the life of a variable. A
 //      variable lives in a location (represented with struct "siVarLoc")
-//      between two assembly offsets.
+//      between two native offsets.
 //
 // Notes:
 //    We use emitLocation and not NATTIVE_OFFSET because location

@@ -11005,7 +11005,7 @@ void VariableLiveRange::dumpVariableLiveRange(emitter* emit, const CodeGenInterf
     // Check pointers parameter are not nullptr
     assert(emit != nullptr);
 
-    // "VariableLiveRanges" are created setting its location ("m_VarLocation") and the initial assembly offset
+    // "VariableLiveRanges" are created setting its location ("m_VarLocation") and the initial native offset
     // ("m_StartEmitLocation")
     codeGen->dumpSiVarLoc(&m_VarLocation);
 
