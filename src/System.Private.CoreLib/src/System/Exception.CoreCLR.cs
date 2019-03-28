@@ -129,7 +129,7 @@ namespace System
 
         private MethodBase? GetExceptionMethodFromStackTrace()
         {
-            // _stackTrace shouldn't be null because we only call this method when it is not null.
+            Debug.Assert(_stackTrace != null, "_stackTrace shouldn't be null when this method is called");
             IRuntimeMethodInfo method = GetMethodFromStackTrace(_stackTrace!);
 
             // Under certain race conditions when exceptions are re-used, this can be null
