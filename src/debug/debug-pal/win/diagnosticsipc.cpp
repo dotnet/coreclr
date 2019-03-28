@@ -81,6 +81,8 @@ IpcStream::~IpcStream()
 {
     if (_hPipe != INVALID_HANDLE_VALUE)
     {
+        Flush();
+
         const BOOL fSuccessDisconnectNamedPipe = ::DisconnectNamedPipe(_hPipe);
         assert(fSuccessDisconnectNamedPipe != 0);
 
