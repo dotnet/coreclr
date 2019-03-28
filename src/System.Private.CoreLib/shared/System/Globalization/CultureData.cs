@@ -1530,7 +1530,7 @@ namespace System.Globalization
                 {
                     Debug.Assert(!GlobalizationMode.Invariant);
 
-                    string[] longTimes = GetTimeFormats();
+                    string[]? longTimes = GetTimeFormats();
                     if (longTimes == null || longTimes.Length == 0)
                     {
                         _saLongTimes = Invariant._saLongTimes!;
@@ -1557,7 +1557,7 @@ namespace System.Globalization
                     Debug.Assert(!GlobalizationMode.Invariant);
 
                     // Try to get the short times from the OS/culture.dll
-                    string[] shortTimes = GetShortTimeFormats();
+                    string[]? shortTimes = GetShortTimeFormats();
 
                     if (shortTimes == null || shortTimes.Length == 0)
                     {
@@ -2137,7 +2137,7 @@ namespace System.Globalization
             {
                 if (_sTimeSeparator == null)
                 {
-                    string longTimeFormat = GetTimeFormatString();
+                    string? longTimeFormat = GetTimeFormatString();
                     if (string.IsNullOrEmpty(longTimeFormat))
                     {
                         longTimeFormat = LongTimes[0];

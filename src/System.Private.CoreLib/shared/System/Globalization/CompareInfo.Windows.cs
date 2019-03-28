@@ -142,7 +142,7 @@ namespace System.Globalization
                 // sort keys, LCMapStringEx treats the output buffer as containing opaque binary data.
                 // See https://docs.microsoft.com/en-us/windows/desktop/api/winnls/nf-winnls-lcmapstringex.
 
-                byte[] borrowedArr = null;
+                byte[]? borrowedArr = null;
                 Span<byte> span = sortKeyLength <= 512 ?
                     stackalloc byte[512] :
                     (borrowedArr = ArrayPool<byte>.Shared.Rent(sortKeyLength));
@@ -192,7 +192,7 @@ namespace System.Globalization
             Debug.Assert(!GlobalizationMode.Invariant);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
-            string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
+            string? localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
             fixed (char* pLocaleName = localeName)
             fixed (char* pString1 = &MemoryMarshal.GetReference(string1))
@@ -225,7 +225,7 @@ namespace System.Globalization
             Debug.Assert(!GlobalizationMode.Invariant);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
-            string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
+            string? localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
             fixed (char* pLocaleName = localeName)
             fixed (char* pString1 = &MemoryMarshal.GetReference(string1))
@@ -264,7 +264,7 @@ namespace System.Globalization
             Debug.Assert(!lpStringSource.IsEmpty);
             Debug.Assert(!lpStringValue.IsEmpty);
 
-            string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
+            string? localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
             fixed (char* pLocaleName = localeName)
             fixed (char* pSource = &MemoryMarshal.GetReference(lpStringSource))
@@ -298,7 +298,7 @@ namespace System.Globalization
             Debug.Assert(lpStringSource != null);
             Debug.Assert(lpStringValue != null);
 
-            string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
+            string? localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
             fixed (char* pLocaleName = localeName)
             fixed (char* pSource = lpStringSource)
@@ -494,7 +494,7 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
-            byte [] keyData = null;
+            byte [] keyData;
             if (source.Length == 0)
             {
                 keyData = Array.Empty<byte>();

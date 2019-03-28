@@ -104,7 +104,7 @@ namespace System.Globalization
             if (iLength == 0) return string.Empty;
 
             // Someplace to stick our buffer
-            char[] cBuffer = null;
+            char[] cBuffer;
 
             for (;;)
             {
