@@ -90,8 +90,8 @@ INT32 Object::GetHashCodeEx()
         }
         else
         {
-            // If a thread is holding the thin lock or an appdomain index is set, we need a syncblock
-            if ((bits & (SBLK_MASK_LOCK_THREADID | (SBLK_MASK_APPDOMAININDEX << SBLK_APPDOMAIN_SHIFT))) != 0)
+            // If a thread is holding the thin lock we need a syncblock
+            if ((bits & (SBLK_MASK_LOCK_THREADID)) != 0)
             {
                 GetSyncBlock();
                 // No need to replicate the above code dealing with sync blocks

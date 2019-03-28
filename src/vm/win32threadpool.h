@@ -576,7 +576,6 @@ private:
         WRAPPER_NO_CONTRACT;
 #ifndef DACCESS_COMPILE
         ReleaseInfo(pInfo->ExternalEventSafeHandle, 
-        pInfo->handleOwningAD, 
         pInfo->ExternalCompletionEvent);
 #endif
     }
@@ -588,7 +587,6 @@ private:
         WRAPPER_NO_CONTRACT;
 #ifndef DACCESS_COMPILE
         ReleaseInfo(pInfo->ExternalEventSafeHandle, 
-        pInfo->handleOwningAD, 
         pInfo->ExternalCompletionEvent);
 #endif
     }

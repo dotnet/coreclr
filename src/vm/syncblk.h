@@ -99,10 +99,6 @@ typedef DPTR(EnCSyncBlockInfo) PTR_EnCSyncBlockInfo;
     // so the value of this bit does not matter for strings
 #define BIT_SBLK_STRING_HAS_NO_HIGH_CHARS   0x80000000
 
-// Used as workaround for infinite loop case.  Will set this bit in the sblk if we have already
-// seen this sblk in our agile checking logic.  Problem is seen when object 1 has a ref to object 2
-// and object 2 has a ref to object 1.  The agile checker will infinitely loop on these references.
-#define BIT_SBLK_AGILE_IN_PROGRESS          0x80000000
 #define BIT_SBLK_STRING_HIGH_CHARS_KNOWN    0x40000000
 #define BIT_SBLK_STRING_HAS_SPECIAL_SORT    0xC0000000
 #define BIT_SBLK_STRING_HIGH_CHAR_MASK      0xC0000000
@@ -121,14 +117,10 @@ typedef DPTR(EnCSyncBlockInfo) PTR_EnCSyncBlockInfo;
 //   value is zero if no thread is holding the lock
 // - following six bits (bits 10 thru 15) is recursion level used for the thin locks
 //   value is zero if lock is not taken or only taken once by the same thread
-// - following 11 bits (bits 16 thru 26) is app domain index
-//   value is zero if no app domain index is set for the object
 #define SBLK_MASK_LOCK_THREADID             0x000003FF   // special value of 0 + 1023 thread ids
 #define SBLK_MASK_LOCK_RECLEVEL             0x0000FC00   // 64 recursion levels
 #define SBLK_LOCK_RECLEVEL_INC              0x00000400   // each level is this much higher than the previous one
-#define SBLK_APPDOMAIN_SHIFT                16           // shift right this much to get appdomain index
 #define SBLK_RECLEVEL_SHIFT                 10           // shift right this much to get recursion level
-#define SBLK_MASK_APPDOMAININDEX            0x000007FF   // 2048 appdomain indices
 
 // add more bits here... (adjusting the following mask to make room)
 

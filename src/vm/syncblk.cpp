@@ -2012,13 +2012,6 @@ DWORD ObjHeader::GetSyncBlockIndex()
     if ((indx = GetHeaderSyncBlockIndex()) == 0)
     {
         BOOL fMustCreateSyncBlock = FALSE;
-
-        if (GetAppDomainIndex().m_dwIndex)
-        {
-            // if have an appdomain set then must create a sync block to store it
-            fMustCreateSyncBlock = TRUE;
-        }
-        else
         {
             //Need to get it from the cache
             SyncBlockCache::LockHolder lh(SyncBlockCache::GetSyncBlockCache());
@@ -2030,8 +2023,7 @@ DWORD ObjHeader::GetSyncBlockIndex()
                 // Now the header will be stable - check whether hashcode, appdomain index or lock information is stored in it.
                 DWORD bits = GetBits();
                 if (((bits & (BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX | BIT_SBLK_IS_HASHCODE)) == (BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX | BIT_SBLK_IS_HASHCODE)) ||
-                    ((bits & BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX) == 0 &&
-                     (bits & ((SBLK_MASK_APPDOMAININDEX<<SBLK_APPDOMAIN_SHIFT)|SBLK_MASK_LOCK_RECLEVEL|SBLK_MASK_LOCK_THREADID)) != 0))
+                    ((bits & BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX) == 0))
                 {
                     // Need a sync block to store this info
                     fMustCreateSyncBlock = TRUE;
@@ -2085,8 +2077,6 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
         }
         else
         {
-            //BIT_SBLK_AGILE_IN_PROGRESS is set only in debug build
-            ASSERT_AND_CHECK (!(bits & BIT_SBLK_AGILE_IN_PROGRESS));
             if (bits & BIT_SBLK_FINALIZER_RUN)
             {
                 ASSERT_AND_CHECK (obj->GetGCSafeMethodTable ()->HasFinalizer ());
@@ -2475,7 +2465,7 @@ BOOL AwareLock::TryEnter(INT32 timeOut)
     CONTRACTL_END;
 
     Thread  *pCurThread = GetThread();
-    TESTHOOKCALL(AppDomainCanBeUnloaded(pCurThread->GetDomain()->GetId().m_dwId, FALSE));
+    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID, FALSE));
 
     if (pCurThread->IsAbortRequested())
     {
@@ -2968,15 +2958,6 @@ void SyncBlock::SetEnCInfo(EnCSyncBlockInfo *pEnCInfo)
     // Store the field info (should only ever happen once)
     _ASSERTE( m_pEnCInfo == NULL );
     m_pEnCInfo = pEnCInfo;
-
-    // Also store the AppDomain that this object lives in.
-    // Also verify that the AD was either not yet set, or set correctly before overwriting it.
-    // I'm not sure why it should ever be set to the default domain and then changed to a different domain,
-    // perhaps that can be removed.
-    _ASSERTE (m_dwAppDomainIndex.m_dwIndex == 0 || 
-              m_dwAppDomainIndex == SystemDomain::System()->DefaultDomain()->GetIndex() || 
-              m_dwAppDomainIndex == GetAppDomain()->GetIndex());
-    m_dwAppDomainIndex = GetAppDomain()->GetIndex();
 }
 #endif // EnC_SUPPORTED
 #endif // !DACCESS_COMPILE

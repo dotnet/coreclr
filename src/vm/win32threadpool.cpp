@@ -3662,8 +3662,7 @@ LPOVERLAPPED ThreadpoolMgr::CompletionPortDispatchWorkWithinAppDomain(
     Thread* pThread,
     DWORD* pErrorCode, 
     DWORD* pNumBytes,
-    size_t* pKey,
-    DWORD adid)
+    size_t* pKey)
 //
 //This function is called just after dispatching the previous BindIO callback
 //to Managed code. This is a perf optimization to do a quick call to 

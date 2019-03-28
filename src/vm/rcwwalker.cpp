@@ -583,11 +583,6 @@ void RCWWalker::WalkRCWs()
             // Shrink the dependent handle cache if necessary and clear unused handles.
             //
             pRCWRefCache->ShrinkDependentHandles();
-
-            if (FAILED(hr))
-            {
-                break;
-            }
         }
     }
     EX_CATCH

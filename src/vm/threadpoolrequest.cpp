@@ -535,7 +535,6 @@ void ManagedPerAppDomainTPCount::SetAppDomainRequestsActive()
     //
 
     _ASSERTE(m_index.m_dwIndex != UNUSED_THREADPOOL_INDEX);
-    _ASSERTE(m_id.m_dwId != 0);
 
 #ifndef DACCESS_COMPILE
         LONG count = VolatileLoad(&m_numRequestsPending);
@@ -560,7 +559,6 @@ void ManagedPerAppDomainTPCount::ClearAppDomainRequestsActive()
     //the TpIndex is set to unused.
 
     _ASSERTE(m_index.m_dwIndex != UNUSED_THREADPOOL_INDEX);
-    _ASSERTE(m_id.m_dwId != 0);
 
     LONG count = VolatileLoad(&m_numRequestsPending);
     while (count > 0)

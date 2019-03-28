@@ -366,7 +366,7 @@ bool ModuleRecord::MatchWithModule(ModuleVersion & modVersion, bool & gotVersion
 
 
 MulticoreJitProfilePlayer::MulticoreJitProfilePlayer(ICLRPrivBinder * pBinderContext, LONG nSession, bool fAppxMode)
-    : m_stats(::GetAppDomain->GetMulticoreJitManager().GetStats()), m_appdomainSession(pDomain->GetMulticoreJitManager().GetProfileSession())
+    : m_stats(::GetAppDomain()->GetMulticoreJitManager().GetStats()), m_appdomainSession(::GetAppDomain()->GetMulticoreJitManager().GetProfileSession())
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1237,9 +1237,8 @@ HRESULT MulticoreJitProfilePlayer::PlayProfile()
 
     unsigned nSize = m_nFileSize;
 
-    MulticoreJitTrace(("PlayProfile %d bytes in (%d, %s)", 
+    MulticoreJitTrace(("PlayProfile %d bytes in (%s)", 
         nSize,
-        GetAppDomain()->GetId().m_dwId, 
         GetAppDomain()->GetFriendlyNameForLogging()));
 
     while ((SUCCEEDED(hr)) && (nSize > sizeof(unsigned)))

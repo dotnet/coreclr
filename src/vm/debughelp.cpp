@@ -816,7 +816,6 @@ const char* FormatSig(MethodDesc* pMD, AppDomain *pDomain, AllocMemTracker *pamT
 
 struct PrintCallbackData {
     BOOL toStdout;
-    BOOL withAppDomain;
 #ifdef _DEBUG
     BOOL toLOG;
 #endif
@@ -844,19 +843,6 @@ StackWalkAction PrintStackTraceCallback(CrawlFrame* pCF, VOID* pData)
     if (pMD != 0)
     {
         MethodTable * pMT = pMD->GetMethodTable();
-
-        if (pCBD->withAppDomain)
-        {
-            if(_snwprintf_s(&buff[wcslen(buff)],
-                          nLen - wcslen(buff) - 1,
-                          _TRUNCATE,
-                          W("{[%3.3x] %s} "),
-                          pCF->GetAppDomain()->GetId().m_dwId,
-                          pCF->GetAppDomain()->GetFriendlyName(FALSE)) < 0)
-            {
-                return SWA_CONTINUE;
-            }
-        }
 
         DefineFullyQualifiedNameForClass();
 
@@ -966,7 +952,7 @@ void PrintStackTrace()
     CONTRACTL_END;
 
     WszOutputDebugString(W("***************************************************\n"));
-    PrintCallbackData cbd = {0, 0};
+    PrintCallbackData cbd = {0};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
 }
 
@@ -979,7 +965,7 @@ void PrintStackTraceToStdout()
     }
     CONTRACTL_END;
 
-    PrintCallbackData cbd = {1, 0};
+    PrintCallbackData cbd = {1};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
 }
 
@@ -993,63 +979,8 @@ void PrintStackTraceToLog()
     }
     CONTRACTL_END;
 
-    PrintCallbackData cbd = {0, 0, 1};
-    GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-#endif
-
-void PrintStackTraceWithAD()
-{
-    CONTRACTL
-    {
-        DISABLED(NOTHROW);
-        DISABLED(GC_TRIGGERS);
-    }
-    CONTRACTL_END;
-
-    WszOutputDebugString(W("***************************************************\n"));
     PrintCallbackData cbd = {0, 1};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-
-void PrintStackTraceWithADToStdout()
-{
-    CONTRACTL
-    {
-        DISABLED(NOTHROW);
-        DISABLED(GC_TRIGGERS);
-    }
-    CONTRACTL_END;
-
-    PrintCallbackData cbd = {1, 1};
-    GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-
-#ifdef _DEBUG
-void PrintStackTraceWithADToLog()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    PrintCallbackData cbd = {0, 1, 1};
-    GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-
-void PrintStackTraceWithADToLog(Thread *pThread)
-{
-    CONTRACTL
-    {
-        DISABLED(NOTHROW);
-        DISABLED(GC_TRIGGERS);
-    }
-    CONTRACTL_END;
-
-    PrintCallbackData cbd = {0, 1, 1};
-    pThread->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
 }
 #endif
 
@@ -1188,7 +1119,7 @@ void LogStackTrace()
 {
     WRAPPER_NO_CONTRACT;
 
-    PrintCallbackData cbd = {0, 0, 1};
+    PrintCallbackData cbd = {0, 1};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd,ALLOW_ASYNC_STACK_WALK, 0);
 }
 #endif

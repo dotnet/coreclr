@@ -1296,54 +1296,6 @@ void Dbg_TrackSyncStack::LeaveSync(UINT_PTR caller, void *pAwareLock)
 
 static  DWORD dwHashCodeSeed = 123456789;
 
-#ifdef _DEBUG
-void CheckADValidity(AppDomain* pDomain, DWORD ADValidityKind)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        FORBID_FAULT;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    //
-    // Note: this apparently checks if any one of the supplied conditions is satisified, rather
-    // than checking that *all* of them are satisfied.  One would have expected it to assert all of the
-    // conditions but it does not.
-    //
-
-    CONTRACT_VIOLATION(FaultViolation);
-    if  (::GetAppDomain()==pDomain)
-        return;
-    if ((ADValidityKind &  ADV_DEFAULTAD) &&
-        pDomain->IsDefaultDomain())
-       return;
-    if ((ADValidityKind &  ADV_ITERATOR) &&
-        pDomain->IsHeldByIterator())
-       return;
-    if ((ADValidityKind &  ADV_CREATING) &&
-        pDomain->IsBeingCreated())
-       return;
-    if ((ADValidityKind &  ADV_COMPILATION) &&
-        pDomain->IsCompilationDomain())
-       return;
-    if ((ADValidityKind &  ADV_FINALIZER) &&
-        IsFinalizerThread())
-       return;
-    if ((ADValidityKind &  ADV_RUNNINGIN) &&
-        pDomain->IsRunningIn(GetThread()))
-       return;
-    if ((ADValidityKind &  ADV_REFTAKER) &&
-        pDomain->IsHeldByRefTaker())
-       return;
-
-    _ASSERTE(!"Appdomain* can be invalid");
-}
-#endif
-
-
 //--------------------------------------------------------------------
 // Thread construction
 //--------------------------------------------------------------------
@@ -7325,108 +7277,6 @@ void DECLSPEC_NORETURN Thread::RaiseCrossContextException(Exception* pExOrig, Co
 }
 
 
-struct FindADCallbackType {
-    AppDomain *pSearchDomain;
-    AppDomain *pPrevDomain;
-    Frame *pFrame;
-    int count;
-    enum TargetTransition
-        {fFirstTransitionInto, fMostRecentTransitionInto}
-    fTargetTransition;
-
-    FindADCallbackType() : pSearchDomain(NULL), pPrevDomain(NULL), pFrame(NULL)
-    {
-        LIMITED_METHOD_CONTRACT;
-    }
-};
-
-StackWalkAction StackWalkCallback_FindAD(CrawlFrame* pCF, void* data)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    FindADCallbackType *pData = (FindADCallbackType *)data;
-
-    Frame *pFrame = pCF->GetFrame();
-
-    if (!pFrame)
-        return SWA_CONTINUE;
-
-    AppDomain *pReturnDomain = pFrame->GetReturnDomain();
-    if (!pReturnDomain || pReturnDomain == pData->pPrevDomain)
-        return SWA_CONTINUE;
-
-    LOG((LF_APPDOMAIN, LL_INFO100, "StackWalkCallback_FindAD transition frame %8.8x into AD [%d]\n",
-            pFrame, pReturnDomain->GetId().m_dwId));
-
-    if (pData->pPrevDomain == pData->pSearchDomain) {
-                ++pData->count;
-        // this is a transition into the domain we are unloading, so save it in case it is the first
-        pData->pFrame = pFrame;
-        if (pData->fTargetTransition == FindADCallbackType::fMostRecentTransitionInto)
-            return SWA_ABORT;   // only need to find last transition, so bail now
-    }
-
-    pData->pPrevDomain = pReturnDomain;
-    return SWA_CONTINUE;
-}
-
-// This determines if a thread is running in the given domain at any point on the stack
-Frame *Thread::IsRunningIn(AppDomain *pDomain, int *count)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    FindADCallbackType fct;
-    fct.pSearchDomain = pDomain;
-    if (!fct.pSearchDomain)
-        return FALSE;
-
-    // set prev to current so if are currently running in the target domain,
-    // we will detect the transition
-    fct.pPrevDomain = m_pDomain;
-    fct.fTargetTransition = FindADCallbackType::fMostRecentTransitionInto;
-    fct.count = 0;
-
-    // when this returns, if there is a transition into the AD, it will be in pFirstFrame
-    StackWalkAction res;
-    res = StackWalkFrames(StackWalkCallback_FindAD, (void*) &fct, ALLOW_ASYNC_STACK_WALK);
-    if (count)
-        *count = fct.count;
-    return fct.pFrame;
-}
-
-// This finds the very first frame on the stack where the thread transitioned into the given domain
-Frame *Thread::GetFirstTransitionInto(AppDomain *pDomain, int *count)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    FindADCallbackType fct;
-    fct.pSearchDomain = pDomain;
-    // set prev to current so if are currently running in the target domain,
-    // we will detect the transition
-    fct.pPrevDomain = m_pDomain;
-    fct.fTargetTransition = FindADCallbackType::fFirstTransitionInto;
-    fct.count = 0;
-
-    // when this returns, if there is a transition into the AD, it will be in pFirstFrame
-    StackWalkAction res;
-    res = StackWalkFrames(StackWalkCallback_FindAD, (void*) &fct, ALLOW_ASYNC_STACK_WALK);
-    if (count)
-        *count = fct.count;
-    return fct.pFrame;
-}
-
 BOOL Thread::HaveExtraWorkForFinalizer()
 {
     LIMITED_METHOD_CONTRACT;
@@ -7527,17 +7377,6 @@ struct ManagedThreadCallState
     {
         LIMITED_METHOD_CONTRACT;
     };
-protected:
-    ManagedThreadCallState(ADCallBackFcnType Target,LPVOID Args,
-                        UnhandledExceptionLocation   FilterType):
-          pTarget(Target),
-          args(Args),
-          filterType(FilterType)
-    {
-        LIMITED_METHOD_CONTRACT;
-    };
-    friend void ManagedThreadBase_NoADTransition(ADCallBackFcnType pTarget,
-                                             UnhandledExceptionLocation filterType);
 };
 
 // The following static helpers are outside of the ManagedThreadBase struct because I
@@ -7832,7 +7671,7 @@ void ManagedThreadBase_NoADTransition(ADCallBackFcnType pTarget,
 
     AppDomain *pAppDomain = GetAppDomain();
 
-    ManagedThreadCallState CallState(pAppDomain, pTarget, NULL, filterType);
+    ManagedThreadCallState CallState(pTarget, NULL, filterType);
 
     // self-describing, to create a pTurnAround data for eventual delivery to a subsequent AppDomain
     // transition.

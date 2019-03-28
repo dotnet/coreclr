@@ -76,8 +76,7 @@ typedef Wrapper<DelegateInfo *, AcquireDelegateInfo, ReleaseDelegateInfo> Delega
 
 /*****************************************************************************************************/
 // Caller has to GC protect Objectrefs being passed in
-DelegateInfo *DelegateInfo::MakeDelegateInfo(AppDomain *pAppDomain,
-                                             OBJECTREF *state,
+DelegateInfo *DelegateInfo::MakeDelegateInfo(OBJECTREF *state,
                                              OBJECTREF *waitEvent,
                                              OBJECTREF *registeredWaitHandle)
 {
@@ -96,14 +95,13 @@ DelegateInfo *DelegateInfo::MakeDelegateInfo(AppDomain *pAppDomain,
         PRECONDITION(state == NULL || IsProtectedByGCFrame(state));
         PRECONDITION(waitEvent == NULL || IsProtectedByGCFrame(waitEvent));
         PRECONDITION(registeredWaitHandle == NULL || IsProtectedByGCFrame(registeredWaitHandle));
-        PRECONDITION(CheckPointer(pAppDomain));
         INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END;
     
     DelegateInfoHolder delegateInfo = (DelegateInfo*) ThreadpoolMgr::GetRecycledMemory(ThreadpoolMgr::MEMTYPE_DelegateInfo);
-    
-    delegateInfo->m_appDomainId = pAppDomain->GetId();
+
+    AppDomain* pAppDomain = ::GetAppDomain();    
 
     if (state != NULL)
         delegateInfo->m_stateHandle = pAppDomain->CreateHandle(*state);
@@ -362,7 +360,7 @@ VOID NTAPI RegisterWaitForSingleObjectCallback(PVOID delegateInfo, BOOLEAN Timer
 
     RegisterWaitForSingleObjectCallback_Args args = { ((DelegateInfo*) delegateInfo), TimerOrWaitFired };
 
-    ManagedThreadBase::ThreadPool(((DelegateInfo*) delegateInfo)->m_appDomainId, RegisterWaitForSingleObjectCallback_Worker, &args);
+    ManagedThreadBase::ThreadPool(RegisterWaitForSingleObjectCallback_Worker, &args);
 
     // We should have released all locks.
     _ASSERTE(g_fEEShutDown || pThread->m_dwLockCount == 0 || pThread->m_fRudeAborted);
@@ -403,10 +401,7 @@ FCIMPL5(LPVOID, ThreadPoolNative::CorRegisterWaitForSingleObject,
     Thread* pCurThread = GetThread();
     _ASSERTE( pCurThread);
 
-    AppDomain* appDomain = pCurThread->GetDomain();
-    _ASSERTE(appDomain);
-
-    DelegateInfoHolder delegateInfo = DelegateInfo::MakeDelegateInfo(appDomain,
+    DelegateInfoHolder delegateInfo = DelegateInfo::MakeDelegateInfo(
                                                                 &gc.state,
                                                                 (OBJECTREF *)&gc.waitObject,
                                                                 &gc.registeredWaitObject);
@@ -797,7 +792,7 @@ VOID WINAPI AppDomainTimerCallback(PVOID callbackState, BOOLEAN timerOrWaitFired
     GCX_COOP();
 
     ThreadpoolMgr::TimerInfoContext* pTimerInfoContext = (ThreadpoolMgr::TimerInfoContext*)callbackState;
-    ManagedThreadBase::ThreadPool(pTimerInfoContext->AppDomainId, AppDomainTimerCallback_Worker, pTimerInfoContext);
+    ManagedThreadBase::ThreadPool(AppDomainTimerCallback_Worker, pTimerInfoContext);
 
     // We should have released all locks.
     _ASSERTE(g_fEEShutDown || pThread->m_dwLockCount == 0 || pThread->m_fRudeAborted);

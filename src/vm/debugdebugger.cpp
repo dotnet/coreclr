@@ -826,7 +826,7 @@ FCIMPL1(void, DebugDebugger::CustomNotification, Object * dataUNSAFE)
         g_pDebugInterface->SendCustomDebuggerNotification(pThread, pDomainFile, classToken);   
         pThread->ClearThreadCurrNotification();
 
-        TESTHOOKCALL(AppDomainCanBeUnloaded(pThread->GetDomain()->GetId().m_dwId, FALSE));
+        TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID, FALSE));
         if (pThread->IsAbortRequested())
         {
             pThread->HandleThreadAbort();

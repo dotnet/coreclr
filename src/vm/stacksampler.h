@@ -68,6 +68,7 @@ private:
     // Fields
     Crst m_crstJitInfo;
     CountInfoHash m_countInfo;
+    JitInfoHash m_jitInfo;
     Thread* m_pThread;
     unsigned m_nSampleEvery;
     unsigned m_nSampleAfter;

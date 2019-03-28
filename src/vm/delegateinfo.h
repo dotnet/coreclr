@@ -51,8 +51,7 @@ struct DelegateInfo
     }
 #endif
 
-    static DelegateInfo  *MakeDelegateInfo(AppDomain *pAppDomain,
-                                           OBJECTREF *state,
+    static DelegateInfo  *MakeDelegateInfo(OBJECTREF *state,
                                            OBJECTREF *waitEvent,
                                            OBJECTREF *registeredWaitObject);
 };

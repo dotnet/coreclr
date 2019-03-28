@@ -3921,8 +3921,8 @@ void MethodTable::CallFinalizer(Object *obj)
 #ifdef STRESS_LOG
     if (fCriticalFinalizer)
     {
-        STRESS_LOG2(LF_GCALLOC, LL_INFO100, "Finalizing CriticalFinalizer %pM in domain %d\n", 
-                    pMT, GetAppDomain()->GetId().m_dwId);
+        STRESS_LOG1(LF_GCALLOC, LL_INFO100, "Finalizing CriticalFinalizer %pM\n", 
+                    pMT);
     }
 #endif
 
@@ -3955,8 +3955,8 @@ void MethodTable::CallFinalizer(Object *obj)
 #ifdef STRESS_LOG
     if (fCriticalFinalizer)
     {
-        STRESS_LOG2(LF_GCALLOC, LL_INFO100, "Finalized CriticalFinalizer %pM in domain %d without exception\n", 
-                    pMT, GetAppDomain()->GetId().m_dwId);
+        STRESS_LOG1(LF_GCALLOC, LL_INFO100, "Finalized CriticalFinalizer %pM without exception\n", 
+                    pMT);
     }
 #endif
 }

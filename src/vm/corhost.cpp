@@ -301,7 +301,7 @@ HRESULT CorHost2::GetCurrentAppDomainId(DWORD *pdwAppDomainId)
         }
         else
         {
-            *pdwAppDomainId = SystemDomain::GetCurrentDomain()->GetId().m_dwId;
+            *pdwAppDomainId = DefaultADID;
         }
     }
 
@@ -426,11 +426,6 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
         {
             goto ErrExit;
         }
-    }
-
-    if(pCurDomain->GetId().m_dwId != DefaultADID)
-    {
-        return HOST_E_INVALIDOPERATION;
     }
 
     INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
@@ -780,7 +775,7 @@ HRESULT CorHost2::_CreateAppDomain(
     }
 #endif
 
-    *pAppDomainID=pDomain->GetId().m_dwId;
+    *pAppDomainID=DefaultADID;
 
     m_fAppDomainCreated = TRUE;
 
@@ -839,35 +834,37 @@ HRESULT CorHost2::_CreateDelegate(
     MAKE_UTF8PTR_FROMWIDE(szClassName, wszClassName);
     MAKE_UTF8PTR_FROMWIDE(szMethodName, wszMethodName);
 
-    GCX_PREEMP();
-
-    AssemblySpec spec;
-    spec.Init(szAssemblyName);
-    Assembly* pAsm=spec.LoadAssembly(FILE_ACTIVE);
-
-    TypeHandle th=pAsm->GetLoader()->LoadTypeByNameThrowing(pAsm,NULL,szClassName);
-    MethodDesc* pMD=NULL;
-    
-    if (!th.IsTypeDesc()) 
     {
-        pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Unique);
-        if (pMD == NULL)
+        GCX_PREEMP();
+
+        AssemblySpec spec;
+        spec.Init(szAssemblyName);
+        Assembly* pAsm=spec.LoadAssembly(FILE_ACTIVE);
+
+        TypeHandle th=pAsm->GetLoader()->LoadTypeByNameThrowing(pAsm,NULL,szClassName);
+        MethodDesc* pMD=NULL;
+    
+        if (!th.IsTypeDesc()) 
         {
-            // try again without the FM_Unique flag (error path)
-            pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Default);
-            if (pMD != NULL)
+            pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Unique);
+            if (pMD == NULL)
             {
-                // the method exists but is overloaded
-                ThrowHR(COR_E_AMBIGUOUSMATCH);
+                // try again without the FM_Unique flag (error path)
+                pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Default);
+                if (pMD != NULL)
+                {
+                    // the method exists but is overloaded
+                    ThrowHR(COR_E_AMBIGUOUSMATCH);
+                }
             }
         }
+
+        if (pMD==NULL || !pMD->IsStatic() || pMD->ContainsGenericVariables()) 
+            ThrowHR(COR_E_MISSINGMETHOD);
+
+        UMEntryThunk *pUMEntryThunk = pMD->GetLoaderAllocator()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
+        *fnPtr = (INT_PTR)pUMEntryThunk->GetCode();
     }
-
-    if (pMD==NULL || !pMD->IsStatic() || pMD->ContainsGenericVariables()) 
-        ThrowHR(COR_E_MISSINGMETHOD);
-
-    UMEntryThunk *pUMEntryThunk = pMD->GetLoaderAllocator()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
-    *fnPtr = (INT_PTR)pUMEntryThunk->GetCode();
 
     END_EXTERNAL_ENTRYPOINT;
 

@@ -2640,8 +2640,6 @@ public:
         _ASSERTE(m_dwCreationHolders > -1);
     }
 #endif
-    BOOL IsRunningIn(Thread* pThread);
-
     BOOL NotReadyForManagedCode()
     {
         LIMITED_METHOD_CONTRACT;
@@ -3231,7 +3229,6 @@ class SystemDomain : public BaseDomain
     friend class AppDomainIterator;
     friend class UnsafeAppDomainIterator;
     friend class ClrDataAccess;
-    friend Frame *Thread::IsRunningIn(AppDomain* pDomain, int *count);
 
     VPTR_VTABLE_CLASS(SystemDomain, BaseDomain)
     VPTR_UNIQUE(VPTR_UNIQUE_SystemDomain)
@@ -3653,7 +3650,7 @@ public:
         if (m_iterationCount == 0)
         {
             m_iterationCount++;
-            m_pCurrent = ::GetAppDomain();
+            m_pCurrent = AppDomain::GetCurrentDomain();
             if (m_pCurrent != NULL &&
                 (m_bOnlyActive ?
                  m_pCurrent->IsActive() : m_pCurrent->IsValid()))

@@ -4769,7 +4769,7 @@ Module::GetAssemblyIfLoaded(
     {
         do
         {
-            AppDomain * pAppDomainExamine = ::GetAppDomain();
+            AppDomain * pAppDomainExamine = AppDomain::GetCurrentDomain();
             
             DomainAssembly * pCurAssemblyInExamineDomain = GetAssembly()->FindDomainAssembly(pAppDomainExamine);
             if (pCurAssemblyInExamineDomain == NULL)
@@ -6610,7 +6610,7 @@ void Module::FixupVTables()
                     FillMemory(pUMThunkMarshInfo, sizeof(*pUMThunkMarshInfo), 0);
 
                     pUMThunkMarshInfo->LoadTimeInit(pMD);
-                    pUMEntryThunk->LoadTimeInit(NULL, NULL, pUMThunkMarshInfo, pMD, pAppDomain->GetId());
+                    pUMEntryThunk->LoadTimeInit(NULL, NULL, pUMThunkMarshInfo, pMD);
                     SetTargetForVTableEntry(hInstThis, (BYTE **)&pPointers[iMethod], (BYTE *)pUMEntryThunk->GetCode());
 
                     pData->MarkMethodFixedUp(iFixup, iMethod);

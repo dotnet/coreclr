@@ -2237,21 +2237,16 @@ void SystemDomain::LazyInitGlobalStringLiteralMap()
     SystemDomain* sysDomain = SystemDomain::System();
     if (sysDomain)
     {
-        DWORD i;
-        DWORD count = (DWORD) m_appDomainIdList.GetCount();
-        for (i = 0 ; i < count ; i++)
+        AppDomain* pAppDomain = ::GetAppDomain();
+        if (pAppDomain && pAppDomain->IsActive())
         {
-            AppDomain* pAppDomain = (AppDomain *)m_appDomainIdList.Get(i);
-            if (pAppDomain && pAppDomain->IsActive())
-            {
 #ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                if (g_fEnableARM)
-                {
-                    sc->pCurrentDomain = pAppDomain;
-                }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                pAppDomain->EnumStaticGCRefs(fn, sc);
+            if (g_fEnableARM)
+            {
+                sc->pCurrentDomain = pAppDomain;
             }
+#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
+            pAppDomain->EnumStaticGCRefs(fn, sc);
         }
     }
 
@@ -2274,15 +2269,10 @@ void SystemDomain::ResetADSurvivedBytes()
     SystemDomain* sysDomain = SystemDomain::System();
     if (sysDomain)
     {
-        DWORD i;
-        DWORD count = (DWORD) m_appDomainIdList.GetCount();
-        for (i = 0 ; i < count ; i++)
+        AppDomain* pAppDomain = ::GetAppDomain();
+        if (pAppDomain && pAppDomain->IsUserActive())
         {
-            AppDomain* pAppDomain = (AppDomain *)m_appDomainIdList.Get(i);
-            if (pAppDomain && pAppDomain->IsUserActive())
-            {
-                pAppDomain->ResetSurvivedBytes();
-            }
+            pAppDomain->ResetSurvivedBytes();
         }
     }
 
@@ -2303,16 +2293,11 @@ ULONGLONG SystemDomain::GetADSurvivedBytes()
     ULONGLONG ullTotalADSurvived = 0;
     if (sysDomain)
     {
-        DWORD i;
-        DWORD count = (DWORD) m_appDomainIdList.GetCount();
-        for (i = 0 ; i < count ; i++)
+        AppDomain* pAppDomain = ::GetAppDomain();
+        if (pAppDomain && pAppDomain->IsUserActive())
         {
-            AppDomain* pAppDomain = (AppDomain *)m_appDomainIdList.Get(i);
-            if (pAppDomain && pAppDomain->IsUserActive())
-            {
-                ULONGLONG ullSurvived = pAppDomain->GetSurvivedBytes();
-                ullTotalADSurvived += ullSurvived;
-            }
+            ULONGLONG ullSurvived = pAppDomain->GetSurvivedBytes();
+            ullTotalADSurvived += ullSurvived;
         }
     }
 
@@ -2334,15 +2319,10 @@ void SystemDomain::RecordTotalSurvivedBytes(size_t totalSurvivedBytes)
     SystemDomain* sysDomain = SystemDomain::System();
     if (sysDomain)
     {
-        DWORD i;
-        DWORD count = (DWORD) m_appDomainIdList.GetCount();
-        for (i = 0 ; i < count ; i++)
+        AppDomain* pAppDomain = ::GetAppDomain();
+        if (pAppDomain && pAppDomain->IsUserActive())
         {
-            AppDomain* pAppDomain = (AppDomain *)m_appDomainIdList.Get(i);
-            if (pAppDomain && pAppDomain->IsUserActive())
-            {
-                FireEtwAppDomainMemSurvived((ULONGLONG)pAppDomain, pAppDomain->GetSurvivedBytes(), totalSurvivedBytes, GetClrInstanceId());
-            }
+            FireEtwAppDomainMemSurvived((ULONGLONG)pAppDomain, pAppDomain->GetSurvivedBytes(), totalSurvivedBytes, GetClrInstanceId());
         }
     }
 
@@ -2365,15 +2345,10 @@ DWORD SystemDomain::GetTotalNumSizedRefHandles()
     DWORD dwTotalNumSizedRefHandles = 0;
     if (sysDomain)
     {
-        DWORD i;
-        DWORD count = (DWORD) m_appDomainIdList.GetCount();
-        for (i = 0 ; i < count ; i++)
+        AppDomain* pAppDomain = ::GetAppDomain();
+        if (pAppDomain && pAppDomain->IsActive())
         {
-            AppDomain* pAppDomain = (AppDomain *)m_appDomainIdList.Get(i);
-            if (pAppDomain && pAppDomain->IsActive())
-            {
-                dwTotalNumSizedRefHandles += pAppDomain->GetNumSizedRefHandles();
-            }
+            dwTotalNumSizedRefHandles += pAppDomain->GetNumSizedRefHandles();
         }
     }
 
@@ -3342,16 +3317,10 @@ AppDomain::~AppDomain()
     if (GetTPIndex().m_dwIndex != 0)
         PerAppDomainTPCountList::ResetAppDomainIndex(GetTPIndex());
 
-    if (m_dwId.m_dwId!=0)
-        SystemDomain::ReleaseAppDomainId(m_dwId);
-
     m_AssemblyCache.Clear();
 
     if(!g_fEEInit)
         Terminate();
-
-
-
 
 #ifdef FEATURE_COMINTEROP
     if (m_pNameToTypeMap != nullptr)
@@ -3485,7 +3454,7 @@ void AppDomain::Init()
 #ifndef CROSSGEN_COMPILE
 
 #ifdef FEATURE_TIERED_COMPILATION
-    m_tieredCompilationManager.Init(GetId());
+    m_tieredCompilationManager.Init();
 #endif
 #endif // CROSSGEN_COMPILE
 } // AppDomain::Init
@@ -3638,36 +3607,8 @@ void AppDomain::Terminate()
         delete [] m_pullSurvivedBytes;
     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
-    if(m_dwIndex.m_dwIndex != 0)
-        SystemDomain::ReleaseAppDomainIndex(m_dwIndex);
 } // AppDomain::Terminate
 
-void AppDomain::CloseDomain()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-
-    BOOL bADRemoved=FALSE;;
-
-    AddRef();  // Hold a reference
-    AppDomainRefHolder AdHolder(this);
-    {
-        SystemDomain::LockHolder lh;
-
-        SystemDomain::System()->DecrementNumAppDomains(); // Maintain a count of app domains added to the list.
-        bADRemoved = SystemDomain::System()->RemoveDomain(this);
-    }
-
-    if(bADRemoved)
-        Stop();
-}
 
 #endif // !CROSSGEN_COMPILE
 
@@ -4733,7 +4674,7 @@ DomainFile *AppDomain::LoadDomainFile(FileLoadLock *pLock, FileLoadLevel targetL
 
                     TryIncrementalLoad(pFile, workLevel, fileLock);
                 }
-                TESTHOOKCALL(CompletedFileLoadLevel(GetId().m_dwId,pFile,workLevel));
+                TESTHOOKCALL(CompletedFileLoadLevel(DefaultADID,pFile,workLevel));
             }
 
             if (pLock->GetLoadLevel() == immediateTargetLevel-1)
@@ -4798,9 +4739,9 @@ void AppDomain::TryIncrementalLoad(DomainFile *pFile, FileLoadLevel workLevel, F
         }
 
         // Do the work
-        TESTHOOKCALL(NextFileLoadLevel(GetId().m_dwId,pFile,workLevel));
+        TESTHOOKCALL(NextFileLoadLevel(DefaultADID,pFile,workLevel));
         BOOL success = pFile->DoIncrementalLoad(workLevel);
-        TESTHOOKCALL(CompletingFileLoadLevel(GetId().m_dwId,pFile,workLevel));
+        TESTHOOKCALL(CompletingFileLoadLevel(DefaultADID,pFile,workLevel));
         if (released)
         {
             // Reobtain lock to increment level. (Note that another thread may
@@ -6537,8 +6478,8 @@ void AppDomain::DumpADThreadTrack()
         goto end;
 
     {
-        LOG((LF_APPDOMAIN, LL_INFO10000, "\nThread dump of %d threads for [%d] %#08x %S\n",
-             m_dwThreadEnterCount, GetId().m_dwId, this, GetFriendlyNameForLogging()));
+        LOG((LF_APPDOMAIN, LL_INFO10000, "\nThread dump of %d threads for %#08x %S\n",
+             m_dwThreadEnterCount, this, GetFriendlyNameForLogging()));
         int totThreads = 0;
         for (int i=0; i < pTrackList->Count(); i++)
         {
@@ -7746,9 +7687,6 @@ SystemDomain::EnumMemoryRegions(CLRDataEnumMemoryFlags flags,
     {
         AppDomain::GetCurrentDomain()->EnumMemoryRegions(flags, true);
     }
-
-    m_appDomainIndexList.EnumMem();
-    (&m_appDomainIndexList)->EnumMemoryRegions(flags);
 }
 
 #endif //DACCESS_COMPILE
