@@ -319,8 +319,6 @@ EventPipeSessionID EventPipe::Enable(
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());
 
-    // FIXME: Change `void* operator new (std::size_t count)` to `NewHolder`
-
     // Create a new session.
     SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
     EventPipeSession *pSession = s_pConfig->CreateSession(

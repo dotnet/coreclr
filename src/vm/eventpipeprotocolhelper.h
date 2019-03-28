@@ -20,7 +20,6 @@ public:
     static void DisableFileTracingEventHandler(IpcStream *pStream);
 
     static void AttachTracingEventHandler(IpcStream *pStream);
-    // static void DetachTracingEventHandler(IpcStream *pStream);
 
 private:
     const static uint32_t DefaultCircularBufferMB = 1024; // 1 GB
