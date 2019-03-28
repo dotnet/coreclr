@@ -48,7 +48,7 @@ namespace System.Globalization
             }
 
             SetName(name);
-            // workaround compiler bug
+            // TODO-NULLABLE: workaround compiler bug
             _name = name!;
         }
 

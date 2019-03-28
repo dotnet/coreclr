@@ -62,7 +62,7 @@ namespace System.Globalization
         {
             m_name = culture._name;
             InitSort(culture);
-            // Workaround compiler which sees this as uninitialized
+            // TODO-NULLABLE: Workaround compiler which sees this as uninitialized
             _sortHandle = _sortHandle!;
         }
 
