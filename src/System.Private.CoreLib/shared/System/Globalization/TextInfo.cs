@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -33,7 +34,7 @@ namespace System.Globalization
             True = 2
         }
 
-        private string _listSeparator;
+        private string? _listSeparator;
         private bool _isReadOnly = false;
 
         private readonly string _cultureName;
@@ -602,7 +603,7 @@ namespace System.Globalization
         /// </summary>
         public bool IsRightToLeft => _cultureData.IsRightToLeft;
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is TextInfo otherTextInfo
                 && CultureName.Equals(otherTextInfo.CultureName);
@@ -640,7 +641,7 @@ namespace System.Globalization
             }
 
             StringBuilder result = new StringBuilder();
-            string lowercaseData = null;
+            string? lowercaseData = null;
             // Store if the current culture is Dutch (special case)
             bool isDutchCulture = CultureName.StartsWith("nl-", StringComparison.OrdinalIgnoreCase);
 

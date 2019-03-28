@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 
 namespace System.Globalization
@@ -37,11 +38,8 @@ namespace System.Globalization
             }
 
             // For CoreCLR we only want the region names that are full culture names
-            _cultureData = CultureData.GetCultureDataForRegion(name, true);
-            if (_cultureData == null)
-            {
+            _cultureData = CultureData.GetCultureDataForRegion(name, true) ??
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidCultureName, name), nameof(name));
-            }
 
             // Not supposed to be neutral
             if (_cultureData.IsNeutralCulture)
@@ -50,6 +48,8 @@ namespace System.Globalization
             }
 
             SetName(name);
+            // workaround compiler bug
+            _name = name!;
         }
 
         public RegionInfo(int culture)
@@ -194,7 +194,7 @@ namespace System.Globalization
         /// RegionInfos are considered equal if and only if they have the same name
         /// (ie: en-US)
         /// </summary>
-        public override bool Equals(object value)
+        public override bool Equals(object? value)
         {
             return value is RegionInfo otherRegion
                 && Name.Equals(otherRegion.Name);

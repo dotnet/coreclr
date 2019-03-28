@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Runtime.Serialization;
 
 namespace System.Globalization
@@ -10,7 +11,7 @@ namespace System.Globalization
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class CultureNotFoundException : ArgumentException
     {
-        private string _invalidCultureName; // unrecognized culture name
+        private string? _invalidCultureName; // unrecognized culture name
         private int? _invalidCultureId;     // unrecognized culture Lcid
 
         public CultureNotFoundException()
@@ -76,7 +77,7 @@ namespace System.Globalization
             get { return _invalidCultureId; }
         }
 
-        public virtual string InvalidCultureName
+        public virtual string? InvalidCultureName
         {
             get { return _invalidCultureName; }
         }
@@ -89,7 +90,7 @@ namespace System.Globalization
             }
         }
 
-        private string FormatedInvalidCultureId
+        private string? FormatedInvalidCultureId
         {
             get
             {

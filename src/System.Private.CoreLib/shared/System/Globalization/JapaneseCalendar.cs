@@ -114,7 +114,7 @@ namespace System.Globalization
         {
             return _helper.AddYears(time, years);
         }
-        
+
         public override int GetDaysInMonth(int year, int month, int era)
         {
             return _helper.GetDaysInMonth(year, month, era);
@@ -213,7 +213,7 @@ namespace System.Globalization
         }
 
 
-        public override int[]? Eras => _helper.Eras;
+        public override int[] Eras => _helper.Eras;
 
         /// <summary>
         /// Return the various era strings

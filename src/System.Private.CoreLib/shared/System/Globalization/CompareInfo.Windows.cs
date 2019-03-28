@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -111,7 +112,7 @@ namespace System.Globalization
 
             return FindStringOrdinal(FIND_FROMEND, source, startIndex - count + 1, count, value, value.Length, ignoreCase);
         }
-        
+
         private unsafe int GetHashCodeOfStringCore(ReadOnlySpan<char> source, CompareOptions options)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
@@ -177,7 +178,7 @@ namespace System.Globalization
             fixed (char* char1 = &string1)
             fixed (char* char2 = &string2)
             {
-                // Use the OS to compare and then convert the result to expected value by subtracting 2 
+                // Use the OS to compare and then convert the result to expected value by subtracting 2
                 return Interop.Kernel32.CompareStringOrdinal(char1, count1, char2, count2, true) - 2;
             }
         }
@@ -282,7 +283,7 @@ namespace System.Globalization
                                     _sortHandle);
             }
         }
-        
+
         private unsafe int FindString(
             uint dwFindNLSStringFlags,
             string lpStringSource,
@@ -495,7 +496,7 @@ namespace System.Globalization
 
             byte [] keyData = null;
             if (source.Length == 0)
-            { 
+            {
                 keyData = Array.Empty<byte>();
             }
             else
