@@ -84,12 +84,13 @@ void CodeGen::genInitializeRegisterState()
 //    iterated.
 void CodeGen::genInitialize()
 {
+#ifdef USING_SCOPE_INFO
     // Initialize the line# tracking logic
-
     if (compiler->opts.compScopeInfo)
     {
         siInit();
     }
+#endif // USING_SCOPE_INFO
 
     // The current implementation of switch tables requires the first block to have a label so it
     // can generate offsets to the switch label targets.
@@ -113,6 +114,10 @@ void CodeGen::genInitialize()
     // Make sure a set is allocated for compiler->compCurLife (in the long case), so we can set it to empty without
     // allocation at the start of each basic block.
     VarSetOps::AssignNoCopy(compiler, compiler->compCurLife, VarSetOps::MakeEmpty(compiler));
+
+    // We initialize the stack level before first "BasicBlock" code is generated in case we need to report stack
+    // variable needs home and so its stack offset.
+    SetStackLevel(0);
 }
 
 //------------------------------------------------------------------------
@@ -350,9 +355,9 @@ void CodeGen::genCodeForBBlist()
         /* Tell everyone which basic block we're working on */
 
         compiler->compCurBB = block;
-
+#ifdef USING_SCOPE_INFO
         siBeginBlock(block);
-
+#endif // USING_SCOPE_INFO
         // BBF_INTERNAL blocks don't correspond to any single IL instruction.
         if (compiler->opts.compDbgInfo && (block->bbFlags & BBF_INTERNAL) &&
             !compiler->fgBBisScratch(block)) // If the block is the distinguished first scratch block, then no need to
@@ -508,7 +513,7 @@ void CodeGen::genCodeForBBlist()
         // This can lead to problems when debugging the generated code. To prevent these issues, make sure
         // we've generated code for the last IL offset we saw in the block.
         genEnsureCodeEmitted(currentILOffset);
-
+#ifdef USING_SCOPE_INFO
         if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
         {
             siEndBlock(block);
@@ -533,6 +538,7 @@ void CodeGen::genCodeForBBlist()
                 siCloseAllOpenScopes();
             }
         }
+#endif // USING_SCOPE_INFO
 
         SubtractStackLevel(savedStkLvl);
 
@@ -1141,7 +1147,7 @@ void CodeGen::genConsumeRegAndCopy(GenTree* node, regNumber needReg)
     {
         return;
     }
-    regNumber treeReg = genConsumeReg(node);
+    genConsumeReg(node);
     genCopyRegIfNeeded(node, needReg);
 }
 
@@ -1333,12 +1339,27 @@ void CodeGen::genConsumeRegs(GenTree* tree)
             // Update the life of the lcl var.
             genUpdateLife(tree);
         }
+#ifdef FEATURE_HW_INTRINSICS
+        else if (tree->OperIs(GT_HWIntrinsic))
+        {
+            // Only load/store HW intrinsics can be contained (and the address may also be contained).
+            HWIntrinsicCategory category = HWIntrinsicInfo::lookupCategory(tree->AsHWIntrinsic()->gtHWIntrinsicId);
+            assert((category == HW_Category_MemoryLoad) || (category == HW_Category_MemoryStore));
+            int numArgs = HWIntrinsicInfo::lookupNumArgs(tree->AsHWIntrinsic());
+            genConsumeAddress(tree->gtGetOp1());
+            if (category == HW_Category_MemoryStore)
+            {
+                assert((numArgs == 2) && !tree->gtGetOp2()->isContained());
+                genConsumeReg(tree->gtGetOp2());
+            }
+            else
+            {
+                assert(numArgs == 1);
+            }
+        }
+#endif // FEATURE_HW_INTRINSICS
 #endif // _TARGET_XARCH_
         else if (tree->OperIsInitVal())
-        {
-            genConsumeReg(tree->gtGetOp1());
-        }
-        else if (tree->OperIsHWIntrinsic())
         {
             genConsumeReg(tree->gtGetOp1());
         }
@@ -1368,11 +1389,6 @@ void CodeGen::genConsumeRegs(GenTree* tree)
 // Return Value:
 //    None.
 //
-// Notes:
-//    Note that this logic is localized here because we must do the liveness update in
-//    the correct execution order.  This is important because we may have two operands
-//    that involve the same lclVar, and if one is marked "lastUse" we must handle it
-//    after the first.
 
 void CodeGen::genConsumeOperands(GenTreeOp* tree)
 {
@@ -1388,6 +1404,55 @@ void CodeGen::genConsumeOperands(GenTreeOp* tree)
         genConsumeRegs(secondOp);
     }
 }
+
+#ifdef FEATURE_HW_INTRINSICS
+//------------------------------------------------------------------------
+// genConsumeHWIntrinsicOperands: Do liveness update for the operands of a GT_HWIntrinsic node
+//
+// Arguments:
+//    node - the GenTreeHWIntrinsic node whose operands will have their liveness updated.
+//
+// Return Value:
+//    None.
+//
+
+void CodeGen::genConsumeHWIntrinsicOperands(GenTreeHWIntrinsic* node)
+{
+    int      numArgs = HWIntrinsicInfo::lookupNumArgs(node);
+    GenTree* op1     = node->gtGetOp1();
+    if (op1 == nullptr)
+    {
+        assert((numArgs == 0) && (node->gtGetOp2() == nullptr));
+        return;
+    }
+    if (op1->OperIs(GT_LIST))
+    {
+        int foundArgs = 0;
+        assert(node->gtGetOp2() == nullptr);
+        for (GenTreeArgList* list = op1->AsArgList(); list != nullptr; list = list->Rest())
+        {
+            GenTree* operand = list->Current();
+            genConsumeRegs(operand);
+            foundArgs++;
+        }
+        assert(foundArgs == numArgs);
+    }
+    else
+    {
+        genConsumeRegs(op1);
+        GenTree* op2 = node->gtGetOp2();
+        if (op2 != nullptr)
+        {
+            genConsumeRegs(op2);
+            assert(numArgs == 2);
+        }
+        else
+        {
+            assert(numArgs == 1);
+        }
+    }
+}
+#endif // FEATURE_HW_INTRINSICS
 
 #if FEATURE_PUT_STRUCT_ARG_STK
 //------------------------------------------------------------------------
@@ -1840,9 +1905,8 @@ void CodeGen::genProduceReg(GenTree* tree)
 
                 for (unsigned i = 0; i < regCount; ++i)
                 {
-                    var_types type    = retTypeDesc->GetReturnRegType(i);
-                    regNumber fromReg = call->GetRegNumByIdx(i);
-                    regNumber toReg   = copy->GetRegNumByIdx(i);
+                    var_types type  = retTypeDesc->GetReturnRegType(i);
+                    regNumber toReg = copy->GetRegNumByIdx(i);
 
                     if (toReg != REG_NA)
                     {
