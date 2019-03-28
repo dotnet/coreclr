@@ -962,87 +962,7 @@ void BaseDomain::ClearFusionContext()
     }
 }
 
-#ifdef  FEATURE_PREJIT
-void AppDomain::DeleteNativeCodeRanges()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
-        FORBID_FAULT;
-    }
-    CONTRACTL_END;
-
-    // Fast path to skip using the assembly iterator when the appdomain has not yet completely been initialized 
-    // and yet we are destroying it.  (This is the case if we OOM during AppDomain creation.)
-    if (m_Assemblies.IsEmpty())
-        return;
-
-    // Shutdown assemblies
-    AssemblyIterator i = IterateAssembliesEx( (AssemblyIterationFlags)(kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeFailedToLoad) );
-    CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
-
-    while (i.Next(pDomainAssembly.This()))
-    {
-        Assembly * assembly = pDomainAssembly->m_pAssembly;
-        if ((assembly != NULL))
-            assembly->DeleteNativeCodeRanges();
-    }
-}
-#endif
-
-void AppDomain::ShutdownAssemblies()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // Fast path to skip using the assembly iterator when the appdomain has not yet completely been initialized 
-    // and yet we are destroying it.  (This is the case if we OOM during AppDomain creation.)
-    if (m_Assemblies.IsEmpty())
-        return;
-
-    // Shutdown assemblies
-    // has two stages because Terminate needs info from the Assembly's dependencies
-
-    // Stage 1: call code:Assembly::Terminate
-    AssemblyIterator i = IterateAssembliesEx((AssemblyIterationFlags)(
-        kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeFailedToLoad | kIncludeCollected));
-    DomainAssembly * pDomainAssembly = NULL;
-
-    while (i.Next_UnsafeNoAddRef(&pDomainAssembly))
-    {
-        // Note: cannot use DomainAssembly::GetAssembly() here as it asserts that the assembly has been
-        // loaded to at least the FILE_LOAD_ALLOCATE level. Since domain shutdown can take place
-        // asynchronously this property cannot be guaranteed. Access the m_pAssembly field directly instead.
-        Assembly * assembly = pDomainAssembly->m_pAssembly;
-        if (assembly)
-            assembly->Terminate();
-    }
-    
-    // Stage 2: Clear the list of assemblies
-    i = IterateAssembliesEx((AssemblyIterationFlags)(
-        kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeFailedToLoad | kIncludeCollected));
-    while (i.Next_UnsafeNoAddRef(&pDomainAssembly))
-    {
-        // We are in shutdown path, no one else can get to the list anymore
-        delete pDomainAssembly;
-    }
-    m_Assemblies.Clear(this);
-    
-    // Stage 2: Clear the loader allocators registered for deletion from code:Assembly:Terminate calls in 
-    // stage 1
-    // Note: It is not clear to me why we cannot delete the loader allocator from within 
-    // code:DomainAssembly::~DomainAssembly
-    ShutdownFreeLoaderAllocators(FALSE);
-} // AppDomain::ShutdownAssemblies
-
-void AppDomain::ShutdownFreeLoaderAllocators(BOOL bFromManagedCode)
+void AppDomain::ShutdownFreeLoaderAllocators()
 {
     // If we're called from managed code (i.e. the finalizer thread) we take a lock in
     // LoaderAllocator::CleanupFailedTypeInit, which may throw. Otherwise we're called
@@ -1050,7 +970,7 @@ void AppDomain::ShutdownFreeLoaderAllocators(BOOL bFromManagedCode)
     CONTRACTL
     {
         GC_TRIGGERS;
-        if (bFromManagedCode) THROWS; else NOTHROW;
+        THROWS;
         MODE_ANY;
         CAN_TAKE_LOCK;
     }
@@ -1065,24 +985,16 @@ void AppDomain::ShutdownFreeLoaderAllocators(BOOL bFromManagedCode)
         // Remove next loader allocator from the list
         m_pDelayedLoaderAllocatorUnloadList = m_pDelayedLoaderAllocatorUnloadList->m_pLoaderAllocatorDestroyNext;
 
-        if (bFromManagedCode)
-        {
-            // For loader allocator finalization, we need to be careful about cleaning up per-appdomain allocations
-            // and synchronizing with GC using delay unload list. We need to wait for next Gen2 GC to finish to ensure
-            // that GC heap does not have any references to the MethodTables being unloaded.
+        // For loader allocator finalization, we need to be careful about cleaning up per-appdomain allocations
+        // and synchronizing with GC using delay unload list. We need to wait for next Gen2 GC to finish to ensure
+        // that GC heap does not have any references to the MethodTables being unloaded.
 
-            pCurrentLoaderAllocator->CleanupFailedTypeInit();
+        pCurrentLoaderAllocator->CleanupFailedTypeInit();
 
-            pCurrentLoaderAllocator->CleanupHandles();
+        pCurrentLoaderAllocator->CleanupHandles();
 
-            GCX_COOP();
-            SystemDomain::System()->AddToDelayedUnloadList(pCurrentLoaderAllocator);
-        }
-        else
-        {
-            // For appdomain unload, delete the loader allocator right away
-            delete pCurrentLoaderAllocator;
-        }
+        GCX_COOP();
+        SystemDomain::System()->AddToDelayedUnloadList(pCurrentLoaderAllocator);
     }
 } // AppDomain::ShutdownFreeLoaderAllocators
 
@@ -1151,20 +1063,6 @@ void AppDomain::SetNativeDllSearchDirectories(LPCWSTR wszNativeDllSearchDirector
             }
         }
     }
-}
-
-void AppDomain::ShutdownNativeDllSearchDirectories()
-{
-    LIMITED_METHOD_CONTRACT;
-    // Shutdown assemblies
-    PathIterator i = IterateNativeDllSearchDirectories();
-
-    while (i.Next())
-    {
-        delete i.GetPath();
-    }
-
-    m_NativeDllSearchDirectories.Clear();
 }
 
 void AppDomain::ReleaseFiles()
@@ -3508,107 +3406,6 @@ void AppDomain::Stop()
     }
 #endif // DEBUGGING_SUPPORTED
 }
-
-void AppDomain::Terminate()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    GCX_PREEMP();
-
-    _ASSERTE(m_dwThreadEnterCount == 0 || IsDefaultDomain());
-
-#ifdef FEATURE_COMINTEROP
-    if (m_pRCWCache)
-    {
-        delete m_pRCWCache;
-        m_pRCWCache = NULL;
-    }
-
-    if (m_pRCWRefCache)
-    {
-        delete m_pRCWRefCache;
-        m_pRCWRefCache = NULL;
-    }
-#endif // FEATURE_COMINTEROP
-
-    if (!IsAtProcessExit())
-    {
-        // if we're not shutting down everything then clean up the string literals associated
-        // with this appdomain -- note that is no longer needs to happen while suspended
-        // because the appropriate locks are taken in the GlobalStringLiteralMap
-        // this is important as this locks have a higher lock number than does the
-        // thread-store lock which is taken when we suspend.
-        GetLoaderAllocator()->CleanupStringLiteralMap();
-
-        // Suspend the EE to do some clean up that can only occur
-        // while no threads are running.
-        GCX_COOP (); // SuspendEE may require current thread to be in Coop mode
-        ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_APPDOMAIN_SHUTDOWN);
-    }
-
-    // Note that this must be performed before restarting the EE. It will clean
-    // the cache and prevent others from using stale cache entries.
-    //@TODO: Would be nice to get this back to BaseDomain, but need larger fix for that.
-    // NOTE: Must have the runtime suspended to unlink managers
-    // NOTE: May be NULL due to OOM during initialization. Can skip in that case.
-    GetLoaderAllocator()->UninitVirtualCallStubManager();
-    MethodTable::ClearMethodDataCache();
-    ClearJitGenericHandleCache(this);
-
-    // @TODO s_TPMethodTableCrst prevents us from from keeping the whole
-    // assembly shutdown logic here. See if we can do better in the next milestone
-#ifdef  FEATURE_PREJIT
-    DeleteNativeCodeRanges();
-#endif
-
-    if (!IsAtProcessExit())
-    {
-        // Resume the EE.
-        ThreadSuspend::RestartEE(FALSE, TRUE);
-    }
-
-    ShutdownAssemblies();
-    ShutdownNativeDllSearchDirectories();
-
-    if (m_pRefClassFactHash)
-    {
-        m_pRefClassFactHash->Destroy();
-        // storage for m_pRefClassFactHash itself is allocated on the loader heap
-    }
-
-#ifdef FEATURE_TYPEEQUIVALENCE
-    m_TypeEquivalenceCrst.Destroy();
-#endif
-
-    m_ReflectionCrst.Destroy();
-    m_RefClassFactCrst.Destroy();
-
-    BaseDomain::Terminate();
-
-    if (m_handleStore)
-    {
-        GCHandleUtilities::GetGCHandleManager()->DestroyHandleStore(m_handleStore);
-        m_handleStore = NULL;
-    }
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (m_pullAllocBytes)
-    {
-        delete [] m_pullAllocBytes;
-    }
-    if (m_pullSurvivedBytes)
-    {
-        delete [] m_pullSurvivedBytes;
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-} // AppDomain::Terminate
-
 
 #endif // !CROSSGEN_COMPILE
 

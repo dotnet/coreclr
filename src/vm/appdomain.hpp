@@ -1792,25 +1792,11 @@ public:
     // the critical sections
     void Stop();
 
-    // Gets rid of resources
-    void Terminate();
-
-#ifdef  FEATURE_PREJIT
-    //assembly cleanup that requires suspended runtime
-    void DeleteNativeCodeRanges();
-#endif
-
     // final assembly cleanup
-    void ShutdownAssemblies();
-    void ShutdownFreeLoaderAllocators(BOOL bFromManagedCode);
+    void ShutdownFreeLoaderAllocators();
     
     void ReleaseFiles();
     
-
-    // Remove the Appdomain for the system and cleans up. This call should not be
-    // called from shut down code.
-    void CloseDomain();
-
     virtual BOOL IsAppDomain() { LIMITED_METHOD_DAC_CONTRACT; return TRUE; }
     virtual PTR_AppDomain AsAppDomain() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_AppDomain>(this); }
 
@@ -2100,7 +2086,6 @@ public:
     PathIterator IterateNativeDllSearchDirectories();
     void SetNativeDllSearchDirectories(LPCWSTR paths);
     BOOL HasNativeDllSearchDirectories();
-    void ShutdownNativeDllSearchDirectories();
 
 public:
     SIZE_T GetAssemblyCount()

@@ -639,7 +639,7 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
     
     // Deleting the DomainAssemblies will have created a list of LoaderAllocator's on the AppDomain
     // Call this shutdown function to clean those up.
-    pAppDomain->ShutdownFreeLoaderAllocators(TRUE);
+    pAppDomain->ShutdownFreeLoaderAllocators();
 } // LoaderAllocator::GCLoaderAllocators
         
 //---------------------------------------------------------------------------------------
