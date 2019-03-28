@@ -21,7 +21,7 @@ public:
     // Returns:
     //  - true: The write succeeded.
     //  - false: The write failed.  In this case, the block should be considered full.
-    bool WriteEvent(EventPipeEventInstance &instance) override;
+    bool WriteEvent(EventPipeEventInstance &instance);
 
     void Clear();
 

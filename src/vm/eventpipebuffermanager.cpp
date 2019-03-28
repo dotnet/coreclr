@@ -407,14 +407,14 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     return !allocNewBuffer;
 }
 
-void EventPipeBufferManager::WriteAllBuffersToFile(FastSerializableObject *pFastSerializableObject, LARGE_INTEGER stopTimeStamp)
+void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
 {
     CONTRACTL
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(pFastSerializableObject != nullptr);
+        PRECONDITION(pFile != nullptr);
     }
     CONTRACTL_END;
 
@@ -469,7 +469,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(FastSerializableObject *pFast
         }
 
         // Write the oldest event.
-        pFastSerializableObject->WriteEvent(*pOldestInstance);
+        pFile->WriteEvent(*pOldestInstance);
 #ifdef _DEBUG
         m_numEventsWritten++;
 #endif // _DEBUG

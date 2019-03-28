@@ -20,7 +20,7 @@ public:
     EventPipeFile(StreamWriter *pStreamWriter);
     ~EventPipeFile();
 
-    bool WriteEvent(EventPipeEventInstance &instance) override;
+    void WriteEvent(EventPipeEventInstance &instance);
 
     const char *GetTypeName() override
     {

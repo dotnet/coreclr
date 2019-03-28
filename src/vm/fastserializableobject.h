@@ -30,8 +30,6 @@ public:
     // Get the type name for the current object.
     virtual const char *GetTypeName() = 0;
 
-    virtual bool WriteEvent(EventPipeEventInstance &instance) = 0;
-
     int GetObjectVersion() const
     {
         LIMITED_METHOD_CONTRACT;

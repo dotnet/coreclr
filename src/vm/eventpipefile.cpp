@@ -66,7 +66,7 @@ EventPipeFile::~EventPipeFile()
     delete m_pSerializer;
 }
 
-bool EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
+void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
 {
     CONTRACTL
     {
@@ -94,8 +94,6 @@ bool EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     }
 
     WriteToBlock(instance, metadataId);
-
-    return true;
 }
 
 void EventPipeFile::WriteEnd()

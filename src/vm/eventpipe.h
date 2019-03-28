@@ -13,7 +13,7 @@ class CrawlFrame;
 class EventPipeConfiguration;
 class EventPipeEvent;
 class EventPipeEventInstance;
-class FastSerializableObject;
+class EventPipeFile;
 class EventPipeBufferManager;
 class EventPipeEventSource;
 class EventPipeProvider;
@@ -352,7 +352,7 @@ private:
     static EventPipeBufferManager *s_pBufferManager;
     static LPCWSTR s_pOutputPath;
     static unsigned long s_nextFileIndex;
-    static FastSerializableObject *s_pFastSerializableObject;
+    static EventPipeFile *s_pFile;
     static EventPipeEventSource *s_pEventSource;
     static LPCWSTR s_pCommandLine;
     static HANDLE s_fileSwitchTimerHandle;

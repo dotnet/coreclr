@@ -32,7 +32,7 @@ EventPipeConfiguration *EventPipe::s_pConfig = NULL;
 EventPipeSession *EventPipe::s_pSession = NULL;
 EventPipeBufferManager *EventPipe::s_pBufferManager = NULL;
 LPCWSTR EventPipe::s_pOutputPath = NULL;
-FastSerializableObject *EventPipe::s_pFastSerializableObject = NULL;
+EventPipeFile *EventPipe::s_pFile = NULL;
 EventPipeEventSource *EventPipe::s_pEventSource = NULL;
 LPCWSTR EventPipe::s_pCommandLine = NULL;
 unsigned long EventPipe::s_nextFileIndex;
@@ -289,7 +289,7 @@ EventPipeSessionID EventPipe::Enable(
         SString nextTraceFilePath;
         GetNextFilePath(nextTraceFilePath);
 
-        s_pFastSerializableObject = new EventPipeFile(new FileStreamWriter(nextTraceFilePath));
+        s_pFile = new EventPipeFile(new FileStreamWriter(nextTraceFilePath));
     }
 
     const DWORD FileSwitchTimerPeriodMS = 1000;
@@ -343,7 +343,7 @@ EventPipeSessionID EventPipe::Enable(
         return (EventPipeSessionID) nullptr;
     }
 
-    s_pFastSerializableObject = new EventPipeFile(new IpcStreamWriter(pStream));
+    s_pFile = new EventPipeFile(new IpcStreamWriter(pStream));
 
     // Enable the session.
     const DWORD FlushTimerPeriodMS = 100; // TODO: Define a good number here for streaming.
@@ -443,11 +443,11 @@ void EventPipe::Disable(EventPipeSessionID id)
         FlushProcessWriteBuffers();
 
         // Write to the file.
-        if (s_pFastSerializableObject != nullptr)
+        if (s_pFile != nullptr)
         {
             LARGE_INTEGER disableTimeStamp;
             QueryPerformanceCounter(&disableTimeStamp);
-            s_pBufferManager->WriteAllBuffersToFile(s_pFastSerializableObject, disableTimeStamp);
+            s_pBufferManager->WriteAllBuffersToFile(s_pFile, disableTimeStamp);
 
             if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
             {
@@ -477,8 +477,8 @@ void EventPipe::Disable(EventPipeSessionID id)
                 s_pSession = NULL;
             }
 
-            delete s_pFastSerializableObject;
-            s_pFastSerializableObject = nullptr;
+            delete s_pFile;
+            s_pFile = nullptr;
         }
 
         // De-allocate buffers.
@@ -504,7 +504,7 @@ void EventPipe::CreateFlushTimerCallback(WAITORTIMERCALLBACK callback, DWORD due
     }
     CONTRACTL_END
 
-    if (s_pFastSerializableObject == nullptr)
+    if (s_pFile == nullptr)
         return;
 
     NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder = new (nothrow) ThreadpoolMgr::TimerInfoContext();
@@ -572,7 +572,7 @@ void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN ti
     // Take the lock control lock to make sure that tracing isn't disabled during this operation.
     CrstHolder _crst(GetLock());
 
-    if (s_pSession == nullptr || s_pFastSerializableObject == nullptr)
+    if (s_pSession == nullptr || s_pFile == nullptr)
         return;
 
     // Make sure that we should actually switch files.
@@ -602,7 +602,7 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
     // Take the lock control lock to make sure that tracing isn't disabled during this operation.
     CrstHolder _crst(GetLock());
 
-    if (s_pSession == nullptr || s_pFastSerializableObject == nullptr)
+    if (s_pSession == nullptr || s_pFile == nullptr)
         return;
 
     // Make sure that we should actually switch files.
@@ -618,7 +618,7 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
         // the current timestamp are written into the file.
         LARGE_INTEGER stopTimeStamp;
         QueryPerformanceCounter(&stopTimeStamp);
-        s_pBufferManager->WriteAllBuffersToFile(s_pFastSerializableObject, stopTimeStamp);
+        s_pBufferManager->WriteAllBuffersToFile(s_pFile, stopTimeStamp);
 
         s_lastFileSwitchTime = CLRGetTickCount64();
     }
@@ -631,7 +631,7 @@ void EventPipe::SwitchToNextFile()
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(s_pFastSerializableObject != nullptr);
+        PRECONDITION(s_pFile != nullptr);
         PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END
@@ -640,7 +640,7 @@ void EventPipe::SwitchToNextFile()
     // WriteAllBuffersToFile will use this to ensure that no events after the current timestamp are written into the file.
     LARGE_INTEGER stopTimeStamp;
     QueryPerformanceCounter(&stopTimeStamp);
-    s_pBufferManager->WriteAllBuffersToFile(s_pFastSerializableObject, stopTimeStamp);
+    s_pBufferManager->WriteAllBuffersToFile(s_pFile, stopTimeStamp);
 
     // Open the new file.
     SString nextTraceFilePath;
@@ -661,10 +661,10 @@ void EventPipe::SwitchToNextFile()
     }
 
     // Close the previous file.
-    delete s_pFastSerializableObject;
+    delete s_pFile;
 
     // Swap in the new file.
-    s_pFastSerializableObject = pFile;
+    s_pFile = pFile;
 }
 
 void EventPipe::GetNextFilePath(SString &nextTraceFilePath)
@@ -889,14 +889,14 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
                 pRelatedActivityId);
             instance.EnsureStack(*s_pSession);
 
-            if (s_pFastSerializableObject != NULL)
+            if (s_pFile != NULL)
             {
                 // EventPipeFile::WriteEvent needs to allocate a metadata event
                 // and can therefore throw. In this context we will silently
                 // fail rather than disrupt the caller
                 EX_TRY
                 {
-                    s_pFastSerializableObject->WriteEvent(instance);
+                    s_pFile->WriteEvent(instance);
                 }
                 EX_CATCH {}
                 EX_END_CATCH(SwallowAllExceptions);
