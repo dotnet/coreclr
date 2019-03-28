@@ -49,6 +49,8 @@ bool IpcStreamWriter::Write(const void *lpBuffer, const uint32_t nBytesToWrite, 
     }
     CONTRACTL_END;
 
+    if (_pStream == nullptr)
+        return false;
     return _pStream->Write(lpBuffer, nBytesToWrite, nBytesWritten);
 }
 
@@ -96,6 +98,9 @@ bool FileStreamWriter::Write(const void *lpBuffer, const uint32_t nBytesToWrite,
         PRECONDITION(nBytesToWrite > 0);
     }
     CONTRACTL_END;
+
+    if (m_pFileStream == nullptr)
+        return false;
 
     ULONG outCount;
     HRESULT hResult = m_pFileStream->Write(lpBuffer, nBytesToWrite, &outCount);
