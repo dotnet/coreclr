@@ -404,7 +404,7 @@ namespace System.Globalization
 #if FEATURE_APPX
                 if (ApplicationModel.IsUap)
                 {
-                    CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
+                    CultureInfo? culture = GetCultureInfoForUserPreferredLanguageInAppX();
                     if (culture != null)
                         return culture;
                 }
