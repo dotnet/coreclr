@@ -82,11 +82,6 @@
       <Path>$(MSBuildThisFileDirectory)BuildToolsVersion.txt</Path>
       <PackageId>Microsoft.DotNet.BuildTools</PackageId>
     </UpdateStep>
-    <XmlUpdateStep Include="BuildTools">
-       <Path>$(MSBuildThisFileFullPath)</Path>
-       <ElementName>FeedTasksPackageVersion</ElementName>
-       <PackageId>$(FeedTasksPackage)</PackageId>
-    </XmlUpdateStep>
     <UpdateStep Include="ILAsm">
       <UpdaterType>File</UpdaterType>
       <Path>$(MSBuildThisFileDirectory)ILAsmVersion.txt</Path>
