@@ -1002,20 +1002,6 @@ StackWalkAction EventPipe::StackWalkCallback(CrawlFrame *pCf, StackContents *pDa
     return SWA_CONTINUE;
 }
 
-EventPipeConfiguration *EventPipe::GetConfiguration()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return s_pConfig;
-}
-
-CrstStatic *EventPipe::GetLock()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return &s_configCrst;
-}
-
 void EventPipe::SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv)
 {
     CONTRACTL

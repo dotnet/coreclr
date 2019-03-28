@@ -340,10 +340,18 @@ private:
 
     // Get the configuration object.
     // This is called directly by the EventPipeProvider constructor to register the new provider.
-    static EventPipeConfiguration *GetConfiguration();
+    static EventPipeConfiguration *GetConfiguration()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return s_pConfig;
+    }
 
     // Get the event pipe configuration lock.
-    static CrstStatic *GetLock();
+    static CrstStatic *GetLock()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return &s_configCrst;
+    }
 
     static CrstStatic s_configCrst;
     static bool s_tracingInitialized;
