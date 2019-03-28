@@ -5591,6 +5591,38 @@ HCIMPL0(VOID, JIT_PollGC)
 }
 HCIMPLEND
 
+
+/*************************************************************/
+// This helper is similar to JIT_RareDisableHelper, but also pops the current
+// frame from the current thread
+extern "C" FCDECL0(VOID, JIT_RareDisableAndPopFrameFromThreadHelper);
+
+HCIMPL0(void, JIT_RareDisableAndPopFrameFromThreadHelper)
+{
+    BEGIN_PRESERVE_LAST_ERROR;
+
+    FCALL_CONTRACT;
+
+    Thread *thread = GetThread();
+
+    // We need to disable the implicit FORBID GC region that exists inside an FCALL
+    // in order to call RareDisablePreemptiveGC().
+    FC_CAN_TRIGGER_GC();
+    thread->RareDisablePreemptiveGC();
+    FC_CAN_TRIGGER_GC_END();
+
+    FC_GC_POLL_NOT_NEEDED();
+
+    HELPER_METHOD_FRAME_BEGIN_NOPOLL();    // Set up a frame
+    thread->HandleThreadAbort();
+    HELPER_METHOD_FRAME_END();
+
+    thread->m_pFrame = thread->m_pFrame->PtrNextFrame();
+
+    END_PRESERVE_LAST_ERROR;
+}
+HCIMPLEND
+
 /*************************************************************/
 // For an inlined N/Direct call (and possibly for other places that need this service)
 // we have noticed that the returning thread should trap for one reason or another.

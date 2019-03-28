@@ -25,18 +25,10 @@ extern _s_gsCookie:DWORD
 extern ??_7InlinedCallFrame@@6B@:DWORD
 extern _g_TrapReturningThreads:DWORD
 
-extern @JIT_RareDisableHelper@0:proc
+extern @JIT_RareDisableAndPopFrameFromThreadHelper@0:proc
 
 .686P
 .XMM
-
-POP_FRAME_FROM_THREAD macro frameReg, threadReg, trashReg
-
-        mov             trashReg, dword ptr [frameReg + Frame__m_Next]
-        mov             dword ptr [threadReg + Thread_m_pFrame], trashReg
-
-        mov             dword ptr [frameReg + InlinedCallFrame__m_pCallerReturnAddress], 0
-endm
 
 ;
 ; in:
@@ -106,8 +98,10 @@ _JIT_PInvokeEnd@4 PROC public
         jnz             _JIT_PInvokeEndRarePath@8
 
         ;; pThread->m_pFrame = pFrame->m_Next
-        ;; Trashes eax
-        POP_FRAME_FROM_THREAD ecx, edx, eax
+        mov             eax, dword ptr [ecx + Frame__m_Next]
+        mov             dword ptr [edx + Thread_m_pFrame], eax
+
+        mov             dword ptr [ecx + InlinedCallFrame__m_pCallerReturnAddress], 0
 
         ret
 
@@ -122,17 +116,13 @@ _JIT_PInvokeEnd@4 ENDP
 _JIT_PInvokeEndRarePath@8 PROC public
 
         push            ecx             ; Save pFrame pointer
-        push            edx             ; Save pThread pointer
 
         ;; Call GC helper
-        call            @JIT_RareDisableHelper@0
+        call            @JIT_RareDisableAndPopFrameFromThreadHelper@0
 
-        pop             edx
         pop             ecx
 
-        ;; pThread->m_pFrame = pFrame->m_Next
-        ;; Trashes eax
-        POP_FRAME_FROM_THREAD ecx, edx, eax
+        mov             dword ptr [ecx + InlinedCallFrame__m_pCallerReturnAddress], 0
 
         ret
 

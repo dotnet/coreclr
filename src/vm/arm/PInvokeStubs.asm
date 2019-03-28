@@ -16,7 +16,7 @@
 
     IMPORT VarargPInvokeStubWorker
     IMPORT GenericPInvokeCalliStubWorker
-    IMPORT JIT_RareDisableHelper
+    IMPORT JIT_RareDisableAndPopFrameFromThreadHelper
 
     IMPORT s_gsCookie
     IMPORT g_TrapReturningThreads
@@ -110,20 +110,6 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
         
         MEND
 
-; ------------------------------------------------------------------
-;
-        MACRO
-
-        POP_FRAME_FROM_THREAD $frameReg, $threadReg, $trashReg
-
-        ;; pThread->m_pFrame = pFrame->m_Next;
-        ldr     $trashReg, [$frameReg, #Frame__m_Next]
-        str     $trashReg, [$threadReg, #Thread_m_pFrame]
-
-        mov     $trashReg, 0
-        str     $trashReg, [$frameReg, #InlinedCallFrame__m_pCallerReturnAddress]
-
-        MEND
 
 
     TEXTAREA
@@ -198,7 +184,11 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
             cbnz    r2, JIT_PInvokeEndRarePath
 
             ;; pThread->m_pFrame = pFrame->m_Next
-            POP_FRAME_FROM_THREAD r0, r1, r2
+            ldr     r2, [r0, #Frame__m_Next]
+            str     r2, [r1, #Thread_m_pFrame]
+
+            mov     r2, 0
+            str     r2, [r0, #InlinedCallFrame__m_pCallerReturnAddress]
 
             bx      lr
         
@@ -216,16 +206,15 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
             PROLOG_PUSH         {r4,r5,r7,lr}
             PROLOG_STACK_SAVE   r7
 
-            ;; Save thread and frame in callee saved registers
+            ;; Save frame in callee saved registers
             mov         r4, r0
-            mov         r5, r1
 
             ;; Call GC helper
-            bl          JIT_RareDisableHelper
-            
-            ;; pThread->m_pFrame = pFrame->m_Next
-            POP_FRAME_FROM_THREAD r4, r5, r0
-        
+            bl          JIT_RareDisableAndPopFrameFromThreadHelper
+
+            mov         r2, 0
+            str         r2, [r4, #InlinedCallFrame__m_pCallerReturnAddress]
+                    
             EPILOG_STACK_RESTORE    r7
             EPILOG_POP              {r4,r5,r7,lr}
             EPILOG_RETURN

@@ -16,7 +16,7 @@
 
     IMPORT VarargPInvokeStubWorker
     IMPORT GenericPInvokeCalliStubWorker
-    IMPORT JIT_RareDisableHelper
+    IMPORT JIT_RareDisableAndPopFrameFromThreadHelper
 
     IMPORT s_gsCookie
     IMPORT g_TrapReturningThreads
@@ -114,18 +114,6 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
         
         MEND
 
-; ------------------------------------------------------------------
-;
-        MACRO
-
-        POP_FRAME_FROM_THREAD $frameReg, $threadReg, $trashReg
-
-        ldr     $trashReg, [$frameReg, #Frame__m_Next]
-        str     $trashReg, [$threadReg, #Thread_m_pFrame]
-
-        str     xzr, [$frameReg, #InlinedCallFrame__m_pCallerReturnAddress]
-
-        MEND
 
     TEXTAREA
 
@@ -196,7 +184,10 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
             cbnz    x9, JIT_PInvokeEndRarePath
 
             ;; pThread->m_pFrame = pFrame->m_Next
-            POP_FRAME_FROM_THREAD x0, x1, x9
+            ldr     x9, [x0, #Frame__m_Next]
+            str     x9, [x1, #Thread_m_pFrame]
+
+            str     xzr, [x0, #InlinedCallFrame__m_pCallerReturnAddress]
 
             ret
             
@@ -213,15 +204,13 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
             PROLOG_SAVE_REG_PAIR           fp, lr, #-32!
             PROLOG_SAVE_REG_PAIR           x19, x20, #16
 
-            ;; Save thread and frame in callee saved registers
+            ;; Save frame in callee saved registers
             mov         x19, x0
-            mov         x20, x1
 
             ;; Call GC helper
-            bl          JIT_RareDisableHelper
+            bl          JIT_RareDisableAndPopFrameFromThreadHelper
 
-            ;; pThread->m_pFrame = pFrame->m_Next
-            POP_FRAME_FROM_THREAD x19, x20, x9
+            str         xzr, [x19, #InlinedCallFrame__m_pCallerReturnAddress]
         
             EPILOG_RESTORE_REG_PAIR   x19, x20, #16
             EPILOG_RESTORE_REG_PAIR   fp, lr, #32!

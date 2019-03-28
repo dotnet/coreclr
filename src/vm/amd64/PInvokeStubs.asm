@@ -13,7 +13,7 @@ include AsmConstants.inc
 
 extern GenericPInvokeCalliStubWorker:proc
 extern VarargPInvokeStubWorker:proc
-extern JIT_RareDisableHelper:proc
+extern JIT_RareDisableAndPopFrameFromThreadHelper:proc
 
 extern s_gsCookie:QWORD
 extern ??_7InlinedCallFrame@@6B@:QWORD
@@ -21,15 +21,6 @@ extern g_TrapReturningThreads:DWORD
 
 ; Min amount of stack space that a nested function should allocate.
 MIN_SIZE equ 28h
-
-POP_FRAME_FROM_THREAD macro frameReg, threadReg, trashReg
-
-        mov             trashReg, qword ptr [frameReg + OFFSETOF__Frame__m_Next]
-        mov             qword ptr [threadReg + OFFSETOF__Thread__m_pFrame], trashReg
-
-        mov             qword ptr [frameReg + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], 0
-
-        endm
 
 ;
 ; in:
@@ -216,8 +207,10 @@ LEAF_ENTRY JIT_PInvokeEnd, _TEXT
         jnz             JIT_PInvokeEndRarePath
 
         ;; pThread->m_pFrame = pFrame->m_Next
-        ;; Trashes rax
-        POP_FRAME_FROM_THREAD rcx, rdx, rax
+        mov             rax, qword ptr [rcx + OFFSETOF__Frame__m_Next]
+        mov             qword ptr [rdx + OFFSETOF__Thread__m_pFrame], rax
+
+        mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], 0
 
         ret
 
@@ -233,21 +226,17 @@ NESTED_ENTRY JIT_PInvokeEndRarePath, _TEXT
 
         alloc_stack         MIN_SIZE
         save_reg_postrsp    r14, MIN_SIZE + 08h
-        save_reg_postrsp    r15, MIN_SIZE + 10h 
         END_PROLOGUE
 
-        ;; Save thread and frame in callee saved registers
+        ;; Save frame in callee saved registers
         mov             r14, rcx
-        mov             r15, rdx
 
-        ;; Call
-        call            JIT_RareDisableHelper
+        ;; Call helper
+        call            JIT_RareDisableAndPopFrameFromThreadHelper
 
-        ;; pThread->m_pFrame = pFrame->m_Next
-        POP_FRAME_FROM_THREAD r14, r15, rax
+        mov             qword ptr [r14 + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], 0
 
         mov             r14, qword ptr [rsp + MIN_SIZE + 08h]
-        mov             r15, qword ptr [rsp + MIN_SIZE + 10h]
         add             rsp, MIN_SIZE
         ret
 
