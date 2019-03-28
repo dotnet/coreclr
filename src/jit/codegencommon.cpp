@@ -2339,7 +2339,6 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
     if (compiler->opts.dmpHex)
     {
         size_t consSize = getEmitter()->emitDataSize();
-        size_t infoSize = compiler->compInfoBlkSize;
 
         fprintf(dmpf, "Generated code for %s:\n", compiler->info.compFullName);
         fprintf(dmpf, "\n");
@@ -2353,6 +2352,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
             fprintf(dmpf, "    Const at %p [%04X bytes]\n", dspPtr(consPtr), consSize);
         }
 #ifdef JIT32_GCENCODER
+        size_t infoSize = compiler->compInfoBlkSize;
         if (infoSize)
             fprintf(dmpf, "    Info  at %p [%04X bytes]\n", dspPtr(infoPtr), infoSize);
 #endif // JIT32_GCENCODER
@@ -6080,9 +6080,8 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
 
 #else // !define(_TARGET_ARM_)
 
-        regNumber rZero1 = REG_ZR;
-        rAddr            = initReg;
-        *pInitRegZeroed  = false;
+        rAddr           = initReg;
+        *pInitRegZeroed = false;
 
 #endif // !defined(_TARGET_ARM_)
 
@@ -11314,6 +11313,17 @@ GenTreeIndir CodeGen::indirForm(var_types type, GenTree* base)
     GenTreeIndir i(GT_IND, type, base, nullptr);
     i.gtRegNum = REG_NA;
     i.SetContained();
+    return i;
+}
+
+//------------------------------------------------------------------------
+// indirForm: Make a temporary indir we can feed to pattern matching routines
+//    in cases where we don't want to instantiate all the indirs that happen.
+//
+GenTreeStoreInd CodeGen::storeIndirForm(var_types type, GenTree* base, GenTree* data)
+{
+    GenTreeStoreInd i(type, base, data);
+    i.gtRegNum = REG_NA;
     return i;
 }
 
