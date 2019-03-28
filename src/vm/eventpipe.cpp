@@ -566,7 +566,6 @@ void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN ti
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(s_pFastSerializableObject != nullptr);
         PRECONDITION(timerFired);
     }
     CONTRACTL_END;
@@ -574,8 +573,11 @@ void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN ti
     // Take the lock control lock to make sure that tracing isn't disabled during this operation.
     CrstHolder _crst(GetLock());
 
+    if (s_pSession == nullptr || s_pFastSerializableObject == nullptr)
+        return;
+
     // Make sure that we should actually switch files.
-    if (!Enabled() || s_pSession == nullptr || s_pSession->GetSessionType() != EventPipeSessionType::File || s_multiFileTraceLengthInSeconds == 0)
+    if (!Enabled() || s_pSession->GetSessionType() != EventPipeSessionType::File || s_multiFileTraceLengthInSeconds == 0)
         return;
 
     GCX_PREEMP();
@@ -594,7 +596,6 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(s_pFastSerializableObject != nullptr);
         PRECONDITION(timerFired);
     }
     CONTRACTL_END;
@@ -602,8 +603,11 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
     // Take the lock control lock to make sure that tracing isn't disabled during this operation.
     CrstHolder _crst(GetLock());
 
+    if (s_pSession == nullptr || s_pFastSerializableObject == nullptr)
+        return;
+
     // Make sure that we should actually switch files.
-    if (!Enabled() || s_pSession == nullptr || s_pSession->GetSessionType() != EventPipeSessionType::IpcStream)
+    if (!Enabled() || s_pSession->GetSessionType() != EventPipeSessionType::IpcStream)
         return;
 
     GCX_PREEMP();
