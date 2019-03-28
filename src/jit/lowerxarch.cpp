@@ -2656,8 +2656,8 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
 
             switch (containingIntrinsicId)
             {
-                case NI_Base_Vector128_CreateScalarUnsafe:
-                case NI_Base_Vector256_CreateScalarUnsafe:
+                case NI_Vector128_CreateScalarUnsafe:
+                case NI_Vector256_CreateScalarUnsafe:
                 {
                     assert(supportsSIMDScalarLoads == false);
 

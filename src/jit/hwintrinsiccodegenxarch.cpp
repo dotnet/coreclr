@@ -321,7 +321,8 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
 
     switch (isa)
     {
-        case InstructionSet_Base:
+        case InstructionSet_Vector128:
+        case InstructionSet_Vector256:
             genBaseIntrinsic(node);
             break;
         case InstructionSet_SSE:
@@ -1224,8 +1225,8 @@ void CodeGen::genBaseIntrinsic(GenTreeHWIntrinsic* node)
 
     switch (intrinsicId)
     {
-        case NI_Base_Vector128_CreateScalarUnsafe:
-        case NI_Base_Vector256_CreateScalarUnsafe:
+        case NI_Vector128_CreateScalarUnsafe:
+        case NI_Vector256_CreateScalarUnsafe:
         {
             if (varTypeIsIntegral(baseType))
             {
@@ -1250,8 +1251,8 @@ void CodeGen::genBaseIntrinsic(GenTreeHWIntrinsic* node)
             break;
         }
 
-        case NI_Base_Vector128_ToScalar:
-        case NI_Base_Vector256_ToScalar:
+        case NI_Vector128_ToScalar:
+        case NI_Vector256_ToScalar:
         {
             assert(varTypeIsFloating(baseType));
 
@@ -1269,7 +1270,7 @@ void CodeGen::genBaseIntrinsic(GenTreeHWIntrinsic* node)
             break;
         }
 
-        case NI_Base_Vector128_ToVector256:
+        case NI_Vector128_ToVector256:
         {
             // ToVector256 has zero-extend semantics in order to ensure it is deterministic
             // We always emit a move to the target register, even when op1Reg == targetReg,
@@ -1289,8 +1290,8 @@ void CodeGen::genBaseIntrinsic(GenTreeHWIntrinsic* node)
             break;
         }
 
-        case NI_Base_Vector128_ToVector256Unsafe:
-        case NI_Base_Vector256_GetLower:
+        case NI_Vector128_ToVector256Unsafe:
+        case NI_Vector256_GetLower:
         {
             if (op1->isContained() || op1->isUsedFromSpillTemp())
             {
@@ -1304,8 +1305,8 @@ void CodeGen::genBaseIntrinsic(GenTreeHWIntrinsic* node)
             break;
         }
 
-        case NI_Base_Vector128_Zero:
-        case NI_Base_Vector256_Zero:
+        case NI_Vector128_Zero:
+        case NI_Vector256_Zero:
         {
             assert(op1 == nullptr);
             emit->emitIns_SIMD_R_R_R(ins, attr, targetReg, targetReg, targetReg);
