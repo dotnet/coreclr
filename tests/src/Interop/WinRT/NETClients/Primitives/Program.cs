@@ -10,6 +10,11 @@ namespace NetClient
     {
         static int Main(string[] args)
         {
+            if (!TestLibrary.Utilities.IsWinRTSupported)
+            {
+                return 100;
+            }
+
             try
             {
                 BooleanTests.RunTest();

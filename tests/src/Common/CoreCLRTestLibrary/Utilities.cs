@@ -67,6 +67,7 @@ namespace TestLibrary
         public static bool IsLinux => RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
         public static bool IsMacOSX => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
         public static bool IsWindows7 => IsWindows && Environment.OSVersion.Version.Major == 6 && Environment.OSVersion.Version.Minor == 1;
+        public static bool IsWinRTSupported => IsWindows && !IsWindows7;
         public static bool IsWindowsNanoServer => (!IsWindowsIoTCore && GetInstallationType().Equals("Nano Server", StringComparison.OrdinalIgnoreCase));
         public static bool IsWindowsIoTCore
         {
