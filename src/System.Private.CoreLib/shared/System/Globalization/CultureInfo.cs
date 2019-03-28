@@ -114,8 +114,8 @@ namespace System.Globalization
         private static readonly CultureInfo s_InvariantCultureInfo = new CultureInfo(CultureData.Invariant, isReadOnly: true);
 
         // These are defaults that we use if a thread has not opted into having an explicit culture
-        private static volatile CultureInfo s_DefaultThreadCurrentUICulture;
-        private static volatile CultureInfo s_DefaultThreadCurrentCulture;
+        private static volatile CultureInfo? s_DefaultThreadCurrentUICulture;
+        private static volatile CultureInfo? s_DefaultThreadCurrentCulture;
 
         [ThreadStatic]
         private static CultureInfo s_currentThreadCulture;
@@ -410,18 +410,10 @@ namespace System.Globalization
                 }
 #endif
 
-                if (s_currentThreadCulture != null)
-                {
-                    return s_currentThreadCulture;
-                }
-
-                CultureInfo ci = s_DefaultThreadCurrentCulture;
-                if (ci != null)
-                {
-                    return ci;
-                }
-
-                return s_userDefaultCulture ?? InitializeUserDefaultCulture();
+                return s_currentThreadCulture ??
+                    s_DefaultThreadCurrentCulture ??
+                    s_userDefaultCulture ??
+                    InitializeUserDefaultCulture();
             }
             set
             {
@@ -477,18 +469,9 @@ namespace System.Globalization
                 }
 #endif
 
-                if (s_currentThreadUICulture != null)
-                {
-                    return s_currentThreadUICulture;
-                }
-
-                CultureInfo ci = s_DefaultThreadCurrentUICulture;
-                if (ci != null)
-                {
-                    return ci;
-                }
-
-                return UserDefaultUICulture;
+                return s_currentThreadUICulture ??
+                    s_DefaultThreadCurrentUICulture ??
+                    UserDefaultUICulture;
             }
             set
             {
