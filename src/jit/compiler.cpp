@@ -11231,39 +11231,24 @@ void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc
 #ifdef DEBUG
 void VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(emitter* emit, const CodeGenInterface* codeGen) const
 {
-    if (m_VariableLiveRanges->empty())
+    printf("[");
+    for (LiveRangeListIterator it = m_VariableLiveRanges->begin(); it != m_VariableLiveRanges->end(); it++)
     {
-        printf("None history\n");
+        it->dumpVariableLiveRange(emit, codeGen);
     }
-    else
-    {
-        printf("[");
-        for (LiveRangeListIterator it = m_VariableLiveRanges->begin(); it != m_VariableLiveRanges->end(); it++)
-        {
-            it->dumpVariableLiveRange(emit, codeGen);
-        }
-        printf("]\n");
-    }
+    printf("]\n");
 }
 
 void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const
 {
     noway_assert(codeGen != nullptr);
 
-    if (hasVarLiveRangesToDump())
+    printf("[");
+    for (LiveRangeListIterator it = m_VariableLifeBarrier->getStartForDump(); it != m_VariableLiveRanges->end(); it++)
     {
-        printf("[");
-        for (LiveRangeListIterator it = m_VariableLifeBarrier->getStartForDump(); it != m_VariableLiveRanges->end();
-             it++)
-        {
-            it->dumpVariableLiveRange(codeGen);
-        }
-        printf("]\n");
+        it->dumpVariableLiveRange(codeGen);
     }
-    else
-    {
-        printf("None history\n");
-    }
+    printf("]\n");
 }
 
 // Returns true if a live range for this variable has been recorded
@@ -11679,7 +11664,7 @@ void VariableLiveKeeper::dumpBlockVariableLiveRanges(const BasicBlock* block)
     {
         printf("////////////////////////////////////////\n");
         printf("////////////////////////////////////////\n");
-        printf("Var History Dump for Block %d \n", block->bbNum);
+        printf("Variable Live Range History Dump for Block %d \n", block->bbNum);
 
         if (m_Compiler->opts.compDbgInfo)
         {
@@ -11690,7 +11675,7 @@ void VariableLiveKeeper::dumpBlockVariableLiveRanges(const BasicBlock* block)
                 if (varLiveDsc->hasVarLiverRangesFromLastBlockToDump())
                 {
                     hasDumpedHistory = true;
-                    printf("Var %d:\n", varNum);
+                    printf("IL Var Num %d:\n", m_Compiler->compMap2ILvarNum(varNum));
                     varLiveDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(m_Compiler->codeGen);
                     varLiveDsc->endBlockLiveRanges();
                 }
@@ -11716,7 +11701,7 @@ void VariableLiveKeeper::dumpLvaVariableLiveRanges() const
     {
         printf("////////////////////////////////////////\n");
         printf("////////////////////////////////////////\n");
-        printf("PRINTING REGISTER LIVE RANGES:\n");
+        printf("PRINTING VARIABLE LIVE RANGES:\n");
 
         if (m_Compiler->opts.compDbgInfo)
         {
