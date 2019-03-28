@@ -8,4 +8,9 @@ namespace winrt::Component::Contracts::implementation
     {
         return std::accumulate(array.begin(), array.end(), 0);
     }
+
+    bool ArrayTesting::Xor(array_view<bool const> array)
+    {
+        return std::accumulate(array.begin(), array.end(), false, [](bool left, bool right) { return left ^ right; });
+    }
 }

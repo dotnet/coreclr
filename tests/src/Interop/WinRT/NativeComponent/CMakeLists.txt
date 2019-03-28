@@ -70,6 +70,10 @@ set_source_files_properties(${CPP_WINRT_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
 
 list(APPEND SOURCES ${CPP_WINRT_OUTPUT_FOLDER}/module.g.cpp)
 
+if (WIN32)
+  list(APPEND SOURCES Exports.def)
+endif()
+
 # add the executable
 add_library (WinRTNativeComponent SHARED ${SOURCES})
 target_link_libraries(WinRTNativeComponent ${LINK_LIBRARIES_ADDITIONAL})

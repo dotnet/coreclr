@@ -57,16 +57,22 @@ namespace Component.Contracts
     [interface_name("Component.Contracts.IArrayTesting", 821B532D-CC5E-4218-90AB-A8361AC92794)]
     runtimeclass ArrayTesting
     {
+        ArrayTesting();
         Int32 Sum(Int32[] array);
+        Boolean Xor(Boolean[] array);
     }
 
-    [interface_name("Component.Contracts.IBindingViewModel", 4bb923ae-986a-4aad-9bfb-13e0b5ecffa4)]
-    runtimeclass BindingViewModel : Windows.UI.Xaml.Data.INotifyPropertyChanged
+    [uuid(4bb923ae-986a-4aad-9bfb-13e0b5ecffa4)]
+    interface IBindingViewModel
     {
-        BindingViewModel();
         Windows.UI.Xaml.Interop.INotifyCollectionChanged Collection { get; };
         void AddElement(Int32 i);
         String Name { get; set; };
+    }
+
+    runtimeclass BindingViewModel : [default] IBindingViewModel, Windows.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        BindingViewModel();
     }
 
     [interface_name("Component.Contracts.IBindingProjectionsTesting", 857e28e1-3e7f-4f6f-8554-efc73feba286)]

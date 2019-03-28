@@ -78,6 +78,7 @@ namespace Component.Contracts
     public interface IArrayTesting
     {
         int Sum(int[] array);
+        bool Xor(bool[] array);
     }
 
     [ComImport]
@@ -91,16 +92,10 @@ namespace Component.Contracts
     }
 
     [ComImport]
-    [WindowsRuntimeImport]
-    public sealed class BindingViewModel //: IBindingViewModel, INotifyPropertyChanged
-    {
-    }
-
-    [ComImport]
     [Guid("857e28e1-3e7f-4f6f-8554-efc73feba286")]
     [WindowsRuntimeImport]
     public interface IBindingProjectionsTesting
     {
-        BindingViewModel CreateViewModel();
+        IBindingViewModel CreateViewModel();
     }
 }
