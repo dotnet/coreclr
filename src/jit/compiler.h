@@ -8875,6 +8875,20 @@ public:
 
 #endif // DEBUG
 
+private:
+    class ClassLayoutTable* m_classLayoutTable;
+
+    class ClassLayoutTable* typCreateClassLayoutTable();
+    class ClassLayoutTable* typGetClassLayoutTable();
+
+public:
+    ClassLayout* typGetLayoutByNum(unsigned layoutNum);
+    unsigned typGetLayoutNum(ClassLayout* layout);
+    ClassLayout* typGetBlkLayout(unsigned blockSize);
+    unsigned typGetBlkLayoutNum(unsigned blockSize);
+    ClassLayout* typGetObjLayout(CORINFO_CLASS_HANDLE classHandle);
+    unsigned typGetObjLayoutNum(CORINFO_CLASS_HANDLE classHandle);
+
 //-------------------------- Global Compiler Data ------------------------------------
 
 #ifdef DEBUG
