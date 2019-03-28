@@ -10982,7 +10982,7 @@ bool Compiler::killGCRefs(GenTree* tree)
 
 // Dump "VariableLiveRange" when code has not been generated and we don't have so the assembly native offset
 // but at least "emitLocation"s and "siVarLoc"
-void VariableLiveRange::dumpVariableLiveRange(const CodeGenInterface* codeGen) const
+void VariableLiveKeeper::VariableLiveRange::dumpVariableLiveRange(const CodeGenInterface* codeGen) const
 {
     codeGen->dumpSiVarLoc(&m_VarLocation);
     printf(" [ ");
@@ -11000,7 +11000,7 @@ void VariableLiveRange::dumpVariableLiveRange(const CodeGenInterface* codeGen) c
 }
 
 // Dump "VariableLiveRange" when code has been generated and we have the assembly native offset of each "emitLocation"
-void VariableLiveRange::dumpVariableLiveRange(emitter* emit, const CodeGenInterface* codeGen) const
+void VariableLiveKeeper::VariableLiveRange::dumpVariableLiveRange(emitter* emit, const CodeGenInterface* codeGen) const
 {
     assert(emit != nullptr);
 
@@ -11031,7 +11031,7 @@ void VariableLiveRange::dumpVariableLiveRange(emitter* emit, const CodeGenInterf
 //  This method is expected to be called once a the code for a BasicBlock has been
 //  generated and all the new "VariableLiveRange"s of the variable during this block
 //  has been dumped.
-void LiveRangeDumper::resetDumper(const LiveRangeList* liveRanges)
+void VariableLiveKeeper::LiveRangeDumper::resetDumper(const LiveRangeList* liveRanges)
 {
     // There must have reported something in order to reset
     assert(m_hasLiveRangestoDump);
@@ -11063,7 +11063,7 @@ void LiveRangeDumper::resetDumper(const LiveRangeList* liveRanges)
 //
 // Notes:
 //  "varNum" should be always a valid inde ("varnum" < "m_LiveDscCount")
-void LiveRangeDumper::setDumperStartAt(const LiveRangeListIterator liveRangeIt)
+void VariableLiveKeeper::LiveRangeDumper::setDumperStartAt(const LiveRangeListIterator liveRangeIt)
 {
     m_hasLiveRangestoDump = true;
     m_StartingLiveRange   = liveRangeIt;
@@ -11077,7 +11077,7 @@ void LiveRangeDumper::setDumperStartAt(const LiveRangeListIterator liveRangeIt)
 //  A LiveRangeListIterator to the first "VariableLiveRange" in "LiveRangeList" which
 //  was used during last "BasicBlock".
 //
-LiveRangeListIterator LiveRangeDumper::getStartForDump() const
+VariableLiveKeeper::LiveRangeListIterator VariableLiveKeeper::LiveRangeDumper::getStartForDump() const
 {
     return m_StartingLiveRange;
 }
@@ -11090,7 +11090,7 @@ LiveRangeListIterator LiveRangeDumper::getStartForDump() const
 //  A boolean indicating indicating if there is at least a "VariableLiveRange"
 //  that has been used for the variable during last "BasicBlock".
 //
-bool LiveRangeDumper::hasLiveRangesToDump() const
+bool VariableLiveKeeper::LiveRangeDumper::hasLiveRangesToDump() const
 {
     return m_hasLiveRangestoDump;
 }
@@ -11100,7 +11100,7 @@ bool LiveRangeDumper::hasLiveRangesToDump() const
 //                      VariableLiveDescriptor
 //------------------------------------------------------------------------
 
-VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
+VariableLiveKeeper::VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
 {
     // Initialize an empty list
     m_VariableLiveRanges = new (allocator) LiveRangeList(allocator);
@@ -11112,7 +11112,7 @@ VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
 // hasVariableLiveRangeOpen: Return true if the variable is still alive,
 //  false in other case.
 //
-bool VariableLiveDescriptor::hasVariableLiveRangeOpen() const
+bool VariableLiveKeeper::VariableLiveDescriptor::hasVariableLiveRangeOpen() const
 {
     return !m_VariableLiveRanges->empty() && !m_VariableLiveRanges->back().m_EndEmitLocation.Valid();
 }
@@ -11124,7 +11124,7 @@ bool VariableLiveDescriptor::hasVariableLiveRangeOpen() const
 //  A const LiveRangeList* pointing to the first variable location if it has
 //  any or the end of the list in other case.
 //
-LiveRangeList* VariableLiveDescriptor::getLiveRanges() const
+VariableLiveKeeper::LiveRangeList* VariableLiveKeeper::VariableLiveDescriptor::getLiveRanges() const
 {
     return m_VariableLiveRanges;
 }
@@ -11145,7 +11145,8 @@ LiveRangeList* VariableLiveDescriptor::getLiveRanges() const
 //  The position of "emit" matters to ensure intervals inclusive of the
 //  beginning and exclusive of the end.
 //
-void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation, emitter* emit) const
+void VariableLiveKeeper::VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation,
+                                                                           emitter*                   emit) const
 {
     noway_assert(emit != nullptr);
 
@@ -11183,7 +11184,7 @@ void VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLo
 //  The position of "emit" matters to ensure intervals inclusive of the
 //  beginning and exclusive of the end.
 //
-void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* emit) const
+void VariableLiveKeeper::VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* emit) const
 {
     noway_assert(emit != nullptr);
     noway_assert(hasVariableLiveRangeOpen());
@@ -11211,7 +11212,8 @@ void VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* emit) const
 //  The position of "emit" matters to ensure intervals inclusive of the
 //  beginning and exclusive of the end.
 //
-void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varLocation, emitter* emit) const
+void VariableLiveKeeper::VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varLocation,
+                                                                          emitter*                   emit) const
 {
     // This variable is changing home so it has been started before during this block
     noway_assert(m_VariableLiveRanges != nullptr && !m_VariableLiveRanges->empty());
@@ -11229,7 +11231,8 @@ void VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc
 }
 
 #ifdef DEBUG
-void VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(emitter* emit, const CodeGenInterface* codeGen) const
+void VariableLiveKeeper::VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(
+    emitter* emit, const CodeGenInterface* codeGen) const
 {
     printf("[");
     for (LiveRangeListIterator it = m_VariableLiveRanges->begin(); it != m_VariableLiveRanges->end(); it++)
@@ -11239,7 +11242,8 @@ void VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(emitter* emit, co
     printf("]\n");
 }
 
-void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const
+void VariableLiveKeeper::VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(
+    const CodeGenInterface* codeGen) const
 {
     noway_assert(codeGen != nullptr);
 
@@ -11252,19 +11256,19 @@ void VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(c
 }
 
 // Returns true if a live range for this variable has been recorded
-bool VariableLiveDescriptor::hasVarLiveRangesToDump() const
+bool VariableLiveKeeper::VariableLiveDescriptor::hasVarLiveRangesToDump() const
 {
     return !m_VariableLiveRanges->empty();
 }
 
 // Returns true if a live range for this variable has been recorded from last call to EndBlock
-bool VariableLiveDescriptor::hasVarLiverRangesFromLastBlockToDump() const
+bool VariableLiveKeeper::VariableLiveDescriptor::hasVarLiverRangesFromLastBlockToDump() const
 {
     return m_VariableLifeBarrier->hasLiveRangesToDump();
 }
 
 // Reset the barrier so as to dump only next block changes on next block
-void VariableLiveDescriptor::endBlockLiveRanges()
+void VariableLiveKeeper::VariableLiveDescriptor::endBlockLiveRanges()
 {
     // make "m_VariableLifeBarrier->m_StartingLiveRange" now points to nullptr for printing purposes
     m_VariableLifeBarrier->resetDumper(m_VariableLiveRanges);
@@ -11274,7 +11278,7 @@ void VariableLiveDescriptor::endBlockLiveRanges()
 //------------------------------------------------------------------------
 //                      VariableLiveKeeper
 //------------------------------------------------------------------------
-
+// Initialize structures for VariableLiveRanges
 void Compiler::initializeVariableLiveKeeper()
 {
     CompAllocator allocator = getAllocator(CMK_VariableLiveRanges);
@@ -11570,7 +11574,7 @@ void VariableLiveKeeper::siEndAllVariableLiveRange()
 // Assumtions:
 //  This variable should be an argument, a special argument or an IL local
 //  variable.
-LiveRangeList* VariableLiveKeeper::getLiveRangesForVar(unsigned int varNum) const
+VariableLiveKeeper::LiveRangeList* VariableLiveKeeper::getLiveRangesForVar(unsigned int varNum) const
 {
     // There should be at least one variable for which its liveness is tracked
     noway_assert(varNum < m_LiveDscCount);

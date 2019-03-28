@@ -90,8 +90,9 @@ void CodeGen::genInitialize()
         siInit();
     }
 
-    // Initialize structures for VariableLiveRanges
+#ifdef USING_VARIABLE_LIVE_RANGE
     compiler->initializeVariableLiveKeeper();
+#endif //  USING_VARIABLE_LIVE_RANGE
 
     // The current implementation of switch tables requires the first block to have a label so it
     // can generate offsets to the switch label targets.

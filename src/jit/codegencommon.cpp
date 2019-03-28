@@ -10644,9 +10644,9 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
 
         if (compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
         {
-            LiveRangeList* liveRanges = varLiveKeeper->getLiveRangesForVar(varNum);
+            VariableLiveKeeper::LiveRangeList* liveRanges = varLiveKeeper->getLiveRangesForVar(varNum);
 
-            for (VariableLiveRange& liveRange : *liveRanges)
+            for (VariableLiveKeeper::VariableLiveRange& liveRange : *liveRanges)
             {
                 UNATIVE_OFFSET startOffs = liveRange.m_StartEmitLocation.CodeOffset(getEmitter());
                 UNATIVE_OFFSET endOffs   = liveRange.m_EndEmitLocation.CodeOffset(getEmitter());
