@@ -392,8 +392,7 @@ namespace System.Globalization
                     }
                 }
                 // returns non-nullable when passed typeof(NumberFormatInfo)
-                NumberFormatInfo? nfi = (NumberFormatInfo?)culture.GetFormat(typeof(NumberFormatInfo));
-                return nfi!;
+                return (NumberFormatInfo)culture.GetFormat(typeof(NumberFormatInfo))!;
             }
         }
 
