@@ -21,18 +21,19 @@ set(SOURCES
 set (MIDL_GENERATED_WINMD ${CMAKE_CURRENT_BINARY_DIR}/WinMD/Component.Contracts.winmd)
 string(REPLACE "/" "\\" MIDL_GENERATED_WINMD_WINDOWS_PATH ${MIDL_GENERATED_WINMD})
 
+set (WINDOWS_SDK_VERSION 10.0.17763.0)
 set (MIDL_FILE ../Contracts/Component.Contracts.idl)
 set (MIDL_COMMAND_LINE_ARGS
   /winrt
-  /metadata_dir "C:\\Program Files (x86)\\Windows Kits\\10\\References\\10.0.17763.0\\windows.foundation.foundationcontract\\3.0.0.0" 
+  /metadata_dir "C:\\Program Files (x86)\\Windows Kits\\10\\References\\${WINDOWS_SDK_VERSION}\\windows.foundation.foundationcontract\\3.0.0.0" 
   /W1
   /enum_class 
   /ns_prefix 
   /target "NT60"  
   /nomidl 
   /h "nul"
-  /reference "C:\\Program Files (x86)\\Windows Kits\\10\\References\\10.0.17763.0\\Windows.Foundation.FoundationContract\\3.0.0.0\\Windows.Foundation.FoundationContract.winmd" 
-  /reference "C:\\Program Files (x86)\\Windows Kits\\10\\References\\10.0.17763.0\\Windows.Foundation.UniversalApiContract\\7.0.0.0\\Windows.Foundation.UniversalApiContract.winmd"
+  /reference "C:\\Program Files (x86)\\Windows Kits\\10\\References\\${WINDOWS_SDK_VERSION}\\Windows.Foundation.FoundationContract\\3.0.0.0\\Windows.Foundation.FoundationContract.winmd" 
+  /reference "C:\\Program Files (x86)\\Windows Kits\\10\\References\\${WINDOWS_SDK_VERSION}\\Windows.Foundation.UniversalApiContract\\7.0.0.0\\Windows.Foundation.UniversalApiContract.winmd"
 )
 
 find_program(MIDLRT midlrt)

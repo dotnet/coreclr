@@ -97,5 +97,6 @@ namespace Component.Contracts
     public interface IBindingProjectionsTesting
     {
         IBindingViewModel CreateViewModel();
+        IDisposable InitializeXamlFrameworkForCurrentThread();
     }
 }

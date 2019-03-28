@@ -8,7 +8,9 @@ namespace winrt::Component::Contracts::implementation
     {
         BindingProjectionsTesting() = default;
 
-        Component::Contracts::BindingViewModel CreateViewModel();
+        Component::Contracts::IBindingViewModel CreateViewModel();
+
+        Windows::Foundation::IClosable InitializeXamlFrameworkForCurrentThread();
     };
 }
 

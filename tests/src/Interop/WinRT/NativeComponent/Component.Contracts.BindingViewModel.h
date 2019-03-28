@@ -113,9 +113,10 @@ struct ObservableCollection : winrt::implements<ObservableCollection<T, Containe
     void push_back(const T& value)
     {
         m_elements.push_back(value);
+
         winrt::Windows::UI::Xaml::Interop::NotifyCollectionChangedEventArgs args(
             winrt::Windows::UI::Xaml::Interop::NotifyCollectionChangedAction::Add,
-            BindableVectorWrapper<int32_t>(winrt::single_threaded_vector(std::vector<T>{value})),
+            winrt::make<BindableVectorWrapper<int32_t>>(winrt::single_threaded_vector(std::vector<T>{value})),
             nullptr,
             (int32_t)(m_elements.size() - 1),
             -1

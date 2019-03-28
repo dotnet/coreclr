@@ -79,6 +79,7 @@ namespace Component.Contracts
     runtimeclass BindingProjectionsTesting
     {
         BindingProjectionsTesting();
-        BindingViewModel CreateViewModel();
+        IBindingViewModel CreateViewModel();
+        Windows.Foundation.IClosable InitializeXamlFrameworkForCurrentThread();
     }
 }
