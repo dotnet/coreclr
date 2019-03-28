@@ -25,7 +25,7 @@ namespace System.Globalization
         public StringInfo(string value)
         {
             this.String = value;
-            // workaround: compiler doesn't see this field being initialized through property
+            // TODO-NULLABLE: compiler doesn't see this field being initialized through property
             _str = _str!;
         }
 
