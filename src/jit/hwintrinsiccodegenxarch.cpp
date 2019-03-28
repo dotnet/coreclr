@@ -1684,7 +1684,7 @@ void CodeGen::genSSE2Intrinsic(GenTreeHWIntrinsic* node)
             assert(op1 != nullptr);
             assert(op2 != nullptr);
 
-            instruction ins       = HWIntrinsicInfo::lookupIns(intrinsicId, baseType);
+            instruction     ins   = HWIntrinsicInfo::lookupIns(intrinsicId, baseType);
             GenTreeStoreInd store = storeIndirForm(node->TypeGet(), op1, op2);
             emit->emitInsStoreInd(ins, emitTypeSize(baseType), &store);
             break;
