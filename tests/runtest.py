@@ -1399,41 +1399,6 @@ def setup_tools(host_os, coreclr_repo_location):
 
     return setup
 
-def setup_coredis_tools(coreclr_repo_location, host_os, arch, core_root):
-    """ Setup CoreDisTools if needed
-
-    Args:
-        coreclr_repo_location(str)  : coreclr repo location
-        host_os(str)                : os
-        arch(str)                   : arch
-        core_root(str)              : core_root
-    """
-
-    if host_os.lower() == "osx":
-        print("GCStress C is not supported on your platform.")
-        sys.exit(1)
-
-    unsupported_arches = ["arm", "arm64"]
-
-    if arch in unsupported_arches:
-        # Nothing to do; CoreDisTools unneeded.
-        return
-
-    command = None
-    test_location = os.path.join(coreclr_repo_location, "tests")
-    if host_os == "Windows_NT":
-        command = [os.path.join(test_location, "setup-stress-dependencies.cmd"), "/arch", arch, "/outputdir", core_root]
-    else:
-        command = [os.path.join(test_location, "setup-stress-dependencies.sh"), "--outputDir=%s" % core_root]
-
-    sys.stdout.flush() # flush output before creating sub-process
-    proc = subprocess.Popen(command)
-    proc.communicate()
-
-    if proc.returncode != 0:
-        print("Failed to set up stress dependencies.")
-        sys.exit(1)
-
 def precompile_core_root(test_location,
                          host_os,
                          arch,
