@@ -364,7 +364,7 @@ private:
     static EventPipeEventSource *s_pEventSource;
     static LPCWSTR s_pCommandLine;
     static HANDLE s_fileSwitchTimerHandle;
-    static ULONGLONG s_lastFileSwitchTime;
+    static ULONGLONG s_lastFlushSwitchTime;
     static uint64_t s_multiFileTraceLengthInSeconds;
 };
 

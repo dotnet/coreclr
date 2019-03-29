@@ -37,7 +37,7 @@ EventPipeEventSource *EventPipe::s_pEventSource = NULL;
 LPCWSTR EventPipe::s_pCommandLine = NULL;
 unsigned long EventPipe::s_nextFileIndex;
 HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
-ULONGLONG EventPipe::s_lastFileSwitchTime = 0;
+ULONGLONG EventPipe::s_lastFlushSwitchTime = 0;
 uint64_t EventPipe::s_multiFileTraceLengthInSeconds = 0;
 
 #ifdef FEATURE_PAL
@@ -270,7 +270,7 @@ EventPipeSessionID EventPipe::Enable(
     s_nextFileIndex = 1;
 
     // Initialize the last file switch time.
-    s_lastFileSwitchTime = CLRGetTickCount64();
+    s_lastFlushSwitchTime = CLRGetTickCount64();
 
     // Create the event pipe file.
     // A NULL output path means that we should not write the results to a file.
@@ -578,10 +578,10 @@ void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN ti
 
     GCX_PREEMP();
 
-    if (CLRGetTickCount64() > (s_lastFileSwitchTime + (s_multiFileTraceLengthInSeconds * 1000)))
+    if (CLRGetTickCount64() > (s_lastFlushSwitchTime + (s_multiFileTraceLengthInSeconds * 1000)))
     {
         SwitchToNextFile();
-        s_lastFileSwitchTime = CLRGetTickCount64();
+        s_lastFlushSwitchTime = CLRGetTickCount64();
     }
 }
 
@@ -608,7 +608,7 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
 
     GCX_PREEMP();
 
-    if (CLRGetTickCount64() > (s_lastFileSwitchTime + 100))
+    if (CLRGetTickCount64() > (s_lastFlushSwitchTime + 100))
     {
         // Get the current time stamp.
         // WriteAllBuffersToFile will use this to ensure that no events after
@@ -617,7 +617,7 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
         QueryPerformanceCounter(&stopTimeStamp);
         s_pBufferManager->WriteAllBuffersToFile(s_pFile, stopTimeStamp);
 
-        s_lastFileSwitchTime = CLRGetTickCount64();
+        s_lastFlushSwitchTime = CLRGetTickCount64();
     }
 }
 
