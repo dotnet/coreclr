@@ -7,7 +7,6 @@
 
 #ifdef FEATURE_PERFTRACING
 
-class EventPipeEventInstance;
 class FastSerializer;
 
 class FastSerializableObject
