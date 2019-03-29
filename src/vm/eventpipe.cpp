@@ -334,7 +334,6 @@ EventPipeSessionID EventPipe::Enable(
     if (!fSuccess)
     {
         // TODO: Add error handling.
-        s_pConfig->Disable(pSession);
         s_pConfig->DeleteSession(pSession);
 
         delete pStream;
