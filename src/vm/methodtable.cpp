@@ -6989,20 +6989,32 @@ MethodTable::FindDispatchImpl(
 
                 if (foundDefaultInterfaceImplementation)
                 {
+                    //
+                    // If the default implementation we found is abstract, we hit a reabstraction.
+                    //
+                    // interface IFoo { void Frob() { ... } }
+                    // interface IBar { abstract void IFoo.Frob() }
+                    // class Foo : IBar { /* IFoo.Frob not implemented here */ }
+                    //
                     if (pDefaultMethod->IsAbstract())
                     {
-                        ThrowMethodAccessException(pIfcMD, pDefaultMethod);
+                        if (throwOnConflict)
+                        {
+                            ThrowMethodAccessException(pIfcMD, pDefaultMethod);
+                        }
                     }
-
-                    // Now, construct a DispatchSlot to return in *pImplSlot
-                    DispatchSlot ds(pDefaultMethod->GetMethodEntryPoint());
-
-                    if (pImplSlot != NULL)
+                    else
                     {
-                        *pImplSlot = ds;
-                    }
+                        // Now, construct a DispatchSlot to return in *pImplSlot
+                        DispatchSlot ds(pDefaultMethod->GetMethodEntryPoint());
 
-                    RETURN(TRUE);
+                        if (pImplSlot != NULL)
+                        {
+                            *pImplSlot = ds;
+                        }
+
+                        RETURN(TRUE);
+                    }
                 }
             }
 
