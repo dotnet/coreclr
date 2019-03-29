@@ -25,6 +25,7 @@ private:
     const static uint32_t DefaultCircularBufferMB = 1024; // 1 GB
     const static uint64_t DefaultMultiFileTraceLengthInSeconds = 0;
     const static uint32_t DefaultProfilerSamplingRateInNanoseconds = 1000000; // 1 msec.
+    const static uint32_t IpcStreamReadBufferSize = 8192;
 
     static bool TryParseProviderConfiguration(uint8_t *&bufferCursor, uint32_t &bufferLen, CQuickArray<EventPipeProviderConfiguration> &result);
 };

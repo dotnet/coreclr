@@ -9,8 +9,6 @@
 
 #ifdef FEATURE_PERFTRACING
 
-const uint32_t IpcStreamReadBufferSize = 8192;
-
 bool EventPipeProtocolHelper::TryParseProviderConfiguration(uint8_t *&bufferCursor, uint32_t &bufferLen, CQuickArray<EventPipeProviderConfiguration> &result)
 {
     // Picking an arbitrary upper bound,
