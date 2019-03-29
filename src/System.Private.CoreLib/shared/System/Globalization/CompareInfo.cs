@@ -61,10 +61,9 @@ namespace System.Globalization
         internal CompareInfo(CultureInfo culture)
         {
             m_name = culture._name;
+            _sortHandle = null!;
+            _sortName = null!;
             InitSort(culture);
-            // TODO-NULLABLE: Workaround compiler which sees these as uninitialized
-            _sortHandle = _sortHandle!;
-            _sortName = _sortName!;
         }
 
         /// <summary>
@@ -222,7 +221,6 @@ namespace System.Globalization
         ///  and the locale's changed behavior, then you'll get changed behavior, which is like
         ///  what happens for a version update)
         /// </summary>
-
         public virtual string Name
         {
             get
@@ -1351,7 +1349,7 @@ namespace System.Globalization
                 && Name == otherCompareInfo.Name;
         }
 
-        public override int GetHashCode() => Name?.GetHashCode() ?? 0;
+        public override int GetHashCode() => Name.GetHashCode();
 
         /// <summary>
         /// This internal method allows a method that allows the equivalent of creating a Sortkey for a

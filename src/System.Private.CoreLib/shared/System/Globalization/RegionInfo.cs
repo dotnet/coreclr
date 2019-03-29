@@ -47,9 +47,8 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidNeutralRegionName, name), nameof(name));
             }
 
+            _name = null!;
             SetName(name);
-            // TODO-NULLABLE: workaround compiler bug
-            _name = name!;
         }
 
         public RegionInfo(int culture)

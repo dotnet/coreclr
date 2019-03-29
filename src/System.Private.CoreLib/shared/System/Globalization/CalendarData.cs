@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 
 namespace System.Globalization
@@ -51,7 +52,26 @@ namespace System.Globalization
         internal static readonly CalendarData Invariant = CreateInvariant();
 
         // Private constructor
-        private CalendarData() { }
+        private CalendarData()
+        {
+            // TODO-NULLABLE
+            sNativeName = null!;
+            saShortDates = null!;
+            saYearMonths = null!;
+            saLongDates = null!;
+            sMonthDay = null!;
+            saEraNames = null!;
+            saAbbrevEraNames = null!;
+            saAbbrevEnglishEraNames = null!;
+            saDayNames = null!;
+            saAbbrevDayNames = null!;
+            saSuperShortDayNames = null!;
+            saMonthNames = null!;
+            saAbbrevMonthNames = null!;
+            saMonthGenitiveNames = null!;
+            saAbbrevMonthGenitiveNames = null!;
+            saLeapYearMonthNames = null!;
+        }
 
         // Invariant factory
         private static CalendarData CreateInvariant()
@@ -97,7 +117,7 @@ namespace System.Globalization
         //
         // Get a bunch of data for a calendar
         //
-        internal CalendarData(string localeName, CalendarId calendarId, bool bUseUserOverrides)
+        internal CalendarData(string localeName, CalendarId calendarId, bool bUseUserOverrides) : this(/* TODO-NULLABLE */)
         {
             this.bUseUserOverrides = bUseUserOverrides;
 
@@ -165,7 +185,7 @@ namespace System.Globalization
                 this.saAbbrevEnglishEraNames = new string[] { "" };
             }
 
-            // Japanese is the only thing with > 1 era.  Its current era # is how many ever 
+            // Japanese is the only thing with > 1 era.  Its current era # is how many ever
             // eras are in the array.  (And the others all have 1 string in the array)
             this.iCurrentEra = this.saEraNames.Length;
         }
@@ -177,7 +197,7 @@ namespace System.Globalization
             {
                 // For Localized Gregorian we really expect the data from the OS.
                 case CalendarId.GREGORIAN:
-                    // Fallback for CoreCLR < Win7 or culture.dll missing            
+                    // Fallback for CoreCLR < Win7 or culture.dll missing
                     if (this.saEraNames == null || this.saEraNames.Length == 0 || string.IsNullOrEmpty(this.saEraNames[0]))
                     {
                         this.saEraNames = new string[] { "A.D." };
@@ -260,7 +280,7 @@ namespace System.Globalization
             {
                 // For Localized Gregorian we really expect the data from the OS.
                 case CalendarId.GREGORIAN:
-                    // Fallback for CoreCLR < Win7 or culture.dll missing            
+                    // Fallback for CoreCLR < Win7 or culture.dll missing
                     if (this.saAbbrevEraNames == null || this.saAbbrevEraNames.Length == 0 || string.IsNullOrEmpty(this.saAbbrevEraNames[0]))
                     {
                         this.saAbbrevEraNames = new string[] { "AD" };
@@ -320,7 +340,7 @@ namespace System.Globalization
             //
             // Get a calendar.
             // Unfortunately we depend on the locale in the OS, so we need a locale
-            // no matter what.  So just get the appropriate calendar from the 
+            // no matter what.  So just get the appropriate calendar from the
             // appropriate locale here
             //
 
@@ -375,4 +395,3 @@ namespace System.Globalization
         }
     }
 }
-

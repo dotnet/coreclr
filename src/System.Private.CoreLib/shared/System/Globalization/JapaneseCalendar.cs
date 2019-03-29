@@ -227,7 +227,7 @@ namespace System.Globalization
             for (int i = 0; i < eras.Length; i++)
             {
                 // Strings are in chronological order, eras are backwards order.
-                eraNames[i] = eras[eras.Length - i - 1].eraName;
+                eraNames[i] = eras[eras.Length - i - 1].eraName!;
             }
 
             return eraNames;
@@ -241,7 +241,7 @@ namespace System.Globalization
             for (int i = 0; i < eras.Length; i++)
             {
                 // Strings are in chronological order, eras are backwards order.
-                erasAbbrev[i] = eras[eras.Length - i - 1].abbrevEraName;
+                erasAbbrev[i] = eras[eras.Length - i - 1].abbrevEraName!;
             }
 
             return erasAbbrev;
@@ -255,7 +255,7 @@ namespace System.Globalization
             for (int i = 0; i < eras.Length; i++)
             {
                 // Strings are in chronological order, eras are backwards order.
-                erasEnglish[i] = eras[eras.Length - i - 1].englishEraName;
+                erasEnglish[i] = eras[eras.Length - i - 1].englishEraName!;
             }
 
             return erasEnglish;

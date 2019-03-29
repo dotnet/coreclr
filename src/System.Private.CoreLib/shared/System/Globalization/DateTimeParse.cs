@@ -3523,7 +3523,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
         {
             if (str.GetNext())
             {
-                int[]? eras = dtfi.Calendar.Eras;
+                int[] eras = dtfi.Calendar.Eras;
 
                 if (eras != null)
                 {

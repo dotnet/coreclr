@@ -266,9 +266,8 @@ namespace System.Globalization
             // Remember our culture
             _cultureData = cultureData;
 
+            calendar = null!;
             Calendar = cal;
-            // TODO-NULLABLE: workaround compiler issue
-            calendar = calendar!;
         }
 
         private void InitializeOverridableProperties(CultureData cultureData, CalendarId calendarId)
@@ -364,7 +363,7 @@ namespace System.Globalization
             provider.GetFormat(typeof(DateTimeFormatInfo)) is DateTimeFormatInfo info2 ? info2 :
             CurrentInfo; // Couldn't get anything, just use currentInfo as fallback
 
-        public object? GetFormat(Type formatType)
+        public object? GetFormat(Type? formatType)
         {
             return formatType == typeof(DateTimeFormatInfo) ? this : null;
         }
@@ -2267,7 +2266,7 @@ namespace System.Globalization
 
                 // We need to rescan the date words since we're always synthetic
                 DateTimeFormatInfoScanner scanner = new DateTimeFormatInfoScanner();
-                string[]? dateWords = dateWords = scanner.GetDateWordsOfDTFI(this);
+                string[]? dateWords = scanner.GetDateWordsOfDTFI(this);
                 // Ensure the formatflags is initialized.
                 DateTimeFormatFlags flag = FormatFlags;
 

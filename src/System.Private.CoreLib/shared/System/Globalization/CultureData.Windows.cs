@@ -291,7 +291,7 @@ namespace System.Globalization
 
             if (CultureInfo.DefaultThreadCurrentUICulture != null &&
                 ((ci = GetUserDefaultCulture()) != null) &&
-                !CultureInfo.DefaultThreadCurrentUICulture!.Name.Equals(ci!.Name))
+                !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci!.Name))
             {
                 return NativeName;
             }
