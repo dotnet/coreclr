@@ -64,10 +64,10 @@ namespace
         return std::wstring{ buffer.Buf, buffer.Buf + len };
     }
 
-    std::wstring GetEnvVar(_In_z_ const WCHAR *env)
+    std::wstring GetEnvVar(_In_z_ const WCHAR *env, _In_opt_ bool throwOnEmpty = true)
     {
         DWORD len = ::GetEnvironmentVariableW(env, nullptr, 0);
-        if (len == 0)
+        if (len == 0 && throwOnEmpty)
             throw __HRESULT_FROM_WIN32(ERROR_ENVVAR_NOT_FOUND);
 
         PathBuffer<WCHAR> buffer;
@@ -175,10 +175,8 @@ bool TryLoadHostPolicy(const WCHAR* hostPolicyPath)
         auto set_comp_depend_values = (Set_corehost_resolve_component_dependencies_Values_fn)
             ::GetProcAddress(hMod, "Set_corehost_resolve_component_dependencies_Values");
 
-        if (set_comp_depend_values != nullptr)
-        {
-            set_comp_depend_values(0, W(""), W(""), W(""));
-        }
+        assert(set_comp_depend_values != nullptr);
+        set_comp_depend_values(0, W(""), W(""), W(""));
     }
     return true;
 }
@@ -192,13 +190,16 @@ HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ cons
     }
 
     const wchar_t* mockHostPolicyEnvVar = W("MOCK_HOSTPOLICY");
-    if (::GetEnvironmentVariableW(mockHostPolicyEnvVar, nullptr, 0) != 0)
+    std::wstring hostPolicyPath = GetEnvVar(mockHostPolicyEnvVar, /* throwOnEmpty */ false);
+
+    if (!hostPolicyPath.empty())
     {
-        if(!TryLoadHostPolicy(GetEnvVar(mockHostPolicyEnvVar).c_str()))
+        if (!TryLoadHostPolicy(hostPolicyPath.c_str()))
         {
             return E_UNEXPECTED;
         }
     }
+
 
     try
     {
