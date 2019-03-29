@@ -287,11 +287,11 @@ namespace System.Globalization
 #else
             // Usually the UI culture shouldn't be different than what we got from WinRT except
             // if DefaultThreadCurrentUICulture was set
-            CultureInfo ci;
+            CultureInfo? ci;
 
             if (CultureInfo.DefaultThreadCurrentUICulture != null &&
                 ((ci = GetUserDefaultCulture()) != null) &&
-                !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci.Name))
+                !CultureInfo.DefaultThreadCurrentUICulture!.Name.Equals(ci!.Name))
             {
                 return NativeName;
             }
