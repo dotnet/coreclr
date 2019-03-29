@@ -26,11 +26,13 @@
 #include "treelifeupdater.h"
 
 #if 1
-// Disable this flag to prevent using psiScope/siScope info to report variables' locations.
+// Enable USING_SCOPE_INFO flag to use psiScope/siScope info to report variables' locations.
 #define USING_SCOPE_INFO
 #endif
 #if 1
-// Disable this flag to prevent using VariableLiveRange info to report variables' locations.
+// Enable USING_VARIABLE_LIVE_RANGE flag to use VariableLiveRange info to report variables' locations.
+// Note: if both USING_SCOPE_INFO and USING_VARIABLE_LIVE_RANGE are defined, then USING_SCOPE_INFO
+// information is reported to the debugger.
 #define USING_VARIABLE_LIVE_RANGE
 #endif
 
