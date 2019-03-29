@@ -839,7 +839,7 @@ MethodTable* OleVariant::GetNativeMethodTableForVarType(VARTYPE vt, MethodTable*
             case VT_CARRAY:
                 return MscorlibBinder::GetClass(CLASS__INTPTR);
             case VT_VARIANT:
-                _ASSERTE(false && "There is not a managed type that shares layout with native VARIANT.");
+                return MscorlibBinder::GetClass(CLASS__NATIVEVARIANT);
             default:
                 PREFIX_ASSUME(pManagedMT != NULL);
                 return pManagedMT;
