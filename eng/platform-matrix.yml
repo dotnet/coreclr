@@ -32,9 +32,18 @@ jobs:
         osIdentifier: Linux
         containerName: ubuntu_1404_arm_cross_build_image
         helixQueues:
-        # Ubuntu.1404.Arm32.Open hardware is not capable of dealing with all PRs
+        - ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
+          - (Ubuntu.1804.Arm32.On.Docker.Open)Ubuntu.1604.Arm32.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm32v7-0a0ebdd-20190312215532
         - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
           - Ubuntu.1404.Arm32.Open
+        - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
+          - (Debian.9.Arm32.On.Docker.Open)Ubuntu.1604.Arm32.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm32v7-0a0ebdd-20190312215452
+          - (Ubuntu.1604.Arm32.On.Docker.Open)Ubuntu.1604.Arm32.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-helix-arm32v7-0a0ebdd-20190312215551
+          - (Ubuntu.1804.Arm32.On.Docker.Open)Ubuntu.1604.Arm32.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm32v7-0a0ebdd-20190312215532
+        - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+          - (Debian.9.Arm32.On.Docker)Ubuntu.1604.Arm32@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm32v7-0a0ebdd-20190312215452
+          - (Ubuntu.1604.Arm32.On.Docker)Ubuntu.1604.Arm32@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-helix-arm32v7-0a0ebdd-20190312215551
+          - (Ubuntu.1804.Arm32.On.Docker)Ubuntu.1604.Arm32@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm32v7-0a0ebdd-20190312215532
         crossrootfsDir: '/crossrootfs/arm'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
