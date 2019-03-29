@@ -14,6 +14,6 @@ This file contains the logic for correctly hooking up a mock hostpolicy to a tes
   <ItemGroup>
     <ProjectReference Include="$(MSBuildThisFileDirectory)/Common/hostpolicymock/CMakeLists.txt" />
     <CLRTestBashEnvironmentVariable Include="export MOCK_HOSTPOLICY=$%28pwd)/hostpolicy.$(HostPolicyFileExtension)" />
-    <CLRTestBatchEnvironmentVariable Include="set MOCK_HOSTPOLICY=%25cd%\\hostpolicy.dll" />
+    <CLRTestBatchEnvironmentVariable Include="set MOCK_HOSTPOLICY=%25cd%\hostpolicy.dll" />
   </ItemGroup>
 </Project>
