@@ -187,8 +187,6 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
             ldr     x9, [x0, #Frame__m_Next]
             str     x9, [x1, #Thread_m_pFrame]
 
-            str     xzr, [x0, #InlinedCallFrame__m_pCallerReturnAddress]
-
             ret
             
 RarePath

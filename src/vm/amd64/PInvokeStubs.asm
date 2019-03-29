@@ -210,8 +210,6 @@ LEAF_ENTRY JIT_PInvokeEnd, _TEXT
         mov             rax, qword ptr [rcx + OFFSETOF__Frame__m_Next]
         mov             qword ptr [rdx + OFFSETOF__Thread__m_pFrame], rax
 
-        mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], 0
-
         ret
 
 RarePath:

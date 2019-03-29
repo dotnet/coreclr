@@ -101,8 +101,6 @@ _JIT_PInvokeEnd@4 PROC public
         mov             eax, dword ptr [ecx + Frame__m_Next]
         mov             dword ptr [edx + Thread_m_pFrame], eax
 
-        mov             dword ptr [ecx + InlinedCallFrame__m_pCallerReturnAddress], 0
-
         ret
 
 RarePath:

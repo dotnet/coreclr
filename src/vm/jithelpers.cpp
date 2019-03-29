@@ -5621,8 +5621,6 @@ HCIMPL0(void, JIT_PInvokeEndRarePath)
 
     thread->m_pFrame->Pop(thread);
 
-    frame->m_pCallerReturnAddress = NULL;
-
     END_PRESERVE_LAST_ERROR;
 }
 HCIMPLEND

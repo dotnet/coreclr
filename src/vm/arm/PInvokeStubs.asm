@@ -187,9 +187,6 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
             ldr     r2, [r0, #Frame__m_Next]
             str     r2, [r1, #Thread_m_pFrame]
 
-            mov     r2, 0
-            str     r2, [r0, #InlinedCallFrame__m_pCallerReturnAddress]
-
             bx      lr
 
 RarePath
