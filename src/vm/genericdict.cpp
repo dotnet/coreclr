@@ -132,6 +132,15 @@ DictionaryLayout::FindTokenWorker(LoaderAllocator *                 pAllocator,
     }
     CONTRACTL_END
 
+#ifndef FEATURE_NATIVE_IMAGE_GENERATION
+    // If the tiered compilation is on, save the fast dictionary slots for the hot Tier1 code
+    if (g_pConfig->TieredCompilation() && signatureSource == FromReadyToRunImage)
+    {
+        pResult->signature = pSig;
+        return FALSE;
+    }
+#endif
+
     BOOL isFirstBucket = TRUE;
 
     // First bucket also contains type parameters
@@ -1224,7 +1233,7 @@ Dictionary::PopulateEntry(
         ULONG slotIndex;
         if (isReadyToRunModule)
         {
-            _ASSERT(dictionaryIndexAndSlot != -1);
+            _ASSERT(dictionaryIndexAndSlot != (DWORD)-1);
             slotIndex = (ULONG)(dictionaryIndexAndSlot & 0xFFFF);
         }
         else

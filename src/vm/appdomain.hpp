@@ -64,8 +64,6 @@ class LoadLevelLimiter;
 class TypeEquivalenceHashTable;
 class StringArrayList;
 
-extern INT64 g_PauseTime;  // Total time in millisecond the CLR has been paused
-
 #ifdef FEATURE_COMINTEROP
 class ComCallWrapperCache;
 struct SimpleComCallWrapper;
@@ -838,7 +836,7 @@ public:
     }
 #endif // DACCESS_COMPILE
 
-    DEBUG_NOINLINE static void HolderEnter(PEFileListLock *pThis) PUB
+    DEBUG_NOINLINE static void HolderEnter(PEFileListLock *pThis)
     {
         WRAPPER_NO_CONTRACT;
         ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
@@ -846,7 +844,7 @@ public:
         pThis->Enter();
     }
 
-    DEBUG_NOINLINE static void HolderLeave(PEFileListLock *pThis) PUB
+    DEBUG_NOINLINE static void HolderLeave(PEFileListLock *pThis)
     {
         WRAPPER_NO_CONTRACT;
         ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
@@ -1168,6 +1166,12 @@ public:
     // Handles
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    IGCHandleStore* GetHandleStore()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_handleStore;
+    }
+
     OBJECTHANDLE CreateTypedHandle(OBJECTREF object, HandleType type)
     {
         WRAPPER_NO_CONTRACT;
@@ -1823,7 +1827,6 @@ public:
     void ShutdownAssemblies();
     void ShutdownFreeLoaderAllocators(BOOL bFromManagedCode);
     
-    void ReleaseDomainBoundInfo();
     void ReleaseFiles();
     
 
@@ -2445,8 +2448,6 @@ public:
     }
 
     RCWRefCache *GetRCWRefCache();
-
-    MethodTable* GetLicenseInteropHelperMethodTable();
 #endif // FEATURE_COMINTEROP
 
     //****************************************************************************************
@@ -2549,11 +2550,6 @@ public:
             LOG((LF_APPDOMAIN, LL_INFO1000, "AppDomain::ThreadExit from [%d] (%8.8x) %S count %d\n",
                  this, GetId().m_dwId,
                  GetFriendlyNameForLogging(), GetThreadEnterCount()));
-#if _DEBUG_ADUNLOAD
-            printf("AppDomain::ThreadExit %x from [%d] (%8.8x) %S count %d\n",
-                   pThread->GetThreadId(), this, GetId().m_dwId,
-                   GetFriendlyNameForLogging(), GetThreadEnterCount());
-#endif
         }
     }
 #endif // DACCESS_COMPILE
@@ -2907,10 +2903,6 @@ private:
         while (lastStage !=stage) 
             lastStage = (Stage)FastInterlockCompareExchange((LONG*)&m_Stage,stage,lastStage);
     };
-    void UnwindThreads();
-    // Return TRUE if EE is stopped
-    // Return FALSE if more work is needed
-    BOOL StopEEAndUnwindThreads(unsigned int retryCount, BOOL *pFMarkUnloadRequestThread);
 
     // List of unloaded LoaderAllocators, protected by code:GetLoaderAllocatorReferencesLock (for now)
     LoaderAllocator * m_pDelayedLoaderAllocatorUnloadList;
@@ -2992,9 +2984,6 @@ private:
 
     // this cache stores the RCW -> CCW references in this domain
     RCWRefCache *m_pRCWRefCache;
-    
-    // The method table used for LicenseInteropHelper
-    MethodTable*    m_pLicenseInteropHelperMT;
 #endif // FEATURE_COMINTEROP
 
     // The index of this app domain among existing app domains (starting from 1)
@@ -3435,8 +3424,7 @@ public:
 
     //****************************************************************************************
     // Methods used to get the callers module and hence assembly and app domain.
-    __declspec(deprecated("This method is deprecated, use the version that takes a StackCrawlMark instead"))
-    static Module* GetCallersModule(int skip);
+
     static MethodDesc* GetCallersMethod(StackCrawlMark* stackMark, AppDomain **ppAppDomain = NULL);
     static MethodTable* GetCallersType(StackCrawlMark* stackMark, AppDomain **ppAppDomain = NULL);
     static Module* GetCallersModule(StackCrawlMark* stackMark, AppDomain **ppAppDomain = NULL);

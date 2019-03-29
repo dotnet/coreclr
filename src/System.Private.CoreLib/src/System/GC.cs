@@ -12,18 +12,10 @@
 **
 **
 ===========================================================*/
-//This class only static members and doesn't require the serializable keyword.
 
-using System;
-using System.Reflection;
-using System.Security;
-using System.Threading;
-using System.Runtime;
 using System.Runtime.CompilerServices;
-using System.Runtime.ConstrainedExecution;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using System.Diagnostics;
 
 namespace System
@@ -61,12 +53,6 @@ namespace System
     public static class GC
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int GetGCLatencyMode();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int SetGCLatencyMode(int newLatencyMode);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
                                                   out ulong totalPhysicalMem,
                                                   out uint lastRecordedMemLoad,
@@ -79,13 +65,7 @@ namespace System
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _EndNoGCRegion();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int GetLOHCompactionMode();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void SetLOHCompactionMode(int newLOHCompactionMode);
-
+        
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
 
@@ -100,9 +80,6 @@ namespace System
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int _CollectionCount(int generation, int getSpecialGCCount);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern bool IsServerGC();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern ulong GetSegmentSize();
@@ -342,6 +319,12 @@ namespace System
             return newSize;
         }
 
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern IntPtr _RegisterFrozenSegment(IntPtr sectionAddress, int sectionSize);
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern IntPtr _UnregisterFrozenSegment(IntPtr segmentHandle);
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern long _GetAllocatedBytesForCurrentThread();
 
@@ -367,8 +350,7 @@ namespace System
             if ((maxGenerationThreshold <= 0) || (maxGenerationThreshold >= 100))
             {
                 throw new ArgumentOutOfRangeException(nameof(maxGenerationThreshold),
-                                                      string.Format(
-                                                          CultureInfo.CurrentCulture,
+                                                      SR.Format(
                                                           SR.ArgumentOutOfRange_Bounds_Lower_Upper,
                                                           1,
                                                           99));
@@ -377,8 +359,7 @@ namespace System
             if ((largeObjectHeapThreshold <= 0) || (largeObjectHeapThreshold >= 100))
             {
                 throw new ArgumentOutOfRangeException(nameof(largeObjectHeapThreshold),
-                                                      string.Format(
-                                                          CultureInfo.CurrentCulture,
+                                                      SR.Format(
                                                           SR.ArgumentOutOfRange_Bounds_Lower_Upper,
                                                           1,
                                                           99));

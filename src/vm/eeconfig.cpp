@@ -122,8 +122,6 @@ LPUTF8 NarrowWideChar(__inout_z LPWSTR str)
     RETURN NULL;
 }
 
-extern void UpdateGCSettingFromHost ();
-
 HRESULT EEConfig::Setup()
 {
     STANDARD_VM_CONTRACT;
@@ -144,8 +142,6 @@ HRESULT EEConfig::Setup()
 
     _ASSERTE(pConfigOld == NULL && "EEConfig::Setup called multiple times!");
     
-    UpdateGCSettingFromHost();
-
     return S_OK;
 }
 
@@ -310,9 +306,6 @@ HRESULT EEConfig::Init()
     szZapBBInstr     = NULL;
     szZapBBInstrDir  = NULL;
 
-    fAppDomainUnload = true;
-    dwADURetryCount=1000;
-
 #ifdef _DEBUG
     // interop logging
     m_pTraceIUnknown = NULL;
@@ -355,6 +348,7 @@ HRESULT EEConfig::Init()
 
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = false;
+    fTieredCompilation_DisableTier0Jit = false;
     fTieredCompilation_CallCounting = false;
     fTieredCompilation_OptimizeTier0 = false;
     tieredCompilation_tier1CallCountThreshold = 1;
@@ -1096,17 +1090,6 @@ HRESULT EEConfig::sync()
     fExpandAllOnLoad = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_ExpandAllOnLoad, fExpandAllOnLoad) != 0);
 #endif //_DEBUG
 
-
-#ifdef AD_NO_UNLOAD
-    fAppDomainUnload = (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_AppDomainNoUnload) == 0);
-#endif
-    dwADURetryCount=GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_ADURetryCount, dwADURetryCount);
-    if (dwADURetryCount==(DWORD)-1)
-    {
-        _ASSERTE(!"Reserved value");
-        dwADURetryCount=(DWORD)-2;
-    }
-
 #ifdef ENABLE_STARTUP_DELAY
     {
         //I want this string in decimal
@@ -1221,6 +1204,10 @@ HRESULT EEConfig::sync()
 
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation) != 0;
+    fTieredCompilation_DisableTier0Jit =
+        Configuration::GetKnobBooleanValue(
+            W("System.Runtime.TieredCompilation.DisableTier0Jit"),
+            CLRConfig::UNSUPPORTED_TieredCompilation_DisableTier0Jit) != 0;
 
     fTieredCompilation_CallCounting = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_CallCounting) != 0;
     fTieredCompilation_OptimizeTier0 = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_OptimizeTier0) != 0;
@@ -1230,6 +1217,10 @@ HRESULT EEConfig::sync()
     if (tieredCompilation_tier1CallCountThreshold < 1)
     {
         tieredCompilation_tier1CallCountThreshold = 1;
+    }
+    else if (tieredCompilation_tier1CallCountThreshold > INT_MAX) // CallCounter uses 'int'
+    {
+        tieredCompilation_tier1CallCountThreshold = INT_MAX;
     }
 
     tieredCompilation_tier1CallCountingDelayMs =

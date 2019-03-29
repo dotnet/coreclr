@@ -76,7 +76,7 @@ inline bool _our_GetThreadCycles(unsigned __int64* cycleOut)
     return true;
 }
 
-#elif defined(__clang__)
+#elif defined(__GNUC__)
 
 inline bool _our_GetThreadCycles(unsigned __int64* cycleOut)
 {
@@ -86,7 +86,7 @@ inline bool _our_GetThreadCycles(unsigned __int64* cycleOut)
     return true;
 }
 
-#else // neither _MSC_VER nor __clang__
+#else // neither _MSC_VER nor __GNUC__
 
 // The following *might* work - might as well try.
 #define _our_GetThreadCycles(cp) GetThreadCycles(cp)
@@ -1783,115 +1783,11 @@ void Compiler::compShutdown()
 /* static */
 void Compiler::compDisplayStaticSizes(FILE* fout)
 {
-
 #if MEASURE_NODE_SIZE
     GenTree::DumpNodeSizes(fout);
 #endif
 
-#if MEASURE_BLOCK_SIZE
-
-    BasicBlock* bbDummy = nullptr;
-
-    fprintf(fout, "\n");
-    fprintf(fout, "Offset / size of bbNext                = %3u / %3u\n", offsetof(BasicBlock, bbNext),
-            sizeof(bbDummy->bbNext));
-    fprintf(fout, "Offset / size of bbNum                 = %3u / %3u\n", offsetof(BasicBlock, bbNum),
-            sizeof(bbDummy->bbNum));
-    fprintf(fout, "Offset / size of bbPostOrderNum        = %3u / %3u\n", offsetof(BasicBlock, bbPostOrderNum),
-            sizeof(bbDummy->bbPostOrderNum));
-    fprintf(fout, "Offset / size of bbRefs                = %3u / %3u\n", offsetof(BasicBlock, bbRefs),
-            sizeof(bbDummy->bbRefs));
-    fprintf(fout, "Offset / size of bbFlags               = %3u / %3u\n", offsetof(BasicBlock, bbFlags),
-            sizeof(bbDummy->bbFlags));
-    fprintf(fout, "Offset / size of bbWeight              = %3u / %3u\n", offsetof(BasicBlock, bbWeight),
-            sizeof(bbDummy->bbWeight));
-    fprintf(fout, "Offset / size of bbJumpKind            = %3u / %3u\n", offsetof(BasicBlock, bbJumpKind),
-            sizeof(bbDummy->bbJumpKind));
-    fprintf(fout, "Offset / size of bbJumpOffs            = %3u / %3u\n", offsetof(BasicBlock, bbJumpOffs),
-            sizeof(bbDummy->bbJumpOffs));
-    fprintf(fout, "Offset / size of bbJumpDest            = %3u / %3u\n", offsetof(BasicBlock, bbJumpDest),
-            sizeof(bbDummy->bbJumpDest));
-    fprintf(fout, "Offset / size of bbJumpSwt             = %3u / %3u\n", offsetof(BasicBlock, bbJumpSwt),
-            sizeof(bbDummy->bbJumpSwt));
-    fprintf(fout, "Offset / size of bbEntryState          = %3u / %3u\n", offsetof(BasicBlock, bbEntryState),
-            sizeof(bbDummy->bbEntryState));
-    fprintf(fout, "Offset / size of bbStkTempsIn          = %3u / %3u\n", offsetof(BasicBlock, bbStkTempsIn),
-            sizeof(bbDummy->bbStkTempsIn));
-    fprintf(fout, "Offset / size of bbStkTempsOut         = %3u / %3u\n", offsetof(BasicBlock, bbStkTempsOut),
-            sizeof(bbDummy->bbStkTempsOut));
-    fprintf(fout, "Offset / size of bbTryIndex            = %3u / %3u\n", offsetof(BasicBlock, bbTryIndex),
-            sizeof(bbDummy->bbTryIndex));
-    fprintf(fout, "Offset / size of bbHndIndex            = %3u / %3u\n", offsetof(BasicBlock, bbHndIndex),
-            sizeof(bbDummy->bbHndIndex));
-    fprintf(fout, "Offset / size of bbCatchTyp            = %3u / %3u\n", offsetof(BasicBlock, bbCatchTyp),
-            sizeof(bbDummy->bbCatchTyp));
-    fprintf(fout, "Offset / size of bbStkDepth            = %3u / %3u\n", offsetof(BasicBlock, bbStkDepth),
-            sizeof(bbDummy->bbStkDepth));
-    fprintf(fout, "Offset / size of bbFPinVars            = %3u / %3u\n", offsetof(BasicBlock, bbFPinVars),
-            sizeof(bbDummy->bbFPinVars));
-    fprintf(fout, "Offset / size of bbPreds               = %3u / %3u\n", offsetof(BasicBlock, bbPreds),
-            sizeof(bbDummy->bbPreds));
-    fprintf(fout, "Offset / size of bbReach               = %3u / %3u\n", offsetof(BasicBlock, bbReach),
-            sizeof(bbDummy->bbReach));
-    fprintf(fout, "Offset / size of bbIDom                = %3u / %3u\n", offsetof(BasicBlock, bbIDom),
-            sizeof(bbDummy->bbIDom));
-    fprintf(fout, "Offset / size of bbDfsNum              = %3u / %3u\n", offsetof(BasicBlock, bbDfsNum),
-            sizeof(bbDummy->bbDfsNum));
-    fprintf(fout, "Offset / size of bbCodeOffs            = %3u / %3u\n", offsetof(BasicBlock, bbCodeOffs),
-            sizeof(bbDummy->bbCodeOffs));
-    fprintf(fout, "Offset / size of bbCodeOffsEnd         = %3u / %3u\n", offsetof(BasicBlock, bbCodeOffsEnd),
-            sizeof(bbDummy->bbCodeOffsEnd));
-    fprintf(fout, "Offset / size of bbVarUse              = %3u / %3u\n", offsetof(BasicBlock, bbVarUse),
-            sizeof(bbDummy->bbVarUse));
-    fprintf(fout, "Offset / size of bbVarDef              = %3u / %3u\n", offsetof(BasicBlock, bbVarDef),
-            sizeof(bbDummy->bbVarDef));
-    fprintf(fout, "Offset / size of bbLiveIn              = %3u / %3u\n", offsetof(BasicBlock, bbLiveIn),
-            sizeof(bbDummy->bbLiveIn));
-    fprintf(fout, "Offset / size of bbLiveOut             = %3u / %3u\n", offsetof(BasicBlock, bbLiveOut),
-            sizeof(bbDummy->bbLiveOut));
-    fprintf(fout, "Offset / size of bbMemorySsaPhiFunc      = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaPhiFunc),
-            sizeof(bbDummy->bbMemorySsaPhiFunc));
-    fprintf(fout, "Offset / size of bbMemorySsaNumIn        = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaNumIn),
-            sizeof(bbDummy->bbMemorySsaNumIn));
-    fprintf(fout, "Offset / size of bbMemorySsaNumOut       = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaNumOut),
-            sizeof(bbDummy->bbMemorySsaNumOut));
-    fprintf(fout, "Offset / size of bbScope               = %3u / %3u\n", offsetof(BasicBlock, bbScope),
-            sizeof(bbDummy->bbScope));
-    fprintf(fout, "Offset / size of bbCseGen              = %3u / %3u\n", offsetof(BasicBlock, bbCseGen),
-            sizeof(bbDummy->bbCseGen));
-    fprintf(fout, "Offset / size of bbCseIn               = %3u / %3u\n", offsetof(BasicBlock, bbCseIn),
-            sizeof(bbDummy->bbCseIn));
-    fprintf(fout, "Offset / size of bbCseOut              = %3u / %3u\n", offsetof(BasicBlock, bbCseOut),
-            sizeof(bbDummy->bbCseOut));
-
-    fprintf(fout, "Offset / size of bbEmitCookie          = %3u / %3u\n", offsetof(BasicBlock, bbEmitCookie),
-            sizeof(bbDummy->bbEmitCookie));
-
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-    fprintf(fout, "Offset / size of bbUnwindNopEmitCookie = %3u / %3u\n", offsetof(BasicBlock, bbUnwindNopEmitCookie),
-            sizeof(bbDummy->bbUnwindNopEmitCookie));
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-
-#ifdef VERIFIER
-    fprintf(fout, "Offset / size of bbStackIn             = %3u / %3u\n", offsetof(BasicBlock, bbStackIn),
-            sizeof(bbDummy->bbStackIn));
-    fprintf(fout, "Offset / size of bbStackOut            = %3u / %3u\n", offsetof(BasicBlock, bbStackOut),
-            sizeof(bbDummy->bbStackOut));
-    fprintf(fout, "Offset / size of bbTypesIn             = %3u / %3u\n", offsetof(BasicBlock, bbTypesIn),
-            sizeof(bbDummy->bbTypesIn));
-    fprintf(fout, "Offset / size of bbTypesOut            = %3u / %3u\n", offsetof(BasicBlock, bbTypesOut),
-            sizeof(bbDummy->bbTypesOut));
-#endif // VERIFIER
-
-#ifdef DEBUG
-    fprintf(fout, "Offset / size of bbLoopNum             = %3u / %3u\n", offsetof(BasicBlock, bbLoopNum),
-            sizeof(bbDummy->bbLoopNum));
-#endif // DEBUG
-
-    fprintf(fout, "\n");
-    fprintf(fout, "Size   of BasicBlock                   = %3u\n", sizeof(BasicBlock));
-
-#endif // MEASURE_BLOCK_SIZE
+    BasicBlock::DisplayStaticSizes(fout);
 
 #if EMITTER_STATS
     emitterStaticStats(fout);
@@ -2135,14 +2031,15 @@ void Compiler::compDoComponentUnitTestsOnce()
 //    Note that we can't use small values like zero, because we have some
 //    asserts that can fire for such values.
 //
-unsigned char Compiler::compGetJitDefaultFill()
+// static
+unsigned char Compiler::compGetJitDefaultFill(Compiler* comp)
 {
     unsigned char defaultFill = (unsigned char)JitConfig.JitDefaultFill();
 
-    if ((this != nullptr) && (compStressCompile(STRESS_GENERIC_VARN, 50)))
+    if (comp != nullptr && comp->compStressCompile(STRESS_GENERIC_VARN, 50))
     {
         unsigned temp;
-        temp = info.compMethodHash();
+        temp = comp->info.compMethodHash();
         temp = (temp >> 16) ^ temp;
         temp = (temp >> 8) ^ temp;
         temp = temp & 0xff;
@@ -2153,6 +2050,11 @@ unsigned char Compiler::compGetJitDefaultFill()
         {
             temp |= 0x80;
         }
+
+        // Make a misaligned pointer value to reduce probability of getting a valid value and firing
+        // assert(!IsUninitialized(pointer)).
+        temp |= 0x1;
+
         defaultFill = (unsigned char)temp;
     }
 
@@ -2517,8 +2419,8 @@ void Compiler::compSetProcessor()
 #if defined(_TARGET_ARM64_)
     // There is no JitFlag for Base instructions handle manually
     opts.setSupportedISA(InstructionSet_Base);
-#define HARDWARE_INTRINSIC_CLASS(flag, isa)                                                                            \
-    if (jitFlags.IsSet(JitFlags::flag))                                                                                \
+#define HARDWARE_INTRINSIC_CLASS(flag, jit_config, isa)                                                                \
+    if (jitFlags.IsSet(JitFlags::flag) && JitConfig.jit_config())                                                      \
         opts.setSupportedISA(InstructionSet_##isa);
 #include "hwintrinsiclistArm64.h"
 
@@ -2809,7 +2711,6 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
     bool    dumpIRBlockHeaders = false;
     bool    dumpIRExit         = false;
     LPCWSTR dumpIRPhase        = nullptr;
-    LPCWSTR dumpIRFormat       = nullptr;
 
     if (!altJitConfig || opts.altJit)
     {
@@ -7218,17 +7119,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 void codeGeneratorCodeSizeBeg()
 {
 }
-/*****************************************************************************/
-
-/*****************************************************************************
- *
- *  If any temporary tables are smaller than 'genMinSize2free' we won't bother
- *  freeing them.
- */
-
-const size_t genMinSize2free = 64;
-
-/*****************************************************************************/
 
 /*****************************************************************************
  *
@@ -7641,7 +7531,6 @@ void CompTimeSummaryInfo::Print(FILE* f)
         return;
     }
 
-    bool   extraInfo  = (JitConfig.JitEECallTimingInfo() != 0);
     double totTime_ms = 0.0;
 
     fprintf(f, "JIT Compilation time report:\n");
@@ -7661,6 +7550,7 @@ void CompTimeSummaryInfo::Print(FILE* f)
         const char* extraHdr1 = "";
         const char* extraHdr2 = "";
 #if MEASURE_CLRAPI_CALLS
+        bool extraInfo = (JitConfig.JitEECallTimingInfo() != 0);
         if (extraInfo)
         {
             extraHdr1 = "    CLRs/meth   % in CLR";
@@ -7678,9 +7568,8 @@ void CompTimeSummaryInfo::Print(FILE* f)
         assert(_countof(PhaseNames) == PHASE_NUMBER_OF);
         for (int i = 0; i < PHASE_NUMBER_OF; i++)
         {
-            double phase_tot_ms  = (((double)m_total.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
-            double phase_max_ms  = (((double)m_maximum.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
-            double phase_tot_pct = 100.0 * phase_tot_ms / totTime_ms;
+            double phase_tot_ms = (((double)m_total.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
+            double phase_max_ms = (((double)m_maximum.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
 
 #if MEASURE_CLRAPI_CALLS
             // Skip showing CLR API call info if we didn't collect any
@@ -10156,6 +10045,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
         case GT_NO_OP:
         case GT_START_NONGC:
+        case GT_START_PREEMPTGC:
         case GT_PROF_HOOK:
         case GT_CATCH_ARG:
         case GT_MEMORYBARRIER:
@@ -10986,15 +10876,8 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
 void cTreeIR(Compiler* comp, GenTree* tree)
 {
-    bool       foldLeafs    = comp->dumpIRNoLeafs;
-    bool       foldIndirs   = comp->dumpIRDataflow;
-    bool       foldLists    = comp->dumpIRNoLists;
-    bool       dataflowView = comp->dumpIRDataflow;
-    bool       dumpTypes    = comp->dumpIRTypes;
-    bool       dumpValnums  = comp->dumpIRValnums;
-    bool       noStmts      = comp->dumpIRNoStmts;
-    genTreeOps op           = tree->OperGet();
-    unsigned   childCount   = tree->NumChildren();
+    genTreeOps op         = tree->OperGet();
+    unsigned   childCount = tree->NumChildren();
     GenTree*   child;
 
     // Recurse and dump trees that this node depends on.
@@ -11083,5 +10966,10 @@ bool Compiler::killGCRefs(GenTree* tree)
             return true;
         }
     }
+    else if (tree->OperIs(GT_START_PREEMPTGC))
+    {
+        return true;
+    }
+
     return false;
 }

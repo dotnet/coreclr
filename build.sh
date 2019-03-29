@@ -7,7 +7,7 @@ export ghprbCommentBody=
 
 # resolve python-version to use
 if [ "$PYTHON" == "" ] ; then
-    if ! PYTHON=$(command -v python3 || command -v python2 || command -v python)
+    if ! PYTHON=$(command -v python3 || command -v python2 || command -v python || command -v py)
     then
        echo "Unable to locate build-dependency python!" 1>&2
        exit 1
@@ -60,78 +60,26 @@ usage()
     echo "-bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "-msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     echo "-numproc - set the number of build processes."
+    echo "-portablebuild - pass -portablebuild=false to force a non-portable build."
+    echo "-staticanalyzer - build with clang static analyzer enabled."
     exit 1
-}
-
-initHostDistroRid()
-{
-    __HostDistroRid=""
-    if [ "$__HostOS" == "Linux" ]; then
-        if [ -e /etc/os-release ]; then
-            source /etc/os-release
-            if [[ $ID == "rhel" ]]; then
-                # remove the last version digit
-                VERSION_ID=${VERSION_ID%.*}
-            fi
-            __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
-            if [[ $ID == "alpine" ]]; then
-                __HostDistroRid="linux-musl-$__HostArch"
-            fi
-        elif [ -e /etc/redhat-release ]; then
-            local redhatRelease=$(</etc/redhat-release)
-            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
-               __HostDistroRid="rhel.6-$__HostArch"
-            fi
-            if [[ $redhatRelease == "CentOS Linux release 7."* ]]; then
-                __HostDistroRid="rhel.7-$__Arch"
-            fi
-        fi
-    fi
-    if [ "$__HostOS" == "FreeBSD" ]; then
-        __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
-        __HostDistroRid="freebsd.$__freebsd_version-$__HostArch"
-    fi
-
-    if [ "$__HostDistroRid" == "" ]; then
-        echo "WARNING: Can not determine runtime id for current distro."
-    fi
 }
 
 initTargetDistroRid()
 {
-    if [ $__CrossBuild == 1 ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
-                if [ -e $ROOTFS_DIR/android_platform ]; then
-                    source $ROOTFS_DIR/android_platform
-                    export __DistroRid="$RID"
-                else
-                    echo "WARNING: Can not determine runtime id for current distro."
-                    export __DistroRid=""
-                fi
-            else
-                source $ROOTFS_DIR/etc/os-release
-                export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
-            fi
-        fi
-    else
-        export __DistroRid="$__HostDistroRid"
+    source init-distro-rid.sh
+
+    local passedRootfsDir=""
+
+    # Only pass ROOTFS_DIR if cross is specified.
+    if (( ${__CrossBuild} == 1 )); then
+        passedRootfsDir=${ROOTFS_DIR}
+    elif [ "${__BuildArch}" != "${__HostArch}" ]; then
+        echo "Error, you are building a cross scenario without passing -cross."
+        exit 1
     fi
 
-    if [ "$__BuildOS" == "OSX" ]; then
-        __PortableBuild=1
-    fi
-
-    # Portable builds target the base RID
-    if [ $__PortableBuild == 1 ]; then
-        if [ "$__BuildOS" == "Linux" ]; then
-            export __DistroRid="linux-$__BuildArch"
-        elif [ "$__BuildOS" == "OSX" ]; then
-            export __DistroRid="osx-$__BuildArch"
-        elif [ "$__BuildOS" == "FreeBSD" ]; then
-            export __DistroRid="freebsd-$__BuildArch"
-        fi
-    fi
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__PortableBuild} ${passedRootfsDir}
 }
 
 setup_dirs()
@@ -203,7 +151,7 @@ restore_optdata()
 
     if [ $__isMSBuildOnNETCoreSupported == 1 ]; then
         # Parse the optdata package versions out of msbuild so that we can pass them on to CMake
-        local DotNetCli="$__ProjectRoot/Tools/dotnetcli/dotnet"
+        local DotNetCli="$__ProjectRoot/.dotnet/dotnet"
         if [ ! -f $DotNetCli ]; then
             source "$__ProjectRoot/init-tools.sh"
             if [ $? != 0 ]; then
@@ -223,7 +171,7 @@ generate_event_logging_sources()
     __ConsumingBuildSystem=$2
 
     __OutputIncDir="$__OutputDir/src/inc"
-    __OutputEventingDir="$__OutputDir/eventing"
+    __OutputEventingDir="$__OutputDir/Eventing"
     __OutputEventProviderDir="$__OutputEventingDir/eventprovider"
 
     echo "Laying out dynamically generated files consumed by $__ConsumingBuildSystem"
@@ -240,7 +188,7 @@ generate_event_logging_sources()
     fi
 
     echo "Laying out dynamically generated EventPipe Implementation"
-    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir/eventpipe"
+    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst" --intermediate "$__OutputEventingDir/eventpipe"
 
     echo "Laying out dynamically generated EventSource classes"
     $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genRuntimeEventSources.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir"
@@ -328,12 +276,17 @@ build_native()
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
 
+        scriptDir="$__ProjectRoot/src/pal/tools"
         if [[ $__GccBuild == 0 ]]; then
-            echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion \"$__ClangMinorVersion\" $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
-            "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion "$__ClangMinorVersion" $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
+            scan_build=
+            if [[ $__StaticAnalyzer == 1 ]]; then
+                scan_build=scan-build
+            fi
+            echo "Invoking \"$scriptDir/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion \"$__ClangMinorVersion\" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $scan_build $generator $extraCmakeArguments $__cmakeargs"
+            source "$scriptDir/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion "$__ClangMinorVersion" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $scan_build $generator "$extraCmakeArguments" "$__cmakeargs"
         else
-            echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-gcc.sh\" \"$__ProjectRoot\" $__GccMajorVersion \"$__GccMinorVersion\" $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
-            "$__ProjectRoot/src/pal/tools/gen-buildsys-gcc.sh" "$__ProjectRoot" "$__GccMajorVersion" "$__CGccMinorVersion" $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
+            echo "Invoking \"$scriptDir/gen-buildsys-gcc.sh\" \"$__ProjectRoot\" $__GccMajorVersion \"$__GccMinorVersion\" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
+            source "$scriptDir/gen-buildsys-gcc.sh" "$__ProjectRoot" "$__GccMajorVersion" "$__CGccMinorVersion" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
         fi
         popd
     fi
@@ -351,6 +304,10 @@ build_native()
 
     # Check that the makefiles were created.
     pushd "$intermediatesForBuild"
+
+    if [ $__StaticAnalyzer == 1 ]; then
+        buildTool="$SCAN_BUILD_COMMAND $buildTool"
+    fi
 
     echo "Executing $buildTool install -j $__NumProc"
 
@@ -410,10 +367,10 @@ isMSBuildOnNETCoreSupported()
         if [ "$__HostOS" == "Linux" ]; then
             __isMSBuildOnNETCoreSupported=1
             # note: the RIDs below can use globbing patterns
-            UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64")
+            UNSUPPORTED_RIDS=("ubuntu.17.04-x64")
             for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
             do
-                if [[ $__HostDistroRid == $UNSUPPORTED_RID ]]; then
+                if [[ ${__DistroRid} == $UNSUPPORTED_RID ]]; then
                     __isMSBuildOnNETCoreSupported=0
                     break
                 fi
@@ -488,7 +445,7 @@ build_CoreLib()
                              /p:UsePartialNGENOptimization=false /maxcpucount \
                              $__ProjectDir/build.proj \
                              /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
-                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false /p:UseSharedCompilation=false \
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false \
                              $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
@@ -552,7 +509,7 @@ generate_NugetPackages()
                              /p:UsePartialNGENOptimization=false /maxcpucount \
                              $__SourceDir/.nuget/packages.builds \
                              /flp:Verbosity=normal\;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log \
-                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackages=false /p:UseSharedCompilation=false /p:__DoCrossArchBuild=$__CrossBuild \
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackages=false /p:__DoCrossArchBuild=$__CrossBuild \
                              $__CommonMSBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
@@ -691,7 +648,6 @@ __GccBuild=0
 __GccMajorVersion=0
 __GccMinorVersion=0
 __NuGetPath="$__PackagesDir/NuGet.exe"
-__HostDistroRid=""
 __DistroRid=""
 __cmakeargs=""
 __SkipGenerateVersion=0
@@ -703,6 +659,7 @@ __BuildManagedTools=1
 __SkipRestoreArg=""
 __SignTypeArg=""
 __OfficialBuildIdArg=""
+__StaticAnalyzer=0
 
 # Get the number of processors available to the scheduler
 # Other techniques such as `nproc` only get the number of
@@ -832,8 +789,20 @@ while :; do
             __GccBuild=1
             ;;
 
+        gcc6|-gcc6)
+            __GccMajorVersion=6
+            __GccMinorVersion=
+            __GccBuild=1
+            ;;
+
         gcc7|-gcc7)
             __GccMajorVersion=7
+            __GccMinorVersion=
+            __GccBuild=1
+            ;;
+
+        gcc8|-gcc8)
+            __GccMajorVersion=8
             __GccMinorVersion=
             __GccBuild=1
             ;;
@@ -991,6 +960,10 @@ while :; do
             __OfficialBuildIdArg="/p:OfficialBuildId=$__Id"
             ;;
 
+        -staticanalyzer)
+            __StaticAnalyzer=1
+            ;;
+
         --)
             # Skip -Option=Value style argument passing
             ;;
@@ -1035,9 +1008,6 @@ fi
 __LogsDir="$__RootBinDir/Logs"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 
-# init the host distro name
-initHostDistroRid
-
 # Set the remaining variables based upon the determined build configuration
 __BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
 __PackagesBinDir="$__BinDir/.nuget"
@@ -1053,6 +1023,9 @@ if [ $__CrossBuild == 1 ]; then
     __CrossComponentBinDir="$__CrossComponentBinDir/$__CrossArch"
 fi
 __CrossGenCoreLibLog="$__LogsDir/CrossgenCoreLib_$__BuildOS.$__BuildArch.$__BuildType.log"
+
+# init the target distro name
+initTargetDistroRid
 
 # Init if MSBuild for .NET Core is supported for this platform
 isMSBuildOnNETCoreSupported
@@ -1078,9 +1051,6 @@ if [ $__CrossBuild == 1 ]; then
         export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__BuildArch"
     fi
 fi
-
-# init the target distro name
-initTargetDistroRid
 
 # Make the directories necessary for build if they don't exist
 setup_dirs

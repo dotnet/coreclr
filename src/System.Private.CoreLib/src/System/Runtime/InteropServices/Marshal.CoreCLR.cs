@@ -30,9 +30,6 @@ namespace System.Runtime.InteropServices
         internal static Guid IID_IUnknown = new Guid(0, 0, 0, 0xC0, 0, 0, 0, 0, 0, 0, 0x46);
 #endif //FEATURE_COMINTEROP
 
-        private const int LMEM_FIXED = 0;
-        private const int LMEM_MOVEABLE = 2;
-
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int SizeOfHelper(Type t, bool throwIfNotMarshalable);
 
@@ -272,7 +269,7 @@ namespace System.Runtime.InteropServices
             numBytes = new UIntPtr(unchecked((uint)cb.ToInt32()));
 #endif
 
-            IntPtr pNewMem = Win32Native.LocalAlloc_NoSafeHandle(LMEM_FIXED, unchecked(numBytes));
+            IntPtr pNewMem = Interop.Kernel32.LocalAlloc(Interop.Kernel32.LMEM_FIXED, unchecked(numBytes));
             if (pNewMem == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
@@ -285,7 +282,7 @@ namespace System.Runtime.InteropServices
         {
             if (!IsWin32Atom(hglobal))
             {
-                if (IntPtr.Zero != Win32Native.LocalFree(hglobal))
+                if (IntPtr.Zero != Interop.Kernel32.LocalFree(hglobal))
                 {
                     ThrowExceptionForHR(GetHRForLastWin32Error());
                 }
@@ -294,7 +291,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr ReAllocHGlobal(IntPtr pv, IntPtr cb)
         {
-            IntPtr pNewMem = Win32Native.LocalReAlloc(pv, cb, LMEM_MOVEABLE);
+            IntPtr pNewMem = Interop.Kernel32.LocalReAlloc(pv, cb, Interop.Kernel32.LMEM_MOVEABLE);
             if (pNewMem == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
@@ -310,15 +307,6 @@ namespace System.Runtime.InteropServices
         /// </summary>
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetHRForException(Exception e);
-
-        /// <summary>
-        /// Converts the CLR exception to an HRESULT. This function also sets
-        /// up an IErrorInfo for the exception.
-        /// This function is only used in WinRT and converts ObjectDisposedException
-        /// to RO_E_CLOSED
-        /// </summary>
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern int GetHRForException_WinRT(Exception e);
 
         /// <summary>
         /// Given a managed object that wraps an ITypeInfo, return its name.
@@ -425,7 +413,7 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr AllocCoTaskMem(int cb)
         {
-            IntPtr pNewMem = Win32Native.CoTaskMemAlloc(new UIntPtr((uint)cb));
+            IntPtr pNewMem = Interop.Ole32.CoTaskMemAlloc(new UIntPtr((uint)cb));
             if (pNewMem == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
@@ -438,13 +426,13 @@ namespace System.Runtime.InteropServices
         {
             if (!IsWin32Atom(ptr))
             {
-                Win32Native.CoTaskMemFree(ptr);
+                Interop.Ole32.CoTaskMemFree(ptr);
             }
         }
 
         public static IntPtr ReAllocCoTaskMem(IntPtr pv, int cb)
         {
-            IntPtr pNewMem = Win32Native.CoTaskMemRealloc(pv, new UIntPtr((uint)cb));
+            IntPtr pNewMem = Interop.Ole32.CoTaskMemRealloc(pv, new UIntPtr((uint)cb));
             if (pNewMem == IntPtr.Zero && cb != 0)
             {
                 throw new OutOfMemoryException();
@@ -455,7 +443,7 @@ namespace System.Runtime.InteropServices
 
         internal static IntPtr AllocBSTR(int length)
         {
-            IntPtr bstr = Win32Native.SysAllocStringLen(null, length);
+            IntPtr bstr = Interop.OleAut32.SysAllocStringLen(null, length);
             if (bstr == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
@@ -467,7 +455,7 @@ namespace System.Runtime.InteropServices
         {
             if (!IsWin32Atom(ptr))
             {
-                Win32Native.SysFreeString(ptr);
+                Interop.OleAut32.SysFreeString(ptr);
             }
         }
 
@@ -484,7 +472,7 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentOutOfRangeException(nameof(s));
             }
 
-            IntPtr bstr = Win32Native.SysAllocStringLen(s, s.Length);
+            IntPtr bstr = Interop.OleAut32.SysAllocStringLen(s, s.Length);
             if (bstr == IntPtr.Zero)
             {
                 throw new OutOfMemoryException();
@@ -495,7 +483,7 @@ namespace System.Runtime.InteropServices
 
         public static string PtrToStringBSTR(IntPtr ptr)
         {
-            return PtrToStringUni(ptr, (int)Win32Native.SysStringLen(ptr));
+            return PtrToStringUni(ptr, (int)Interop.OleAut32.SysStringLen(ptr));
         }
 
 #if FEATURE_COMINTEROP
@@ -744,32 +732,8 @@ namespace System.Runtime.InteropServices
         [DllImport(Interop.Libraries.Ole32, PreserveSig = false)]
         private static extern void BindMoniker(IMoniker pmk, uint grfOpt, ref Guid iidResult, [MarshalAs(UnmanagedType.Interface)] out object ppvResult);
 
-        /// <summary>
-        /// Private method called from EE upon use of license/ICF2 marshaling.
-        /// </summary>
-        private static IntPtr LoadLicenseManager()
-        {
-            Type t = Type.GetType("System.ComponentModel.LicenseManager, System", throwOnError: true);
-            return t.TypeHandle.Value;
-        }
-
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void ChangeWrapperHandleStrength(object otp, bool fIsWeak);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern void InitializeWrapperForWinRT(object o, ref IntPtr pUnk);
-
-#if FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern void InitializeManagedWinRTFactoryObject(object o, RuntimeType runtimeClassType);
-#endif
-
-        /// <summary>
-        /// Create activation factory and wraps it with a unique RCW.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern object GetNativeActivationFactory(Type type);
-
 #endif // FEATURE_COMINTEROP
 
         [MethodImpl(MethodImplOptions.InternalCall)]

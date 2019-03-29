@@ -12,6 +12,7 @@
 **
 ===========================================================*/
 
+#nullable enable
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -108,7 +109,7 @@ namespace System
 
         // Used for comparing two boxed Char objects.
         //
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is char))
             {
@@ -129,7 +130,7 @@ namespace System
         // null is considered to be less than any instance.
         // If object is not of type Char, this method throws an ArgumentException.
         //
-        public int CompareTo(object value)
+        public int CompareTo(object? value)
         {
             if (value == null)
             {
@@ -154,7 +155,7 @@ namespace System
             return char.ToString(m_value);
         }
 
-        public string ToString(IFormatProvider provider)
+        public string ToString(IFormatProvider? provider)
         {
             return char.ToString(m_value);
         }
@@ -183,7 +184,7 @@ namespace System
             return s[0];
         }
 
-        public static bool TryParse(string s, out char result)
+        public static bool TryParse(string? s, out char result)
         {
             result = '\0';
             if (s == null)
@@ -426,80 +427,81 @@ namespace System
         }
 
 
-        bool IConvertible.ToBoolean(IFormatProvider provider)
+        bool IConvertible.ToBoolean(IFormatProvider? provider)
         {
             throw new InvalidCastException(SR.Format(SR.InvalidCast_FromTo, "Char", "Boolean"));
         }
 
-        char IConvertible.ToChar(IFormatProvider provider)
+        char IConvertible.ToChar(IFormatProvider? provider)
         {
             return m_value;
         }
 
-        sbyte IConvertible.ToSByte(IFormatProvider provider)
+        sbyte IConvertible.ToSByte(IFormatProvider? provider)
         {
             return Convert.ToSByte(m_value);
         }
 
-        byte IConvertible.ToByte(IFormatProvider provider)
+        byte IConvertible.ToByte(IFormatProvider? provider)
         {
             return Convert.ToByte(m_value);
         }
 
-        short IConvertible.ToInt16(IFormatProvider provider)
+        short IConvertible.ToInt16(IFormatProvider? provider)
         {
             return Convert.ToInt16(m_value);
         }
 
-        ushort IConvertible.ToUInt16(IFormatProvider provider)
+        ushort IConvertible.ToUInt16(IFormatProvider? provider)
         {
             return Convert.ToUInt16(m_value);
         }
 
-        int IConvertible.ToInt32(IFormatProvider provider)
+        int IConvertible.ToInt32(IFormatProvider? provider)
         {
             return Convert.ToInt32(m_value);
         }
 
-        uint IConvertible.ToUInt32(IFormatProvider provider)
+        uint IConvertible.ToUInt32(IFormatProvider? provider)
         {
             return Convert.ToUInt32(m_value);
         }
 
-        long IConvertible.ToInt64(IFormatProvider provider)
+        long IConvertible.ToInt64(IFormatProvider? provider)
         {
             return Convert.ToInt64(m_value);
         }
 
-        ulong IConvertible.ToUInt64(IFormatProvider provider)
+        ulong IConvertible.ToUInt64(IFormatProvider? provider)
         {
             return Convert.ToUInt64(m_value);
         }
 
-        float IConvertible.ToSingle(IFormatProvider provider)
+        float IConvertible.ToSingle(IFormatProvider? provider)
         {
             throw new InvalidCastException(SR.Format(SR.InvalidCast_FromTo, "Char", "Single"));
         }
 
-        double IConvertible.ToDouble(IFormatProvider provider)
+        double IConvertible.ToDouble(IFormatProvider? provider)
         {
             throw new InvalidCastException(SR.Format(SR.InvalidCast_FromTo, "Char", "Double"));
         }
 
-        decimal IConvertible.ToDecimal(IFormatProvider provider)
+        decimal IConvertible.ToDecimal(IFormatProvider? provider)
         {
             throw new InvalidCastException(SR.Format(SR.InvalidCast_FromTo, "Char", "Decimal"));
         }
 
-        DateTime IConvertible.ToDateTime(IFormatProvider provider)
+        DateTime IConvertible.ToDateTime(IFormatProvider? provider)
         {
             throw new InvalidCastException(SR.Format(SR.InvalidCast_FromTo, "Char", "DateTime"));
         }
 
-        object IConvertible.ToType(Type type, IFormatProvider provider)
+        object IConvertible.ToType(Type type, IFormatProvider? provider)
         {
             return Convert.DefaultToType((IConvertible)this, type, provider);
         }
+
         public static bool IsControl(char c)
         {
             if (IsLatin1(c))
@@ -904,7 +906,14 @@ namespace System
 
         public static bool IsSurrogatePair(char highSurrogate, char lowSurrogate)
         {
-            return IsHighSurrogate(highSurrogate) && IsLowSurrogate(lowSurrogate);
+            // Since both the high and low surrogate ranges are exactly 0x400 elements
+            // wide, and since this is a power of two, we can perform a single comparison
+            // by baselining each value to the start of its respective range and taking
+            // the logical OR of them.
+
+            uint highSurrogateOffset = (uint)highSurrogate - CharUnicodeInfo.HIGH_SURROGATE_START;
+            uint lowSurrogateOffset = (uint)lowSurrogate - CharUnicodeInfo.LOW_SURROGATE_START;
+            return (highSurrogateOffset | lowSurrogateOffset) <= CharUnicodeInfo.HIGH_SURROGATE_RANGE;
         }
 
         internal const int UNICODE_PLANE00_END = 0x00ffff;
@@ -937,15 +946,44 @@ namespace System
 
         public static int ConvertToUtf32(char highSurrogate, char lowSurrogate)
         {
-            if (!IsHighSurrogate(highSurrogate))
+            // First, extend both to 32 bits, then calculate the offset of
+            // each candidate surrogate char from the start of its range.
+
+            uint highSurrogateOffset = (uint)highSurrogate - CharUnicodeInfo.HIGH_SURROGATE_START;
+            uint lowSurrogateOffset = (uint)lowSurrogate - CharUnicodeInfo.LOW_SURROGATE_START;
+
+            // This is a single comparison which allows us to check both for validity at once since
+            // both the high surrogate range and the low surrogate range are the same length.
+            // If the comparison fails, we call to a helper method to throw the correct exception message.
+
+            if ((highSurrogateOffset | lowSurrogateOffset) > CharUnicodeInfo.HIGH_SURROGATE_RANGE)
             {
-                throw new ArgumentOutOfRangeException(nameof(highSurrogate), SR.ArgumentOutOfRange_InvalidHighSurrogate);
+                ConvertToUtf32_ThrowInvalidArgs(highSurrogateOffset);
             }
-            if (!IsLowSurrogate(lowSurrogate))
+
+            // The 0x40u << 10 below is to account for uuuuu = wwww + 1 in the surrogate encoding.
+            return ((int)highSurrogateOffset << 10) + (lowSurrogate - CharUnicodeInfo.LOW_SURROGATE_START) + (0x40 << 10);
+        }
+
+        [StackTraceHidden]
+        private static void ConvertToUtf32_ThrowInvalidArgs(uint highSurrogateOffset)
+        {
+            // If the high surrogate is not within its expected range, throw an exception
+            // whose message fingers it as invalid. If it's within the expected range,
+            // change the message to read that the low surrogate was the problem.
+
+            if (highSurrogateOffset > CharUnicodeInfo.HIGH_SURROGATE_RANGE)
             {
-                throw new ArgumentOutOfRangeException(nameof(lowSurrogate), SR.ArgumentOutOfRange_InvalidLowSurrogate);
+                throw new ArgumentOutOfRangeException(
+                    paramName: "highSurrogate",
+                    message: SR.ArgumentOutOfRange_InvalidHighSurrogate);
             }
-            return (((highSurrogate - CharUnicodeInfo.HIGH_SURROGATE_START) * 0x400) + (lowSurrogate - CharUnicodeInfo.LOW_SURROGATE_START) + UNICODE_PLANE01_START);
+            else
+            {
+                throw new ArgumentOutOfRangeException(
+                    paramName: "lowSurrogate",
+                    message: SR.ArgumentOutOfRange_InvalidLowSurrogate);
+            }
         }
 
         /*=============================ConvertToUtf32===================================

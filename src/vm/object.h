@@ -35,7 +35,10 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref);
  *  |                        sync block index, which is at a negative offset
  *  |
  *  +-- code:StringObject       - String objects are specialized objects for string
- *  |                        storage/retrieval for higher performance
+ *  |                        storage/retrieval for higher performance (UCS-2 / UTF-16 data)
+ *  |
+ *  +-- code:Utf8StringObject       - String objects are specialized objects for string
+ *  |                        storage/retrieval for higher performance (UTF-8 data)
  *  |
  *  +-- BaseObjectWithCachedData - Object Plus one object field for caching.
  *  |       |
@@ -851,6 +854,7 @@ typedef Array<U2>   U2Array;
 typedef Array<WCHAR>   CHARArray;
 typedef Array<U4>   U4Array;
 typedef Array<U8>   U8Array;
+typedef Array<UPTR> UPTRArray;
 typedef PtrArray    PTRArray;  
 
 typedef DPTR(I1Array)   PTR_I1Array;
@@ -865,9 +869,13 @@ typedef DPTR(U2Array)   PTR_U2Array;
 typedef DPTR(CHARArray) PTR_CHARArray;
 typedef DPTR(U4Array)   PTR_U4Array;
 typedef DPTR(U8Array)   PTR_U8Array;
+typedef DPTR(UPTRArray) PTR_UPTRArray;
 typedef DPTR(PTRArray)  PTR_PTRArray;
 
 class StringObject;
+#ifdef FEATURE_UTF8STRING
+class Utf8StringObject;
+#endif // FEATURE_UTF8STRING
 
 #ifdef USE_CHECKED_OBJECTREFS
 typedef REF<ArrayBase>  BASEARRAYREF;
@@ -882,9 +890,13 @@ typedef REF<BOOLArray>  BOOLARRAYREF;
 typedef REF<U2Array>    U2ARRAYREF;
 typedef REF<U4Array>    U4ARRAYREF;
 typedef REF<U8Array>    U8ARRAYREF;
+typedef REF<UPTRArray>  UPTRARRAYREF;
 typedef REF<CHARArray>  CHARARRAYREF;
 typedef REF<PTRArray>   PTRARRAYREF;  // Warning: Use PtrArray only for single dimensional arrays, not multidim arrays.
 typedef REF<StringObject> STRINGREF;
+#ifdef FEATURE_UTF8STRING
+typedef REF<Utf8StringObject> UTF8STRINGREF;
+#endif // FEATURE_UTF8STRING
 
 #else   // USE_CHECKED_OBJECTREFS
 
@@ -900,9 +912,13 @@ typedef PTR_BOOLArray   BOOLARRAYREF;
 typedef PTR_U2Array     U2ARRAYREF;
 typedef PTR_U4Array     U4ARRAYREF;
 typedef PTR_U8Array     U8ARRAYREF;
+typedef PTR_UPTRArray   UPTRARRAYREF;
 typedef PTR_CHARArray   CHARARRAYREF;
 typedef PTR_PTRArray    PTRARRAYREF;  // Warning: Use PtrArray only for single dimensional arrays, not multidim arrays.
 typedef PTR_StringObject STRINGREF;
+#ifdef FEATURE_UTF8STRING
+typedef PTR_Utf8StringObject UTF8STRINGREF;
+#endif // FEATURE_UTF8STRING
 
 #endif // USE_CHECKED_OBJECTREFS
 
@@ -1194,6 +1210,56 @@ public:
     }
 
 };
+
+#ifdef FEATURE_UTF8STRING
+class Utf8StringObject : public Object
+{
+#ifdef DACCESS_COMPILE
+    friend class ClrDataAccess;
+#endif
+
+private:
+    DWORD   m_StringLength;
+    BYTE    m_FirstChar;
+
+public:
+    VOID    SetLength(DWORD len) { LIMITED_METHOD_CONTRACT; _ASSERTE(len >= 0); m_StringLength = len; }
+
+protected:
+    Utf8StringObject() { LIMITED_METHOD_CONTRACT; }
+    ~Utf8StringObject() { LIMITED_METHOD_CONTRACT; }
+
+public:
+
+    /*=================RefInterpretGetStringValuesDangerousForGC======================
+    **N.B.: This perfoms no range checking and relies on the caller to have done this.
+    **Args: (IN)ref -- the Utf8String to be interpretted.
+    **      (OUT)chars -- a pointer to the characters in the buffer.
+    **      (OUT)length -- a pointer to the length of the buffer.
+    **Returns: void.
+    **Exceptions: None.
+    ==============================================================================*/
+    // !!!! If you use this function, you have to be careful because chars is a pointer
+    // !!!! to the data buffer of ref.  If GC happens after this call, you need to make
+    // !!!! sure that you have a pin handle on ref, or use GCPROTECT_BEGINPINNING on ref.
+    void RefInterpretGetStringValuesDangerousForGC(__deref_out_ecount(*length + 1) CHAR **chars, int *length) {
+        WRAPPER_NO_CONTRACT;
+    
+        _ASSERTE(GetGCSafeMethodTable() == g_pUtf8StringClass);
+        *length = GetStringLength();
+        *chars  = GetBuffer();
+#ifdef _DEBUG
+        EnableStressHeapHelper();
+#endif
+    }
+
+    DWORD   GetStringLength()                           { LIMITED_METHOD_DAC_CONTRACT; return( m_StringLength );}
+    CHAR*   GetBuffer()                                 { LIMITED_METHOD_CONTRACT; _ASSERTE(this != nullptr); return (CHAR*)( dac_cast<TADDR>(this) + offsetof(Utf8StringObject, m_FirstChar) );  }
+
+    static DWORD GetBaseSize();
+    static SIZE_T GetSize(DWORD stringLength);
+};
+#endif // FEATURE_UTF8STRING
 
 // This is the Method version of the Reflection object.
 //  A Method has adddition information.
@@ -2083,27 +2149,10 @@ class SafeHandle : public Object
         return m_handle;
     }
 
-    BOOL OwnsHandle() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_ownsHandle;
-    }
-
-    static size_t GetHandleOffset() { LIMITED_METHOD_CONTRACT; return offsetof(SafeHandle, m_handle); }
-
     void AddRef();
     void Release(bool fDispose = false);
-    void Dispose();
     void SetHandle(LPVOID handle);
-
-    static FCDECL1(void, DisposeNative, SafeHandle* refThisUNSAFE);
-    static FCDECL1(void, Finalize, SafeHandle* refThisUNSAFE);
-    static FCDECL1(void, SetHandleAsInvalid, SafeHandle* refThisUNSAFE);
-    static FCDECL2(void, DangerousAddRef, SafeHandle* refThisUNSAFE, CLR_BOOL *pfSuccess);
-    static FCDECL1(void, DangerousRelease, SafeHandle* refThisUNSAFE);
 };
-
-// SAFEHANDLEREF defined above because CompressedStackObject needs it
 
 void AcquireSafeHandle(SAFEHANDLEREF* s);
 void ReleaseSafeHandle(SAFEHANDLEREF* s);
@@ -2144,17 +2193,18 @@ typedef CriticalHandle * CRITICALHANDLEREF;
 // Base class for WaitHandle 
 class WaitHandleBase :public MarshalByRefObjectBaseObject
 {
-    friend class WaitHandleNative;
     friend class MscorlibBinder;
 
 public:
-    __inline LPVOID GetWaitHandle() {LIMITED_METHOD_CONTRACT; return m_handle;}
-    __inline SAFEHANDLEREF GetSafeHandle() {LIMITED_METHOD_CONTRACT; return m_safeHandle;}
+    __inline LPVOID GetWaitHandle() {
+        LIMITED_METHOD_CONTRACT;
+        SAFEHANDLEREF safeHandle = (SAFEHANDLEREF)m_safeHandle.LoadWithoutBarrier();
+        return safeHandle != NULL ? safeHandle->GetHandle() : INVALID_HANDLE_VALUE;
+    }
+    __inline SAFEHANDLEREF GetSafeHandle() {LIMITED_METHOD_CONTRACT; return (SAFEHANDLEREF)m_safeHandle.LoadWithoutBarrier();}
 
 private:
-    SAFEHANDLEREF   m_safeHandle;
-    LPVOID          m_handle;
-    CLR_BOOL        m_hasThreadAffinity;
+    Volatile<SafeHandle*> m_safeHandle;
 };
 
 #ifdef USE_CHECKED_OBJECTREFS
@@ -2659,7 +2709,6 @@ public:
     // If you modify the order of these fields, make sure to update the definition in 
     // BCL for this object.
 private:
-    STRINGREF   _className;  //Needed for serialization.
     OBJECTREF   _exceptionMethod;  //Needed for serialization.
     STRINGREF   _message;
     OBJECTREF   _data;
@@ -2672,13 +2721,10 @@ private:
     PTRARRAYREF _dynamicMethods;
     STRINGREF   _source;         // Mainly used by VB.
 
-    IN_WIN64(void* _xptrs;)
-    IN_WIN64(UINT_PTR    _ipForWatsonBuckets;) // Contains the IP of exception for watson bucketing
-    INT32       _remoteStackIndex;
-    INT32       _HResult;
-    IN_WIN32(void* _xptrs;)
+    UINT_PTR    _ipForWatsonBuckets; // Contains the IP of exception for watson bucketing
+    void*       _xptrs;
     INT32       _xcode;
-    IN_WIN32(UINT_PTR    _ipForWatsonBuckets;) // Contains the IP of exception for watson bucketing
+    INT32       _HResult;
 };
 
 // Defined in Contracts.cs
@@ -2707,10 +2753,9 @@ public:
 
 private:
     // keep these in sync with ndp/clr/src/bcl/system/diagnostics/contracts/contractsbcl.cs
-    IN_WIN64(INT32 _Kind;)
     STRINGREF _UserMessage;
     STRINGREF _Condition;
-    IN_WIN32(INT32 _Kind;)
+    INT32 _Kind;
 };
 #include "poppack.h"
 
@@ -2811,5 +2856,134 @@ typedef REF<ExceptionObject> EXCEPTIONREF;
 #else // USE_CHECKED_OBJECTREFS
 typedef PTR_ExceptionObject EXCEPTIONREF;
 #endif // USE_CHECKED_OBJECTREFS
+
+class GCHeapHashObject : public Object
+{
+#ifdef DACCESS_COMPILE
+    friend class ClrDataAccess;
+#endif
+    friend class GCHeap;
+    friend class JIT_TrialAlloc;
+    friend class CheckAsmOffsets;
+    friend class COMString;
+    friend class MscorlibBinder;
+
+    private:
+    BASEARRAYREF _data;
+    INT32 _count;
+    INT32 _deletedCount;
+
+    public:
+    INT32 GetCount() { LIMITED_METHOD_CONTRACT; return _count; }
+    void IncrementCount(bool replacingDeletedItem)
+    {
+        LIMITED_METHOD_CONTRACT; 
+        ++_count;
+        if (replacingDeletedItem)
+            --_deletedCount;
+    }
+
+    void DecrementCount(bool deletingItem)
+    {
+        LIMITED_METHOD_CONTRACT;
+        --_count;
+        if (deletingItem)
+            ++_deletedCount;
+    }
+    INT32 GetDeletedCount() { LIMITED_METHOD_CONTRACT; return _deletedCount; }
+    void SetDeletedCountToZero() { LIMITED_METHOD_CONTRACT; _deletedCount = 0; }
+    INT32 GetCapacity() { LIMITED_METHOD_CONTRACT; if (_data == NULL) return 0; else return (_data->GetNumComponents()); }
+    BASEARRAYREF GetData() { LIMITED_METHOD_CONTRACT; return _data; }
+
+    void SetTable(BASEARRAYREF data)
+    {
+        STATIC_CONTRACT_NOTHROW;
+        STATIC_CONTRACT_GC_NOTRIGGER;
+        STATIC_CONTRACT_MODE_COOPERATIVE;
+
+        SetObjectReference((OBJECTREF*)&_data, (OBJECTREF)data, GetAppDomain());
+    }
+
+    protected:
+    GCHeapHashObject() {LIMITED_METHOD_CONTRACT; }
+   ~GCHeapHashObject() {LIMITED_METHOD_CONTRACT; }
+};
+
+typedef DPTR(GCHeapHashObject)  PTR_GCHeapHashObject;
+
+#ifdef USE_CHECKED_OBJECTREFS
+typedef REF<GCHeapHashObject> GCHEAPHASHOBJECTREF;
+#else   // USE_CHECKED_OBJECTREFS
+typedef PTR_GCHeapHashObject GCHEAPHASHOBJECTREF;
+#endif // USE_CHECKED_OBJECTREFS
+
+class LAHashDependentHashTrackerObject : public Object
+{
+#ifdef DACCESS_COMPILE
+    friend class ClrDataAccess;
+#endif
+    friend class CheckAsmOffsets;
+    friend class MscorlibBinder;
+
+    private:
+    OBJECTHANDLE _dependentHandle;
+    LoaderAllocator* _loaderAllocator;
+
+    public:
+    bool IsLoaderAllocatorLive();
+    bool IsTrackerFor(LoaderAllocator *pLoaderAllocator)
+    {
+        if (pLoaderAllocator != _loaderAllocator)
+            return false;
+        
+        return IsLoaderAllocatorLive();
+    }
+
+    void GetDependentAndLoaderAllocator(OBJECTREF *pLoaderAllocatorRef, GCHEAPHASHOBJECTREF *pGCHeapHash);
+
+    // Be careful with this. This isn't safe to use unless something is keeping the LoaderAllocator live, or there is no intention to dereference this pointer
+    LoaderAllocator* GetLoaderAllocatorUnsafe()
+    {
+        return _loaderAllocator;
+    }
+
+    void Init(OBJECTHANDLE dependentHandle, LoaderAllocator* loaderAllocator)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _dependentHandle = dependentHandle;
+        _loaderAllocator = loaderAllocator;
+    }
+};
+
+class LAHashKeyToTrackersObject : public Object
+{
+#ifdef DACCESS_COMPILE
+    friend class ClrDataAccess;
+#endif
+    friend class CheckAsmOffsets;
+    friend class MscorlibBinder;
+
+    public:
+    // _trackerOrTrackerSet is either a reference to a LAHashDependentHashTracker, or to a GCHeapHash of LAHashDependentHashTracker objects.
+    OBJECTREF _trackerOrTrackerSet;
+    // _laLocalKeyValueStore holds an object that represents a Key value (which must always be valid for the lifetime of the 
+    // CrossLoaderAllocatorHeapHash, and the values which must also be valid for that entire lifetime. When a value might
+    // have a shorter lifetime it is accessed through the _trackerOrTrackerSet variable, which allows access to hashtables which
+    // are associated with that remote loaderallocator through a dependent handle, so that lifetime can be managed.
+    OBJECTREF _laLocalKeyValueStore;
+};
+
+typedef DPTR(LAHashDependentHashTrackerObject)  PTR_LAHashDependentHashTrackerObject;
+typedef DPTR(LAHashKeyToTrackersObject) PTR_LAHashKeyToTrackersObject;
+
+
+#ifdef USE_CHECKED_OBJECTREFS
+typedef REF<LAHashDependentHashTrackerObject> LAHASHDEPENDENTHASHTRACKERREF;
+typedef REF<LAHashKeyToTrackersObject> LAHASHKEYTOTRACKERSREF;
+#else   // USE_CHECKED_OBJECTREFS
+typedef PTR_LAHashDependentHashTrackerObject LAHASHDEPENDENTHASHTRACKERREF;
+typedef PTR_LAHashKeyToTrackersObject LAHASHKEYTOTRACKERSREF;
+#endif // USE_CHECKED_OBJECTREFS
+
 
 #endif // _OBJECT_H_

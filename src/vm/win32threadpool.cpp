@@ -831,8 +831,6 @@ BOOL ThreadpoolMgr::QueueUserWorkItem(LPTHREAD_START_ROUTINE Function,
         ThreadCounter::Counts counts = CPThreadCounter.GetCleanCounts();
         if ((MaxLimitTotalCPThreads - counts.NumActive) >= MinimumAvailableCPThreads )
         {
-            ThreadLocaleHolder localeHolder;
-
             QueueUserWorkItemHelp(Function, Context);
             return TRUE;
         }
@@ -1507,8 +1505,6 @@ DWORD WINAPI ThreadpoolMgr::ExecuteHostRequest(PVOID pArg)
     }
     CONTRACTL_END;
 
-    ThreadLocaleHolder localeHolder;
-
     bool foundWork, wasNotRecalled;
     ExecuteWorkRequest(&foundWork, &wasNotRecalled);
     return ERROR_SUCCESS;
@@ -1597,7 +1593,7 @@ BOOL ThreadpoolMgr::SetAppDomainRequestsActive(BOOL UnmanagedTP)
     return fShouldSignalEvent;
 }
 
-void ThreadpoolMgr::ClearAppDomainRequestsActive(BOOL UnmanagedTP, BOOL AdUnloading, LONG id)
+void ThreadpoolMgr::ClearAppDomainRequestsActive(BOOL UnmanagedTP, LONG id)
 //--------------------------------------------------------------------------
 //This function informs the thread scheduler that the kast request has been
 //dequeued on an appdomain, or it's the last unmanaged TP request. 
@@ -1629,22 +1625,15 @@ void ThreadpoolMgr::ClearAppDomainRequestsActive(BOOL UnmanagedTP, BOOL AdUnload
     } 
     else
     {
-       if (AdUnloading)
-       { 
-           pAdCount = PerAppDomainTPCountList::GetPerAppdomainCount(TPIndex(id));
-       }
-       else
-       {  
-           Thread* pCurThread = GetThread();
-           _ASSERTE( pCurThread);
+       Thread* pCurThread = GetThread();
+       _ASSERTE( pCurThread);
 
-           AppDomain* pAppDomain = pCurThread->GetDomain();
-           _ASSERTE(pAppDomain);
-        
-           TPIndex tpindex = pAppDomain->GetTPIndex();
+       AppDomain* pAppDomain = pCurThread->GetDomain();
+       _ASSERTE(pAppDomain);
+    
+       TPIndex tpindex = pAppDomain->GetTPIndex();
 
-           pAdCount = PerAppDomainTPCountList::GetPerAppdomainCount(tpindex);
-       } 
+       pAdCount = PerAppDomainTPCountList::GetPerAppdomainCount(tpindex);
 
         _ASSERTE(pAdCount);
     }
@@ -2005,8 +1994,6 @@ Work:
     }
 
     {
-        ThreadLocaleHolder localeHolder;
-
         ThreadpoolMgr::UpdateLastDequeueTime();
         ThreadpoolMgr::ExecuteWorkRequest(&foundWork, &wasNotRecalled);
     }
@@ -3621,8 +3608,6 @@ Top:
                 {
                     CONTRACT_VIOLATION(ThrowsViolation);
 
-                    ThreadLocaleHolder localeHolder;
-
                     ((LPOVERLAPPED_COMPLETION_ROUTINE) key)(errorCode, numBytes, pOverlapped);
                 }
 
@@ -4184,19 +4169,6 @@ DWORD WINAPI ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
         if (CORDebuggerAttached() && g_pDebugInterface->IsStopped())
             continue;
 #endif // DEBUGGING_SUPPORTED
-
-        if(g_IsPaused)
-        {
-            _ASSERTE(g_ClrResumeEvent.IsValid());
-            EX_TRY {
-                g_ClrResumeEvent.Wait(INFINITE, TRUE);
-            }
-            EX_CATCH {
-                // Assert on debug builds 
-                _ASSERTE(FALSE);
-            }
-            EX_END_CATCH(SwallowAllExceptions);
-        }
 
         if (!GCHeapUtilities::IsGCInProgress(FALSE) )
         {

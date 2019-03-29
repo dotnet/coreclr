@@ -3510,6 +3510,26 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     costSz = 2 * 2;
                     break;
 
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_XARCH_)
+                case GT_HWIntrinsic:
+                {
+                    if (tree->AsHWIntrinsic()->OperIsMemoryLoadOrStore())
+                    {
+                        costEx = IND_COST_EX;
+                        costSz = 2;
+                        // See if we can form a complex addressing mode.
+
+                        GenTree* addr = op1->gtEffectiveVal();
+
+                        if (addr->OperIs(GT_ADD) && gtMarkAddrMode(addr, &costEx, &costSz, tree->TypeGet()))
+                        {
+                            goto DONE;
+                        }
+                    }
+                }
+                break;
+#endif // FEATURE_HW_INTRINSICS && _TARGET_XARCH_
+
                 case GT_BLK:
                 case GT_IND:
 
@@ -4700,6 +4720,7 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
         case GT_SETCC:
         case GT_NO_OP:
         case GT_START_NONGC:
+        case GT_START_PREEMPTGC:
         case GT_PROF_HOOK:
 #if !FEATURE_EH_FUNCLETS
         case GT_END_LFIN:
@@ -8400,6 +8421,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_SETCC:
         case GT_NO_OP:
         case GT_START_NONGC:
+        case GT_START_PREEMPTGC:
         case GT_PROF_HOOK:
 #if !FEATURE_EH_FUNCLETS
         case GT_END_LFIN:
@@ -10386,6 +10408,7 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
 
         case GT_NO_OP:
         case GT_START_NONGC:
+        case GT_START_PREEMPTGC:
         case GT_PROF_HOOK:
         case GT_CATCH_ARG:
         case GT_MEMORYBARRIER:
@@ -16506,14 +16529,44 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
                 if (varTypeIsSIMD(tree))
                 {
                     structHnd = gtGetStructHandleForSIMD(tree->gtType, TYP_FLOAT);
+#ifdef FEATURE_HW_INTRINSICS
+                    if (structHnd == NO_CLASS_HANDLE)
+                    {
+                        structHnd = gtGetStructHandleForHWSIMD(tree->gtType, TYP_FLOAT);
+                    }
+#endif
                 }
                 else
 #endif
                 {
+                    // Attempt to find a handle for this expression.
+                    // We can do this for an array element indirection, or for a field indirection.
                     ArrayInfo arrInfo;
                     if (TryGetArrayInfo(tree->AsIndir(), &arrInfo))
                     {
                         structHnd = EncodeElemType(arrInfo.m_elemType, arrInfo.m_elemStructType);
+                    }
+                    else
+                    {
+                        GenTree* addr = tree->AsIndir()->Addr();
+                        if ((addr->OperGet() == GT_ADD) && addr->gtGetOp2()->OperIs(GT_CNS_INT))
+                        {
+                            FieldSeqNode* fieldSeq = addr->gtGetOp2()->AsIntCon()->gtFieldSeq;
+
+                            if (fieldSeq != nullptr)
+                            {
+                                while (fieldSeq->m_next != nullptr)
+                                {
+                                    fieldSeq = fieldSeq->m_next;
+                                }
+                                if (fieldSeq != FieldSeqStore::NotAField() && !fieldSeq->IsPseudoField())
+                                {
+                                    CORINFO_FIELD_HANDLE fieldHnd = fieldSeq->m_fieldHnd;
+                                    CorInfoType fieldCorType = info.compCompHnd->getFieldType(fieldHnd, &structHnd);
+                                    assert(fieldCorType == CORINFO_TYPE_VALUECLASS);
+                                }
+                            }
+                        }
                     }
                 }
                 break;
@@ -17884,17 +17937,18 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoad()
     }
     else if (HWIntrinsicInfo::MaybeMemoryLoad(gtHWIntrinsicId))
     {
-        // Some AVX intrinsic (without HW_Category_MemoryLoad) also have MemoryLoad semantics
+        // Some intrinsics (without HW_Category_MemoryLoad) also have MemoryLoad semantics
+
         if (category == HW_Category_SIMDScalar)
         {
             // Avx2.BroadcastScalarToVector128/256 have vector and pointer overloads both, e.g.,
             // Vector128<byte> BroadcastScalarToVector128(Vector128<byte> value)
             // Vector128<byte> BroadcastScalarToVector128(byte* source)
-            // So, we need to check the argument's type is memory-reference (TYP_I_IMPL) or not
+            // So, we need to check the argument's type is memory-reference or Vector128
             assert(HWIntrinsicInfo::lookupNumArgs(this) == 1);
             return (gtHWIntrinsicId == NI_AVX2_BroadcastScalarToVector128 ||
                     gtHWIntrinsicId == NI_AVX2_BroadcastScalarToVector256) &&
-                   gtOp.gtOp1->TypeGet() == TYP_I_IMPL;
+                   gtOp.gtOp1->TypeGet() != TYP_SIMD16;
         }
         else if (category == HW_Category_IMM)
         {
@@ -17903,26 +17957,9 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoad()
             {
                 return false;
             }
-            else // We have 3 or more operands/args
+            else if (HWIntrinsicInfo::isAVX2GatherIntrinsic(gtHWIntrinsicId))
             {
-                // All the Avx2.Gather* are "load" instructions
-                if (HWIntrinsicInfo::isAVX2GatherIntrinsic(gtHWIntrinsicId))
-                {
-                    return true;
-                }
-
-                GenTreeArgList* argList = gtOp.gtOp1->AsArgList();
-
-                // Avx/Avx2.InsertVector128 have vector and pointer overloads both, e.g.,
-                // Vector256<sbyte> InsertVector128(Vector256<sbyte> value, Vector128<sbyte> data, byte index)
-                // Vector256<sbyte> InsertVector128(Vector256<sbyte> value, sbyte* address, byte index)
-                // So, we need to check the second argument's type is memory-reference (TYP_I_IMPL) or not
-                if ((gtHWIntrinsicId == NI_AVX_InsertVector128 || gtHWIntrinsicId == NI_AVX2_InsertVector128) &&
-                    (argList->Rest()->Current()->TypeGet() == TYP_I_IMPL)) // Is the type of the second arg TYP_I_IMPL?
-                {
-                    // This is Avx/Avx2.InsertVector128
-                    return true;
-                }
+                return true;
             }
         }
     }
@@ -17943,11 +17980,8 @@ bool GenTreeHWIntrinsic::OperIsMemoryStore()
     else if (HWIntrinsicInfo::MaybeMemoryStore(gtHWIntrinsicId) &&
              (category == HW_Category_IMM || category == HW_Category_Scalar))
     {
-        // Some AVX intrinsic (without HW_Category_MemoryStore) also have MemoryStore semantics
+        // Some intrinsics (without HW_Category_MemoryStore) also have MemoryStore semantics
 
-        // Avx/Avx2.InsertVector128 have vector and pointer overloads both, e.g.,
-        // Vector128<sbyte> ExtractVector128(Vector256<sbyte> value, byte index)
-        // void ExtractVector128(sbyte* address, Vector256<sbyte> value, byte index)
         // Bmi2/Bmi2.X64.MultiplyNoFlags may return the lower half result by a out argument
         // unsafe ulong MultiplyNoFlags(ulong left, ulong right, ulong* low)
         //
@@ -17956,8 +17990,6 @@ bool GenTreeHWIntrinsic::OperIsMemoryStore()
         {
             switch (gtHWIntrinsicId)
             {
-                case NI_AVX_ExtractVector128:
-                case NI_AVX2_ExtractVector128:
                 case NI_BMI2_MultiplyNoFlags:
                 case NI_BMI2_X64_MultiplyNoFlags:
                     return true;

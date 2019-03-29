@@ -283,12 +283,36 @@ public:
         return S_OK;
     }
 
+    virtual COM_DECLSPEC_NOTHROW SizeF STDMETHODCALLTYPE MakeSize(
+        /*[in]*/ float width,
+        /*[in]*/ float height)
+    {
+        return { width, height };
+    }
+
+    virtual COM_DECLSPEC_NOTHROW Size STDMETHODCALLTYPE MakeSizeSmall(
+        /*[in]*/ BYTE width,
+        /*[in]*/ BYTE height)
+    {
+        return { width, height };
+    }
+
+    virtual COM_DECLSPEC_NOTHROW HFA_4 STDMETHODCALLTYPE MakeHFA(
+        /*[in]*/ float x,
+        /*[in]*/ float y,
+        /*[in]*/ float z,
+        /*[in]*/ float w
+    )
+    {
+        return { x, y, z, w };
+    }
+
 public: // IUnknown
     STDMETHOD(QueryInterface)(
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
     {
-        return DoQueryInterface<NumericTesting, INumericTesting>(this, riid, ppvObject);
+        return DoQueryInterface(riid, ppvObject, static_cast<INumericTesting *>(this));
     }
 
     DEFINE_REF_COUNTING();

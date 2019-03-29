@@ -30,7 +30,6 @@
 #include "jitperf.h" // to track jit perf
 #include "corprof.h"
 #include "eeprofinterfaces.h"
-#include "perfcounters.h"
 #ifdef PROFILING_SUPPORTED
 #include "proftoeeinterfaceimpl.h"
 #include "eetoprofinterfaceimpl.h"
@@ -100,12 +99,6 @@ GARY_IMPL(VMHELPDEF, hlpFuncTable, CORINFO_HELP_COUNT);
 GARY_IMPL(VMHELPDEF, hlpDynamicFuncTable, DYNAMIC_CORINFO_HELP_COUNT);
 
 #else // DACCESS_COMPILE
-
-/*********************************************************************/
-
-#if defined(ENABLE_PERF_COUNTERS)
-LARGE_INTEGER g_lastTimeInJitCompilation;
-#endif
 
 /*********************************************************************/
 
@@ -4706,7 +4699,7 @@ TypeCompareState CEEInfo::compareTypesForEquality(
 }
 
 /*********************************************************************/
-// returns is the intersection of cls1 and cls2.
+// returns the intersection of cls1 and cls2.
 CORINFO_CLASS_HANDLE CEEInfo::mergeClasses(
         CORINFO_CLASS_HANDLE        cls1,
         CORINFO_CLASS_HANDLE        cls2)
@@ -4770,6 +4763,68 @@ CORINFO_CLASS_HANDLE CEEInfo::mergeClasses(
     }
 #endif
     result = CORINFO_CLASS_HANDLE(merged.AsPtr());
+
+    EE_TO_JIT_TRANSITION();
+    return result;
+}
+
+/*********************************************************************/
+static BOOL isMoreSpecificTypeHelper(
+       CORINFO_CLASS_HANDLE        cls1,
+       CORINFO_CLASS_HANDLE        cls2)
+{
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    TypeHandle hnd1 = TypeHandle(cls1);
+    TypeHandle hnd2 = TypeHandle(cls2);
+
+    // We can't really reason about equivalent types. Just
+    // assume the new type is not more specific.
+    if (hnd1.HasTypeEquivalence() || hnd2.HasTypeEquivalence())
+    {
+        return FALSE;
+    }
+
+    // If we have a mixture of shared and unshared types,
+    // consider the unshared type as more specific.
+    BOOL isHnd1CanonSubtype = hnd1.IsCanonicalSubtype();
+    BOOL isHnd2CanonSubtype = hnd2.IsCanonicalSubtype();
+    if (isHnd1CanonSubtype != isHnd2CanonSubtype)
+    {
+        // Only one of hnd1 and hnd2 is shared.
+        // hdn2 is more specific if hnd1 is the shared type.
+        return isHnd1CanonSubtype;
+    }
+
+    // Otherwise both types are either shared or not shared.
+    // Look for a common parent type.
+    TypeHandle merged = TypeHandle::MergeTypeHandlesToCommonParent(hnd1, hnd2);
+
+    // If the common parent is hnd1, then hnd2 is more specific.
+    return merged == hnd1;
+}
+
+// Returns true if cls2 is known to be a more specific type
+// than cls1 (a subtype or more restrictive shared type).
+BOOL CEEInfo::isMoreSpecificType(
+        CORINFO_CLASS_HANDLE        cls1,
+        CORINFO_CLASS_HANDLE        cls2)
+{
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    BOOL result = FALSE;
+
+    JIT_TO_EE_TRANSITION();
+
+    result = isMoreSpecificTypeHelper(cls1, cls2);
 
     EE_TO_JIT_TRANSITION();
     return result;
@@ -5207,7 +5262,11 @@ void CEEInfo::getCallInfo(
             exactType, 
             pMD, 
             &fForceUseRuntimeLookup);
-        if (directMethod)
+        if (directMethod
+#ifdef FEATURE_DEFAULT_INTERFACES
+            && !directMethod->IsInterface() /* Could be a default interface method implementation */
+#endif
+            )
         {
             // Either
             //    1. no constraint resolution at compile time (!directMethod)
@@ -5236,6 +5295,7 @@ void CEEInfo::getCallInfo(
     //
 
     MethodDesc * pTargetMD = pMDAfterConstraintResolution;
+    DWORD dwTargetMethodAttrs = pTargetMD->GetAttrs();
 
     if (pTargetMD->HasMethodInstantiation())
     {
@@ -5293,12 +5353,6 @@ void CEEInfo::getCallInfo(
         directCall = true;
     }
     else
-    // Backwards compat: calls to abstract interface methods are treated as callvirt
-    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsAbstract())
-    {
-        directCall = false;
-    }
-    else
     if (!(flags & CORINFO_CALLINFO_CALLVIRT) || fResolvedConstraint)
     {
         directCall = true;
@@ -5339,12 +5393,11 @@ void CEEInfo::getCallInfo(
         if (pTargetMD->GetMethodTable()->IsInterface())
         {
             // Handle interface methods specially because the Sealed bit has no meaning on interfaces.
-            devirt = !IsMdVirtual(pTargetMD->GetAttrs());
+            devirt = !IsMdVirtual(dwTargetMethodAttrs);
         }
         else
         {
-            DWORD dwMethodAttrs = pTargetMD->GetAttrs();
-            devirt = !IsMdVirtual(dwMethodAttrs) || IsMdFinal(dwMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
+            devirt = !IsMdVirtual(dwTargetMethodAttrs) || IsMdFinal(dwTargetMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
         }
 
         if (devirt)
@@ -5356,6 +5409,14 @@ void CEEInfo::getCallInfo(
 
     if (directCall)
     {
+        // Direct calls to abstract methods are not allowed
+        if (IsMdAbstract(dwTargetMethodAttrs) &&
+            // Compensate for always treating delegates as direct calls above
+            !(((flags & CORINFO_CALLINFO_LDFTN) && (flags & CORINFO_CALLINFO_CALLVIRT) && !resolvedCallVirt)))
+        {
+            COMPlusThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
+        }
+
         bool allowInstParam = (flags & CORINFO_CALLINFO_ALLOWINSTPARAM);
 
         // Create instantiating stub if necesary
@@ -6979,7 +7040,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
             // Call CompareTo method on the primitive type
             int tokCompareTo = pCompareToMD->GetMemberDef();
 
-            int index = (et - ELEMENT_TYPE_I1);
+            unsigned int index = (et - ELEMENT_TYPE_I1);
             _ASSERTE(index < _countof(ilcode));
 
             ilcode[index][0] = CEE_LDARGA_S;
@@ -7417,6 +7478,56 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
         static const BYTE returnFalse[] = { CEE_LDC_I4_0, CEE_RET };
 
         if (!methodTable->IsValueType() || methodTable->ContainsPointers())
+        {
+            methInfo->ILCode = const_cast<BYTE*>(returnTrue);
+        }
+        else
+        {
+            methInfo->ILCode = const_cast<BYTE*>(returnFalse);
+        }
+
+        methInfo->ILCodeSize = sizeof(returnTrue);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+
+    if (tk == MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__IS_BITWISE_EQUATABLE)->GetMemberDef())
+    {
+        _ASSERTE(ftn->HasMethodInstantiation());
+        Instantiation inst = ftn->GetMethodInstantiation();
+
+        _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
+        TypeHandle typeHandle = inst[0];
+        MethodTable * methodTable = typeHandle.GetMethodTable();
+
+        static const BYTE returnTrue[] = { CEE_LDC_I4_1, CEE_RET };
+        static const BYTE returnFalse[] = { CEE_LDC_I4_0, CEE_RET };
+
+        // Ideally we could detect automatically whether a type is trivially equatable
+        // (i.e., its operator == could be implemented via memcmp). But for now we'll
+        // do the simple thing and hardcode the list of types we know fulfill this contract.
+        // n.b. This doesn't imply that the type's CompareTo method can be memcmp-implemented,
+        // as a method like CompareTo may need to take a type's signedness into account.
+
+        if (methodTable == MscorlibBinder::GetClass(CLASS__BOOLEAN)
+            || methodTable == MscorlibBinder::GetClass(CLASS__BYTE)
+            || methodTable == MscorlibBinder::GetClass(CLASS__SBYTE)
+#ifdef FEATURE_UTF8STRING
+            || methodTable == MscorlibBinder::GetClass(CLASS__CHAR8)
+#endif // FEATURE_UTF8STRING
+            || methodTable == MscorlibBinder::GetClass(CLASS__CHAR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT16)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT16)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT32)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT32)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT64)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT64)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INTPTR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINTPTR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__RUNE)
+            || methodTable->IsEnum())
         {
             methInfo->ILCode = const_cast<BYTE*>(returnTrue);
         }
@@ -12807,15 +12918,6 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
                 QueryPerformanceCounter (&methodJitTimeStart);
 
 #endif
-#if defined(ENABLE_PERF_COUNTERS)
-            START_JIT_PERF();
-#endif
-
-#if defined(ENABLE_PERF_COUNTERS)
-            LARGE_INTEGER CycleStart;
-            QueryPerformanceCounter (&CycleStart);
-#endif // defined(ENABLE_PERF_COUNTERS)
-
             // Note on debuggerTrackInfo arg: if we're only importing (ie, verifying/
             // checking to make sure we could JIT, but not actually generating code (
             // eg, for inlining), then DON'T TELL THE DEBUGGER about this.
@@ -12834,20 +12936,6 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
             {
                 *pSizeOfCode = sizeOfCode;
             }
-#endif
-
-#if defined(ENABLE_PERF_COUNTERS)
-            LARGE_INTEGER CycleStop;
-            QueryPerformanceCounter(&CycleStop);
-            GetPerfCounters().m_Jit.timeInJitBase = GetPerfCounters().m_Jit.timeInJit;
-            GetPerfCounters().m_Jit.timeInJit += static_cast<DWORD>(CycleStop.QuadPart - CycleStart.QuadPart);
-            GetPerfCounters().m_Jit.cMethodsJitted++;
-            GetPerfCounters().m_Jit.cbILJitted+=methodInfo.ILCodeSize;
-
-#endif // defined(ENABLE_PERF_COUNTERS)
-
-#if defined(ENABLE_PERF_COUNTERS)
-            STOP_JIT_PERF();
 #endif
 
 #ifdef PERF_TRACK_METHOD_JITTIMES
@@ -12875,8 +12963,6 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
 
         if (!SUCCEEDED(res))
         {
-            COUNTER_ONLY(GetPerfCounters().m_Jit.cJitFailures++);
-
 #ifndef CROSSGEN_COMPILE
             jitInfo.BackoutJitData(jitMgr);
 #endif

@@ -144,7 +144,6 @@
 #include "cordbpriv.h"
 #include "comdelegate.h"
 #include "appdomain.hpp"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "corhost.h"
 #include "binder.h"
@@ -216,6 +215,7 @@
 #include "perfmap.h"
 #endif
 
+#include "diagnosticserver.h"
 #include "eventpipe.h"
 
 #ifndef FEATURE_PAL
@@ -633,10 +633,6 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-#ifdef _DEBUG
-        DisableGlobalAllocStore();
-#endif //_DEBUG
-
 #ifndef FEATURE_PAL
         ::SetConsoleCtrlHandler(DbgCtrlCHandler, TRUE/*add*/);
 #endif
@@ -672,6 +668,7 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifdef FEATURE_PERFTRACING
         // Initialize the event pipe.
+        DiagnosticServer::Initialize();
         EventPipe::Initialize();
 #endif // FEATURE_PERFTRACING
 
@@ -794,12 +791,6 @@ void EEStartupHelper(COINITIEE fFlags)
             g_BBSweep.SetBBSweepThreadHandle(hBBSweepThread);
         }
 #endif // FEATURE_PREJIT
-
-#ifdef ENABLE_PERF_COUNTERS
-        hr = PerfCounters::Init();
-        _ASSERTE(SUCCEEDED(hr));
-        IfFailGo(hr);
-#endif
 
 #ifdef FEATURE_INTERPRETER
         Interpreter::Initialize();
@@ -1473,6 +1464,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 #ifdef FEATURE_PERFTRACING
     // Shutdown the event pipe.
     EventPipe::Shutdown();
+    DiagnosticServer::Shutdown();
 #endif // FEATURE_PERFTRACING
 
 #if defined(FEATURE_COMINTEROP)
@@ -1526,11 +1518,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     {
         ClrFlsSetThreadType(ThreadType_Shutdown);
 
-        if (!fIsDllUnloading)
-        {
-            ProcessEventForHost(Event_ClrDisabled, NULL);
-        }
-        else if (g_fEEShutDown)
+        if (fIsDllUnloading && g_fEEShutDown)
         {
             // I'm in the final shutdown and the first part has already been run.
             goto part2;
@@ -1778,11 +1766,6 @@ part2:
                     GCHandleUtilities::GetGCHandleManager()->Shutdown();
                 }
 #endif /* SHOULD_WE_CLEANUP */
-
-#ifdef ENABLE_PERF_COUNTERS
-                // Terminate Perf Counters as late as we can (to get the most data)
-                PerfCounters::Terminate();
-#endif // ENABLE_PERF_COUNTERS
 
                 //@TODO: find the right place for this
                 VirtualCallStubManager::UninitStatic();

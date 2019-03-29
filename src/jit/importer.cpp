@@ -108,10 +108,10 @@ void Compiler::impPushOnStack(GenTree* tree, typeInfo ti)
         // attempts to do that have proved too difficult.  Instead, we'll assume that in checks like this,
         // when there's a mismatch, it's because of this reason -- the typeInfo::AreEquivalentModuloNativeInt
         // method used in the last disjunct allows exactly this mismatch.
-        assert(ti.IsDead() || ti.IsByRef() && (tree->TypeGet() == TYP_I_IMPL || tree->TypeGet() == TYP_BYREF) ||
-               ti.IsUnboxedGenericTypeVar() && tree->TypeGet() == TYP_REF ||
-               ti.IsObjRef() && tree->TypeGet() == TYP_REF || ti.IsMethod() && tree->TypeGet() == TYP_I_IMPL ||
-               ti.IsType(TI_STRUCT) && tree->TypeGet() != TYP_REF ||
+        assert(ti.IsDead() || (ti.IsByRef() && (tree->TypeGet() == TYP_I_IMPL) || tree->TypeGet() == TYP_BYREF) ||
+               (ti.IsUnboxedGenericTypeVar() && tree->TypeGet() == TYP_REF) ||
+               (ti.IsObjRef() && tree->TypeGet() == TYP_REF) || (ti.IsMethod() && tree->TypeGet() == TYP_I_IMPL) ||
+               (ti.IsType(TI_STRUCT) && tree->TypeGet() != TYP_REF) ||
                typeInfo::AreEquivalentModuloNativeInt(NormaliseForStack(ti),
                                                       NormaliseForStack(typeInfo(tree->TypeGet()))));
 
@@ -618,21 +618,8 @@ inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
                     // Since we don't know what it assigns to, we need to spill global refs.
                     spillGlobEffects = true;
                 }
-                else if (!expr->OperIsBlkOp())
+                else if ((lhs->gtFlags & GTF_GLOB_REF) != 0)
                 {
-                    // If we are assigning to a global ref, we have to spill global refs on stack
-                    if ((lhs->gtFlags & GTF_GLOB_REF) != 0)
-                    {
-                        spillGlobEffects = true;
-                    }
-                }
-                else if ((lhs->OperIsBlk() && !lhs->AsBlk()->HasGCPtr()) ||
-                         ((lhs->OperGet() == GT_LCL_VAR) &&
-                          (lvaTable[lhs->AsLclVarCommon()->gtLclNum].lvStructGcCount == 0)))
-                {
-                    // TODO-1stClassStructs: Previously, spillGlobEffects was set to true for
-                    // GT_INITBLK and GT_COPYBLK, but this is overly conservative, and should be
-                    // revisited. (Note that it was NOT set to true for GT_COPYOBJ.)
                     spillGlobEffects = true;
                 }
             }
@@ -1357,11 +1344,22 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         assert(varTypeIsStruct(src->gtOp.gtOp2) || src->gtOp.gtOp2->gtType == TYP_BYREF);
         if (pAfterStmt)
         {
+            // Insert op1 after '*pAfterStmt'
             *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(src->gtOp.gtOp1, ilOffset));
+        }
+        else if (impTreeLast != nullptr)
+        {
+            // Do the side-effect as a separate statement.
+            impAppendTree(src->gtOp.gtOp1, curLevel, ilOffset);
         }
         else
         {
-            impAppendTree(src->gtOp.gtOp1, curLevel, ilOffset); // do the side effect
+            // In this case we have neither been given a statement to insert after, nor are we
+            // in the importer where we can append the side effect.
+            // Instead, we're going to sink the assignment below the COMMA.
+            src->gtOp.gtOp2 =
+                impAssignStructPtr(destAddr, src->gtOp.gtOp2, structHnd, curLevel, pAfterStmt, ilOffset, block);
+            return src;
         }
 
         // Evaluate the second thing using recursion.
@@ -1378,8 +1376,6 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
     }
     if (dest == nullptr)
     {
-        // TODO-1stClassStructs: We shouldn't really need a block node as the destination
-        // if this is a known struct type.
         if (asgType == TYP_STRUCT)
         {
             dest = gtNewObjNode(structHnd, destAddr);
@@ -1389,10 +1385,6 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
             // of a block assignment.
             dest->gtFlags &= ~GTF_GLOB_REF;
             dest->gtFlags |= (destAddr->gtFlags & GTF_GLOB_REF);
-        }
-        else if (varTypeIsStruct(asgType))
-        {
-            dest = new (this, GT_BLK) GenTreeBlk(GT_BLK, asgType, destAddr, genTypeSize(asgType));
         }
         else
         {
@@ -3458,60 +3450,6 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
             ni = lookupNamedIntrinsic(method);
 
 #ifdef FEATURE_HW_INTRINSICS
-            switch (ni)
-            {
-#if defined(_TARGET_ARM64_)
-                case NI_Base_Vector64_AsByte:
-                case NI_Base_Vector64_AsInt16:
-                case NI_Base_Vector64_AsInt32:
-                case NI_Base_Vector64_AsSByte:
-                case NI_Base_Vector64_AsSingle:
-                case NI_Base_Vector64_AsUInt16:
-                case NI_Base_Vector64_AsUInt32:
-#endif // _TARGET_ARM64_
-                case NI_Base_Vector128_As:
-                case NI_Base_Vector128_AsByte:
-                case NI_Base_Vector128_AsDouble:
-                case NI_Base_Vector128_AsInt16:
-                case NI_Base_Vector128_AsInt32:
-                case NI_Base_Vector128_AsInt64:
-                case NI_Base_Vector128_AsSByte:
-                case NI_Base_Vector128_AsSingle:
-                case NI_Base_Vector128_AsUInt16:
-                case NI_Base_Vector128_AsUInt32:
-                case NI_Base_Vector128_AsUInt64:
-#if defined(_TARGET_XARCH_)
-                case NI_Base_Vector128_CreateScalarUnsafe:
-                case NI_Base_Vector128_ToScalar:
-                case NI_Base_Vector128_ToVector256:
-                case NI_Base_Vector128_ToVector256Unsafe:
-                case NI_Base_Vector128_Zero:
-                case NI_Base_Vector256_As:
-                case NI_Base_Vector256_AsByte:
-                case NI_Base_Vector256_AsDouble:
-                case NI_Base_Vector256_AsInt16:
-                case NI_Base_Vector256_AsInt32:
-                case NI_Base_Vector256_AsInt64:
-                case NI_Base_Vector256_AsSByte:
-                case NI_Base_Vector256_AsSingle:
-                case NI_Base_Vector256_AsUInt16:
-                case NI_Base_Vector256_AsUInt32:
-                case NI_Base_Vector256_AsUInt64:
-                case NI_Base_Vector256_CreateScalarUnsafe:
-                case NI_Base_Vector256_GetLower:
-                case NI_Base_Vector256_ToScalar:
-                case NI_Base_Vector256_Zero:
-#endif // _TARGET_XARCH_
-                {
-                    return impBaseIntrinsic(ni, clsHnd, method, sig);
-                }
-
-                default:
-                {
-                    break;
-                }
-            }
-
             if ((ni > NI_HW_INTRINSIC_START) && (ni < NI_HW_INTRINSIC_END))
             {
                 GenTree* hwintrinsic = impHWIntrinsic(ni, method, sig, mustExpand);
@@ -4122,7 +4060,8 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 {
                     case CorInfoType::CORINFO_TYPE_SHORT:
                     case CorInfoType::CORINFO_TYPE_USHORT:
-                        retNode = gtNewOperNode(GT_BSWAP16, callType, impPopStack().val);
+                        retNode = gtNewCastNode(TYP_INT, gtNewOperNode(GT_BSWAP16, TYP_INT, impPopStack().val), false,
+                                                callType);
                         break;
 
                     case CorInfoType::CORINFO_TYPE_INT:
@@ -4167,242 +4106,6 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
     return retNode;
 }
 
-#ifdef FEATURE_HW_INTRINSICS
-//------------------------------------------------------------------------
-// impBaseIntrinsic: dispatch intrinsics to their own implementation
-//
-// Arguments:
-//    intrinsic  -- id of the intrinsic function.
-//    clsHnd     -- handle for the intrinsic method's class
-//    method     -- method handle of the intrinsic function.
-//    sig        -- signature of the intrinsic call
-//
-// Return Value:
-//    the expanded intrinsic.
-//
-GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic        intrinsic,
-                                    CORINFO_CLASS_HANDLE  clsHnd,
-                                    CORINFO_METHOD_HANDLE method,
-                                    CORINFO_SIG_INFO*     sig)
-{
-    GenTree* retNode = nullptr;
-    GenTree* op1     = nullptr;
-
-    if (!featureSIMD)
-    {
-        return nullptr;
-    }
-
-    unsigned  simdSize = 0;
-    var_types baseType = TYP_UNKNOWN;
-    var_types retType  = JITtype2varType(sig->retType);
-
-    if (sig->hasThis())
-    {
-        baseType = getBaseTypeAndSizeOfSIMDType(clsHnd, &simdSize);
-
-        if (retType == TYP_STRUCT)
-        {
-            unsigned  retSimdSize = 0;
-            var_types retBasetype = getBaseTypeAndSizeOfSIMDType(sig->retTypeClass, &retSimdSize);
-            if (!varTypeIsArithmetic(retBasetype))
-            {
-                return nullptr;
-            }
-            retType = getSIMDTypeForSize(retSimdSize);
-        }
-    }
-    else
-    {
-        assert(retType == TYP_STRUCT);
-        baseType = getBaseTypeAndSizeOfSIMDType(sig->retTypeClass, &simdSize);
-        retType  = getSIMDTypeForSize(simdSize);
-    }
-
-    if (!varTypeIsArithmetic(baseType))
-    {
-        return nullptr;
-    }
-
-    switch (intrinsic)
-    {
-#if defined(_TARGET_XARCH_)
-        case NI_Base_Vector256_As:
-        case NI_Base_Vector256_AsByte:
-        case NI_Base_Vector256_AsDouble:
-        case NI_Base_Vector256_AsInt16:
-        case NI_Base_Vector256_AsInt32:
-        case NI_Base_Vector256_AsInt64:
-        case NI_Base_Vector256_AsSByte:
-        case NI_Base_Vector256_AsSingle:
-        case NI_Base_Vector256_AsUInt16:
-        case NI_Base_Vector256_AsUInt32:
-        case NI_Base_Vector256_AsUInt64:
-        {
-            if (!compSupports(InstructionSet_AVX))
-            {
-                // We don't want to deal with TYP_SIMD32 if the compiler doesn't otherwise support the type.
-                break;
-            }
-
-            __fallthrough;
-        }
-#endif // _TARGET_XARCH_
-
-#if defined(_TARGET_ARM64_)
-        case NI_Base_Vector64_AsByte:
-        case NI_Base_Vector64_AsInt16:
-        case NI_Base_Vector64_AsInt32:
-        case NI_Base_Vector64_AsSByte:
-        case NI_Base_Vector64_AsSingle:
-        case NI_Base_Vector64_AsUInt16:
-        case NI_Base_Vector64_AsUInt32:
-#endif // _TARGET_ARM64_
-        case NI_Base_Vector128_As:
-        case NI_Base_Vector128_AsByte:
-        case NI_Base_Vector128_AsDouble:
-        case NI_Base_Vector128_AsInt16:
-        case NI_Base_Vector128_AsInt32:
-        case NI_Base_Vector128_AsInt64:
-        case NI_Base_Vector128_AsSByte:
-        case NI_Base_Vector128_AsSingle:
-        case NI_Base_Vector128_AsUInt16:
-        case NI_Base_Vector128_AsUInt32:
-        case NI_Base_Vector128_AsUInt64:
-        {
-            // We fold away the cast here, as it only exists to satisfy
-            // the type system. It is safe to do this here since the retNode type
-            // and the signature return type are both the same TYP_SIMD.
-
-            assert(sig->numArgs == 0);
-            assert(sig->hasThis());
-
-            retNode = impSIMDPopStack(retType, true, sig->retTypeClass);
-            SetOpLclRelatedToSIMDIntrinsic(retNode);
-            assert(retNode->gtType == getSIMDTypeForSize(getSIMDTypeSizeInBytes(sig->retTypeSigClass)));
-            break;
-        }
-
-#ifdef _TARGET_XARCH_
-        case NI_Base_Vector128_CreateScalarUnsafe:
-        {
-            assert(sig->numArgs == 1);
-
-#ifdef _TARGET_X86_
-            if (varTypeIsLong(baseType))
-            {
-                // TODO-XARCH-CQ: It may be beneficial to emit the movq
-                // instruction, which takes a 64-bit memory address and
-                // works on 32-bit x86 systems.
-                break;
-            }
-#endif // _TARGET_X86_
-
-            if (compSupports(InstructionSet_SSE2) || (compSupports(InstructionSet_SSE) && (baseType == TYP_FLOAT)))
-            {
-                op1     = impPopStack().val;
-                retNode = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, simdSize);
-            }
-            break;
-        }
-
-        case NI_Base_Vector128_ToScalar:
-        {
-            assert(sig->numArgs == 0);
-            assert(sig->hasThis());
-
-            if (compSupports(InstructionSet_SSE) && varTypeIsFloating(baseType))
-            {
-                op1     = impSIMDPopStack(getSIMDTypeForSize(simdSize), true, clsHnd);
-                retNode = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, 16);
-            }
-            break;
-        }
-
-        case NI_Base_Vector128_ToVector256:
-        case NI_Base_Vector128_ToVector256Unsafe:
-        case NI_Base_Vector256_GetLower:
-        {
-            assert(sig->numArgs == 0);
-            assert(sig->hasThis());
-
-            if (compSupports(InstructionSet_AVX))
-            {
-                op1     = impSIMDPopStack(getSIMDTypeForSize(simdSize), true, clsHnd);
-                retNode = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, simdSize);
-            }
-            break;
-        }
-
-        case NI_Base_Vector128_Zero:
-        {
-            assert(sig->numArgs == 0);
-
-            if (compSupports(InstructionSet_SSE))
-            {
-                retNode = gtNewSimdHWIntrinsicNode(retType, intrinsic, baseType, simdSize);
-            }
-            break;
-        }
-
-        case NI_Base_Vector256_CreateScalarUnsafe:
-        {
-            assert(sig->numArgs == 1);
-
-#ifdef _TARGET_X86_
-            if (varTypeIsLong(baseType))
-            {
-                // TODO-XARCH-CQ: It may be beneficial to emit the movq
-                // instruction, which takes a 64-bit memory address and
-                // works on 32-bit x86 systems.
-                break;
-            }
-#endif // _TARGET_X86_
-
-            if (compSupports(InstructionSet_AVX))
-            {
-                op1     = impPopStack().val;
-                retNode = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, simdSize);
-            }
-            break;
-        }
-
-        case NI_Base_Vector256_ToScalar:
-        {
-            assert(sig->numArgs == 0);
-            assert(sig->hasThis());
-
-            if (compSupports(InstructionSet_AVX) && varTypeIsFloating(baseType))
-            {
-                op1     = impSIMDPopStack(getSIMDTypeForSize(simdSize), true, clsHnd);
-                retNode = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, 32);
-            }
-            break;
-        }
-
-        case NI_Base_Vector256_Zero:
-        {
-            assert(sig->numArgs == 0);
-
-            if (compSupports(InstructionSet_AVX))
-            {
-                retNode = gtNewSimdHWIntrinsicNode(retType, intrinsic, baseType, simdSize);
-            }
-            break;
-        }
-#endif // _TARGET_XARCH_
-
-        default:
-        {
-            unreached();
-            break;
-        }
-    }
-
-    return retNode;
-}
-#endif // FEATURE_HW_INTRINSICS
-
 GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
                                     CORINFO_SIG_INFO*     sig,
                                     var_types             callType,
@@ -4421,7 +4124,7 @@ GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
     // Intrinsics that are not implemented directly by target instructions will
     // be re-materialized as users calls in rationalizer. For prefixed tail calls,
     // don't do this optimization, because
-    //  a) For back compatibility reasons on desktop.Net 4.6 / 4.6.1
+    //  a) For back compatibility reasons on desktop .NET Framework 4.6 / 4.6.1
     //  b) It will be non-trivial task or too late to re-materialize a surviving
     //     tail prefixed GT_INTRINSIC as tail call in rationalizer.
     if (!IsIntrinsicImplementedByUserCall(intrinsicID) || !tailCall)
@@ -4574,7 +4277,7 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                 {
                     className += 2;
 
-                    if (strcmp(className, "`1") == 0)
+                    if (className[0] == '\0')
                     {
                         if (strncmp(methodName, "As", 2) == 0)
                         {
@@ -4621,17 +4324,7 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                 {
                     className += 3;
 
-#if defined(_TARGET_XARCH_)
                     if (className[0] == '\0')
-                    {
-                        if (strcmp(methodName, "CreateScalarUnsafe") == 0)
-                        {
-                            result = NI_Base_Vector128_CreateScalarUnsafe;
-                        }
-                    }
-                    else
-#endif // _TARGET_XARCH_
-                        if (strcmp(className, "`1") == 0)
                     {
                         if (strncmp(methodName, "As", 2) == 0)
                         {
@@ -4683,9 +4376,13 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                             }
                         }
 #if defined(_TARGET_XARCH_)
-                        else if (strcmp(methodName, "get_Zero") == 0)
+                        else if (strcmp(methodName, "CreateScalarUnsafe") == 0)
                         {
-                            result = NI_Base_Vector128_Zero;
+                            result = NI_Base_Vector128_CreateScalarUnsafe;
+                        }
+                        else if (strcmp(methodName, "GetElement") == 0)
+                        {
+                            result = NI_Base_Vector128_GetElement;
                         }
                         else if (strncmp(methodName, "To", 2) == 0)
                         {
@@ -4709,8 +4406,21 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                                 }
                             }
                         }
+                        else if (strcmp(methodName, "WithElement") == 0)
+                        {
+                            result = NI_Base_Vector128_WithElement;
+                        }
 #endif // _TARGET_XARCH_
                     }
+#if defined(_TARGET_XARCH_)
+                    else if (strcmp(className, "`1") == 0)
+                    {
+                        if (strcmp(methodName, "get_Zero") == 0)
+                        {
+                            result = NI_Base_Vector128_Zero;
+                        }
+                    }
+#endif // _TARGET_XARCH_
                 }
 #if defined(_TARGET_XARCH_)
                 else if (strncmp(className, "256", 3) == 0)
@@ -4718,13 +4428,6 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                     className += 3;
 
                     if (className[0] == '\0')
-                    {
-                        if (strcmp(methodName, "CreateScalarUnsafe") == 0)
-                        {
-                            result = NI_Base_Vector256_CreateScalarUnsafe;
-                        }
-                    }
-                    else if (strcmp(className, "`1") == 0)
                     {
                         if (strncmp(methodName, "As", 2) == 0)
                         {
@@ -4775,9 +4478,13 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                                 result = NI_Base_Vector256_AsUInt64;
                             }
                         }
-                        else if (strcmp(methodName, "get_Zero") == 0)
+                        else if (strcmp(methodName, "CreateScalarUnsafe") == 0)
                         {
-                            result = NI_Base_Vector256_Zero;
+                            result = NI_Base_Vector256_CreateScalarUnsafe;
+                        }
+                        else if (strcmp(methodName, "GetElement") == 0)
+                        {
+                            result = NI_Base_Vector256_GetElement;
                         }
                         else if (strcmp(methodName, "GetLower") == 0)
                         {
@@ -4786,6 +4493,17 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                         else if (strcmp(methodName, "ToScalar") == 0)
                         {
                             result = NI_Base_Vector256_ToScalar;
+                        }
+                        else if (strcmp(methodName, "WithElement") == 0)
+                        {
+                            result = NI_Base_Vector256_WithElement;
+                        }
+                    }
+                    else if (strcmp(className, "`1") == 0)
+                    {
+                        if (strcmp(methodName, "get_Zero") == 0)
+                        {
+                            result = NI_Base_Vector256_Zero;
                         }
                     }
                 }
@@ -7093,7 +6811,7 @@ GenTree* Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolvedT
             // We first call a special helper to get the statics base pointer
             op1 = impParentClassTokenToHandle(pResolvedToken);
 
-            // compIsForInlining() is false so we should not neve get NULL here
+            // compIsForInlining() is false so we should not get NULL here
             assert(op1 != nullptr);
 
             var_types type = TYP_BYREF;
@@ -8286,24 +8004,13 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         // imperative security in the method. This is to give security a
         // chance to do any setup in the prolog and cleanup in the epilog if needed.
 
-        if (compIsForInlining())
-        {
-            // Cannot handle this if the method being imported is an inlinee by itself.
-            // Because inlinee method does not have its own frame.
+        tiSecurityCalloutNeeded = true;
 
-            compInlineResult->NoteFatal(InlineObservation::CALLEE_NEEDS_SECURITY_CHECK);
-            return TYP_UNDEF;
-        }
-        else
-        {
-            tiSecurityCalloutNeeded = true;
-
-            // If the current method calls a method which needs a security check,
-            // (i.e. the method being compiled has imperative security)
-            // we need to reserve a slot for the security object in
-            // the current method's stack frame
-            opts.compNeedSecurityCheck = true;
-        }
+        // If the current method calls a method which needs a security check,
+        // (i.e. the method being compiled has imperative security)
+        // we need to reserve a slot for the security object in
+        // the current method's stack frame
+        opts.compNeedSecurityCheck = true;
     }
 
     //--------------------------- Inline NDirect ------------------------------
@@ -10413,10 +10120,10 @@ var_types Compiler::impGetByRefResultType(genTreeOps oper, bool fUnsigned, GenTr
             // to have a tree like this:
             //
             //              -
-            //             / \
-            //            /   \
-            //           /     \
-            //          /       \
+            //             / \.
+            //            /   \.
+            //           /     \.
+            //          /       \.
             // const(h) int     addr byref
             //
             // <BUGNUM> VSW 318822 </BUGNUM>
@@ -10724,7 +10431,7 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // expand the methodtable match:
     //
     //  condMT ==>   GT_NE
-    //               /    \
+    //               /    \.
     //           GT_IND   op2 (typically CNS_INT)
     //              |
     //           op1Copy
@@ -10753,7 +10460,7 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // expand the null check:
     //
     //  condNull ==>   GT_EQ
-    //                 /    \
+    //                 /    \.
     //             op1Copy CNS_INT
     //                      null
     //
@@ -10786,9 +10493,9 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // Generate first QMARK - COLON tree
     //
     //  qmarkMT ==>   GT_QMARK
-    //                 /     \
+    //                 /     \.
     //            condMT   GT_COLON
-    //                      /     \
+    //                      /     \.
     //                condFalse  condTrue
     //
     temp    = new (this, GT_COLON) GenTreeColon(TYP_REF, condTrue, condFalse);
@@ -10799,9 +10506,9 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // Generate second QMARK - COLON tree
     //
     //  qmarkNull ==>  GT_QMARK
-    //                 /     \
+    //                 /     \.
     //           condNull  GT_COLON
-    //                      /     \
+    //                      /     \.
     //                qmarkMT   op1Copy
     //
     temp      = new (this, GT_COLON) GenTreeColon(TYP_REF, gtClone(op1), qmarkMT);
@@ -14801,9 +14508,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         assert(!"Unexpected fieldAccessor");
                 }
 
-                // Create the member assignment, unless we have a struct.
-                // TODO-1stClassStructs: This could be limited to TYP_STRUCT, to avoid extra copies.
-                bool deferStructAssign = varTypeIsStruct(lclTyp);
+                // Create the member assignment, unless we have a TYP_STRUCT.
+                bool deferStructAssign = (lclTyp == TYP_STRUCT);
 
                 if (!deferStructAssign)
                 {
@@ -16494,10 +16200,6 @@ GenTree* Compiler::impAssignSmallStructTypeToVar(GenTree* op, CORINFO_CLASS_HAND
     unsigned tmpNum = lvaGrabTemp(true DEBUGARG("Return value temp for small struct return."));
     impAssignTempGen(tmpNum, op, hClass, (unsigned)CHECK_SPILL_ALL);
     GenTree* ret = gtNewLclvNode(tmpNum, lvaTable[tmpNum].lvType);
-
-    // TODO-1stClassStructs: Handle constant propagation and CSE-ing of small struct returns.
-    ret->gtFlags |= GTF_DONT_CSE;
-
     return ret;
 }
 
@@ -18443,8 +18145,8 @@ BOOL Compiler::impIsAddressInLocal(GenTree* tree, GenTree** lclVarTreeOut)
 
 void Compiler::impMakeDiscretionaryInlineObservations(InlineInfo* pInlineInfo, InlineResult* inlineResult)
 {
-    assert(pInlineInfo != nullptr && compIsForInlining() || // Perform the actual inlining.
-           pInlineInfo == nullptr && !compIsForInlining()   // Calculate the static inlining hint for ngen.
+    assert((pInlineInfo != nullptr && compIsForInlining()) || // Perform the actual inlining.
+           (pInlineInfo == nullptr && !compIsForInlining())   // Calculate the static inlining hint for ngen.
            );
 
     // If we're really inlining, we should just have one result in play.

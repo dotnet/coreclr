@@ -166,7 +166,12 @@ the processors enabled.
 --*/
 KAFFINITY GetFullAffinityMask(int cpuCount)
 {
-    return ((KAFFINITY)1 << (cpuCount)) - 1;
+    if ((size_t)cpuCount < sizeof(KAFFINITY) * 8)
+    {
+        return ((KAFFINITY)1 << (cpuCount)) - 1;
+    }
+
+    return ~(KAFFINITY)0;
 }
 
 /*++
@@ -357,10 +362,10 @@ GetNumaProcessorNodeEx(
 
     BOOL success = FALSE;
 
-    if ((Processor->Group < g_groupCount) && 
-        (Processor->Number < MaxCpusPerGroup) && 
+    if ((Processor->Group < g_groupCount) &&
+        (Processor->Number < MaxCpusPerGroup) &&
         (Processor->Reserved == 0))
-    {  
+    {
         short cpu = g_groupAndIndexToCpu[Processor->Group * MaxCpusPerGroup + Processor->Number];
         if (cpu != -1)
         {
@@ -372,7 +377,7 @@ GetNumaProcessorNodeEx(
     if (!success)
     {
         *NodeNumber = 0xffff;
-        SetLastError(ERROR_INVALID_PARAMETER);  
+        SetLastError(ERROR_INVALID_PARAMETER);
     }
 
     LOGEXIT("GetNumaProcessorNodeEx returns BOOL %d\n", success);
@@ -431,7 +436,7 @@ GetLogicalProcessorInformationEx(
     else
     {
         // We only support the group relationship
-        SetLastError(ERROR_INVALID_PARAMETER);  
+        SetLastError(ERROR_INVALID_PARAMETER);
     }
 
     LOGEXIT("GetLogicalProcessorInformationEx returns BOOL %d\n", success);
@@ -741,7 +746,7 @@ GetCurrentProcessorNumberEx(
     ENTRY("GetCurrentProcessorNumberEx(ProcNumber=%p\n", ProcNumber);
 
     DWORD cpu = GetCurrentProcessorNumber();
-    _ASSERTE(cpu < g_possibleCpuCount);
+    _ASSERTE((int)cpu < g_possibleCpuCount);
     ProcNumber->Group = g_cpuToAffinity[cpu].Group;
     ProcNumber->Number = g_cpuToAffinity[cpu].Number;
 
@@ -770,7 +775,9 @@ GetProcessAffinityMask(
 
     if (hProcess == GetCurrentProcess())
     {
-        DWORD_PTR systemMask = GetFullAffinityMask(g_cpuCount);
+        int cpuCountInMask = (g_cpuCount > 64) ? 64 : g_cpuCount;
+
+        DWORD_PTR systemMask = GetFullAffinityMask(cpuCountInMask);
 
 #if HAVE_SCHED_GETAFFINITY
         int pid = getpid();
@@ -778,28 +785,13 @@ GetProcessAffinityMask(
         int st = sched_getaffinity(pid, sizeof(cpu_set_t), &cpuSet);
         if (st == 0)
         {
-            WORD group = NO_GROUP;
             DWORD_PTR processMask = 0;
 
-            for (int i = 0; i < g_possibleCpuCount; i++)
+            for (int i = 0; i < cpuCountInMask; i++)
             {
                 if (CPU_ISSET(i, &cpuSet))
                 {
-                    WORD g = g_cpuToAffinity[i].Group;
-                    if (group == NO_GROUP || g == group)
-                    {
-                        group = g;
-                        processMask |= ((DWORD_PTR)1) << g_cpuToAffinity[i].Number;
-                    }
-                    else
-                    {
-                        // The process has affinity in more than one group, in such case
-                        // the function needs to return zero in both masks.
-                        processMask = 0;
-                        systemMask = 0;
-                        group = NO_GROUP;
-                        break;
-                    }
+                    processMask |= ((DWORD_PTR)1) << i;
                 }
             }
 
@@ -811,9 +803,9 @@ GetProcessAffinityMask(
         else if (errno == EINVAL)
         {
             // There are more processors than can fit in a cpu_set_t
-            // return zero in both masks.
-            *lpProcessAffinityMask = 0;
-            *lpSystemAffinityMask = 0;
+            // return all bits set for all processors (upto 64) for both masks.
+            *lpProcessAffinityMask = systemMask;
+            *lpSystemAffinityMask = systemMask;
             success = TRUE;
         }
         else
@@ -861,14 +853,14 @@ VirtualAllocExNuma(
 )
 {
     PERF_ENTRY(VirtualAllocExNuma);
-    ENTRY("VirtualAllocExNuma(hProcess=%p, lpAddress=%p, dwSize=%u, flAllocationType=%#x, flProtect=%#x, nndPreferred=%d\n", 
+    ENTRY("VirtualAllocExNuma(hProcess=%p, lpAddress=%p, dwSize=%u, flAllocationType=%#x, flProtect=%#x, nndPreferred=%d\n",
         hProcess, lpAddress, dwSize, flAllocationType, flProtect, nndPreferred);
 
     LPVOID result = NULL;
 
     if (hProcess == GetCurrentProcess())
     {
-        if (nndPreferred <= g_highestNumaNode)
+        if ((int)nndPreferred <= g_highestNumaNode)
         {
             result = VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
 #if HAVE_NUMA_H
@@ -894,7 +886,7 @@ VirtualAllocExNuma(
             // The specified node number is larger than the maximum available one
             SetLastError(ERROR_INVALID_PARAMETER);
         }
-    }    
+    }
     else
     {
         // PAL supports allocating from the current process virtual space only
@@ -976,7 +968,7 @@ SetThreadIdealProcessorEx(
             }
         }
 
-        _ASSERTE(prevCpu < g_possibleCpuCount);
+        _ASSERTE((int)prevCpu < g_possibleCpuCount);
         lpPreviousIdealProcessor->Group = g_cpuToAffinity[prevCpu].Group;
         lpPreviousIdealProcessor->Number = g_cpuToAffinity[prevCpu].Number;
         lpPreviousIdealProcessor->Reserved = 0;

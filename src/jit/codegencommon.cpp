@@ -191,7 +191,7 @@ void CodeGenInterface::genMarkTreeInReg(GenTree* tree, regNumber reg)
 // Return value:
 //    Frame size
 
-int CodeGenInterface::genTotalFrameSize()
+int CodeGenInterface::genTotalFrameSize() const
 {
     assert(!IsUninitialized(compiler->compCalleeRegsPushed));
 
@@ -208,7 +208,7 @@ int CodeGenInterface::genTotalFrameSize()
 //
 // There must be a frame pointer to call this function!
 
-int CodeGenInterface::genSPtoFPdelta()
+int CodeGenInterface::genSPtoFPdelta() const
 {
     assert(isFramePointerUsed());
 
@@ -227,7 +227,7 @@ int CodeGenInterface::genSPtoFPdelta()
 //
 // There must be a frame pointer to call this function!
 
-int CodeGenInterface::genCallerSPtoFPdelta()
+int CodeGenInterface::genCallerSPtoFPdelta() const
 {
     assert(isFramePointerUsed());
     int callerSPtoFPdelta = 0;
@@ -255,7 +255,7 @@ int CodeGenInterface::genCallerSPtoFPdelta()
 //
 // This number will be negative.
 
-int CodeGenInterface::genCallerSPtoInitialSPdelta()
+int CodeGenInterface::genCallerSPtoInitialSPdelta() const
 {
     int callerSPtoSPdelta = 0;
 
@@ -618,72 +618,6 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
     }
 }
 
-//----------------------------------------------------------------------
-// compNoGCHelperCallKillSet: Gets a register mask that represents the set of registers that no longer
-// contain GC or byref pointers, for "NO GC" helper calls. This is used by the emitter when determining
-// what registers to remove from the current live GC/byref sets (and thus what to report as dead in the
-// GC info). Note that for the CORINFO_HELP_ASSIGN_BYREF helper, in particular, the kill set reported by
-// compHelperCallKillSet() doesn't match this kill set. compHelperCallKillSet() reports the dst/src
-// address registers as killed for liveness purposes, since their values change. However, they still are
-// valid byref pointers after the call, so the dst/src address registers are NOT reported as killed here.
-//
-// Note: This list may not be complete and defaults to the default RBM_CALLEE_TRASH_NOGC registers.
-//
-// Arguments:
-//   helper - The helper being inquired about
-//
-// Return Value:
-//   Mask of GC register kills
-//
-regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
-{
-    assert(emitter::emitNoGChelper(helper));
-
-    switch (helper)
-    {
-        case CORINFO_HELP_ASSIGN_BYREF:
-#if defined(_TARGET_X86_)
-            // This helper only trashes ECX.
-            return RBM_ECX;
-#elif defined(_TARGET_AMD64_)
-            // This uses and defs RDI and RSI.
-            return RBM_CALLEE_TRASH_NOGC & ~(RBM_RDI | RBM_RSI);
-#elif defined(_TARGET_ARMARCH_)
-            return RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF;
-#else
-            assert(!"unknown arch");
-#endif
-
-#if defined(_TARGET_XARCH_)
-        case CORINFO_HELP_PROF_FCN_ENTER:
-            return RBM_PROFILER_ENTER_TRASH;
-
-        case CORINFO_HELP_PROF_FCN_LEAVE:
-            return RBM_PROFILER_LEAVE_TRASH;
-
-        case CORINFO_HELP_PROF_FCN_TAILCALL:
-            return RBM_PROFILER_TAILCALL_TRASH;
-#endif // defined(_TARGET_XARCH_)
-
-#if defined(_TARGET_ARMARCH_)
-        case CORINFO_HELP_ASSIGN_REF:
-        case CORINFO_HELP_CHECKED_ASSIGN_REF:
-            return RBM_CALLEE_GCTRASH_WRITEBARRIER;
-        case CORINFO_HELP_PROF_FCN_LEAVE:
-            // In case of Leave profiler callback, we need to preserve liveness of REG_PROFILER_RET_SCRATCH on ARMARCH.
-            return RBM_CALLEE_TRASH_NOGC & ~RBM_PROFILER_RET_SCRATCH;
-#endif
-
-#if defined(_TARGET_X86_)
-        case CORINFO_HELP_INIT_PINVOKE_FRAME:
-            return RBM_INIT_PINVOKE_FRAME_TRASH;
-#endif // defined(_TARGET_X86_)
-
-        default:
-            return RBM_CALLEE_TRASH_NOGC;
-    }
-}
-
 template <bool ForCodeGen>
 void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
 {
@@ -798,8 +732,9 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming live\n", varNum);
         }
     }
-
+#ifdef USING_SCOPE_INFO
     codeGen->siUpdate();
+#endif // USING_SCOPE_INFO
 }
 
 // Need an explicit instantiation.
@@ -2404,7 +2339,6 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
     if (compiler->opts.dmpHex)
     {
         size_t consSize = getEmitter()->emitDataSize();
-        size_t infoSize = compiler->compInfoBlkSize;
 
         fprintf(dmpf, "Generated code for %s:\n", compiler->info.compFullName);
         fprintf(dmpf, "\n");
@@ -2418,6 +2352,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
             fprintf(dmpf, "    Const at %p [%04X bytes]\n", dspPtr(consPtr), consSize);
         }
 #ifdef JIT32_GCENCODER
+        size_t infoSize = compiler->compInfoBlkSize;
         if (infoSize)
             fprintf(dmpf, "    Info  at %p [%04X bytes]\n", dspPtr(infoPtr), infoSize);
 #endif // JIT32_GCENCODER
@@ -3870,11 +3805,12 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 assert(varDsc->lvSize() >= baseOffset + (unsigned)size);
             }
 #endif // !UNIX_AMD64_ABI
-
+#ifdef USING_SCOPE_INFO
             if (regArgTab[argNum].slot == 1)
             {
                 psiMoveToStack(varNum);
             }
+#endif // USING_SCOPE_INFO
         }
 
         /* mark the argument as processed */
@@ -4018,9 +3954,10 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
                 regArgMaskLive &= ~genRegMask(varDscSrc->lvArgReg);
                 regArgMaskLive &= ~genRegMask(varDscDest->lvArgReg);
-
+#ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumSrc);
                 psiMoveToReg(varNumDest);
+#endif // USING_SCOPE_INFO
             }
             else
 #endif // _TARGET_XARCH_
@@ -4082,9 +4019,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 regSet.verifyRegUsed(xtraReg);
 
                 *pXtraRegClobbered = true;
-
+#ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumDest, xtraReg);
-
+#endif // USING_SCOPE_INFO
                 /* start moving everything to its right place */
 
                 while (srcReg != begReg)
@@ -4149,9 +4086,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 getEmitter()->emitIns_R_R(insCopy, size, destRegNum, xtraReg);
 
                 regSet.verifyRegUsed(destRegNum);
-
+#ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumSrc);
-
+#endif // USING_SCOPE_INFO
                 /* mark the beginning register as processed */
 
                 regArgTab[srcReg].processed = true;
@@ -4335,8 +4272,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #endif
 
                 getEmitter()->emitIns_R_R(ins_Copy(destMemType), size, destRegNum, regNum);
-
+#ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNum);
+#endif // USING_SCOPE_INFO
             }
 
             /* mark the argument as processed */
@@ -4470,8 +4408,9 @@ void CodeGen::genEnregisterIncomingStackArgs()
 
         getEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), regNum, varNum, 0);
         regSet.verifyRegUsed(regNum);
-
+#ifdef USING_SCOPE_INFO
         psiMoveToReg(varNum);
+#endif // USING_SCOPE_INFO
     }
 }
 
@@ -4595,15 +4534,7 @@ void CodeGen::genCheckUseBlockInit()
                 unless they are untracked GC type or structs that contain GC pointers */
             CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if FEATURE_SIMD
-            // TODO-1stClassStructs
-            // This is here to duplicate previous behavior, where TYP_SIMD8 locals
-            // were not being re-typed correctly.
-            if ((!varDsc->lvTracked || (varDsc->lvType == TYP_STRUCT) || (varDsc->lvType == TYP_SIMD8)) &&
-#else  // !FEATURE_SIMD
-            if ((!varDsc->lvTracked || (varDsc->lvType == TYP_STRUCT)) &&
-#endif // !FEATURE_SIMD
-                varDsc->lvOnFrame &&
+            if ((!varDsc->lvTracked || (varDsc->lvType == TYP_STRUCT)) && varDsc->lvOnFrame &&
                 (!varDsc->lvIsTemp || varTypeIsGC(varDsc->TypeGet()) || (varDsc->lvStructGcCount > 0)))
             {
                 varDsc->lvMustInit = true;
@@ -4873,6 +4804,8 @@ void          CodeGen::genPushCalleeSavedRegisters()
     //      |-----------------------|
     //      | locals, temps, etc.   |
     //      |-----------------------|
+    //      |  possible GS cookie   |
+    //      |-----------------------|
     //      |      Saved LR         | // 8 bytes
     //      |-----------------------|
     //      |      Saved FP         | // 8 bytes
@@ -4901,6 +4834,8 @@ void          CodeGen::genPushCalleeSavedRegisters()
     //      |        PSP slot       | // 8 bytes (omitted in CoreRT ABI)
     //      |-----------------------|
     //      | locals, temps, etc.   |
+    //      |-----------------------|
+    //      |  possible GS cookie   |
     //      |-----------------------|
     //      |   Outgoing arg space  | // multiple of 8 bytes; if required (i.e., #outsz != 0)
     //      |-----------------------| <---- Ambient SP
@@ -4962,8 +4897,7 @@ void          CodeGen::genPushCalleeSavedRegisters()
         // not do this. That means that negative offsets from FP might need to use the reserved register to form
         // the local variable offset for an addressing mode.
 
-        // TODO-ARM64-Bug?: should this be "totalFrameSize <= 512"?
-        if (((compiler->lvaOutgoingArgSpaceSize == 0) && (totalFrameSize < 512)) &&
+        if (((compiler->lvaOutgoingArgSpaceSize == 0) && (totalFrameSize <= 504)) &&
             !genSaveFpLrWithAllCalleeSavedRegisters)
         {
             // Case #1.
@@ -4971,8 +4905,10 @@ void          CodeGen::genPushCalleeSavedRegisters()
             // Generate:
             //      stp fp,lr,[sp,#-framesz]!
             //
-            // The (totalFrameSize < 512) condition ensures that both the predecrement
-            // and the postincrement of SP can occur with STP.
+            // The (totalFrameSize <= 504) condition ensures that both the pre-index STP instruction
+            // used in the prolog, and the post-index LDP instruction used in the epilog, can be generated.
+            // Note that STP and the unwind codes can handle -512, but LDP with a positive post-index value
+            // can only handle up to 504, and we want our prolog and epilog to match.
             //
             // After saving callee-saved registers, we establish the frame pointer with:
             //      mov fp,sp
@@ -4995,7 +4931,9 @@ void          CodeGen::genPushCalleeSavedRegisters()
             // Case #2.
             //
             // The (totalFrameSize <= 512) condition ensures the callee-saved registers can all be saved using STP
-            // with signed offset encoding.
+            // with signed offset encoding. The maximum positive STP offset is 504, but when storing a pair of
+            // 8 byte registers, the largest actual offset we use would be 512 - 8 * 2 = 496. And STR with positive
+            // offset has a range 0 to 32760.
             //
             // After saving callee-saved registers, we establish the frame pointer with:
             //      add fp,sp,#outsz
@@ -5209,7 +5147,7 @@ void          CodeGen::genPushCalleeSavedRegisters()
         assert((remainingFrameSz % 16) == 0); // this is guaranteed to be 16-byte aligned because each component --
                                               // totalFrameSize and calleeSaveSPDelta -- is 16-byte aligned.
 
-        if (compiler->lvaOutgoingArgSpaceSize >= 504)
+        if (compiler->lvaOutgoingArgSpaceSize > 504)
         {
             // We can't do "stp fp,lr,[sp,#outsz]" because #outsz is too big.
             // If compiler->lvaOutgoingArgSpaceSize is not aligned, we need to align the SP adjustment.
@@ -5239,9 +5177,9 @@ void          CodeGen::genPushCalleeSavedRegisters()
 
             JITDUMP("    spAdjustment3=%d\n", spAdjustment3);
 
-            // TODO-ARM64-CQ: we're reporting this SUB SP in the unwind info. Do we need to, since we've already
-            // established the frame pointer?
-            genStackPointerAdjustment(-spAdjustment3, initReg, pInitRegZeroed);
+            // We've already established the frame pointer, so no need to report the stack pointer change to unwind
+            // info.
+            genStackPointerAdjustment(-spAdjustment3, initReg, pInitRegZeroed, /* reportUnwindData */ false);
             offset += spAdjustment3;
         }
         else
@@ -5278,9 +5216,8 @@ void          CodeGen::genPushCalleeSavedRegisters()
 
         JITDUMP("    remainingFrameSz=%d\n", remainingFrameSz);
 
-        // TODO-ARM64-CQ: we're reporting this SUB SP in the unwind info. Do we need to, since we've already
-        // established the frame pointer?
-        genStackPointerAdjustment(-remainingFrameSz, initReg, pInitRegZeroed);
+        // We've already established the frame pointer, so no need to report the stack pointer change to unwind info.
+        genStackPointerAdjustment(-remainingFrameSz, initReg, pInitRegZeroed, /* reportUnwindData */ false);
         offset += remainingFrameSz;
     }
     else
@@ -5307,12 +5244,12 @@ void          CodeGen::genPushCalleeSavedRegisters()
         {
             inst_RV(INS_push, reg, TYP_REF);
             compiler->unwindPush(reg);
-
+#ifdef USING_SCOPE_INFO
             if (!doubleAlignOrFramePointerUsed())
             {
                 psiAdjustStackLevel(REGSIZE_BYTES);
             }
-
+#endif // USING_SCOPE_INFO
             rsPushRegs &= ~regBit;
         }
     }
@@ -5716,8 +5653,7 @@ void CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilog)
 
     if (isFramePointerUsed())
     {
-        // TODO-ARM64-Bug?: should this be "totalFrameSize <= 512"?
-        if ((compiler->lvaOutgoingArgSpaceSize == 0) && (totalFrameSize < 512) &&
+        if ((compiler->lvaOutgoingArgSpaceSize == 0) && (totalFrameSize <= 504) &&
             !genSaveFpLrWithAllCalleeSavedRegisters)
         {
             JITDUMP("Frame type 1. #outsz=0; #framesz=%d; localloc? %s\n", totalFrameSize,
@@ -5797,7 +5733,7 @@ void CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilog)
             int remainingFrameSz = totalFrameSize - calleeSaveSPDelta;
             assert(remainingFrameSz > 0);
 
-            if (compiler->lvaOutgoingArgSpaceSize >= 504)
+            if (compiler->lvaOutgoingArgSpaceSize > 504)
             {
                 // We can't do "ldp fp,lr,[sp,#outsz]" because #outsz is too big.
                 // If compiler->lvaOutgoingArgSpaceSize is not aligned, we need to align the SP adjustment.
@@ -5807,27 +5743,11 @@ void CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilog)
                 int alignmentAdjustment2   = spAdjustment2 - spAdjustment2Unaligned;
                 assert((alignmentAdjustment2 == 0) || (alignmentAdjustment2 == REGSIZE_BYTES));
 
-                if (compiler->compLocallocUsed)
-                {
-                    // Restore sp from fp. No need to update sp after this since we've set up fp before adjusting sp
-                    // in prolog.
-                    //      sub sp, fp, #alignmentAdjustment2
-                    getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, alignmentAdjustment2);
-                    compiler->unwindSetFrameReg(REG_FPBASE, alignmentAdjustment2);
-                }
-                else
-                {
-                    // Generate:
-                    //      add sp,sp,#outsz                ; if #outsz is not 16-byte aligned, we need to be more
-                    //                                      ; careful
-                    int spAdjustment3 = compiler->lvaOutgoingArgSpaceSize - alignmentAdjustment2;
-                    assert(spAdjustment3 > 0);
-                    assert((spAdjustment3 % 16) == 0);
-
-                    JITDUMP("    spAdjustment3=%d\n", spAdjustment3);
-
-                    genStackPointerAdjustment(spAdjustment3, REG_IP0, nullptr);
-                }
+                // Restore sp from fp. No need to update sp after this since we've set up fp before adjusting sp
+                // in prolog.
+                //      sub sp, fp, #alignmentAdjustment2
+                getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, alignmentAdjustment2);
+                compiler->unwindSetFrameReg(REG_FPBASE, alignmentAdjustment2);
 
                 // Generate:
                 //      ldp fp,lr,[sp]
@@ -5843,7 +5763,7 @@ void CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilog)
                     // Restore sp from fp; here that's #outsz from SP
                     //      sub sp, fp, #outsz
                     int SPtoFPdelta = genSPtoFPdelta();
-                    assert(SPtoFPdelta == compiler->lvaOutgoingArgSpaceSize);
+                    assert(SPtoFPdelta == (int)compiler->lvaOutgoingArgSpaceSize);
                     getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_FPBASE, SPtoFPdelta);
                     compiler->unwindSetFrameReg(REG_FPBASE, SPtoFPdelta);
                 }
@@ -5883,7 +5803,7 @@ void CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilog)
             // Restore sp from fp:
             //      sub sp, fp, #sp-to-fp-delta
             // This is the same whether there is localloc or not. Note that we don't need to do anything to remove the
-            // "remainingFrameSz" to reverse the SUB of that amount in the prolog. The unwind codes won't match.
+            // "remainingFrameSz" to reverse the SUB of that amount in the prolog.
 
             int offsetSpToSavedFp = calleeSaveSPDelta -
                                     (compiler->info.compIsVarArgs ? MAX_REG_ARG * REGSIZE_BYTES : 0) -
@@ -6152,9 +6072,8 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
 
 #else // !define(_TARGET_ARM_)
 
-        regNumber rZero1 = REG_ZR;
-        rAddr            = initReg;
-        *pInitRegZeroed  = false;
+        rAddr           = initReg;
+        *pInitRegZeroed = false;
 
 #endif // !defined(_TARGET_ARM_)
 
@@ -7608,7 +7527,9 @@ void CodeGen::genEstablishFramePointer(int delta, bool reportUnwindData)
     if (delta == 0)
     {
         getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_SPBASE);
+#ifdef USING_SCOPE_INFO
         psiMoveESPtoEBP();
+#endif // USING_SCOPE_INFO
     }
     else
     {
@@ -7710,12 +7631,13 @@ void CodeGen::genFnProlog()
         printf("\n__prolog:\n");
     }
 #endif
-
+#ifdef USING_SCOPE_INFO
     if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
     {
         // Create new scopes for the method-parameters for the prolog-block.
         psiBegProlog();
     }
+#endif // USING_SCOPE_INFO
 
 #ifdef DEBUG
 
@@ -8040,8 +7962,9 @@ void CodeGen::genFnProlog()
     {
         inst_RV(INS_push, REG_FPBASE, TYP_REF);
         compiler->unwindPush(REG_FPBASE);
+#ifdef USING_SCOPE_INFO
         psiAdjustStackLevel(REGSIZE_BYTES);
-
+#endif                 // USING_SCOPE_INFO
 #ifndef _TARGET_AMD64_ // On AMD64, establish the frame pointer after the "sub rsp"
         genEstablishFramePointer(0, /*reportUnwindData*/ true);
 #endif // !_TARGET_AMD64_
@@ -8361,12 +8284,12 @@ void CodeGen::genFnProlog()
         genPrologPadForReJit();
         getEmitter()->emitMarkPrologEnd();
     }
-
+#ifdef USING_SCOPE_INFO
     if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
     {
         psiEndProlog();
     }
-
+#endif // USING_SCOPE_INFO
     if (hasGCRef)
     {
         getEmitter()->emitSetFrameRangeGCRs(GCrefLo, GCrefHi);
@@ -10563,20 +10486,32 @@ void CodeGen::genSetScopeInfo()
     }
 
     noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
-    noway_assert(psiOpenScopeList.scNext == nullptr);
 
-    unsigned i;
-    unsigned scopeCnt = siScopeCnt + psiScopeCnt;
-
-    compiler->eeSetLVcount(scopeCnt);
+    unsigned varsHomeCount = 0;
+#ifdef USING_SCOPE_INFO
+    varsHomeCount = siScopeCnt + psiScopeCnt;
+#endif // USING_SCOPE_INFO
+    compiler->eeSetLVcount(varsHomeCount);
 
 #ifdef DEBUG
-    genTrnslLocalVarCount = scopeCnt;
-    if (scopeCnt)
+    genTrnslLocalVarCount = varsHomeCount;
+    if (varsHomeCount)
     {
-        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[scopeCnt];
+        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[varsHomeCount];
     }
 #endif
+
+#ifdef USING_SCOPE_INFO
+    genSetScopeInfoUsingsiScope();
+#endif // USING_SCOPE_INFO
+
+    compiler->eeSetLVdone();
+}
+
+#ifdef USING_SCOPE_INFO
+void CodeGen::genSetScopeInfoUsingsiScope()
+{
+    noway_assert(psiOpenScopeList.scNext == nullptr);
 
     // Record the scopes found for the parameters over the prolog.
     // The prolog needs to be treated differently as a variable may not
@@ -10584,6 +10519,7 @@ void CodeGen::genSetScopeInfo()
     // eg. A register parameter is actually on the stack, before it is loaded to reg.
 
     CodeGen::psiScope* scopeP;
+    unsigned           i;
 
     for (i = 0, scopeP = psiScopeList.scNext; i < psiScopeCnt; i++, scopeP = scopeP->scNext)
     {
@@ -10610,21 +10546,9 @@ void CodeGen::genSetScopeInfo()
             endOffs++;
         }
 
-        Compiler::siVarLoc varLoc;
+        siVarLoc varLoc = scopeP->getSiVarLoc();
 
-        if (scopeP->scRegister)
-        {
-            varLoc.vlType       = Compiler::VLT_REG;
-            varLoc.vlReg.vlrReg = (regNumber)scopeP->u1.scRegNum;
-        }
-        else
-        {
-            varLoc.vlType           = Compiler::VLT_STK;
-            varLoc.vlStk.vlsBaseReg = (regNumber)scopeP->u2.scBaseReg;
-            varLoc.vlStk.vlsOffset  = scopeP->u2.scOffset;
-        }
-
-        genSetScopeInfo(i, startOffs, endOffs - startOffs, varNum, scopeP->scLVnum, true, varLoc);
+        genSetScopeInfo(i, startOffs, endOffs - startOffs, varNum, scopeP->scLVnum, true, &varLoc);
     }
 
     // Record the scopes for the rest of the method.
@@ -10646,190 +10570,14 @@ void CodeGen::genSetScopeInfo()
 
         noway_assert(scopeL->scStartLoc != scopeL->scEndLoc);
 
-        // For stack vars, find the base register, and offset
-
-        regNumber baseReg;
-        signed    offset = compiler->lvaTable[scopeL->scVarNum].lvStkOffs;
-
-        if (!compiler->lvaTable[scopeL->scVarNum].lvFramePointerBased)
-        {
-            baseReg = REG_SPBASE;
-            offset += scopeL->scStackLevel;
-        }
-        else
-        {
-            baseReg = REG_FPBASE;
-        }
-
-        // Now fill in the varLoc
-
-        Compiler::siVarLoc varLoc;
-
-        // TODO-Review: This only works for always-enregistered variables. With LSRA, a variable might be in a register
-        // for part of its lifetime, or in different registers for different parts of its lifetime.
-        // This should only matter for non-debug code, where we do variable enregistration.
-        // We should store the ranges of variable enregistration in the scope table.
-        if (compiler->lvaTable[scopeL->scVarNum].lvIsInReg())
-        {
-            var_types type = genActualType(compiler->lvaTable[scopeL->scVarNum].TypeGet());
-            switch (type)
-            {
-                case TYP_INT:
-                case TYP_REF:
-                case TYP_BYREF:
-#ifdef _TARGET_64BIT_
-                case TYP_LONG:
-#endif // _TARGET_64BIT_
-
-                    varLoc.vlType       = Compiler::VLT_REG;
-                    varLoc.vlReg.vlrReg = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
-                    break;
-
-#ifndef _TARGET_64BIT_
-                case TYP_LONG:
-#if !CPU_HAS_FP_SUPPORT
-                case TYP_DOUBLE:
-#endif
-
-                    if (compiler->lvaTable[scopeL->scVarNum].lvOtherReg != REG_STK)
-                    {
-                        varLoc.vlType            = Compiler::VLT_REG_REG;
-                        varLoc.vlRegReg.vlrrReg1 = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
-                        varLoc.vlRegReg.vlrrReg2 = compiler->lvaTable[scopeL->scVarNum].lvOtherReg;
-                    }
-                    else
-                    {
-                        varLoc.vlType                        = Compiler::VLT_REG_STK;
-                        varLoc.vlRegStk.vlrsReg              = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
-                        varLoc.vlRegStk.vlrsStk.vlrssBaseReg = baseReg;
-                        if (!isFramePointerUsed() && varLoc.vlRegStk.vlrsStk.vlrssBaseReg == REG_SPBASE)
-                        {
-                            varLoc.vlRegStk.vlrsStk.vlrssBaseReg = (regNumber)ICorDebugInfo::REGNUM_AMBIENT_SP;
-                        }
-                        varLoc.vlRegStk.vlrsStk.vlrssOffset = offset + sizeof(int);
-                    }
-                    break;
-#endif // !_TARGET_64BIT_
-
-#ifdef _TARGET_64BIT_
-
-                case TYP_FLOAT:
-                case TYP_DOUBLE:
-                    // TODO-AMD64-Bug: ndp\clr\src\inc\corinfo.h has a definition of RegNum that only goes up to R15,
-                    // so no XMM registers can get debug information.
-                    varLoc.vlType       = Compiler::VLT_REG_FP;
-                    varLoc.vlReg.vlrReg = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
-                    break;
-
-#else // !_TARGET_64BIT_
-
-#if CPU_HAS_FP_SUPPORT
-                case TYP_FLOAT:
-                case TYP_DOUBLE:
-                    if (isFloatRegType(type))
-                    {
-                        varLoc.vlType         = Compiler::VLT_FPSTK;
-                        varLoc.vlFPstk.vlfReg = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
-                    }
-                    break;
-#endif // CPU_HAS_FP_SUPPORT
-
-#endif // !_TARGET_64BIT_
-
-#ifdef FEATURE_SIMD
-                case TYP_SIMD8:
-                case TYP_SIMD12:
-                case TYP_SIMD16:
-                case TYP_SIMD32:
-                    varLoc.vlType = Compiler::VLT_REG_FP;
-
-                    // TODO-AMD64-Bug: ndp\clr\src\inc\corinfo.h has a definition of RegNum that only goes up to R15,
-                    // so no XMM registers can get debug information.
-                    //
-                    // Note: Need to initialize vlrReg field, otherwise during jit dump hitting an assert
-                    // in eeDispVar() --> getRegName() that regNumber is valid.
-                    varLoc.vlReg.vlrReg = compiler->lvaTable[scopeL->scVarNum].lvRegNum;
-                    break;
-#endif // FEATURE_SIMD
-
-                default:
-                    noway_assert(!"Invalid type");
-            }
-        }
-        else
-        {
-            assert(offset != BAD_STK_OFFS);
-            LclVarDsc* varDsc = compiler->lvaTable + scopeL->scVarNum;
-            switch (genActualType(varDsc->TypeGet()))
-            {
-                case TYP_INT:
-                case TYP_REF:
-                case TYP_BYREF:
-                case TYP_FLOAT:
-                case TYP_STRUCT:
-                case TYP_BLK: // Needed because of the TYP_BLK stress mode
-#ifdef FEATURE_SIMD
-                case TYP_SIMD8:
-                case TYP_SIMD12:
-                case TYP_SIMD16:
-                case TYP_SIMD32:
-#endif
-#ifdef _TARGET_64BIT_
-                case TYP_LONG:
-                case TYP_DOUBLE:
-#endif // _TARGET_64BIT_
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
-                    // In the AMD64 ABI we are supposed to pass a struct by reference when its
-                    // size is not 1, 2, 4 or 8 bytes in size. During fgMorph, the compiler modifies
-                    // the IR to comply with the ABI and therefore changes the type of the lclVar
-                    // that holds the struct from TYP_STRUCT to TYP_BYREF but it gives us a hint that
-                    // this is still a struct by setting the lvIsTemp flag.
-                    // The same is true for ARM64 and structs > 16 bytes.
-                    // (See Compiler::fgMarkImplicitByRefArgs in Morph.cpp for further detail)
-                    // Now, the VM expects a special enum for these type of local vars: VLT_STK_BYREF
-                    // to accomodate for this situation.
-                    if (varDsc->lvType == TYP_BYREF && varDsc->lvIsTemp)
-                    {
-                        assert(varDsc->lvIsParam);
-                        varLoc.vlType = Compiler::VLT_STK_BYREF;
-                    }
-                    else
-#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
-                    {
-                        varLoc.vlType = Compiler::VLT_STK;
-                    }
-                    varLoc.vlStk.vlsBaseReg = baseReg;
-                    varLoc.vlStk.vlsOffset  = offset;
-                    if (!isFramePointerUsed() && varLoc.vlStk.vlsBaseReg == REG_SPBASE)
-                    {
-                        varLoc.vlStk.vlsBaseReg = (regNumber)ICorDebugInfo::REGNUM_AMBIENT_SP;
-                    }
-                    break;
-
-#ifndef _TARGET_64BIT_
-                case TYP_LONG:
-                case TYP_DOUBLE:
-                    varLoc.vlType             = Compiler::VLT_STK2;
-                    varLoc.vlStk2.vls2BaseReg = baseReg;
-                    varLoc.vlStk2.vls2Offset  = offset;
-                    if (!isFramePointerUsed() && varLoc.vlStk2.vls2BaseReg == REG_SPBASE)
-                    {
-                        varLoc.vlStk2.vls2BaseReg = (regNumber)ICorDebugInfo::REGNUM_AMBIENT_SP;
-                    }
-                    break;
-#endif // !_TARGET_64BIT_
-
-                default:
-                    noway_assert(!"Invalid type");
-            }
-        }
+        LclVarDsc* varDsc = compiler->lvaGetDesc(scopeL->scVarNum);
+        siVarLoc   varLoc = getSiVarLoc(varDsc, scopeL);
 
         genSetScopeInfo(psiScopeCnt + i, startOffs, endOffs - startOffs, scopeL->scVarNum, scopeL->scLVnum,
-                        scopeL->scAvailable, varLoc);
+                        scopeL->scAvailable, &varLoc);
     }
-
-    compiler->eeSetLVdone();
 }
+#endif // USING_SCOPE_INFO
 
 //------------------------------------------------------------------------
 // genSetScopeInfo: Record scope information for debug info
@@ -10840,19 +10588,19 @@ void CodeGen::genSetScopeInfo()
 //    length    - the length of this scope
 //    varNum    - the lclVar for this scope info
 //    LVnum
-//    avail
-//    varLoc
+//    avail     - a bool indicating if it has a home
+//    varLoc    - the position (reg or stack) of the variable
 //
 // Notes:
 //    Called for every scope info piece to record by the main genSetScopeInfo()
 
-void CodeGen::genSetScopeInfo(unsigned            which,
-                              UNATIVE_OFFSET      startOffs,
-                              UNATIVE_OFFSET      length,
-                              unsigned            varNum,
-                              unsigned            LVnum,
-                              bool                avail,
-                              Compiler::siVarLoc& varLoc)
+void CodeGen::genSetScopeInfo(unsigned       which,
+                              UNATIVE_OFFSET startOffs,
+                              UNATIVE_OFFSET length,
+                              unsigned       varNum,
+                              unsigned       LVnum,
+                              bool           avail,
+                              siVarLoc*      varLoc)
 {
     // We need to do some mapping while reporting back these variables.
 
@@ -10868,7 +10616,7 @@ void CodeGen::genSetScopeInfo(unsigned            which,
     if (compiler->info.compIsVarArgs && varNum != compiler->lvaVarargsHandleArg &&
         varNum < compiler->info.compArgsCount && !compiler->lvaTable[varNum].lvIsRegArg)
     {
-        noway_assert(varLoc.vlType == Compiler::VLT_STK || varLoc.vlType == Compiler::VLT_STK2);
+        noway_assert(varLoc->vlType == VLT_STK || varLoc->vlType == VLT_STK2);
 
         // All stack arguments (except the varargs handle) have to be
         // accessed via the varargs cookie. Discard generated info,
@@ -10893,8 +10641,8 @@ void CodeGen::genSetScopeInfo(unsigned            which,
         noway_assert(offset < stkArgSize);
         offset = stkArgSize - offset;
 
-        varLoc.vlType                   = Compiler::VLT_FIXED_VA;
-        varLoc.vlFixedVarArg.vlfvOffset = offset;
+        varLoc->vlType                   = VLT_FIXED_VA;
+        varLoc->vlFixedVarArg.vlfvOffset = offset;
     }
 
 #endif // _TARGET_X86_
@@ -10921,7 +10669,7 @@ void CodeGen::genSetScopeInfo(unsigned            which,
     tlvi.tlviStartPC   = startOffs;
     tlvi.tlviLength    = length;
     tlvi.tlviAvailable = avail;
-    tlvi.tlviVarLoc    = varLoc;
+    tlvi.tlviVarLoc    = *varLoc;
 
 #endif // DEBUG
 
@@ -11080,7 +10828,7 @@ void CodeGen::genIPmappingAdd(IL_OFFSETX offsx, bool isLabel)
 
         default:
 
-            if (offsx != ICorDebugInfo::NO_MAPPING)
+            if (offsx != (IL_OFFSETX)ICorDebugInfo::NO_MAPPING)
             {
                 noway_assert(jitGetILoffs(offsx) <= compiler->info.compILCodeSize);
             }
@@ -11561,6 +11309,17 @@ GenTreeIndir CodeGen::indirForm(var_types type, GenTree* base)
 }
 
 //------------------------------------------------------------------------
+// indirForm: Make a temporary indir we can feed to pattern matching routines
+//    in cases where we don't want to instantiate all the indirs that happen.
+//
+GenTreeStoreInd CodeGen::storeIndirForm(var_types type, GenTree* base, GenTree* data)
+{
+    GenTreeStoreInd i(type, base, data);
+    i.gtRegNum = REG_NA;
+    return i;
+}
+
+//------------------------------------------------------------------------
 // intForm: Make a temporary int we can feed to pattern matching routines
 //    in cases where we don't want to instantiate.
 //
@@ -11821,3 +11580,8 @@ void CodeGen::genStackPointerCheck(bool doStackPointerCheck, unsigned lvaStackPo
 }
 
 #endif // defined(DEBUG) && defined(_TARGET_XARCH_)
+
+unsigned CodeGenInterface::getCurrentStackLevel() const
+{
+    return genStackLevel;
+}

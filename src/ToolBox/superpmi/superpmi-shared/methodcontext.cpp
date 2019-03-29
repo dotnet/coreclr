@@ -3547,7 +3547,7 @@ void MethodContext::recGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPtrs, 
 void MethodContext::dmpGetClassGClayout(DWORDLONG key, const Agnostic_GetClassGClayout& value)
 {
     printf("GetClassGCLayout key %016llX, value len %u cnt %u {", key, value.len, value.valCount);
-    if (value.gcPtrs_Index != -1)
+    if (value.gcPtrs_Index != (DWORD)-1)
     {
         BYTE* ptr = (BYTE*)GetClassGClayout->GetBuffer(value.gcPtrs_Index);
         for (unsigned int i = 0; i < value.len; i++)
@@ -3572,7 +3572,7 @@ unsigned MethodContext::repGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPt
     unsigned int len   = (unsigned int)value.len;
     unsigned int index = (unsigned int)value.gcPtrs_Index;
 
-    if (index != -1)
+    if (index != (unsigned int)-1)
     {
         BYTE* ptr = (BYTE*)GetClassGClayout->GetBuffer(index);
         for (unsigned int i = 0; i < len; i++)
@@ -5316,6 +5316,41 @@ CORINFO_CLASS_HANDLE MethodContext::repMergeClasses(CORINFO_CLASS_HANDLE cls1, C
     value = MergeClasses->Get(key);
 
     return (CORINFO_CLASS_HANDLE)value;
+}
+
+void MethodContext::recIsMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2, BOOL result)
+{
+    if (IsMoreSpecificType == nullptr)
+        IsMoreSpecificType = new LightWeightMap<DLDL, DWORD>();
+    DLDL key;
+    ZeroMemory(&key, sizeof(DLDL)); // We use the input structs as a key and use memcmp to compare.. so we need to zero
+                                    // out padding too
+
+    key.A = (DWORDLONG)cls1;
+    key.B = (DWORDLONG)cls2;
+
+    IsMoreSpecificType->Add(key, (DWORD)result);
+}
+void MethodContext::dmpIsMoreSpecificType(DLDL key, DWORD value)
+{
+    printf("IsMoreSpecificType key cls1-%016llX cls2-%016llX, value %u", key.A, key.B, value);
+}
+BOOL MethodContext::repIsMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
+{
+    DLDL key;
+    ZeroMemory(&key, sizeof(DLDL)); // We use the input structs as a key and use memcmp to compare.. so we need to zero
+                                    // out padding too
+    DWORD value;
+
+    key.A = (DWORDLONG)cls1;
+    key.B = (DWORDLONG)cls2;
+
+    AssertCodeMsg(IsMoreSpecificType->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX %016llX", (DWORDLONG)cls1,
+                  (DWORDLONG)cls2);
+
+    value = IsMoreSpecificType->Get(key);
+
+    return (BOOL)value;
 }
 
 void MethodContext::recGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, void** ppIndirection, LPVOID result)

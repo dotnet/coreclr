@@ -13,7 +13,12 @@
 #pragma optimize( "t", on )
 #endif
 #endif
+
+#ifdef __GNUC__
+#define inline __attribute__((always_inline)) inline
+#else
 #define inline __forceinline
+#endif // __GNUC__
 
 #include "gc.h"
 
@@ -2223,7 +2228,7 @@ protected:
     BOOL loh_object_p (uint8_t* o);
 
     PER_HEAP_ISOLATED
-    BOOL should_compact_loh();
+    BOOL loh_compaction_requested();
 
     // If the LOH compaction mode is just to compact once,
     // we need to see if we should reset it back to not compact.

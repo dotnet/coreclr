@@ -29,11 +29,12 @@ namespace System.Diagnostics
 
 #pragma warning disable 414
         // dynamicMethods is an array of System.Resolver objects, used to keep
-        // DynamicMethodDescs alive for the lifetime of StackFrameHelper.
+        // DynamicMethodDescs AND collectible LoaderAllocators alive for the lifetime of StackFrameHelper.
         private object dynamicMethods; // Field is not used from managed.        
 
         private IntPtr[] rgMethodHandle;
         private string[] rgAssemblyPath;
+        private Assembly[] rgAssembly;
         private IntPtr[] rgLoadedPeAddress;
         private int[] rgiLoadedPeSize;
         private IntPtr[] rgInMemoryPdbAddress;
@@ -47,8 +48,8 @@ namespace System.Diagnostics
         private int iFrameCount;
 #pragma warning restore 414
 
-        private delegate void GetSourceLineInfoDelegate(string assemblyPath, IntPtr loadedPeAddress, int loadedPeSize,
-            IntPtr inMemoryPdbAddress, int inMemoryPdbSize, int methodToken, int ilOffset,
+        private delegate void GetSourceLineInfoDelegate(Assembly assembly, string assemblyPath, IntPtr loadedPeAddress,
+            int loadedPeSize, IntPtr inMemoryPdbAddress, int inMemoryPdbSize, int methodToken, int ilOffset,
             out string sourceFile, out int sourceLine, out int sourceColumn);
 
         private static GetSourceLineInfoDelegate s_getSourceLineInfo = null;
@@ -64,6 +65,7 @@ namespace System.Diagnostics
             rgiOffset = null;
             rgiILOffset = null;
             rgAssemblyPath = null;
+            rgAssembly = null;
             rgLoadedPeAddress = null;
             rgiLoadedPeSize = null;
             rgInMemoryPdbAddress = null;
@@ -115,7 +117,13 @@ namespace System.Diagnostics
                         return;
                     }
 
-                    MethodInfo symbolsMethodInfo = symbolsType.GetMethod("GetSourceLineInfo", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+                    Type[] parameterTypes = new Type[] 
+                    {
+                        typeof(Assembly), typeof(string), typeof(IntPtr), typeof(int), typeof(IntPtr), 
+                        typeof(int), typeof(int), typeof(int), 
+                        typeof(string).MakeByRefType(), typeof(int).MakeByRefType(), typeof(int).MakeByRefType() 
+                    };
+                    MethodInfo symbolsMethodInfo = symbolsType.GetMethod("GetSourceLineInfo", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance, null, parameterTypes, null);
                     if (symbolsMethodInfo == null)
                     {
                         return;
@@ -138,7 +146,7 @@ namespace System.Diagnostics
                     // ENC or the source/line info was already retrieved, the method token is 0.
                     if (rgiMethodToken[index] != 0)
                     {
-                        s_getSourceLineInfo(rgAssemblyPath[index], rgLoadedPeAddress[index], rgiLoadedPeSize[index],
+                        s_getSourceLineInfo(rgAssembly[index], rgAssemblyPath[index], rgLoadedPeAddress[index], rgiLoadedPeSize[index],
                             rgInMemoryPdbAddress[index], rgiInMemoryPdbSize[index], rgiMethodToken[index],
                             rgiILOffset[index], out rgFilename[index], out rgiLineNumber[index], out rgiColumnNumber[index]);
                     }

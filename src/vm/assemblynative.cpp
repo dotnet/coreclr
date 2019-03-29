@@ -33,11 +33,10 @@
 
 
 
-FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE, 
+FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAFE,
         StringObject* codeBaseUNSAFE, 
         AssemblyBaseObject* requestingAssemblyUNSAFE,
         StackCrawlMark* stackMark,
-        ICLRPrivBinder * pPrivHostBinder,
         CLR_BOOL fThrowOnFileNotFound,
         INT_PTR ptrLoadContextBinder)
 {
@@ -84,9 +83,7 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
             pRefAssembly = gc.requestingAssembly->GetAssembly();
         }
         
-        // Shared or collectible assemblies should not be used for the parent in the
-        // late-bound case.
-        if (pRefAssembly && (!pRefAssembly->IsCollectible()))
+        if (pRefAssembly)
         {
             pParentAssembly= pRefAssembly->GetDomainAssembly();
         }
@@ -101,12 +98,6 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     if (!spec.HasUniqueIdentity())
     {   // Insuficient assembly name for binding (e.g. ContentType=WindowsRuntime cannot bind by assembly name)
         EEFileLoadException::Throw(&spec, COR_E_NOTSUPPORTED);
-    }
-    
-    if (pPrivHostBinder != NULL)
-    {
-        pParentAssembly = NULL;
-        spec.SetHostBinder(pPrivHostBinder);
     }
     
     if (gc.codeBase != NULL)
@@ -257,6 +248,13 @@ void QCALLTYPE AssemblyNative::LoadFromPath(INT_PTR ptrNativeAssemblyLoadContext
         // Need to verify that this is a valid CLR assembly. 
         if (!pILImage->CheckILFormat())
             ThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
+
+        LoaderAllocator* pLoaderAllocator = NULL;
+        if (SUCCEEDED(pBinderContext->GetLoaderAllocator((LPVOID*)&pLoaderAllocator)) && pLoaderAllocator->IsCollectible() && !pILImage->IsILOnly())
+        {
+            // Loading IJW assemblies into a collectible AssemblyLoadContext is not allowed
+            ThrowHR(COR_E_BADIMAGEFORMAT, BFA_IJW_IN_COLLECTIBLE_ALC);
+        }
     }
     
     // Form the PEImage for the NI assembly, if specified
@@ -336,7 +334,14 @@ void QCALLTYPE AssemblyNative::LoadFromStream(INT_PTR ptrNativeAssemblyLoadConte
     
     // Get the binder context in which the assembly will be loaded
     ICLRPrivBinder *pBinderContext = reinterpret_cast<ICLRPrivBinder*>(ptrNativeAssemblyLoadContext);
-    
+
+    LoaderAllocator* pLoaderAllocator = NULL;
+    if (SUCCEEDED(pBinderContext->GetLoaderAllocator((LPVOID*)&pLoaderAllocator)) && pLoaderAllocator->IsCollectible() && !pILImage->IsILOnly())
+    {
+        // Loading IJW assemblies into a collectible AssemblyLoadContext is not allowed
+        ThrowHR(COR_E_BADIMAGEFORMAT, BFA_IJW_IN_COLLECTIBLE_ALC);
+    }
+
     // Pass the stream based assembly as IL and NI in an attempt to bind and load it
     Assembly* pLoadedAssembly = AssemblyNative::LoadFromPEImage(pBinderContext, pILImage, NULL); 
     {
@@ -371,6 +376,42 @@ void QCALLTYPE AssemblyNative::LoadFromStream(INT_PTR ptrNativeAssemblyLoadConte
 
     END_QCALL;
 }
+
+#ifndef FEATURE_PAL
+/*static */
+void QCALLTYPE AssemblyNative::LoadFromInMemoryModule(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR hModule, QCall::ObjectHandleOnStack retLoadedAssembly)
+{
+    QCALL_CONTRACT;
+    
+    BEGIN_QCALL;
+    
+    // Ensure that the invariants are in place
+    _ASSERTE(ptrNativeAssemblyLoadContext != NULL);
+    _ASSERTE(hModule != NULL);
+
+    PEImageHolder pILImage(PEImage::LoadImage((HMODULE)hModule));
+    
+    // Need to verify that this is a valid CLR assembly. 
+    if (!pILImage->HasCorHeader())
+        ThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
+    
+    // Get the binder context in which the assembly will be loaded
+    ICLRPrivBinder *pBinderContext = reinterpret_cast<ICLRPrivBinder*>(ptrNativeAssemblyLoadContext);
+    
+    // Pass the in memory module as IL in an attempt to bind and load it
+    Assembly* pLoadedAssembly = AssemblyNative::LoadFromPEImage(pBinderContext, pILImage, NULL); 
+    {
+        GCX_COOP();
+        retLoadedAssembly.Set(pLoadedAssembly->GetExposedObject());
+    }
+
+    LOG((LF_CLASSLOADER, 
+            LL_INFO100, 
+            "\tLoaded assembly from pre-loaded native module\n"));
+
+    END_QCALL;
+}
+#endif
 
 void QCALLTYPE AssemblyNative::GetLocation(QCall::AssemblyHandle pAssembly, QCall::StringHandleOnStack retString)
 {

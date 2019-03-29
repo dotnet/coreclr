@@ -2043,11 +2043,6 @@ size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
 //---------------------------------------------------------------------
 
 #ifndef FEATURE_PAL
-ThreadLocaleHolder::~ThreadLocaleHolder()
-{
-    SetThreadLocale(m_locale);
-}
-
 HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName)
 {
     // Don't use dynamic contract: will override GetLastError value
@@ -2058,20 +2053,6 @@ HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName)
     HMODULE hMod = WszGetModuleHandle(lpModuleFileName);
     return hMod;
 }
-
-
-HMODULE CLRGetCurrentModuleHandle()
-{
-    // Don't use dynamic contract: will override GetLastError value
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_FORBID_FAULT;
-
-    HMODULE hMod = WszGetModuleHandle(NULL);
-    return hMod;
-}
-
-
 #endif // !FEATURE_PAL
 
 LPVOID EEHeapAllocInProcessHeap(DWORD dwFlags, SIZE_T dwBytes);
@@ -2948,7 +2929,7 @@ void DACNotify::DoGCNotification(const GcEvtArgs& args)
 
     if (args.typ == GC_MARK_END)
     {
-        TADDR Args[3] = { GC_NOTIFICATION, (TADDR) args.typ, args.condemnedGeneration };
+        TADDR Args[3] = { GC_NOTIFICATION, (TADDR) args.typ, (TADDR) args.condemnedGeneration };
         DACNotifyExceptionHelper(Args, 3);
     }
 }

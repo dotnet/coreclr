@@ -372,6 +372,17 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
 
     if (pCode == NULL)
     {
+#ifdef FEATURE_TIERED_COMPILATION
+        if (g_pConfig->TieredCompilation_DisableTier0Jit() &&
+            IsEligibleForTieredCompilation() &&
+            pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTier0 &&
+            CallCounter::IsEligibleForTier0CallCounting(this))
+        {
+            GetCallCounter()->DisableTier0CallCounting(this);
+            pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTier1);
+        }
+#endif
+
         LOG((LF_CLASSLOADER, LL_INFO1000000,
             "    In PrepareILBasedCode, calling JitCompileCode\n"));
         pCode = JitCompileCode(pConfig);
@@ -1223,7 +1234,7 @@ void CreateInstantiatingILStubTargetSig(MethodDesc *pBaseMD,
 
     // Return type
     SigPointer pReturn = msig.GetReturnProps();
-    pReturn.ConvertToInternalExactlyOne(msig.GetModule(), &typeContext, stubSigBuilder, FALSE);
+    pReturn.ConvertToInternalExactlyOne(msig.GetModule(), &typeContext, stubSigBuilder);
 
 #ifndef _TARGET_X86_
     // The hidden context parameter
@@ -1810,13 +1821,12 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 #ifdef FEATURE_TIERED_COMPILATION
     BOOL fNeedsCallCounting = FALSE;
     TieredCompilationManager* pTieredCompilationManager = nullptr;
-    if (IsEligibleForTieredCompilation() && TieredCompilationManager::RequiresCallCounting(this))
+    if (IsEligibleForTieredCompilation() && CallCounter::IsEligibleForCallCounting(this))
     {
         pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
-        CallCounter * pCallCounter = GetCallCounter();
-        BOOL fWasPromotedToTier1 = FALSE;
-        pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToTier1);
-        fNeedsCallCounting = !fWasPromotedToTier1;
+        BOOL fWasPromotedToNextTier = FALSE;
+        GetCallCounter()->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToNextTier);
+        fNeedsCallCounting = !fWasPromotedToNextTier;
     }
 #endif
 
@@ -1834,7 +1844,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 #ifdef FEATURE_TIERED_COMPILATION
         if (pTieredCompilationManager != nullptr && fNeedsCallCounting && fCanBackpatchPrestub && pCode != NULL)
         {
-            pTieredCompilationManager->OnMethodCallCountingStoppedWithoutTier1Promotion(this);
+            pTieredCompilationManager->OnMethodCallCountingStoppedWithoutTierPromotion(this);
         }
 #endif
 
@@ -1954,6 +1964,8 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
             return pCode;
         }
 
+        _ASSERTE(!MayHaveEntryPointSlotsToBackpatch()); // This path doesn't lock the MethodDescBackpatchTracker as it should only
+                                                        // happen for jump-stampable or non-versionable methods
         SetCodeEntryPoint(pCode);
     }
     else
@@ -2368,7 +2380,11 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
             DispatchToken token;
             if (pMT->IsInterface() || MethodTable::VTableIndir_t::isRelative)
             {
-                token = pMT->GetLoaderAllocator()->GetDispatchToken(pMT->GetTypeID(), slot);
+                if (pMT->IsInterface())
+                    token = pMT->GetLoaderAllocator()->GetDispatchToken(pMT->GetTypeID(), slot);
+                else
+                    token = DispatchToken::CreateDispatchToken(slot);
+
                 StubCallSite callSite(pIndirection, pEMFrame->GetReturnAddress());
                 pCode = pMgr->ResolveWorker(&callSite, protectedObj, token, VirtualCallStubManager::SK_LOOKUP);
             }

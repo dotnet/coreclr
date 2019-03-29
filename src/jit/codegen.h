@@ -95,6 +95,7 @@ private:
     static bool genShouldRoundFP();
 
     GenTreeIndir indirForm(var_types type, GenTree* base);
+    GenTreeStoreInd storeIndirForm(var_types type, GenTree* base, GenTree* data);
 
     GenTreeIntCon intForm(var_types type, ssize_t value);
 
@@ -125,10 +126,6 @@ private:
 
     bool     genUseBlockInit;  // true if we plan to block-initialize the local stack frame
     unsigned genInitStkLclCnt; // The count of local variables that we need to zero init
-
-    //  Keeps track of how many bytes we've pushed on the processor's stack.
-    //
-    unsigned genStackLevel;
 
     void SubtractStackLevel(unsigned adjustment)
     {
@@ -206,6 +203,10 @@ protected:
     static const char* genSizeStr(emitAttr size);
 #endif // DEBUG
 
+    void genInitialize();
+
+    void genInitializeRegisterState();
+
     void genCodeForBBlist();
 
 public:
@@ -257,7 +258,7 @@ protected:
                               regNumber   tmpReg,
                               bool        inUnwindRegion = false);
 
-    void genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg, bool* pTmpRegIsZero);
+    void genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg, bool* pTmpRegIsZero, bool reportUnwindData);
 
     void genPrologSaveRegPair(regNumber reg1,
                               regNumber reg2,
@@ -509,7 +510,7 @@ protected:
 
 #ifdef _TARGET_ARM64_
     virtual void SetSaveFpLrWithAllCalleeSavedRegisters(bool value);
-    virtual bool IsSaveFpLrWithAllCalleeSavedRegisters();
+    virtual bool IsSaveFpLrWithAllCalleeSavedRegisters() const;
     bool         genSaveFpLrWithAllCalleeSavedRegisters;
 #endif // _TARGET_ARM64_
 
@@ -548,17 +549,18 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     //-------------------------------------------------------------------------
     // scope info for the variables
 
-    void genSetScopeInfo(unsigned            which,
-                         UNATIVE_OFFSET      startOffs,
-                         UNATIVE_OFFSET      length,
-                         unsigned            varNum,
-                         unsigned            LVnum,
-                         bool                avail,
-                         Compiler::siVarLoc& loc);
+    void genSetScopeInfo(unsigned       which,
+                         UNATIVE_OFFSET startOffs,
+                         UNATIVE_OFFSET length,
+                         unsigned       varNum,
+                         unsigned       LVnum,
+                         bool           avail,
+                         siVarLoc*      varLoc);
 
     void genSetScopeInfo();
+#ifdef USING_SCOPE_INFO
+    void genSetScopeInfoUsingsiScope();
 
-protected:
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -588,7 +590,7 @@ public:
     void siBeginBlock(BasicBlock* block);
 
     void siEndBlock(BasicBlock* block);
-
+    // Closes the "ScopeInfo" of the tracked variables that has become dead.
     virtual void siUpdate();
 
     void siCheckVarScope(unsigned varNum, IL_OFFSET offs);
@@ -618,6 +620,10 @@ protected:
         siScope* scPrev;
         siScope* scNext;
     };
+
+    // Returns a "siVarLoc" instance representing the place where the variable lives base on
+    // varDsc and scope description.
+    CodeGenInterface::siVarLoc getSiVarLoc(const LclVarDsc* varDsc, const siScope* scope) const;
 
     siScope siOpenScopeList, siScopeList, *siOpenScopeLast, *siScopeLast;
 
@@ -660,7 +666,6 @@ public:
     const char* siStackVarName(size_t offs, size_t size, unsigned reg, unsigned stkOffs);
 #endif // LATE_DISASM
 
-public:
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -724,6 +729,10 @@ protected:
 
         psiScope* scPrev;
         psiScope* scNext;
+
+        // Returns a "siVarLoc" instance representing the place where the variable lives base on
+        // psiScope properties.
+        CodeGenInterface::siVarLoc getSiVarLoc() const;
     };
 
     psiScope psiOpenScopeList, psiScopeList, *psiOpenScopeLast, *psiScopeLast;
@@ -737,25 +746,27 @@ protected:
     void psiEndPrologScope(psiScope* scope);
 
     void psSetScopeOffset(psiScope* newScope, LclVarDsc* lclVarDsc1);
+#endif // USING_SCOPE_INFO
 
-/*****************************************************************************
- *                        TrnslLocalVarInfo
- *
- * This struct holds the LocalVarInfo in terms of the generated native code
- * after a call to genSetScopeInfo()
- */
+    /*****************************************************************************
+     *                        TrnslLocalVarInfo
+     *
+     * This struct holds the LocalVarInfo in terms of the generated native code
+     * after a call to genSetScopeInfo()
+     */
 
+protected:
 #ifdef DEBUG
 
     struct TrnslLocalVarInfo
     {
-        unsigned           tlviVarNum;
-        unsigned           tlviLVnum;
-        VarName            tlviName;
-        UNATIVE_OFFSET     tlviStartPC;
-        size_t             tlviLength;
-        bool               tlviAvailable;
-        Compiler::siVarLoc tlviVarLoc;
+        unsigned       tlviVarNum;
+        unsigned       tlviLVnum;
+        VarName        tlviName;
+        UNATIVE_OFFSET tlviStartPC;
+        size_t         tlviLength;
+        bool           tlviAvailable;
+        siVarLoc       tlviVarLoc;
     };
 
     // Array of scopes of LocalVars in terms of native code
@@ -1030,6 +1041,9 @@ protected:
 
     void genConsumeRegs(GenTree* tree);
     void genConsumeOperands(GenTreeOp* tree);
+#ifdef FEATURE_HW_INTRINSICS
+    void genConsumeHWIntrinsicOperands(GenTreeHWIntrinsic* tree);
+#endif // FEATURE_HW_INTRINSICS
     void genEmitGSCookieCheck(bool pushReg);
     void genSetRegToIcon(regNumber reg, ssize_t val, var_types type = TYP_INT, insFlags flags = INS_FLAGS_DONT_CARE);
     void genCodeForShift(GenTree* tree);
@@ -1299,6 +1313,7 @@ public:
 
 #if defined(_TARGET_XARCH_)
     void inst_RV_RV_IV(instruction ins, emitAttr size, regNumber reg1, regNumber reg2, unsigned ival);
+    void inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenTree* rmOp, int ival);
 #endif
 
     void inst_RV_RR(instruction ins, emitAttr size, regNumber reg1, regNumber reg2);

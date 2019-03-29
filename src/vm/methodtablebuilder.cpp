@@ -1864,7 +1864,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #endif
 #ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
+#error "Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time."
 #endif // FEATURE_HFA
         SystemVAmd64CheckForPassStructInRegister();
 #endif // UNIX_AMD64_ABI
@@ -1872,7 +1872,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 
 #ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
+#error "Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time."
 #endif // FEATURE_HFA
     if (HasLayout())
     {
@@ -2072,22 +2072,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
         pModule,
         GetCl(),
         GetHalfBakedMethodTable());
-
-#ifdef MDA_SUPPORTED
-    MdaMarshaling* mda = MDA_GET_ASSISTANT(Marshaling);
-    if (mda && HasLayout())
-    {
-        FieldMarshaler *pFieldMarshaler = (FieldMarshaler*)GetLayoutInfo()->GetFieldMarshalers();
-        UINT  numReferenceFields        = GetLayoutInfo()->GetNumCTMFields();
-
-        while (numReferenceFields--)
-        {
-            mda->ReportFieldMarshal(pFieldMarshaler);
-
-            ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
-        }
-    }
-#endif // MDA_SUPPORTED
 
 #ifdef FEATURE_PREJIT
     _ASSERTE(pComputedPZM == Module::GetPreferredZapModuleForMethodTable(pMT));
@@ -2908,9 +2892,15 @@ MethodTableBuilder::EnumerateClassMethods()
             }
         }
 
-#ifndef FEATURE_DEFAULT_INTERFACES
         // Some interface checks.
-        if (fIsClassInterface)
+        // We only need them if default interface method support is disabled or if this is fragile crossgen
+#if !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
+        if (fIsClassInterface
+#if defined(FEATURE_DEFAULT_INTERFACES)
+            // Only fragile crossgen wasn't upgraded to deal with default interface methods.
+            && !IsReadyToRunCompilation()
+#endif
+            )
         {
             if (IsMdVirtual(dwMemberAttrs))
             {
@@ -2921,14 +2911,14 @@ MethodTableBuilder::EnumerateClassMethods()
             }
             else
             {
-                // Instance field/method
+                // Instance method
                 if (!IsMdStatic(dwMemberAttrs))
                 {
                     BuildMethodTableThrowException(BFA_NONVIRT_INST_INT_METHOD);
                 }
             }
         }
-#endif
+#endif // !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
 
         // No synchronized methods in ValueTypes
         if(fIsClassValueType && IsMiSynchronized(dwImplFlags))
@@ -6336,7 +6326,7 @@ MethodTableBuilder::WriteMethodImplData(
             // binary search later
             for (DWORD i = 0; i < cSlots; i++)
             {
-                int min = i;
+                unsigned int min = i;
                 for (DWORD j = i + 1; j < cSlots; j++)
                 {
                     if (rgSlots[j] < rgSlots[min])
@@ -9721,6 +9711,19 @@ void MethodTableBuilder::CheckForSystemTypes()
 
             pMT->SetComponentSize(2);
         }
+#ifdef FEATURE_UTF8STRING
+        else if (strcmp(name, g_Utf8StringName) == 0 && strcmp(nameSpace, g_SystemNS) == 0)
+        {
+            // Utf8Strings are not "normal" objects, so we need to mess with their method table a bit
+            // so that the GC can figure out how big each string is...
+            DWORD baseSize = Utf8StringObject::GetBaseSize();
+            pMT->SetBaseSize(baseSize); // NULL character included
+
+            GetHalfBakedClass()->SetBaseSizePadding(baseSize - bmtFP->NumInstanceFieldBytes);
+
+            pMT->SetComponentSize(1);
+        }
+#endif // FEATURE_UTF8STRING
         else if (strcmp(name, g_CriticalFinalizerObjectName) == 0 && strcmp(nameSpace, g_ConstrainedExecutionNS) == 0)
         {
             // To introduce a class with a critical finalizer,
@@ -11848,6 +11851,94 @@ MethodTableBuilder::GatherGenericsInfo(
     SigTypeContext typeContext(inst, Instantiation());
     bmtGenericsInfo->typeContext = typeContext;
 } // MethodTableBuilder::GatherGenericsInfo
+
+//=======================================================================
+// This is invoked from the class loader while building the internal structures for a type
+// This function should check if explicit layout metadata exists.
+//
+// Returns:
+//  TRUE    - yes, there's layout metadata
+//  FALSE   - no, there's no layout.
+//  fail    - throws a typeload exception
+//
+// If TRUE,
+//   *pNLType            gets set to nltAnsi or nltUnicode
+//   *pPackingSize       declared packing size
+//   *pfExplicitoffsets  offsets explicit in metadata or computed?
+//=======================================================================
+BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport* pInternalImport, mdTypeDef cl, MethodTable* pParentMT, BYTE* pPackingSize, BYTE* pNLTType, BOOL* pfExplicitOffsets)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(CheckPointer(pInternalImport));
+        PRECONDITION(CheckPointer(pPackingSize));
+        PRECONDITION(CheckPointer(pNLTType));
+        PRECONDITION(CheckPointer(pfExplicitOffsets));
+    }
+    CONTRACTL_END;
+
+    HRESULT hr;
+    ULONG clFlags;
+
+    if (FAILED(pInternalImport->GetTypeDefProps(cl, &clFlags, NULL)))
+    {
+        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
+    }
+
+    if (IsTdAutoLayout(clFlags))
+    {
+        return FALSE;
+    }
+    else if (IsTdSequentialLayout(clFlags))
+    {
+        *pfExplicitOffsets = FALSE;
+    }
+    else if (IsTdExplicitLayout(clFlags))
+    {
+        *pfExplicitOffsets = TRUE;
+    }
+    else
+    {
+        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
+    }
+
+    // We now know this class has seq. or explicit layout. Ensure the parent does too.
+    if (pParentMT && !(pParentMT->IsObjectClass() || pParentMT->IsValueTypeClass()) && !(pParentMT->HasLayout()))
+        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
+
+    if (IsTdAnsiClass(clFlags))
+    {
+        *pNLTType = nltAnsi;
+    }
+    else if (IsTdUnicodeClass(clFlags) || IsTdAutoClass(clFlags))
+    {
+        *pNLTType = nltUnicode;
+    }
+    else
+    {
+        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
+    }
+
+    DWORD dwPackSize;
+    hr = pInternalImport->GetClassPackSize(cl, &dwPackSize);
+    if (FAILED(hr) || dwPackSize == 0)
+        dwPackSize = DEFAULT_PACKING_SIZE;
+
+    // This has to be reduced to a BYTE value, so we had better make sure it fits. If
+    // not, we'll throw an exception instead of trying to munge the value to what we
+    // think the user might want.
+    if (!FitsInU1((UINT64)(dwPackSize)))
+    {
+        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
+    }
+
+    *pPackingSize = (BYTE)dwPackSize;
+
+    return TRUE;
+}
 
 //---------------------------------------------------------------------------------------
 // 

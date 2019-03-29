@@ -282,6 +282,7 @@ public:
     // Tiered Compilation config
 #if defined(FEATURE_TIERED_COMPILATION)
     bool          TieredCompilation(void)           const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
+    bool          TieredCompilation_DisableTier0Jit() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_DisableTier0Jit; }
     bool          TieredCompilation_CallCounting()  const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation_CallCounting; }
     bool          TieredCompilation_OptimizeTier0() const {LIMITED_METHOD_CONTRACT; return fTieredCompilation_OptimizeTier0; }
     DWORD         TieredCompilation_Tier1CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountThreshold; }
@@ -503,13 +504,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return fProbeForStackOverflow;
     }
-
-    inline bool AppDomainUnload() const
-    {LIMITED_METHOD_CONTRACT;  return fAppDomainUnload; }
-
-    inline DWORD AppDomainUnloadRetryCount() const
-    {LIMITED_METHOD_CONTRACT;  return dwADURetryCount; }
-    
 
 #ifdef _DEBUG
     inline bool AppDomainLeaks() const
@@ -865,10 +859,6 @@ private: //----------------------------------------------------------------
     unsigned int DoubleArrayToLargeObjectHeapThreshold;  // double arrays of more than this number of elems go in large object heap
 #endif
 
-    bool   fAppDomainUnload;            // Enable appdomain unloading
-    
-    DWORD  dwADURetryCount;
-
 #ifdef _DEBUG
     bool fExpandAllOnLoad;              // True if we want to load all types/jit all methods in an assembly
                                         // at load time.
@@ -1023,6 +1013,7 @@ private: //----------------------------------------------------------------
 
 #if defined(FEATURE_TIERED_COMPILATION)
     bool fTieredCompilation;
+    bool fTieredCompilation_DisableTier0Jit;
     bool fTieredCompilation_CallCounting;
     bool fTieredCompilation_OptimizeTier0;
     DWORD tieredCompilation_tier1CallCountThreshold;
@@ -1149,8 +1140,6 @@ public:
 #define FILE_FORMAT_CHECK(_condition)
 
 #endif
-
-extern BOOL g_CLRPolicyRequested;
 
 // NGENImagesAllowed is the safe way to determine if NGEN Images are allowed to be loaded. (Defined as
 // a macro instead of an inlined function to avoid compilation errors due to dependent

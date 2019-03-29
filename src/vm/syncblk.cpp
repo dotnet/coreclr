@@ -22,7 +22,6 @@
 #include "syncblk.h"
 #include "interoputil.h"
 #include "encee.h"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "dllimportcallback.h"
 #include "comcallablewrapper.h"
@@ -56,18 +55,6 @@ SPTR_IMPL (SyncBlockCache, SyncBlockCache, s_pSyncBlockCache);
 #ifndef DACCESS_COMPILE
 
 
-
-void SyncBlock::OnADUnload()
-{
-    WRAPPER_NO_CONTRACT;
-#ifdef EnC_SUPPORTED
-    if (m_pEnCInfo)
-    {
-        m_pEnCInfo->Cleanup();
-        m_pEnCInfo = NULL;
-    }
-#endif
-}
 
 #ifndef FEATURE_PAL
 // static
@@ -229,12 +216,6 @@ void InteropSyncBlockInfo::SetRawRCW(RCW* pRCW)
 }
 #endif // FEATURE_COMINTEROP
 
-void UMEntryThunk::OnADUnload()
-{
-    LIMITED_METHOD_CONTRACT;
-    m_pObjectHandle = NULL;
-}
-
 #endif // !DACCESS_COMPILE
 
 PTR_SyncTableEntry SyncTableEntry::GetSyncTableEntry()
@@ -309,7 +290,6 @@ inline WaitEventLink *ThreadQueue::DequeueThread(SyncBlock *psb)
 #endif
         ret = WaitEventLinkForLink(pLink);
         _ASSERTE(ret->m_WaitSB == psb);
-        COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cQueueLength--);
     }
     return ret;
 }
@@ -333,8 +313,6 @@ inline void ThreadQueue::EnqueueThread(WaitEventLink *pWaitEventLink, SyncBlock 
     // Be careful, the debugger inspects the queue from out of process and just looks at the memory...
     // it must be valid even if the lock is held. Be careful if you change the way the queue is updated.
     SyncBlockCache::LockHolder lh(SyncBlockCache::GetSyncBlockCache());
-
-    COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cQueueLength++);
 
     SLink       *pPrior = &psb->m_Link;
 
@@ -382,7 +360,6 @@ BOOL ThreadQueue::RemoveThread (Thread *pThread, SyncBlock *psb)
             pLink->m_pNext = (SLink *)POISONC;
 #endif
             _ASSERTE(pWaitEventLink->m_WaitSB == psb);
-            COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cQueueLength--);
             res = TRUE;
             break;
         }
@@ -734,12 +711,6 @@ VOID SyncBlockCache::CleanupSyncBlocksInAppDomain(AppDomain *pDomain)
 
             UMEntryThunk* umThunk=(UMEntryThunk*)pInteropInfo->GetUMEntryThunk();
                 
-            if (umThunk && umThunk->GetDomainId()==id)
-            {
-                umThunk->OnADUnload();
-                STRESS_LOG1(LF_APPDOMAIN, LL_INFO100, "Thunk %x unloaded", umThunk);
-            }       
-
 #ifdef FEATURE_COMINTEROP
             {
                 // we need to take RCWCache lock to avoid the race with another thread which is 
@@ -762,13 +733,6 @@ VOID SyncBlockCache::CleanupSyncBlocksInAppDomain(AppDomain *pDomain)
                 }
             }                         
 #endif // FEATURE_COMINTEROP
-        }
-
-        // NOTE: this will only notify the sync block if it is non-agile and living in the unloading domain.
-        //  Agile objects that are still alive will not get notification!
-        if (pSyncBlock->GetAppDomainIndex() == index)
-        {
-            pSyncBlock->OnADUnload();
         }
     }
     STRESS_LOG1(LF_APPDOMAIN, LL_INFO100, "AD cleanup - %d sync blocks done", nb);
@@ -3042,8 +3006,6 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     // mode temporarily before calling here, then they are responsible for protecting
     // the object associated with this lock.
     _ASSERTE(pCurThread->PreemptiveGCDisabled());
-
-    COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cContention++);
 
     // Fire a contention start event for a managed contention
     FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());

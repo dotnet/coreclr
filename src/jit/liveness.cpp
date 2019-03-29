@@ -955,7 +955,6 @@ void Compiler::fgExtendDbgLifetimes()
         VarSetOps::DiffD(this, initVars, block->bbLiveIn);
 
         /* Add statements initializing the vars, if there are any to initialize */
-        unsigned blockWeight = block->getBBWeight(this);
 
         VarSetOps::Iter iter(this, initVars);
         unsigned        varIndex = 0;
@@ -1001,6 +1000,7 @@ void Compiler::fgExtendDbgLifetimes()
                     initRange.InsertBefore(nullptr, zero, store);
 
 #if !defined(_TARGET_64BIT_)
+                    unsigned blockWeight = block->getBBWeight(this);
                     DecomposeLongs::DecomposeRange(this, blockWeight, initRange);
 #endif // !defined(_TARGET_64BIT_)
                     m_pLowering->LowerRange(block, initRange);
@@ -1056,6 +1056,42 @@ void Compiler::fgExtendDbgLifetimes()
 #endif // DEBUG
 }
 
+//------------------------------------------------------------------------
+// fgGetHandlerLiveVars: determine set of locals live because of implicit
+//   exception flow from a block.
+//
+// Arguments:
+//    block - the block in question
+//
+// Returns:
+//    Additional set of locals to be considered live throughout the block.
+//
+// Notes:
+//    Assumes caller has screened candidate blocks to only those with
+//    exception flow, via `ehBlockHasExnFlowDsc`.
+//
+//    Exception flow can arise because of a newly raised exception (for
+//    blocks within try regions) or because of an actively propagating exception
+//    (for filter blocks). This flow effectively creates additional successor
+//    edges in the flow graph that the jit does not model. This method computes
+//    the net contribution from all the missing successor edges.
+//
+//    For example, with the following C# source, during EH processing of the throw,
+//    the outer filter will execute in pass1, before the inner handler executes
+//    in pass2, and so the filter blocks should show the inner handler's local is live.
+//
+//    try
+//    {
+//        using (AllocateObject())   // ==> try-finally; handler calls Dispose
+//        {
+//            throw new Exception();
+//        }
+//    }
+//    catch (Exception e1) when (IsExpectedException(e1))
+//    {
+//        Console.WriteLine("In catch 1");
+//    }
+
 VARSET_VALRET_TP Compiler::fgGetHandlerLiveVars(BasicBlock* block)
 {
     noway_assert(block);
@@ -1067,7 +1103,6 @@ VARSET_VALRET_TP Compiler::fgGetHandlerLiveVars(BasicBlock* block)
     do
     {
         /* Either we enter the filter first or the catch/finally */
-
         if (HBtab->HasFilter())
         {
             VarSetOps::UnionD(this, liveVars, HBtab->ebdFilter->bbLiveIn);
@@ -1098,6 +1133,72 @@ VARSET_VALRET_TP Compiler::fgGetHandlerLiveVars(BasicBlock* block)
         HBtab = ehGetDsc(outerIndex);
 
     } while (true);
+
+    // If this block is within a filter, we also need to report as live
+    // any vars live into enclosed finally or fault handlers, since the
+    // filter will run during the first EH pass, and enclosed or enclosing
+    // handlers will run during the second EH pass. So all these handlers
+    // are "exception flow" successors of the filter.
+    //
+    // Note we are relying on ehBlockHasExnFlowDsc to return true
+    // for any filter block that we should examine here.
+    if (block->hasHndIndex())
+    {
+        const unsigned thisHndIndex   = block->getHndIndex();
+        EHblkDsc*      enclosingHBtab = ehGetDsc(thisHndIndex);
+
+        if (enclosingHBtab->InFilterRegionBBRange(block))
+        {
+            assert(enclosingHBtab->HasFilter());
+
+            // Search the EH table for enclosed regions.
+            //
+            // All the enclosed regions will be lower numbered and
+            // immediately prior to and contiguous with the enclosing
+            // region in the EH tab.
+            unsigned index = thisHndIndex;
+
+            while (index > 0)
+            {
+                index--;
+                unsigned enclosingIndex = ehGetEnclosingTryIndex(index);
+                bool     isEnclosed     = false;
+
+                // To verify this is an enclosed region, search up
+                // through the enclosing regions until we find the
+                // region associated with the filter.
+                while (enclosingIndex != EHblkDsc::NO_ENCLOSING_INDEX)
+                {
+                    if (enclosingIndex == thisHndIndex)
+                    {
+                        isEnclosed = true;
+                        break;
+                    }
+
+                    enclosingIndex = ehGetEnclosingTryIndex(enclosingIndex);
+                }
+
+                // If we found an enclosed region, check if the region
+                // is a try fault or try finally, and if so, add any
+                // locals live into the enclosed region's handler into this
+                // block's live-in set.
+                if (isEnclosed)
+                {
+                    EHblkDsc* enclosedHBtab = ehGetDsc(index);
+
+                    if (enclosedHBtab->HasFinallyOrFaultHandler())
+                    {
+                        VarSetOps::UnionD(this, liveVars, enclosedHBtab->ebdHndBeg->bbLiveIn);
+                    }
+                }
+                // Once we run across a non-enclosed region, we can stop searching.
+                else
+                {
+                    break;
+                }
+            }
+        }
+    }
 
     return liveVars;
 }
@@ -1171,14 +1272,17 @@ class LiveVarAnalysis
         // since (without proof otherwise) the use and def may touch different memory at run-time.
         m_memoryLiveIn = m_memoryLiveOut | block->bbMemoryUse;
 
-        /* Can exceptions from this block be handled (in this function)? */
-
+        // Does this block have implicit exception flow to a filter or handler?
+        // If so, include the effects of that flow.
         if (m_compiler->ehBlockHasExnFlowDsc(block))
         {
             const VARSET_TP& liveVars(m_compiler->fgGetHandlerLiveVars(block));
-
             VarSetOps::UnionD(m_compiler, m_liveIn, liveVars);
             VarSetOps::UnionD(m_compiler, m_liveOut, liveVars);
+
+            // Implicit eh edges can induce loop-like behavior,
+            // so make sure we iterate to closure.
+            m_hasPossibleBackEdge = true;
         }
 
         /* Has there been any change in either live set? */
@@ -1947,6 +2051,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
             case GT_SWITCH:
             case GT_RETFILT:
             case GT_START_NONGC:
+            case GT_START_PREEMPTGC:
             case GT_PROF_HOOK:
 #if !FEATURE_EH_FUNCLETS
             case GT_END_LFIN:
@@ -2055,14 +2160,14 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
         addrNode = tree;
     }
 
-    // Next, find the assignment.
+    // Next, find the assignment (i.e. if we didn't have a LocalStore)
     if (asgNode == nullptr)
     {
         if (addrNode == nullptr)
         {
             asgNode = nextNode;
         }
-        else if (asgNode == nullptr)
+        else
         {
             // This may be followed by GT_IND/assign or GT_STOREIND.
             if (nextNode == nullptr)
@@ -2075,19 +2180,22 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
                 assert(nextNode->OperGet() != GT_NULLCHECK);
                 if (nextNode->OperIsStore())
                 {
+                    // This is a store, which takes a location and a value to be stored.
+                    // It's 'rhsNode' is the value to be stored.
                     asgNode = nextNode;
                     if (asgNode->OperIsBlk())
                     {
                         rhsNode = asgNode->AsBlk()->Data();
                     }
-                    // TODO-1stClassStructs: There should be an else clause here to handle
-                    // the non-block forms of store ops (GT_STORE_LCL_VAR, etc.) for which
-                    // rhsNode is op1. (This isn't really a 1stClassStructs item, but the
-                    // above was added to catch what used to be dead block ops, and that
-                    // made this omission apparent.)
+                    else
+                    {
+                        // This is a non-block store.
+                        rhsNode = asgNode->gtGetOp2();
+                    }
                 }
                 else
                 {
+                    // This is a non-store indirection, and the assignment will com after it.
                     asgNode = nextNode->gtNext;
                 }
             }
@@ -2398,7 +2506,6 @@ void Compiler::fgInterBlockLocalVarLiveness()
         if (block->bbCatchTyp != BBCT_NONE)
         {
             /* Note the set of variables live on entry to exception handler */
-
             VarSetOps::UnionD(this, exceptVars, block->bbLiveIn);
         }
 

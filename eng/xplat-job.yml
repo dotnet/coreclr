@@ -9,7 +9,6 @@ parameters:
   dependsOn: ''
   containerName: ''
   timeoutInMinutes: ''
-  helixType: ''
   crossrootfsDir: ''
   enableMicrobuild: ''
 
@@ -29,27 +28,45 @@ jobs:
     dependsOn: ${{ parameters.dependsOn }}
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
 
+    # Send telemetry for official builds
+    enableTelemetry: ${{ and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}
     helixRepo: 'dotnet/coreclr'
-    helixType: ${{ parameters.helixType }}
 
     enableMicrobuild: ${{ parameters.enableMicrobuild }}
 
     pool:
+
+      # Public Linux Build Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
-        name: dnceng-linux-external-temp
+        name:  NetCorePublic-Int-Pool
+        queue: BuildPool.Ubuntu.1604.Amd64.Open
+
+      # Official Build Linux Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
-        name: dnceng-linux-internal-temp
+        name: NetCoreInternal-Int-Pool
+        queue: BuildPool.Ubuntu.1604.Amd64
+
       # FreeBSD builds only in the internal project
       ${{ if and(eq(parameters.osGroup, 'FreeBSD'), ne(variables['System.TeamProject'], 'public')) }}:
         name: dnceng-freebsd-internal
+
+      # Public OSX Build Pool
       ${{ if and(eq(parameters.osGroup, 'OSX'), ne(variables['System.TeamProject'], 'public')) }}:
         name: Hosted Mac Internal
+
+      # Official Build OSX Pool
       ${{ if and(eq(parameters.osGroup, 'OSX'), eq(variables['System.TeamProject'], 'public')) }}:
         name: Hosted MacOS
+
+      # Official Build Windows Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), ne(variables['System.TeamProject'], 'public')) }}:
-        name: dotnet-internal-temp
+        name: NetCoreInternal-Int-Pool
+        queue: BuildPool.Windows.10.Amd64.VS2017
+
+      # Public Windows Build Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
-        name: dotnet-external-temp
+        name: NetCorePublic-Int-Pool
+        queue: BuildPool.Windows.10.Amd64.VS2017.Open
 
     workspace:
       clean: all

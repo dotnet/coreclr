@@ -302,8 +302,8 @@ void UnwindInfoTable::AddToUnwindInfoTable(UnwindInfoTable** unwindInfoPtr, PT_R
     // We could imagine being much more efficient for 'bulk' updates, but we don't try
     // because we assume that this is rare and we want to keep the code simple
 
-    int usedSpace = unwindInfo->cTableCurCount - unwindInfo->cDeletedEntries;
-    int desiredSpace = usedSpace * 5 / 4 + 1;        // Increase by 20%
+    ULONG usedSpace = unwindInfo->cTableCurCount - unwindInfo->cDeletedEntries;
+    ULONG desiredSpace = usedSpace * 5 / 4 + 1;        // Increase by 20%
     // Be more aggresive if we used all of our space; 
     if (usedSpace == unwindInfo->cTableMaxCount)
         desiredSpace = usedSpace * 3 / 2 + 1;        // Increase by 50%
@@ -1547,7 +1547,7 @@ JIT_LOAD_DATA g_JitLoadData;
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
 // Global that holds the path to custom JIT location
-extern "C" LPCWSTR g_CLRJITPath = nullptr;
+LPCWSTR g_CLRJITPath = nullptr;
 
 #endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 

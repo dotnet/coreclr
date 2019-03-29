@@ -676,15 +676,7 @@ FCIMPL1(void, ThreadNative::Sleep, INT32 iTime)
     if ((iTime < 0) && (iTime != INFINITE_TIMEOUT))
         COMPlusThrowArgumentOutOfRange(W("millisecondsTimeout"), W("ArgumentOutOfRange_NeedNonNegOrNegative1"));
 
-    while(true)
-    {
-        INT64 sPauseTime = g_PauseTime;
-        INT64 sTime = CLRGetTickCount64();
-        GetThread()->UserSleep(iTime);       
-        iTime = (INT32)AdditionalWait(sPauseTime, sTime, iTime);
-        if(iTime == 0)
-            break;
-    }
+    GetThread()->UserSleep(iTime);       
 
     HELPER_METHOD_FRAME_END();
 }
@@ -1431,6 +1423,29 @@ BOOL QCALLTYPE ThreadNative::YieldThread()
     return ret;
 }
 
+FCIMPL1(Object*, ThreadNative::GetThreadDeserializationTracker, StackCrawlMark* stackMark)
+{
+    FCALL_CONTRACT;
+    OBJECTREF refRetVal = NULL;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal)
+
+    // To avoid reflection trying to bypass deserialization tracking, check the caller
+    // and only allow SerializationInfo to call into this method.
+    MethodTable* pCallerMT = SystemDomain::GetCallersType(stackMark);
+    if (pCallerMT != MscorlibBinder::GetClass(CLASS__SERIALIZATION_INFO))
+    {
+        COMPlusThrowArgumentException(W("stackMark"), NULL);
+    }
+
+    Thread* pThread = GetThread();
+
+    refRetVal = ObjectFromHandle(pThread->GetOrCreateDeserializationTracker());
+
+    HELPER_METHOD_FRAME_END();
+
+    return OBJECTREFToObject(refRetVal);
+}
+FCIMPLEND
 
 FCIMPL0(INT32, ThreadNative::GetCurrentProcessorNumber)
 {

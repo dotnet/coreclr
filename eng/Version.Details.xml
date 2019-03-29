@@ -1,14 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Dependencies>
-  <ProductDependencies></ProductDependencies>
+  <ProductDependencies>
+  </ProductDependencies>
   <ToolsetDependencies>
-    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="1.0.0-beta.19080.6">
+    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="1.0.0-beta.19179.1">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>14d1133b6074b463784a7adbbf385df0462f4010</Sha>
+      <Sha>ef139c7533e2e33c5e0946b80cb1aa95d84da868</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19080.6">
+    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19179.1">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>14d1133b6074b463784a7adbbf385df0462f4010</Sha>
+      <Sha>ef139c7533e2e33c5e0946b80cb1aa95d84da868</Sha>
+    </Dependency>
+    <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-preview4.19178.7">
+      <Uri>https://github.com/dotnet/corefx</Uri>
+      <Sha>c141b8c7aed44817baad190d35d0f29408eb3f7a</Sha>
+    </Dependency>
+    <Dependency Name="Microsoft.NETCore.Platforms" Version="3.0.0-preview4.19178.7">
+      <Uri>https://github.com/dotnet/corefx</Uri>
+      <Sha>c141b8c7aed44817baad190d35d0f29408eb3f7a</Sha>
+    </Dependency>
+    <Dependency Name="Microsoft.NETCore.App" Version="3.0.0-preview4-27528-14">
+      <Uri>https://github.com/dotnet/core-setup</Uri>
+      <Sha>6f7780eef92af15d41c55aca5e7e7edd02ad08fd</Sha>
+    </Dependency>
+    <Dependency Name="optimization.IBC.CoreCLR" Version="99.99.99-master-20190313.3">
+      <Uri>https://dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
+      <Sha>4f9d0ecf2b8151859fd2bd0734af32ea59258a3d</Sha>
+    </Dependency>
+    <Dependency Name="optimization.PGO.CoreCLR" Version="99.99.99-master-20190313.3">
+      <Uri>https://dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
+      <Sha>4f9d0ecf2b8151859fd2bd0734af32ea59258a3d</Sha>
     </Dependency>
   </ToolsetDependencies>
 </Dependencies>

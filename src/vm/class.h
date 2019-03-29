@@ -36,14 +36,12 @@
 #include "hash.h"
 #include "crst.h"
 #include "cgensys.h"
-#include "declsec.h"
 #ifdef FEATURE_COMINTEROP
 #include "stdinterfaces.h"
 #endif
 #include "slist.h"
 #include "spinlock.h"
 #include "typehandle.h"
-#include "perfcounters.h"
 #include "methodtable.h"
 #include "eeconfig.h"
 #include "typectxt.h"
@@ -358,7 +356,7 @@ class EEClassLayoutInfo
 #endif // FEATURE_COMINTEROP
        BOOL fExplicitOffsets,       // explicit offsets?
        MethodTable *pParentMT,       // the loaded superclass
-       ULONG cMembers,              // total number of members (methods + fields)
+       ULONG cTotalFields,              // total number of fields (instance and static)
        HENUMInternal *phEnumField,  // enumerator for field
        Module* pModule,             // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
        const SigTypeContext *pTypeContext,          // Type parameters for NStruct being loaded
@@ -410,7 +408,7 @@ class EEClassLayoutInfo
             e_HAS_EXPLICIT_SIZE         = 0x08,
 #ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
+#error "Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time."
 #endif // FEATURE_HFA
             e_NATIVE_PASS_IN_REGISTERS  = 0x10, // Flag wheter a native struct is passed in registers.
 #endif // UNIX_AMD64_ABI

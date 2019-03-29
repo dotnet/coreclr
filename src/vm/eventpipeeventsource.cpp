@@ -9,6 +9,7 @@
 #include "eventpipemetadatagenerator.h"
 #include "eventpipeprovider.h"
 #include "eventpipesession.h"
+#include "eventpipesessionprovider.h"
 
 #ifdef FEATURE_PERFTRACING
 
@@ -50,6 +51,7 @@ EventPipeEventSource::EventPipeEventSource()
         0,      /* keywords */
         0,      /* eventVersion */
         EventPipeEventLevel::LogAlways,
+        false,  /* needStack */
         pMetadata,
         (unsigned int)metadataLength);
 

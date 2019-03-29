@@ -231,9 +231,6 @@ namespace System
 
                 internal MemberInfoCache(RuntimeTypeCache runtimeTypeCache)
                 {
-#if MDA_SUPPORTED
-                    Mda.MemberInfoCacheCreation();
-#endif
                     m_runtimeTypeCache = runtimeTypeCache;
                 }
 
@@ -1779,9 +1776,9 @@ namespace System
                     }
 
                     if (!loaderAssuredCompatible)
-                        throw new ArgumentException(string.Format(
-                            CultureInfo.CurrentCulture, SR.Argument_ResolveMethodHandle,
-                            reflectedType.ToString(), declaredType.ToString()));
+                        throw new ArgumentException(SR.Format(
+                            SR.Argument_ResolveMethodHandle,
+                            reflectedType, declaredType));
                 }
                 // Action<in string> is assignable from, but not a subclass of Action<in object>.
                 else if (declaredType.IsGenericType)
@@ -1807,9 +1804,9 @@ namespace System
                     if (baseType == null)
                     {
                         // ignoring instantiation is the ReflectedType is not a subtype of the DeclaringType
-                        throw new ArgumentException(string.Format(
-                            CultureInfo.CurrentCulture, SR.Argument_ResolveMethodHandle,
-                            reflectedType.ToString(), declaredType.ToString()));
+                        throw new ArgumentException(SR.Format(
+                            SR.Argument_ResolveMethodHandle,
+                            reflectedType, declaredType));
                     }
 
                     // remap the method to same method on the subclass ReflectedType
@@ -1897,10 +1894,10 @@ namespace System
                     if (!RuntimeFieldHandle.AcquiresContextFromThis(fieldHandle) ||
                         !RuntimeTypeHandle.CompareCanonicalHandles(declaredType, reflectedType))
                     {
-                        throw new ArgumentException(string.Format(
-                            CultureInfo.CurrentCulture, SR.Argument_ResolveFieldHandle,
-                            reflectedType.ToString(),
-                            declaredType.ToString()));
+                        throw new ArgumentException(SR.Format(
+                            SR.Argument_ResolveFieldHandle,
+                            reflectedType,
+                            declaredType));
                     }
                 }
             }
@@ -1932,7 +1929,7 @@ namespace System
         {
             if (type.IsPointer || type.IsByRef || type == typeof(void))
                 throw new ArgumentException(
-                    SR.Format(SR.Argument_NeverValidGenericArgument, type.ToString()));
+                    SR.Format(SR.Argument_NeverValidGenericArgument, type));
         }
 
 
@@ -1988,7 +1985,7 @@ namespace System
                     typeContext, methodContext, genericArgument.GetTypeHandleInternal().GetTypeChecked()))
                 {
                     throw new ArgumentException(
-                        SR.Format(SR.Argument_GenConstraintViolation, i.ToString(CultureInfo.CurrentCulture), genericArgument.ToString(), definition.ToString(), genericParameter.ToString()), e);
+                        SR.Format(SR.Argument_GenConstraintViolation, i.ToString(), genericArgument, definition, genericParameter), e);
                 }
             }
         }
@@ -2412,7 +2409,7 @@ namespace System
             if (cache == null)
             {
                 cache = new RuntimeTypeCache(this);
-                RuntimeTypeCache existingCache = (RuntimeTypeCache)GCHandle.InternalCompareExchange(m_cache, cache, null, false);
+                RuntimeTypeCache existingCache = (RuntimeTypeCache)GCHandle.InternalCompareExchange(m_cache, cache, null);
                 if (existingCache != null)
                     cache = existingCache;
             }
@@ -3228,6 +3225,25 @@ namespace System
             return false;
         }
 
+#if FEATURE_TYPEEQUIVALENCE
+        // Reflexive, symmetric, transitive.
+        public override bool IsEquivalentTo(Type other)
+        {
+            var otherRtType = other as RuntimeType;
+            if (otherRtType is null)
+            {
+                return false;
+            }
+
+            if (otherRtType == this)
+            {
+                return true;
+            }
+
+            return RuntimeTypeHandle.IsEquivalentTo(this, otherRtType);
+        }
+#endif // FEATURE_TYPEEQUIVALENCE
+
         public override Type BaseType => GetBaseType();
 
         private RuntimeType GetBaseType()
@@ -3469,7 +3485,7 @@ namespace System
             if (valueType.IsEnum)
             {
                 if (!valueType.IsEquivalentTo(this))
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType.ToString(), ToString()));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType, this));
 
                 valueType = (RuntimeType)valueType.GetEnumUnderlyingType();
             }
@@ -3490,7 +3506,7 @@ namespace System
             {
                 RuntimeType underlyingType = Enum.InternalGetUnderlyingType(this);
                 if (underlyingType != valueType)
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType.ToString(), underlyingType.ToString()));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType, underlyingType));
 
                 ulong[] ulValues = Enum.InternalGetValues(this);
                 ulong ulValue = Enum.ToUInt64(value);
@@ -3753,7 +3769,7 @@ namespace System
             }
 
             if ((invokeAttr & BindingFlags.ExactBinding) == BindingFlags.ExactBinding)
-                throw new ArgumentException(string.Format(CultureInfo.CurrentUICulture, SR.Arg_ObjObjEx, value.GetType(), this));
+                throw new ArgumentException(SR.Format(SR.Arg_ObjObjEx, value.GetType(), this));
 
             return TryChangeType(value, binder, culture, needsSpecialCast);
         }
@@ -3794,7 +3810,7 @@ namespace System
                 }
             }
 
-            throw new ArgumentException(string.Format(CultureInfo.CurrentUICulture, SR.Arg_ObjObjEx, value.GetType(), this));
+            throw new ArgumentException(SR.Format(SR.Arg_ObjObjEx, value.GetType(), this));
         }
 
         // GetDefaultMembers
@@ -4331,7 +4347,7 @@ namespace System
         }
 
         internal object CreateInstanceImpl(
-            BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
+            BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture)
         {
             CreateInstanceCheckThis();
 
@@ -4401,8 +4417,7 @@ namespace System
                     {
                         Debug.Assert((invokeMethod.CallingConvention & CallingConventions.VarArgs) ==
                                             CallingConventions.VarArgs);
-                        throw new NotSupportedException(string.Format(CultureInfo.CurrentCulture,
-                            SR.NotSupported_CallToVarArg));
+                        throw new NotSupportedException(SR.NotSupported_CallToVarArg);
                     }
 
                     // fast path??
