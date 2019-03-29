@@ -3869,7 +3869,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             LOG((LF_INTEROP, LL_INFO100000, "%s", fieldname));
             LOG((LF_INTEROP, LL_INFO100000, "\n"));
 
-            if (((FieldMarshaler*)&pfwalk->m_FieldMarshaler)->GetNStructFieldType() == NFT_ILLEGAL)
+            if (((FieldMarshaler*)&pfwalk->m_FieldMarshaler)->IsIllegalMarshaler())
                 illegalMarshaler = TRUE;             
         }
 
@@ -3879,7 +3879,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             FieldMarshaler *pParentFM = pParentMT->GetLayoutInfo()->GetFieldMarshalers();
             for (i = 0; i < pParentMT->GetLayoutInfo()->m_numCTMFields; i++)
             {
-                if (pParentFM->GetNStructFieldType() == NFT_ILLEGAL)
+                if (pParentFM->IsIllegalMarshaler())
                     illegalMarshaler = TRUE;                                 
                 ((BYTE*&)pParentFM) += MAXFIELDMARSHALERSIZE;
             }

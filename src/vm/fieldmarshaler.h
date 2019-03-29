@@ -674,12 +674,6 @@ public:
 
 #endif // FEATURE_COMINTEROP
 
-class FieldMarshaler_NestedType : public FieldMarshaler
-{
-public:
-    MethodTable* GetNestedMethodTable() const;
-};
-
 //=======================================================================
 // Embedded struct <--> LayoutClass
 //=======================================================================
