@@ -914,7 +914,7 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
 void Compiler::eeDispVars(CORINFO_METHOD_HANDLE ftn, ULONG32 cVars, ICorDebugInfo::NativeVarInfo* vars)
 {
     printf("*************** Variable debug info\n");
-    printf("%d vars\n", cVars);
+    printf("%d live ranges\n", cVars);
     for (unsigned i = 0; i < cVars; i++)
     {
         eeDispVar(&vars[i]);
