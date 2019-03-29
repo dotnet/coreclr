@@ -796,6 +796,7 @@ namespace System.Globalization
                 {
                     case "zh-CHS":
                     case "zh-CHT":
+                        // TODO-NULLABLE: dotnet/roslyn#34273
                         return _sName!;
                 }
                 return _sRealName!;
@@ -883,10 +884,9 @@ namespace System.Globalization
                             // if DefaultThreadCurrentUICulture was set
                             CultureInfo ci;
 
-                            // TODO-NULLABLE: DefaultThreadCurrentUICulture checked for null
                             if (CultureInfo.DefaultThreadCurrentUICulture != null &&
                                 ((ci = GetUserDefaultCulture()) != null) &&
-                                !CultureInfo.DefaultThreadCurrentUICulture!.Name.Equals(ci.Name))
+                                !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci.Name))
                             {
                                 _sLocalizedDisplayName = NativeName;
                             }

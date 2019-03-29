@@ -31,9 +31,6 @@ namespace System.Globalization
         AbbrevEraNames = 14,
     }
 
-    // TODO-NULLABLE: this class requires refactoring for proper annotations
-    //                currently from user of this class all fields are non-nullable. To avoid potential breaking changes lots of workaround have
-    //                been used to surpress errors
     internal partial class CalendarData
     {
         private bool LoadCalendarDataFromSystem(string localeName, CalendarId calendarId)

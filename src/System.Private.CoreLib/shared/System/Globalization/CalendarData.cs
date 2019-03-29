@@ -54,7 +54,9 @@ namespace System.Globalization
         // Private constructor
         private CalendarData()
         {
-            // TODO-NULLABLE
+            // TODO-NULLABLE: this class requires refactoring for proper annotations
+            //                currently from user of this class all fields are non-nullable. To avoid potential breaking changes lots of workaround have
+            //                been used to suppress errors
             sNativeName = null!;
             saShortDates = null!;
             saYearMonths = null!;
