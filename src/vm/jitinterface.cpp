@@ -7465,6 +7465,34 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
 
     mdMethodDef tk = ftn->GetMemberDef();
 
+    if (tk == MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__IS_REFERENCE)->GetMemberDef())
+    {
+        _ASSERTE(ftn->HasMethodInstantiation());
+        Instantiation inst = ftn->GetMethodInstantiation();
+
+        _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
+        TypeHandle typeHandle = inst[0];
+        MethodTable * methodTable = typeHandle.GetMethodTable();
+
+        static const BYTE returnTrue[] = { CEE_LDC_I4_1, CEE_RET };
+        static const BYTE returnFalse[] = { CEE_LDC_I4_0, CEE_RET };
+
+        if (!methodTable->IsValueType())
+        {
+            methInfo->ILCode = const_cast<BYTE*>(returnTrue);
+        }
+        else
+        {
+            methInfo->ILCode = const_cast<BYTE*>(returnFalse);
+        }
+
+        methInfo->ILCodeSize = sizeof(returnTrue);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+
     if (tk == MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__IS_REFERENCE_OR_CONTAINS_REFERENCES)->GetMemberDef())
     {
         _ASSERTE(ftn->HasMethodInstantiation());
