@@ -10624,11 +10624,22 @@ void Compiler::impImportBlockCode(BasicBlock* block)
             SPILL_APPEND:
 
                 // We need to call impSpillLclRefs() for a struct type lclVar.
-                // This is done for non-block assignments in the handling of stloc.
-                if ((op1->OperGet() == GT_ASG) && varTypeIsStruct(op1->gtOp.gtOp1) &&
-                    (op1->gtOp.gtOp1->gtOper == GT_LCL_VAR))
+                if ((op1->OperGet() == GT_ASG) && varTypeIsStruct(op1->gtGetOp1()))
                 {
-                    impSpillLclRefs(op1->gtOp.gtOp1->AsLclVarCommon()->gtLclNum);
+                    GenTree*             lhs    = op1->gtGetOp1();
+                    GenTreeLclVarCommon* lclVar = nullptr;
+                    if (lhs->gtOper == GT_LCL_VAR)
+                    {
+                        lclVar = lhs->AsLclVarCommon();
+                    }
+                    else if (lhs->OperIsBlk())
+                    {
+                        lclVar = lhs->AsBlk()->Addr()->IsLocalAddrExpr();
+                    }
+                    if (lclVar != nullptr)
+                    {
+                        impSpillLclRefs(lclVar->gtLclNum);
+                    }
                 }
 
                 /* Append 'op1' to the list of statements */
