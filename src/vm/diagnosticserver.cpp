@@ -77,7 +77,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
     }
     EX_CATCH
     {
-        LOG((LF_DIAGNOSTICS_PORT, LL_ERROR, "Exception caught in diagnostic thread. Leaving thread now.\n"));
+        STRESS_LOG0(LF_DIAGNOSTICS_PORT, LL_ERROR, "Exception caught in diagnostic thread. Leaving thread now.\n");
         _ASSERTE(!"Hit an error in the diagnostic server thread\n.");
     }
     EX_END_CATCH(SwallowAllExceptions);
