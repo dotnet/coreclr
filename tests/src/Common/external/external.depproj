@@ -7,12 +7,11 @@
     -->
     <RestoreOutputPath>$(MSBuildThisFileDirectory)obj</RestoreOutputPath>
     <Language>C#</Language>
-    <NugetTargetMoniker>.NETCoreApp,Version=v1.1</NugetTargetMoniker>
-    <NugetTargetMonikerShort>netcoreapp1.1</NugetTargetMonikerShort>
-    <NugetRuntimeIdentifier>win7-x64</NugetRuntimeIdentifier>
+    <NugetTargetMoniker>.NETCoreApp,Version=v2.0</NugetTargetMoniker>
+    <NugetTargetMonikerShort>netcoreapp2.0</NugetTargetMonikerShort>
+    <NugetRuntimeIdentifier>win-x64</NugetRuntimeIdentifier>
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <OutputPath>$(TargetingPackPath)</OutputPath>
-    <XUnitRunnerPackageId>xunit.runner.console</XUnitRunnerPackageId>
     <XUnitRunnerTargetFramework>netcoreapp2.0</XUnitRunnerTargetFramework>
     <CLRTestKind>SharedLibrary</CLRTestKind>
     <IsTestProject>false</IsTestProject>
@@ -45,17 +44,17 @@
     <PackageReference Include="xunit">
       <Version>$(XunitPackageVersion)</Version>
     </PackageReference>
-    <PackageReference Include="$(XUnitRunnerPackageId)">
-      <Version>$(XunitPackageVersion)</Version>
+    <PackageReference Include="$(MicrosoftDotNetXUnitConsoleRunnerPackage)">
+      <Version>$(MicrosoftDotNetXUnitConsoleRunnerVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.runner.utility">
       <Version>$(XunitPackageVersion)</Version>
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
-    <TargetFramework>netcoreapp1.1</TargetFramework>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
     <PackageTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</PackageTargetFallback>
-    <RuntimeIdentifiers>win7-x86;win7-x64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x86;win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <PackageToInclude Include="xunit.abstractions"/>
@@ -81,20 +80,19 @@
 
   <PropertyGroup>
     <ProjectAssetsFile>$(SourceDir)Common\external\obj\project.assets.json</ProjectAssetsFile>
+    <_DotNetXUnitConsoleRunnerPackageDir>$(PackagesDir)\$(MicrosoftDotNetXUnitConsoleRunnerPackage)\$(MicrosoftDotNetXUnitConsoleRunnerVersion)\</_DotNetXUnitConsoleRunnerPackageDir>
   </PropertyGroup>
 
   <Target Name="AddXunitConsoleRunner" BeforeTargets="ResolveReferences">
-    <Error Condition="!Exists('$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\$(XUnitRunnerTargetFramework)\xunit.console.dll')"
-            Text="Error: looks the package $(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion) not restored or missing xunit.console.dll."
-    />
+    <Error Condition="!Exists('$(_DotNetXUnitConsoleRunnerPackageDir)lib\$(XUnitRunnerTargetFramework)\xunit.console.dll')"
+           Text="Error: looks the package $(_DotNetXUnitConsoleRunnerPackageDir) not restored or missing xunit.console.dll." />
     <ItemGroup>
       <ReferenceCopyLocalPaths
-        Include="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\$(XUnitRunnerTargetFramework)\*.*"
-        Exclude="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\$(XUnitRunnerTargetFramework)\xunit.console.dll.config"
-      >
+        Include="$(_DotNetXUnitConsoleRunnerPackageDir)lib\$(XUnitRunnerTargetFramework)\*.*"
+        Exclude="$(_DotNetXUnitConsoleRunnerPackageDir)lib\$(XUnitRunnerTargetFramework)\xunit.console.dll.config">
         <Private>false</Private>
-        <NuGetPackageId>$(XUnitRunnerPackageId)</NuGetPackageId>
-        <NuGetPackageVersion>$(XUnitPackageVersion)</NuGetPackageVersion>
+        <NuGetPackageId>$(MicrosoftDotNetXUnitConsoleRunnerPackage)</NuGetPackageId>
+        <NuGetPackageVersion>$(MicrosoftDotNetXUnitConsoleRunnerVersion)</NuGetPackageVersion>
       </ReferenceCopyLocalPaths>
     </ItemGroup>
 </Target>
