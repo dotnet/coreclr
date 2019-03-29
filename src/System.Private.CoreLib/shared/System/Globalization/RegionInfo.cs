@@ -22,7 +22,7 @@ namespace System.Globalization
         private readonly CultureData _cultureData;
 
         // The RegionInfo for our current region
-        internal static volatile RegionInfo s_currentRegionInfo;
+        internal static volatile RegionInfo? s_currentRegionInfo;
 
         public RegionInfo(string name)
         {
@@ -102,7 +102,7 @@ namespace System.Globalization
         {
             get
             {
-                RegionInfo temp = s_currentRegionInfo;
+                RegionInfo? temp = s_currentRegionInfo;
                 if (temp == null)
                 {
                     temp = new RegionInfo(CultureInfo.CurrentCulture._cultureData);

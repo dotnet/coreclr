@@ -460,7 +460,7 @@ namespace System.Globalization
             }
         }
 
-        private unsafe int LastIndexOfCore(string? source, string target, int startIndex, int count, CompareOptions options)
+        private unsafe int LastIndexOfCore(string source, string target, int startIndex, int count, CompareOptions options)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
 
@@ -498,7 +498,7 @@ namespace System.Globalization
             }
         }
 
-        private bool StartsWith(string source, string? prefix, CompareOptions options)
+        private bool StartsWith(string source, string prefix, CompareOptions options)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
 

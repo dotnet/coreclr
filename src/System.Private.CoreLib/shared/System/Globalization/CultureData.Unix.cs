@@ -19,7 +19,6 @@ namespace System.Globalization
         const int ICU_ULOC_FULLNAME_CAPACITY = 157;           // max size of locale name
         const string ICU_COLLATION_KEYWORD = "@collation=";
 
-
         /// <summary>
         /// This method uses the sRealName field (which is initialized by the constructor before this is called) to
         /// initialize the rest of the state of CultureData based on the underlying OS globalization library.
@@ -88,7 +87,7 @@ namespace System.Globalization
             return true;
         }
 
-        internal static unsafe bool GetLocaleName(string? localeName, out string? windowsName)
+        internal static unsafe bool GetLocaleName(string localeName, out string? windowsName)
         {
             // Get the locale name from ICU
             char* buffer = stackalloc char[ICU_ULOC_FULLNAME_CAPACITY];

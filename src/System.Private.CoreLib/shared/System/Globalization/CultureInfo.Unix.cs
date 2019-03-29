@@ -13,10 +13,11 @@ namespace System.Globalization
                 return CultureInfo.InvariantCulture;
 
             CultureInfo cultureInfo;
-            string localeName;
+            string? localeName;
             if (CultureData.GetDefaultLocaleName(out localeName))
             {
-                cultureInfo = GetCultureByName(localeName);
+                // localeName can be null only when the call fails
+                cultureInfo = GetCultureByName(localeName!);
             }
             else
             {

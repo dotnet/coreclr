@@ -48,10 +48,10 @@ namespace System.Globalization
         // The interesting part is that since haw-US doesn't have its own sort, it has to point at another
         // locale, which is what SCOMPAREINFO does.
         [OptionalField(VersionAdded = 2)]
-        private string? m_name;  // The name used to construct this CompareInfo. Do not rename (binary serialization)
+        private string m_name;  // The name used to construct this CompareInfo. Do not rename (binary serialization)
 
         [NonSerialized]
-        private string? _sortName; // The name that defines our behavior
+        private string _sortName; // The name that defines our behavior
 
         [OptionalField(VersionAdded = 3)]
         private SortVersion? m_SortVersion; // Do not rename (binary serialization)
@@ -62,8 +62,9 @@ namespace System.Globalization
         {
             m_name = culture._name;
             InitSort(culture);
-            // TODO-NULLABLE: Workaround compiler which sees this as uninitialized
+            // TODO-NULLABLE: Workaround compiler which sees these as uninitialized
             _sortHandle = _sortHandle!;
+            _sortName = _sortName!;
         }
 
         /// <summary>
@@ -173,10 +174,12 @@ namespace System.Globalization
         [OnDeserializing]
         private void OnDeserializing(StreamingContext ctx)
         {
-            m_name = null;
+            // TODO-NULLABLE: this becomes null for a brief moment before deserialization
+            //                after serialization is finished it is never null
+            m_name = null!;
         }
 
-        void IDeserializationCallback.OnDeserialization(object? sender)
+        void IDeserializationCallback.OnDeserialization(object sender)
         {
             OnDeserialized();
         }
@@ -220,7 +223,7 @@ namespace System.Globalization
         ///  what happens for a version update)
         /// </summary>
 
-        public virtual string? Name
+        public virtual string Name
         {
             get
             {

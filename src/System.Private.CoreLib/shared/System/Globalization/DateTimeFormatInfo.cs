@@ -340,7 +340,6 @@ namespace System.Globalization
         /// <summary>
         /// Returns the current culture's DateTimeFormatInfo.
         /// </summary>
-
         public static DateTimeFormatInfo CurrentInfo
         {
             get
@@ -348,17 +347,17 @@ namespace System.Globalization
                 System.Globalization.CultureInfo culture = System.Globalization.CultureInfo.CurrentCulture;
                 if (!culture._isInherited)
                 {
-                    DateTimeFormatInfo info = culture._dateTimeInfo;
+                    DateTimeFormatInfo? info = culture._dateTimeInfo;
                     if (info != null)
                     {
                         return info;
                     }
                 }
-                return (DateTimeFormatInfo)culture.GetFormat(typeof(DateTimeFormatInfo));
+                return (DateTimeFormatInfo)culture.GetFormat(typeof(DateTimeFormatInfo))!;
             }
         }
 
-        public static DateTimeFormatInfo GetInstance(IFormatProvider provider) =>
+        public static DateTimeFormatInfo GetInstance(IFormatProvider? provider) =>
             provider == null ? CurrentInfo :
             provider is CultureInfo cultureProvider && !cultureProvider._isInherited ? cultureProvider.DateTimeFormat :
             provider is DateTimeFormatInfo info ? info :
@@ -2268,7 +2267,7 @@ namespace System.Globalization
 
                 // We need to rescan the date words since we're always synthetic
                 DateTimeFormatInfoScanner scanner = new DateTimeFormatInfoScanner();
-                string[] dateWords = dateWords = scanner.GetDateWordsOfDTFI(this);
+                string[]? dateWords = dateWords = scanner.GetDateWordsOfDTFI(this);
                 // Ensure the formatflags is initialized.
                 DateTimeFormatFlags flag = FormatFlags;
 

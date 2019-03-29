@@ -883,9 +883,10 @@ namespace System.Globalization
                             // if DefaultThreadCurrentUICulture was set
                             CultureInfo ci;
 
+                            // TODO-NULLABLE: DefaultThreadCurrentUICulture checked for null
                             if (CultureInfo.DefaultThreadCurrentUICulture != null &&
                                 ((ci = GetUserDefaultCulture()) != null) &&
-                                !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci.Name))
+                                !CultureInfo.DefaultThreadCurrentUICulture!.Name.Equals(ci.Name))
                             {
                                 _sLocalizedDisplayName = NativeName;
                             }
@@ -1068,7 +1069,7 @@ namespace System.Globalization
 
                     if (CultureInfo.DefaultThreadCurrentUICulture != null &&
                         ((ci = GetUserDefaultCulture()) != null) &&
-                        !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci.Name))
+                        !CultureInfo.DefaultThreadCurrentUICulture!.Name.Equals(ci.Name))
                     {
                         _sLocalizedLanguage = NativeLanguageName;
                     }
@@ -2329,17 +2330,17 @@ namespace System.Globalization
         {
             if (GlobalizationMode.Invariant || IsInvariantCulture)
             {
-                nfi._positiveSign = _sPositiveSign;
-                nfi._negativeSign = _sNegativeSign;
+                nfi._positiveSign = _sPositiveSign!;
+                nfi._negativeSign = _sNegativeSign!;
 
-                nfi._numberGroupSeparator = _sThousandSeparator;
-                nfi._numberDecimalSeparator = _sDecimalSeparator;
+                nfi._numberGroupSeparator = _sThousandSeparator!;
+                nfi._numberDecimalSeparator = _sDecimalSeparator!;
                 nfi._numberDecimalDigits = _iDigits;
                 nfi._numberNegativePattern = _iNegativeNumber;
 
-                nfi._currencySymbol = _sCurrency;
-                nfi._currencyGroupSeparator = _sMonetaryThousand;
-                nfi._currencyDecimalSeparator = _sMonetaryDecimal;
+                nfi._currencySymbol = _sCurrency!;
+                nfi._currencyGroupSeparator = _sMonetaryThousand!;
+                nfi._currencyDecimalSeparator = _sMonetaryDecimal!;
                 nfi._currencyDecimalDigits = _iCurrencyDigits;
                 nfi._currencyNegativePattern = _iNegativeCurrency;
                 nfi._currencyPositivePattern = _iCurrency;
