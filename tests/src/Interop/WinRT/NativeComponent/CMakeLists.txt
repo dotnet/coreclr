@@ -19,26 +19,43 @@ set(SOURCES
 )
 
 set (MIDL_GENERATED_WINMD ${CMAKE_CURRENT_BINARY_DIR}/WinMD/Component.Contracts.winmd)
-string(REPLACE "/" "\\" MIDL_GENERATED_WINMD_WINDOWS_PATH ${MIDL_GENERATED_WINMD})
+file(TO_NATIVE_PATH ${MIDL_GENERATED_WINMD} MIDL_GENERATED_WINMD_WINDOWS_PATH)
 
 if(NOT DEFINED CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION OR CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION STREQUAL "" )
-  message(FATAL_ERROR "Windows SDK is required for the WinRT tests build.")
+  message(FATAL_ERROR "Windows SDK is required for the WinRT interop tests build.")
 else()
-  message("Using Windows SDK version ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
+  message("Using Windows SDK version ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} for WinRT interop tests.")
 endif()
+
+set (METADATA_DIR "C:/Program Files (x86)/Windows Kits/10/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/windows.foundation.foundationcontract/*" )
+set (REFERENCE_WINMDS
+  "C:/Program Files (x86)/Windows Kits/10/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.FoundationContract/*/Windows.Foundation.FoundationContract.winmd"
+  "C:/Program Files (x86)/Windows Kits/10/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.UniversalApiContract/*/Windows.Foundation.UniversalApiContract.winmd")
+
+file(GLOB RESOLVED_METADATA_DIR ${METADATA_DIR})
+file(TO_NATIVE_PATH ${RESOLVED_METADATA_DIR} METADATA_DIR_ARGUMENT)
+
+file(GLOB_RECURSE RESOLVED_REFERENCE_WINMDS ${REFERENCE_WINMDS})
+
+set (REFERENCE_WINMD_ARGS "")
+foreach(WINMD ${RESOLVED_REFERENCE_WINMDS})
+  file(TO_NATIVE_PATH ${WINMD} WINMD_WINDOWS)
+  set(WINMD_WINDOWS "${WINMD_WINDOWS}")
+  string(PREPEND WINMD_WINDOWS "/reference")
+  list(APPEND REFERENCE_WINMD_ARGS ${WINMD_WINDOWS})
+endforeach()
 
 set (MIDL_FILE ../Contracts/Component.Contracts.idl)
 set (MIDL_COMMAND_LINE_ARGS
   /winrt
-  /metadata_dir "C:\\Program Files (x86)\\Windows Kits\\10\\References\\${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}\\windows.foundation.foundationcontract\\3.0.0.0" 
+  /metadata_dir ${METADATA_DIR_ARGUMENT}
   /W1
   /enum_class 
   /ns_prefix 
   /target "NT60"  
   /nomidl 
   /h "nul"
-  /reference "C:\\Program Files (x86)\\Windows Kits\\10\\References\\${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}\\Windows.Foundation.FoundationContract\\3.0.0.0\\Windows.Foundation.FoundationContract.winmd" 
-  /reference "C:\\Program Files (x86)\\Windows Kits\\10\\References\\${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}\\Windows.Foundation.UniversalApiContract\\7.0.0.0\\Windows.Foundation.UniversalApiContract.winmd"
+  ${REFERENCE_WINMD_ARGS}
 )
 
 find_program(MIDLRT midlrt)
