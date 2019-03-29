@@ -25,7 +25,7 @@ extern _s_gsCookie:DWORD
 extern ??_7InlinedCallFrame@@6B@:DWORD
 extern _g_TrapReturningThreads:DWORD
 
-extern @JIT_RareDisableAndPopFrameFromThreadHelper@0:proc
+extern @JIT_PInvokeEndRarePath@0:proc
 
 .686P
 .XMM
@@ -95,7 +95,7 @@ _JIT_PInvokeEnd@4 PROC public
 
         ;; Check return trap
         cmp             [_g_TrapReturningThreads], 0
-        jnz             _JIT_PInvokeEndRarePath@8
+        jnz             RarePath
 
         ;; pThread->m_pFrame = pFrame->m_Next
         mov             eax, dword ptr [ecx + Frame__m_Next]
@@ -105,27 +105,9 @@ _JIT_PInvokeEnd@4 PROC public
 
         ret
 
+RarePath:
+        jmp             @JIT_PInvokeEndRarePath@0
+
 _JIT_PInvokeEnd@4 ENDP
-
-;
-; in:
-; InlinedCallFrame (ecx) = pointer to the InlinedCallFrame data
-; Thread           (edx) = pointer to current thread
-;
-;
-_JIT_PInvokeEndRarePath@8 PROC public
-
-        push            ecx             ; Save pFrame pointer
-
-        ;; Call GC helper
-        call            @JIT_RareDisableAndPopFrameFromThreadHelper@0
-
-        pop             ecx
-
-        mov             dword ptr [ecx + InlinedCallFrame__m_pCallerReturnAddress], 0
-
-        ret
-
-_JIT_PInvokeEndRarePath@8 ENDP
 
         end

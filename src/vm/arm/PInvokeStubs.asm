@@ -16,7 +16,7 @@
 
     IMPORT VarargPInvokeStubWorker
     IMPORT GenericPInvokeCalliStubWorker
-    IMPORT JIT_RareDisableAndPopFrameFromThreadHelper
+    IMPORT JIT_PInvokeEndRarePath
 
     IMPORT s_gsCookie
     IMPORT g_TrapReturningThreads
@@ -181,7 +181,7 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
             ;; Check return trap
             ldr     r2, =g_TrapReturningThreads
             ldr     r2, [r2]
-            cbnz    r2, JIT_PInvokeEndRarePath
+            cbnz    r2, RarePath
 
             ;; pThread->m_pFrame = pFrame->m_Next
             ldr     r2, [r0, #Frame__m_Next]
@@ -191,36 +191,12 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
             str     r2, [r0, #InlinedCallFrame__m_pCallerReturnAddress]
 
             bx      lr
+
+RarePath
+            b       JIT_PInvokeEndRarePath
         
         LEAF_END
         
-; ------------------------------------------------------------------
-; JIT_PInvokeEndRarePath helper
-;
-; in:
-; r0 = InlinedCallFrame*
-; r1 = Thread*
-; 
-        NESTED_ENTRY JIT_PInvokeEndRarePath
-
-            PROLOG_PUSH         {r4,r5,r7,lr}
-            PROLOG_STACK_SAVE   r7
-
-            ;; Save frame in callee saved registers
-            mov         r4, r0
-
-            ;; Call GC helper
-            bl          JIT_RareDisableAndPopFrameFromThreadHelper
-
-            mov         r2, 0
-            str         r2, [r4, #InlinedCallFrame__m_pCallerReturnAddress]
-                    
-            EPILOG_STACK_RESTORE    r7
-            EPILOG_POP              {r4,r5,r7,lr}
-            EPILOG_RETURN
-            
-        NESTED_END
-
         INLINE_GETTHREAD_CONSTANT_POOL
 
 ; ------------------------------------------------------------------

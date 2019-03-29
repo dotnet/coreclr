@@ -13,7 +13,7 @@ include AsmConstants.inc
 
 extern GenericPInvokeCalliStubWorker:proc
 extern VarargPInvokeStubWorker:proc
-extern JIT_RareDisableAndPopFrameFromThreadHelper:proc
+extern JIT_PInvokeEndRarePath:proc
 
 extern s_gsCookie:QWORD
 extern ??_7InlinedCallFrame@@6B@:QWORD
@@ -204,7 +204,7 @@ LEAF_ENTRY JIT_PInvokeEnd, _TEXT
 
         ;; Check return trap
         cmp             [g_TrapReturningThreads], 0
-        jnz             JIT_PInvokeEndRarePath
+        jnz             RarePath
 
         ;; pThread->m_pFrame = pFrame->m_Next
         mov             rax, qword ptr [rcx + OFFSETOF__Frame__m_Next]
@@ -214,32 +214,9 @@ LEAF_ENTRY JIT_PInvokeEnd, _TEXT
 
         ret
 
+RarePath:
+        jmp             JIT_PInvokeEndRarePath
+
 LEAF_END JIT_PInvokeEnd, _TEXT
-
-;
-; in:
-; InlinedCallFrame (rcx) = pointer to the InlinedCallFrame data
-; Thread           (rdx) = pointer to current thread
-;
-;
-NESTED_ENTRY JIT_PInvokeEndRarePath, _TEXT
-
-        alloc_stack         MIN_SIZE
-        save_reg_postrsp    r14, MIN_SIZE + 08h
-        END_PROLOGUE
-
-        ;; Save frame in callee saved registers
-        mov             r14, rcx
-
-        ;; Call helper
-        call            JIT_RareDisableAndPopFrameFromThreadHelper
-
-        mov             qword ptr [r14 + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], 0
-
-        mov             r14, qword ptr [rsp + MIN_SIZE + 08h]
-        add             rsp, MIN_SIZE
-        ret
-
-NESTED_END JIT_PInvokeEndRarePath, _TEXT
 
         end

@@ -5593,11 +5593,11 @@ HCIMPLEND
 
 
 /*************************************************************/
-// This helper is similar to JIT_RareDisableHelper, but also pops the current
-// frame from the current thread
-extern "C" FCDECL0(VOID, JIT_RareDisableAndPopFrameFromThreadHelper);
+// This helper is similar to JIT_RareDisableHelper, but has more operations
+// tailored to the post-pinvoke operations.
+extern "C" FCDECL0(VOID, JIT_PInvokeEndRarePath);
 
-HCIMPL0(void, JIT_RareDisableAndPopFrameFromThreadHelper)
+HCIMPL0(void, JIT_PInvokeEndRarePath)
 {
     BEGIN_PRESERVE_LAST_ERROR;
 
@@ -5617,7 +5617,11 @@ HCIMPL0(void, JIT_RareDisableAndPopFrameFromThreadHelper)
     thread->HandleThreadAbort();
     HELPER_METHOD_FRAME_END();
 
-    thread->m_pFrame = thread->m_pFrame->PtrNextFrame();
+    InlinedCallFrame* frame = (InlinedCallFrame*)thread->m_pFrame;
+
+    thread->m_pFrame->Pop(thread);
+
+    frame->m_pCallerReturnAddress = NULL;
 
     END_PRESERVE_LAST_ERROR;
 }
