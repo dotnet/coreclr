@@ -1520,19 +1520,21 @@ BOOL MethodTable::CanCastByVarianceToInterfaceOrDelegate(MethodTable *pTargetMT,
     }
     CONTRACTL_END
 
-    BOOL returnValue = FALSE;
-
-    EEClass *pClass = NULL;
-
-    TypeHandlePairList pairList(this, pTargetMT, pVisited);
-
-    if (TypeHandlePairList::Exists(pVisited, this, pTargetMT))
-        goto Exit;
-
-    if (GetTypeDefRid() != pTargetMT->GetTypeDefRid() || GetModule() != pTargetMT->GetModule())
+    // shortcut when haing same types
+    if (this == pTargetMT)
     {
-        goto Exit;
+        return TRUE;
     }
+
+    if (GetTypeDefRid() != pTargetMT->GetTypeDefRid() || GetModule() != pTargetMT->GetModule() ||
+        TypeHandlePairList::Exists(pVisited, this, pTargetMT))
+    {
+        return FALSE;
+    }
+
+    EEClass* pClass = NULL;
+    TypeHandlePairList pairList(this, pTargetMT, pVisited);
+    BOOL returnValue = FALSE;
 
     {
         pClass = pTargetMT->GetClass();
