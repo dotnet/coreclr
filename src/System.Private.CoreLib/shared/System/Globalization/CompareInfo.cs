@@ -61,7 +61,6 @@ namespace System.Globalization
         internal CompareInfo(CultureInfo culture)
         {
             m_name = culture._name;
-            _sortHandle = null!;
             _sortName = null!;
             InitSort(culture);
         }
