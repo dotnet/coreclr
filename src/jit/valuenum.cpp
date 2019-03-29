@@ -2525,12 +2525,16 @@ TailCall:
             }
         }
 
-        // Otherwise, assign a new VN for the function application.
-        Chunk*   c                                                     = GetAllocChunk(typ, CEA_Func2);
-        unsigned offsetWithinChunk                                     = c->AllocVN();
-        res                                                            = c->m_baseVN + offsetWithinChunk;
-        reinterpret_cast<VNDefFunc2Arg*>(c->m_defs)[offsetWithinChunk] = fstruct;
-        GetVNFunc2Map()->Set(fstruct, res);
+        // We may have run out of budget and already assigned a result
+        if (!GetVNFunc2Map()->Lookup(fstruct, &res))
+        {
+            // Otherwise, assign a new VN for the function application.
+            Chunk*   c                                                     = GetAllocChunk(typ, CEA_Func2);
+            unsigned offsetWithinChunk                                     = c->AllocVN();
+            res                                                            = c->m_baseVN + offsetWithinChunk;
+            reinterpret_cast<VNDefFunc2Arg*>(c->m_defs)[offsetWithinChunk] = fstruct;
+            GetVNFunc2Map()->Set(fstruct, res);
+        }
         return res;
     }
 }
@@ -5919,8 +5923,6 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
     compCurStmtNum = blk->bbStmtNum - 1; // Set compCurStmtNum
 #endif
 
-    unsigned outerLoopNum = BasicBlock::NOT_IN_LOOP;
-
     // First: visit phi's.  If "newVNForPhis", give them new VN's.  If not,
     // first check to see if all phi args have the same value.
     GenTree* firstNonPhi = blk->FirstNonPhiDef();
@@ -7845,7 +7847,6 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             // can recognize redundant loads with no stores between them.
             GenTree*             addr         = tree->AsIndir()->Addr();
             GenTreeLclVarCommon* lclVarTree   = nullptr;
-            FieldSeqNode*        fldSeq1      = nullptr;
             FieldSeqNode*        fldSeq2      = nullptr;
             GenTree*             obj          = nullptr;
             GenTree*             staticOffset = nullptr;
@@ -7886,9 +7887,6 @@ void Compiler::fgValueNumberTree(GenTree* tree)
 
                 ValueNum      inxVN  = ValueNumStore::NoVN;
                 FieldSeqNode* fldSeq = nullptr;
-
-                // GenTree* addr = tree->gtOp.gtOp1;
-                ValueNum addrVN = addrNvnp.GetLiberal();
 
                 // Try to parse it.
                 GenTree* arr = nullptr;
@@ -9745,7 +9743,8 @@ void Compiler::JitTestCheckVN()
                 }
                 // The mapping(s) must be one-to-one: if the label has a mapping, then the ssaNm must, as well.
                 ssize_t num2;
-                bool    b = vnToLabel->Lookup(vn, &num2);
+                bool    found = vnToLabel->Lookup(vn, &num2);
+                assert(found);
                 // And the mappings must be the same.
                 if (tlAndN.m_num != num2)
                 {

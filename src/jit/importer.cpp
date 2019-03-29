@@ -108,10 +108,10 @@ void Compiler::impPushOnStack(GenTree* tree, typeInfo ti)
         // attempts to do that have proved too difficult.  Instead, we'll assume that in checks like this,
         // when there's a mismatch, it's because of this reason -- the typeInfo::AreEquivalentModuloNativeInt
         // method used in the last disjunct allows exactly this mismatch.
-        assert(ti.IsDead() || ti.IsByRef() && (tree->TypeGet() == TYP_I_IMPL || tree->TypeGet() == TYP_BYREF) ||
-               ti.IsUnboxedGenericTypeVar() && tree->TypeGet() == TYP_REF ||
-               ti.IsObjRef() && tree->TypeGet() == TYP_REF || ti.IsMethod() && tree->TypeGet() == TYP_I_IMPL ||
-               ti.IsType(TI_STRUCT) && tree->TypeGet() != TYP_REF ||
+        assert(ti.IsDead() || (ti.IsByRef() && (tree->TypeGet() == TYP_I_IMPL) || tree->TypeGet() == TYP_BYREF) ||
+               (ti.IsUnboxedGenericTypeVar() && tree->TypeGet() == TYP_REF) ||
+               (ti.IsObjRef() && tree->TypeGet() == TYP_REF) || (ti.IsMethod() && tree->TypeGet() == TYP_I_IMPL) ||
+               (ti.IsType(TI_STRUCT) && tree->TypeGet() != TYP_REF) ||
                typeInfo::AreEquivalentModuloNativeInt(NormaliseForStack(ti),
                                                       NormaliseForStack(typeInfo(tree->TypeGet()))));
 
@@ -618,21 +618,8 @@ inline void Compiler::impAppendStmt(GenTree* stmt, unsigned chkLevel)
                     // Since we don't know what it assigns to, we need to spill global refs.
                     spillGlobEffects = true;
                 }
-                else if (!expr->OperIsBlkOp())
+                else if ((lhs->gtFlags & GTF_GLOB_REF) != 0)
                 {
-                    // If we are assigning to a global ref, we have to spill global refs on stack
-                    if ((lhs->gtFlags & GTF_GLOB_REF) != 0)
-                    {
-                        spillGlobEffects = true;
-                    }
-                }
-                else if ((lhs->OperIsBlk() && !lhs->AsBlk()->HasGCPtr()) ||
-                         ((lhs->OperGet() == GT_LCL_VAR) &&
-                          (lvaTable[lhs->AsLclVarCommon()->gtLclNum].lvStructGcCount == 0)))
-                {
-                    // TODO-1stClassStructs: Previously, spillGlobEffects was set to true for
-                    // GT_INITBLK and GT_COPYBLK, but this is overly conservative, and should be
-                    // revisited. (Note that it was NOT set to true for GT_COPYOBJ.)
                     spillGlobEffects = true;
                 }
             }
@@ -1389,8 +1376,6 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
     }
     if (dest == nullptr)
     {
-        // TODO-1stClassStructs: We shouldn't really need a block node as the destination
-        // if this is a known struct type.
         if (asgType == TYP_STRUCT)
         {
             dest = gtNewObjNode(structHnd, destAddr);
@@ -1400,10 +1385,6 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
             // of a block assignment.
             dest->gtFlags &= ~GTF_GLOB_REF;
             dest->gtFlags |= (destAddr->gtFlags & GTF_GLOB_REF);
-        }
-        else if (varTypeIsStruct(asgType))
-        {
-            dest = new (this, GT_BLK) GenTreeBlk(GT_BLK, asgType, destAddr, genTypeSize(asgType));
         }
         else
         {
@@ -4143,7 +4124,7 @@ GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
     // Intrinsics that are not implemented directly by target instructions will
     // be re-materialized as users calls in rationalizer. For prefixed tail calls,
     // don't do this optimization, because
-    //  a) For back compatibility reasons on desktop.Net 4.6 / 4.6.1
+    //  a) For back compatibility reasons on desktop .NET Framework 4.6 / 4.6.1
     //  b) It will be non-trivial task or too late to re-materialize a surviving
     //     tail prefixed GT_INTRINSIC as tail call in rationalizer.
     if (!IsIntrinsicImplementedByUserCall(intrinsicID) || !tailCall)
@@ -10139,10 +10120,10 @@ var_types Compiler::impGetByRefResultType(genTreeOps oper, bool fUnsigned, GenTr
             // to have a tree like this:
             //
             //              -
-            //             / \
-            //            /   \
-            //           /     \
-            //          /       \
+            //             / \.
+            //            /   \.
+            //           /     \.
+            //          /       \.
             // const(h) int     addr byref
             //
             // <BUGNUM> VSW 318822 </BUGNUM>
@@ -10450,7 +10431,7 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // expand the methodtable match:
     //
     //  condMT ==>   GT_NE
-    //               /    \
+    //               /    \.
     //           GT_IND   op2 (typically CNS_INT)
     //              |
     //           op1Copy
@@ -10479,7 +10460,7 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // expand the null check:
     //
     //  condNull ==>   GT_EQ
-    //                 /    \
+    //                 /    \.
     //             op1Copy CNS_INT
     //                      null
     //
@@ -10512,9 +10493,9 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // Generate first QMARK - COLON tree
     //
     //  qmarkMT ==>   GT_QMARK
-    //                 /     \
+    //                 /     \.
     //            condMT   GT_COLON
-    //                      /     \
+    //                      /     \.
     //                condFalse  condTrue
     //
     temp    = new (this, GT_COLON) GenTreeColon(TYP_REF, condTrue, condFalse);
@@ -10525,9 +10506,9 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     // Generate second QMARK - COLON tree
     //
     //  qmarkNull ==>  GT_QMARK
-    //                 /     \
+    //                 /     \.
     //           condNull  GT_COLON
-    //                      /     \
+    //                      /     \.
     //                qmarkMT   op1Copy
     //
     temp      = new (this, GT_COLON) GenTreeColon(TYP_REF, gtClone(op1), qmarkMT);
@@ -14527,9 +14508,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         assert(!"Unexpected fieldAccessor");
                 }
 
-                // Create the member assignment, unless we have a struct.
-                // TODO-1stClassStructs: This could be limited to TYP_STRUCT, to avoid extra copies.
-                bool deferStructAssign = varTypeIsStruct(lclTyp);
+                // Create the member assignment, unless we have a TYP_STRUCT.
+                bool deferStructAssign = (lclTyp == TYP_STRUCT);
 
                 if (!deferStructAssign)
                 {
@@ -16220,10 +16200,6 @@ GenTree* Compiler::impAssignSmallStructTypeToVar(GenTree* op, CORINFO_CLASS_HAND
     unsigned tmpNum = lvaGrabTemp(true DEBUGARG("Return value temp for small struct return."));
     impAssignTempGen(tmpNum, op, hClass, (unsigned)CHECK_SPILL_ALL);
     GenTree* ret = gtNewLclvNode(tmpNum, lvaTable[tmpNum].lvType);
-
-    // TODO-1stClassStructs: Handle constant propagation and CSE-ing of small struct returns.
-    ret->gtFlags |= GTF_DONT_CSE;
-
     return ret;
 }
 
@@ -18169,8 +18145,8 @@ BOOL Compiler::impIsAddressInLocal(GenTree* tree, GenTree** lclVarTreeOut)
 
 void Compiler::impMakeDiscretionaryInlineObservations(InlineInfo* pInlineInfo, InlineResult* inlineResult)
 {
-    assert(pInlineInfo != nullptr && compIsForInlining() || // Perform the actual inlining.
-           pInlineInfo == nullptr && !compIsForInlining()   // Calculate the static inlining hint for ngen.
+    assert((pInlineInfo != nullptr && compIsForInlining()) || // Perform the actual inlining.
+           (pInlineInfo == nullptr && !compIsForInlining())   // Calculate the static inlining hint for ngen.
            );
 
     // If we're really inlining, we should just have one result in play.

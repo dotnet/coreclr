@@ -95,6 +95,7 @@ private:
     static bool genShouldRoundFP();
 
     GenTreeIndir indirForm(var_types type, GenTree* base);
+    GenTreeStoreInd storeIndirForm(var_types type, GenTree* base, GenTree* data);
 
     GenTreeIntCon intForm(var_types type, ssize_t value);
 
@@ -125,10 +126,6 @@ private:
 
     bool     genUseBlockInit;  // true if we plan to block-initialize the local stack frame
     unsigned genInitStkLclCnt; // The count of local variables that we need to zero init
-
-    //  Keeps track of how many bytes we've pushed on the processor's stack.
-    //
-    unsigned genStackLevel;
 
     void SubtractStackLevel(unsigned adjustment)
     {
@@ -513,7 +510,7 @@ protected:
 
 #ifdef _TARGET_ARM64_
     virtual void SetSaveFpLrWithAllCalleeSavedRegisters(bool value);
-    virtual bool IsSaveFpLrWithAllCalleeSavedRegisters();
+    virtual bool IsSaveFpLrWithAllCalleeSavedRegisters() const;
     bool         genSaveFpLrWithAllCalleeSavedRegisters;
 #endif // _TARGET_ARM64_
 
@@ -561,8 +558,9 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                          siVarLoc*      varLoc);
 
     void genSetScopeInfo();
+#ifdef USING_SCOPE_INFO
+    void genSetScopeInfoUsingsiScope();
 
-protected:
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -668,7 +666,6 @@ public:
     const char* siStackVarName(size_t offs, size_t size, unsigned reg, unsigned stkOffs);
 #endif // LATE_DISASM
 
-public:
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -749,14 +746,16 @@ protected:
     void psiEndPrologScope(psiScope* scope);
 
     void psSetScopeOffset(psiScope* newScope, LclVarDsc* lclVarDsc1);
+#endif // USING_SCOPE_INFO
 
-/*****************************************************************************
- *                        TrnslLocalVarInfo
- *
- * This struct holds the LocalVarInfo in terms of the generated native code
- * after a call to genSetScopeInfo()
- */
+    /*****************************************************************************
+     *                        TrnslLocalVarInfo
+     *
+     * This struct holds the LocalVarInfo in terms of the generated native code
+     * after a call to genSetScopeInfo()
+     */
 
+protected:
 #ifdef DEBUG
 
     struct TrnslLocalVarInfo
@@ -1042,6 +1041,9 @@ protected:
 
     void genConsumeRegs(GenTree* tree);
     void genConsumeOperands(GenTreeOp* tree);
+#ifdef FEATURE_HW_INTRINSICS
+    void genConsumeHWIntrinsicOperands(GenTreeHWIntrinsic* tree);
+#endif // FEATURE_HW_INTRINSICS
     void genEmitGSCookieCheck(bool pushReg);
     void genSetRegToIcon(regNumber reg, ssize_t val, var_types type = TYP_INT, insFlags flags = INS_FLAGS_DONT_CARE);
     void genCodeForShift(GenTree* tree);
@@ -1311,6 +1313,7 @@ public:
 
 #if defined(_TARGET_XARCH_)
     void inst_RV_RV_IV(instruction ins, emitAttr size, regNumber reg1, regNumber reg2, unsigned ival);
+    void inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenTree* rmOp, int ival);
 #endif
 
     void inst_RV_RR(instruction ins, emitAttr size, regNumber reg1, regNumber reg2);

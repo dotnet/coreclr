@@ -401,7 +401,7 @@ public:
             pcsUnmarshal->EmitLDLOCA(dwFactoryRetValLocalNum);
         }
 
-        pcsUnmarshal->EmitCALL(METHOD__MARSHAL__INITIALIZE_WRAPPER_FOR_WINRT, 2, 0);
+        pcsUnmarshal->EmitCALL(METHOD__WINDOWSRUNTIMEMARSHAL__INITIALIZE_WRAPPER, 2, 0);
 
         /*
         *   CLEANUP 
@@ -650,7 +650,7 @@ public:
         BinderMethodID getHRForException;
         if (SF_IsWinRTStub(m_dwStubFlags))
         {
-            getHRForException = METHOD__MARSHAL__GET_HR_FOR_EXCEPTION_WINRT;
+            getHRForException = METHOD__WINDOWSRUNTIMEMARSHAL__GET_HR_FOR_EXCEPTION;
         }
         else
         {
@@ -4139,6 +4139,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
                     COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_BADNATL_THISCALL);
             }
 
+            fHasCopyCtorArgs = info.GetMarshalType() == MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR ? TRUE : FALSE;
 
             argidx++;
         }

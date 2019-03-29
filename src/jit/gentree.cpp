@@ -3510,6 +3510,26 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     costSz = 2 * 2;
                     break;
 
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_XARCH_)
+                case GT_HWIntrinsic:
+                {
+                    if (tree->AsHWIntrinsic()->OperIsMemoryLoadOrStore())
+                    {
+                        costEx = IND_COST_EX;
+                        costSz = 2;
+                        // See if we can form a complex addressing mode.
+
+                        GenTree* addr = op1->gtEffectiveVal();
+
+                        if (addr->OperIs(GT_ADD) && gtMarkAddrMode(addr, &costEx, &costSz, tree->TypeGet()))
+                        {
+                            goto DONE;
+                        }
+                    }
+                }
+                break;
+#endif // FEATURE_HW_INTRINSICS && _TARGET_XARCH_
+
                 case GT_BLK:
                 case GT_IND:
 
@@ -16509,14 +16529,44 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
                 if (varTypeIsSIMD(tree))
                 {
                     structHnd = gtGetStructHandleForSIMD(tree->gtType, TYP_FLOAT);
+#ifdef FEATURE_HW_INTRINSICS
+                    if (structHnd == NO_CLASS_HANDLE)
+                    {
+                        structHnd = gtGetStructHandleForHWSIMD(tree->gtType, TYP_FLOAT);
+                    }
+#endif
                 }
                 else
 #endif
                 {
+                    // Attempt to find a handle for this expression.
+                    // We can do this for an array element indirection, or for a field indirection.
                     ArrayInfo arrInfo;
                     if (TryGetArrayInfo(tree->AsIndir(), &arrInfo))
                     {
                         structHnd = EncodeElemType(arrInfo.m_elemType, arrInfo.m_elemStructType);
+                    }
+                    else
+                    {
+                        GenTree* addr = tree->AsIndir()->Addr();
+                        if ((addr->OperGet() == GT_ADD) && addr->gtGetOp2()->OperIs(GT_CNS_INT))
+                        {
+                            FieldSeqNode* fieldSeq = addr->gtGetOp2()->AsIntCon()->gtFieldSeq;
+
+                            if (fieldSeq != nullptr)
+                            {
+                                while (fieldSeq->m_next != nullptr)
+                                {
+                                    fieldSeq = fieldSeq->m_next;
+                                }
+                                if (fieldSeq != FieldSeqStore::NotAField() && !fieldSeq->IsPseudoField())
+                                {
+                                    CORINFO_FIELD_HANDLE fieldHnd = fieldSeq->m_fieldHnd;
+                                    CorInfoType fieldCorType = info.compCompHnd->getFieldType(fieldHnd, &structHnd);
+                                    assert(fieldCorType == CORINFO_TYPE_VALUECLASS);
+                                }
+                            }
+                        }
                     }
                 }
                 break;

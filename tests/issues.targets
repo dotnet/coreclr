@@ -47,9 +47,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_11408/GitHub_11408/*">
             <Issue>11408</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_20958/GitHub_20958/*">
-            <Issue>22410</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/exceptions/StackTracePreserve/StackTracePreserveTests/*">
             <Issue>20322</Issue>
         </ExcludeList>
@@ -70,6 +67,21 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/waithandle/waitany/waitanyex2a/*">
             <Issue>19406</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Regressions/coreclr/22728/*">
+            <Issue>23262</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/tracing/keyword/TwoKeywords/TwoKeywords/*">
+            <Issue>23224, often fails with timeout in release</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/X86/Bmi2/**">
+            <Issue>23534</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/X86/Bmi2.X64/**">
+            <Issue>23534</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/X86/Regression/GitHub_21899/**">
+            <Issue>23534</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -277,7 +289,7 @@
             <Issue>22974</Issue>
         </ExcludeList>
     </ItemGroup>
-    
+
     <!-- Windows x64 specific excludes -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'x64' and '$(TargetsWindows)' == 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_18056/Bool_And_Op_cs_do/*">
@@ -316,9 +328,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport_r/*">
             <Issue>Varargs supported on this platform</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/tracing/keyword/TwoKeywords/TwoKeywords/*">
-            <Issue>23235, often fails with timeout in release</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -455,6 +464,15 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Directed/arglist/vararg/*">
             <Issue>Needs triage</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/CopyConstructorMarshaler/CopyConstructorMarshaler/*">
+            <Issue>Needs triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/FixupCallsHostWhenLoaded/FixupCallsHostWhenLoaded/*">
+            <Issue>Needs triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/LoadIjwFromModuleHandle/LoadIjwFromModuleHandle/*">
+            <Issue>Needs triage</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/ManagedCallingNative/ManagedCallingNative/*">
             <Issue>Needs triage</Issue>
         </ExcludeList>
@@ -537,6 +555,15 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_19601/Github_19601/*">
             <Issue>Needs Triage</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/X86/Bmi2/**">
+            <Issue>23534</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/X86/Bmi2.X64/**">
+            <Issue>23534</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/HardwareIntrinsics/X86/Regression/GitHub_21899/**">
+            <Issue>23534</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- Unix arm64 specific -->
@@ -561,24 +588,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Scenarios/Dynamo/dynamo/*">
             <Issue>17129</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/compareexchange/CompareExchangeTClass/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/compareexchange/CompareExchangeTClass_1/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTClass/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString_1/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString_2/*">
-            <Issue>22303</Issue>
         </ExcludeList>
     </ItemGroup>
 

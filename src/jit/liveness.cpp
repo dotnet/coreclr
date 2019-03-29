@@ -955,7 +955,6 @@ void Compiler::fgExtendDbgLifetimes()
         VarSetOps::DiffD(this, initVars, block->bbLiveIn);
 
         /* Add statements initializing the vars, if there are any to initialize */
-        unsigned blockWeight = block->getBBWeight(this);
 
         VarSetOps::Iter iter(this, initVars);
         unsigned        varIndex = 0;
@@ -1001,6 +1000,7 @@ void Compiler::fgExtendDbgLifetimes()
                     initRange.InsertBefore(nullptr, zero, store);
 
 #if !defined(_TARGET_64BIT_)
+                    unsigned blockWeight = block->getBBWeight(this);
                     DecomposeLongs::DecomposeRange(this, blockWeight, initRange);
 #endif // !defined(_TARGET_64BIT_)
                     m_pLowering->LowerRange(block, initRange);
@@ -2160,14 +2160,14 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
         addrNode = tree;
     }
 
-    // Next, find the assignment.
+    // Next, find the assignment (i.e. if we didn't have a LocalStore)
     if (asgNode == nullptr)
     {
         if (addrNode == nullptr)
         {
             asgNode = nextNode;
         }
-        else if (asgNode == nullptr)
+        else
         {
             // This may be followed by GT_IND/assign or GT_STOREIND.
             if (nextNode == nullptr)
@@ -2180,19 +2180,22 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
                 assert(nextNode->OperGet() != GT_NULLCHECK);
                 if (nextNode->OperIsStore())
                 {
+                    // This is a store, which takes a location and a value to be stored.
+                    // It's 'rhsNode' is the value to be stored.
                     asgNode = nextNode;
                     if (asgNode->OperIsBlk())
                     {
                         rhsNode = asgNode->AsBlk()->Data();
                     }
-                    // TODO-1stClassStructs: There should be an else clause here to handle
-                    // the non-block forms of store ops (GT_STORE_LCL_VAR, etc.) for which
-                    // rhsNode is op1. (This isn't really a 1stClassStructs item, but the
-                    // above was added to catch what used to be dead block ops, and that
-                    // made this omission apparent.)
+                    else
+                    {
+                        // This is a non-block store.
+                        rhsNode = asgNode->gtGetOp2();
+                    }
                 }
                 else
                 {
+                    // This is a non-store indirection, and the assignment will com after it.
                     asgNode = nextNode->gtNext;
                 }
             }

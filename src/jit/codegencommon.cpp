@@ -191,7 +191,7 @@ void CodeGenInterface::genMarkTreeInReg(GenTree* tree, regNumber reg)
 // Return value:
 //    Frame size
 
-int CodeGenInterface::genTotalFrameSize()
+int CodeGenInterface::genTotalFrameSize() const
 {
     assert(!IsUninitialized(compiler->compCalleeRegsPushed));
 
@@ -208,7 +208,7 @@ int CodeGenInterface::genTotalFrameSize()
 //
 // There must be a frame pointer to call this function!
 
-int CodeGenInterface::genSPtoFPdelta()
+int CodeGenInterface::genSPtoFPdelta() const
 {
     assert(isFramePointerUsed());
 
@@ -227,7 +227,7 @@ int CodeGenInterface::genSPtoFPdelta()
 //
 // There must be a frame pointer to call this function!
 
-int CodeGenInterface::genCallerSPtoFPdelta()
+int CodeGenInterface::genCallerSPtoFPdelta() const
 {
     assert(isFramePointerUsed());
     int callerSPtoFPdelta = 0;
@@ -255,7 +255,7 @@ int CodeGenInterface::genCallerSPtoFPdelta()
 //
 // This number will be negative.
 
-int CodeGenInterface::genCallerSPtoInitialSPdelta()
+int CodeGenInterface::genCallerSPtoInitialSPdelta() const
 {
     int callerSPtoSPdelta = 0;
 
@@ -732,8 +732,9 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming live\n", varNum);
         }
     }
-
+#ifdef USING_SCOPE_INFO
     codeGen->siUpdate();
+#endif // USING_SCOPE_INFO
 }
 
 // Need an explicit instantiation.
@@ -2338,7 +2339,6 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
     if (compiler->opts.dmpHex)
     {
         size_t consSize = getEmitter()->emitDataSize();
-        size_t infoSize = compiler->compInfoBlkSize;
 
         fprintf(dmpf, "Generated code for %s:\n", compiler->info.compFullName);
         fprintf(dmpf, "\n");
@@ -2352,6 +2352,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
             fprintf(dmpf, "    Const at %p [%04X bytes]\n", dspPtr(consPtr), consSize);
         }
 #ifdef JIT32_GCENCODER
+        size_t infoSize = compiler->compInfoBlkSize;
         if (infoSize)
             fprintf(dmpf, "    Info  at %p [%04X bytes]\n", dspPtr(infoPtr), infoSize);
 #endif // JIT32_GCENCODER
@@ -3804,11 +3805,12 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 assert(varDsc->lvSize() >= baseOffset + (unsigned)size);
             }
 #endif // !UNIX_AMD64_ABI
-
+#ifdef USING_SCOPE_INFO
             if (regArgTab[argNum].slot == 1)
             {
                 psiMoveToStack(varNum);
             }
+#endif // USING_SCOPE_INFO
         }
 
         /* mark the argument as processed */
@@ -3952,9 +3954,10 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
                 regArgMaskLive &= ~genRegMask(varDscSrc->lvArgReg);
                 regArgMaskLive &= ~genRegMask(varDscDest->lvArgReg);
-
+#ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumSrc);
                 psiMoveToReg(varNumDest);
+#endif // USING_SCOPE_INFO
             }
             else
 #endif // _TARGET_XARCH_
@@ -4016,9 +4019,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 regSet.verifyRegUsed(xtraReg);
 
                 *pXtraRegClobbered = true;
-
+#ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumDest, xtraReg);
-
+#endif // USING_SCOPE_INFO
                 /* start moving everything to its right place */
 
                 while (srcReg != begReg)
@@ -4083,9 +4086,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 getEmitter()->emitIns_R_R(insCopy, size, destRegNum, xtraReg);
 
                 regSet.verifyRegUsed(destRegNum);
-
+#ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumSrc);
-
+#endif // USING_SCOPE_INFO
                 /* mark the beginning register as processed */
 
                 regArgTab[srcReg].processed = true;
@@ -4269,8 +4272,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #endif
 
                 getEmitter()->emitIns_R_R(ins_Copy(destMemType), size, destRegNum, regNum);
-
+#ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNum);
+#endif // USING_SCOPE_INFO
             }
 
             /* mark the argument as processed */
@@ -4404,8 +4408,9 @@ void CodeGen::genEnregisterIncomingStackArgs()
 
         getEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), regNum, varNum, 0);
         regSet.verifyRegUsed(regNum);
-
+#ifdef USING_SCOPE_INFO
         psiMoveToReg(varNum);
+#endif // USING_SCOPE_INFO
     }
 }
 
@@ -4529,15 +4534,7 @@ void CodeGen::genCheckUseBlockInit()
                 unless they are untracked GC type or structs that contain GC pointers */
             CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if FEATURE_SIMD
-            // TODO-1stClassStructs
-            // This is here to duplicate previous behavior, where TYP_SIMD8 locals
-            // were not being re-typed correctly.
-            if ((!varDsc->lvTracked || (varDsc->lvType == TYP_STRUCT) || (varDsc->lvType == TYP_SIMD8)) &&
-#else  // !FEATURE_SIMD
-            if ((!varDsc->lvTracked || (varDsc->lvType == TYP_STRUCT)) &&
-#endif // !FEATURE_SIMD
-                varDsc->lvOnFrame &&
+            if ((!varDsc->lvTracked || (varDsc->lvType == TYP_STRUCT)) && varDsc->lvOnFrame &&
                 (!varDsc->lvIsTemp || varTypeIsGC(varDsc->TypeGet()) || (varDsc->lvStructGcCount > 0)))
             {
                 varDsc->lvMustInit = true;
@@ -5247,12 +5244,12 @@ void          CodeGen::genPushCalleeSavedRegisters()
         {
             inst_RV(INS_push, reg, TYP_REF);
             compiler->unwindPush(reg);
-
+#ifdef USING_SCOPE_INFO
             if (!doubleAlignOrFramePointerUsed())
             {
                 psiAdjustStackLevel(REGSIZE_BYTES);
             }
-
+#endif // USING_SCOPE_INFO
             rsPushRegs &= ~regBit;
         }
     }
@@ -6075,9 +6072,8 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
 
 #else // !define(_TARGET_ARM_)
 
-        regNumber rZero1 = REG_ZR;
-        rAddr            = initReg;
-        *pInitRegZeroed  = false;
+        rAddr           = initReg;
+        *pInitRegZeroed = false;
 
 #endif // !defined(_TARGET_ARM_)
 
@@ -7531,7 +7527,9 @@ void CodeGen::genEstablishFramePointer(int delta, bool reportUnwindData)
     if (delta == 0)
     {
         getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_SPBASE);
+#ifdef USING_SCOPE_INFO
         psiMoveESPtoEBP();
+#endif // USING_SCOPE_INFO
     }
     else
     {
@@ -7633,12 +7631,13 @@ void CodeGen::genFnProlog()
         printf("\n__prolog:\n");
     }
 #endif
-
+#ifdef USING_SCOPE_INFO
     if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
     {
         // Create new scopes for the method-parameters for the prolog-block.
         psiBegProlog();
     }
+#endif // USING_SCOPE_INFO
 
 #ifdef DEBUG
 
@@ -7963,8 +7962,9 @@ void CodeGen::genFnProlog()
     {
         inst_RV(INS_push, REG_FPBASE, TYP_REF);
         compiler->unwindPush(REG_FPBASE);
+#ifdef USING_SCOPE_INFO
         psiAdjustStackLevel(REGSIZE_BYTES);
-
+#endif                 // USING_SCOPE_INFO
 #ifndef _TARGET_AMD64_ // On AMD64, establish the frame pointer after the "sub rsp"
         genEstablishFramePointer(0, /*reportUnwindData*/ true);
 #endif // !_TARGET_AMD64_
@@ -8284,12 +8284,12 @@ void CodeGen::genFnProlog()
         genPrologPadForReJit();
         getEmitter()->emitMarkPrologEnd();
     }
-
+#ifdef USING_SCOPE_INFO
     if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
     {
         psiEndProlog();
     }
-
+#endif // USING_SCOPE_INFO
     if (hasGCRef)
     {
         getEmitter()->emitSetFrameRangeGCRs(GCrefLo, GCrefHi);
@@ -10486,20 +10486,32 @@ void CodeGen::genSetScopeInfo()
     }
 
     noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
-    noway_assert(psiOpenScopeList.scNext == nullptr);
 
-    unsigned i;
-    unsigned scopeCnt = siScopeCnt + psiScopeCnt;
-
-    compiler->eeSetLVcount(scopeCnt);
+    unsigned varsHomeCount = 0;
+#ifdef USING_SCOPE_INFO
+    varsHomeCount = siScopeCnt + psiScopeCnt;
+#endif // USING_SCOPE_INFO
+    compiler->eeSetLVcount(varsHomeCount);
 
 #ifdef DEBUG
-    genTrnslLocalVarCount = scopeCnt;
-    if (scopeCnt)
+    genTrnslLocalVarCount = varsHomeCount;
+    if (varsHomeCount)
     {
-        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[scopeCnt];
+        genTrnslLocalVarInfo = new (compiler, CMK_DebugOnly) TrnslLocalVarInfo[varsHomeCount];
     }
 #endif
+
+#ifdef USING_SCOPE_INFO
+    genSetScopeInfoUsingsiScope();
+#endif // USING_SCOPE_INFO
+
+    compiler->eeSetLVdone();
+}
+
+#ifdef USING_SCOPE_INFO
+void CodeGen::genSetScopeInfoUsingsiScope()
+{
+    noway_assert(psiOpenScopeList.scNext == nullptr);
 
     // Record the scopes found for the parameters over the prolog.
     // The prolog needs to be treated differently as a variable may not
@@ -10507,6 +10519,7 @@ void CodeGen::genSetScopeInfo()
     // eg. A register parameter is actually on the stack, before it is loaded to reg.
 
     CodeGen::psiScope* scopeP;
+    unsigned           i;
 
     for (i = 0, scopeP = psiScopeList.scNext; i < psiScopeCnt; i++, scopeP = scopeP->scNext)
     {
@@ -10563,9 +10576,8 @@ void CodeGen::genSetScopeInfo()
         genSetScopeInfo(psiScopeCnt + i, startOffs, endOffs - startOffs, scopeL->scVarNum, scopeL->scLVnum,
                         scopeL->scAvailable, &varLoc);
     }
-
-    compiler->eeSetLVdone();
 }
+#endif // USING_SCOPE_INFO
 
 //------------------------------------------------------------------------
 // genSetScopeInfo: Record scope information for debug info
@@ -10816,7 +10828,7 @@ void CodeGen::genIPmappingAdd(IL_OFFSETX offsx, bool isLabel)
 
         default:
 
-            if (offsx != ICorDebugInfo::NO_MAPPING)
+            if (offsx != (IL_OFFSETX)ICorDebugInfo::NO_MAPPING)
             {
                 noway_assert(jitGetILoffs(offsx) <= compiler->info.compILCodeSize);
             }
@@ -11297,6 +11309,17 @@ GenTreeIndir CodeGen::indirForm(var_types type, GenTree* base)
 }
 
 //------------------------------------------------------------------------
+// indirForm: Make a temporary indir we can feed to pattern matching routines
+//    in cases where we don't want to instantiate all the indirs that happen.
+//
+GenTreeStoreInd CodeGen::storeIndirForm(var_types type, GenTree* base, GenTree* data)
+{
+    GenTreeStoreInd i(type, base, data);
+    i.gtRegNum = REG_NA;
+    return i;
+}
+
+//------------------------------------------------------------------------
 // intForm: Make a temporary int we can feed to pattern matching routines
 //    in cases where we don't want to instantiate.
 //
@@ -11557,3 +11580,8 @@ void CodeGen::genStackPointerCheck(bool doStackPointerCheck, unsigned lvaStackPo
 }
 
 #endif // defined(DEBUG) && defined(_TARGET_XARCH_)
+
+unsigned CodeGenInterface::getCurrentStackLevel() const
+{
+    return genStackLevel;
+}
