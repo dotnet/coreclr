@@ -50,8 +50,7 @@ struct ArgLocDesc
 #endif // UNIX_AMD64_ABI
 
 #if defined(_TARGET_ARM64_)
-    bool    m_isSinglePrecision;  // For determining if HFA is single or double
-                                  // precision
+    int      m_hfaFieldSize;      // Size of HFA field
 #endif // defined(_TARGET_ARM64_)
 
 #if defined(_TARGET_ARM_)
@@ -76,7 +75,7 @@ struct ArgLocDesc
         m_fRequires64BitAlignment = FALSE;
 #endif
 #if defined(_TARGET_ARM64_)
-        m_isSinglePrecision = FALSE;
+        m_hfaFieldSize = 0;
 #endif // defined(_TARGET_ARM64_)
 #if defined(UNIX_AMD64_ABI)
         m_eeClass = NULL;
@@ -589,10 +588,19 @@ public:
             if (!m_argTypeHandle.IsNull() && m_argTypeHandle.IsHFA())
             {
                 CorElementType type = m_argTypeHandle.GetHFAType();
-                bool isFloatType = (type == ELEMENT_TYPE_R4);
+                int hfaFieldSize = 0;
+                switch (type)
+                {
+                case ELEMENT_TYPE_R4: hfaFieldSize = 4; break;
+                case ELEMENT_TYPE_R8: hfaFieldSize = 8; break;
+#ifdef _TARGET_ARM64_
+                case ELEMENT_TYPE_VALUETYPE: hfaFieldSize = 16; break;
+#endif
+                default: _ASSERTE(!"Invalid HFA Type");
+                }
 
-                pLoc->m_cFloatReg = isFloatType ? GetArgSize()/sizeof(float): GetArgSize()/sizeof(double);
-                pLoc->m_isSinglePrecision = isFloatType;
+                pLoc->m_cFloatReg = GetArgSize()/hfaFieldSize;
+                pLoc->m_hfaFieldSize = hfaFieldSize;
             }
             else
             {
@@ -1297,16 +1305,25 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         if (thValueType.IsHFA())
         {
             CorElementType type = thValueType.GetHFAType();
-            bool isFloatType = (type == ELEMENT_TYPE_R4);
 
-            cFPRegs = (type == ELEMENT_TYPE_R4)? (argSize/sizeof(float)): (argSize/sizeof(double));
+            int hfaFieldSize = 0;
+            switch (type)
+            {
+            case ELEMENT_TYPE_R4: hfaFieldSize = 4; break;
+            case ELEMENT_TYPE_R8: hfaFieldSize = 8; break;
+#ifdef _TARGET_ARM64_
+            case ELEMENT_TYPE_VALUETYPE: hfaFieldSize = 16; break;
+#endif
+            default: _ASSERTE(!"Invalid HFA Type");
+            }
+            cFPRegs = argSize/hfaFieldSize;
 
             m_argLocDescForStructInRegs.Init();
             m_argLocDescForStructInRegs.m_cFloatReg = cFPRegs;
             m_argLocDescForStructInRegs.m_idxFloatReg = m_idxFPReg;
 
-            m_argLocDescForStructInRegs.m_isSinglePrecision = isFloatType;
-                
+            m_argLocDescForStructInRegs.m_hfaFieldSize = hfaFieldSize;
+
             m_hasArgLocDescForStructInRegs = true;
         }
         else 
@@ -1474,9 +1491,17 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
             {
                 CorElementType hfaType = thValueType.GetHFAType();
 
-                flags |= (hfaType == ELEMENT_TYPE_R4) ? 
-                    ((4 * sizeof(float)) << RETURN_FP_SIZE_SHIFT) : 
-                    ((4 * sizeof(double)) << RETURN_FP_SIZE_SHIFT);
+                int hfaFieldSize = 0;
+                switch (hfaType)
+                {
+                case ELEMENT_TYPE_R4: hfaFieldSize = 4; break;
+                case ELEMENT_TYPE_R8: hfaFieldSize = 8; break;
+#ifdef _TARGET_ARM64_
+                case ELEMENT_TYPE_VALUETYPE: hfaFieldSize = 16; break;
+#endif
+                default: _ASSERTE(!"Invalid HFA Type");
+                }
+                flags |= ((4 * hfaFieldSize) << RETURN_FP_SIZE_SHIFT);
 
                 break;
             }

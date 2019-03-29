@@ -31,7 +31,7 @@
 
     <LinkModuleDefinitionFile>$(OutputName).def</LinkModuleDefinitionFile>
 
-    <ClDefines Condition="'$(BuildArchitecture)' == 'amd64'">$(ClDefines);FEATURE_SIMD</ClDefines>
+    <ClDefines Condition="'$(BuildArchitecture)' == 'amd64' or '$(BuildArchitecture)' == 'arm64'">$(ClDefines);FEATURE_SIMD</ClDefines>
 
     <Win32DllLibs>$(SdkLibPath)\kernel32.lib;$(SdkLibPath)\user32.lib;$(SdkLibPath)\advapi32.lib;$(SdkLibPath)\oleaut32.lib;$(SdkLibPath)\uuid.lib</Win32DllLibs>
     <Win32DllLibs>$(Win32DllLibs);$(ClrLibPath)\utilcode.lib</Win32DllLibs>
