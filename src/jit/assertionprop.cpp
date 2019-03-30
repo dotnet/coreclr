@@ -277,8 +277,8 @@ void Compiler::optAddCopies()
             continue;
         }
 
-        GenTree* stmt;
-        unsigned copyLclNum = lvaGrabTemp(false DEBUGARG("optAddCopies"));
+        GenTreeStmt* stmt;
+        unsigned     copyLclNum = lvaGrabTemp(false DEBUGARG("optAddCopies"));
 
         // Because lvaGrabTemp may have reallocated the lvaTable, ensure varDsc
         // is still in sync with lvaTable[lclNum];
@@ -438,12 +438,11 @@ void Compiler::optAddCopies()
 
             /* Locate the assignment to varDsc in the lvDefStmt */
             stmt = varDsc->lvDefStmt;
-            noway_assert(stmt->gtOper == GT_STMT);
 
             optAddCopyLclNum   = lclNum;  // in
             optAddCopyAsgnNode = nullptr; // out
 
-            fgWalkTreePre(&stmt->gtStmt.gtStmtExpr, Compiler::optAddCopiesCallback, (void*)this, false);
+            fgWalkTreePre(&stmt->gtStmtExpr, Compiler::optAddCopiesCallback, (void*)this, false);
 
             noway_assert(optAddCopyAsgnNode);
 
@@ -452,9 +451,6 @@ void Compiler::optAddCopies()
 
             noway_assert(tree && op1 && tree->OperIs(GT_ASG) && (op1->gtOper == GT_LCL_VAR) &&
                          (op1->gtLclVarCommon.gtLclNum == lclNum));
-
-            /*  TODO-Review: BB_UNITY_WEIGHT is not the correct block weight */
-            unsigned blockWeight = BB_UNITY_WEIGHT;
 
             /* Assign the old expression into the new temp */
 
@@ -480,7 +476,7 @@ void Compiler::optAddCopies()
         if (verbose)
         {
             printf("\nIntroducing a new copy for V%02u\n", lclNum);
-            gtDispTree(stmt->gtStmt.gtStmtExpr);
+            gtDispTree(stmt->gtStmtExpr);
             printf("\n");
         }
 #endif
@@ -1309,7 +1305,6 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
         {
             unsigned lclNum = op1->gtLclVarCommon.gtLclNum;
             noway_assert(lclNum < lvaCount);
-            LclVarDsc* lclVar = &lvaTable[lclNum];
 
             //  If the local variable is not in SSA then bail
             if (!lvaInSsa(lclNum))
@@ -2203,8 +2198,6 @@ AssertionIndex Compiler::optFindComplementary(AssertionIndex assertIndex)
         return index;
     }
 
-    optAssertionKind complementaryAssertionKind =
-        (inputAssertion->assertionKind == OAK_EQUAL) ? OAK_NOT_EQUAL : OAK_EQUAL;
     for (AssertionIndex index = 1; index <= optAssertionCount; ++index)
     {
         // Make sure assertion kinds are complementary and op1, op2 kinds match.
@@ -2379,13 +2372,13 @@ AssertionIndex Compiler::optAssertionIsSubtype(GenTree* tree, GenTree* methodTab
 //    appropriately decremented. The ref-counts of variables in the side-effect
 //    nodes will be retained.
 //
-GenTree* Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTree* stmt, GenTree* tree)
+GenTree* Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTree* tree)
 {
     if (tree->OperGet() == GT_JTRUE)
     {
         // Treat JTRUE separately to extract side effects into respective statements rather
         // than using a COMMA separated op1.
-        return optVNConstantPropOnJTrue(block, stmt, tree);
+        return optVNConstantPropOnJTrue(block, tree);
     }
     // If relop is part of JTRUE, this should be optimized as part of the parent JTRUE.
     // Or if relop is part of QMARK or anything else, we simply bail here.
@@ -2404,8 +2397,7 @@ GenTree* Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTree* stmt, Gen
         return nullptr;
     }
 
-    GenTree* newTree     = tree;
-    GenTree* sideEffList = nullptr;
+    GenTree* newTree = tree;
     switch (vnStore->TypeOfVN(vnCns))
     {
         case TYP_FLOAT:
@@ -2601,7 +2593,7 @@ GenTree* Compiler::optVNConstantPropOnTree(BasicBlock* block, GenTree* stmt, Gen
  */
 GenTree* Compiler::optConstantAssertionProp(AssertionDsc* curAssertion,
                                             GenTree*      tree,
-                                            GenTree* stmt DEBUGARG(AssertionIndex index))
+                                            GenTreeStmt* stmt DEBUGARG(AssertionIndex index))
 {
     unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
 
@@ -2790,7 +2782,7 @@ bool Compiler::optAssertionProp_LclVarTypeCheck(GenTree* tree, LclVarDsc* lclVar
  */
 GenTree* Compiler::optCopyAssertionProp(AssertionDsc* curAssertion,
                                         GenTree*      tree,
-                                        GenTree* stmt DEBUGARG(AssertionIndex index))
+                                        GenTreeStmt* stmt DEBUGARG(AssertionIndex index))
 {
     const AssertionDsc::AssertionDscOp1& op1 = curAssertion->op1;
     const AssertionDsc::AssertionDscOp2& op2 = curAssertion->op2;
@@ -2859,7 +2851,7 @@ GenTree* Compiler::optCopyAssertionProp(AssertionDsc* curAssertion,
  *  be nullptr. Returns the modified tree, or nullptr if no assertion prop took place.
  */
 
-GenTree* Compiler::optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt)
+GenTree* Compiler::optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt)
 {
     assert(tree->gtOper == GT_LCL_VAR);
     // If we have a var definition then bail or
@@ -3056,7 +3048,7 @@ AssertionIndex Compiler::optGlobalAssertionIsEqualOrNotEqualZero(ASSERT_VALARG_T
  *  Returns the modified tree, or nullptr if no assertion prop took place
  */
 
-GenTree* Compiler::optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt)
+GenTree* Compiler::optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt)
 {
     assert(tree->OperKind() & GTK_RELOP);
 
@@ -3085,7 +3077,7 @@ GenTree* Compiler::optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, GenTree* 
  *  perform Value numbering based relop assertion propagation on the tree.
  *
  */
-GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt)
+GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt)
 {
     GenTree* newTree = tree;
     GenTree* op1     = tree->gtOp.gtOp1;
@@ -3305,7 +3297,7 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
  *  perform local variable name based relop assertion propagation on the tree.
  *
  */
-GenTree* Compiler::optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt)
+GenTree* Compiler::optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt)
 {
     assert(tree->OperGet() == GT_EQ || tree->OperGet() == GT_NE);
 
@@ -3399,7 +3391,7 @@ GenTree* Compiler::optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenT
  *
  *  Returns the modified tree, or nullptr if no assertion prop took place.
  */
-GenTree* Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt)
+GenTree* Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt)
 {
     assert(tree->gtOper == GT_CAST);
 
@@ -3496,7 +3488,7 @@ GenTree* Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* t
  *  Given a tree with an array bounds check node, eliminate it because it was
  *  checked already in the program.
  */
-GenTree* Compiler::optAssertionProp_Comma(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt)
+GenTree* Compiler::optAssertionProp_Comma(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt)
 {
     // Remove the bounds check as part of the GT_COMMA node since we need parent pointer to remove nodes.
     // When processing visits the bounds check, it sets the throw kind to None if the check is redundant.
@@ -3519,7 +3511,7 @@ GenTree* Compiler::optAssertionProp_Comma(ASSERT_VALARG_TP assertions, GenTree* 
  *
  */
 
-GenTree* Compiler::optAssertionProp_Ind(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt)
+GenTree* Compiler::optAssertionProp_Ind(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt)
 {
     assert(tree->OperIsIndir());
 
@@ -3539,8 +3531,6 @@ GenTree* Compiler::optAssertionProp_Ind(ASSERT_VALARG_TP assertions, GenTree* tr
     {
         return nullptr;
     }
-
-    unsigned lclNum = op1->gtLclVarCommon.gtLclNum;
 
 #ifdef DEBUG
     bool           vnBased = false;
@@ -3666,7 +3656,7 @@ AssertionIndex Compiler::optAssertionIsNonNullInternal(GenTree* op, ASSERT_VALAR
  *  Returns the modified tree, or nullptr if no assertion prop took place.
  *
  */
-GenTree* Compiler::optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, GenTree* stmt)
+GenTree* Compiler::optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call)
 {
     if ((call->gtFlags & GTF_CALL_NULLCHECK) == 0)
     {
@@ -3713,9 +3703,9 @@ GenTree* Compiler::optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, Gen
  *
  */
 
-GenTree* Compiler::optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, GenTree* stmt)
+GenTree* Compiler::optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, GenTreeStmt* stmt)
 {
-    if (optNonNullAssertionProp_Call(assertions, call, stmt))
+    if (optNonNullAssertionProp_Call(assertions, call))
     {
         return optAssertionProp_Update(call, call, stmt);
     }
@@ -3770,7 +3760,7 @@ GenTree* Compiler::optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCal
  *  Given a tree consisting of a comma node with a bounds check, remove any
  *  redundant bounds check that has already been checked in the program flow.
  */
-GenTree* Compiler::optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt)
+GenTree* Compiler::optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, GenTree* tree)
 {
     if (optLocalAssertionProp)
     {
@@ -3905,7 +3895,7 @@ GenTree* Compiler::optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, GenTree
  *
  */
 
-GenTree* Compiler::optAssertionProp_Update(GenTree* newTree, GenTree* tree, GenTree* stmt)
+GenTree* Compiler::optAssertionProp_Update(GenTree* newTree, GenTree* tree, GenTreeStmt* stmt)
 {
     noway_assert(newTree != nullptr);
 
@@ -3964,7 +3954,7 @@ GenTree* Compiler::optAssertionProp_Update(GenTree* newTree, GenTree* tree, GenT
  *  Returns the modified tree, or nullptr if no assertion prop took place.
  */
 
-GenTree* Compiler::optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt)
+GenTree* Compiler::optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt)
 {
     switch (tree->gtOper)
     {
@@ -3979,7 +3969,7 @@ GenTree* Compiler::optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, 
             return optAssertionProp_Ind(assertions, tree, stmt);
 
         case GT_ARR_BOUNDS_CHECK:
-            return optAssertionProp_BndsChk(assertions, tree, stmt);
+            return optAssertionProp_BndsChk(assertions, tree);
 
         case GT_COMMA:
             return optAssertionProp_Comma(assertions, tree, stmt);
@@ -4437,7 +4427,6 @@ private:
     ASSERT_TP* mJumpDestOut;
     ASSERT_TP* mJumpDestGen;
 
-    Compiler*     m_pCompiler;
     BitVecTraits* apTraits;
 
 public:
@@ -4446,7 +4435,6 @@ public:
         , preMergeJumpDestOut(BitVecOps::UninitVal())
         , mJumpDestOut(jumpDestOut)
         , mJumpDestGen(jumpDestGen)
-        , m_pCompiler(pCompiler)
         , apTraits(pCompiler->apTraits)
     {
     }
@@ -4512,17 +4500,15 @@ ASSERT_TP* Compiler::optComputeAssertionGen()
 {
     ASSERT_TP* jumpDestGen = fgAllocateTypeForEachBlk<ASSERT_TP>();
 
-    for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
         ASSERT_TP valueGen = BitVecOps::MakeEmpty(apTraits);
         GenTree*  jtrue    = nullptr;
 
         // Walk the statement trees in this basic block.
-        for (GenTree* stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
-            noway_assert(stmt->gtOper == GT_STMT);
-
-            for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 if (tree->gtOper == GT_JTRUE)
                 {
@@ -4652,10 +4638,10 @@ ASSERT_TP* Compiler::optInitAssertionDataflowFlags()
 // Callback data for the VN based constant prop visitor.
 struct VNAssertionPropVisitorInfo
 {
-    Compiler*   pThis;
-    GenTree*    stmt;
-    BasicBlock* block;
-    VNAssertionPropVisitorInfo(Compiler* pThis, BasicBlock* block, GenTree* stmt)
+    Compiler*    pThis;
+    GenTreeStmt* stmt;
+    BasicBlock*  block;
+    VNAssertionPropVisitorInfo(Compiler* pThis, BasicBlock* block, GenTreeStmt* stmt)
         : pThis(pThis), stmt(stmt), block(block)
     {
     }
@@ -4745,8 +4731,7 @@ GenTree* Compiler::optPrepareTreeForReplacement(GenTree* oldTree, GenTree* newTr
 //
 // Arguments:
 //    block - The block that contains the JTrue.
-//    stmt  - The JTrue stmt which can be evaluated to a constant.
-//    tree  - The JTrue node whose relop evaluates to 0 or non-zero value.
+//    test  - The JTrue node whose relop evaluates to 0 or non-zero value.
 //
 // Return Value:
 //    The jmpTrue tree node that has relop of the form "0 =/!= 0".
@@ -4768,7 +4753,7 @@ GenTree* Compiler::optPrepareTreeForReplacement(GenTree* oldTree, GenTree* newTr
 //  sensitive to adding new statements. Hence the change is not made directly
 //  into fgFoldConditional.
 //
-GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, GenTree* test)
+GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test)
 {
     GenTree* relop = test->gtGetOp1();
 
@@ -4813,7 +4798,7 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, Ge
     // these side effects from the JTrue stmt before insert them back here.
     while (sideEffList != nullptr)
     {
-        GenTree* newStmt;
+        GenTreeStmt* newStmt;
         if (sideEffList->OperGet() == GT_COMMA)
         {
             newStmt     = fgInsertStmtNearEnd(block, sideEffList->gtGetOp1());
@@ -4826,7 +4811,7 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, Ge
         }
         // fgMorphBlockStmt could potentially affect stmts after the current one,
         // for example when it decides to fgRemoveRestOfBlock.
-        fgMorphBlockStmt(block, newStmt->AsStmt() DEBUGARG(__FUNCTION__));
+        fgMorphBlockStmt(block, newStmt DEBUGARG(__FUNCTION__));
     }
 
     return test;
@@ -4852,7 +4837,7 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, Ge
 //    evaluates to constant, then the tree is replaced by its side effects and
 //    the constant node.
 //
-Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, GenTree* stmt, GenTree* tree)
+Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree)
 {
     // Don't propagate floating-point constants into a TYP_STRUCT LclVar
     // This can occur for HFA return values (see hfa_sf3E_r.exe)
@@ -4923,7 +4908,7 @@ Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, Gen
     }
 
     // Perform the constant propagation
-    GenTree* newTree = optVNConstantPropOnTree(block, stmt, tree);
+    GenTree* newTree = optVNConstantPropOnTree(block, tree);
     if (newTree == nullptr)
     {
         // Not propagated, keep going.
@@ -4962,13 +4947,13 @@ Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, Gen
 //    indirections. This is different from flow based assertions and helps
 //    unify VN based constant prop and non-null prop in a single pre-order walk.
 //
-void Compiler::optVnNonNullPropCurStmt(BasicBlock* block, GenTree* stmt, GenTree* tree)
+void Compiler::optVnNonNullPropCurStmt(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree)
 {
     ASSERT_TP empty   = BitVecOps::UninitVal();
     GenTree*  newTree = nullptr;
     if (tree->OperGet() == GT_CALL)
     {
-        newTree = optNonNullAssertionProp_Call(empty, tree->AsCall(), stmt);
+        newTree = optNonNullAssertionProp_Call(empty, tree->AsCall());
     }
     else if (tree->OperIsIndir())
     {
@@ -5016,7 +5001,7 @@ Compiler::fgWalkResult Compiler::optVNAssertionPropCurStmtVisitor(GenTree** ppTr
  *   Returns the skipped next stmt if the current statement or next few
  *   statements got removed, else just returns the incoming stmt.
  */
-GenTree* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, GenTree* stmt)
+GenTreeStmt* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, GenTreeStmt* stmt)
 {
     // TODO-Review: EH successor/predecessor iteration seems broken.
     // See: SELF_HOST_TESTS_ARM\jit\Directed\ExcepFilters\fault\fault.exe
@@ -5026,23 +5011,23 @@ GenTree* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, GenTree* stmt)
     }
 
     // Preserve the prev link before the propagation and morph.
-    GenTree* prev = (stmt == block->firstStmt()) ? nullptr : stmt->gtPrev;
+    GenTreeStmt* prev = (stmt == block->firstStmt()) ? nullptr : stmt->getPrevStmt();
 
     // Perform VN based assertion prop first, in case we don't find
     // anything in assertion gen.
     optAssertionPropagatedCurrentStmt = false;
 
     VNAssertionPropVisitorInfo data(this, block, stmt);
-    fgWalkTreePre(&stmt->gtStmt.gtStmtExpr, Compiler::optVNAssertionPropCurStmtVisitor, &data);
+    fgWalkTreePre(&stmt->gtStmtExpr, Compiler::optVNAssertionPropCurStmtVisitor, &data);
 
     if (optAssertionPropagatedCurrentStmt)
     {
-        fgMorphBlockStmt(block, stmt->AsStmt() DEBUGARG("optVNAssertionPropCurStmt"));
+        fgMorphBlockStmt(block, stmt DEBUGARG("optVNAssertionPropCurStmt"));
     }
 
     // Check if propagation removed statements starting from current stmt.
     // If so, advance to the next good statement.
-    GenTree* nextStmt = (prev == nullptr) ? block->firstStmt() : prev->gtNext;
+    GenTreeStmt* nextStmt = (prev == nullptr) ? block->firstStmt() : prev->getNextStmt();
     return nextStmt;
 }
 
@@ -5077,25 +5062,25 @@ void Compiler::optAssertionPropMain()
 
         fgRemoveRestOfBlock = false;
 
-        GenTree* stmt = block->bbTreeList;
-        while (stmt)
+        GenTreeStmt* stmt = block->firstStmt();
+        while (stmt != nullptr)
         {
             // We need to remove the rest of the block.
             if (fgRemoveRestOfBlock)
             {
                 fgRemoveStmt(block, stmt);
-                stmt = stmt->gtNext;
+                stmt = stmt->getNextStmt();
                 continue;
             }
             else
             {
                 // Perform VN based assertion prop before assertion gen.
-                GenTree* nextStmt = optVNAssertionPropCurStmt(block, stmt);
+                GenTreeStmt* nextStmt = optVNAssertionPropCurStmt(block, stmt);
 
                 // Propagation resulted in removal of the remaining stmts, perform it.
                 if (fgRemoveRestOfBlock)
                 {
-                    stmt = stmt->gtNext;
+                    stmt = stmt->getNextStmt();
                     continue;
                 }
 
@@ -5108,13 +5093,13 @@ void Compiler::optAssertionPropMain()
             }
 
             // Perform assertion gen for control flow based assertions.
-            for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 optAssertionGen(tree);
             }
 
             // Advance the iterator
-            stmt = stmt->gtNext;
+            stmt = stmt->getNextStmt();
         }
     }
 
@@ -5180,26 +5165,24 @@ void Compiler::optAssertionPropMain()
         fgRemoveRestOfBlock = false;
 
         // Walk the statement trees in this basic block
-        GenTree* stmt = block->FirstNonPhiDef();
-        while (stmt)
+        GenTreeStmt* stmt = block->FirstNonPhiDef();
+        while (stmt != nullptr)
         {
-            noway_assert(stmt->gtOper == GT_STMT);
-
             // Propagation tells us to remove the rest of the block. Remove it.
             if (fgRemoveRestOfBlock)
             {
                 fgRemoveStmt(block, stmt);
-                stmt = stmt->gtNext;
+                stmt = stmt->getNextStmt();
                 continue;
             }
 
             // Preserve the prev link before the propagation and morph, to check if propagation
             // removes the current stmt.
-            GenTree* prev = (stmt == block->firstStmt()) ? nullptr : stmt->gtPrev;
+            GenTreeStmt* prevStmt = (stmt == block->firstStmt()) ? nullptr : stmt->getPrevStmt();
 
             optAssertionPropagatedCurrentStmt = false; // set to true if a assertion propagation took place
                                                        // and thus we must morph, set order, re-link
-            for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 if (tree->OperIs(GT_JTRUE))
                 {
@@ -5239,13 +5222,13 @@ void Compiler::optAssertionPropMain()
                 }
 #endif
                 // Re-morph the statement.
-                fgMorphBlockStmt(block, stmt->AsStmt() DEBUGARG("optAssertionPropMain"));
+                fgMorphBlockStmt(block, stmt DEBUGARG("optAssertionPropMain"));
             }
 
             // Check if propagation removed statements starting from current stmt.
             // If so, advance to the next good statement.
-            GenTree* nextStmt = (prev == nullptr) ? block->firstStmt() : prev->gtNext;
-            stmt              = (stmt == nextStmt) ? stmt->gtNext : nextStmt;
+            GenTreeStmt* nextStmt = (prevStmt == nullptr) ? block->firstStmt() : prevStmt->getNextStmt();
+            stmt                  = (stmt == nextStmt) ? stmt->getNextStmt() : nextStmt;
         }
         optAssertionPropagatedCurrentStmt = false; // clear it back as we are done with stmts.
     }
