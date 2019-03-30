@@ -352,7 +352,14 @@ public:
     // Returns true if the argument extends System.Delegate
     BOOL IsDelegate(VMPTR_Object vmObject);
 
-    HRESULT GetMethodDescFromIP(CORDB_ADDRESS funcIp, VMPTR_MethodDesc* ppMD);
+    HRESULT GetMethodDescFromIP(
+                        CORDB_ADDRESS funcIp,
+                        OUT VMPTR_MethodDesc* ppMD);
+
+    DelegateType GetDelegateFunctionAndTarget(
+                        VMPTR_Object delegateObject,
+                        OUT VMPTR_Object* ppTarget,
+                        OUT VMPTR_MethodDesc* ppMD);
 
     // retrieves the list of COM interfaces implemented by vmObject, as it is known at
     // the time of the call (the list may change as new interface types become available

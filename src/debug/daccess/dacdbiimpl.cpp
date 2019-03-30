@@ -3416,8 +3416,9 @@ BOOL DacDbiInterfaceImpl::IsDelegate(VMPTR_Object vmObject)
 
 HRESULT DacDbiInterfaceImpl::GetMethodDescFromIP(CORDB_ADDRESS funcIp, VMPTR_MethodDesc* ppMD)
 {
-    DD_ENTER_MAY_THROW
+    DD_ENTER_MAY_THROW;
 
+    // The fast path is check if the code is jitted and the code manager has it available.
     CLRDATA_ADDRESS mdAddr;
     HRESULT hr = g_dacImpl->GetMethodDescPtrFromIP(funcIp, &mdAddr);
     if (S_OK == hr)
@@ -3426,6 +3427,7 @@ HRESULT DacDbiInterfaceImpl::GetMethodDescFromIP(CORDB_ADDRESS funcIp, VMPTR_Met
     }
     else
     {
+        // Otherwise get the method desc from stubs of unjitted method.
         DacpCodeHeaderData headerData;
         hr = ClrDataAccess::GetCodeHeaderData(funcIp, &headerData);
         ppMD->SetDacTargetPtr(CLRDATA_ADDRESS_TO_TADDR(headerData.MethodDescPtr));
@@ -3433,22 +3435,79 @@ HRESULT DacDbiInterfaceImpl::GetMethodDescFromIP(CORDB_ADDRESS funcIp, VMPTR_Met
     return hr;
 }
 
-// DacDbiInterfaceImpl dbi;
-// BOOL IsSupportedDelegate(VMPTR_Object vmObject)
-// {
+IDacDbiInterface::DelegateType DacDbiInterfaceImpl::GetDelegateFunctionAndTarget(
+                                                VMPTR_Object delegateObject,
+                                                OUT VMPTR_Object* ppTarget,
+                                                OUT VMPTR_MethodDesc* ppMD)
+{
+#ifdef _DEBUG
+    // ensure we have a Delegate object
+    IsDelegate(delegateObject);
+#endif
 
-// #ifdef _DEBUG
-//     // ensure we have a Delegate object
-//     dbi.IsDelegate(vmObject);
-// #endif
+    ppTarget->SetDacTargetPtr(NULL);
+    ppMD->SetDacTargetPtr(NULL);
 
-//     // This might be brittle, would make sense to DACize the DelegateObject class.
-//     PTR_DelegateObject pDelObj = dac_cast<PTR_DelegateObject>(vmObject.GetDacPtr());
+    PTR_DelegateObject pDelObj = dac_cast<PTR_DelegateObject>(delegateObject.GetDacPtr());
+    INT_PTR invocationCount = pDelObj->GetInvocationCount();
 
+    if (invocationCount == -1)
+    {
+        // We could get a PCODE for this case, but not a methodDef. This will be a
+        // generated stub that does the marshalling. I'm not aware of a good mechanism
+        // we could use to expose this though ICorDebug. _methodPtr has the native function
+        // pointer, which could be useful. The target is the delegate itself, which isn't helpful.
+        return kUnmanagedFunctionDelegate;
+    }
 
-// }
+    PTR_Object pInvocationList = OBJECTREFToObject(pDelObj->GetInvocationList());
 
-// HRESULT DacDbiInterfaceImpl::GetDelegateTargetAndFunction()
+    if (invocationCount == NULL)
+    {
+        if (pInvocationList == NULL)
+        {
+            // If this delegate points to a static function or this is a open
+            // Special case: This might fail in a VSD delegate (instance open virtual)...
+            TADDR targetMethodPtr = PCODEToPINSTR(pDelObj->GetMethodPtrAux());
+            if (targetMethodPtr == NULL)
+            {
+                // This is the case for lambdas, instance methods, and .
+                targetMethodPtr =  PCODEToPINSTR(pDelObj->GetMethodPtr());
+
+                ppTarget->SetDacTargetPtr(PTR_TO_TADDR(OBJECTREFToObject(pDelObj->GetTarget())));
+            }
+
+            // Do I need to cast from TADDR to CORDB_ADDRESS?
+            HRESULT hr = GetMethodDescFromIP(targetMethodPtr, ppMD);
+            if (hr != S_OK)
+            {
+                // TODO: Instance open virtual methods don't work here.
+                return kUnknownDelegateType;
+            }
+
+            return kSingleFunctionDelegate;
+        }
+
+        if (pInvocationList->GetGCSafeMethodTable()->IsArray())
+        {
+            // Multicast case. We don't support this yet. Expand as needed.
+            return kMultiFunctionDelegate;
+        }
+
+        if (pInvocationList->GetGCSafeMethodTable()->IsDelegate())
+        {
+            // We've gotten to a secure/wrapper delegate. Should be 'easy' to unwrap
+            // this recursively to support this case, but it's fairly rare for the
+            // scenarios we care about.
+            return kSecureDelegate;
+        }
+
+        // Static closed with special signature goes here.
+    }
+
+    // secure type according to COMDelegate::GetDelegateCtor
+    return kUnknownDelegateType;
+}
 // {
 // #ifdef _DEBUG
 //     // ensure we have a Delegate object

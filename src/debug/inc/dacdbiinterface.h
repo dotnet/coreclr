@@ -2721,6 +2721,22 @@ public:
     virtual
     HRESULT GetMethodDescFromIP(CORDB_ADDRESS funcIp, VMPTR_MethodDesc* ppMD) = 0;
 
+    typedef enum
+    {
+        kSingleFunctionDelegate,
+        kMultiFunctionDelegate,
+        kSecureDelegate,
+        kUnmanagedFunctionDelegate,
+        kUnknownDelegateType,
+        kUnfetched
+    } DelegateType;
+
+    virtual
+    DelegateType GetDelegateFunctionAndTarget(
+                        VMPTR_Object delegateObject,
+                        OUT VMPTR_Object* ppTarget,
+                        OUT VMPTR_MethodDesc* ppMD) = 0;
+
     // The following tag tells the DD-marshalling tool to stop scanning.
     // END_MARSHAL
     
