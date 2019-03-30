@@ -13,7 +13,6 @@ class AppDomain;
 // All pointers are for the left side, and we do not own any of the memory
 struct AppDomainInfo
 {
-    ULONG       m_id;    // unique identifier
     int         m_iNameLengthInBytes;
     LPCWSTR     m_szAppDomainName;
     AppDomain  *m_pAppDomain; // only used by LS

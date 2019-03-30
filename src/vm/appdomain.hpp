@@ -1047,7 +1047,6 @@ public:
     virtual ~BaseDomain() {}
     void Init();
     void Stop();
-    void Terminate();
 
     virtual BOOL IsAppDomain()    { LIMITED_METHOD_DAC_CONTRACT; return FALSE; }
 
@@ -3251,7 +3250,6 @@ public:
 #endif
     void Init();
     void Stop();
-    void Terminate();
     static void LazyInitGlobalStringLiteralMap();
 
     //****************************************************************************************

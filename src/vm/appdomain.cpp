@@ -803,116 +803,6 @@ void BaseDomain::Init()
 
 #undef LOADERHEAP_PROFILE_COUNTER
 
-#ifndef CROSSGEN_COMPILE
-//*****************************************************************************
-void BaseDomain::Terminate()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    m_crstLoaderAllocatorReferences.Destroy();
-    m_DomainCrst.Destroy();
-    m_DomainCacheCrst.Destroy();
-    m_DomainLocalBlockCrst.Destroy();
-    m_InteropDataCrst.Destroy();
-
-    JitListLockEntry* pJitElement;
-    ListLockEntry* pElement;
-
-    // All the threads that are in this domain had better be stopped by this
-    // point.
-    //
-    // We might be jitting or running a .cctor so we need to empty that queue.
-    pJitElement = m_JITLock.Pop(TRUE);
-    while (pJitElement)
-    {
-#ifdef STRICT_JITLOCK_ENTRY_LEAK_DETECTION
-        _ASSERTE ((m_JITLock.m_pHead->m_dwRefCount == 1
-            && m_JITLock.m_pHead->m_hrResultCode == E_FAIL) ||
-            dbg_fDrasticShutdown || g_fInControlC);
-#endif // STRICT_JITLOCK_ENTRY_LEAK_DETECTION
-        delete(pJitElement);
-        pJitElement = m_JITLock.Pop(TRUE);
-
-    }
-    m_JITLock.Destroy();
-
-    pElement = m_ClassInitLock.Pop(TRUE);
-    while (pElement)
-    {
-#ifdef STRICT_CLSINITLOCK_ENTRY_LEAK_DETECTION
-        _ASSERTE (dbg_fDrasticShutdown || g_fInControlC);
-#endif
-        delete(pElement);
-        pElement = m_ClassInitLock.Pop(TRUE);
-    }
-    m_ClassInitLock.Destroy();
-
-    FileLoadLock* pFileElement;
-    pFileElement = (FileLoadLock*) m_FileLoadLock.Pop(TRUE);
-    while (pFileElement)
-    {
-#ifdef STRICT_CLSINITLOCK_ENTRY_LEAK_DETECTION
-        _ASSERTE (dbg_fDrasticShutdown || g_fInControlC);
-#endif
-        pFileElement->Release();
-        pFileElement = (FileLoadLock*) m_FileLoadLock.Pop(TRUE);
-    }
-    m_FileLoadLock.Destroy();
-
-    pElement = m_ILStubGenLock.Pop(TRUE);
-    while (pElement)
-    {
-#ifdef STRICT_JITLOCK_ENTRY_LEAK_DETECTION
-        _ASSERTE ((m_ILStubGenLock.m_pHead->m_dwRefCount == 1
-            && m_ILStubGenLock.m_pHead->m_hrResultCode == E_FAIL) ||
-            dbg_fDrasticShutdown || g_fInControlC);
-#endif // STRICT_JITLOCK_ENTRY_LEAK_DETECTION
-        delete(pElement);
-        pElement = m_ILStubGenLock.Pop(TRUE);
-    }
-    m_ILStubGenLock.Destroy();
-
-    m_LargeHeapHandleTableCrst.Destroy();
-
-    if (m_pLargeHeapHandleTable != NULL)
-    {
-        delete m_pLargeHeapHandleTable;
-        m_pLargeHeapHandleTable = NULL;
-    }
-
-    if (!IsAppDomain())
-    {
-        // Kind of a workaround - during unloading, we need to have an EE halt
-        // around deleting this stuff. So it gets deleted in AppDomain::Terminate()
-        // for those things (because there is a convenient place there.)
-        GetLoaderAllocator()->CleanupStringLiteralMap();
-    }
-
-#ifdef FEATURE_COMINTEROP
-    if (m_pMngStdInterfacesInfo)
-    {
-        delete m_pMngStdInterfacesInfo;
-        m_pMngStdInterfacesInfo = NULL;
-    }
-    
-    if (m_pWinRtBinder != NULL)
-    {
-        m_pWinRtBinder->Release();
-    }
-#endif // FEATURE_COMINTEROP
-
-    ClearFusionContext();
-
-    m_dwSizedRefHandles = 0;
-}
-#endif // CROSSGEN_COMPILE
-
 void BaseDomain::InitVSD()
 {
     STANDARD_VM_CONTRACT;
@@ -1865,49 +1755,6 @@ void SystemDomain::Stop()
     while (i.Next())
         i.GetDomain()->Stop();
 }
-
-
-void SystemDomain::Terminate() // bNotifyProfiler is ignored
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // This ignores the refences and terminates the appdomains
-    AppDomainIterator i(FALSE);
-
-    while (i.Next())
-    {
-        delete i.GetDomain();
-        // Keep the iterator from Releasing the current domain
-        i.m_pCurrent = NULL;
-    }
-
-    if (m_pSystemFile != NULL) {
-        m_pSystemFile->Release();
-        m_pSystemFile = NULL;
-    }
-
-    m_pSystemAssembly = NULL;
-
-    if (m_pGlobalStringLiteralMap) {
-        delete m_pGlobalStringLiteralMap;
-        m_pGlobalStringLiteralMap = NULL;
-    }
-
-    BaseDomain::Terminate();
-
-#ifdef FEATURE_COMINTEROP
-    if (g_pRCWCleanupList != NULL)
-        delete g_pRCWCleanupList;
-#endif // FEATURE_COMINTEROP
-    m_GlobalAllocator.Terminate();
-}
-
 
 void SystemDomain::PreallocateSpecialObjects()
 {
@@ -3216,9 +3063,6 @@ AppDomain::~AppDomain()
         PerAppDomainTPCountList::ResetAppDomainIndex(GetTPIndex());
 
     m_AssemblyCache.Clear();
-
-    if(!g_fEEInit)
-        Terminate();
 
 #ifdef FEATURE_COMINTEROP
     if (m_pNameToTypeMap != nullptr)

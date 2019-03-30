@@ -3432,7 +3432,6 @@ static void GCProtectArgsAndDoNormalFuncEval(DebuggerEval *pDE,
     // invalid due to an AD unload.
     // All normal func evals should have an AppDomain specified.
     //
-    _ASSERTE( pDE->m_appDomainId.m_dwId == DefaultADID ); 
 
     // Wrap everything in a EX_TRY so we catch any exceptions that could be thrown.
     // Note that we don't let any thrown exceptions cross the AppDomain boundary because we don't 
