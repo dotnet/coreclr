@@ -1241,8 +1241,7 @@ HRESULT EEConfig::sync()
         }
     }
 #endif
-    quickJitForLoops =
-        Configuration::GetKnobBooleanValue(W("System.Runtime.QuickJitForLoops"), CLRConfig::UNSUPPORTED_QuickJitForLoops) != 0;
+    quickJitForLoops = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_QuickJitForLoops) != 0;
 
 #ifndef CROSSGEN_COMPILE
     backpatchEntryPointSlots = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_BackpatchEntryPointSlots) != 0;
