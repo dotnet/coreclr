@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System;
 using System.Buffers;
 using System.Runtime.InteropServices;
@@ -14,9 +15,9 @@ internal static partial class Interop
         private static extern unsafe byte* GetCwd(byte* buffer, int bufferLength);
 
         internal static unsafe string GetCwd()
-        {      
+        {
             const int StackLimit = 256;
-       
+
             // First try to get the path into a buffer on the stack
             byte* stackBuf = stackalloc byte[StackLimit];
             string result = GetCwdHelper(stackBuf, StackLimit);
