@@ -47,14 +47,6 @@ void DECLSPEC_NORETURN fatal(int errCode)
 }
 
 /*****************************************************************************/
-void DECLSPEC_NORETURN nonfatal(int errCode)
-{
-    ULONG_PTR exceptArg = errCode;
-    RaiseException(FATAL_JIT_EXCEPTION, EXCEPTION_NONCONTINUABLE, 1, &exceptArg);
-    UNREACHABLE();
-}
-
-/*****************************************************************************/
 void DECLSPEC_NORETURN badCode()
 {
 #if MEASURE_FATAL
@@ -82,12 +74,6 @@ void DECLSPEC_NORETURN NOMEM()
 #endif // MEASURE_FATAL
 
     fatal(CORJIT_OUTOFMEM);
-}
-
-/*****************************************************************************/
-void DECLSPEC_NORETURN rejitTier0ToTier1()
-{
-    nonfatal(CORJIT_TIER0TOTIER1);
 }
 
 /*****************************************************************************/

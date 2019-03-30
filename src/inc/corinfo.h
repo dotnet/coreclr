@@ -832,7 +832,7 @@ enum CorInfoFlag
     CORINFO_FLG_INTRINSIC             = 0x00400000, // This method MAY have an intrinsic ID
     CORINFO_FLG_CONSTRUCTOR           = 0x00800000, // This method is an instance or type initializer
     CORINFO_FLG_AGGRESSIVE_OPT        = 0x01000000, // The method may contain hot code and should be aggressively optimized if possible
-    CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS = 0x02000000, // Indicates that for a tier 0 compilation request, if the method contains a loop it should be switched to tier 1 instead
+    CORINFO_FLG_ALLOW_TIER0_TO_TIER1  = 0x02000000, // Indicates that for a tier 0 compilation request, the JIT may choose to switch to tier 1 if appropriate
     CORINFO_FLG_NOSECURITYWRAP        = 0x04000000, // The method requires no security checks
     CORINFO_FLG_DONT_INLINE           = 0x10000000, // The method should not be inlined
     CORINFO_FLG_DONT_INLINE_CALLER    = 0x20000000, // The method should not be inlined, nor should its callers. It cannot be tail called.

@@ -5220,7 +5220,7 @@ protected:
     void        fgInitBBLookup();
     BasicBlock* fgLookupBB(unsigned addr);
 
-    void fgCheckForTier0ToTier1RejitForLoops();
+    void fgTrySwitchTier0ToTier1();
 
     void fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, FixedBitVect* jumpTarget);
 

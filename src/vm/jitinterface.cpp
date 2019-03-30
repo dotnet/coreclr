@@ -6852,7 +6852,7 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
 #ifndef CROSSGEN_COMPILE
     if (!g_pConfig->QuickJitForLoops())
     {
-        result |= CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS;
+        result |= CORINFO_FLG_ALLOW_TIER0_TO_TIER1;
     }
 #endif
 

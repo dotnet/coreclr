@@ -4254,18 +4254,28 @@ private:
 
 /*****************************************************************************
  *
- *  If appropriate, rejit to switch from tier 0 to tier 1
+ *  If appropriate, switch from tier 0 to tier 1.
  */
 
-void Compiler::fgCheckForTier0ToTier1RejitForLoops()
+void Compiler::fgTrySwitchTier0ToTier1()
 {
-    if ((info.compFlags & CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS) != 0 &&
-        opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) && !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_DEBUG_CODE) &&
-        !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) && !compIsForInlining())
+    if (!opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) || (info.compFlags & CORINFO_FLG_ALLOW_TIER0_TO_TIER1) == 0 ||
+        compIsForInlining())
     {
-        info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_TIER0_TO_TIER1);
-        rejitTier0ToTier1();
+        return;
     }
+
+    // Ensure that it would be safe to change the opt level
+    assert(opts.compFlags == CLFLG_MINOPT);
+    assert(!opts.IsMinOptsSet());
+
+    // Switch to tier 1 and re-init options
+    opts.jitFlags->Clear(JitFlags::JIT_FLAG_TIER0);
+    opts.jitFlags->Set(JitFlags::JIT_FLAG_TIER1);
+    compInitOptions(opts.jitFlags);
+
+    // Notify the VM of the change
+    info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_TIER0_TO_TIER1);
 }
 
 //------------------------------------------------------------------------
@@ -4454,13 +4464,6 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, Fixed
                     (opcode == CEE_LEAVE || opcode == CEE_LEAVE_S || opcode == CEE_BR || opcode == CEE_BR_S))
                 {
                     break; /* NOP */
-                }
-
-                if (jmpDist < 0)
-                {
-                    // This is a bit earlier in stage for earlier rejit than fgLinkBasicBlocks(), where backward jumps
-                    // are typically identified
-                    fgCheckForTier0ToTier1RejitForLoops();
                 }
 
                 unsigned jmpAddr = (IL_OFFSET)(codeAddr - codeBegp) + sz + jmpDist;
@@ -5193,6 +5196,7 @@ void Compiler::fgLinkBasicBlocks()
                 if (curBBdesc->bbJumpDest->bbNum <= curBBdesc->bbNum)
                 {
                     fgMarkBackwardJump(curBBdesc->bbJumpDest, curBBdesc);
+                    fgTrySwitchTier0ToTier1();
                 }
 
                 /* Is the next block reachable? */
@@ -5240,7 +5244,7 @@ void Compiler::fgLinkBasicBlocks()
 
                 if (foundBackwardJump)
                 {
-                    fgCheckForTier0ToTier1RejitForLoops();
+                    fgTrySwitchTier0ToTier1();
                 }
 
                 /* Default case of CEE_SWITCH (next block), is at end of jumpTab[] */

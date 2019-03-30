@@ -6706,19 +6706,6 @@ START:
 
         result = param.result;
 
-    if (result == CORJIT_TIER0TOTIER1)
-    {
-        assert((param.pComp->info.compFlags & CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS) != 0);
-        assert(compileFlags->IsSet(JitFlags::JIT_FLAG_TIER0));
-        assert(!compileFlags->IsSet(JitFlags::JIT_FLAG_DEBUG_CODE));
-        assert(!compileFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT));
-
-        compileFlags->Clear(JitFlags::JIT_FLAG_TIER0);
-        compileFlags->Set(JitFlags::JIT_FLAG_TIER1);
-
-        goto START;
-    }
-
     if (!inlineInfo && (result == CORJIT_INTERNALERROR || result == CORJIT_RECOVERABLEERROR) && !jitFallbackCompile)
     {
         // If we failed the JIT, reattempt with debuggable code.
