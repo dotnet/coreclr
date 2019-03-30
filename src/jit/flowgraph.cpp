@@ -4260,10 +4260,8 @@ private:
 void Compiler::fgCheckForTier0ToTier1RejitForLoops()
 {
     if ((info.compFlags & CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS) != 0 &&
-        opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) &&
-        !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_DEBUG_CODE) &&
-        !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) &&
-        !compIsForInlining())
+        opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) && !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_DEBUG_CODE) &&
+        !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) && !compIsForInlining())
     {
         info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_TIER0_TO_TIER1);
         rejitTier0ToTier1();
@@ -4460,8 +4458,8 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, Fixed
 
                 if (jmpDist < 0)
                 {
-                    // This is a bit earlier in stage for earlier rejit than fgLinkBasicBlocks(), where backward jumps are
-                    // typically identified
+                    // This is a bit earlier in stage for earlier rejit than fgLinkBasicBlocks(), where backward jumps
+                    // are typically identified
                     fgCheckForTier0ToTier1RejitForLoops();
                 }
 
@@ -5226,7 +5224,7 @@ void Compiler::fgLinkBasicBlocks()
                 unsigned jumpCnt;
                 jumpCnt = curBBdesc->bbJumpSwt->bbsCount;
                 BasicBlock** jumpPtr;
-                jumpPtr = curBBdesc->bbJumpSwt->bbsDstTab;
+                jumpPtr                = curBBdesc->bbJumpSwt->bbsDstTab;
                 bool foundBackwardJump = false;
 
                 do
