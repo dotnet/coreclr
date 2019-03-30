@@ -325,14 +325,13 @@ namespace System
         {
             bool success = TryParse(enumType, value, ignoreCase, throwOnFailure: true, out object? result);
             Debug.Assert(success);
-            // TODO-NULLABLE: workaround compiler bug
             return result!;
         }
 
-        public static TEnum Parse<TEnum>(string? value) where TEnum : struct =>
+        public static TEnum Parse<TEnum>(string value) where TEnum : struct =>
             Parse<TEnum>(value, ignoreCase: false);
 
-        public static TEnum Parse<TEnum>(string? value, bool ignoreCase) where TEnum : struct
+        public static TEnum Parse<TEnum>(string value, bool ignoreCase) where TEnum : struct
         {
             bool success = TryParse<TEnum>(value, ignoreCase, throwOnFailure: true, out TEnum result);
             Debug.Assert(success);
@@ -864,11 +863,11 @@ namespace System
                 {
                     case 'G':
                     case 'g':
-                        return GetEnumName(rtType, ToUInt64(value)) ?? value.ToString();
+                        return GetEnumName(rtType, ToUInt64(value)) ?? value.ToString()!;
 
                     case 'D':
                     case 'd':
-                        return value.ToString();
+                        return value.ToString()!;
 
                     case 'X':
                     case 'x':
@@ -876,7 +875,7 @@ namespace System
 
                     case 'F':
                     case 'f':
-                        return InternalFlagsFormat(rtType, ToUInt64(value)) ?? value.ToString();
+                        return InternalFlagsFormat(rtType, ToUInt64(value)) ?? value.ToString()!;
                 }
             }
 

@@ -96,7 +96,7 @@ namespace System
             return InternalHasFlag(flag);
         }
 
-        public static string GetName(Type enumType, object? value)
+        public static string? GetName(Type enumType, object value)
         {
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
@@ -128,7 +128,7 @@ namespace System
             return enumType.GetEnumValues();
         }
 
-        public static bool IsDefined(Type enumType, object? value)
+        public static bool IsDefined(Type enumType, object value)
         {
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
