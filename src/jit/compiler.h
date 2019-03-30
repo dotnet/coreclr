@@ -8856,12 +8856,6 @@ public:
 #endif // FEATURE_MULTIREG_RET
     }
 
-#if FEATURE_MULTIREG_ARGS
-    // Given a GenTree node of TYP_STRUCT that represents a pass by value argument
-    // return the gcPtr layout for the pointers sized fields
-    void getStructGcPtrsFromOp(GenTree* op, BYTE* gcPtrsOut);
-#endif // FEATURE_MULTIREG_ARGS
-
     // Returns true if the method being compiled returns a value
     bool compMethodHasRetVal()
     {

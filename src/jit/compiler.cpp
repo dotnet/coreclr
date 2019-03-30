@@ -469,61 +469,6 @@ var_types Compiler::getJitGCType(BYTE gcType)
     return result;
 }
 
-#if FEATURE_MULTIREG_ARGS
-//---------------------------------------------------------------------------
-// getStructGcPtrsFromOp: Given a GenTree node of TYP_STRUCT that represents
-//                        a pass by value argument, return the gcPtr layout
-//                        for the pointers sized fields
-// Arguments:
-//    op         - the operand of TYP_STRUCT that is passed by value
-//    gcPtrsOut  - an array of BYTES that are written by this method
-//                 they will contain the VM's CorInfoGCType values
-//                 for each pointer sized field
-// Return Value:
-//     Two [or more] values are written into the gcPtrs array
-//
-// Note that for ARM64 there will always be exactly two pointer sized fields
-
-void Compiler::getStructGcPtrsFromOp(GenTree* op, BYTE* gcPtrsOut)
-{
-    assert(op->TypeGet() == TYP_STRUCT);
-
-#ifdef _TARGET_ARM64_
-    if (op->OperGet() == GT_OBJ)
-    {
-        CORINFO_CLASS_HANDLE objClass = op->gtObj.gtClass;
-
-        int structSize = info.compCompHnd->getClassSize(objClass);
-        assert(structSize <= 2 * TARGET_POINTER_SIZE);
-
-        BYTE gcPtrsTmp[2] = {TYPE_GC_NONE, TYPE_GC_NONE};
-
-        info.compCompHnd->getClassGClayout(objClass, &gcPtrsTmp[0]);
-
-        gcPtrsOut[0] = gcPtrsTmp[0];
-        gcPtrsOut[1] = gcPtrsTmp[1];
-    }
-    else if (op->OperGet() == GT_LCL_VAR)
-    {
-        GenTreeLclVarCommon* varNode = op->AsLclVarCommon();
-        unsigned             varNum  = varNode->gtLclNum;
-        assert(varNum < lvaCount);
-        LclVarDsc* varDsc = &lvaTable[varNum];
-
-        // At this point any TYP_STRUCT LclVar must be a 16-byte pass by value argument
-        assert(varDsc->lvSize() == 2 * TARGET_POINTER_SIZE);
-
-        gcPtrsOut[0] = varDsc->lvGcLayout[0];
-        gcPtrsOut[1] = varDsc->lvGcLayout[1];
-    }
-    else
-#endif
-    {
-        noway_assert(!"Unsupported Oper for getStructGcPtrsFromOp");
-    }
-}
-#endif // FEATURE_MULTIREG_ARGS
-
 #ifdef ARM_SOFTFP
 //---------------------------------------------------------------------------
 // IsSingleFloat32Struct:
