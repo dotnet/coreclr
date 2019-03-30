@@ -1204,12 +1204,12 @@ HRESULT EEConfig::sync()
     dwSleepOnExit = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_SleepOnExit);
 
 #if defined(FEATURE_TIERED_COMPILATION)
-    fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation) != 0;
+    fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation);
 
     fTieredCompilation_QuickJit =
         Configuration::GetKnobBooleanValue(
             W("System.Runtime.TieredCompilation.QuickJit"),
-            CLRConfig::UNSUPPORTED_TC_QuickJit) != 0;
+            CLRConfig::UNSUPPORTED_TC_QuickJit);
 
     fTieredCompilation_StartupTier_CallCounting = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_StartupTier_CallCounting) != 0;
     fTieredCompilation_StartupTier_OptimizeCode = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_StartupTier_OptimizeCode) != 0;
