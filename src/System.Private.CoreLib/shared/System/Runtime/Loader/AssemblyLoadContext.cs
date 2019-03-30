@@ -145,7 +145,16 @@ namespace System.Runtime.Loader
             {
                 foreach (Assembly a in GetLoadedAssemblies())
                 {
-                    AssemblyLoadContext alc = GetLoadContext(a);
+                    AssemblyLoadContext alc;
+                    try
+                    {
+                        alc = GetLoadContext(a);
+                    }
+                    catch
+                    {
+                        // GetLoadContext is sometimes throwing an AV
+                        continue;
+                    }
 
                     if (alc == this)
                     {
