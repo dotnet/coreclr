@@ -265,7 +265,7 @@ namespace System.Threading
             }
         }
 
-        private static int WaitMultiple(ReadOnlySpan<WaitHandle> waitHandles, bool waitAll, int millisecondsTimeout)
+        private static int WaitMultiple(WaitHandle[] waitHandles, bool waitAll, int millisecondsTimeout)
         {
             if (waitHandles == null)
             {
