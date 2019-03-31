@@ -1105,7 +1105,7 @@ void CodeGen::inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenT
 
                 case GT_CLS_VAR_ADDR:
                 {
-                    getEmitter()->emitIns_R_C_I(ins, attr, reg1, addr->gtClsVar.gtClsVarHnd, 0, ival);
+                    getEmitter()->emitIns_R_C_I(ins, attr, reg1, addr->AsClsVar()->gtClsVarHnd, 0, ival);
                     return;
                 }
 
@@ -1133,7 +1133,7 @@ void CodeGen::inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenT
                     GenTreeLclFld* lclField = rmOp->AsLclFld();
 
                     varNum = lclField->GetLclNum();
-                    offset = lclField->gtLclFld.gtLclOffs;
+                    offset = lclField->AsLclFld()->gtLclOffs;
                     break;
                 }
 
