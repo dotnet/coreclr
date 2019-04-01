@@ -19,7 +19,6 @@ namespace System
             Debug.Assert(length >= 0, "Length cannot be negative.");
             Debug.Assert(startIndex + length <= this.Length, "StartIndex and Length cannot point beyond the end of the string.");
 
-            Debug.Assert(startIndex != this.Length, "Caller should handle StartIndex boundary conditions.");
             Debug.Assert(length != 0 && length != this.Length, "Caller should handle Length boundary conditions.");
 
             Utf8String newString = FastAllocate(length);
