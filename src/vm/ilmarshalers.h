@@ -607,7 +607,7 @@ public:
             // code for the pinvoke ILStubs which do a return using a struct type.  Therefore, we
             // change the signature of calli to return void and make the return buffer as first argument. 
 
-            // For Windows AMD64 and x86, we need to use a return buffer for native member functions returning structures.
+            // For Windows AMD64, x86, and ARM64, we need to use a return buffer for native member functions returning structures.
             // for X86 Windows non-member functions we bash the return type from struct to U1, U2, U4 or U8
             // and use byrefNativeReturn for all other structs.
             // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
@@ -632,7 +632,7 @@ public:
                 }
 #endif // _TARGET_X86_
             }
-#endif // defined(_TARGET_X86_) || (defined(_TARGET_AMD64_) && defined(_WIN32))
+#endif // defined(_TARGET_X86_) || ((defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)) && defined(_WIN32))
         }
 
         if (IsHresultSwap(dwMarshalFlags) || (byrefNativeReturn && (IsCLRToNative(m_dwMarshalFlags) || nativeMethodIsMemberFunction)))
