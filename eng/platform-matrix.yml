@@ -79,6 +79,8 @@ jobs:
         osIdentifier: Linux_musl
         containerName: musl_x64_build_image
         helixQueues:
+        - ${{ if eq(variables['System.TeamProject'], 'public') }}:
+          - (Alpine.38.Amd64.On.Docker.Open)Ubuntu.1804.Amd64.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:2-alpine:3.8
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - Alpine.36.Amd64
           - Alpine.38.Amd64
