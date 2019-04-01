@@ -5158,7 +5158,7 @@ void LinearScan::allocateRegisters()
         // that aren't live in the next block and make them available for the
         // DummyDefs.
 
-        // If we've already handled the BlockEnd, but how we're seeing the RefTypeBB,
+        // If we've already handled the BlockEnd, but now we're seeing the RefTypeBB,
         // dump it now.
         if ((refType == RefTypeBB) && handledBlockEnd)
         {
