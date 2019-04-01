@@ -144,16 +144,16 @@ namespace System
             for (int i = 0; i < invocationCount; i++)
             {
                 Delegate dd = (Delegate)invocationList[i]!; // If invocationList is an object[], it always contains Delegate (or MulticastDelegate) objects
-                object[] dInvocationList = (d._invocationList as object[])!; // TODO-NULLABLE: Not clear why this is always object[]
+                object[] dInvocationList = (d._invocationList as object[])!;
                 if (!dd.Equals(dInvocationList[i]))
                     return false;
             }
             return true;
         }
 
-        private bool TrySetSlot(object[] a, int index, object o)
+        private bool TrySetSlot(object?[] a, int index, object o)
         {
-            if (a[index] == null && System.Threading.Interlocked.CompareExchange<object>(ref a[index], o, null!) == null) // TODO-NULLABLE: Should not need ! here
+            if (a[index] == null && System.Threading.Interlocked.CompareExchange<object?>(ref a[index], o, null) == null)
                 return true;
 
             // The slot may be already set because we have added and removed the same method before.
@@ -161,7 +161,7 @@ namespace System
             if (a[index] != null)
             {
                 MulticastDelegate d = (MulticastDelegate)o;
-                MulticastDelegate dd = (MulticastDelegate)a[index];
+                MulticastDelegate dd = (MulticastDelegate)a[index]!;
 
                 if (dd._methodPtr == d._methodPtr &&
                     dd._target == d._target &&
