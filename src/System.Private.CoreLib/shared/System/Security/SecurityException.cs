@@ -25,26 +25,26 @@ namespace System.Security
             HResult = HResults.COR_E_SECURITY;
         }
 
-        public SecurityException(string message)
+        public SecurityException(string? message)
             : base(message)
         {
             HResult = HResults.COR_E_SECURITY;
         }
 
-        public SecurityException(string message, Exception? inner)
+        public SecurityException(string? message, Exception? inner)
             : base(message, inner)
         {
             HResult = HResults.COR_E_SECURITY;
         }
 
-        public SecurityException(string message, Type? type)
+        public SecurityException(string? message, Type? type)
             : base(message)
         {
             HResult = HResults.COR_E_SECURITY;
             PermissionType = type;
         }
 
-        public SecurityException(string message, Type? type, string? state)
+        public SecurityException(string? message, Type? type, string? state)
             : base(message)
         {
             HResult = HResults.COR_E_SECURITY;

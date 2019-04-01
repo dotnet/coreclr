@@ -270,7 +270,7 @@ namespace System.Security
             _children.Add(child);
         }
 
-        public bool Equal(SecurityElement other)
+        public bool Equal(SecurityElement? other)
         {
             if (other == null)
                 return false;
@@ -350,7 +350,7 @@ namespace System.Security
             return element;
         }
 
-        public static bool IsValidTag(string tag)
+        public static bool IsValidTag(string? tag)
         {
             if (tag == null)
                 return false;
@@ -358,7 +358,7 @@ namespace System.Security
             return tag.IndexOfAny(s_tagIllegalCharacters) == -1;
         }
 
-        public static bool IsValidText(string text)
+        public static bool IsValidText(string? text)
         {
             if (text == null)
                 return false;
@@ -366,12 +366,12 @@ namespace System.Security
             return text.IndexOfAny(s_textIllegalCharacters) == -1;
         }
 
-        public static bool IsValidAttributeName(string name)
+        public static bool IsValidAttributeName(string? name)
         {
             return IsValidTag(name);
         }
 
-        public static bool IsValidAttributeValue(string value)
+        public static bool IsValidAttributeValue(string? value)
         {
             if (value == null)
                 return false;
