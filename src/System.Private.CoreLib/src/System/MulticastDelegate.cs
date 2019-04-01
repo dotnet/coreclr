@@ -135,8 +135,9 @@ namespace System
         // Recursive function which will check for equality of the invocation list.
         private bool InvocationListEquals(MulticastDelegate d)
         {
-            Debug.Assert(d != null && (_invocationList as object[]) != null, "bogus delegate in multicast list comparison");
-            object[] invocationList = ((object[]?)_invocationList)!; // TODO-NULLABLE: nullability not inferred from `as` expression https://github.com/dotnet/roslyn/issues/34638
+            Debug.Assert(d != null);
+            Debug.Assert(_invocationList is object[]);
+            object[] invocationList = (object[])_invocationList;
 
             if (d._invocationCount != _invocationCount)
                 return false;
@@ -547,7 +548,7 @@ namespace System
                 if ((_methodBase == null) || !(_methodBase is MethodInfo))
                 {
                     IRuntimeMethodInfo method = FindMethodHandle();
-                    RuntimeType? declaringType = RuntimeMethodHandle.GetDeclaringType(method);
+                    RuntimeType declaringType = RuntimeMethodHandle.GetDeclaringType(method);
 
                     // need a proper declaring type instance method on a generic type
                     if (RuntimeTypeHandle.IsGenericTypeDefinition(declaringType) || RuntimeTypeHandle.HasInstantiation(declaringType))

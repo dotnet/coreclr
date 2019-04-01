@@ -68,8 +68,7 @@ namespace System
             if (method == null)
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType? rtTarget = target as RuntimeType;
-            if (rtTarget == null)
+            if (!(target is RuntimeType rtTarget))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(target));
 
             // This API existed in v1/v1.1 and only expected to create open
@@ -396,12 +395,11 @@ namespace System
             if (method == null)
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType? rtType = type as RuntimeType;
-            RuntimeType? rtTarget = target as RuntimeType;
-            if (rtType == null)
+            if (!(type is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
-            if (rtTarget == null)
+            if (!(target is RuntimeType rtTarget))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(target));
+
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(type));
 
@@ -433,12 +431,10 @@ namespace System
             if (method == null)
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType? rtType = type as RuntimeType;
-            if (rtType == null)
+            if (!(type is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
 
-            RuntimeMethodInfo? rmi = method as RuntimeMethodInfo;
-            if (rmi == null)
+            if (!(method is RuntimeMethodInfo rmi))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(method));
 
             if (!rtType.IsDelegate())
@@ -479,12 +475,10 @@ namespace System
             if (method == null)
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType? rtType = type as RuntimeType;
-            if (rtType == null)
+            if (!(type is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
 
-            RuntimeMethodInfo? rmi = method as RuntimeMethodInfo;
-            if (rmi == null)
+            if (!(method is RuntimeMethodInfo rmi))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(method));
 
             if (!rtType.IsDelegate())
@@ -558,8 +552,7 @@ namespace System
             if (method.IsNullHandle())
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType? rtType = type as RuntimeType;
-            if (rtType == null)
+            if (!(type is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
 
             if (!rtType.IsDelegate())
