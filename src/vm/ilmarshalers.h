@@ -602,7 +602,7 @@ public:
                 nativeSize = wNativeSize;
             }
 
-#if defined(_TARGET_X86_) || (defined(_TARGET_AMD64_) && defined(_WIN32))
+#if defined(_TARGET_X86_) || ((defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)) && defined(_WIN32))
             // JIT32 and JIT64 (which is only used on the Windows Desktop CLR) has a problem generating
             // code for the pinvoke ILStubs which do a return using a struct type.  Therefore, we
             // change the signature of calli to return void and make the return buffer as first argument. 
@@ -619,7 +619,7 @@ public:
             else
 #endif // _WIN32
             {
-#ifndef _TARGET_AMD64_
+#ifdef _TARGET_X86_
                 switch (nativeSize)
                 {
 #ifndef UNIX_X86_ABI
@@ -630,7 +630,7 @@ public:
 #endif // UNIX_X86_ABI
                     default: byrefNativeReturn = true; break;
                 }
-#endif // _TARGET_AMD64_
+#endif // _TARGET_X86_
             }
 #endif // defined(_TARGET_X86_) || (defined(_TARGET_AMD64_) && defined(_WIN32))
         }
