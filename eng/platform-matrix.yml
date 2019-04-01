@@ -95,8 +95,7 @@ jobs:
         osIdentifier: Linux_musl
         containerName: musl_arm64_build_image
         helixQueues:
-        - ${{ if eq(variables['System.TeamProject'], 'public') }}:
-          - (Alpine.38.Arm64.On.Docker.Open)Ubuntu.1604.Arm64.Docker.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-arm64v8-46e69dd-20190313223330
+        # TODO: enable (Alpine.38.Arm64.On.Docker.Open) once https://github.com/dotnet/coreclr/issues/23621 is resolved
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - (Alpine.38.Arm64.On.Docker)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-arm64v8-46e69dd-20190313223330
         crossrootfsDir: '/crossrootfs/arm64'
@@ -113,8 +112,7 @@ jobs:
         osIdentifier: Linux_rhel6
         containerName: centos6_x64_build_image
         helixQueues:
-        - ${{ if eq(variables['System.TeamProject'], 'public') }}:
-          - RedHat.6.Amd64.Open
+        # TODO: enable RedHat.6.Amd64.Open once https://github.com/dotnet/coreclr/issues/23580 is resolved
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - RedHat.6.Amd64
         ${{ insert }}: ${{ parameters.jobParameters }}
