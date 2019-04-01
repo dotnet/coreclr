@@ -83,7 +83,7 @@ jobs:
         containerName: musl_x64_build_image
         helixQueues:
         - ${{ if eq(variables['System.TeamProject'], 'public') }}:
-          - (Alpine.38.Amd64.Open)Ubuntu.1804.Amd64.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-45b1fa2-20190327215821
+          - (Alpine.38.Amd64.Open)Ubuntu.1604.Amd64.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-45b1fa2-20190327215821
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - Alpine.36.Amd64
           - Alpine.38.Amd64
