@@ -105,7 +105,7 @@ namespace System
         /// is null.</exception>
         /// <exception cref="T:System.ArgumentException">An element of <paramref name="innerExceptions"/> is
         /// null.</exception>
-        public AggregateException(string message, IEnumerable<Exception> innerExceptions)
+        public AggregateException(string? message, IEnumerable<Exception> innerExceptions)
             // If it's already an IList, pass that along (a defensive copy will be made in the delegated ctor).  If it's null, just pass along
             // null typed correctly.  Otherwise, create an IList from the enumerable and pass that along. 
             : this(message, innerExceptions as IList<Exception> ?? (innerExceptions == null ? (List<Exception>)null! : new List<Exception>(innerExceptions)))
@@ -122,7 +122,7 @@ namespace System
         /// is null.</exception>
         /// <exception cref="T:System.ArgumentException">An element of <paramref name="innerExceptions"/> is
         /// null.</exception>
-        public AggregateException(string message, params Exception[] innerExceptions) :
+        public AggregateException(string? message, params Exception[] innerExceptions) :
             this(message, (IList<Exception>)innerExceptions)
         {
         }
@@ -136,7 +136,7 @@ namespace System
         /// is null.</exception>
         /// <exception cref="T:System.ArgumentException">An element of <paramref name="innerExceptions"/> is
         /// null.</exception>
-        private AggregateException(string message, IList<Exception> innerExceptions)
+        private AggregateException(string? message, IList<Exception> innerExceptions)
             : base(message, innerExceptions != null && innerExceptions.Count > 0 ? innerExceptions[0] : null)
         {
             if (innerExceptions == null)
