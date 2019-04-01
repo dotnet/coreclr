@@ -6908,7 +6908,7 @@ void CEEInfo::setMethodAttribs (
         }
     }
 
-#ifndef CROSSGEN_COMPILE
+#ifdef FEATURE_TIERED_COMPILATION
     if ((attribs & CORINFO_FLG_TIER0_TO_TIER1) && ftn->IsEligibleForTieredCompilation())
     {
         ftn->GetCallCounter()->DisableStartupTierCallCounting(ftn);
@@ -12446,6 +12446,9 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
         CORJIT_FLAGS flags;
         BYTE **nativeEntry;
         ULONG *nativeSizeOfCode;
+#ifdef FEATURE_TIERED_COMPILATION
+        NativeCodeVersion nativeCodeVersion;
+#endif
         MethodDesc *ftn;
         CorJitResult res;
     }; Param param;
@@ -12455,11 +12458,24 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
     param.flags = flags;
     param.nativeEntry = nativeEntry;
     param.nativeSizeOfCode = nativeSizeOfCode;
+#ifdef FEATURE_TIERED_COMPILATION
+    param.nativeCodeVersion = nativeCodeVersion;
+#endif
     param.ftn = ftn;
     param.res = CORJIT_INTERNALERROR;
 
     PAL_TRY(Param *, pParam, &param)
     {
+#ifdef FEATURE_TIERED_COMPILATION
+        bool wasTier0AndStartupTierCallCountingEnabled = false;
+        CallCounter *callCounter = nullptr;
+        if (pParam->flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER0))
+        {
+            callCounter = pParam->ftn->GetCallCounter();
+            wasTier0AndStartupTierCallCountingEnabled = callCounter->IsStartupTierCallCountingEnabled(pParam->ftn);
+        }
+#endif
+
         //
         // Call out to the JIT-compiler
         //
@@ -12470,6 +12486,19 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
                                            pParam->flags,
                                            pParam->nativeEntry,
                                            pParam->nativeSizeOfCode);
+
+#ifdef FEATURE_TIERED_COMPILATION
+        if (wasTier0AndStartupTierCallCountingEnabled)
+        {
+            _ASSERTE(callCounter != nullptr);
+            if (!callCounter->IsStartupTierCallCountingEnabled(pParam->ftn))
+            {
+                // The JIT decided to switch from tier 0 to tier 1 and startup tier call counting was disabled for the method.
+                // Update the code version to reflect that the tier change.
+                pParam->nativeCodeVersion.SetOptimizationTier(NativeCodeVersion::OptimizationTierOptimized);
+            }
+        }
+#endif
     }
     PAL_FINALLY
     {
