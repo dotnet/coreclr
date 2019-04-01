@@ -145,7 +145,7 @@ namespace System
             int invocationCount = (int)_invocationCount;
             for (int i = 0; i < invocationCount; i++)
             {
-                Debug.Assert(invocationList[i] is Delegate, $"Expected {typeof(Delegate)}, got {invocationList[i].GetType()}");
+                Debug.Assert(invocationList[i] is Delegate);
                 Delegate dd = (Delegate)invocationList[i]; // If invocationList is an object[], it always contains Delegate (or MulticastDelegate) objects
 
                 object[] dInvocationList = (d._invocationList as object[])!;
@@ -307,7 +307,7 @@ namespace System
 
         private object[] DeleteFromInvocationList(object[] invocationList, int invocationCount, int deleteIndex, int deleteCount)
         {
-            Debug.Assert(_invocationList is object[], $"Expected {typeof(object[])}, got {_invocationList}");
+            Debug.Assert(_invocationList is object[]);
             object[] thisInvocationList = (object[])_invocationList;
             int allocCount = thisInvocationList.Length;
             while (allocCount / 2 >= invocationCount - deleteCount)
