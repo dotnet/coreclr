@@ -16,7 +16,7 @@ namespace System
     public abstract class Delegate : ICloneable, ISerializable
     {
         // _target is the object we will invoke on
-        internal object _target = null!; // Initialized by VM as needed
+        internal object? _target; // Initialized by VM as needed; null if static delegate
 
         // MethodBase, either cached after first request or assigned from a DynamicMethod
         // For open delegates to collectible types, this may be a LoaderAllocator object
@@ -54,7 +54,7 @@ namespace System
                 throw new ArgumentException(SR.Arg_DlgtTargMeth);
         }
 
-        // This constructor is called from a class to generate a 
+        // This constructor is called from a class to generate a
         // delegate based upon a static method name and the Type object
         // for the class defining the method.
         protected Delegate(Type target, string method)
@@ -90,10 +90,10 @@ namespace System
         {
         }
 
-        public object? DynamicInvoke(params object[]? args)
+        public object? DynamicInvoke(params object?[]? args)
         {
             // Theoretically we should set up a LookForMyCaller stack mark here and pass that along.
-            // But to maintain backward compatibility we can't switch to calling an 
+            // But to maintain backward compatibility we can't switch to calling an
             // internal overload of DynamicInvokeImpl that takes a stack mark.
             // Fortunately the stack walker skips all the reflection invocation frames including this one.
             // So this method will never be returned by the stack walker as the caller.
@@ -101,7 +101,7 @@ namespace System
             return DynamicInvokeImpl(args);
         }
 
-        protected virtual object? DynamicInvokeImpl(object[]? args)
+        protected virtual object? DynamicInvokeImpl(object?[]? args)
         {
             RuntimeMethodHandleInternal method = new RuntimeMethodHandleInternal(GetInvokeMethod());
             RuntimeMethodInfo invoke = (RuntimeMethodInfo)RuntimeType.GetMethodBase((RuntimeType)this.GetType(), method);
@@ -124,7 +124,7 @@ namespace System
             // even though the fields were not all equals the delegates may still match
             // When target carries the delegate itself the 2 targets (delegates) may be different instances
             // but the delegates are logically the same
-            // It may also happen that the method pointer was not jitted when creating one delegate and jitted in the other 
+            // It may also happen that the method pointer was not jitted when creating one delegate and jitted in the other
             // if that's the case the delegates may still be equals but we need to make a more complicated check
 
             if (_methodPtrAux == IntPtr.Zero)
@@ -153,7 +153,7 @@ namespace System
             }
 
             // method ptrs don't match, go down long path
-            // 
+            //
             if (_methodBase == null || d._methodBase == null || !(_methodBase is MethodInfo) || !(d._methodBase is MethodInfo))
                 return Delegate.InternalEqualMethodHandles(this, d);
             else
@@ -180,13 +180,13 @@ namespace System
 
         public static Delegate? Combine(Delegate? a, Delegate? b)
         {
-            if ((object?)a == null) // cast to object for a more efficient test
+            if (a is null)
                 return b;
 
             return a.CombineImpl(b);
         }
 
-        public static Delegate? Combine(params Delegate[]? delegates)
+        public static Delegate? Combine(params Delegate?[]? delegates)
         {
             if (delegates == null || delegates.Length == 0)
                 return null;
@@ -238,7 +238,7 @@ namespace System
                             // types at each step) until we find the declaring type. Since the declaring type
                             // we get from the method is probably shared and those in the hierarchy we're
                             // walking won't be we compare using the generic type definition forms instead.
-                            Type currentType = _target.GetType();
+                            Type currentType = _target!.GetType();
                             Type targetType = declaringType.GetGenericTypeDefinition();
                             while (currentType != null)
                             {
@@ -323,15 +323,15 @@ namespace System
         }
 
         // V1 API.
-        public static Delegate? CreateDelegate(Type type, object target, string method)
+        public static Delegate CreateDelegate(Type type, object target, string method)
         {
-            return CreateDelegate(type, target, method, false, true);
+            return CreateDelegate(type, target, method, false, throwOnBindFailure:true)!; // Cannot return null because it would have thrown
         }
 
         // V1 API.
-        public static Delegate? CreateDelegate(Type type, object target, string method, bool ignoreCase)
+        public static Delegate CreateDelegate(Type type, object target, string method, bool ignoreCase)
         {
-            return CreateDelegate(type, target, method, ignoreCase, true);
+            return CreateDelegate(type, target, method, ignoreCase, throwOnBindFailure:true)!; // Cannot return null because it would have thrown
         }
 
         // V1 API.
@@ -350,7 +350,7 @@ namespace System
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(type));
 
-            Delegate? d = InternalAlloc(rtType);
+            Delegate d = InternalAlloc(rtType);
             // This API existed in v1/v1.1 and only expected to create closed
             // instance delegates. Constrain the call to BindToMethodName to such
             // and don't allow relaxed signature matching (which could make the
@@ -366,22 +366,23 @@ namespace System
             {
                 if (throwOnBindFailure)
                     throw new ArgumentException(SR.Arg_DlgtTargMeth);
-                d = null;
+
+                return null;
             }
 
             return d;
         }
 
         // V1 API.
-        public static Delegate? CreateDelegate(Type type, Type target, string method)
+        public static Delegate CreateDelegate(Type type, Type target, string method)
         {
-            return CreateDelegate(type, target, method, false, true);
+            return CreateDelegate(type, target, method, false, throwOnBindFailure:true)!; // Cannot return null because it would have thrown
         }
 
         // V1 API.
-        public static Delegate? CreateDelegate(Type type, Type target, string method, bool ignoreCase)
+        public static Delegate CreateDelegate(Type type, Type target, string method, bool ignoreCase)
         {
-            return CreateDelegate(type, target, method, ignoreCase, true);
+            return CreateDelegate(type, target, method, ignoreCase, throwOnBindFailure:true)!; // Cannot return null because it would have thrown
         }
 
         // V1 API.
@@ -405,7 +406,7 @@ namespace System
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(type));
 
-            Delegate? d = InternalAlloc(rtType);
+            Delegate d = InternalAlloc(rtType);
             // This API existed in v1/v1.1 and only expected to create open
             // static delegates. Constrain the call to BindToMethodName to such
             // and don't allow relaxed signature matching (which could make the
@@ -417,7 +418,8 @@ namespace System
             {
                 if (throwOnBindFailure)
                     throw new ArgumentException(SR.Arg_DlgtTargMeth);
-                d = null;
+
+                return null;
             }
 
             return d;
@@ -464,9 +466,9 @@ namespace System
         }
 
         // V2 API.
-        public static Delegate? CreateDelegate(Type type, object? firstArgument, MethodInfo method)
+        public static Delegate CreateDelegate(Type type, object? firstArgument, MethodInfo method)
         {
-            return CreateDelegate(type, firstArgument, method, true);
+            return CreateDelegate(type, firstArgument, method, throwOnBindFailure:true)!; // Cannot return null because it would have thrown
         }
 
         // V2 API.
