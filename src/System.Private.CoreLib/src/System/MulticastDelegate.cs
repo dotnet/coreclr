@@ -137,13 +137,16 @@ namespace System
         {
             Debug.Assert(d != null && (_invocationList as object[]) != null, "bogus delegate in multicast list comparison");
             object[] invocationList = (_invocationList as object[])!; // Calling code ensures invocationList is object[]
+
             if (d._invocationCount != _invocationCount)
                 return false;
 
             int invocationCount = (int)_invocationCount;
             for (int i = 0; i < invocationCount; i++)
             {
-                Delegate dd = (Delegate)invocationList[i]!; // If invocationList is an object[], it always contains Delegate (or MulticastDelegate) objects
+                Debug.Assert(invocationList[i] is Delegate, $"Expected {typeof(Delegate)}, got {invocationList[i].GetType()}");
+                Delegate dd = (Delegate)invocationList[i]; // If invocationList is an object[], it always contains Delegate (or MulticastDelegate) objects
+
                 object[] dInvocationList = (d._invocationList as object[])!;
                 if (!dd.Equals(dInvocationList[i]))
                     return false;
@@ -303,7 +306,8 @@ namespace System
 
         private object[] DeleteFromInvocationList(object[] invocationList, int invocationCount, int deleteIndex, int deleteCount)
         {
-            object[] thisInvocationList = (_invocationList as object[])!; // Calling code ensures _invocationList is object[]
+            Debug.Assert(_invocationList is object[], $"Expected {typeof(object[])}, got {_invocationList}");
+            object[] thisInvocationList = (object[])_invocationList;
             int allocCount = thisInvocationList.Length;
             while (allocCount / 2 >= invocationCount - deleteCount)
                 allocCount /= 2;
@@ -573,7 +577,7 @@ namespace System
         {
             if (target == null)
                 ThrowNullThisInDelegateToInstance();
-            this._target = target!;
+            this._target = target!; // TODO-NULLABILITY: Compiler can't see throw helper above
             this._methodPtr = methodPtr;
         }
 
