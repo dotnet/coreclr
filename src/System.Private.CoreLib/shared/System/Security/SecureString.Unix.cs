@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.InteropServices;
@@ -10,17 +11,17 @@ using System.Text;
 namespace System.Security
 {
     // SecureString attempts to provide a defense-in-depth solution.
-    // 
+    //
     // On Windows, this is done with several mechanisms:
     // 1. keeping the data in unmanaged memory so that copies of it aren't implicitly made by the GC moving it around
     // 2. zero'ing out that unmanaged memory so that the string is reliably removed from memory when done with it
     // 3. encrypting the data while it's not being used (it's unencrypted to manipulate and use it)
-    // 
+    //
     // On Unix, we do 1 and 2, but we don't do 3 as there's no CryptProtectData equivalent.
 
     public sealed partial class SecureString
     {
-        private UnmanagedBuffer _buffer;
+        private UnmanagedBuffer _buffer = null!;
 
         internal SecureString(SecureString str)
         {
@@ -66,7 +67,7 @@ namespace System.Security
             if (_buffer != null && !_buffer.IsInvalid)
             {
                 _buffer.Dispose();
-                _buffer = null;
+                _buffer = null!;
             }
         }
 
@@ -141,7 +142,7 @@ namespace System.Security
             IntPtr ptr = IntPtr.Zero;
             IntPtr result = IntPtr.Zero;
             byte* bufferPtr = null;
-            
+
             try
             {
                 _buffer.AcquirePointer(ref bufferPtr);
@@ -203,7 +204,7 @@ namespace System.Security
             }
             finally
             {
-                // If there was a failure, such that result isn't initialized, 
+                // If there was a failure, such that result isn't initialized,
                 // release the string if we had one.
                 if (stringPtr != IntPtr.Zero && result == IntPtr.Zero)
                 {
