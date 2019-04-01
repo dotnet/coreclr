@@ -73,8 +73,7 @@ namespace System
                 case CorElementType.ELEMENT_TYPE_U:
                     return Unsafe.As<byte, UIntPtr>(ref data).ToString();
                 default:
-                    Debug.Fail("Invalid primitive type");
-                    return null!;
+                    throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
             }
         }
 
