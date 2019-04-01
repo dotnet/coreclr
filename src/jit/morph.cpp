@@ -15292,7 +15292,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 
     if (block->bbJumpKind == BBJ_COND)
     {
-        noway_assert(block->bbTreeList && block->bbTreeList->gtPrev);
+        noway_assert(block->bbTreeList != nullptr && block->bbTreeList->gtPrev != nullptr);
 
         GenTreeStmt* lastStmt = block->lastStmt();
 
@@ -15500,7 +15500,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
     }
     else if (block->bbJumpKind == BBJ_SWITCH)
     {
-        noway_assert(block->bbTreeList && block->bbTreeList->gtPrev);
+        noway_assert(block->bbTreeList != nullptr && block->bbTreeList->gtPrev != nullptr);
 
         GenTreeStmt* lastStmt = block->lastStmt();
 
