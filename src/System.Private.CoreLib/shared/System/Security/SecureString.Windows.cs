@@ -75,7 +75,7 @@ namespace System.Security
             if (_buffer != null)
             {
                 _buffer.Dispose();
-                _buffer = null;
+                _buffer = null!;
             }
         }
 
@@ -237,7 +237,7 @@ namespace System.Security
         // -----------------------------
 
         private const int BlockSize = (int)Interop.Crypt32.CRYPTPROTECTMEMORY_BLOCK_SIZE / sizeof(char);
-        private SafeBSTRHandle _buffer;
+        private SafeBSTRHandle _buffer = null!;
         private bool _encrypted;
 
         private void AllocateBuffer(uint size)
