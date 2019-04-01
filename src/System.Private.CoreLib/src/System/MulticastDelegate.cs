@@ -136,7 +136,7 @@ namespace System
         private bool InvocationListEquals(MulticastDelegate d)
         {
             Debug.Assert(d != null && (_invocationList as object[]) != null, "bogus delegate in multicast list comparison");
-            object[] invocationList = (object[])_invocationList; // Calling code ensures invocationList is object[]
+            object[] invocationList = ((object[]?)_invocationList)!; // TODO-NULLABLE: nullability not inferred from `as` expression https://github.com/dotnet/roslyn/issues/34638
 
             if (d._invocationCount != _invocationCount)
                 return false;
@@ -533,8 +533,8 @@ namespace System
                     int index = (int)_invocationCount - 1;
                     return ((Delegate)invocationList[index]).Method;
                 }
-                MulticastDelegate? innerDelegate = _invocationList as MulticastDelegate;
-                if (innerDelegate != null)
+
+                if (_invocationList is MulticastDelegate innerDelegate)
                 {
                     // must be a secure/wrapper delegate
                     return innerDelegate.GetMethodImpl();

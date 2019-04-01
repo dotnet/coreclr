@@ -344,8 +344,7 @@ namespace System
             if (method == null)
                 throw new ArgumentNullException(nameof(method));
 
-            RuntimeType? rtType = type as RuntimeType;
-            if (rtType == null)
+            if (!(type is RuntimeType rtType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType, nameof(type));
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(type));
