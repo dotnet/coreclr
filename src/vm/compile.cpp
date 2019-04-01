@@ -196,29 +196,6 @@ HRESULT CEECompileInfo::DestroyDomain(ICorCompilationDomain *pDomain)
     return S_OK;
 }
 
-HRESULT MakeCrossDomainCallbackWorker(
-    CROSS_DOMAIN_CALLBACK   pfnCallback,
-    LPVOID                  pArgs)
-{
-    STATIC_CONTRACT_MODE_COOPERATIVE;
-
-    return pfnCallback(pArgs);
-}
-
-HRESULT CEECompileInfo::MakeCrossDomainCallback(
-    ICorCompilationDomain*  pDomain,
-    CROSS_DOMAIN_CALLBACK   pfnCallback,
-    LPVOID                  pArgs)
-{
-    STANDARD_VM_CONTRACT;
-
-    HRESULT hrRetVal = E_UNEXPECTED;
-
-    hrRetVal = MakeCrossDomainCallbackWorker(pfnCallback, pArgs);
-
-    return hrRetVal;
-}
-
 #ifdef TRITON_STRESS_NEED_IMPL
 int LogToSvcLogger(LPCWSTR format, ...)
 {
