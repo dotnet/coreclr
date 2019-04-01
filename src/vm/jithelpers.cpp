@@ -2895,6 +2895,61 @@ HCIMPL1(StringObject*, AllocateString_MP_FastPortable, DWORD stringLength)
 }
 HCIMPLEND
 
+#ifdef FEATURE_UTF8STRING
+HCIMPL1(Utf8StringObject*, AllocateUtf8String_MP_FastPortable, DWORD stringLength)
+{
+    FCALL_CONTRACT;
+
+    do
+    {
+        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
+
+        // Instead of doing elaborate overflow checks, we just limit the number of elements. This will avoid all overflow
+        // problems, as well as making sure big string objects are correctly allocated in the big object heap.
+        if (stringLength >= LARGE_OBJECT_SIZE - 256)
+        {
+            break;
+        }
+
+        // This is typically the only call in the fast path. Making the call early seems to be better, as it allows the compiler
+        // to use volatile registers for intermediate values. This reduces the number of push/pop instructions and eliminates
+        // some reshuffling of intermediate values into nonvolatile registers around the call.
+        Thread *thread = GetThread();
+
+        SIZE_T totalSize = Utf8StringObject::GetSize(stringLength);
+
+        // The method table's base size includes space for a terminating null character
+        _ASSERTE(totalSize >= g_pUtf8StringClass->GetBaseSize());
+        _ASSERTE(totalSize - g_pUtf8StringClass->GetBaseSize() == stringLength);
+
+        SIZE_T alignedTotalSize = ALIGN_UP(totalSize, DATA_ALIGNMENT);
+        _ASSERTE(alignedTotalSize >= totalSize);
+        totalSize = alignedTotalSize;
+
+        gc_alloc_context *allocContext = thread->GetAllocContext();
+        BYTE *allocPtr = allocContext->alloc_ptr;
+        _ASSERTE(allocPtr <= allocContext->alloc_limit);
+        if (totalSize > static_cast<SIZE_T>(allocContext->alloc_limit - allocPtr))
+        {
+            break;
+        }
+        allocContext->alloc_ptr = allocPtr + totalSize;
+
+        _ASSERTE(allocPtr != nullptr);
+        Utf8StringObject *stringObject = reinterpret_cast<Utf8StringObject *>(allocPtr);
+        stringObject->SetMethodTable(g_pUtf8StringClass);
+        stringObject->SetLength(stringLength);
+
+        return stringObject;
+    } while (false);
+
+    // Tail call to the slow helper
+    ENDFORBIDGC();
+    return HCCALL1(FramedAllocateUtf8String, stringLength);
+}
+HCIMPLEND
+#endif // FEATURE_UTF8STRING
+
 #include <optdefault.h>
 
 /*********************************************************************/
@@ -2932,6 +2987,22 @@ HCIMPL1(StringObject*, FramedAllocateString, DWORD stringLength)
     return((StringObject*) OBJECTREFToObject(result));
 }
 HCIMPLEND
+
+#ifdef FEATURE_UTF8STRING
+HCIMPL1(Utf8StringObject*, FramedAllocateUtf8String, DWORD stringLength)
+{
+    FCALL_CONTRACT;
+
+    UTF8STRINGREF result = NULL;
+    HELPER_METHOD_FRAME_BEGIN_RET_0();    // Set up a frame
+
+    result = SlowAllocateUtf8String(stringLength);
+
+    HELPER_METHOD_FRAME_END();
+    return((Utf8StringObject*) OBJECTREFToObject(result));
+}
+HCIMPLEND
+#endif // FEATURE_UTF8STRING
 
 /*********************************************************************/
 OBJECTHANDLE ConstructStringLiteral(CORINFO_MODULE_HANDLE scopeHnd, mdToken metaTok)
@@ -5520,15 +5591,50 @@ HCIMPL0(VOID, JIT_PollGC)
 }
 HCIMPLEND
 
+
+/*************************************************************/
+// This helper is similar to JIT_RareDisableHelper, but has more operations
+// tailored to the post-pinvoke operations.
+extern "C" FCDECL0(VOID, JIT_PInvokeEndRarePath);
+
+HCIMPL0(void, JIT_PInvokeEndRarePath)
+{
+    BEGIN_PRESERVE_LAST_ERROR;
+
+    FCALL_CONTRACT;
+
+    Thread *thread = GetThread();
+
+    // We need to disable the implicit FORBID GC region that exists inside an FCALL
+    // in order to call RareDisablePreemptiveGC().
+    FC_CAN_TRIGGER_GC();
+    thread->RareDisablePreemptiveGC();
+    FC_CAN_TRIGGER_GC_END();
+
+    FC_GC_POLL_NOT_NEEDED();
+
+    HELPER_METHOD_FRAME_BEGIN_NOPOLL();    // Set up a frame
+    thread->HandleThreadAbort();
+    HELPER_METHOD_FRAME_END();
+
+    InlinedCallFrame* frame = (InlinedCallFrame*)thread->m_pFrame;
+
+    thread->m_pFrame->Pop(thread);
+
+    END_PRESERVE_LAST_ERROR;
+}
+HCIMPLEND
+
 /*************************************************************/
 // For an inlined N/Direct call (and possibly for other places that need this service)
 // we have noticed that the returning thread should trap for one reason or another.
 // ECall sets up the frame.
 
+extern "C" FCDECL0(VOID, JIT_RareDisableHelper);
+
 #if defined(_TARGET_ARM_) || defined(_TARGET_AMD64_)
 // The JIT expects this helper to preserve the return value on AMD64 and ARM. We should eventually
 // switch other platforms to the same convention since it produces smaller code.
-extern "C" FCDECL0(VOID, JIT_RareDisableHelper);
 extern "C" FCDECL0(VOID, JIT_RareDisableHelperWorker);
 
 HCIMPL0(void, JIT_RareDisableHelperWorker)
@@ -5711,6 +5817,9 @@ Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubS
 }
 
 #endif // _WIN64
+
+EXTERN_C void JIT_PInvokeBegin(InlinedCallFrame* pFrame);
+EXTERN_C void JIT_PInvokeEnd(InlinedCallFrame* pFrame);
 
 //========================================================================
 //

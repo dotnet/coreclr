@@ -2333,11 +2333,12 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
     }
 
     compiler->unwindAllocStack(frameSize);
-
+#ifdef USING_SCOPE_INFO
     if (!doubleAlignOrFramePointerUsed())
     {
         psiAdjustStackLevel(frameSize);
     }
+#endif // USING_SCOPE_INFO
 }
 
 //------------------------------------------------------------------------
@@ -4840,6 +4841,11 @@ void CodeGen::genRegCopy(GenTree* treeNode)
 
                     genUpdateVarReg(varDsc, treeNode);
 
+#ifdef USING_VARIABLE_LIVE_RANGE
+                    // Report the home change for this variable
+                    compiler->getVariableLiveKeeper()->siUpdateVariableLiveRange(varDsc, lcl->gtLclNum);
+#endif // USING_VARIABLE_LIVE_RANGE
+
                     // The new location is going live
                     genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));
                 }
@@ -6852,7 +6858,7 @@ void CodeGen::genCkfinite(GenTree* treeNode)
 }
 
 #ifdef _TARGET_AMD64_
-int CodeGenInterface::genSPtoFPdelta()
+int CodeGenInterface::genSPtoFPdelta() const
 {
     int delta;
 
@@ -6904,7 +6910,7 @@ int CodeGenInterface::genSPtoFPdelta()
 //    Total frame size
 //
 
-int CodeGenInterface::genTotalFrameSize()
+int CodeGenInterface::genTotalFrameSize() const
 {
     assert(!IsUninitialized(compiler->compCalleeRegsPushed));
 
@@ -6925,7 +6931,7 @@ int CodeGenInterface::genTotalFrameSize()
 // is based on a maximum delta from Initial-SP, so first we find SP, then
 // compute the FP offset.
 
-int CodeGenInterface::genCallerSPtoFPdelta()
+int CodeGenInterface::genCallerSPtoFPdelta() const
 {
     assert(isFramePointerUsed());
     int callerSPtoFPdelta;
@@ -6941,7 +6947,7 @@ int CodeGenInterface::genCallerSPtoFPdelta()
 //
 // This number will be negative.
 
-int CodeGenInterface::genCallerSPtoInitialSPdelta()
+int CodeGenInterface::genCallerSPtoInitialSPdelta() const
 {
     int callerSPtoSPdelta = 0;
 
