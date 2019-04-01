@@ -164,7 +164,7 @@ namespace System
             if (a[index] != null)
             {
                 MulticastDelegate d = (MulticastDelegate)o;
-                MulticastDelegate dd = (MulticastDelegate)a[index]!;
+                MulticastDelegate dd = (MulticastDelegate)a[index]!; // TODO-NULLABLE: Compiler should track nullability through indexers
 
                 if (dd._methodPtr == d._methodPtr &&
                     dd._target == d._target &&
@@ -577,7 +577,7 @@ namespace System
         {
             if (target == null)
                 ThrowNullThisInDelegateToInstance();
-            this._target = target!; // TODO-NULLABILITY: Compiler can't see throw helper above
+            this._target = target!; // TODO-NULLABLE: Compiler can't see throw helper above
             this._methodPtr = methodPtr;
         }
 
