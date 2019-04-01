@@ -1,0 +1,77 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildThisFileDirectory)/../Directory.Build.props" />
+
+  <!-- Include global shared properties.                                     -->
+  <Import Project="dir.common.props" />
+
+  <PropertyGroup>
+    <LangVersion>8.0</LangVersion>
+    <UseSharedCompilation>true</UseSharedCompilation>
+  </PropertyGroup>
+
+  <Import Project="dir.sdkbuild.props" Condition="'$(UsingMicrosoftNETSdk)' == 'true'"  />
+
+  <!-- Common repo directories -->
+  <PropertyGroup>
+    <ExcludeSigningImport>true</ExcludeSigningImport>
+    <AltJitArch>$(__AltJitArch)</AltJitArch>
+  </PropertyGroup>
+
+  <!-- Targeting Package paths -->
+  <PropertyGroup>
+    <TargetingPackPath Condition="'$(BaseTargetingPackPath)' == ''">$(RootBinDir)TargetingPack\</TargetingPackPath>
+  </PropertyGroup>
+
+  <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
+  <Import Project="$(ProjectDir)dependencies.props" />
+
+  <!-- Add test-specific package restore sources. -->
+  <PropertyGroup>
+    <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
+      https://dotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json;
+      $(RestoreSources)
+    </RestoreSources>
+    <RestoreSources Condition="'$(IntermediateAzureFeed)' != ''">
+      $(IntermediateAzureFeed);
+      $(RestoreSources)
+    </RestoreSources>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BuildAllProjects)'=='true'">
+    <!-- When we do a traversal build we get all packages up front, don't restore them again -->
+    <RestorePackages>false</RestorePackages>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'">
+    <BuildVersionFile>$(BaseIntermediateOutputPath)BuildVersion-$(OfficialBuildId).props</BuildVersionFile>
+  </PropertyGroup>
+
+  <!-- If we want to overwrite the desired CoreCLR package version, we need to get the new version from the generated props file in bin/obj -->
+  <Import Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'" Project="$(BuildVersionFile)" />
+
+  <PropertyGroup Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'">
+    <VersionToRestore Condition="'$(StableVersion)' != ''">$(StableVersion)</VersionToRestore>
+    <VersionToRestore Condition="'$(VersionToRestore)' == ''">$(PackageVersion)-$(PreReleaseLabel)-$(BuildNumberMajor)-$(BuildNumberMinor)</VersionToRestore>
+    <PackageVersionArg>/p:MicrosoftNETCoreRuntimeCoreCLRPackageVersion=$(VersionToRestore)</PackageVersionArg>
+
+    <!-- BuildTools dependency -->
+    <DotnetRestoreCommand Condition="'$(DotnetRestoreCommand)'==''">$(DotnetCliPath)/dotnet restore</DotnetRestoreCommand>
+    <RunningOnUnix Condition="'$(OS)'!='Windows_NT'">true</RunningOnUnix>
+  </PropertyGroup>
+
+  <!-- Which tests shall we build? Default: Priority 0 tests.
+    At the command-line, the user can specify /p:CLRTestPriorityToBuild=666 (for example), and
+    all tests with CLRTestPriority 666,..., 1 AND 0 will build. 
+    
+    Consequently, specifying CLRTestPriorityToBuild=1 will build all tests with CLRTestPriority 1 and 0.
+    
+    CLRTestPriority = 0 will build only priority 0 cases. 
+  
+    In other words, the CLRTestPriority cases of 0 are *essential* testcases. The higher the value,
+    the less priority we give them.
+   -->
+  <PropertyGroup>
+    <CLRTestPriorityToBuild>0</CLRTestPriorityToBuild>
+  </PropertyGroup>
+
+</Project>

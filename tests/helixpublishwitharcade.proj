@@ -50,9 +50,6 @@
     <MSBuild Projects="@(_ProjectsToBuild)" Targets="CreateTestEnvFiles" StopOnFirstFailure="true" />
     <MSBuild Projects="@(_ProjectsToBuild)" Targets="Test" BuildInParallel="$(_BuildInParallel)" StopOnFirstFailure="false" Properties="UsesHelixSdk=true" />
   </Target>
-
-  <Import Project="..\dir.props" />
-
   <PropertyGroup>
     <CoreRootDir>$(TestWorkingDir)Tests\Core_Root</CoreRootDir>
     <TestEnvFileName Condition=" '$(TargetsWindows)' == 'true' ">SetStressModes_$(Scenario).cmd</TestEnvFileName>

@@ -5,7 +5,7 @@
   <!-- TODO: remove this when we use the SDK. Then tests/dir.props
        will automatically import tests/dir.common.props. -->
   <Import Project="..\dir.common.props" Condition="'$(UsingMicrosoftNETSdk)' != 'true'"  />
-  <Import Project="..\dir.props" />
+
 
 
   <!-- Setup Default symbol and optimization for Configuration -->

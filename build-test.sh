@@ -297,13 +297,6 @@ build_MSBuild_projects()
     __BuildWrn="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.wrn"
     __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
 
-    # Use binclashlogger by default if no other logger is specified
-    if [[ "${extraBuildParameters[*]}" == *"/l:"* ]]; then
-        __msbuildEventLogging=
-    else
-        __msbuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log"
-    fi
-
     if [[ "$subDirectoryName" == "Tests_Managed" ]]; then
         # Execute msbuild managed test build in stages - workaround for excessive data retention in MSBuild ConfigCache
         # See https://github.com/Microsoft/msbuild/issues/2993
@@ -333,7 +326,6 @@ build_MSBuild_projects()
             buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
 
             buildArgs+=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
-            buildArgs+=("$__msbuildEventLogging")
             buildArgs+=("${extraBuildParameters[@]}")
             buildArgs+=("${__CommonMSBuildArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
@@ -365,7 +357,6 @@ build_MSBuild_projects()
         buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
 
         buildArgs+=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
-        buildArgs+=("$__msbuildEventLogging")
         buildArgs+=("${extraBuildParameters[@]}")
         buildArgs+=("${__CommonMSBuildArgs[@]}")
         buildArgs+=("${__UnprocessedBuildArgs[@]}")
@@ -540,7 +531,7 @@ esac
 OSName=$(uname -s)
 case $OSName in
     Linux)
-        __BuildOS=Linux
+        BuildOS=Linux
         __HostOS=Linux
         ;;
 
@@ -582,10 +573,10 @@ __IncludeTests=INCLUDE_TESTS
 
 # Set the various build properties here so that CMake and MSBuild can pick them up
 export __ProjectDir="$__ProjectRoot"
+export ArcadeBuild="true"
 __SourceDir="$__ProjectDir/src"
-__PackagesDir="$__ProjectDir/packages"
-__RootBinDir="$__ProjectDir/bin"
-__BuildToolsDir="$__ProjectDir/Tools"
+__PackagesDir="${DotNetRestorePackagesPath:-${HOME}/.nuget/packages/}"
+__RootArtifactsDir="$__ProjectDir/artifacts/"
 __DotNetCli="$__ProjectDir/dotnet.sh"
 __UnprocessedBuildArgs=
 __CommonMSBuildArgs=
@@ -765,13 +756,13 @@ while :; do
 
         bindir)
             if [ -n "$2" ]; then
-                __RootBinDir="$2"
-                if [ ! -d $__RootBinDir ]; then
-                    mkdir $__RootBinDir
+                __RootArtifactsDir="$2"
+                if [ ! -d $__RootArtifactsDir ]; then
+                    mkdir $__RootArtifactsDir
                 fi
-                __RootBinParent=$(dirname $__RootBinDir)
-                __RootBinName=${__RootBinDir##*/}
-                __RootBinDir="$(cd $__RootBinParent &>/dev/null && printf %s/%s $PWD $__RootBinName)"
+                __RootBinParent=$(dirname $__RootArtifactsDir)
+                __RootBinName=${__RootArtifactsDir##*/}
+                __RootArtifactsDir="$(cd $__RootBinParent &>/dev/null && printf %s/%s $PWD $__RootBinName)"
                 shift
             else
                 echo "ERROR: 'bindir' requires a non-empty option argument"
@@ -809,7 +800,7 @@ else
   __NumProc=$(nproc --all)
 fi
 
-__CommonMSBuildArgs=("/p:__BuildArch=$__BuildArch" "/p:__BuildType=$__BuildType" "/p:__BuildOS=$__BuildOS")
+__CommonMSBuildArgs=("/p:__BuildArch=$__BuildArch" "/p:__BuildType=$__BuildType" "/p:__BuildOS=$__BuildOS" "/p:ArcadeBuild=true" "/p:Platform=${__BuildArch}" "/p:BuildOs=${__HostOS}")
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
@@ -829,16 +820,16 @@ if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
 fi
 
 # Set dependent variables
-__LogsDir="$__RootBinDir/Logs"
+__LogsDir="$__RootArtifactsDir/Logs"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 
 # Set the remaining variables based upon the determined build configuration
-__BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
+__BinDir="$__RootArtifactsDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
 __PackagesBinDir="$__BinDir/.nuget"
 __TestDir="$__ProjectDir/tests"
-__TestWorkingDir="$__RootBinDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
-__IntermediatesDir="$__RootBinDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
-__TestIntermediatesDir="$__RootBinDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
+__TestWorkingDir="$__RootArtifactsDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
+__IntermediatesDir="$__RootArtifactsDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
+__TestIntermediatesDir="$__RootArtifactsDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
 __isMSBuildOnNETCoreSupported=0
 __CrossComponentBinDir="$__BinDir"
 __CrossCompIntermediatesDir="$__IntermediatesDir/crossgen"

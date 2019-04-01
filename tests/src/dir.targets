@@ -1,4 +1,5 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
   <!-- Default priority building values. -->
   <PropertyGroup>
     <CLRTestKind Condition="'$(CLRTestKind)' == '' and '$(OutputType)' == 'Library'">SharedLibrary</CLRTestKind>
@@ -88,10 +89,6 @@
  
   <!-- RunOnly projects have a special build for dependent projects -->
   <Import Project="runonly.targets" Condition="'$(CLRTestKind)' == 'RunOnly'" />
-  
-  <!-- We will use an imported build here in the instance that we're a non-sdk style project, have source that we need to build, and we are the correct priority...OR if we are being asked to build for
-  a test with a higher priority. -->
-  <Import Project="$(ToolsDir)Build.Common.targets" Condition="('$(UsingMicrosoftNETSdk)' != 'true') And ('$(CLRTestKind)'!='RunOnly') And $(_CLRTestCompilesSource) And ('$(_WillCLRTestProjectBuild)' == 'true')"/>
 
 
   <Import Project="..\override.targets" Condition="Exists('..\override.targets')"/>
