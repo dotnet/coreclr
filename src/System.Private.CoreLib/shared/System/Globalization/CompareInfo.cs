@@ -51,7 +51,7 @@ namespace System.Globalization
         private string m_name;  // The name used to construct this CompareInfo. Do not rename (binary serialization)
 
         [NonSerialized]
-        private string _sortName; // The name that defines our behavior
+        private string _sortName = null!; // The name that defines our behavior
 
         [OptionalField(VersionAdded = 3)]
         private SortVersion? m_SortVersion; // Do not rename (binary serialization)
@@ -61,7 +61,6 @@ namespace System.Globalization
         internal CompareInfo(CultureInfo culture)
         {
             m_name = culture._name;
-            _sortName = null!;
             InitSort(culture);
         }
 

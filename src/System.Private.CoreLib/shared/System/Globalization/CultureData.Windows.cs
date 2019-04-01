@@ -56,7 +56,7 @@ namespace System.Globalization
             Debug.Assert(!GlobalizationMode.Invariant);
 
             int result;
-            string realNameBuffer = _sRealName!;
+            string realNameBuffer = _sRealName;
             char* pBuffer = stackalloc char[Interop.Kernel32.LOCALE_NAME_MAX_LENGTH];
 
             result = GetLocaleInfoEx(realNameBuffer, Interop.Kernel32.LOCALE_SNAME, pBuffer, Interop.Kernel32.LOCALE_NAME_MAX_LENGTH);

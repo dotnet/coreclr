@@ -16,7 +16,7 @@ namespace System.Globalization
     public class RegionInfo
     {
         // Name of this region (ie: es-US): serialized, the field used for deserialization
-        private string _name;
+        private string _name = null!;
 
         // The CultureData instance that we are going to read data from.
         private readonly CultureData _cultureData;
@@ -47,7 +47,6 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidNeutralRegionName, name), nameof(name));
             }
 
-            _name = null!;
             SetName(name);
         }
 

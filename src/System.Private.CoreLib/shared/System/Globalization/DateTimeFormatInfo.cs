@@ -88,7 +88,7 @@ namespace System.Globalization
         private const string sortableDateTimePattern = "yyyy'-'MM'-'dd'T'HH':'mm':'ss";
         private const string universalSortableDateTimePattern = "yyyy'-'MM'-'dd HH':'mm':'ss'Z'";
 
-        private Calendar calendar;
+        private Calendar calendar = null!;
 
         private int firstDayOfWeek = -1;
         private int calendarWeekRule = -1;
@@ -266,7 +266,6 @@ namespace System.Globalization
             // Remember our culture
             _cultureData = cultureData;
 
-            calendar = null!;
             Calendar = cal;
         }
 

@@ -16,7 +16,7 @@ namespace System.Globalization
     public partial class CompareInfo
     {
         [NonSerialized]
-        private Interop.Globalization.SafeSortHandle? _sortHandle;
+        private Interop.Globalization.SafeSortHandle _sortHandle = null!;
 
         [NonSerialized]
         private bool _isAsciiEqualityOrdinal;
