@@ -325,13 +325,13 @@ namespace System
         // V1 API.
         public static Delegate CreateDelegate(Type type, object target, string method)
         {
-            return CreateDelegate(type, target, method, false, throwOnBindFailure:true)!; // Cannot return null because it would have thrown
+            return CreateDelegate(type, target, method, false, throwOnBindFailure: true)!; // Cannot return null because it would have thrown
         }
 
         // V1 API.
         public static Delegate CreateDelegate(Type type, object target, string method, bool ignoreCase)
         {
-            return CreateDelegate(type, target, method, ignoreCase, throwOnBindFailure:true)!; // Cannot return null because it would have thrown
+            return CreateDelegate(type, target, method, ignoreCase, throwOnBindFailure: true)!; // Cannot return null because it would have thrown
         }
 
         // V1 API.
@@ -376,13 +376,13 @@ namespace System
         // V1 API.
         public static Delegate CreateDelegate(Type type, Type target, string method)
         {
-            return CreateDelegate(type, target, method, false, throwOnBindFailure:true)!; // Cannot return null because it would have thrown
+            return CreateDelegate(type, target, method, false, throwOnBindFailure: true)!; // Cannot return null because it would have thrown
         }
 
         // V1 API.
         public static Delegate CreateDelegate(Type type, Type target, string method, bool ignoreCase)
         {
-            return CreateDelegate(type, target, method, ignoreCase, throwOnBindFailure:true)!; // Cannot return null because it would have thrown
+            return CreateDelegate(type, target, method, ignoreCase, throwOnBindFailure: true)!; // Cannot return null because it would have thrown
         }
 
         // V1 API.
@@ -468,7 +468,7 @@ namespace System
         // V2 API.
         public static Delegate CreateDelegate(Type type, object? firstArgument, MethodInfo method)
         {
-            return CreateDelegate(type, firstArgument, method, throwOnBindFailure:true)!; // Cannot return null because it would have thrown
+            return CreateDelegate(type, firstArgument, method, throwOnBindFailure: true)!; // Cannot return null because it would have thrown
         }
 
         // V2 API.

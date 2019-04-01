@@ -97,10 +97,10 @@ namespace System
                 }
                 else
                 {
-                    if (_invocationList is Delegate _invocationListDelegate)
+                    if (_invocationList is Delegate invocationListDelegate)
                     {
                         // this is a secure/wrapper delegate so we need to unwrap and check the inner one
-                        return _invocationListDelegate.Equals(obj);
+                        return invocationListDelegate.Equals(obj);
                     }
                     else
                     {
@@ -553,7 +553,7 @@ namespace System
                     if (RuntimeTypeHandle.IsGenericTypeDefinition(declaringType) || RuntimeTypeHandle.HasInstantiation(declaringType))
                     {
                         // we are returning the 'Invoke' method of this delegate so use this.GetType() for the exact type
-                        RuntimeType? reflectedType = GetType() as RuntimeType;
+                        RuntimeType? reflectedType = (RuntimeType)GetType();
                         declaringType = reflectedType;
                     }
                     _methodBase = (MethodInfo)RuntimeType.GetMethodBase(declaringType, method);
