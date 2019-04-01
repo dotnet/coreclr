@@ -57,7 +57,7 @@ usage()
     echo "-skipgenerateversion - disable version generation even if MSBuild is supported."
     echo "-ignorewarnings - do not treat warnings as errors"
     echo "-cmakeargs - user-settable additional arguments passed to CMake."
-    echo "-bindir - output directory (defaults to $__ProjectRoot/bin)"
+    echo "-bindir - output directory (defaults to $__ProjectRoot/artifacts)"
     echo "-msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     echo "-numproc - set the number of build processes."
     echo "-portablebuild - pass -portablebuild=false to force a non-portable build."
@@ -994,7 +994,7 @@ __PackagesBinDir="$__BinDir/.nuget"
 __ToolsDir="$__RootArtifactsDir/tools"
 __TestWorkingDir="$__RootArtifactsDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
 export __IntermediatesDir="$__RootArtifactsDir/obj/${__BuildOS}/${__BuildArch}/${__BuildType}"
-__TestIntermediatesDir="$__RootArtifactsDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
+__TestIntermediatesDir="$__RootArtifactsDir/tests/obj/$__BuildOS/$__BuildArch/$__BuildType"
 __isMSBuildOnNETCoreSupported=0
 __CrossComponentBinDir="$__BinDir"
 

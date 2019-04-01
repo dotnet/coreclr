@@ -40,7 +40,6 @@ if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
 call %__ProjectDir%/dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
   /p:__BuildOS=Windows_NT /flp:v=detailed;Append;LogFile=build-packages.log^
-  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:PortableBuild=true %__ProjectDir%\src\.nuget\packages.builds^
   /p:FilterToOSGroup=Windows_NT %__MSBuildArgs% %unprocessedArgs%
 if NOT [!ERRORLEVEL!]==[0] (

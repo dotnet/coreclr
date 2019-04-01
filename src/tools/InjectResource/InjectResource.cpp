@@ -14,7 +14,7 @@ char* g_appName;
 
 void
 AddBinaryResourceToDll(__in_z char* dllName,
-                       __in_z char* resName,
+                       __in_z const char* resName,
                        PVOID resData,
                        ULONG resDataSize)
 {

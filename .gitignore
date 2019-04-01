@@ -321,6 +321,6 @@ sandbox
 linker
 
 # Arcade files
-/artifacts/toolset
+/artifacts
 /.packages
 /.dotnet

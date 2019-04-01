@@ -84,7 +84,7 @@ if NOT exist "%DOTNET_CMD%" (
 
 :afterdotnetrestore
 
-REM We do not need the build tools for arm64/x86
+REM We do not need the build tools for arm64/x86 
 if /i "%PROCESSOR_ARCHITEW6432%" == "arm64" (
   goto :EOF
 )
@@ -93,28 +93,7 @@ if /i "%PROCESSOR_ARCHITECTURE%" == "arm64" (
   goto :EOF
 )
 
-if exist "%BUILD_TOOLS_PATH%" goto :afterbuildtoolsrestore
-echo Restoring BuildTools version %BUILDTOOLS_VERSION%...
-echo Running: "%DOTNET_CMD%" restore "%INIT_TOOLS_RESTORE_PROJECT%" --no-cache --packages "%PACKAGES_DIR%" --source "%BUILDTOOLS_SOURCE%" /p:BuildToolsPackageVersion=%BUILDTOOLS_VERSION% /p:ToolsDir=%TOOLRUNTIME_DIR% >> "%INIT_TOOLS_LOG%"
-call "%DOTNET_CMD%" restore "%INIT_TOOLS_RESTORE_PROJECT%" --no-cache --packages "%PACKAGES_DIR%" --source "%BUILDTOOLS_SOURCE%" /p:BuildToolsPackageVersion=%BUILDTOOLS_VERSION% /p:ToolsDir=%TOOLRUNTIME_DIR% >> "%INIT_TOOLS_LOG%"
-if NOT exist "%BUILD_TOOLS_PATH%\init-tools.cmd" (
-  echo ERROR: Could not restore build tools correctly. 1>&2
-  goto :error
-)
-
-:afterbuildtoolsrestore
-
-:: Ask init-tools to also restore ILAsm
-set /p ILASMCOMPILER_VERSION=< "%~dp0ILAsmVersion.txt"
-
-echo Initializing BuildTools...
-echo Running: "%BUILD_TOOLS_PATH%\init-tools.cmd" "%~dp0" "%DOTNET_CMD%" "%TOOLRUNTIME_DIR%" >> "%INIT_TOOLS_LOG%"
-call "%BUILD_TOOLS_PATH%\init-tools.cmd" "%~dp0" "%DOTNET_CMD%" "%TOOLRUNTIME_DIR%" "%PACKAGES_DIR%" >> "%INIT_TOOLS_LOG%"
-set INIT_TOOLS_ERRORLEVEL=%ERRORLEVEL%
-if not [%INIT_TOOLS_ERRORLEVEL%]==[0] (
-  echo ERROR: An error occured when trying to initialize the tools. 1>&2
-  goto :error
-)
+powershell -NoProfile -ExecutionPolicy unrestricted -Command %~dp0eng\common\build.ps1 -restore -projects %~dp0eng\empty.proj 
 
 :: Create semaphore file
 echo Done initializing tools.
