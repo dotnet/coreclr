@@ -31,7 +31,7 @@ internal static partial class Interop
         /// <returns>
         /// Returns the link to the target path on success; and null otherwise.
         /// </returns>
-        public static string ReadLink(string path)
+        public static string? ReadLink(string path)
         {
             int bufferSize = 256;
             do
