@@ -136,7 +136,7 @@ namespace System
         private bool InvocationListEquals(MulticastDelegate d)
         {
             Debug.Assert(d != null && (_invocationList as object[]) != null, "bogus delegate in multicast list comparison");
-            object[] invocationList = (_invocationList as object[])!; // Calling code ensures invocationList is object[]
+            object[] invocationList = (object[])_invocationList; // Calling code ensures invocationList is object[]
 
             if (d._invocationCount != _invocationCount)
                 return false;
