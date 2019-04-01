@@ -755,7 +755,7 @@ UINT OleVariant::GetElementSizeForVarType(VARTYPE vt, MethodTable *pInterfaceMT)
         8,                      // VT_UI8
         4,                      // VT_INT 
         4,                      // VT_UINT
-        1,                      // VT_VOID
+        0,                      // VT_VOID
         sizeof(HRESULT),        // VT_HRESULT
         sizeof(void*),          // VT_PTR
         sizeof(SAFEARRAY*),     // VT_SAFEARRAY
