@@ -143,10 +143,6 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_pFrame
 ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_State
                     == offsetof(Thread, m_State));
 
-#define               OFFSETOF__Thread__m_pDomain                   0x18
-ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_pDomain
-                    == offsetof(Thread, m_pDomain));
-
 #define               OFFSETOF__Thread__m_dwLockCount               0x20
 ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_dwLockCount
                     == offsetof(Thread, m_dwLockCount));
