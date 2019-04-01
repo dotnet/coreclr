@@ -3070,29 +3070,6 @@ AppDomain::~AppDomain()
     }
 #endif //FEATURE_COMINTEROP
     
-#ifdef _DEBUG
-    // If we were tracking thread AD transitions, cleanup the list on shutdown
-    if (m_pThreadTrackInfoList)
-    {
-        while (m_pThreadTrackInfoList->Count() > 0)
-        {
-            // Get the very last element
-            ThreadTrackInfo *pElem = *(m_pThreadTrackInfoList->Get(m_pThreadTrackInfoList->Count() - 1));
-            _ASSERTE(pElem);
-
-            // Free the memory
-            delete pElem;
-
-            // Remove pointer entry from the list
-            m_pThreadTrackInfoList->Delete(m_pThreadTrackInfoList->Count() - 1);
-        }
-
-        // Now delete the list itself
-        delete m_pThreadTrackInfoList;
-        m_pThreadTrackInfoList = NULL;
-    }
-#endif // _DEBUG
-
 #endif // CROSSGEN_COMPILE
 }
 
