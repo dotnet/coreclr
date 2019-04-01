@@ -553,7 +553,7 @@ namespace System
                     if (RuntimeTypeHandle.IsGenericTypeDefinition(declaringType) || RuntimeTypeHandle.HasInstantiation(declaringType))
                     {
                         // we are returning the 'Invoke' method of this delegate so use this.GetType() for the exact type
-                        RuntimeType? reflectedType = (RuntimeType)GetType();
+                        RuntimeType reflectedType = (RuntimeType)GetType();
                         declaringType = reflectedType;
                     }
                     _methodBase = (MethodInfo)RuntimeType.GetMethodBase(declaringType, method);
