@@ -30,7 +30,6 @@ private:
     GCHandleUtilities() = delete;
 };
 
-void ValidateObject(OBJECTREF objRef);
 void ValidateHandleAssignment(OBJECTHANDLE handle, OBJECTREF objRef);
 void DiagHandleCreated(OBJECTHANDLE handle, OBJECTREF object);
 void DiagHandleDestroyed(OBJECTHANDLE handle);
@@ -43,7 +42,7 @@ inline OBJECTREF ObjectFromHandle(OBJECTHANDLE handle)
 #if defined(_DEBUG_IMPL) && !defined(DACCESS_COMPILE)
     OBJECTREF objRef = ObjectToOBJECTREF(*(Object**)handle);
 
-    ValidateObject(objRef);
+    VALIDATEOBJECTREF(objRef);
 #endif // defined(_DEBUG_IMPL) && !defined(DACCESS_COMPILE)
 
     // Wrap the raw OBJECTREF and return it

@@ -45,7 +45,6 @@ ASMCONSTANTS_C_ASSERT(Thread__m_pFrame == offsetof(Thread, m_pFrame));
 #define Thread_m_pFrame Thread__m_pFrame
 #define Thread_m_fPreemptiveGCDisabled Thread__m_fPreemptiveGCDisabled
 
-#ifndef CROSSGEN_COMPILE
 #define METHODDESC_REGISTER            x12
 
 #define SIZEOF__ArgumentRegisters 0x40

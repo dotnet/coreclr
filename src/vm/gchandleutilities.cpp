@@ -7,15 +7,6 @@
 
 IGCHandleManager* g_pGCHandleManager = nullptr;
 
-// Debug-only validation for handle.
-
-void ValidateObject(OBJECTREF objRef)
-{
-#ifdef _DEBUG_IMPL
-    VALIDATEOBJECTREF(objRef);
-#endif // _DEBUG_IMPL
-}
-
 void ValidateHandleAssignment(OBJECTHANDLE handle, OBJECTREF objRef)
 {
 #ifdef _DEBUG_IMPL
@@ -25,8 +16,7 @@ void ValidateHandleAssignment(OBJECTHANDLE handle, OBJECTREF objRef)
     // Verify that we are not trying to access a freed handle.
     _ASSERTE("Attempt to access destroyed handle." && *(_UNCHECKED_OBJECTREF*)handle != DEBUG_DestroyedHandleValue);
 #endif
-
-    ValidateObject(objRef);
+    VALIDATEOBJECTREF(objRef);
 #endif // _DEBUG_IMPL
 }
 

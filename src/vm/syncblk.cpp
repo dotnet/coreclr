@@ -2064,7 +2064,6 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
     //         BIT_SBLK_STRING_HIGH_CHARS_KNOWN    0x40000000
     //         BIT_SBLK_STRING_HAS_SPECIAL_SORT    0xC0000000
     //for other objects:
-    //         BIT_SBLK_AGILE_IN_PROGRESS          0x80000000
     //         BIT_SBLK_FINALIZER_RUN              0x40000000
     if (bits & BIT_SBLK_STRING_HIGH_CHAR_MASK)
     {
@@ -2127,12 +2126,6 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
         //if thread ID is 0, recursionLeve got to be zero
         //but thread ID doesn't have to be valid because the lock could be orphanend
         ASSERT_AND_CHECK (lockThreadId != 0 || recursionLevel == 0 );     
-
-#ifndef _DEBUG
-        DWORD adIndex  = (bits >> SBLK_APPDOMAIN_SHIFT) & SBLK_MASK_APPDOMAININDEX;
-        //in non debug build, objects do not have appdomain index in header
-        ASSERT_AND_CHECK (adIndex == 0);
-#endif //!_DEBUG
     }
     
     return TRUE;
