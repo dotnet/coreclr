@@ -2455,70 +2455,6 @@ public:
 
     static void ExceptionUnwind(Frame *pFrame);
 
-#ifdef _DEBUG
-    void TrackADThreadEnter(Thread *pThread, Frame *pFrame);
-    void TrackADThreadExit(Thread *pThread, Frame *pFrame);
-    void DumpADThreadTrack();
-#endif
-
-#ifndef DACCESS_COMPILE
-    void ThreadEnter(Thread *pThread, Frame *pFrame)
-    {
-        STATIC_CONTRACT_NOTHROW;
-        STATIC_CONTRACT_GC_NOTRIGGER;
-
-#ifdef _DEBUG
-        if (LoggingOn(LF_APPDOMAIN, LL_INFO100))
-            TrackADThreadEnter(pThread, pFrame);
-        else
-#endif
-        {
-            InterlockedIncrement((LONG*)&m_dwThreadEnterCount);
-            LOG((LF_APPDOMAIN, LL_INFO1000, "AppDomain::ThreadEnter  %p to [%d] (%8.8x) %S count %d\n", 
-                 pThread,DefaultADID, this,
-                 GetFriendlyNameForLogging(),GetThreadEnterCount()));
-#if _DEBUG_AD_UNLOAD
-            printf("AppDomain::ThreadEnter %p to [%d] (%8.8x) %S count %d\n",
-                   pThread, DefaultADID, this,
-                   GetFriendlyNameForLogging(), GetThreadEnterCount());
-#endif
-        }
-    }
-
-    void ThreadExit(Thread *pThread, Frame *pFrame)
-    {
-        STATIC_CONTRACT_NOTHROW;
-        STATIC_CONTRACT_GC_NOTRIGGER;
-
-#ifdef _DEBUG
-        if (LoggingOn(LF_APPDOMAIN, LL_INFO100)) {
-            TrackADThreadExit(pThread, pFrame);
-        }
-        else
-#endif
-        {
-            LONG result;
-            result = InterlockedDecrement((LONG*)&m_dwThreadEnterCount);
-            _ASSERTE(result >= 0);
-            LOG((LF_APPDOMAIN, LL_INFO1000, "AppDomain::ThreadExit from [%d] (%8.8x) %S count %d\n",
-                 this, DefaultADID,
-                 GetFriendlyNameForLogging(), GetThreadEnterCount()));
-        }
-    }
-#endif // DACCESS_COMPILE
-
-    ULONG GetThreadEnterCount()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwThreadEnterCount;
-    }
-
-    BOOL OnlyOneThreadLeft()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwThreadEnterCount==1 || m_dwThreadsStillInAppDomain ==1;
-    }
-
     static void RefTakerAcquire(AppDomain* pDomain)
     {
         WRAPPER_NO_CONTRACT;
@@ -2848,7 +2784,7 @@ private:
             MODE_ANY;
         }
         CONTRACTL_END;
-        STRESS_LOG2(LF_APPDOMAIN, LL_INFO100,"Updating AD stage, ADID=%d, stage=%d\n",DefaultADID,stage);
+        STRESS_LOG1(LF_APPDOMAIN, LL_INFO100,"Updating AD stage, stage=%d\n",stage);
         TESTHOOKCALL(AppDomainStageChanged(DefaultADID,m_Stage,stage));
         Stage lastStage=m_Stage;
         while (lastStage !=stage) 
@@ -2941,18 +2877,6 @@ private:
     // made.
     Volatile<ULONGLONG> m_ullTotalProcessorUsage;
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
-#ifdef _DEBUG
-    struct ThreadTrackInfo;
-    typedef CDynArray<ThreadTrackInfo *> ThreadTrackInfoList;
-    ThreadTrackInfoList *m_pThreadTrackInfoList;
-    DWORD m_TrackSpinLock;
-#endif
-
-    // The number of  times we have entered this AD
-    ULONG m_dwThreadEnterCount;
-    // The number of threads that have entered this AD, for ADU only
-    ULONG m_dwThreadsStillInAppDomain;
 
     Volatile<Stage> m_Stage;
 

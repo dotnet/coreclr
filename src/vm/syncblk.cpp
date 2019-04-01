@@ -1529,7 +1529,7 @@ void DumpSyncBlockCache()
                 descrip = param.descrip;
                 isString = param.isString;
             }
-            sprintf_s(buffer, COUNTOF(buffer), "(AD %3.3x) %s", DefaultADID, descrip);
+            sprintf_s(buffer, COUNTOF(buffer), "%s", descrip);
             descrip = buffer;
         }
         if (dumpSBStyle < 2)

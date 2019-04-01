@@ -14822,9 +14822,8 @@ HRESULT Debugger::RemoveAppDomainFromIPC (AppDomain *pAppDomain)
 
     HRESULT hr = E_FAIL;
 
-    LOG((LF_CORDB, LL_INFO100, "D::RADFIPC: Executing RADFIPC for AppDomain 0x%08x (0x%x).\n",
-        pAppDomain,
-        DefaultADID));
+    LOG((LF_CORDB, LL_INFO100, "D::RADFIPC: Executing RADFIPC for AppDomain 0x%08x.\n",
+        pAppDomain));
 
     // if none of the slots are occupied, then simply return.
     if (m_pAppDomainCB->m_iNumOfUsedSlots == 0)
@@ -14966,7 +14965,7 @@ HRESULT Debugger::IterateAppDomainsForPdbs()
 
     while (pADInfo)
     {
-        STRESS_LOG3(LF_CORDB, LL_INFO100, "Iterating over domain %#08x AD:%#08x %ls\n", DefaultADID, pADInfo->m_pAppDomain, pADInfo->m_szAppDomainName);
+        STRESS_LOG2(LF_CORDB, LL_INFO100, "Iterating over domain AD:%#08x %ls\n", pADInfo->m_pAppDomain, pADInfo->m_szAppDomainName);
 
         AppDomain::AssemblyIterator i;
         i = pADInfo->m_pAppDomain->IterateAssembliesEx((AssemblyIterationFlags)(kIncludeLoaded | kIncludeLoading | kIncludeExecution));

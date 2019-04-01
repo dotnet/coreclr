@@ -7236,8 +7236,6 @@ void Thread::InitContext()
     _ASSERTE(m_pDomain == NULL);
     GCX_COOP_NO_THREAD_BROKEN();
     m_pDomain = SystemDomain::System()->DefaultDomain();
-    _ASSERTE(m_pDomain);
-    m_pDomain->ThreadEnter(this, NULL);
 }
 
 void Thread::ClearContext()
@@ -7250,8 +7248,6 @@ void Thread::ClearContext()
 
     if (!m_pDomain)
         return;
-
-    m_pDomain->ThreadExit(this, NULL);
 
     // must set exposed context to null first otherwise object verification
     // checks will fail AV when m_Context is null

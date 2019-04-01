@@ -2966,14 +2966,6 @@ HRESULT SystemDomain::NotifyProfilerShutdown()
 }
 #endif // PROFILING_SUPPORTED
 
-
-#ifdef _DEBUG
-struct AppDomain::ThreadTrackInfo {
-    Thread *pThread;
-    CDynArray<Frame *> frameStack;
-};
-#endif // _DEBUG
-
 AppDomain::AppDomain()
 {
     // initialize fields so the appdomain can be safely destructed
@@ -3000,14 +2992,9 @@ AppDomain::AppDomain()
 
     m_handleStore = NULL;
 
- #ifdef _DEBUG
-    m_pThreadTrackInfoList = NULL;
-    m_TrackSpinLock = 0;
+#ifdef _DEBUG
     m_Assemblies.Debug_SetAppDomain(this);
 #endif // _DEBUG
-
-    m_dwThreadEnterCount = 0;
-    m_dwThreadsStillInAppDomain = (ULONG)-1;
 
 #ifdef FEATURE_COMINTEROP
     m_pRefDispIDCache = NULL;
@@ -3677,7 +3664,7 @@ BOOL FileLoadLock::CompleteLoadLevel(FileLoadLevel level, BOOL success)
             case FILE_LOAD_DELIVER_EVENTS:
             case FILE_LOADED:
             case FILE_ACTIVE: // The timing of stress logs is not critical, so even for the FILE_ACTIVE stage we need not do it while the m_pList lock is held.
-                STRESS_LOG4(LF_CLASSLOADER, LL_INFO100, "Completed Load Level %s for DomainFile %p in AD %i - success = %i\n", fileLoadLevelName[level], m_pDomainFile, DefaultADID, success);
+                STRESS_LOG3(LF_CLASSLOADER, LL_INFO100, "Completed Load Level %s for DomainFile %p - success = %i\n", fileLoadLevelName[level], m_pDomainFile, success);
                 break;
             default:
                 break;
@@ -5890,8 +5877,8 @@ void AppDomain::NotifyDebuggerUnload()
     if (!IsDebuggerAttached())
         return;
 
-    LOG((LF_CORDB, LL_INFO10, "AD::NDD domain [%d] %#08x %ls\n",
-         DefaultADID, this, GetFriendlyNameForLogging()));
+    LOG((LF_CORDB, LL_INFO10, "AD::NDD domain %#08x %ls\n",
+         this, GetFriendlyNameForLogging()));
 
     LOG((LF_CORDB, LL_INFO100, "AD::NDD: Interating domain bound assemblies\n"));
     AssemblyIterator i = IterateAssembliesEx((AssemblyIterationFlags)(kIncludeLoaded |  kIncludeLoading  | kIncludeExecution));
@@ -6014,136 +6001,6 @@ void AppDomain::ExceptionUnwind(Frame *pFrame)
 
     LOG((LF_APPDOMAIN, LL_INFO10, "AppDomain::ExceptionUnwind: not first transition or abort\n"));
 }
-
-#ifdef _DEBUG
-
-void AppDomain::TrackADThreadEnter(Thread *pThread, Frame *pFrame)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        // REENTRANT
-        PRECONDITION(CheckPointer(pThread));
-        PRECONDITION(pFrame != (Frame*)(size_t) INVALID_POINTER_CD);
-    }
-    CONTRACTL_END;
-
-    while (FastInterlockCompareExchange((LONG*)&m_TrackSpinLock, 1, 0) != 0)
-        ;
-    if (m_pThreadTrackInfoList == NULL)
-        m_pThreadTrackInfoList = new (nothrow) ThreadTrackInfoList;
-    // If we don't assert here, we will AV in the for loop below
-    _ASSERTE(m_pThreadTrackInfoList);
-
-    ThreadTrackInfoList *pTrackList= m_pThreadTrackInfoList;
-
-    ThreadTrackInfo *pTrack = NULL;
-    int i;
-    for (i=0; i < pTrackList->Count(); i++) {
-        if ((*(pTrackList->Get(i)))->pThread == pThread) {
-            pTrack = *(pTrackList->Get(i));
-            break;
-        }
-    }
-    if (! pTrack) {
-        pTrack = new (nothrow) ThreadTrackInfo;
-        // If we don't assert here, we will AV in the for loop below.
-        _ASSERTE(pTrack);
-        pTrack->pThread = pThread;
-        ThreadTrackInfo **pSlot = pTrackList->Append();
-        *pSlot = pTrack;
-    }
-
-    InterlockedIncrement((LONG*)&m_dwThreadEnterCount);
-    Frame **pSlot;
-    if (pTrack)
-    {
-        pSlot = pTrack->frameStack.Insert(0);
-        *pSlot = pFrame;
-    }
-    int totThreads = 0;
-    for (i=0; i < pTrackList->Count(); i++)
-        totThreads += (*(pTrackList->Get(i)))->frameStack.Count();
-    _ASSERTE(totThreads == (int)m_dwThreadEnterCount);
-
-    InterlockedExchange((LONG*)&m_TrackSpinLock, 0);
-}
-
-
-void AppDomain::TrackADThreadExit(Thread *pThread, Frame *pFrame)
-{
-    CONTRACTL
-    {
-        if (GetThread()) {MODE_COOPERATIVE;}
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    while (FastInterlockCompareExchange((LONG*)&m_TrackSpinLock, 1, 0) != 0)
-        ;
-    ThreadTrackInfoList *pTrackList= m_pThreadTrackInfoList;
-    _ASSERTE(pTrackList);
-    ThreadTrackInfo *pTrack = NULL;
-    int i;
-    for (i=0; i < pTrackList->Count(); i++)
-    {
-        if ((*(pTrackList->Get(i)))->pThread == pThread)
-        {
-            pTrack = *(pTrackList->Get(i));
-            break;
-        }
-    }
-    _ASSERTE(pTrack);
-    _ASSERTE(*(pTrack->frameStack.Get(0)) == pFrame);
-    pTrack->frameStack.Delete(0);
-    InterlockedDecrement((LONG*)&m_dwThreadEnterCount);
-
-    int totThreads = 0;
-    for (i=0; i < pTrackList->Count(); i++)
-        totThreads += (*(pTrackList->Get(i)))->frameStack.Count();
-    _ASSERTE(totThreads == (int)m_dwThreadEnterCount);
-
-    InterlockedExchange((LONG*)&m_TrackSpinLock, 0);
-}
-
-void AppDomain::DumpADThreadTrack()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    while (FastInterlockCompareExchange((LONG*)&m_TrackSpinLock, 1, 0) != 0)
-        ;
-    ThreadTrackInfoList *pTrackList= m_pThreadTrackInfoList;
-    if (!pTrackList)
-        goto end;
-
-    {
-        LOG((LF_APPDOMAIN, LL_INFO10000, "\nThread dump of %d threads for %#08x %S\n",
-             m_dwThreadEnterCount, this, GetFriendlyNameForLogging()));
-        int totThreads = 0;
-        for (int i=0; i < pTrackList->Count(); i++)
-        {
-            ThreadTrackInfo *pTrack = *(pTrackList->Get(i));
-            if (pTrack->frameStack.Count()==0)
-                continue;
-            LOG((LF_APPDOMAIN, LL_INFO100, "  ADEnterCount for %x is %d\n", pTrack->pThread->GetThreadId(), pTrack->frameStack.Count()));
-            totThreads += pTrack->frameStack.Count();
-            for (int j=0; j < pTrack->frameStack.Count(); j++)
-                LOG((LF_APPDOMAIN, LL_INFO100, "      frame %8.8x\n", *(pTrack->frameStack.Get(j))));
-        }
-        _ASSERTE(totThreads == (int)m_dwThreadEnterCount);
-    }
-end:
-    InterlockedExchange((LONG*)&m_TrackSpinLock, 0);
-}
-#endif // _DEBUG
 
 #endif // CROSSGEN_COMPILE
 

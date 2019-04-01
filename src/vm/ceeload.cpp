@@ -4639,7 +4639,7 @@ void Module::EnableModuleFailureTriggers(Module *pModuleTo, AppDomain *pDomain)
     // assemblies/app domains.
     //
     // This should throw.
-    STRESS_LOG2(LF_CLASSLOADER, LL_INFO100,"EnableModuleFailureTriggers for module %p in AppDomain %i\n",pModuleTo,DefaultADID);
+    STRESS_LOG1(LF_CLASSLOADER, LL_INFO100,"EnableModuleFailureTriggers for module %p\n",pModuleTo);
     DomainFile *pDomainFileTo = pModuleTo->GetDomainFile(pDomain);
     pDomainFileTo->EnsureActive();
 
