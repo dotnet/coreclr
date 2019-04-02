@@ -4259,8 +4259,7 @@ private:
 
 void Compiler::fgTrySwitchTier0ToTier1()
 {
-    if (!opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) || (info.compFlags & CORINFO_FLG_ALLOW_TIER0_TO_TIER1) == 0 ||
-        compIsForInlining())
+    if (!opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) || compIsForInlining())
     {
         return;
     }
@@ -5184,6 +5183,8 @@ void Compiler::fgLinkBasicBlocks()
 
     /* Walk all the basic blocks, filling in the target addresses */
 
+    bool foundBackwardJump = false;
+
     for (BasicBlock* curBBdesc = fgFirstBB; curBBdesc; curBBdesc = curBBdesc->bbNext)
     {
         switch (curBBdesc->bbJumpKind)
@@ -5195,8 +5196,8 @@ void Compiler::fgLinkBasicBlocks()
                 curBBdesc->bbJumpDest->bbRefs++;
                 if (curBBdesc->bbJumpDest->bbNum <= curBBdesc->bbNum)
                 {
+                    foundBackwardJump = true;
                     fgMarkBackwardJump(curBBdesc->bbJumpDest, curBBdesc);
-                    fgTrySwitchTier0ToTier1();
                 }
 
                 /* Is the next block reachable? */
@@ -5224,12 +5225,11 @@ void Compiler::fgLinkBasicBlocks()
                 break;
 
             case BBJ_SWITCH:
-            {
+
                 unsigned jumpCnt;
                 jumpCnt = curBBdesc->bbJumpSwt->bbsCount;
                 BasicBlock** jumpPtr;
-                jumpPtr                = curBBdesc->bbJumpSwt->bbsDstTab;
-                bool foundBackwardJump = false;
+                jumpPtr = curBBdesc->bbJumpSwt->bbsDstTab;
 
                 do
                 {
@@ -5242,16 +5242,10 @@ void Compiler::fgLinkBasicBlocks()
                     }
                 } while (++jumpPtr, --jumpCnt);
 
-                if (foundBackwardJump)
-                {
-                    fgTrySwitchTier0ToTier1();
-                }
-
                 /* Default case of CEE_SWITCH (next block), is at end of jumpTab[] */
 
                 noway_assert(*(jumpPtr - 1) == curBBdesc->bbNext);
                 break;
-            }
 
             case BBJ_CALLFINALLY: // BBJ_CALLFINALLY and BBJ_EHCATCHRET don't appear until later
             case BBJ_EHCATCHRET:
@@ -5259,6 +5253,11 @@ void Compiler::fgLinkBasicBlocks()
                 noway_assert(!"Unexpected bbJumpKind");
                 break;
         }
+    }
+
+    if (foundBackwardJump && JitConfig.JitTier0ForLoops() == 0)
+    {
+        fgTrySwitchTier0ToTier1();
     }
 }
 
