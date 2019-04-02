@@ -32,7 +32,7 @@ namespace AssemblyDependencyResolverTests
 
                 Assert.IsType<DllNotFoundException>(innerException);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 Console.WriteLine(ex);
                 return 101;

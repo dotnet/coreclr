@@ -522,6 +522,7 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         if (!TryLoadHostPolicy(hostpolicyPath))
         {
             log << W("Unable to load requested mock hostpolicy.");
+            return false;
         }
     }
 

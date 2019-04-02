@@ -64,17 +64,28 @@ namespace
         return std::wstring{ buffer.Buf, buffer.Buf + len };
     }
 
-    std::wstring GetEnvVar(_In_z_ const WCHAR *env, _In_opt_ bool throwOnEmpty = true)
+    bool TryGetEnvVar(_In_z_ const WCHAR* env, _Inout_ std::wstring& value)
     {
         DWORD len = ::GetEnvironmentVariableW(env, nullptr, 0);
-        if (len == 0 && throwOnEmpty)
-            throw __HRESULT_FROM_WIN32(ERROR_ENVVAR_NOT_FOUND);
+        if (len == 0)
+            return false;
 
         PathBuffer<WCHAR> buffer;
         buffer.SetLength(len);
         (void)::GetEnvironmentVariableW(env, buffer, buffer);
 
-        return static_cast<WCHAR *>(buffer.Buf);
+        value = static_cast<WCHAR *>(buffer.Buf);
+        return true;
+    }
+
+    std::wstring GetEnvVar(_In_z_ const WCHAR *env)
+    {
+        std::wstring value;
+        if (!TryGetEnvVar(env, value))
+        {
+            throw __HRESULT_FROM_WIN32(ERROR_ENVVAR_NOT_FOUND);
+        }
+        return value;
     }
 
     std::string ConvertWideToUtf8(_In_ const std::wstring &wide)
@@ -190,9 +201,9 @@ HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ cons
     }
 
     const wchar_t* mockHostPolicyEnvVar = W("MOCK_HOSTPOLICY");
-    std::wstring hostPolicyPath = GetEnvVar(mockHostPolicyEnvVar, /* throwOnEmpty */ false);
+    std::wstring hostPolicyPath;
 
-    if (!hostPolicyPath.empty())
+    if (TryGetEnvVar(mockHostPolicyEnvVar, hostPolicyPath))
     {
         if (!TryLoadHostPolicy(hostPolicyPath.c_str()))
         {

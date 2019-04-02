@@ -347,6 +347,7 @@ int ExecuteManagedAssembly(
         if (hostpolicyLib == nullptr)
         {
             fprintf(stderr, "Failed to load mock hostpolicy at path '%s'. Error: %s", mockHostpolicyPath, dlerror());
+            return -1;
         }
     }
 
