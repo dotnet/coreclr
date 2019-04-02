@@ -9,6 +9,15 @@ namespace System.Runtime.InteropServices
 {
     public static partial class Marshal
     {
+        public static string PtrToStringAuto(IntPtr ptr, int len)
+        {
+            return PtrToStringUTF8(ptr, len);
+        }
+
+        public static string PtrToStringAuto(IntPtr ptr)
+        {
+            return PtrToStringUTF8(ptr);
+        }
         private static int GetSystemMaxDBCSCharSize() => 3;
 
         private static bool IsWin32Atom(IntPtr ptr) => false;

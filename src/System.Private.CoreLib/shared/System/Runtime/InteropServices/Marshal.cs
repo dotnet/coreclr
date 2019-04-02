@@ -87,18 +87,6 @@ namespace System.Runtime.InteropServices
             return new string((char*)ptr, 0, len);
         }
 
-        public static string PtrToStringAuto(IntPtr ptr, int len)
-        {
-            // Ansi platforms are no longer supported
-            return PtrToStringUni(ptr, len);
-        }
-
-        public static string PtrToStringAuto(IntPtr ptr)
-        {
-            // Ansi platforms are no longer supported
-            return PtrToStringUni(ptr);
-        }
-
         public static unsafe string PtrToStringUTF8(IntPtr ptr)
         {
             if (ptr == IntPtr.Zero)

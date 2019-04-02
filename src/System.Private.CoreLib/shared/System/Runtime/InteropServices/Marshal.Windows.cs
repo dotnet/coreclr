@@ -8,6 +8,16 @@ namespace System.Runtime.InteropServices
 {
     public static partial class Marshal
     {
+        public static string PtrToStringAuto(IntPtr ptr, int len)
+        {
+            return PtrToStringUni(ptr, len);
+        }
+
+        public static string PtrToStringAuto(IntPtr ptr)
+        {
+            return PtrToStringUni(ptr);
+        }
+
         private static unsafe int GetSystemMaxDBCSCharSize()
         {
             Interop.Kernel32.CPINFO cpInfo = default;
