@@ -8039,39 +8039,18 @@ UINT64 Thread::GetTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCoun
     }
     CONTRACTL_END;
 
-    UINT64 total;
-    if (g_fEEStarted) //make sure we actually have a thread store
-    {
-        // enumerate all threads, summing their local counts.
-        ThreadStoreLockHolder tsl;
+    // enumerate all threads, summing their local counts.
+    ThreadStoreLockHolder tsl;
 
-        total = GetOverflowCount(overflowCount);
+    UINT64 total = GetOverflowCount(overflowCount);
 
-        Thread *pThread = NULL;
-        while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
-        {
-            total += *GetThreadLocalCountRef(pThread, threadLocalCountOffset);
-        }
-    }
-    else
+    Thread *pThread = NULL;
+    while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
     {
-        total = GetWorkerThreadPoolCompletionCountOverflow();
+        total += *GetThreadLocalCountRef(pThread, threadLocalCountOffset);
     }
 
     return total;
-}
-
-UINT64 Thread::GetRecentTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCount)
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (g_fEEStarted)
-    {
-        // make sure up-to-date thread-local counts are visible to us
-        ::FlushProcessWriteBuffers();
-    }
-
-    return GetTotalCount(threadLocalCountOffset, overflowCount);
 }
 
 UINT64 Thread::GetTotalThreadPoolCompletionCount()
@@ -8083,24 +8062,16 @@ UINT64 Thread::GetTotalThreadPoolCompletionCount()
     }
     CONTRACTL_END;
 
-    UINT64 total;
-    if (g_fEEStarted) //make sure we actually have a thread store
-    {
-        // enumerate all threads, summing their local counts.
-        ThreadStoreLockHolder tsl;
+    // enumerate all threads, summing their local counts.
+    ThreadStoreLockHolder tsl;
 
-        total = GetWorkerThreadPoolCompletionCountOverflow() + GetIOThreadPoolCompletionCountOverflow();
+    UINT64 total = GetWorkerThreadPoolCompletionCountOverflow() + GetIOThreadPoolCompletionCountOverflow();
 
-        Thread *pThread = NULL;
-        while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
-        {
-            total += pThread->m_workerThreadPoolCompletionCount;
-            total += pThread->m_ioThreadPoolCompletionCount;
-        }
-    }
-    else
+    Thread *pThread = NULL;
+    while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
     {
-        total = GetWorkerThreadPoolCompletionCountOverflow() + GetIOThreadPoolCompletionCountOverflow();
+        total += pThread->m_workerThreadPoolCompletionCount;
+        total += pThread->m_ioThreadPoolCompletionCount;
     }
 
     return total;

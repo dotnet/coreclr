@@ -3926,7 +3926,6 @@ private:
     }
 
     static UINT64 GetTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCount);
-    static UINT64 GetRecentTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCount);
 
 public:
     static void IncrementWorkerThreadPoolCompletionCount(Thread *pThread)
@@ -3945,12 +3944,6 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         return GetTotalCount(offsetof(Thread, m_workerThreadPoolCompletionCount), &s_workerThreadPoolCompletionCountOverflow);
-    }
-
-    static UINT64 GetRecentTotalWorkerThreadPoolCompletionCount()
-    {
-        WRAPPER_NO_CONTRACT;
-        return GetRecentTotalCount(offsetof(Thread, m_workerThreadPoolCompletionCount), &s_workerThreadPoolCompletionCountOverflow);
     }
 
     static void IncrementIOThreadPoolCompletionCount(Thread *pThread)
