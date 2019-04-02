@@ -83,8 +83,7 @@ set (CPP_WINRT_OUTPUT_FILES
 
 include_directories(${CPP_WINRT_OUTPUT_FOLDER})
 
-find_program(CPPWINRT cppwinrt
-  HINTS "${WINDOWS_KITS_10_ROOT}/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x86/cppwinrt.exe")
+set(CPPWINRT "${WINDOWS_KITS_10_ROOT}/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x86/cppwinrt.exe")
 
 message("Using cppwinrt from ${CPPWINRT}.")
 
