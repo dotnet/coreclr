@@ -844,11 +844,11 @@
                 },
                 {
                     "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_Point",
-                    "reason": "https://github.com/dotnet/corefx/issues/30180"
+                    "reason": "https://github.com/dotnet/corefx/issues/30683"
                 },
                 {
                     "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_Point",
-                    "reason": "https://github.com/dotnet/corefx/issues/30180"
+                    "reason": "https://github.com/dotnet/corefx/issues/30683"
                 },
                 {
                     "name": "System.Drawing.Tests.FontTests.ToLogFont_DisposedGraphics_ThrowsArgumentException",
