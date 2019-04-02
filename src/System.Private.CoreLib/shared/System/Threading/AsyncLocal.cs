@@ -61,8 +61,8 @@ namespace System.Threading
         {
             get
             {
-                object obj = ExecutionContext.GetLocalValue(this);
-                return (obj == null) ? default! : (T)obj; // TODO-NULLABLE: Need a way to annotate that Value may return null
+                object? obj = ExecutionContext.GetLocalValue(this);
+                return (obj == null) ? default! : (T)obj; // TODO-NULLABLE-GENERIC
             }
             set
             {
@@ -70,11 +70,11 @@ namespace System.Threading
             }
         }
 
-        void IAsyncLocal.OnValueChanged(object previousValueObj, object currentValueObj, bool contextChanged)
+        void IAsyncLocal.OnValueChanged(object? previousValueObj, object? currentValueObj, bool contextChanged)
         {
             Debug.Assert(m_valueChangedHandler != null);
-            T previousValue = previousValueObj == null ? default! : (T)previousValueObj;  // TODO-NULLABLE: Need a way to annotate that delegate args may be null
-            T currentValue = currentValueObj == null ? default! : (T)currentValueObj;  // TODO-NULLABLE: Need a way to annotate that delegate args may be null
+            T previousValue = previousValueObj == null ? default! : (T)previousValueObj; // TODO-NULLABLE-GENERIC
+            T currentValue = currentValueObj == null ? default! : (T)currentValueObj; // TODO-NULLABLE-GENERIC
             m_valueChangedHandler(new AsyncLocalValueChangedArgs<T>(previousValue, currentValue, contextChanged));
         }
     }
@@ -84,7 +84,7 @@ namespace System.Threading
     //
     internal interface IAsyncLocal
     {
-        void OnValueChanged(object previousValue, object currentValue, bool contextChanged);
+        void OnValueChanged(object? previousValue, object? currentValue, bool contextChanged);
     }
 
     public readonly struct AsyncLocalValueChangedArgs<T>
