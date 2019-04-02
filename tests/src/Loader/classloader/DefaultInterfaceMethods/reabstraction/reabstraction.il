@@ -61,6 +61,26 @@
   }
 }
 
+// Plain old interface
+.class interface public abstract auto ansi I5
+{
+  .method public hidebysig newslot virtual abstract
+          instance int32 Add(int32 x) cil managed
+  {
+  }
+}
+
+// Interface that re-abstracts an already abstract method
+.class interface public abstract auto ansi I6
+  implements I5
+{
+  .method public hidebysig newslot virtual abstract final
+          instance int32 Add(int32 x) cil managed
+  {
+    .override I5::Add
+  }
+}
+
 // Class that doesn't implement reabstracted method
 .class public auto ansi C1
   extends [mscorlib]System.Object
@@ -103,6 +123,19 @@
   }
 }
 
+// Class that doesn't implement interface method that also never had an implementation
+.class public auto ansi C4
+  extends [mscorlib]System.Object
+  implements I6
+{
+  .method public hidebysig specialname rtspecialname 
+          instance void .ctor() cil managed
+  {
+    ldarg.0
+    call instance void [mscorlib]System.Object::.ctor()
+    ret
+  }
+}
 
 .method private hidebysig static int32 Main() cil managed
 {
@@ -116,7 +149,7 @@
     pop
     leave Fail
   }
-  catch [mscorlib]System.MethodAccessException
+  catch [mscorlib]System.EntryPointNotFoundException
   {
     pop
     leave PureVirtualOK
@@ -133,7 +166,7 @@ PureVirtualOK:
     pop
     leave Fail
   }
-  catch [mscorlib]System.MethodAccessException
+  catch [mscorlib]System.EntryPointNotFoundException
   {
     pop
     leave PureVirtualDelegateOK
@@ -160,6 +193,21 @@ PureVirtualDelegateOK:
     leave DiamondCaseOK
   }
 DiamondCaseOK:
+
+  .try
+  {
+    newobj instance void C4::.ctor()
+    ldc.i4.0
+    callvirt instance int32 I5::Add(int32)
+    pop
+    leave Fail
+  }
+  catch [mscorlib]System.EntryPointNotFoundException
+  {
+    pop
+    leave NeverImplementedOK
+  }
+NeverImplementedOK:
 
   ldc.i4 100
   ret

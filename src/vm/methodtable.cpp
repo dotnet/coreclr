@@ -6870,6 +6870,39 @@ BOOL MethodTable::FindDispatchEntry(UINT32 typeID,
     RETURN (FALSE);
 }
 
+#ifndef DACCESS_COMPILE
+
+void ThrowExceptionForAbstractOverride(
+    MethodTable *pTargetClass,
+    MethodTable *pInterfaceMT,
+    MethodDesc *pInterfaceMD)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    SString assemblyName;
+
+    pTargetClass->GetAssembly()->GetDisplayName(assemblyName);
+
+    SString strInterfaceName;
+    TypeString::AppendType(strInterfaceName, TypeHandle(pInterfaceMT));
+
+    SString strMethodName;
+    TypeString::AppendMethod(strMethodName, pInterfaceMD, pInterfaceMD->GetMethodInstantiation());
+
+    SString strTargetClassName;
+    TypeString::AppendType(strTargetClassName, pTargetClass);
+
+    COMPlusThrow(
+        kEntryPointNotFoundException,
+        IDS_CLASSLOAD_METHOD_NOT_IMPLEMENTED,
+        strMethodName,
+        strInterfaceName,
+        strTargetClassName,
+        assemblyName);
+}
+
+#endif // !DACCESS_COMPILE
+
 //==========================================================================================
 // Possible cases:
 //      1. Typed (interface) contract
@@ -7000,7 +7033,7 @@ MethodTable::FindDispatchImpl(
                     {
                         if (throwOnConflict)
                         {
-                            ThrowMethodAccessException(pIfcMD, pDefaultMethod);
+                            ThrowExceptionForAbstractOverride(this, pIfcMT, pIfcMD);
                         }
                     }
                     else
