@@ -40,6 +40,7 @@ namespace System.Diagnostics.Tracing
 			prevSystemUserTime = systemUserTime;
 			prevSystemKernelTime = systemKernelTime;
 
+			Debug.Assert(cpuUsage >= 0 && cpuUsage <= 100);
 			return cpuUsage;
 		}
 	}

@@ -11,11 +11,11 @@ namespace System.Diagnostics.Tracing
 {
     internal sealed class RuntimeEventSourceHelper
     {
+    	internal static Interop.Sys.ProcessCpuInformation cpuInfo = new Interop.Sys.ProcessCpuInformation();
+
         internal static long GetProcessTimes()
         {
-            Interop.Sys.ProcessCpuInformation info;
-            Interop.Sys.GetCpuUtilization(info);
-            return info.lastRecordedKernelTime + lastRecordedUserTime;
+            return (long)Interop.Sys.GetCpuUtilization(ref info);
         }
     }
 }
