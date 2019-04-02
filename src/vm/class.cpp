@@ -1255,6 +1255,11 @@ EEClass::CheckForHFA()
             assert(strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
             return false;
         }
+       
+        if ((strcmp(className, "Vector`1") == 0) && (strcmp(namespaceName, "System.Numerics") == 0))
+        {
+            return false;
+        }
     }
 
     CorElementType hfaType = ELEMENT_TYPE_END;
