@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
-    <NativeVersionFile Condition="'$(OS)' == 'Windows_NT'">$(__RootArtifactsDir)\obj\_version.h</NativeVersionFile>
-    <NativeVersionFile Condition="'$(OS)' != 'Windows_NT'">$(__RootArtifactsDir)/obj/_version.c</NativeVersionFile>
+    <NativeVersionFile Condition="'$(OS)' == 'Windows_NT'">$(RootArtifactsDir)obj/$(BuildOS)/$(BuildArch)/$(BuildType)/_version.h</NativeVersionFile>
+    <NativeVersionFile Condition="'$(OS)' != 'Windows_NT'">$(RootArtifactsDir)obj/$(BuildOS)/$(BuildArch)/$(BuildType)/version.c</NativeVersionFile>
     <_BuildNativeArgs>$(ArchGroup) $(ConfigurationGroup) $(OSGroup) outconfig $(Configuration)</_BuildNativeArgs>
     <SemanticVersioningV1>true</SemanticVersioningV1>
   </PropertyGroup>
@@ -95,5 +95,24 @@
 
   <Target Name="InitializeSourceControlInformationFromSourceControlManager"
           DependsOnTargets="GenerateSourceRevisionId"/>
+
+  <Target Name="CreateVersionFileDuringBuild" DependsOnTargets="GenerateSourceRevisionId">
+    <PropertyGroup Condition="'$(SkipVersionGeneration)'!='true'">
+      <VersionSuffix Condition="'$(PreReleaseLabel)' != ''">-$(PreReleaseLabel)</VersionSuffix>
+      <VersionSuffix Condition="'$(IncludeBuildNumberInPackageVersion)' == 'true'">$(VersionSuffix)-$(BuildNumberMajor)-$(BuildNumberMinor)</VersionSuffix>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="CreateVersionInfoFile"
+          DependsOnTargets="CreateVersionFileDuringBuild"
+          Inputs="$(LatestCommit)"
+          Outputs="$(SyncInfoFile)">
+    <MakeDir Directories="$(SyncInfoDirectory)" />
+    <WriteLinesToFile
+      Condition="'$(LatestCommit)' != ''"
+      File="$(SyncInfoFile)"
+      Lines="$(LatestCommit)"
+      Overwrite="true" />
+  </Target>
   
 </Project>

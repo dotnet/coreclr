@@ -1,3 +1,6 @@
 add_subdirectory(crossgen)
-add_subdirectory(InjectResource)
-add_subdirectory(GenClrDebugResource)
+
+if(WIN32)
+    add_subdirectory(InjectResource)
+    add_subdirectory(GenClrDebugResource)
+endif(WIN32)

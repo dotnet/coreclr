@@ -40,7 +40,7 @@
     <BinDir>$(__BinDir)\</BinDir>
     <BinDir Condition="'$(__BinDir)'==''">$(__RootArtifactsDir)Product\$(BuildOS)\$(BuildArch)\$(BuildType)\</BinDir>
 
-    <__IntermediatesDir Condition="'$(__IntermediatesDir)' == ''">$(__RootArtifactsDir)\obj\$(BuildOS)\$(BuildArch)\$(BuildType)</__IntermediatesDir>
+    <__IntermediatesDir Condition="'$(__IntermediatesDir)' == ''">$(__RootArtifactsDir)obj\$(BuildOS)\$(BuildArch)\$(BuildType)</__IntermediatesDir>
     <IntermediateOutputRootPath Condition="'$(IntermediateOutputRootPath)' == ''">$(__IntermediatesDir)\</IntermediateOutputRootPath>
 
     <!-- We don't append back slash because this path is used by nuget.exe as output directory and it

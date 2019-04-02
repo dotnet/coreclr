@@ -20,7 +20,7 @@
   <!--                         this will be used by package creation         -->
   <PropertyGroup>
     <BaseOutputPath>$(MSBuildThisFileDirectory)/artifacts/Product/$(BuildOS)/</BaseOutputPath>   
-    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootArtifactsDir)/obj/$(BuildOS)/$(BuildArch)/$(BuildType)/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootArtifactsDir)obj/$(BuildOS)/$(BuildArch)/$(BuildType)/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <ToolSetCommonDirectory>$(MSBuildThisFileDirectory)artifacts\toolset\Common\</ToolSetCommonDirectory>
   </PropertyGroup>
@@ -92,7 +92,7 @@
 
     <!-- Output paths -->
   <PropertyGroup>
-    <IntermediateOutputPathNonMangled Condition="'$(IntermediateOutputPathNonMangled)' == ''">$(RootArtifactsDir)/obj/$(BuildOS)/$(BuildArch)/$(BuildType)/$(MSBuildProjectName)/</IntermediateOutputPathNonMangled>
+    <IntermediateOutputPathNonMangled Condition="'$(IntermediateOutputPathNonMangled)' == ''">$(RootArtifactsDir)obj/$(BuildOS)/$(BuildArch)/$(BuildType)/$(MSBuildProjectName)/</IntermediateOutputPathNonMangled>
     <OutputPath Condition="'$(OutputPath)' == ''">$(BinDir)</OutputPath>
   </PropertyGroup>
 
@@ -161,6 +161,5 @@
     </File>
     <PackageIndex Include="$(PackageIndexFile)" />
   </ItemGroup>
-
 
 </Project>

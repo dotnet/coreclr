@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="Directory.Build.props" />
   <Import Project="dir.traversal.targets" />
 
   <PropertyGroup>
@@ -12,7 +11,6 @@
 
   <ItemGroup>
     <RestoreProjects Include="$(MSBuildThisFileDirectory)scripts\scripts.csproj" />
-    <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\build_against_pkg_dependencies\build_against_pkg_dependencies.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\targeting_pack_ref\targeting_pack_ref.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\test_dependencies\test_dependencies.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\test_runtime\test_runtime.csproj" />

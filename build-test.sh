@@ -820,16 +820,16 @@ if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
 fi
 
 # Set dependent variables
-__LogsDir="$__RootArtifactsDir/Logs"
+__LogsDir="${__RootArtifactsDir}Logs"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 
 # Set the remaining variables based upon the determined build configuration
-__BinDir="$__RootArtifactsDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
-__PackagesBinDir="$__BinDir/.nuget"
+__BinDir="${__RootArtifactsDir}Product/${__BuildOS}/${__BuildArch}/${__BuildType}"
+__PackagesBinDir="${__BinDir}/.nuget"
 __TestDir="$__ProjectDir/tests"
-__TestWorkingDir="$__RootArtifactsDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
-__IntermediatesDir="$__RootArtifactsDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
-__TestIntermediatesDir="$__RootArtifactsDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
+__TestWorkingDir="${__RootArtifactsDir}tests/${__BuildOS}/${__BuildArch}/${__BuildType}"
+__IntermediatesDir="${__RootArtifactsDir}obj/${__BuildOS}/${__BuildArch}/${__BuildType}"
+__TestIntermediatesDir="${__RootArtifactsDir}tests/obj/${__BuildOS}/${__BuildArch}/${__BuildType}"
 __isMSBuildOnNETCoreSupported=0
 __CrossComponentBinDir="$__BinDir"
 __CrossCompIntermediatesDir="$__IntermediatesDir/crossgen"

@@ -258,7 +258,7 @@ build_native()
             "$__ProjectRoot/dotnet.sh" msbuild /nologo /verbosity:minimal /clp:Summary \
                                        /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
                                        /p:UsePartialNGENOptimization=false /maxcpucount \
-                                       "$__ProjectDir/build.proj" /p:GenerateVersionSourceFile=true /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile \
+                                       "$__ProjectDir/build.proj" /p:GenerateVersionSourceFile=true /t:GenerateNativeVersionFile
                                        $__CommonMSBuildArgs $__UnprocessedBuildArgs
         else
             # Generate the dummy version.c, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
@@ -985,16 +985,16 @@ if [ $__PortableBuild == 0 ]; then
 fi
 
 # Set dependent variables
-__LogsDir="$__RootArtifactsDir/log/${__BuildType}"
+__LogsDir="${__RootArtifactsDir}log/${__BuildType}"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 
 # Set the remaining variables based upon the determined build configuration
-__BinDir="$__RootArtifactsDir/Product/${__BuildOS}/${__BuildArch}/${__BuildType}"
+__BinDir="${__RootArtifactsDir}Product/${__BuildOS}/${__BuildArch}/${__BuildType}"
 __PackagesBinDir="$__BinDir/.nuget"
-__ToolsDir="$__RootArtifactsDir/tools"
-__TestWorkingDir="$__RootArtifactsDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
-export __IntermediatesDir="$__RootArtifactsDir/obj/${__BuildOS}/${__BuildArch}/${__BuildType}"
-__TestIntermediatesDir="$__RootArtifactsDir/tests/obj/$__BuildOS/$__BuildArch/$__BuildType"
+__ToolsDir="${__RootArtifactsDir}tools"
+__TestWorkingDir="${__RootArtifactsDir}tests/$__BuildOS.$__BuildArch.$__BuildType"
+export __IntermediatesDir="${__RootArtifactsDir}obj/${__BuildOS}/${__BuildArch}/${__BuildType}"
+__TestIntermediatesDir="${__RootArtifactsDir}tests/obj/$__BuildOS/$__BuildArch/$__BuildType"
 __isMSBuildOnNETCoreSupported=0
 __CrossComponentBinDir="$__BinDir"
 

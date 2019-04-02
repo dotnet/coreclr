@@ -46,8 +46,8 @@ set "__ProjectFilesDir=%__ProjectDir%"
 set "__SourceDir=%__ProjectDir%\src"
 set "__PackagesDir=%DotNetRestorePackagesPath%"
 if [%__PackagesDir%]==[] set "__PackagesDir=%__ProjectDir%\packages"
-set "__RootArtifactsDir=%__ProjectDir%\artifacts"
-set "__LogsDir=%__RootArtifactsDir%\Logs\%__BuildType%"
+set "__RootArtifactsDir=%__ProjectDir%\artifacts\"
+set "__LogsDir=%__RootArtifactsDir%Logs\%__BuildType%"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
 
 set __BuildAll=
@@ -293,10 +293,10 @@ if /i %__BuildType% NEQ Release set __RestoreOptData=0
 REM REVIEW: why no System.Private.CoreLib NuGet package build for ARM64?
 if /i "%__BuildArch%"=="arm64" set __SkipNugetPackage=0
 
-set "__BinDir=%__RootArtifactsDir%\Product\%__BuildOS%\%__BuildArch%\%__BuildType%"
-set "__IntermediatesDir=%__RootArtifactsDir%\obj\%__BuildOS%\%__BuildArch%\%__BuildType%"
-set "__TestIntermediatesDir=%__RootArtifactsDir%\tests\obj\%__BuildOS%\%__BuildArch%\%__BuildType%"
-if "%__NMakeMakefiles%"=="1" (set "__IntermediatesDir=%__RootArtifactsDir%\nmakeobj\%__BuildOS%\%__BuildArch%\%__BuildType%")
+set "__BinDir=%__RootArtifactsDir%Product\%__BuildOS%\%__BuildArch%\%__BuildType%"
+set "__IntermediatesDir=%__RootArtifactsDir%obj\%__BuildOS%\%__BuildArch%\%__BuildType%"
+set "__TestIntermediatesDir=%__RootArtifactsDir%tests\obj\%__BuildOS%\%__BuildArch%\%__BuildType%"
+if "%__NMakeMakefiles%"=="1" (set "__IntermediatesDir=%__RootArtifactsDir%nmakeobj\%__BuildOS%\%__BuildArch%\%__BuildType%")
 set "__PackagesBinDir=%__BinDir%\.nuget"
 set "__CrossComponentBinDir=%__BinDir%"
 set "__CrossCompIntermediatesDir=%__IntermediatesDir%\crossgen"
