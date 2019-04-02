@@ -794,13 +794,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
     }
 
 done:
-    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, R2RGetEntryPoint))
-    {
-        SString fullMethodSignature;
-        pMD->GetFullMethodInfo(fullMethodSignature);
-        FireEtwR2RGetEntryPoint((UINT64)pMD, fullMethodSignature.GetUnicode(), pEntryPoint, GetClrInstanceId());
-    }
-
+    ETW::MethodLog::GetR2RGetEntryPoint(pMD, pEntryPoint);
     return pEntryPoint;
 }
 

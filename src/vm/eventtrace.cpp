@@ -5204,6 +5204,23 @@ HRESULT ETW::CodeSymbolLog::ReadInMemorySymbols(
     return S_OK;
 }
 
+VOID ETW::MethodLog::GetR2RGetEntryPoint(MethodDesc *pMethodDesc, PCODE pEntryPoint)
+{
+    CONTRACTL{
+        NOTHROW;
+        GC_TRIGGERS;
+    } CONTRACTL_END;
+
+    EX_TRY
+    {
+        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, R2RGetEntryPoint))
+        {
+            ETW::MethodLog::SendR2RGetEntryPointEvent(pMethodDesc, pEntryPoint);
+        }
+
+    } EX_CATCH{ } EX_END_CATCH(SwallowAllExceptions);
+}
+
 /*******************************************************/
 /* This is called by the runtime when a method is jitted completely */
 /*******************************************************/
@@ -6158,6 +6175,25 @@ VOID ETW::LoaderLog::SendModuleEvent(Module *pModule, DWORD dwEventOptions, BOOL
             SendModuleRange(pModule, dwEventOptions);
         }
     }
+}
+
+VOID ETW::MethodLog::SendR2RGetEntryPointEvent(MethodDesc *pMethodDesc, PCODE pEntryPoint)
+{
+    CONTRACTL{
+        THROWS;
+        GC_TRIGGERS;
+    } CONTRACTL_END;
+
+    SString tNamespace, tMethodName, tMethodSignature;
+    pMethodDesc->GetMethodInfo(tNamespace, tMethodName, tMethodSignature);
+
+    FireEtwR2RGetEntryPoint(
+        (UINT64)pMethodDesc,
+        (PCWSTR)tNamespace.GetUnicode(),
+        (PCWSTR)tMethodName.GetUnicode(),
+        (PCWSTR)tMethodSignature.GetUnicode(),
+        pEntryPoint,
+        GetClrInstanceId());
 }
 
 /*****************************************************************/

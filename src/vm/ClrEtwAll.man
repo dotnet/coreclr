@@ -1657,15 +1657,19 @@
 
                     <template tid="R2RGetEntryPoint">
                         <data name="MethodID" inType="win:UInt64" outType="win:HexInt64" />
+                        <data name="MethodNamespace" inType="win:UnicodeString" />
                         <data name="MethodName" inType="win:UnicodeString" />
+                        <data name="MethodSignature" inType="win:UnicodeString" />
                         <data name="EntryPoint" inType="win:UInt64" outType="win:HexInt64" />
                         <data name="ClrInstanceID" inType="win:UInt16" />
                         <UserData>
                             <R2RGetEntryPoint xmlns="myNs">
                                 <MethodID> %1 </MethodID>
-                                <MethodName> %2 </MethodName>
-                                <EntryPoint> %3 </EntryPoint>
-                                <ClrInstanceID> %4 </ClrInstanceID>
+                                <MethodNamespace> %2 </MethodNamespace>
+                                <MethodName> %3 </MethodName>
+                                <MethodSignature> %4 </MethodSignature>
+                                <EntryPoint> %5 </EntryPoint>
+                                <ClrInstanceID> %6 </ClrInstanceID>
                             </R2RGetEntryPoint>
                         </UserData>
                     </template>
