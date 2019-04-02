@@ -10624,6 +10624,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
             SPILL_APPEND:
 
                 // We need to call impSpillLclRefs() for a struct type lclVar.
+                // This is because there may be loads of that lclVar on the evaluation stack, and
+                // we need to ensure that those loads are completed before we modify it.
                 if ((op1->OperGet() == GT_ASG) && varTypeIsStruct(op1->gtGetOp1()))
                 {
                     GenTree*             lhs    = op1->gtGetOp1();
@@ -10634,7 +10636,19 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     }
                     else if (lhs->OperIsBlk())
                     {
-                        lclVar = lhs->AsBlk()->Addr()->IsLocalAddrExpr();
+                        // Note that, prior to morph, we will only see ADDR(LCL_VAR) for any assignment to
+                        // a local struct. We should never see LCL_VAR_ADDR or ADD(ADDR(LCL_VAR) + CNS).
+                        // Other local struct references (e.g. FIELD or more complex pointer arithmetic)
+                        // will cause the stack to be spilled.
+                        GenTree* addr = lhs->AsBlk()->Addr();
+                        if (addr->OperIs(GT_ADDR) && addr->gtGetOp1()->OperIs(GT_LCL_VAR))
+                        {
+                            lclVar = addr->gtGetOp1()->AsLclVarCommon();
+                        }
+                        else
+                        {
+                            assert(addr->IsLocalAddrExpr() == nullptr);
+                        }
                     }
                     if (lclVar != nullptr)
                     {

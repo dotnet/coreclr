@@ -7,9 +7,6 @@ using System.Collections.Generic;
 
 namespace GitHub_23545
 {
-    using System;
-    using System.Collections.Generic;
-
     public struct TestStruct
     {
         public int value1;
