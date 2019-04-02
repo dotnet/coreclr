@@ -266,7 +266,7 @@ namespace System
             return result;
         }
 
-        internal static ulong ToUInt64(object? value)
+        internal static ulong ToUInt64(object value)
         {
             // Helper function to silently convert the value to UInt64 from the other base types for enum without throwing an exception.
             // This is need since the Convert functions do overflow checks.
@@ -917,8 +917,7 @@ namespace System
                 case CorElementType.ELEMENT_TYPE_U:
                     return Unsafe.As<byte, UIntPtr>(ref data);
                 default:
-                    Debug.Fail("Invalid primitive type");
-                    return null!;
+                    throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
             }
         }
 
@@ -953,8 +952,7 @@ namespace System
                 case CorElementType.ELEMENT_TYPE_U:
                     return (ulong)Unsafe.As<byte, UIntPtr>(ref data);
                 default:
-                    Debug.Fail("Invalid primitive type");
-                    return 0;
+                    throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
             }
         }
 
@@ -999,8 +997,7 @@ namespace System
                 case CorElementType.ELEMENT_TYPE_U:
                     return Unsafe.As<byte, UIntPtr>(ref data).GetHashCode();
                 default:
-                    Debug.Fail("Invalid primitive type");
-                    return 0;
+                    throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
             }
         }
 
