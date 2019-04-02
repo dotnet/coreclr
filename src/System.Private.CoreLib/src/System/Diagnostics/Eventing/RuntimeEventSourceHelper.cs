@@ -10,13 +10,37 @@ namespace System.Diagnostics.Tracing
 {
 	internal sealed class RuntimeEventSourceHelper
 	{
+		internal static long prevProcUserTime = 0;
+		internal static long prevProcKernelTime = 0;
+		internal static long prevSystemUserTime = 0;
+		internal static long prevSystemKernelTime = 0;
+
 		internal static long GetProcessTimes()
 		{
-			long user;
-			long kernel;
+			long procUserTime;
+			long procKernelTime;
+
+			long systemUserTime;
+			long systemKernelTime;
+
+			long cpuUsage;
 			
-			Interop.Kernel32.GetProcessTimes(Interop.Kernel32.GetCurrentProcess(), out _, out _, out user, out kernel);
-			return user + kernel;
+			Interop.Kernel32.GetProcessTimes(Interop.Kernel32.GetCurrentProcess(), out _, out _, out procKernelTime, out procUserTime);
+			Interop.Kernel32.GetSystemTimes(out _, out systemUserTime, out systemKernelTime);
+
+
+			if (prevSystemUserTime == 0 && prevSystemKernelTime == 0) // These may be 0 when we report CPU usage for the first time, in which case we should just return 0. 
+				cpuUsage = 0;
+
+			else
+				cpuUsage = ((procUserTime - prevProcUserTime) + (procKernelTime - prevProcKernelTime)) * 100 / ((systemUserTime - prevSystemUserTime) + (systemKernelTime - prevSystemKernelTime));
+
+			prevProcUserTime = procUserTime;
+			prevProcKernelTime = procKernelTime;
+			prevSystemUserTime = systemUserTime;
+			prevSystemKernelTime = systemKernelTime;
+
+			return cpuUsage;
 		}
 	}
 }
