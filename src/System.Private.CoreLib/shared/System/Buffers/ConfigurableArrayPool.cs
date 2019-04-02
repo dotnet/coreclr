@@ -164,7 +164,7 @@ namespace System.Buffers
         private sealed class Bucket
         {
             internal readonly int _bufferLength;
-            private readonly T[][] _buffers;
+            private readonly T[]?[] _buffers;
             private readonly int _poolId;
 
             private SpinLock _lock; // do not make this readonly; it's a mutable struct

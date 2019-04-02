@@ -47,7 +47,7 @@ namespace System.Buffers
         private readonly PerCoreLockedStacks?[] _buckets = new PerCoreLockedStacks[NumBuckets];
         /// <summary>A per-thread array of arrays, to cache one array per array size per thread.</summary>
         [ThreadStatic]
-        private static T[][] t_tlsBuckets;
+        private static T[]?[]? t_tlsBuckets;
 
         private int _callbackCreated;
 
@@ -188,7 +188,7 @@ namespace System.Buffers
                 // if there was a previous one there, push that to the global stack.  This
                 // helps to keep LIFO access such that the most recently pushed stack will
                 // be in TLS and the first to be popped next.
-                T[][] tlsBuckets = t_tlsBuckets;
+                T[]?[]? tlsBuckets = t_tlsBuckets;
                 if (tlsBuckets == null)
                 {
                     t_tlsBuckets = tlsBuckets = new T[NumBuckets][];
@@ -205,7 +205,7 @@ namespace System.Buffers
                 }
                 else
                 {
-                    T[] prev = tlsBuckets[bucketIndex];
+                    T[]? prev = tlsBuckets[bucketIndex];
                     tlsBuckets[bucketIndex] = array;
 
                     if (prev != null)
@@ -247,7 +247,7 @@ namespace System.Buffers
                 // Under high pressure, release all thread locals
                 if (log.IsEnabled())
                 {
-                    foreach (KeyValuePair<T[][], object?> tlsBuckets in s_allTlsBuckets)
+                    foreach (KeyValuePair<T[]?[], object> tlsBuckets in s_allTlsBuckets)
                     {
                         T[]?[] buckets = tlsBuckets.Key;
                         for (int i = 0; i < buckets.Length; i++)
@@ -264,9 +264,9 @@ namespace System.Buffers
                 }
                 else
                 {
-                    foreach (KeyValuePair<T[][], object?> tlsBuckets in s_allTlsBuckets)
+                    foreach (KeyValuePair<T[]?[], object?> tlsBuckets in s_allTlsBuckets)
                     {
-                        T[][] buckets = tlsBuckets.Key;
+                        T[]?[] buckets = tlsBuckets.Key;
                         Array.Clear(buckets, 0, buckets.Length);
                     }
                 }
