@@ -27,10 +27,12 @@ else()
   message("Using Windows SDK version ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} for WinRT interop tests.")
 endif()
 
-set (METADATA_DIR "C:/Program Files (x86)/Windows Kits/10/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/windows.foundation.foundationcontract/*" )
+set (WINDOWS_KITS_10_ROOT "C:/Program Files (x86)/Windows Kits/10/")
+
+set (METADATA_DIR "${WINDOWS_KITS_10_ROOT}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/windows.foundation.foundationcontract/*" )
 set (REFERENCE_WINMDS
-  "C:/Program Files (x86)/Windows Kits/10/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.FoundationContract/*/Windows.Foundation.FoundationContract.winmd"
-  "C:/Program Files (x86)/Windows Kits/10/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.UniversalApiContract/*/Windows.Foundation.UniversalApiContract.winmd")
+  "${WINDOWS_KITS_10_ROOT}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.FoundationContract/*/Windows.Foundation.FoundationContract.winmd"
+  "${WINDOWS_KITS_10_ROOT}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.UniversalApiContract/*/Windows.Foundation.UniversalApiContract.winmd")
 
 file(GLOB RESOLVED_METADATA_DIR ${METADATA_DIR})
 file(TO_NATIVE_PATH ${RESOLVED_METADATA_DIR} METADATA_DIR_ARGUMENT)
@@ -81,7 +83,8 @@ set (CPP_WINRT_OUTPUT_FILES
 
 include_directories(${CPP_WINRT_OUTPUT_FOLDER})
 
-find_program(CPPWINRT cppwinrt)
+find_program(CPPWINRT cppwinrt
+  HINTS "${WINDOWS_KITS_10_ROOT}/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x86/cppwinrt.exe")
 
 message("Using cppwinrt from ${CPPWINRT}.")
 
