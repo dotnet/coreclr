@@ -83,6 +83,8 @@ include_directories(${CPP_WINRT_OUTPUT_FOLDER})
 
 find_program(CPPWINRT cppwinrt)
 
+message("Using cppwinrt from ${CPPWINRT}.")
+
 add_custom_command(
   OUTPUT ${CPP_WINRT_OUTPUT_FILES}
   COMMAND ${CPPWINRT} -name Contracts -prefix -comp ${CMAKE_CURRENT_SOURCE_DIR} -in ${MIDL_GENERATED_WINMD} -ref ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} -out ${CPP_WINRT_OUTPUT_FOLDER}
