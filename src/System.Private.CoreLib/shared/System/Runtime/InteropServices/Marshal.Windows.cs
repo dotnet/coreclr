@@ -18,6 +18,16 @@ namespace System.Runtime.InteropServices
             return PtrToStringUni(ptr);
         }
 
+        public static IntPtr StringToHGlobalAuto(string s)
+        {
+            return StringToHGlobalUni(s);
+        }
+
+        public static IntPtr StringToCoTaskMemAuto(string s)
+        {
+            return StringToCoTaskMemUni(s);
+        }
+
         private static unsafe int GetSystemMaxDBCSCharSize()
         {
             Interop.Kernel32.CPINFO cpInfo = default;

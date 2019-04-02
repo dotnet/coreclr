@@ -714,10 +714,28 @@ namespace System.Runtime.InteropServices
             return hglobal;
         }
 
-        public static IntPtr StringToHGlobalAuto(string s)
+        private static unsafe IntPtr StringToHGlobalUTF8(string s)
         {
-            // Ansi platforms are no longer supported
-            return StringToHGlobalUni(s);
+            if (s == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            int nb = Encoding.UTF8.GetMaxByteCount(s.Length);
+
+            IntPtr pMem = AllocHGlobal(nb + 1);
+
+            int nbWritten;
+            byte* pbMem = (byte*)pMem;
+
+            fixed (char* firstChar = s)
+            {
+                nbWritten = Encoding.UTF8.GetBytes(firstChar, s.Length, pbMem, nb);
+            }
+
+            pbMem[nbWritten] = 0;
+
+            return pMem;
         }
 
         public static unsafe IntPtr StringToCoTaskMemUni(string s)
@@ -766,12 +784,6 @@ namespace System.Runtime.InteropServices
             pbMem[nbWritten] = 0;
 
             return pMem;
-        }
-
-        public static IntPtr StringToCoTaskMemAuto(string s)
-        {
-            // Ansi platforms are no longer supported
-            return StringToCoTaskMemUni(s);
         }
 
         public static unsafe IntPtr StringToCoTaskMemAnsi(string s)
