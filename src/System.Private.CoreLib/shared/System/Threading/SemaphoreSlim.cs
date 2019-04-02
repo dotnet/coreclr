@@ -49,7 +49,7 @@ namespace System.Threading
         private int m_countOfWaitersPulsedToWake;
 
         // Dummy object used to in lock statements to protect the semaphore count, wait handle and cancelation
-        private object? m_lockObj; // initialized non-null, then set to null on Dispose
+        private object? m_lockObj; // initialized non-null, then set to null on Dispose // TODO-NULLABLE: Consider using a separate field to track disposal
 
         // Act as the semaphore wait handle, it's lazily initialized if needed, the first WaitHandle call initialize it
         // and wait an release sets and resets it respectively as long as it is not null
@@ -350,7 +350,7 @@ namespace System.Threading
                 try { }
                 finally
                 {
-                    Monitor.Enter(m_lockObj, ref lockTaken);
+                    Monitor.Enter(m_lockObj!, ref lockTaken);
                     if (lockTaken)
                     {
                         m_waitCount++;
@@ -419,7 +419,7 @@ namespace System.Threading
                 if (lockTaken)
                 {
                     m_waitCount--;
-                    Monitor.Exit(m_lockObj);
+                    Monitor.Exit(m_lockObj!);
                 }
 
                 // Unregister the cancellation callback.
@@ -463,7 +463,7 @@ namespace System.Threading
                     }
                 }
                 // ** the actual wait **
-                bool waitSuccessful = Monitor.Wait(m_lockObj, remainingWaitMilliseconds);
+                bool waitSuccessful = Monitor.Wait(m_lockObj!, remainingWaitMilliseconds);
 
                 // This waiter has woken up and this needs to be reflected in the count of waiters pulsed to wake. Since we
                 // don't have thread-specific pulse state, there is not enough information to tell whether this thread woke up
@@ -654,7 +654,7 @@ namespace System.Threading
         /// <returns>The created task.</returns>
         private TaskNode CreateAndAddAsyncWaiter()
         {
-            Debug.Assert(Monitor.IsEntered(m_lockObj), "Requires the lock be held");
+            Debug.Assert(Monitor.IsEntered(m_lockObj!), "Requires the lock be held");
 
             // Create the task
             var task = new TaskNode();
@@ -684,7 +684,7 @@ namespace System.Threading
         private bool RemoveAsyncWaiter(TaskNode task)
         {
             Debug.Assert(task != null, "Expected non-null task");
-            Debug.Assert(Monitor.IsEntered(m_lockObj), "Requires the lock be held");
+            Debug.Assert(Monitor.IsEntered(m_lockObj!), "Requires the lock be held");
 
             // Is the task in the list?  To be in the list, either it's the head or it has a predecessor that's in the list.
             bool wasInList = m_asyncHead == task || task.Prev != null;
@@ -711,7 +711,7 @@ namespace System.Threading
         private async Task<bool> WaitUntilCountOrTimeoutAsync(TaskNode asyncWaiter, int millisecondsTimeout, CancellationToken cancellationToken)
         {
             Debug.Assert(asyncWaiter != null, "Waiter should have been constructed");
-            Debug.Assert(Monitor.IsEntered(m_lockObj), "Requires the lock be held");
+            Debug.Assert(Monitor.IsEntered(m_lockObj!), "Requires the lock be held");
 
             // Wait until either the task is completed, timeout occurs, or cancellation is requested.
             // We need to ensure that the Task.Delay task is appropriately cleaned up if the await
@@ -818,7 +818,7 @@ namespace System.Threading
                     m_countOfWaitersPulsedToWake += waitersToNotify;
                     for (int i = 0; i < waitersToNotify; i++)
                     {
-                        Monitor.Pulse(m_lockObj);
+                        Monitor.Pulse(m_lockObj!);
                     }
                 }
 
@@ -898,10 +898,10 @@ namespace System.Threading
         /// <summary>
         /// Private helper method to wake up waiters when a cancellationToken gets canceled.
         /// </summary>
-        private static Action<object> s_cancellationTokenCanceledEventHandler = new Action<object>(CancellationTokenCanceledEventHandler);
-        private static void CancellationTokenCanceledEventHandler(object obj)
+        private static Action<object?> s_cancellationTokenCanceledEventHandler = new Action<object?>(CancellationTokenCanceledEventHandler);
+        private static void CancellationTokenCanceledEventHandler(object? obj)
         {
-            Debug.Assert(obj is Semaphore, "Expected a SemaphoreSlim");
+            Debug.Assert(obj is SemaphoreSlim, "Expected a SemaphoreSlim");
             SemaphoreSlim semaphore = (SemaphoreSlim)obj;
             lock (semaphore.m_lockObj!)
             {
