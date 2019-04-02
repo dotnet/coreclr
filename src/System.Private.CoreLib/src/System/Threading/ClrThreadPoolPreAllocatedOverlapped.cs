@@ -88,7 +88,7 @@ namespace System.Threading
 
         unsafe void IDeferredDisposable.OnFinalRelease(bool disposed)
         {
-            if (_overlapped != null)
+            if (_overlapped != null) // protect against ctor throwing exception and leaving field uninitialized
             {
                 if (disposed)
                 {
