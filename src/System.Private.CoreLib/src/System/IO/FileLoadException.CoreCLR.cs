@@ -2,17 +2,16 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Globalization;
-using System.Runtime.InteropServices;
+#nullable enable
 using System.Runtime.CompilerServices;
-using System.Security;
+using System.Runtime.InteropServices;
 
 namespace System.IO
 {
     public partial class FileLoadException
     {
         // Do not delete: this is invoked from native code.
-        private FileLoadException(string fileName, string fusionLog, int hResult)
+        private FileLoadException(string? fileName, string? fusionLog, int hResult)
             : base(null)
         {
             HResult = hResult;
@@ -21,12 +20,12 @@ namespace System.IO
             _message = FormatFileLoadExceptionMessage(FileName, HResult);
         }
 
-        internal static string FormatFileLoadExceptionMessage(string fileName, int hResult)
+        internal static string FormatFileLoadExceptionMessage(string? fileName, int hResult)
         {
-            string format = null;
+            string? format = null;
             GetFileLoadExceptionMessage(hResult, JitHelpers.GetStringHandleOnStack(ref format));
 
-            string message = null;
+            string? message = null;
             if (hResult == System.HResults.COR_E_BADEXEFORMAT)
                 message = SR.Arg_BadImageFormatException;
             else 
