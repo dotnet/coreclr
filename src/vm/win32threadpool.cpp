@@ -924,7 +924,7 @@ void ThreadpoolMgr::AdjustMaxWorkersActive()
     _ASSERTE(ThreadAdjustmentLock.IsHeld());
 
     DWORD currentTicks = GetTickCount();
-    LONG totalNumCompletions = (LONG)Thread::GetRecentTotalWorkerThreadPoolCompletionCount();
+    LONG totalNumCompletions = (LONG)Thread::GetTotalWorkerThreadPoolCompletionCount();
     LONG numCompletions = totalNumCompletions - VolatileLoad(&PriorCompletedWorkRequests);
 
     LARGE_INTEGER startTime = CurrentSampleStartTime;
