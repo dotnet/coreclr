@@ -3899,7 +3899,7 @@ private:
             UINT32 newCount = *threadLocalCount + 1;
             if (newCount != 0)
             {
-                *threadLocalCount = newCount;
+                VolatileStoreWithoutBarrier(threadLocalCount, newCount);
             }
             else
             {

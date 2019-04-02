@@ -8042,9 +8042,6 @@ UINT64 Thread::GetTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCoun
     UINT64 total;
     if (g_fEEStarted) //make sure we actually have a thread store
     {
-        // make sure up-to-date thread-local counts are visible to us
-        ::FlushProcessWriteBuffers();
-
         // enumerate all threads, summing their local counts.
         ThreadStoreLockHolder tsl;
 
@@ -8076,9 +8073,6 @@ UINT64 Thread::GetTotalThreadPoolCompletionCount()
     UINT64 total;
     if (g_fEEStarted) //make sure we actually have a thread store
     {
-        // make sure up-to-date thread-local counts are visible to us
-        ::FlushProcessWriteBuffers();
-
         // enumerate all threads, summing their local counts.
         ThreadStoreLockHolder tsl;
 
