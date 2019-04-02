@@ -431,8 +431,8 @@ CONFIG_INTEGER(JitSaveFpLrWithCalleeSavedRegisters, W("JitSaveFpLrWithCalleeSave
 #endif // defined(_TARGET_ARM64_)
 #endif // DEBUG
 
-// When tier 0 JIT is requested, this setting determines whether it may be used for methods that contain loops. When disabled,
-// the JIT will switch to tier 1 JIT for those methods.
+// When tier 0 JIT is requested, this setting determines whether it may be used for methods that contain loops. When
+// disabled, the JIT will switch to tier 1 JIT for those methods.
 CONFIG_INTEGER(JitTier0ForLoops, W("JitTier0ForLoops"), 0)
 
 #undef CONFIG_INTEGER
