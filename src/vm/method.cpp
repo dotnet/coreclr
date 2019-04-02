@@ -4805,7 +4805,7 @@ bool MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
 
         // Policy - If quick JIT is disabled for the startup tier and the module is not ReadyToRun, the method would effectively
         // not be tiered currently, so make the method ineligible for tiering to avoid some unnecessary overhead
-        (g_pConfig->TieredCompilation_StartupTier_QuickJit() || GetModule()->IsReadyToRun()) &&
+        (g_pConfig->TieredCompilation_QuickJit() || GetModule()->IsReadyToRun()) &&
 
         // Policy - Debugging works much better with unoptimized code
         !CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) &&
