@@ -673,6 +673,11 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
     STANDARD_VM_CONTRACT;
 
     PCODE pEntryPoint = NULL;
+#ifndef CROSSGEN_COMPILE
+#ifdef PROFILING_SUPPORTED
+    BOOL fShouldSearchCache = TRUE;
+#endif // PROFILING_SUPPORTED
+#endif // CROSSGEN_COMPILE
     mdToken token = pMD->GetMemberDef();
     int rid = RidFromToken(token);
     if (rid == 0)
@@ -714,7 +719,6 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 
 #ifndef CROSSGEN_COMPILE
 #ifdef PROFILING_SUPPORTED
-        BOOL fShouldSearchCache = TRUE;
         {
             BEGIN_PIN_PROFILER(CORProfilerTrackCacheSearches());
             g_profControlBlock.pProfInterface->
