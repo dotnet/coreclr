@@ -8061,6 +8061,19 @@ UINT64 Thread::GetTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCoun
     return total;
 }
 
+UINT64 Thread::GetRecentTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCount)
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (g_fEEStarted)
+    {
+        // make sure up-to-date thread-local counts are visible to us
+        ::FlushProcessWriteBuffers();
+    }
+
+    return GetTotalCount(threadLocalCountOffset, overflowCount);
+}
+
 UINT64 Thread::GetTotalThreadPoolCompletionCount()
 {
     CONTRACTL
