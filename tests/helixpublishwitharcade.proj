@@ -30,6 +30,7 @@
       </_PropertiesToPass>
     </PropertyGroup>
 
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="PrepareCorrelationPayloadDirectory" />
     <MSBuild Projects="$(MSBuildProjectFile)" Targets="PreparePayloadsDirectories" Properties="Scenarios=$(_Scenarios)" StopOnFirstFailure="true" />
 
     <ItemGroup>
@@ -115,6 +116,16 @@
     </ItemGroup>
 
     <Copy SourceFiles="@(_PayloadFiles)" DestinationFiles="@(_PayloadFiles->'$(PayloadsRootDirectory)%(FileRelativeToPayloadsRootDirectory)')" />
+  </Target>
+
+  <Target Name="PrepareCorrelationPayloadDirectory">
+    <MSBuild Projects="xunitconsolerunner.depproj" Targets="Restore" />
+
+    <ItemGroup>
+      <_XUnitConsoleRunnerFiles Include="$(PackagesDir)$(MicrosoftDotNetXUnitConsoleRunnerPackage.ToLower())\$(MicrosoftDotNetXUnitConsoleRunnerVersion)\**\xunit.console.*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_XUnitConsoleRunnerFiles)" DestinationFolder="$(CoreRootDirectory)" />
   </Target>
 
   <Target Name="CreateTestEnvFiles">
