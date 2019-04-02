@@ -217,7 +217,6 @@ namespace System.Runtime.Loader
 
             return IntPtr.Zero;
         }
-
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void LoadTypeForWinRTTypeNameInContextInternal(IntPtr ptrNativeAssemblyLoadContext, string typeName, ObjectHandleOnStack loadedType);

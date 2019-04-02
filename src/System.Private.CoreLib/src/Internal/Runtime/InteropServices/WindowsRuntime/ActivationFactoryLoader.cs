@@ -64,7 +64,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
                 }
                 activationFactory = WindowsRuntimeMarshal.GetManagedActivationFactory(winRTType);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 return ex.HResult;
             }
