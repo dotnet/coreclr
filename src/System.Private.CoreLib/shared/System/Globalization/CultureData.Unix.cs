@@ -58,7 +58,8 @@ namespace System.Globalization
             }
 
             // Replace the ICU collation keyword with an _
-            index = _sWindowsName!.IndexOf(ICU_COLLATION_KEYWORD, StringComparison.Ordinal);
+            Debug.Assert(_sWindowsName != null);
+            index = _sWindowsName.IndexOf(ICU_COLLATION_KEYWORD, StringComparison.Ordinal);
             if (index >= 0)
             {
                 _sName = string.Concat(_sWindowsName.AsSpan(0, index), "_", alternateSortName);

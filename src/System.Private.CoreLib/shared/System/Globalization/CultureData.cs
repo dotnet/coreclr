@@ -564,7 +564,7 @@ namespace System.Globalization
                 return s_Invariant;
             }
         }
-        private volatile static CultureData s_Invariant;
+        private volatile static CultureData? s_Invariant;
 
         // Cache of cultures we've already looked up
         private static volatile StringCultureDataDictionary? s_cachedCultures;
@@ -2373,7 +2373,8 @@ namespace System.Globalization
                     nfi._nativeDigits[i] = char.ToString(digits[i]);
                 }
 
-                nfi._digitSubstitution = GetDigitSubstitution(_sRealName!);
+                Debug.Assert(_sRealName != null);
+                nfi._digitSubstitution = GetDigitSubstitution(_sRealName);
             }
 
             // Gather additional data
