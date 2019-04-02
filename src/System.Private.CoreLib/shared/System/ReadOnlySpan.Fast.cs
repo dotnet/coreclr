@@ -266,7 +266,7 @@ namespace System
             if ((uint)start > (uint)_length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            return new ReadOnlySpan<T>(ref Unsafe.Add(ref _pointer.Value, start), _length - start);
+            return new ReadOnlySpan<T>(ref Unsafe.Add(ref _pointer.Value, (uint)start), _length - start);
         }
 
         /// <summary>
@@ -289,7 +289,7 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 #endif
 
-            return new ReadOnlySpan<T>(ref Unsafe.Add(ref _pointer.Value, start), length);
+            return new ReadOnlySpan<T>(ref Unsafe.Add(ref _pointer.Value, (uint)start), length);
         }
 
         /// <summary>
