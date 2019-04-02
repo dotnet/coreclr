@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics; // for TraceInformation
 using System.Runtime.CompilerServices;
 
@@ -40,7 +41,7 @@ namespace System.Threading
         public int upgradecount;
 
         // Next RWC in this thread's list.
-        public ReaderWriterCount next;
+        public ReaderWriterCount? next;
     }
 
     /// <summary>
@@ -74,10 +75,10 @@ namespace System.Threading
         private int _writeLockOwnerId;
 
         // conditions we wait on. 
-        private EventWaitHandle _writeEvent;    // threads waiting to acquire a write lock go here.
-        private EventWaitHandle _readEvent;     // threads waiting to acquire a read lock go here (will be released in bulk)
-        private EventWaitHandle _upgradeEvent;  // thread waiting to acquire the upgrade lock
-        private EventWaitHandle _waitUpgradeEvent;  // thread waiting to upgrade from the upgrade lock to a write lock go here (at most one)
+        private EventWaitHandle? _writeEvent;    // threads waiting to acquire a write lock go here.
+        private EventWaitHandle? _readEvent;     // threads waiting to acquire a read lock go here (will be released in bulk)
+        private EventWaitHandle? _upgradeEvent;  // thread waiting to acquire the upgrade lock
+        private EventWaitHandle? _waitUpgradeEvent;  // thread waiting to upgrade from the upgrade lock to a write lock go here (at most one)
 
         // Every lock instance has a unique ID, which is used by ReaderWriterCount to associate itself with the lock
         // without holding a reference to it.
@@ -195,10 +196,10 @@ namespace System.Threading
         /// could not be found.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ReaderWriterCount GetThreadRWCount(bool dontAllocate)
+        private ReaderWriterCount? GetThreadRWCount(bool dontAllocate) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
         {
-            ReaderWriterCount rwc = t_rwc;
-            ReaderWriterCount empty = null;
+            ReaderWriterCount? rwc = t_rwc;
+            ReaderWriterCount? empty = null;
             while (rwc != null)
             {
                 if (rwc.lockID == _lockID)
@@ -305,7 +306,7 @@ namespace System.Threading
             if (_fDisposed)
                 throw new ObjectDisposedException(null);
 
-            ReaderWriterCount lrwc = null;
+            ReaderWriterCount lrwc;
             int id = Environment.CurrentManagedThreadId;
 
             if (!_fIsReentrant)
@@ -318,14 +319,13 @@ namespace System.Threading
 
                 _spinLock.Enter(EnterSpinLockReason.EnterAnyRead);
 
-                lrwc = GetThreadRWCount(false);
+                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
 
                 //Check if the reader lock is already acquired. Note, we could
                 //check the presence of a reader by not allocating rwc (But that 
                 //would lead to two lookups in the common case. It's better to keep
                 //a count in the structure).
-                if (lrwc.readercount > 0)
-                {
+                if (lrwc.readercount > 0)                {
                     _spinLock.Exit();
                     throw new LockRecursionException(SR.LockRecursionException_RecursiveReadNotAllowed);
                 }
@@ -343,7 +343,7 @@ namespace System.Threading
             else
             {
                 _spinLock.Enter(EnterSpinLockReason.EnterAnyRead);
-                lrwc = GetThreadRWCount(false);
+                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                 if (lrwc.readercount > 0)
                 {
                     lrwc.readercount++;
@@ -401,7 +401,7 @@ namespace System.Threading
                     _spinLock.Enter(EnterSpinLockReason.EnterAnyRead);
                     //The per-thread structure may have been recycled as the lock is acquired (due to message pumping), load again.
                     if (IsRwHashEntryChanged(lrwc))
-                        lrwc = GetThreadRWCount(false);
+                        lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                     continue;
                 }
 
@@ -410,7 +410,7 @@ namespace System.Threading
                 {
                     LazyCreateEvent(ref _readEvent, EnterLockType.Read);
                     if (IsRwHashEntryChanged(lrwc))
-                        lrwc = GetThreadRWCount(false);
+                        lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                     continue;   // since we left the lock, start over. 
                 }
 
@@ -420,7 +420,7 @@ namespace System.Threading
                     return false;
                 }
                 if (IsRwHashEntryChanged(lrwc))
-                    lrwc = GetThreadRWCount(false);
+                    lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             }
 
             _spinLock.Exit();
@@ -453,7 +453,7 @@ namespace System.Threading
                 throw new ObjectDisposedException(null);
 
             int id = Environment.CurrentManagedThreadId;
-            ReaderWriterCount lrwc;
+            ReaderWriterCount? lrwc;
             bool upgradingToWrite = false;
 
             if (!_fIsReentrant)
@@ -476,7 +476,7 @@ namespace System.Threading
                 }
                 _spinLock.Enter(enterMyLockReason);
 
-                lrwc = GetThreadRWCount(true);
+                lrwc = GetThreadRWCount(dontAllocate: true);
 
                 //Can't acquire write lock with reader lock held. 
                 if (lrwc != null && lrwc.readercount > 0)
@@ -502,7 +502,7 @@ namespace System.Threading
                 }
                 _spinLock.Enter(enterMyLockReason);
 
-                lrwc = GetThreadRWCount(false);
+                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
 
                 if (id == _writeLockOwnerId)
                 {
@@ -555,7 +555,7 @@ namespace System.Threading
                         if (lrwc != null)
                         {
                             if (IsRwHashEntryChanged(lrwc))
-                                lrwc = GetThreadRWCount(false);
+                                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
 
                             if (lrwc.readercount > 0)
                             {
@@ -622,8 +622,9 @@ namespace System.Threading
 
             if (_fIsReentrant)
             {
+                Debug.Assert(lrwc != null, "Initialized based on _fIsReentrant earlier in the method");
                 if (IsRwHashEntryChanged(lrwc))
-                    lrwc = GetThreadRWCount(false);
+                    lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                 lrwc.writercount++;
             }
 
@@ -660,7 +661,7 @@ namespace System.Threading
                 throw new ObjectDisposedException(null);
 
             int id = Environment.CurrentManagedThreadId;
-            ReaderWriterCount lrwc;
+            ReaderWriterCount? lrwc;
 
             if (!_fIsReentrant)
             {
@@ -676,7 +677,7 @@ namespace System.Threading
                 }
 
                 _spinLock.Enter(EnterSpinLockReason.EnterAnyRead);
-                lrwc = GetThreadRWCount(true);
+                lrwc = GetThreadRWCount(dontAllocate: true);
                 //Can't acquire upgrade lock with reader lock held. 
                 if (lrwc != null && lrwc.readercount > 0)
                 {
@@ -687,7 +688,7 @@ namespace System.Threading
             else
             {
                 _spinLock.Enter(EnterSpinLockReason.EnterAnyRead);
-                lrwc = GetThreadRWCount(false);
+                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
 
                 if (id == _upgradeLockOwnerId)
                 {
@@ -764,8 +765,9 @@ namespace System.Threading
             {
                 //The lock may have been dropped getting here, so make a quick check to see whether some other
                 //thread did not grab the entry.
+                Debug.Assert(lrwc != null, "Initialized based on _fIsReentrant earlier in the method");
                 if (IsRwHashEntryChanged(lrwc))
-                    lrwc = GetThreadRWCount(false);
+                    lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                 lrwc.upgradecount++;
             }
 
@@ -776,11 +778,9 @@ namespace System.Threading
 
         public void ExitReadLock()
         {
-            ReaderWriterCount lrwc = null;
-
             _spinLock.Enter(EnterSpinLockReason.ExitAnyRead);
 
-            lrwc = GetThreadRWCount(true);
+            ReaderWriterCount? lrwc = GetThreadRWCount(dontAllocate: true);
 
             if (lrwc == null || lrwc.readercount < 1)
             {
@@ -829,7 +829,7 @@ namespace System.Threading
             else
             {
                 _spinLock.Enter(EnterSpinLockReason.ExitAnyWrite);
-                lrwc = GetThreadRWCount(false);
+                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
 
                 if (lrwc == null)
                 {
@@ -863,7 +863,7 @@ namespace System.Threading
 
         public void ExitUpgradeableReadLock()
         {
-            ReaderWriterCount lrwc;
+            ReaderWriterCount? lrwc;
             if (!_fIsReentrant)
             {
                 if (Environment.CurrentManagedThreadId != _upgradeLockOwnerId)
@@ -876,7 +876,7 @@ namespace System.Threading
             else
             {
                 _spinLock.Enter(EnterSpinLockReason.ExitAnyRead);
-                lrwc = GetThreadRWCount(true);
+                lrwc = GetThreadRWCount(dontAllocate: true);
 
                 if (lrwc == null)
                 {
@@ -913,7 +913,7 @@ namespace System.Threading
         /// while holding a spin lock).  If all goes well, reenter the lock and
         /// set 'waitEvent' 
         /// </summary>
-        private void LazyCreateEvent(ref EventWaitHandle waitEvent, EnterLockType enterLockType)
+        private void LazyCreateEvent(ref EventWaitHandle? waitEvent, EnterLockType enterLockType) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
         {
 #if DEBUG
             Debug.Assert(_spinLock.IsHeld);
@@ -1098,7 +1098,7 @@ namespace System.Threading
                 if (_numWriteUpgradeWaiters > 0 && _fUpgradeThreadHoldingRead && readercount == 2)
                 {
                     _spinLock.Exit();      // Exit before signaling to improve efficiency (wakee will need the lock)
-                    _waitUpgradeEvent.Set();     // release all upgraders (however there can be at most one). 
+                    _waitUpgradeEvent!.Set();     // release all upgraders (however there can be at most one). 
                     return;
                 }
             }
@@ -1110,7 +1110,7 @@ namespace System.Threading
                 //was pending. 
 
                 _spinLock.Exit();      // Exit before signaling to improve efficiency (wakee will need the lock)
-                _waitUpgradeEvent.Set();     // release all upgraders (however there can be at most one).            
+                _waitUpgradeEvent!.Set();     // release all upgraders (however there can be at most one).            
             }
             else if (readercount == 0 && _numWriteWaiters > 0)
             {
@@ -1126,7 +1126,7 @@ namespace System.Threading
 
                 if (signaled == WaiterStates.None)
                 {
-                    _writeEvent.Set();   // release one writer. 
+                    _writeEvent!.Set();   // release one writer. 
                 }
             }
             else
@@ -1168,10 +1168,10 @@ namespace System.Threading
             _spinLock.Exit();    // Exit before signaling to improve efficiency (wakee will need the lock)
 
             if (setReadEvent)
-                _readEvent.Set();  // release all readers. 
+                _readEvent!.Set();  // release all readers. 
 
             if (setUpgradeEvent)
-                _upgradeEvent.Set(); //release one upgrader.
+                _upgradeEvent!.Set(); //release one upgrader.
         }
 
         private bool IsWriterAcquired()
@@ -1364,7 +1364,7 @@ namespace System.Threading
             get
             {
                 int count = 0;
-                ReaderWriterCount lrwc = GetThreadRWCount(true);
+                ReaderWriterCount? lrwc = GetThreadRWCount(dontAllocate: true);
                 if (lrwc != null)
                     count = lrwc.readercount;
 
@@ -1380,7 +1380,7 @@ namespace System.Threading
                 {
                     int count = 0;
 
-                    ReaderWriterCount lrwc = GetThreadRWCount(true);
+                    ReaderWriterCount? lrwc = GetThreadRWCount(dontAllocate: true);
                     if (lrwc != null)
                         count = lrwc.upgradecount;
 
@@ -1404,7 +1404,7 @@ namespace System.Threading
                 {
                     int count = 0;
 
-                    ReaderWriterCount lrwc = GetThreadRWCount(true);
+                    ReaderWriterCount? lrwc = GetThreadRWCount(dontAllocate: true);
                     if (lrwc != null)
                         count = lrwc.writercount;
 
