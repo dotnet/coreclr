@@ -578,7 +578,6 @@ namespace ETW
             BOOL fSendILToNativeMapEvent,
             BOOL fGetReJitIDs);
         static VOID SendEventsForNgenMethods(Module *pModule, DWORD dwEventOptions);
-        static VOID SendR2RGetEntryPointEvent(MethodDesc *pMethodDesc, PCODE pEntryPoint);
         static VOID SendMethodJitStartEvent(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL);
         static VOID SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWORD dwEventOptions, SIZE_T pCode, ReJITID rejitID);
         static VOID SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);

@@ -5215,7 +5215,16 @@ VOID ETW::MethodLog::GetR2RGetEntryPoint(MethodDesc *pMethodDesc, PCODE pEntryPo
     {
         if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, R2RGetEntryPoint))
         {
-            ETW::MethodLog::SendR2RGetEntryPointEvent(pMethodDesc, pEntryPoint);
+            SString tNamespace, tMethodName, tMethodSignature;
+            pMethodDesc->GetMethodInfo(tNamespace, tMethodName, tMethodSignature);
+
+            FireEtwR2RGetEntryPoint(
+                (UINT64)pMethodDesc,
+                (PCWSTR)tNamespace.GetUnicode(),
+                (PCWSTR)tMethodName.GetUnicode(),
+                (PCWSTR)tMethodSignature.GetUnicode(),
+                pEntryPoint,
+                GetClrInstanceId());
         }
 
     } EX_CATCH{ } EX_END_CATCH(SwallowAllExceptions);
@@ -6175,25 +6184,6 @@ VOID ETW::LoaderLog::SendModuleEvent(Module *pModule, DWORD dwEventOptions, BOOL
             SendModuleRange(pModule, dwEventOptions);
         }
     }
-}
-
-VOID ETW::MethodLog::SendR2RGetEntryPointEvent(MethodDesc *pMethodDesc, PCODE pEntryPoint)
-{
-    CONTRACTL{
-        THROWS;
-        GC_TRIGGERS;
-    } CONTRACTL_END;
-
-    SString tNamespace, tMethodName, tMethodSignature;
-    pMethodDesc->GetMethodInfo(tNamespace, tMethodName, tMethodSignature);
-
-    FireEtwR2RGetEntryPoint(
-        (UINT64)pMethodDesc,
-        (PCWSTR)tNamespace.GetUnicode(),
-        (PCWSTR)tMethodName.GetUnicode(),
-        (PCWSTR)tMethodSignature.GetUnicode(),
-        pEntryPoint,
-        GetClrInstanceId());
 }
 
 /*****************************************************************/
