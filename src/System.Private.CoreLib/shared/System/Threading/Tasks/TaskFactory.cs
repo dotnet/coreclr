@@ -2413,8 +2413,8 @@ namespace System.Threading.Tasks
         internal static void CommonCWAnyLogicCleanup(Task<Task> continuation)
         {
             // Force cleanup of the promise (e.g. removing continuations from each
-            // constituent task), by completing the promise with any value.
-            ((CompleteOnInvokePromise)continuation).Invoke(Task.CompletedTask);
+            // constituent task), by completing the promise with any value (it's not observable).
+            ((CompleteOnInvokePromise)continuation).Invoke(null!);
         }
 
         /// <summary>

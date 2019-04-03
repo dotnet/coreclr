@@ -668,7 +668,7 @@ namespace System.Threading.Tasks
             /// This method is separated out not because of performance reasons but so that
             /// the SecuritySafeCritical attribute may be employed.
             /// </remarks>
-            private static bool TryExecuteTaskShim(object state)
+            private static bool TryExecuteTaskShim(object? state)
             {
                 Debug.Assert(state is Tuple<ConcurrentExclusiveTaskScheduler, Task>);
                 var tuple = (Tuple<ConcurrentExclusiveTaskScheduler, Task>)state;

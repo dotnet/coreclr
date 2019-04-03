@@ -681,8 +681,7 @@ namespace System.Threading.Tasks
         {
             get
             {
-                Delegate? d = m_action;
-                return d != null ? d.Method.ToString()! : "{null}";
+                return m_action?.Method.ToString() ?? "{null}";
             }
         }
 
