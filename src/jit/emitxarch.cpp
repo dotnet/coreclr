@@ -5263,7 +5263,9 @@ void emitter::emitIns_AR_R(instruction ins, emitAttr attr, regNumber ireg, regNu
 //
 void emitter::emitIns_S_R_I(instruction ins, emitAttr attr, int varNum, int offs, regNumber reg, int ival)
 {
+    // This is only used for INS_vextracti128 and INS_vextractf128, and for these 'ival' must be 0 or 1.
     assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+    assert((ival == 0) || (ival == 1));
     instrDesc* id = emitNewInstrAmdCns(attr, 0, ival);
 
     id->idIns(ins);

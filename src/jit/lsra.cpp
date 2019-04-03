@@ -6441,7 +6441,7 @@ void LinearScan::insertUpperVectorRestore(GenTree* tree, Interval* upperVectorIn
 #ifdef _TARGET_AMD64_
         simdNode->gtFlags |= GTF_NOREG_AT_USE;
 #else
-        assert(!"Need to implement support for a temp reg here");
+        assert(!"We require a register for Arm64 UpperVectorRestore");
 #endif
     }
     simdNode->gtRegNum = restoreReg;
