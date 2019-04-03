@@ -15,7 +15,7 @@ namespace System.Diagnostics.Tracing
 		internal static long prevSystemUserTime = 0;
 		internal static long prevSystemKernelTime = 0;
 
-		internal static long GetProcessTimes()
+		internal static long GetCpuUsage()
 		{
 			long procUserTime;
 			long procKernelTime;
@@ -33,7 +33,11 @@ namespace System.Diagnostics.Tracing
 				cpuUsage = 0;
 
 			else
-				cpuUsage = ((procUserTime - prevProcUserTime) + (procKernelTime - prevProcKernelTime)) * 100 / ((systemUserTime - prevSystemUserTime) + (systemKernelTime - prevSystemKernelTime));
+			{
+				int totalProcTime = (procUserTime - prevProcUserTime) + (procKernelTime - prevProcKernelTime);
+				int totalSystemTime = (systemUserTime - prevSystemUserTime) + (systemKernelTime - prevSystemKernelTime);
+				cpuUsage = (int)(totalProcTime * 100 / totalSystemTime);
+			}
 
 			prevProcUserTime = procUserTime;
 			prevProcKernelTime = procKernelTime;
