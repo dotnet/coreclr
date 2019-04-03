@@ -87,7 +87,7 @@ namespace System.Threading
 
         // See comments on ReaderWriterCount.
         [ThreadStatic]
-        private static ReaderWriterCount t_rwc;
+        private static ReaderWriterCount? t_rwc;
 
         private bool _fUpgradeThreadHoldingRead;
 
@@ -325,7 +325,8 @@ namespace System.Threading
                 //check the presence of a reader by not allocating rwc (But that 
                 //would lead to two lookups in the common case. It's better to keep
                 //a count in the structure).
-                if (lrwc.readercount > 0)                {
+                if (lrwc.readercount > 0)
+                {
                     _spinLock.Exit();
                     throw new LockRecursionException(SR.LockRecursionException_RecursiveReadNotAllowed);
                 }
@@ -1098,7 +1099,7 @@ namespace System.Threading
                 if (_numWriteUpgradeWaiters > 0 && _fUpgradeThreadHoldingRead && readercount == 2)
                 {
                     _spinLock.Exit();      // Exit before signaling to improve efficiency (wakee will need the lock)
-                    _waitUpgradeEvent!.Set();     // release all upgraders (however there can be at most one). 
+                    _waitUpgradeEvent!.Set();     // release all upgraders (however there can be at most one).  Known non-null because _numWriteUpgradeWaiters > 0.
                     return;
                 }
             }
@@ -1107,10 +1108,10 @@ namespace System.Threading
             {
                 //We have to be careful now, as we are dropping the lock. 
                 //No new writes should be allowed to sneak in if an upgrade
-                //was pending. 
+                //was pending.
 
                 _spinLock.Exit();      // Exit before signaling to improve efficiency (wakee will need the lock)
-                _waitUpgradeEvent!.Set();     // release all upgraders (however there can be at most one).            
+                _waitUpgradeEvent!.Set();     // release all upgraders (however there can be at most one). Known non-null because _numWriteUpgradeWaiters > 0.
             }
             else if (readercount == 0 && _numWriteWaiters > 0)
             {
@@ -1126,7 +1127,7 @@ namespace System.Threading
 
                 if (signaled == WaiterStates.None)
                 {
-                    _writeEvent!.Set();   // release one writer. 
+                    _writeEvent!.Set();   // release one writer.  Known non-null because _numWriteWaiters > 0.
                 }
             }
             else
@@ -1168,7 +1169,7 @@ namespace System.Threading
             _spinLock.Exit();    // Exit before signaling to improve efficiency (wakee will need the lock)
 
             if (setReadEvent)
-                _readEvent!.Set();  // release all readers. 
+                _readEvent!.Set();  // release all readers. Known non-null because _numUpgradeWaiters != 0.
 
             if (setUpgradeEvent)
                 _upgradeEvent!.Set(); //release one upgrader.
