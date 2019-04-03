@@ -14478,12 +14478,8 @@ GenTree* Compiler::gtNewTempAssign(
     if (dstTyp == TYP_UNDEF)
     {
         varDsc->lvType = dstTyp = genActualType(valTyp);
-        if (varTypeIsGC(dstTyp))
-        {
-            varDsc->lvStructGcCount = 1;
-        }
 #if FEATURE_SIMD
-        else if (varTypeIsSIMD(dstTyp))
+        if (varTypeIsSIMD(dstTyp))
         {
             varDsc->lvSIMDType = 1;
         }

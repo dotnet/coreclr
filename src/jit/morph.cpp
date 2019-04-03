@@ -4728,14 +4728,14 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 
             for (unsigned inx = 0; inx < elemCount; inx++)
             {
-                CorInfoGCType currentGcLayoutType = (CorInfoGCType)varDsc->lvGcLayout[inx];
+                var_types currentGcLayoutType = varDsc->GetLayout()->GetGCPtrType(inx);
 
                 // We setup the type[inx] value above using the GC info from 'objClass'
                 // This GT_LCL_VAR must have the same GC layout info
                 //
-                if (currentGcLayoutType != TYPE_GC_NONE)
+                if (varTypeIsGC(currentGcLayoutType))
                 {
-                    noway_assert(type[inx] == getJitGCType((BYTE)currentGcLayoutType));
+                    noway_assert(type[inx] == currentGcLayoutType);
                 }
                 else
                 {
@@ -4889,7 +4889,7 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
             // The allocated size of our LocalVar must be at least as big as lastOffset
             assert(varDsc->lvSize() >= lastOffset);
 
-            if (varDsc->lvStructGcCount > 0)
+            if (varDsc->HasGCPtr())
             {
                 // alignment of the baseOffset is required
                 noway_assert((baseOffset % TARGET_POINTER_SIZE) == 0);
@@ -4897,7 +4897,7 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
                 noway_assert(elemSize == TARGET_POINTER_SIZE);
 #endif
                 unsigned    baseIndex = baseOffset / TARGET_POINTER_SIZE;
-                const BYTE* gcPtrs    = varDsc->lvGcLayout; // Get the GC layout for the local variable
+                const BYTE* gcPtrs    = varDsc->GetLayout()->GetGCPtrs();
                 for (unsigned inx = 0; (inx < elemCount); inx++)
                 {
                     // The GC information must match what we setup using 'objClass'
@@ -7806,7 +7806,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
             {
                 var_types lclType            = varDsc->TypeGet();
                 bool      isUserLocal        = (varNum < info.compLocalsCount);
-                bool      structWithGCFields = ((lclType == TYP_STRUCT) && (varDsc->lvStructGcCount > 0));
+                bool      structWithGCFields = ((lclType == TYP_STRUCT) && varDsc->GetLayout()->HasGCPtr());
                 if (isUserLocal || structWithGCFields)
                 {
                     GenTree* lcl  = gtNewLclvNode(varNum, lclType);
@@ -10121,7 +10121,7 @@ GenTree* Compiler::fgMorphCopyBlock(GenTree* tree)
                 {
                     blockWidth = genTypeSize(destLclVar->lvType);
                 }
-                hasGCPtrs = destLclVar->lvStructGcCount != 0;
+                hasGCPtrs = destLclVar->HasGCPtr();
             }
             else
             {

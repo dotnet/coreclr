@@ -4936,28 +4936,12 @@ bool Compiler::compQuirkForPPP()
         // This fixes the PPP backward compat issue
         varDscExposedStruct->lvExactSize += 32;
 
-        // Update the GC info to indicate that the padding area does
-        // not contain any GC pointers.
-        //
         // The struct is now 64 bytes.
-        //
         // We're on x64 so this should be 8 pointer slots.
         assert((varDscExposedStruct->lvExactSize / TARGET_POINTER_SIZE) == 8);
 
-        BYTE* oldGCPtrs = varDscExposedStruct->lvGcLayout;
-        BYTE* newGCPtrs = getAllocator(CMK_LvaTable).allocate<BYTE>(8);
-
-        for (int i = 0; i < 4; i++)
-        {
-            newGCPtrs[i] = oldGCPtrs[i];
-        }
-
-        for (int i = 4; i < 8; i++)
-        {
-            newGCPtrs[i] = TYPE_GC_NONE;
-        }
-
-        varDscExposedStruct->lvGcLayout = newGCPtrs;
+        varDscExposedStruct->SetLayout(
+            varDscExposedStruct->GetLayout()->GetPPPQuirkLayout(getAllocator(CMK_ClassLayout)));
 
         return true;
     }

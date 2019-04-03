@@ -2239,11 +2239,11 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                 }
             }
 
-            else if (varDsc->lvType == TYP_STRUCT && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
+            if ((varDsc->TypeGet() == TYP_STRUCT) && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
             {
-                // A struct will have gcSlots only if it is at least TARGET_POINTER_SIZE.
-                unsigned slots  = compiler->lvaLclSize(varNum) / TARGET_POINTER_SIZE;
-                BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
+				// A struct will have gcSlots only if it is at least TARGET_POINTER_SIZE.
+                unsigned    slots  = varDsc->GetLayout()->GetSlotCount();
+                const BYTE* gcPtrs = varDsc->GetLayout()->GetGCPtrs();
 
                 // walk each member of the array
                 for (unsigned i = 0; i < slots; i++)
@@ -4166,10 +4166,10 @@ void GCInfo::gcMakeRegPtrTable(
 
         // If this is a TYP_STRUCT, handle its GC pointers.
         // Note that the enregisterable struct types cannot have GC pointers in them.
-        if ((varDsc->lvType == TYP_STRUCT) && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
+        if ((varDsc->TypeGet() == TYP_STRUCT) && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
         {
-            unsigned slots  = compiler->lvaLclSize(varNum) / TARGET_POINTER_SIZE;
-            BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
+            unsigned    slots  = varDsc->GetLayout()->GetSlotCount();
+            const BYTE* gcPtrs = varDsc->GetLayout()->GetGCPtrs();
 
             // walk each member of the array
             for (unsigned i = 0; i < slots; i++)

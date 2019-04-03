@@ -4510,8 +4510,7 @@ void CodeGen::genCheckUseBlockInit()
             continue;
         }
 
-        if (compiler->info.compInitMem || varTypeIsGC(varDsc->TypeGet()) || (varDsc->lvStructGcCount > 0) ||
-            varDsc->lvMustInit)
+        if (compiler->info.compInitMem || varDsc->HasGCPtr() || varDsc->lvMustInit)
         {
             if (varDsc->lvTracked)
             {
@@ -4557,7 +4556,7 @@ void CodeGen::genCheckUseBlockInit()
             CLANG_FORMAT_COMMENT_ANCHOR;
 
             if ((!varDsc->lvTracked || (varDsc->lvType == TYP_STRUCT)) && varDsc->lvOnFrame &&
-                (!varDsc->lvIsTemp || varTypeIsGC(varDsc->TypeGet()) || (varDsc->lvStructGcCount > 0)))
+                (!varDsc->lvIsTemp || varDsc->HasGCPtr()))
             {
 
                 varDsc->lvMustInit = true;
@@ -4574,7 +4573,7 @@ void CodeGen::genCheckUseBlockInit()
 
         /* Ignore if not a pointer variable or value class with a GC field */
 
-        if (!compiler->lvaTypeIsGC(varNum))
+        if (!varDsc->HasGCPtr())
         {
             continue;
         }
@@ -4595,13 +4594,18 @@ void CodeGen::genCheckUseBlockInit()
 
         /* Is this a 'must-init' stack pointer local? */
 
-        if (varDsc->lvMustInit && varDsc->lvOnFrame)
+        if (varDsc->lvMustInit && varDsc->lvOnFrame && !counted)
         {
-            if (!counted)
+            if (varDsc->TypeGet() == TYP_STRUCT)
             {
-                initStkLclCnt += varDsc->lvStructGcCount;
-                counted = true;
+                initStkLclCnt += varDsc->GetLayout()->GetGCPtrCount();
             }
+            else
+            {
+                assert(varTypeIsGC(varDsc->TypeGet()));
+                initStkLclCnt += 1;
+            }
+            counted = true;
         }
 
         if ((compiler->lvaLclSize(varNum) > (3 * TARGET_POINTER_SIZE)) && (largeGcStructs <= 4))
@@ -6336,7 +6340,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
             {
                 // We only initialize the GC variables in the TYP_STRUCT
                 const unsigned slots  = (unsigned)compiler->lvaLclSize(varNum) / REGSIZE_BYTES;
-                const BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
+                const BYTE*    gcPtrs = varDsc->GetLayout()->GetGCPtrs();
 
                 for (unsigned i = 0; i < slots; i++)
                 {
@@ -7700,7 +7704,7 @@ void CodeGen::genFnProlog()
         /* We need to know the offset range of tracked stack GC refs */
         /* We assume that the GC reference can be anywhere in the TYP_STRUCT */
 
-        if (compiler->lvaTypeIsGC(varNum) && varDsc->lvTrackedNonStruct() && varDsc->lvOnFrame)
+        if (varDsc->HasGCPtr() && varDsc->lvTrackedNonStruct() && varDsc->lvOnFrame)
         {
             // For fields of PROMOTION_TYPE_DEPENDENT type of promotion, they should have been
             // taken care of by the parent struct.

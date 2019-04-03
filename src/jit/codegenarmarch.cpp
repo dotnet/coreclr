@@ -849,8 +849,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             // the xor ensures that only one of the two is setup, not both
             assert((varNode != nullptr) ^ (addrNode != nullptr));
 
-            BYTE        gcPtrArray[MAX_ARG_REG_COUNT] = {}; // TYPE_GC_NONE = 0
-            const BYTE* gcPtrs                        = gcPtrArray;
+            const BYTE* gcPtrs = nullptr;
 
             unsigned gcPtrCount; // The count of GC pointers in the struct
             unsigned structSize;
@@ -876,9 +875,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                                                // as that is how much stack is allocated for this LclVar
                 isHfa = varDsc->lvIsHfa();
 #ifdef _TARGET_ARM64_
-                gcPtrCount = varDsc->lvStructGcCount;
-                for (unsigned i   = 0; i < gcPtrCount; ++i)
-                    gcPtrArray[i] = varDsc->lvGcLayout[i];
+                gcPtrCount = varDsc->GetLayout()->GetGCPtrCount();
+                gcPtrs     = varDsc->GetLayout()->GetGCPtrs();
 #endif // _TARGET_ARM_
             }
             else // we must have a GT_OBJ
@@ -2809,7 +2807,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
                     // Must be <= 16 bytes or else it wouldn't be passed in registers, except for HFA,
                     // which can be bigger (and is handled above).
                     noway_assert(EA_SIZE_IN_BYTES(varDsc->lvSize()) <= 16);
-                    loadType = compiler->getJitGCType(varDsc->lvGcLayout[0]);
+                    loadType = varDsc->GetLayout()->GetGCPtrType(0);
                 }
                 else
                 {
@@ -2830,7 +2828,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
                     // Restore the second register.
                     argRegNext = genRegArgNext(argReg);
 
-                    loadType = compiler->getJitGCType(varDsc->lvGcLayout[1]);
+                    loadType = varDsc->GetLayout()->GetGCPtrType(1);
                     loadSize = emitActualTypeSize(loadType);
                     getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, argRegNext, varNum, TARGET_POINTER_SIZE);
 
@@ -2923,7 +2921,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             for (unsigned ofs = 0; ofs < maxSize; ofs += REGSIZE_BYTES)
             {
                 unsigned idx = ofs / REGSIZE_BYTES;
-                loadType     = compiler->getJitGCType(varDsc->lvGcLayout[idx]);
+                loadType     = varDsc->GetLayout()->GetGCPtrType(idx);
 
                 if (varDsc->lvRegNum != argReg)
                 {

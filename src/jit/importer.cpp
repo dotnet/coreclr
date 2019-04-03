@@ -1512,98 +1512,57 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
 }
 
 //------------------------------------------------------------------------
-// impNormStructType: Given a (known to be) struct class handle structHnd, normalize its type,
-//                    and optionally determine the GC layout of the struct.
+// impNormStructType: Given a (known to be) struct class handle structHnd and normalize its type.
 //
 // Arguments:
 //    structHnd       - The class handle for the struct type of interest.
-//    gcLayout        - (optional, default nullptr) - a BYTE pointer, allocated by the caller,
-//                      into which the gcLayout will be written.
-//    pNumGCVars      - (optional, default nullptr) - if non-null, a pointer to an unsigned,
-//                      which will be set to the number of GC fields in the struct.
 //    pSimdBaseType   - (optional, default nullptr) - if non-null, and the struct is a SIMD
 //                      type, set to the SIMD base type
 //
 // Return Value:
 //    The JIT type for the struct (e.g. TYP_STRUCT, or TYP_SIMD*).
-//    The gcLayout will be returned using the pointers provided by the caller, if non-null.
 //    It may also modify the compFloatingPointUsed flag if the type is a SIMD type.
-//
-// Assumptions:
-//    The caller must set gcLayout to nullptr OR ensure that it is large enough
-//    (see ICorStaticInfo::getClassGClayout in corinfo.h).
 //
 // Notes:
 //    Normalizing the type involves examining the struct type to determine if it should
 //    be modified to one that is handled specially by the JIT, possibly being a candidate
 //    for full enregistration, e.g. TYP_SIMD16.
 
-var_types Compiler::impNormStructType(CORINFO_CLASS_HANDLE structHnd,
-                                      BYTE*                gcLayout,
-                                      unsigned*            pNumGCVars,
-                                      var_types*           pSimdBaseType)
+var_types Compiler::impNormStructType(CORINFO_CLASS_HANDLE structHnd, var_types* pSimdBaseType)
 {
     assert(structHnd != NO_CLASS_HANDLE);
 
-    const DWORD structFlags = info.compCompHnd->getClassAttribs(structHnd);
-    var_types   structType  = TYP_STRUCT;
-
-    // On coreclr the check for GC includes a "may" to account for the special
-    // ByRef like span structs.  The added check for "CONTAINS_STACK_PTR" is the particular bit.
-    // When this is set the struct will contain a ByRef that could be a GC pointer or a native
-    // pointer.
-    const bool mayContainGCPtrs =
-        ((structFlags & CORINFO_FLG_CONTAINS_STACK_PTR) != 0 || ((structFlags & CORINFO_FLG_CONTAINS_GC_PTR) != 0));
+    var_types structType = TYP_STRUCT;
 
 #ifdef FEATURE_SIMD
-    // Check to see if this is a SIMD type.
-    if (supportSIMDTypes() && !mayContainGCPtrs)
+    if (supportSIMDTypes())
     {
-        unsigned originalSize = info.compCompHnd->getClassSize(structHnd);
+        const DWORD structFlags = info.compCompHnd->getClassAttribs(structHnd);
 
-        if ((originalSize >= minSIMDStructBytes()) && (originalSize <= maxSIMDStructBytes()))
+        // Don't bother if the struct contains GC references of byrefs, it can't be a SIMD type.
+        if ((structFlags & (CORINFO_FLG_CONTAINS_GC_PTR | CORINFO_FLG_CONTAINS_STACK_PTR)) == 0)
         {
-            unsigned int sizeBytes;
-            var_types    simdBaseType = getBaseTypeAndSizeOfSIMDType(structHnd, &sizeBytes);
-            if (simdBaseType != TYP_UNKNOWN)
+            unsigned originalSize = info.compCompHnd->getClassSize(structHnd);
+
+            if ((originalSize >= minSIMDStructBytes()) && (originalSize <= maxSIMDStructBytes()))
             {
-                assert(sizeBytes == originalSize);
-                structType = getSIMDTypeForSize(sizeBytes);
-                if (pSimdBaseType != nullptr)
+                unsigned int sizeBytes;
+                var_types    simdBaseType = getBaseTypeAndSizeOfSIMDType(structHnd, &sizeBytes);
+                if (simdBaseType != TYP_UNKNOWN)
                 {
-                    *pSimdBaseType = simdBaseType;
+                    assert(sizeBytes == originalSize);
+                    structType = getSIMDTypeForSize(sizeBytes);
+                    if (pSimdBaseType != nullptr)
+                    {
+                        *pSimdBaseType = simdBaseType;
+                    }
+                    // Also indicate that we use floating point registers.
+                    compFloatingPointUsed = true;
                 }
-                // Also indicate that we use floating point registers.
-                compFloatingPointUsed = true;
             }
         }
     }
 #endif // FEATURE_SIMD
-
-    // Fetch GC layout info if requested
-    if (gcLayout != nullptr)
-    {
-        unsigned numGCVars = info.compCompHnd->getClassGClayout(structHnd, gcLayout);
-
-        // Verify that the quick test up above via the class attributes gave a
-        // safe view of the type's GCness.
-        //
-        // Note there are cases where mayContainGCPtrs is true but getClassGClayout
-        // does not report any gc fields.
-
-        assert(mayContainGCPtrs || (numGCVars == 0));
-
-        if (pNumGCVars != nullptr)
-        {
-            *pNumGCVars = numGCVars;
-        }
-    }
-    else
-    {
-        // Can't safely ask for number of GC pointers without also
-        // asking for layout.
-        assert(pNumGCVars == nullptr);
-    }
 
     return structType;
 }
