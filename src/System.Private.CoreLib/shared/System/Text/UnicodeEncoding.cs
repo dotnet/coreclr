@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 //
 // Don't override IsAlwaysNormalized because it is just a Unicode Transformation and could be confused.
 //
@@ -116,7 +117,7 @@ namespace System.Text
         public override unsafe int GetByteCount(string s)
         {
             // Validate input
-            if (s==null)
+            if (s == null)
                 throw new ArgumentNullException(nameof(s));
 
             fixed (char* pChars = s)
@@ -150,10 +151,10 @@ namespace System.Text
                                               byte[] bytes, int byteIndex)
         {
             if (s == null || bytes == null)
-                throw new ArgumentNullException((s == null ? nameof(s) : nameof(bytes)), SR.ArgumentNull_Array);
+                throw new ArgumentNullException(s == null ? nameof(s) : nameof(bytes), SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(charIndex < 0 ? nameof(charIndex) : nameof(charCount), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (s.Length - charIndex < charCount)
                 throw new ArgumentOutOfRangeException(nameof(s), SR.ArgumentOutOfRange_IndexCount);
@@ -353,8 +354,9 @@ namespace System.Text
         //
         // End of standard methods copied from EncodingNLS.cs
         //
-
-        internal sealed override unsafe int GetByteCount(char* chars, int count, EncoderNLS encoder)
+#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
+        internal sealed override unsafe int GetByteCount(char* chars, int count, EncoderNLS? encoder)
+#pragma warning restore CS8610
         {
             Debug.Assert(chars != null, "[UnicodeEncoding.GetByteCount]chars!=null");
             Debug.Assert(count >= 0, "[UnicodeEncoding.GetByteCount]count >=0");
@@ -375,7 +377,7 @@ namespace System.Text
             bool wasHereBefore = false;
 
             // For fallback we may need a fallback buffer
-            EncoderFallbackBuffer fallbackBuffer = null;
+            EncoderFallbackBuffer? fallbackBuffer = null;
             char* charsForFallback;
 
             if (encoder != null)
@@ -391,7 +393,7 @@ namespace System.Text
                 {
                     fallbackBuffer = encoder.FallbackBuffer;
                     if (fallbackBuffer.Remaining > 0)
-                        throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty, this.EncodingName, encoder.Fallback.GetType()));
+                        throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty, this.EncodingName, encoder.Fallback!.GetType())); // TODO-NULLABLE: NullReferenceException
 
                     // Set our internal fallback interesting things.
                     fallbackBuffer.InternalInitialize(charStart, charEnd, encoder, false);
@@ -647,8 +649,10 @@ namespace System.Text
             return byteCount;
         }
 
+#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal sealed override unsafe int GetBytes(
-            char* chars, int charCount, byte* bytes, int byteCount, EncoderNLS encoder)
+            char* chars, int charCount, byte* bytes, int byteCount, EncoderNLS? encoder)
+#pragma warning restore CS8610
         {
             Debug.Assert(chars != null, "[UnicodeEncoding.GetBytes]chars!=null");
             Debug.Assert(byteCount >= 0, "[UnicodeEncoding.GetBytes]byteCount >=0");
@@ -666,7 +670,7 @@ namespace System.Text
             char* charStart = chars;
 
             // For fallback we may need a fallback buffer
-            EncoderFallbackBuffer fallbackBuffer = null;
+            EncoderFallbackBuffer? fallbackBuffer = null;
             char* charsForFallback;
 
             // Get our encoder, but don't clear it yet.
@@ -680,7 +684,7 @@ namespace System.Text
                     // We always need the fallback buffer in get bytes so we can flush any remaining ones if necessary
                     fallbackBuffer = encoder.FallbackBuffer;
                     if (fallbackBuffer.Remaining > 0 && encoder._throwOnOverflow)
-                        throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty, this.EncodingName, encoder.Fallback.GetType()));
+                        throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty, this.EncodingName, encoder.Fallback!.GetType())); // TODO-NULLABLE: NullReferenceException
 
                     // Set our internal fallback interesting things.
                     fallbackBuffer.InternalInitialize(charStart, charEnd, encoder, false);
@@ -1004,12 +1008,15 @@ namespace System.Text
             return (int)(bytes - byteStart);
         }
 
-        internal sealed override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS baseDecoder)
+#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
+        internal sealed override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS? baseDecoder)
+#pragma warning restore CS8610
+
         {
             Debug.Assert(bytes != null, "[UnicodeEncoding.GetCharCount]bytes!=null");
             Debug.Assert(count >= 0, "[UnicodeEncoding.GetCharCount]count >=0");
 
-            UnicodeEncoding.Decoder decoder = (UnicodeEncoding.Decoder)baseDecoder;
+            UnicodeEncoding.Decoder? decoder = (UnicodeEncoding.Decoder?)baseDecoder;
 
             byte* byteEnd = bytes + count;
             byte* byteStart = bytes;
@@ -1022,7 +1029,7 @@ namespace System.Text
             int charCount = count >> 1;
 
             // For fallback we may need a fallback buffer
-            DecoderFallbackBuffer fallbackBuffer = null;
+            DecoderFallbackBuffer? fallbackBuffer = null;
 
             if (decoder != null)
             {
@@ -1152,7 +1159,7 @@ namespace System.Text
 
                             // Get fallback for previous high surrogate
                             // Note we have to reconstruct bytes because some may have been in decoder
-                            byte[] byteBuffer = null;
+                            byte[]? byteBuffer = null;
                             if (bigEndian)
                             {
                                 byteBuffer = new byte[]
@@ -1193,7 +1200,7 @@ namespace System.Text
 
                         // Get fallback for this low surrogate
                         // Note we have to reconstruct bytes because some may have been in decoder
-                        byte[] byteBuffer = null;
+                        byte[]? byteBuffer = null;
                         if (bigEndian)
                         {
                             byteBuffer = new byte[]
@@ -1232,7 +1239,7 @@ namespace System.Text
                     charCount--;
 
                     // fall back the high surrogate.
-                    byte[] byteBuffer = null;
+                    byte[]? byteBuffer = null;
                     if (bigEndian)
                     {
                         byteBuffer = new byte[]
@@ -1272,7 +1279,7 @@ namespace System.Text
                 {
                     // No hanging high surrogates allowed, do fallback and remove count for it
                     charCount--;
-                    byte[] byteBuffer = null;
+                    byte[]? byteBuffer = null;
                     if (bigEndian)
                     {
                         byteBuffer = new byte[]
@@ -1331,15 +1338,17 @@ namespace System.Text
             return charCount;
         }
 
+#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal sealed override unsafe int GetChars(
-            byte* bytes, int byteCount, char* chars, int charCount, DecoderNLS baseDecoder)
+            byte* bytes, int byteCount, char* chars, int charCount, DecoderNLS? baseDecoder)
+#pragma warning restore CS8610
         {
             Debug.Assert(chars != null, "[UnicodeEncoding.GetChars]chars!=null");
             Debug.Assert(byteCount >= 0, "[UnicodeEncoding.GetChars]byteCount >=0");
             Debug.Assert(charCount >= 0, "[UnicodeEncoding.GetChars]charCount >=0");
             Debug.Assert(bytes != null, "[UnicodeEncoding.GetChars]bytes!=null");
 
-            UnicodeEncoding.Decoder decoder = (UnicodeEncoding.Decoder)baseDecoder;
+            UnicodeEncoding.Decoder? decoder = (UnicodeEncoding.Decoder?)baseDecoder;
 
             // Need last vars
             int lastByte = -1;
@@ -1358,7 +1367,7 @@ namespace System.Text
             }
 
             // For fallback we may need a fallback buffer
-            DecoderFallbackBuffer fallbackBuffer = null;
+            DecoderFallbackBuffer? fallbackBuffer = null;
             char* charsForFallback;
 
             byte* byteEnd = bytes + byteCount;
@@ -1477,7 +1486,7 @@ namespace System.Text
                         {
                             // Get fallback for previous high surrogate
                             // Note we have to reconstruct bytes because some may have been in decoder
-                            byte[] byteBuffer = null;
+                            byte[]? byteBuffer = null;
                             if (bigEndian)
                             {
                                 byteBuffer = new byte[]
@@ -1529,7 +1538,7 @@ namespace System.Text
                         // Expected a previous high surrogate
                         // Get fallback for this low surrogate
                         // Note we have to reconstruct bytes because some may have been in decoder
-                        byte[] byteBuffer = null;
+                        byte[]? byteBuffer = null;
                         if (bigEndian)
                         {
                             byteBuffer = new byte[]
@@ -1591,7 +1600,7 @@ namespace System.Text
                 else if (lastChar > 0)
                 {
                     // Had a high surrogate, expected a low surrogate, fall back the high surrogate.
-                    byte[] byteBuffer = null;
+                    byte[]? byteBuffer = null;
                     if (bigEndian)
                     {
                         byteBuffer = new byte[]
@@ -1656,7 +1665,7 @@ namespace System.Text
                 if (lastChar > 0)
                 {
                     // No hanging high surrogates allowed, do fallback and remove count for it
-                    byte[] byteBuffer = null;
+                    byte[]? byteBuffer = null;
                     if (bigEndian)
                     {
                         byteBuffer = new byte[]
@@ -1840,7 +1849,7 @@ namespace System.Text
         }
 
 
-        public override bool Equals(object value)
+        public override bool Equals(object? value)
         {
             if (value is UnicodeEncoding that)
             {

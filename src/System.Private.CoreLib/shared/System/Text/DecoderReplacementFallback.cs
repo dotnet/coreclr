@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 
 namespace System.Text
@@ -82,13 +83,13 @@ namespace System.Text
             }
         }
 
-        public override bool Equals(object value)
+        public override bool Equals(object? value)
         {
             if (value is DecoderReplacementFallback that)
             {
-                return (_strDefault == that._strDefault);
+                return _strDefault == that._strDefault;
             }
-            return (false);
+            return false;
         }
 
         public override int GetHashCode()
@@ -109,12 +110,15 @@ namespace System.Text
         // Construction
         public DecoderReplacementFallbackBuffer(DecoderReplacementFallback fallback)
         {
+            // TODO-NULLABLE: NullReferenceException (fallback)
             _strDefault = fallback.DefaultString;
         }
 
         // Fallback Methods
         public override bool Fallback(byte[] bytesUnknown, int index)
         {
+            // TODO-NULLABLE: NullReferenceException (bytesUnknown passed to ThrowLastBytesRecursive)
+
             // We expect no previous fallback in our buffer
             // We can't call recursively but others might (note, we don't test on last char!!!)
             if (_fallbackCount >= 1)
