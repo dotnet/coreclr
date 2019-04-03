@@ -130,4 +130,7 @@ jobs:
     - ${{ each variable in parameters.variables }}:
       - ${{insert}}: ${{ variable }}
 
-    steps: ${{ parameters.steps }}
+    steps:
+    - checkout: self
+      clean: true
+    - ${{insert}}: ${{ parameters.steps }}
