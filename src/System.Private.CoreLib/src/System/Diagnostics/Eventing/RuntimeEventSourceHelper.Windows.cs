@@ -21,19 +21,18 @@ namespace System.Diagnostics.Tracing
 			
 			if (!Interop.Kernel32.GetProcessTimes(Interop.Kernel32.GetCurrentProcess(), out _, out _, out long procKernelTime, out long procUserTime))
 			{
-				throw new Exception("GetCpuUsage: Could not get process time.");
+				return 0;
 			}
 
 			if (!Interop.Kernel32.GetSystemTimes(out _, out long systemUserTime, out long systemKernelTime))
 			{
-				throw new Exception("GetCpuUsage: Could not get system time.");
+				return 0;
 			}
 
 			if (prevSystemUserTime == 0 && prevSystemKernelTime == 0) // These may be 0 when we report CPU usage for the first time, in which case we should just return 0. 
 			{
 				cpuUsage = 0;
 			}
-
 			else
 			{
 				long totalProcTime = (procUserTime - prevProcUserTime) + (procKernelTime - prevProcKernelTime);
