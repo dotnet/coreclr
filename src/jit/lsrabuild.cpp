@@ -1375,7 +1375,7 @@ void LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation cu
     {
         assert((fpCalleeKillSet & RBM_FLT_CALLEE_TRASH) != RBM_NONE);
 
-        // We only need to save the upper half of any large vector vars that are currently live. 
+        // We only need to save the upper half of any large vector vars that are currently live.
         VARSET_TP       liveLargeVectors(VarSetOps::Intersection(compiler, currentLiveVars, largeVectorVars));
         VarSetOps::Iter iter(compiler, liveLargeVectors);
         unsigned        varIndex = 0;
