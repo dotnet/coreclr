@@ -10,7 +10,7 @@
     <UseSharedCompilation>true</UseSharedCompilation>
   </PropertyGroup>
 
-  <Import Project="dir.sdkbuild.props" Condition="'$(UsingMicrosoftNETSdk)' == 'true'"  />
+  <Import Project="dir.sdkbuild.props" Condition="'$(ArcadeBuild)' == 'true'"  />
 
   <!-- Common repo directories -->
   <PropertyGroup>
@@ -22,9 +22,6 @@
   <PropertyGroup>
     <TargetingPackPath Condition="'$(BaseTargetingPackPath)' == ''">$(RootBinDir)TargetingPack\</TargetingPackPath>
   </PropertyGroup>
-
-  <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
-  <Import Project="$(ProjectDir)dependencies.props" />
 
   <!-- Add test-specific package restore sources. -->
   <PropertyGroup>
@@ -73,10 +70,6 @@
    -->
   <PropertyGroup>
     <CLRTestPriorityToBuild>0</CLRTestPriorityToBuild>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <TargetFrameworkVersion>netcoreapp3.0</TargetFrameworkVersion>
   </PropertyGroup>
 
 </Project>
