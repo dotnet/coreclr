@@ -55,5 +55,4 @@ $CORE_ROOT/crossgen -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out
 
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>  
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

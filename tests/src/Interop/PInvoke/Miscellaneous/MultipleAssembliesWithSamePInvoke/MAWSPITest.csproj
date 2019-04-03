@@ -32,5 +32,4 @@
     <ProjectReference Include="ManagedDll2\ManagedDll2.csproj" />
   </ItemGroup>
   <Import Project="../../../Interop.settings.targets" />
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

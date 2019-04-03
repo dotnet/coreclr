@@ -26,5 +26,4 @@
     <Compile Include="expl_double_1.cs" />
     <Compile Include="body_double.cs" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

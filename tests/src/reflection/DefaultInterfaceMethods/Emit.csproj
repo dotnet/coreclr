@@ -30,6 +30,5 @@
   <ItemGroup>
     <NoWarn Include="42016,42020,42025,42024" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
 </Project>

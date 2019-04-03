@@ -35,6 +35,5 @@
     <ProjectReference Include="..\dll\hfa_simple_f64_interop_cpp.csproj" />
     <ProjectReference Include="..\dll\CMakelists.txt" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
 </Project>

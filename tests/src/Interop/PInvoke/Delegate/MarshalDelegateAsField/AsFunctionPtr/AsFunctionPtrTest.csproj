@@ -33,7 +33,6 @@
     <ProjectReference Include="..\CMakeLists.txt" />
     <ProjectReference Include="..\RefLib\RefLib.csproj" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
 
 

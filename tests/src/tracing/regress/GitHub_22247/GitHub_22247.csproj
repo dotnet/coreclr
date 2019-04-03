@@ -29,5 +29,4 @@
   <ItemGroup>
     <Compile Include="GitHub_22247.cs" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

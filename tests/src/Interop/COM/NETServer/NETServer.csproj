@@ -27,5 +27,4 @@
     <Compile Include="../ServerContracts/Server.Contracts.cs" />
     <Compile Include="../ServerContracts/ServerGuids.cs" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

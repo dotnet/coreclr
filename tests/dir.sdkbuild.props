@@ -1,6 +1,4 @@
 <Project>
-  <Import Project="dir.common.props" />
-
   <!-- This file contains build properties that apply only to
        SDK-style test projects. Properties that are shared between SDK
        and buildtools projects should go in dir.common.props. -->
@@ -10,7 +8,7 @@
     <RuntimeFrameworkVersion>$(MicrosoftNETCoreAppVersion)</RuntimeFrameworkVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <Platform>AnyCPU</Platform>
+    <Platform Condition="$(Platform) == ''">AnyCPU</Platform>
    
     <!-- Force the CLI to allow us to target higher netcoreapp than it may know about -->
     <NETCoreAppMaximumVersion>99.0</NETCoreAppMaximumVersion>

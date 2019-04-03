@@ -27,5 +27,4 @@
   <ItemGroup>
     <Compile Include="OSThreadId.cs" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

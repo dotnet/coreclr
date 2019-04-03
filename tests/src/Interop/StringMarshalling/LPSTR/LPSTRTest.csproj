@@ -37,5 +37,4 @@
     <ProjectReference Include="CMakeLists.txt">
     </ProjectReference>
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

@@ -30,6 +30,5 @@
   <ItemGroup>
     <Compile Include="Array3.cs" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
 </Project>

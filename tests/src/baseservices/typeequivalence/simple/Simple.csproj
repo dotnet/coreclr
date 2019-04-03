@@ -24,7 +24,6 @@
     <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
   </ItemGroup>
 
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <Import Project="$([MSBuild]::GetPathOfFileAbove('TypeEquivalence.targets', '$(MSBuildThisFileDirectory)../'))" />
 
 </Project>

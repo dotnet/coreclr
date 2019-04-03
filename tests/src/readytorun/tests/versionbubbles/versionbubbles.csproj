@@ -54,5 +54,4 @@ $CORE_ROOT/crossgen -largeversionbubble -readytorun -platform_assemblies_paths $
 $CORE_ROOT/crossgen -largeversionbubble -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out versionbubbles.ni.exe versionbubbles.exe
 ]]></BashCLRTestPreCommands> -->
   </PropertyGroup>  
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

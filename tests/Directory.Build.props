@@ -1,8 +1,9 @@
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildThisFileDirectory)/../Directory.Build.props" />
 
   <!-- Include global shared properties.                                     -->
   <Import Project="dir.common.props" />
+  
+  <Import Project="$(MSBuildThisFileDirectory)/../Directory.Build.props" />
 
   <PropertyGroup>
     <LangVersion>8.0</LangVersion>
@@ -72,6 +73,10 @@
    -->
   <PropertyGroup>
     <CLRTestPriorityToBuild>0</CLRTestPriorityToBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFrameworkVersion>netcoreapp3.0</TargetFrameworkVersion>
   </PropertyGroup>
 
 </Project>

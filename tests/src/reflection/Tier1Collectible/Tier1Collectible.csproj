@@ -17,5 +17,4 @@
   <ItemGroup>
     <Compile Include="Tier1Collectible.cs" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

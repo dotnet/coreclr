@@ -31,7 +31,6 @@
     <ProjectReference Include="Servers\AssemblyContracts.csproj" />
     <ProjectReference Include="../../../Common/hostpolicymock/CMakeLists.txt" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 
   <!-- Set up an isolated directory for the server assemblies -->
   <Target Name="SetUpIsolatedDirectory"

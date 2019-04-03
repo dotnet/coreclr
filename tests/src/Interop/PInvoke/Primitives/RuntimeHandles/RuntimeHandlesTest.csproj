@@ -30,5 +30,4 @@
     <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
   <Import Project="../../../Interop.settings.targets" />
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

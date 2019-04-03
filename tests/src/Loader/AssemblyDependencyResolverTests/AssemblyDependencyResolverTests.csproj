@@ -21,5 +21,4 @@
     <ProjectReference Include="../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
     <ProjectReference Include="../../Common/hostpolicymock/CMakeLists.txt" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

@@ -19,7 +19,7 @@
   <!-- ToolSetCommonDirectory: Set a restore location for the sdk's tools    -->
   <!--                         this will be used by package creation         -->
   <PropertyGroup>
-    <BaseOutputPath>$(MSBuildThisFileDirectory)/artifacts/Product/$(BuildOS)/</BaseOutputPath>   
+    <BaseOutputPath Condition="'$(BaseOutputPath)' == ''">$(MSBuildThisFileDirectory)/artifacts/Product/$(BuildOS)/</BaseOutputPath>   
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootArtifactsDir)obj/$(BuildOS)/$(BuildArch)/$(BuildType)/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <ToolSetCommonDirectory>$(MSBuildThisFileDirectory)artifacts\toolset\Common\</ToolSetCommonDirectory>
@@ -95,9 +95,6 @@
     <IntermediateOutputPathNonMangled Condition="'$(IntermediateOutputPathNonMangled)' == ''">$(RootArtifactsDir)obj/$(BuildOS)/$(BuildArch)/$(BuildType)/$(MSBuildProjectName)/</IntermediateOutputPathNonMangled>
     <OutputPath Condition="'$(OutputPath)' == ''">$(BinDir)</OutputPath>
   </PropertyGroup>
-
-  <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
-  <Import Project="$(ProjectDir)dependencies.props" />
 
   <!-- Packaging properties -->
   <PropertyGroup>

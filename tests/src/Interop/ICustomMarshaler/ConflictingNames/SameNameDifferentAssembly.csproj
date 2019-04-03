@@ -32,5 +32,4 @@
     <ProjectReference Include="CustomMarshaler.csproj" />
     <ProjectReference Include="CustomMarshaler2.csproj" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

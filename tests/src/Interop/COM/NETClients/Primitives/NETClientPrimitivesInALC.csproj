@@ -36,5 +36,4 @@
     <ProjectReference Include="../../../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
     <ProjectReference Include="NetClientPrimitives.csproj" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

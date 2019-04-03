@@ -34,6 +34,5 @@
     <ProjectReference Include="teststr.csproj" />
     <ProjectReference Include="testgenstr.csproj" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
 </Project>

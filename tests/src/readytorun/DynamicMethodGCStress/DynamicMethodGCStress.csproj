@@ -33,5 +33,4 @@ ExePath=DynamicMethodGCStress.ni.exe
 export COMPlus_GCStress=3
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>  
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

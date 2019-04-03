@@ -45,5 +45,4 @@ $CORE_ROOT/crossgen -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out
 $CORE_ROOT/crossgen -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out usegenericfield.ni.exe usegenericfield.exe
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

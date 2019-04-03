@@ -28,5 +28,4 @@ export COMPlus_Thread_DeadThreadCountThresholdForGCTrigger=8
 export COMPlus_Thread_DeadThreadGCTriggerPeriodMilliseconds=3e8
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

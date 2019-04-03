@@ -1,6 +1,4 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="../dir.common.props" />
-
   <!-- This file contains common build properties for projects under
        the test tree, and also generated test projects in
        bin/tests. It currently has only those properties that are
@@ -10,18 +8,26 @@
        tests/dir.props directly - these should eventually go away. -->
 
   <PropertyGroup>
+    <ProjectDir>$(__ProjectDir)/</ProjectDir>
+    <ProjectDir Condition="'$(__ProjectDir)'==''">$(MSBuildThisFileDirectory)../</ProjectDir>
+    <CoreclrDir>$(ProjectDir)</CoreclrDir>
+
+
+    <RootArtifactsDir>$(__RootArtifactsDir)</RootArtifactsDir>
+    <RootArtifactsDir Condition="'$(RootArtifactsDir)'==''">$(ProjectDir)artifacts/</RootArtifactsDir>
+
     <OSPlatformConfig>$(BuildOS)/$(Platform)/$(Configuration)</OSPlatformConfig>
 
-    <TestSrcDir>$(CoreclrDir)/tests/src</TestSrcDir>
-    <BuildProjectRelativeDir>$([System.String]::Copy('$(MSBuildProjectDirectary)').Replace($(TestSrcDir),''))/$(MSBuildProjectName)</BuildProjectRelativeDir>
+    <TestSrcDir>$(MSBuildThisFileDirectory)src</TestSrcDir>
 
+    <BuildProjectRelativeDir>$(MSBuildProjectName)\</BuildProjectRelativeDir>
+    <BuildProjectRelativeDir Condition="'$(MSBuildProjectDirectory.Contains($(TestSrcDir)))'">$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace($(TestSrcDir),''))\$(MSBuildProjectName)</BuildProjectRelativeDir>
     <!-- BaseIntermediateOutputPath is used by the SDK as the location
          for the lock file, and props/targets from nuget packages. -->
-    <BaseIntermediateOutputPath>$(RootArtifactsDir)tests/obj/$(OSPlatformConfig)/Managed/$(BuildProjectRelativeDir)</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath>$(RootArtifactsDir)tests/obj/$(OSPlatformConfig)/Managed/$(BuildProjectRelativeDir)/</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
 
     <BaseOutputPath>$(RootArtifactsDir)tests/$(OSPlatformConfig)/$(BuildProjectRelativeDir)</BaseOutputPath>
-    <OutputPath>$(BaseOutputPath)</OutputPath>
 
   </PropertyGroup>
 

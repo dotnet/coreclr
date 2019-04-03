@@ -253,7 +253,7 @@ build_Tests()
     if [ $__SkipManaged != 1 ]; then
         echo "Starting the Managed Tests Build..."
 
-        build_MSBuild_projects "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "$__up"
+        ${__DotNetCli} build ${__TestDir}/tests.sln /p:maxcpucount /p:Platform=${__BuildArch} /verbosity:m
 
         if [ $? -ne 0 ]; then
             echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"

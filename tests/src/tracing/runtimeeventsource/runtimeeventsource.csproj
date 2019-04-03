@@ -38,5 +38,4 @@
     <Compile Include="RuntimeEventSourceTest.cs" />
     <ProjectReference Include="../common/common.csproj" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

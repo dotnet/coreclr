@@ -31,6 +31,5 @@
     <ProjectReference Include="CMakeLists.txt" />
     <ProjectReference Include="CustomMarshaler.csproj" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
 </Project>

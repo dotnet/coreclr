@@ -183,7 +183,6 @@
   <ItemGroup>
     <PackageToInclude Include="@(PackageReference -> '%(Identity)' )"/>
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup>
     <ProjectAssetsFile>$(SourceDir)Common\CoreFX\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>

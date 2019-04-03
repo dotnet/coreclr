@@ -22,5 +22,4 @@
     <ProjectReference Include="AssemblyC.csproj" />
     <ProjectReference Include="AssemblyContracts.csproj" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

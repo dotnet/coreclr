@@ -28,7 +28,6 @@
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <ItemGroup>
     <ProjectReference Include="$(SourceDir)\Common\CoreCLRTestLibrary\CoreCLRTestLibrary.csproj">
       <Project>{8ffe99c0-22f8-4462-b839-970eac1b3472}</Project>

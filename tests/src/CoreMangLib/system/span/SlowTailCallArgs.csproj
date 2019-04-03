@@ -26,5 +26,4 @@
     <!-- Add Compile Object Here -->
     <Compile Include="SlowTailCallArgs.cs" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

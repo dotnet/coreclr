@@ -69,5 +69,4 @@ $(BashDotnetToolCommand) $(BashR2RDumpCommand) --in MultipleRuntimeFunctions.ni.
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
 
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

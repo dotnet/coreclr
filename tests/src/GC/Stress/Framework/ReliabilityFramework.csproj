@@ -45,7 +45,6 @@
   <ItemGroup>
     <StressTests Include="..\Tests\*.csproj" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   
   <Target Name="AfterBuild">
     <MSBuild Projects="@(StressTests)" Properties="OutputPath=$(OutDir)\Tests;BuildingForReliabilityFramework=true" />
