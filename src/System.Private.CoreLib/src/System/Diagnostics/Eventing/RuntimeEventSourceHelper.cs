@@ -17,9 +17,9 @@ namespace System.Diagnostics.Tracing
 
 		internal static int GetCpuUsage()
 		{
+			// Returns the current process' CPU usage as a percentage
 			long procUserTime;
 			long procKernelTime;
-
 			long systemUserTime;
 			long systemKernelTime;
 
@@ -28,9 +28,10 @@ namespace System.Diagnostics.Tracing
 			Interop.Kernel32.GetProcessTimes(Interop.Kernel32.GetCurrentProcess(), out _, out _, out procKernelTime, out procUserTime);
 			Interop.Kernel32.GetSystemTimes(out _, out systemUserTime, out systemKernelTime);
 
-
 			if (prevSystemUserTime == 0 && prevSystemKernelTime == 0) // These may be 0 when we report CPU usage for the first time, in which case we should just return 0. 
+			{
 				cpuUsage = 0;
+			}
 
 			else
 			{
