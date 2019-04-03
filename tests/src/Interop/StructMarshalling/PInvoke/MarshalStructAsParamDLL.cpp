@@ -1195,6 +1195,15 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByValFixe
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
+extern "C" DLL_EXPORT int GetStringLength(AutoString str)
+{
+#ifdef _WIN32
+    return (int)wcslen(str.str);
+#else
+    return (int)strlen(str.str);
+#endif
+}
+
 extern "C" DLL_EXPORT float STDMETHODCALLTYPE ProductHFA(HFA hfa)
 {
     return hfa.f1 * hfa.f2 * hfa.f3 * hfa.f4;

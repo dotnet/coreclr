@@ -834,6 +834,15 @@ bool IsCorrectLongStructPack16Explicit(LongStructPack16Explicit* p)
 	return true;
 }
 
+struct AutoString
+{
+#ifdef _WIN32
+    LPCWSTR str;
+#else
+    LPCSTR str;
+#endif
+};
+
 struct HFA
 {
     float f1;
