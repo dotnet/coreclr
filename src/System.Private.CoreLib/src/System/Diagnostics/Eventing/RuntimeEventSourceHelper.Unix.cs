@@ -15,7 +15,7 @@ namespace System.Diagnostics.Tracing
 
         internal static long GetProcessTimes()
         {
-            return (long)Interop.Sys.GetCpuUtilization(ref info);
+            return (long)Interop.Sys.GetCpuUtilization(ref cpuInfo);
         }
     }
 }
