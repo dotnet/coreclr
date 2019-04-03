@@ -13,9 +13,9 @@ namespace System.Diagnostics.Tracing
     {
         internal static Interop.Sys.ProcessCpuInformation cpuInfo = new Interop.Sys.ProcessCpuInformation();
 
-        internal static long GetCpuUsage()
+        internal static int GetCpuUsage()
         {
-            return (long)Interop.Sys.GetCpuUtilization(ref cpuInfo);
+            return Interop.Sys.GetCpuUtilization(ref cpuInfo);
         }
     }
 }
