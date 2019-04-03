@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 using System.Text;
 
@@ -14,17 +15,17 @@ namespace System.Runtime.InteropServices
             return PtrToStringUTF8(ptr, len);
         }
 
-        public static string PtrToStringAuto(IntPtr ptr)
+        public static string? PtrToStringAuto(IntPtr ptr)
         {
             return PtrToStringUTF8(ptr);
         }
 
-        public static IntPtr StringToHGlobalAuto(string s)
+        public static IntPtr StringToHGlobalAuto(string? s)
         {
             return StringToHGlobalUTF8(s);
         }
 
-        public static IntPtr StringToCoTaskMemAuto(string s)
+        public static IntPtr StringToCoTaskMemAuto(string? s)
         {
             return StringToCoTaskMemUTF8(s);
         }
