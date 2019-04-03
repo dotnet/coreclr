@@ -1323,7 +1323,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         asgType = impNormStructType(structHnd);
         if (src->gtOper == GT_OBJ)
         {
-            assert(src->gtObj.gtClass == structHnd);
+            assert(src->AsObj()->GetLayout()->GetClassHandle() == structHnd);
         }
     }
     else if (src->gtOper == GT_INDEX)
@@ -1458,7 +1458,7 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
 
     if (oper == GT_OBJ && willDeref)
     {
-        assert(structVal->gtObj.gtClass == structHnd);
+        assert(structVal->AsObj()->GetLayout()->GetClassHandle() == structHnd);
         return (structVal->gtObj.Addr());
     }
     else if (oper == GT_CALL || oper == GT_RET_EXPR || oper == GT_OBJ || oper == GT_MKREFANY ||
@@ -9117,7 +9117,6 @@ REDO_RETURN_NODE:
             op = op1->gtOp.gtOp1;
             goto REDO_RETURN_NODE;
         }
-        op->gtObj.gtClass = NO_CLASS_HANDLE;
         op->ChangeOperUnchecked(GT_IND);
         op->gtFlags |= GTF_IND_TGTANYWHERE;
     }
@@ -15657,7 +15656,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 if (op3->IsCnsIntOrI())
                 {
                     size = (unsigned)op3->AsIntConCommon()->IconValue();
-                    op1  = new (this, GT_BLK) GenTreeBlk(GT_BLK, TYP_STRUCT, op1, size);
+                    op1  = new (this, GT_BLK) GenTreeBlk(GT_BLK, TYP_STRUCT, op1, typGetBlkLayout(size));
                 }
                 else
                 {
@@ -15681,7 +15680,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 if (op3->IsCnsIntOrI())
                 {
                     size = (unsigned)op3->AsIntConCommon()->IconValue();
-                    op1  = new (this, GT_BLK) GenTreeBlk(GT_BLK, TYP_STRUCT, op1, size);
+                    op1  = new (this, GT_BLK) GenTreeBlk(GT_BLK, TYP_STRUCT, op1, typGetBlkLayout(size));
                 }
                 else
                 {

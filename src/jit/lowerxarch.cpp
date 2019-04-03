@@ -146,7 +146,7 @@ void Lowering::LowerStoreIndir(GenTreeIndir* node)
 void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 {
     GenTree* dstAddr       = blkNode->Addr();
-    unsigned size          = blkNode->gtBlkSize;
+    unsigned size          = blkNode->Size();
     GenTree* source        = blkNode->Data();
     GenTree* srcAddrOrFill = nullptr;
     bool     isInitBlk     = blkNode->OperIsInitBlkOp();
@@ -154,7 +154,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
     if (!isInitBlk)
     {
         // CopyObj or CopyBlk
-        if ((blkNode->OperGet() == GT_STORE_OBJ) && ((blkNode->AsObj()->gtGcPtrCount == 0) || blkNode->gtBlkOpGcUnsafe))
+        if (blkNode->OperIs(GT_STORE_OBJ) && (!blkNode->AsObj()->GetLayout()->HasGCPtr() || blkNode->gtBlkOpGcUnsafe))
         {
             blkNode->SetOper(GT_STORE_BLK);
         }
@@ -247,15 +247,15 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 
             GenTreeObj* cpObjNode = blkNode->AsObj();
 
-            unsigned slots = cpObjNode->gtSlots;
+            unsigned slots = cpObjNode->GetLayout()->GetSlotCount();
 
 #ifdef DEBUG
             // CpObj must always have at least one GC-Pointer as a member.
-            assert(cpObjNode->gtGcPtrCount > 0);
+            assert(cpObjNode->GetLayout()->HasGCPtr());
 
             assert(dstAddr->gtType == TYP_BYREF || dstAddr->gtType == TYP_I_IMPL);
 
-            CORINFO_CLASS_HANDLE clsHnd    = cpObjNode->gtClass;
+            CORINFO_CLASS_HANDLE clsHnd    = cpObjNode->GetLayout()->GetClassHandle();
             size_t               classSize = comp->info.compCompHnd->getClassSize(clsHnd);
             size_t               blkSize   = roundUp(classSize, TARGET_POINTER_SIZE);
 
@@ -266,7 +266,6 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             // handle this case.
             assert(classSize == blkSize);
             assert((blkSize / TARGET_POINTER_SIZE) == slots);
-            assert(cpObjNode->HasGCPtr());
 #endif
 
             bool IsRepMovsProfitable = false;
@@ -279,20 +278,20 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
                 // Let's inspect the struct/class layout and determine if it's profitable
                 // to use rep movsq for copying non-gc memory instead of using single movsq
                 // instructions for each memory slot.
-                unsigned i      = 0;
-                BYTE*    gcPtrs = cpObjNode->gtGcPtrs;
+                unsigned     i      = 0;
+                ClassLayout* layout = cpObjNode->GetLayout();
 
                 do
                 {
                     unsigned nonGCSlots = 0;
                     // Measure a contiguous non-gc area inside the struct and note the maximum.
-                    while (i < slots && gcPtrs[i] == TYPE_GC_NONE)
+                    while ((i < slots) && !layout->IsGCPtr(i))
                     {
                         nonGCSlots++;
                         i++;
                     }
 
-                    while (i < slots && gcPtrs[i] != TYPE_GC_NONE)
+                    while ((i < slots) && layout->IsGCPtr(i))
                     {
                         i++;
                     }

@@ -1055,22 +1055,11 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
 
         if (arg->OperGet() == GT_OBJ)
         {
-            BYTE*       gcLayout = nullptr;
-            unsigned    numRefs  = 0;
-            GenTreeObj* argObj   = arg->AsObj();
-
-            if (argObj->IsGCInfoInitialized())
-            {
-                gcLayout = argObj->gtGcPtrs;
-                numRefs  = argObj->GetGcPtrCount();
-            }
-            else
-            {
-                // Set GC Pointer info
-                gcLayout = new (comp, CMK_Codegen) BYTE[info->numSlots + info->numRegs];
-                numRefs  = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
-                argSplit->setGcPointers(numRefs, gcLayout);
-            }
+            ClassLayout* layout = arg->AsObj()->GetLayout();
+            layout->EnsureGCPtrsInitialized(comp);
+            const BYTE* gcLayout = layout->GetGCPtrs();
+            unsigned    numRefs  = layout->GetGCPtrCount();
+            argSplit->setGcPointers(numRefs, gcLayout);
 
             // Set type of registers
             for (unsigned index = 0; index < info->numRegs; index++)
@@ -1190,11 +1179,10 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
                 }
                 else if (arg->OperIs(GT_OBJ))
                 {
-                    unsigned numRefs  = 0;
-                    BYTE*    gcLayout = new (comp, CMK_Codegen) BYTE[info->numSlots];
                     assert(!varTypeIsSIMD(arg));
-                    numRefs = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
-                    putArg->AsPutArgStk()->setGcPointers(numRefs, gcLayout);
+                    ClassLayout* layout = arg->AsObj()->GetLayout();
+                    layout->EnsureGCPtrsInitialized(comp);
+                    putArg->AsPutArgStk()->setGcPointers(layout->GetGCPtrCount(), layout->GetGCPtrs());
 
 #ifdef _TARGET_X86_
                     // On x86 VM lies about the type of a struct containing a pointer sized

@@ -1269,7 +1269,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
 int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
 {
     GenTree* dstAddr  = blkNode->Addr();
-    unsigned size     = blkNode->gtBlkSize;
+    unsigned size     = blkNode->Size();
     GenTree* source   = blkNode->Data();
     int      srcCount = 0;
 

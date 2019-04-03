@@ -849,8 +849,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             // the xor ensures that only one of the two is setup, not both
             assert((varNode != nullptr) ^ (addrNode != nullptr));
 
-            BYTE  gcPtrArray[MAX_ARG_REG_COUNT] = {}; // TYPE_GC_NONE = 0
-            BYTE* gcPtrs                        = gcPtrArray;
+            BYTE        gcPtrArray[MAX_ARG_REG_COUNT] = {}; // TYPE_GC_NONE = 0
+            const BYTE* gcPtrs                        = gcPtrArray;
 
             unsigned gcPtrCount; // The count of GC pointers in the struct
             unsigned structSize;
@@ -877,8 +877,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 isHfa = varDsc->lvIsHfa();
 #ifdef _TARGET_ARM64_
                 gcPtrCount = varDsc->lvStructGcCount;
-                for (unsigned i = 0; i < gcPtrCount; ++i)
-                    gcPtrs[i]   = varDsc->lvGcLayout[i];
+                for (unsigned i   = 0; i < gcPtrCount; ++i)
+                    gcPtrArray[i] = varDsc->lvGcLayout[i];
 #endif // _TARGET_ARM_
             }
             else // we must have a GT_OBJ
@@ -889,9 +889,9 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 // it provides (size and GC layout) even if the node wraps a lclvar. Due
                 // to struct reinterpretation (e.g. Unsafe.As<X, Y>) it is possible that
                 // the OBJ node has a different type than the lclvar.
-                CORINFO_CLASS_HANDLE objClass = source->gtObj.gtClass;
+                ClassLayout* layout = source->AsObj()->GetLayout();
 
-                structSize = compiler->info.compCompHnd->getClassSize(objClass);
+                structSize = layout->GetSize();
 
                 // The codegen code below doesn't have proper support for struct sizes
                 // that are not multiple of the slot size. Call arg morphing handles this
@@ -908,14 +908,19 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     assert((structSize % TARGET_POINTER_SIZE) == 0);
                 }
 
-                isHfa = compiler->IsHfa(objClass);
+                isHfa = compiler->IsHfa(layout->GetClassHandle());
 
 #ifdef _TARGET_ARM64_
+#ifndef FEATURE_PUT_STRUCT_ARG_STK
+                // For some reason Lowering::NewPutArg does this only for Win ARM64, not for Linux ARM64.
+                layout->EnsureGCPtrsInitialized(compiler);
+#endif
                 // On ARM32, Lowering places the correct GC layout information in the
                 // GenTreePutArgStk node and the code above already use that. On ARM64,
                 // this information is not available (in order to keep GenTreePutArgStk
-                // nodes small) and we need to retrieve it from the VM here.
-                gcPtrCount = compiler->info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
+                // nodes small) and we need to retrieve it from the OBJ node here.
+                gcPtrCount = layout->GetGCPtrCount();
+                gcPtrs     = layout->GetGCPtrs();
 #endif
             }
 
@@ -1225,9 +1230,9 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
         assert((varNode != nullptr) ^ (addrNode != nullptr));
 
         // Setup the structSize, isHFa, and gcPtrCount
-        BYTE*    gcPtrs     = treeNode->gtGcPtrs;
-        unsigned gcPtrCount = treeNode->gtNumberReferenceSlots; // The count of GC pointers in the struct
-        int      structSize = treeNode->getArgSize();
+        const BYTE* gcPtrs     = treeNode->gtGcPtrs;
+        unsigned    gcPtrCount = treeNode->gtNumberReferenceSlots; // The count of GC pointers in the struct
+        int         structSize = treeNode->getArgSize();
 
         // This is the varNum for our load operations,
         // only used when we have a struct with a LclVar source
@@ -1263,7 +1268,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             assert(baseReg != addrReg);
 
             // We don't split HFA struct
-            assert(!compiler->IsHfa(source->gtObj.gtClass));
+            assert(!compiler->IsHfa(source->AsObj()->GetLayout()->GetClassHandle()));
         }
 
         // Put on stack first
@@ -3389,7 +3394,7 @@ void CodeGen::genCodeForStoreBlk(GenTreeBlk* blkOp)
 
     if (blkOp->OperIs(GT_STORE_OBJ) && blkOp->OperIsCopyBlkOp())
     {
-        assert(blkOp->AsObj()->gtGcPtrCount != 0);
+        assert(blkOp->AsObj()->GetLayout()->HasGCPtr());
         genCodeForCpObj(blkOp->AsObj());
         return;
     }

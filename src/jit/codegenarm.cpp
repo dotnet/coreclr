@@ -820,7 +820,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
 
     // This GenTree node has data about GC pointers, this means we're dealing
     // with CpObj.
-    assert(cpObjNode->gtGcPtrCount > 0);
+    assert(cpObjNode->GetLayout()->HasGCPtr());
 #endif // DEBUG
 
     // Consume the operands and get them into the right registers.
@@ -839,10 +839,10 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
         instGen_MemoryBarrier();
     }
 
-    unsigned slots = cpObjNode->gtSlots;
+    unsigned slots = cpObjNode->GetLayout()->GetSlotCount();
     emitter* emit  = getEmitter();
 
-    BYTE* gcPtrs = cpObjNode->gtGcPtrs;
+    const BYTE* gcPtrs = cpObjNode->GetLayout()->GetGCPtrs();
 
     // If we can prove it's on the stack we don't need to use the write barrier.
     emitAttr attr = EA_PTRSIZE;
@@ -871,7 +871,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     }
     else
     {
-        unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
+        unsigned gcPtrCount = cpObjNode->GetLayout()->GetGCPtrCount();
 
         unsigned i = 0;
         while (i < slots)

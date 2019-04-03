@@ -2912,7 +2912,7 @@ void CodeGen::genCodeForStoreBlk(GenTreeBlk* storeBlkNode)
 
     if (storeBlkNode->OperIs(GT_STORE_OBJ) && storeBlkNode->OperIsCopyBlkOp() && !storeBlkNode->gtBlkOpGcUnsafe)
     {
-        assert(storeBlkNode->AsObj()->gtGcPtrCount != 0);
+        assert(storeBlkNode->AsObj()->GetLayout()->HasGCPtr());
         genCodeForCpObj(storeBlkNode->AsObj());
         return;
     }
@@ -3660,9 +3660,9 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     bool      dstOnStack  = dstAddr->gtSkipReloadOrCopy()->OperIsLocalAddr();
 
 #ifdef DEBUG
-
-    // A CpObj always involves one or more GC pointers.
-    assert(cpObjNode->gtGcPtrCount > 0);
+    // If the GenTree node has data about GC pointers, this means we're dealing
+    // with CpObj, so this requires special logic.
+    assert(cpObjNode->GetLayout()->HasGCPtr());
 
     // MovSp (alias for movsq on x64 and movsd on x86) instruction is used for copying non-gcref fields
     // and it needs src = RSI and dst = RDI.
@@ -3702,7 +3702,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     gcInfo.gcMarkRegPtrVal(REG_RSI, srcAddrType);
     gcInfo.gcMarkRegPtrVal(REG_RDI, dstAddr->TypeGet());
 
-    unsigned slots = cpObjNode->gtSlots;
+    unsigned slots = cpObjNode->GetLayout()->GetSlotCount();
 
     // If we can prove it's on the stack we don't need to use the write barrier.
     if (dstOnStack)
@@ -3729,8 +3729,8 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     }
     else
     {
-        BYTE*    gcPtrs     = cpObjNode->gtGcPtrs;
-        unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
+        const BYTE* gcPtrs     = cpObjNode->GetLayout()->GetGCPtrs();
+        unsigned    gcPtrCount = cpObjNode->GetLayout()->GetGCPtrCount();
 
         unsigned i = 0;
         while (i < slots)
@@ -5441,12 +5441,12 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 if (source->TypeGet() == TYP_STRUCT)
                 {
                     GenTreeObj* obj      = source->AsObj();
-                    unsigned    argBytes = roundUp(obj->gtBlkSize, TARGET_POINTER_SIZE);
+                    unsigned    argBytes = roundUp(obj->GetLayout()->GetSize(), TARGET_POINTER_SIZE);
 #ifdef _TARGET_X86_
                     // If we have an OBJ, we must have created a copy if the original arg was not a
                     // local and was not a multiple of TARGET_POINTER_SIZE.
                     // Note that on x64/ux this will be handled by unrolling in genStructPutArgUnroll.
-                    assert((argBytes == obj->gtBlkSize) || obj->Addr()->IsLocalAddrExpr());
+                    assert((argBytes == obj->GetLayout()->GetSize()) || obj->Addr()->IsLocalAddrExpr());
 #endif // _TARGET_X86_
                     assert((curArgTabEntry->numSlots * TARGET_POINTER_SIZE) == argBytes);
                 }
@@ -8225,7 +8225,7 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
         assert(m_pushStkArg);
 
         GenTree*       srcAddr  = source->gtGetOp1();
-        BYTE*          gcPtrs   = putArgStk->gtGcPtrs;
+        const BYTE*    gcPtrs   = putArgStk->gtGcPtrs;
         const unsigned numSlots = putArgStk->gtNumSlots;
 
         regNumber  srcRegNum    = srcAddr->gtRegNum;
@@ -8289,7 +8289,7 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
         unsigned       numGCSlotsCopied = 0;
 #endif // DEBUG
 
-        BYTE*          gcPtrs   = putArgStk->gtGcPtrs;
+        const BYTE*    gcPtrs   = putArgStk->gtGcPtrs;
         const unsigned numSlots = putArgStk->gtNumSlots;
         for (unsigned i = 0; i < numSlots;)
         {

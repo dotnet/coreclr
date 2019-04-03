@@ -2647,7 +2647,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
 
     // This GenTree node has data about GC pointers, this means we're dealing
     // with CpObj.
-    assert(cpObjNode->gtGcPtrCount > 0);
+    assert(cpObjNode->GetLayout()->HasGCPtr());
 #endif // DEBUG
 
     // Consume the operands and get them into the right registers.
@@ -2656,7 +2656,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     gcInfo.gcMarkRegPtrVal(REG_WRITE_BARRIER_SRC_BYREF, srcAddrType);
     gcInfo.gcMarkRegPtrVal(REG_WRITE_BARRIER_DST_BYREF, dstAddr->TypeGet());
 
-    unsigned slots = cpObjNode->gtSlots;
+    unsigned slots = cpObjNode->GetLayout()->GetSlotCount();
 
     // Temp register(s) used to perform the sequence of loads and stores.
     regNumber tmpReg  = cpObjNode->ExtractTempReg();
@@ -2683,7 +2683,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
 
     emitter* emit = getEmitter();
 
-    BYTE* gcPtrs = cpObjNode->gtGcPtrs;
+    const BYTE* gcPtrs = cpObjNode->GetLayout()->GetGCPtrs();
 
     // If we can prove it's on the stack we don't need to use the write barrier.
     if (dstOnStack)
@@ -2715,7 +2715,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     }
     else
     {
-        unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
+        unsigned gcPtrCount = cpObjNode->GetLayout()->GetGCPtrCount();
 
         unsigned i = 0;
         while (i < slots)
