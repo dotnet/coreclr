@@ -1511,7 +1511,7 @@ DomainAssembly * LoadDomainAssembly(
     {
         spec.SetHostBinder(pPrivHostBinder);
     }
-    else if (pRequestingAssembly && (!pRequestingAssembly->IsCollectible()))
+    else if (pRequestingAssembly)
     {
         GCX_PREEMP();
         spec.SetParentAssembly(pRequestingAssembly->GetDomainAssembly());
