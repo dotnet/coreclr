@@ -183,6 +183,8 @@ enum ReadyToRunFixupKind
 
     READYTORUN_FIXUP_DelegateCtor               = 0x2C, /* optimized delegate ctor */
     READYTORUN_FIXUP_DeclaringTypeHandle        = 0x2D,
+
+    READYTORUN_FIXUP_IndirectPInvokeTarget      = 0x2E, /* Target of an inlined pinvoke */
 };
 
 //
@@ -232,6 +234,10 @@ enum ReadyToRunHelper
 
     READYTORUN_HELPER_MemSet                    = 0x40,
     READYTORUN_HELPER_MemCpy                    = 0x41,
+
+    // PInvoke helpers
+    READYTORUN_HELPER_PInvokeBegin              = 0x42,
+    READYTORUN_HELPER_PInvokeEnd                = 0x43,
 
     // Get string handle lazily
     READYTORUN_HELPER_GetString                 = 0x50,
