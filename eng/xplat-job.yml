@@ -133,5 +133,4 @@ jobs:
     steps:
     - checkout: self
       clean: true
-    - ${{ each step in parameters.steps }}
-      - ${{insert}}: ${{ step }}
+    - ${{ parameters.steps }}
