@@ -1255,7 +1255,7 @@ void ComCallMethodDesc::InitNativeInfo()
                 MarshalInfo info(msig.GetModule(), msig.GetArgProps(), msig.GetSigTypeContext(), params[iArg],
                                  WinRTType ? MarshalInfo::MARSHAL_SCENARIO_WINRT : MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                                  (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                                 TRUE, iArg, numArgs, BestFit, ThrowOnUnmappableChar, TRUE, FALSE, pMD, FALSE
+                                 TRUE, iArg, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, FALSE
 #ifdef _DEBUG
                                  , szDebugName, szDebugClassName, iArg
 #endif
@@ -1317,7 +1317,7 @@ void ComCallMethodDesc::InitNativeInfo()
                 MarshalInfo info(msig.GetModule(), msig.GetReturnProps(), msig.GetSigTypeContext(), params[0],
                                     WinRTType ? MarshalInfo::MARSHAL_SCENARIO_WINRT : MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                                     (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                                    FALSE, 0, numArgs, BestFit, ThrowOnUnmappableChar, TRUE, FALSE, pMD, FALSE
+                                    FALSE, 0, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, FALSE
 #ifdef _DEBUG
                                 ,szDebugName, szDebugClassName, 0
 #endif
