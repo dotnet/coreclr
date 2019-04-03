@@ -22,10 +22,10 @@ namespace System.IO
 
         internal static string FormatFileLoadExceptionMessage(string? fileName, int hResult)
         {
-            string? format = null;
+            string? format = null; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761 GetStringHandleOnStack needs to be attributed
             GetFileLoadExceptionMessage(hResult, JitHelpers.GetStringHandleOnStack(ref format));
 
-            string? message = null;
+            string? message = null; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761 GetStringHandleOnStack needs to be attributed
             if (hResult == System.HResults.COR_E_BADEXEFORMAT)
                 message = SR.Arg_BadImageFormatException;
             else 

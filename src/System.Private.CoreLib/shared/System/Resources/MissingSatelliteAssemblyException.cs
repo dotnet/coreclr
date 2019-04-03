@@ -57,6 +57,5 @@ namespace System.Resources
         }
 
         public string? CultureName => _cultureName;
-        }
     }
 }
