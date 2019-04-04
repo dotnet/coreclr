@@ -3099,15 +3099,10 @@ STRINGREF GetResourceStringFromManaged(STRINGREF key)
     MethodDescCallSite getResourceStringLocal(METHOD__ENVIRONMENT__GET_RESOURCE_STRING_LOCAL);
 
     // Call Environment::GetResourceStringLocal(String name).  Returns String value (or maybe null)
-
-    ENTER_DOMAIN_PTR(SystemDomain::System()->DefaultDomain(),ADV_DEFAULTAD);
-
     // Don't need to GCPROTECT pArgs, since it's not used after the function call.
 
     ARG_SLOT pArgs[1] = { ObjToArgSlot(gc.key) };
     gc.ret = getResourceStringLocal.Call_RetSTRINGREF(pArgs);
-
-    END_DOMAIN_TRANSITION;
 
     GCPROTECT_END();
 
@@ -5139,17 +5134,29 @@ LONG InternalUnhandledExceptionFilter(
 
 } // LONG InternalUnhandledExceptionFilter()
 
-static bool s_useEntryPointFilter = false;
+
+// Represent the value of USE_ENTRYPOINT_FILTER as passed in the property bag to the host during construction
+static bool s_useEntryPointFilterCorhostProperty = false;
 
 void ParseUseEntryPointFilter(LPCWSTR value)
 {
-#ifdef PLATFORM_WINDOWS // This feature has only been tested on Windows, keep it disabled on other platforms
     // set s_useEntryPointFilter true if value != "0"
     if (value && (_wcsicmp(value, W("0")) != 0))
     {
-        s_useEntryPointFilter = true;
+        s_useEntryPointFilterCorhostProperty = true;
     }
+}
+
+bool GetUseEntryPointFilter()
+{
+#ifdef PLATFORM_WINDOWS // This feature has only been tested on Windows, keep it disabled on other platforms
+    static bool s_useEntryPointFilterEnv = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_UseEntryPointFilter) != 0;
+
+    return s_useEntryPointFilterCorhostProperty || s_useEntryPointFilterEnv;
+#else
+    return false;
 #endif
+
 }
 
 // This filter is used to trigger unhandled exception processing for the entrypoint thread
@@ -5172,7 +5179,7 @@ LONG EntryPointFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOID _pData)
         return ret;
     }
 
-    if (!s_useEntryPointFilter)
+    if (!GetUseEntryPointFilter())
     {
         return EXCEPTION_CONTINUE_SEARCH;
     }

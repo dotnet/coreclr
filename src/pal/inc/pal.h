@@ -192,8 +192,16 @@ typedef PVOID NATIVE_LIBRARY_HANDLE;
 #ifndef NOOPT_ATTRIBUTE
 #if defined(__llvm__)
 #define NOOPT_ATTRIBUTE optnone
-#else
+#elif defined(__GNUC__)
 #define NOOPT_ATTRIBUTE optimize("O0")
+#endif
+#endif
+
+#ifndef NODEBUG_ATTRIBUTE
+#if defined(__llvm__)
+#define NODEBUG_ATTRIBUTE __nodebug__
+#elif defined(__GNUC__)
+#define NODEBUG_ATTRIBUTE __artificial__
 #endif
 #endif
 
@@ -475,13 +483,13 @@ PALAPI
 PAL_GetApplicationGroupId();
 #endif
 
-static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = MAX_PATH;
+static const unsigned int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = MAX_PATH;
 
 PALIMPORT
 VOID
 PALAPI
 PAL_GetTransportName(
-    const int MAX_TRANSPORT_NAME_LENGTH,
+    const unsigned int MAX_TRANSPORT_NAME_LENGTH,
     OUT char *name,
     IN const char *prefix,
     IN DWORD id,

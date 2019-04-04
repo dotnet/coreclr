@@ -2403,10 +2403,10 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         // must be handled within the case.
         switch (intrinsicId)
         {
-            case NI_Base_Vector128_CreateScalarUnsafe:
-            case NI_Base_Vector128_ToScalar:
-            case NI_Base_Vector256_CreateScalarUnsafe:
-            case NI_Base_Vector256_ToScalar:
+            case NI_Vector128_CreateScalarUnsafe:
+            case NI_Vector128_ToScalar:
+            case NI_Vector256_CreateScalarUnsafe:
+            case NI_Vector256_ToScalar:
             {
                 assert(numArgs == 1);
 
@@ -2432,9 +2432,9 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
                 break;
             }
 
-            case NI_Base_Vector128_ToVector256:
-            case NI_Base_Vector128_ToVector256Unsafe:
-            case NI_Base_Vector256_GetLower:
+            case NI_Vector128_ToVector256:
+            case NI_Vector128_ToVector256Unsafe:
+            case NI_Vector256_GetLower:
             {
                 assert(numArgs == 1);
 
@@ -2699,11 +2699,29 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         {
             assert((numArgs > 0) && (numArgs < 4));
 
-            srcCount += BuildOperandUses(op1);
+            if (intrinsicTree->OperIsMemoryLoadOrStore())
+            {
+                srcCount += BuildAddrUses(op1);
+            }
+            else
+            {
+                srcCount += BuildOperandUses(op1);
+            }
 
             if (op2 != nullptr)
             {
-                srcCount += (isRMW) ? BuildDelayFreeUses(op2) : BuildOperandUses(op2);
+                if (op2->OperIs(GT_HWIntrinsic) && op2->AsHWIntrinsic()->OperIsMemoryLoad() && op2->isContained())
+                {
+                    srcCount += BuildAddrUses(op2->gtGetOp1());
+                }
+                else if (isRMW)
+                {
+                    srcCount += BuildDelayFreeUses(op2);
+                }
+                else
+                {
+                    srcCount += BuildOperandUses(op2);
+                }
 
                 if (op3 != nullptr)
                 {

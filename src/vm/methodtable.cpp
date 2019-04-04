@@ -3173,7 +3173,7 @@ void MethodTable::AllocateRegularStaticBoxes()
             LOG((LF_CLASSLOADER, LL_INFO10000, "\tInstantiating static of type %s\n", pFieldMT->GetDebugClassName()));
             OBJECTREF obj = AllocateStaticBox(pFieldMT, pClassCtorInfoEntry->hasFixedAddressVTStatics);
 
-            SetObjectReference( &(pStaticSlots[i]), obj, GetAppDomain() );
+            SetObjectReference( &(pStaticSlots[i]), obj);
         }
         GCPROTECT_END();
     }
@@ -3198,7 +3198,7 @@ void MethodTable::AllocateRegularStaticBoxes()
                 LOG((LF_CLASSLOADER, LL_INFO10000, "\tInstantiating static of type %s\n", pFieldMT->GetDebugClassName()));
                 OBJECTREF obj = AllocateStaticBox(pFieldMT, HasFixedAddressVTStatics());
 
-                SetObjectReference( (OBJECTREF*)(pStaticBase + pField->GetOffset()), obj, GetAppDomain() );
+                SetObjectReference( (OBJECTREF*)(pStaticBase + pField->GetOffset()), obj);
             }
 
             pField++;
@@ -3783,7 +3783,7 @@ OBJECTREF MethodTable::FastBox(void** data)
         return Nullable::Box(*data, this);
 
     OBJECTREF ref = Allocate();
-    CopyValueClass(ref->UnBox(), *data, this, ref->GetAppDomain());
+    CopyValueClass(ref->UnBox(), *data, this);
     return ref;
 }
 
@@ -3921,8 +3921,8 @@ void MethodTable::CallFinalizer(Object *obj)
 #ifdef STRESS_LOG
     if (fCriticalFinalizer)
     {
-        STRESS_LOG2(LF_GCALLOC, LL_INFO100, "Finalizing CriticalFinalizer %pM in domain %d\n", 
-                    pMT, GetAppDomain()->GetId().m_dwId);
+        STRESS_LOG1(LF_GCALLOC, LL_INFO100, "Finalizing CriticalFinalizer %pM\n", 
+                    pMT);
     }
 #endif
 
@@ -3955,8 +3955,8 @@ void MethodTable::CallFinalizer(Object *obj)
 #ifdef STRESS_LOG
     if (fCriticalFinalizer)
     {
-        STRESS_LOG2(LF_GCALLOC, LL_INFO100, "Finalized CriticalFinalizer %pM in domain %d without exception\n", 
-                    pMT, GetAppDomain()->GetId().m_dwId);
+        STRESS_LOG1(LF_GCALLOC, LL_INFO100, "Finalized CriticalFinalizer %pM without exception\n", 
+                    pMT);
     }
 #endif
 }
@@ -10157,6 +10157,54 @@ static BOOL ComputeIsLayoutFixedInCurrentVersionBubble(MethodTable * pMT)
     }
 
     return TRUE;
+}
+
+static BOOL ComputeIsLayoutInCurrentVersionBubble(MethodTable* pMT)
+{
+    if (pMT->IsTruePrimitive() || pMT->IsEnum())
+        return TRUE;
+
+    if (!pMT->GetModule()->IsInCurrentVersionBubble())
+        return FALSE;
+
+    ApproxFieldDescIterator fieldIterator(pMT, ApproxFieldDescIterator::INSTANCE_FIELDS);
+    for (FieldDesc *pFD = fieldIterator.Next(); pFD != NULL; pFD = fieldIterator.Next())
+    {
+        MethodTable * pFieldMT = pFD->GetApproxFieldTypeHandleThrowing().AsMethodTable();
+        if (!pFieldMT->IsLayoutInCurrentVersionBubble())
+            return FALSE;
+    }
+
+    if (!pMT->IsValueType())
+    {
+        pMT = pMT->GetParentMethodTable();
+
+        while ((pMT != g_pObjectClass) && (pMT != NULL))
+        {
+            if (!pMT->IsLayoutInCurrentVersionBubble())
+                return FALSE;
+
+            pMT = pMT->GetParentMethodTable();
+        }
+    }
+
+    return TRUE;
+}
+
+BOOL MethodTable::IsLayoutInCurrentVersionBubble()
+{
+    STANDARD_VM_CONTRACT;
+
+    const MethodTableWriteableData * pWriteableData = GetWriteableData();
+    if (!(pWriteableData->m_dwFlags & MethodTableWriteableData::enum_flag_NGEN_IsLayoutInCurrentVersionBubbleComputed))
+    {
+        MethodTableWriteableData * pWriteableDataForWrite = GetWriteableDataForWrite();
+        if (ComputeIsLayoutInCurrentVersionBubble(this))
+            *EnsureWritablePages(&pWriteableDataForWrite->m_dwFlags) |= MethodTableWriteableData::enum_flag_NGEN_IsLayoutInCurrentVersionBubble;
+        *EnsureWritablePages(&pWriteableDataForWrite->m_dwFlags) |= MethodTableWriteableData::enum_flag_NGEN_IsLayoutInCurrentVersionBubbleComputed;
+    }
+
+    return (pWriteableData->m_dwFlags & MethodTableWriteableData::enum_flag_NGEN_IsLayoutInCurrentVersionBubble) != 0;
 }
 
 //

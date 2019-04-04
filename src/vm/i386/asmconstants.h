@@ -205,9 +205,6 @@ ASMCONSTANTS_C_ASSERT(Thread::TS_Hijacked == TS_Hijacked_ASM)
 
 // from clr/src/vm/appdomain.hpp
 
-#define AppDomain__m_dwId 0x4
-ASMCONSTANTS_C_ASSERT(AppDomain__m_dwId == offsetof(AppDomain, m_dwId));
-
 // This is the offset from EBP at which the original CONTEXT is stored in one of the 
 // RedirectedHandledJITCase*_Stub functions.
 #define REDIRECTSTUB_EBP_OFFSET_CONTEXT (-4)
@@ -319,9 +316,6 @@ ASMCONSTANTS_C_ASSERT(CallDescrData__returnValue          == offsetof(CallDescrD
 #define               UMEntryThunk__m_pUMThunkMarshInfo     0x0C
 ASMCONSTANTS_C_ASSERT(UMEntryThunk__m_pUMThunkMarshInfo == offsetof(UMEntryThunk, m_pUMThunkMarshInfo))
 
-#define               UMEntryThunk__m_dwDomainId            0x10
-ASMCONSTANTS_C_ASSERT(UMEntryThunk__m_dwDomainId == offsetof(UMEntryThunk, m_dwDomainId))
-
 #define               UMThunkMarshInfo__m_pILStub           0x00
 ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_pILStub == offsetof(UMThunkMarshInfo, m_pILStub))
 
@@ -333,11 +327,21 @@ ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_cbActualArgSize == offsetof(UMThunkMar
 ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_cbRetPop == offsetof(UMThunkMarshInfo, m_cbRetPop))
 #endif //FEATURE_STUBS_AS_IL
 
-#ifndef CROSSGEN_COMPILE
-#define               Thread__m_pDomain                     0x10
-ASMCONSTANTS_C_ASSERT(Thread__m_pDomain == offsetof(Thread, m_pDomain));
+// For JIT_PInvokeBegin and JIT_PInvokeEnd helpers
+#define               Frame__m_Next 0x04
+ASMCONSTANTS_C_ASSERT(Frame__m_Next == offsetof(Frame, m_Next));
 
-#endif
+#define               InlinedCallFrame__m_Datum 0x08
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_Datum == offsetof(InlinedCallFrame, m_Datum));
+
+#define               InlinedCallFrame__m_pCallSiteSP 0x0C
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallSiteSP == offsetof(InlinedCallFrame, m_pCallSiteSP));
+
+#define               InlinedCallFrame__m_pCallerReturnAddress 0x10
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallerReturnAddress == offsetof(InlinedCallFrame, m_pCallerReturnAddress));
+
+#define               InlinedCallFrame__m_pCalleeSavedFP 0x14
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCalleeSavedFP == offsetof(InlinedCallFrame, m_pCalleeSavedFP));
 
 #ifdef FEATURE_STUBS_AS_IL
 // DelegateObject from src/vm/object.h
@@ -402,6 +406,6 @@ private:
 void BogusFunction()
 {
 	// Sample usage to generate the error
-	FindCompileTimeConstant<offsetof(AppDomain, m_dwId)> bogus_variable;
+	FindCompileTimeConstant<offsetof(Thread, m_ExceptionState)> bogus_variable;
 }
 #endif // defined(__cplusplus) && defined(USE_COMPILE_TIME_CONSTANT_FINDER)

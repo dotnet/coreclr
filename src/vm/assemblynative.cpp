@@ -248,6 +248,13 @@ void QCALLTYPE AssemblyNative::LoadFromPath(INT_PTR ptrNativeAssemblyLoadContext
         // Need to verify that this is a valid CLR assembly. 
         if (!pILImage->CheckILFormat())
             ThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
+
+        LoaderAllocator* pLoaderAllocator = NULL;
+        if (SUCCEEDED(pBinderContext->GetLoaderAllocator((LPVOID*)&pLoaderAllocator)) && pLoaderAllocator->IsCollectible() && !pILImage->IsILOnly())
+        {
+            // Loading IJW assemblies into a collectible AssemblyLoadContext is not allowed
+            ThrowHR(COR_E_BADIMAGEFORMAT, BFA_IJW_IN_COLLECTIBLE_ALC);
+        }
     }
     
     // Form the PEImage for the NI assembly, if specified
@@ -327,7 +334,14 @@ void QCALLTYPE AssemblyNative::LoadFromStream(INT_PTR ptrNativeAssemblyLoadConte
     
     // Get the binder context in which the assembly will be loaded
     ICLRPrivBinder *pBinderContext = reinterpret_cast<ICLRPrivBinder*>(ptrNativeAssemblyLoadContext);
-    
+
+    LoaderAllocator* pLoaderAllocator = NULL;
+    if (SUCCEEDED(pBinderContext->GetLoaderAllocator((LPVOID*)&pLoaderAllocator)) && pLoaderAllocator->IsCollectible() && !pILImage->IsILOnly())
+    {
+        // Loading IJW assemblies into a collectible AssemblyLoadContext is not allowed
+        ThrowHR(COR_E_BADIMAGEFORMAT, BFA_IJW_IN_COLLECTIBLE_ALC);
+    }
+
     // Pass the stream based assembly as IL and NI in an attempt to bind and load it
     Assembly* pLoadedAssembly = AssemblyNative::LoadFromPEImage(pBinderContext, pILImage, NULL); 
     {
@@ -1229,7 +1243,7 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
             loaderAllocator->ActivateManagedTracking();
         }
 
-        IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain->GetId().m_dwId, pTPABinderContext, loaderAllocator, loaderAllocatorHandle, ptrManagedAssemblyLoadContext, &pBindContext));
+        IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(DefaultADID, pTPABinderContext, loaderAllocator, loaderAllocatorHandle, ptrManagedAssemblyLoadContext, &pBindContext));
         ptrNativeAssemblyLoadContext = reinterpret_cast<INT_PTR>(pBindContext);
     }
     else
@@ -1317,7 +1331,14 @@ INT_PTR QCALLTYPE AssemblyNative::GetLoadContextForAssembly(QCall::AssemblyHandl
     // We should have a load context binder at this point.
     _ASSERTE(pOpaqueBinder != nullptr);
 
+    // the TPA binder uses the default ALC
+    // WinRT assemblies (bound using the WinRT binder) don't actually have an ALC,
+    // so treat them the same as if they were loaded into the TPA ALC in this case.
+#ifdef FEATURE_COMINTEROP
+    if (!AreSameBinderInstance(pTPABinder, pOpaqueBinder) && !AreSameBinderInstance(pCurDomain->GetWinRtBinder(), pOpaqueBinder))
+#else
     if (!AreSameBinderInstance(pTPABinder, pOpaqueBinder))
+#endif // FEATURE_COMINTEROP
     {
         // Only CLRPrivBinderAssemblyLoadContext instance contains the reference to its
         // corresponding managed instance.

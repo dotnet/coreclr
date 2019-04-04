@@ -47,9 +47,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_11408/GitHub_11408/*">
             <Issue>11408</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_20958/GitHub_20958/*">
-            <Issue>22410</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/exceptions/StackTracePreserve/StackTracePreserveTests/*">
             <Issue>20322</Issue>
         </ExcludeList>
@@ -71,11 +68,11 @@
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/waithandle/waitany/waitanyex2a/*">
             <Issue>19406</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Regressions/coreclr/22728/*">
-            <Issue>23262</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/tracing/keyword/TwoKeywords/TwoKeywords/*">
             <Issue>23224, often fails with timeout in release</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/tracing/tracecontrol/tracecontrol/*">
+            <Issue>20299</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -262,28 +259,6 @@
         </ExcludeList>
     </ItemGroup>
 
-    <ItemGroup Condition="'$(XunitTestBinBase)' != ''">
-        <ExcludeList Include="$(XunitTestBinBase)/tracing/tracecontrol/tracecontrol/*">
-            <Issue>20299</Issue>
-        </ExcludeList>
-    </ItemGroup>
-
-    <!-- Windows specific excludes -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' == 'true'">
-         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i11/*">
-            <Issue>22974</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i10/*">
-            <Issue>22974</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i12/*">
-            <Issue>22974</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i13/*">
-            <Issue>22974</Issue>
-        </ExcludeList>
-    </ItemGroup>
-    
     <!-- Windows x64 specific excludes -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'x64' and '$(TargetsWindows)' == 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_18056/Bool_And_Op_cs_do/*">
@@ -573,24 +548,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Scenarios/Dynamo/dynamo/*">
             <Issue>17129</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/compareexchange/CompareExchangeTClass/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/compareexchange/CompareExchangeTClass_1/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTClass/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString_1/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString_2/*">
-            <Issue>22303</Issue>
         </ExcludeList>
     </ItemGroup>
 

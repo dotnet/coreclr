@@ -1527,6 +1527,9 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     // These jobs are very fast on Linux/arm64 hardware, so run them daily.
                     addPeriodicTriggerHelper(job, '@daily')
                 }
+                else if (scenario == 'corefx_baseline') {
+                    addPeriodicTriggerHelper(job, '@daily')
+                }
                 else {
                     addPeriodicTriggerHelper(job, '@weekly')
                 }
@@ -2541,16 +2544,13 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 // Returns true if the job should be generated.
 def static shouldGenerateJob(def scenario, def isPR, def architecture, def configuration, def os, def isBuildOnly)
 {
+    def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
+
     // Innerloop jobs (except corefx_innerloop) are no longer created in Jenkins
-    if (isInnerloopTestScenario(scenario)) {
+    // The only exception is windows arm(64)
+    if (isInnerloopTestScenario(scenario) && isPR && !windowsArmJob) {
         assert scenario != 'corefx_innerloop'
         return false;
-    }
-
-    if (!isPR) {
-        if (scenario == 'corefx_innerloop') {
-            return false
-        }
     }
 
     if (!isPR) {
