@@ -7,6 +7,7 @@
 #include "stringliteralmap.h"
 #include "virtualcallstub.h"
 #include "threadsuspend.h"
+#include "castcache.h"
 #include "mlinfo.h"
 #ifndef DACCESS_COMPILE
 #include "comdelegate.h"
@@ -620,6 +621,7 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
 
         // TODO: Do we really want to perform this on each LoaderAllocator?
         MethodTable::ClearMethodDataCache();
+        CastCache::FlushCurrentCache();
         ClearJitGenericHandleCache(pAppDomain);
 
         if (!IsAtProcessExit())
