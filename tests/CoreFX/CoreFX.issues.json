@@ -1065,6 +1065,18 @@
                 {
                     "name": "System.Runtime.InteropServices.Tests.StringToHGlobalAutoTests.StringToHGlobalAuto_NonNullString_Roundtrips",
                     "reason": "https://github.com/dotnet/coreclr/pull/23664"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.PtrToStringUTF8.PtrToStringUTF8_NegativeLength_ThrowsArgumentOutOfRangeExeption",
+                    "reason": "https://github.com/dotnet/coreclr/pull/23731"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.PtrToStringUTF8.PtrToStringUTF8_ZeroPointer_ReturnsNull",
+                    "reason": "https://github.com/dotnet/coreclr/pull/23731"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.PtrToStringUTF8.PtrToStringUTF8_Win32AtomPointer_ReturnsNull",
+                    "reason": "https://github.com/dotnet/coreclr/pull/23731"
                 }
             ]
         }
