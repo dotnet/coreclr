@@ -34,7 +34,7 @@ namespace System.Text
             Encoding? enc = GetEncoding(codepage);
             if (enc != null)
             {
-                enc = (Encoding)GetEncoding(codepage)!.Clone(); // TODO-NULLABLE: this could be enc.Clone()
+                enc = (Encoding)enc.Clone();
                 enc.EncoderFallback = encoderFallback;
                 enc.DecoderFallback = decoderFallback;
             }
