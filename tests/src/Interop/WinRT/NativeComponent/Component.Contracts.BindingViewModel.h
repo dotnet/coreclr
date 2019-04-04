@@ -42,7 +42,7 @@ struct BindableVectorWrapper : winrt::implements<BindableVectorWrapper<T>, winrt
 
     winrt::Windows::UI::Xaml::Interop::IBindableIterator First()
     {
-        return make<BindableIteratorWrapper<int32_t>(m_elements.First());
+        return winrt::make<BindableIteratorWrapper<int32_t>>(m_elements.First());
     }
 
     uint32_t Size()
