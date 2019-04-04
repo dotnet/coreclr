@@ -49,7 +49,7 @@ namespace System.Security
         public IPermission? SetPermission(IPermission? perm) { return SetPermissionImpl(perm); }
         protected virtual IPermission? SetPermissionImpl(IPermission? perm) { return default(IPermission); }
         void IDeserializationCallback.OnDeserialization(object sender) { }
-        public override string? ToString() => base.ToString();
+        public override string ToString() => base.ToString()!;
         public virtual SecurityElement? ToXml() { return default(SecurityElement); }
         public PermissionSet? Union(PermissionSet? other) { return default(PermissionSet); }
     }

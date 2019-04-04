@@ -32,7 +32,8 @@ namespace System.Security
             // Copy the string into the newly allocated space
             if (_decryptedLength > 0)
             {
-                UnmanagedBuffer.Copy(str._buffer!, _buffer!, (ulong)(str._decryptedLength * sizeof(char)));
+                Debug.Assert(str._buffer != null && _buffer != null); ;
+                UnmanagedBuffer.Copy(str._buffer, _buffer, (ulong)(str._decryptedLength * sizeof(char)));
             }
         }
 
@@ -46,18 +47,19 @@ namespace System.Security
                 return;
             }
 
+            Debug.Assert(_buffer != null);
             // Copy the string into the newly allocated space
             byte* ptr = null;
             try
             {
-                _buffer!.AcquirePointer(ref ptr);
+                _buffer.AcquirePointer(ref ptr);
                 Buffer.MemoryCopy(value, ptr, _buffer.ByteLength, (ulong)(length * sizeof(char)));
             }
             finally
             {
                 if (ptr != null)
                 {
-                    _buffer!.ReleasePointer();
+                    _buffer.ReleasePointer();
                 }
             }
         }
@@ -67,21 +69,23 @@ namespace System.Security
             if (_buffer != null && !_buffer.IsInvalid)
             {
                 _buffer.Dispose();
-                _buffer = null!;
+                _buffer = null;
             }
         }
 
         private void ClearCore()
         {
             _decryptedLength = 0;
-            _buffer!.Clear();
+            Debug.Assert(_buffer != null);
+            _buffer.Clear();
         }
 
         private unsafe void AppendCharCore(char c)
         {
             // Make sure we have enough space for the new character, then write it at the end.
             EnsureCapacity(_decryptedLength + 1);
-            _buffer!.Write((ulong)(_decryptedLength * sizeof(char)), c);
+            Debug.Assert(_buffer != null);
+            _buffer.Write((ulong)(_decryptedLength * sizeof(char)), c);
             _decryptedLength++;
         }
 
@@ -90,9 +94,10 @@ namespace System.Security
             // Make sure we have enough space for the new character, then shift all of the characters above it and insert it.
             EnsureCapacity(_decryptedLength + 1);
             byte* ptr = null;
+            Debug.Assert(_buffer != null);
             try
             {
-                _buffer!.AcquirePointer(ref ptr);
+                _buffer.AcquirePointer(ref ptr);
                 ptr += index * sizeof(char);
                 long bytesToShift = (_decryptedLength - index) * sizeof(char);
                 Buffer.MemoryCopy(ptr, ptr + sizeof(char), bytesToShift, bytesToShift);
@@ -103,7 +108,7 @@ namespace System.Security
             {
                 if (ptr != null)
                 {
-                    _buffer!.ReleasePointer();
+                    _buffer.ReleasePointer();
                 }
             }
         }
@@ -112,9 +117,10 @@ namespace System.Security
         {
             // Shift down all values above the specified index, then null out the empty space at the end.
             byte* ptr = null;
+            Debug.Assert(_buffer != null);
             try
             {
-                _buffer!.AcquirePointer(ref ptr);
+                _buffer.AcquirePointer(ref ptr);
                 ptr += index * sizeof(char);
                 long bytesToShift = (_decryptedLength - index - 1) * sizeof(char);
                 Buffer.MemoryCopy(ptr + sizeof(char), ptr, bytesToShift, bytesToShift);
@@ -125,7 +131,7 @@ namespace System.Security
             {
                 if (ptr != null)
                 {
-                    _buffer!.ReleasePointer();
+                    _buffer.ReleasePointer();
                 }
             }
         }
@@ -133,7 +139,8 @@ namespace System.Security
         private void SetAtCore(int index, char c)
         {
             // Overwrite the character at the specified index
-            _buffer!.Write((ulong)(index * sizeof(char)), c);
+            Debug.Assert(_buffer != null);
+            _buffer.Write((ulong)(index * sizeof(char)), c);
         }
 
         internal unsafe IntPtr MarshalToBSTRCore()
@@ -142,10 +149,11 @@ namespace System.Security
             IntPtr ptr = IntPtr.Zero;
             IntPtr result = IntPtr.Zero;
             byte* bufferPtr = null;
+            Debug.Assert(_buffer != null);
 
             try
             {
-                _buffer!.AcquirePointer(ref bufferPtr);
+                _buffer.AcquirePointer(ref bufferPtr);
                 int resultByteLength = (length + 1) * sizeof(char);
 
                 ptr = Marshal.AllocBSTR(length);
@@ -165,7 +173,7 @@ namespace System.Security
 
                 if (bufferPtr != null)
                 {
-                    _buffer!.ReleasePointer();
+                    _buffer.ReleasePointer();
                 }
             }
             return result;
@@ -177,9 +185,10 @@ namespace System.Security
 
             byte* bufferPtr = null;
             IntPtr stringPtr = IntPtr.Zero, result = IntPtr.Zero;
+            Debug.Assert(_buffer != null);
             try
             {
-                _buffer!.AcquirePointer(ref bufferPtr);
+                _buffer.AcquirePointer(ref bufferPtr);
                 if (unicode)
                 {
                     int resultLength = (length + 1) * sizeof(char);
@@ -214,7 +223,7 @@ namespace System.Security
 
                 if (bufferPtr != null)
                 {
-                    _buffer!.ReleasePointer();
+                    _buffer.ReleasePointer();
                 }
             }
 

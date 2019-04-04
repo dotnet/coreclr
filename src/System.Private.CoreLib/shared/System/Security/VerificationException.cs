@@ -23,7 +23,7 @@ namespace System.Security
             HResult = HResults.COR_E_VERIFICATION;
         }
 
-        public VerificationException(string? message, Exception innerException)
+        public VerificationException(string? message, Exception? innerException)
             : base(message, innerException)
         {
             HResult = HResults.COR_E_VERIFICATION;
