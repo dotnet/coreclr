@@ -4,14 +4,13 @@
 
 using System.Configuration.Assemblies;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 using CultureInfo = System.Globalization.CultureInfo;
 
 namespace System.Reflection
 {
-    public sealed class AssemblyName : ICloneable, IDeserializationCallback, ISerializable
+    public sealed partial class AssemblyName : ICloneable, IDeserializationCallback, ISerializable
     {
         // If you modify any of these fields, you must also update the 
         // AssemblyBaseObject structure in object.h
@@ -296,15 +295,6 @@ namespace System.Reflection
             return refName.Equals(defName, StringComparison.OrdinalIgnoreCase);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern void nInit(out RuntimeAssembly assembly, bool raiseResolveEvent);
-
-        internal void nInit()
-        {
-            RuntimeAssembly dummy = null;
-            nInit(out dummy, false);
-        }
-
         internal void SetProcArchIndex(PortableExecutableKinds pek, ImageFileMachine ifm)
         {
             ProcessorArchitecture = CalculateProcArchIndex(pek, ifm, _flags);
@@ -384,14 +374,6 @@ namespace System.Reflection
             _flags = flags;
             _strongNameKeyPair = keyPair;
         }
-
-        // This call opens and closes the file, but does not add the
-        // assembly to the domain.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern AssemblyName nGetFileInformation(string s);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern byte[] nGetPublicKeyToken();
 
         internal static string EscapeCodeBase(string codebase)
         {
