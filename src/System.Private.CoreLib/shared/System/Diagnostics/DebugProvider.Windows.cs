@@ -2,11 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
+
 namespace System.Diagnostics
 {
     public partial class DebugProvider
     {
-        public static void FailCore(string stackTrace, string message, string detailMessage, string errorSource)
+        public static void FailCore(string? stackTrace, string? message, string? detailMessage, string? errorSource)
         {
             if (s_FailCore != null)
             {
@@ -42,7 +44,7 @@ namespace System.Diagnostics
 
         private static readonly object s_ForLock = new object();
 
-        public static void WriteCore(string message)
+        public static void WriteCore(string? message)
         {
             if (s_WriteCore != null)
             {
@@ -74,7 +76,7 @@ namespace System.Diagnostics
             }
         }
 
-        private static void WriteToDebugger(string message)
+        private static void WriteToDebugger(string? message)
         {
             if (Debugger.IsLogging())
             {

@@ -2,16 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
+
 namespace System.Diagnostics
 {
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = true)]
     public sealed class ConditionalAttribute : Attribute
     {
-        public ConditionalAttribute(string conditionString)
+        public ConditionalAttribute(string? conditionString)
         {
             ConditionString = conditionString;
         }
 
-        public string ConditionString { get; }
+        public string? ConditionString { get; }
     }
 }
