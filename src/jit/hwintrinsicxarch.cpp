@@ -43,7 +43,10 @@ const HWIntrinsicInfo& HWIntrinsicInfo::lookup(NamedIntrinsic id)
 //
 // Return Value:
 //    The NamedIntrinsic associated with methodName and isa
-NamedIntrinsic HWIntrinsicInfo::lookupId(Compiler* comp, const char* className, const char* methodName, const char* enclosingClassName)
+NamedIntrinsic HWIntrinsicInfo::lookupId(Compiler*   comp,
+                                         const char* className,
+                                         const char* methodName,
+                                         const char* enclosingClassName)
 {
     // TODO-Throughput: replace sequential search by binary search
     InstructionSet isa = lookupIsa(className, enclosingClassName);

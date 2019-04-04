@@ -30,8 +30,7 @@ enum NamedIntrinsic : unsigned short
     NI_##id,
 #include "hwintrinsiclistxarch.h"
 #elif defined(_TARGET_ARM64_)
-#define HARDWARE_INTRINSIC(id, isa, name, form, ins0, ins1, ins2, flags) \
-    id,
+#define HARDWARE_INTRINSIC(id, isa, name, form, ins0, ins1, ins2, flags) id,
 #include "hwintrinsiclistArm64.h"
 #endif // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
     NI_HW_INTRINSIC_END,
