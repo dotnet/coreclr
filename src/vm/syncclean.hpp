@@ -14,6 +14,7 @@ class Bucket;
 struct EEHashEntry;
 class Crst;
 class CrstStatic;
+class CastCache;
 
 class SyncClean {
 public:
@@ -21,10 +22,12 @@ public:
 
     static void AddHashMap (Bucket *bucket);
     static void AddEEHashTable (EEHashEntry** entry);
+    static void AddObsoleteCastCache(CastCache* cache);
     static void CleanUp ();
 
 private:
-    static VolatilePtr<Bucket> m_HashMap;               // Cleanup list for HashMap
-    static VolatilePtr<EEHashEntry *> m_EEHashTable;    // Cleanup list for EEHashTable
+    static VolatilePtr<Bucket> m_HashMap;                 // Cleanup list for HashMap
+    static VolatilePtr<EEHashEntry *> m_EEHashTable;      // Cleanup list for EEHashTable
+    static CastCache* SyncClean::m_ObsoleteCastCaches;    // Cleanup list for CastCache
 };
 #endif

@@ -351,6 +351,10 @@ void SyncClean::AddHashMap(Bucket *bucket)
 { 
 }
 
+void SyncClean::AddObsoleteCastCache(CastCache* cache)
+{
+}
+
 #ifdef FEATURE_COMINTEROP
 LONG ComCallWrapperTemplate::Release()
 {

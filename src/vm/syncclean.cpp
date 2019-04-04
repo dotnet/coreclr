@@ -8,9 +8,11 @@
 #include "syncclean.hpp"
 #include "virtualcallstub.h"
 #include "threadsuspend.h"
+#include "castcache.h"
 
 VolatilePtr<Bucket> SyncClean::m_HashMap = NULL;
 VolatilePtr<EEHashEntry*> SyncClean::m_EEHashTable;
+CastCache* SyncClean::m_ObsoleteCastCaches = NULL;
 
 void SyncClean::Terminate()
 {
@@ -66,6 +68,18 @@ void SyncClean::AddEEHashTable (EEHashEntry** entry)
     while (FastInterlockCompareExchangePointer(m_EEHashTable.GetPointer(), entry, pTempHashEntry) != pTempHashEntry);
 }
 
+void SyncClean::AddObsoleteCastCache(CastCache* cache)
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (!g_fEEStarted) {
+        delete cache;
+        return;
+    }
+
+    cache->m_NextObsolete = FastInterlockExchangePointer(&m_ObsoleteCastCaches, cache);
+}
+
 void SyncClean::CleanUp ()
 {
     LIMITED_METHOD_CONTRACT;
@@ -97,6 +111,17 @@ void SyncClean::CleanUp ()
             pTempHashEntry = pNextHashEntry;
         }        
     }    
+
+    if (m_ObsoleteCastCaches)
+    {
+        CastCache* obsoleteCache = FastInterlockExchangePointer(&m_ObsoleteCastCaches, NULL);
+
+        while (obsoleteCache) {
+            CastCache* nextObsolete = obsoleteCache->m_NextObsolete;
+            delete obsoleteCache;
+            obsoleteCache = nextObsolete;
+        }
+    }
 
     // Give others we want to reclaim during the GC sync point a chance to do it
     VirtualCallStubManager::ReclaimAll();
