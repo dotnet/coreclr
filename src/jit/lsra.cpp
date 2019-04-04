@@ -5351,7 +5351,14 @@ void LinearScan::allocateRegisters()
                 else if (refType == RefTypeUpperVectorRestore)
                 {
                     assert(currentInterval->isUpperVector);
-                    lclVarInterval->isPartiallySpilled = false;
+                    if (lclVarInterval->isPartiallySpilled)
+                    {
+                        lclVarInterval->isPartiallySpilled = false;
+                    }
+                    else
+                    {
+                        allocate = false;
+                    }
                 }
             }
             else if (refType == RefTypeUpperVectorSave)
