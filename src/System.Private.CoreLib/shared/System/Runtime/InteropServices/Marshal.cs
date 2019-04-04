@@ -57,7 +57,7 @@ namespace System.Runtime.InteropServices
             }
             if (len < 0)
             {
-                throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(len));
+                throw new ArgumentOutOfRangeException(nameof(len), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             return new string((sbyte*)ptr, 0, len);
@@ -81,7 +81,7 @@ namespace System.Runtime.InteropServices
             }
             if (len < 0)
             {
-                throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(len));
+                throw new ArgumentOutOfRangeException(nameof(len), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             return new string((char*)ptr, 0, len);
@@ -106,7 +106,7 @@ namespace System.Runtime.InteropServices
             }
             if (byteLen < 0)
             {
-                throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(byteLen));
+                throw new ArgumentOutOfRangeException(nameof(byteLen), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             return string.CreateStringFromEncoding((byte*)ptr, byteLen, Encoding.UTF8);
