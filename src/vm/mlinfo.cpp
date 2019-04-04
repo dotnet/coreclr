@@ -2320,9 +2320,11 @@ MarshalInfo::MarshalInfo(Module* pModule,
                                 m_type = MARSHAL_TYPE_DELEGATE;
 
                             break;
+#ifdef FEATURE_COMINTEROP
                         case NATIVE_TYPE_IDISPATCH:
                             m_type = MARSHAL_TYPE_INTERFACE;
                             break;
+#endif
                         default:
                         m_resID = IDS_EE_BADMARSHAL_DELEGATE;
                         IfFailGoto(E_FAIL, lFail);

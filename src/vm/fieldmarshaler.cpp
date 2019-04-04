@@ -799,6 +799,7 @@ do                                                      \
                 {
                     INITFIELDMARSHALER(NFT_DELEGATE, FieldMarshaler_Delegate, (thNestedType.GetMethodTable()));
                 }
+#ifdef FEATURE_COMINTEROP
                 else if (ntype == NATIVE_TYPE_IDISPATCH)
                 {
                     ItfMarshalInfo itfInfo;
@@ -807,6 +808,7 @@ do                                                      \
 
                     INITFIELDMARSHALER(NFT_INTERFACE, FieldMarshaler_Interface, (itfInfo.thClass.GetMethodTable(), itfInfo.thItf.GetMethodTable(), itfInfo.dwFlags));
                 }
+#endif // FEATURE_COMINTEROP
                 else
                 {
                     INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DELEGATE));
