@@ -4273,10 +4273,8 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
     else if (strncmp(namespaceName, "System.Runtime.Intrinsics", 25) == 0)
     {
 #if defined(_TARGET_XARCH_)
-        assert(strcmp(namespaceName + 25, ".X86") == 0 || namespaceName[25] == '\0');
         result = HWIntrinsicInfo::lookupId(className, methodName, enclosingClassName);
 #elif defined(_TARGET_ARM64_)
-        assert(strcmp(namespaceName + 25, ".Arm.Arm64") == 0 || namespaceName[25] == '\0');
         result = lookupHWIntrinsic(className, methodName);
 #else // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
 #error Unsupported platform
@@ -10752,19 +10750,11 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     }
                     else if (lhs->OperIsBlk())
                     {
-                        // Note that, prior to morph, we will only see ADDR(LCL_VAR) for any assignment to
-                        // a local struct. We should never see LCL_VAR_ADDR or ADD(ADDR(LCL_VAR) + CNS).
-                        // Other local struct references (e.g. FIELD or more complex pointer arithmetic)
-                        // will cause the stack to be spilled.
-                        GenTree* addr = lhs->AsBlk()->Addr();
-                        if (addr->OperIs(GT_ADDR) && addr->gtGetOp1()->OperIs(GT_LCL_VAR))
-                        {
-                            lclVar = addr->gtGetOp1()->AsLclVarCommon();
-                        }
-                        else
-                        {
-                            assert(addr->IsLocalAddrExpr() == nullptr);
-                        }
+                        // Check for ADDR(LCL_VAR), or ADD(ADDR(LCL_VAR),CNS_INT))
+                        // (the latter may appear explicitly in the IL).
+                        // Local field stores will cause the stack to be spilled when
+                        // they are encountered.
+                        lclVar = lhs->AsBlk()->Addr()->IsLocalAddrExpr();
                     }
                     if (lclVar != nullptr)
                     {
