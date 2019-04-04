@@ -78,14 +78,6 @@ class Constants {
                'jitstress2'                     : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2'],
                'jitstress1_tiered'              : ['COMPlus_TieredCompilation' : '1', 'COMPlus_JitStress' : '1'],
                'jitstress2_tiered'              : ['COMPlus_TieredCompilation' : '1', 'COMPlus_JitStress' : '2'],
-               'jitstressregs1'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '1'],
-               'jitstressregs2'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '2'],
-               'jitstressregs3'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '3'],
-               'jitstressregs4'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '4'],
-               'jitstressregs8'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '8'],
-               'jitstressregs0x10'              : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x10'],
-               'jitstressregs0x80'              : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x80'],
-               'jitstressregs0x1000'            : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x1000'],
                'jitstress2_jitstressregs1'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '1'],
                'jitstress2_jitstressregs2'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '2'],
                'jitstress2_jitstressregs3'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '3'],
@@ -231,14 +223,6 @@ class Constants {
                'jitstress2',
                'jitstress1_tiered',
                'jitstress2_tiered',
-               'jitstressregs1',
-               'jitstressregs2',
-               'jitstressregs3',
-               'jitstressregs4',
-               'jitstressregs8',
-               'jitstressregs0x10',
-               'jitstressregs0x80',
-               'jitstressregs0x1000',
                'jitstress2_jitstressregs1',
                'jitstress2_jitstressregs2',
                'jitstress2_jitstressregs3',
@@ -344,14 +328,6 @@ class Constants {
                'jitstress2',
                'jitstress1_tiered',
                'jitstress2_tiered',
-               'jitstressregs1',
-               'jitstressregs2',
-               'jitstressregs3',
-               'jitstressregs4',
-               'jitstressregs8',
-               'jitstressregs0x10',
-               'jitstressregs0x80',
-               'jitstressregs0x1000',
                'jitstress2_jitstressregs1',
                'jitstress2_jitstressregs2',
                'jitstress2_jitstressregs3',
@@ -433,14 +409,6 @@ class Constants {
                'jitstress2',
                'jitstress1_tiered',
                'jitstress2_tiered',
-               'jitstressregs1',
-               'jitstressregs2',
-               'jitstressregs3',
-               'jitstressregs4',
-               'jitstressregs8',
-               'jitstressregs0x10',
-               'jitstressregs0x80',
-               'jitstressregs0x1000',
                'jitstress2_jitstressregs1',
                'jitstress2_jitstressregs2',
                'jitstress2_jitstressregs3',
@@ -1460,14 +1428,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             assert architecture == 'x64'
             addGithubPushTriggerHelper(job)
             break
-        case 'jitstressregs1':
-        case 'jitstressregs2':
-        case 'jitstressregs3':
-        case 'jitstressregs4':
-        case 'jitstressregs8':
-        case 'jitstressregs0x10':
-        case 'jitstressregs0x80':
-        case 'jitstressregs0x1000':
         case 'minopts':
         case 'tieredcompilation':
         case 'no_tiered_compilation':
