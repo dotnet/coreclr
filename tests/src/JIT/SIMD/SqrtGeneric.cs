@@ -34,14 +34,12 @@ namespace VectorMathTests
             d = System.Numerics.Vector.SquareRoot(d);
             if (((int)d[0]) != 10)
             {
-                Console.WriteLine($"Expected 10, got {d[0]}.");
                 return 0;
             }
             var e = new System.Numerics.Vector<float>(64);
             e = System.Numerics.Vector.SquareRoot(e);
             if (((int)e[3]) != 8)
             {
-                Console.WriteLine($"Expected 8, got {e[3]}.");
                 return 0;
             }
             var f = new System.Numerics.Vector<ushort>(36);
