@@ -3627,7 +3627,7 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
                                 SF_IsBestFit(dwStubFlags),
                                 SF_IsThrowOnUnmappableChar(dwStubFlags),
                                 TRUE,
-                                isInstanceMethod ? TRUE : FALSE,
+                                isInstanceMethod,
                                 pMD,
                                 TRUE
                                 DEBUG_ARG(pDebugName)
