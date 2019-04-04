@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -9,7 +10,7 @@ namespace System.IO
 {
     internal static partial class PersistedFiles
     {
-        private static string s_userProductDirectory;
+        private static string? s_userProductDirectory;
 
         /// <summary>
         /// Get the location of where to persist information for a particular aspect of the framework,
@@ -24,7 +25,7 @@ namespace System.IO
                 EnsureUserDirectories();
             }
 
-            return Path.Combine(s_userProductDirectory, featureName);
+            return Path.Combine(s_userProductDirectory!, featureName);
         }
 
         /// <summary>
@@ -41,7 +42,7 @@ namespace System.IO
                 EnsureUserDirectories();
             }
 
-            return Path.Combine(s_userProductDirectory, featureName, subFeatureName);
+            return Path.Combine(s_userProductDirectory!, featureName, subFeatureName);
         }
 
         /// <summary>
@@ -60,7 +61,7 @@ namespace System.IO
                 EnsureUserDirectories();
             }
 
-            return Path.Combine(s_userProductDirectory, Path.Combine(featurePathParts));
+            return Path.Combine(s_userProductDirectory!, Path.Combine(featurePathParts));
         }
 
         private static void EnsureUserDirectories()
@@ -84,7 +85,7 @@ namespace System.IO
         {
             // First try to get the user's home directory from the HOME environment variable.
             // This should work in most cases.
-            string userHomeDirectory = Environment.GetEnvironmentVariable("HOME");
+            string? userHomeDirectory = Environment.GetEnvironmentVariable("HOME");
             if (!string.IsNullOrEmpty(userHomeDirectory))
                 return userHomeDirectory;
 
@@ -100,7 +101,7 @@ namespace System.IO
                 const int BufLen = Interop.Sys.Passwd.InitialBufferSize;
                 byte* stackBuf = stackalloc byte[BufLen];
                 if (TryGetHomeDirectoryFromPasswd(stackBuf, BufLen, out userHomeDirectory))
-                    return userHomeDirectory;
+                    return userHomeDirectory!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
 
                 // Fallback to heap allocations if necessary, growing the buffer until
                 // we succeed.  TryGetHomeDirectory will throw if there's an unexpected error.
@@ -112,7 +113,7 @@ namespace System.IO
                     fixed (byte* buf = &heapBuf[0])
                     {
                         if (TryGetHomeDirectoryFromPasswd(buf, heapBuf.Length, out userHomeDirectory))
-                            return userHomeDirectory;
+                            return userHomeDirectory!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                     }
                 }
             }
@@ -123,7 +124,7 @@ namespace System.IO
         /// <param name="bufLen">The length of <paramref name="buf"/>.</param>
         /// <param name="path">The resulting path; null if the user didn't have an entry.</param>
         /// <returns>true if the call was successful (path may still be null); false is a larger buffer is needed.</returns>
-        private static unsafe bool TryGetHomeDirectoryFromPasswd(byte* buf, int bufLen, out string path)
+        private static unsafe bool TryGetHomeDirectoryFromPasswd(byte* buf, int bufLen, out string? path)
         {
             // Call getpwuid_r to get the passwd struct
             Interop.Sys.Passwd passwd;
