@@ -68,11 +68,11 @@
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/waithandle/waitany/waitanyex2a/*">
             <Issue>19406</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Regressions/coreclr/22728/*">
-            <Issue>23262</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/tracing/keyword/TwoKeywords/TwoKeywords/*">
             <Issue>23224, often fails with timeout in release</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/flowgraph/dev10_bug679955/volatileLocal1/*">
+            <Issue>23545</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -570,24 +570,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Scenarios/Dynamo/dynamo/*">
             <Issue>17129</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/compareexchange/CompareExchangeTClass/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/compareexchange/CompareExchangeTClass_1/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTClass/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString_1/*">
-            <Issue>22303</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/interlocked/exchange/ExchangeTString_2/*">
-            <Issue>22303</Issue>
         </ExcludeList>
     </ItemGroup>
 
