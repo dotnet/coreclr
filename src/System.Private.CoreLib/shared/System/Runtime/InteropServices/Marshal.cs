@@ -89,7 +89,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe string PtrToStringUTF8(IntPtr ptr)
         {
-            if (ptr == IntPtr.Zero)
+            if (ptr == IntPtr.Zero || IsWin32Atom(ptr))
             {
                 return null;
             }
@@ -100,14 +100,13 @@ namespace System.Runtime.InteropServices
 
         public static unsafe string PtrToStringUTF8(IntPtr ptr, int byteLen)
         {
+            if (ptr == IntPtr.Zero)
+            {
+                throw new ArgumentNullException(nameof(ptr));
+            }
             if (byteLen < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(byteLen), SR.ArgumentOutOfRange_NeedNonNegNum);
-            }
-            
-            if (ptr == IntPtr.Zero || IsWin32Atom(ptr))
-            {
-                return null;
+                throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_NeedNonNegNum, nameof(byteLen));
             }
 
             return string.CreateStringFromEncoding((byte*)ptr, byteLen, Encoding.UTF8);
