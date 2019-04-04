@@ -4206,18 +4206,39 @@ GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
 
 NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
 {
-    NamedIntrinsic result = NI_Illegal;
-
     const char* className          = nullptr;
     const char* namespaceName      = nullptr;
     const char* enclosingClassName = nullptr;
     const char* methodName =
         info.compCompHnd->getMethodNameFromMetadata(method, &className, &namespaceName, &enclosingClassName);
 
+    JITDUMP("Named Intrinsic ");
+
+    if (namespaceName != nullptr)
+    {
+        JITDUMP("%s.", namespaceName);
+    }
+    if (enclosingClassName != nullptr)
+    {
+        JITDUMP("%s.", enclosingClassName);
+    }
+    if (className != nullptr)
+    {
+        JITDUMP("%s", className);
+    }
+    if (methodName != nullptr)
+    {
+        JITDUMP("%s", methodName);
+    }
+    JITDUMP(": ");
+
     if ((namespaceName == nullptr) || (className == nullptr) || (methodName == nullptr))
     {
-        return result;
+        JITDUMP("Not recognized, not enough metadata\n");
+        return NI_Illegal;
     }
+
+    NamedIntrinsic result = NI_Illegal;
 
     if (strcmp(namespaceName, "System") == 0)
     {
@@ -4282,6 +4303,14 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
     }
 #endif // FEATURE_HW_INTRINSICS
 
+    if (result == NI_Illegal)
+    {
+        JITDUMP("Not recognized\n");
+    }
+    else
+    {
+        JITDUMP("Recognized\n");
+    }
     return result;
 }
 

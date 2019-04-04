@@ -109,7 +109,6 @@ NamedIntrinsic Compiler::lookupHWIntrinsic(const char* className, const char* me
     NamedIntrinsic result = NI_Illegal;
     if (isa != InstructionSet_NONE)
     {
-        JITDUMP("HW Intrinsic %s.%s: ", className, methodName);
         IsaFlag::Flag isaFlag = IsaFlag::flag(isa);
         for (int i = 0; i < (NI_HW_INTRINSIC_END - NI_HW_INTRINSIC_START - 1); i++)
         {
@@ -119,7 +118,6 @@ NamedIntrinsic Compiler::lookupHWIntrinsic(const char* className, const char* me
                 {
                     // Intrinsic is supported on platform
                     result = hwIntrinsicInfoArray[i].id;
-                    JITDUMP("Supported\n");
                 }
                 else
                 {
@@ -128,15 +126,9 @@ NamedIntrinsic Compiler::lookupHWIntrinsic(const char* className, const char* me
                     // Return NI_ARM64_IsSupported_False for the IsSupported property
                     result = (hwIntrinsicInfoArray[i].id != NI_ARM64_IsSupported_True) ? NI_ARM64_PlatformNotSupported
                                                                                        : NI_ARM64_IsSupported_False;
-
-                    JITDUMP("Not Supported\n");
                 }
                 break;
             }
-        }
-        if (result == NI_Illegal)
-        {
-            JITDUMP("Not recognized\n");
         }
     }
     return result;
