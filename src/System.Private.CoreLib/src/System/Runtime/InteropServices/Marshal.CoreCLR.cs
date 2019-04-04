@@ -367,7 +367,7 @@ namespace System.Runtime.InteropServices
         private static extern IntPtr /* IUnknown* */ GetComInterfaceForObjectNative(object o, Type t, bool onlyInContext, bool fEnalbeCustomizedQueryInterface);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern object? GetObjectForIUnknown(IntPtr /* IUnknown* */ pUnk);
+        public static extern object GetObjectForIUnknown(IntPtr /* IUnknown* */ pUnk);
 
         /// <summary>
         /// Return a unique Object given an IUnknown.  This ensures that you receive a fresh
@@ -376,14 +376,14 @@ namespace System.Runtime.InteropServices
         /// ReleaseComObject on a RCW and not worry about other active uses ofsaid RCW.
         /// </summary>
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern object? GetUniqueObjectForIUnknown(IntPtr unknown);
+        public static extern object GetUniqueObjectForIUnknown(IntPtr unknown);
 
         /// <summary>
         /// Return an Object for IUnknown, using the Type T.
         /// Type T should be either a COM imported Type or a sub-type of COM imported Type
         /// </summary>
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern object? GetTypedObjectForIUnknown(IntPtr /* IUnknown* */ pUnk, Type t);
+        public static extern object GetTypedObjectForIUnknown(IntPtr /* IUnknown* */ pUnk, Type t);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern IntPtr CreateAggregatedObject(IntPtr pOuter, object o);
@@ -710,12 +710,12 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetEndComSlot(Type t);
 
-        public static object? BindToMoniker(string monikerName)
+        public static object BindToMoniker(string monikerName)
         {
             CreateBindCtx(0, out IBindCtx bindctx);
 
             MkParseDisplayName(bindctx, monikerName, out _, out IMoniker pmoniker);
-            BindMoniker(pmoniker, 0, ref IID_IUnknown, out object? obj);
+            BindMoniker(pmoniker, 0, ref IID_IUnknown, out object obj);
 
             return obj;
         }
@@ -727,7 +727,7 @@ namespace System.Runtime.InteropServices
         private static extern void MkParseDisplayName(IBindCtx pbc, [MarshalAs(UnmanagedType.LPWStr)] string szUserName, out uint pchEaten, out IMoniker ppmk);
 
         [DllImport(Interop.Libraries.Ole32, PreserveSig = false)]
-        private static extern void BindMoniker(IMoniker pmk, uint grfOpt, ref Guid iidResult, [MarshalAs(UnmanagedType.Interface)] out object? ppvResult);
+        private static extern void BindMoniker(IMoniker pmk, uint grfOpt, ref Guid iidResult, [MarshalAs(UnmanagedType.Interface)] out object ppvResult);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void ChangeWrapperHandleStrength(object otp, bool fIsWeak);

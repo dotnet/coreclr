@@ -27,7 +27,7 @@ namespace System.Runtime.InteropServices
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
         }
 
-        public static object? BindToMoniker(string monikerName)
+        public static object BindToMoniker(string monikerName)
         {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
         }
@@ -110,12 +110,12 @@ namespace System.Runtime.InteropServices
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
         }
 
-        public static object? GetTypedObjectForIUnknown(IntPtr pUnk, Type t)
+        public static object GetTypedObjectForIUnknown(IntPtr pUnk, Type t)
         {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
         }
 
-        public static object? GetObjectForIUnknown(IntPtr pUnk)
+        public static object GetObjectForIUnknown(IntPtr pUnk)
         {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
         }
@@ -162,7 +162,7 @@ namespace System.Runtime.InteropServices
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
         }
 
-        public static object? GetUniqueObjectForIUnknown(IntPtr unknown)
+        public static object GetUniqueObjectForIUnknown(IntPtr unknown)
         {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
         }
