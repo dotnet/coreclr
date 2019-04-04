@@ -9,7 +9,7 @@ namespace System.Diagnostics.Tracing
 {
     internal sealed class RuntimeEventSourceHelper
     {
-        internal static Interop.Sys.ProcessCpuInformation cpuInfo;
+        private static Interop.Sys.ProcessCpuInformation cpuInfo;
 
         internal static int GetCpuUsage()
         {
