@@ -3458,6 +3458,21 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
             ni = lookupNamedIntrinsic(method);
 
 #ifdef FEATURE_HW_INTRINSICS
+            if (ni == NI_IsSupported_True)
+            {
+                return gtNewIconNode(true);
+            }
+
+            if (ni == NI_IsSupported_False)
+            {
+                return gtNewIconNode(false);
+            }
+
+            if (ni == NI_Throw_PlatformNotSupportedException)
+            {
+                return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED, method, sig, mustExpand);
+            }
+
             if ((ni > NI_HW_INTRINSIC_START) && (ni < NI_HW_INTRINSIC_END))
             {
                 GenTree* hwintrinsic = impHWIntrinsic(ni, method, sig, mustExpand);
@@ -4293,13 +4308,25 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
 #ifdef FEATURE_HW_INTRINSICS
     else if (strncmp(namespaceName, "System.Runtime.Intrinsics", 25) == 0)
     {
+        namespaceName += 25;
 #if defined(_TARGET_XARCH_)
-        result = HWIntrinsicInfo::lookupId(className, methodName, enclosingClassName);
+        if ((namespaceName[0] == '\0') || (strcmp(namespaceName, ".X86") == 0))
+        {
+            result = HWIntrinsicInfo::lookupId(this, className, methodName, enclosingClassName);
+        }
 #elif defined(_TARGET_ARM64_)
-        result = lookupHWIntrinsic(className, methodName);
+        if ((namespaceName[0] == '\0') || (strcmp(namespaceName, ".Arm.Arm64") == 0))
+        {
+            result = lookupHWIntrinsic(className, methodName);
+        }
 #else // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
 #error Unsupported platform
 #endif // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
+        else
+        {
+            assert(strcmp(methodName, "get_IsSupported") == 0);
+            return NI_IsSupported_False;
+        }
     }
 #endif // FEATURE_HW_INTRINSICS
 
