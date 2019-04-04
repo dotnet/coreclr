@@ -271,6 +271,7 @@
     <Compile Include="$(BclSourcesRoot)\System\ValueType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReferenceOfT.cs" />
+    <Compile Include="shared\Interop\Windows\Kernel32\Interop.HandleTypes.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetStdHandle.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.LocalAlloc.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.QueryUnbiasedInterruptTime.cs" />
@@ -373,7 +374,7 @@
     <Compile Include="$(BclSourcesRoot)\System\ApplicationModel.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\RuntimeEventSourceHelper.cs" Condition="'$(FeaturePerfTracing)' == 'true'"/>
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\RuntimeEventSourceHelper.Windows.cs" Condition="'$(FeaturePerfTracing)' == 'true'"/>
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureAppX)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.Uap.cs" />

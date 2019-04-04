@@ -4273,10 +4273,8 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
     else if (strncmp(namespaceName, "System.Runtime.Intrinsics", 25) == 0)
     {
 #if defined(_TARGET_XARCH_)
-        assert(strcmp(namespaceName + 25, ".X86") == 0 || namespaceName[25] == '\0');
         result = HWIntrinsicInfo::lookupId(className, methodName, enclosingClassName);
 #elif defined(_TARGET_ARM64_)
-        assert(strcmp(namespaceName + 25, ".Arm.Arm64") == 0 || namespaceName[25] == '\0');
         result = lookupHWIntrinsic(className, methodName);
 #else // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
 #error Unsupported platform
@@ -10740,11 +10738,36 @@ void Compiler::impImportBlockCode(BasicBlock* block)
             SPILL_APPEND:
 
                 // We need to call impSpillLclRefs() for a struct type lclVar.
-                // This is done for non-block assignments in the handling of stloc.
-                if ((op1->OperGet() == GT_ASG) && varTypeIsStruct(op1->gtOp.gtOp1) &&
-                    (op1->gtOp.gtOp1->gtOper == GT_LCL_VAR))
+                // This is because there may be loads of that lclVar on the evaluation stack, and
+                // we need to ensure that those loads are completed before we modify it.
+                if ((op1->OperGet() == GT_ASG) && varTypeIsStruct(op1->gtGetOp1()))
                 {
-                    impSpillLclRefs(op1->gtOp.gtOp1->AsLclVarCommon()->gtLclNum);
+                    GenTree*             lhs    = op1->gtGetOp1();
+                    GenTreeLclVarCommon* lclVar = nullptr;
+                    if (lhs->gtOper == GT_LCL_VAR)
+                    {
+                        lclVar = lhs->AsLclVarCommon();
+                    }
+                    else if (lhs->OperIsBlk())
+                    {
+                        // Note that, prior to morph, we will only see ADDR(LCL_VAR) for any assignment to
+                        // a local struct. We should never see LCL_VAR_ADDR or ADD(ADDR(LCL_VAR) + CNS).
+                        // Other local struct references (e.g. FIELD or more complex pointer arithmetic)
+                        // will cause the stack to be spilled.
+                        GenTree* addr = lhs->AsBlk()->Addr();
+                        if (addr->OperIs(GT_ADDR) && addr->gtGetOp1()->OperIs(GT_LCL_VAR))
+                        {
+                            lclVar = addr->gtGetOp1()->AsLclVarCommon();
+                        }
+                        else
+                        {
+                            assert(addr->IsLocalAddrExpr() == nullptr);
+                        }
+                    }
+                    if (lclVar != nullptr)
+                    {
+                        impSpillLclRefs(lclVar->gtLclNum);
+                    }
                 }
 
                 /* Append 'op1' to the list of statements */
