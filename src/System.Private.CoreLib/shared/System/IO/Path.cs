@@ -462,7 +462,7 @@ namespace System.IO
                 return true;
             }
 
-            bool needsSeparator = !(PathInternal.EndsInDirectorySeparator(path1) || PathInternal.StartsWithDirectorySeparator(path2));
+            bool needsSeparator = !(EndsInDirectorySeparator(path1) || PathInternal.StartsWithDirectorySeparator(path2));
             int charsNeeded = path1.Length + path2.Length + (needsSeparator ? 1 : 0);
             if (destination.Length < charsNeeded)
                 return false;
@@ -490,8 +490,8 @@ namespace System.IO
             if (path3.Length == 0)
                 return TryJoin(path1, path2, destination, out charsWritten);
 
-            int neededSeparators = PathInternal.EndsInDirectorySeparator(path1) || PathInternal.StartsWithDirectorySeparator(path2) ? 0 : 1;
-            bool needsSecondSeparator = !(PathInternal.EndsInDirectorySeparator(path2) || PathInternal.StartsWithDirectorySeparator(path3));
+            int neededSeparators = EndsInDirectorySeparator(path1) || PathInternal.StartsWithDirectorySeparator(path2) ? 0 : 1;
+            bool needsSecondSeparator = !(EndsInDirectorySeparator(path2) || PathInternal.StartsWithDirectorySeparator(path3));
             if (needsSecondSeparator)
                 neededSeparators++;
 
@@ -752,10 +752,10 @@ namespace System.IO
 
             // Trailing separators aren't significant for comparison
             int relativeToLength = relativeTo.Length;
-            if (PathInternal.EndsInDirectorySeparator(relativeTo.AsSpan()))
+            if (EndsInDirectorySeparator(relativeTo.AsSpan()))
                 relativeToLength--;
 
-            bool pathEndsInSeparator = PathInternal.EndsInDirectorySeparator(path.AsSpan());
+            bool pathEndsInSeparator = EndsInDirectorySeparator(path.AsSpan());
             int pathLength = path.Length;
             if (pathEndsInSeparator)
                 pathLength--;
@@ -830,7 +830,7 @@ namespace System.IO
         /// </summary>
         /// <param name="path"></param>
         public static string TrimEndingDirectorySeparator(string path) =>
-            PathInternal.EndsInDirectorySeparator(path.AsSpan()) && !PathInternal.IsRoot(path.AsSpan()) ?
+            EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path.AsSpan()) ?
                 path.Substring(0, path.Length - 1) :
                 path;
 
@@ -839,8 +839,20 @@ namespace System.IO
         /// </summary>
         /// <param name="path"></param>
         public static ReadOnlySpan<char> TrimEndingDirectorySeparator(ReadOnlySpan<char> path) =>
-            PathInternal.EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path) ?
+            EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path) ?
                 path.Slice(0, path.Length - 1) :
                 path;
+
+        /// <summary>
+        /// Returns true if the path ends in a directory separator.
+        /// </summary>
+        public static bool EndsInDirectorySeparator(ReadOnlySpan<char> path)
+            => path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
+
+        /// <summary>
+        /// Returns true if the path ends in a directory separator.
+        /// </summary>
+        public static bool EndsInDirectorySeparator(string path)
+              => path != null && path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
     }
 }
