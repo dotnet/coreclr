@@ -25,8 +25,7 @@ jobs:
     dependsOn:
     - Asset_Registry_Publish
     pool:
-      name: NetCoreInternal-Int-Pool
-      queue: BuildPool.Windows.10.Amd64.VS2017
+      name: Hosted VS2017
     variables:
       - group: DotNet-Versions-Publish
     steps:
