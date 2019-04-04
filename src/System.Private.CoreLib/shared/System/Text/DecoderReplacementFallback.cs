@@ -117,8 +117,6 @@ namespace System.Text
         // Fallback Methods
         public override bool Fallback(byte[] bytesUnknown, int index)
         {
-            // TODO-NULLABLE: NullReferenceException (bytesUnknown passed to ThrowLastBytesRecursive)
-
             // We expect no previous fallback in our buffer
             // We can't call recursively but others might (note, we don't test on last char!!!)
             if (_fallbackCount >= 1)

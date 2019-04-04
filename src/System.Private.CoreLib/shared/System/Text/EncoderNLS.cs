@@ -25,7 +25,7 @@ namespace System.Text
     {
         // Need a place for the last left over character, most of our encodings use this
         internal char _charLeftOver;
-        private Encoding? _encoding;
+        private Encoding _encoding;
         private bool _mustFlush;
         internal bool _throwOnOverflow;
         internal int _charsUsed;
@@ -34,13 +34,6 @@ namespace System.Text
         {
             _encoding = encoding;
             _fallback = _encoding.EncoderFallback;
-            this.Reset();
-        }
-
-        internal EncoderNLS()
-        {
-            // TODO-NULLABLE: _encoding doesn't seem to ever be null and this constructor has 0 refs
-            _encoding = null;
             this.Reset();
         }
 

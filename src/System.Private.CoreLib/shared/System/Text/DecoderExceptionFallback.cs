@@ -50,7 +50,6 @@ namespace System.Text
     {
         public override bool Fallback(byte[] bytesUnknown, int index)
         {
-            // TODO-NULLABLE: NullReferenceException
             Throw(bytesUnknown, index);
             return true;
         }
@@ -77,6 +76,8 @@ namespace System.Text
 
         private void Throw(byte[] bytesUnknown, int index)
         {
+            bytesUnknown = bytesUnknown ?? Array.Empty<byte>();
+
             // Create a string representation of our bytes.            
             StringBuilder strBytes = new StringBuilder(bytesUnknown.Length * 3);
 

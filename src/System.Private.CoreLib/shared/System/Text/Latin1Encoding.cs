@@ -26,9 +26,7 @@ namespace System.Text
         // GetByteCount
         // Note: We start by assuming that the output will be the same as count.  Having
         // an encoder or fallback may change that assumption
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal override unsafe int GetByteCount(char* chars, int charCount, EncoderNLS? encoder)
-#pragma warning restore CS8610
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
             Debug.Assert(charCount >= 0, "[Latin1Encoding.GetByteCount]count is negative");
@@ -148,10 +146,8 @@ namespace System.Text
             return byteCount;
         }
 
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal override unsafe int GetBytes(char* chars, int charCount,
                                                 byte* bytes, int byteCount, EncoderNLS? encoder)
-#pragma warning restore CS8610
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
             Debug.Assert(bytes != null, "[Latin1Encoding.GetBytes]bytes is null");
@@ -370,9 +366,7 @@ namespace System.Text
         }
 
         // This is internal and called by something else,
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS? decoder)
-#pragma warning restore CS8610
         {
             // Just assert, we're called internally so these should be safe, checked already
             Debug.Assert(bytes != null, "[Latin1Encoding.GetCharCount]bytes is null");
@@ -383,10 +377,8 @@ namespace System.Text
             return count;
         }
 
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal override unsafe int GetChars(byte* bytes, int byteCount,
                                                 char* chars, int charCount, DecoderNLS? decoder)
-#pragma warning restore CS8610
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
             Debug.Assert(bytes != null, "[Latin1Encoding.GetChars]bytes is null");

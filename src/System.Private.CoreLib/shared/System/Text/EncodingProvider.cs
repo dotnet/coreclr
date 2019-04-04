@@ -21,7 +21,7 @@ namespace System.Text
             Encoding? enc = GetEncoding(name);
             if (enc != null)
             {
-                enc = (Encoding)GetEncoding(name)!.Clone(); // TODO-NULLABLE: this could be enc.Clone()
+                enc = (Encoding)enc.Clone();
                 enc.EncoderFallback = encoderFallback;
                 enc.DecoderFallback = decoderFallback;
             }

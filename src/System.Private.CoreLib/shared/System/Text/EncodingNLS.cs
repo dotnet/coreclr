@@ -57,7 +57,7 @@ namespace System.Text
 
             // Just call the pointer version
             fixed (char* pChars = chars)
-                return GetByteCount(pChars + index, count, null!); // TODO-NULLABLE: there is exactly one class overriding this and base class explicitly asserts this is non-nullable
+                return GetByteCount(pChars + index, count, null);
         }
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
@@ -71,7 +71,7 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(s));
 
             fixed (char* pChars = s)
-                return GetByteCount(pChars, s.Length, null!); // TODO-NULLABLE: there is exactly one class overriding this and base class explicitly asserts this is non-nullable
+                return GetByteCount(pChars, s.Length, null);
         }       
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
@@ -87,7 +87,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             
             // Call it with empty encoder
-            return GetByteCount(chars, count, null!); // TODO-NULLABLE: there is exactly one class overriding this and base class explicitly asserts this is non-nullable
+            return GetByteCount(chars, count, null);
         }
 
         // Parent method is safe.
@@ -112,7 +112,7 @@ namespace System.Text
             int byteCount = bytes.Length - byteIndex;
 
             fixed (char* pChars = s) fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
-                return GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, null!); // TODO-NULLABLE: there is exactly one class overriding this and base class explicitly asserts this is non-nullable
+                return GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, null);
         }
 
         // Encodes a range of characters in a character array into a range of bytes
@@ -153,7 +153,7 @@ namespace System.Text
 
             fixed (char* pChars = chars) fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
                 // Remember that byteCount is # to decode, not size of array.
-                return GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, null!); // TODO-NULLABLE: there is exactly one class overriding this and base class explicitly asserts this is non-nullable
+                return GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, null);
         }
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
@@ -168,7 +168,7 @@ namespace System.Text
             if (charCount < 0 || byteCount < 0)
                 throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)),  SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            return GetBytes(chars, charCount, bytes, byteCount, null!); // TODO-NULLABLE: there is exactly one class overriding this and base class explicitly asserts this is non-nullable
+            return GetBytes(chars, charCount, bytes, byteCount, null);
         }
 
         // Returns the number of characters produced by decoding a range of bytes
@@ -196,7 +196,7 @@ namespace System.Text
 
             // Just call pointer version
             fixed (byte* pBytes = bytes)
-                return GetCharCount(pBytes + index, count, null!); // TODO-NULLABLE: there is exactly one class overriding this and base class explicitly asserts this is non-nullable
+                return GetCharCount(pBytes + index, count, null);
         }
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
@@ -211,7 +211,7 @@ namespace System.Text
             if (count < 0)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             
-            return GetCharCount(bytes, count, null!); // TODO-NULLABLE: there is exactly one class overriding this and base class explicitly asserts this is non-nullable
+            return GetCharCount(bytes, count, null);
         }
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
@@ -243,7 +243,7 @@ namespace System.Text
 
             fixed (byte* pBytes = bytes) fixed (char* pChars = &MemoryMarshal.GetReference((Span<char>)chars))
                 // Remember that charCount is # to decode, not size of array
-                return GetChars(pBytes + byteIndex, byteCount, pChars + charIndex, charCount, null!); // TODO-NULLABLE: there is exactly one class overriding this and base class explicitly asserts this is non-nullable
+                return GetChars(pBytes + byteIndex, byteCount, pChars + charIndex, charCount, null);
         }
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
@@ -258,7 +258,7 @@ namespace System.Text
             if (charCount < 0 || byteCount < 0)
                 throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
             
-            return GetChars(bytes, byteCount, chars, charCount, null!); // TODO-NULLABLE: there is exactly one class overriding this and base class explicitly asserts this is non-nullable
+            return GetChars(bytes, byteCount, chars, charCount, null);
         }
 
         // Returns a string containing the decoded representation of a range of

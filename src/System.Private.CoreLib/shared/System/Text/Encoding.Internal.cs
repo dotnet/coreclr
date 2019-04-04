@@ -121,7 +121,7 @@ namespace System.Text
         /// <summary>
         /// Entry point from <see cref="EncoderNLS.GetByteCount"/>.
         /// </summary>
-        internal virtual unsafe int GetByteCount(char* pChars, int charCount, EncoderNLS encoder)
+        internal virtual unsafe int GetByteCount(char* pChars, int charCount, EncoderNLS? encoder)
         {
             Debug.Assert(encoder != null, "This code path should only be called from EncoderNLS.");
             Debug.Assert(charCount >= 0, "Caller should've checked this condition.");
@@ -398,7 +398,7 @@ namespace System.Text
         /// <summary>
         /// Entry point from <see cref="EncoderNLS.GetBytes"/> and <see cref="EncoderNLS.Convert"/>.
         /// </summary>
-        internal virtual unsafe int GetBytes(char* pChars, int charCount, byte* pBytes, int byteCount, EncoderNLS encoder)
+        internal virtual unsafe int GetBytes(char* pChars, int charCount, byte* pBytes, int byteCount, EncoderNLS? encoder)
         {
             Debug.Assert(encoder != null, "This code path should only be called from EncoderNLS.");
             Debug.Assert(charCount >= 0, "Caller should've checked this condition.");
@@ -706,7 +706,7 @@ namespace System.Text
         /// <summary>
         /// Entry point from <see cref="DecoderNLS.GetCharCount"/>.
         /// </summary>
-        internal virtual unsafe int GetCharCount(byte* pBytes, int byteCount, DecoderNLS decoder)
+        internal virtual unsafe int GetCharCount(byte* pBytes, int byteCount, DecoderNLS? decoder)
         {
             Debug.Assert(decoder != null, "This code path should only be called from DecoderNLS.");
             Debug.Assert(byteCount >= 0, "Caller should've checked this condition.");
@@ -980,7 +980,7 @@ namespace System.Text
         /// <summary>
         /// Entry point from <see cref="DecoderNLS.GetChars"/> and <see cref="DecoderNLS.Convert"/>.
         /// </summary>
-        internal virtual unsafe int GetChars(byte* pBytes, int byteCount, char* pChars, int charCount, DecoderNLS decoder)
+        internal virtual unsafe int GetChars(byte* pBytes, int byteCount, char* pChars, int charCount, DecoderNLS? decoder)
         {
             Debug.Assert(decoder != null, "This code path should only be called from DecoderNLS.");
             Debug.Assert(byteCount >= 0, "Caller should've checked this condition.");

@@ -395,9 +395,7 @@ namespace System.Text
         //
         // End of standard methods copied from EncodingNLS.cs
         //
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal sealed override unsafe int GetByteCount(char* chars, int count, EncoderNLS? baseEncoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(chars != null, "[UTF7Encoding.GetByteCount]chars!=null");
             Debug.Assert(count >= 0, "[UTF7Encoding.GetByteCount]count >=0");
@@ -406,10 +404,8 @@ namespace System.Text
             return GetBytes(chars, count, null, 0, baseEncoder);
         }
 
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal sealed override unsafe int GetBytes(
             char* chars, int charCount, byte* bytes, int byteCount, EncoderNLS? baseEncoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(byteCount >= 0, "[UTF7Encoding.GetBytes]byteCount >=0");
             Debug.Assert(chars != null, "[UTF7Encoding.GetBytes]chars!=null");
@@ -548,9 +544,7 @@ namespace System.Text
             return buffer.Count;
         }
 
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal sealed override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS? baseDecoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(count >= 0, "[UTF7Encoding.GetCharCount]count >=0");
             Debug.Assert(bytes != null, "[UTF7Encoding.GetCharCount]bytes!=null");
@@ -559,10 +553,8 @@ namespace System.Text
             return GetChars(bytes, count, null, 0, baseDecoder);
         }
 
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal sealed override unsafe int GetChars(
             byte* bytes, int byteCount, char* chars, int charCount, DecoderNLS? baseDecoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(byteCount >= 0, "[UTF7Encoding.GetChars]byteCount >=0");
             Debug.Assert(bytes != null, "[UTF7Encoding.GetChars]bytes!=null");

@@ -1203,7 +1203,7 @@ namespace System.Text
             {
                 unsafe
                 {
-                    fixed (char* valueChars = &value![0]) // TODO-NULLABLE: ! should not be required
+                    fixed (char* valueChars = &value[0])
                     {
                         Append(valueChars, value.Length);
                     }
@@ -1325,7 +1325,7 @@ namespace System.Text
 
             if (values[0] != null)
             {
-                Append(values[0]!.ToString()); // TODO-NULLABLE: ! should not be required
+                Append(values[0]!.ToString()); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
             }
 
             for (int i = 1; i < values.Length; i++)
@@ -1333,7 +1333,7 @@ namespace System.Text
                 Append(separator, separatorLength);
                 if (values[i] != null)
                 {
-                    Append(values[i]!.ToString()); // TODO-NULLABLE: ! should not be required
+                    Append(values[i]!.ToString()); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
                 }
             }
             return this;
@@ -1787,7 +1787,7 @@ namespace System.Text
         /// If <paramref name="newValue"/> is <c>null</c>, instances of <paramref name="oldValue"/>
         /// are removed from this builder.
         /// </remarks>
-        public StringBuilder Replace(string oldValue, string newValue) => Replace(oldValue, newValue, 0, Length);
+        public StringBuilder Replace(string oldValue, string? newValue) => Replace(oldValue, newValue, 0, Length);
 
         /// <summary>
         /// Determines if the contents of this builder are equal to the contents of another builder.
@@ -1879,7 +1879,7 @@ namespace System.Text
         /// If <paramref name="newValue"/> is <c>null</c>, instances of <paramref name="oldValue"/>
         /// are removed from this builder.
         /// </remarks>
-        public StringBuilder Replace(string oldValue, string newValue, int startIndex, int count)
+        public StringBuilder Replace(string oldValue, string? newValue, int startIndex, int count)
         {
             int currentLength = Length;
             if ((uint)startIndex > (uint)currentLength)
@@ -2229,7 +2229,9 @@ namespace System.Text
                     indexInChunk += lengthToCopy;
                     if (indexInChunk >= chunk.m_ChunkLength)
                     {
-                        chunk = Next(chunk)!;
+                        StringBuilder? nextChunk = Next(chunk);
+                        Debug.Assert(nextChunk != null, "we should never get past last chunk because range should already be validated before calling");
+                        chunk = nextChunk;
                         indexInChunk = 0;
                     }
                     count -= lengthToCopy;

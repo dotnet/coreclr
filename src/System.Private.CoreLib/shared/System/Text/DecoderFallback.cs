@@ -15,11 +15,11 @@ namespace System.Text
         private static DecoderFallback? s_exceptionFallback;
 
         public static DecoderFallback ReplacementFallback =>
-            s_replacementFallback ?? Interlocked.CompareExchange(ref s_replacementFallback, new DecoderReplacementFallback(), null) ?? s_replacementFallback!;        
+            s_replacementFallback ?? Interlocked.CompareExchange(ref s_replacementFallback, new DecoderReplacementFallback(), null) ?? s_replacementFallback!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
 
 
         public static DecoderFallback ExceptionFallback =>
-            s_exceptionFallback ?? Interlocked.CompareExchange<DecoderFallback?>(ref s_exceptionFallback, new DecoderExceptionFallback(), null) ?? s_exceptionFallback!;
+            s_exceptionFallback ?? Interlocked.CompareExchange<DecoderFallback?>(ref s_exceptionFallback, new DecoderExceptionFallback(), null) ?? s_exceptionFallback!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
 
         // Fallback
         //
@@ -299,6 +299,8 @@ namespace System.Text
         // private helper methods
         internal void ThrowLastBytesRecursive(byte[] bytesUnknown)
         {
+            bytesUnknown = bytesUnknown ?? Array.Empty<byte>();
+
             // Create a string representation of our bytes.
             StringBuilder strBytes = new StringBuilder(bytesUnknown.Length * 3);
             int i;

@@ -157,7 +157,7 @@ namespace System.Text
         {
             // Validate input
             if (chars == null)
-                throw new ArgumentNullException("s");
+                throw new ArgumentNullException(nameof(chars));
 
             fixed (char* pChars = chars)
                 return GetByteCount(pChars, chars.Length, null);
@@ -430,9 +430,7 @@ namespace System.Text
 
         // To simplify maintenance, the structure of GetByteCount and GetBytes should be
         // kept the same as much as possible
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal sealed override unsafe int GetByteCount(char* chars, int count, EncoderNLS? baseEncoder)
-#pragma warning restore CS8610
         {
             // For fallback we may need a fallback buffer.
             // We wait to initialize it though in case we don't have any broken input unicode
@@ -841,10 +839,8 @@ namespace System.Text
 
         // Our workhorse
         // Note:  We ignore mismatched surrogates, unless the exception flag is set in which case we throw
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal sealed override unsafe int GetBytes(
             char* chars, int charCount, byte* bytes, int byteCount, EncoderNLS? baseEncoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(chars != null, "[UTF8Encoding.GetBytes]chars!=null");
             Debug.Assert(byteCount >= 0, "[UTF8Encoding.GetBytes]byteCount >=0");
@@ -1332,9 +1328,7 @@ namespace System.Text
         //
         // To simplify maintenance, the structure of GetCharCount and GetChars should be
         // kept the same as much as possible
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal sealed override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS? baseDecoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(count >= 0, "[UTF8Encoding.GetCharCount]count >=0");
             Debug.Assert(bytes != null, "[UTF8Encoding.GetCharCount]bytes!=null");
@@ -1772,10 +1766,8 @@ namespace System.Text
         //
         // To simplify maintenance, the structure of GetCharCount and GetChars should be
         // kept the same as much as possible
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal sealed override unsafe int GetChars(
             byte* bytes, int byteCount, char* chars, int charCount, DecoderNLS? baseDecoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(chars != null, "[UTF8Encoding.GetChars]chars!=null");
             Debug.Assert(byteCount >= 0, "[UTF8Encoding.GetChars]count >=0");

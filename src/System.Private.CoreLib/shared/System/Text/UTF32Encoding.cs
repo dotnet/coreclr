@@ -363,9 +363,7 @@ namespace System.Text
         //
         // End of standard methods copied from EncodingNLS.cs
         //
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal override unsafe int GetByteCount(char* chars, int count, EncoderNLS? encoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(chars != null, "[UTF32Encoding.GetByteCount]chars!=null");
             Debug.Assert(count >= 0, "[UTF32Encoding.GetByteCount]count >=0");
@@ -387,7 +385,7 @@ namespace System.Text
 
                 // We mustn't have left over fallback data when counting
                 if (fallbackBuffer.Remaining > 0)
-                    throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty, this.EncodingName, encoder.Fallback!.GetType())); // TODO-NULLABLE: NullReferenceException
+                    throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty, this.EncodingName, encoder.Fallback?.GetType().ToString() ?? string.Empty));
             }
             else
             {
@@ -496,10 +494,8 @@ namespace System.Text
             return byteCount;
         }
 
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal override unsafe int GetBytes(char* chars, int charCount,
                                                  byte* bytes, int byteCount, EncoderNLS? encoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(chars != null, "[UTF32Encoding.GetBytes]chars!=null");
             Debug.Assert(bytes != null, "[UTF32Encoding.GetBytes]bytes!=null");
@@ -700,9 +696,7 @@ namespace System.Text
             return (int)(bytes - byteStart);
         }
 
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS? baseDecoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(bytes != null, "[UTF32Encoding.GetCharCount]bytes!=null");
             Debug.Assert(count >= 0, "[UTF32Encoding.GetCharCount]count >=0");
@@ -844,10 +838,8 @@ namespace System.Text
             return charCount;
         }
 
-#pragma warning disable CS8610 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         internal override unsafe int GetChars(byte* bytes, int byteCount,
                                                 char* chars, int charCount, DecoderNLS? baseDecoder)
-#pragma warning restore CS8610
         {
             Debug.Assert(chars != null, "[UTF32Encoding.GetChars]chars!=null");
             Debug.Assert(bytes != null, "[UTF32Encoding.GetChars]bytes!=null");
