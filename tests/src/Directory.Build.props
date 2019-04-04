@@ -3,4 +3,6 @@
        We include the dir.props for them here so they partake in the old 
        style of build without them needing to explicitly include anything -->
 
+  <Import Project="$(MSBuildThisFileDirectory)/../Directory.Build.props" />
+
 </Project>

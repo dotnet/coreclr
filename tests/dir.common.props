@@ -12,6 +12,10 @@
     <ProjectDir Condition="'$(__ProjectDir)'==''">$(MSBuildThisFileDirectory)../</ProjectDir>
     <CoreclrDir>$(ProjectDir)</CoreclrDir>
 
+    <BuildOS>$(__BuildOS)</BuildOS>
+    <BuildOS Condition="'$(__BuildOS)' == '' And '$([MSBuild]::IsOSPlatform(Windows))' == 'true'">Windows_NT</BuildOS>
+    <BuildOS Condition="'$(__BuildOS)' == '' And '$([MSBuild]::IsOSPlatform(Linux))' == 'true'">Linux</BuildOS>
+    <BuildOS Condition="'$(__BuildOS)' == '' And '$([MSBuild]::IsOSPlatform(OSX))' == 'true'">OSX</BuildOS>
 
     <RootArtifactsDir>$(__RootArtifactsDir)</RootArtifactsDir>
     <RootArtifactsDir Condition="'$(RootArtifactsDir)'==''">$(ProjectDir)artifacts/</RootArtifactsDir>
@@ -26,8 +30,10 @@
          for the lock file, and props/targets from nuget packages. -->
     <BaseIntermediateOutputPath>$(RootArtifactsDir)tests/obj/$(OSPlatformConfig)/Managed/$(BuildProjectRelativeDir)/</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
 
     <BaseOutputPath>$(RootArtifactsDir)tests/$(OSPlatformConfig)/$(BuildProjectRelativeDir)</BaseOutputPath>
+    <OutDir>$(BaseOutputPath)/</OutDir>
 
   </PropertyGroup>
 

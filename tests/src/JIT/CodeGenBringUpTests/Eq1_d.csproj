@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
+  <Target Name="HackToRestoreAracde" BeforeTargets="BeforeBuild" DependsOnTargets="Restore">
+  <Message Text="Platform: $(Platform)" Importance="High" />
+  </Target>
+
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -18,5 +22,4 @@
   <ItemGroup>
     <Compile Include="Eq1.cs" />
   </ItemGroup>
-  <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
 </Project>

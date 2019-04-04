@@ -1,8 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Condition="'$(ProjectDir)' != ''" Project="$(ProjectDir)dependencies.props" />
+  
   <PropertyGroup>
     <!-- Given that xunit packages bring with them part of the framework, we need to specify a runtime in order to get the assets
          This RID value doesn't really matter, since the assets we are copying are not RID specific, so defaulting to Windows here
     -->
+
     <RestoreOutputPath>$(MSBuildThisFileDirectory)obj</RestoreOutputPath>
     <Language>C#</Language>
     <NugetTargetMoniker>.NETCoreApp,Version=v1.1</NugetTargetMoniker>

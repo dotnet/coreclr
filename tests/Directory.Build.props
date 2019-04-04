@@ -8,6 +8,7 @@
   <PropertyGroup>
     <LangVersion>8.0</LangVersion>
     <UseSharedCompilation>true</UseSharedCompilation>
+    <BuildingTests>true</BuildingTests>
   </PropertyGroup>
 
   <Import Project="dir.sdkbuild.props" Condition="'$(ArcadeBuild)' == 'true'"  />

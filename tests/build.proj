@@ -25,7 +25,7 @@
     <Message Text="Building Targeting Pack" Importance="High" />
     <Error  Text="BuildOS has not been specified. Please do that then run build again."  Condition="'$(BuildOS)' == 'AnyOS'" />
 
-    <Exec Command="$(DotnetRestoreCommand) $(MSBuildThisFileDirectory)\src\Common\external\external.depproj $(PackageVersionArg)" StandardOutputImportance="Low" />
+    <Exec Command="$(DotnetRestoreCommand) $(MSBuildThisFileDirectory)\src\Common\external\external.depproj $(PackageVersionArg) /p:ProjectDir=$(ProjectDir)" StandardOutputImportance="High" />
   </Target>
 
   <Target Name="BatchRestorePackages" Condition="$(__SkipPackageRestore) != 'true'">
