@@ -27,12 +27,15 @@ else()
   message("Using Windows SDK version ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} for WinRT interop tests.")
 endif()
 
-set (WINDOWS_KITS_10_ROOT "C:/Program Files (x86)/Windows Kits/10/")
-
-set (METADATA_DIR "${WINDOWS_KITS_10_ROOT}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/windows.foundation.foundationcontract/*" )
+set (PROGRAM_FILES_X86 "ProgramFiles(x86)")
+set (WINDOWS_KITS_DIR "$ENV{${PROGRAM_FILES_X86}}/Windows Kits/10")
+if (NOT EXISTS ${WINDOWS_KITS_DIR})
+  set (WINDOWS_KITS_DIR "$ENV{ProgramFiles}/Windows Kits/10")
+endif()
+set (METADATA_DIR "${WINDOWS_KITS_DIR}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/windows.foundation.foundationcontract/*" )
 set (REFERENCE_WINMDS
-  "${WINDOWS_KITS_10_ROOT}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.FoundationContract/*/Windows.Foundation.FoundationContract.winmd"
-  "${WINDOWS_KITS_10_ROOT}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.UniversalApiContract/*/Windows.Foundation.UniversalApiContract.winmd")
+  "${WINDOWS_KITS_DIR}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.FoundationContract/*/Windows.Foundation.FoundationContract.winmd"
+  "${WINDOWS_KITS_DIR}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.UniversalApiContract/*/Windows.Foundation.UniversalApiContract.winmd")
 
 file(GLOB RESOLVED_METADATA_DIR ${METADATA_DIR})
 file(TO_NATIVE_PATH ${RESOLVED_METADATA_DIR} METADATA_DIR_ARGUMENT)
@@ -83,7 +86,7 @@ set (CPP_WINRT_OUTPUT_FILES
 
 include_directories(${CPP_WINRT_OUTPUT_FOLDER})
 
-set(CPPWINRT "${WINDOWS_KITS_10_ROOT}/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x86/cppwinrt.exe")
+set(CPPWINRT "${WINDOWS_KITS_DIR}/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x86/cppwinrt.exe")
 
 message("Using cppwinrt from ${CPPWINRT}.")
 

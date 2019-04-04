@@ -10,8 +10,8 @@ template<typename K, typename V>
 struct pair_wrapper : winrt::implements<pair_wrapper<K, V>, winrt::Windows::Foundation::Collections::IKeyValuePair<K, V>>
 {
     pair_wrapper(const K& key, const V& value)
-        :key(key),
-        value(value)
+        :key{ key },
+        value{ value }
     {}
 
     K Key()
