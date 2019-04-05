@@ -105,7 +105,8 @@ public:
     // skip any events that might be partially written due to races when tracing is stopped.
     void WriteAllBuffersToFile(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp);
 
-    // Write the latest event to the File.
+    // Used by IPC streaming EventPipe sessions. Writes out a single event out to 
+    // the IPC channel. 
     void EventPipeBufferManager::WriteNextEventToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp);
 
     // Attempt to de-allocate resources as best we can.  It is possible for some buffers to leak because
