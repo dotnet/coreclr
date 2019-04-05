@@ -398,11 +398,20 @@ namespace System.Runtime.Loader
             }
         }
 
-        private static readonly AsyncLocal<AssemblyLoadContext> _asyncLocalCurrentContextualReflectionContext = new AsyncLocal<AssemblyLoadContext>();
+        internal static class StaticAsyncLocalCurrentContextualReflectionContext
+        {
+            private static readonly AsyncLocal<AssemblyLoadContext> _asyncLocalCurrentContextualReflectionContext = new AsyncLocal<AssemblyLoadContext>();
+
+            public static AssemblyLoadContext Value
+            {
+                get { return _asyncLocalCurrentContextualReflectionContext.Value; }
+                set { _asyncLocalCurrentContextualReflectionContext.Value = value; }
+            }
+        }
 
         public static AssemblyLoadContext CurrentContextualReflectionContext
         {
-            get { return _asyncLocalCurrentContextualReflectionContext.Value; }
+            get { return StaticAsyncLocalCurrentContextualReflectionContext.Value; }
         }
 
         public ContextualReflectionScope EnterContextualReflection()
@@ -410,7 +419,7 @@ namespace System.Runtime.Loader
             return new ContextualReflectionScope(this);
         }
 
-        static public ContextualReflectionScope EnterContextualReflection(Assembly activating)
+        public static ContextualReflectionScope EnterContextualReflection(Assembly activating)
         {
             return activating != null ?
                 GetLoadContext(activating).EnterContextualReflection() :
@@ -420,22 +429,26 @@ namespace System.Runtime.Loader
         [EditorBrowsable(EditorBrowsableState.Never)]
         public struct ContextualReflectionScope : IDisposable
         {
-            private bool disposed;
-            private AssemblyLoadContext predecessor;
+            private AssemblyLoadContext _activated;
+            private AssemblyLoadContext _predecessor;
 
-            public ContextualReflectionScope(AssemblyLoadContext activating)
+            internal ContextualReflectionScope(AssemblyLoadContext activating)
             {
-                predecessor = AssemblyLoadContext.CurrentContextualReflectionContext;
-                disposed = false;
-                AssemblyLoadContext._asyncLocalCurrentContextualReflectionContext.Value = activating;
+                _predecessor = StaticAsyncLocalCurrentContextualReflectionContext.Value;
+                StaticAsyncLocalCurrentContextualReflectionContext.Value = activating;
+                _activated = activating;
             }
 
             public void Dispose()
             {
-                if(!this.disposed)
+                if(_activated != _predecessor)
                 {
-                    AssemblyLoadContext._asyncLocalCurrentContextualReflectionContext.Value = predecessor;
-                    disposed = true;
+                    if (StaticAsyncLocalCurrentContextualReflectionContext.Value != _activated)
+                    {
+                        throw new InvalidOperationException();
+                    }
+                    StaticAsyncLocalCurrentContextualReflectionContext.Value = _predecessor;
+                    _activated = _predecessor;
                 }
             }
         }
