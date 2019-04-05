@@ -352,8 +352,6 @@ namespace System.Runtime.Loader
                 throw new ArgumentException(SR.Argument_AbsolutePathRequired, nameof(unmanagedDllPath));
             }
             
-            unmanagedDllPath = PathInternal.RemoveRelativeSegments(unmanagedDllPath, PathInternal.GetRootLength(unmanagedDllPath));
-
             return InternalLoadUnmanagedDllFromPath(unmanagedDllPath);
         }
 
