@@ -22,6 +22,7 @@ IpcStreamWriter::IpcStreamWriter(IpcStream *pStream) : _pStream(pStream)
         PRECONDITION(_pStream != nullptr);
     }
     CONTRACTL_END;
+    m_type = StreamWriterType::Ipc;
 }
 
 IpcStreamWriter::~IpcStreamWriter()
@@ -63,7 +64,7 @@ FileStreamWriter::FileStreamWriter(const SString &outputFilePath)
         MODE_ANY;
     }
     CONTRACTL_END;
-
+    m_type = StreamWriterType::File;
     m_pFileStream = new CFileStream();
     if (FAILED(m_pFileStream->OpenForWrite(outputFilePath)))
     {

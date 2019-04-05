@@ -596,8 +596,8 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
     }
     CONTRACTL_END;
 
-    // // Take the lock control lock to make sure that tracing isn't disabled during this operation.
-    // CrstHolder _crst(GetLock());
+    // Take the lock control lock to make sure that tracing isn't disabled during this operation.
+    CrstHolder _crst(GetLock());
 
     if (s_pSession == nullptr || s_pFile == nullptr)
         return;
