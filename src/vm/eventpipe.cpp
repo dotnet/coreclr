@@ -343,7 +343,7 @@ EventPipeSessionID EventPipe::Enable(
     s_pFile = new EventPipeFile(new IpcStreamWriter(pStream));
 
     // Enable the session.
-    const DWORD FlushTimerPeriodMS = 100; // TODO: Define a good number here for streaming.
+    const DWORD FlushTimerPeriodMS = 50; // TODO: Define a good number here for streaming.
     return Enable(pSession, FlushTimer, FlushTimerPeriodMS, FlushTimerPeriodMS);
 }
 
@@ -596,8 +596,8 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
     }
     CONTRACTL_END;
 
-    // Take the lock control lock to make sure that tracing isn't disabled during this operation.
-    CrstHolder _crst(GetLock());
+    // // Take the lock control lock to make sure that tracing isn't disabled during this operation.
+    // CrstHolder _crst(GetLock());
 
     if (s_pSession == nullptr || s_pFile == nullptr)
         return;
@@ -615,7 +615,7 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
         // the current timestamp are written into the file.
         LARGE_INTEGER stopTimeStamp;
         QueryPerformanceCounter(&stopTimeStamp);
-        s_pBufferManager->WriteAllBuffersToFile(s_pFile, stopTimeStamp);
+        s_pBufferManager->WriteNextEventToFile(s_pFile, stopTimeStamp);
 
         s_lastFlushSwitchTime = CLRGetTickCount64();
     }

@@ -105,6 +105,9 @@ public:
     // skip any events that might be partially written due to races when tracing is stopped.
     void WriteAllBuffersToFile(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp);
 
+    // Write the latest event to the File.
+    void EventPipeBufferManager::WriteNextEventToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp);
+
     // Attempt to de-allocate resources as best we can.  It is possible for some buffers to leak because
     // threads can be in the middle of a write operation and get blocked, and we may not get an opportunity
     // to free their buffer for a very long time.
