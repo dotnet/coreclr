@@ -740,6 +740,32 @@
         }
     },
     {
+        "name": "System.IO.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.IO.Tests.CloseTests.AfterDisposeThrows",
+                    "reason": "Readers/writers changed to not null out base stream on dispose"
+                },
+                {
+                    "name": "System.IO.Tests.CloseTests.AfterCloseThrows",
+                    "reason": "Readers/writers changed to not null out base stream on dispose"
+                },
+                {
+                    "name": "System.IO.Tests.StreamWriterWithBufferedStream_CloseTests.AfterDisposeThrows",
+                    "reason": "Readers/writers changed to not null out base stream on dispose"
+                },
+                {
+                    "name": "System.IO.Tests.StreamWriterWithBufferedStream_CloseTests.AfterCloseThrows",
+                    "reason": "Readers/writers changed to not null out base stream on dispose"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.IO.FileSystem.Tests",
         "enabled": true,
         "exclusions": {
@@ -1056,6 +1082,22 @@
                 },
                 {
                     "name": "System.Runtime.InteropServices.Tests.ArrayWithOffsetTests.Ctor_Array_Offset",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.StringToCoTaskMemAutoTests.StringToCoTaskMemAuto_NonNullString_Roundtrips",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.StringToHGlobalAutoTests.StringToHGlobalAuto_NonNullString_Roundtrips",
+                    "reason": "https://github.com/dotnet/coreclr/pull/23664"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ThrowExceptionForHRTests.ThrowExceptionForHR_NoErrorInfo_ReturnsValidException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ThrowExceptionForHRTests.ThrowExceptionForHR_ErrorInfo_ReturnsValidException",
                     "reason": "outdated"
                 }
             ]

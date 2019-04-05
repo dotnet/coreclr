@@ -61,15 +61,9 @@ VOID GCToEEInterface::AfterGcScanRoots (int condemned, int max_gen,
     CONTRACTL_END;
 
 #ifdef FEATURE_COMINTEROP
-    // Go through all the app domains and for each one detach all the *unmarked* RCWs to prevent
+    // Go through all the only app domain and detach all the *unmarked* RCWs to prevent
     // the RCW cache from resurrecting them.
-    UnsafeAppDomainIterator i(TRUE);
-    i.Init();
-
-    while (i.Next())
-    {
-        i.GetDomain()->DetachRCWs();
-    }
+    ::GetAppDomain()->DetachRCWs();
 #endif // FEATURE_COMINTEROP
 }
 
@@ -1034,10 +1028,9 @@ MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
     return g_pFreeObjectMethodTable;
 }
 
-// These are arbitrary, we shouldn't ever be having confrig keys or values
+// This is arbitrary, we shouldn't ever be having config keys
 // longer than these lengths.
 const size_t MaxConfigKeyLength = 255;
-const size_t MaxConfigValueLength = 255;
 
 bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
 {
@@ -1170,8 +1163,17 @@ bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
         return false;
     }
 
+    int charCount = WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */, NULL, 0, nullptr, nullptr);
+    if (charCount == 0)
+    {
+        // this should only happen if the config subsystem gives us a string that's not valid
+        // unicode.
+        CLRConfig::FreeConfigString(out);
+        return false;
+    }
+
     // not allocated on the stack since it escapes this function
-    AStringHolder configResult = new (nothrow) char[MaxConfigValueLength];
+    AStringHolder configResult = new (nothrow) char[charCount];
     if (!configResult)
     {
         CLRConfig::FreeConfigString(out);
@@ -1179,10 +1181,11 @@ bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
     }
 
     if (WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */,
-          configResult.GetValue(), MaxConfigKeyLength, nullptr, nullptr) == 0)
+          configResult.GetValue(), charCount, nullptr, nullptr) == 0)
     {
-        // this should only happen if the config subsystem gives us a string that's not valid
-        // unicode.
+        // this should never happen, the previous call to WideCharToMultiByte that computed the charCount should 
+        // have caught all issues.
+        assert(false);
         CLRConfig::FreeConfigString(out);
         return false;
     }
@@ -1474,24 +1477,21 @@ uint32_t GCToEEInterface::GetDefaultDomainIndex()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return SystemDomain::System()->DefaultDomain()->GetIndex().m_dwIndex;
+    return DefaultADID;
 }
 
 void *GCToEEInterface::GetAppDomainAtIndex(uint32_t appDomainIndex)
 {
     LIMITED_METHOD_CONTRACT;
 
-    ADIndex index(appDomainIndex);
-    return static_cast<void *>(SystemDomain::GetAppDomainAtIndex(index));
+    return ::GetAppDomain();
 }
 
 bool GCToEEInterface::AppDomainCanAccessHandleTable(uint32_t appDomainID)
 {
     LIMITED_METHOD_CONTRACT;
 
-    ADIndex index(appDomainID);
-    AppDomain *pDomain = SystemDomain::GetAppDomainAtIndex(index);
-    return (pDomain != NULL);
+    return appDomainID == DefaultADID;
 }
 
 uint32_t GCToEEInterface::GetIndexOfAppDomainBeingUnloaded()

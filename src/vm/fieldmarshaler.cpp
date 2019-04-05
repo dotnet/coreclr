@@ -542,6 +542,10 @@ VOID ParseNativeType(Module*                     pModule,
                 {
                     selectedNft = InitFieldMarshaler<FieldMarshaler_Illegal>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_ILLEGAL, IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE);
                 }
+                else if (COMDelegate::IsDelegate(thNestedType.GetMethodTable()))
+                {
+                    selectedNft = InitFieldMarshaler<FieldMarshaler_Illegal>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_ILLEGAL, IDS_EE_BADMARSHAL_DELEGATE_TLB_INTERFACE);
+                }
                 else
                 {
                     ItfMarshalInfo itfInfo;
@@ -746,6 +750,16 @@ VOID ParseNativeType(Module*                     pModule,
                 {
                     selectedNft = InitFieldMarshaler<FieldMarshaler_Delegate>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, thNestedType.GetMethodTable());
                 }
+#ifdef FEATURE_COMINTEROP
+                else if (ntype == NATIVE_TYPE_IDISPATCH)
+                {
+                    ItfMarshalInfo itfInfo;
+                    if (FAILED(MarshalInfo::TryGetItfMarshalInfo(thNestedType, FALSE, FALSE, &itfInfo)))
+                        break;
+
+                    selectedNft = InitFieldMarshaler<FieldMarshaler_Interface>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_INTERFACE_TYPE, itfInfo.thClass.GetMethodTable(), itfInfo.thItf.GetMethodTable(), itfInfo.dwFlags);
+                }
+#endif // FEATURE_COMINTEROP
                 else
                 {
                     selectedNft = InitFieldMarshaler<FieldMarshaler_Illegal>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_ILLEGAL, IDS_EE_BADMARSHAL_DELEGATE);
@@ -1191,7 +1205,7 @@ VOID LayoutUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
             {
                 pCLRValue = *(OBJECTREF*)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
                 pFM->UpdateNative(&pCLRValue, pNativeData + pFM->GetExternalOffset(), ppCleanupWorkListOnStack);
-                SetObjectReferenceUnchecked( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), pCLRValue);
+                SetObjectReference( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), pCLRValue);
             }
 
             // The cleanup work list is not used to clean up the native contents. It is used
@@ -1333,7 +1347,7 @@ VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
             {
                 gc.pOldCLRValue = *(OBJECTREF*)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
                 pFM->UpdateCLR( pNativeData + pFM->GetExternalOffset(), &gc.pCLRValue, &gc.pOldCLRValue );
-                SetObjectReferenceUnchecked( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), gc.pCLRValue );
+                SetObjectReference( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), gc.pCLRValue );
             }
 
             ((BYTE*&)pFM) += MAXFIELDMARSHALERSIZE;
