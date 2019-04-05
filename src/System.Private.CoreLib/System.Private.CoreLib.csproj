@@ -25,7 +25,9 @@
     <CLSCompliant>true</CLSCompliant>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <NoWarn>649,1573,1591,0419,BCL0020</NoWarn> <!-- Remove BCL0020 once https://github.com/dotnet/arcade/pull/2158 is available -->
+    <!-- Remove BCL0020 once https://github.com/dotnet/arcade/pull/2158 is available 
+         Remove CS8608 once https://github.com/dotnet/roslyn/issues/23268 is resolved -->
+    <NoWarn>649,1573,1591,0419,BCL0020,CS8609</NoWarn>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <SignAssembly>true</SignAssembly>
     <DelaySign>true</DelaySign>
@@ -294,6 +296,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCominterop)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\WindowsRuntime\ExceptionSupport.cs" />
+    <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\WindowsRuntime\ActivationFactoryLoader.cs" Condition="'$(FeatureCominteropWinRTManagedActivation)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\ComActivator.cs" Condition="'$(FeatureCominteropUnmanagedActivation)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\OAVariantLib.cs" Condition="'$(FeatureClassicCominterop)' == 'true'" />
     <Compile Include="$(BclSourcesRoot)\System\__ComObject.cs" />
