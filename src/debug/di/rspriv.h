@@ -9306,7 +9306,7 @@ public:
     virtual
     RemoteValueHome * GetValueHome() { return &m_valueHome; };
 
-    HRESULT PopulateDelegateInfo();
+    HRESULT GetDelegateType(IDacDbiInterface::DelegateType *pDelType);
 
 protected:
     //-----------------------------------------------------------
@@ -9337,10 +9337,6 @@ private:
     HRESULT IsDelegate();
 
     BOOL                     m_fIsDelegate;
-
-    IDacDbiInterface::DelegateType  m_delegateType;
-    VMPTR_MethodDesc                m_vmDelegateMD;
-    VMPTR_Object                    m_vmDelegateTarget;
 };
 
 /* ------------------------------------------------------------------------- *

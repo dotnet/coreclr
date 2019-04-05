@@ -6508,7 +6508,7 @@ interface ICorDebugDelegateObjectValue : IUnknown
      *  - HRESULT XXX for multicast delegates.
      */
 
-    HRESULT GetTarget([out] ICorDebugObjectValue **ppObject);
+    HRESULT GetTarget([out] ICorDebugReferenceValue **ppObject);
 
     /*
      * GetFunction returns the function that gets run by the delegate.

@@ -3440,6 +3440,8 @@ IDacDbiInterface::DelegateType DacDbiInterfaceImpl::GetDelegateFunctionAndTarget
                                                 OUT VMPTR_Object* ppTarget,
                                                 OUT VMPTR_MethodDesc* ppMD)
 {
+    DD_ENTER_MAY_THROW;
+
 #ifdef _DEBUG
     // ensure we have a Delegate object
     IsDelegate(delegateObject);
@@ -3466,24 +3468,25 @@ IDacDbiInterface::DelegateType DacDbiInterfaceImpl::GetDelegateFunctionAndTarget
     {
         if (pInvocationList == NULL)
         {
-            // If this delegate points to a static function or this is a open
+            // If this delegate points to a static function or this is a open virtual delegate, this should be non-null
             // Special case: This might fail in a VSD delegate (instance open virtual)...
             TADDR targetMethodPtr = PCODEToPINSTR(pDelObj->GetMethodPtrAux());
             if (targetMethodPtr == NULL)
             {
-                // This is the case for lambdas, instance methods, and .
+                // This is the case for lambdas, instance methods, and extension methods.
                 targetMethodPtr =  PCODEToPINSTR(pDelObj->GetMethodPtr());
 
                 ppTarget->SetDacTargetPtr(PTR_TO_TADDR(OBJECTREFToObject(pDelObj->GetTarget())));
             }
 
-            // Do I need to cast from TADDR to CORDB_ADDRESS?
             HRESULT hr = GetMethodDescFromIP(targetMethodPtr, ppMD);
             if (hr != S_OK)
             {
-                // TODO: Instance open virtual methods don't work here.
+                // TODO: Instance open virtual methods don't work yet, say unknown for now.
                 return kUnknownDelegateType;
             }
+
+            ppMD->GetDacPtr()->GetDomain();
 
             return kSingleFunctionDelegate;
         }

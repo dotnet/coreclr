@@ -1731,9 +1731,7 @@ CordbObjectValue::CordbObjectValue(CordbAppDomain *          pAppdomain,
       m_pObjectCopy(NULL), m_objectLocalVars(NULL), m_stringBuffer(NULL),
       m_valueHome(pAppdomain->GetProcess(), remoteValue), 
       m_fIsExceptionObject(FALSE), m_fIsRcw(FALSE),
-      m_fIsDelegate(FALSE), m_delegateType(IDacDbiInterface::DelegateType::kUnfetched),
-      m_vmDelegateMD(VMPTR_MethodDesc::NullPtr()),
-      m_vmDelegateTarget(VMPTR_Object::NullPtr())
+      m_fIsDelegate(FALSE), m_delegateType(IDacDbiInterface::DelegateType::kUnfetched)
 {
     _ASSERTE(pAppdomain != NULL);
 
@@ -2571,22 +2569,20 @@ BOOL IsSupportedDelegateType(IDacDbiInterface::DelegateType delType)
     return delType == IDacDbiInterface::DelegateType::kSingleFunctionDelegate;
 }
 
-HRESULT CordbObjectValue::PopulateDelegateInfo()
+IDacDbiInterface::DelegateType CordbObjectValue::GetDelegateType()
 {
+    _ASSERTE(m_fIsDelegate);
+
     if (m_delegateType != IDacDbiInterface::DelegateType::kUnfetched)
-        return S_OK;
+        return m_delegateType;
 
     CORDB_ADDRESS delegateAddr = m_valueHome.GetAddress();
 
     IDacDbiInterface *pDAC = GetProcess()->GetDAC();
     VMPTR_Object delegateObj = pDAC->GetObject(delegateAddr);
 
-    m_delegateType = pDAC->GetDelegateFunctionAndTarget(
-                                delegateObj, &m_vmDelegateTarget, &m_vmDelegateMD);
-
-    // Any HResults other than S_OK will be thrown from reading memory issues, let that flow
-    // out so it can bubble up appropriately.
-    return S_OK;
+    HRESULT hr = pDAC->GetDelegateType(&m_delegateType);
+    return m_delegateType;
 }
 
 HRESULT CordbObjectValue::GetTarget(ICorDebugObjectValue** ppObject)
@@ -2623,6 +2619,8 @@ HRESULT CordbObjectValue::GetFunction(ICorDebugFunction** ppFunction)
         PopulateDelegateInfo();
         if (!IsSupportedDelegateType(m_delegateType))
             hr = CORDBG_E_MULTIFUNC_DELEGATE;
+
+
     }
     EX_CATCH_HRESULT(hr)
     return hr;

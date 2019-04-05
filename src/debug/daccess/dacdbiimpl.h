@@ -352,11 +352,14 @@ public:
     // Returns true if the argument extends System.Delegate
     BOOL IsDelegate(VMPTR_Object vmObject);
 
+    BOOL DelegateType(DelegateType *delegateType);
+
     HRESULT GetMethodDescFromIP(
                         CORDB_ADDRESS funcIp,
                         OUT VMPTR_MethodDesc* ppMD);
 
-    DelegateType GetDelegateFunctionAndTarget(
+    DelegateType GetDelegateFunction(
+                        DelegateType delegateType,
                         VMPTR_Object delegateObject,
                         OUT VMPTR_Object* ppTarget,
                         OUT VMPTR_MethodDesc* ppMD);
