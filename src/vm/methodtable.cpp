@@ -10244,7 +10244,14 @@ static BOOL ComputeIsLayoutInCurrentVersionBubble(MethodTable* pMT)
     ApproxFieldDescIterator fieldIterator(pMT, ApproxFieldDescIterator::INSTANCE_FIELDS);
     for (FieldDesc *pFD = fieldIterator.Next(); pFD != NULL; pFD = fieldIterator.Next())
     {
-        MethodTable * pFieldMT = pFD->GetApproxFieldTypeHandleThrowing().AsMethodTable();
+        TypeHandle thField = pFD->GetApproxFieldTypeHandleThrowing();
+
+        MethodTable * pFieldMT = NULL;
+        if (thField.IsTypeDesc())
+            pFieldMT = thField.AsTypeDesc()->GetMethodTable();
+        else
+            pFieldMT = thField.AsMethodTable();
+
         if (!pFieldMT->IsLayoutInCurrentVersionBubble())
             return FALSE;
     }
