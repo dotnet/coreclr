@@ -51,7 +51,7 @@ namespace System.Globalization
             return true;
         }
 
-        public object Current => GetTextElement();
+        public object? Current => GetTextElement();
 
         public string GetTextElement()
         {

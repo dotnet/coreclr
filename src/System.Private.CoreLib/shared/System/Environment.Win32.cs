@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Collections;
 using System.Diagnostics;
 using System.IO;
@@ -14,7 +15,7 @@ namespace System
 {
     public static partial class Environment
     {
-        private static string GetEnvironmentVariableFromRegistry(string variable, bool fromMachine)
+        private static string? GetEnvironmentVariableFromRegistry(string variable, bool fromMachine)
         {
             Debug.Assert(variable != null);
 
@@ -29,7 +30,7 @@ namespace System
             }
         }
 
-        private static void SetEnvironmentVariableFromRegistry(string variable, string value, bool fromMachine)
+        private static void SetEnvironmentVariableFromRegistry(string variable, string? value, bool fromMachine)
         {
             Debug.Assert(variable != null);
 
@@ -78,7 +79,7 @@ namespace System
                 {
                     foreach (string name in environmentKey.GetValueNames())
                     {
-                        string value = environmentKey.GetValue(name, "").ToString();
+                        string? value = environmentKey.GetValue(name, "").ToString();
                         try
                         {
                             results.Add(name, value);
@@ -409,9 +410,9 @@ namespace System
                 if (s_winRTFolderPathsGetFolderPath == null)
                 {
                     Type winRtFolderPathsType = Type.GetType("System.WinRTFolderPaths, System.Runtime.WindowsRuntime, Version=4.0.14.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
-                    MethodInfo getFolderPathsMethod = winRtFolderPathsType?.GetMethod("GetFolderPath", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new Type[] { typeof(SpecialFolder), typeof(SpecialFolderOption) }, null);
-                    var d = (Func<SpecialFolder, SpecialFolderOption, string>)getFolderPathsMethod?.CreateDelegate(typeof(Func<SpecialFolder, SpecialFolderOption, string>));
-                    s_winRTFolderPathsGetFolderPath = d ?? delegate { return null; };
+                    MethodInfo? getFolderPathsMethod = winRtFolderPathsType?.GetMethod("GetFolderPath", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new Type[] { typeof(SpecialFolder), typeof(SpecialFolderOption) }, null);
+                    var d = (Func<SpecialFolder, SpecialFolderOption, string>?)getFolderPathsMethod?.CreateDelegate(typeof(Func<SpecialFolder, SpecialFolderOption, string>));
+                    s_winRTFolderPathsGetFolderPath = d ?? delegate { return string.Empty; };
                 }
 
                 return s_winRTFolderPathsGetFolderPath(folder, option);

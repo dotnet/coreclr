@@ -51,7 +51,7 @@ namespace System.Text
             return true;
         }
 
-        object IEnumerator.Current => _current;
+        object? IEnumerator.Current => _current;
 
         void IDisposable.Dispose()
         {
