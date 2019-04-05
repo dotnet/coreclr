@@ -2704,9 +2704,8 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             return false;
         }
         else
-#else
-        if (nfc & NATIVE_FIELD_SUBCATEGORY_NESTED)
 #endif // FEATURE_COMINTEROP
+        if (nfc & NATIVE_FIELD_SUBCATEGORY_NESTED)
         {
             FieldMarshaler_NestedType* pNestedMarshaler = (FieldMarshaler_NestedType*)pFieldMarshaler;
             unsigned int numElements = pNestedMarshaler->GetNumElements();
