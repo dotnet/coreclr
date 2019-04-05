@@ -1168,7 +1168,7 @@ class UTF8Encoding
         return count;
     }
 
-    int GetBytesUnknown(BYTE* pSrc, int ch, BYTE *bytesUnknown)
+    int GetBytesUnknown(BYTE* pSrc, int ch, BYTE* bytesUnknown)
     {
         int size;
 
