@@ -107,7 +107,7 @@ public:
 
     // Used by IPC streaming EventPipe sessions. Writes out a single event out to 
     // the IPC channel. 
-    void EventPipeBufferManager::WriteNextEventToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp);
+    void WriteNextEventToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp);
 
     // Attempt to de-allocate resources as best we can.  It is possible for some buffers to leak because
     // threads can be in the middle of a write operation and get blocked, and we may not get an opportunity
