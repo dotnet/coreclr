@@ -16,7 +16,7 @@ class IpcStream;
 
 // the enumeration has a specific set of values to keep it compatible with consumer library
 // it's sibling is defined in https://github.com/Microsoft/perfview/blob/10d1f92b242c98073b3817ac5ee6d98cd595d39b/src/FastSerialization/FastSerialization.cs#L2295
-enum class FastSerializerTags : BYTE
+enum class FastSerializerTags : uint8_t
 {
     Error              = 0, // To improve debugabilty, 0 is an illegal tag.
     NullReference      = 1, // Tag for a null object forwardReference.
@@ -36,7 +36,7 @@ enum class FastSerializerTags : BYTE
     Limit                   // Just past the last valid tag, used for asserts.
 };
 
-enum class StreamWriterType : BYTE
+enum class StreamWriterType : uint8_t
 {
     Ipc = 0,
     File,
@@ -48,13 +48,13 @@ enum class StreamWriterType : BYTE
 class StreamWriter
 {
 public:
-    StreamWriter() = default;
+    StreamWriter(StreamWriterType type) : m_type(type) {}
     virtual ~StreamWriter() = default;
     virtual bool Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32_t &nBytesWritten) const = 0;
     StreamWriterType GetType() { return m_type; }
 
 protected:
-    StreamWriterType m_type;
+    const StreamWriterType m_type;
 };
 
 //!

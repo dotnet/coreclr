@@ -19,14 +19,7 @@ EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter) : FastSerializableObje
     }
     CONTRACTL_END;
 
-    if (pStreamWriter->GetType() == StreamWriterType::Ipc)
-    {
-        m_pBlock = new EventPipeBlock(1024);
-    }
-    else
-    {
-        m_pBlock = new EventPipeBlock(100 * 1024);
-    }
+    m_pBlock = (pStreamWriter->GetType() == StreamWriterType::Ipc ? new EventPipeBlock(1024) : new EventPipeBlock(1024 * 100));
 
     // File start time information.
     GetSystemTime(&m_fileOpenSystemTime);
