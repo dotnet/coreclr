@@ -1086,6 +1086,7 @@
                     "name": "System.Runtime.InteropServices.Tests.PtrToStringUniTests.PtrToStringUni_NegativeLength_ThrowsArgumentExeption",
                     "reason": "https://github.com/dotnet/coreclr/pull/23731"
                 },
+                {
                     "name": "System.Runtime.InteropServices.Tests.ThrowExceptionForHRTests.ThrowExceptionForHR_NoErrorInfo_ReturnsValidException",
                     "reason": "outdated"
                 },
