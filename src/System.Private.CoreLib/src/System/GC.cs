@@ -50,15 +50,74 @@ namespace System
         NotApplicable = 4
     }
 
+    public struct GCMemoryInfo
+    {
+        /// <summary>
+        /// HighMemoryLoadThreshold when the last GC occured
+        /// </summary>
+        public int HighMemoryLoadThreshold { get; }
+
+        /// <summary>
+        /// Total available memory for the GC to use when the last GC ocurred. By default this is the physical memory on the machine, but it may be customized by specifying a HardLimit.
+        /// </summary>
+        public long TotalAvailableMemory { get; }
+
+        /// <summary>
+        /// Memory Load when the last GC ocurred
+        /// </summary>
+        public int MemoryLoad { get; }
+
+        /// <summary>
+        /// The total heap size when the last GC ocurred
+        /// </summary>
+        public IntPtr HeapSize { get; }
+
+        /// <summary>
+        /// The total fragmentation of the last GC ocurred
+        /// </summary>
+        public IntPtr Fragmentation { get; } // should we include "Bytes" in all names where appropriate?
+
+        internal GCMemoryInfo(int _highMemoryLoadThreshold,
+                              long _totalAvailableMemory,
+                              int _memoryLoad,
+                              IntPtr _heapSize,
+                              IntPtr _fragmentation)
+        {
+            HighMemoryLoadThreshold = _highMemoryLoadThreshold;
+            TotalAvailableMemory = _totalAvailableMemory;
+            MemoryLoad = _memoryLoad;
+            HeapSize = _heapSize;
+            Fragmentation = _fragmentation;
+        }
+    }
+
     public static class GC
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
-                                                  out ulong totalPhysicalMem,
-                                                  out uint lastRecordedMemLoad,
-                                                  // The next two are size_t
-                                                  out UIntPtr lastRecordedHeapSize,
-                                                  out UIntPtr lastRecordedFragmentation);
+        private static extern void GetMemoryInfo(out uint highMemLoadThreshold,
+                                                 out ulong totalPhysicalMem,
+                                                 out uint lastRecordedMemLoad,
+                                                 // The next two are size_t
+                                                 out UIntPtr lastRecordedHeapSize,
+                                                 out UIntPtr lastRecordedFragmentation);
+
+        /// <summary>
+        /// Get information about GC state at the time of the last GC.
+        /// </summary>
+        public static GCMemoryInfo GetGCMemoryInfo()
+        {
+            GetMemoryInfo(out uint highMemLoadThreshold,
+                          out ulong totalPhysicalMem,
+                          out uint lastRecordedMemLoad,
+                          out UIntPtr lastRecordedHeapSize,
+                          out UIntPtr lastRecordedFragmentation);
+
+            return new GCMemoryInfo((int) highMemLoadThreshold,
+                                    (long) totalPhysicalMem,
+                                    (int) lastRecordedMemLoad,
+                                    (IntPtr)(long)(ulong) lastRecordedHeapSize,
+                                    (IntPtr)(long)(ulong) lastRecordedFragmentation);
+        }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _StartNoGCRegion(long totalSize, bool lohSizeKnown, long lohSize, bool disallowFullBlockingGC);
