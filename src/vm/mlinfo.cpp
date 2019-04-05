@@ -1652,7 +1652,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
     }
     else
     {
-        CorElementType mtype = sig.PeekElemTypeClosed(pModule, pTypeContext);
+        mtype = sig.PeekElemTypeClosed(pModule, pTypeContext);
     }
 #endif // _TARGET_X86_
 
