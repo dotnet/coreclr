@@ -279,7 +279,7 @@ namespace System
             {
                 if (offset < length)
                 {
-                    Debug.Assert(offset - length >= Vector128<ushort>.Count);
+                    Debug.Assert(length - offset >= Vector128<ushort>.Count);
                     if ((((nint)Unsafe.AsPointer(ref searchSpace) + (nint)offset) & (nint)(Vector256<ushort>.Count - 1)) != 0)
                     {
                         // Not currently aligned to Vector256 (is aligned to Vector128); this can cause a problem for searches
@@ -369,6 +369,8 @@ namespace System
             {
                 if (offset < length)
                 {
+                    Debug.Assert(length - offset >= Vector128<ushort>.Count);
+
                     lengthToExamine = GetCharVector128SpanLength(offset, length);
                     if (lengthToExamine > 0)
                     {
@@ -406,6 +408,8 @@ namespace System
             {
                 if (offset < length)
                 {
+                    Debug.Assert(length - offset >= Vector<ushort>.Count);
+
                     lengthToExamine = GetCharVectorSpanLength(offset, length);
 
                     if (lengthToExamine > 0)
