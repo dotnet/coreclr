@@ -191,6 +191,35 @@ BOOL Module::SetTransientFlagInterlocked(DWORD dwFlag)
 }
 
 #if PROFILING_SUPPORTED 
+void Module::UpdateNewlyAddedTypes()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END
+
+    DWORD countTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
+    DWORD countExportedTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
+
+    // typeDefs rids 0 and 1 aren't included in the count, thus X typeDefs before means rid X+1 was valid and our incremental addition should start at X+2
+    for (DWORD typeDefRid = m_dwTypeCount + 2; typeDefRid < countTypesAfterProfilerUpdate + 2; typeDefRid++)
+    {
+        GetAssembly()->AddType(this, TokenFromRid(typeDefRid, mdtTypeDef));
+    }
+
+    // exportedType rid 0 isn't included in the count, thus X exportedTypes before means rid X was valid and our incremental addition should start at X+1
+    for (DWORD exportedTypeDef = m_dwExportedTypeCount + 1; exportedTypeDef < countExportedTypesAfterProfilerUpdate + 1; exportedTypeDef++)
+    {
+        GetAssembly()->AddExportedType(TokenFromRid(exportedTypeDef, mdtExportedType));
+    }
+
+    m_dwTypeCount = countTypesAfterProfilerUpdate;
+    m_dwExportedTypeCount = countExportedTypesAfterProfilerUpdate;
+}
+
 void Module::NotifyProfilerLoadFinished(HRESULT hr)
 {
     CONTRACTL
@@ -208,12 +237,10 @@ void Module::NotifyProfilerLoadFinished(HRESULT hr)
     if (SetTransientFlagInterlocked(IS_PROFILER_NOTIFIED))
     {
         // Record how many types are already present
-        DWORD countTypesOrig = 0;
-        DWORD countExportedTypesOrig = 0;
         if (!IsResource())
         {
-            countTypesOrig = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
-            countExportedTypesOrig = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
+            m_dwTypeCount = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
+            m_dwExportedTypeCount = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
         }
 
         // Notify the profiler, this may cause metadata to be updated
@@ -236,18 +263,7 @@ void Module::NotifyProfilerLoadFinished(HRESULT hr)
         // assembly
         if (!IsResource())
         {
-            DWORD countTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
-            DWORD countExportedTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
-            // typeDefs rids 0 and 1 aren't included in the count, thus X typeDefs before means rid X+1 was valid and our incremental addition should start at X+2
-            for (DWORD typeDefRid = countTypesOrig + 2; typeDefRid < countTypesAfterProfilerUpdate + 2; typeDefRid++)
-            {
-                GetAssembly()->AddType(this, TokenFromRid(typeDefRid, mdtTypeDef));
-            }
-            // exportedType rid 0 isn't included in the count, thus X exportedTypes before means rid X was valid and our incremental addition should start at X+1
-            for (DWORD exportedTypeDef = countExportedTypesOrig + 1; exportedTypeDef < countExportedTypesAfterProfilerUpdate + 1; exportedTypeDef++)
-            {
-                GetAssembly()->AddExportedType(TokenFromRid(exportedTypeDef, mdtExportedType));
-            }
+            UpdateNewlyAddedTypes();
         }
 
         {
@@ -584,6 +600,11 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
     // this will be initialized a bit later.
     m_ModuleID = NULL;
     m_ModuleIndex.m_dwIndex = (SIZE_T)-1;
+
+    // These will be initialized in NotifyProfilerLoadFinished, set them to 
+    // a safe initial value now.
+    m_dwTypeCount = 0;
+    m_dwExportedTypeCount = 0;
 
     // Prepare statics that are known at module load time
     AllocateStatics(pamTracker);
@@ -1187,7 +1208,7 @@ void Module::ApplyMetaData()
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1197,6 +1218,13 @@ void Module::ApplyMetaData()
     HRESULT hr = S_OK;
     ULONG ulCount;
 
+#if PROFILING_SUPPORTED 
+    if (!IsResource())
+    {
+        UpdateNewlyAddedTypes();
+    }
+#endif // PROFILING_SUPPORTED
+
     // Ensure for TypeRef
     ulCount = GetMDImport()->GetCountWithTokenKind(mdtTypeRef) + 1;
     EnsureTypeRefCanBeStored(TokenFromRid(ulCount, mdtTypeRef));
@@ -1204,6 +1232,10 @@ void Module::ApplyMetaData()
     // Ensure for AssemblyRef
     ulCount = GetMDImport()->GetCountWithTokenKind(mdtAssemblyRef) + 1;
     EnsureAssemblyRefCanBeStored(TokenFromRid(ulCount, mdtAssemblyRef));
+
+    // Ensure for MethodDef
+    ulCount = GetMDImport()->GetCountWithTokenKind(mdtMethodDef) + 1;
+    EnsureMethodDefCanBeStored(TokenFromRid(ulCount, mdtMethodDef));
 }
 
 //
@@ -1987,8 +2019,8 @@ void Module::BuildStaticsOffsets(AllocMemTracker *pamTracker)
 #endif
 
     DWORD      dwNonGCBytes[2] = { 
-        DomainLocalModule::OffsetOfDataBlob() + sizeof(BYTE)*dwNumTypes, 
-        ThreadLocalModule::OffsetOfDataBlob() + sizeof(BYTE)*dwNumTypes
+        DomainLocalModule::OffsetOfDataBlob() + (DWORD)(sizeof(BYTE)*dwNumTypes),
+        ThreadLocalModule::OffsetOfDataBlob() + (DWORD)(sizeof(BYTE)*dwNumTypes)
     };
 
     HENUMInternalHolder hTypeEnum(pImport);
@@ -4496,7 +4528,7 @@ OBJECTHANDLE Module::ResolveStringRef(DWORD token, BaseDomain *pDomain, bool bNe
         OBJECTREF* pRef = pDomain->AllocateObjRefPtrsInLargeTable(1);
 
         STRINGREF str = AllocateStringObject(&strData);
-        SetObjectReference(pRef, str, NULL);
+        SetObjectReference(pRef, str);
 
         #ifdef LOGGING 
         int length = strData.GetCharCount();
@@ -4607,7 +4639,7 @@ void Module::EnableModuleFailureTriggers(Module *pModuleTo, AppDomain *pDomain)
     // assemblies/app domains.
     //
     // This should throw.
-    STRESS_LOG2(LF_CLASSLOADER, LL_INFO100,"EnableModuleFailureTriggers for module %p in AppDomain %i\n",pModuleTo,pDomain->GetId().m_dwId);
+    STRESS_LOG1(LF_CLASSLOADER, LL_INFO100,"EnableModuleFailureTriggers for module %p\n",pModuleTo);
     DomainFile *pDomainFileTo = pModuleTo->GetDomainFile(pDomain);
     pDomainFileTo->EnsureActive();
 
@@ -4616,138 +4648,6 @@ void Module::EnableModuleFailureTriggers(Module *pModuleTo, AppDomain *pDomain)
 }
 
 #endif //!DACCESS_COMPILE
-
-//
-// an GetAssemblyIfLoadedAppDomainIterator is used to iterate over all domains that
-// are known to be walkable at the time GetAssemblyIfLoaded is executed.
-//
-// The iteration is guaranteed to include all domains that exist at the
-// start & end of the iteration that are safely accessible. This class is logically part
-// of GetAssemblyIfLoaded and logically has the same set of contracts.
-//
-
-class GetAssemblyIfLoadedAppDomainIterator
-{
-    enum IteratorType
-    {
-        StackwalkingThreadIterator,
-        AllAppDomainWalkingIterator,
-        CurrentAppDomainIterator
-    }  m_iterType;
-
-public:
-    GetAssemblyIfLoadedAppDomainIterator() : 
-      m_adIteratorAll(TRUE),
-      m_appDomainCurrent(NULL),
-      m_pFrame(NULL),
-      m_fNextCalledForCurrentADIterator(FALSE)
-    {
-        LIMITED_METHOD_CONTRACT;
-#ifndef DACCESS_COMPILE
-        if (IsStackWalkerThread())
-        {
-            Thread * pThread = (Thread *)ClrFlsGetValue(TlsIdx_StackWalkerWalkingThread);
-            m_iterType = StackwalkingThreadIterator;
-            m_pFrame = pThread->GetFrame();
-            m_appDomainCurrent = pThread->GetDomain();
-        }
-        else if (IsGCThread())
-        {
-            m_iterType = AllAppDomainWalkingIterator;
-            m_adIteratorAll.Init();
-        }
-        else
-        {
-            _ASSERTE(::GetAppDomain() != NULL);
-            m_appDomainCurrent = ::GetAppDomain();
-            m_iterType = CurrentAppDomainIterator;
-        }
-#else //!DACCESS_COMPILE
-        // We have to walk all AppDomains in debugger
-        m_iterType = AllAppDomainWalkingIterator;
-        m_adIteratorAll.Init();
-#endif //!DACCESS_COMPILE
-    }
-
-    BOOL Next()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        switch (m_iterType)
-        {
-#ifndef DACCESS_COMPILE
-        case StackwalkingThreadIterator:
-            if (!m_fNextCalledForCurrentADIterator)
-            {
-                m_fNextCalledForCurrentADIterator = TRUE;
-
-                // Try searching frame chain if the current domain is NULL
-                if (m_appDomainCurrent == NULL)
-                    return Next();
-
-                return TRUE;
-            }
-            else
-            {
-                while (m_pFrame != FRAME_TOP)
-                {
-                    AppDomain * pDomain = m_pFrame->GetReturnDomain();
-                    if ((pDomain != NULL) && (pDomain != m_appDomainCurrent))
-                    {
-                        m_appDomainCurrent = pDomain;
-                        return TRUE;
-                    }
-                    m_pFrame = m_pFrame->PtrNextFrame();
-                }
-
-                return FALSE;
-            }
-#endif //!DACCESS_COMPILE
-
-        case AllAppDomainWalkingIterator:
-            {
-                BOOL fSuccess = m_adIteratorAll.Next();
-                if (fSuccess)
-                    m_appDomainCurrent = m_adIteratorAll.GetDomain();
-                return fSuccess;
-            }
-
-#ifndef DACCESS_COMPILE
-        case CurrentAppDomainIterator:
-            {
-                BOOL retVal;
-                retVal = !m_fNextCalledForCurrentADIterator;
-                m_fNextCalledForCurrentADIterator = TRUE;
-                return retVal;
-            }
-#endif //!DACCESS_COMPILE
-        
-        default:
-            _ASSERTE(FALSE);
-            return FALSE;
-        }
-    }
-
-    AppDomain * GetDomain()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return m_appDomainCurrent;
-    }
-
-    BOOL UsingCurrentAD()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_iterType == CurrentAppDomainIterator;
-    }
-
-  private:
-
-    UnsafeAppDomainIterator m_adIteratorAll;
-    AppDomain *             m_appDomainCurrent;
-    Frame *                 m_pFrame;
-    BOOL                    m_fNextCalledForCurrentADIterator;
-};  // class GetAssemblyIfLoadedAppDomainIterator
 
 #if !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
 // This function, given an AssemblyRef into the ngen generated native metadata section, will find the assembly referenced if
@@ -4899,15 +4799,9 @@ Module::GetAssemblyIfLoaded(
     
     if (pAssembly == NULL)
     {
-        // If in stackwalking or gc mode
-        // For each AppDomain that is on the stack being walked...
-        // For each AppDomain in the process... if gc'ing
-        // For the current AppDomain ... if none of the above
-        GetAssemblyIfLoadedAppDomainIterator appDomainIter;
-
-        while (appDomainIter.Next())
+        do
         {
-            AppDomain * pAppDomainExamine = appDomainIter.GetDomain();
+            AppDomain * pAppDomainExamine = AppDomain::GetCurrentDomain();
             
             DomainAssembly * pCurAssemblyInExamineDomain = GetAssembly()->FindDomainAssembly(pAppDomainExamine);
             if (pCurAssemblyInExamineDomain == NULL)
@@ -4974,14 +4868,14 @@ Module::GetAssemblyIfLoaded(
                     pAssembly = pDomainAssembly->GetCurrentAssembly(); // <NOTE> Do not use GetAssembly - that may force the completion of a load
 
                 // Only store in the rid map if working with the current AppDomain.
-                if (fCanUseRidMap && pAssembly && appDomainIter.UsingCurrentAD())
+                if (fCanUseRidMap && pAssembly)
                     StoreAssemblyRef(kAssemblyRef, pAssembly);
 
                 if (pAssembly != NULL)
                     break;
             }
 #endif //!DACCESS_COMPILE
-        }
+        } while (false);
     }
 
 #if !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
@@ -5033,16 +4927,14 @@ Module::GetAssemblyIfLoaded(
             bool onlyScanCurrentModule = HasNativeImage() && GetFile()->IsAssembly();
             mdAssemblyRef foundAssemblyRef = mdAssemblyRefNil;
 
-            GetAssemblyIfLoadedAppDomainIterator appDomainIter;
-
             // In each AppDomain that might be interesting, scan for an ngen image that is loaded that has a dependency on the same 
             // assembly that is now being looked up. If that ngen image has the same dependency, then we can use the CORCOMPILE_DEPENDENCIES
             // table to find the exact AssemblyDef that defines the assembly, and attempt a load based on that information.
             // As this logic is expected to be used only in exceedingly rare situations, this code has not been tuned for performance
             // in any way.
-            while (!abortAdditionalChecks && appDomainIter.Next())
+            do
             {
-                AppDomain * pAppDomainExamine = appDomainIter.GetDomain();
+                AppDomain * pAppDomainExamine = ::GetAppDomain(); // There is only 1 AppDomain on CoreCLR
             
                 DomainAssembly * pCurAssemblyInExamineDomain = GetAssembly()->FindDomainAssembly(pAppDomainExamine);
                 if (pCurAssemblyInExamineDomain == NULL)
@@ -5105,7 +4997,7 @@ Module::GetAssemblyIfLoaded(
 
                         pAssembly = pNativeImageModule->GetAssemblyIfLoadedFromNativeAssemblyRefWithRefDefMismatch(foundAssemblyRef, &abortAdditionalChecks);
 
-                        if (fCanUseRidMap && pAssembly && appDomainIter.UsingCurrentAD())
+                        if (fCanUseRidMap && pAssembly)
                             StoreAssemblyRef(kAssemblyRef, pAssembly);
                     }
 
@@ -5115,7 +5007,7 @@ Module::GetAssemblyIfLoaded(
 
                     pDomainFileNativeImage = pDomainFileNativeImage->FindNextDomainFileWithNativeImage();
                 }
-            }
+            } while (false);
         }
     }
 #endif // !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
@@ -6450,6 +6342,59 @@ void Module::NotifyDebuggerUnload(AppDomain *pDomain)
 }
 
 #if !defined(CROSSGEN_COMPILE)
+using GetTokenForVTableEntry_t = mdToken(STDMETHODCALLTYPE*)(HMODULE module, BYTE**ppVTEntry);
+
+static HMODULE GetIJWHostForModule(Module* module)
+{
+#if !defined(FEATURE_PAL)
+    PEDecoder* pe = module->GetFile()->GetLoadedIL();
+
+    BYTE* baseAddress = (BYTE*)module->GetFile()->GetIJWBase();
+
+    IMAGE_IMPORT_DESCRIPTOR* importDescriptor = (IMAGE_IMPORT_DESCRIPTOR*)pe->GetDirectoryData(pe->GetDirectoryEntry(IMAGE_DIRECTORY_ENTRY_IMPORT));
+
+    for(; importDescriptor->Characteristics != 0; importDescriptor++)
+    {
+        IMAGE_THUNK_DATA* importNameTable = (IMAGE_THUNK_DATA*)pe->GetRvaData(importDescriptor->OriginalFirstThunk);
+
+        IMAGE_THUNK_DATA* importAddressTable = (IMAGE_THUNK_DATA*)pe->GetRvaData(importDescriptor->FirstThunk);
+
+        for (int thunkIndex = 0; importNameTable[thunkIndex].u1.AddressOfData != 0; thunkIndex++)
+        {
+            // The most significant bit will be set if the entry points to an ordinal.
+            if ((importNameTable[thunkIndex].u1.Ordinal & (1LL << (sizeof(importNameTable[thunkIndex].u1.Ordinal) * CHAR_BIT - 1))) == 0)
+            {
+                IMAGE_IMPORT_BY_NAME* nameImport = (IMAGE_IMPORT_BY_NAME*)(baseAddress + importNameTable[thunkIndex].u1.AddressOfData);
+                if (strcmp("_CorDllMain", nameImport->Name) == 0)
+                {
+                    HMODULE ijwHost;
+
+                    if (WszGetModuleHandleEx(
+                        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                        (LPCWSTR)importAddressTable[thunkIndex].u1.Function,
+                        &ijwHost))
+                    {
+                        return ijwHost;
+                    }
+
+                }
+            }
+        }
+    }
+#endif
+    return nullptr;
+}
+
+static GetTokenForVTableEntry_t GetTokenGetterFromHostModule(HMODULE ijwHost)
+{
+    if (ijwHost != nullptr)
+    {
+        return (GetTokenForVTableEntry_t)GetProcAddress(ijwHost, "GetTokenForVTableEntry");
+    }
+
+    return nullptr;
+}
+
 //=================================================================================
 mdToken GetTokenForVTableEntry(HINSTANCE hInst, BYTE **ppVTEntry)
 {
@@ -6472,7 +6417,6 @@ void SetTargetForVTableEntry(HINSTANCE hInst, BYTE **ppVTEntry, BYTE *pTarget)
     DWORD oldProtect;
     if (!ClrVirtualProtect(ppVTEntry, sizeof(BYTE*), PAGE_READWRITE, &oldProtect))
     {
-        
         // This is very bad.  We are not going to be able to update header.
         _ASSERTE(!"SetTargetForVTableEntry(): VirtualProtect() changing IJW thunk vtable to R/W failed.\n");
         ThrowLastError();
@@ -6514,6 +6458,18 @@ void Module::FixupVTables()
     //       we need to change this conditional.
     if (IsIJWFixedUp() || m_file->IsILOnly()) {
         return;
+    }
+
+    // Try getting a callback to the IJW host if it is loaded.
+    // The IJW host substitutes in special shims in the vtfixup table
+    // so if it is loaded, we need to query it for the tokens that were in the slots.
+    // If it is not loaded, then we know that the vtfixup table entries are tokens,
+    // so we can resolve them ourselves.
+    GetTokenForVTableEntry_t GetTokenForVTableEntryCallback = GetTokenGetterFromHostModule(GetIJWHostForModule(this));
+
+    if (GetTokenForVTableEntryCallback == nullptr)
+    {
+        GetTokenForVTableEntryCallback = GetTokenForVTableEntry;
     }
 
     HINSTANCE hInstThis = GetFile()->GetIJWBase();
@@ -6616,7 +6572,7 @@ void Module::FixupVTables()
                     {
                         if (pData->IsMethodFixedUp(iFixup, iMethod))
                             continue;
-                        mdToken mdTok = GetTokenForVTableEntry(hInstThis, (BYTE **)(pPointers + iMethod));
+                        mdToken mdTok = GetTokenForVTableEntryCallback(hInstThis, (BYTE**)(pPointers + iMethod));
                         CONSISTENCY_CHECK(mdTok != mdTokenNil);
                         rgMethodsToLoad[iCurMethod++].token = mdTok;
                     }
@@ -6750,7 +6706,7 @@ void Module::FixupVTables()
                     FillMemory(pUMThunkMarshInfo, sizeof(*pUMThunkMarshInfo), 0);
 
                     pUMThunkMarshInfo->LoadTimeInit(pMD);
-                    pUMEntryThunk->LoadTimeInit(NULL, NULL, pUMThunkMarshInfo, pMD, pAppDomain->GetId());
+                    pUMEntryThunk->LoadTimeInit(NULL, NULL, pUMThunkMarshInfo, pMD);
                     SetTargetForVTableEntry(hInstThis, (BYTE **)&pPointers[iMethod], (BYTE *)pUMEntryThunk->GetCode());
 
                     pData->MarkMethodFixedUp(iFixup, iMethod);

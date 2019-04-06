@@ -6326,7 +6326,7 @@ MethodTableBuilder::WriteMethodImplData(
             // binary search later
             for (DWORD i = 0; i < cSlots; i++)
             {
-                int min = i;
+                unsigned int min = i;
                 for (DWORD j = i + 1; j < cSlots; j++)
                 {
                     if (rgSlots[j] < rgSlots[min])
@@ -9711,6 +9711,19 @@ void MethodTableBuilder::CheckForSystemTypes()
 
             pMT->SetComponentSize(2);
         }
+#ifdef FEATURE_UTF8STRING
+        else if (strcmp(name, g_Utf8StringName) == 0 && strcmp(nameSpace, g_SystemNS) == 0)
+        {
+            // Utf8Strings are not "normal" objects, so we need to mess with their method table a bit
+            // so that the GC can figure out how big each string is...
+            DWORD baseSize = Utf8StringObject::GetBaseSize();
+            pMT->SetBaseSize(baseSize); // NULL character included
+
+            GetHalfBakedClass()->SetBaseSizePadding(baseSize - bmtFP->NumInstanceFieldBytes);
+
+            pMT->SetComponentSize(1);
+        }
+#endif // FEATURE_UTF8STRING
         else if (strcmp(name, g_CriticalFinalizerObjectName) == 0 && strcmp(nameSpace, g_ConstrainedExecutionNS) == 0)
         {
             // To introduce a class with a critical finalizer,
@@ -11900,9 +11913,17 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport* pInternalImport, 
     {
         *pNLTType = nltAnsi;
     }
-    else if (IsTdUnicodeClass(clFlags) || IsTdAutoClass(clFlags))
+    else if (IsTdUnicodeClass(clFlags))
     {
         *pNLTType = nltUnicode;
+    }
+    else if (IsTdAutoClass(clFlags))
+    {
+#ifdef PLATFORM_WINDOWS
+        *pNLTType = nltUnicode;
+#else
+        *pNLTType = nltAnsi; // We don't have a utf8 charset in metadata yet, but ANSI == UTF-8 off-Windows
+#endif
     }
     else
     {

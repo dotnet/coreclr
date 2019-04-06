@@ -3,16 +3,13 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
-#include "eventpipebuffer.h"
 #include "eventpipeblock.h"
-#include "eventpipeconfiguration.h"
 #include "eventpipefile.h"
 #include "sampleprofiler.h"
 
 #ifdef FEATURE_PERFTRACING
 
-EventPipeFile::EventPipeFile(
-    SString &outputFilePath)
+EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter) : FastSerializableObject(3, 0)
 {
     CONTRACTL
     {
@@ -21,9 +18,6 @@ EventPipeFile::EventPipeFile(
         MODE_ANY;
     }
     CONTRACTL_END;
-
-    SetObjectVersion(3);
-    SetMinReaderVersion(0);
 
     m_pBlock = new EventPipeBlock(100 * 1024);
 
@@ -43,7 +37,7 @@ EventPipeFile::EventPipeFile(
     m_samplingRateInNs = SampleProfiler::GetSamplingRate();
 
     // Create the file stream and write the header.
-    m_pSerializer = new FastSerializer(outputFilePath);
+    m_pSerializer = new FastSerializer(pStreamWriter);
 
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
     m_pMetadataIds = new MapSHashWithRemove<EventPipeEvent*, unsigned int>();
@@ -66,21 +60,10 @@ EventPipeFile::~EventPipeFile()
     CONTRACTL_END;
 
     if (m_pBlock != NULL && m_pSerializer != NULL)
-    {
         WriteEnd();
-    }
 
-    if (m_pBlock != NULL)
-    {
-        delete(m_pBlock);
-        m_pBlock = NULL;
-    }
-
-    if(m_pSerializer != NULL)
-    {
-        delete(m_pSerializer);
-        m_pSerializer = NULL;
-    }
+    delete m_pBlock;
+    delete m_pSerializer;
 }
 
 void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
@@ -101,13 +84,13 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
         metadataId = GenerateMetadataId();
 
         EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance, metadataId);
-        
+
         WriteToBlock(*pMetadataInstance, 0); // 0 breaks recursion and represents the metadata event.
 
         SaveMetadataId(*instance.GetEvent(), metadataId);
 
-        delete[] (pMetadataInstance->GetData());
-        delete (pMetadataInstance);
+        delete[] pMetadataInstance->GetData();
+        delete pMetadataInstance;
     }
 
     WriteToBlock(instance, metadataId);
@@ -129,7 +112,7 @@ void EventPipeFile::WriteEnd()
 
     // "After the last EventBlock is emitted, the stream is ended by emitting a NullReference Tag which indicates that there are no more objects in the stream to read."
     // see https://github.com/Microsoft/perfview/blob/master/src/TraceEvent/EventPipe/EventPipeFormat.md for more
-    m_pSerializer->WriteTag(FastSerializerTags::NullReference); 
+    m_pSerializer->WriteTag(FastSerializerTags::NullReference);
 }
 
 void EventPipeFile::WriteToBlock(EventPipeEventInstance &instance, unsigned int metadataId)
@@ -145,9 +128,7 @@ void EventPipeFile::WriteToBlock(EventPipeEventInstance &instance, unsigned int 
     instance.SetMetadataId(metadataId);
 
     if (m_pBlock->WriteEvent(instance))
-    {
         return; // the block is not full, we added the event and continue
-    }
 
     // we can't write this event to the current block (it's full)
     // so we write what we have in the block to the serializer
@@ -210,9 +191,7 @@ void EventPipeFile::SaveMetadataId(EventPipeEvent &event, unsigned int metadataI
     // If a pre-existing metadata label exists, remove it.
     unsigned int oldId;
     if(m_pMetadataIds->Lookup(&event, &oldId))
-    {
         m_pMetadataIds->Remove(&event);
-    }
 
     // Add the metadata label.
     m_pMetadataIds->Add(&event, metadataId);

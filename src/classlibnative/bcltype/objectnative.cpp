@@ -60,7 +60,7 @@ FCIMPL1(Object*, ObjectNative::GetObjectValue, Object* obj)
     // MethodTable::Box is a cleaner way to copy value class, but it is slower than following code.
     //
     retVal = OBJECTREFToObject(AllocateObject(pMT));
-    CopyValueClass(retVal->GetData(), objRef->GetData(), pMT, retVal->GetAppDomain());
+    CopyValueClass(retVal->GetData(), objRef->GetData(), pMT);
     HELPER_METHOD_FRAME_END();
 
     return(retVal);
@@ -253,6 +253,9 @@ FCIMPL1(Object*, ObjectNative::Clone, Object* pThisUNSAFE)
 
     // assert that String has overloaded the Clone() method
     _ASSERTE(pMT != g_pStringClass);
+#ifdef FEATURE_UTF8STRING
+    _ASSERTE(pMT != g_pUtf8StringClass);
+#endif // FEATURE_UTF8STRING
 
     if (pMT->IsArray()) {
         refClone = DupArrayForCloning((BASEARRAYREF)refThis);

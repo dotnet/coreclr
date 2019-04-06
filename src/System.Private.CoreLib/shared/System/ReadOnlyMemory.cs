@@ -6,10 +6,19 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
 using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 
 using Internal.Runtime.CompilerServices;
+
+#if BIT64
+using nint = System.Int64;
+using nuint = System.UInt64;
+#else // BIT64
+using nint = System.Int32;
+using nuint = System.UInt32;
+#endif // BIT64
 
 namespace System
 {
@@ -19,7 +28,7 @@ namespace System
     /// </summary>
     [DebuggerTypeProxy(typeof(MemoryDebugView<>))]
     [DebuggerDisplay("{ToString(),raw}")]
-    public readonly struct ReadOnlyMemory<T>
+    public readonly struct ReadOnlyMemory<T> : IEquatable<ReadOnlyMemory<T>>
     {
         // NOTE: With the current implementation, Memory<T> and ReadOnlyMemory<T> must have the same layout,
         // as code uses Unsafe.As to cast between them.
@@ -99,7 +108,13 @@ namespace System
             // No validation performed in release builds; caller must provide any necessary validation.
 
             // 'obj is T[]' below also handles things like int[] <-> uint[] being convertible
-            Debug.Assert((obj == null) || (typeof(T) == typeof(char) && obj is string) || (obj is T[]) || (obj is MemoryManager<T>));
+            Debug.Assert((obj == null)
+                || (typeof(T) == typeof(char) && obj is string)
+#if FEATURE_UTF8STRING
+                || ((typeof(T) == typeof(byte) || typeof(T) == typeof(Char8)) && obj is Utf8String)
+#endif // FEATURE_UTF8STRING
+                || (obj is T[])
+                || (obj is MemoryManager<T>));
 
             _object = obj;
             _index = start;
@@ -141,6 +156,14 @@ namespace System
             {
                 return (_object is string str) ? str.Substring(_index, _length) : Span.ToString();
             }
+#if FEATURE_UTF8STRING
+            else if (typeof(T) == typeof(Char8))
+            {
+                // TODO_UTF8STRING: Call into optimized transcoding routine when it's available.
+                ReadOnlySpan<T> span = Span;
+                return Encoding.UTF8.GetString(new ReadOnlySpan<byte>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(span)), span.Length));
+            }
+#endif // FEATURE_UTF8STRING
             return string.Format("System.ReadOnlyMemory<{0}>[{1}]", typeof(T).Name, _length);
         }
 
@@ -239,6 +262,13 @@ namespace System
                         refToReturn = ref Unsafe.As<char, T>(ref Unsafe.As<string>(tmpObject).GetRawStringData());
                         lengthOfUnderlyingSpan = Unsafe.As<string>(tmpObject).Length;
                     }
+#if FEATURE_UTF8STRING
+                    else if ((typeof(T) == typeof(byte) || typeof(T) == typeof(Char8)) && tmpObject.GetType() == typeof(Utf8String))
+                    {
+                        refToReturn = ref Unsafe.As<byte, T>(ref Unsafe.As<Utf8String>(tmpObject).DangerousGetMutableReference());
+                        lengthOfUnderlyingSpan = Unsafe.As<Utf8String>(tmpObject).Length;
+                    }
+#endif // FEATURE_UTF8STRING
                     else if (RuntimeHelpers.ObjectHasComponentSize(tmpObject))
                     {
                         // We know the object is not null, it's not a string, and it is variable-length. The only
@@ -272,12 +302,12 @@ namespace System
                     // least to be in-bounds when compared with the original Memory<T> instance, so using the span won't
                     // AV the process.
 
-                    int desiredStartIndex = _index & RemoveFlagsBitMask;
+                    nuint desiredStartIndex = (uint)_index & (uint)RemoveFlagsBitMask;
                     int desiredLength = _length;
 
 #if BIT64
                     // See comment in Span<T>.Slice for how this works.
-                    if ((ulong)(uint)desiredStartIndex + (ulong)(uint)desiredLength > (ulong)(uint)lengthOfUnderlyingSpan)
+                    if ((ulong)desiredStartIndex + (ulong)(uint)desiredLength > (ulong)(uint)lengthOfUnderlyingSpan)
                     {
                         ThrowHelper.ThrowArgumentOutOfRangeException();
                     }
@@ -288,7 +318,7 @@ namespace System
                     }
 #endif
 
-                    refToReturn = ref Unsafe.Add(ref refToReturn, desiredStartIndex);
+                    refToReturn = ref Unsafe.Add(ref refToReturn, (IntPtr)(void*)desiredStartIndex);
                     lengthOfUnderlyingSpan = desiredLength;
                 }
 
@@ -342,6 +372,14 @@ namespace System
                     ref char stringData = ref Unsafe.Add(ref s.GetRawStringData(), _index);
                     return new MemoryHandle(Unsafe.AsPointer(ref stringData), handle);
                 }
+#if FEATURE_UTF8STRING
+                else if ((typeof(T) == typeof(byte) || typeof(T) == typeof(Char8)) && tmpObject is Utf8String utf8String)
+                {
+                    GCHandle handle = GCHandle.Alloc(tmpObject, GCHandleType.Pinned);
+                    ref byte stringData = ref utf8String.DangerousGetMutableReference(_index);
+                    return new MemoryHandle(Unsafe.AsPointer(ref stringData), handle);
+                }
+#endif // FEATURE_UTF8STRING
                 else if (RuntimeHelpers.ObjectHasComponentSize(tmpObject))
                 {
                     // 'tmpObject is T[]' below also handles things like int[] <-> uint[] being convertible

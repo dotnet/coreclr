@@ -11,11 +11,13 @@ namespace IsaFlag
 {
 enum Flag
 {
-#define HARDWARE_INTRINSIC_CLASS(flag, isa) isa = 1ULL << InstructionSet_##isa,
+#define HARDWARE_INTRINSIC_CLASS(flag, jit_config, isa) isa = 1ULL << InstructionSet_##isa,
 #include "hwintrinsiclistArm64.h"
-    None     = 0,
-    Base     = 1ULL << InstructionSet_Base,
-    EveryISA = ~0ULL
+    None      = 0,
+    Base      = 1ULL << InstructionSet_Base,
+    Vector64  = 1ULL << InstructionSet_Vector64,
+    Vector128 = 1ULL << InstructionSet_Vector128,
+    EveryISA  = ~0ULL
 };
 
 Flag operator|(Flag a, Flag b)
@@ -31,13 +33,6 @@ Flag flag(InstructionSet isa)
 
 // clang-format off
 static const HWIntrinsicInfo hwIntrinsicInfoArray[] = {
-    // Add lookupHWIntrinsic special cases see lookupHWIntrinsic() below
-    //     NI_ARM64_IsSupported_True is used to expand get_IsSupported to const true
-    //     NI_ARM64_IsSupported_False is used to expand get_IsSupported to const false
-    //     NI_ARM64_PlatformNotSupported to throw PlatformNotSupported exception for every intrinsic not supported on the running platform
-    {NI_ARM64_IsSupported_True,     "get_IsSupported",                 IsaFlag::EveryISA, HWIntrinsicInfo::IsSupported, HWIntrinsicInfo::None, {}},
-    {NI_ARM64_IsSupported_False,    "::NI_ARM64_IsSupported_False",    IsaFlag::EveryISA, HWIntrinsicInfo::IsSupported, HWIntrinsicInfo::None, {}},
-    {NI_ARM64_PlatformNotSupported, "::NI_ARM64_PlatformNotSupported", IsaFlag::EveryISA, HWIntrinsicInfo::Unsupported, HWIntrinsicInfo::None, {}},
 #define HARDWARE_INTRINSIC(id, isa, name, form, i0, i1, i2, flags) \
     {id,                            #name,                             IsaFlag::isa,      HWIntrinsicInfo::form,        HWIntrinsicInfo::flags, { i0, i1, i2 }},
 #include "hwintrinsiclistArm64.h"
@@ -77,7 +72,11 @@ InstructionSet Compiler::lookupHWIntrinsicISA(const char* className)
     {
         if (strcmp(className, "Base") == 0)
             return InstructionSet_Base;
-#define HARDWARE_INTRINSIC_CLASS(flag, isa)                                                                            \
+        if (strncmp(className, "Vector64", 8) == 0)
+            return InstructionSet_Vector64;
+        if (strncmp(className, "Vector128", 9) == 0)
+            return InstructionSet_Vector128;
+#define HARDWARE_INTRINSIC_CLASS(flag, jit_config, isa)                                                                \
     if (strcmp(className, #isa) == 0)                                                                                  \
         return InstructionSet_##isa;
 #include "hwintrinsiclistArm64.h"
@@ -95,37 +94,45 @@ InstructionSet Compiler::lookupHWIntrinsicISA(const char* className)
 //
 // Return Value:
 //    Id for the hardware intrinsic.
-//
-// TODO-Throughput: replace sequential search by hash lookup
 NamedIntrinsic Compiler::lookupHWIntrinsic(const char* className, const char* methodName)
 {
-    InstructionSet isa    = lookupHWIntrinsicISA(className);
-    NamedIntrinsic result = NI_Illegal;
-    if (isa != InstructionSet_NONE)
+    // TODO-Throughput: replace sequential search by binary search
+    InstructionSet isa = lookupHWIntrinsicISA(className);
+
+    if (isa == InstructionSet_NONE)
     {
-        IsaFlag::Flag isaFlag = IsaFlag::flag(isa);
-        for (int i = 0; i < NI_HW_INTRINSIC_END - NI_HW_INTRINSIC_START; i++)
+        // There are several platform-agnostic intrinsics (e.g., Vector256) that
+        // are not supported in Arm64, so early return NI_Illegal
+        return NI_Illegal;
+    }
+
+    bool isIsaSupported = compSupports(isa) && compSupportsHWIntrinsic(isa);
+
+    if (strcmp(methodName, "get_IsSupported") == 0)
+    {
+        return isIsaSupported ? NI_IsSupported_True : NI_IsSupported_False;
+    }
+    else if (!isIsaSupported)
+    {
+        return NI_Throw_PlatformNotSupportedException;
+    }
+
+    for (int i = 0; i < (NI_HW_INTRINSIC_END - NI_HW_INTRINSIC_START - 1); i++)
+    {
+        if ((IsaFlag::flag(isa) & hwIntrinsicInfoArray[i].isaflags) == 0)
         {
-            if ((isaFlag & hwIntrinsicInfoArray[i].isaflags) && strcmp(methodName, hwIntrinsicInfoArray[i].name) == 0)
-            {
-                if (compSupportsHWIntrinsic(isa))
-                {
-                    // Intrinsic is supported on platform
-                    result = hwIntrinsicInfoArray[i].id;
-                }
-                else
-                {
-                    // When the intrinsic class is not supported
-                    // Return NI_ARM64_PlatformNotSupported for all intrinsics
-                    // Return NI_ARM64_IsSupported_False for the IsSupported property
-                    result = (hwIntrinsicInfoArray[i].id != NI_ARM64_IsSupported_True) ? NI_ARM64_PlatformNotSupported
-                                                                                       : NI_ARM64_IsSupported_False;
-                }
-                break;
-            }
+            continue;
+        }
+
+        if (strcmp(methodName, hwIntrinsicInfoArray[i].name) == 0)
+        {
+            return hwIntrinsicInfoArray[i].id;
         }
     }
-    return result;
+
+    // There are several helper intrinsics that are implemented in managed code
+    // Those intrinsics will hit this code path and need to return NI_Illegal
+    return NI_Illegal;
 }
 
 //------------------------------------------------------------------------
@@ -139,7 +146,7 @@ NamedIntrinsic Compiler::lookupHWIntrinsic(const char* className, const char* me
 //
 // Notes:
 //    This currently returns true for all partially-implemented ISAs.
-//    TODO-Bug: Set this to return the correct values as GH 20427 is resolved.
+//    TODO-Bug: Set this to return the correct values as https://github.com/dotnet/coreclr/issues/20427 is resolved.
 //
 bool HWIntrinsicInfo::isFullyImplementedIsa(InstructionSet isa)
 {
@@ -151,6 +158,8 @@ bool HWIntrinsicInfo::isFullyImplementedIsa(InstructionSet isa)
         case InstructionSet_Simd:
         case InstructionSet_Sha1:
         case InstructionSet_Sha256:
+        case InstructionSet_Vector64:
+        case InstructionSet_Vector128:
             return true;
 
         default:
@@ -179,6 +188,8 @@ bool HWIntrinsicInfo::isScalarIsa(InstructionSet isa)
         case InstructionSet_Simd:
         case InstructionSet_Sha1:
         case InstructionSet_Sha256:
+        case InstructionSet_Vector64:
+        case InstructionSet_Vector128:
             return false;
 
         default:
@@ -325,24 +336,24 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 
     switch (intrinsic)
     {
-        case NI_Base_Vector64_AsByte:
-        case NI_Base_Vector64_AsInt16:
-        case NI_Base_Vector64_AsInt32:
-        case NI_Base_Vector64_AsSByte:
-        case NI_Base_Vector64_AsSingle:
-        case NI_Base_Vector64_AsUInt16:
-        case NI_Base_Vector64_AsUInt32:
-        case NI_Base_Vector128_As:
-        case NI_Base_Vector128_AsByte:
-        case NI_Base_Vector128_AsDouble:
-        case NI_Base_Vector128_AsInt16:
-        case NI_Base_Vector128_AsInt32:
-        case NI_Base_Vector128_AsInt64:
-        case NI_Base_Vector128_AsSByte:
-        case NI_Base_Vector128_AsSingle:
-        case NI_Base_Vector128_AsUInt16:
-        case NI_Base_Vector128_AsUInt32:
-        case NI_Base_Vector128_AsUInt64:
+        case NI_Vector64_AsByte:
+        case NI_Vector64_AsInt16:
+        case NI_Vector64_AsInt32:
+        case NI_Vector64_AsSByte:
+        case NI_Vector64_AsSingle:
+        case NI_Vector64_AsUInt16:
+        case NI_Vector64_AsUInt32:
+        case NI_Vector128_As:
+        case NI_Vector128_AsByte:
+        case NI_Vector128_AsDouble:
+        case NI_Vector128_AsInt16:
+        case NI_Vector128_AsInt32:
+        case NI_Vector128_AsInt64:
+        case NI_Vector128_AsSByte:
+        case NI_Vector128_AsSingle:
+        case NI_Vector128_AsUInt16:
+        case NI_Vector128_AsUInt32:
+        case NI_Vector128_AsUInt64:
         {
             if (!featureSIMD)
             {
@@ -416,12 +427,6 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 
     switch (HWIntrinsicInfo::lookup(intrinsic).form)
     {
-        case HWIntrinsicInfo::IsSupported:
-            return gtNewIconNode((intrinsic == NI_ARM64_IsSupported_True) ? 1 : 0);
-
-        case HWIntrinsicInfo::Unsupported:
-            return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED, method, sig, mustExpand);
-
         case HWIntrinsicInfo::UnaryOp:
             op1 = impPopStack().val;
 

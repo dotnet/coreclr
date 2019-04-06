@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
@@ -54,13 +55,13 @@ internal static partial class Interop
             HasBirthTime = 1,
         }
 
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_FStat2", SetLastError = true)]
+        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_FStat", SetLastError = true)]
         internal static extern int FStat(SafeFileHandle fd, out FileStatus output);
 
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_Stat2", SetLastError = true)]
+        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_Stat", SetLastError = true)]
         internal static extern int Stat(string path, out FileStatus output);
 
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_LStat2", SetLastError = true)]
+        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_LStat", SetLastError = true)]
         internal static extern int LStat(string path, out FileStatus output);
     }
 }

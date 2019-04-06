@@ -306,6 +306,7 @@ set(VM_SOURCES_WKS
     comwaithandle.cpp
     customattribute.cpp
     custommarshalerinfo.cpp
+    diagnosticserver.cpp
     dllimportcallback.cpp
     eeconfig.cpp
     eecontract.cpp
@@ -319,12 +320,15 @@ set(VM_SOURCES_WKS
     eventpipeeventsource.cpp
     eventpipeblock.cpp
     eventpipefile.cpp
+    eventpipeinternal.cpp
     eventpipejsonfile.cpp
     eventpipemetadatagenerator.cpp
+    eventpipeprotocolhelper.cpp
     eventpipeprovider.cpp
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp
     eventpipesession.cpp
+    eventpipesessionprovider.cpp
     eventstore.cpp
     fastserializer.cpp
     fcall.cpp
@@ -421,6 +425,8 @@ set(VM_HEADERS_WKS
     comwaithandle.h
     customattribute.h
     custommarshalerinfo.h
+    diagnosticserver.h
+    diagnosticsprotocol.h
     dllimportcallback.h
     eeconfig.h
     eecontract.h
@@ -439,10 +445,13 @@ set(VM_HEADERS_WKS
     eventpipeeventinstance.h
     eventpipeeventsource.h
     eventpipefile.h
+    eventpipeinternal.h
     eventpipejsonfile.h
     eventpipemetadatagenerator.h
+    eventpipeprotocolhelper.h
     eventpipeprovider.h
     eventpipesession.h
+    eventpipesessionprovider.h
     eventstore.hpp
     fastserializer.h
     fcall.h
@@ -553,12 +562,14 @@ endif(FEATURE_STANDALONE_GC)
 if(WIN32)
 
 set(VM_SOURCES_DAC_AND_WKS_WIN32
+    amsi.cpp
     clrtocomcall.cpp
     rcwwalker.cpp
     winrttypenameconverter.cpp
 )
 
 set(VM_HEADERS_DAC_AND_WKS_WIN32
+    amsi.h
     clrtocomcall.h
     rcwwalker.h
     winrttypenameconverter.h
@@ -668,6 +679,7 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
         ${ARCH_SOURCES_DIR}/asmhelpers.asm
         ${ARCH_SOURCES_DIR}/gmsasm.asm
         ${ARCH_SOURCES_DIR}/jithelp.asm
+        ${ARCH_SOURCES_DIR}/PInvokeStubs.asm
     )
 
     set(VM_HEADERS_WKS_ARCH_ASM
@@ -724,6 +736,7 @@ else(WIN32)
             ${ARCH_SOURCES_DIR}/asmhelpers.S
             ${ARCH_SOURCES_DIR}/jithelp.S
             ${ARCH_SOURCES_DIR}/gmsasm.S
+            ${ARCH_SOURCES_DIR}/pinvokestubs.S
             ${ARCH_SOURCES_DIR}/umthunkstub.S
         )
     elseif(CLR_CMAKE_TARGET_ARCH_ARM)

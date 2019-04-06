@@ -2170,14 +2170,14 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
         //     messages to the console
         if (IsReadyToRunCompilation())
         {
-            // When compiling the method we may recieve an exeception when the
+            // When compiling the method we may receive an exeception when the
             // method uses a feature that is Not Implemented for ReadyToRun 
             // or a Type Load exception if the method uses for a SIMD type.
             //
             // We skip the compilation of such methods and we don't want to
             // issue a warning or error
             //
-            if ((hrException == E_NOTIMPL) || (hrException == IDS_CLASSLOAD_GENERAL))
+            if ((hrException == E_NOTIMPL) || (hrException == (HRESULT)IDS_CLASSLOAD_GENERAL))
             {
                 result = NOT_COMPILED;
                 level = CORZAP_LOGLEVEL_INFO;

@@ -277,7 +277,7 @@ FCIMPL0(Object*, SystemNative::GetCommandLineArgs)
     {
         STRINGREF str = StringObject::NewString(argv[i]);
         STRINGREF * destData = ((STRINGREF*)(strArray->GetDataPtr())) + i;
-        SetObjectReference((OBJECTREF*)destData, (OBJECTREF)str, strArray->GetAppDomain());
+        SetObjectReference((OBJECTREF*)destData, (OBJECTREF)str);
     }
     delete [] argv;
 
@@ -346,7 +346,7 @@ INT32 QCALLTYPE SystemNative::GetProcessorCount()
 #ifdef FEATURE_PAL
     uint32_t cpuLimit;
 
-    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < processorCount)
+    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < (uint32_t)processorCount)
         processorCount = cpuLimit;
 #endif
 

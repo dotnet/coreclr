@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "fastserializer.h"
+#include "diagnosticsipc.h"
 
 #ifdef FEATURE_PERFTRACING
 
@@ -11,7 +12,49 @@
 // As a result of work on V3 of Event Pipe (https://github.com/Microsoft/perfview/pull/532) it got removed
 // if you need it, please use git to restore it
 
-FastSerializer::FastSerializer(SString &outputFilePath)
+IpcStreamWriter::IpcStreamWriter(IpcStream *pStream) : _pStream(pStream)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(_pStream != nullptr);
+    }
+    CONTRACTL_END;
+}
+
+IpcStreamWriter::~IpcStreamWriter()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    delete _pStream;
+}
+
+bool IpcStreamWriter::Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32_t &nBytesWritten) const
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_PREEMPTIVE;
+        PRECONDITION(lpBuffer != nullptr);
+        PRECONDITION(nBytesToWrite > 0);
+    }
+    CONTRACTL_END;
+
+    if (_pStream == nullptr)
+        return false;
+    return _pStream->Write(lpBuffer, nBytesToWrite, nBytesWritten);
+}
+
+FileStreamWriter::FileStreamWriter(const SString &outputFilePath)
 {
     CONTRACTL
     {
@@ -21,17 +64,63 @@ FastSerializer::FastSerializer(SString &outputFilePath)
     }
     CONTRACTL_END;
 
-    m_writeErrorEncountered = false;
-    m_currentPos = 0;
     m_pFileStream = new CFileStream();
-    if(FAILED(m_pFileStream->OpenForWrite(outputFilePath)))
+    if (FAILED(m_pFileStream->OpenForWrite(outputFilePath)))
     {
         _ASSERTE(!"Unable to open file for write.");
-        delete(m_pFileStream);
+        delete m_pFileStream;
         m_pFileStream = NULL;
         return;
     }
+}
 
+FileStreamWriter::~FileStreamWriter()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    delete m_pFileStream;
+}
+
+bool FileStreamWriter::Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32_t &nBytesWritten) const
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_PREEMPTIVE;
+        PRECONDITION(lpBuffer != nullptr);
+        PRECONDITION(nBytesToWrite > 0);
+    }
+    CONTRACTL_END;
+
+    if (m_pFileStream == nullptr)
+        return false;
+
+    ULONG outCount;
+    HRESULT hResult = m_pFileStream->Write(lpBuffer, nBytesToWrite, &outCount);
+    nBytesWritten = static_cast<uint32_t>(outCount);
+    return hResult == S_OK;
+}
+
+FastSerializer::FastSerializer(StreamWriter *pStreamWriter) : m_pStreamWriter(pStreamWriter)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(m_pStreamWriter != NULL);
+    }
+    CONTRACTL_END;
+
+    m_writeErrorEncountered = false;
+    m_currentPos = 0;
     WriteFileHeader();
 }
 
@@ -45,18 +134,7 @@ FastSerializer::~FastSerializer()
     }
     CONTRACTL_END;
 
-    if(m_pFileStream != NULL)
-    {
-        delete(m_pFileStream);
-        m_pFileStream = NULL;
-    }
-}
-
-StreamLabel FastSerializer::GetStreamLabel() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return (StreamLabel)m_currentPos;
+    delete m_pStreamWriter;
 }
 
 void FastSerializer::WriteObject(FastSerializableObject *pObject)
@@ -92,35 +170,32 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
     }
     CONTRACTL_END;
 
-    if(m_writeErrorEncountered || m_pFileStream == NULL)
-    {
+    if (m_writeErrorEncountered || m_pStreamWriter == NULL)
         return;
-    }
 
     EX_TRY
     {
-        ULONG outCount;
-        m_pFileStream->Write(pBuffer, length, &outCount);
+        uint32_t outCount;
+        m_pStreamWriter->Write(pBuffer, length, outCount);
 
 #ifdef _DEBUG
         size_t prevPos = m_currentPos;
 #endif
         m_currentPos += outCount;
-#ifdef _DEBUG
-        _ASSERTE(prevPos < m_currentPos);
-#endif
 
-        if (length != outCount)
-        {
-            // This will cause us to stop writing to the file.
-            // The file will still remain open until shutdown so that we don't have to take a lock at this level when we touch the file stream.
-            m_writeErrorEncountered = true;
-        }
+        // This will cause us to stop writing to the file.
+        // The file will still remain open until shutdown so that we don't
+        // have to take a lock at this level when we touch the file stream.
+        m_writeErrorEncountered = (length != outCount);
+
+#ifdef _DEBUG
+        _ASSERTE(m_writeErrorEncountered || (prevPos < m_currentPos));
+#endif
     }
     EX_CATCH
     {
         m_writeErrorEncountered = true;
-    } 
+    }
     EX_END_CATCH(SwallowAllExceptions);
 }
 
@@ -142,10 +217,10 @@ void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
     WriteTag(FastSerializerTags::NullReference);
 
     // Write the SerializationType version fields.
-    int serializationType[2];
-    serializationType[0] = pObject->GetObjectVersion();
-    serializationType[1] = pObject->GetMinReaderVersion();
-    WriteBuffer((BYTE*) &serializationType, sizeof(serializationType));
+    int serializationType[2] = {
+        pObject->GetObjectVersion(),
+        pObject->GetMinReaderVersion()};
+    WriteBuffer((BYTE *)&serializationType, sizeof(serializationType));
 
     // Write the SerializationType TypeName field.
     const char *strTypeName = pObject->GetTypeName();
@@ -156,7 +231,6 @@ void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
     // Write the EndObject tag.
     WriteTag(FastSerializerTags::EndObject);
 }
-
 
 void FastSerializer::WriteTag(FastSerializerTags tag, BYTE *payload, unsigned int payloadLength)
 {
@@ -169,7 +243,7 @@ void FastSerializer::WriteTag(FastSerializerTags tag, BYTE *payload, unsigned in
     CONTRACTL_END;
 
     WriteBuffer((BYTE *)&tag, sizeof(tag));
-    if(payload != NULL)
+    if (payload != NULL)
     {
         _ASSERTE(payloadLength > 0);
         WriteBuffer(payload, payloadLength);
@@ -202,10 +276,10 @@ void FastSerializer::WriteString(const char *strContents, unsigned int length)
     CONTRACTL_END;
 
     // Write the string length .
-    WriteBuffer((BYTE*) &length, sizeof(length));
+    WriteBuffer((BYTE *)&length, sizeof(length));
 
     // Write the string contents.
-    WriteBuffer((BYTE*) strContents, length);
+    WriteBuffer((BYTE *)strContents, length);
 }
 
 #endif // FEATURE_PERFTRACING

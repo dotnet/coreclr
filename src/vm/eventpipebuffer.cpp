@@ -75,6 +75,15 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
 
         // Placement-new the EventPipeEventInstance.
         // if pthread is NULL, it's likely we are running in something like a GC thread which is not a Thread object, so it can't have an activity ID set anyway
+
+        StackContents s;
+        memset((void*)&s, 0, sizeof(s));
+        if (event.NeedStack() && !session.RundownEnabled() && pStack == NULL)
+        {
+            EventPipe::WalkManagedStackForCurrentThread(s);
+            pStack = &s;
+        }
+
         EventPipeEventInstance *pInstance = new (m_pCurrent) EventPipeEventInstance(
             session,
             event,
@@ -83,10 +92,9 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
             payload.GetSize(),
             (pThread == NULL) ? NULL : pActivityId,
             pRelatedActivityId);
-        pInstance->EnsureStack(session); // TODO: Perform the stackwalk before the constructor
 
         // Copy the stack if a separate stack trace was provided.
-        if(pStack != NULL)
+        if (pStack != NULL)
         {
             StackContents *pInstanceStack = pInstance->GetStack();
             pStack->CopyTo(pInstanceStack);
@@ -123,22 +131,6 @@ LARGE_INTEGER EventPipeBuffer::GetMostRecentTimeStamp() const
     LIMITED_METHOD_CONTRACT;
 
     return m_mostRecentTimeStamp;
-}
-
-void EventPipeBuffer::Clear()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    memset(m_pBuffer, 0, (size_t)(m_pLimit - m_pBuffer));
-    m_pCurrent = GetNextAlignedAddress(m_pBuffer);
-    m_mostRecentTimeStamp.QuadPart = 0;
-    m_pLastPoppedEvent = NULL;
 }
 
 EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent, LARGE_INTEGER beforeTimeStamp)

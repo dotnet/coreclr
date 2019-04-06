@@ -90,7 +90,7 @@ public:
     {
         long long quota;
         long long period;
-        long long cpu_count;
+        double cpu_count;
 
         quota = ReadCpuCGroupValue(CFS_QUOTA_FILENAME);
         if (quota <= 0)
@@ -106,16 +106,10 @@ public:
             *val = 1;
             return true;
         }
-        
-        cpu_count = quota / period;
-        if (cpu_count < UINT_MAX)
-        {
-            *val = cpu_count;
-        }
-        else
-        {
-            *val = UINT_MAX;
-        }
+
+        // Calculate cpu count based on quota and round it up
+        cpu_count = (double) quota / period  + 0.999999999;
+        *val = (cpu_count < UINT_MAX) ? (UINT)cpu_count : UINT_MAX;
 
         return true;
     }
@@ -386,20 +380,18 @@ size_t
 PALAPI
 PAL_GetRestrictedPhysicalMemoryLimit()
 {
-    size_t physical_memory_limit;
+    size_t physical_memory_limit = 0;
 
     if (!CGroup::GetPhysicalMemoryLimit(&physical_memory_limit))
          return 0;
-    else
+
+    // If there's no memory limit specified on the container this 
+    // actually returns 0x7FFFFFFFFFFFF000 (2^63-1 rounded down to 
+    // 4k which is a common page size). So we know we are not
+    // running in a memory restricted environment.
+    if (physical_memory_limit > 0x7FFFFFFF00000000)
     {
-        // If there's no memory limit specified on the container this 
-        // actually returns 0x7FFFFFFFFFFFF000 (2^63-1 rounded down to 
-        // 4k which is a common page size). So we know we are not
-        // running in a memory restricted environment.
-        if (physical_memory_limit > 0x7FFFFFFF00000000)
-        {
-            return 0;
-        }
+        return 0;
     }
 
     struct rlimit curr_rlimit;

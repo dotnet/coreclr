@@ -437,8 +437,7 @@ void ThrowOutOfMemoryDimensionsExceeded()
 //
 // This is wrapper overload to handle TypeHandle arrayType
 //
-OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap
-                          DEBUG_ARG(BOOL bDontSetAppDomain))
+OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap)
 {
     CONTRACTL
     {
@@ -448,8 +447,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
     ArrayTypeDesc* arrayDesc = arrayType.AsArray();
     MethodTable* pArrayMT = arrayDesc->GetMethodTable();
 
-    return AllocateArrayEx(pArrayMT, pArgs, dwNumArgs, bAllocateInLargeHeap
-                           DEBUG_ARG(bDontSetAppDomain));
+    return AllocateArrayEx(pArrayMT, pArgs, dwNumArgs, bAllocateInLargeHeap);
 }
 
 //
@@ -459,8 +457,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
 // allocate sub-arrays and fill them in.  
 //
 // For arrays with lower bounds, pBounds is <lower bound 1>, <count 1>, <lower bound 2>, ...
-OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap
-                          DEBUG_ARG(BOOL bDontSetAppDomain))
+OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap)
 {
     CONTRACTL {
         THROWS;
@@ -513,7 +510,7 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
             // This recursive call doesn't go any farther, because the dwNumArgs will be 1,
             //  so don't bother with stack probe.
             TypeHandle szArrayType = ClassLoader::LoadArrayTypeThrowing(pArrayMT->GetApproxArrayElementTypeHandle(), ELEMENT_TYPE_SZARRAY, 1);
-            return AllocateArrayEx(szArrayType, &pArgs[dwNumArgs - 1], 1, bAllocateInLargeHeap DEBUG_ARG(bDontSetAppDomain));
+            return AllocateArrayEx(szArrayType, &pArgs[dwNumArgs - 1], 1, bAllocateInLargeHeap);
         }
 
         providedLowerBounds = (dwNumArgs == 2*rank);
@@ -673,7 +670,7 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
                     TypeHandle subArrayType = pArrayMT->GetApproxArrayElementTypeHandle();
                     for (UINT32 i = 0; i < cElements; i++)
                     {
-                        OBJECTREF obj = AllocateArrayEx(subArrayType, &pArgs[1], dwNumArgs-1, bAllocateInLargeHeap DEBUG_ARG(bDontSetAppDomain));
+                        OBJECTREF obj = AllocateArrayEx(subArrayType, &pArgs[1], dwNumArgs-1, bAllocateInLargeHeap);
                         outerArray->SetAt(i, obj);
                     }
 
@@ -880,7 +877,7 @@ OBJECTREF   DupArrayForCloning(BASEARRAYREF pRef, BOOL bAllocateInLargeHeap)
         numArgs = 1;
         args[0] = pRef->GetNumComponents();
     }
-    return AllocateArrayEx(TypeHandle(&arrayType), args, numArgs, bAllocateInLargeHeap DEBUG_ARG(FALSE));
+    return AllocateArrayEx(TypeHandle(&arrayType), args, numArgs, bAllocateInLargeHeap);
 }
 
 #if defined(_TARGET_X86_)
@@ -956,8 +953,7 @@ OBJECTREF   AllocateObjectArray(DWORD cElements, TypeHandle elementType, BOOL bA
     return AllocateArrayEx(ClassLoader::LoadArrayTypeThrowing(elementType),
                            (INT32 *)(&cElements),
                            1,
-                           bAllocateInLargeHeap
-                           DEBUG_ARG(FALSE));
+                           bAllocateInLargeHeap);
 }
 
 
@@ -981,6 +977,8 @@ STRINGREF SlowAllocateString( DWORD cchStringLength )
 
     // Limit the maximum string size to <2GB to mitigate risk of security issues caused by 32-bit integer
     // overflows in buffer size calculations.
+    //
+    // If the value below is changed, also change SlowAllocateUtf8String.
     if (cchStringLength > 0x3FFFFFDF)
         ThrowOutOfMemory();
 
@@ -1027,6 +1025,81 @@ STRINGREF SlowAllocateString( DWORD cchStringLength )
 
     return( ObjectToSTRINGREF(orObject) );
 }
+
+#ifdef FEATURE_UTF8STRING
+UTF8STRINGREF SlowAllocateUtf8String(DWORD cchStringLength)
+{
+    CONTRACTL{
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
+    } CONTRACTL_END;
+
+    Utf8StringObject    *orObject = NULL;
+
+#ifdef _DEBUG
+    if (g_pConfig->ShouldInjectFault(INJECTFAULT_GCHEAP))
+    {
+        char *a = new char;
+        delete a;
+    }
+#endif
+
+    // Limit the maximum string size to <2GB to mitigate risk of security issues caused by 32-bit integer
+    // overflows in buffer size calculations.
+    //
+    // 0x7FFFFFBF is derived from the const 0x3FFFFFDF in SlowAllocateString.
+    // Adding +1 (for null terminator) and multiplying by sizeof(WCHAR) means that
+    // SlowAllocateString allows a maximum of 0x7FFFFFC0 bytes to be used for the
+    // string data itself, with some additional buffer for object headers and other
+    // data. Since we don't have the sizeof(WCHAR) multiplication here, we only need
+    // -1 to account for the null terminator, leading to a max size of 0x7FFFFFBF.
+    if (cchStringLength > 0x7FFFFFBF)
+        ThrowOutOfMemory();
+
+    SIZE_T ObjectSize = PtrAlign(Utf8StringObject::GetSize(cchStringLength));
+    _ASSERTE(ObjectSize > cchStringLength);
+
+    SetTypeHandleOnThreadForAlloc(TypeHandle(g_pUtf8StringClass));
+
+    orObject = (Utf8StringObject *)Alloc(ObjectSize, FALSE, FALSE);
+
+    // Object is zero-init already
+    _ASSERTE(orObject->HasEmptySyncBlockInfo());
+
+    // Initialize Object
+    orObject->SetMethodTable(g_pUtf8StringClass);
+    orObject->SetLength(cchStringLength);
+
+    if (ObjectSize >= LARGE_OBJECT_SIZE)
+    {
+        GCHeapUtilities::GetGCHeap()->PublishObject((BYTE*)orObject);
+    }
+
+    // Notify the profiler of the allocation
+    if (TrackAllocations())
+    {
+        OBJECTREF objref = ObjectToOBJECTREF((Object*)orObject);
+        GCPROTECT_BEGIN(objref);
+        ProfilerObjectAllocatedCallback(objref, (ClassID)orObject->GetTypeHandle().AsPtr());
+        GCPROTECT_END();
+
+        orObject = (Utf8StringObject *)OBJECTREFToObject(objref);
+    }
+
+#ifdef FEATURE_EVENT_TRACE
+    // Send ETW event for allocation
+    if (ETW::TypeSystemLog::IsHeapAllocEventEnabled())
+    {
+        ETW::TypeSystemLog::SendObjectAllocatedEvent(orObject);
+    }
+#endif // FEATURE_EVENT_TRACE
+
+    LogAlloc(ObjectSize, g_pUtf8StringClass, orObject);
+
+    return( ObjectToUTF8STRINGREF(orObject) );
+}
+#endif // FEATURE_UTF8STRING
 
 #ifdef FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 // OBJECTREF AllocateComClassObject(ComClassFactory* pComClsFac)
@@ -1139,9 +1212,6 @@ OBJECTREF AllocateObject(MethodTable *pMT
         {
             orObject->SetMethodTable(pMT);
         }
-
-        if (pMT->HasFinalizer())
-            orObject->SetAppDomain(); 
 
         // Notify the profiler of the allocation
         if (TrackAllocations())

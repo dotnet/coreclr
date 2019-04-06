@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
@@ -16,7 +17,7 @@ namespace Internal
     public static class Console
     {
         private static readonly SafeFileHandle _outputHandle =
-            new SafeFileHandle(Interop.Kernel32.GetStdHandle(Interop.Kernel32.STD_OUTPUT_HANDLE), ownsHandle: false);
+            new SafeFileHandle(Interop.Kernel32.GetStdHandle(Interop.Kernel32.HandleTypes.STD_OUTPUT_HANDLE), ownsHandle: false);
 
         public static unsafe void Write(string s)
         {
@@ -27,7 +28,7 @@ namespace Internal
             }
         }
 
-        public static void WriteLine(string s) =>
+        public static void WriteLine(string? s) =>
             Write(s + Environment.NewLine);
 
         public static void WriteLine() =>

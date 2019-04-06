@@ -373,7 +373,7 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     if (pCode == NULL)
     {
 #ifdef FEATURE_TIERED_COMPILATION
-        if (g_pConfig->TieredCompilation_DisableTier0Jit() &&
+        if (!g_pConfig->TieredCompilation_QuickJit() &&
             IsEligibleForTieredCompilation() &&
             pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTier0 &&
             CallCounter::IsEligibleForTier0CallCounting(this))
@@ -1234,7 +1234,7 @@ void CreateInstantiatingILStubTargetSig(MethodDesc *pBaseMD,
 
     // Return type
     SigPointer pReturn = msig.GetReturnProps();
-    pReturn.ConvertToInternalExactlyOne(msig.GetModule(), &typeContext, stubSigBuilder, FALSE);
+    pReturn.ConvertToInternalExactlyOne(msig.GetModule(), &typeContext, stubSigBuilder);
 
 #ifndef _TARGET_X86_
     // The hidden context parameter

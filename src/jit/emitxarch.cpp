@@ -2407,33 +2407,15 @@ emitter::instrDesc* emitter::emitNewInstrAmdCns(emitAttr size, ssize_t dsp, int 
 {
     if (dsp >= AM_DISP_MIN && dsp <= AM_DISP_MAX)
     {
-        if (cns >= ID_MIN_SMALL_CNS && cns <= ID_MAX_SMALL_CNS)
-        {
-            instrDesc* id = emitAllocInstr(size);
+        instrDesc* id                    = emitNewInstrCns(size, cns);
+        id->idAddr()->iiaAddrMode.amDisp = dsp;
+        assert(id->idAddr()->iiaAddrMode.amDisp == dsp); // make sure the value fit
 
-            id->idSmallCns(cns);
-
-            id->idAddr()->iiaAddrMode.amDisp = dsp;
-            assert(id->idAddr()->iiaAddrMode.amDisp == dsp); // make sure the value fit
-
-            return id;
-        }
-        else
-        {
-            instrDescCns* id = emitAllocInstrCns(size);
-
-            id->idSetIsLargeCns();
-            id->idcCnsVal = cns;
-
-            id->idAddr()->iiaAddrMode.amDisp = dsp;
-            assert(id->idAddr()->iiaAddrMode.amDisp == dsp); // make sure the value fit
-
-            return id;
-        }
+        return id;
     }
     else
     {
-        if (cns >= ID_MIN_SMALL_CNS && cns <= ID_MAX_SMALL_CNS)
+        if (instrDesc::fitsInSmallCns(cns))
         {
             instrDescAmd* id = emitAllocInstrAmd(size);
 
@@ -2867,6 +2849,12 @@ void emitter::emitInsLoadInd(instruction ins, emitAttr attr, regNumber dstReg, G
     id->idReg1(dstReg);
     emitHandleMemOp(mem, id, IF_RWR_ARD, ins);
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
+    if (Is4ByteSSEInstruction(ins))
+    {
+        // The 4-Byte SSE instructions require an additional byte.
+        sz += 1;
+    }
+
     id->idCodeSize(sz);
     dispIns(id);
     emitCurIGsize += sz;
@@ -4055,6 +4043,12 @@ void emitter::emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTre
     emitHandleMemOp(indir, id, IF_RRW_ARD, ins);
 
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
+    if (Is4ByteSSEInstruction(ins))
+    {
+        // The 4-Byte SSE instructions require an additional byte.
+        sz += 1;
+    }
+
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4106,8 +4100,8 @@ void emitter::emitIns_R_AR_I(instruction ins, emitAttr attr, regNumber reg1, reg
 
     if (Is4ByteSSEInstruction(ins))
     {
-        // The 4-Byte SSE instructions require two additional bytes
-        sz += 2;
+        // The 4-Byte SSE instructions require an additional byte.
+        sz += 1;
     }
 
     id->idCodeSize(sz);
@@ -5183,8 +5177,8 @@ void emitter::emitIns_R_AR(instruction ins, emitAttr attr, regNumber ireg, regNu
 
     if (Is4ByteSSEInstruction(ins))
     {
-        // The 4-Byte SSE instructions require two additional bytes
-        sz += 2;
+        // The 4-Byte SSE instructions require an additional byte.
+        sz += 1;
     }
 
     id->idCodeSize(sz);
@@ -5253,6 +5247,40 @@ void emitter::emitIns_AR_R(instruction ins, emitAttr attr, regNumber ireg, regNu
     emitCurIGsize += sz;
 
     emitAdjustStackDepthPushPop(ins);
+}
+
+//------------------------------------------------------------------------
+// emitIns_S_R_I: emits the code for an instruction that takes a stack operand,
+//                a register operand, and an immediate.
+//
+// Arguments:
+//    ins       - The instruction being emitted
+//    attr      - The emit attribute
+//    varNum    - The varNum of the stack operand
+//    offs      - The offset for the stack operand
+//    reg       - The register operand
+//    ival      - The immediate value
+//
+void emitter::emitIns_S_R_I(instruction ins, emitAttr attr, int varNum, int offs, regNumber reg, int ival)
+{
+    // This is only used for INS_vextracti128 and INS_vextractf128, and for these 'ival' must be 0 or 1.
+    assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+    assert((ival == 0) || (ival == 1));
+    instrDesc* id = emitNewInstrAmdCns(attr, 0, ival);
+
+    id->idIns(ins);
+    id->idInsFmt(IF_SWR_RRD_CNS);
+    id->idReg1(reg);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varNum, offs);
+#ifdef DEBUG
+    id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
+#endif
+
+    UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeMR(ins), varNum, offs, ival);
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
 }
 
 void emitter::emitIns_AR_R_I(instruction ins, emitAttr attr, regNumber base, int disp, regNumber ireg, int ival)
@@ -5658,7 +5686,7 @@ void emitter::emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNu
 
 #ifdef FEATURE_HW_INTRINSICS
 //------------------------------------------------------------------------
-// emitIns_SIMD_R_R_I: emits the code for a SIMD instruction that takes a register operand, an immediate operand
+// emitIns_SIMD_R_R_I: emits the code for an instruction that takes a register operand, an immediate operand
 //                     and that returns a value in register
 //
 // Arguments:
@@ -5667,6 +5695,13 @@ void emitter::emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNu
 //    targetReg -- The target register
 //    op1Reg    -- The register of the first operand
 //    ival      -- The immediate value
+//
+// Notes:
+//    This will handle the required register copy if 'op1Reg' and 'targetReg' are not the same, and
+//    the 3-operand format is not available.
+//    This is not really SIMD-specific, but is currently only used in that context, as that's
+//    where we frequently need to handle the case of generating 3-operand or 2-operand forms
+//    depending on what target ISA is supported.
 //
 void emitter::emitIns_SIMD_R_R_I(instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, int ival)
 {
@@ -5722,12 +5757,14 @@ void emitter::emitIns_SIMD_R_R_A(
 //    targetReg -- The target register
 //    op1Reg    -- The register of the first operand
 //    base      -- The base register used for the memory address
+//    offset    -- The memory offset
 //
-void emitter::emitIns_SIMD_R_R_AR(instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber base)
+void emitter::emitIns_SIMD_R_R_AR(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber base, int offset)
 {
     if (UseVEXEncoding())
     {
-        emitIns_R_R_AR(ins, attr, targetReg, op1Reg, base, 0);
+        emitIns_R_R_AR(ins, attr, targetReg, op1Reg, base, offset);
     }
     else
     {
@@ -5735,7 +5772,7 @@ void emitter::emitIns_SIMD_R_R_AR(instruction ins, emitAttr attr, regNumber targ
         {
             emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
         }
-        emitIns_R_AR(ins, attr, targetReg, base, 0);
+        emitIns_R_AR(ins, attr, targetReg, base, offset);
     }
 }
 
@@ -8561,6 +8598,31 @@ void emitter::emitDispIns(
                 {
                     goto PRINT_CONSTANT;
                 }
+            }
+            break;
+
+        case IF_SWR_RRD_CNS:
+            assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+            assert(UseVEXEncoding());
+            emitGetInsAmdCns(id, &cnsVal);
+
+            printf("%s", sstr);
+
+            emitDispFrameRef(id->idAddr()->iiaLclVar.lvaVarNum(), id->idAddr()->iiaLclVar.lvaOffset(),
+                             id->idDebugOnlyInfo()->idVarRefOffs, asmfm);
+
+            printf(", %s", emitRegName(id->idReg1(), attr));
+
+            val = cnsVal.cnsVal;
+            printf(", ");
+
+            if (cnsVal.cnsReloc)
+            {
+                emitDispReloc(val);
+            }
+            else
+            {
+                goto PRINT_CONSTANT;
             }
             break;
 
@@ -13115,6 +13177,15 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             emitGetInsCns(id, &cnsVal);
             dst = emitOutputSV(dst, id, insCodeMR(ins), &cnsVal);
             sz  = emitSizeOfInsDsc(id);
+            break;
+
+        case IF_SWR_RRD_CNS:
+            assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+            assert(UseVEXEncoding());
+            emitGetInsAmdCns(id, &cnsVal);
+            code = insCodeMR(ins);
+            dst  = emitOutputSV(dst, id, insCodeMR(ins), &cnsVal);
+            sz   = emitSizeOfInsDsc(id);
             break;
 
         case IF_RRW_SRD_CNS:
