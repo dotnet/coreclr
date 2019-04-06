@@ -142,10 +142,10 @@ namespace System
                 {
                     // Figure out how many characters to read sequentially until we are vector aligned
                     // This is equivalent to:
-                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
+                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte 
                     //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
-                    const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
+                    const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
+                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / ElementsPerByte ;
                     length = (Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1);
                 }
 
@@ -230,10 +230,10 @@ namespace System
                 {
                     // Figure out how many characters to read sequentially until we are vector aligned
                     // This is equivalent to:
-                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
+                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte 
                     //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
-                    const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
+                    const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
+                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / ElementsPerByte ;
                     length = (Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1);
                 }
 
@@ -324,10 +324,10 @@ namespace System
                 {
                     // Figure out how many characters to read sequentially until we are vector aligned
                     // This is equivalent to:
-                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
+                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte 
                     //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
-                    const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
+                    const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
+                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / ElementsPerByte ;
                     length = (Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1);
                 }
 
@@ -422,10 +422,10 @@ namespace System
                 {
                     // Figure out how many characters to read sequentially until we are vector aligned
                     // This is equivalent to:
-                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
+                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte 
                     //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
-                    const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
+                    const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
+                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / ElementsPerByte ;
                     length = (Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1);
                 }
 
@@ -523,10 +523,10 @@ namespace System
                 {
                     // Figure out how many characters to read sequentially until we are vector aligned
                     // This is equivalent to:
-                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
+                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte 
                     //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
-                    const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
+                    const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
+                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / ElementsPerByte ;
                     length = (Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1);
                 }
 
@@ -626,10 +626,10 @@ namespace System
                 {
                     // Figure out how many characters to read sequentially until we are vector aligned
                     // This is equivalent to:
-                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
+                    //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte 
                     //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
-                    const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
+                    const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
+                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / ElementsPerByte ;
                     length = (Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1);
                 }
 
@@ -731,9 +731,9 @@ namespace System
                 if (Vector.IsHardwareAccelerated && length >= Vector<ushort>.Count * 2)
                 {
                     // Figure out how many characters to read sequentially from the end until we are vector aligned
-                    // This is equivalent to: length = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
-                    const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    length = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
+                    // This is equivalent to: length = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte 
+                    const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
+                    length = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / ElementsPerByte ;
                 }
 
             SequentialScan:
@@ -915,26 +915,26 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe nint UnalignedCountVector(ref char searchSpace)
         {
-            const int elementsPerByte = sizeof(ushort) / sizeof(byte);
+            const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
             // Figure out how many characters to read sequentially until we are vector aligned
             // This is equivalent to:
-            //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / elementsPerByte
+            //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte 
             //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
 
             // This alignment is only valid if the GC does not relocate; so we use ReadUnaligned to get the data.
             // If a GC does occur and alignment is lost, the GC cost will outweigh any gains from alignment so it
             // isn't too important to pin to maintain the alignment.
-            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / elementsPerByte) & (Vector<ushort>.Count - 1);
+            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / ElementsPerByte ) & (Vector<ushort>.Count - 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe nint UnalignedCountVector128(ref char searchSpace)
         {
-            const int elementsPerByte = sizeof(ushort) / sizeof(byte);
+            const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
             // This alignment is only valid if the GC does not relocate; so we use ReadUnaligned to get the data.
             // If a GC does occur and alignment is lost, the GC cost will outweigh any gains from alignment so it
             // isn't too important to pin to maintain the alignment.
-            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / elementsPerByte) & (Vector128<ushort>.Count - 1);
+            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / ElementsPerByte ) & (Vector128<ushort>.Count - 1);
         }
     }
 }
