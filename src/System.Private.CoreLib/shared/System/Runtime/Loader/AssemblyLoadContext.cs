@@ -400,12 +400,22 @@ namespace System.Runtime.Loader
 
         internal static class StaticAsyncLocalCurrentContextualReflectionContext
         {
-            private static readonly AsyncLocal<AssemblyLoadContext> _asyncLocalCurrentContextualReflectionContext = new AsyncLocal<AssemblyLoadContext>();
+            private static AsyncLocal<AssemblyLoadContext> s_asyncLocalCurrent;
 
             public static AssemblyLoadContext Value
             {
-                get { return _asyncLocalCurrentContextualReflectionContext.Value; }
-                set { _asyncLocalCurrentContextualReflectionContext.Value = value; }
+                get
+                {
+                    return s_asyncLocalCurrent?.Value;
+                }
+                set
+                {
+                    if (s_asyncLocalCurrent == null)
+                    {
+                        Interlocked.CompareExchange(ref s_asyncLocalCurrent, new AsyncLocal<AssemblyLoadContext>(), null);
+                    }
+                    s_asyncLocalCurrent.Value = value;
+                }
             }
         }
 
