@@ -370,7 +370,7 @@ namespace System
                 if (offset < length)
                 {
                     lengthToExamine = GetCharVector128SpanLength(offset, length);
-                    if (lengthToExamine >= 0)
+                    if (lengthToExamine > 0)
                     {
                         Vector128<ushort> values = Vector128.Create((ushort)value);
                         do
