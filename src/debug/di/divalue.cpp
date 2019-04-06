@@ -2563,43 +2563,47 @@ HRESULT CordbObjectValue::IsDelegate()
     return hr;
 }
 
-BOOL IsSupportedDelegateType(IDacDbiInterface::DelegateType delType)
+HRESULT IsSupportedDelegateHelper(IDacDbiInterface::DelegateType delType)
 {
-    // first iteration: We care only about the simple delegate.
-    return delType == IDacDbiInterface::DelegateType::kSingleFunctionDelegate;
+    switch (delType)
+    {
+        case IDacDbiInterface::DelegateType::kClosedDelegate:
+            return S_OK;
+        case IDacDbiInterface::DelegateType::kUnmanagedFunctionDelegate:
+            return CORDBG_E_BAD_REFERENCE_VALUE;
+        default:
+            return CORDBG_E_MULTIFUNC_DELEGATE;
+    }
 }
 
-IDacDbiInterface::DelegateType CordbObjectValue::GetDelegateType()
+HRESULT CordbObjectValue::GetDelegateObjectHelper(VMPTR_Object *pDelegateObj, IDacDbiInterface::DelegateType *pDelType)
 {
-    _ASSERTE(m_fIsDelegate);
-
-    if (m_delegateType != IDacDbiInterface::DelegateType::kUnfetched)
-        return m_delegateType;
-
+    IDacDbiInterface::DelegateType delType;
     CORDB_ADDRESS delegateAddr = m_valueHome.GetAddress();
 
     IDacDbiInterface *pDAC = GetProcess()->GetDAC();
-    VMPTR_Object delegateObj = pDAC->GetObject(delegateAddr);
+    *pDelegateObj = pDAC->GetObject(delegateAddr);
 
-    HRESULT hr = pDAC->GetDelegateType(&m_delegateType);
-    return m_delegateType;
+    HRESULT hr = pDAC->GetDelegateType(*pDelegateObj, &delType);
+
+    if (hr != S_OK)
+        return hr;
+
+    hr = Is
 }
 
-HRESULT CordbObjectValue::GetTarget(ICorDebugObjectValue** ppObject)
+HRESULT CordbObjectValue::GetTarget(ICorDebugReferenceValue** ppObject)
 {
-
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
-    VALIDATE_POINTER_TO_OBJECT(ppObject, ICorDebugObjectValue**);
+    VALIDATE_POINTER_TO_OBJECT(ppObject, ICorDebugReferenceValue**);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
     _ASSERTE(m_fIsDelegate);
 
     HRESULT hr = S_OK;
 
     EX_TRY {
-        PopulateDelegateInfo();
-        if (!IsSupportedDelegateType(m_delegateType))
-            hr = CORDBG_E_MULTIFUNC_DELEGATE;
+
     }
     EX_CATCH_HRESULT(hr);
     return hr;
@@ -2616,11 +2620,21 @@ HRESULT CordbObjectValue::GetFunction(ICorDebugFunction** ppFunction)
     HRESULT hr = S_OK;
 
     EX_TRY {
-        PopulateDelegateInfo();
-        if (!IsSupportedDelegateType(m_delegateType))
-            hr = CORDBG_E_MULTIFUNC_DELEGATE;
+        IDacDbiInterface::DelegateType delType;
+        CORDB_ADDRESS delegateAddr = m_valueHome.GetAddress();
 
+        IDacDbiInterface *pDAC = GetProcess()->GetDAC();
+        VMPTR_Object delegateObj = pDAC->GetObject(delegateAddr);
 
+        HRESULT hr = pDAC->GetDelegateType(delegateObj, &delType);
+
+        if (hr != S_OK)
+        {
+            mdMethodDef functionMethodDef = 0;
+            VMPTR_DomainFile functionDomainFile;
+            CordbModule * funcModule = GetProcess()->LookupOrCreateModule(functionDomainFile);
+
+        }
     }
     EX_CATCH_HRESULT(hr)
     return hr;

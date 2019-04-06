@@ -9290,7 +9290,7 @@ public:
     //-----------------------------------------------------------
     // ICorDebugComObjectValue
     //-----------------------------------------------------------
-    COM_METHOD GetTarget(ICorDebugObjectValue** ppObject);
+    COM_METHOD GetTarget(ICorDebugReferenceValue** ppObject);
     COM_METHOD GetFunction(ICorDebugFunction** ppFunction);
 
     //-----------------------------------------------------------
@@ -9305,8 +9305,6 @@ public:
     // Returns a pointer to the ValueHome field
     virtual
     RemoteValueHome * GetValueHome() { return &m_valueHome; };
-
-    HRESULT GetDelegateType(IDacDbiInterface::DelegateType *pDelType);
 
 protected:
     //-----------------------------------------------------------
@@ -9335,6 +9333,8 @@ private:
     BOOL                     m_fIsRcw;
 
     HRESULT IsDelegate();
+
+    HRESULT CordbObjectValue::GetDelegateObjectHelper(VMPTR_Object *pDelegateObj, IDacDbiInterface::DelegateType *delType);
 
     BOOL                     m_fIsDelegate;
 };

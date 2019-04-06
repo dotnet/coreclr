@@ -2710,6 +2710,11 @@ public:
     virtual
         HRESULT EnableGCNotificationEvents(BOOL fEnable) = 0;
 
+    virtual
+    HRESULT GetMethodDescFromIP(
+        CORDB_ADDRESS funcIp,
+        OUT VMPTR_MethodDesc *ppMD) = 0;
+
     // Returns true if the object is a type deriving from System.Delegate
     //
     // Arguments:
@@ -2718,24 +2723,40 @@ public:
     virtual
     BOOL IsDelegate(VMPTR_Object vmObject) = 0;
 
-    virtual
-    HRESULT GetMethodDescFromIP(CORDB_ADDRESS funcIp, VMPTR_MethodDesc* ppMD) = 0;
-
+    // Special cases not considered:
+    //   -special signature closed delegate.
     typedef enum
     {
-        kSingleFunctionDelegate,
-        kMultiFunctionDelegate,
+        kClosedDelegate, // Both static extension/closed and instance types
+        kStaticDelegate,
+        kOpenInstanceNonVSD,
+        kOpenInstanceVSD,
+        kClosedStaticWithScpecialSig,
+        kTrueMulticastDelegate,
         kSecureDelegate,
         kUnmanagedFunctionDelegate,
         kUnknownDelegateType,
         kUnfetched
     } DelegateType;
 
+    // Returns the delegate type
     virtual
-    DelegateType GetDelegateFunctionAndTarget(
-                        VMPTR_Object delegateObject,
-                        OUT VMPTR_Object* ppTarget,
-                        OUT VMPTR_MethodDesc* ppMD) = 0;
+    HRESULT GetDelegateType(VMPTR_Object delegateObject, DelegateType *delegateType) = 0;
+
+
+
+    virtual
+    HRESULT GetDelegateFunctionData(
+        DelegateType delegateType,
+        VMPTR_Object delegateObject,
+        OUT VMPTR_DomainFile *ppTarget,
+        OUT mdMethodDef *ppMD) = 0;
+
+    virtual
+    HRESULT GetDelegateTargetObject(
+        DelegateType delegateType,
+        VMPTR_Object delegateObject,
+        OUT VMPTR_Object *ppTarget) = 0;
 
     // The following tag tells the DD-marshalling tool to stop scanning.
     // END_MARSHAL

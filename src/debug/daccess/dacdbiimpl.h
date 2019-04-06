@@ -349,20 +349,24 @@ public:
     // Returns true if the argument is a runtime callable wrapper
     BOOL IsRcw(VMPTR_Object vmObject);
 
-    // Returns true if the argument extends System.Delegate
+    HRESULT GetMethodDescFromIP(
+        CORDB_ADDRESS funcIp,
+        OUT VMPTR_MethodDesc *ppMD);
+
     BOOL IsDelegate(VMPTR_Object vmObject);
 
-    BOOL DelegateType(DelegateType *delegateType);
+    HRESULT GetDelegateType(VMPTR_Object delegateObject, DelegateType *delegateType);
 
-    HRESULT GetMethodDescFromIP(
-                        CORDB_ADDRESS funcIp,
-                        OUT VMPTR_MethodDesc* ppMD);
+    HRESULT GetDelegateFunctionData(
+        DelegateType delegateType,
+        VMPTR_Object delegateObject,
+        OUT VMPTR_DomainFile *ppTarget,
+        OUT mdMethodDef *ppMD);
 
-    DelegateType GetDelegateFunction(
-                        DelegateType delegateType,
-                        VMPTR_Object delegateObject,
-                        OUT VMPTR_Object* ppTarget,
-                        OUT VMPTR_MethodDesc* ppMD);
+    HRESULT GetDelegateTargetObject(
+        DelegateType delegateType,
+        VMPTR_Object delegateObject,
+        OUT VMPTR_Object *ppTarget);
 
     // retrieves the list of COM interfaces implemented by vmObject, as it is known at
     // the time of the call (the list may change as new interface types become available
