@@ -5,14 +5,17 @@
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
 
 #if BIT64
 using nuint = System.UInt64;
+using nint = System.Int64;
 #else
 using nuint = System.UInt32;
+using nint = System.Int32;
 #endif
 
 namespace System
@@ -875,6 +878,63 @@ namespace System
         private static int LocateLastFoundChar(ulong match)
         {
             return 3 - (BitOperations.LeadingZeroCount(match) >> 4);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref char Add(ref char source, nint elementOffset)
+            => ref Unsafe.Add(ref source, (IntPtr)elementOffset);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe Vector<ushort> LoadVector(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<Vector<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe Vector128<ushort> LoadVector128(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<Vector128<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe Vector256<ushort> LoadVector256(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<Vector256<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe UIntPtr LoadUIntPtr(ref char start, nint offset)
+            => Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe nint GetCharVectorSpanLength(nint offset, nint length)
+            => ((length - offset) & ~(Vector<ushort>.Count - 1));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe nint GetCharVector128SpanLength(nint offset, nint length)
+            => ((length - offset) & ~(Vector128<ushort>.Count - 1));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static nint GetCharVector256SpanLength(nint offset, nint length)
+            => ((length - offset) & ~(Vector256<ushort>.Count - 1));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe nint UnalignedCountVector(ref char searchSpace)
+        {
+            const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
+            // Figure out how many characters to read sequentially until we are vector aligned
+            // This is equivalent to:
+            //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte 
+            //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
+
+            // This alignment is only valid if the GC does not relocate; so we use ReadUnaligned to get the data.
+            // If a GC does occur and alignment is lost, the GC cost will outweigh any gains from alignment so it
+            // isn't too important to pin to maintain the alignment.
+            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / ElementsPerByte ) & (Vector<ushort>.Count - 1);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe nint UnalignedCountVector128(ref char searchSpace)
+        {
+            const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
+            // This alignment is only valid if the GC does not relocate; so we use ReadUnaligned to get the data.
+            // If a GC does occur and alignment is lost, the GC cost will outweigh any gains from alignment so it
+            // isn't too important to pin to maintain the alignment.
+            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / ElementsPerByte ) & (Vector128<ushort>.Count - 1);
         }
     }
 }
