@@ -2550,7 +2550,7 @@ HRESULT CordbObjectValue::IsDelegate()
         }
         else
         {
-            IDacDbiInterface* pDAC = GetProcess()->GetDAC();
+            IDacDbiInterface *pDAC = GetProcess()->GetDAC();
 
             VMPTR_Object vmObj = pDAC->GetObject(objAddr);
             BOOL fIsDelegate = pDAC->IsDelegate(vmObj);
@@ -2567,78 +2567,112 @@ HRESULT IsSupportedDelegateHelper(IDacDbiInterface::DelegateType delType)
 {
     switch (delType)
     {
-        case IDacDbiInterface::DelegateType::kClosedDelegate:
-            return S_OK;
-        case IDacDbiInterface::DelegateType::kUnmanagedFunctionDelegate:
-            return CORDBG_E_BAD_REFERENCE_VALUE;
-        default:
-            return CORDBG_E_MULTIFUNC_DELEGATE;
+    case IDacDbiInterface::DelegateType::kClosedDelegate:
+        return S_OK;
+    case IDacDbiInterface::DelegateType::kUnmanagedFunctionDelegate:
+        return CORDBG_E_BAD_REFERENCE_VALUE;
+    default:
+        return CORDBG_E_MULTIFUNC_DELEGATE;
     }
 }
 
-HRESULT CordbObjectValue::GetDelegateObjectHelper(VMPTR_Object *pDelegateObj, IDacDbiInterface::DelegateType *pDelType)
+HRESULT CordbObjectValue::GetTargetHelper(ICorDebugReferenceValue **ppTarget)
 {
     IDacDbiInterface::DelegateType delType;
+    VMPTR_Object pDelegateObj;
+
     CORDB_ADDRESS delegateAddr = m_valueHome.GetAddress();
 
     IDacDbiInterface *pDAC = GetProcess()->GetDAC();
-    *pDelegateObj = pDAC->GetObject(delegateAddr);
+    pDelegateObj = pDAC->GetObject(delegateAddr);
 
-    HRESULT hr = pDAC->GetDelegateType(*pDelegateObj, &delType);
-
+    HRESULT hr = pDAC->GetDelegateType(pDelegateObj, &delType);
     if (hr != S_OK)
         return hr;
 
-    hr = Is
+    hr = IsSupportedDelegateHelper(delType);
+    if (hr != S_OK)
+        return hr;
+
+
+
+    return S_OK;
 }
 
-HRESULT CordbObjectValue::GetTarget(ICorDebugReferenceValue** ppObject)
+HRESULT CordbObjectValue::GetFunctionHelper(ICorDebugFunction **ppFunction)
+{
+    IDacDbiInterface::DelegateType delType;
+    VMPTR_Object pDelegateObj;
+
+    *ppFunction = NULL;
+    CORDB_ADDRESS delegateAddr = m_valueHome.GetAddress();
+
+    IDacDbiInterface *pDAC = GetProcess()->GetDAC();
+    pDelegateObj = pDAC->GetObject(delegateAddr);
+
+    HRESULT hr = pDAC->GetDelegateType(pDelegateObj, &delType);
+    if (hr != S_OK)
+        return hr;
+
+    hr = IsSupportedDelegateHelper(delType);
+    if (hr != S_OK)
+        return hr;
+
+    mdMethodDef functionMethodDef = 0;
+    VMPTR_DomainFile functionDomainFile;
+    NativeCodeFunctionData nativeCodeForDelFunc;
+
+    hr = pDAC->GetDelegateFunctionData(delType, pDelegateObj, &functionDomainFile, &functionMethodDef);
+    if (hr != S_OK)
+        return hr;
+
+    // TODO: How to ensure results are sanitized?
+    // Also, this is expensive. Do we really care that much about this?
+    pDAC->GetNativeCodeInfo(functionDomainFile, functionMethodDef, &nativeCodeForDelFunc);
+
+    RSSmartPtr<CordbModule> funcModule(GetProcess()->LookupOrCreateModule(functionDomainFile));
+    CordbFunction *func = funcModule->LookupOrCreateFunction(functionMethodDef, nativeCodeForDelFunc.encVersion);
+
+    *ppFunction = static_cast<ICorDebugFunction*> (func);
+    func->ExternalAddRef();
+
+    return S_OK;
+}
+
+HRESULT CordbObjectValue::GetTarget(ICorDebugReferenceValue **ppObject)
 {
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
-    VALIDATE_POINTER_TO_OBJECT(ppObject, ICorDebugReferenceValue**);
+    VALIDATE_POINTER_TO_OBJECT(ppObject, ICorDebugReferenceValue **);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
     _ASSERTE(m_fIsDelegate);
 
     HRESULT hr = S_OK;
 
-    EX_TRY {
-
+    EX_TRY
+    {
+        hr = GetTargetHelper(ppObject);
     }
     EX_CATCH_HRESULT(hr);
     return hr;
 }
 
-HRESULT CordbObjectValue::GetFunction(ICorDebugFunction** ppFunction)
+HRESULT CordbObjectValue::GetFunction(ICorDebugFunction **ppFunction)
 {
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
-    VALIDATE_POINTER_TO_OBJECT(ppFunction, ICorDebugFunction**);
+    VALIDATE_POINTER_TO_OBJECT(ppFunction, ICorDebugFunction **);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
     _ASSERTE(m_fIsDelegate);
 
     HRESULT hr = S_OK;
 
-    EX_TRY {
-        IDacDbiInterface::DelegateType delType;
-        CORDB_ADDRESS delegateAddr = m_valueHome.GetAddress();
-
-        IDacDbiInterface *pDAC = GetProcess()->GetDAC();
-        VMPTR_Object delegateObj = pDAC->GetObject(delegateAddr);
-
-        HRESULT hr = pDAC->GetDelegateType(delegateObj, &delType);
-
-        if (hr != S_OK)
-        {
-            mdMethodDef functionMethodDef = 0;
-            VMPTR_DomainFile functionDomainFile;
-            CordbModule * funcModule = GetProcess()->LookupOrCreateModule(functionDomainFile);
-
-        }
+    EX_TRY
+    {
+        hr = GetFunctionHelper(ppFunction);
     }
     EX_CATCH_HRESULT(hr)
     return hr;
-    // Object initialization.
 }
 
 HRESULT CordbObjectValue::GetCachedInterfaceTypes(

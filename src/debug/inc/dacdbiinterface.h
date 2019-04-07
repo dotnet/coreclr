@@ -2728,29 +2728,26 @@ public:
     typedef enum
     {
         kClosedDelegate, // Both static extension/closed and instance types
-        kStaticDelegate,
+        kOpenDelegate,
         kOpenInstanceNonVSD,
         kOpenInstanceVSD,
         kClosedStaticWithScpecialSig,
         kTrueMulticastDelegate,
         kSecureDelegate,
         kUnmanagedFunctionDelegate,
-        kUnknownDelegateType,
-        kUnfetched
+        kUnknownDelegateType
     } DelegateType;
 
     // Returns the delegate type
     virtual
     HRESULT GetDelegateType(VMPTR_Object delegateObject, DelegateType *delegateType) = 0;
 
-
-
     virtual
     HRESULT GetDelegateFunctionData(
         DelegateType delegateType,
         VMPTR_Object delegateObject,
-        OUT VMPTR_DomainFile *ppTarget,
-        OUT mdMethodDef *ppMD) = 0;
+        OUT VMPTR_DomainFile *ppFunctionDomainFile,
+        OUT mdMethodDef *pMethodDef) = 0;
 
     virtual
     HRESULT GetDelegateTargetObject(

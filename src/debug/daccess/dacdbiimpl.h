@@ -360,8 +360,8 @@ public:
     HRESULT GetDelegateFunctionData(
         DelegateType delegateType,
         VMPTR_Object delegateObject,
-        OUT VMPTR_DomainFile *ppTarget,
-        OUT mdMethodDef *ppMD);
+        OUT VMPTR_DomainFile *ppFunctionDomainFile,
+        OUT mdMethodDef *pMethodDef);
 
     HRESULT GetDelegateTargetObject(
         DelegateType delegateType,

@@ -9333,8 +9333,8 @@ private:
     BOOL                     m_fIsRcw;
 
     HRESULT IsDelegate();
-
-    HRESULT CordbObjectValue::GetDelegateObjectHelper(VMPTR_Object *pDelegateObj, IDacDbiInterface::DelegateType *delType);
+    HRESULT GetFunctionHelper(ICorDebugFunction **ppFunction);
+    HRESULT GetTargetHelper(ICorDebugReferenceValue **ppTarget);
 
     BOOL                     m_fIsDelegate;
 };
