@@ -395,7 +395,7 @@ namespace System
             if (symlinkPath != null)
             {
                 // symlinkPath can be relative path, use Path to get the full absolute path.
-                symlinkPath = Path.GetFullPath(symlinkPath, Path.GetDirectoryName(tzFilePath));
+                symlinkPath = Path.GetFullPath(symlinkPath, Path.GetDirectoryName(tzFilePath)!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
 
                 string timeZoneDirectory = GetTimeZoneDirectory();
                 if (symlinkPath.StartsWith(timeZoneDirectory, StringComparison.Ordinal))

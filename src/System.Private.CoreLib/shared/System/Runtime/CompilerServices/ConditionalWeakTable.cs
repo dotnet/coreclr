@@ -363,7 +363,7 @@ namespace System.Runtime.CompilerServices
                 }
             }
 
-            object IEnumerator.Current => Current;
+            object? IEnumerator.Current => Current;
 
             public void Reset() { }
         }
