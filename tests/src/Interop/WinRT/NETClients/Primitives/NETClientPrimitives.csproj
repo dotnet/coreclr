@@ -24,6 +24,7 @@
     <Compile Include="../../Contracts/NativeComponent.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="BooleanTests.cs" />
+    <Compile Include="EnumTests.cs" />
     <Compile Include="StringTests.cs" />
     <Compile Include="NullableTests.cs" />
     <Compile Include="TypeTests.cs" />

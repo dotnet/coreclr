@@ -86,4 +86,19 @@ namespace Component.Contracts
         IBindingViewModel CreateViewModel();
         Windows.Foundation.IClosable InitializeXamlFrameworkForCurrentThread();
     }
+
+    enum TestEnum
+    {
+        A = 1,
+        B = 2,
+        C = 3
+    };
+
+    [interface_name("Component.Contracts.IEnumTesting", d89d71b2-2671-444d-8576-536d206dea49)]
+    runtimeclass EnumTesting
+    {
+        EnumTesting();
+        TestEnum GetA();
+        Boolean IsB(TestEnum val);
+    }
 }

@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 #pragma once
 
-#include "Component.Contracts.StringTesting.g.h"
+#include "Component/Contracts/StringTesting.g.h"
 
 namespace winrt::Component::Contracts::implementation
 {

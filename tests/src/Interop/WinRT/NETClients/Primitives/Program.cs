@@ -18,6 +18,7 @@ namespace NetClient
             try
             {
                 BooleanTests.RunTest();
+                EnumTests.RunTest();
                 StringTests.RunTest();
                 NullableTests.RunTest();
                 TypeTests.RunTest();

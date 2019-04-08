@@ -99,4 +99,20 @@ namespace Component.Contracts
         IBindingViewModel CreateViewModel();
         IDisposable InitializeXamlFrameworkForCurrentThread();
     }
+
+    public enum TestEnum
+    {
+        A = 1,
+        B = 2,
+        C = 3
+    }
+
+    [ComImport]
+    [Guid("d89d71b2-2671-444d-8576-536d206dea49")]
+    [WindowsRuntimeImport]
+    public interface IEnumTesting
+    {
+        TestEnum GetA();
+        Boolean IsB(TestEnum val);
+    }
 }

@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 #pragma once
 
-#include "Component.Contracts.KeyValuePairTesting.g.h"
+#include "Component/Contracts/KeyValuePairTesting.g.h"
 
 namespace winrt::Component::Contracts::implementation
 {

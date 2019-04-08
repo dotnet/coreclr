@@ -10,6 +10,7 @@ set(SOURCES
   Component.Contracts.BindingProjectionsTesting.cpp
   Component.Contracts.BindingViewModel.cpp
   Component.Contracts.BooleanTesting.cpp
+  Component.Contracts.EnumTesting.cpp
   Component.Contracts.ExceptionTesting.cpp
   Component.Contracts.KeyValuePairTesting.cpp
   Component.Contracts.NullableTesting.cpp

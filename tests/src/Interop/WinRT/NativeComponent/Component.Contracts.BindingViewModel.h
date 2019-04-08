@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 #pragma once
 
-#include "Component.Contracts.BindingViewModel.g.h"
+#include "Component/Contracts/BindingViewModel.g.h"
 #include <vector>
 
 template<typename T>
