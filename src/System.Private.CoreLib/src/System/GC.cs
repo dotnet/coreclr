@@ -50,73 +50,55 @@ namespace System
         NotApplicable = 4
     }
 
+    [StructLayout(LayoutKind.Sequential)]
     public struct GCMemoryInfo
     {
+        private int _highMemoryLoadThreshold;
+        private long _totalAvailableMemory;
+        private int _memoryLoad;
+        private long _heapSize;
+        private long _fragmentation;
+
         /// <summary>
         /// HighMemoryLoadThreshold when the last GC occured
         /// </summary>
-        public int HighMemoryLoadThreshold { get; }
+        public int HighMemoryLoadThreshold { get { return _highMemoryLoadThreshold; } }
 
         /// <summary>
         /// Total available memory for the GC to use when the last GC ocurred. By default this is the physical memory on the machine, but it may be customized by specifying a HardLimit.
         /// </summary>
-        public long TotalAvailableMemory { get; }
+        public long TotalAvailableMemory { get { return _totalAvailableMemory; } }
 
         /// <summary>
         /// Memory Load when the last GC ocurred
         /// </summary>
-        public int MemoryLoad { get; }
+        public int MemoryLoad { get { return _memoryLoad; } }
 
         /// <summary>
         /// The total heap size when the last GC ocurred
         /// </summary>
-        public IntPtr HeapSize { get; }
+        public long HeapSize { get { return _heapSize; } }
 
         /// <summary>
         /// The total fragmentation of the last GC ocurred
         /// </summary>
-        public IntPtr Fragmentation { get; } // should we include "Bytes" in all names where appropriate?
-
-        internal GCMemoryInfo(int _highMemoryLoadThreshold,
-                              long _totalAvailableMemory,
-                              int _memoryLoad,
-                              IntPtr _heapSize,
-                              IntPtr _fragmentation)
-        {
-            HighMemoryLoadThreshold = _highMemoryLoadThreshold;
-            TotalAvailableMemory = _totalAvailableMemory;
-            MemoryLoad = _memoryLoad;
-            HeapSize = _heapSize;
-            Fragmentation = _fragmentation;
-        }
+        public long Fragmentation { get { return _fragmentation; } } // should we include "Bytes" in all names where appropriate?
     }
 
     public static class GC
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void GetMemoryInfo(out uint highMemLoadThreshold,
-                                                 out ulong totalPhysicalMem,
-                                                 out uint lastRecordedMemLoad,
-                                                 // The next two are size_t
-                                                 out UIntPtr lastRecordedHeapSize,
-                                                 out UIntPtr lastRecordedFragmentation);
+        private static extern void GetMemoryInfo(out GCMemoryInfo memoryInfo);
 
         /// <summary>
         /// Get information about GC state at the time of the last GC.
         /// </summary>
         public static GCMemoryInfo GetGCMemoryInfo()
         {
-            GetMemoryInfo(out uint highMemLoadThreshold,
-                          out ulong totalPhysicalMem,
-                          out uint lastRecordedMemLoad,
-                          out UIntPtr lastRecordedHeapSize,
-                          out UIntPtr lastRecordedFragmentation);
+            GCMemoryInfo memoryInfo;
+            GetMemoryInfo(out memoryInfo);
 
-            return new GCMemoryInfo((int) highMemLoadThreshold,
-                                    (long) totalPhysicalMem,
-                                    (int) lastRecordedMemLoad,
-                                    (IntPtr)(long)(ulong) lastRecordedHeapSize,
-                                    (IntPtr)(long)(ulong) lastRecordedFragmentation);
+            return memoryInfo;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
