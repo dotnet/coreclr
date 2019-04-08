@@ -32,21 +32,21 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="eventSource">The event source.</param>
-        public PollingCounter(string name, EventSource eventSource, Func<float> metricProvider) : base(name, eventSource)
+        public PollingCounter(string name, EventSource eventSource, Func<double> metricProvider) : base(name, eventSource)
         {
             _metricProvider = metricProvider;
         }
 
         public override string ToString() => $"PollingCounter '{Name}' Count {1} Mean {_lastVal.ToString("n3")}";
 
-        private Func<float> _metricProvider;
-        private float _lastVal;
+        private Func<double> _metricProvider;
+        private double _lastVal;
 
         internal override void WritePayload(float intervalSec)
         {
             lock (MyLock)
             {
-                float value = 0;
+                double value = 0;
                 try 
                 {
                     value = _metricProvider();

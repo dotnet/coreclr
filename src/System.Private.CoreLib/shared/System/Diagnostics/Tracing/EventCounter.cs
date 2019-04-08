@@ -37,8 +37,8 @@ namespace System.Diagnostics.Tracing
         /// <param name="eventSource">The event source.</param>
         public EventCounter(string name, EventSource eventSource) : base(name, eventSource)
         {
-            _min = float.PositiveInfinity;
-            _max = float.NegativeInfinity;
+            _min = double.PositiveInfinity;
+            _max = double.NegativeInfinity;
 
             InitializeBuffer();
         }
@@ -48,7 +48,7 @@ namespace System.Diagnostics.Tracing
         /// be logged on the next timer interval.  
         /// </summary>
         /// <param name="value">The value.</param>
-        public void WriteMetric(float value)
+        public void WriteMetric(double value)
         {
             Enqueue(value);
         }
@@ -59,12 +59,12 @@ namespace System.Diagnostics.Tracing
 
         // Statistics
         private int _count;
-        private float _sum;
-        private float _sumSquared;
-        private float _min;
-        private float _max;
+        private double _sum;
+        private double _sumSquared;
+        private double _min;
+        private double _max;
 
-        internal void OnMetricWritten(float value)
+        internal void OnMetricWritten(double value)
         {
             Debug.Assert(Monitor.IsEntered(MyLock));
             _sum += value;
@@ -89,7 +89,7 @@ namespace System.Diagnostics.Tracing
                 if (0 < _count)
                 {
                     payload.Mean = _sum / _count;
-                    payload.StandardDeviation = (float)Math.Sqrt(_sumSquared / _count - _sum * _sum / _count / _count);
+                    payload.StandardDeviation = (double)Math.Sqrt(_sumSquared / _count - _sum * _sum / _count / _count);
                 }
                 else
                 {
@@ -112,35 +112,35 @@ namespace System.Diagnostics.Tracing
             _count = 0;
             _sum = 0;
             _sumSquared = 0;
-            _min = float.PositiveInfinity;
-            _max = float.NegativeInfinity;
+            _min = double.PositiveInfinity;
+            _max = double.NegativeInfinity;
         }
 
         #endregion // Statistics Calculation
 
         // Values buffering
         private const int BufferedSize = 10;
-        private const float UnusedBufferSlotValue = float.NegativeInfinity;
+        private const double UnusedBufferSlotValue = double.NegativeInfinity;
         private const int UnsetIndex = -1;
-        private volatile float[] _bufferedValues;
+        private volatile double[] _bufferedValues;
         private volatile int _bufferedValuesIndex;
 
         private void InitializeBuffer()
         {
-            _bufferedValues = new float[BufferedSize];
+            _bufferedValues = new double[BufferedSize];
             for (int i = 0; i < _bufferedValues.Length; i++)
             {
                 _bufferedValues[i] = UnusedBufferSlotValue;
             }
         }
 
-        protected void Enqueue(float value)
+        protected void Enqueue(double value)
         {
             // It is possible that two threads read the same bufferedValuesIndex, but only one will be able to write the slot, so that is okay.
             int i = _bufferedValuesIndex;
             while (true)
             {
-                float result = Interlocked.CompareExchange(ref _bufferedValues[i], value, UnusedBufferSlotValue);
+                double result = Interlocked.CompareExchange(ref _bufferedValues[i], value, UnusedBufferSlotValue);
                 i++;
                 if (_bufferedValues.Length <= i)
                 {

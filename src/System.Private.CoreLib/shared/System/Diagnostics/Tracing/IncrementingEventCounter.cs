@@ -41,7 +41,7 @@ namespace System.Diagnostics.Tracing
         /// be logged on the next timer interval.  
         /// </summary>
         /// <param name="increment">The value to increment by.</param>
-        public void Increment(float increment = 1)
+        public void Increment(double increment = 1)
         {
             lock(MyLock)
             {
@@ -50,8 +50,8 @@ namespace System.Diagnostics.Tracing
         }
 
         public TimeSpan DisplayRateTimeScale { get; set; }
-        private float _increment;
-        private float _prevIncrement;
+        private double _increment;
+        private double _prevIncrement;
 
         public override string ToString() => $"IncrementingEventCounter '{Name}' Increment {_increment}";
 

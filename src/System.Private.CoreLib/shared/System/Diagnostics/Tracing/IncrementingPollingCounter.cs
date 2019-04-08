@@ -34,7 +34,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="eventSource">The event source.</param>
-        public IncrementingPollingCounter(string name, EventSource eventSource, Func<float> totalValueProvider) : base(name, eventSource)
+        public IncrementingPollingCounter(string name, EventSource eventSource, Func<double> totalValueProvider) : base(name, eventSource)
         {
             _totalValueProvider = totalValueProvider;
         }
@@ -42,9 +42,9 @@ namespace System.Diagnostics.Tracing
         public override string ToString() => $"IncrementingPollingCounter '{Name}' Increment {_increment}";
 
         public TimeSpan DisplayRateTimeScale { get; set; }
-        private float _increment;
-        private float _prevIncrement;
-        private Func<float> _totalValueProvider;
+        private double _increment;
+        private double _prevIncrement;
+        private Func<double> _totalValueProvider;
 
         /// <summary>
         /// Calls "_totalValueProvider" to enqueue the counter value to the queue. 
