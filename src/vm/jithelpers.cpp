@@ -2171,6 +2171,15 @@ TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle t
     if (TypeHandle(pMT) == toTypeHnd)
         return TypeHandle::CanCast;
 
+    //TODO: VS split into easy (trivial + cache) and nooinline core?
+    //      this is calle from stelem for example.
+
+    CastCache::CastCacheResult result = CastCache::TryGetFromCache(pObject->GetMethodTable(), toTypeHnd);
+    if (result != CastCache::CastCacheResult::NotCached)
+    {
+        return (TypeHandle::CastResult)result;
+    }
+
     if ((toTypeHnd.IsInterface() && ( pMT->IsComObjectType() || pMT->IsICastable())))
     {
         return TypeHandle::MaybeCast;
@@ -2192,7 +2201,7 @@ TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle t
 
         if (toTypeHnd == TypeHandle(g_pObjectClass) || toTypeHnd == TypeHandle(g_pArrayClass))
         {
-            //TODO: VS too simple? just bring up?
+            //TODO: VS too simple? just bring up? or this is rare and should be in slow part?
             CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, TRUE);
             return TypeHandle::CanCast;
         }
@@ -2566,11 +2575,6 @@ HCIMPL2(Object *, JIT_ChkCastAny, CORINFO_CLASS_HANDLE type, Object *pObject)
     }
 
     TypeHandle th = TypeHandle(type);
-    if (CastCache::IsConvertible(pObject->GetMethodTable(), th))
-    {
-        return pObject;
-    }
-
     TypeHandle::CastResult result = ObjIsInstanceOfNoGC(pObject, th);
     if (result == TypeHandle::CanCast)
     {
