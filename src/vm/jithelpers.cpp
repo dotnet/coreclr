@@ -54,6 +54,7 @@
 #endif // HAVE_GCCOVER
 
 #include "runtimehandles.h"
+#include "castcache.h"
 
 //========================================================================
 //
@@ -2216,6 +2217,9 @@ BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastExcept
 
     BOOL fCast = FALSE;
 
+    // when castability is decided by calling to actual objects, do not cache
+    BOOL canCache = TRUE;
+
     OBJECTREF obj = ObjectToOBJECTREF(pObject);
 
     GCPROTECT_BEGIN(obj);
@@ -2236,6 +2240,7 @@ BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastExcept
     // if it implements the interface.
     if (toTypeHnd.IsInterface() && fromTypeHnd.GetMethodTable()->IsComObjectType())
     {
+        canCache = FALSE;
         fCast = ComObject::SupportsInterface(obj, toTypeHnd.AsMethodTable());
     }
     else
@@ -2250,6 +2255,7 @@ BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastExcept
     // to a given type.
     else if (toTypeHnd.IsInterface() && fromTypeHnd.GetMethodTable()->IsICastable())
     {
+        canCache = FALSE;
         // Make actuall call to ICastableHelpers.IsInstanceOfInterface(obj, interfaceTypeObj, out exception)
         OBJECTREF exception = NULL;
         GCPROTECT_BEGIN(exception);
@@ -2272,9 +2278,14 @@ BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastExcept
         }
         GCPROTECT_END(); //exception
     }
-#endif // FEATURE_ICASTABLE
+#endif // FEATURE_ICASTABLE   
 
-    if (!fCast && throwCastException) 
+    if (canCache)
+    {
+        CastCache::TryAddToCache(fromTypeHnd, toTypeHnd, fCast);
+    }
+
+    if (!fCast && throwCastException)
     {
         COMPlusThrowInvalidCastException(&obj, toTypeHnd);
     }    
@@ -2500,18 +2511,25 @@ HCIMPLEND
 // IsInstanceOf test used for unusual cases (naked type parameters, variant generic types)
 // Unlike the IsInstanceOfInterface, IsInstanceOfClass, and IsIsntanceofArray functions,
 // this test must deal with all kinds of type tests
-HCIMPL2(Object *, JIT_IsInstanceOfAny, CORINFO_CLASS_HANDLE type, Object* obj)
+HCIMPL2(Object *, JIT_IsInstanceOfAny, CORINFO_CLASS_HANDLE type, Object* pObject)
 {
     FCALL_CONTRACT;
 
-    if (NULL == obj)
+    if (NULL == pObject)
     {
         return NULL;
     }
 
-    switch (ObjIsInstanceOfNoGC(obj, TypeHandle(type))) {
+    TypeHandle th = TypeHandle(type);
+    CastCache::CastCacheResult result = CastCache::TryGetFromCache(pObject->GetMethodTable(), th);
+    if (result != CastCache::CastCacheResult::NotCached)
+    {
+        return result == CastCache::CastCacheResult::CanCast? pObject : NULL;
+    }
+
+    switch (ObjIsInstanceOfNoGC(pObject, th)) {
     case TypeHandle::CanCast:
-        return obj;
+        return pObject;
     case TypeHandle::CannotCast:
         return NULL;
     default:
@@ -2520,31 +2538,36 @@ HCIMPL2(Object *, JIT_IsInstanceOfAny, CORINFO_CLASS_HANDLE type, Object* obj)
     }
 
     ENDFORBIDGC();
-    return HCCALL2(JITutil_IsInstanceOfAny, type, obj);
+    return HCCALL2(JITutil_IsInstanceOfAny, type, pObject);
 }
 HCIMPLEND
 
 // ChkCast test used for unusual cases (naked type parameters, variant generic types)
 // Unlike the ChkCastInterface, ChkCastClass, and ChkCastArray functions,
 // this test must deal with all kinds of type tests
-HCIMPL2(Object *, JIT_ChkCastAny, CORINFO_CLASS_HANDLE type, Object *obj)
+HCIMPL2(Object *, JIT_ChkCastAny, CORINFO_CLASS_HANDLE type, Object *pObject)
 {
     FCALL_CONTRACT;
 
-    if (NULL == obj)
+    if (NULL == pObject)
     {
         return NULL;
     }
 
-    TypeHandle::CastResult result = ObjIsInstanceOfNoGC(obj, TypeHandle(type));
+    TypeHandle th = TypeHandle(type);
+    if (CastCache::IsConvertible(pObject->GetMethodTable(), th))
+    {
+        return pObject;
+    }
 
+    TypeHandle::CastResult result = ObjIsInstanceOfNoGC(pObject, th);
     if (result == TypeHandle::CanCast)
     {
-        return obj;
+        return pObject;
     }
 
     ENDFORBIDGC();
-    Object* pRet = HCCALL2(JITutil_ChkCastAny, type, obj);
+    Object* pRet = HCCALL2(JITutil_ChkCastAny, type, pObject);
     // Make sure that the fast helper have not lied
     _ASSERTE(result != TypeHandle::CannotCast);
     return pRet;
