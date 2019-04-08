@@ -62,27 +62,27 @@ namespace System
         /// <summary>
         /// HighMemoryLoadThreshold when the last GC occured
         /// </summary>
-        public int HighMemoryLoadThreshold { get { return m_highMemoryLoadThreshold; } }
+        public int HighMemoryLoadThreshold => m_highMemoryLoadThreshold;
 
         /// <summary>
         /// Memory Load when the last GC ocurred
         /// </summary>
-        public int MemoryLoad { get { return m_memoryLoad; } }
+        public int MemoryLoad => m_memoryLoad;
 
         /// <summary>
         /// Total available memory for the GC to use when the last GC ocurred. By default this is the physical memory on the machine, but it may be customized by specifying a HardLimit.
         /// </summary>
-        public long TotalAvailableMemory { get { return m_totalAvailableMemory; } }
+        public long TotalAvailableMemory => m_totalAvailableMemory;
 
         /// <summary>
         /// The total heap size when the last GC ocurred
         /// </summary>
-        public long HeapSize { get { return m_heapSize; } }
+        public long HeapSize => m_heapSize;
 
         /// <summary>
         /// The total fragmentation of the last GC ocurred
         /// </summary>
-        public long Fragmentation { get { return m_fragmentation; } } // should we include "Bytes" in all names where appropriate?
+        public long Fragmentation => m_fragmentation; // should we include "Bytes" in all names where appropri
     }
 
     public static class GC
