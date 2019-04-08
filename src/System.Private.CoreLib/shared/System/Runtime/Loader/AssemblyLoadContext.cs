@@ -489,26 +489,25 @@ namespace System.Runtime.Loader
         [EditorBrowsable(EditorBrowsableState.Never)]
         public struct ContextualReflectionScope : IDisposable
         {
-            private AssemblyLoadContext _activated;
-            private AssemblyLoadContext _predecessor;
+            private readonly AssemblyLoadContext _activated;
+            private readonly AssemblyLoadContext _predecessor;
+            private readonly bool _initialized;
 
             internal ContextualReflectionScope(AssemblyLoadContext activating)
             {
                 _predecessor = StaticAsyncLocalCurrentContextualReflectionContext.Value;
                 StaticAsyncLocalCurrentContextualReflectionContext.Value = activating;
                 _activated = activating;
+                _initialized = true;
             }
 
             public void Dispose()
             {
-                if(_activated != _predecessor)
+                if(_initialized)
                 {
-                    if (StaticAsyncLocalCurrentContextualReflectionContext.Value != _activated)
-                    {
-                        throw new InvalidOperationException();
-                    }
+                    // Do not clear initialized. Always restore the _predecessor in Dispose()
+                    // _initialized = false;
                     StaticAsyncLocalCurrentContextualReflectionContext.Value = _predecessor;
-                    _activated = _predecessor;
                 }
             }
         }

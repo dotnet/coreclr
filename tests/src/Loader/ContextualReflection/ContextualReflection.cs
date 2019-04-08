@@ -166,6 +166,7 @@ namespace ContextualReflectionTest
                 using IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
                 Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
                 alcScope.Dispose();
+                Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
             }
 
             Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
@@ -174,6 +175,7 @@ namespace ContextualReflectionTest
                 using IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
                 Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
                 alcScope.Dispose();
+                Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
                 alcScope.Dispose();
             }
 
@@ -218,17 +220,6 @@ namespace ContextualReflectionTest
                 defaultScope.Dispose();
                 Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
                 alcScope.Dispose();
-            }
-
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
-
-            {
-                using IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
-                using IDisposable defaultScope = ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default);
-                Assert.AreEqual(AssemblyLoadContext.Default, ConntextualReflectionProxy.CurrentContextualReflectionContext);
-
-                Assert.Throws<InvalidOperationException>(() => alcScope.Dispose());
             }
 
             Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
@@ -273,7 +264,8 @@ namespace ContextualReflectionTest
                 IDisposable defaultScope = ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default);
                 Assert.AreEqual(AssemblyLoadContext.Default, ConntextualReflectionProxy.CurrentContextualReflectionContext);
 
-                Assert.Throws<InvalidOperationException>(() => alcScope.Dispose());
+                alcScope.Dispose();
+                Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
 
                 defaultScope.Dispose();
                 Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
@@ -295,8 +287,6 @@ namespace ContextualReflectionTest
                 catch
                 {
                 }
-
-                Assert.Throws<InvalidOperationException>(() => alcScope.Dispose());
             }
 
             Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
