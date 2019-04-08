@@ -501,14 +501,14 @@ namespace ContextualReflectionTest
                     Assert.AreEqual(typeof (Program), g.GenericTypeArguments[0]);
                 }
                 {
-                    Assembly expectedAssembly = alcAssembly;
-
                     Assembly mscorlib = typeof (System.Collections.Generic.List<string>).Assembly;
 
                     Type m = mscorlib.GetType("System.Collections.Generic.List`1[[ContextualReflectionTest.Program, ContextualReflection]]", throwOnError : false);
 
+                    Assembly expectedAssembly = mscorlib;
+
                     Assert.IsNotNull(m);
-                    Assert.AreEqual(mscorlib, m.Assembly);
+                    Assert.AreEqual(expectedAssembly, m.Assembly);
                     Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(m.GenericTypeArguments[0].Assembly));
                 }
             }
@@ -533,14 +533,14 @@ namespace ContextualReflectionTest
                     Assert.AreEqual(expectedAssembly, g.GenericTypeArguments[0].Assembly);
                 }
                 {
-                    Assembly expectedAssembly = alcAssembly;
-
                     Assembly mscorlib = typeof (System.Collections.Generic.List<string>).Assembly;
 
                     Type m = mscorlib.GetType("System.Collections.Generic.List`1[[ContextualReflectionTest.Program, ContextualReflection]]", throwOnError : false);
 
+                    Assembly expectedAssembly = mscorlib;
+
                     Assert.IsNotNull(m);
-                    Assert.AreEqual(mscorlib, m.Assembly);
+                    Assert.AreEqual(expectedAssembly, m.Assembly);
                     Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(m.GenericTypeArguments[0].Assembly));
                 }
             }
@@ -569,8 +569,10 @@ namespace ContextualReflectionTest
 
                     Type m = mscorlib.GetType("System.Collections.Generic.List`1[[ContextualReflectionTest.Program, ContextualReflection]]", throwOnError : false);
 
+                    Assembly expectedAssembly = mscorlib;
+
                     Assert.IsNotNull(m);
-                    Assert.AreEqual(mscorlib, m.Assembly);
+                    Assert.AreEqual(expectedAssembly, m.Assembly);
                     Assert.AreEqual(alc, AssemblyLoadContext.GetLoadContext(m.GenericTypeArguments[0].Assembly));
                 }
             }
@@ -666,15 +668,15 @@ namespace ContextualReflectionTest
                     Assert.AreEqual(expectedAssembly, g.GenericTypeArguments[0].Assembly);
                 }
                 {
-                    Assembly expectedAssembly = alcAssembly;
-
                     Assembly mscorlib = typeof (System.Collections.Generic.List<string>).Assembly;
 
                     ObjectHandle objectHandle = Activator.CreateInstance(mscorlib.GetName().Name, "System.Collections.Generic.List`1[[ContextualReflectionTest.Program, ContextualReflection]]");
                     Type m = objectHandle.Unwrap().GetType();
 
+                    Assembly expectedAssembly = mscorlib;
+
                     Assert.IsNotNull(m);
-                    Assert.AreEqual(mscorlib, m.Assembly);
+                    Assert.AreEqual(expectedAssembly, m.Assembly);
                     Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(m.GenericTypeArguments[0].Assembly));
                 }
             }
