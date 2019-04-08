@@ -115,5 +115,41 @@
       <TestGroup>Loader.classloader.TypeGeneratorTests.TypeGeneratorTest1200-1500</TestGroup>
       <XUnitWrapperDll>$(BinDir)Loader\classloader\Loader.classloader.XUnitWrapper.dll</XUnitWrapperDll>
     </TestGrouping>
+
+    <XUnitWrapperGrouping Include="$(BinDir)baseservices\compilerservices\*.XUnitWrapper.dll;
+                                   $(BinDir)baseservices\exceptions\*.XUnitWrapper.dll;
+                                   $(BinDir)baseservices\multidimmarray\*.XUnitWrapper.dll;
+                                   $(BinDir)baseservices\TieredCompilation\*.XUnitWrapper.dll;
+                                   $(BinDir)baseservices\typeequivalence\*.XUnitWrapper.dll;
+                                   $(BinDir)baseservices\varargs\*.XUnitWrapper.dll;
+                                   $(BinDir)CoreMangLib\**\*.XUnitWrapper.dll;
+                                   $(BinDir)Exceptions\**\*.XUnitWrapper.dll;
+                                   $(BinDir)GC\**\*.XUnitWrapper.dll;
+                                   $(BinDir)hosting\**\*.XUnitWrapper.dll;
+                                   $(BinDir)ilasm\**\*.XUnitWrapper.dll;
+                                   $(BinDir)Loader\**\*.XUnitWrapper.dll;
+                                   $(BinDir)managed\**\*.XUnitWrapper.dll;
+                                   $(BinDir)readytorun\**\*.XUnitWrapper.dll;
+                                   $(BinDir)reflection\**\*.XUnitWrapper.dll;
+                                   $(BinDir)Regressions\**\*.XUnitWrapper.dll;
+                                   $(BinDir)tracing\**\*.XUnitWrapper.dll"
+                          Exclude="$(BinDir)Loader\classloader\Loader.classloader.XUnitWrapper.dll">
+      <PayloadGroup>PayloadGroup0</PayloadGroup>
+    </XUnitWrapperGrouping>
+
+    <XUnitWrapperGrouping Include="$(BinDir)Interop\**\Interop.*.XUnitWrapper.dll">
+      <PayloadGroup>Interop</PayloadGroup>
+    </XUnitWrapperGrouping>
+
+    <XUnitWrapperGrouping Include="$(BinDir)JIT\BBT\*.XUnitWrapper.dll;
+                                   $(BinDir)JIT\CheckProjects\*.XUnitWrapper.dll;
+                                   $(BinDir)JIT\Intrinsics\*.XUnitWrapper.dll;
+                                   $(BinDir)JIT\opt\*.XUnitWrapper.dll;
+                                   $(BinDir)JIT\Performance\*.XUnitWrapper.dll;
+                                   $(BinDir)JIT\RyuJIT\*.XUnitWrapper.dll;
+                                   $(BinDir)JIT\SIMD\*.XUnitWrapper.dll;
+                                   $(BinDir)JIT\superpmi\*.XUnitWrapper.dll">
+      <PayloadGroup>JIT</PayloadGroup>
+    </XUnitWrapperGrouping>
   </ItemGroup>
 </Project>
