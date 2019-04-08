@@ -53,36 +53,36 @@ namespace System
     [StructLayout(LayoutKind.Sequential)]
     public readonly struct GCMemoryInfo
     {
-        private int _highMemoryLoadThreshold;
-        private long _totalAvailableMemory;
-        private int _memoryLoad;
-        private long _heapSize;
-        private long _fragmentation;
+        private int m_highMemoryLoadThreshold;
+        private int m_memoryLoad;
+        private long m_totalAvailableMemory;
+        private long m_heapSize;
+        private long m_fragmentation;
 
         /// <summary>
         /// HighMemoryLoadThreshold when the last GC occured
         /// </summary>
-        public int HighMemoryLoadThreshold { get { return _highMemoryLoadThreshold; } }
-
-        /// <summary>
-        /// Total available memory for the GC to use when the last GC ocurred. By default this is the physical memory on the machine, but it may be customized by specifying a HardLimit.
-        /// </summary>
-        public long TotalAvailableMemory { get { return _totalAvailableMemory; } }
+        public int HighMemoryLoadThreshold { get { return m_highMemoryLoadThreshold; } }
 
         /// <summary>
         /// Memory Load when the last GC ocurred
         /// </summary>
-        public int MemoryLoad { get { return _memoryLoad; } }
+        public int MemoryLoad { get { return m_memoryLoad; } }
+
+        /// <summary>
+        /// Total available memory for the GC to use when the last GC ocurred. By default this is the physical memory on the machine, but it may be customized by specifying a HardLimit.
+        /// </summary>
+        public long TotalAvailableMemory { get { return m_totalAvailableMemory; } }
 
         /// <summary>
         /// The total heap size when the last GC ocurred
         /// </summary>
-        public long HeapSize { get { return _heapSize; } }
+        public long HeapSize { get { return m_heapSize; } }
 
         /// <summary>
         /// The total fragmentation of the last GC ocurred
         /// </summary>
-        public long Fragmentation { get { return _fragmentation; } } // should we include "Bytes" in all names where appropriate?
+        public long Fragmentation { get { return m_fragmentation; } } // should we include "Bytes" in all names where appropriate?
     }
 
     public static class GC

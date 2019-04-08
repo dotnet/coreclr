@@ -95,8 +95,8 @@ const UINT NEW_PRESSURE_COUNT = 4;
 struct GCMemoryInfo
 {
     int32_t m_highMemoryLoadThreshold;
-    int64_t m_totalAvailableMemory;
     int32_t m_memoryLoad;
+    int64_t m_totalAvailableMemory;
     int64_t m_heapSize;
     int64_t m_fragmentation;
 };
