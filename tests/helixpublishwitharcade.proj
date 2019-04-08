@@ -80,17 +80,12 @@
       <_XUnitWrapperDll Update="@(_XUnitWrapperDll)">
          <PayloadGroup Condition="'%(PayloadGroup)' == ''">$([MSBuild]::ValueOrDefault(%(FileName),'').Replace('.XUnitWrapper',''))</PayloadGroup>
       </_XUnitWrapperDll>
-
-      <_XUnitWrapperDll Update="@(_XUnitWrapperDll)">
-        <FileDirectory>%(RootDir)%(Directory)</FileDirectory>
-        <File>%(FileName)%(Extension)</File>
-      </_XUnitWrapperDll>
     </ItemGroup>
   </Target>
 
-  <Target Name="PreparePayloadDirectory" Outputs="%(_XUnitWrapperDll.File)%(PayloadGroup)" DependsOnTargets="DiscoverAllXUnitWrappers">
+  <Target Name="PreparePayloadDirectory" Outputs="%(_XUnitWrapperDll.FileName)%(PayloadGroup)" DependsOnTargets="DiscoverAllXUnitWrappers">
     <PropertyGroup>
-      <_FileDirectory>%(_XUnitWrapperDll.FileDirectory)</_FileDirectory>
+      <_FileDirectory>%(_XUnitWrapperDll.RootDir)%(Directory)</_FileDirectory>
       <_PayloadGroup>%(_XUnitWrapperDll.PayloadGroup)</_PayloadGroup>
       <_XUnitWrapperDll>%(_XUnitWrapperDll.FullPath)</_XUnitWrapperDll>
     </PropertyGroup>
