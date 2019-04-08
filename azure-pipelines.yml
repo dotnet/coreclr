@@ -1,3 +1,13 @@
+trigger:
+  batch: true
+  branches:
+    include:
+    - master
+    - release/3.0
+
+pr:
+- master
+- release/3.0
 
 # Temporarily set a build number format that includes a large revision
 # number that won't conflict with buildpipeline official builds.
@@ -25,12 +35,6 @@ resources:
 
   - container: centos6_x64_build_image
     image: mcr.microsoft.com/dotnet-buildtools/prereqs:centos-6-376e1a3-20174311014331
-
-trigger:
-- master
-
-pr:
-- master
 
 jobs:
 
