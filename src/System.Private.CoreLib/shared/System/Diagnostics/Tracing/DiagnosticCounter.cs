@@ -98,6 +98,11 @@ namespace System.Diagnostics.Tracing
 
         internal string GetMetadataString()
         {
+            if (_metadata == null)
+            {
+                return "";
+            }
+
             StringBuilder sb = new StringBuilder("");
             foreach(KeyValuePair<string, string> kvPair in _metadata)
             {
