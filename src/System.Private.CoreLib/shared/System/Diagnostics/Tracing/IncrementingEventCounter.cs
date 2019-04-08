@@ -23,7 +23,7 @@ namespace System.Diagnostics.Tracing
     /// It does not calculate statistics like mean, standard deviation, etc. because it only accumulates
     /// the counter value.
     /// </summary>
-    public partial class IncrementingEventCounter : BaseCounter
+    public partial class IncrementingEventCounter : DiagnosticCounter
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="IncrementingEventCounter"/> class.
@@ -64,7 +64,7 @@ namespace System.Diagnostics.Tracing
                 payload.IntervalSec = intervalSec;
                 payload.DisplayName = DisplayName ?? "";
                 payload.DisplayRateTimeScale = (DisplayRateTimeScale == TimeSpan.Zero) ? "" : DisplayRateTimeScale.ToString("c");
-                payload.MetaData = GetMetadataString();
+                payload.Metadata = GetMetadataString();
                 payload.Increment = _increment - _prevIncrement;
                 _prevIncrement = _increment;
                 EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingEventCounterPayloadType(payload));

@@ -94,7 +94,7 @@ namespace System.Diagnostics.Tracing
 
         internal void ReportOutOfBandMessage(string message)
         {
-            _eventSource.ReportOutOfBandMessage(message, true);
+            EventSource.ReportOutOfBandMessage(message, true);
         }
 
         internal string GetMetadataString()

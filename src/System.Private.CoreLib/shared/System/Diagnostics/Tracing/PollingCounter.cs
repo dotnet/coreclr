@@ -23,7 +23,7 @@ namespace System.Diagnostics.Tracing
     /// function to collect metrics on its own rather than the user having to call WriteMetric() 
     /// every time.
     /// </summary>
-    public partial class PollingCounter : BaseCounter
+    public partial class PollingCounter : DiagnosticCounter
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="PollingCounter"/> class.
@@ -64,7 +64,7 @@ namespace System.Diagnostics.Tracing
                 payload.Mean = value;
                 payload.Max = value;
                 payload.Min = value;
-                payload.MetaData = GetMetadataString();
+                payload.Metadata = GetMetadataString();
                 payload.StandardDeviation = 0;
                 _lastVal = value;
                 EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(payload));

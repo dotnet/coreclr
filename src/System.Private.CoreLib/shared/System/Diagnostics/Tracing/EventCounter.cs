@@ -26,7 +26,7 @@ namespace System.Diagnostics.Tracing
     /// See https://github.com/dotnet/corefx/blob/master/src/System.Diagnostics.Tracing/tests/BasicEventSourceTest/TestEventCounter.cs
     /// which shows tests, which are also useful in seeing actual use.  
     /// </summary>
-    public partial class EventCounter : BaseCounter
+    public partial class EventCounter : DiagnosticCounter
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="EventCounter"/> class.
@@ -83,8 +83,7 @@ namespace System.Diagnostics.Tracing
             lock (MyLock)
             {
                 Flush();
-                EventCounterPayload payload = new EventCounterPayload();
-                payload.Name = Name;
+                CounterPayload payload = new CounterPayload();
                 payload.Count = _count;
                 payload.IntervalSec = intervalSec;
                 if (0 < _count)
@@ -99,9 +98,12 @@ namespace System.Diagnostics.Tracing
                 }
                 payload.Min = _min;
                 payload.Max = _max;
-                payload.MetaData = GetMetadataString();
+                
+                payload.Metadata = GetMetadataString();
+                payload.DisplayName = DisplayName;
+                payload.Name = Name;
                 ResetStatistics();
-                EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new EventCounterPayloadType(payload));
+                EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new CounterPayloadType(payload));
             }
         }
         private void ResetStatistics()
@@ -179,10 +181,10 @@ namespace System.Diagnostics.Tracing
     /// This is the payload that is sent in the with EventSource.Write
     /// </summary>
     [EventData]
-    class EventCounterPayloadType
+    class CounterPayloadType
     {
-        public EventCounterPayloadType(EventCounterPayload payload) { Payload = payload; }
-        public EventCounterPayload Payload { get; set; }
+        public CounterPayloadType(CounterPayload payload) { Payload = payload; }
+        public CounterPayload Payload { get; set; }
     }
 
 }

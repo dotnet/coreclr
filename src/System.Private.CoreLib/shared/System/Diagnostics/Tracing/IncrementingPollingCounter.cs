@@ -25,7 +25,7 @@ namespace System.Diagnostics.Tracing
     /// Unlike IncrementingEventCounter, this takes in a polling callback that it can call to update 
     /// its own metric periodically.
     /// </summary>
-    public partial class IncrementingPollingCounter : BaseCounter
+    public partial class IncrementingPollingCounter : DiagnosticCounter
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="IncrementingPollingCounter"/> class.
@@ -74,7 +74,7 @@ namespace System.Diagnostics.Tracing
                 payload.DisplayName = DisplayName ?? "";
                 payload.DisplayRateTimeScale = (DisplayRateTimeScale == TimeSpan.Zero) ? "" : DisplayRateTimeScale.ToString("c");
                 payload.IntervalSec = intervalSec;
-                payload.MetaData = GetMetadataString();
+                payload.Metadata = GetMetadataString();
                 payload.Increment = _increment - _prevIncrement;
                 _prevIncrement = _increment;
                 EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingPollingCounterPayloadType(payload));
