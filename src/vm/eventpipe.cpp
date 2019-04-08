@@ -233,7 +233,7 @@ void EventPipe::Shutdown()
 
 EventPipeSessionID EventPipe::Enable(
     LPCWSTR strOutputPath,
-    uint32_t circularBufferSizeInMB,
+    uint32_t circularBufferSizeInMB,    // TODO: Check that this is not zero?
     uint64_t profilerSamplingRateInNanoseconds,
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders)
@@ -247,8 +247,14 @@ EventPipeSessionID EventPipe::Enable(
     }
     CONTRACTL_END;
 
+    if (numProviders == 0 || pProviders == nullptr)
+        return (EventPipeSessionID) nullptr;
+
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());
+
+    if (s_pFile != nullptr) // There is an active session
+        return (EventPipeSessionID) nullptr;
 
     // Create a new session.
     SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
@@ -271,7 +277,7 @@ EventPipeSessionID EventPipe::Enable(
 
 EventPipeSessionID EventPipe::Enable(
     IpcStream *pStream,
-    uint32_t circularBufferSizeInMB,
+    uint32_t circularBufferSizeInMB,    // TODO: Check that this is not zero?
     uint64_t profilerSamplingRateInNanoseconds,
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders)
@@ -286,11 +292,16 @@ EventPipeSessionID EventPipe::Enable(
     }
     CONTRACTL_END;
 
+    if (pStream == nullptr)
+        return (EventPipeSessionID) nullptr;
     if (numProviders == 0 || pProviders == nullptr)
         return (EventPipeSessionID) nullptr;
 
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());
+
+    if (s_pFile != nullptr) // There is an active session
+        return (EventPipeSessionID) nullptr;
 
     // Create a new session.
     SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
