@@ -28,7 +28,7 @@ namespace System.Diagnostics
             FailCore(stackTrace, message, detailMessage, "Assertion Failed");
         }
 
-        internal void WriteAssert(string? stackTrace, string? message, string? detailMessage)
+        internal void WriteAssert(string stackTrace, string? message, string? detailMessage)
         {
             WriteLine(SR.DebugAssertBanner + Environment.NewLine
                    + SR.DebugAssertShortMessage + Environment.NewLine
@@ -104,7 +104,7 @@ namespace System.Diagnostics
         }
 
         // internal and not readonly so that the tests can swap this out.
-        internal static Action<string?, string?, string?, string?>? s_FailCore = null;
-        internal static Action<string?>? s_WriteCore = null;
+        internal static Action<string, string?, string?, string>? s_FailCore = null;
+        internal static Action<string>? s_WriteCore = null;
     }
 }

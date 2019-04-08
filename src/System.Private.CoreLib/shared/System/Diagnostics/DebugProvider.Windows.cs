@@ -8,7 +8,7 @@ namespace System.Diagnostics
 {
     public partial class DebugProvider
     {
-        public static void FailCore(string? stackTrace, string? message, string? detailMessage, string? errorSource)
+        public static void FailCore(string stackTrace, string? message, string? detailMessage, string errorSource)
         {
             if (s_FailCore != null)
             {
@@ -44,7 +44,7 @@ namespace System.Diagnostics
 
         private static readonly object s_ForLock = new object();
 
-        public static void WriteCore(string? message)
+        public static void WriteCore(string message)
         {
             if (s_WriteCore != null)
             {
@@ -60,7 +60,7 @@ namespace System.Diagnostics
             // We don't want output from multiple threads to be interleaved.
             lock (s_ForLock)
             {
-                if (message == null || message.Length <= WriteChunkLength)
+                if (message.Length <= WriteChunkLength)
                 {
                     WriteToDebugger(message);
                 }
@@ -76,7 +76,7 @@ namespace System.Diagnostics
             }
         }
 
-        private static void WriteToDebugger(string? message)
+        private static void WriteToDebugger(string message)
         {
             if (Debugger.IsLogging())
             {
@@ -84,7 +84,7 @@ namespace System.Diagnostics
             }
             else
             {
-                Interop.Kernel32.OutputDebugString(message ?? string.Empty);
+                Interop.Kernel32.OutputDebugString(string.Empty);
             }
         }
     }

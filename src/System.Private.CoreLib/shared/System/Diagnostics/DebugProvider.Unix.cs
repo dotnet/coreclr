@@ -11,7 +11,7 @@ namespace System.Diagnostics
     {
         private static readonly bool s_shouldWriteToStdErr = Environment.GetEnvironmentVariable("COMPlus_DebugWriteToStdErr") == "1";
 
-        public static void FailCore(string? stackTrace, string? message, string? detailMessage, string? errorSource)
+        public static void FailCore(string stackTrace, string? message, string? detailMessage, string errorSource)
         {
             if (s_FailCore != null)
             {
@@ -45,7 +45,7 @@ namespace System.Diagnostics
             }
         }
 
-        public static void WriteCore(string? message)
+        public static void WriteCore(string message)
         {
             if (s_WriteCore != null)
             {
@@ -61,7 +61,7 @@ namespace System.Diagnostics
             }
         }
 
-        private static void WriteToDebugger(string? message)
+        private static void WriteToDebugger(string message)
         {
             if (Debugger.IsLogging())
             {
@@ -73,11 +73,8 @@ namespace System.Diagnostics
             }
         }
 
-        private static void WriteToStderr(string? message)
+        private static void WriteToStderr(string message)
         {
-            if (message == null)
-                return;
-
             // We don't want to write UTF-16 to a file like standard error.  Ideally we would transcode this
             // to UTF8, but the downside of that is it pulls in a bunch of stuff into what is ideally
             // a path with minimal dependencies (as to prevent re-entrency), so we'll take the strategy

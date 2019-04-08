@@ -80,7 +80,7 @@ namespace System.Diagnostics
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
-        public static void Print(string format, params object[] args)
+        public static void Print(string format, params object?[] args)
         {
             Write(string.Format(null, format, args));
         }
@@ -106,7 +106,7 @@ namespace System.Diagnostics
             }
         }
 
-        internal static void ContractFailure(string? message, string? detailMessage, string? failureKindMessage)
+        internal static void ContractFailure(string message, string detailMessage, string failureKindMessage)
         {
             string stackTrace;
             try
@@ -134,7 +134,7 @@ namespace System.Diagnostics
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
-        public static void Assert(bool condition, string? message, string detailMessageFormat, params object[] args)
+        public static void Assert(bool condition, string? message, string detailMessageFormat, params object?[] args)
         {
             Assert(condition, message, string.Format(detailMessageFormat, args));
         }
@@ -164,7 +164,7 @@ namespace System.Diagnostics
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
-        public static void WriteLine(string format, params object[] args)
+        public static void WriteLine(string format, params object?[] args)
         {
             WriteLine(string.Format(null, format, args));
         }
