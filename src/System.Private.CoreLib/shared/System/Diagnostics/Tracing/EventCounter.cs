@@ -53,7 +53,7 @@ namespace System.Diagnostics.Tracing
             Enqueue(value);
         }
 
-        public override string ToString() => $"EventCounter '{_name}' Count {_count} Mean {(((double)_sum) / _count).ToString("n3")}";
+        public override string ToString() => $"EventCounter '{Name}' Count {_count} Mean {(((double)_sum) / _count).ToString("n3")}";
 
         #region Statistics Calculation
 
@@ -84,7 +84,7 @@ namespace System.Diagnostics.Tracing
             {
                 Flush();
                 EventCounterPayload payload = new EventCounterPayload();
-                payload.Name = _name;
+                payload.Name = Name;
                 payload.Count = _count;
                 payload.IntervalSec = intervalSec;
                 if (0 < _count)
@@ -101,7 +101,7 @@ namespace System.Diagnostics.Tracing
                 payload.Max = _max;
                 payload.MetaData = GetMetadataString();
                 ResetStatistics();
-                _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new EventCounterPayloadType(payload));
+                EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new EventCounterPayloadType(payload));
             }
         }
         private void ResetStatistics()

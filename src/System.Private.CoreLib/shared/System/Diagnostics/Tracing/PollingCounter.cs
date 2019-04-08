@@ -32,14 +32,14 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="eventSource">The event source.</param>
-        public PollingCounter(string name, EventSource eventSource, Func<float> getMetricFunction) : base(name, eventSource)
+        public PollingCounter(string name, EventSource eventSource, Func<float> metricProvider) : base(name, eventSource)
         {
-            _getMetricFunction = getMetricFunction;
+            _metricProvider = metricProvider;
         }
 
-        public override string ToString() => $"PollingCounter '{_name}' Count {1} Mean {_lastVal.ToString("n3")}";
+        public override string ToString() => $"PollingCounter '{Name}' Count {1} Mean {_lastVal.ToString("n3")}";
 
-        private Func<float> _getMetricFunction;
+        private Func<float> _metricProvider;
         private float _lastVal;
 
         internal override void WritePayload(float intervalSec)
@@ -49,15 +49,15 @@ namespace System.Diagnostics.Tracing
                 float value = 0;
                 try 
                 {
-                    value = _getMetricFunction();
+                    value = _metricProvider();
                 }
                 catch (Exception ex)
                 {
-                    ReportOutOfBandMessage($"ERROR: Exception during EventCounter {_name} getMetricFunction callback: " + ex.Message);
+                    ReportOutOfBandMessage($"ERROR: Exception during EventCounter {Name} metricProvider callback: " + ex.Message);
                 }
 
                 CounterPayload payload = new CounterPayload();
-                payload.Name = _name;
+                payload.Name = Name;
                 payload.DisplayName = DisplayName ?? "";
                 payload.Count = 1; // NOTE: These dumb-looking statistics is intentional
                 payload.IntervalSec = intervalSec;
@@ -67,7 +67,7 @@ namespace System.Diagnostics.Tracing
                 payload.MetaData = GetMetadataString();
                 payload.StandardDeviation = 0;
                 _lastVal = value;
-                _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(payload));
+                EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(payload));
             }
         }
     }

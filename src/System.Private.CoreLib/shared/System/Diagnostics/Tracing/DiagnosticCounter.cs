@@ -34,19 +34,20 @@ namespace System.Diagnostics.Tracing
         {
             if (name == null)
             {
-                throw new ArgumentNullException(nameof(_name));
+                throw new ArgumentNullException(nameof(Name));
             }
 
             if (eventSource == null)
             {
-                throw new ArgumentNullException(nameof(eventSource));
+                throw new ArgumentNullException(nameof(EventSource));
             }
 
             _group = CounterGroup.GetCounterGroup(eventSource);
             _group.Add(this);
-            _eventSource = eventSource;
-            _name = name;
             _metadata = new Dictionary<string, string>();
+
+            Name = name;
+            EventSource = eventSource;
         }
 
         /// <summary>
@@ -77,18 +78,19 @@ namespace System.Diagnostics.Tracing
 
         internal string DisplayName { get; set; }
 
-        #region private implementation
+        internal readonly string Name { get; }
 
-        internal readonly string _name;
+        internal EventSource EventSource { get; }
+
+        #region private implementation
 
         private CounterGroup _group;
         private Dictionary<string, string> _metadata;
-        internal EventSource _eventSource;
 
         internal abstract void WritePayload(float intervalSec);
 
         // arbitrarily we use name as the lock object.  
-        internal object MyLock { get { return _name; } }
+        internal object MyLock { get { return Name; } }
 
         internal void ReportOutOfBandMessage(string message)
         {

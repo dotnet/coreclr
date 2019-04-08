@@ -53,21 +53,21 @@ namespace System.Diagnostics.Tracing
         private float _increment;
         private float _prevIncrement;
 
-        public override string ToString() => $"IncrementingEventCounter '{_name}' Increment {_increment}";
+        public override string ToString() => $"IncrementingEventCounter '{Name}' Increment {_increment}";
 
         internal override void WritePayload(float intervalSec)
         {
             lock (MyLock)     // Lock the counter
             {
                 IncrementingCounterPayload payload = new IncrementingCounterPayload();
-                payload.Name = _name;
+                payload.Name = Name;
                 payload.IntervalSec = intervalSec;
                 payload.DisplayName = DisplayName ?? "";
                 payload.DisplayRateTimeScale = (DisplayRateTimeScale == TimeSpan.Zero) ? "" : DisplayRateTimeScale.ToString("c");
                 payload.MetaData = GetMetadataString();
                 payload.Increment = _increment - _prevIncrement;
                 _prevIncrement = _increment;
-                _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingEventCounterPayloadType(payload));
+                EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingEventCounterPayloadType(payload));
             }
         }
     }

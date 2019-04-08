@@ -34,20 +34,20 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="eventSource">The event source.</param>
-        public IncrementingPollingCounter(string name, EventSource eventSource, Func<float> getCountFunction) : base(name, eventSource)
+        public IncrementingPollingCounter(string name, EventSource eventSource, Func<float> totalValueProvider) : base(name, eventSource)
         {
-            _getCountFunction = getCountFunction;
+            _totalValueProvider = totalValueProvider;
         }
 
-        public override string ToString() => $"IncrementingPollingCounter '{_name}' Increment {_increment}";
+        public override string ToString() => $"IncrementingPollingCounter '{Name}' Increment {_increment}";
 
         internal TimeSpan DisplayRateTimeScale { get; set; }
         private float _increment;
         private float _prevIncrement;
-        private Func<float> _getCountFunction;
+        private Func<float> _totalValueProvider;
 
         /// <summary>
-        /// Calls "_getCountFunction" to enqueue the counter value to the queue. 
+        /// Calls "_totalValueProvider" to enqueue the counter value to the queue. 
         /// </summary>
         private void UpdateMetric()
         {
@@ -55,12 +55,12 @@ namespace System.Diagnostics.Tracing
             {
                 lock(MyLock)
                 {
-                    _increment = _getCountFunction();
+                    _increment = _totalValueProvider();
                 }
             }
             catch (Exception ex)
             {
-                ReportOutOfBandMessage($"ERROR: Exception during EventCounter {_name} getMetricFunction callback: " + ex.Message);
+                ReportOutOfBandMessage($"ERROR: Exception during EventCounter {Name} getMetricFunction callback: " + ex.Message);
             }
         }
 
@@ -70,14 +70,14 @@ namespace System.Diagnostics.Tracing
             lock (MyLock)     // Lock the counter
             {
                 IncrementingCounterPayload payload = new IncrementingCounterPayload();
-                payload.Name = _name;
+                payload.Name = Name;
                 payload.DisplayName = DisplayName ?? "";
                 payload.DisplayRateTimeScale = (DisplayRateTimeScale == TimeSpan.Zero) ? "" : DisplayRateTimeScale.ToString("c");
                 payload.IntervalSec = intervalSec;
                 payload.MetaData = GetMetadataString();
                 payload.Increment = _increment - _prevIncrement;
                 _prevIncrement = _increment;
-                _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingPollingCounterPayloadType(payload));
+                EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingPollingCounterPayloadType(payload));
             }
         }
     }
