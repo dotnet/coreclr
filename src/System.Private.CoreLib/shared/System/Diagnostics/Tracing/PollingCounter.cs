@@ -44,7 +44,7 @@ namespace System.Diagnostics.Tracing
 
         internal override void WritePayload(float intervalSec)
         {
-            lock (MyLock)
+            lock (m_Lock)
             {
                 double value = 0;
                 try 
