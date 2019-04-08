@@ -25,7 +25,7 @@ namespace System.Diagnostics.Tracing
     /// Unlike IncrementingEventCounter, this takes in a polling callback that it can call to update 
     /// its own metric periodically.
     /// </summary>
-    internal partial class IncrementingPollingCounter : BaseCounter
+    public partial class IncrementingPollingCounter : BaseCounter
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="IncrementingPollingCounter"/> class.
@@ -41,7 +41,7 @@ namespace System.Diagnostics.Tracing
 
         public override string ToString() => $"IncrementingPollingCounter '{Name}' Increment {_increment}";
 
-        internal TimeSpan DisplayRateTimeScale { get; set; }
+        public TimeSpan DisplayRateTimeScale { get; set; }
         private float _increment;
         private float _prevIncrement;
         private Func<float> _totalValueProvider;

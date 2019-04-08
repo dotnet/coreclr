@@ -23,7 +23,7 @@ namespace System.Diagnostics.Tracing
     /// function to collect metrics on its own rather than the user having to call WriteMetric() 
     /// every time.
     /// </summary>
-    internal partial class PollingCounter : BaseCounter
+    public partial class PollingCounter : BaseCounter
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="PollingCounter"/> class.

@@ -68,7 +68,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Adds a key-value metadata to the EventCounter that will be included as a part of the payload
         /// </summary>
-        internal void AddMetadata(string key, string value)
+        public void AddMetadata(string key, string value)
         {
             lock (MyLock)
             {
@@ -76,11 +76,11 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        internal string DisplayName { get; set; }
+        public string DisplayName { get; set; }
 
-        internal readonly string Name { get; }
+        public string Name { get; }
 
-        internal EventSource EventSource { get; }
+        public EventSource EventSource { get; }
 
         #region private implementation
 

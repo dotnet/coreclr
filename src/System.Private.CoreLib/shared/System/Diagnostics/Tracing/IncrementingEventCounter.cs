@@ -23,7 +23,7 @@ namespace System.Diagnostics.Tracing
     /// It does not calculate statistics like mean, standard deviation, etc. because it only accumulates
     /// the counter value.
     /// </summary>
-    internal partial class IncrementingEventCounter : BaseCounter
+    public partial class IncrementingEventCounter : BaseCounter
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="IncrementingEventCounter"/> class.
@@ -49,7 +49,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        internal TimeSpan DisplayRateTimeScale { get; set; }
+        public TimeSpan DisplayRateTimeScale { get; set; }
         private float _increment;
         private float _prevIncrement;
 
