@@ -407,23 +407,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     return !allocNewBuffer;
 }
 
-void EventPipeBufferManager::WriteNextEventToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(pFile != nullptr);
-    }
-    CONTRACTL_END;
-
-
-    EventPipeEventInstance* pInstance = GetNextEvent();
-    if (pInstance != NULL)
-        pFile->WriteEvent(*pInstance);
-}
-
 void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
 {
     CONTRACTL
