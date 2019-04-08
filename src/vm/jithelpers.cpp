@@ -2187,21 +2187,33 @@ TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle t
             MethodTable * pInterfaceMT = toTypeHnd.AsMethodTable();
             if (pInterfaceMT->HasInstantiation())
                 return ArrayObjSupportsBizarreInterfaceNoGC(pObject, pInterfaceMT);
+
             return pMT->ImplementsInterface(pInterfaceMT) ? TypeHandle::CanCast : TypeHandle::CannotCast;
         }
 
         if (toTypeHnd == TypeHandle(g_pObjectClass) || toTypeHnd == TypeHandle(g_pArrayClass))
+        {
+            //TODO: VS too simple? just bring up?
+            CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, TRUE);
             return TypeHandle::CanCast;
+        }
 
+        CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
         return TypeHandle::CannotCast;
     }
 
     if (toTypeHnd.IsTypeDesc())
+    {
+        CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
         return TypeHandle::CannotCast;
+    }
 
     // allow an object of type T to be cast to Nullable<T> (they have the same representation)
     if (Nullable::IsNullableForTypeNoGC(toTypeHnd, pMT))
+    {
+        CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, TRUE);
         return TypeHandle::CanCast;
+    }
 
     return pMT->CanCastToClassOrInterfaceNoGC(toTypeHnd.AsMethodTable());
 }
