@@ -75,28 +75,23 @@ namespace ContextualReflectionTest
 
         void VerifyIsolationDefault()
         {
+            VerifyIsolation();
+            Assert.AreEqual(defaultAssembly, Assembly.GetExecutingAssembly());
             Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(Assembly.GetExecutingAssembly()));
-            Assert.AreEqual("Default", AssemblyLoadContext.Default.Name);
-
-            Assert.IsNotNull(alc);
-            Assert.IsNotNull(alcAssembly);
-            Assert.IsNotNull(alcProgramType);
-            Assert.IsNotNull(alcProgramInstance);
-
-            Assert.AreEqual("Isolated", alc.Name);
-
-            Assert.AreNotEqual(alc, AssemblyLoadContext.Default);
-            Assert.AreNotEqual(alcAssembly, Assembly.GetExecutingAssembly());
             Assert.AreNotEqual(alcProgramType, typeof(Program));
             Assert.AreNotEqual((object)alcProgramInstance, (object)this);
-
-            Assert.AreEqual(alc, AssemblyLoadContext.GetLoadContext(alcProgramInstance.alcAssembly));
-            Assert.AreEqual(alcAssembly, alcProgramInstance.alcAssembly);
-            Assert.AreEqual(alcProgramType, alcProgramInstance.alcProgramType);
-            Assert.AreEqual(alcProgramInstance, alcProgramInstance.alcProgramInstance);
         }
 
         void VerifyIsolationAlc()
+        {
+            VerifyIsolation();
+            Assert.AreEqual(alcAssembly, Assembly.GetExecutingAssembly());
+            Assert.AreEqual(alc, AssemblyLoadContext.GetLoadContext(Assembly.GetExecutingAssembly()));
+            Assert.AreEqual(alcProgramType, typeof(Program));
+            Assert.AreEqual((object)alcProgramInstance, (object)this);
+        }
+
+        void VerifyIsolation()
         {
             Assert.AreEqual("Default", AssemblyLoadContext.Default.Name);
 
@@ -107,10 +102,8 @@ namespace ContextualReflectionTest
 
             Assert.AreEqual("Isolated", alc.Name);
 
+            Assert.AreNotEqual(defaultAssembly, alcAssembly);
             Assert.AreNotEqual(alc, AssemblyLoadContext.Default);
-            Assert.AreEqual(alcAssembly, Assembly.GetExecutingAssembly());
-            Assert.AreEqual(alcProgramType, typeof(Program));
-            Assert.AreEqual((object)alcProgramInstance, (object)this);
 
             Assert.AreEqual(alc, AssemblyLoadContext.GetLoadContext(alcProgramInstance.alcAssembly));
             Assert.AreEqual(alcAssembly, alcProgramInstance.alcAssembly);
