@@ -2753,7 +2753,8 @@ public:
     HRESULT GetDelegateTargetObject(
         DelegateType delegateType,
         VMPTR_Object delegateObject,
-        OUT VMPTR_Object *ppTarget) = 0;
+        OUT VMPTR_Object *ppTargetObj,
+        OUT VMPTR_AppDomain *ppTargetAppDomain) = 0;
 
     // The following tag tells the DD-marshalling tool to stop scanning.
     // END_MARSHAL

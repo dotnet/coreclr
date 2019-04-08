@@ -3608,7 +3608,8 @@ HRESULT DacDbiInterfaceImpl::GetDelegateFunctionData(
 HRESULT DacDbiInterfaceImpl::GetDelegateTargetObject(
     DelegateType delegateType,
     VMPTR_Object delegateObject,
-    OUT VMPTR_Object *ppTarget)
+    OUT VMPTR_Object *ppTargetObj,
+    OUT VMPTR_AppDomain *ppTargetAppDomain)
 {
     DD_ENTER_MAY_THROW;
 
@@ -3623,7 +3624,9 @@ HRESULT DacDbiInterfaceImpl::GetDelegateTargetObject(
     switch (delegateType)
     {
         case kClosedDelegate:
-            ppTarget->SetDacTargetPtr(PTR_TO_TADDR(OBJECTREFToObject(pDelObj->GetTarget()));
+            PTR_Object pRemoteTargetObj = OBJECTREFToObject(pDelObj->GetTarget());
+            ppTargetObj->SetDacTargetPtr(PTR_TO_TADDR(pRemoteTargetObj));
+            ppTargetAppDomain->SetDacTargetPtr(pRemoteTargetObj->GetAppDomain());
             break;
 
         default:

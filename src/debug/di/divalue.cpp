@@ -271,6 +271,16 @@ void CordbValue::CreateVCObjOrRefValue(CordbAppDomain *               pAppdomain
 //   vmObj - the remote object to get an ICDValue for
 ICorDebugValue* CordbValue::CreateHeapValue(CordbAppDomain* pAppDomain, VMPTR_Object vmObj)
 {
+    // Create a temporary reference and dereference it to construct the heap value we want.
+    RSSmartPtr<CordbReferenceValue> pRefValue(CordbValue::CreateHeapReferenceValue(pAppDomain, vmObj));
+                                           &pRefValue));
+    ICorDebugValue* pExtValue;
+    IfFailThrow(pRefValue->Dereference(&pExtValue));
+    return pExtValue;
+}
+
+CordbReferenceValue* CordbValue::CreateHeapReferenceValue(CordbAppDomain* pAppDomain, VMPTR_Object vmObj)
+{
     IDacDbiInterface* pDac = pAppDomain->GetProcess()->GetDAC();
 
     TargetBuffer objBuffer = pDac->GetObjectContents(vmObj);
@@ -286,11 +296,8 @@ ICorDebugValue* CordbValue::CreateHeapValue(CordbAppDomain* pAppDomain, VMPTR_Ob
                                            VMPTR_OBJECTHANDLE::NullPtr(),
                                            NULL,
                                            &pRefValue));
-    
-    // Dereference our temporary reference value to construct the heap value we want
-    ICorDebugValue* pExtValue;
-    IfFailThrow(pRefValue->Dereference(&pExtValue));
-    return pExtValue;
+
+    return pRefValue;
 }
 
 // Gets the size om bytes of a value from its type. If the value is complex, we assume it is represented as 
@@ -2580,6 +2587,8 @@ HRESULT CordbObjectValue::GetTargetHelper(ICorDebugReferenceValue **ppTarget)
 {
     IDacDbiInterface::DelegateType delType;
     VMPTR_Object pDelegateObj;
+    VMPTR_Object pDelegateTargetObj;
+    VMPTR_AppDomain pAppDomainOfTarget;
 
     CORDB_ADDRESS delegateAddr = m_valueHome.GetAddress();
 
@@ -2594,7 +2603,17 @@ HRESULT CordbObjectValue::GetTargetHelper(ICorDebugReferenceValue **ppTarget)
     if (hr != S_OK)
         return hr;
 
+    hr = pDAC->GetDelegateTargetObject(delType, pDelegateObj, &pDelegateObj, &pAppDomainOfTarget);
+    if (hr != S_OK || pDelegateObj.IsNull())
+        return hr;
 
+    pDAC->GetAppDomainForObject(pDelegateTargetObj.get);
+
+    RSSmartPtr<CordbAppDomain> pCordbAppDomForTarget(GetProcess()->LookupOrCreateAppDomain(pAppDomainOfTarget));
+    RSSmartPtr<CordbReferenceValue> targetObjRefVal(CordbValue::CreateHeapReferenceValue(pCordbAppDomForTarget, pDelegateTargetObj));
+
+    *ppTarget = static_cast<ICorDebugReferenceValue*>(targetObjRefVal.GetValue());
+    targetObjRefVal->ExternalAddRef();
 
     return S_OK;
 }
@@ -2631,9 +2650,9 @@ HRESULT CordbObjectValue::GetFunctionHelper(ICorDebugFunction **ppFunction)
     pDAC->GetNativeCodeInfo(functionDomainFile, functionMethodDef, &nativeCodeForDelFunc);
 
     RSSmartPtr<CordbModule> funcModule(GetProcess()->LookupOrCreateModule(functionDomainFile));
-    CordbFunction *func = funcModule->LookupOrCreateFunction(functionMethodDef, nativeCodeForDelFunc.encVersion);
+    RSSmartPtr<CordbFunction> func(funcModule->LookupOrCreateFunction(functionMethodDef, nativeCodeForDelFunc.encVersion));
 
-    *ppFunction = static_cast<ICorDebugFunction*> (func);
+    *ppFunction = static_cast<ICorDebugFunction*> (func.GetValue());
     func->ExternalAddRef();
 
     return S_OK;

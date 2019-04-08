@@ -8755,6 +8755,9 @@ public:
     static ICorDebugValue* CreateHeapValue(CordbAppDomain* pAppDomain,
                                            VMPTR_Object vmObj);
 
+    // Creates a proper CordbReferenceValue instance based on the given remote heap object
+    static CordbReferenceValue *CreateHeapReferenceValue(CordbAppDomain *pAppDomain,
+                                                         VMPTR_Object vmObj);
 
     // Returns a pointer to the ValueHome field of this instance of CordbValue if one exists or NULL
     // otherwise. Therefore, this also tells us indirectly whether this instance of CordbValue is also an
