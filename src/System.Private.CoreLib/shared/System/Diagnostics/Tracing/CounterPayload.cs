@@ -82,7 +82,7 @@ namespace System.Diagnostics.Tracing
 
         public float IntervalSec { get; internal set; }
 
-        public string MetaData { get; set; }
+        public string Metadata { get; set; }
 
         #region Implementation of the IEnumerable interface
 
@@ -110,7 +110,7 @@ namespace System.Diagnostics.Tracing
                 yield return new KeyValuePair<string, object>("IntervalSec", IntervalSec);
                 yield return new KeyValuePair<string, object>("Series", $"Interval={IntervalSec}");
                 yield return new KeyValuePair<string, object>("CounterType", "Mean");
-                yield return new KeyValuePair<string, object>("MetaData", MetaData);
+                yield return new KeyValuePair<string, object>("MetaData", Metadata);
             }
         }
 
@@ -130,7 +130,7 @@ namespace System.Diagnostics.Tracing
 
         public float IntervalSec { get; internal set; }
 
-        public string MetaData { get; set; }
+        public string Metadata { get; set; }
 
         #region Implementation of the IEnumerable interface
 
@@ -155,7 +155,7 @@ namespace System.Diagnostics.Tracing
                 yield return new KeyValuePair<string, object>("IntervalSec", IntervalSec);
                 yield return new KeyValuePair<string, object>("Series", $"Interval={IntervalSec}");
                 yield return new KeyValuePair<string, object>("CounterType", "Sum");
-                yield return new KeyValuePair<string, object>("MetaData", MetaData);
+                yield return new KeyValuePair<string, object>("Metadata", Metadata);
             }
         }
 

@@ -64,7 +64,7 @@ namespace System.Diagnostics.Tracing
                 payload.IntervalSec = intervalSec;
                 payload.DisplayName = DisplayName ?? "";
                 payload.DisplayRateTimeScale = (DisplayRateTimeScale == TimeSpan.Zero) ? "" : DisplayRateTimeScale.ToString("c");
-                payload.MetaData = GetMetaDataString();
+                payload.MetaData = GetMetadataString();
                 payload.Increment = _increment - _prevIncrement;
                 _prevIncrement = _increment;
                 _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingEventCounterPayloadType(payload));

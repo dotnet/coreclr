@@ -64,6 +64,7 @@ namespace System.Diagnostics.Tracing
                 payload.Mean = value;
                 payload.Max = value;
                 payload.Min = value;
+                payload.MetaData = GetMetadataString();
                 payload.StandardDeviation = 0;
                 _lastVal = value;
                 _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(payload));

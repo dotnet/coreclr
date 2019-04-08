@@ -46,7 +46,7 @@ namespace System.Diagnostics.Tracing
             _group.Add(this);
             _eventSource = eventSource;
             _name = name;
-            _metaData = new Dictionary<string, string>();
+            _metadata = new Dictionary<string, string>();
         }
 
         /// <summary>
@@ -67,11 +67,11 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Adds a key-value metadata to the EventCounter that will be included as a part of the payload
         /// </summary>
-        internal void AddMetaData(string key, string value)
+        internal void AddMetadata(string key, string value)
         {
             lock (MyLock)
             {
-                _metaData.Add(key, value);
+                _metadata.Add(key, value);
             }
         }
 
@@ -82,7 +82,7 @@ namespace System.Diagnostics.Tracing
         internal readonly string _name;
 
         private CounterGroup _group;
-        private Dictionary<string, string> _metaData;
+        private Dictionary<string, string> _metadata;
         internal EventSource _eventSource;
 
         internal abstract void WritePayload(float intervalSec);
@@ -95,10 +95,10 @@ namespace System.Diagnostics.Tracing
             _eventSource.ReportOutOfBandMessage(message, true);
         }
 
-        internal string GetMetaDataString()
+        internal string GetMetadataString()
         {
             StringBuilder sb = new StringBuilder("");
-            foreach(KeyValuePair<string, string> kvPair in _metaData)
+            foreach(KeyValuePair<string, string> kvPair in _metadata)
             {
                 sb.Append($"{kvPair.Key}:{kvPair.Value},");
             }

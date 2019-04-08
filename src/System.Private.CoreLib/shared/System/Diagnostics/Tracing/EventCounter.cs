@@ -99,6 +99,7 @@ namespace System.Diagnostics.Tracing
                 }
                 payload.Min = _min;
                 payload.Max = _max;
+                payload.MetaData = GetMetadataString();
                 ResetStatistics();
                 _eventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new EventCounterPayloadType(payload));
             }
