@@ -419,16 +419,59 @@ namespace System.Runtime.Loader
             }
         }
 
+        /// <summary>Nullable current AssemblyLoadContext used for context sensitive reflection APIs</summary>
+        /// <remarks>
+        /// This is an advanced setting used in reflection assembly loading scenarios.
+        ///
+        /// There are a set of contextual reflection APIs which load managed assemblies through an inferred AssemblyLoadContext.
+        /// * <see cref="System.Activator.CreateInstance" />
+        /// * <see cref="System.Reflection.Assembly.Load" />
+        /// * <see cref="System.Reflection.Assembly.GetType" />
+        /// * <see cref="System.Type.GetType" />
+        ///
+        /// When CurrentContextualReflectionContext is null, the AssemblyLoadContext is inferred.
+        /// The inference logic is simple.
+        /// * For static methods, it is the AssemblyLoadContext which loaded the method caller's assembly.
+        /// * For instance methods, it is the AssemblyLoadContext which loaded the instance's assembly.
+        ///
+        /// When this property is set, the CurrentContextualReflectionContext value is used by these contextual reflection APIs for loading.
+        ///
+        /// This property is typically set in a using block by
+        /// <see cref="System.Runtime.Loader.AssemblyLoadContext.EnterContextualReflection"/>.
+        ///
+        /// The property is stored in an AsyncLocal&lt;AssemblyLoadContext&gt;. This means the setting can be unique for every async or thread in the process.
+        ///
+        /// For more details see https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/AssemblyLoadContext.ContextualReflection.md
+        /// </remarks>
         public static AssemblyLoadContext CurrentContextualReflectionContext
         {
             get { return StaticAsyncLocalCurrentContextualReflectionContext.Value; }
         }
 
+        /// <summary>Enter scope using this AssemblyLoadContext for ContextualReflection</summary>
+        /// <returns>A disposable ContextualReflectionScope for use in a using block</returns>
+        /// <remarks>
+        /// Sets CurrentContextualReflectionContext to this instance.
+        /// <see cref="System.Runtime.Loader.AssemblyLoadContext.CurrentContextualReflectionContext"/>
+        ///
+        /// Returns a disposable ContextualReflectionScope for use in a using block. When the using calls the
+        /// Dispose() method, it restores the ContextualReflectionScope to its previous value.
+        /// </remarks>
         public ContextualReflectionScope EnterContextualReflection()
         {
             return new ContextualReflectionScope(this);
         }
 
+        /// <summary>Enter scope using this AssemblyLoadContext for ContextualReflection</summary>
+        /// <param name="activating">Set CurrentContextualReflectionContext to the AssemblyLoadContext which loaded activating.</param>
+        /// <returns>A disposable ContextualReflectionScope for use in a using block</returns>
+        /// <remarks>
+        /// Sets CurrentContextualReflectionContext to to the AssemblyLoadContext which loaded activating.
+        /// <see cref="System.Runtime.Loader.AssemblyLoadContext.CurrentContextualReflectionContext"/>
+        ///
+        /// Returns a disposable ContextualReflectionScope for use in a using block. When the using calls the
+        /// Dispose() method, it restores the ContextualReflectionScope to its previous value.
+        /// </remarks>
         public static ContextualReflectionScope EnterContextualReflection(Assembly activating)
         {
             return activating != null ?
@@ -436,6 +479,13 @@ namespace System.Runtime.Loader
                 new ContextualReflectionScope(null);
         }
 
+        /// <summary>Opaque disposable struct used to restore CurrentContextualReflectionContext</summary>
+        /// <remarks>
+        /// This is an implmentation detail of the AssemblyLoadContext.EnterContextualReflection APIs.
+        /// It is a struct, to avoid heap allocation.
+        /// It is required to be public to avoid boxing.
+        /// <see cref="System.Runtime.Loader.AssemblyLoadContext.EnterContextualReflection"/>
+        /// </remarks>
         [EditorBrowsable(EditorBrowsableState.Never)]
         public struct ContextualReflectionScope : IDisposable
         {
