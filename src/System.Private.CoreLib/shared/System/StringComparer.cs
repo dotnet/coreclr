@@ -146,7 +146,7 @@ namespace System
             return x.Equals(y);
         }
 
-        public int GetHashCode(object obj)
+        public int GetHashCode(object? obj) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
         {
             if (obj == null)
             {

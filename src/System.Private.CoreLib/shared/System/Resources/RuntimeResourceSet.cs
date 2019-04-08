@@ -358,7 +358,7 @@ namespace System.Resources
                         while (en.MoveNext())
                         {
                             DictionaryEntry entry = en.Entry;
-                            string readKey = (string)entry.Key;
+                            string readKey = (string)entry.Key!; // Key can't be null in this set
                             ResourceLocator resLoc = new ResourceLocator(-1, entry.Value);
                             _resCache.Add(readKey, resLoc);
                             if (ignoreCase)
