@@ -424,6 +424,7 @@ void ArrayNative::CastCheckEachElement(const BASEARRAYREF pSrcUnsafe, const unsi
 
         // Now that we have grabbed obj, we are no longer subject to races from another
         // mutator thread.
+        //TODO: VS cached? call NoGC first?
         if (gc.obj != NULL && !ObjIsInstanceOf(OBJECTREFToObject(gc.obj), destTH))
             COMPlusThrow(kInvalidCastException, W("InvalidCast_DownCastArrayElement"));
 

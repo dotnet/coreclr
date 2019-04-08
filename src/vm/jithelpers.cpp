@@ -2155,7 +2155,7 @@ TypeHandle::CastResult ArrayObjSupportsBizarreInterfaceNoGC(Object *pObject, Met
     return TypeDesc::CanCastParamNoGC(pArray->GetArrayElementTypeHandle(), pInterfaceMT->GetInstantiation()[0]);
 }
 
-TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeHnd)
+TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTypeHnd)
 {
     CONTRACTL {
         NOTHROW;
@@ -2167,18 +2167,8 @@ TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle t
 
     MethodTable *pMT = pObject->GetMethodTable();
 
-    // Quick exact match first
-    if (TypeHandle(pMT) == toTypeHnd)
-        return TypeHandle::CanCast;
-
-    //TODO: VS split into easy (trivial + cache) and nooinline core?
-    //      this is calle from stelem for example.
-
-    CastCache::CastCacheResult result = CastCache::TryGetFromCache(pObject->GetMethodTable(), toTypeHnd);
-    if (result != CastCache::CastCacheResult::NotCached)
-    {
-        return (TypeHandle::CastResult)result;
-    }
+    // Quick exact match should be checked already
+    _ASSERTE(TypeHandle(pMT) != toTypeHnd);
 
     if ((toTypeHnd.IsInterface() && ( pMT->IsComObjectType() || pMT->IsICastable())))
     {
@@ -2224,6 +2214,30 @@ TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle t
     }
 
     return pMT->CanCastToClassOrInterfaceNoGC(toTypeHnd.AsMethodTable());
+}
+
+TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeHnd)
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pObject));
+    } CONTRACTL_END;
+
+    MethodTable *pMT = pObject->GetMethodTable();
+
+    // Quick exact match first
+    if (TypeHandle(pMT) == toTypeHnd)
+        return TypeHandle::CanCast;
+
+    CastCache::CastCacheResult result = CastCache::TryGetFromCache(pMT, toTypeHnd);
+    if (result != CastCache::CastCacheResult::NotCached)
+    {
+        return (TypeHandle::CastResult)result;
+    }
+
+    return ObjIsInstanceOfNoGCCore(pObject, toTypeHnd);
 }
 
 BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastException)
