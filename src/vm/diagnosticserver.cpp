@@ -71,6 +71,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 
             default:
                 LOG((LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknow request type (%d)\n", header.RequestType));
+                delete pStream;
                 break;
             }
         }
