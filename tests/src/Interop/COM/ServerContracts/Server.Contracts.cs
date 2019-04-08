@@ -306,6 +306,16 @@ namespace Server.Contract
 
         void SetNextLicense([MarshalAs(UnmanagedType.LPWStr)] string lic);
     }
+
+    /// <remarks>
+    /// This interface is used to test consumption of the NET server from a NET client only.
+    /// </remarks>
+    [ComVisible(true)]
+    [Guid("CCBC1915-3252-4F6B-98AA-411CE6213D94")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IConsumeNETServer
+    {
+    }
 }
 
 #pragma warning restore 618 // Must test deprecated features
