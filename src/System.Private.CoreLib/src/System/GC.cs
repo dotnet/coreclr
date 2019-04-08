@@ -53,11 +53,11 @@ namespace System
     [StructLayout(LayoutKind.Sequential)]
     public readonly struct GCMemoryInfo
     {
-        private int m_highMemoryLoadThreshold;
-        private int m_memoryLoad;
-        private long m_totalAvailableMemory;
-        private long m_heapSize;
-        private long m_fragmentation;
+        private readonly int m_highMemoryLoadThreshold;
+        private readonly int m_memoryLoad;
+        private readonly long m_totalAvailableMemory;
+        private readonly long m_heapSize;
+        private readonly long m_fragmentation;
 
         /// <summary>
         /// HighMemoryLoadThreshold when the last GC occured
