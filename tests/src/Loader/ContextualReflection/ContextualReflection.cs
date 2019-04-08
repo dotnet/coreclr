@@ -58,8 +58,8 @@ namespace ContextualReflectionTest
 
                 alcProgramType = alcAssembly.GetType("ContextualReflectionTest.Program");
 
-                AssemblyLoadContext.Default.Resolving += TestResolve.ResolvingThrowDefault;
-                alc.Resolving += TestResolve.ResolvingThrowIsolated;
+                AssemblyLoadContext.Default.Resolving += TestResolve.ResolvingTestDefault;
+                alc.Resolving += TestResolve.ResolvingTestIsolated;
 
                 alcProgramInstance = (IProgram) Activator.CreateInstance(alcProgramType);
             }
@@ -113,14 +113,16 @@ namespace ContextualReflectionTest
 
         void VerifyTestResolve()
         {
-            TestResolve.Assert(ResolveEvents.ExpectedEvent, () => AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName("ThrowDefault")));
-            TestResolve.Assert(ResolveEvents.NoEvent, () => AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName("ThrowIsolated")));
-            TestResolve.Assert(ResolveEvents.ExpectedEvent, () => alc.LoadFromAssemblyName(new AssemblyName("ThrowIsolated")));
+            TestResolve.Assert(ResolveEvents.ExpectedEvent, () => AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName("TestDefaultLoad")));
+            TestResolve.Assert(ResolveEvents.NoEvent, () => AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName("TestIsolatedLoad")));
+            TestResolve.Assert(ResolveEvents.ExpectedEvent, () => alc.LoadFromAssemblyName(new AssemblyName("TestIsolatedLoad")));
+            TestResolve.Assert(ResolveEvents.ExpectedEvent, () => alc.LoadFromAssemblyName(new AssemblyName("TestDefaultLoad")));
 
             // Make sure failure is not cached
-            TestResolve.Assert(ResolveEvents.ExpectedEvent, () => AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName("ThrowDefault")));
-            TestResolve.Assert(ResolveEvents.NoEvent, () => AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName("ThrowIsolated")));
-            TestResolve.Assert(ResolveEvents.ExpectedEvent, () => alc.LoadFromAssemblyName(new AssemblyName("ThrowIsolated")));
+            TestResolve.Assert(ResolveEvents.ExpectedEvent, () => AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName("TestDefaultLoad")));
+            TestResolve.Assert(ResolveEvents.NoEvent, () => AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName("TestIsolatedLoad")));
+            TestResolve.Assert(ResolveEvents.ExpectedEvent, () => alc.LoadFromAssemblyName(new AssemblyName("TestIsolatedLoad")));
+            TestResolve.Assert(ResolveEvents.ExpectedEvent, () => alc.LoadFromAssemblyName(new AssemblyName("TestDefaultLoad")));
         }
 
         void VerifyContextualReflectionProxy()
@@ -304,19 +306,19 @@ namespace ContextualReflectionTest
         {
             using (ConntextualReflectionProxy.EnterContextualReflection((Assembly)null))
             {
-                TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("ThrowDefault"));
+                TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("TestDefaultLoad"));
                 if (!skipNullIsolated)
-                    TestResolve.Assert(isolated ? ResolveEvents.ExpectedEvent : ResolveEvents.NoEvent, () => action("ThrowIsolated"));
+                    TestResolve.Assert(isolated ? ResolveEvents.ExpectedEvent : ResolveEvents.NoEvent, () => action("TestIsolatedLoad"));
             }
             using (ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default))
             {
-                TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("ThrowDefault"));
-                TestResolve.Assert(ResolveEvents.NoEvent, () => action("ThrowIsolated"));
+                TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("TestDefaultLoad"));
+                TestResolve.Assert(ResolveEvents.NoEvent, () => action("TestIsolatedLoad"));
             }
             using (ConntextualReflectionProxy.EnterContextualReflection(alc))
             {
-                TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("ThrowDefault"));
-                TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("ThrowIsolated"));
+                TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("TestDefaultLoad"));
+                TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("TestIsolatedLoad"));
             }
         }
 
