@@ -19,10 +19,10 @@ namespace System.Diagnostics.Tracing
 #endif
 {
     /// <summary>
-    /// BaseCounter is an abstract class that serves as the parent class for various Counter* classes, 
+    /// DiagnosticCounter is an abstract class that serves as the parent class for various Counter* classes, 
     /// namely EventCounter, PollingCounter, IncrementingEventCounter, and IncrementingPollingCounter.
     /// </summary>
-    public abstract class BaseCounter : IDisposable
+    public abstract class DiagnosticCounter : IDisposable
     {
         /// <summary>
         /// All Counters live as long as the EventSource that they are attached to unless they are
@@ -30,7 +30,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="eventSource">The event source.</param>
-        public BaseCounter(string name, EventSource eventSource)
+        public DiagnosticCounter(string name, EventSource eventSource)
         {
             if (name == null)
             {
