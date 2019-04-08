@@ -51,7 +51,7 @@ namespace System
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct GCMemoryInfo
+    public readonly struct GCMemoryInfo
     {
         private int _highMemoryLoadThreshold;
         private long _totalAvailableMemory;
