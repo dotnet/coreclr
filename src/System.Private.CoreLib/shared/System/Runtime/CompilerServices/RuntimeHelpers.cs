@@ -24,14 +24,16 @@ namespace System.Runtime.CompilerServices
             }
 
             Range.OffsetAndLength offLen = range.GetOffsetAndLength(array.Length);
-            if (offLen.Length == 0)
-            {
-                return Array.Empty<T>();
-            }
 
             if (default(T) != null || typeof(T[]) == array.GetType())
             {
                 // We know the type of the array to be exactly T[].
+
+                if (offLen.Length == 0)
+                {
+                    return Array.Empty<T>();
+                }
+
                 var dest = new T[offLen.Length];
                 Buffer.Memmove(
                     ref Unsafe.As<byte, T>(ref dest.GetRawSzArrayData()),
