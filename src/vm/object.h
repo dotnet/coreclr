@@ -1613,6 +1613,9 @@ NOINLINE AssemblyBaseObject* GetRuntimeAssemblyHelper(LPVOID __me, DomainAssembl
 // AssemblyLoadContextBaseObject
 // This class is the base class for AssemblyLoadContext
 //
+#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL)
+#include "pshpack4.h"
+#endif // (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL)
 class AssemblyLoadContextBaseObject : public Object
 {
     friend class MscorlibBinder;
@@ -1621,16 +1624,27 @@ class AssemblyLoadContextBaseObject : public Object
     // READ ME:
     // Modifying the order or fields of this object may require other changes to the
     //  classlib class definition of this object.
-
+#ifdef _TARGET_64BIT_
     OBJECTREF     _unloadLock;
     OBJECTREF     _resovlingUnmanagedDll;
     OBJECTREF     _resolving;
     OBJECTREF     _unloading;
     OBJECTREF     _name;
     INT_PTR       _nativeAssemblyLoadContext;
-    int64_t       _id;
+    int64_t       _id; // On 64-bit platforms this is a value type so it is placed after references and pointers
     DWORD         _state;
     CLR_BOOL      _isCollectible;
+#else // _TARGET_64BIT_
+    int64_t       _id; // On 32-bit platforms this 64-bit value type is larger than a pointer so JIT places it first
+    OBJECTREF     _unloadLock;
+    OBJECTREF     _resovlingUnmanagedDll;
+    OBJECTREF     _resolving;
+    OBJECTREF     _unloading;
+    OBJECTREF     _name;
+    INT_PTR       _nativeAssemblyLoadContext;
+    DWORD         _state;
+    CLR_BOOL      _isCollectible;
+#endif // _TARGET_64BIT_
 
   protected:
     AssemblyLoadContextBaseObject() { LIMITED_METHOD_CONTRACT; }
@@ -1639,6 +1653,9 @@ class AssemblyLoadContextBaseObject : public Object
   public:
     INT_PTR GetNativeAssemblyLoadContext() { LIMITED_METHOD_CONTRACT; return _nativeAssemblyLoadContext; }
 };
+#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL)
+#include "poppack.h"
+#endif // (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL)
 
 // AssemblyNameBaseObject 
 // This class is the base class for assembly names
