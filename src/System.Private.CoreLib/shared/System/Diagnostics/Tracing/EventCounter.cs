@@ -58,7 +58,7 @@ namespace System.Diagnostics.Tracing
             Enqueue(value);
         }
 
-        public override string ToString() => $"EventCounter '{Name}' Count {_count} Mean {(((double)_sum) / _count).ToString("n3")}";
+        public override string ToString() => $"EventCounter '{Name}' Count {_count} Mean {(_sum / _count).ToString("n3")}";
 
         #region Statistics Calculation
 
@@ -71,7 +71,7 @@ namespace System.Diagnostics.Tracing
 
         internal void OnMetricWritten(double value)
         {
-            Debug.Assert(Monitor.IsEntered(m_Lock));
+            Debug.Assert(Monitor.IsEntered(MyLock));
             _sum += value;
             _sumSquared += value * value;
             if (value > _max)
@@ -85,7 +85,7 @@ namespace System.Diagnostics.Tracing
 
         internal override void WritePayload(float intervalSec)
         {
-            lock (m_Lock)
+            lock (MyLock)
             {
                 Flush();
                 CounterPayload payload = new CounterPayload();
@@ -94,7 +94,7 @@ namespace System.Diagnostics.Tracing
                 if (0 < _count)
                 {
                     payload.Mean = _sum / _count;
-                    payload.StandardDeviation = (double)Math.Sqrt(_sumSquared / _count - _sum * _sum / _count / _count);
+                    payload.StandardDeviation = Math.Sqrt(_sumSquared / _count - _sum * _sum / _count / _count);
                 }
                 else
                 {
@@ -113,7 +113,7 @@ namespace System.Diagnostics.Tracing
         }
         private void ResetStatistics()
         {
-            Debug.Assert(Monitor.IsEntered(m_Lock));
+            Debug.Assert(Monitor.IsEntered(MyLock));
             _count = 0;
             _sum = 0;
             _sumSquared = 0;
@@ -151,7 +151,7 @@ namespace System.Diagnostics.Tracing
                 {
                     // It is possible that two threads both think the buffer is full, but only one get to actually flush it, the other
                     // will eventually enter this code path and potentially calling Flushing on a buffer that is not full, and that's okay too.
-                    lock (m_Lock) // Lock the counter
+                    lock (MyLock) // Lock the counter
                         Flush();
                     i = 0;
                 }
@@ -167,7 +167,7 @@ namespace System.Diagnostics.Tracing
 
         protected void Flush()
         {
-            Debug.Assert(Monitor.IsEntered(m_Lock));
+            Debug.Assert(Monitor.IsEntered(MyLock));
             for (int i = 0; i < _bufferedValues.Length; i++)
             {
                 var value = Interlocked.Exchange(ref _bufferedValues[i], UnusedBufferSlotValue);

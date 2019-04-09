@@ -64,7 +64,7 @@ namespace System.Diagnostics.Tracing
                 yield return new KeyValuePair<string, object>("IntervalSec", IntervalSec);
                 yield return new KeyValuePair<string, object>("Series", $"Interval={IntervalSec}");
                 yield return new KeyValuePair<string, object>("CounterType", "Mean");
-                yield return new KeyValuePair<string, object>("MetaData", Metadata);
+                yield return new KeyValuePair<string, object>("Metadata", Metadata);
             }
         }
 

@@ -68,7 +68,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public void AddMetadata(string key, string value)
         {
-            lock (m_Lock)
+            lock (MyLock)
             {
                 _metadata = _metadata ?? new Dictionary<string, string>();
                 _metadata.Add(key, value);
@@ -89,7 +89,7 @@ namespace System.Diagnostics.Tracing
         internal abstract void WritePayload(float intervalSec);
 
         // arbitrarily we use name as the lock object.  
-        internal object m_Lock { get { return Name; } }
+        protected object MyLock { get { return Name; } }
 
         internal void ReportOutOfBandMessage(string message)
         {
