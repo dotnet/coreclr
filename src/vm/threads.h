@@ -5026,6 +5026,9 @@ public:
 
 private:
     OBJECTHANDLE m_DeserializationTracker;
+
+public:
+    static uint64_t dead_threads_non_alloc_bytes;
 };
 
 // End of class Thread
