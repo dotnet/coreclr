@@ -11,7 +11,6 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <DefineConstants>$(DefineConstants);STATIC;CORECLR</DefineConstants>
     <CLRTestKind>BuildAndRun</CLRTestKind>
-    <!-- https://github.com/dotnet/coreclr/issues/23643 -->
     <CrossGenTest>false</CrossGenTest>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
