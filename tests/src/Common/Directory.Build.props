@@ -10,4 +10,6 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
   </PropertyGroup>
 
+  <Import Project="$(MSBuildThisFileDirectory)/../../../eng/Versions.props" Condition="'$(ArcadeBuild)' != 'true'" />
+
 </Project>
