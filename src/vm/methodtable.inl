@@ -17,6 +17,7 @@
 #include "methodtable.h"
 #include "genericdict.h"
 #include "threadstatics.h"
+#include "castcache.h"
 
 //==========================================================================================
 inline PTR_EEClass MethodTable::GetClass_NoLogging()
@@ -1625,10 +1626,17 @@ __forceinline TypeHandle::CastResult MethodTable::CanCastToClassOrInterfaceNoGC(
     }
     CONTRACTL_END
 
-    if (pTargetMT->IsInterface())
-        return CanCastToInterfaceNoGC(pTargetMT);
-    else
-        return CanCastToClassNoGC(pTargetMT);
+    TypeHandle::CastResult result = pTargetMT->IsInterface() ?
+                                        CanCastToInterfaceNoGC(pTargetMT) :
+                                        CanCastToClassNoGC(pTargetMT);
+
+    if (result != TypeHandle::MaybeCast)
+    {
+        //TODO: VS
+        // CastCache::TryAddToCacheNoGC(this, pTargetMT, (BOOL)result);
+    }
+
+    return result;
 }
 
 //==========================================================================================
