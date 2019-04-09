@@ -488,7 +488,7 @@ namespace System.Resources
                 // that had resources.
                 foreach (CultureInfo updateCultureInfo in mgr)
                 {
-                    AddResourceSet(localResourceSets, updateCultureInfo.Name, ref rs!); // TODO-NULLABLE: ! should not be required
+                    AddResourceSet(localResourceSets, updateCultureInfo.Name, ref rs!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34874
 
                     // stop when we've added current or reached invariant (top of chain)
                     if (updateCultureInfo == foundCulture)
