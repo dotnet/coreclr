@@ -6110,6 +6110,7 @@ GenTree* Compiler::fgMorphField(GenTree* tree, MorphAddrContext* mac)
     GenTree*             objRef          = tree->gtField.gtFldObj;
     bool                 fieldMayOverlap = false;
     bool                 objIsLocal      = false;
+    bool                 fieldAddr       = (tree->gtFlags & GTF_DONT_CSE) != 0;
 
     if (fgGlobalMorph && (objRef != nullptr) && (objRef->gtOper == GT_ADDR))
     {
@@ -6613,7 +6614,8 @@ GenTree* Compiler::fgMorphField(GenTree* tree, MorphAddrContext* mac)
     }
     noway_assert(tree->gtOper == GT_IND);
 
-    GenTree* res = fgMorphSmpOp(tree);
+    // Pass down the current mac, if we're computing an address
+    GenTree* res = fgMorphSmpOp(tree, fieldAddr ? mac : nullptr);
 
     // If we have a struct type, this node would previously have been under a GT_ADDR,
     // and therefore would have been marked GTF_DONT_CSE.
@@ -11932,7 +11934,11 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
                 case GT_BLK:
                 case GT_DYN_BLK:
                 case GT_IND:
-                    subMac1 = &subIndMac1;
+                    // If not part of an address computation, use the new mac.
+                    if ((subMac1 == nullptr) || ((tree->gtFlags & GTF_DONT_CSE) == 0))
+                    {
+                        subMac1 = &subIndMac1;
+                    }
                     break;
                 default:
                     break;
