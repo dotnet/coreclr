@@ -1373,17 +1373,6 @@ FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::CanCastTo, ReflectClassBaseObject *pType
     {
         iRetVal = (r == TypeHandle::CanCast);
     }
-
-    // We allow T to be cast to Nullable<T>
-    if (!iRetVal && Nullable::IsNullableType(toHandle) && !fromHandle.IsTypeDesc())
-    {
-        HELPER_METHOD_FRAME_BEGIN_RET_2(refType, refTarget);
-        if (Nullable::IsNullableForType(toHandle, fromHandle.AsMethodTable())) 
-        {
-            iRetVal = TRUE;
-        }
-        HELPER_METHOD_FRAME_END();
-    }
         
     FC_RETURN_BOOL(iRetVal);
 }

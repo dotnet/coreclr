@@ -1632,8 +1632,7 @@ __forceinline TypeHandle::CastResult MethodTable::CanCastToClassOrInterfaceNoGC(
 
     if (result != TypeHandle::MaybeCast)
     {
-        //TODO: VS
-        // CastCache::TryAddToCacheNoGC(this, pTargetMT, (BOOL)result);
+        CastCache::TryAddToCacheNoGC(this, pTargetMT, (BOOL)result);
     }
 
     return result;
