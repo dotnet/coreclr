@@ -150,7 +150,7 @@ namespace System
             }
         }
 
-        internal static string Format(IFormatProvider provider, string resourceFormat, params object?[] args)
+        internal static string Format(IFormatProvider provider, string resourceFormat, params object?[]? args)
         {
             if (args != null)
             {
@@ -165,7 +165,7 @@ namespace System
             return resourceFormat;
         }
 
-        internal static string Format(string resourceFormat, params object?[] args)
+        internal static string Format(string resourceFormat, params object?[]? args)
         {
             if (args != null)
             {

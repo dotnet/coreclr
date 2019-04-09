@@ -233,9 +233,9 @@ namespace System.Runtime.Loader
             {
                 VerifyIsAlive();
 
-                Type type = null;
+                Type? type = null;
                 LoadTypeForWinRTTypeNameInContextInternal(_nativeAssemblyLoadContext, typeName, JitHelpers.GetObjectHandleOnStack(ref type));
-                return type;
+                return type!;
             }
         }
         
