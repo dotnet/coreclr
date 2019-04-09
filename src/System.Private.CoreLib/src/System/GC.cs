@@ -86,7 +86,7 @@ namespace System
         ///  | OBJ_A |     OBJ_B     | OBJ_C |   OBJ_D   | OBJ_E |
         ///
         /// Let's say OBJ_B, OBJ_C and and OBJ_E are garbage and get collected, but the heap does not get compacted, the resulting heap will look like the following:
-        ///  | OBJ_A |           F           |   OBJ_D   |       |
+        ///  | OBJ_A |           F           |   OBJ_D   |
         ///
         /// The memory between OBJ_A and OBJ_D marked `F` is considered part of the FragmentedBytes, and will be used to allocate new objects. The memory after OBJ_D will not be
         /// considered part of the FragmentedBytes, and will also be used to allocate new objects
