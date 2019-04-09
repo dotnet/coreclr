@@ -14,6 +14,8 @@
     <ReferenceSystemPrivateCoreLib>true</ReferenceSystemPrivateCoreLib>
     <!-- The test leaves AssemblyLoadContext.Default.ResolvingUnmanagedDll event registered to a method in the test at exit -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
+    <!-- See https://github.com/dotnet/coreclr/issues/23650 -->
+    <CrossGenTest Condition=" '$(BuildOS)' == 'Windows_NT' And ('$(BuildArch)' == 'arm' Or '$(BuildArch)' == 'x86') " >false</CrossGenTest>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
