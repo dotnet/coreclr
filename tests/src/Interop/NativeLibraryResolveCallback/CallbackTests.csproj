@@ -12,8 +12,6 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ReferenceSystemPrivateCoreLib>true</ReferenceSystemPrivateCoreLib>
-    <!-- https://github.com/dotnet/coreclr/issues/23650 -->
-    <CrossGenTest>false</CrossGenTest>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
