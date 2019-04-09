@@ -3403,14 +3403,6 @@ BOOL NDirect::MarshalingRequired(MethodDesc *pMD, PCCOR_SIGNATURE pSig /*= NULL*
         if (pMD->IsNDirect() && ((NDirectMethodDesc *)pMD)->IsClassConstructorTriggeredByILStub())
             return TRUE;
 
-        if (IsReadyToRunCompilation() && !pMD->GetModule()->IsInCurrentVersionBubble())
-        {
-            // FUTURE: ZapSig::EncodeMethod does not yet handle cross module references for ReadyToRun
-            // See zapsig.cpp around line 1217.
-            // Once this is implemented, we'll be able to inline pinvokes of extern methods declared in other modules (Ex: PresentationCore.dll)
-            return TRUE;
-        }
-
         callConv = sigInfo.GetCallConv();
     }
 
