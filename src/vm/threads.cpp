@@ -54,7 +54,7 @@
 #include "eventpipebuffermanager.h"
 #endif // FEATURE_PERFTRACING
 
-
+uint64_t Thread::dead_threads_non_alloc_bytes = 0;
 
 SPTR_IMPL(ThreadStore, ThreadStore, s_pThreadStore);
 CONTEXT *ThreadStore::s_pOSContext = NULL;
@@ -2902,6 +2902,8 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
         // we tear down any threads during shutdown.
         if (ThisThreadID == CurrentThreadID)
         {
+            dead_threads_non_alloc_bytes += m_alloc_context.alloc_limit - m_alloc_context.alloc_ptr;
+
             GCX_COOP();
             GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, NULL, NULL);
             m_alloc_context.init();

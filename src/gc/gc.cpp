@@ -2634,7 +2634,7 @@ gen_to_condemn_tuning gc_heap::gen_to_condemn_reasons;
 
 size_t      gc_heap::etw_allocation_running_amount[2];
 
-uint64_t    gc_heap::allocated_so_far = 0;
+uint64_t    gc_heap::total_alloc_bytes = 0;
 
 int         gc_heap::gc_policy = 0;
 
@@ -5952,6 +5952,8 @@ void gc_heap::fix_allocation_context (alloc_context* acontext, BOOL for_gc_p,
     {
         // We need to update the alloc_bytes to reflect the portion that we have not used  
         acontext->alloc_bytes -= (acontext->alloc_limit - acontext->alloc_ptr);  
+        total_alloc_bytes -= (acontext->alloc_limit - acontext->alloc_ptr);
+
         acontext->alloc_ptr = 0;
         acontext->alloc_limit = acontext->alloc_ptr;
     }
@@ -10668,7 +10670,7 @@ gc_heap::init_gc_heap (int  h_number)
 
     etw_allocation_running_amount[0] = 0;
     etw_allocation_running_amount[1] = 0;
-    allocated_so_far = 0;
+    total_alloc_bytes = 0;
 
     //needs to be done after the dynamic data has been initialized
 #ifndef MULTIPLE_HEAPS
@@ -11499,6 +11501,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
             // when we are finishing an allocation from a free list
             // we know that the free area was Align(min_obj_size) larger
             acontext->alloc_bytes -= ac_size;
+            total_alloc_bytes -= ac_size;
             size_t free_obj_size = ac_size + aligned_min_obj_size;
             make_unused_array (hole, free_obj_size);
             generation_free_obj_space (generation_of (gen_number)) += free_obj_size;
@@ -11518,6 +11521,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     }
     acontext->alloc_limit = (start + limit_size - aligned_min_obj_size);
     acontext->alloc_bytes += limit_size - ((gen_number < max_generation + 1) ? aligned_min_obj_size : 0);
+    total_alloc_bytes += limit_size - ((gen_number < max_generation + 1) ? aligned_min_obj_size : 0);
 
 #ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
     if (g_fEnableAppDomainMonitoring)
@@ -11526,7 +11530,6 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
-    allocated_so_far += limit_size;
 
     uint8_t* saved_used = 0;
 
@@ -12083,8 +12086,6 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
         GCToEEInterface::RecordAllocatedBytesForHeap(size, heap_number);
     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
-    allocated_so_far += size;
 
     size_t size_of_array_base = sizeof(ArrayBase);
 
@@ -31259,6 +31260,7 @@ CObjectHeader* gc_heap::allocate_large_object (size_t jsize, uint32_t flags, int
 
     assert ((size_t)(acontext.alloc_limit - acontext.alloc_ptr) == size);
     alloc_bytes += size;
+    total_alloc_bytes += size;
 
     CObjectHeader* obj = (CObjectHeader*)result;
 
@@ -36046,21 +36048,20 @@ size_t      GCHeap::GetTotalBytesInUse ()
 #endif //MULTIPLE_HEAPS
 }
 
-// Get the total allocated bytes 
+// Get the total allocated bytes
 uint64_t GCHeap::GetTotalAllocatedBytes()
 {
-    uint64_t total_allocated_so_far = 0; 
 #ifdef MULTIPLE_HEAPS
+    uint64_t total_alloc_bytes = 0;
     for (int i = 0; i < gc_heap::n_heaps; i++)
     {
         gc_heap* hp = gc_heap::g_heaps[i];
-#else //MULTIPLE_HEAPS
-    {
-        gc_heap* hp = pGenGCHeap;
-#endif //MULTIPLE_HEAPS
-        total_allocated_so_far += hp->allocated_so_far;
+        total_alloc_bytes += hp->total_alloc_bytes;
     }
-    return total_allocated_so_far;
+    return total_alloc_bytes;
+#else
+    return pGenGCHeap->total_alloc_bytes;
+#endif //MULTIPLE_HEAPS
 }
 
 int GCHeap::CollectionCount (int generation, int get_bgc_fgc_count)
