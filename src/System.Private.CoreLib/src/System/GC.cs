@@ -60,12 +60,12 @@ namespace System
         private readonly long _fragmentedBytes;
 
         /// <summary>
-        /// HighMemoryLoadThreshold when the last GC occured
+        /// High memory load threshold when the last GC occured
         /// </summary>
         public long HighMemoryLoadThresholdBytes => _highMemoryLoadThresholdBytes;
 
         /// <summary>
-        /// Memory Load when the last GC ocurred
+        /// Memory load when the last GC ocurred
         /// </summary>
         public long MemoryLoadBytes => _memoryLoadBytes;
 
@@ -80,7 +80,16 @@ namespace System
         public long HeapSizeBytes => _heapSizeBytes;
 
         /// <summary>
-        /// The total fragmentation of the last GC ocurred
+        /// The total fragmentation when the last GC ocurred
+        ///
+        /// Let's take the example below:
+        ///  | OBJ_A |     OBJ_B     | OBJ_C |   OBJ_D   | OBJ_E |
+        ///
+        /// Let's say OBJ_B, OBJ_C and and OBJ_E are garbage and get collected, but the heap does not get compacted, the resulting heap will look like the following:
+        ///  | OBJ_A |           F           |   OBJ_D   |       |
+        ///
+        /// The memory between OBJ_A and OBJ_D marked `F` is considered part of the FragmentedBytes, and will be used to allocate new objects. The memory after OBJ_D will not be
+        /// considered part of the FragmentedBytes, and will also be used to allocate new objects
         /// </summary>
         public long FragmentedBytes => _fragmentedBytes;
     }
