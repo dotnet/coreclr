@@ -1700,8 +1700,6 @@ typedef REF<ReflectFieldObject> REFLECTFIELDREF;
 
 typedef REF<ThreadBaseObject> THREADBASEREF;
 
-typedef REF<AppDomainBaseObject> APPDOMAINREF;
-
 typedef REF<MarshalByRefObjectBaseObject> MARSHALBYREFOBJECTBASEREF;
 
 typedef REF<AssemblyBaseObject> ASSEMBLYREF;
