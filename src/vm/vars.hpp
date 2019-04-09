@@ -162,6 +162,7 @@ class OBJECTREF {
 
         class ReflectClassBaseObject* m_asReflectClass;
         class ExecutionContextObject* m_asExecutionContext;
+        class AssemblyLoadContextBaseObject* m_asAssemblyLoadContextBase;
         class PermissionSetObject* m_asPermissionSetObject;
     };
 

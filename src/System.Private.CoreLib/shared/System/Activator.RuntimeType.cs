@@ -125,15 +125,9 @@ namespace System
                 }
                 else
                 {
-                    IntPtr nativeAssemblyLoadContext = IntPtr.Zero;
-                    if (AssemblyLoadContext.CurrentContextualReflectionContext != null)
-                    {
-                        nativeAssemblyLoadContext = AssemblyLoadContext.CurrentContextualReflectionContext.GetNativeAssemblyLoadContext();
-                    }
-
                     // Classic managed type
                     assembly = RuntimeAssembly.InternalLoadAssemblyName(
-                        assemblyName, ref stackMark, nativeAssemblyLoadContext);
+                        assemblyName, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext);
                 }
             }
 

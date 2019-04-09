@@ -32,6 +32,10 @@ namespace System.Runtime.Loader
         private static readonly Dictionary<long, WeakReference<AssemblyLoadContext>> s_allContexts = new Dictionary<long, WeakReference<AssemblyLoadContext>>();
         private static long s_nextId;
 
+        // If you modify any of these fields, you must also update the
+        // AssemblyLoadContextBaseObject structure in object.h
+        private readonly IntPtr _nativeAssemblyLoadContext; // Contains the reference to VM's representation of the AssemblyLoadContext
+
         // Indicates the state of this ALC (Alive or in Unloading state)
         private InternalState _state;
 
@@ -41,8 +45,6 @@ namespace System.Runtime.Loader
         // synchronization primitive to protect against usage of this instance while unloading
         private readonly object _unloadLock;
 
-        // Contains the reference to VM's representation of the AssemblyLoadContext
-        private readonly IntPtr _nativeAssemblyLoadContext;
 
         protected AssemblyLoadContext() : this(false, false, null)
         {
@@ -241,7 +243,7 @@ namespace System.Runtime.Loader
 
             // Attempt to load the assembly, using the same ordering as static load, in the current load context.
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return Assembly.Load(assemblyName, ref stackMark, _nativeAssemblyLoadContext);
+            return Assembly.Load(assemblyName, ref stackMark, this);
         }
 
         // These methods load assemblies into the current AssemblyLoadContext
@@ -511,8 +513,6 @@ namespace System.Runtime.Loader
                 }
             }
         }
-
-        internal IntPtr GetNativeAssemblyLoadContext() => _nativeAssemblyLoadContext;
     }
 
     internal sealed class DefaultAssemblyLoadContext : AssemblyLoadContext

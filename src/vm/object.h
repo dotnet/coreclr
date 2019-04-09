@@ -1610,6 +1610,36 @@ class AssemblyBaseObject : public Object
 NOINLINE AssemblyBaseObject* GetRuntimeAssemblyHelper(LPVOID __me, DomainAssembly *pAssembly, OBJECTREF keepAlive);
 #define FC_RETURN_ASSEMBLY_OBJECT(pAssembly, refKeepAlive) FC_INNER_RETURN(AssemblyBaseObject*, GetRuntimeAssemblyHelper(__me, pAssembly, refKeepAlive))
 
+// AssemblyLoadContextBaseObject
+// This class is the base class for AssemblyLoadContext
+//
+class AssemblyLoadContextBaseObject : public Object
+{
+    friend class MscorlibBinder;
+
+  protected:
+    // READ ME:
+    // Modifying the order or fields of this object may require other changes to the
+    //  classlib class definition of this object.
+
+    OBJECTREF     _unloadLock;
+    OBJECTREF     _resovlingUnmanagedDll;
+    OBJECTREF     _resolving;
+    OBJECTREF     _unloading;
+    OBJECTREF     _name;
+    INT_PTR       _nativeAssemblyLoadContext;
+    int64_t       _id;
+    DWORD         _state;
+    CLR_BOOL      _isCollectible;
+
+  protected:
+    AssemblyLoadContextBaseObject() { LIMITED_METHOD_CONTRACT; }
+   ~AssemblyLoadContextBaseObject() { LIMITED_METHOD_CONTRACT; }
+
+  public:
+    INT_PTR GetNativeAssemblyLoadContext() { LIMITED_METHOD_CONTRACT; return _nativeAssemblyLoadContext; }
+};
+
 // AssemblyNameBaseObject 
 // This class is the base class for assembly names
 //  
@@ -1704,6 +1734,8 @@ typedef REF<MarshalByRefObjectBaseObject> MARSHALBYREFOBJECTBASEREF;
 
 typedef REF<AssemblyBaseObject> ASSEMBLYREF;
 
+typedef REF<AssemblyLoadContextBaseObject> ASSEMBLYLOADCONTEXTREF;
+
 typedef REF<AssemblyNameBaseObject> ASSEMBLYNAMEREF;
 
 typedef REF<VersionBaseObject> VERSIONREF;
@@ -1751,6 +1783,7 @@ typedef PTR_ReflectMethodObject REFLECTMETHODREF;
 typedef PTR_ReflectFieldObject REFLECTFIELDREF;
 typedef PTR_ThreadBaseObject THREADBASEREF;
 typedef PTR_AssemblyBaseObject ASSEMBLYREF;
+typedef PTR_AssemblyLoadContextBaseObject ASSEMBLYLOADCONTEXTREF;
 typedef PTR_AssemblyNameBaseObject ASSEMBLYNAMEREF;
 
 #ifndef DACCESS_COMPILE

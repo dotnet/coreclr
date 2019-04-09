@@ -415,23 +415,17 @@ namespace System
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetTypeByName(string name, bool throwOnError, bool ignoreCase, StackCrawlMarkHandle stackMark,
-            IntPtr pPrivHostBinder,
+            ObjectHandleOnStack assemblyLoadContext,
             bool loadTypeFromPartialName, ObjectHandleOnStack type, ObjectHandleOnStack keepalive);
 
         // Wrapper function to reduce the need for ifdefs.
         internal static RuntimeType GetTypeByName(string name, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark, bool loadTypeFromPartialName)
         {
-            IntPtr nativeAssemblyLoadContext = IntPtr.Zero;
-            if (AssemblyLoadContext.CurrentContextualReflectionContext != null)
-            {
-                nativeAssemblyLoadContext = AssemblyLoadContext.CurrentContextualReflectionContext.GetNativeAssemblyLoadContext();
-            }
-
-            return GetTypeByName(name, throwOnError, ignoreCase, ref stackMark, nativeAssemblyLoadContext, loadTypeFromPartialName);
+            return GetTypeByName(name, throwOnError, ignoreCase, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext, loadTypeFromPartialName);
         }
 
         internal static RuntimeType GetTypeByName(string name, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark,
-                                                  IntPtr pPrivHostBinder,
+                                                  AssemblyLoadContext assemblyLoadContext,
                                                   bool loadTypeFromPartialName)
         {
             if (name == null || name.Length == 0)
@@ -445,9 +439,10 @@ namespace System
             RuntimeType type = null;
 
             object keepAlive = null;
+            AssemblyLoadContext assemblyLoadContextStack = assemblyLoadContext;
             GetTypeByName(name, throwOnError, ignoreCase,
                 JitHelpers.GetStackCrawlMarkHandle(ref stackMark),
-                pPrivHostBinder,
+                JitHelpers.GetObjectHandleOnStack(ref assemblyLoadContextStack),
                 loadTypeFromPartialName, JitHelpers.GetObjectHandleOnStack(ref type), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
             GC.KeepAlive(keepAlive);
 

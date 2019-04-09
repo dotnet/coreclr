@@ -191,15 +191,9 @@ namespace System
 
             if (assemblyResolver == null)
             {
-                IntPtr nativeAssemblyLoadContext = IntPtr.Zero;
-                if (AssemblyLoadContext.CurrentContextualReflectionContext != null)
-                {
-                    nativeAssemblyLoadContext = AssemblyLoadContext.CurrentContextualReflectionContext.GetNativeAssemblyLoadContext();
-                }
-
                 if (throwOnError)
                 {
-                    assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark, nativeAssemblyLoadContext);
+                    assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext);
                 }
                 else
                 {
@@ -207,7 +201,7 @@ namespace System
                     // Other exceptions like BadImangeFormatException should still fly.
                     try
                     {
-                        assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark, nativeAssemblyLoadContext);
+                        assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext);
                     }
                     catch (FileNotFoundException)
                     {
