@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -28,7 +29,7 @@ namespace Internal.Win32
         private const int MaxKeyLength = 255;
         private const int MaxValueLength = 16383;
 
-        private SafeRegistryHandle _hkey = null;
+        private SafeRegistryHandle? _hkey = null;
 
         private RegistryKey(SafeRegistryHandle hkey)
         {
@@ -75,12 +76,12 @@ namespace Internal.Win32
             return new RegistryKey(new SafeRegistryHandle(hKey, false));
         }
 
-        public RegistryKey OpenSubKey(string name)
+        public RegistryKey? OpenSubKey(string name)
         {
             return OpenSubKey(name, false);
         }
 
-        public RegistryKey OpenSubKey(string name, bool writable)
+        public RegistryKey? OpenSubKey(string name, bool writable)
         {
             // Make sure that the name does not contain double slahes
             Debug.Assert(name.IndexOf("\\\\") == -1);
@@ -214,12 +215,12 @@ namespace Internal.Win32
             return names.ToArray();
         }
 
-        public object GetValue(string name)
+        public object? GetValue(string name)
         {
             return GetValue(name, null);
         }
 
-        public object GetValue(string name, object defaultValue)
+        public object? GetValue(string name, object? defaultValue)
         {
             object data = defaultValue;
             int type = 0;
@@ -434,7 +435,7 @@ namespace Internal.Win32
 
         // The actual api is SetValue(string name, object value) but we only need to set Strings
         // so this is a cut-down version that supports on that.
-        internal void SetValue(string name, string value)
+        internal void SetValue(string? name, string value)
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
@@ -455,7 +456,7 @@ namespace Internal.Win32
             }
         }
 
-        internal void Win32Error(int errorCode, string str)
+        internal void Win32Error(int errorCode, string? str)
         {
             switch (errorCode)
             {
