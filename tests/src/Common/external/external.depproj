@@ -55,8 +55,8 @@
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
-    <RuntimeIdentifiers>win7-x86;win7-x64</RuntimeIdentifiers>
+    
+    
   </PropertyGroup>
   <ItemGroup>
     <PackageToInclude Include="xunit.abstractions"/>

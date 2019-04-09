@@ -14,6 +14,8 @@
     <DefineConstants>$(DefineConstants);$([System.String]::Copy('$(BuildArch)').ToUpper())</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateRunScript>false</GenerateRunScript>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">

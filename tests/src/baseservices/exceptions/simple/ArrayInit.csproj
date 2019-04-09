@@ -32,7 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="VT.ilproj" />
-    <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
+    <ProjectReference Include="$(TestSrcDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' ">
   </PropertyGroup>

@@ -6,11 +6,6 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <CLRTestKind>BuildOnly</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NETCore.Platforms">
-      <Version>$(RuntimeIdGraphDefinitionVersion)</Version>
-    </PackageReference>
-  </ItemGroup>
   <PropertyGroup>
     <TargetFramework>netcoreapp1.0</TargetFramework>
     <TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>

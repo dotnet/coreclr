@@ -3,9 +3,9 @@
 
 
   <PropertyGroup>
-    <TargetFramework>netstandard</TargetFramework>
+    
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
-    <RuntimeIdentifiers>win7-x64;win7-x86;linux-x64</RuntimeIdentifiers>
+    
   </PropertyGroup>
 
   <PropertyGroup>

@@ -28,12 +28,12 @@
     <Compile Include="_5mvazhg.cs" />
   </ItemGroup>
   <PropertyGroup>
-    <TargetFramework>netcoreapp1.1</TargetFramework>
-    <RuntimeIdentifiers>win7-x86;win7-x64;ubuntu.14.04-x64;ubuntu.16.04-x64;ubuntu.16.10-x64;osx.10.12-x64;centos.7-x64;rhel.7-x64;debian.8-x64;fedora.24-x64</RuntimeIdentifiers>
+    
+    
   </PropertyGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
 </Project>

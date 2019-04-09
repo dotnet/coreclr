@@ -10,7 +10,7 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
     <OutputPath>$(BaseOutputPath)</OutputPath>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' "></PropertyGroup>

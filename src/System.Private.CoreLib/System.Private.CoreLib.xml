@@ -1,0 +1,1053 @@
+<linker>
+  <assembly fullname="System.Private.CoreLib">
+    <type fullname="System.CommonlyUsedGenericInstantiations">
+      <!-- Method is purely an aid for NGen to statically deduce which
+           instantiations to save in the ngen image. -->
+      <method name="CommonlyUsedWinRTRedirectedInterfaceStubs" />
+    </type>
+    <type fullname="System.GC">
+      <!-- Methods are used to register and unregister frozen segments. They are private and experimental. -->
+      <method name="_RegisterFrozenSegment" />
+      <method name="_UnregisterFrozenSegment" />
+    </type>
+    <!-- Properties and methods used by a debugger. -->
+    <type fullname="System.Threading.Tasks.Task">
+      <property name="ParentForDebugger" />
+      <property name="StateFlagsForDebugger" />
+      <method name="GetDelegateContinuationsForDebugger" />
+    </type>
+    <type fullname="System.Threading.ThreadPool">
+      <method name="GetQueuedWorkItemsForDebugger" />
+      <method name="GetGloballyQueuedWorkItemsForDebugger" />
+      <method name="GetLocallyQueuedWorkItemsForDebugger" />
+    </type>
+    <type fullname="System.Threading.Tasks.TaskScheduler">
+      <method name="GetScheduledTasksForDebugger" />
+      <method name="GetTaskSchedulersForDebugger" />
+    </type>
+    <type fullname="System.Runtime.CompilerServices.AsyncMethodBuilderCore">
+      <method name="TryGetStateMachineForDebugger" />
+    </type>
+    <type fullname="System.Runtime.CompilerServices.AsyncIteratorMethodBuilder">
+      <property name="ObjectIdForDebugger" />
+    </type>
+    <type fullname="System.Runtime.CompilerServices.AsyncVoidMethodBuilder">
+      <property name="ObjectIdForDebugger" />
+    </type>
+    <type fullname="System.Runtime.CompilerServices.AsyncTaskMethodBuilder*">
+      <property name="ObjectIdForDebugger" />
+    </type>
+    <type fullname="System.Threading.Tasks.Task">
+      <!-- Methods is used by VS Tasks Window. -->
+      <method name="GetActiveTaskFromId" />
+    </type>
+    <!-- Accessed via private reflection by tracing controller. -->
+    <type fullname="System.Diagnostics.Tracing.EventPipe*" />
+    <!-- Accessed via private reflection and by native code. -->
+    <type fullname="System.Diagnostics.Tracing.RuntimeEventSource" />
+    <!-- Accessed via reflection in TraceLogging-style EventSource events. -->
+    <type fullname="*f__AnonymousType*" />
+    <!-- Accessed via native code. -->
+    <type fullname="System.Runtime.InteropServices.ComTypes.IEnumerable" />
+    <type fullname="System.Runtime.InteropServices.CustomMarshalers.*" />
+    <type fullname="System.Activator" preserve="nothing" />
+    <type fullname="System.AccessViolationException">
+      <field name="_ip" />
+      <field name="_target" />
+      <field name="_accessType" />
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.AppContext">
+      <field name="UnhandledException" />
+      <field name="FirstChanceException" />
+      <method name="Setup" />
+      <method name="OnProcessExit" />
+    </type>
+    <type fullname="System.ArgIterator" preserve="fields">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.RuntimeArgumentHandle" preserve="nothing" />
+    <type fullname="System.Array">
+      <method name="get_Length" />
+      <method name="GetRawArrayData" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.ArrayWithOffset">
+      <field name="m_array" />
+      <field name="m_offset" />
+      <field name="m_count" />
+    </type>
+    <type fullname="System.Reflection.Emit.AssemblyBuilder" preserve="nothing" />
+    <type fullname="System.Reflection.Emit.InternalAssemblyBuilder" preserve="nothing" />
+    <type fullname="System.Configuration.Assemblies.AssemblyHashAlgorithm" preserve="nothing" />
+    <type fullname="System.Reflection.PortableExecutableKinds" preserve="nothing" />
+    <type fullname="System.Reflection.ImageFileMachine" preserve="nothing" />
+    <type fullname="System.Reflection.AssemblyName" preserve="fields">
+      <method name="Init" />
+      <method name="SetProcArchIndex" />
+    </type>
+    <type fullname="System.Version" preserve="fields">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Configuration.Assemblies.AssemblyVersionCompatibility" preserve="nothing" />
+    <type fullname="System.Reflection.AssemblyNameFlags" preserve="nothing" />
+    <type fullname="System.Reflection.Assembly" preserve="nothing" />
+    <type fullname="System.Reflection.RuntimeAssembly" preserve="fields">
+      <method name="GetName" />
+      <method name="OnModuleResolveEvent" />
+    </type>
+    <type fullname="System.AsyncCallback" preserve="nothing" />
+    <type fullname="System.Attribute" preserve="nothing" />
+    <type fullname="System.Reflection.Binder">
+      <method name="ChangeType" />
+    </type>
+    <type fullname="System.Reflection.BindingFlags" preserve="nothing" />
+    <type fullname="System.RuntimeType" preserve="fields">
+      <method name="GetProperties" />
+      <method name="GetFields" />
+      <method name="GetMethods" />
+      <method name="InvokeMember" />
+      <method name="GetMethodBase" />
+      <method name="GetFieldInfo" />
+      <method name="GetPropertyInfo" />
+      <method name="ForwardCallToInvokeMember" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.BStrWrapper" preserve="nothing" />
+    <type fullname="System.Runtime.InteropServices.CurrencyWrapper" preserve="nothing" />
+    <type fullname="System.Runtime.InteropServices.DispatchWrapper" preserve="nothing" />
+    <type fullname="System.Runtime.InteropServices.ErrorWrapper" preserve="nothing" />
+    <type fullname="System.Runtime.InteropServices.UnknownWrapper" preserve="nothing" />
+    <type fullname="System.Runtime.InteropServices.VariantWrapper" preserve="nothing" />
+    <type fullname="System.__ComObject" preserve="fields">
+      <method name="ReleaseAllData" />
+      <method name="GetEventProvider" />
+    </type>
+    <type fullname="Internal.Runtime.InteropServices.LicenseInteropProxy">
+      <method name="Create" />
+      <method name="GetCurrentContextInfo" />
+      <method name="SaveKeyInCurrentContext" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.RuntimeClass" />
+    <type fullname="System.Runtime.InteropServices.CriticalHandle" preserve="fields">
+      <method name="ReleaseHandle" />
+      <method name="get_IsInvalid" />
+      <method name="Dispose" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.HandleRef">
+      <field name="_wrapper" />
+      <field name="_handle" />
+    </type>
+    <type fullname="System.Runtime.ConstrainedExecution.CriticalFinalizerObject">
+      <method name="Finalize" />
+    </type>
+    <type fullname="System.Reflection.RuntimeConstructorInfo" preserve="fields" />
+    <type fullname="System.RuntimeMethodInfoStub" preserve="fields" />
+    <type fullname="System.Reflection.ConstructorInfo" preserve="nothing" />
+    <type fullname="System.Reflection.CustomAttributeEncodedArgument" preserve="fields" />
+    <type fullname="System.Reflection.CustomAttributeNamedParameter" preserve="fields" />
+    <type fullname="System.Reflection.CustomAttributeCtorParameter" preserve="fields" />
+    <type fullname="System.Reflection.CustomAttributeType" preserve="fields" />
+    <type fullname="System.Globalization.CultureInfo" preserve="fields">
+      <method name=".ctor" />
+      <method name="get_Name" />
+      <method name="get_LCID" />
+    </type>
+    <type fullname="System.Currency">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.DateTime">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.DateTimeOffset" preserve="nothing" />
+    <type fullname="System.Decimal">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Delegate" preserve="fields">
+      <method name="DelegateConstruct" />
+      <method name="GetInvokeMethod" />
+    </type>
+    <type fullname="System.Reflection.Emit.DynamicMethod" preserve="nothing" />
+    <type fullname="System.Reflection.Emit.DynamicResolver">
+      <field name="m_method" />
+    </type>
+    <type fullname="System.Empty" preserve="nothing" />
+    <type fullname="System.Diagnostics.EditAndContinueHelper">
+      <field name="_objectReference" />
+    </type>
+    <type fullname="System.Text.Encoding" preserve="nothing" />
+    <type fullname="System.Enum" preserve="nothing" />
+    <type fullname="System.Environment">
+      <method name="GetResourceStringLocal" />
+      <method name="SetCommandLineArgs" />
+    </type>
+    <type fullname="System.Reflection.RuntimeEventInfo" preserve="nothing" />
+    <type fullname="System.EventArgs" preserve="nothing" />
+    <type fullname="System.EventHandler`1" preserve="nothing" />
+    <type fullname="System.Reflection.EventInfo" preserve="nothing" />
+    <type fullname="System.Exception" preserve="fields">
+      <method name="GetClassName" />
+      <method name="get_Message" />
+      <method name="get_Source" />
+      <method name="get_HelpLink" />
+      <method name="InternalToString" />
+      <method name="ToString" />
+      <method name="InternalPreserveStackTrace" />
+      <method name="AddExceptionDataForRestrictedErrorInfo" />
+      <method name="TryGetRestrictedLanguageErrorObject" />
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.SystemException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.TypeInitializationException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Threading.ThreadStartException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.RuntimeTypeHandle">
+      <field name="m_type" />
+      <method name="GetTypeHelper" />
+      <method name=".ctor" />
+      <method name="GetValueInternal" />
+    </type>
+    <type fullname="System.Reflection.RtFieldInfo" preserve="fields">
+      <method name="GetFieldHandle" />
+    </type>
+    <type fullname="System.RuntimeFieldInfoStub" preserve="fields" />
+    <type fullname="System.Reflection.RuntimeFieldInfo">
+      <method name="SetValue" />
+      <method name="GetValue" />
+    </type>
+    <type fullname="System.RuntimeFieldHandle">
+      <field name="m_ptr" />
+    </type>
+    <type fullname="System.IRuntimeFieldInfo" preserve="nothing" />
+    <type fullname="System.Reflection.FieldInfo" preserve="nothing" />
+    <type fullname="System.Guid" preserve="nothing" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.HSTRING_HEADER" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.ICustomProperty" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.ICustomPropertyProviderImpl" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.ICustomPropertyProviderProxy`2" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IReferenceFactory" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.CLRIReferenceImpl`1" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.CLRIReferenceArrayImpl`1" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IReference`1" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.CLRIKeyValuePairImpl`2" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.WindowsFoundationEventHandler`1" />
+    <type fullname="System.Variant">
+      <method name="MarshalHelperConvertObjectToVariant" />
+      <method name="MarshalHelperCastVariant" />
+      <method name="MarshalHelperConvertVariantToObject" />
+    </type>
+    <type fullname="System.IAsyncResult" preserve="nothing" />
+    <type fullname="System.Reflection.ICustomAttributeProvider">
+      <method name="GetCustomAttributes" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.ICustomMarshaler">
+      <method name="MarshalNativeToManaged" />
+      <method name="MarshalManagedToNative" />
+      <method name="CleanUpNativeData" />
+      <method name="CleanUpManagedData" />
+      <method name="GetNativeDataSize" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.ICustomQueryInterface">
+      <method name="GetInterface" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.CustomQueryInterfaceResult" preserve="nothing" />
+    <type fullname="System.Runtime.Serialization.ISerializable" preserve="nothing" />
+    <type fullname="System.Runtime.Serialization.IObjectReference" preserve="nothing" />
+    <type fullname="System.Runtime.Serialization.IDeserializationCallback" preserve="nothing" />
+    <type fullname="System.Runtime.Serialization.StreamingContext" preserve="nothing" />
+    <type fullname="System.Runtime.Serialization.SerializationInfo" preserve="nothing" />
+    <type fullname="System.Runtime.Serialization.DeserializationTracker" preserve="nothing" />
+    <type fullname="System.Collections.IEnumerator" preserve="nothing" />
+    <type fullname="System.Collections.IEnumerable" preserve="nothing" />
+    <type fullname="System.Collections.ICollection" preserve="nothing" />
+    <type fullname="System.Collections.IList" preserve="nothing" />
+    <type fullname="System.IDisposable" preserve="nothing" />
+    <type fullname="System.Runtime.InteropServices.Expando.IExpando">
+      <method name="AddField" />
+      <method name="RemoveMember" />
+    </type>
+    <type fullname="System.Reflection.IReflect">
+      <method name="GetProperties" />
+      <method name="GetFields" />
+      <method name="GetMethods" />
+      <method name="InvokeMember" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.LCIDConversionAttribute" preserve="nothing" />
+    <type fullname="System.Runtime.InteropServices.Marshal">
+      <field name="SystemMaxDBCSCharSize" />
+      <method name="InitializeWrapperForWinRT" />
+      <method name="GetHRForException" />
+      <method name="GetHRForException_WinRT" />
+      <method name="GetFunctionPointerForDelegate" />
+      <method name="GetDelegateForFunctionPointer" />
+      <method name="AllocCoTaskMem" />
+      <method name="FreeCoTaskMem" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.NativeLibrary">
+      <method name="LoadLibraryCallbackStub" />
+    </type>
+    <type fullname="System.Reflection.MemberInfo" preserve="nothing" />
+    <type fullname="System.Reflection.RuntimeMethodInfo" preserve="fields">
+      <method name="Invoke" />
+      <method name="GetParameters" />
+    </type>
+    <type fullname="System.Reflection.MethodBase">
+      <method name="GetMethodDesc" />
+    </type>
+    <type fullname="System.Reflection.RuntimeExceptionHandlingClause" preserve="fields" />
+    <type fullname="System.Reflection.RuntimeLocalVariableInfo" preserve="fields" />
+    <type fullname="System.Reflection.RuntimeMethodBody" preserve="fields" />
+    <type fullname="System.Reflection.MethodInfo" preserve="nothing" />
+    <type fullname="System.RuntimeMethodHandleInternal" preserve="nothing" />
+    <type fullname="System.RuntimeMethodHandle">
+      <field name="m_value" />
+      <method name="GetValueInternal" />
+    </type>
+    <type fullname="System.Reflection.Missing">
+      <field name="Value" />
+    </type>
+    <type fullname="System.Reflection.RuntimeModule" preserve="fields" />
+    <type fullname="System.Reflection.Emit.InternalModuleBuilder" preserve="nothing" />
+    <type fullname="System.Reflection.Emit.TypeBuilder" preserve="nothing" />
+    <type fullname="System.Reflection.Emit.EnumBuilder" preserve="nothing" />
+    <type fullname="System.MulticastDelegate" preserve="fields">
+      <method name="CtorClosed" />
+      <method name="CtorClosedStatic" />
+      <method name="CtorRTClosed" />
+      <method name="CtorOpened" />
+      <method name="CtorVirtualDispatch" />
+      <method name="CtorCollectibleClosedStatic" />
+      <method name="CtorCollectibleOpened" />
+      <method name="CtorCollectibleVirtualDispatch" />
+    </type>
+    <type fullname="System.DBNull">
+      <field name="Value" />
+    </type>
+    <type fullname="System.Nullable`1" preserve="nothing" />
+    <type fullname="System.ByReference`1" preserve="nothing" />
+    <type fullname="System.Span`1">
+      <method name="get_Item" />
+    </type>
+    <type fullname="System.ReadOnlySpan`1">
+      <method name="get_Item" />
+    </type>
+    <type fullname="System.Object">
+      <method name=".ctor" />
+      <method name="Finalize" />
+      <method name="ToString" />
+      <method name="GetType" />
+      <method name="GetHashCode" />
+      <method name="Equals" />
+    </type>
+    <type fullname="System.Double">
+      <method name="GetHashCode" />
+    </type>
+    <type fullname="System.Single">
+      <method name="GetHashCode" />
+    </type>
+    <type fullname="System.__Canon" preserve="nothing" />
+    <type fullname="System.OleAutBinder" preserve="nothing" />
+    <type fullname="System.Threading.Monitor">
+      <method name="Enter" />
+    </type>
+    <type fullname="System.Threading.OverlappedData" preserve="fields" />
+    <type fullname="System.Threading.NativeOverlapped" preserve="nothing" />
+    <type fullname="System.Threading.Volatile" />
+    <type fullname="System.Reflection.ParameterInfo" preserve="nothing" />
+    <type fullname="System.Reflection.ParameterModifier" preserve="nothing" />
+    <type fullname="System.Reflection.Pointer" preserve="fields" />
+    <type fullname="System.Reflection.RuntimePropertyInfo">
+      <method name="SetValue" />
+      <method name="GetValue" />
+      <method name="GetIndexParameters" />
+      <method name="get_MetadataToken" />
+      <method name="GetRuntimeModule" />
+      <method name="GetSetMethod" />
+      <method name="GetGetMethod" />
+    </type>
+    <type fullname="System.Reflection.PropertyInfo" preserve="nothing" />
+    <type fullname="System.Reflection.MetadataImport">
+      <method name="ThrowError" />
+    </type>
+    <type fullname="System.Resolver">
+      <method name="GetJitContext" />
+      <method name="GetCodeInfo" />
+      <method name="GetLocalsSignature" />
+      <method name="GetEHInfo" />
+      <method name="GetRawEHInfo" />
+      <method name="GetStringLiteral" />
+      <method name="ResolveToken" />
+      <method name="ResolveSignature" />
+    </type>
+    <type fullname="System.Resources.ResourceManager" preserve="nothing" />
+    <type fullname="System.Runtime.CompilerServices.RuntimeHelpers">
+      <method name="PrepareConstrainedRegions" />
+      <method name="PrepareConstrainedRegionsNoOP" />
+      <method name="ExecuteBackoutCodeHelper" />
+      <method name="IsReferenceOrContainsReferences" />
+    </type>
+    <type fullname="System.Runtime.CompilerServices.JitHelpers">
+      <method name="EnumEquals" />
+      <method name="EnumCompareTo" />
+      <method name="GetRawSzArrayData" />
+    </type>
+    <type fullname="Internal.Runtime.CompilerServices.Unsafe">
+      <method name="AsPointer" />
+      <method name="AsRef" />
+      <method name="SizeOf" />
+      <method name="As" />
+      <method name="Add" />
+      <method name="ByteOffset" />
+      <method name="AddByteOffset" />
+      <method name="AreSame" />
+      <method name="IsAddressGreaterThan" />
+      <method name="IsAddressLessThan" />
+      <method name="InitBlockUnaligned" />
+      <method name="ReadUnaligned" />
+      <method name="WriteUnaligned" />
+    </type>
+    <type fullname="System.Threading.Interlocked">
+      <method name="CompareExchange" />
+    </type>
+    <type fullname="System.Runtime.CompilerServices.RawData">
+      <field name="Data" />
+    </type>
+    <type fullname="System.Runtime.CompilerServices.RawSzArrayData">
+      <field name="Count" />
+      <field name="Data" />
+    </type>
+    <type fullname="System.Runtime.CompilerServices.RuntimeWrappedException">
+      <field name="_wrappedException" />
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.SafeHandle" preserve="fields">
+      <method name="get_IsInvalid" />
+      <method name="ReleaseHandle" />
+      <method name="Dispose" />
+    </type>
+    <type fullname="System.SafeTypeNameParserHandle" preserve="nothing" />
+    <type fullname="System.Security.SecurityException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Diagnostics.StackFrameHelper" preserve="fields" />
+    <type fullname="System.StartupHookProvider">
+      <method name="ProcessStartupHooks" />
+    </type>
+    <type fullname="System.IO.Stream">
+      <method name="BeginRead" />
+      <method name="EndRead" />
+      <method name="BeginWrite" />
+      <method name="EndWrite" />
+    </type>
+    <type fullname="System.IntPtr">
+      <field name="Zero" />
+    </type>
+    <type fullname="System.UIntPtr">
+      <field name="Zero" />
+    </type>
+    <type fullname="System.BitConverter">
+      <field name="IsLittleEndian" />
+    </type>
+    <type fullname="System.String">
+      <field name="_firstChar" />
+      <field name="Empty" />
+      <method name=".ctor" />
+      <method name="Ctor" />
+      <method name="InternalCopy" />
+      <method name="wcslen" />
+      <method name="strlen" />
+      <method name="get_Length" />
+    </type>
+    <type fullname="System.Text.StringBuilder">
+      <method name="get_Length" />
+      <method name="get_Capacity" />
+      <method name=".ctor" />
+      <method name="ToString" />
+      <method name="InternalCopy" />
+      <method name="ReplaceBufferInternal" />
+      <method name="ReplaceBufferAnsiInternal" />
+    </type>
+    <type fullname="System.Reflection.StrongNameKeyPair" preserve="nothing" />
+    <type fullname="System.Threading.SynchronizationContext" preserve="fields">
+      <method name="InvokeWaitMethodHelper" />
+    </type>
+    <type fullname="System.Threading.ContextCallback" preserve="nothing" />
+    <type fullname="System.Threading.StackCrawlMark" preserve="nothing" />
+    <type fullname="System.Threading.Thread" preserve="fields">
+      <method name="InternalGetCurrentThread" />
+    </type>
+    <type fullname="System.Threading.ParameterizedThreadStart" preserve="nothing" />
+    <type fullname="System.Threading._IOCompletionCallback">
+      <method name="PerformIOCompletionCallback" />
+    </type>
+    <type fullname="System.Threading._ThreadPoolWaitOrTimerCallback">
+      <method name="PerformWaitOrTimerCallback" />
+    </type>
+    <type fullname="System.Threading._ThreadPoolWaitCallback">
+      <method name="PerformWaitCallback" />
+    </type>
+    <type fullname="System.Threading.TimerQueue">
+      <method name="AppDomainTimerCallback" />
+    </type>
+    <type fullname="System.TimeSpan" preserve="nothing" />
+    <type fullname="System.Type">
+      <method name="GetTypeFromHandle" />
+      <method name="get_IsImport" />
+    </type>
+    <type fullname="System.Reflection.TypeDelegator" preserve="nothing" />
+    <type fullname="System.UnhandledExceptionEventArgs">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.Loader.AssemblyLoadContext">
+      <field name="AssemblyLoad" />
+      <method name="Resolve" />
+      <method name="ResolveUnmanagedDll" />
+      <method name="ResolveUnmanagedDllUsingEvent" />
+      <method name="ResolveUsingResolvingEvent" />
+      <method name="OnAssemblyLoad" />
+      <method name="OnResourceResolve" />
+      <method name="OnTypeResolve" />
+      <method name="OnAssemblyResolve" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeMetadata" />
+    <type fullname="System.Lazy`1" preserve="nothing" />
+    <type fullname="System.Threading.LazyInitializer" preserve="nothing" />
+    <type fullname="System.ValueType">
+      <method name="GetHashCode" />
+      <method name="Equals" />
+    </type>
+    <type fullname="System.GC">
+      <method name="KeepAlive" />
+      <method name="Collect" />
+      <method name="WaitForPendingFinalizers" />
+    </type>
+    <type fullname="System.WeakReference" preserve="fields" />
+    <type fullname="System.Threading.WaitHandle" preserve="fields" />
+    <type fullname="System.Diagnostics.Debugger">
+      <method name="BreakCanThrow" />
+    </type>
+    <type fullname="System.Buffer">
+      <method name="Memcpy" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeMarshal" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IActivationFactory" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IStringableHelper" />
+    <type fullname="System.StubHelpers.StubHelpers">
+      <method name="IsQCall" />
+      <method name="InitDeclaringType" />
+      <method name="GetNDirectTarget" />
+      <method name="GetDelegateTarget" />
+      <method name="GetCOMHRExceptionObject" />
+      <method name="GetCOMHRExceptionObject_WinRT" />
+      <method name="GetCOMIPFromRCW" />
+      <method name="GetCOMIPFromRCW_WinRT" />
+      <method name="GetCOMIPFromRCW_WinRTSharedGeneric" />
+      <method name="GetCOMIPFromRCW_WinRTDelegate" />
+      <method name="ShouldCallWinRTInterface" />
+      <method name="StubRegisterRCW" />
+      <method name="StubUnregisterRCW" />
+      <method name="GetWinRTFactoryObject" />
+      <method name="GetDelegateInvokeMethod" />
+      <method name="GetWinRTFactoryReturnValue" />
+      <method name="GetOuterInspectable" />
+      <method name="TriggerExceptionSwallowedMDA" />
+      <method name="CheckCollectedDelegateMDA" />
+      <method name="SetLastError" />
+      <method name="ClearLastError" />
+      <method name="ThrowInteropParamException" />
+      <method name="AddToCleanupList" />
+      <method name="DestroyCleanupList" />
+      <method name="GetHRExceptionObject" />
+      <method name="CreateCustomMarshalerHelper" />
+      <method name="CheckStringLength" />
+      <method name="FmtClassUpdateNativeInternal" />
+      <method name="FmtClassUpdateCLRInternal" />
+      <method name="LayoutDestroyNativeInternal" />
+      <method name="AllocateInternal" />
+      <method name="MarshalToManagedVaListInternal" />
+      <method name="MarshalToUnmanagedVaListInternal" />
+      <method name="CalcVaListSize" />
+      <method name="ValidateObject" />
+      <method name="ValidateByref" />
+      <method name="GetStubContext" />
+      <method name="LogPinnedArgument" />
+      <method name="GetStubContextAddr" />
+      <method name="TriggerGCForMDA" />
+      <method name="SafeHandleAddRef" />
+      <method name="SafeHandleRelease" />
+      <method name="ProfilerBeginTransitionCallback" />
+      <method name="ProfilerEndTransitionCallback" />
+      <method name="ArrayTypeCheck" />
+      <method name="MulticastDebuggerTraceHelper" />
+    </type>
+    <type fullname="System.StubHelpers.CleanupWorkListElement" preserve="nothing" />
+    <type fullname="System.StubHelpers.DateTimeNative" preserve="nothing" />
+    <type fullname="System.StubHelpers.TypeNameNative" preserve="fields" />
+    <type fullname="System.StubHelpers.AnsiCharMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="DoAnsiConversion" />
+    </type>
+    <type fullname="System.StubHelpers.CSTRMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.WSTRBufferMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.BSTRMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.AnsiBSTRMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.ObjectMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.HStringMarshaler">
+      <method name="ConvertToNativeReference" />
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.UriMarshaler">
+      <method name="GetRawUriFromNative" />
+      <method name="CreateNativeUriInstance" />
+    </type>
+    <type fullname="System.StubHelpers.InterfaceMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.MngdSafeArrayMarshaler">
+      <method name="CreateMarshaler" />
+      <method name="ConvertSpaceToNative" />
+      <method name="ConvertContentsToNative" />
+      <method name="ConvertSpaceToManaged" />
+      <method name="ConvertContentsToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.MngdHiddenLengthArrayMarshaler">
+      <method name="CreateMarshaler" />
+      <method name="ConvertSpaceToManaged" />
+      <method name="ConvertContentsToManaged" />
+      <method name="ConvertSpaceToNative" />
+      <method name="ConvertContentsToNative" />
+      <method name="ClearNativeContents" />
+      <method name="ClearNativeContents_Type" />
+      <method name="ConvertContentsToManaged_DateTime" />
+      <method name="ConvertContentsToManaged_Type" />
+      <method name="ConvertContentsToManaged_Exception" />
+      <method name="ConvertContentsToManaged_Nullable" />
+      <method name="ConvertContentsToManaged_KeyValuePair" />
+      <method name="ConvertContentsToNative_DateTime" />
+      <method name="ConvertContentsToNative_Type" />
+      <method name="ConvertContentsToNative_Exception" />
+      <method name="ConvertContentsToNative_Nullable" />
+      <method name="ConvertContentsToNative_KeyValuePair" />
+    </type>
+    <type fullname="System.StubHelpers.DateTimeOffsetMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+    </type>
+    <type fullname="System.StubHelpers.NullableMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ConvertToManagedRetVoid" />
+    </type>
+    <type fullname="System.StubHelpers.SystemTypeMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.KeyValuePairMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ConvertToManagedBox" />
+    </type>
+    <type fullname="System.StubHelpers.HResultExceptionMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+    </type>
+    <type fullname="System.StubHelpers.ValueClassMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.DateMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+    </type>
+    <type fullname="System.StubHelpers.VBByValStrMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.MngdNativeArrayMarshaler">
+      <method name="CreateMarshaler" />
+      <method name="ConvertSpaceToNative" />
+      <method name="ConvertContentsToNative" />
+      <method name="ConvertSpaceToManaged" />
+      <method name="ConvertContentsToManaged" />
+      <method name="ClearNative" />
+      <method name="ClearNativeContents" />
+    </type>
+    <type fullname="System.StubHelpers.MngdRefCustomMarshaler">
+      <method name="CreateMarshaler" />
+      <method name="ConvertContentsToNative" />
+      <method name="ConvertContentsToManaged" />
+      <method name="ClearNative" />
+      <method name="ClearManaged" />
+    </type>
+    <type fullname="System.StubHelpers.AsAnyMarshaler">
+      <method name=".ctor" />
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.NativeVariant" preserve="nothing" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IIterable`1" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IVector`1" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IMap`2" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IKeyValuePair`2" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IVectorView`1" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IMapView`2" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IIterator`1" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IPropertyValue" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IBindableIterable" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IBindableIterator" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IBindableVector" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IClosable" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.GetEnumerator_Delegate`1" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IterableToEnumerableAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.VectorToListAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.MapToDictionaryAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.VectorToCollectionAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.MapToCollectionAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.BindableIterableToEnumerableAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.BindableVectorToListAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.BindableVectorToCollectionAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.EnumerableToIterableAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.ListToVectorAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.DictionaryToMapAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.VectorViewToReadOnlyCollectionAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.MapViewToReadOnlyCollectionAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IReadOnlyListToIVectorViewAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.Indexer_Get_Delegate`1" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IVectorViewToIReadOnlyListAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IReadOnlyDictionaryToIMapViewAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IMapViewToIReadOnlyDictionaryAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.EnumerableToBindableIterableAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.ListToBindableVectorAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IDisposableToIClosableAdapter" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IClosableToIDisposableAdapter" />
+    <type fullname="System.SZArrayHelper">
+      <method name="GetEnumerator" />
+      <method name="get_Count" />
+      <method name="get_IsReadOnly" />
+      <method name="Add" />
+      <method name="Clear" />
+      <method name="Contains" />
+      <method name="CopyTo" />
+      <method name="Remove" />
+      <method name="get_Item" />
+      <method name="set_Item" />
+      <method name="IndexOf" />
+      <method name="Insert" />
+      <method name="RemoveAt" />
+    </type>
+    <type fullname="System.Collections.Generic.IEnumerable`1" preserve="nothing" />
+    <type fullname="System.Collections.Generic.IEnumerator`1" preserve="nothing" />
+    <type fullname="System.Collections.Generic.ICollection`1" preserve="nothing" />
+    <type fullname="System.Collections.Generic.IList`1" preserve="nothing" />
+    <type fullname="System.Collections.Generic.IReadOnlyCollection`1" preserve="nothing" />
+    <type fullname="System.Collections.Generic.IReadOnlyList`1" preserve="nothing" />
+    <type fullname="System.Collections.Generic.IReadOnlyDictionary`2" preserve="nothing" />
+    <type fullname="System.Collections.Generic.IDictionary`2" preserve="nothing" />
+    <type fullname="System.Collections.Generic.KeyValuePair`2" preserve="nothing" />
+    <type fullname="System.IComparable`1">
+      <method name="CompareTo" />
+    </type>
+    <type fullname="System.IEquatable`1" preserve="nothing" />
+    <type fullname="System.Reflection.LoaderAllocator" preserve="fields">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Reflection.LoaderAllocatorScout" preserve="fields" />
+    <type fullname="System.Diagnostics.Contracts.ContractException" preserve="fields">
+      <method name=".ctor" />
+    </type>
+    <type fullname="Windows.Foundation.Diagnostics.CausalityTraceLevel" preserve="nothing" />
+    <type fullname="Windows.Foundation.Diagnostics.TracingStatusChangedEventArgs">
+      <method name="get_Enabled" />
+      <method name="get_TraceLevel" />
+    </type>
+    <type fullname="Windows.Foundation.Diagnostics.ITracingStatusChangedEventArgs">
+      <method name="get_Enabled" />
+      <method name="get_TraceLevel" />
+    </type>
+    <type fullname="System.Reflection.Module" preserve="nothing" />
+    <type fullname="System.Runtime.CompilerServices.ICastable" preserve="nothing" />
+    <type fullname="System.Runtime.CompilerServices.ICastableHelpers">
+      <method name="IsInstanceOfInterface" />
+      <method name="GetImplType" />
+    </type>
+    <type fullname="System.StubHelpers.UTF8Marshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+      <method name="ClearNative" />
+    </type>
+    <type fullname="System.StubHelpers.UTF8BufferMarshaler">
+      <method name="ConvertToNative" />
+      <method name="ConvertToManaged" />
+    </type>
+    <type fullname="System.Collections.Generic.ByteEqualityComparer" preserve="nothing" />
+    <type fullname="System.Collections.Generic.EnumEqualityComparer`1" preserve="nothing" />
+    <type fullname="System.Collections.Generic.NullableEqualityComparer`1" preserve="nothing" />
+    <type fullname="System.Collections.Generic.GenericEqualityComparer`1" preserve="nothing" />
+    <type fullname="System.Collections.Generic.ObjectEqualityComparer`1" preserve="nothing" />
+    <type fullname="System.Runtime.InteropServices.InAttribute" preserve="nothing" />
+    <type fullname="System.Runtime.CompilerServices.GCHeapHash" preserve="fields" />
+    <type fullname="System.Runtime.CompilerServices.LAHashDependentHashTracker" preserve="fields" />
+    <type fullname="System.Runtime.CompilerServices.LAHashKeyToTrackers" preserve="fields" />
+    <type fullname="System.Void" preserve="nothing" />
+    <type fullname="System.Boolean" preserve="nothing" />
+    <type fullname="System.Char" preserve="nothing" />
+    <type fullname="System.SByte" preserve="nothing" />
+    <type fullname="System.Byte" preserve="nothing" />
+    <type fullname="System.Int16" preserve="nothing" />
+    <type fullname="System.UInt16" preserve="nothing" />
+    <type fullname="System.Int32" preserve="nothing" />
+    <type fullname="System.UInt32" preserve="nothing" />
+    <type fullname="System.Int64" preserve="nothing" />
+    <type fullname="System.UInt64" preserve="nothing" />
+    <type fullname="System.TypedReference" preserve="nothing" />
+    <type fullname="System.Reflection.AmbiguousMatchException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.ApplicationException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.ArithmeticException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.ArgumentException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.ArgumentOutOfRangeException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.ArrayTypeMismatchException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.BadImageFormatException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Reflection.CustomAttributeFormatException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Security.Cryptography.CryptographicException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.DataMisalignedException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.IO.DirectoryNotFoundException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.DivideByZeroException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.DllNotFoundException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.DuplicateWaitObjectException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.IO.EndOfStreamException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.EntryPointNotFoundException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.ExecutionEngineException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.FieldAccessException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.IO.FileLoadException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.IO.FileNotFoundException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.FormatException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.IndexOutOfRangeException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.InsufficientExecutionStackException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.InvalidCastException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.InvalidComObjectException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Reflection.InvalidFilterCriteriaException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.InvalidOleVariantTypeException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.InvalidOperationException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.InvalidProgramException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.IO.IOException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.MarshalDirectiveException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.MethodAccessException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.MemberAccessException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.MissingFieldException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Resources.MissingManifestResourceException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.MissingMemberException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.MissingMethodException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.MulticastNotSupportedException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.AmbiguousImplementationException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.NotFiniteNumberException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.NotSupportedException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.NullReferenceException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.ObjectDisposedException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.OperationCanceledException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.OverflowException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.IO.PathTooLongException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.PlatformNotSupportedException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.RankException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Reflection.ReflectionTypeLoadException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.SafeArrayRankMismatchException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.SafeArrayTypeMismatchException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.Serialization.SerializationException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.StackOverflowException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Threading.SynchronizationLockException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Reflection.TargetException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Reflection.TargetInvocationException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Reflection.TargetParameterCountException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Threading.ThreadAbortException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Threading.ThreadInterruptedException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Threading.ThreadStateException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.TypeAccessException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.TypeLoadException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.TypeUnloadedException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.UnauthorizedAccessException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Security.VerificationException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.COMException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.ExternalException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.Runtime.InteropServices.SEHException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.NotImplementedException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.OutOfMemoryException">
+      <method name=".ctor" />
+    </type>
+    <type fullname="System.ArgumentNullException">
+      <method name=".ctor" />
+    </type>
+  </assembly>
+</linker>

@@ -4,13 +4,14 @@
        and buildtools projects should go in dir.common.props. -->
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    
     <RuntimeFrameworkVersion>$(MicrosoftNETCoreAppVersion)</RuntimeFrameworkVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
    
     <!-- Force the CLI to allow us to target higher netcoreapp than it may know about -->
     <NETCoreAppMaximumVersion>99.0</NETCoreAppMaximumVersion>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
   </PropertyGroup>
 
 </Project>

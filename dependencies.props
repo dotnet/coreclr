@@ -38,6 +38,7 @@
     <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview4-27427-72</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.4.1</XunitPackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
+    <MicrosoftNetCoreIlasmPackageVersion>3.0.0-preview1-26824-01</MicrosoftNetCoreIlasmPackageVersion>
     <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.36</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
     <IbcMergePackageVersion>4.6.0-alpha-00001</IbcMergePackageVersion>
     <CommandLineParserVersion>2.2.0</CommandLineParserVersion>

@@ -27,10 +27,10 @@
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
-    <TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>
+    
+    
     <PackageTargetFallback>$(PackageTargetFallback);portable-net45+win8</PackageTargetFallback>
-    <RuntimeIdentifiers>win-arm;win-arm64;win-x64;win-x86;$(TargetRid)</RuntimeIdentifiers>
+    
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>
   </PropertyGroup>

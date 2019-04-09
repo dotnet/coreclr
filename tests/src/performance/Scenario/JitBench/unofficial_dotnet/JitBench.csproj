@@ -6,7 +6,7 @@
     <Platform Condition="'$(Platform)' == ''">AnyCPU</Platform>
     <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    
     
     <!-- The common test dirs props pushes all tests to use a more recent NTM unless we explictly opt-out -->
     <NuGetTargetMoniker>.NETCoreApp,Version=v2.0</NuGetTargetMoniker>

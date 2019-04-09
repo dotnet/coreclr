@@ -5,6 +5,7 @@
     <NugetTargetMoniker>.NETStandard,Version=v1.4</NugetTargetMoniker>
     <NugetTargetMonikerShort>netstandard1.4</NugetTargetMonikerShort>
     <IsTestProject>false</IsTestProject>
+    <NoWarn>NU1605</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.performance.api">
@@ -105,8 +106,8 @@
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
-    <TargetFramework>netstandard1.4</TargetFramework>
-    <TargetFrameworkIdentifier>.NETStandard</TargetFrameworkIdentifier>
+    
+    
     <PackageTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</PackageTargetFallback>
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>

@@ -22,7 +22,7 @@
 
     <OSPlatformConfig>$(BuildOS)/$(Platform)/$(Configuration)</OSPlatformConfig>
 
-    <TestSrcDir>$(MSBuildThisFileDirectory)src</TestSrcDir>
+    <TestSrcDir>$(MSBuildThisFileDirectory)src/</TestSrcDir>
 
     <BuildProjectRelativeDir>$(MSBuildProjectName)\</BuildProjectRelativeDir>
     <BuildProjectRelativeDir Condition="'$(MSBuildProjectDirectory.Contains($(TestSrcDir)))'">$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace($(TestSrcDir),''))\$(MSBuildProjectName)</BuildProjectRelativeDir>

@@ -6,4 +6,6 @@
     here https://docs.microsoft.com/en-us/visualstudio/msbuild/customize-your-build#directorybuildprops-and-directorybuildtargets
   -->
 
+  <Import Project="$(MSBuildThisFileDirectory)/../Directory.Build.props" />
+
 </Project>

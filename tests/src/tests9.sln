@@ -1,0 +1,2270 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26124.0
+MinimumVisualStudioVersion = 15.0.26124.0
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "baseservices", "baseservices", "{24AE5BEA-06E4-46EE-9B36-C2D100FF3182}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "threading", "threading", "{B431C57A-A6AF-4E3E-9F02-F5F19270D71F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartShort", "baseservices\threading\paramthreadstart\ThreadStartShort.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "interlocked", "interlocked", "{55F398FA-9259-4384-B953-6F1138649A54}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "intdeccheckreturn", "baseservices\threading\interlocked\checkreturn\intdeccheckreturn.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "waithandle", "waithandle", "{81609C7E-6879-4589-AF6A-06C1715E2C1A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nullarraymember", "baseservices\threading\waithandle\waitall\nullarraymember.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Loader", "Loader", "{93C35115-5594-4E41-AE6A-CFE9EB86CAD7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "classloader", "classloader", "{19C43189-C7C7-46A7-BF37-A8AA0324F289}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "v1", "v1", "{A602B9C1-45EB-4316-BCD3-2DBD840A6BEF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "M10", "M10", "{53FE242B-0F76-4480-9764-F4BD3E66F2DB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Case3", "Loader\classloader\v1\M10\Acceptance\Case3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterlockedAddLong_2", "baseservices\threading\interlocked\add\InterlockedAddLong_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Regressions", "Regressions", "{0E95E88E-562A-4CF7-AEF4-C18A35785643}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "coreclr", "coreclr", "{6A8D1B27-E65F-44EC-B202-F04526316BCE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ptrarray", "Regressions\coreclr\16371\ptrarray.csproj", "{CBD0D777-3583-49CC-8538-DD84447F6522}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Stress", "Stress", "{E693F6E0-DEC8-4D74-8454-F9262FCD380C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Beta1", "Beta1", "{6592EDE4-61F3-4A82-BCDE-05EB11DCE69B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL3", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL16", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL16.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompareExchangeLong_3", "baseservices\threading\interlocked\compareexchange\CompareExchangeLong_3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "generics", "generics", "{24DEF18B-B2AB-4CD7-AFD6-C985BFFCBCF8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread02", "baseservices\threading\generics\TimerCallback\thread02.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "testInterface", "Regressions\coreclr\1333\testInterface.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test22888resources", "Regressions\coreclr\GitHub_22888\test22888resources.csproj", "{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "exceptions", "exceptions", "{1AB3D0C7-230F-43F6-9884-19DE8BDF54DC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CollidedUnwind", "baseservices\exceptions\unittests\CollidedUnwind.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "events", "events", "{F30509B1-D297-43C9-8C85-3BFA7BA468BA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EventWaitHandle", "EventWaitHandle", "{B4A6C769-4CFE-4417-8D35-3FA1319C7EEA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManualResetCast1", "baseservices\threading\events\EventWaitHandle\ManualReset\ManualResetCast1.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex11a", "baseservices\threading\waithandle\waitall\waitallex11a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TryCatchInFinally", "baseservices\exceptions\unittests\TryCatchInFinally.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "exchange4_cti", "baseservices\threading\interlocked\exchange\exchange4_cti.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex6", "baseservices\threading\waithandle\waitany\waitanyex6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "monitor", "monitor", "{BBD3E0B3-9239-44D6-A314-3982C9F7AEEC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterNull", "baseservices\threading\monitor\enter\EnterNull.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BaseClass", "baseservices\exceptions\unittests\BaseClass.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-fault01", "baseservices\exceptions\generics\try-fault01.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "threadstartclass", "baseservices\threading\paramthreadstart\threadstartclass.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartString_2", "baseservices\threading\paramthreadstart\ThreadStartString_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "hosting", "hosting", "{056E905B-D873-4CAC-BE67-4A9CE5D5BB41}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "coreclr", "coreclr", "{05FE83CF-648D-4ECB-8D76-3CF62CA96631}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "activation", "activation", "{868ABF9A-BA69-40D4-BB27-21DF56B6E76F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UserCases", "hosting\coreclr\activation\sxshost\UserCases.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchanget", "baseservices\threading\interlocked\compareexchange\compareexchanget.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "versioning", "versioning", "{29FBBAC9-7233-4DE4-BBC4-4896A510B167}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyAttrs", "Loader\versioning\coverage\AssemblyAttrs.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "coverage", "coverage", "{D24910B4-03F4-4A81-9A42-192ABB2DA88D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CS_RWHNullRefEx", "baseservices\threading\coverage\Nullref\CS_RWHNullRefEx.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BeginInvokeEndInvoke", "baseservices\threading\delegate\BeginInvokeEndInvoke.csproj", "{C485E164-F82C-4A4F-A02E-BC711827E5BE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex9", "baseservices\threading\waithandle\waitall\waitallex9.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread15", "baseservices\threading\generics\TimerCallback\thread15.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread30", "baseservices\threading\generics\TimerCallback\thread30.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "mutex", "mutex", "{B991CC34-EA7D-4EE5-9E8B-CBE02972A6E8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg7", "baseservices\threading\mutex\openexisting\openmutexneg7.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "regressions", "regressions", "{5A86C2AD-18A4-4DF1-995F-B4980A073F39}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "30032", "baseservices\threading\regressions\30032\30032.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "regressions", "regressions", "{FA586BC0-D7AA-4617-A6C2-E6FE8A509C9B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "vsw307137", "Loader\regressions\classloader\vsw307137.csproj", "{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "regressions", "regressions", "{FDDCD3E9-015D-4A3E-9D11-B2F94CD5DF3A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "V1", "V1", "{823976D5-1688-41C1-9172-3F01A54FEEF8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SEH", "SEH", "{B941725C-E3FF-410B-A238-3B5DDFC206A1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NestedFilt", "baseservices\exceptions\regressions\V1\SEH\asm\NestedFilt.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread18", "baseservices\threading\generics\threadstart\GThread18.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "date", "Regressions\common\date.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch08", "baseservices\exceptions\generics\try-catch08.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "threadpool", "threadpool", "{F16C4563-EF98-4EA1-9D40-BE1EE420B4F9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandlenull", "baseservices\threading\threadpool\bindhandle\bindhandlenull.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InnerFinallyAndCatch", "baseservices\exceptions\unittests\InnerFinallyAndCatch.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex5", "baseservices\threading\waithandle\waitall\waitallex5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "reflection", "reflection", "{7E86EE90-D5F6-4037-A1BF-0C39CC2D608E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "modifiers", "reflection\ldtoken\modifiers.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread01", "baseservices\threading\generics\TimerCallback\thread01.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "provider", "Regressions\coreclr\22021\provider.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartUInt_2", "baseservices\threading\paramthreadstart\ThreadStartUInt_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex3", "baseservices\threading\waithandle\waitall\waitallex3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tracing", "tracing", "{6F1EDF45-62DF-436D-B170-880FB1E0EC9A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tracevalidation", "tracevalidation", "{DD35A9E3-C311-4B41-B394-256210F618BB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "inducedgc", "tracing\tracevalidation\inducedgc\inducedgc.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStatic04Helper", "baseservices\threading\threadstatic\ThreadStatic04Helper.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread25", "baseservices\threading\generics\threadstart\GThread25.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit03", "baseservices\threading\generics\Monitor\EnterExit03.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eventactivityidcontrol", "tracing\eventactivityidcontrol\eventactivityidcontrol.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "semaphore", "semaphore", "{88CA2A45-D34B-4870-A65B-8506CB87FD6A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg1", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex3a", "baseservices\threading\waithandle\waitany\waitanyex3a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "exchangefloat", "baseservices\threading\interlocked\exchange\exchangefloat.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "readytorun", "readytorun", "{593A2C33-D110-4C64-A2A7-C449887F1B41}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "generics", "readytorun\tests\generics.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LargeArrayTest", "Regressions\coreclr\0075\LargeArrayTest.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Beta1", "Beta1", "{0744B061-B9A1-41F7-91B0-D264B56EC4AC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Layout", "Layout", "{2B672C1A-C257-4D45-A411-2FE354D00120}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Matrix", "Matrix", "{E397AD77-0485-4E2B-9919-D1FD30AA19E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-5-3", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-5-3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "stress", "stress", "{C23EDBD0-DAB4-4F80-9B8E-0BF9D0CDFC06}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SudokuInterfaces", "baseservices\threading\stress\sudoku\SudokuInterfaces.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread02", "baseservices\threading\generics\threadstart\GThread02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "longdeccheckreturn", "baseservices\threading\interlocked\checkreturn\longdeccheckreturn.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "interlockedaddintwithsubtract", "baseservices\threading\interlocked\add\interlockedaddintwithsubtract.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am05waitanymutex", "baseservices\threading\mutex\abandonedmutex\am05waitanymutex.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread28", "baseservices\threading\generics\TimerCallback\thread28.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test1402", "Regressions\coreclr\1402\Test1402.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-struct09", "baseservices\exceptions\generics\try-catch-struct09.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "13662-a", "baseservices\threading\regressions\13662\13662-a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ctorchk", "baseservices\threading\interlocked\ctorchk\ctorchk.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecursiveRethrow", "baseservices\exceptions\unittests\RecursiveRethrow.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "stress", "stress", "{FF8FEB39-6B9E-48F2-82C7-7C70D0930E53}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "csgen.2", "hosting\stress\testset1\csgen.2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit01", "baseservices\threading\generics\Monitor\EnterExit01.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "osthreadid", "baseservices\threading\coverage\OSThreadId\osthreadid.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stack", "baseservices\threading\stress\sudoku\Stack.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread23", "baseservices\threading\generics\threadstart\GThread23.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-struct05", "baseservices\exceptions\generics\try-catch-struct05.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoConstructTrue", "baseservices\threading\events\EventWaitHandle\unit\AutoConstructTrue.csproj", "{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex1a", "baseservices\threading\waithandle\waitone\waitoneex1a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread09", "baseservices\threading\generics\TimerCallback\thread09.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test968", "Regressions\coreclr\0968\Test968.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex3a", "baseservices\threading\waithandle\waitone\waitoneex3a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex10a", "baseservices\threading\waithandle\waitall\waitallex10a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL1", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tier1StackTrace", "baseservices\exceptions\stacktrace\Tier1StackTrace.csproj", "{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartString_3", "baseservices\threading\paramthreadstart\ThreadStartString_3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThrowInFinally", "baseservices\exceptions\unittests\ThrowInFinally.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CS_SLENullRefEx", "baseservices\threading\coverage\Nullref\CS_SLENullRefEx.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex9", "baseservices\threading\waithandle\waitany\waitanyex9.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "compilerservices", "compilerservices", "{D0CDF030-C598-45FC-93BC-40EAAC51BBB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test448035", "baseservices\compilerservices\dynamicobjectproperties\test448035.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExchangeTString", "baseservices\threading\interlocked\exchange\ExchangeTString.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompareExchangeTClass", "baseservices\threading\interlocked\compareexchange\CompareExchangeTClass.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tracecontrol", "tracing\tracecontrol\tracecontrol.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nested-try-catch03", "baseservices\exceptions\generics\nested-try-catch03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "varargsupport", "baseservices\varargs\varargsupport.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartLong", "baseservices\threading\paramthreadstart\ThreadStartLong.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sharedexceptions", "sharedexceptions", "{4787077D-2D97-4826-970C-C0E85F623E72}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OOMException01", "baseservices\exceptions\sharedexceptions\emptystacktrace\OOMException01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "avtest", "Regressions\common\avtest.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThrowInFinallyNestedInTry", "baseservices\exceptions\unittests\ThrowInFinallyNestedInTry.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "exchange2", "baseservices\threading\interlocked\exchange\exchange2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "byrefs", "reflection\ldtoken\byrefs.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "whidbeybeta2", "whidbeybeta2", "{3E19A528-42ED-4440-8A0A-2F1A112BC0C7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "366085", "baseservices\exceptions\regressions\whidbeybeta2\366085\366085.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AboveStackLimit", "Regressions\coreclr\0099\AboveStackLimit.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-finally02", "baseservices\exceptions\generics\try-finally02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waithandledispose2", "baseservices\threading\waithandle\misc\waithandledispose2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheckAddLong", "baseservices\threading\interlocked\add\CheckAddLong.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompareExchangeLong", "baseservices\threading\interlocked\compareexchange\CompareExchangeLong.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Baadbaad", "baseservices\exceptions\unittests\Baadbaad.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PulseNull", "baseservices\threading\monitor\pulse\PulseNull.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestAPIs", "baseservices\compilerservices\dynamicobjectproperties\TestAPIs.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManualConstructTrue", "baseservices\threading\events\EventWaitHandle\unit\ManualConstructTrue.csproj", "{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread08", "baseservices\threading\generics\TimerCallback\thread08.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch01", "baseservices\exceptions\generics\try-catch01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArrayCopy", "Regressions\coreclr\0018\ArrayCopy.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoryManagedPresent", "baseservices\exceptions\unittests\GoryManagedPresent.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test0576", "Regressions\coreclr\0576\Test0576.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartByte_2", "baseservices\threading\paramthreadstart\ThreadStartByte_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter001", "baseservices\exceptions\generics\TypeParameter001.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-filter-finally02", "baseservices\exceptions\generics\try-filter-finally02.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "437017", "baseservices\threading\regressions\beta2\437017.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "enum", "baseservices\multidimmarray\enum.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nested-try-catch10", "baseservices\exceptions\generics\nested-try-catch10.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CS_TSNullRefEx", "baseservices\threading\coverage\Nullref\CS_TSNullRefEx.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nested-try-catch05", "baseservices\exceptions\generics\nested-try-catch05.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch02", "baseservices\exceptions\generics\try-catch02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartCast", "baseservices\threading\paramthreadstart\ThreadStartCast.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartFloat_1", "baseservices\threading\paramthreadstart\ThreadStartFloat_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "r2rdump", "r2rdump", "{D92F84A0-AE82-4B12-8BEB-6B8AAB25D647}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultipleRuntimeFunctions", "readytorun\r2rdump\files\MultipleRuntimeFunctions.csproj", "{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{37E124C7-443D-4F93-97CB-94197E1BBB01}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "callgenericctor", "readytorun\tests\genericsload\callgenericctor.csproj", "{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "debug15", "Regressions\coreclr\22728\debug15.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "readthreads", "baseservices\threading\interlocked\read\readthreads.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Finally", "baseservices\exceptions\regressions\V1\SEH\asm\Finally.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread29", "baseservices\threading\generics\threadstart\GThread29.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nullable", "Regressions\coreclr\0044\nullable.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "twopassvariance", "Regressions\coreclr\20452\twopassvariance.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL18", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL18.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "regression_749068", "baseservices\threading\threadpool\unregister\regression_749068.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartInt_2", "baseservices\threading\paramthreadstart\ThreadStartInt_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread04", "baseservices\threading\generics\threadstart\GThread04.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheckAddInt_1", "baseservices\threading\interlocked\add\CheckAddInt_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericExceptions01", "baseservices\exceptions\generics\GenericExceptions01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlatformCode", "Regressions\coreclr\0341\PlatformCode.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartNeg1", "baseservices\threading\paramthreadstart\ThreadStartNeg1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter014", "baseservices\exceptions\generics\TypeParameter014.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterlockedAddInt_3", "baseservices\threading\interlocked\add\InterlockedAddInt_3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Co1727ctor_OO", "Regressions\coreclr\1386\Co1727ctor_OO.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter012", "baseservices\exceptions\generics\TypeParameter012.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StrSwitchFinally", "baseservices\exceptions\unittests\StrSwitchFinally.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoConstructFalse", "baseservices\threading\events\EventWaitHandle\unit\AutoConstructFalse.csproj", "{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConstructFalse", "baseservices\threading\events\ManualResetEvent\ConstructFalse.csproj", "{717A283B-E0AF-4EF2-B072-0378DECB2D96}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit12", "baseservices\threading\generics\Monitor\EnterExit12.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartNull", "baseservices\threading\paramthreadstart\ThreadStartNull.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex3", "baseservices\threading\waithandle\waitone\waitoneex3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-9-2", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-9-2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex2a", "baseservices\threading\waithandle\waitany\waitanyex2a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-filter-finally01", "baseservices\exceptions\generics\try-filter-finally01.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericExceptions02", "baseservices\exceptions\generics\GenericExceptions02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CS_WHNullRefEx", "baseservices\threading\coverage\Nullref\CS_WHNullRefEx.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread24", "baseservices\threading\generics\TimerCallback\thread24.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericExceptions08", "baseservices\exceptions\generics\GenericExceptions08.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread28", "baseservices\threading\generics\threadstart\GThread28.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UserException", "baseservices\exceptions\regressions\V1\SEH\VJ\UserException.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestGC", "baseservices\compilerservices\dynamicobjectproperties\TestGC.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartFloat_2", "baseservices\threading\paramthreadstart\ThreadStartFloat_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex4", "baseservices\threading\waithandle\waitone\waitoneex4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartChar_1", "baseservices\threading\paramthreadstart\ThreadStartChar_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "modifiers", "reflection\Modifiers\modifiers.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "exchange1_cti", "baseservices\threading\interlocked\exchange\exchange1_cti.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartGenerics_1", "baseservices\threading\paramthreadstart\ThreadStartGenerics_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Recurse", "baseservices\exceptions\unittests\Recurse.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread08", "baseservices\threading\generics\threadstart\GThread08.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "unregister03", "baseservices\threading\threadpool\unregister\unregister03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AVException02", "baseservices\exceptions\AccessViolationException\AVException02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ilasm_ildasm", "ilasm_ildasm", "{2488E058-E979-49A6-A1F3-6378D98D8560}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "regression", "regression", "{DA95CB7F-2357-4180-8447-0D10E4BA6861}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "267905", "baseservices\ilasm_ildasm\regression\vswhidbey267905\267905.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Marshal", "Regressions\coreclr\0275\Marshal.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Case1", "Loader\classloader\v1\M10\Acceptance\Case1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExitExit", "baseservices\threading\monitor\unownedlock\EnterExitExit.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TryEnter04", "baseservices\threading\generics\Monitor\TryEnter04.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "whidbeym3.3", "whidbeym3.3", "{4F97914F-08FD-414F-A827-6DB32902B140}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReproTrusted", "baseservices\exceptions\regressions\whidbeym3.3\293674\ReproTrusted.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartFloat", "baseservices\threading\paramthreadstart\ThreadStartFloat.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "methodimpl", "Regressions\coreclr\16064\methodimpl.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit05", "baseservices\threading\generics\Monitor\EnterExit05.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ldtokenmember", "reflection\ldtoken\ldtokenmember.ilproj", "{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread11", "baseservices\threading\generics\TimerCallback\thread11.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL14", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL14.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "hello", "Regressions\coreclr\0416\hello.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "longinccheckreturn", "baseservices\threading\interlocked\checkreturn\longinccheckreturn.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartUInt", "baseservices\threading\paramthreadstart\ThreadStartUInt.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "typeequivalence", "typeequivalence", "{9CDA75E9-176E-44D0-BE2A-9C63F1826D38}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Simple", "baseservices\typeequivalence\simple\Simple.csproj", "{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StringThrower", "baseservices\compilerservices\RuntimeWrappedException\StringThrower.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadCulture", "Regressions\coreclr\0202\ThreadCulture.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "debug3", "Regressions\coreclr\22386\debug3.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL17", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL17.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread13", "baseservices\threading\generics\threadstart\GThread13.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExternalException", "baseservices\exceptions\regressions\V1\SEH\VJ\ExternalException.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-filter-struct02", "baseservices\exceptions\generics\try-filter-struct02.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread27", "baseservices\threading\generics\TimerCallback\thread27.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread08-simplified", "Regressions\coreclr\0028\thread08-simplified.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Case2", "Loader\classloader\v1\M10\Acceptance\Case2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Except", "baseservices\exceptions\regressions\V1\SEH\asm\Except.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL12", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL12.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "performance", "performance", "{74AFB769-CFA8-4419-9AD6-7C7318ACBCA2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "linkbench", "performance\linkbench\linkbench.csproj", "{507E3CC2-5D95-414D-9F01-2A106FC177DC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL7", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL7.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NestedExcept", "baseservices\exceptions\regressions\V1\SEH\asm\NestedExcept.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "regression", "regression", "{8D986155-7E86-43BD-B64C-BB79711608B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dev10_629953", "reflection\regression\dev10bugs\Dev10_629953.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "boring", "Regressions\coreclr\16355\boring.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex2a", "baseservices\threading\waithandle\waitone\waitoneex2a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg5", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartDecimal_2", "baseservices\threading\paramthreadstart\ThreadStartDecimal_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExchangeTClass", "baseservices\threading\interlocked\exchange\ExchangeTClass.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex4", "baseservices\threading\waithandle\waitall\waitallex4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexpos2", "baseservices\threading\mutex\openexisting\openmutexpos2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread17", "baseservices\threading\generics\TimerCallback\thread17.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartCast_2", "baseservices\threading\paramthreadstart\ThreadStartCast_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread10", "baseservices\threading\generics\TimerCallback\thread10.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test489437", "baseservices\threading\regressions\devdiv489437\test489437.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test17398", "Regressions\coreclr\GitHub_17398\test17398.csproj", "{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStatic02", "baseservices\threading\threadstatic\ThreadStatic02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterlockedAddInt_1", "baseservices\threading\interlocked\add\InterlockedAddInt_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeadThreads", "baseservices\threading\DeadThreads\DeadThreads.csproj", "{649A239B-AB4B-4E20-BDCA-3BA736E8B790}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "302680", "baseservices\exceptions\regressions\whidbeym3.3\302680\302680.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "runmoduleconstructor", "baseservices\compilerservices\modulector\runmoduleconstructor.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL15", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL15.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "threadstartarray", "baseservices\threading\paramthreadstart\threadstartarray.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExchangeLong", "baseservices\threading\interlocked\exchange\ExchangeLong.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "longtimeout", "baseservices\threading\monitor\tryenter\longtimeout.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CS_TimerNullRefEx", "baseservices\threading\coverage\Nullref\CS_TimerNullRefEx.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheckAddLong_1", "baseservices\threading\interlocked\add\CheckAddLong_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "common", "tracing\common\common.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandleinvalid3", "baseservices\threading\threadpool\bindhandle\bindhandleinvalid3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InvokeConsumer", "reflection\DefaultInterfaceMethods\InvokeConsumer.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnmanagedToManaged", "baseservices\exceptions\regressions\V1\SEH\VJ\UnmanagedToManaged.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "unregister01", "baseservices\threading\threadpool\unregister\unregister01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchangefloat", "baseservices\threading\interlocked\compareexchange\compareexchangefloat.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartShort_1", "baseservices\threading\paramthreadstart\ThreadStartShort_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-6-1", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-6-1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread04", "baseservices\threading\generics\TimerCallback\thread04.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex5a", "baseservices\threading\waithandle\waitall\waitallex5a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Finalizer", "baseservices\finalization\Finalizer.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-9-3", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-9-3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "106011", "baseservices\exceptions\regressions\whidbeym3.3\106011\106011.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "assem", "Regressions\assemblyref\assem.csproj", "{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConstructTrue", "baseservices\threading\events\ManualResetEvent\ConstructTrue.csproj", "{717A283B-E0AF-4EF2-B072-0378DECB2D96}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericAttributeTests", "reflection\GenericAttribute\GenericAttributeTests.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericExceptions", "baseservices\exceptions\generics\GenericExceptions.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoResetCtor1", "baseservices\threading\events\EventWaitHandle\AutoReset\AutoResetCtor1.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-9-1", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-9-1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-6-3D", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-6-3D.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-struct02", "baseservices\exceptions\generics\try-catch-struct02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter018", "baseservices\exceptions\generics\TypeParameter018.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartUShort_1", "baseservices\threading\paramthreadstart\ThreadStartUShort_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HardwareEh", "baseservices\exceptions\simple\HardwareEh.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tracelogging", "tracing\tracevalidation\tracelogging\tracelogging.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericAttributeMetadata", "reflection\GenericAttribute\GenericAttributeMetadata.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread06", "baseservices\threading\generics\TimerCallback\thread06.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "exchange4", "baseservices\threading\interlocked\exchange\exchange4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NoEnterObject", "baseservices\threading\monitor\unownedlock\NoEnterObject.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterlockedAddLong", "baseservices\threading\interlocked\add\InterlockedAddLong.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartDouble_1", "baseservices\threading\paramthreadstart\ThreadStartDouble_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-finally03", "baseservices\exceptions\generics\try-finally03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit07", "baseservices\threading\generics\Monitor\EnterExit07.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterlockExchange", "Regressions\coreclr\1514\InterlockExchange.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorector5", "baseservices\threading\semaphore\ctoropen\semaphorector5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch04", "baseservices\exceptions\generics\try-catch04.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-6-2", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-6-2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "v4.0", "v4.0", "{BDEFB121-C603-4011-91FF-16D2175292FF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test640474", "baseservices\exceptions\regressions\v4.0\640474\test640474.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexpos3", "baseservices\threading\mutex\openexisting\openmutexpos3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompareExchangeTClass_1", "baseservices\threading\interlocked\compareexchange\CompareExchangeTClass_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread16", "baseservices\threading\generics\threadstart\GThread16.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrySetReadonlyStaticField", "reflection\SetValue\TrySetReadonlyStaticField.csproj", "{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread14", "baseservices\threading\generics\threadstart\GThread14.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex3a", "baseservices\threading\waithandle\waitall\waitallex3a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorector2", "baseservices\threading\semaphore\ctoropen\semaphorector2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rank1array", "baseservices\multidimmarray\rank1array.ilproj", "{405DB174-DAB1-4095-BC2D-B64E38E94B8B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_double", "Regressions\expl_double\expl_double.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter006", "baseservices\exceptions\generics\TypeParameter006.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-1-8-3", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-1-8-3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartULong_1", "baseservices\threading\paramthreadstart\ThreadStartULong_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartObject_2", "baseservices\threading\paramthreadstart\ThreadStartObject_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "exchange3", "baseservices\threading\interlocked\exchange\exchange3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartCast_1", "baseservices\threading\paramthreadstart\ThreadStartCast_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test1549", "Regressions\coreclr\1549\Test1549.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread07", "baseservices\threading\generics\threadstart\GThread07.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test1535", "Regressions\coreclr\1535\Test1535.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandleinvalid5", "baseservices\threading\threadpool\bindhandle\bindhandleinvalid5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartOperations_1", "baseservices\threading\paramthreadstart\ThreadStartOperations_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread20", "baseservices\threading\generics\threadstart\GThread20.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-1-9-3", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-1-9-3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Delegates", "hosting\coreclr\activation\sxshost\Delegates.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ambiguousconstraint", "Regressions\coreclr\16123\ambiguousconstraint.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex7a", "baseservices\threading\waithandle\waitany\waitanyex7a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter015", "baseservices\exceptions\generics\TypeParameter015.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Exceptions", "baseservices\exceptions\regressions\V1\SEH\coverage\Exceptions.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartNeg4", "baseservices\threading\paramthreadstart\ThreadStartNeg4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex6a", "baseservices\threading\waithandle\waitany\waitanyex6a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{9FAB7720-E522-491D-9E34-990535DFD801}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "resolveevent", "resolveevent", "{5773539B-6415-4449-AC18-2A6855832B38}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UserCodeDependency", "hosting\samples\resolveevent\usercodedependency\UserCodeDependency.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "createdelegate", "Regressions\coreclr\22728\createdelegate.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NestedException", "baseservices\exceptions\regressions\V1\SEH\VJ\NestedException.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TryEnter01", "baseservices\threading\generics\Monitor\TryEnter01.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nested-try-catch01", "baseservices\exceptions\generics\nested-try-catch01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter007", "baseservices\exceptions\generics\TypeParameter007.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL4", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread22", "baseservices\threading\generics\threadstart\GThread22.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-1-7-3D", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-1-7-3D.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-struct08", "baseservices\exceptions\generics\try-catch-struct08.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DontUseNetmodule", "Loader\multimodule\DontUseNetmodule.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex7a", "baseservices\threading\waithandle\waitall\waitallex7a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchangeint", "baseservices\threading\interlocked\compareexchange\compareexchangeint.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStatic03", "baseservices\threading\threadstatic\ThreadStatic03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterlockedAddLongWithSubtract", "baseservices\threading\interlocked\add\InterlockedAddLongWithSubtract.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartGenerics_2", "baseservices\threading\paramthreadstart\ThreadStartGenerics_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter004", "baseservices\exceptions\generics\TypeParameter004.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unsafe", "Regressions\common\Unsafe.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericFunctions", "readytorun\r2rdump\files\GenericFunctions.csproj", "{4707D644-0A3C-4D9E-9AE0-518A76680245}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-finally02", "baseservices\exceptions\generics\try-catch-finally02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartSByte", "baseservices\threading\paramthreadstart\ThreadStartSByte.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartSByte_1", "baseservices\threading\paramthreadstart\ThreadStartSByte_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit10", "baseservices\threading\generics\Monitor\EnterExit10.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-finally01", "baseservices\exceptions\generics\try-catch-finally01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "interlockedread", "baseservices\threading\interlocked\read\interlockedread.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread07", "baseservices\threading\generics\TimerCallback\thread07.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex1a", "baseservices\threading\waithandle\waitall\waitallex1a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex5a", "baseservices\threading\waithandle\waitany\waitanyex5a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex4", "baseservices\threading\waithandle\waitany\waitanyex4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit13", "baseservices\threading\generics\Monitor\EnterExit13.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL9", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL9.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Polyrec", "Loader\regressions\polyrec\Polyrec.csproj", "{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-struct01", "baseservices\exceptions\generics\try-catch-struct01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread09", "baseservices\threading\generics\threadstart\GThread09.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericExceptions04", "baseservices\exceptions\generics\GenericExceptions04.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "exchanget", "baseservices\threading\interlocked\exchange\exchanget.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallemptyarray", "baseservices\threading\waithandle\waitall\waitallemptyarray.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoryNativePast", "baseservices\exceptions\unittests\GoryNativePast.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex4a", "baseservices\threading\waithandle\waitany\waitanyex4a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorectorneg2", "baseservices\threading\semaphore\ctoropen\semaphorectorneg2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexpos1", "baseservices\threading\mutex\openexisting\openmutexpos1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NestedEx1", "baseservices\exceptions\regressions\V1\SEH\VJ\NestedEx1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test16833", "Regressions\coreclr\GitHub_16833\Test16833.csproj", "{D1303490-9864-4CC7-9FC0-964B371C7D8C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartGenerics", "baseservices\threading\paramthreadstart\ThreadStartGenerics.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "19896", "baseservices\exceptions\regressions\v1.0\19896.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartUInt_1", "baseservices\threading\paramthreadstart\ThreadStartUInt_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterlockedAddLong_1", "baseservices\threading\interlocked\add\InterlockedAddLong_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TryEnter05", "baseservices\threading\generics\Monitor\TryEnter05.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_double_1", "Regressions\coreclr\0041\expl_double_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestOverrides", "baseservices\compilerservices\dynamicobjectproperties\TestOverrides.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "newarray", "readytorun\tests\newarray.csproj", "{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "349379", "baseservices\exceptions\regressions\whidbeybeta2\349379\349379.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloWorld", "readytorun\r2rdump\files\HelloWorld.csproj", "{CC1EA325-DA8C-410C-9FAB-3E57044F9864}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex2", "baseservices\threading\waithandle\waitall\waitallex2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-filter02", "baseservices\exceptions\generics\try-filter02.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit04", "baseservices\threading\generics\Monitor\EnterExit04.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "simple1", "hosting\stress\testset1\simple1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter005", "baseservices\exceptions\generics\TypeParameter005.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-11-3", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-11-3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-finally03", "baseservices\exceptions\generics\try-catch-finally03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex3", "baseservices\threading\waithandle\waitany\waitanyex3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit11", "baseservices\threading\generics\Monitor\EnterExit11.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test7685", "Regressions\coreclr\GitHub_7685\Test7685.csproj", "{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchangeobject", "baseservices\threading\interlocked\compareexchange\compareexchangeobject.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "csgen.1", "Regressions\coreclr\0582\csgen.1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-4-1", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-4-1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-11-1", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-11-1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DefaultStackCommit", "baseservices\threading\commitstackonlyasneeded\DefaultStackCommit.csproj", "{C485E164-F82C-4A4F-A02E-BC711827E5BE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL2", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheckAddInt", "baseservices\threading\interlocked\add\CheckAddInt.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorectorneg3", "baseservices\threading\semaphore\ctoropen\semaphorectorneg3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-struct07", "baseservices\exceptions\generics\try-catch-struct07.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread22", "baseservices\threading\generics\TimerCallback\thread22.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-1-8-3D", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-1-8-3D.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "add", "baseservices\threading\interlocked\add\add.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompareExchangeLong_1", "baseservices\threading\interlocked\compareexchange\CompareExchangeLong_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "monitorisentered", "baseservices\threading\monitor\isentered\monitorisentered.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg3", "baseservices\threading\mutex\openexisting\openmutexneg3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter011", "baseservices\exceptions\generics\TypeParameter011.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "monitorenter", "baseservices\threading\monitor\enter\monitorenter.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyemptyarray", "baseservices\threading\waithandle\waitany\waitanyemptyarray.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-fault-struct01", "baseservices\exceptions\generics\try-fault-struct01.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultipleException", "baseservices\exceptions\regressions\V1\SEH\VJ\MultipleException.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CS_MutexNullRefEx", "baseservices\threading\coverage\Nullref\CS_MutexNullRefEx.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NoEnterNewObject", "baseservices\threading\monitor\unownedlock\NoEnterNewObject.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AVException01", "baseservices\exceptions\AccessViolationException\AVException01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VT", "baseservices\exceptions\simple\VT.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartULong", "baseservices\threading\paramthreadstart\ThreadStartULong.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread20", "baseservices\threading\generics\TimerCallback\thread20.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RuntimeWrappedException", "baseservices\compilerservices\RuntimeWrappedException\RuntimeWrappedException.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread19", "baseservices\threading\generics\TimerCallback\thread19.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeImpl", "baseservices\typeequivalence\impl\TypeImpl.csproj", "{AB991158-9DCA-4E17-9848-A6A574C68003}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread06", "baseservices\threading\generics\threadstart\GThread06.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL19", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL19.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DisableTransparencyEnforcement", "Regressions\common\DisableTransparencyEnforcement.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test0939", "Regressions\coreclr\0939\test0939.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchange5_cti", "baseservices\threading\interlocked\compareexchange\compareexchange5_cti.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lowlevel", "lowlevel", "{0C9AFA76-CEAE-4376-906C-6A22C7EBE760}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "regress", "regress", "{39B337DC-8665-404E-9DEB-9938B85ADC74}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Exception", "Loader\lowlevel\regress\105736\Exception.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg3", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManualConstructFalse", "baseservices\threading\events\EventWaitHandle\unit\ManualConstructFalse.csproj", "{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "xlib", "baseservices\ilasm_ildasm\regression\dd130885\xlib.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex10", "baseservices\threading\waithandle\waitany\waitanyex10.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test1337", "Regressions\coreclr\1337\Test1337.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AVException03", "baseservices\exceptions\AccessViolationException\AVException03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread30", "baseservices\threading\generics\threadstart\GThread30.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorector4", "baseservices\threading\semaphore\ctoropen\semaphorector4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test1307", "Regressions\common\test1307.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dev11", "Dev11", "{AEDBF19A-BD33-47CB-AEFC-83397FB2EAD5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test147911", "baseservices\exceptions\regressions\Dev11\147911\test147911.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex8", "baseservices\threading\waithandle\waitany\waitanyex8.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "threadstatic07", "baseservices\threading\threadstatic\threadstatic07.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread26", "baseservices\threading\generics\threadstart\GThread26.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread15", "baseservices\threading\generics\threadstart\GThread15.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartBool", "baseservices\threading\paramthreadstart\ThreadStartBool.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-fault-struct02", "baseservices\exceptions\generics\try-fault-struct02.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-fault02", "baseservices\exceptions\generics\try-fault02.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartDouble", "baseservices\threading\paramthreadstart\ThreadStartDouble.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test11611", "Regressions\coreclr\GitHub_11611\Test11611.csproj", "{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex2", "baseservices\threading\waithandle\waitone\waitoneex2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamicMethodGCStress", "readytorun\DynamicMethodGCStress\DynamicMethodGCStress.csproj", "{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericExceptions06", "baseservices\exceptions\generics\GenericExceptions06.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-10-1", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-10-1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fieldgetter", "readytorun\tests\fieldgetter.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL13", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL13.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchange4", "baseservices\threading\interlocked\compareexchange\compareexchange4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread05", "baseservices\threading\generics\threadstart\GThread05.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "13662-simple", "baseservices\threading\regressions\13662\13662-simple.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "regress", "regress", "{91E132C9-6F4D-4BAE-946D-64326A15EE0C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHub_22247", "tracing\regress\GitHub_22247\GitHub_22247.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter016", "baseservices\exceptions\generics\TypeParameter016.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex6", "baseservices\threading\waithandle\waitall\waitallex6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg4", "baseservices\threading\mutex\openexisting\openmutexneg4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "576463", "baseservices\threading\regressions\576463\576463.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter009", "baseservices\exceptions\generics\TypeParameter009.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NestedEx2", "baseservices\exceptions\regressions\V1\SEH\VJ\NestedEx2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExitNull", "baseservices\threading\monitor\exit\ExitNull.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiltCatch", "baseservices\exceptions\regressions\V1\SEH\asm\FiltCatch.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartNull2", "baseservices\threading\paramthreadstart\ThreadStartNull2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoResetCast2", "baseservices\threading\events\EventWaitHandle\AutoReset\AutoResetCast2.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter013", "baseservices\exceptions\generics\TypeParameter013.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "override", "Regressions\coreclr\0857\override.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex8", "baseservices\threading\waithandle\waitall\waitallex8.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartDelegate", "baseservices\threading\paramthreadstart\ThreadStartDelegate.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter002", "baseservices\exceptions\generics\TypeParameter002.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartDecimal", "baseservices\threading\paramthreadstart\ThreadStartDecimal.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "exchangeobject", "baseservices\threading\interlocked\exchange\exchangeobject.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread12", "baseservices\threading\generics\threadstart\GThread12.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "data", "baseservices\exceptions\regressions\whidbeym3.3\302680\data.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorector1", "baseservices\threading\semaphore\ctoropen\semaphorector1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CultureChangeSecurity", "baseservices\threading\currentculture\CultureChangeSecurity.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mutexctor2", "baseservices\threading\mutex\misc\mutexctor2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-10-3", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-10-3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL10", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL10.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-12-3D", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-12-3D.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartChar", "baseservices\threading\paramthreadstart\ThreadStartChar.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JittingStarted", "tracing\tracevalidation\jittingstarted\JittingStarted.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartChar_2", "baseservices\threading\paramthreadstart\ThreadStartChar_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "varargsupport_r", "baseservices\varargs\varargsupport_r.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread05", "baseservices\threading\generics\TimerCallback\thread05.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nested-try-catch06", "baseservices\exceptions\generics\nested-try-catch06.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-12-2", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-12-2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-1-9-1", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-1-9-1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread21", "baseservices\threading\generics\TimerCallback\thread21.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fault", "baseservices\exceptions\simple\fault.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL8", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL8.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ilasm", "ilasm", "{E70DB347-55C5-4AF5-84D2-E173C873D605}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "System", "System", "{B17F5D67-39AF-44F1-A11F-8F57DA67972A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Runtime", "Runtime", "{3AA83D67-0A4E-407B-ABE3-9AC879C133D3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MethodImplOptionsTests", "ilasm\System\Runtime\CompilerServices\MethodImplOptionsTests.csproj", "{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-3-1", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-3-1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CS_MRENullRefEx", "baseservices\threading\coverage\Nullref\CS_MRENullRefEx.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManualResetCtor1", "baseservices\threading\events\EventWaitHandle\ManualReset\ManualResetCtor1.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread23", "baseservices\threading\generics\TimerCallback\thread23.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartObject", "baseservices\threading\paramthreadstart\ThreadStartObject.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex4a", "baseservices\threading\waithandle\waitone\waitoneex4a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitone1", "baseservices\threading\mutex\misc\waitone1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartDelegate_1", "baseservices\threading\paramthreadstart\ThreadStartDelegate_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread27", "baseservices\threading\generics\threadstart\GThread27.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CS_ARENullRefEx", "baseservices\threading\coverage\Nullref\CS_ARENullRefEx.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FixedAddressValueType", "baseservices\compilerservices\FixedAddressValueType\FixedAddressValueType.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch05", "baseservices\exceptions\generics\try-catch05.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartUShort_2", "baseservices\threading\paramthreadstart\ThreadStartUShort_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am02waitoneneg", "baseservices\threading\mutex\abandonedmutex\am02waitoneneg.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "forwarder1", "Regressions\coreclr\1380\forwarder1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread18", "baseservices\threading\generics\TimerCallback\thread18.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread10", "baseservices\threading\generics\threadstart\GThread10.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FinalizerSigned", "baseservices\finalization\FinalizerSigned.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread24", "baseservices\threading\generics\threadstart\GThread24.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg7", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg7.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit02", "baseservices\threading\generics\Monitor\EnterExit02.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "managed", "managed", "{6E297004-C2FE-48FE-B71F-EEAC06751CD3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Compilation", "managed\Compilation\Compilation.csproj", "{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "15266", "baseservices\exceptions\regressions\v1.0\15266.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericExceptions07", "baseservices\exceptions\generics\GenericExceptions07.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandleinvalid", "baseservices\threading\threadpool\bindhandle\bindhandleinvalid.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dynamicmethodliveness", "baseservices\exceptions\regressions\Dev11\154243\dynamicmethodliveness.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartBool_1", "baseservices\threading\paramthreadstart\ThreadStartBool_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "13662-b", "baseservices\threading\regressions\13662\13662-b.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NormalException", "baseservices\exceptions\regressions\V1\SEH\VJ\NormalException.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "delete_next_card_table", "Regressions\coreclr\0080\delete_next_card_table.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nested-try-catch07", "baseservices\exceptions\generics\nested-try-catch07.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-5-3D", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-5-3D.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-1-9-3D", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-1-9-3D.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread12", "baseservices\threading\generics\TimerCallback\thread12.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nested-try-catch04", "baseservices\exceptions\generics\nested-try-catch04.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartDouble_2", "baseservices\threading\paramthreadstart\ThreadStartDouble_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManualResetCtor2", "baseservices\threading\events\EventWaitHandle\ManualReset\ManualResetCtor2.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch03", "baseservices\exceptions\generics\try-catch03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "eventsource", "eventsource", "{D9DD2012-299F-4C77-8FDA-36FF1EBC8DA8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eventpipeandetw", "tracing\eventsource\eventpipeandetw\eventpipeandetw.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PulseAllNull", "baseservices\threading\monitor\pulseall\PulseAllNull.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallnullarray", "baseservices\threading\waithandle\waitall\waitallnullarray.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex7", "baseservices\threading\waithandle\waitall\waitallex7.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterlockedAddInt_2", "baseservices\threading\interlocked\add\InterlockedAddInt_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandleinvalid4", "baseservices\threading\threadpool\bindhandle\bindhandleinvalid4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am07abandonmultiplemutex", "baseservices\threading\mutex\abandonedmutex\am07abandonmultiplemutex.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "exchangedouble", "baseservices\threading\interlocked\exchange\exchangedouble.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchangedouble", "baseservices\threading\interlocked\compareexchange\compareexchangedouble.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread03", "baseservices\threading\generics\TimerCallback\thread03.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TryCatchFinally", "baseservices\exceptions\regressions\V1\SEH\VJ\TryCatchFinally.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex8a", "baseservices\threading\waithandle\waitany\waitanyex8a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "keyword", "keyword", "{EAF67482-BB19-46F0-807B-DD7C37082F7B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwoKeywords", "tracing\keyword\TwoKeywords\TwoKeywords.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch06", "baseservices\exceptions\generics\try-catch06.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartByte", "baseservices\threading\paramthreadstart\ThreadStartByte.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StackTracePreserveTests", "baseservices\exceptions\StackTracePreserve\StackTracePreserveTests.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg8", "baseservices\threading\mutex\openexisting\openmutexneg8.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex10", "baseservices\threading\waithandle\waitall\waitallex10.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "runtimeeventsource", "tracing\runtimeeventsource\runtimeeventsource.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter008", "baseservices\exceptions\generics\TypeParameter008.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-1-8-2", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-1-8-2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test583", "Regressions\coreclr\0583\Test583.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStatic06", "baseservices\threading\threadstatic\ThreadStatic06.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "395914", "baseservices\ilasm_ildasm\regression\vswhidbey395914\395914.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-finally01", "baseservices\exceptions\generics\try-finally01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emit", "reflection\DefaultInterfaceMethods\Emit.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter017", "baseservices\exceptions\generics\TypeParameter017.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GcInfoTransitions", "readytorun\r2rdump\files\GcInfoTransitions.csproj", "{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompEx", "Regressions\coreclr\0198\CompEx.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test72162", "Regressions\coreclr\72162\Test72162.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex1", "baseservices\threading\waithandle\waitone\waitoneex1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex6a", "baseservices\threading\waithandle\waitall\waitallex6a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helper", "reflection\regression\reflectionrepromasterforsl\Helper.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitnull", "baseservices\threading\monitor\wait\waitnull.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UserExceptionThread", "baseservices\exceptions\regressions\V1\SEH\VJ\UserExceptionThread.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mutexctor1", "baseservices\threading\mutex\misc\mutexctor1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartShort_2", "baseservices\threading\paramthreadstart\ThreadStartShort_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread17", "baseservices\threading\generics\threadstart\GThread17.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "abstractcalls", "Regressions\coreclr\22407\abstractcalls.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartObject_1", "baseservices\threading\paramthreadstart\ThreadStartObject_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "151232", "baseservices\exceptions\regressions\whidbeyM3.2\151232.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexpos4", "baseservices\threading\mutex\openexisting\openmutexpos4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread19", "baseservices\threading\generics\threadstart\GThread19.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartOperations_2", "baseservices\threading\paramthreadstart\ThreadStartOperations_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex2a", "baseservices\threading\waithandle\waitall\waitallex2a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test22888", "Regressions\coreclr\GitHub_22888\test22888.csproj", "{9D87696F-8C3A-49B8-86AD-A26D850B5A14}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex2", "baseservices\threading\waithandle\waitany\waitanyex2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-fault03", "baseservices\exceptions\generics\try-fault03.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartByte_1", "baseservices\threading\paramthreadstart\ThreadStartByte_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToLower", "Regressions\coreclr\0308\ToLower.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL6", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg1", "baseservices\threading\mutex\openexisting\openmutexneg1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "hosting", "hosting", "{D00749A1-0F53-433C-8DB8-8750B2AF5FBA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UserCode", "hosting\samples\hosting\usercode\UserCode.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-struct06", "baseservices\exceptions\generics\try-catch-struct06.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eventsourcetrace", "tracing\eventsource\eventsourcetrace\eventsourcetrace.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoResetCtor2", "baseservices\threading\events\EventWaitHandle\AutoReset\AutoResetCtor2.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorector3", "baseservices\threading\semaphore\ctoropen\semaphorector3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread13", "baseservices\threading\generics\TimerCallback\thread13.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AVHelper", "baseservices\threading\regressions\17360\AVHelper.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit06", "baseservices\threading\generics\Monitor\EnterExit06.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rundown", "tracing\tracevalidation\rundown\rundown.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeContracts", "baseservices\typeequivalence\contracts\TypeContracts.csproj", "{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "readonlyPrefix", "Regressions\coreclr\9414\readonlyPrefix.csproj", "{CBD0D777-3583-49CC-8538-DD84447F6522}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiltFallThru", "baseservices\exceptions\regressions\V1\SEH\asm\FiltFallThru.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-5-1", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-5-1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test0829", "Regressions\coreclr\0829\Test0829.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorectorneg1", "baseservices\threading\semaphore\ctoropen\semaphorectorneg1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL5", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "347011", "baseservices\threading\regressions\beta1\347011.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "threadstartstruct", "baseservices\threading\paramthreadstart\threadstartstruct.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread11", "baseservices\threading\generics\threadstart\GThread11.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ActivateStructDefCtor", "reflection\ActivateStructDefCtor\ActivateStructDefCtor.ilproj", "{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DefaultImplementationsOfInterfaces", "baseservices\compilerservices\RuntimeFeature\DefaultImplementationsOfInterfaces.ilproj", "{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread14", "baseservices\threading\generics\TimerCallback\thread14.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartUShort", "baseservices\threading\paramthreadstart\ThreadStartUShort.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch09", "baseservices\exceptions\generics\try-catch09.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "main", "Loader\regressions\GitHub_15544\main.csproj", "{AC75380E-F196-4F32-9BCF-F0589AF864E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test0792", "Regressions\coreclr\0792\Test0792.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rethrow", "baseservices\exceptions\regressions\V1\SEH\COOL\rethrow.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nullarraymemberwaitany", "baseservices\threading\waithandle\waitany\nullarraymemberwaitany.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartChar_3", "baseservices\threading\paramthreadstart\ThreadStartChar_3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "consumer", "Regressions\coreclr\22021\consumer.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit14", "baseservices\threading\generics\Monitor\EnterExit14.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InvokeProvider", "reflection\DefaultInterfaceMethods\InvokeProvider.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "intdec", "baseservices\threading\interlocked\decrement\intdec.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartString_1", "baseservices\threading\paramthreadstart\ThreadStartString_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-1-9-2", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-1-9-2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-12-1", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-12-1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex1", "baseservices\threading\waithandle\waitall\waitallex1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NoEnterValType", "baseservices\threading\monitor\unownedlock\NoEnterValType.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-11-2", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-11-2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EHPatternTests", "baseservices\exceptions\unittests\EHPatternTests.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "notimplemented", "Regressions\coreclr\16354\notimplemented.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am04waitany", "baseservices\threading\mutex\abandonedmutex\am04waitany.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg6", "baseservices\threading\mutex\openexisting\openmutexneg6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TryEnter06", "baseservices\threading\generics\Monitor\TryEnter06.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartString", "baseservices\threading\paramthreadstart\ThreadStartString.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandleinvalid6", "baseservices\threading\threadpool\bindhandle\bindhandleinvalid6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-finally-struct01", "baseservices\exceptions\generics\try-catch-finally-struct01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "moduleCctor", "baseservices\compilerservices\modulector\moduleCctor.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am08mixedarray", "baseservices\threading\mutex\abandonedmutex\am08mixedarray.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "genericcontext", "Regressions\coreclr\15241\genericcontext.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg5", "baseservices\threading\mutex\openexisting\openmutexneg5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "genericslib", "readytorun\tests\genericsload\genericslib.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit08", "baseservices\threading\generics\Monitor\EnterExit08.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleAssembly", "Regressions\coreclr\0149\SampleAssembly.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-6-3", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-6-3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ILHelper", "baseservices\exceptions\simple\ILHelper.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "interlock", "Regressions\common\interlock.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test12224", "Regressions\coreclr\GitHub_12224\Test12224.csproj", "{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "testClass", "Regressions\coreclr\1333\testClass.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-finally-struct03", "baseservices\exceptions\generics\try-catch-finally-struct03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-11-3D", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-11-3D.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RethrowAndFinally", "baseservices\exceptions\unittests\RethrowAndFinally.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "variance", "Regressions\coreclr\16355\variance.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waithandlewaitone1", "baseservices\threading\waithandle\misc\waithandlewaitone1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThrowInCatch", "baseservices\exceptions\unittests\ThrowInCatch.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartInt_1", "baseservices\threading\paramthreadstart\ThreadStartInt_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex11", "baseservices\threading\waithandle\waitall\waitallex11.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "437044", "baseservices\threading\regressions\beta2\437044.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex1a", "baseservices\threading\waithandle\waitany\waitanyex1a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nested-try-catch09", "baseservices\exceptions\generics\nested-try-catch09.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "versionbubbles", "readytorun\tests\versionbubbles\versionbubbles.csproj", "{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartSByte_2", "baseservices\threading\paramthreadstart\ThreadStartSByte_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nested-try-catch02", "baseservices\exceptions\generics\nested-try-catch02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg4", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semdemo", "baseservices\threading\semaphore\unit\semdemo.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "200176", "baseservices\threading\regressions\whidbey_m3\200176.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterExit09", "baseservices\threading\generics\Monitor\EnterExit09.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nonvirtualcall", "Regressions\coreclr\15827\nonvirtualcall.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecursiveException", "baseservices\exceptions\regressions\V1\SEH\VJ\RecursiveException.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semtest", "baseservices\threading\semaphore\unit\semtest.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericExceptions03", "baseservices\exceptions\generics\GenericExceptions03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReturnFromCatch", "baseservices\exceptions\unittests\ReturnFromCatch.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test584", "Regressions\coreclr\0584\Test584.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchange2", "baseservices\threading\interlocked\compareexchange\compareexchange2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test0828", "Regressions\coreclr\0828\Test0828.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "intinc", "baseservices\threading\interlocked\increment\intinc.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GetInterfaceMapProvider", "reflection\DefaultInterfaceMethods\GetInterfaceMapProvider.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartNeg3", "baseservices\threading\paramthreadstart\ThreadStartNeg3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CriticalCode", "Regressions\coreclr\0694\CriticalCode.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg2", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test22348", "Regressions\coreclr\GitHub_22348\Test22348.csproj", "{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "performance", "performance\performance.csproj", "{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tighttimercallback", "baseservices\threading\generics\TimerCallback\tighttimercallback.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread25", "baseservices\threading\generics\TimerCallback\thread25.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Filter", "baseservices\exceptions\regressions\V1\SEH\asm\Filter.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-9-3D", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-9-3D.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eventlistener", "tracing\eventlistener\eventlistener.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExecuteCodeWithGuaranteedCleanup", "baseservices\compilerservices\RuntimeHelpers\ExecuteCodeWithGuaranteedCleanup.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test570", "Regressions\coreclr\0570\Test570.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartULong_2", "baseservices\threading\paramthreadstart\ThreadStartULong_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "longinc", "baseservices\threading\interlocked\increment\longinc.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread29", "baseservices\threading\generics\TimerCallback\thread29.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pending", "baseservices\exceptions\unittests\Pending.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitone2", "baseservices\threading\mutex\misc\waitone2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "modifiersdata", "reflection\Modifiers\modifiersdata.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dev10_535767", "baseservices\compilerservices\dynamicobjectproperties\Dev10_535767.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am06abandonall", "baseservices\threading\mutex\abandonedmutex\am06abandonall.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter003", "baseservices\exceptions\generics\TypeParameter003.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchange1_cti", "baseservices\threading\interlocked\compareexchange\compareexchange1_cti.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManualResetCast2", "baseservices\threading\events\EventWaitHandle\ManualReset\ManualResetCast2.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-finally-struct02", "baseservices\exceptions\generics\try-finally-struct02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TryEnter03", "baseservices\threading\generics\Monitor\TryEnter03.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArrayInit", "baseservices\exceptions\simple\ArrayInit.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HandlerException", "baseservices\exceptions\regressions\V1\SEH\VJ\HandlerException.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex8a", "baseservices\threading\waithandle\waitall\waitallex8a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sharedinterfacemethod", "Regressions\coreclr\16775\sharedinterfacemethod.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "istype", "Regressions\coreclr\0046\istype.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartInt", "baseservices\threading\paramthreadstart\ThreadStartInt.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-struct04", "baseservices\exceptions\generics\try-catch-struct04.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-10-3D", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-10-3D.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mainv2", "readytorun\tests\mainv2.csproj", "{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecursiveThrowNew", "baseservices\exceptions\unittests\RecursiveThrowNew.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch07", "baseservices\exceptions\generics\try-catch07.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test1534", "Regressions\coreclr\1534\Test1534.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "hfaParam", "reflection\regression\hfa\hfaParam.csproj", "{CE893CE4-177E-47D3-A5DA-DF4D64E76812}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-struct03", "baseservices\exceptions\generics\try-catch-struct03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenericExceptions05", "baseservices\exceptions\generics\GenericExceptions05.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mainv1", "readytorun\tests\mainv1.csproj", "{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TryCatch", "baseservices\exceptions\regressions\V1\SEH\VJ\TryCatch.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scenario", "Scenario", "{53779BF1-2CE9-452A-820E-8F53EF57B110}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "JitBench", "JitBench", "{EB67E138-3812-44A4-8B22-21322D3B0AF2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JitBench", "performance\Scenario\JitBench\unofficial_dotnet\JitBench.csproj", "{1A4C448C-C56B-4E17-B36A-B339FDB8B558}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoResetCast1", "baseservices\threading\events\EventWaitHandle\AutoReset\AutoResetCast1.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeParameter010", "baseservices\exceptions\generics\TypeParameter010.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "genrecur", "Regressions\coreclr\0211\genrecur.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExchangeTString_1", "baseservices\threading\interlocked\exchange\ExchangeTString_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-fault-struct03", "baseservices\exceptions\generics\try-fault-struct03.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompareExchangeTString", "baseservices\threading\interlocked\compareexchange\CompareExchangeTString.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pow3", "Regressions\common\pow3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartLong_2", "baseservices\threading\paramthreadstart\ThreadStartLong_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread16", "baseservices\threading\generics\TimerCallback\thread16.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsEventLog", "baseservices\exceptions\WindowsEventLog\WindowsEventLog.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "R2RDumpTest", "readytorun\r2rdump\R2RDumpTest.csproj", "{39CBA7F1-6886-4F43-A322-2A54271D26B6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex4a", "baseservices\threading\waithandle\waitall\waitallex4a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "usegenericfield", "readytorun\tests\genericsload\usegenericfield.csproj", "{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartLong_1", "baseservices\threading\paramthreadstart\ThreadStartLong_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLStressADLL11", "Loader\classloader\v1\Stress\Beta1\CLStressA\CLStressADLL11.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchangeintptr", "baseservices\threading\interlocked\compareexchange\compareexchangeintptr.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex10a", "baseservices\threading\waithandle\waitany\waitanyex10a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nested-try-catch08", "baseservices\exceptions\generics\nested-try-catch08.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread01", "baseservices\threading\generics\threadstart\GThread01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartOperations", "baseservices\threading\paramthreadstart\ThreadStartOperations.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStatic05", "baseservices\threading\threadstatic\ThreadStatic05.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Case4", "Loader\classloader\v1\M10\Acceptance\Case4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "intinccheckreturn", "baseservices\threading\interlocked\checkreturn\intinccheckreturn.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "other", "baseservices\exceptions\regressions\v4.0\640474\other.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex7", "baseservices\threading\waithandle\waitany\waitanyex7.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartDecimal_1", "baseservices\threading\paramthreadstart\ThreadStartDecimal_1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-10-2", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-10-2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerfLab", "performance\perflab\PerfLab.csproj", "{507E3CC2-5D95-414D-9F01-2A106FC177DC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-5-2", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-5-2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandle1", "baseservices\threading\threadpool\bindhandle\bindhandle1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStartDelegate_2", "baseservices\threading\paramthreadstart\ThreadStartDelegate_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThreadStatic01", "baseservices\threading\threadstatic\ThreadStatic01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread21", "baseservices\threading\generics\threadstart\GThread21.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExchangeTString_2", "baseservices\threading\interlocked\exchange\ExchangeTString_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "objmonhelper", "baseservices\threading\regressions\269336\objmonhelper.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg2", "baseservices\threading\mutex\openexisting\openmutexneg2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-finally-struct01", "baseservices\exceptions\generics\try-finally-struct01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompareExchangeLong_2", "baseservices\threading\interlocked\compareexchange\CompareExchangeLong_2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "exchange5_cti", "baseservices\threading\interlocked\exchange\exchange5_cti.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex5", "baseservices\threading\waithandle\waitany\waitanyex5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-2-12-3", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-2-12-3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExchangeInt", "baseservices\threading\interlocked\exchange\ExchangeInt.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "thread26", "baseservices\threading\generics\TimerCallback\thread26.csproj", "{A1F1C234-D043-412E-BAE9-36A26936DAB5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg6", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "longdec", "baseservices\threading\interlocked\decrement\longdec.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanynullarray", "baseservices\threading\waithandle\waitany\waitanynullarray.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Target", "baseservices\visibility\Target.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Relocation", "Relocation", "{CEC498A1-B488-46D2-8F61-8E2577004EEA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IL_DLL", "Loader\classloader\v1\M10\Relocation\IL\IL_DLL.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tier1Collectible", "reflection\Tier1Collectible\Tier1Collectible.csproj", "{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InnerFinally", "baseservices\exceptions\unittests\InnerFinally.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test", "Regressions\assemblyref\test.csproj", "{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am01waitallneg", "baseservices\threading\mutex\abandonedmutex\am01waitallneg.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex9a", "baseservices\threading\waithandle\waitall\waitallex9a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-catch-finally-struct02", "baseservices\exceptions\generics\try-catch-finally-struct02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "6906", "baseservices\threading\regressions\6906\6906.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "try-finally-struct03", "baseservices\exceptions\generics\try-finally-struct03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex9a", "baseservices\threading\waithandle\waitany\waitanyex9a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterlockedAddInt", "baseservices\threading\interlocked\add\InterlockedAddInt.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GThread03", "baseservices\threading\generics\threadstart\GThread03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "305155", "baseservices\ilasm_ildasm\regression\vswhidbey305155\305155.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GetInterfaceMapConsumer", "reflection\DefaultInterfaceMethods\GetInterfaceMapConsumer.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "compareexchange3", "baseservices\threading\interlocked\compareexchange\compareexchange3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L-1-8-1", "Loader\classloader\v1\Beta1\Layout\Matrix\cs\L-1-8-1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "finally", "baseservices\exceptions\regressions\V1\SEH\COOL\finally.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex1", "baseservices\threading\waithandle\waitany\waitanyex1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TieredVtableMethodTests", "baseservices\TieredCompilation\TieredVtableMethodTests.csproj", "{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "interfacecctor", "Regressions\coreclr\15650\interfacecctor.ilproj", "{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|x64.Build.0 = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|x86.Build.0 = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|x64.ActiveCfg = Release|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|x64.Build.0 = Release|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|x86.ActiveCfg = Release|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|x86.Build.0 = Release|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Debug|x64.Build.0 = Debug|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Debug|x86.Build.0 = Debug|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Release|x64.ActiveCfg = Release|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Release|x64.Build.0 = Release|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Release|x86.ActiveCfg = Release|Any CPU
+		{CBD0D777-3583-49CC-8538-DD84447F6522}.Release|x86.Build.0 = Release|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Debug|x64.Build.0 = Debug|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Debug|x86.Build.0 = Debug|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Release|x64.ActiveCfg = Release|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Release|x64.Build.0 = Release|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Release|x86.ActiveCfg = Release|Any CPU
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5}.Release|x86.Build.0 = Release|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Debug|x64.Build.0 = Debug|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Debug|x86.Build.0 = Debug|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Release|x64.ActiveCfg = Release|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Release|x64.Build.0 = Release|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Release|x86.ActiveCfg = Release|Any CPU
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9}.Release|x86.Build.0 = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|x64.Build.0 = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|x86.Build.0 = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|x64.ActiveCfg = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|x64.Build.0 = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|x86.ActiveCfg = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|x86.Build.0 = Release|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Debug|x64.Build.0 = Debug|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Debug|x86.Build.0 = Debug|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Release|x64.ActiveCfg = Release|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Release|x64.Build.0 = Release|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Release|x86.ActiveCfg = Release|Any CPU
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5}.Release|x86.Build.0 = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|x64.Build.0 = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|x86.Build.0 = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|x64.ActiveCfg = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|x64.Build.0 = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|x86.ActiveCfg = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|x86.Build.0 = Release|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Debug|x64.Build.0 = Debug|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Debug|x86.Build.0 = Debug|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Release|x64.ActiveCfg = Release|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Release|x64.Build.0 = Release|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Release|x86.ActiveCfg = Release|Any CPU
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813}.Release|x86.Build.0 = Release|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Debug|x64.Build.0 = Debug|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Debug|x86.Build.0 = Debug|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Release|x64.ActiveCfg = Release|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Release|x64.Build.0 = Release|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Release|x86.ActiveCfg = Release|Any CPU
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D}.Release|x86.Build.0 = Release|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Debug|x64.Build.0 = Debug|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Debug|x86.Build.0 = Debug|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Release|Any CPU.Build.0 = Release|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Release|x64.ActiveCfg = Release|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Release|x64.Build.0 = Release|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Release|x86.ActiveCfg = Release|Any CPU
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246}.Release|x86.Build.0 = Release|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Debug|x64.Build.0 = Debug|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Debug|x86.Build.0 = Debug|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Release|x64.ActiveCfg = Release|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Release|x64.Build.0 = Release|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Release|x86.ActiveCfg = Release|Any CPU
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB}.Release|x86.Build.0 = Release|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Debug|x64.Build.0 = Debug|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Debug|x86.Build.0 = Debug|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Release|x64.ActiveCfg = Release|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Release|x64.Build.0 = Release|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Release|x86.ActiveCfg = Release|Any CPU
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D}.Release|x86.Build.0 = Release|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Debug|x64.Build.0 = Debug|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Debug|x86.Build.0 = Debug|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Release|Any CPU.Build.0 = Release|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Release|x64.ActiveCfg = Release|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Release|x64.Build.0 = Release|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Release|x86.ActiveCfg = Release|Any CPU
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96}.Release|x86.Build.0 = Release|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Debug|x64.Build.0 = Debug|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Debug|x86.Build.0 = Debug|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Release|x64.ActiveCfg = Release|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Release|x64.Build.0 = Release|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Release|x86.ActiveCfg = Release|Any CPU
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9}.Release|x86.Build.0 = Release|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Debug|x64.Build.0 = Debug|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Debug|x86.Build.0 = Debug|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Release|x64.ActiveCfg = Release|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Release|x64.Build.0 = Release|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Release|x86.ActiveCfg = Release|Any CPU
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A}.Release|x86.Build.0 = Release|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Debug|x64.Build.0 = Debug|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Debug|x86.Build.0 = Debug|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Release|x64.ActiveCfg = Release|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Release|x64.Build.0 = Release|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Release|x86.ActiveCfg = Release|Any CPU
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC}.Release|x86.Build.0 = Release|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Debug|x64.Build.0 = Debug|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Debug|x86.Build.0 = Debug|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Release|x64.ActiveCfg = Release|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Release|x64.Build.0 = Release|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Release|x86.ActiveCfg = Release|Any CPU
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB}.Release|x86.Build.0 = Release|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Debug|x64.Build.0 = Debug|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Debug|x86.Build.0 = Debug|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Release|Any CPU.Build.0 = Release|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Release|x64.ActiveCfg = Release|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Release|x64.Build.0 = Release|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Release|x86.ActiveCfg = Release|Any CPU
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790}.Release|x86.Build.0 = Release|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Debug|x64.Build.0 = Debug|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Debug|x86.Build.0 = Debug|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Release|x64.ActiveCfg = Release|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Release|x64.Build.0 = Release|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Release|x86.ActiveCfg = Release|Any CPU
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB}.Release|x86.Build.0 = Release|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Debug|x64.Build.0 = Debug|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Debug|x86.Build.0 = Debug|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Release|x64.ActiveCfg = Release|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Release|x64.Build.0 = Release|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Release|x86.ActiveCfg = Release|Any CPU
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562}.Release|x86.Build.0 = Release|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Debug|x64.Build.0 = Debug|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Debug|x86.Build.0 = Debug|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Release|x64.ActiveCfg = Release|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Release|x64.Build.0 = Release|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Release|x86.ActiveCfg = Release|Any CPU
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B}.Release|x86.Build.0 = Release|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Debug|x64.Build.0 = Debug|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Debug|x86.Build.0 = Debug|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Release|x64.ActiveCfg = Release|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Release|x64.Build.0 = Release|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Release|x86.ActiveCfg = Release|Any CPU
+		{4707D644-0A3C-4D9E-9AE0-518A76680245}.Release|x86.Build.0 = Release|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Debug|x64.Build.0 = Debug|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Debug|x86.Build.0 = Debug|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Release|x64.ActiveCfg = Release|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Release|x64.Build.0 = Release|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Release|x86.ActiveCfg = Release|Any CPU
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D}.Release|x86.Build.0 = Release|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Debug|x64.Build.0 = Debug|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Debug|x86.Build.0 = Debug|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Release|x64.ActiveCfg = Release|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Release|x64.Build.0 = Release|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Release|x86.ActiveCfg = Release|Any CPU
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C}.Release|x86.Build.0 = Release|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Debug|x64.Build.0 = Debug|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Debug|x86.Build.0 = Debug|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Release|x64.ActiveCfg = Release|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Release|x64.Build.0 = Release|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Release|x86.ActiveCfg = Release|Any CPU
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78}.Release|x86.Build.0 = Release|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Debug|x64.Build.0 = Debug|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Debug|x86.Build.0 = Debug|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Release|x64.ActiveCfg = Release|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Release|x64.Build.0 = Release|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Release|x86.ActiveCfg = Release|Any CPU
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864}.Release|x86.Build.0 = Release|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Debug|x64.Build.0 = Debug|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Debug|x86.Build.0 = Debug|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Release|x64.ActiveCfg = Release|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Release|x64.Build.0 = Release|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Release|x86.ActiveCfg = Release|Any CPU
+		{AB991158-9DCA-4E17-9848-A6A574C68003}.Release|x86.Build.0 = Release|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Debug|x64.Build.0 = Debug|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Debug|x86.Build.0 = Debug|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Release|x64.ActiveCfg = Release|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Release|x64.Build.0 = Release|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Release|x86.ActiveCfg = Release|Any CPU
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9}.Release|x86.Build.0 = Release|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Debug|x64.Build.0 = Debug|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Debug|x86.Build.0 = Debug|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Release|x64.ActiveCfg = Release|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Release|x64.Build.0 = Release|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Release|x86.ActiveCfg = Release|Any CPU
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D}.Release|x86.Build.0 = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|x64.Build.0 = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|x86.Build.0 = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|x64.ActiveCfg = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|x64.Build.0 = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|x86.ActiveCfg = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|x86.Build.0 = Release|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Debug|x64.Build.0 = Debug|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Debug|x86.Build.0 = Debug|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Release|x64.ActiveCfg = Release|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Release|x64.Build.0 = Release|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Release|x86.ActiveCfg = Release|Any CPU
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43}.Release|x86.Build.0 = Release|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Debug|x64.Build.0 = Debug|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Debug|x86.Build.0 = Debug|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Release|x64.ActiveCfg = Release|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Release|x64.Build.0 = Release|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Release|x86.ActiveCfg = Release|Any CPU
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14}.Release|x86.Build.0 = Release|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Debug|x64.Build.0 = Debug|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Debug|x86.Build.0 = Debug|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Release|x64.ActiveCfg = Release|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Release|x64.Build.0 = Release|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Release|x86.ActiveCfg = Release|Any CPU
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B}.Release|x86.Build.0 = Release|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Debug|x64.Build.0 = Debug|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Debug|x86.Build.0 = Debug|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Release|x64.ActiveCfg = Release|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Release|x64.Build.0 = Release|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Release|x86.ActiveCfg = Release|Any CPU
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD}.Release|x86.Build.0 = Release|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Debug|x64.Build.0 = Debug|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Debug|x86.Build.0 = Debug|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Release|x64.ActiveCfg = Release|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Release|x64.Build.0 = Release|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Release|x86.ActiveCfg = Release|Any CPU
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52}.Release|x86.Build.0 = Release|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Debug|x64.Build.0 = Debug|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Debug|x86.Build.0 = Debug|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Release|x64.ActiveCfg = Release|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Release|x64.Build.0 = Release|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Release|x86.ActiveCfg = Release|Any CPU
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6}.Release|x86.Build.0 = Release|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Debug|x64.Build.0 = Debug|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Debug|x86.Build.0 = Debug|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Release|x64.ActiveCfg = Release|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Release|x64.Build.0 = Release|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Release|x86.ActiveCfg = Release|Any CPU
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513}.Release|x86.Build.0 = Release|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Debug|x64.Build.0 = Debug|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Debug|x86.Build.0 = Debug|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Release|x64.ActiveCfg = Release|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Release|x64.Build.0 = Release|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Release|x86.ActiveCfg = Release|Any CPU
+		{41182623-9E3E-46FC-AC26-47AEE4E1B6A9}.Release|x86.Build.0 = Release|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Debug|x64.Build.0 = Debug|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Debug|x86.Build.0 = Debug|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Release|x64.ActiveCfg = Release|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Release|x64.Build.0 = Release|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Release|x86.ActiveCfg = Release|Any CPU
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD}.Release|x86.Build.0 = Release|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Debug|x64.Build.0 = Debug|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Debug|x86.Build.0 = Debug|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Release|x64.ActiveCfg = Release|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Release|x64.Build.0 = Release|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Release|x86.ActiveCfg = Release|Any CPU
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812}.Release|x86.Build.0 = Release|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Debug|x64.Build.0 = Debug|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Debug|x86.Build.0 = Debug|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Release|x64.ActiveCfg = Release|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Release|x64.Build.0 = Release|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Release|x86.ActiveCfg = Release|Any CPU
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558}.Release|x86.Build.0 = Release|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Debug|x64.Build.0 = Debug|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Debug|x86.Build.0 = Debug|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Release|x64.ActiveCfg = Release|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Release|x64.Build.0 = Release|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Release|x86.ActiveCfg = Release|Any CPU
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6}.Release|x86.Build.0 = Release|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Debug|x64.Build.0 = Debug|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Debug|x86.Build.0 = Debug|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Release|x64.ActiveCfg = Release|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Release|x64.Build.0 = Release|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Release|x86.ActiveCfg = Release|Any CPU
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4}.Release|x86.Build.0 = Release|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Debug|x64.Build.0 = Debug|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Debug|x86.Build.0 = Debug|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Release|x64.ActiveCfg = Release|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Release|x64.Build.0 = Release|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Release|x86.ActiveCfg = Release|Any CPU
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B431C57A-A6AF-4E3E-9F02-F5F19270D71F} = {24AE5BEA-06E4-46EE-9B36-C2D100FF3182}
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D} = {81609C7E-6879-4589-AF6A-06C1715E2C1A}
+		{55F398FA-9259-4384-B953-6F1138649A54} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{81609C7E-6879-4589-AF6A-06C1715E2C1A} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{19C43189-C7C7-46A7-BF37-A8AA0324F289} = {93C35115-5594-4E41-AE6A-CFE9EB86CAD7}
+		{A602B9C1-45EB-4316-BCD3-2DBD840A6BEF} = {19C43189-C7C7-46A7-BF37-A8AA0324F289}
+		{53FE242B-0F76-4480-9764-F4BD3E66F2DB} = {A602B9C1-45EB-4316-BCD3-2DBD840A6BEF}
+		{6A8D1B27-E65F-44EC-B202-F04526316BCE} = {0E95E88E-562A-4CF7-AEF4-C18A35785643}
+		{CBD0D777-3583-49CC-8538-DD84447F6522} = {6A8D1B27-E65F-44EC-B202-F04526316BCE}
+		{E693F6E0-DEC8-4D74-8454-F9262FCD380C} = {A602B9C1-45EB-4316-BCD3-2DBD840A6BEF}
+		{6592EDE4-61F3-4A82-BCDE-05EB11DCE69B} = {E693F6E0-DEC8-4D74-8454-F9262FCD380C}
+		{24DEF18B-B2AB-4CD7-AFD6-C985BFFCBCF8} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{A1F1C234-D043-412E-BAE9-36A26936DAB5} = {24DEF18B-B2AB-4CD7-AFD6-C985BFFCBCF8}
+		{558D34B5-6EC1-4F30-8A15-B94F7EC74DA9} = {6A8D1B27-E65F-44EC-B202-F04526316BCE}
+		{1AB3D0C7-230F-43F6-9884-19DE8BDF54DC} = {24AE5BEA-06E4-46EE-9B36-C2D100FF3182}
+		{F30509B1-D297-43C9-8C85-3BFA7BA468BA} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{B4A6C769-4CFE-4417-8D35-3FA1319C7EEA} = {F30509B1-D297-43C9-8C85-3BFA7BA468BA}
+		{BBD3E0B3-9239-44D6-A314-3982C9F7AEEC} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{05FE83CF-648D-4ECB-8D76-3CF62CA96631} = {056E905B-D873-4CAC-BE67-4A9CE5D5BB41}
+		{868ABF9A-BA69-40D4-BB27-21DF56B6E76F} = {05FE83CF-648D-4ECB-8D76-3CF62CA96631}
+		{29FBBAC9-7233-4DE4-BBC4-4896A510B167} = {93C35115-5594-4E41-AE6A-CFE9EB86CAD7}
+		{D24910B4-03F4-4A81-9A42-192ABB2DA88D} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{B991CC34-EA7D-4EE5-9E8B-CBE02972A6E8} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{5A86C2AD-18A4-4DF1-995F-B4980A073F39} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{FA586BC0-D7AA-4617-A6C2-E6FE8A509C9B} = {93C35115-5594-4E41-AE6A-CFE9EB86CAD7}
+		{C1CC49D1-A6E0-4AC8-858C-6BFD733A29C5} = {FA586BC0-D7AA-4617-A6C2-E6FE8A509C9B}
+		{FDDCD3E9-015D-4A3E-9D11-B2F94CD5DF3A} = {1AB3D0C7-230F-43F6-9884-19DE8BDF54DC}
+		{823976D5-1688-41C1-9172-3F01A54FEEF8} = {FDDCD3E9-015D-4A3E-9D11-B2F94CD5DF3A}
+		{B941725C-E3FF-410B-A238-3B5DDFC206A1} = {823976D5-1688-41C1-9172-3F01A54FEEF8}
+		{F16C4563-EF98-4EA1-9D40-BE1EE420B4F9} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{DD35A9E3-C311-4B41-B394-256210F618BB} = {6F1EDF45-62DF-436D-B170-880FB1E0EC9A}
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA} = {6F1EDF45-62DF-436D-B170-880FB1E0EC9A}
+		{88CA2A45-D34B-4870-A65B-8506CB87FD6A} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{0744B061-B9A1-41F7-91B0-D264B56EC4AC} = {A602B9C1-45EB-4316-BCD3-2DBD840A6BEF}
+		{2B672C1A-C257-4D45-A411-2FE354D00120} = {0744B061-B9A1-41F7-91B0-D264B56EC4AC}
+		{E397AD77-0485-4E2B-9919-D1FD30AA19E6} = {2B672C1A-C257-4D45-A411-2FE354D00120}
+		{C23EDBD0-DAB4-4F80-9B8E-0BF9D0CDFC06} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{FF8FEB39-6B9E-48F2-82C7-7C70D0930E53} = {056E905B-D873-4CAC-BE67-4A9CE5D5BB41}
+		{7E4CD64F-C8D1-491C-BF2E-72F841EC6813} = {B4A6C769-4CFE-4417-8D35-3FA1319C7EEA}
+		{8758BFAC-7D36-4244-8A36-4C464C0AFA6D} = {1AB3D0C7-230F-43F6-9884-19DE8BDF54DC}
+		{D0CDF030-C598-45FC-93BC-40EAAC51BBB5} = {24AE5BEA-06E4-46EE-9B36-C2D100FF3182}
+		{4787077D-2D97-4826-970C-C0E85F623E72} = {1AB3D0C7-230F-43F6-9884-19DE8BDF54DC}
+		{3E19A528-42ED-4440-8A0A-2F1A112BC0C7} = {FDDCD3E9-015D-4A3E-9D11-B2F94CD5DF3A}
+		{D92F84A0-AE82-4B12-8BEB-6B8AAB25D647} = {593A2C33-D110-4C64-A2A7-C449887F1B41}
+		{74F6E89A-74ED-48BA-93AC-1A6CBEC61246} = {D92F84A0-AE82-4B12-8BEB-6B8AAB25D647}
+		{37E124C7-443D-4F93-97CB-94197E1BBB01} = {593A2C33-D110-4C64-A2A7-C449887F1B41}
+		{7DECC55A-B584-4456-83BA-6C42A5B3B3CB} = {37E124C7-443D-4F93-97CB-94197E1BBB01}
+		{85DFC527-4DB1-595E-A7D7-E94EE1F8140D} = {6A8D1B27-E65F-44EC-B202-F04526316BCE}
+		{717A283B-E0AF-4EF2-B072-0378DECB2D96} = {F30509B1-D297-43C9-8C85-3BFA7BA468BA}
+		{2488E058-E979-49A6-A1F3-6378D98D8560} = {24AE5BEA-06E4-46EE-9B36-C2D100FF3182}
+		{DA95CB7F-2357-4180-8447-0D10E4BA6861} = {2488E058-E979-49A6-A1F3-6378D98D8560}
+		{4F97914F-08FD-414F-A827-6DB32902B140} = {FDDCD3E9-015D-4A3E-9D11-B2F94CD5DF3A}
+		{F836E0D5-A909-4E8B-A77C-06B603BEFBD9} = {7E86EE90-D5F6-4037-A1BF-0C39CC2D608E}
+		{9CDA75E9-176E-44D0-BE2A-9C63F1826D38} = {24AE5BEA-06E4-46EE-9B36-C2D100FF3182}
+		{486B2CA1-41A9-4552-A2CE-C691CC25DC2A} = {9CDA75E9-176E-44D0-BE2A-9C63F1826D38}
+		{507E3CC2-5D95-414D-9F01-2A106FC177DC} = {74AFB769-CFA8-4419-9AD6-7C7318ACBCA2}
+		{8D986155-7E86-43BD-B64C-BB79711608B0} = {7E86EE90-D5F6-4037-A1BF-0C39CC2D608E}
+		{E55A6F8B-B9E3-45CE-88F4-22AE70F606CB} = {6A8D1B27-E65F-44EC-B202-F04526316BCE}
+		{649A239B-AB4B-4E20-BDCA-3BA736E8B790} = {B431C57A-A6AF-4E3E-9F02-F5F19270D71F}
+		{946AE2D9-F656-4771-81DB-6D02EEEEFFCB} = {0E95E88E-562A-4CF7-AEF4-C18A35785643}
+		{BDEFB121-C603-4011-91FF-16D2175292FF} = {FDDCD3E9-015D-4A3E-9D11-B2F94CD5DF3A}
+		{58DB4A46-51BE-46A1-AEA1-0C32FBAF5562} = {7E86EE90-D5F6-4037-A1BF-0C39CC2D608E}
+		{405DB174-DAB1-4095-BC2D-B64E38E94B8B} = {24AE5BEA-06E4-46EE-9B36-C2D100FF3182}
+		{9FAB7720-E522-491D-9E34-990535DFD801} = {056E905B-D873-4CAC-BE67-4A9CE5D5BB41}
+		{5773539B-6415-4449-AC18-2A6855832B38} = {9FAB7720-E522-491D-9E34-990535DFD801}
+		{4707D644-0A3C-4D9E-9AE0-518A76680245} = {D92F84A0-AE82-4B12-8BEB-6B8AAB25D647}
+		{B50A2D18-32B1-4051-A3E4-B004A6BBBF4D} = {FA586BC0-D7AA-4617-A6C2-E6FE8A509C9B}
+		{D1303490-9864-4CC7-9FC0-964B371C7D8C} = {6A8D1B27-E65F-44EC-B202-F04526316BCE}
+		{8DDE6EB9-7CAE-4DD1-B2CC-8D756855EF78} = {593A2C33-D110-4C64-A2A7-C449887F1B41}
+		{CC1EA325-DA8C-410C-9FAB-3E57044F9864} = {D92F84A0-AE82-4B12-8BEB-6B8AAB25D647}
+		{AB991158-9DCA-4E17-9848-A6A574C68003} = {9CDA75E9-176E-44D0-BE2A-9C63F1826D38}
+		{0C9AFA76-CEAE-4376-906C-6A22C7EBE760} = {93C35115-5594-4E41-AE6A-CFE9EB86CAD7}
+		{39B337DC-8665-404E-9DEB-9938B85ADC74} = {0C9AFA76-CEAE-4376-906C-6A22C7EBE760}
+		{AEDBF19A-BD33-47CB-AEFC-83397FB2EAD5} = {FDDCD3E9-015D-4A3E-9D11-B2F94CD5DF3A}
+		{8884AF49-72DA-44EC-B3E0-9FC8F9BCC1F9} = {593A2C33-D110-4C64-A2A7-C449887F1B41}
+		{91E132C9-6F4D-4BAE-946D-64326A15EE0C} = {6F1EDF45-62DF-436D-B170-880FB1E0EC9A}
+		{B17F5D67-39AF-44F1-A11F-8F57DA67972A} = {E70DB347-55C5-4AF5-84D2-E173C873D605}
+		{3AA83D67-0A4E-407B-ABE3-9AC879C133D3} = {B17F5D67-39AF-44F1-A11F-8F57DA67972A}
+		{1AFDD005-7AB9-48E0-B6D4-4DE0560C936D} = {3AA83D67-0A4E-407B-ABE3-9AC879C133D3}
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5} = {6E297004-C2FE-48FE-B71F-EEAC06751CD3}
+		{D9DD2012-299F-4C77-8FDA-36FF1EBC8DA8} = {6F1EDF45-62DF-436D-B170-880FB1E0EC9A}
+		{EAF67482-BB19-46F0-807B-DD7C37082F7B} = {6F1EDF45-62DF-436D-B170-880FB1E0EC9A}
+		{7B504D1F-A3F4-4954-BA3B-5F98D614CC43} = {D92F84A0-AE82-4B12-8BEB-6B8AAB25D647}
+		{9D87696F-8C3A-49B8-86AD-A26D850B5A14} = {6A8D1B27-E65F-44EC-B202-F04526316BCE}
+		{D00749A1-0F53-433C-8DB8-8750B2AF5FBA} = {9FAB7720-E522-491D-9E34-990535DFD801}
+		{96F0C27B-5EA5-4962-8CA9-D89868BBCB1B} = {9CDA75E9-176E-44D0-BE2A-9C63F1826D38}
+		{F8D9C0E2-F86F-493F-8D18-0D19ADF6E3FD} = {7E86EE90-D5F6-4037-A1BF-0C39CC2D608E}
+		{A8E3EED5-E6C0-4976-AC7E-70691EA00C52} = {D0CDF030-C598-45FC-93BC-40EAAC51BBB5}
+		{AC75380E-F196-4F32-9BCF-F0589AF864E6} = {FA586BC0-D7AA-4617-A6C2-E6FE8A509C9B}
+		{9CBB2BDE-E9EF-4F0A-840C-0F80380D4513} = {6A8D1B27-E65F-44EC-B202-F04526316BCE}
+		{840300BB-0DD2-4BD3-A3C1-51C92DD4ADAD} = {593A2C33-D110-4C64-A2A7-C449887F1B41}
+		{CE893CE4-177E-47D3-A5DA-DF4D64E76812} = {8D986155-7E86-43BD-B64C-BB79711608B0}
+		{53779BF1-2CE9-452A-820E-8F53EF57B110} = {74AFB769-CFA8-4419-9AD6-7C7318ACBCA2}
+		{EB67E138-3812-44A4-8B22-21322D3B0AF2} = {53779BF1-2CE9-452A-820E-8F53EF57B110}
+		{1A4C448C-C56B-4E17-B36A-B339FDB8B558} = {EB67E138-3812-44A4-8B22-21322D3B0AF2}
+		{39CBA7F1-6886-4F43-A322-2A54271D26B6} = {593A2C33-D110-4C64-A2A7-C449887F1B41}
+		{CEC498A1-B488-46D2-8F61-8E2577004EEA} = {53FE242B-0F76-4480-9764-F4BD3E66F2DB}
+		{CDA666E1-9A22-4795-9FBD-3B3FAEB759A4} = {0E95E88E-562A-4CF7-AEF4-C18A35785643}
+		{DF8B8A76-BC07-4A5F-BD74-1B5D79B94E92} = {24AE5BEA-06E4-46EE-9B36-C2D100FF3182}
+	EndGlobalSection
+EndGlobal

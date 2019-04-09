@@ -37,6 +37,9 @@
   </Target>
 
   <Target Name="RestorePackage" Inputs="@(RestoreProjects)" Outputs="Unused">
+    <Message Condition="'$(__DistroRid)' == ''" Importance="High" Text="$(DotnetRestoreCommand) %(RestoreProjects.Identity) $(PackageVersionArg)" />
+    <Message Condition="'$(__DistroRid)' == ''" Importance="High" Text="$(DotnetRestoreCommand) -r $(__DistroRid) %(RestoreProjects.Identity) $(PackageVersionArg)" />
+
     <Exec Condition="'$(__DistroRid)' == ''" Command="$(DotnetRestoreCommand) %(RestoreProjects.Identity) $(PackageVersionArg)" StandardOutputImportance="Low" />
     <Exec Condition="'$(__DistroRid)' != ''" Command="$(DotnetRestoreCommand) -r $(__DistroRid) %(RestoreProjects.Identity) $(PackageVersionArg)" StandardOutputImportance="Low" />
   </Target>

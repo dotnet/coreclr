@@ -57,7 +57,7 @@ namespace JitBench
                 @"<Project Sdk=""Microsoft.NET.Sdk"">",
                 @"  <PropertyGroup>",
                 @"    <OutputType>Exe</OutputType>",
-                @"    <TargetFramework>netcoreapp2.1</TargetFramework>",
+                @"    
                 @"  </PropertyGroup>",
                 @"</Project>",
             });

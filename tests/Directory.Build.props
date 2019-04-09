@@ -11,7 +11,7 @@
     <BuildingTests>true</BuildingTests>
   </PropertyGroup>
 
-  <Import Project="dir.sdkbuild.props" Condition="'$(ArcadeBuild)' == 'true'"  />
+  <Import Project="dir.sdkbuild.props" />
 
   <!-- Common repo directories -->
   <PropertyGroup>
@@ -56,6 +56,12 @@
     <!-- BuildTools dependency -->
     <DotnetRestoreCommand Condition="'$(DotnetRestoreCommand)'==''">$(DotnetCliPath)/dotnet restore</DotnetRestoreCommand>
     <RunningOnUnix Condition="'$(OS)'!='Windows_NT'">true</RunningOnUnix>
+  </PropertyGroup>
+
+  <PropertyGroup >
+    <!-- This is a hack to avoid thousands of packaging errors. This needs to-->
+    <!-- be cleaned up by accurately decribing our package dependencies      -->
+    <NoWarn>NU1602</NoWarn>
   </PropertyGroup>
 
   <!-- Which tests shall we build? Default: Priority 0 tests.
