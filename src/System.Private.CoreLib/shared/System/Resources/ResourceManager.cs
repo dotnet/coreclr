@@ -202,7 +202,7 @@ namespace System.Resources
             CommonAssemblyInit();
         }
 
-        public ResourceManager(string baseName, Assembly assembly, Type usingResourceSet)
+        public ResourceManager(string baseName, Assembly assembly, Type? usingResourceSet)
         {
             if (null == baseName)
                 throw new ArgumentNullException(nameof(baseName));
