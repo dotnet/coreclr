@@ -9,6 +9,20 @@
 
 #ifdef FEATURE_PERFTRACING
 
+static bool IsNullOrWhiteSpace(LPCWSTR value)
+{
+    if (value == nullptr)
+        return true;
+
+    while (*value)
+    {
+        if (!iswspace(*value))
+            return false;
+        ++value;
+    }
+    return true;
+}
+
 bool EventPipeProtocolHelper::TryParseProviderConfiguration(uint8_t *&bufferCursor, uint32_t &bufferLen, CQuickArray<EventPipeProviderConfiguration> &result)
 {
     // Picking an arbitrary upper bound,
@@ -39,8 +53,8 @@ bool EventPipeProtocolHelper::TryParseProviderConfiguration(uint8_t *&bufferCurs
         LPCWSTR pProviderName = nullptr;
         if (!TryParseString(bufferCursor, bufferLen, pProviderName))
             return false;
-        if (wcslen(pProviderName) == 0)
-            return false; // TODO: Should we ignore these input?
+        if (IsNullOrWhiteSpace(pProviderName))
+            return false;
 
         LPCWSTR pFilterData = nullptr; // This parameter is optional.
         TryParseString(bufferCursor, bufferLen, pFilterData);
