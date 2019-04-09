@@ -2240,12 +2240,6 @@ TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTyp
         return TypeHandle::CannotCast;
     }
 
-    // allow an object of type T to be cast to Nullable<T> (they have the same representation)
-    if (Nullable::IsNullableForTypeNoGC(toTypeHnd, pMT))
-    {
-        CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, TRUE);
-        return TypeHandle::CanCast;
-    }
 
     return pMT->CanCastToClassOrInterfaceNoGC(toTypeHnd.AsMethodTable());
 }

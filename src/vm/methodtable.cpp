@@ -1606,6 +1606,13 @@ BOOL MethodTable::CanCastToClass(MethodTable *pTargetMT, TypeHandlePairList *pVi
     }
     CONTRACTL_END
 
+    // allow an object of type T to be cast to Nullable<T> (they have the same representation)
+    if (pTargetMT->IsNullable() && 
+        pTargetMT->GetInstantiation()[0].IsEquivalentTo(TypeHandle(this)))
+    {
+        return TypeHandle::CanCast;
+    }
+
     MethodTable *pMT = this;
 
     // If the target type has variant type parameters, we take a slower path
@@ -1710,6 +1717,13 @@ TypeHandle::CastResult MethodTable::CanCastToClassNoGC(MethodTable *pTargetMT)
         PRECONDITION(!pTargetMT->IsInterface());
     }
     CONTRACTL_END
+
+    // allow an object of type T to be cast to Nullable<T> (they have the same representation)
+    if (pTargetMT->IsNullable() && 
+        pTargetMT->GetInstantiation()[0] == TypeHandle(this))
+    {
+        return TypeHandle::CanCast;
+    }
 
     // We're conservative on variant classes
     if (pTargetMT->HasVariance() || g_IBCLogger.InstrEnabled())
