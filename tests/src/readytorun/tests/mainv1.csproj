@@ -11,6 +11,8 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <DefineConstants>$(DefineConstants);STATIC;CORECLR</DefineConstants>
+    <!-- https://github.com/dotnet/coreclr/issues/23643 -->
+    <CrossGenTest Condition=" '$(BuildOS)' == 'Windows_NT' And ('$(BuildArch)' == 'x64' Or '$(BuildArch)' == 'x86') ">false</CrossGenTest>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
