@@ -170,22 +170,10 @@ namespace System.Reflection.Emit
             }
 
             m_ILStream[m_length++] = (byte)opcode.Value;
-
-            // Manual inline from UpdateStackSize(OpCode, int)
-            m_maxMidStackCur += opcode.StackChange();
-            if (m_maxMidStackCur > m_maxMidStack)
-                m_maxMidStack = m_maxMidStackCur;
-            else if (m_maxMidStackCur < 0)
-                m_maxMidStackCur = 0;
-
-            if (opcode.EndsUncondJmpBlk())
-            {
-                m_maxStackSize += m_maxMidStack;
-                m_maxMidStack = 0;
-                m_maxMidStackCur = 0;
-            }
+            UpdateStackSize(opcode, opcode.StackChange());
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void UpdateStackSize(OpCode opcode, int stackchange)
         {
             // Updates internal variables for keeping track of the stack size
