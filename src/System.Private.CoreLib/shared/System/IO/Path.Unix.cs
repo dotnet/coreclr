@@ -78,7 +78,7 @@ namespace System.IO
             // Get the temp path from the TMPDIR environment variable.
             // If it's not set, just return the default path.
             // If it is, return it, ensuring it ends with a slash.
-            string path = Environment.GetEnvironmentVariable(TempEnvVar);
+            string? path = Environment.GetEnvironmentVariable(TempEnvVar);
             return
                 string.IsNullOrEmpty(path) ? DefaultTempPath :
                 PathInternal.IsDirectorySeparator(path[path.Length - 1]) ? path :

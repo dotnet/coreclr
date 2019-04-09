@@ -71,7 +71,7 @@ namespace System.IO
             return ((value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z'));
         }
 
-        internal static bool EndsWithPeriodOrSpace(string path)
+        internal static bool EndsWithPeriodOrSpace(string? path)
         {
             if (string.IsNullOrEmpty(path))
                 return false;

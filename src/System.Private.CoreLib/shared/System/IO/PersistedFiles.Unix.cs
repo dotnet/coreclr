@@ -66,7 +66,7 @@ namespace System.IO
 
         private static void EnsureUserDirectories()
         {
-            string userHomeDirectory = GetHomeDirectory();
+            string? userHomeDirectory = GetHomeDirectory();
 
             if (string.IsNullOrEmpty(userHomeDirectory))
             {
@@ -81,7 +81,7 @@ namespace System.IO
 
         /// <summary>Gets the current user's home directory.</summary>
         /// <returns>The path to the home directory, or null if it could not be determined.</returns>
-        internal static string GetHomeDirectory()
+        internal static string? GetHomeDirectory()
         {
             // First try to get the user's home directory from the HOME environment variable.
             // This should work in most cases.
@@ -101,7 +101,7 @@ namespace System.IO
                 const int BufLen = Interop.Sys.Passwd.InitialBufferSize;
                 byte* stackBuf = stackalloc byte[BufLen];
                 if (TryGetHomeDirectoryFromPasswd(stackBuf, BufLen, out userHomeDirectory))
-                    return userHomeDirectory!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                    return userHomeDirectory;
 
                 // Fallback to heap allocations if necessary, growing the buffer until
                 // we succeed.  TryGetHomeDirectory will throw if there's an unexpected error.
@@ -113,7 +113,7 @@ namespace System.IO
                     fixed (byte* buf = &heapBuf[0])
                     {
                         if (TryGetHomeDirectoryFromPasswd(buf, heapBuf.Length, out userHomeDirectory))
-                            return userHomeDirectory!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                            return userHomeDirectory;
                     }
                 }
             }
