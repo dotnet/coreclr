@@ -22,6 +22,9 @@ set(SOURCES
 set (MIDL_GENERATED_WINMD ${CMAKE_CURRENT_BINARY_DIR}/WinMD/Component.Contracts.winmd)
 file(TO_NATIVE_PATH ${MIDL_GENERATED_WINMD} MIDL_GENERATED_WINMD_WINDOWS_PATH)
 
+message ("Environment variable for Windows SDK version is: '$ENV{WindowsSDKVersion}'")
+
+
 if(NOT DEFINED CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION OR CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION STREQUAL "" )
   message(FATAL_ERROR "Windows SDK is required for the WinRT interop tests build.")
 else()
@@ -37,6 +40,10 @@ set (METADATA_DIR "${WINDOWS_KITS_DIR}/References/${CMAKE_VS_WINDOWS_TARGET_PLAT
 set (REFERENCE_WINMDS
   "${WINDOWS_KITS_DIR}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.FoundationContract/*/Windows.Foundation.FoundationContract.winmd"
   "${WINDOWS_KITS_DIR}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/Windows.Foundation.UniversalApiContract/*/Windows.Foundation.UniversalApiContract.winmd")
+
+if(NOT EXISTS "${WINDOWS_KITS_DIR}/References/10.0.17763.0")
+  message ("Windows 10.0.17763.0 SDK WinMDs not found.")
+endif()
 
 file(GLOB RESOLVED_METADATA_DIR ${METADATA_DIR})
 file(TO_NATIVE_PATH ${RESOLVED_METADATA_DIR} METADATA_DIR_ARGUMENT)
