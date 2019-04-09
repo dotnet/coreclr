@@ -92,15 +92,6 @@ public:
 
 const UINT NEW_PRESSURE_COUNT = 4;
 
-struct GCMemoryInfo
-{
-    int64_t _highMemoryLoadThresholdBytes;
-    int64_t _memoryLoadBytes;
-    int64_t _totalAvailableMemoryBytes;
-    int64_t _heapSizeBytes;
-    int64_t _fragmentedBytes;
-};
-
 class GCInterface {
 private:
 
@@ -119,7 +110,7 @@ public:
     static FORCEINLINE UINT64 InterlockedAdd(UINT64 *pAugend, UINT64 addend);
     static FORCEINLINE UINT64 InterlockedSub(UINT64 *pMinuend, UINT64 subtrahend);
 
-    static FCDECL1(void,    GetMemoryInfo, GCMemoryInfo* memoryInfo);
+    static FCDECL5(void,    GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* totalPhysicalMem, UINT32* lastRecordedMemLoad, size_t* lastRecordedHeapSize, size_t* lastRecordedFragmentation);
     static FCDECL0(int,     GetGcLatencyMode);
     static FCDECL1(int,     SetGcLatencyMode, int newLatencyMode);
     static FCDECL0(int,     GetLOHCompactionMode);

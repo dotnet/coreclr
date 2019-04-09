@@ -53,31 +53,25 @@ namespace System
     [StructLayout(LayoutKind.Sequential)]
     public readonly struct GCMemoryInfo
     {
-        private readonly long _highMemoryLoadThresholdBytes;
-        private readonly long _memoryLoadBytes;
-        private readonly long _totalAvailableMemoryBytes;
-        private readonly long _heapSizeBytes;
-        private readonly long _fragmentedBytes;
-
         /// <summary>
         /// High memory load threshold when the last GC occured
         /// </summary>
-        public long HighMemoryLoadThresholdBytes => _highMemoryLoadThresholdBytes;
+        public long HighMemoryLoadThresholdBytes { get; }
 
         /// <summary>
         /// Memory load when the last GC ocurred
         /// </summary>
-        public long MemoryLoadBytes => _memoryLoadBytes;
+        public long MemoryLoadBytes { get; }
 
         /// <summary>
         /// Total available memory for the GC to use when the last GC ocurred. By default this is the physical memory on the machine, but it may be customized by specifying a HardLimit.
         /// </summary>
-        public long TotalAvailableMemoryBytes => _totalAvailableMemoryBytes;
+        public long TotalAvailableMemoryBytes { get; }
 
         /// <summary>
         /// The total heap size when the last GC ocurred
         /// </summary>
-        public long HeapSizeBytes => _heapSizeBytes;
+        public long HeapSizeBytes { get; }
 
         /// <summary>
         /// The total fragmentation when the last GC ocurred
@@ -91,22 +85,45 @@ namespace System
         /// The memory between OBJ_A and OBJ_D marked `F` is considered part of the FragmentedBytes, and will be used to allocate new objects. The memory after OBJ_D will not be
         /// considered part of the FragmentedBytes, and will also be used to allocate new objects
         /// </summary>
-        public long FragmentedBytes => _fragmentedBytes;
+        public long FragmentedBytes { get; }
+
+        internal GCMemoryInfo(long _highMemoryLoadThresholdBytes,
+                              long _memoryLoadBytes,
+                              long _totalAvailableMemoryBytes,
+                              long _heapSizeBytes,
+                              long _fragmentedBytes)
+        {
+            HighMemoryLoadThresholdBytes = _highMemoryLoadThresholdBytes;
+            MemoryLoadBytes = _memoryLoadBytes;
+            TotalAvailableMemoryBytes = _totalAvailableMemoryBytes;
+            HeapSizeBytes = _heapSizeBytes;
+            FragmentedBytes = _fragmentedBytes;
+        }
     }
 
     public static class GC
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void GetMemoryInfo(out GCMemoryInfo memoryInfo);
+        internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
+                                                  out ulong totalPhysicalMem,
+                                                  out uint lastRecordedMemLoad,
+                                                  // The next two are size_t
+                                                  out UIntPtr lastRecordedHeapSize,
+                                                  out UIntPtr lastRecordedFragmentation);
 
-        /// <summary>
-        /// Get information about GC state at the time of the last GC.
-        /// </summary>
         public static GCMemoryInfo GetGCMemoryInfo()
         {
-            GetMemoryInfo(out GCMemoryInfo memoryInfo);
+            GetMemoryInfo(out uint highMemLoadThreshold,
+                          out ulong totalPhysicalMem,
+                          out uint lastRecordedMemLoad,
+                          out UIntPtr lastRecordedHeapSize,
+                          out UIntPtr lastRecordedFragmentation);
 
-            return memoryInfo;
+            return new GCMemoryInfo((long)((double)highMemLoadThreshold / 100 * totalPhysicalMem),
+                                    (long)((double)lastRecordedMemLoad / 100 * totalPhysicalMem),
+                                    (long)totalPhysicalMem,
+                                    (long)(ulong)lastRecordedHeapSize,
+                                    (long)(ulong)lastRecordedFragmentation);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
