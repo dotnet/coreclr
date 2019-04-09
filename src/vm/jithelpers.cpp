@@ -2084,18 +2084,25 @@ TypeHandle::CastResult ArrayIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeH
     } CONTRACTL_END;
 
     ArrayBase *pArray = (ArrayBase*) pObject;
+    MethodTable* pMT = pArray->GetMethodTable();
     ArrayTypeDesc *toArrayType = toTypeHnd.AsArray();
 
     // GetRank touches EEClass. Try to avoid it for SZArrays.
     if (toArrayType->GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY)
     {
-        if (pArray->GetMethodTable()->IsMultiDimArray())
+        if (pMT->IsMultiDimArray())
+        {
+            CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
             return TypeHandle::CannotCast;
+        }
     }
     else
     {
         if (pArray->GetRank() != toArrayType->GetRank())
+        {
+            CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
             return TypeHandle::CannotCast;
+        }
     }
     _ASSERTE(pArray->GetRank() == toArrayType->GetRank());
 
@@ -2114,13 +2121,22 @@ TypeHandle::CastResult ArrayIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeH
     TypeHandle toElementTypeHandle = toArrayType->GetArrayElementTypeHandle();
 
     if (elementTypeHandle == toElementTypeHandle)
+    {
+        CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, TRUE);
         return TypeHandle::CanCast;
+    }
 
     // By this point we know that toArrayType->GetInternalCorElementType matches the element type of the Array object
     // so we can use a faster constructor to create the TypeDesc. (It so happens that ArrayTypeDescs derives from ParamTypeDesc
     // and can be created as identical in a slightly faster way with the following set of parameters.)
-    ParamTypeDesc arrayType(toArrayType->GetInternalCorElementType(), pArray->GetMethodTable(), elementTypeHandle);
-    return arrayType.CanCastToNoGC(toTypeHnd);
+    ParamTypeDesc arrayType(toArrayType->GetInternalCorElementType(), pMT, elementTypeHandle);
+    TypeHandle::CastResult result = arrayType.CanCastToNoGC(toTypeHnd);
+    if (result != TypeHandle::MaybeCast)
+    {
+        CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, (BOOL)result);
+    }
+
+    return result;
 }
 
 // pObject MUST be an instance of an array.
@@ -2138,21 +2154,38 @@ TypeHandle::CastResult ArrayObjSupportsBizarreInterfaceNoGC(Object *pObject, Met
     ArrayBase *pArray = (ArrayBase*) pObject;
 
     // IList<T> & IReadOnlyList<T> only supported for SZ_ARRAYS
-    if (pArray->GetMethodTable()->IsMultiDimArray())
+    MethodTable* pMT = pArray->GetMethodTable();
+    if (pMT->IsMultiDimArray())
+    {
+        CastCache::TryAddToCacheNoGC(pMT, pInterfaceMT, FALSE);
         return TypeHandle::CannotCast;
+    }
 
     if (pInterfaceMT->GetLoadLevel() < CLASS_DEPENDENCIES_LOADED)
     {
         if (!pInterfaceMT->HasInstantiation())
+        {
+            CastCache::TryAddToCacheNoGC(pMT, pInterfaceMT, FALSE);
             return TypeHandle::CannotCast;
+        }
+
         // The slow path will take care of restoring the interface
         return TypeHandle::MaybeCast;
     }
 
     if (!IsImplicitInterfaceOfSZArray(pInterfaceMT))
+    {
+        CastCache::TryAddToCacheNoGC(pMT, pInterfaceMT, FALSE);
         return TypeHandle::CannotCast;
+    }
 
-    return TypeDesc::CanCastParamNoGC(pArray->GetArrayElementTypeHandle(), pInterfaceMT->GetInstantiation()[0]);
+    TypeHandle::CastResult result = TypeDesc::CanCastParamNoGC(pArray->GetArrayElementTypeHandle(), pInterfaceMT->GetInstantiation()[0]);
+    if (result != TypeHandle::MaybeCast)
+    {
+        CastCache::TryAddToCacheNoGC(pMT, pInterfaceMT, (BOOL)result);
+    }
+
+    return result;
 }
 
 TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTypeHnd)
@@ -2186,12 +2219,12 @@ TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTyp
             if (pInterfaceMT->HasInstantiation())
                 return ArrayObjSupportsBizarreInterfaceNoGC(pObject, pInterfaceMT);
 
+            //TODO: VS report to cache from ImplementsInterface
             return pMT->ImplementsInterface(pInterfaceMT) ? TypeHandle::CanCast : TypeHandle::CannotCast;
         }
 
         if (toTypeHnd == TypeHandle(g_pObjectClass) || toTypeHnd == TypeHandle(g_pArrayClass))
         {
-            //TODO: VS too simple? just bring up? or this is rare and should be in slow part?
             CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, TRUE);
             return TypeHandle::CanCast;
         }
@@ -2485,8 +2518,24 @@ HCIMPL2(Object *, JIT_ChkCastArray, CORINFO_CLASS_HANDLE type, Object *pObject)
     OBJECTREF refObj = ObjectToOBJECTREF(pObject);
     VALIDATEOBJECTREF(refObj);
 
-    TypeHandle::CastResult result = refObj->GetMethodTable()->IsArray() ? 
-        ArrayIsInstanceOfNoGC(pObject, TypeHandle(type)) : TypeHandle::CannotCast;
+    TypeHandle::CastResult result;
+
+    MethodTable* pMT = refObj->GetMethodTable();
+    TypeHandle th = TypeHandle(type);
+    if (!pMT->IsArray())
+    {
+        result = TypeHandle::CannotCast;
+    }
+    else
+    {
+        CastCache::CastCacheResult cachedResult = CastCache::TryGetFromCache(pMT, th);
+        if (CastCache::IsConvertible(pMT, th))
+        {
+            return pObject;
+        }
+
+        result = ArrayIsInstanceOfNoGC(pObject, th);
+    }
 
     if (result == TypeHandle::CanCast)
     {
@@ -2525,6 +2574,13 @@ HCIMPL2(Object *, JIT_IsInstanceOfArray, CORINFO_CLASS_HANDLE type, Object *pObj
     }
     else
     {
+        TypeHandle th = TypeHandle(type);
+        CastCache::CastCacheResult result = CastCache::TryGetFromCache(pMT, th);
+        if (result != CastCache::CastCacheResult::NotCached)
+        {
+            return result ==CastCache::CastCacheResult::CanCast? pObject: NULL;
+        }
+
         switch (ArrayIsInstanceOfNoGC(pObject, TypeHandle(type))) {
         case TypeHandle::CanCast:
             return pObject;
@@ -2555,12 +2611,6 @@ HCIMPL2(Object *, JIT_IsInstanceOfAny, CORINFO_CLASS_HANDLE type, Object* pObjec
     }
 
     TypeHandle th = TypeHandle(type);
-    CastCache::CastCacheResult result = CastCache::TryGetFromCache(pObject->GetMethodTable(), th);
-    if (result != CastCache::CastCacheResult::NotCached)
-    {
-        return result == CastCache::CastCacheResult::CanCast? pObject : NULL;
-    }
-
     switch (ObjIsInstanceOfNoGC(pObject, th)) {
     case TypeHandle::CanCast:
         return pObject;
