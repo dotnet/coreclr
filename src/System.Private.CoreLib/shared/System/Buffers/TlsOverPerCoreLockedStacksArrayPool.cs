@@ -302,11 +302,11 @@ namespace System.Buffers
             const double MediumPressureThreshold = .70;     // Percent of GC memory pressure threshold we consider "medium"
 
             GCMemoryInfo memoryInfo = GC.GetGCMemoryInfo();
-            if (memoryInfo.MemoryLoad >= memoryInfo.HighMemoryLoadThreshold * HighPressureThreshold)
+            if (memoryInfo.MemoryLoadBytes >= memoryInfo.HighMemoryLoadThresholdBytes * HighPressureThreshold)
             {
                 return MemoryPressure.High;
             }
-            else if (memoryInfo.MemoryLoad >= memoryInfo.HighMemoryLoadThreshold * MediumPressureThreshold)
+            else if (memoryInfo.MemoryLoadBytes >= memoryInfo.HighMemoryLoadThresholdBytes * MediumPressureThreshold)
             {
                 return MemoryPressure.Medium;
             }

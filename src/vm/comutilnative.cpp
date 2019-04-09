@@ -904,10 +904,21 @@ FCIMPL1(void, GCInterface::GetMemoryInfo, GCMemoryInfo* memoryInfo)
     FCALL_CONTRACT;
 
     FC_GC_POLL_NOT_NEEDED();
-    
-    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo((uint32_t*)&memoryInfo->m_highMemoryLoadThreshold, (uint64_t*)&memoryInfo->m_totalAvailableMemory,
-                                                       (uint32_t*)&memoryInfo->m_memoryLoad,
-                                                       (size_t*)&memoryInfo->m_heapSize, (size_t*)&memoryInfo->m_fragmentation);
+
+    uint32_t highMemLoadThreshold, lastRecordedMemLoad;
+    uint64_t totalPhysicalMem;
+    size_t lastRecordedHeapSize, lastRecordedFragmentation;
+    GCHeapUtilities::GetGCHeap()->GetMemoryInfo(&highMemLoadThreshold,
+                                                &totalPhysicalMem,
+                                                &lastRecordedMemLoad,
+                                                &lastRecordedHeapSize,
+                                                &lastRecordedFragmentation);
+
+    memoryInfo->_highMemoryLoadThresholdBytes = (double)highMemLoadThreshold / 100 * totalPhysicalMem;
+    memoryInfo->_memoryLoadBytes = (double)lastRecordedMemLoad / 100 * totalPhysicalMem;
+    memoryInfo->_totalAvailableMemoryBytes = totalPhysicalMem;
+    memoryInfo->_heapSizeBytes = lastRecordedHeapSize;
+    memoryInfo->_fragmentedBytes = lastRecordedFragmentation;
 }
 FCIMPLEND
 

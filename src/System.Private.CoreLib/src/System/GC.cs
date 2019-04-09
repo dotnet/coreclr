@@ -53,36 +53,36 @@ namespace System
     [StructLayout(LayoutKind.Sequential)]
     public readonly struct GCMemoryInfo
     {
-        private readonly int m_highMemoryLoadThreshold;
-        private readonly int m_memoryLoad;
-        private readonly long m_totalAvailableMemory;
-        private readonly long m_heapSize;
-        private readonly long m_fragmentation;
+        private readonly long _highMemoryLoadThresholdBytes;
+        private readonly long _memoryLoadBytes;
+        private readonly long _totalAvailableMemoryBytes;
+        private readonly long _heapSizeBytes;
+        private readonly long _fragmentedBytes;
 
         /// <summary>
         /// HighMemoryLoadThreshold when the last GC occured
         /// </summary>
-        public int HighMemoryLoadThreshold => m_highMemoryLoadThreshold;
+        public long HighMemoryLoadThresholdBytes => _highMemoryLoadThresholdBytes;
 
         /// <summary>
         /// Memory Load when the last GC ocurred
         /// </summary>
-        public int MemoryLoad => m_memoryLoad;
+        public long MemoryLoadBytes => _memoryLoadBytes;
 
         /// <summary>
         /// Total available memory for the GC to use when the last GC ocurred. By default this is the physical memory on the machine, but it may be customized by specifying a HardLimit.
         /// </summary>
-        public long TotalAvailableMemory => m_totalAvailableMemory;
+        public long TotalAvailableMemoryBytes => _totalAvailableMemoryBytes;
 
         /// <summary>
         /// The total heap size when the last GC ocurred
         /// </summary>
-        public long HeapSize => m_heapSize;
+        public long HeapSizeBytes => _heapSizeBytes;
 
         /// <summary>
         /// The total fragmentation of the last GC ocurred
         /// </summary>
-        public long Fragmentation => m_fragmentation; // should we include "Bytes" in all names where appropri
+        public long FragmentedBytes => _fragmentedBytes;
     }
 
     public static class GC
@@ -95,8 +95,7 @@ namespace System
         /// </summary>
         public static GCMemoryInfo GetGCMemoryInfo()
         {
-            GCMemoryInfo memoryInfo;
-            GetMemoryInfo(out memoryInfo);
+            GetMemoryInfo(out GCMemoryInfo memoryInfo);
 
             return memoryInfo;
         }
