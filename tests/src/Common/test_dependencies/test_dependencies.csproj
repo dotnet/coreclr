@@ -10,18 +10,15 @@
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.NETCore.ILAsm" Version="3.0.0-preview1-26824-01" />
+    <PackageReference Include="Microsoft.NETCore.ILAsm" Version="$(MicrosoftNETCorePlatformsVersion)" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.Security.Permissions">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+      <Version>$(MicrosoftNETCorePlatformsVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Diagnostics.EventLog">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+      <Version>$(MicrosoftNETCorePlatformsVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Drawing.Common">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+      <Version>$(MicrosoftNETCorePlatformsVersion)</Version>
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>

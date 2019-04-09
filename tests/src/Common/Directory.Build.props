@@ -6,6 +6,8 @@
     here https://docs.microsoft.com/en-us/visualstudio/msbuild/customize-your-build#directorybuildprops-and-directorybuildtargets
   -->
 
-  <Import Project="$(MSBuildThisFileDirectory)/../Directory.Build.props" />
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+  </PropertyGroup>
 
 </Project>

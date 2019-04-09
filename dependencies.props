@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <!-- eng/Versions.props will be automatically included by arcade.          -->
-  <!-- Therefore, do not include it explicitely, we will be warnings that    -->
+  <!-- Therefore, do not include it explicitely, there would be warnings that-->
   <!-- it is being included twice.                                           -->
   <Import Project="eng/Versions.props" Condition="'$(ArcadeBuild)' != 'true'" />
 

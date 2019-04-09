@@ -41,7 +41,7 @@
   <PropertyGroup>
     
     
-    <PackageTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</PackageTargetFallback>
+    <AssetTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</AssetTargetFallback>
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>
   </PropertyGroup>
