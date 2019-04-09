@@ -315,6 +315,12 @@ namespace Server.Contract
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     public interface IConsumeNETServer
     {
+        IntPtr GetCCW();
+        object GetRCW();
+        void ReleaseResources();
+
+        bool EqualByCCW(object obj);
+        bool NotEqualByRCW(object obj);
     }
 }
 

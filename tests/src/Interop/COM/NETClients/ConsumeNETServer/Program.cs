@@ -20,22 +20,67 @@ namespace NetClient
         {
             Console.WriteLine($"{nameof(Validate_Activation)}...");
 
-            var consumeNETServerTesting = new CoClass.ConsumeNETServerTesting();
+            var test = new CoClass.ConsumeNETServerTesting();
+            test.ReleaseResources();
 
             // The CoClass should be the activated type, _not_ the activation interface.
-            Assert.AreEqual(consumeNETServerTesting.GetType(), typeof(CoClass.ConsumeNETServerTestingClass));
+            Assert.AreEqual(test.GetType(), typeof(CoClass.ConsumeNETServerTestingClass));
         }
 
         static void Validate_CCW_Wasnt_Unwrapped()
         {
             Console.WriteLine($"{nameof(Validate_CCW_Wasnt_Unwrapped)}...");
 
-            var consumeNETServerTesting = new CoClass.ConsumeNETServerTesting();
+            var test = new CoClass.ConsumeNETServerTesting();
+            test.ReleaseResources();
 
             // The CoClass should be the activated type, _not_ the implementation class.
             // This indicates the real implementation class is wrapped in its CCW and exposed
             // to the runtime as an RCW.
-            Assert.AreNotEqual(consumeNETServerTesting.GetType(), typeof(ConsumeNETServerTesting));
+            Assert.AreNotEqual(test.GetType(), typeof(ConsumeNETServerTesting));
+        }
+
+        static void Validate_Client_CCW_RCW()
+        {
+            Console.WriteLine($"{nameof(Validate_Client_CCW_RCW)}...");
+
+            IntPtr ccw = IntPtr.Zero;
+
+            // Validate the client side view is consistent
+            var test = new CoClass.ConsumeNETServerTesting();
+            try
+            {
+                ccw = test.GetCCW();
+                object rcw = Marshal.GetObjectForIUnknown(ccw);
+                object inst = test.GetRCW();
+                Assert.AreEqual(rcw, inst);
+            }
+            finally
+            {
+                if (ccw != IntPtr.Zero)
+                {
+                    Marshal.Release(ccw);
+                }
+
+                test.ReleaseResources();
+            }
+        }
+
+        static void Validate_Server_CCW_RCW()
+        {
+            Console.WriteLine($"{nameof(Validate_Server_CCW_RCW)}...");
+
+            // Validate the server side view is consistent
+            var test = new CoClass.ConsumeNETServerTesting();
+            try
+            {
+                Assert.IsTrue(test.EqualByCCW(test));
+                Assert.IsTrue(test.NotEqualByRCW(test));
+            }
+            finally
+            {
+                test.ReleaseResources();
+            }
         }
 
         static int Main(string[] doNotUse)
@@ -61,6 +106,8 @@ namespace NetClient
                 {
                     Validate_Activation();
                     Validate_CCW_Wasnt_Unwrapped();
+                    Validate_Client_CCW_RCW();
+                    Validate_Server_CCW_RCW();
                 }
             }
             catch (Exception e)
