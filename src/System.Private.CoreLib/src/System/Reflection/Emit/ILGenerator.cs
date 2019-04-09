@@ -5,12 +5,14 @@
 //
 
 using System;
-using System.Diagnostics.SymbolStore;
-using System.Runtime.InteropServices;
-using System.Reflection;
-using System.Globalization;
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Diagnostics.SymbolStore;
+using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Reflection;
 
 namespace System.Reflection.Emit
 {
@@ -159,6 +161,7 @@ namespace System.Reflection.Emit
             m_RelocFixupList[m_RelocFixupCount++] = m_length;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void InternalEmit(OpCode opcode)
         {
             if (opcode.Size != 1)
@@ -168,7 +171,19 @@ namespace System.Reflection.Emit
 
             m_ILStream[m_length++] = (byte)opcode.Value;
 
-            UpdateStackSize(opcode, opcode.StackChange());
+            // Manual inline from UpdateStackSize(OpCode, int)
+            m_maxMidStackCur += opcode.StackChange();
+            if (m_maxMidStackCur > m_maxMidStack)
+                m_maxMidStack = m_maxMidStackCur;
+            else if (m_maxMidStackCur < 0)
+                m_maxMidStackCur = 0;
+
+            if (opcode.EndsUncondJmpBlk())
+            {
+                m_maxStackSize += m_maxMidStack;
+                m_maxMidStack = 0;
+                m_maxMidStackCur = 0;
+            }
         }
 
         internal void UpdateStackSize(OpCode opcode, int stackchange)
@@ -273,7 +288,7 @@ namespace System.Reflection.Emit
                 else
                 {
                     //Place the four-byte arg
-                    PutInteger4InArray(updateAddr, m_fixupData[i].m_fixupPos, newBytes);
+                    BinaryPrimitives.TryWriteInt32LittleEndian(newBytes.AsSpan(m_fixupData[i].m_fixupPos), updateAddr);
                 }
             }
             return newBytes;
@@ -298,6 +313,7 @@ namespace System.Reflection.Emit
             return temp;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void EnsureCapacity(int size)
         {
             // Guarantees an array capable of holding at least size elements.
@@ -314,20 +330,11 @@ namespace System.Reflection.Emit
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void PutInteger4(int value)
         {
-            m_length = PutInteger4InArray(value, m_length, m_ILStream);
-        }
-
-        private static int PutInteger4InArray(int value, int startPos, byte[] array)
-        {
-            // Puts an Int32 onto the stream. This is an internal routine, so it does not do any error checking.
-
-            array[startPos++] = (byte)value;
-            array[startPos++] = (byte)(value >> 8);
-            array[startPos++] = (byte)(value >> 16);
-            array[startPos++] = (byte)(value >> 24);
-            return startPos;
+            BinaryPrimitives.TryWriteInt32LittleEndian(m_ILStream.AsSpan(m_length), value);
+            m_length += 4;
         }
 
         private int GetLabelPos(Label lbl)
@@ -446,8 +453,9 @@ namespace System.Reflection.Emit
             // Puts opcode onto the stream of instructions followed by arg
             EnsureCapacity(5);
             InternalEmit(opcode);
-            m_ILStream[m_length++] = (byte)arg;
-            m_ILStream[m_length++] = (byte)(arg >> 8);
+            m_ILStream[m_length]     = (byte)arg;
+            m_ILStream[m_length + 1] = (byte)(arg >> 8);
+            m_length += 2;
         }
 
         public virtual void Emit(OpCode opcode, int arg)
@@ -717,40 +725,24 @@ namespace System.Reflection.Emit
         {
             EnsureCapacity(11);
             InternalEmit(opcode);
-            m_ILStream[m_length++] = (byte)arg;
-            m_ILStream[m_length++] = (byte)(arg >> 8);
-            m_ILStream[m_length++] = (byte)(arg >> 16);
-            m_ILStream[m_length++] = (byte)(arg >> 24);
-            m_ILStream[m_length++] = (byte)(arg >> 32);
-            m_ILStream[m_length++] = (byte)(arg >> 40);
-            m_ILStream[m_length++] = (byte)(arg >> 48);
-            m_ILStream[m_length++] = (byte)(arg >> 56);
+            BinaryPrimitives.TryWriteInt64LittleEndian(m_ILStream.AsSpan(m_length), arg);
+            m_length += 8;
         }
 
         public unsafe virtual void Emit(OpCode opcode, float arg)
         {
             EnsureCapacity(7);
             InternalEmit(opcode);
-            uint tempVal = *(uint*)&arg;
-            m_ILStream[m_length++] = (byte)tempVal;
-            m_ILStream[m_length++] = (byte)(tempVal >> 8);
-            m_ILStream[m_length++] = (byte)(tempVal >> 16);
-            m_ILStream[m_length++] = (byte)(tempVal >> 24);
+            BinaryPrimitives.TryWriteUInt32LittleEndian(m_ILStream.AsSpan(m_length), *(uint*)&arg);
+            m_length += 4;
         }
 
         public unsafe virtual void Emit(OpCode opcode, double arg)
         {
             EnsureCapacity(11);
             InternalEmit(opcode);
-            ulong tempVal = *(ulong*)&arg;
-            m_ILStream[m_length++] = (byte)tempVal;
-            m_ILStream[m_length++] = (byte)(tempVal >> 8);
-            m_ILStream[m_length++] = (byte)(tempVal >> 16);
-            m_ILStream[m_length++] = (byte)(tempVal >> 24);
-            m_ILStream[m_length++] = (byte)(tempVal >> 32);
-            m_ILStream[m_length++] = (byte)(tempVal >> 40);
-            m_ILStream[m_length++] = (byte)(tempVal >> 48);
-            m_ILStream[m_length++] = (byte)(tempVal >> 56);
+            BinaryPrimitives.TryWriteUInt64LittleEndian(m_ILStream.AsSpan(m_length), *(ulong*)&arg);
+            m_length += 8;
         }
 
         public virtual void Emit(OpCode opcode, Label label)
@@ -899,8 +891,9 @@ namespace System.Reflection.Emit
                 return;
             else if (!OpCodes.TakesSingleByteArgument(opcode))
             {
-                m_ILStream[m_length++] = (byte)tempVal;
-                m_ILStream[m_length++] = (byte)(tempVal >> 8);
+                m_ILStream[m_length]     = (byte)tempVal;
+                m_ILStream[m_length + 1] = (byte)(tempVal >> 8);
+                m_length += 2;
             }
             else
             {
