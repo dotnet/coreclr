@@ -50,7 +50,6 @@ namespace System
         NotApplicable = 4
     }
 
-    [StructLayout(LayoutKind.Sequential)]
     public readonly struct GCMemoryInfo
     {
         /// <summary>
@@ -87,17 +86,17 @@ namespace System
         /// </summary>
         public long FragmentedBytes { get; }
 
-        internal GCMemoryInfo(long _highMemoryLoadThresholdBytes,
-                              long _memoryLoadBytes,
-                              long _totalAvailableMemoryBytes,
-                              long _heapSizeBytes,
-                              long _fragmentedBytes)
+        internal GCMemoryInfo(long highMemoryLoadThresholdBytes,
+                              long memoryLoadBytes,
+                              long totalAvailableMemoryBytes,
+                              long heapSizeBytes,
+                              long fragmentedBytes)
         {
-            HighMemoryLoadThresholdBytes = _highMemoryLoadThresholdBytes;
-            MemoryLoadBytes = _memoryLoadBytes;
-            TotalAvailableMemoryBytes = _totalAvailableMemoryBytes;
-            HeapSizeBytes = _heapSizeBytes;
-            FragmentedBytes = _fragmentedBytes;
+            HighMemoryLoadThresholdBytes = highMemoryLoadThresholdBytes;
+            MemoryLoadBytes = memoryLoadBytes;
+            TotalAvailableMemoryBytes = totalAvailableMemoryBytes;
+            HeapSizeBytes = heapSizeBytes;
+            FragmentedBytes = fragmentedBytes;
         }
     }
 
