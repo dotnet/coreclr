@@ -416,6 +416,7 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
         MethodTable *pMT = GetMethodTable();
         _ASSERTE(pMT != 0);
 
+        // todo: vs do this after bizzare?
         // This does the right thing if 'type' == System.Array or System.Object, System.Clonable ...
         if (pMT->CanCastToClassOrInterface(toType.AsMethodTable(), pVisited) != 0)
         {
@@ -428,7 +429,6 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
             {
                 return TRUE;
             }
-
         }
 
         return FALSE;

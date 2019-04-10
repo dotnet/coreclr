@@ -2072,19 +2072,16 @@ HCIMPLEND_RAW
 //========================================================================
 
 // pObject MUST be an instance of an array.
-TypeHandle::CastResult ArrayIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeHnd)
+TypeHandle::CastResult ArrayIsInstanceOfNoGC(MethodTable* pMT, TypeHandle toTypeHnd)
 {
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(pObject));
-        PRECONDITION(pObject->GetMethodTable()->IsArray());
+        PRECONDITION(pMT->IsArray());
         PRECONDITION(toTypeHnd.IsArray());
     } CONTRACTL_END;
 
-    ArrayBase *pArray = (ArrayBase*) pObject;
-    MethodTable* pMT = pArray->GetMethodTable();
     ArrayTypeDesc *toArrayType = toTypeHnd.AsArray();
 
     // GetRank touches EEClass. Try to avoid it for SZArrays.
@@ -2098,13 +2095,13 @@ TypeHandle::CastResult ArrayIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeH
     }
     else
     {
-        if (pArray->GetRank() != toArrayType->GetRank())
+        if (pMT->GetRank() != toArrayType->GetRank())
         {
             CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
             return TypeHandle::CannotCast;
         }
     }
-    _ASSERTE(pArray->GetRank() == toArrayType->GetRank());
+    _ASSERTE(pMT->GetRank() == toArrayType->GetRank());
 
     // ArrayBase::GetTypeHandle consults the loader tables to find the
     // exact type handle for an array object.  This can be disproportionately slow - but after
@@ -2117,7 +2114,8 @@ TypeHandle::CastResult ArrayIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeH
     // array types.  This happens when, for example, assigning an int32[] into an int32[][].
     //
 
-    TypeHandle elementTypeHandle = pArray->GetArrayElementTypeHandle();
+    //TODO: "Approx" API may need renaming. Arrays know their ElementType quite precisely.
+    TypeHandle elementTypeHandle = pMT->GetApproxArrayElementTypeHandle();
     TypeHandle toElementTypeHandle = toArrayType->GetArrayElementTypeHandle();
 
     if (elementTypeHandle == toElementTypeHandle)
@@ -2140,21 +2138,17 @@ TypeHandle::CastResult ArrayIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeH
 }
 
 // pObject MUST be an instance of an array.
-TypeHandle::CastResult ArrayObjSupportsBizarreInterfaceNoGC(Object *pObject, MethodTable * pInterfaceMT)
+TypeHandle::CastResult ArraySupportsBizarreInterfaceNoGC(MethodTable* pMT, MethodTable * pInterfaceMT)
 {
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(pObject));
-        PRECONDITION(pObject->GetMethodTable()->IsArray());
+        PRECONDITION(pMT->IsArray());
         PRECONDITION(pInterfaceMT->IsInterface());
     } CONTRACTL_END;
 
-    ArrayBase *pArray = (ArrayBase*) pObject;
-
     // IList<T> & IReadOnlyList<T> only supported for SZ_ARRAYS
-    MethodTable* pMT = pArray->GetMethodTable();
     if (pMT->IsMultiDimArray())
     {
         CastCache::TryAddToCacheNoGC(pMT, pInterfaceMT, FALSE);
@@ -2179,7 +2173,8 @@ TypeHandle::CastResult ArrayObjSupportsBizarreInterfaceNoGC(Object *pObject, Met
         return TypeHandle::CannotCast;
     }
 
-    TypeHandle::CastResult result = TypeDesc::CanCastParamNoGC(pArray->GetArrayElementTypeHandle(), pInterfaceMT->GetInstantiation()[0]);
+    //TODO: "Approx" API may need renaming. Arrays know their ElementType quite precisely.
+    TypeHandle::CastResult result = TypeDesc::CanCastParamNoGC(pMT->GetApproxArrayElementTypeHandle(), pInterfaceMT->GetInstantiation()[0]);
     if (result != TypeHandle::MaybeCast)
     {
         CastCache::TryAddToCacheNoGC(pMT, pInterfaceMT, (BOOL)result);
@@ -2211,13 +2206,13 @@ TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTyp
     if (pMT->IsArray())
     {
         if (toTypeHnd.IsArray())
-            return ArrayIsInstanceOfNoGC(pObject, toTypeHnd);
+            return ArrayIsInstanceOfNoGC(pMT, toTypeHnd);
 
         if (toTypeHnd.IsInterface())
         {
             MethodTable * pInterfaceMT = toTypeHnd.AsMethodTable();
             if (pInterfaceMT->HasInstantiation())
-                return ArrayObjSupportsBizarreInterfaceNoGC(pObject, pInterfaceMT);
+                return ArraySupportsBizarreInterfaceNoGC(pMT, pInterfaceMT);
 
             BOOL result = pMT->ImplementsInterface(pInterfaceMT);
             CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, result);
@@ -2524,7 +2519,7 @@ HCIMPL2(Object *, JIT_ChkCastArray, CORINFO_CLASS_HANDLE type, Object *pObject)
             return pObject;
         }
 
-        result = ArrayIsInstanceOfNoGC(pObject, th);
+        result = ArrayIsInstanceOfNoGC(pMT, th);
     }
 
     if (result == TypeHandle::CanCast)
@@ -2571,7 +2566,7 @@ HCIMPL2(Object *, JIT_IsInstanceOfArray, CORINFO_CLASS_HANDLE type, Object *pObj
             return result ==CastCache::CastCacheResult::CanCast? pObject: NULL;
         }
 
-        switch (ArrayIsInstanceOfNoGC(pObject, TypeHandle(type))) {
+        switch (ArrayIsInstanceOfNoGC(pMT, TypeHandle(type))) {
         case TypeHandle::CanCast:
             return pObject;
         case TypeHandle::CannotCast:
@@ -2644,15 +2639,16 @@ HCIMPL2(Object *, JIT_ChkCastAny, CORINFO_CLASS_HANDLE type, Object *pObject)
 HCIMPLEND
 
 
-NOINLINE HCIMPL2(Object *, JITutil_IsInstanceOfInterface, MethodTable *pInterfaceMT, Object* obj)
+NOINLINE HCIMPL2(Object *, JITutil_IsInstanceOfInterface, MethodTable *pInterfaceMT, Object* pObject)
 {
     FCALL_CONTRACT;
 
-    if (obj->GetMethodTable()->IsArray())
+    MethodTable* pMT = pObject->GetMethodTable();
+    if (pMT->IsArray())
     {
-        switch (ArrayObjSupportsBizarreInterfaceNoGC(obj, pInterfaceMT)) {
+        switch (ArraySupportsBizarreInterfaceNoGC(pMT, pInterfaceMT)) {
         case TypeHandle::CanCast:
-            return obj;
+            return pObject;
         case TypeHandle::CannotCast:
             return NULL;
         default:
@@ -2662,25 +2658,26 @@ NOINLINE HCIMPL2(Object *, JITutil_IsInstanceOfInterface, MethodTable *pInterfac
     }
 
     ENDFORBIDGC();
-    return HCCALL2(JITutil_IsInstanceOfAny, CORINFO_CLASS_HANDLE(pInterfaceMT), obj);
+    return HCCALL2(JITutil_IsInstanceOfAny, CORINFO_CLASS_HANDLE(pInterfaceMT), pObject);
 
 }
 HCIMPLEND
 
-NOINLINE HCIMPL2(Object *, JITutil_ChkCastInterface, MethodTable *pInterfaceMT, Object *obj)
+NOINLINE HCIMPL2(Object *, JITutil_ChkCastInterface, MethodTable *pInterfaceMT, Object *pObject)
 {
     FCALL_CONTRACT;
 
-    if (obj->GetMethodTable()->IsArray())
+    MethodTable* pMT = pObject->GetMethodTable();
+    if (pMT->IsArray())
     {
-        if (ArrayObjSupportsBizarreInterfaceNoGC(obj, pInterfaceMT) == TypeHandle::CanCast)
+        if (ArraySupportsBizarreInterfaceNoGC(pMT, pInterfaceMT) == TypeHandle::CanCast)
         {
-            return obj;
+            return pObject;
         }
     }
 
     ENDFORBIDGC();
-    return HCCALL2(JITutil_ChkCastAny, CORINFO_CLASS_HANDLE(pInterfaceMT), obj);
+    return HCCALL2(JITutil_ChkCastAny, CORINFO_CLASS_HANDLE(pInterfaceMT), pObject);
 }
 HCIMPLEND
 
