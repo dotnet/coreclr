@@ -37,18 +37,6 @@ namespace System.Reflection
             _flags = AssemblyNameFlags.None;
         }
 
-        public AssemblyName(string assemblyName)
-        {
-            if (assemblyName == null)
-                throw new ArgumentNullException(nameof(assemblyName));
-            if ((assemblyName.Length == 0) ||
-                (assemblyName[0] == '\0'))
-                throw new ArgumentException(SR.Format_StringZeroLength);
-
-            _name = assemblyName;
-            nInit();
-        }
-
         // Set and get the name of the assembly. If this is a weak Name
         // then it optionally contains a site. For strong assembly names, 
         // the name partitions up the strong name's namespace
@@ -169,16 +157,9 @@ namespace System.Reflection
             if (assemblyFile == null)
                 throw new ArgumentNullException(nameof(assemblyFile));
 
-            // Assembly.GetNameInternal() will not demand path discovery 
-            //  permission, so do that first.
-            string fullPath = Path.GetFullPath(assemblyFile);
-            return nGetFileInformation(fullPath);
+            return GetFileInformationCore(assemblyFile);
         }
 
-        // The public key that is used to verify an assemblies
-        // inclusion into the namespace. If the public key associated
-        // with the namespace cannot verify the assembly the assembly
-        // will fail to load.
         public byte[] GetPublicKey()
         {
             return _publicKey;
@@ -199,7 +180,7 @@ namespace System.Reflection
         public byte[] GetPublicKeyToken()
         {
             if (_publicKeyToken == null)
-                _publicKeyToken = nGetPublicKeyToken();
+                _publicKeyToken = ComputePublicKeyToken();
             return _publicKeyToken;
         }
 
@@ -250,7 +231,7 @@ namespace System.Reflection
                 if (this.Name == null)
                     return string.Empty;
                 // Do not call GetPublicKeyToken() here - that latches the result into AssemblyName which isn't a side effect we want.
-                byte[] pkt = _publicKeyToken ?? nGetPublicKeyToken();
+                byte[] pkt = _publicKeyToken ?? ComputePublicKeyToken();
                 return AssemblyNameFormatter.ComputeDisplayName(Name, Version, CultureName, pkt, Flags, ContentType);
             }
         }
@@ -293,50 +274,6 @@ namespace System.Reflection
             string refName = reference.Name ?? string.Empty;
             string defName = definition.Name ?? string.Empty;
             return refName.Equals(defName, StringComparison.OrdinalIgnoreCase);
-        }
-
-        internal void SetProcArchIndex(PortableExecutableKinds pek, ImageFileMachine ifm)
-        {
-            ProcessorArchitecture = CalculateProcArchIndex(pek, ifm, _flags);
-        }
-
-        internal static ProcessorArchitecture CalculateProcArchIndex(PortableExecutableKinds pek, ImageFileMachine ifm, AssemblyNameFlags flags)
-        {
-            if (((uint)flags & 0xF0) == 0x70)
-                return ProcessorArchitecture.None;
-
-            if ((pek & System.Reflection.PortableExecutableKinds.PE32Plus) == System.Reflection.PortableExecutableKinds.PE32Plus)
-            {
-                switch (ifm)
-                {
-                    case System.Reflection.ImageFileMachine.IA64:
-                        return ProcessorArchitecture.IA64;
-                    case System.Reflection.ImageFileMachine.AMD64:
-                        return ProcessorArchitecture.Amd64;
-                    case System.Reflection.ImageFileMachine.I386:
-                        if ((pek & System.Reflection.PortableExecutableKinds.ILOnly) == System.Reflection.PortableExecutableKinds.ILOnly)
-                            return ProcessorArchitecture.MSIL;
-                        break;
-                }
-            }
-            else
-            {
-                if (ifm == System.Reflection.ImageFileMachine.I386)
-                {
-                    if ((pek & System.Reflection.PortableExecutableKinds.Required32Bit) == System.Reflection.PortableExecutableKinds.Required32Bit)
-                        return ProcessorArchitecture.X86;
-
-                    if ((pek & System.Reflection.PortableExecutableKinds.ILOnly) == System.Reflection.PortableExecutableKinds.ILOnly)
-                        return ProcessorArchitecture.MSIL;
-
-                    return ProcessorArchitecture.X86;
-                }
-                if (ifm == System.Reflection.ImageFileMachine.ARM)
-                {
-                    return ProcessorArchitecture.Arm;
-                }
-            }
-            return ProcessorArchitecture.None;
         }
 
         internal void Init(string name,

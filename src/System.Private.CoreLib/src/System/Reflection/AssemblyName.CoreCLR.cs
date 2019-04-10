@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 
@@ -9,20 +10,77 @@ namespace System.Reflection
 {
     public sealed partial class AssemblyName : ICloneable, IDeserializationCallback, ISerializable
     {
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal extern void nInit(out RuntimeAssembly assembly, bool raiseResolveEvent);
-
-        internal void nInit()
+        public AssemblyName(string assemblyName)
         {
+            if (assemblyName == null)
+                throw new ArgumentNullException(nameof(assemblyName));
+            if ((assemblyName.Length == 0) ||
+                (assemblyName[0] == '\0'))
+                throw new ArgumentException(SR.Format_StringZeroLength);
+
+            _name = assemblyName;
             nInit(out RuntimeAssembly dummy, false);
         }
 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal extern void nInit(out RuntimeAssembly assembly, bool raiseResolveEvent);
+        
         // This call opens and closes the file, but does not add the
         // assembly to the domain.
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern AssemblyName nGetFileInformation(string s);
 
+        internal static AssemblyName GetFileInformationCore(string assemblyFile)
+        {
+            string fullPath = Path.GetFullPath(assemblyFile);
+            return nGetFileInformation(fullPath);
+        }
+
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private extern byte[] nGetPublicKeyToken();
+        private extern byte[] ComputePublicKeyToken();
+
+        internal void SetProcArchIndex(PortableExecutableKinds pek, ImageFileMachine ifm)
+        {
+            ProcessorArchitecture = CalculateProcArchIndex(pek, ifm, _flags);
+        }
+
+        internal static ProcessorArchitecture CalculateProcArchIndex(PortableExecutableKinds pek, ImageFileMachine ifm, AssemblyNameFlags flags)
+        {
+            if (((uint)flags & 0xF0) == 0x70)
+                return ProcessorArchitecture.None;
+
+            if ((pek & System.Reflection.PortableExecutableKinds.PE32Plus) == System.Reflection.PortableExecutableKinds.PE32Plus)
+            {
+                switch (ifm)
+                {
+                    case System.Reflection.ImageFileMachine.IA64:
+                        return ProcessorArchitecture.IA64;
+                    case System.Reflection.ImageFileMachine.AMD64:
+                        return ProcessorArchitecture.Amd64;
+                    case System.Reflection.ImageFileMachine.I386:
+                        if ((pek & System.Reflection.PortableExecutableKinds.ILOnly) == System.Reflection.PortableExecutableKinds.ILOnly)
+                            return ProcessorArchitecture.MSIL;
+                        break;
+                }
+            }
+            else
+            {
+                if (ifm == System.Reflection.ImageFileMachine.I386)
+                {
+                    if ((pek & System.Reflection.PortableExecutableKinds.Required32Bit) == System.Reflection.PortableExecutableKinds.Required32Bit)
+                        return ProcessorArchitecture.X86;
+
+                    if ((pek & System.Reflection.PortableExecutableKinds.ILOnly) == System.Reflection.PortableExecutableKinds.ILOnly)
+                        return ProcessorArchitecture.MSIL;
+
+                    return ProcessorArchitecture.X86;
+                }
+                if (ifm == System.Reflection.ImageFileMachine.ARM)
+                {
+                    return ProcessorArchitecture.Arm;
+                }
+            }
+            return ProcessorArchitecture.None;
+        }
     }
 }
