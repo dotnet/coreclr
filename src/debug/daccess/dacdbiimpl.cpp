@@ -3571,7 +3571,7 @@ HRESULT DacDbiInterfaceImpl::GetDelegateFunctionData(
     OUT VMPTR_DomainFile *ppFunctionDomainFile,
     OUT mdMethodDef *pMethodDef)
 {
-    DO_ENTER_MAY_THROW;
+    DD_ENTER_MAY_THROW;
 
 #ifdef _DEBUG
     // ensure we have a Delegate object
@@ -3599,7 +3599,7 @@ HRESULT DacDbiInterfaceImpl::GetDelegateFunctionData(
     if (hr != S_OK)
         return hr;
 
-    ppFunctionDomainFile->SetDacTargetPointer(pMD.GetDacPtr()->GetModule()->GetDomainFile());
+    ppFunctionDomainFile->SetDacTargetPtr(pMD.GetDacPtr()->GetModule()->GetDomainFile());
     *pMethodDef = pMD.GetDacPtr()->GetMemberDef();
 
     return hr;
@@ -3624,13 +3624,15 @@ HRESULT DacDbiInterfaceImpl::GetDelegateTargetObject(
     switch (delegateType)
     {
         case kClosedDelegate:
+        {
             PTR_Object pRemoteTargetObj = OBJECTREFToObject(pDelObj->GetTarget());
             ppTargetObj->SetDacTargetPtr(PTR_TO_TADDR(pRemoteTargetObj));
             ppTargetAppDomain->SetDacTargetPtr(pRemoteTargetObj->GetAppDomain());
             break;
+        }
 
         default:
-            ppTarget->SetDacTargetPtr(NULL);
+            ppTargetObj->SetDacTargetPtr(NULL);
             break;
     }
 

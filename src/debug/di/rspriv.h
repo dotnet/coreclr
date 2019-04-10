@@ -101,6 +101,7 @@ class CordbRCEventThread;
 class CordbRegisterSet;
 class CordbNativeFrame;
 class CordbObjectValue;
+class CordbReferenceValue;
 class CordbEnCErrorInfo;
 class CordbEnCErrorInfoEnum;
 class Instantiation;
@@ -8756,7 +8757,7 @@ public:
                                            VMPTR_Object vmObj);
 
     // Creates a proper CordbReferenceValue instance based on the given remote heap object
-    static CordbReferenceValue *CreateHeapReferenceValue(CordbAppDomain *pAppDomain,
+    static CordbReferenceValue* CreateHeapReferenceValue(CordbAppDomain* pAppDomain,
                                                          VMPTR_Object vmObj);
 
     // Returns a pointer to the ValueHome field of this instance of CordbValue if one exists or NULL

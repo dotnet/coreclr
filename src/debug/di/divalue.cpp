@@ -23,7 +23,6 @@ void localCopy(void * dest, MemoryRange source)
 
     memcpy(dest, source.StartAddress(), source.Size());
 }
-
 // for an inheritance graph of the ICDValue types, // See file:./ICorDebugValueTypes.vsd for a diagram of the types.  
 
 /* ------------------------------------------------------------------------- *
@@ -273,7 +272,6 @@ ICorDebugValue* CordbValue::CreateHeapValue(CordbAppDomain* pAppDomain, VMPTR_Ob
 {
     // Create a temporary reference and dereference it to construct the heap value we want.
     RSSmartPtr<CordbReferenceValue> pRefValue(CordbValue::CreateHeapReferenceValue(pAppDomain, vmObj));
-                                           &pRefValue));
     ICorDebugValue* pExtValue;
     IfFailThrow(pRefValue->Dereference(&pExtValue));
     return pExtValue;
@@ -1737,8 +1735,7 @@ CordbObjectValue::CordbObjectValue(CordbAppDomain *          pAppdomain,
       m_info(*pObjectData),
       m_pObjectCopy(NULL), m_objectLocalVars(NULL), m_stringBuffer(NULL),
       m_valueHome(pAppdomain->GetProcess(), remoteValue), 
-      m_fIsExceptionObject(FALSE), m_fIsRcw(FALSE),
-      m_fIsDelegate(FALSE), m_delegateType(IDacDbiInterface::DelegateType::kUnfetched)
+      m_fIsExceptionObject(FALSE), m_fIsRcw(FALSE), m_fIsDelegate(FALSE)
 {
     _ASSERTE(pAppdomain != NULL);
 

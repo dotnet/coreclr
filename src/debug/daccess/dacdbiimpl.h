@@ -366,7 +366,8 @@ public:
     HRESULT GetDelegateTargetObject(
         DelegateType delegateType,
         VMPTR_Object delegateObject,
-        OUT VMPTR_Object *ppTarget);
+        OUT VMPTR_Object *ppTargetObj,
+        OUT VMPTR_AppDomain *ppTargetAppDomain);
 
     // retrieves the list of COM interfaces implemented by vmObject, as it is known at
     // the time of the call (the list may change as new interface types become available

@@ -14709,7 +14709,7 @@ EXTERN_C const IID IID_ICorDebugDelegateObjectValue;
     {
     public:
         virtual HRESULT STDMETHODCALLTYPE GetTarget(
-            /* [out] */ ICorDebugObjectValue **ppObject) = 0;
+            /* [out] */ ICorDebugReferenceValue **ppObject) = 0;
 
         virtual HRESULT STDMETHODCALLTYPE GetFunction(
             /* [out] */ ICorDebugFunction **ppFunction) = 0;
@@ -14737,7 +14737,7 @@ EXTERN_C const IID IID_ICorDebugDelegateObjectValue;
 
         HRESULT ( STDMETHODCALLTYPE *GetTarget )(
             ICorDebugDelegateObjectValue * This,
-            /* [out] */ ICorDebugObjectValue **ppObject);
+            /* [out] */ ICorDebugReferenceValue **ppObject);
 
         HRESULT ( STDMETHODCALLTYPE *GetFunction )(
             ICorDebugDelegateObjectValue * This,
