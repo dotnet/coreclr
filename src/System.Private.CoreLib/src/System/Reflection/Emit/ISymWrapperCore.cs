@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System;
 using System.Security;
 using System.Runtime.InteropServices;
@@ -77,7 +78,7 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // SetSource() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolDocumentWriter.SetSource(byte[] source)
+            void ISymbolDocumentWriter.SetSource(byte?[]? source)
             {
                 throw new NotSupportedException();   // Intentionally not supported to match desktop CLR
             }
@@ -85,16 +86,16 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // SetCheckSum() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolDocumentWriter.SetCheckSum(Guid algorithmId, byte[] checkSum)
+            void ISymbolDocumentWriter.SetCheckSum(Guid algorithmId, byte?[]? checkSum)
             {
-                int hr = m_vtable.SetCheckSum(m_pDocWriter, algorithmId, (uint)checkSum.Length, checkSum);
+                int hr = m_vtable.SetCheckSum(m_pDocWriter, algorithmId, (uint)checkSum!.Length, checkSum);
                 if (hr < 0)
                 {
                     throw Marshal.GetExceptionForHR(hr);
                 }
             }
 
-            private delegate int DSetCheckSum(ISymUnmanagedDocumentWriter* pThis, Guid algorithmId, uint checkSumSize, [In] byte[] checkSum);
+            private delegate int DSetCheckSum(ISymUnmanagedDocumentWriter* pThis, Guid algorithmId, uint checkSumSize, [In] byte?[]? checkSum);
 
             //------------------------------------------------------------------------------
             // This layout must match the unmanaged ISymUnmanagedDocumentWriter* COM vtable
@@ -165,7 +166,7 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // DefineDocument() wrapper
             //------------------------------------------------------------------------------
-            ISymbolDocumentWriter ISymbolWriter.DefineDocument(string url,
+            ISymbolDocumentWriter? ISymbolWriter.DefineDocument(string url,
                                                                Guid language,
                                                                Guid languageVendor,
                                                                Guid documentType)
@@ -259,7 +260,7 @@ namespace System.Reflection.Emit
                 // Regardless, this cast is important for security - we cannot allow our caller to provide
                 // arbitrary instances of this interface.
                 SymDocumentWriter docwriter = (SymDocumentWriter)document;
-                int hr = m_vtable.DefineSequencePoints(m_pWriter, docwriter.GetUnmanaged(), spCount, offsets, lines, columns, endLines, endColumns);
+                int hr = m_vtable.DefineSequencePoints(m_pWriter, docwriter.GetUnmanaged(), spCount!, offsets!, lines!, columns!, endLines!, endColumns!);
                 if (hr < 0)
                 {
                     throw Marshal.GetExceptionForHR(hr);
