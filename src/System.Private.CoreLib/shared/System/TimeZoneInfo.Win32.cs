@@ -98,7 +98,7 @@ namespace System
         {
             Debug.Assert(Monitor.IsEntered(cachedData));
 
-            using (RegistryKey reg = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive, writable: false))
+            using (RegistryKey? reg = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive, writable: false))
             {
                 if (reg != null)
                 {
@@ -212,7 +212,7 @@ namespace System
         {
             dstDisabled = false;
 
-            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive, writable: false))
+            using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive, writable: false))
             {
                 if (key == null)
                 {
@@ -261,7 +261,8 @@ namespace System
                 if (TryGetTimeZone(dynamicTimeZoneKeyName, dynamicTimeZoneInformation.DynamicDaylightTimeDisabled != 0, out TimeZoneInfo? zone, out _, cachedData) == TimeZoneInfoResult.Success)
                 {
                     // successfully loaded the time zone from the registry
-                    return zone!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761                }
+                    return zone!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                }
             }
 
             var timeZoneInformation = new TIME_ZONE_INFORMATION(dynamicTimeZoneInformation);
@@ -544,7 +545,7 @@ namespace System
                 // * "<year2>"    REG_BINARY REG_TZI_FORMAT
                 // * "<year3>"    REG_BINARY REG_TZI_FORMAT
                 //
-                using (RegistryKey dynamicKey = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive + "\\" + id + "\\Dynamic DST", writable: false))
+                using (RegistryKey? dynamicKey = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive + "\\" + id + "\\Dynamic DST", writable: false))
                 {
                     if (dynamicKey == null)
                     {
@@ -695,7 +696,7 @@ namespace System
         {
             dstDisabled = false;
 
-            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive + "\\" + id, writable: false))
+            using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive + "\\" + id, writable: false))
             {
                 if (key == null)
                 {
@@ -927,7 +928,7 @@ namespace System
             //                       add "%windir%\system32\" after "@"
             // * TZI,         REG_BINARY REG_TZI_FORMAT
             //
-            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive + "\\" + id, writable: false))
+            using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(TimeZonesRegistryHive + "\\" + id, writable: false))
             {
                 if (key == null)
                 {

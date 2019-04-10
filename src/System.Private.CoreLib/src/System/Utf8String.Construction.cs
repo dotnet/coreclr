@@ -50,7 +50,7 @@ namespace System
 
             Utf8String newString = FastAllocate(value.Length);
             Buffer.Memmove(ref newString.DangerousGetMutableReference(), ref MemoryMarshal.GetReference(value), (uint)value.Length);
-            return Utf8Utility.ValidateAndFixupUtf8String(newString)!;
+            return Utf8Utility.ValidateAndFixupUtf8String(newString)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
         }
 
         /// <summary>

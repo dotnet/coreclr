@@ -162,7 +162,7 @@ namespace System
 
         public abstract int Compare(string? x, string? y);
         public abstract bool Equals(string? x, string? y);
-        public abstract int GetHashCode(string? obj);
+        public abstract int GetHashCode(string? obj); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
     }
 
     [Serializable]
@@ -215,7 +215,7 @@ namespace System
             return _compareInfo.Compare(x, y, _options) == 0;
         }
 
-        public override int GetHashCode(string? obj)
+        public override int GetHashCode(string? obj) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
         {
             if (obj == null)
             {
@@ -292,7 +292,7 @@ namespace System
             return x.Equals(y);
         }
 
-        public override int GetHashCode(string? obj)
+        public override int GetHashCode(string? obj) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
         {
             if (obj == null)
             {
@@ -335,7 +335,7 @@ namespace System
 
         public override bool Equals(string? x, string? y) => string.Equals(x, y);
 
-        public override int GetHashCode(string? obj)
+        public override int GetHashCode(string? obj) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
         {
             if (obj == null)
             {
@@ -380,7 +380,7 @@ namespace System
             return CompareInfo.EqualsOrdinalIgnoreCase(ref x.GetRawStringData(), ref y.GetRawStringData(), x.Length);
         }
 
-        public override int GetHashCode(string? obj)
+        public override int GetHashCode(string? obj) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
         {
             if (obj == null)
             {

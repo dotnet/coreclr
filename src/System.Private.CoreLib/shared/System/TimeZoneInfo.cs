@@ -109,7 +109,7 @@ namespace System
             /// <summary>
             /// Helper function that returns the corresponding DateTimeKind for this TimeZoneInfo.
             /// </summary>
-            public DateTimeKind GetCorrespondingKind(TimeZoneInfo timeZone)
+            public DateTimeKind GetCorrespondingKind(TimeZoneInfo? timeZone)
             {
                 // We check reference equality to see if 'this' is the same as
                 // TimeZoneInfo.Local or TimeZoneInfo.Utc.  This check is needed to
@@ -982,10 +982,10 @@ namespace System
         public static TimeZoneInfo CreateCustomTimeZone(
             string id,
             TimeSpan baseUtcOffset,
-            string displayName,
-            string standardDisplayName,
-            string daylightDisplayName,
-            AdjustmentRule[] adjustmentRules,
+            string? displayName,
+            string? standardDisplayName,
+            string? daylightDisplayName,
+            AdjustmentRule[]? adjustmentRules,
             bool disableDaylightSavingTime)
         {
             if (!disableDaylightSavingTime && adjustmentRules?.Length > 0)

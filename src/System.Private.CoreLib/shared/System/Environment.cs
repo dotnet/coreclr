@@ -168,7 +168,7 @@ namespace System
                 {
                     using (currentProcess)
                     {
-                        object? result = processType!.GetMethod("get_WorkingSet64")?.Invoke(currentProcess, BindingFlags.DoNotWrapExceptions, null, null, null); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34665
+                        object? result = processType!.GetMethod("get_WorkingSet64")?.Invoke(currentProcess, BindingFlags.DoNotWrapExceptions, null, null, null); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/2388
                         if (result is long) return (long)result;
                     }
                 }

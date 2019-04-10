@@ -24,7 +24,7 @@ namespace System
                 return null; // Systems without the Windows registry pretend that it's always empty.
 #endif
 
-            using (RegistryKey environmentKey = OpenEnvironmentKeyIfExists(fromMachine, writable: false))
+            using (RegistryKey? environmentKey = OpenEnvironmentKeyIfExists(fromMachine, writable: false))
             {
                 return environmentKey?.GetValue(variable) as string;
             }
@@ -45,7 +45,7 @@ namespace System
                 throw new ArgumentException(SR.Argument_LongEnvVarValue, nameof(variable));
             }
 
-            using (RegistryKey environmentKey = OpenEnvironmentKeyIfExists(fromMachine, writable: true))
+            using (RegistryKey? environmentKey = OpenEnvironmentKeyIfExists(fromMachine, writable: true))
             {
                 if (environmentKey != null)
                 {
@@ -73,13 +73,13 @@ namespace System
                 return results;
 #endif
 
-            using (RegistryKey environmentKey = OpenEnvironmentKeyIfExists(fromMachine, writable: false))
+            using (RegistryKey? environmentKey = OpenEnvironmentKeyIfExists(fromMachine, writable: false))
             {
                 if (environmentKey != null)
                 {
                     foreach (string name in environmentKey.GetValueNames())
                     {
-                        string? value = environmentKey.GetValue(name, "").ToString();
+                        string? value = environmentKey.GetValue(name, "")!.ToString(); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                         try
                         {
                             results.Add(name, value);
@@ -95,7 +95,7 @@ namespace System
             return results;
         }
 
-        private static RegistryKey OpenEnvironmentKeyIfExists(bool fromMachine, bool writable)
+        private static RegistryKey? OpenEnvironmentKeyIfExists(bool fromMachine, bool writable)
         {
             RegistryKey baseKey;
             string keyName;

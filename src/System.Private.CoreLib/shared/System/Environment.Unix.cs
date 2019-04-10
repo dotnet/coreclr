@@ -372,7 +372,7 @@ namespace System
                 byte* stackBuf = stackalloc byte[BufLen];
                 if (TryGetUserNameFromPasswd(stackBuf, BufLen, out username))
                 {
-                    return username!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                    return username ?? string.Empty;
                 }
 
                 // Fallback to heap allocations if necessary, growing the buffer until
@@ -386,7 +386,7 @@ namespace System
                     {
                         if (TryGetUserNameFromPasswd(buf, heapBuf.Length, out username))
                         {
-                            return username!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                            return username ?? string.Empty;
                         }
                     }
                 }
@@ -394,7 +394,7 @@ namespace System
             }
         }
 
-        private static unsafe bool TryGetUserNameFromPasswd(byte* buf, int bufLen, out string? path) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+        private static unsafe bool TryGetUserNameFromPasswd(byte* buf, int bufLen, out string? username)
         {
             // Call getpwuid_r to get the passwd struct
             Interop.Sys.Passwd passwd;
@@ -404,15 +404,15 @@ namespace System
             if (error == 0)
             {
                 Debug.Assert(passwd.Name != null);
-                path = Marshal.PtrToStringAnsi((IntPtr)passwd.Name);
+                username = Marshal.PtrToStringAnsi((IntPtr)passwd.Name);
                 return true;
             }
 
             // If the current user's entry could not be found, give back null,
-            // but still return true as false indicates the buffer was too small.
+            // but still return true (false indicates the buffer was too small).
             if (error == -1)
             {
-                path = null;
+                username = null;
                 return true;
             }
 
@@ -422,7 +422,7 @@ namespace System
             // indicate the caller should try again with a larger buffer.
             if (errorInfo.Error == Interop.Error.ERANGE)
             {
-                path = null;
+                username = null;
                 return false;
             }
 
