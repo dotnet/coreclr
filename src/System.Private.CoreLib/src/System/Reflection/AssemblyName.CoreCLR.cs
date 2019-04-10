@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Configuration.Assemblies;
+using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
@@ -20,6 +22,29 @@ namespace System.Reflection
 
             _name = assemblyName;
             nInit(out RuntimeAssembly dummy, false);
+        }
+
+        internal AssemblyName(string name,
+            byte[] publicKey,
+            byte[] publicKeyToken,
+            Version version,
+            CultureInfo cultureInfo,
+            AssemblyHashAlgorithm hashAlgorithm,
+            AssemblyVersionCompatibility versionCompatibility,
+            string codeBase,
+            AssemblyNameFlags flags,
+            StrongNameKeyPair keyPair) // Null if ref, matching Assembly if def
+        {
+            _name = name;
+            _publicKey = (byte[])publicKey?.Clone();
+            _publicKeyToken = (byte[])publicKeyToken?.Clone();
+            _version = (Version)version?.Clone();
+            _cultureInfo = cultureInfo;
+            _hashAlgorithm = hashAlgorithm;
+            _versionCompatibility = versionCompatibility;
+            _codeBase = codeBase;
+            _flags = flags;
+            _strongNameKeyPair = keyPair;
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]

@@ -131,19 +131,20 @@ namespace System.Reflection
         // Make a copy of this assembly name.
         public object Clone()
         {
-            AssemblyName name = new AssemblyName();
-            name.Init(_name,
-                      _publicKey,
-                      _publicKeyToken,
-                      _version,
-                      _cultureInfo,
-                      _hashAlgorithm,
-                      _versionCompatibility,
-                      _codeBase,
-                      _flags,
-                      _strongNameKeyPair);
-            name._hashForControl = _hashForControl;
-            name._hashAlgorithmForControl = _hashAlgorithmForControl;
+            var name = new AssemblyName
+            {
+                _name = _name,
+                _publicKey = (byte[])_publicKey?.Clone(),
+                _publicKeyToken = (byte[])_publicKeyToken?.Clone(),
+                _cultureInfo = _cultureInfo,
+                _version = (Version)_version?.Clone(),
+                _flags = _flags,
+                _codeBase = _codeBase,
+                _hashAlgorithm = _hashAlgorithm,
+                _versionCompatibility = _versionCompatibility,
+                _hashForControl = _hashForControl,
+                _hashAlgorithmForControl = _hashAlgorithmForControl
+            };
             return name;
         }
 
@@ -274,42 +275,6 @@ namespace System.Reflection
             string refName = reference.Name ?? string.Empty;
             string defName = definition.Name ?? string.Empty;
             return refName.Equals(defName, StringComparison.OrdinalIgnoreCase);
-        }
-
-        internal void Init(string name,
-                           byte[] publicKey,
-                           byte[] publicKeyToken,
-                           Version version,
-                           CultureInfo cultureInfo,
-                           AssemblyHashAlgorithm hashAlgorithm,
-                           AssemblyVersionCompatibility versionCompatibility,
-                           string codeBase,
-                           AssemblyNameFlags flags,
-                           StrongNameKeyPair keyPair) // Null if ref, matching Assembly if def
-        {
-            _name = name;
-
-            if (publicKey != null)
-            {
-                _publicKey = new byte[publicKey.Length];
-                Array.Copy(publicKey, 0, _publicKey, 0, publicKey.Length);
-            }
-
-            if (publicKeyToken != null)
-            {
-                _publicKeyToken = new byte[publicKeyToken.Length];
-                Array.Copy(publicKeyToken, 0, _publicKeyToken, 0, publicKeyToken.Length);
-            }
-
-            if (version != null)
-                _version = (Version)version.Clone();
-
-            _cultureInfo = cultureInfo;
-            _hashAlgorithm = hashAlgorithm;
-            _versionCompatibility = versionCompatibility;
-            _codeBase = codeBase;
-            _flags = flags;
-            _strongNameKeyPair = keyPair;
         }
 
         internal static string EscapeCodeBase(string codebase)
