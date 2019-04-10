@@ -424,8 +424,10 @@ void ArrayNative::CastCheckEachElement(const BASEARRAYREF pSrcUnsafe, const unsi
 
         // Now that we have grabbed obj, we are no longer subject to races from another
         // mutator thread.
-        //TODO: VS cached? call NoGC first?
-        if (gc.obj != NULL && !ObjIsInstanceOf(OBJECTREFToObject(gc.obj), destTH))
+        // try "NoGC" version first. It is cheaper and will check the cache.
+        if (gc.obj != NULL && 
+            !ObjIsInstanceOfNoGC(OBJECTREFToObject(gc.obj), destTH) &&
+            !ObjIsInstanceOf(OBJECTREFToObject(gc.obj), destTH))
             COMPlusThrow(kInvalidCastException, W("InvalidCast_DownCastArrayElement"));
 
         OBJECTREF * destData = (OBJECTREF*)(gc.pDest->GetDataPtr()) + i - srcIndex + destIndex;

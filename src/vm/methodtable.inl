@@ -1653,10 +1653,17 @@ inline BOOL MethodTable::CanCastToClassOrInterface(MethodTable *pTargetMT, TypeH
     }
     CONTRACTL_END
 
-    if (pTargetMT->IsInterface())
-        return CanCastToInterface(pTargetMT, pVisited);
-    else
-        return CanCastToClass(pTargetMT, pVisited);
+    BOOL result = pTargetMT->IsInterface() ?
+                                CanCastToInterface(pTargetMT) :
+                                CanCastToClass(pTargetMT);
+
+    // do not add to the cache
+    // - it is contextual because of pVisited
+    // - array may yet to convert via bizzare interfaces.
+
+    //TODO: VS check callers.
+
+    return result;
 }
 
 //==========================================================================================
