@@ -91,7 +91,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.SetCheckSum(m_pDocWriter, algorithmId, (uint)checkSum!.Length, checkSum);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -176,7 +176,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.DefineDocument(m_pWriter, url, ref language, ref languageVendor, ref documentType, out psymUnmanagedDocumentWriter);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
                 if (psymUnmanagedDocumentWriter.IsInvalid)
                 {
@@ -193,7 +193,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.OpenMethod(m_pWriter, method.GetToken());
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -205,7 +205,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.CloseMethod(m_pWriter);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -263,7 +263,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.DefineSequencePoints(m_pWriter, docwriter.GetUnmanaged(), spCount!, offsets!, lines!, columns!, endLines!, endColumns!);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -276,7 +276,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.OpenScope(m_pWriter, startOffset, out ret);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
                 return ret;
             }
@@ -289,7 +289,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.CloseScope(m_pWriter, endOffset);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -319,7 +319,7 @@ namespace System.Reflection.Emit
                                                       endOffset);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -331,7 +331,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.SetSymAttribute(m_pWriter, parent.GetToken(), name, data.Length, data);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -343,7 +343,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.UsingNamespace(m_pWriter, name);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
