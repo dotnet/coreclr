@@ -32,19 +32,32 @@ namespace System.Runtime.Loader
         private static readonly Dictionary<long, WeakReference<AssemblyLoadContext>> s_allContexts = new Dictionary<long, WeakReference<AssemblyLoadContext>>();
         private static long s_nextId;
 
+#region private data members
         // If you modify any of these fields, you must also update the
         // AssemblyLoadContextBaseObject structure in object.h
-        private readonly IntPtr _nativeAssemblyLoadContext; // Contains the reference to VM's representation of the AssemblyLoadContext
-
-        // Indicates the state of this ALC (Alive or in Unloading state)
-        private InternalState _state;
-
-        // Id used by s_allContexts
-        private readonly long _id;
 
         // synchronization primitive to protect against usage of this instance while unloading
         private readonly object _unloadLock;
 
+        private event Func<Assembly, string, IntPtr> _resolvingUnmanagedDll;
+
+        private event Func<AssemblyLoadContext, AssemblyName, Assembly> _resolving;
+
+        private event Action<AssemblyLoadContext> _unloading;
+
+        private readonly string _name;
+
+        // Contains the reference to VM's representation of the AssemblyLoadContext
+        private readonly IntPtr _nativeAssemblyLoadContext;
+
+        // Id used by s_allContexts
+        private readonly long _id;
+
+        // Indicates the state of this ALC (Alive or in Unloading state)
+        private InternalState _state;
+
+        private readonly bool _isCollectible;
+#endregion
 
         protected AssemblyLoadContext() : this(false, false, null)
         {
@@ -61,9 +74,9 @@ namespace System.Runtime.Loader
         private protected AssemblyLoadContext(bool representsTPALoadContext, bool isCollectible, string name)
         {
             // Initialize the VM side of AssemblyLoadContext if not already done.
-            IsCollectible = isCollectible;
+            _isCollectible = isCollectible;
 
-            Name = name;
+            _name = name;
 
             // The _unloadLock needs to be assigned after the IsCollectible to ensure proper behavior of the finalizer
             // even in case the following allocation fails or the thread is aborted between these two lines.
@@ -106,7 +119,7 @@ namespace System.Runtime.Loader
         private void RaiseUnloadEvent()
         {
             // Ensure that we raise the Unload event only once
-            Interlocked.Exchange(ref Unloading, null)?.Invoke(this);
+            Interlocked.Exchange(ref _unloading, null)?.Invoke(this);
         }
 
         private void InitiateUnload()
@@ -156,7 +169,17 @@ namespace System.Runtime.Loader
         //
         // Inputs: Invoking assembly, and library name to resolve
         // Returns: A handle to the loaded native library
-        public event Func<Assembly, string, IntPtr> ResolvingUnmanagedDll;
+        public event Func<Assembly, string, IntPtr> ResolvingUnmanagedDll
+        {
+            add
+            {
+                _resolvingUnmanagedDll += value;
+            }
+            remove
+            {
+                _resolvingUnmanagedDll -= value;
+            }
+        }
 
         // Event handler for resolving managed assemblies.
         // This event is raised if the managed assembly could not be resolved via
@@ -164,9 +187,29 @@ namespace System.Runtime.Loader
         //
         // Inputs: The AssemblyLoadContext and AssemblyName to be loaded
         // Returns: The Loaded assembly object.
-        public event Func<AssemblyLoadContext, AssemblyName, Assembly> Resolving;
+        public event Func<AssemblyLoadContext, AssemblyName, Assembly> Resolving
+        {
+            add
+            {
+                _resolving += value;
+            }
+            remove
+            {
+                _resolving -= value;
+            }
+        }
 
-        public event Action<AssemblyLoadContext> Unloading;
+        public event Action<AssemblyLoadContext> Unloading
+        {
+            add
+            {
+                _unloading += value;
+            }
+            remove
+            {
+                _unloading -= value;
+            }
+        }
 
         // Occurs when an Assembly is loaded
         public static event AssemblyLoadEventHandler AssemblyLoad;
@@ -183,9 +226,9 @@ namespace System.Runtime.Loader
 
         public static AssemblyLoadContext Default => DefaultAssemblyLoadContext.s_loadContext;
 
-        public bool IsCollectible { get; }
+        public bool IsCollectible { get { return _isCollectible;} }
 
-        public string Name { get; }
+        public string Name { get { return _name;} }
 
         public override string ToString() => "\"" + Name + "\" " + GetType().ToString() + " #" + _id;
 
