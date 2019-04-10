@@ -139,7 +139,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        protected void Enqueue(double value)
+        private void Enqueue(double value)
         {
             // It is possible that two threads read the same bufferedValuesIndex, but only one will be able to write the slot, so that is okay.
             int i = _bufferedValuesIndex;

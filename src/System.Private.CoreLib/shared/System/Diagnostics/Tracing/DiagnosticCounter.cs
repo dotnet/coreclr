@@ -89,7 +89,7 @@ namespace System.Diagnostics.Tracing
         internal abstract void WritePayload(float intervalSec);
 
         // arbitrarily we use name as the lock object.  
-        protected object MyLock { get { return Name; } }
+        internal object MyLock { get { return Name; } }
 
         internal void ReportOutOfBandMessage(string message)
         {
