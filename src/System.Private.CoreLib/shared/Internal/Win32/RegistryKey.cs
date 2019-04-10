@@ -163,7 +163,7 @@ namespace Internal.Win32
             // add up quickly- we'll try to keep the memory pressure low and grow the buffer
             // only if needed.
 
-            char[] name = ArrayPool<char>.Shared.Rent(100);
+            char[]? name = ArrayPool<char>.Shared.Rent(100);
 
             try
             {
@@ -222,11 +222,11 @@ namespace Internal.Win32
 
         public object? GetValue(string name, object? defaultValue)
         {
-            object data = defaultValue;
+            object? data = defaultValue;
             int type = 0;
             int datasize = 0;
 
-            int ret = Interop.Advapi32.RegQueryValueEx(_hkey, name, null, ref type, (byte[])null, ref datasize);
+            int ret = Interop.Advapi32.RegQueryValueEx(_hkey, name, null, ref type, (byte[]?)null, ref datasize);
 
             if (ret != 0)
             {
@@ -363,7 +363,7 @@ namespace Internal.Win32
                                 throw new IOException(SR.Arg_RegGetOverflowBug, e);
                             }
                         }
-                        char[] blob = new char[datasize / 2];
+                        char[]? blob = new char[datasize / 2];
 
                         ret = Interop.Advapi32.RegQueryValueEx(_hkey, name, null, ref type, blob, ref datasize);
 
@@ -373,11 +373,11 @@ namespace Internal.Win32
                             Array.Resize(ref blob, blob.Length + 1);
                         }
 
-                        string[] strings = Array.Empty<string>();
+                        string[]? strings = Array.Empty<string>();
                         int stringsCount = 0;
 
                         int cur = 0;
-                        int len = blob.Length;
+                        int len = blob!.Length;
 
                         while (ret == 0 && cur < len)
                         {
@@ -387,7 +387,7 @@ namespace Internal.Win32
                                 nextNull++;
                             }
 
-                            string toAdd = null;
+                            string? toAdd = null;
                             if (nextNull < len)
                             {
                                 Debug.Assert(blob[nextNull] == (char)0, "blob[nextNull] should be 0");
@@ -417,7 +417,7 @@ namespace Internal.Win32
                                 {
                                     Array.Resize(ref strings, stringsCount > 0 ? stringsCount * 2 : 4);
                                 }
-                                strings[stringsCount++] = toAdd;
+                                strings![stringsCount++] = toAdd;
                             }
                         }
 
