@@ -1,15 +1,22 @@
 # Require at least version 2.8.12 of CMake
 cmake_minimum_required(VERSION 2.8.12)
 
-# Include global configure settings
-include(${CMAKE_CURRENT_SOURCE_DIR}/../configure.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/../configurecompiler.cmake)
+if (NOT WIN32)
+  set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -std=c++11"  CACHE STRING "Flags used by the compiler during all build types.")
+  set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -std=c11"  CACHE STRING "Flags used by the compiler during all build types.")
+endif()
+
+project(Project)
 
 set(INC_PLATFORM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/Common/Platform)
 if (WIN32)
     add_definitions(-DWINDOWS=1)
 endif()
 
+# Include global configure settings
+include(${CMAKE_CURRENT_SOURCE_DIR}/../configure.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../configurecompiler.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../configureoptimization.cmake)
 # Compile options
 
 if (WIN32)

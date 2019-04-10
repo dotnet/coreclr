@@ -1,12 +1,18 @@
 # Verify minimum required version
 cmake_minimum_required(VERSION 2.8.12)
 
-if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
+if(${CMAKE_VERSION} VERSION_EQUAL 3.0 OR ${CMAKE_VERSION} VERSION_GREATER 3.0)
     cmake_policy(SET CMP0042 NEW)
+endif()
+
+if (NOT WIN32)
+  set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -std=c++11"  CACHE STRING "Flags used by the compiler during all build types.")
+  set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -std=c11"  CACHE STRING "Flags used by the compiler during all build types.")
 endif()
 
 # Set the project name
 project(CoreCLR)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Include cmake functions
 include(functions.cmake)
@@ -143,6 +149,7 @@ endif(WIN32)
 # Configure compiler settings for environment
 #----------------------------------------------------
 include(configurecompiler.cmake)
+include(configureoptimization.cmake)
 
 #----------------------------------------------------
 # Cross target Component build specific configuration
