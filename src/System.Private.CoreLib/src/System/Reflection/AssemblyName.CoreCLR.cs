@@ -36,9 +36,9 @@ namespace System.Reflection
             StrongNameKeyPair keyPair) // Null if ref, matching Assembly if def
         {
             _name = name;
-            _publicKey = (byte[])publicKey?.Clone();
-            _publicKeyToken = (byte[])publicKeyToken?.Clone();
-            _version = (Version)version?.Clone();
+            _publicKey = publicKey;
+            _publicKeyToken = publicKeyToken;
+            _version = version;
             _cultureInfo = cultureInfo;
             _hashAlgorithm = hashAlgorithm;
             _versionCompatibility = versionCompatibility;
@@ -74,33 +74,33 @@ namespace System.Reflection
             if (((uint)flags & 0xF0) == 0x70)
                 return ProcessorArchitecture.None;
 
-            if ((pek & System.Reflection.PortableExecutableKinds.PE32Plus) == System.Reflection.PortableExecutableKinds.PE32Plus)
+            if ((pek & PortableExecutableKinds.PE32Plus) == PortableExecutableKinds.PE32Plus)
             {
                 switch (ifm)
                 {
-                    case System.Reflection.ImageFileMachine.IA64:
+                    case ImageFileMachine.IA64:
                         return ProcessorArchitecture.IA64;
-                    case System.Reflection.ImageFileMachine.AMD64:
+                    case ImageFileMachine.AMD64:
                         return ProcessorArchitecture.Amd64;
-                    case System.Reflection.ImageFileMachine.I386:
-                        if ((pek & System.Reflection.PortableExecutableKinds.ILOnly) == System.Reflection.PortableExecutableKinds.ILOnly)
+                    case ImageFileMachine.I386:
+                        if ((pek & PortableExecutableKinds.ILOnly) == PortableExecutableKinds.ILOnly)
                             return ProcessorArchitecture.MSIL;
                         break;
                 }
             }
             else
             {
-                if (ifm == System.Reflection.ImageFileMachine.I386)
+                if (ifm == ImageFileMachine.I386)
                 {
-                    if ((pek & System.Reflection.PortableExecutableKinds.Required32Bit) == System.Reflection.PortableExecutableKinds.Required32Bit)
+                    if ((pek & PortableExecutableKinds.Required32Bit) == PortableExecutableKinds.Required32Bit)
                         return ProcessorArchitecture.X86;
 
-                    if ((pek & System.Reflection.PortableExecutableKinds.ILOnly) == System.Reflection.PortableExecutableKinds.ILOnly)
+                    if ((pek & PortableExecutableKinds.ILOnly) == PortableExecutableKinds.ILOnly)
                         return ProcessorArchitecture.MSIL;
 
                     return ProcessorArchitecture.X86;
                 }
-                if (ifm == System.Reflection.ImageFileMachine.ARM)
+                if (ifm == ImageFileMachine.ARM)
                 {
                     return ProcessorArchitecture.Arm;
                 }
