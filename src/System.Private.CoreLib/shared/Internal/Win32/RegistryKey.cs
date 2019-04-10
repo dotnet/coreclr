@@ -29,7 +29,7 @@ namespace Internal.Win32
         private const int MaxKeyLength = 255;
         private const int MaxValueLength = 16383;
 
-        private SafeRegistryHandle? _hkey = null;
+        private SafeRegistryHandle _hkey;
 
         private RegistryKey(SafeRegistryHandle hkey)
         {
@@ -220,7 +220,7 @@ namespace Internal.Win32
             return GetValue(name, null);
         }
 
-        public object? GetValue(string name, object? defaultValue)
+        public object? GetValue(string name, object? defaultValue) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
         {
             object? data = defaultValue;
             int type = 0;
@@ -363,21 +363,21 @@ namespace Internal.Win32
                                 throw new IOException(SR.Arg_RegGetOverflowBug, e);
                             }
                         }
-                        char[]? blob = new char[datasize / 2];
+                        char[] blob = new char[datasize / 2];
 
                         ret = Interop.Advapi32.RegQueryValueEx(_hkey, name, null, ref type, blob, ref datasize);
 
                         // make sure the string is null terminated before processing the data
                         if (blob.Length > 0 && blob[blob.Length - 1] != (char)0)
                         {
-                            Array.Resize(ref blob, blob.Length + 1);
+                            Array.Resize(ref blob!, blob.Length + 1); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                         }
 
-                        string[]? strings = Array.Empty<string>();
+                        string[] strings = Array.Empty<string>();
                         int stringsCount = 0;
 
                         int cur = 0;
-                        int len = blob!.Length;
+                        int len = blob.Length;
 
                         while (ret == 0 && cur < len)
                         {
@@ -415,13 +415,13 @@ namespace Internal.Win32
                             {
                                 if (strings.Length == stringsCount)
                                 {
-                                    Array.Resize(ref strings, stringsCount > 0 ? stringsCount * 2 : 4);
+                                    Array.Resize(ref strings!, stringsCount > 0 ? stringsCount * 2 : 4); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                                 }
-                                strings![stringsCount++] = toAdd;
+                                strings![stringsCount++] = toAdd; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                             }
                         }
 
-                        Array.Resize(ref strings, stringsCount);
+                        Array.Resize(ref strings!, stringsCount); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                         data = strings;
                     }
                     break;
@@ -435,7 +435,7 @@ namespace Internal.Win32
 
         // The actual api is SetValue(string name, object value) but we only need to set Strings
         // so this is a cut-down version that supports on that.
-        internal void SetValue(string? name, string value)
+        internal void SetValue(string name, string value)
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
