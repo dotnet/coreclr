@@ -440,7 +440,7 @@ namespace Internal.Win32
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
 
-            if (name != null && name.Length > MaxValueLength)
+            if (name.Length > MaxValueLength)
                 throw new ArgumentException(SR.Arg_RegValStrLenBug, nameof(name));
 
             int ret = Interop.Advapi32.RegSetValueEx(_hkey,

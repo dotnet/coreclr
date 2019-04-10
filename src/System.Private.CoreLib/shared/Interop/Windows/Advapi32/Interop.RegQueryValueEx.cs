@@ -49,7 +49,7 @@ internal partial class Interop
             string lpValueName,
             int[]? lpReserved,
             ref int lpType,
-            [Out] char[] lpData,
+            [Out] char[]? lpData,
             ref int lpcbData);
     }
 }
