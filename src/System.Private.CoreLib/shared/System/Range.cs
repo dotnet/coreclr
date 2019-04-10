@@ -103,7 +103,7 @@ namespace System
         /// We validate the range is inside the length scope though.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public (int offset, int rangeLength) GetOffsetAndLength(int length)
+        public (int Offset, int Length) GetOffsetAndLength(int length)
         {
             int start;
             Index startIndex = Start;
