@@ -443,26 +443,7 @@ namespace System.Runtime.Loader
             }
         }
 
-        internal static class StaticAsyncLocalCurrentContextualReflectionContext
-        {
-            private static AsyncLocal<AssemblyLoadContext> s_asyncLocalCurrent;
-
-            public static AssemblyLoadContext Value
-            {
-                get
-                {
-                    return s_asyncLocalCurrent?.Value;
-                }
-                set
-                {
-                    if (s_asyncLocalCurrent == null)
-                    {
-                        Interlocked.CompareExchange(ref s_asyncLocalCurrent, new AsyncLocal<AssemblyLoadContext>(), null);
-                    }
-                    s_asyncLocalCurrent.Value = value;
-                }
-            }
-        }
+        private static AsyncLocal<AssemblyLoadContext> s_asyncLocalCurrent;
 
         /// <summary>Nullable current AssemblyLoadContext used for context sensitive reflection APIs</summary>
         /// <remarks>
@@ -490,7 +471,16 @@ namespace System.Runtime.Loader
         /// </remarks>
         public static AssemblyLoadContext CurrentContextualReflectionContext
         {
-            get { return StaticAsyncLocalCurrentContextualReflectionContext.Value; }
+            get { return s_asyncLocalCurrent?.Value; }
+        }
+
+        private static void SetCurrentContextualReflectionContext(AssemblyLoadContext value)
+        {
+            if (s_asyncLocalCurrent == null)
+            {
+                Interlocked.CompareExchange(ref s_asyncLocalCurrent, new AsyncLocal<AssemblyLoadContext>(), null);
+            }
+            s_asyncLocalCurrent.Value = value;
         }
 
         /// <summary>Enter scope using this AssemblyLoadContext for ContextualReflection</summary>
@@ -540,19 +530,19 @@ namespace System.Runtime.Loader
 
             internal ContextualReflectionScope(AssemblyLoadContext activating)
             {
-                _predecessor = StaticAsyncLocalCurrentContextualReflectionContext.Value;
-                StaticAsyncLocalCurrentContextualReflectionContext.Value = activating;
+                _predecessor = AssemblyLoadContext.CurrentContextualReflectionContext;
+                AssemblyLoadContext.SetCurrentContextualReflectionContext(activating);
                 _activated = activating;
                 _initialized = true;
             }
 
             public void Dispose()
             {
-                if(_initialized)
+                if (_initialized)
                 {
                     // Do not clear initialized. Always restore the _predecessor in Dispose()
                     // _initialized = false;
-                    StaticAsyncLocalCurrentContextualReflectionContext.Value = _predecessor;
+                    AssemblyLoadContext.SetCurrentContextualReflectionContext(_predecessor);
                 }
             }
         }
