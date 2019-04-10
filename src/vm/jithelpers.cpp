@@ -2201,7 +2201,7 @@ TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTyp
 
     MethodTable *pMT = pObject->GetMethodTable();
 
-    // Quick exact match should be checked already
+    // Quick exact match should be checked already (a cache lookup would do it)
     _ASSERTE(TypeHandle(pMT) != toTypeHnd);
 
     if ((toTypeHnd.IsInterface() && ( pMT->IsComObjectType() || pMT->IsICastable())))
@@ -2220,8 +2220,9 @@ TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTyp
             if (pInterfaceMT->HasInstantiation())
                 return ArrayObjSupportsBizarreInterfaceNoGC(pObject, pInterfaceMT);
 
-            //TODO: VS report to cache from ImplementsInterface
-            return pMT->ImplementsInterface(pInterfaceMT) ? TypeHandle::CanCast : TypeHandle::CannotCast;
+            BOOL result = pMT->ImplementsInterface(pInterfaceMT);
+            CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, result);
+            return (TypeHandle::CastResult)result;
         }
 
         if (toTypeHnd == TypeHandle(g_pObjectClass) || toTypeHnd == TypeHandle(g_pArrayClass))
@@ -2254,11 +2255,6 @@ TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle t
     } CONTRACTL_END;
 
     MethodTable *pMT = pObject->GetMethodTable();
-
-    // Quick exact match first
-    if (TypeHandle(pMT) == toTypeHnd)
-        return TypeHandle::CanCast;
-
     CastCache::CastCacheResult result = CastCache::TryGetFromCache(pMT, toTypeHnd);
     if (result != CastCache::CastCacheResult::NotCached)
     {
