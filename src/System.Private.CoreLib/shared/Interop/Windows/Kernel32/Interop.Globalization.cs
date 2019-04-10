@@ -41,7 +41,7 @@ internal static partial class Interop
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         internal static extern unsafe int LCMapStringEx(
-                    string lpLocaleName,
+                    string? lpLocaleName, // null means invariant
                     uint dwMapFlags,
                     char* lpSrcStr,
                     int cchSrc,
@@ -102,8 +102,9 @@ internal static partial class Interop
                     int cchStr);
 
 #if !ENABLE_WINRT
+        // When pwszLanguagesBuffer is null, checks the required buffer size
         [DllImport("Kernel32.dll", CharSet = CharSet.Auto)]
-        internal static extern bool GetUserPreferredUILanguages(uint dwFlags, out uint pulNumLanguages, char [] pwszLanguagesBuffer, ref uint pcchLanguagesBuffer);
+        internal static extern bool GetUserPreferredUILanguages(uint dwFlags, out uint pulNumLanguages, char[]? pwszLanguagesBuffer, ref uint pcchLanguagesBuffer);
 #endif //!ENABLE_WINRT
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]

@@ -5,6 +5,7 @@
 #nullable enable
 using Microsoft.Win32.SafeHandles;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -34,8 +35,9 @@ internal partial class Interop
             int dwFlagsAndAttributes,
             IntPtr hTemplateFile)
         {
-            lpFileName = PathInternal.EnsureExtendedPrefixOverMaxPath(lpFileName);
-            return CreateFilePrivate(lpFileName, dwDesiredAccess, dwShareMode, ref securityAttrs, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+            string? lpFileNameWithPrefix = PathInternal.EnsureExtendedPrefixOverMaxPath(lpFileName); // TODO-NULLABLE: API marked as `DO NOT USE`
+            Debug.Assert(lpFileNameWithPrefix != null, "null not expected when non-null passed");
+            return CreateFilePrivate(lpFileNameWithPrefix, dwDesiredAccess, dwShareMode, ref securityAttrs, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
         }
     }
 }

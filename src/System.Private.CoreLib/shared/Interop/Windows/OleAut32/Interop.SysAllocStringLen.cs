@@ -14,7 +14,8 @@ internal partial class Interop
         [DllImport(Libraries.OleAut32, CharSet = CharSet.Unicode)]
         internal static extern SafeBSTRHandle SysAllocStringLen(IntPtr src, uint len);
 
+        // When str is null string is uninitialized
         [DllImport(Libraries.OleAut32, CharSet = CharSet.Unicode)]
-        internal static extern IntPtr SysAllocStringLen(string src, int len);
+        internal static extern IntPtr SysAllocStringLen(string? src, int len);
     }
 }

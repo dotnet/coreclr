@@ -10,7 +10,8 @@ internal partial class Interop
 {
     internal partial class OleAut32
     {
+        // When str is null string is uninitialized
         [DllImport(Libraries.OleAut32)]
-        internal static extern IntPtr SysAllocStringByteLen(byte[] str, uint len);
+        internal static extern IntPtr SysAllocStringByteLen(byte[]? str, uint len);
     }
 }
