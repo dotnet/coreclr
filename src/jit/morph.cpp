@@ -11918,6 +11918,10 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             switch (tree->gtOper)
             {
                 case GT_ADDR:
+                    // A non-null mac here implies this node is part of an address computation.
+                    // If so, we need to pass the existing mac down to the child node.
+                    //
+                    // Otherwise, use a new mac.
                     if (subMac1 == nullptr)
                     {
                         subMac1         = &subIndMac1;
@@ -11933,12 +11937,11 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
                 case GT_BLK:
                 case GT_DYN_BLK:
                 case GT_IND:
-                    // If this node is part of an address computation, propagate
-                    // the existing mac.
+                    // A non-null mac here implies this node is part of an address computation (the tree parent is
+                    // GT_ADDR).
+                    // If so, we need to pass the existing mac down to the child node.
                     //
-                    // We can't check for this exactly, but a non-null mac is a
-                    // reasonable approximation for "this node is part of an
-                    // address computation".
+                    // Otherwise, use a new mac.
                     if (subMac1 == nullptr)
                     {
                         subMac1 = &subIndMac1;
