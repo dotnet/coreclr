@@ -18,7 +18,7 @@ internal partial class Interop
         [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, BestFitMapping = false, EntryPoint = "RegOpenKeyExW")]
         internal static extern int RegOpenKeyEx(
             SafeRegistryHandle hKey,
-            string lpSubKey,
+            string? lpSubKey,
             int ulOptions,
             int samDesired,
             out SafeRegistryHandle hkResult);
@@ -27,7 +27,7 @@ internal partial class Interop
         [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, BestFitMapping = false, EntryPoint = "RegOpenKeyExW")]
         internal static extern int RegOpenKeyEx(
             IntPtr hKey,
-            string lpSubKey,
+            string? lpSubKey,
             int ulOptions,
             int samDesired,
             out SafeRegistryHandle hkResult);
