@@ -10,18 +10,18 @@ namespace System
     public readonly partial struct DateTime
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern bool ValidateSystemTime(in Interop.Kernel32.SYSTEMTIME time, bool localTime);
+        private static unsafe extern bool ValidateSystemTime(Interop.Kernel32.SYSTEMTIME* time, bool localTime);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern bool FileTimeToSystemTime(long fileTime, out FullSystemTime time);
+        private static unsafe extern bool FileTimeToSystemTime(long fileTime, FullSystemTime* time);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void GetSystemTimeWithLeapSecondsHandling(out FullSystemTime time);
+        private static unsafe extern void GetSystemTimeWithLeapSecondsHandling(FullSystemTime* time);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern bool SystemTimeToFileTime(in Interop.Kernel32.SYSTEMTIME time, out long fileTime);
+        private static unsafe extern bool SystemTimeToFileTime(Interop.Kernel32.SYSTEMTIME* time, long* fileTime);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern long GetSystemTimeAsFileTime();
+        private static unsafe extern long GetSystemTimeAsFileTime();
     }
 }
