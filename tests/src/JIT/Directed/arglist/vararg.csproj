@@ -37,6 +37,6 @@
   </ItemGroup>
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="CMakeLists.txt" />
+    <NativeProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
 </Project>

@@ -32,6 +32,6 @@
     <Compile Include="*.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="CMakeLists.txt"/>
+    <NativeProjectReference Include="CMakeLists.txt"/>
   </ItemGroup>
 </Project>

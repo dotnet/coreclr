@@ -2,8 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <NugetTargetMoniker>.NETStandard,Version=v1.4</NugetTargetMoniker>
-    <NugetTargetMonikerShort>netstandard1.4</NugetTargetMonikerShort>
+    <TargetFrameworks>netstandard1.4;netcoreapp3.0</TargetFrameworks>
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
   <ItemGroup>

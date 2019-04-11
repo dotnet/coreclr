@@ -5,8 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <CLRTestKind>BuildOnly</CLRTestKind>
-    <NugetTargetMoniker>.NETCoreApp,Version=v3.0</NugetTargetMoniker>
-    <NugetTargetMonikerShort>netcoreapp3.0</NugetTargetMonikerShort>
+    <TargetFrameworks>netstandard1.4;netcoreapp3.0</TargetFrameworks>
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
   <ItemGroup>

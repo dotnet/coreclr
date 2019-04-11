@@ -2,10 +2,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <NugetTargetMoniker>.NETStandard,Version=v1.6</NugetTargetMoniker>
-    <NugetTargetMonikerShort>netstandard1.6</NugetTargetMonikerShort>
+    <TargetFrameworks>netstandard1.4;netstandard1.6;netcoreapp3.0</TargetFrameworks>
     <IsTestProject>false</IsTestProject>
     <NoWarn>NU1605</NoWarn>
+    <TargetFramework>netstandard1.6</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.performance.api">
@@ -106,8 +106,6 @@
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
-    
-    
     <AssetTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</AssetTargetFallback>
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>

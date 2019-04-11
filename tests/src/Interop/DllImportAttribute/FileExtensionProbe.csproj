@@ -33,8 +33,8 @@
       <Project>{c8c0dc74-fac4-45b1-81fe-70c4808366e0}</Project>
       <Name>CoreCLRTestLibrary</Name>
     </ProjectReference>
-    <ProjectReference Include="Simple\CMakeLists.txt"></ProjectReference>
-    <ProjectReference Include="FileNameContainDot\CMakeLists.txt"></ProjectReference>
-    <ProjectReference Include="ExeFile\CMakeLists.txt"></ProjectReference>
+    <NativeProjectReference Include="Simple\CMakeLists.txt"></ProjectReference>
+    <NativeProjectReference Include="FileNameContainDot\CMakeLists.txt"></ProjectReference>
+    <NativeProjectReference Include="ExeFile\CMakeLists.txt"></ProjectReference>
   </ItemGroup>
 </Project>

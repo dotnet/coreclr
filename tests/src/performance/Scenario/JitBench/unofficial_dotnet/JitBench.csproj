@@ -32,6 +32,9 @@
     <PackageReference Include="xunit.performance.metrics">
       <Version>$(XunitPerformanceApiPackageVersion)</Version>
     </PackageReference>
+
+    <!-- See tests/dirs.proj -->
+    <DisableProjectBuild>true</DisableProjectBuild>
   </ItemGroup>
 
   <ItemGroup>

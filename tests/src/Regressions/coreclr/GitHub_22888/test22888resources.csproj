@@ -30,6 +30,7 @@
   <ItemGroup>
     <EmbeddedResource Include="test22888.resx">
       <Generator>ResXFileCodeGenerator</Generator>
+      <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

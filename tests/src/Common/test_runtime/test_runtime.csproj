@@ -13,15 +13,6 @@
     <PackageReference Include="Microsoft.NETCore.Platforms">
       <Version>$(MicrosoftNETCorePlatformsVersion)</Version>
     </PackageReference>
-    <PackageReference Include="jit-dasm">
-      <Version>0.0.1.4</Version>
-    </PackageReference>
-    <PackageReference Include="cijobs">
-      <Version>0.0.1.2</Version>
-    </PackageReference>
-    <PackageReference Include="jit-analyze">
-      <Version>0.0.1.1</Version>
-    </PackageReference>
   </ItemGroup>
   <PropertyGroup>
     

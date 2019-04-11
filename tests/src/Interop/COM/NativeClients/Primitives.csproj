@@ -14,9 +14,9 @@
     <Compile Include="$(InteropCommonDir)ExeLauncherProgram.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="Primitives/CMakeLists.txt" />
+    <NativeProjectReference Include="Primitives/CMakeLists.txt" />
     <ProjectReference Include="../NetServer/NetServer.csproj" />
-    <ProjectReference Include="../../../Common/hostpolicymock/CMakeLists.txt" />
+    <NativeProjectReference Include="../../../Common/hostpolicymock/CMakeLists.txt" />
     <ProjectReference Include="../../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
   </ItemGroup>
 </Project>

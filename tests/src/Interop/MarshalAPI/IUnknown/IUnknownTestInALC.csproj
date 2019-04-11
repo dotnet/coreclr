@@ -39,6 +39,6 @@
       <Name>CoreCLRTestLibrary</Name>
     </ProjectReference>
     <ProjectReference Include="IUnknownTest.csproj" />
-    <ProjectReference Include="CMakeLists.txt" />
+    <NativeProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
 </Project>

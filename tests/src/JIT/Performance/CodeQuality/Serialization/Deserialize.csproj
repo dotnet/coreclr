@@ -32,6 +32,6 @@
   </ItemGroup>
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
   <PropertyGroup>
-    <ProjectAssetsFile>$(JitPackagesConfigFileDirectory)benchmark+serialize\obj\project.assets.json</ProjectAssetsFile>
+    <ProjectAssetsFile>$(JitPackagesConfigFileDirectory)benchmark+serialize\benchmark+serialize\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 </Project>

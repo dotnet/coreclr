@@ -35,7 +35,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="hfa_nested_f64_common.csproj" />
-    <ProjectReference Include="CMakelists.txt" />
+    <NativeProjectReference Include="CMakelists.txt" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' ">
   </PropertyGroup> 

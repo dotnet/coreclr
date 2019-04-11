@@ -17,12 +17,17 @@
     <BuildOS Condition="'$(__BuildOS)' == '' And '$([MSBuild]::IsOSPlatform(Linux))' == 'true'">Linux</BuildOS>
     <BuildOS Condition="'$(__BuildOS)' == '' And '$([MSBuild]::IsOSPlatform(OSX))' == 'true'">OSX</BuildOS>
 
+    <BuildArch Condition="'$(BuildArch)' == ''">x64</BuildArch>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <Platform>BuildArch</Platform>
+
     <RootArtifactsDir>$(__RootArtifactsDir)</RootArtifactsDir>
     <RootArtifactsDir Condition="'$(RootArtifactsDir)'==''">$(ProjectDir)artifacts/</RootArtifactsDir>
 
-    <OSPlatformConfig>$(BuildOS)/$(Platform)/$(Configuration)</OSPlatformConfig>
+    <OSPlatformConfig>$(BuildOS)/$(BuildArch)/$(Configuration)</OSPlatformConfig>
 
     <TestSrcDir>$(MSBuildThisFileDirectory)src/</TestSrcDir>
+    <__NativeTestIntermediatesDir Condition="'$(__NativeTestIntermediatesDir)' == ''">$([System.IO.Path]::GetFullPath($(RootArtifactsDir)tests\obj\$(OSPlatformConfig)\Native\))</__NativeTestIntermediatesDir>
 
     <BuildProjectRelativeDir>$(MSBuildProjectName)\</BuildProjectRelativeDir>
     <BuildProjectRelativeDir Condition="'$(MSBuildProjectDirectory.Contains($(TestSrcDir)))'">$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace($(TestSrcDir),''))\$(MSBuildProjectName)</BuildProjectRelativeDir>

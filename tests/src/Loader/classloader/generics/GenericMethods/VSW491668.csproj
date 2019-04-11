@@ -12,6 +12,9 @@
     <OutputType>Exe</OutputType>
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
+
+    <!-- See tests/dirs.proj for more information. -->
+    <DisableProjectBuild>true</DisableProjectBuild>
   </PropertyGroup>
 
   <ItemGroup>

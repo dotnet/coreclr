@@ -39,6 +39,8 @@
   <PropertyGroup Condition="'$(BuildAllProjects)'=='true'">
     <!-- When we do a traversal build we get all packages up front, don't restore them again -->
     <RestorePackages>false</RestorePackages>
+
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'">

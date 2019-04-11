@@ -40,7 +40,7 @@
     <Compile Include="../../ServerContracts/ServerGuids.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../NativeServer/CMakeLists.txt" />
+    <NativeProjectReference Include="../../NativeServer/CMakeLists.txt" />
     <ProjectReference Include="../../../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
     <PackageReference Include="System.Drawing.Common">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>

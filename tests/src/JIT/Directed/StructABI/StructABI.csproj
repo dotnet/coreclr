@@ -31,6 +31,6 @@
     <Compile Include="StructABI.OSX.cs" Condition="'$(OSGroup)' == 'OSX'" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="CMakeLists.txt" />
+    <NativeProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
 </Project>

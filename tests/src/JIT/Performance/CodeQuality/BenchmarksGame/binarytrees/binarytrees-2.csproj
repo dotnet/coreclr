@@ -34,6 +34,6 @@
 
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
   <PropertyGroup>
-    <ProjectAssetsFile>$(JitPackagesConfigFileDirectory)benchmark\obj\project.assets.json</ProjectAssetsFile>
+    <ProjectAssetsFile>$(JitPackagesConfigFileDirectory)benchmark\benchmark\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 </Project>

@@ -164,5 +164,9 @@
     <Compile Include="..\Shared\SimpleBinOpTest_DataTable.cs" />
     <Compile Include="..\Shared\SimpleTernOpTest_DataTable.cs" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(TestSrcDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
+  </ItemGroup>
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
 </Project>

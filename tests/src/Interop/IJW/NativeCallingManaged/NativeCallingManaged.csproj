@@ -37,8 +37,8 @@
     <Compile Include="NativeCallingManaged.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="IjwNativeCallingManagedDll/CMakeLists.txt" />
-    <ProjectReference Include="../FakeMscoree/CMakeLists.txt" />
+    <NativeProjectReference Include="IjwNativeCallingManagedDll/CMakeLists.txt" />
+    <NativeProjectReference Include="../FakeMscoree/CMakeLists.txt" />
     <ProjectReference Include="../../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
   </ItemGroup>
 </Project>

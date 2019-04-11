@@ -142,10 +142,10 @@
         <NativeProjectBinariesExeFilterRemovedCMakeFile Condition="'$(RunningOnUnix)' == 'true' and !$([System.Text.RegularExpressions.Regex]::IsMatch(['%(Identity)', `.*CMakeFiles.*`))" Include="@(NativeProjectBinariesExeFilterRemovedMakeFile)" />
 
         <!-- Filter .dylib files on OSX -->
-        <NativeProjectBinariesDyLibFilter Condition="'$(__BuildOS)' == 'OSX' and $([System.Text.RegularExpressions.Regex]::IsMatch(['%(Identity)', `(.*\/).*\.dylib`))" Include="@(NativeProjectBinariesMatched)" />
+        <NativeProjectBinariesDyLibFilter Condition="'$(BuildOS)' == 'OSX' and $([System.Text.RegularExpressions.Regex]::IsMatch(['%(Identity)', `(.*\/).*\.dylib`))" Include="@(NativeProjectBinariesMatched)" />
 
         <!-- Filter .so files on Linux -->
-        <NativeProjectBinariesDyLibFilter Condition="'$(__BuildOS)' == 'Linux' and $([System.Text.RegularExpressions.Regex]::IsMatch(['%(Identity)', `(.*\/).*\.so`))" Include="@(NativeProjectBinariesMatched)" />
+        <NativeProjectBinariesDyLibFilter Condition="'$(BuildOS)' == 'Linux' and $([System.Text.RegularExpressions.Regex]::IsMatch(['%(Identity)', `(.*\/).*\.so`))" Include="@(NativeProjectBinariesMatched)" />
 
         <!-- Filter static lib files on Unix -->
         <NativeProjectBinariesStaticLibFilter Condition="'$(RunningOnUnix)' == 'true' and $([System.Text.RegularExpressions.Regex]::IsMatch(['%(Identity)', `(.*\/).*\.a`))" Include="@(NativeProjectBinariesMatched)" />
@@ -173,11 +173,9 @@
   </Target>
 
   <Target Name="ResolveCmakeNativeProjectReference"
-          Condition="'@(ProjectReference)' != ''"
+          Condition="'@(NativeProjectReference)' != ''"
           BeforeTargets="BeforeResolveReferences;BeforeClean" >
      <ItemGroup>
-        <NativeProjectReference Include="%(ProjectReference.Identity)" Condition="$([System.String]::Copy(%(ProjectReference.FileName)).ToUpper()) == 'CMAKELISTS'" />
-        <ProjectReference Remove="%(NativeProjectReference.Identity)" />
         <NativeProjectReferenceNormalized Include="@(NativeProjectReference -> '%(FullPath)')" />
      </ItemGroup>
   </Target>
@@ -186,8 +184,8 @@
           Condition="'@(NativeProjectReferenceNormalized)' != ''"
           BeforeTargets="Build" >
      <ItemGroup>
-        <NativeProjectOutputFoldersToCopy Include="$([System.String]::Copy('%(NativeProjectReferenceNormalized.RelativeDir)').Replace($(SourceDir),$(__NativeTestIntermediatesDir)\src\))" Condition="'$(RunningOnUnix)' == 'true'" />
-        <NativeProjectOutputFoldersToCopy Include="$([System.String]::Copy('%(NativeProjectReferenceNormalized.RelativeDir)').Replace($(SourceDir),$(__NativeTestIntermediatesDir)\src\))$(Configuration)\" Condition="'$(RunningOnUnix)' != 'true'" />
+        <NativeProjectOutputFoldersToCopy Include="$([System.String]::Copy('%(NativeProjectReferenceNormalized.RelativeDir)').Replace($(TestSrcDir),$(__NativeTestIntermediatesDir)\src\))" Condition="'$(RunningOnUnix)' == 'true'" />
+        <NativeProjectOutputFoldersToCopy Include="$([System.String]::Copy('%(NativeProjectReferenceNormalized.RelativeDir)').Replace($(TestSrcDir),$(__NativeTestIntermediatesDir)\src\))$(Configuration)\" Condition="'$(RunningOnUnix)' != 'true'" />
      </ItemGroup>
 
     <Message Text= "Full native project references are :%(NativeProjectReferenceNormalized.Identity)" />
@@ -226,7 +224,7 @@
   </Target>
 
   <PropertyGroup>
-    <ProjectAssetsFile>$(MSBuildThisFileDirectory)Common\test_dependencies\obj\project.assets.json</ProjectAssetsFile>
+    <ProjectAssetsFile Condition="'$(PerformanceTest)' != 'true'">$(MSBuildThisFileDirectory)Common\test_dependencies\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true' and '$(UsingMicrosoftNETSdk)' != 'true'">

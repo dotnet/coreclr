@@ -7,8 +7,6 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
   </PropertyGroup>
   <PropertyGroup>
-    <TargetFramework>netcoreapp1.0</TargetFramework>
-    <TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>
     <PackageTargetFallback>$(PackageTargetFallback);portable-net45+win8</PackageTargetFallback>
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>

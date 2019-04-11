@@ -29,7 +29,7 @@
     <ProjectReference Include="Servers\AssemblyB.csproj" />
     <ProjectReference Include="Servers\AssemblyC.csproj" />
     <ProjectReference Include="Servers\AssemblyContracts.csproj" />
-    <ProjectReference Include="../../../Common/hostpolicymock/CMakeLists.txt" />
+    <NativeProjectReference Include="../../../Common/hostpolicymock/CMakeLists.txt" />
   </ItemGroup>
 
   <!-- Set up an isolated directory for the server assemblies -->

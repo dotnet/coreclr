@@ -122,8 +122,25 @@ def divide_tests_for_slns(test_projects, max_sln_count):
         test_projects_split: [[str]]
     """
 
+    def has_conflict(bucket, item):
+        assert ("/" not in item)
+        project_name = item.split(".")
+
+        csproj_variant = project_name[0] + ".csproj"
+        ilproj_variant = project_name[0] + ".ilproj"
+
+        if ilproj_variant in bucket or csproj_variant in bucket:
+            return True
+        
+        return False
+
     # Max sln_count is max_sln_count - 1 to account for conflicts.
     naive_split_amount = math.floor(len(test_projects) / (max_sln_count - 1))
+
+    # If we have too few tests, we can bump up the amount of tests per sln to
+    # 1k.
+    if naive_split_amount < 1000:
+        naive_split_amount = 1000
 
     split_test_projects = []
     current_split = defaultdict(lambda: None)
@@ -142,7 +159,7 @@ def divide_tests_for_slns(test_projects, max_sln_count):
         project_name = item.split(os.path.sep)[-1]
 
         # Projects with the same name need to be pushed to their own sln.
-        if not project_name in current_split:
+        if not has_conflict(current_split, project_name):
             current_split[project_name.lower()] = item
         else:
             conflicts.append((project_name.lower(), item))
@@ -156,7 +173,7 @@ def divide_tests_for_slns(test_projects, max_sln_count):
     # Try to put all conflicts into their own sln. Note it is very possible this
     # opportunistic approach will not be enough.
     for item in conflicts:
-        if item[0] not in current_split:
+        if not has_conflict(current_split, item[0]):
             current_split[item[0]] = item[1]
         else:
             new_conflicts.append(item)
@@ -175,7 +192,7 @@ def divide_tests_for_slns(test_projects, max_sln_count):
     for item in conflicts:
         conflict_handled = False
         for bucket in split_test_projects:
-            if item[0] not in split_test_projects:
+            if not has_conflict(current_split, item[0]):
                 bucket[item[0]] = item[1]
                 conflict_handled = True
                 break
@@ -199,48 +216,95 @@ there are less conflicting project names.""")
 
     return buckets
 
-def create_sln_files(dotnetcli, coreclr_test_dir, sln_buckets):
+def split_buckets_between_priorities(coreclr_test_src_dir, buckets):
+    """ Given a set of buckets separate them between Pri0/Pri1 and Win32 only
+    """
+
+    test_builds_windows_only = []
+    priority_0 = []
+    priority_1 = []
+    test_disabled = []
+
+    for item in buckets:
+        if item.split(os.path.sep)[0].lower() == "common":
+            continue
+        elif os.path.join("JIT", "config").lower() in item.lower():
+            continue
+        elif os.path.join("Performance", "perfromance.csproj").lower() == item.lower():
+            continue
+        elif os.path.join("Performance", "Scenario", "JitBench", "unofficial_dotnet", "JitBench.csproj").lower() == item.lower():
+            continue
+        elif os.path.join("Loader", "classloader", "generics", "regressions", "DD117522", "Test.csproj").lower() == item.lower():
+            continue
+
+        with open(os.path.join(coreclr_test_src_dir, item)) as file_handle:
+            contents = file_handle.read()
+
+            # Only builds on windows
+            if "TestUnsupportedOutsideWindows" in contents:
+                test_builds_windows_only.append(item)
+
+            # Disabled due to missing features
+            elif "DisableProjectBuild" in contents:
+                continue
+            
+            # Priority 1
+            elif "CLRTestPriority>1" in contents:
+                priority_1.append(item)
+            
+            else:
+                priority_0.append(item)
+
+    return (priority_0, priority_1, test_builds_windows_only)
+
+def create_sln_files(dotnetcli, coreclr_test_dir, max_sln_count, priority_0, priority_1, win32_tests):
     """ Create sln files based on a set of sln buckets.
     """
 
-    coreclr_test_src_dir = os.path.join(coreclr_test_dir, "src")
+    def create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, group_name, sln_buckets):
+        buckets = divide_tests_for_slns(sln_buckets, max_sln_count)
+        coreclr_test_src_dir = os.path.join(coreclr_test_dir, "src")
 
-    extension = ".sh" if sys.platform != "win32" else ".cmd"
+        extension = ".sh" if sys.platform != "win32" else ".cmd"
 
-    if not os.path.isfile(dotnetcli):
-        # Run init tools
-        command = [os.path.join(coreclr_test_dir, "..", "init-tools{}".format(extension))]
-
-        print(" ".join(command))
-        subprocess.check_output(command)
-
-    assert os.path.isfile(dotnetcli)
-    assert os.path.isdir(coreclr_test_dir)
-
-    sln_base_name = "tests"
-    sln_extension = ".sln"
-
-    old_cwd = os.getcwd()
-    os.chdir(coreclr_test_src_dir)
-
-    count = 1
-    for bucket in sln_buckets:
-        if not os.path.isfile(os.path.join(coreclr_test_src_dir, sln_base_name + str(count) + sln_extension)):
-            # Create the sln
-            command = [dotnetcli, "new", "sln", "-n", sln_base_name + str(count)]
+        if not os.path.isfile(dotnetcli):
+            # Run init tools
+            command = [os.path.join(coreclr_test_dir, "..", "init-tools{}".format(extension))]
 
             print(" ".join(command))
             subprocess.check_output(command)
 
-        for index, item in enumerate(bucket):
-            full_path = os.path.join(coreclr_test_dir, "src", item)
-            # Add each project.
-            command = [dotnetcli, "sln", os.path.join(coreclr_test_src_dir, sln_base_name + str(count) + sln_extension), "add", full_path]
+        assert os.path.isfile(dotnetcli)
+        assert os.path.isdir(coreclr_test_dir)
 
-            print("[{}:{}] {}".format(index + 1, len(bucket), " ".join(command)))
-            subprocess.check_output(command)
+        sln_base_name = group_name + "-"
+        sln_extension = ".sln"
 
-        count += 1
+        old_cwd = os.getcwd()
+        os.chdir(coreclr_test_src_dir)
+
+        count = 1
+        for bucket in buckets:
+            if not os.path.isfile(os.path.join(coreclr_test_src_dir, sln_base_name + str(count) + sln_extension)):
+                # Create the sln
+                command = [dotnetcli, "new", "sln", "-n", sln_base_name + str(count)]
+
+                print(" ".join(command))
+                subprocess.check_output(command)
+
+            for index, item in enumerate(bucket):
+                full_path = os.path.join(coreclr_test_dir, "src", item)
+                # Add each project.
+                command = [dotnetcli, "sln", os.path.join(coreclr_test_src_dir, sln_base_name + str(count) + sln_extension), "add", full_path]
+
+                print("[{}:{}] {}".format(index + 1, len(bucket), " ".join(command)))
+                subprocess.check_output(command)
+
+            count += 1
+
+    create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "priority_0", priority_0)
+    create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "priority_1", priority_1)
+    create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "windows_only", win32_tests)
 
 ################################################################################
 # main
@@ -290,6 +354,7 @@ def main(args):
         assert item not in test_projects
         test_projects[item] = unbuilt_cs_tests[item]
 
+    print("")
     print("Found {} old built tests".format(len(old_built_tests)))
     print("Found {} test projects.".format(len(test_projects)))
 
@@ -298,8 +363,19 @@ def main(args):
 
     dotnetcli = os.path.join(coreclr_args.coreclr_repo_location, ".dotnet", "dotnet")
 
-    sln_buckets = divide_tests_for_slns(test_projects_list, coreclr_args.max_sln_count)
-    create_sln_files(dotnetcli, coreclr_test_dir, sln_buckets)
+    priority_0, priority_1, win32_tests = split_buckets_between_priorities(coreclr_test_source_dir, test_projects)
+
+    disabled_test_count = len(test_projects) - (len(priority_0) + len(priority_1) + len(win32_tests))
+
+    print("")
+    print("Found:")
+    print("Priority 0: {} tests.".format(len(priority_0)))
+    print("Priority 1: {} tests.".format(len(priority_1)))
+    print("Windows Only: {} tests.".format(len(win32_tests)))
+    print("")
+    print("Disabled: {} tests.".format(disabled_test_count))
+
+    create_sln_files(dotnetcli, coreclr_test_dir, coreclr_args.max_sln_count, priority_0, priority_1, win32_tests)
 
     return 0
 

@@ -1,4 +1,9 @@
 <Project>
+  <!-- Environment properties -->
+  <PropertyGroup>
+    <DisableImplicitFrameworkReferences Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true'">true</DisableImplicitFrameworkReferences>
+  </PropertyGroup>
+
   <!-- SDK Style projects auto-magically include this file. 
        We include the dir.targets for them here so they partake in the old 
        style of build without them needing to explicitly include anything -->

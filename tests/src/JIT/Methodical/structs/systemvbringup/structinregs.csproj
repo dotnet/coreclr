@@ -24,6 +24,6 @@
     <Compile Include="structpinvoketests.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="CMakeLists.txt" />
+    <NativeProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
 </Project>
