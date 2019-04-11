@@ -465,7 +465,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         case HWIntrinsicInfo::SimdExtractOp:
         {
             int vectorLength = getSIMDVectorLength(simdSizeBytes, simdBaseType);
-            op2 = impStackTop().val;
+            op2              = impStackTop().val;
             if (!mustExpand && (!op2->IsCnsIntOrI() || op2->AsIntConCommon()->IconValue() >= vectorLength))
             {
                 // This is either an out-of-range constant or a non-constant.
@@ -482,7 +482,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         case HWIntrinsicInfo::SimdInsertOp:
         {
             int vectorLength = getSIMDVectorLength(simdSizeBytes, simdBaseType);
-            op2 = impStackTop(1).val;
+            op2              = impStackTop(1).val;
             if (!mustExpand && (!op2->IsCnsIntOrI() || op2->AsIntConCommon()->IconValue() >= vectorLength))
             {
                 // This is either an out-of-range constant or a non-constant.
