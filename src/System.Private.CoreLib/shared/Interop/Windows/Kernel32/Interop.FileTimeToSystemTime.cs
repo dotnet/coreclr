@@ -10,6 +10,6 @@ internal partial class Interop
     internal partial class Kernel32
     {
         [DllImport(Libraries.Kernel32)]
-        internal static unsafe extern bool FileTimeToSystemTime(in long lpFileTime, out Interop.Kernel32.SYSTEMTIME lpSystemTime);
+        internal static unsafe extern Interop.BOOL FileTimeToSystemTime(long* lpFileTime, Interop.Kernel32.SYSTEMTIME* lpSystemTime);
     }
 }

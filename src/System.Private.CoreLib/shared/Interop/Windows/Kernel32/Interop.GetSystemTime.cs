@@ -9,7 +9,7 @@ internal partial class Interop
 {
     internal partial class Kernel32
     {
-        [DllImport(Libraries.Kernel32, SetLastError = true)]
-        internal static unsafe extern void GetSystemTime(ref Interop.Kernel32.SYSTEMTIME lpSystemTime);
+        [DllImport(Libraries.Kernel32)]
+        internal static unsafe extern void GetSystemTime(Interop.Kernel32.SYSTEMTIME* lpSystemTime);
     }
 }

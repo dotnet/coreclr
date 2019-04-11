@@ -21,7 +21,7 @@ namespace System
                 Interop.Kernel32.GetCurrentProcess(),
                 Interop.Kernel32.ProcessLeapSecondInfo,
                 &info,
-                sizeof(Interop.Kernel32.PROCESS_LEAP_SECOND_INFO));
+                sizeof(Interop.Kernel32.PROCESS_LEAP_SECOND_INFO)) != Interop.BOOL.FALSE;
         }
     }
 }
