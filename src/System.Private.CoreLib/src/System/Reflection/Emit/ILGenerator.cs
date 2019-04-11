@@ -895,7 +895,7 @@ namespace System.Reflection.Emit
 
             // Pop the current exception block
             __ExceptionInfo current = m_currExcStack[m_currExcStackCount - 1];
-            m_currExcStack[m_currExcStackCount--] = null;
+            m_currExcStack[--m_currExcStackCount] = null;
 
             Label endLabel = current.GetEndLabel();
             int state = current.GetCurrentState();
