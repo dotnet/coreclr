@@ -4164,7 +4164,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #if FEATURE_MULTIREG_ARGS
         if (isStructArg)
         {
-            if ((argEntry->numRegs + argEntry->numSlots) > 1)
+            if (((argEntry->numRegs + argEntry->numSlots) > 1) || (isHfaArg && argx->TypeGet() == TYP_STRUCT))
             {
                 hasMultiregStructArgs = true;
             }
@@ -4381,7 +4381,7 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
         }
 
         unsigned size = (fgEntryPtr->numRegs + fgEntryPtr->numSlots);
-        if (size > 1)
+        if ((size > 1) || (fgEntryPtr->isHfaArg && argx->TypeGet() == TYP_STRUCT))
         {
             foundStructArg = true;
             if (varTypeIsStruct(argx) && !argx->OperIs(GT_FIELD_LIST))
