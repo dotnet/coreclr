@@ -7,7 +7,7 @@ namespace System.Diagnostics.SymbolStore
 {
     public interface ISymbolDocumentWriter
     {
-        void SetCheckSum(Guid algorithmId, byte?[]? checkSum);
-        void SetSource(byte?[]? source);
+        void SetCheckSum(Guid algorithmId, byte[] checkSum);
+        void SetSource(byte[] source);
     }
 }

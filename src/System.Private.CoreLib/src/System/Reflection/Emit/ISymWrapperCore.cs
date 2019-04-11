@@ -78,7 +78,7 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // SetSource() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolDocumentWriter.SetSource(byte?[]? source)
+            void ISymbolDocumentWriter.SetSource(byte[] source)
             {
                 throw new NotSupportedException();   // Intentionally not supported to match desktop CLR
             }
@@ -86,16 +86,16 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // SetCheckSum() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolDocumentWriter.SetCheckSum(Guid algorithmId, byte?[]? checkSum)
+            void ISymbolDocumentWriter.SetCheckSum(Guid algorithmId, byte[] checkSum)
             {
-                int hr = m_vtable.SetCheckSum(m_pDocWriter, algorithmId, (uint)checkSum!.Length, checkSum);
+                int hr = m_vtable.SetCheckSum(m_pDocWriter, algorithmId, (uint)checkSum.Length, checkSum);
                 if (hr < 0)
                 {
                     throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
-            private delegate int DSetCheckSum(ISymUnmanagedDocumentWriter* pThis, Guid algorithmId, uint checkSumSize, [In] byte?[]? checkSum);
+            private delegate int DSetCheckSum(ISymUnmanagedDocumentWriter* pThis, Guid algorithmId, uint checkSumSize, [In] byte[] checkSum);
 
             //------------------------------------------------------------------------------
             // This layout must match the unmanaged ISymUnmanagedDocumentWriter* COM vtable
