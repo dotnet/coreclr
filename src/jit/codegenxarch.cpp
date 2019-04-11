@@ -7640,9 +7640,14 @@ bool CodeGen::genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk)
 
         // If argSize is large, we need to probe the stack like we do in the prolog (genAllocLclFrame)
         // or for localloc (genLclHeap), to ensure we touch the stack pages sequentially, and don't miss
-        // the stack guard pages.
+        // the stack guard pages. The prolog probes, but we don't know at this point how much higher
+        // the last probed stack pointer value is. We default a threshold. Any size below this threshold
+        // we are guaranteed the stack has been probed. Above this threshold, we don't know. The threshold
+        // should be high enough to cover all common cases. Increasing the threshold means adding a few
+        // more "lowest address of stack" probes in the prolog. Since this is relatively rare, add it to
+        // stress modes.
 
-        if (argSize >= ARG_STACK_PROBE_THRESHOLD_BYTES)
+        if ((argSize >= ARG_STACK_PROBE_THRESHOLD_BYTES) || compiler->compStressCompile(Compiler::STRESS_GENERIC_VARN, 5))
         {
             genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)argSize, /* hideSpChangeFromEmitter */ false,
                                                            REG_NA);

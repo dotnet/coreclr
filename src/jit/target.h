@@ -489,8 +489,8 @@ typedef unsigned char   regNumberSmall;
   #define INS_r_stosp              INS_r_stosd
 
   // Any stack pointer adjustments larger than this (in bytes) when setting up outgoing call arguments
-  // requires a stack probe. Currently set to the largest supported SIMD register.
-  #define ARG_STACK_PROBE_THRESHOLD_BYTES 32
+  // requires a stack probe. Set it large enough so all normal stack arguments don't get a probe.
+  #define ARG_STACK_PROBE_THRESHOLD_BYTES 1024
 
   // The number of bytes from the end the last probed page that must also be probed, to allow for some
   // small SP adjustments without probes. If zero, then the stack pointer can point to the last byte/word
