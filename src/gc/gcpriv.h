@@ -61,6 +61,12 @@ inline void FATAL_GC_ERROR()
 
 #define SHORT_PLUGS //used to keep ephemeral plugs short so they fit better into the oldest generation free items
 
+#ifdef RESPECT_LARGE_ALIGNMENT
+// SHORT_PLUGS may have rare interference with RESPECT_LARGE_ALIGNMENT which has some effects similar to SHORT_PLUGS
+// RESPECT_LARGE_ALIGNMENT is generally used on ARM32 where SHORT_PLUGS have limited utility
+#undef SHORT_PLUGS
+#endif //RESPECT_LARGE_ALIGNMENT
+
 #ifdef SHORT_PLUGS
 #define DESIRED_PLUG_LENGTH (1000)
 #endif //SHORT_PLUGS
