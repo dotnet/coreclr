@@ -24,7 +24,6 @@
     IMPORT UMEntryPrestubUnwindFrameChainHandler
     IMPORT UMThunkStubUnwindFrameChainHandler
     IMPORT TheUMEntryPrestubWorker
-    IMPORT GetThread
     IMPORT CreateThreadBlockThrow
     IMPORT UMThunkStubRareDisableWorker
     IMPORT GetCurrentSavedRedirectContext
@@ -36,9 +35,13 @@
 #endif
 
     IMPORT ObjIsInstanceOfNoGC
-    IMPORT ArrayStoreCheck	
+    IMPORT ArrayStoreCheck
     SETALIAS g_pObjectClass,  ?g_pObjectClass@@3PEAVMethodTable@@EA 
     IMPORT  $g_pObjectClass
+
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    IMPORT  g_sw_ww_table
+#endif
 
     IMPORT  g_ephemeral_low
     IMPORT  g_ephemeral_high
@@ -388,6 +391,7 @@ wbs_highest_address
 ;   x13  : incremented by 8
 ;   x14  : incremented by 8
 ;   x15  : trashed
+;   x17  : trashed (ip1) if FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 ;
     WRITE_BARRIER_ENTRY JIT_ByRefWriteBarrier
 
@@ -407,6 +411,7 @@ wbs_highest_address
 ;   x12  : trashed
 ;   x14  : incremented by 8
 ;   x15  : trashed
+;   x17  : trashed (ip1) if FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 ;
     WRITE_BARRIER_ENTRY JIT_CheckedWriteBarrier
         ldr      x12,  wbs_lowest_address
@@ -430,6 +435,7 @@ NotInHeap
 ;   x12  : trashed
 ;   x14  : incremented by 8
 ;   x15  : trashed
+;   x17  : trashed (ip1) if FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 ;
     WRITE_BARRIER_ENTRY JIT_WriteBarrier
         stlr     x15, [x14]
@@ -479,7 +485,14 @@ ShadowUpdateDisabled
 #endif
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-#error Need to implement for ARM64
+        ; Update the write watch table if necessary
+        ldr      x12,  wbs_sw_ww_table
+        cbz      x12,  CheckCardTable
+        add      x12,  x12, x14, LSR #0xC  // SoftwareWriteWatch::AddressToTableByteIndexShift
+        ldrb     w17,  [x12]
+        cbnz     x17,  CheckCardTable
+        mov      w17,  0xFF
+        strb     w17,  [x12]
 #endif
 
 CheckCardTable
@@ -935,8 +948,8 @@ UMThunkStub_StackArgs SETA 112
     ; save UMEntryThunk*
     str                 x12, [sp, #UMThunkStub_HiddenArg]
 
-    ; assuming GetThread does not clobber FP Args
-    bl                  GetThread
+    ; x0 = GetThread(). Trashes x19
+    INLINE_GETTHREAD    x0, x19
     cbz                 x0, UMThunkStub_DoThreadSetup
 
 UMThunkStub_HaveThread
@@ -1025,6 +1038,8 @@ UMThunkStub_DoTrapReturningThreads
 
     NESTED_END
 
+    INLINE_GETTHREAD_CONSTANT_POOL
+    
 #ifdef FEATURE_HIJACK
 ; ------------------------------------------------------------------
 ; Hijack function for functions which return a scalar type or a struct (value type)
