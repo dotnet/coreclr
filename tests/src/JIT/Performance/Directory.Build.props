@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <PerformanceTest>true</PerformanceTest>
+  </PropertyGroup>
+
+  <Import Project="$(MSBuildThisFileDirectory)/../Directory.Build.props" />
+
+  <PropertyGroup>
+    <JitPackagesConfigFileDirectory>$(RootArtifactsDir)tests/obj/$(OSPlatformConfig)/Managed/JIT/config/</JitPackagesConfigFileDirectory>
+  </PropertyGroup>
+</Project>

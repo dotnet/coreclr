@@ -1,0 +1,10 @@
+<Project>
+
+  <!-- Import CoreCLRTestLibrary for all built Hardware Intrinsics tests -->
+  <ItemGroup>
+    <ProjectReference Include="$(TestSrcDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
+  </ItemGroup>
+
+  <Import Project="$(MSBuildThisFileDirectory)/../Directory.Build.props" />
+
+</Project>
