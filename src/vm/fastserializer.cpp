@@ -12,7 +12,7 @@
 // As a result of work on V3 of Event Pipe (https://github.com/Microsoft/perfview/pull/532) it got removed
 // if you need it, please use git to restore it
 
-IpcStreamWriter::IpcStreamWriter(IpcStream *pStream) : StreamWriter(StreamWriterType::Ipc), _pStream(pStream)
+IpcStreamWriter::IpcStreamWriter(IpcStream *pStream) : _pStream(pStream)
 {
     CONTRACTL
     {
@@ -54,7 +54,7 @@ bool IpcStreamWriter::Write(const void *lpBuffer, const uint32_t nBytesToWrite, 
     return _pStream->Write(lpBuffer, nBytesToWrite, nBytesWritten);
 }
 
-FileStreamWriter::FileStreamWriter(const SString &outputFilePath) : StreamWriter(StreamWriterType::File)
+FileStreamWriter::FileStreamWriter(const SString &outputFilePath)
 {
     CONTRACTL
     {

@@ -36,25 +36,15 @@ enum class FastSerializerTags : uint8_t
     Limit                   // Just past the last valid tag, used for asserts.
 };
 
-enum class StreamWriterType : uint8_t
-{
-    Ipc = 0,
-    File,
-};
-
 //!
 //! Provides a generic interface for writing a sequence of bytes to a stream.
 //!
 class StreamWriter
 {
 public:
-    StreamWriter(StreamWriterType type) : m_type(type) {}
+    StreamWriter() = default;
     virtual ~StreamWriter() = default;
     virtual bool Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32_t &nBytesWritten) const = 0;
-    StreamWriterType GetType() { return m_type; }
-
-protected:
-    const StreamWriterType m_type;
 };
 
 //!
