@@ -131,7 +131,7 @@ namespace System.Diagnostics
                     }
 
                     // Create an instance of System.Diagnostics.Stacktrace.Symbols
-                    object target = Activator.CreateInstance(symbolsType);
+                    object? target = Activator.CreateInstance(symbolsType);
 
                     // Create an instance delegate for the GetSourceLineInfo method
                     GetSourceLineInfoDelegate getSourceLineInfo = (GetSourceLineInfoDelegate)symbolsMethodInfo.CreateDelegate(typeof(GetSourceLineInfoDelegate), target);

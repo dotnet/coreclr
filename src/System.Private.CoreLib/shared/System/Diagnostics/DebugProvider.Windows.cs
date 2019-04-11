@@ -84,7 +84,7 @@ namespace System.Diagnostics
             }
             else
             {
-                Interop.Kernel32.OutputDebugString(string.Empty);
+                Interop.Kernel32.OutputDebugString(message ?? string.Empty);
             }
         }
     }
