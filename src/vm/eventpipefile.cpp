@@ -19,7 +19,7 @@ EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter) : FastSerializableObje
     }
     CONTRACTL_END;
 
-    m_pBlock = (pStreamWriter->GetType() == StreamWriterType::Ipc ? new EventPipeBlock(1024) : new EventPipeBlock(1024 * 100));
+    m_pBlock = new EventPipeBlock(1024 * 100);
 
     // File start time information.
     GetSystemTime(&m_fileOpenSystemTime);
@@ -94,6 +94,20 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     }
 
     WriteToBlock(instance, metadataId);
+}
+
+void EventPipeFile::Flush()
+{
+    // Write existing buffer to the stream/file regardless of whether it is full or not.
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+    m_pSerializer->WriteObject(m_pBlock); // we write current block to the disk, whether it's full or not
+    m_pBlock->Clear();
 }
 
 void EventPipeFile::WriteEnd()

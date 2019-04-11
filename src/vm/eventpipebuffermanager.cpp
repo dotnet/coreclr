@@ -477,6 +477,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
         // Pop the event from the buffer.
         pOldestContainingList->PopNextEvent(stopTimeStamp);
     }
+    pFile->Flush();
 }
 
 EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
