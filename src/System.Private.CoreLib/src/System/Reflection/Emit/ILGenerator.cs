@@ -393,7 +393,7 @@ namespace System.Reflection.Emit
 
             EnsureCapacity(4);
             InternalEmit(opcode);
-            m_ILStream[m_length++] = arg < 0 ? (byte)(256 + arg) : (byte)arg;
+            m_ILStream[m_length++] = (byte)arg;
         }
 
         public virtual void Emit(OpCode opcode, short arg)
