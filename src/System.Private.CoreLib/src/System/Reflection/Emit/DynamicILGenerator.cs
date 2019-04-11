@@ -733,10 +733,7 @@ namespace System.Reflection.Emit
 
                 if ((header & 0x40) != 0) // Fat
                 {
-                    Span<byte> size = stackalloc byte[4];
-                    for (int q = 0; q < 3; q++)
-                        size[q] = m_exceptionHeader[q + 1];
-                    EHCount = (BinaryPrimitives.ReadInt32LittleEndian(size) - 4) / 24;
+                    EHCount = (BinaryPrimitives.ReadInt32LittleEndian(m_exceptionHeader.AsSpan(1)) - 4) / 24;
                 }
                 else
                     EHCount = (m_exceptionHeader[1] - 2) / 12;

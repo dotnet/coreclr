@@ -19,7 +19,7 @@ namespace System.Reflection.Emit
     public class ILGenerator
     {
         #region Const Members
-        private const int defaultSize = 16;
+        private const int DefaultSize = 16;
         private const int DefaultFixupArraySize = 8;
         private const int DefaultLabelArraySize = 4;
         private const int DefaultExceptionArraySize = 2;
@@ -40,23 +40,17 @@ namespace System.Reflection.Emit
             return temp;
         }
 
-        private static byte[] EnlargeArray(byte[] incoming)
+        private void EnlargeArray(int requiredSize)
         {
-            return EnlargeArray(incoming, incoming.Length * 2);
-        }
-
-        private static byte[] EnlargeArray(byte[] incoming, int requiredSize)
-        {
-            Debug.Assert(incoming != null);
-
             byte[] temp = new byte[requiredSize];
-            Buffer.BlockCopy(incoming, 0, temp, 0, incoming.Length);
-            return temp;
+            Array.Copy(m_ILStream, 0, temp, 0, m_ILStream.Length);
+            m_ILStream = temp;
         }
         #endregion
 
         #region Internal Data Members
         private int m_length;
+        // Investigated performance with Memory<byte> found significant regressions
         private byte[] m_ILStream;
 
         private int[] m_labelList;
@@ -86,15 +80,10 @@ namespace System.Reflection.Emit
         private int m_maxMidStack = 0;      // Maximum stack size for a given basic block.
         private int m_maxMidStackCur = 0;   // Running count of the maximum stack size for the current basic block.
 
-        internal int CurrExcStackCount
-        {
-            get { return m_currExcStackCount; }
-        }
+        internal int CurrExcStackCount => m_currExcStackCount;
 
-        internal __ExceptionInfo[] CurrExcStack
-        {
-            get { return m_currExcStack; }
-        }
+        internal __ExceptionInfo[] CurrExcStack => m_currExcStack;
+
         #endregion
 
         #region Constructor
@@ -109,14 +98,7 @@ namespace System.Reflection.Emit
             Debug.Assert(methodBuilder != null);
             Debug.Assert(methodBuilder is MethodBuilder || methodBuilder is DynamicMethod);
 
-            if (size < defaultSize)
-            {
-                m_ILStream = new byte[defaultSize];
-            }
-            else
-            {
-                m_ILStream = new byte[size];
-            }
+            m_ILStream = size < DefaultSize ? new byte[DefaultSize] : new byte[size];
 
             m_length = 0;
 
@@ -142,10 +124,7 @@ namespace System.Reflection.Emit
             // initialize local signature
             m_localCount = 0;
             MethodBuilder mb = m_methodBuilder as MethodBuilder;
-            if (mb == null)
-                m_localSignature = SignatureHelper.GetLocalVarSigHelper(null);
-            else
-                m_localSignature = SignatureHelper.GetLocalVarSigHelper(mb.GetTypeBuilder().Module);
+            m_localSignature = SignatureHelper.GetLocalVarSigHelper(mb?.GetTypeBuilder().Module);
         }
 
         #endregion
@@ -226,32 +205,25 @@ namespace System.Reflection.Emit
             // BakeByteArray is an internal function designed to be called by MethodBuilder to do
             // all of the fixups and return a new byte array representing the byte stream with labels resolved, etc.
 
-            int newSize;
-            int updateAddr;
-            byte[] newBytes;
-
+            if (m_length == 0)
+                return null;
             if (m_currExcStackCount != 0)
             {
                 throw new ArgumentException(SR.Argument_UnclosedExceptionBlock);
             }
-            if (m_length == 0)
-                return null;
-
-            //Calculate the size of the new array.
-            newSize = m_length;
 
             //Allocate space for the new array.
-            newBytes = new byte[newSize];
+            byte[] newBytes = new byte[m_length];
 
             //Copy the data from the old array
-            Buffer.BlockCopy(m_ILStream, 0, newBytes, 0, newSize);
+            Buffer.BlockCopy(m_ILStream, 0, newBytes, 0, m_length);
 
             //Do the fixups.
             //This involves iterating over all of the labels and
             //replacing them with their proper values.
             for (int i = 0; i < m_fixupCount; i++)
             {
-                updateAddr = GetLabelPos(m_fixupData[i].m_fixupLabel) - (m_fixupData[i].m_fixupPos + m_fixupData[i].m_fixupInstSize);
+                int updateAddr = GetLabelPos(m_fixupData[i].m_fixupLabel) - (m_fixupData[i].m_fixupPos + m_fixupData[i].m_fixupInstSize);
 
                 //Handle single byte instructions
                 //Throw an exception if they're trying to store a jump in a single byte instruction that doesn't fit.
@@ -276,7 +248,7 @@ namespace System.Reflection.Emit
                 else
                 {
                     //Place the four-byte arg
-                    BinaryPrimitives.TryWriteInt32LittleEndian(newBytes.AsSpan(m_fixupData[i].m_fixupPos), updateAddr);
+                    BinaryPrimitives.WriteInt32LittleEndian(newBytes.AsSpan(m_fixupData[i].m_fixupPos), updateAddr);
                 }
             }
             return newBytes;
@@ -284,7 +256,6 @@ namespace System.Reflection.Emit
 
         internal __ExceptionInfo[] GetExceptions()
         {
-            __ExceptionInfo[] temp;
             if (m_currExcStackCount != 0)
             {
                 throw new NotSupportedException(SR.Argument_UnclosedExceptionBlock);
@@ -295,7 +266,7 @@ namespace System.Reflection.Emit
                 return null;
             }
 
-            temp = new __ExceptionInfo[m_exceptionCount];
+            var temp = new __ExceptionInfo[m_exceptionCount];
             Array.Copy(m_exceptions, 0, temp, 0, m_exceptionCount);
             SortExceptions(temp);
             return temp;
@@ -309,11 +280,11 @@ namespace System.Reflection.Emit
             {
                 if (m_length + size >= 2 * m_ILStream.Length)
                 {
-                    m_ILStream = EnlargeArray(m_ILStream, m_length + size);
+                    EnlargeArray(m_length + size);
                 }
                 else
                 {
-                    m_ILStream = EnlargeArray(m_ILStream);
+                    EnlargeArray(m_ILStream.Length * 2);
                 }
             }
         }
@@ -321,7 +292,7 @@ namespace System.Reflection.Emit
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void PutInteger4(int value)
         {
-            BinaryPrimitives.TryWriteInt32LittleEndian(m_ILStream.AsSpan(m_length), value);
+            BinaryPrimitives.WriteInt32LittleEndian(m_ILStream.AsSpan(m_length), value);
             m_length += 4;
         }
 
@@ -426,14 +397,7 @@ namespace System.Reflection.Emit
 
             EnsureCapacity(4);
             InternalEmit(opcode);
-            if (arg < 0)
-            {
-                m_ILStream[m_length++] = (byte)(256 + arg);
-            }
-            else
-            {
-                m_ILStream[m_length++] = (byte)arg;
-            }
+            m_ILStream[m_length++] = arg < 0 ? (byte)(256 + arg) : (byte)arg;
         }
 
         public virtual void Emit(OpCode opcode, short arg)
@@ -488,7 +452,6 @@ namespace System.Reflection.Emit
             Type returnType, Type[] parameterTypes, Type[] optionalParameterTypes)
         {
             int stackchange = 0;
-            SignatureHelper sig;
             if (optionalParameterTypes != null)
             {
                 if ((callingConvention & CallingConventions.VarArgs) == 0)
@@ -499,10 +462,10 @@ namespace System.Reflection.Emit
             }
 
             ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
-            sig = GetMemberRefSignature(callingConvention,
-                                        returnType,
-                                        parameterTypes,
-                                        optionalParameterTypes);
+            SignatureHelper sig = GetMemberRefSignature(callingConvention,
+                returnType,
+                parameterTypes,
+                optionalParameterTypes);
 
             EnsureCapacity(7);
             Emit(OpCodes.Calli);
@@ -531,8 +494,6 @@ namespace System.Reflection.Emit
         {
             int stackchange = 0;
             int cParams = 0;
-            int i;
-            SignatureHelper sig;
 
             ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
 
@@ -541,14 +502,14 @@ namespace System.Reflection.Emit
                 cParams = parameterTypes.Length;
             }
 
-            sig = SignatureHelper.GetMethodSigHelper(
+            SignatureHelper sig = SignatureHelper.GetMethodSigHelper(
                 modBuilder,
                 unmanagedCallConv,
                 returnType);
 
             if (parameterTypes != null)
             {
-                for (i = 0; i < cParams; i++)
+                for (int i = 0; i < cParams; i++)
                 {
                     sig.AddArgument(parameterTypes[i]);
                 }
@@ -713,7 +674,7 @@ namespace System.Reflection.Emit
         {
             EnsureCapacity(11);
             InternalEmit(opcode);
-            BinaryPrimitives.TryWriteInt64LittleEndian(m_ILStream.AsSpan(m_length), arg);
+            BinaryPrimitives.WriteInt64LittleEndian(m_ILStream.AsSpan(m_length), arg);
             m_length += 8;
         }
 
@@ -721,7 +682,7 @@ namespace System.Reflection.Emit
         {
             EnsureCapacity(7);
             InternalEmit(opcode);
-            BinaryPrimitives.TryWriteUInt32LittleEndian(m_ILStream.AsSpan(m_length), *(uint*)&arg);
+            BinaryPrimitives.WriteUInt32LittleEndian(m_ILStream.AsSpan(m_length), *(uint*)&arg);
             m_length += 4;
         }
 
@@ -745,7 +706,6 @@ namespace System.Reflection.Emit
             // verify this).  Since branches are relative instructions, label will be replaced with the
             // correct offset to branch during the fixup process.
 
-            int tempVal = label.GetLabelValue();
             EnsureCapacity(7);
 
 
@@ -877,7 +837,8 @@ namespace System.Reflection.Emit
 
             if (opcode.OperandType == OperandType.InlineNone)
                 return;
-            else if (!OpCodes.TakesSingleByteArgument(opcode))
+
+            if (!OpCodes.TakesSingleByteArgument(opcode))
             {
                 m_ILStream[m_length]     = (byte)tempVal;
                 m_ILStream[m_length + 1] = (byte)(tempVal >> 8);
@@ -1172,7 +1133,6 @@ namespace System.Reflection.Emit
             // one of the types for which Console.WriteLine implements overloads. (e.g.
             // we do *not* call ToString on the locals.
 
-            object cls;
             if (m_methodBuilder == null)
             {
                 throw new ArgumentException(SR.InvalidOperation_BadILGeneratorUsage);
@@ -1182,7 +1142,7 @@ namespace System.Reflection.Emit
             Emit(OpCodes.Call, prop);
             Emit(OpCodes.Ldloc, localBuilder);
             Type[] parameterTypes = new Type[1];
-            cls = localBuilder.LocalType;
+            object cls = localBuilder.LocalType;
             if (cls is TypeBuilder || cls is EnumBuilder)
             {
                 throw new ArgumentException(SR.NotSupported_OutputStreamUsingTypeBuilder);
@@ -1251,8 +1211,6 @@ namespace System.Reflection.Emit
             // Declare a local of type "local". The current active lexical scope
             // will be the scope that local will live.
 
-            LocalBuilder localBuilder;
-
             MethodBuilder methodBuilder = m_methodBuilder as MethodBuilder;
             if (methodBuilder == null)
                 throw new NotSupportedException();
@@ -1276,7 +1234,7 @@ namespace System.Reflection.Emit
             // add the localType to local signature
             m_localSignature.AddArgument(localType, pinned);
 
-            localBuilder = new LocalBuilder(m_localCount, localType, methodBuilder, pinned);
+            LocalBuilder localBuilder = new LocalBuilder(m_localCount, localType, methodBuilder, pinned);
             m_localCount++;
             return localBuilder;
         }
@@ -1292,12 +1250,11 @@ namespace System.Reflection.Emit
             if (usingNamespace.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(usingNamespace));
 
-            int index;
             MethodBuilder methodBuilder = m_methodBuilder as MethodBuilder;
             if (methodBuilder == null)
                 throw new NotSupportedException();
 
-            index = methodBuilder.GetILGenerator().m_ScopeTree.GetCurrentActiveScopeIndex();
+            int index = methodBuilder.GetILGenerator().m_ScopeTree.GetCurrentActiveScopeIndex();
             if (index == -1)
             {
                 methodBuilder.m_localSymInfo.AddUsingNamespace(usingNamespace);
@@ -1332,13 +1289,7 @@ namespace System.Reflection.Emit
             m_ScopeTree.AddScopeInfo(ScopeAction.Close, m_length);
         }
 
-        public virtual int ILOffset
-        {
-            get
-            {
-                return m_length;
-            }
-        }
+        public virtual int ILOffset => m_length;
 
         #endregion
 
@@ -1473,11 +1424,9 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentException(SR.Argument_TooManyFinallyClause);
             }
-            else
-            {
-                m_currentState = State_Finally;
-                m_endFinally = finallyAddr;
-            }
+
+            m_currentState = State_Finally;
+            m_endFinally = finallyAddr;
             MarkHelper(finallyAddr, endCatchAddr, null, Finally);
         }
 
@@ -1569,7 +1518,8 @@ namespace System.Reflection.Emit
 
             if (exc.m_catchEndAddr[exclast] < m_catchEndAddr[last])
                 return true;
-            else if (exc.m_catchEndAddr[exclast] == m_catchEndAddr[last])
+
+            if (exc.m_catchEndAddr[exclast] == m_catchEndAddr[last])
             {
                 Debug.Assert(exc.GetEndAddress() != GetEndAddress(),
                                 "exc.GetEndAddress() != GetEndAddress()");
@@ -1721,8 +1671,7 @@ namespace System.Reflection.Emit
 
         internal void EmitScopeTree(ISymbolWriter symWriter)
         {
-            int i;
-            for (i = 0; i < m_iCount; i++)
+            for (int i = 0; i < m_iCount; i++)
             {
                 if (m_ScopeActions[i] == ScopeAction.Open)
                 {
@@ -1768,10 +1717,8 @@ namespace System.Reflection.Emit
             int iEndLine,
             int iEndColumn)
         {
-            int i;
-
             // make sure that arrays are large enough to hold addition info
-            i = FindDocument(document);
+            int i = FindDocument(document);
 
             Debug.Assert(i < m_DocumentCount, "Bad document look up!");
             m_Documents[i].AddLineNumberInfo(document, iOffset, iStartLine, iStartColumn, iEndLine, iEndColumn);
