@@ -7647,7 +7647,8 @@ bool CodeGen::genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk)
         // more "lowest address of stack" probes in the prolog. Since this is relatively rare, add it to
         // stress modes.
 
-        if ((argSize >= ARG_STACK_PROBE_THRESHOLD_BYTES) || compiler->compStressCompile(Compiler::STRESS_GENERIC_VARN, 5))
+        if ((argSize >= ARG_STACK_PROBE_THRESHOLD_BYTES) ||
+            compiler->compStressCompile(Compiler::STRESS_GENERIC_VARN, 5))
         {
             genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)argSize, /* hideSpChangeFromEmitter */ false,
                                                            REG_NA);
