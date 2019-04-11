@@ -35,8 +35,8 @@ internal partial class Interop
             int dwFlagsAndAttributes,
             IntPtr hTemplateFile)
         {
-            string? lpFileNameWithPrefix = PathInternal.EnsureExtendedPrefixOverMaxPath(lpFileName); // TODO-NULLABLE: API marked as `DO NOT USE`
-            Debug.Assert(lpFileNameWithPrefix != null, "null not expected when non-null passed");
+            string? lpFileNameWithPrefix = PathInternal.EnsureExtendedPrefixIfNeeded(lpFileName);
+            Debug.Assert(lpFileNameWithPrefix != null, "null not expected when non-null passed"); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             return CreateFilePrivate(lpFileNameWithPrefix, dwDesiredAccess, dwShareMode, ref securityAttrs, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
         }
     }
