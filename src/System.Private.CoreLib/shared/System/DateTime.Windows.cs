@@ -39,7 +39,7 @@ namespace System
             }
         }
 
-        internal static DateTime FromFileTimeLeapSecondsAware(long fileTime)
+        private static DateTime FromFileTimeLeapSecondsAware(long fileTime)
         {
             if (FileTimeToSystemTime(fileTime, out FullSystemTime time))
             {
@@ -49,7 +49,7 @@ namespace System
             throw new ArgumentOutOfRangeException(nameof(fileTime), SR.ArgumentOutOfRange_DateTimeBadTicks);
         }
 
-        internal static long ToFileTimeLeapSecondsAware(long ticks)
+        private static long ToFileTimeLeapSecondsAware(long ticks)
         {
             FullSystemTime time = new FullSystemTime(ticks);
             if (SystemTimeToFileTime(in time.systemTime, out long fileTime))
@@ -61,7 +61,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static DateTime CreateDateTimeFromSystemTime(in FullSystemTime time)
+        private static DateTime CreateDateTimeFromSystemTime(in FullSystemTime time)
         {
             long ticks  = DateToTicks(time.systemTime.Year, time.systemTime.Month, time.systemTime.Day);
             ticks += TimeToTicks(time.systemTime.Hour, time.systemTime.Minute, time.systemTime.Second);
@@ -72,7 +72,7 @@ namespace System
 
         // FullSystemTime struct is the SYSTEMTIME struct with extra hundredNanoSecond field to store more precise time.
         [StructLayout(LayoutKind.Sequential)]
-        internal struct FullSystemTime
+        private struct FullSystemTime
         {
             internal Interop.Kernel32.SYSTEMTIME systemTime;
             internal long hundredNanoSecond;
