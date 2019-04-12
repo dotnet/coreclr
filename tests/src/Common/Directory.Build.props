@@ -11,5 +11,6 @@
   </PropertyGroup>
 
   <Import Project="$(MSBuildThisFileDirectory)/../../../eng/Versions.props" Condition="'$(ArcadeBuild)' != 'true'" />
+  <Import Project="$(MSBuildThisFileDirectory)/../../../dependencies.props" Condition="'$(ArcadeBuild)' != 'true'" />
 
 </Project>

@@ -2,6 +2,7 @@
   <!-- Environment properties -->
   <PropertyGroup>
     <DisableImplicitFrameworkReferences Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true'">true</DisableImplicitFrameworkReferences>
+    <OutputType Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true'">Exe</OutputType>
   </PropertyGroup>
 
   <!-- SDK Style projects auto-magically include this file. 

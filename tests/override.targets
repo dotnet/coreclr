@@ -18,6 +18,18 @@
     </ItemGroup>
   </Target>
 
+  <!-- Hack to touch an expected file, that would normally be created as part
+       of the dependency restore -->
+  <Target Name="GenerateTouchedFinishedFile"
+      Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true'"
+      BeforeTargets="_CopyOutOfDateSourceItemsToOutputDirectory"
+      DependsOnTargets="GetCopyToOutputDirectoryItems">
+
+      <Touch Files="$(IntermediateOutputPath)/$(MSBuildProjectName)" AlwaysCreate="True">
+      </Touch>
+
+  </Target>
+
   <!-- Remove package references when referencing System.Private.CoreLib from SDK style project --> 
   <Target Name="CleanResolvedCompileFileDefinitions"  AfterTargets="ResolvePackageAssets" Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true' and '$(UsingMicrosoftNETSdk)' == 'true'" >
     <ItemGroup>

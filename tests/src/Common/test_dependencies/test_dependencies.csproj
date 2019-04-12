@@ -8,13 +8,15 @@
     <NugetTargetMoniker>.NETCoreApp,Version=v3.0</NugetTargetMoniker>
     <NugetTargetMonikerShort>netcoreapp3.0</NugetTargetMonikerShort>
     <IsTestProject>false</IsTestProject>
-    <TargetFrameworks>netstandard1.4;netstandard1.6;netcoreapp3.0</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.0</TargetFrameworks>
   </PropertyGroup>
   <PropertyGroup>
-    
-    <AssetTargetFallback>$(AssetTargetFallback);dnxcore50;netcoreapp1.1;portable-net45+win8</AssetTargetFallback>
     
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="$(MicrosoftDiagnosticsTracingTraceEventPackageVersion)" />
+  </ItemGroup>
 </Project>

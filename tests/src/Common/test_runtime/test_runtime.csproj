@@ -15,12 +15,10 @@
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
-    
-    
-    
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>
   </PropertyGroup>
+
   <Target Name="Build"
      DependsOnTargets="ResolveReferences" />
 </Project>

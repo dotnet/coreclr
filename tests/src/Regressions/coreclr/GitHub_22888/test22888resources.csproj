@@ -12,6 +12,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLRTestKind>BuildOnly</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -30,7 +31,6 @@
   <ItemGroup>
     <EmbeddedResource Include="test22888.resx">
       <Generator>ResXFileCodeGenerator</Generator>
-      <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

@@ -8,4 +8,9 @@
   <PropertyGroup>
     <JitPackagesConfigFileDirectory>$(RootArtifactsDir)tests/obj/$(OSPlatformConfig)/Managed/JIT/config/</JitPackagesConfigFileDirectory>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Default value, this will be overwritten by most perf tests -->
+    <ProjectAssetsFile>$(JitPackagesConfigFileDirectory)/benchmark/benchmark/project.assets.json</ProjectAssetsFile>
+  </PropertyGroup>
 </Project>

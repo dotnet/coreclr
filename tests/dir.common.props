@@ -19,7 +19,7 @@
 
     <BuildArch Condition="'$(BuildArch)' == ''">x64</BuildArch>
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
-    <Platform>BuildArch</Platform>
+    <Platform>$(BuildArch)</Platform>
 
     <RootArtifactsDir>$(__RootArtifactsDir)</RootArtifactsDir>
     <RootArtifactsDir Condition="'$(RootArtifactsDir)'==''">$(ProjectDir)artifacts/</RootArtifactsDir>
