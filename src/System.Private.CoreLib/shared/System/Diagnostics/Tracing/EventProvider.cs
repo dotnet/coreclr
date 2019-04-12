@@ -1250,6 +1250,7 @@ namespace System.Diagnostics.Tracing
         {
             int status = Interop.Errors.ERROR_NOT_SUPPORTED;
 
+#if PLATFORM_WINDOWS
             if (!m_setInformationMissing)
             {
                 try
@@ -1265,6 +1266,7 @@ namespace System.Diagnostics.Tracing
                     m_setInformationMissing = true;
                 }
             }
+#endif
 
             return status;
         }
