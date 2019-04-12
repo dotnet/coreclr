@@ -40,7 +40,6 @@ namespace System.Reflection.Emit
 
         #region Internal Data Members
         private int m_length;
-        // Investigated performance with Memory<byte> found significant regressions
         private byte[] m_ILStream;
 
         private int[] m_labelList;
@@ -130,7 +129,6 @@ namespace System.Reflection.Emit
             m_RelocFixupList[m_RelocFixupCount++] = m_length;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void InternalEmit(OpCode opcode)
         {
             short opcodeValue = opcode.Value;
@@ -172,15 +170,10 @@ namespace System.Reflection.Emit
             // each basic block.
             if (opcode.EndsUncondJmpBlk())
             {
-                FixupBasicBlock();
+                m_maxStackSize += m_maxMidStack;
+                m_maxMidStack = 0;
+                m_maxMidStackCur = 0;
             }
-        }
-
-        private void FixupBasicBlock()
-        {
-            m_maxStackSize += m_maxMidStack;
-            m_maxMidStack = 0;
-            m_maxMidStackCur = 0;
         }
 
         private int GetMethodToken(MethodBase method, Type[] optionalParameterTypes, bool useMethodDef)
@@ -205,12 +198,13 @@ namespace System.Reflection.Emit
             // BakeByteArray is an internal function designed to be called by MethodBuilder to do
             // all of the fixups and return a new byte array representing the byte stream with labels resolved, etc.
 
-            if (m_length == 0)
-                return null;
             if (m_currExcStackCount != 0)
             {
                 throw new ArgumentException(SR.Argument_UnclosedExceptionBlock);
             }
+
+            if (m_length == 0)
+                return null;
 
             //Allocate space for the new array.
             byte[] newBytes = new byte[m_length];
@@ -223,7 +217,7 @@ namespace System.Reflection.Emit
             //replacing them with their proper values.
             for (int i = 0; i < m_fixupCount; i++)
             {
-                var fixupData = m_fixupData[i];
+                __FixupData fixupData = m_fixupData[i];
                 int updateAddr = GetLabelPos(fixupData.m_fixupLabel) - (fixupData.m_fixupPos + fixupData.m_fixupInstSize);
 
                 //Handle single byte instructions
@@ -266,7 +260,6 @@ namespace System.Reflection.Emit
             return temp;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void EnsureCapacity(int size)
         {
             // Guarantees an array capable of holding at least size elements.
@@ -640,7 +633,7 @@ namespace System.Reflection.Emit
             // by cls.  The location of cls is recorded so that the token can be
             // patched if necessary when persisting the module to a PE.
 
-            int tempVal = 0;
+            int tempVal;
             ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
             if (opcode == OpCodes.Ldtoken && cls != null && cls.IsGenericTypeDefinition)
             {
@@ -1498,14 +1491,12 @@ namespace System.Reflection.Emit
             if (exc.m_catchEndAddr[exclast] < m_catchEndAddr[last])
                 return true;
 
-            if (exc.m_catchEndAddr[exclast] == m_catchEndAddr[last])
-            {
-                Debug.Assert(exc.GetEndAddress() != GetEndAddress(),
-                                "exc.GetEndAddress() != GetEndAddress()");
-                if (exc.GetEndAddress() > GetEndAddress())
-                    return true;
-            }
-            return false;
+            if (exc.m_catchEndAddr[exclast] != m_catchEndAddr[last])
+                return false;
+            Debug.Assert(exc.GetEndAddress() != GetEndAddress(),
+                "exc.GetEndAddress() != GetEndAddress()");
+
+            return exc.GetEndAddress() > GetEndAddress();
         }
 
         // 0 indicates in a try block
