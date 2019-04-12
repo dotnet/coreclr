@@ -344,7 +344,7 @@ namespace System.Globalization
             }
 
             // Now we have a list of data, fail if we didn't find anything.
-            Debug.Assert(context.strings != null); // TODO-NULLABLE: <ISSUE NUMBER HERE> we have already initialized this earlier but compiler complains
+            Debug.Assert(context.strings != null);
             if (context.strings.Count == 0)
             {
                 data = null;
