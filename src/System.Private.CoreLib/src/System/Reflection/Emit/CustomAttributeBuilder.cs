@@ -14,6 +14,7 @@
 ===========================================================*/
 
 
+using System.Buffers.Binary;
 using System.IO;
 using System.Text;
 using System.Diagnostics;
@@ -384,11 +385,11 @@ namespace System.Reflection.Emit
             }
             else if (length <= 0x3fff)
             {
-                writer.Write((short)(length | 0x80));
+                writer.Write(BinaryPrimitives.ReverseEndianness((short)(length | 0x80_00)));
             }
             else
             {
-                writer.Write(length | 0xC0_00_00_00);
+                writer.Write(BinaryPrimitives.ReverseEndianness(length | 0xC0_00_00_00));
             }
             writer.Write(utf8Str);
         }
