@@ -1206,8 +1206,12 @@ namespace System
 
         // CanChangePrimitive
         // This will determine if the source can be converted to the target type
-        private static bool CanChangePrimitive(Type source, Type target)
+        internal static bool CanChangePrimitive(Type source, Type target)
         {
+            if ((source == typeof(IntPtr) && target == typeof(IntPtr)) ||
+                (source == typeof(UIntPtr) && target == typeof(UIntPtr)))
+                return true;
+
             Primitives widerCodes = s_primitiveConversions[(int)(Type.GetTypeCode(source))];
             Primitives targetCode = (Primitives)(1 << (int)(Type.GetTypeCode(target)));
 
