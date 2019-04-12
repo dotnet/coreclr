@@ -1528,8 +1528,8 @@ namespace System.Reflection.Emit
     /// </summary>
     internal enum ScopeAction : sbyte
     {
-        Close = -0x1,
-        Open = 0x1
+        Open = -0x1,
+        Close = 0x1
     }
 
     internal sealed class ScopeTree
@@ -1605,7 +1605,7 @@ namespace System.Reflection.Emit
             m_localSymInfos[m_iCount] = null;
             checked { m_iCount++; }
 
-            m_iOpenScopeCount += (byte)sa;
+            m_iOpenScopeCount += -(sbyte)sa;
         }
 
         /// <summary>
