@@ -357,7 +357,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   </Target>
 
   <Target Name="ResolveTestHostDependencies">
-    <MSBuild Projects="$(MSBuildThisFileDirectory)src\Common\CoreFX\CoreFX.depproj" 
+    <MSBuild Projects="$(MSBuildThisFileDirectory)src\Common\CoreFX\CoreFX.depproj"
             Properties="OutputPath=$(NETCoreAppTestSharedFrameworkPath);" />
   </Target>
 
@@ -401,7 +401,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
       <HostPolicyFileName>hostpolicy</HostPolicyFileName>
       <HostPolicyExtension>dll</HostPolicyExtension>
     </PropertyGroup>
-    
+
     <PropertyGroup Condition="'$(OSGroup)'!='Windows_NT'">
       <HostFxrFileName>libhostfxr</HostFxrFileName>
       <HostFxrFileExtension Condition="'$(OSGroup)' == 'Linux' Or '$(OSGroup)' == 'FreeBSD'">so</HostFxrFileExtension>
@@ -410,9 +410,9 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
       <HostPolicyExtension>$(HostFxrFileExtension)</HostPolicyExtension>
       <DotnetExecutableName>dotnet</DotnetExecutableName>
     </PropertyGroup>
-    
+
     <ItemGroup>
-      <!-- Workaround for packages on which Microsoft.NetCoreApp expresses a dependency 
+      <!-- Workaround for packages on which Microsoft.NetCoreApp expresses a dependency
       The <PackageToInclude> element doesn't allow a version to be specified and we end up with clashing assembly versions in Core_Root-->
       <NetCoreAppPackagedAssemblies Include="System.Text.Encoding.CodePages.dll"/>
       <!-- Use xunit dependencies defined in CoreFX.depproj instead of conflicting versions from test dependencies. -->
@@ -434,17 +434,17 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
 
     <!-- Should this be referenced from a NuGet package? -->
     <Copy SourceFiles="@(HostPolicyFile)"
-          DestinationFolder="$(NETCoreAppTestSharedFrameworkPath)" 
+          DestinationFolder="$(NETCoreAppTestSharedFrameworkPath)"
           SkipUnchangedFiles="true"
           UseHardlinksIfPossible="true" />
 
     <Copy SourceFiles="@(DotnetExe)"
-          DestinationFolder="$(TestHostRootPath)" 
+          DestinationFolder="$(TestHostRootPath)"
           SkipUnchangedFiles="true"
           UseHardlinksIfPossible="true"  />
 
-    <Copy SourceFiles="@(CoreCLRBinaries)" 
-          DestinationFolder="$(NETCoreAppTestSharedFrameworkPath)" 
+    <Copy SourceFiles="@(CoreCLRBinaries)"
+          DestinationFolder="$(NETCoreAppTestSharedFrameworkPath)"
           SkipUnchangedFiles="true" />
   </Target>
 
@@ -468,7 +468,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
 
     <MSBuild Projects="$(MSBuildProjectFile)"
              Targets="CreateTestHost"
-             Condition=" '$(GenerateTestHost)'=='true' "/>    
+             Condition=" '$(GenerateTestHost)'=='true' "/>
 
     <MSBuild Projects="$(MSBuildProjectFile)" Targets="RunTests"
              Condition=" '$(RunTests)'=='true' "/>
