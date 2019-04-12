@@ -1610,8 +1610,8 @@ public:
     bool RecordLoop()
     {
         /* At this point we have a compact loop - record it in the loop table
-        * If we found only one exit, record it in the table too
-        * (otherwise an exit = nullptr in the loop table means multiple exits) */
+         * If we found only one exit, record it in the table too
+         * (otherwise an exit = nullptr in the loop table means multiple exits) */
 
         BasicBlock* onlyExit = (exitCount == 1 ? lastExit : nullptr);
         if (comp->optRecordLoop(head, first, top, entry, bottom, onlyExit, exitCount))
@@ -1659,11 +1659,11 @@ public:
     bool FindLoop(BasicBlock* head, BasicBlock* top, BasicBlock* bottom)
     {
         /* Is this a loop candidate? - We look for "back edges", i.e. an edge from BOTTOM
-        * to TOP (note that this is an abuse of notation since this is not necessarily a back edge
-        * as the definition says, but merely an indication that we have a loop there).
-        * Thus, we have to be very careful and after entry discovery check that it is indeed
-        * the only place we enter the loop (especially for non-reducible flow graphs).
-        */
+         * to TOP (note that this is an abuse of notation since this is not necessarily a back edge
+         * as the definition says, but merely an indication that we have a loop there).
+         * Thus, we have to be very careful and after entry discovery check that it is indeed
+         * the only place we enter the loop (especially for non-reducible flow graphs).
+         */
 
         if (top->bbNum > bottom->bbNum) // is this a backward edge? (from BOTTOM to TOP)
         {
@@ -1683,18 +1683,18 @@ public:
             (bottom->bbJumpKind == BBJ_SWITCH))
         {
             /* BBJ_EHFINALLYRET, BBJ_EHFILTERRET, BBJ_EHCATCHRET, and BBJ_CALLFINALLY can never form a loop.
-            * BBJ_SWITCH that has a backward jump appears only for labeled break. */
+             * BBJ_SWITCH that has a backward jump appears only for labeled break. */
             return false;
         }
 
         /* The presence of a "back edge" is an indication that a loop might be present here
-        *
-        * LOOP:
-        *        1. A collection of STRONGLY CONNECTED nodes i.e. there is a path from any
-        *           node in the loop to any other node in the loop (wholly within the loop)
-        *        2. The loop has a unique ENTRY, i.e. there is only one way to reach a node
-        *           in the loop from outside the loop, and that is through the ENTRY
-        */
+         *
+         * LOOP:
+         *        1. A collection of STRONGLY CONNECTED nodes i.e. there is a path from any
+         *           node in the loop to any other node in the loop (wholly within the loop)
+         *        2. The loop has a unique ENTRY, i.e. there is only one way to reach a node
+         *           in the loop from outside the loop, and that is through the ENTRY
+         */
 
         /* Let's find the loop ENTRY */
         BasicBlock* entry = FindEntry(head, top, bottom);
@@ -1809,7 +1809,7 @@ private:
                 /* OK - we enter somewhere within the loop */
 
                 /* some useful asserts
-                * Cannot enter at the top - should have being caught by redundant jumps */
+                 * Cannot enter at the top - should have being caught by redundant jumps */
 
                 assert((head->bbJumpDest != top) || (head->bbFlags & BBF_KEEP_BBJ_ALWAYS));
 
@@ -1863,8 +1863,8 @@ private:
             worklist.pop_back();
 
             /* Make sure ENTRY dominates all blocks in the loop
-            * This is necessary to ensure condition 2. above
-            */
+             * This is necessary to ensure condition 2. above
+             */
             if (block->bbNum > oldBlockMaxNum)
             {
                 // This is a new block we added to connect fall-through, so the
@@ -2372,7 +2372,7 @@ private:
             case BBJ_EHFINALLYRET:
             case BBJ_EHFILTERRET:
                 /* The "try" associated with this "finally" must be in the
-                * same loop, so the finally block will return control inside the loop */
+                 * same loop, so the finally block will return control inside the loop */
                 break;
 
             case BBJ_THROW:
@@ -2415,7 +2415,7 @@ private:
         }
     }
 };
-}
+} // namespace
 
 /*****************************************************************************
  * Find the natural loops, using dominators. Note that the test for
@@ -3908,7 +3908,7 @@ void Compiler::optUnrollLoops()
             /* Make sure to update loop table */
 
             /* Use the LPFLG_REMOVED flag and update the bbLoopMask accordingly
-                * (also make head and bottom NULL - to hit an assert or GPF) */
+             * (also make head and bottom NULL - to hit an assert or GPF) */
 
             optLoopTable[lnum].lpFlags |= LPFLG_REMOVED;
             optLoopTable[lnum].lpHead = optLoopTable[lnum].lpBottom = nullptr;
@@ -8194,6 +8194,182 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
             const bool computeStack = false;
             fgWalkTreePre(&stmt->gtStmt.gtStmtExpr, optCanOptimizeByLoopCloningVisitor, &info, lclVarsOnly,
                           computeStack);
+        }
+    }
+
+    return true;
+}
+
+bool optCheckBBFlowHasSideEffect(jitstd::unordered_map<BasicBlock*, bool>& records, BasicBlock* block)
+{
+    for (flowList* preds = block->bbPreds; preds != nullptr; preds = preds->flNext)
+    {
+        BasicBlock* flBlock = preds->flBlock;
+        if (records.find(flBlock) == records.end() || !records[flBlock])
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+//---------------------------------------------------------------------------------------------------------------
+//  optExtractUniqueBBFromCondScope: Try to extract the all blocks that target true condition block flows to
+//
+//  Arguments:
+//      bbCond      the block that on scope
+//      extracted   result that blocks extracted
+//
+//  Return Value:
+//      None
+//
+//  Operation:
+//      Extract all blocks that unique blocks that scoped on bbCond. for example.
+//
+//      [BB0]--T-->[BB1] (bbCond)
+//        |          |
+//        |          |
+//        |          |
+//      [BB2]<-----[BB3]
+//        |          |
+//        |        [BB4]
+//        |          |
+//      [BB5]<-----[BB6]
+//
+//      this will extract [BB1], [BB3], [BB4], [BB6].
+bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCond,
+                                               jitstd::vector<BasicBlock*>* extracted,
+                                               bool                         isReversedCond)
+{
+    BasicBlock* bbFalse = bbCond->bbJumpDest;
+    BasicBlock* bbTrue  = bbCond->bbNext;
+
+    if (isReversedCond)
+    {
+        std::swap(bbFalse, bbTrue);
+    }
+
+    jitstd::unordered_map<BasicBlock*, bool> recFlow(this->getAllocator());
+    jitstd::vector<BasicBlock*> recTemp(this->getAllocator());
+    jitstd::vector<BasicBlock*> recNext(this->getAllocator());
+
+    recFlow.insert(bbFalse, false);
+    recFlow.insert(bbTrue, true);
+    recNext.push_back(bbTrue);
+
+    while (!recNext.empty())
+    {
+        for (BasicBlock* bbIter : recNext)
+        {
+            switch (bbIter->bbJumpKind)
+            {
+                case BBJ_ALWAYS:
+                {
+                    BasicBlock* bbFlowTo = bbIter->bbJumpDest;
+                    if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowTo))
+                    {
+                        recFlow[bbFlowTo] = true;
+                        recTemp.push_back(bbFlowTo);
+                    }
+                    else
+                    {
+                        recFlow[bbFlowTo] = false;
+                    }
+
+                    break;
+                }
+
+                case BBJ_NONE:
+                {
+                    BasicBlock* bbFlowTo = bbIter->bbNext;
+                    if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowTo))
+                    {
+                        recFlow[bbFlowTo] = true;
+                        recTemp.push_back(bbFlowTo);
+                    }
+                    else
+                    {
+                        recFlow[bbFlowTo] = false;
+                    }
+
+                    break;
+                }
+
+                case BBJ_COND:
+                {
+                    BasicBlock* bbFlowToF = bbIter->bbNext;
+                    if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowToF))
+                    {
+                        recFlow[bbFlowToF] = true;
+                        recTemp.push_back(bbFlowToF);
+                    }
+                    else
+                    {
+                        recFlow[bbFlowToF] = false;
+                    }
+
+                    BasicBlock* bbFlowToT = bbIter->bbJumpDest;
+                    if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowToT))
+                    {
+                        recFlow[bbFlowToT] = true;
+                        recTemp.push_back(bbFlowToT);
+                    }
+                    else
+                    {
+                        recFlow[bbFlowToT] = false;
+                    }
+
+                    break;
+                }
+
+                case BBJ_SWITCH:
+                {
+                    unsigned int bbSwtCount = bbIter->bbJumpSwt->bbsCount;
+                    BasicBlock** bbSwtTable = bbIter->bbJumpSwt->bbsDstTab;
+
+                    for (unsigned int i = 0; i < bbSwtCount; ++i)
+                    {
+                        BasicBlock* bbFlowTo = bbSwtTable[i];
+                        if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowTo))
+                        {
+                            recFlow[bbFlowTo] = true;
+                            recTemp.push_back(bbFlowTo);
+                        }
+                        else
+                        {
+                            recFlow[bbFlowTo] = false;
+                        }
+                    }
+                    break;
+                }
+
+                case BBJ_RETURN:
+                    break;
+
+                default:
+                    // Do not handle some kind of block that handles specal things.
+                    // TODO-CQ : Implements for exception traps
+                    return false;
+            }
+        }
+
+        for (BasicBlock* bbToAnalysis : recTemp)
+        {
+            // We do not analysis again that marked as true in records
+            if (recFlow.find(bbToAnalysis) == recFlow.end() || !recFlow[bbToAnalysis])
+            {
+                recNext.push_back(bbToAnalysis);
+            }
+        }
+        recTemp.clear();
+    }
+
+    for (auto& recordPair : recFlow)
+    {
+        if (recordPair.second)
+        {
+            extracted->push_back(recordPair.first);
         }
     }
 

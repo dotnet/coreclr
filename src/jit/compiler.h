@@ -6633,6 +6633,9 @@ public:
         }
     };
 
+    bool optExtractUniqueBBFromCondScope(BasicBlock*                  bbCond,
+                                         jitstd::vector<BasicBlock*>* extracted,
+                                         bool                         isReversedCond = false);
     bool optIsStackLocalInvariant(unsigned loopNum, unsigned lclNum);
     bool optExtractArrIndex(GenTree* tree, ArrIndex* result, unsigned lhsNum);
     bool optReconstructArrIndex(GenTree* tree, ArrIndex* result, unsigned lhsNum);
