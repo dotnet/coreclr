@@ -826,18 +826,16 @@ namespace System.IO
         }
 
         /// <summary>
-        /// Trims the ending directory separator if present.
+        /// Trims any trailing separators beyond the root of the path.
         /// </summary>
-        /// <param name="path"></param>
         public static string TrimEndingDirectorySeparator(string path) =>
             EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path.AsSpan()) ?
                 path.Substring(0, path.Length - 1) :
                 path;
 
         /// <summary>
-        /// Trims the ending directory separator if present.
+        /// Trims any trailing separators beyond the root of the path.
         /// </summary>
-        /// <param name="path"></param>
         public static ReadOnlySpan<char> TrimEndingDirectorySeparator(ReadOnlySpan<char> path) =>
             EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path) ?
                 path.Slice(0, path.Length - 1) :
