@@ -1719,7 +1719,7 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
         if (pAssembly == NULL)
             return FALSE;
 
-        pDomainAssembly = pAssembly->GetDomainAssembly(pAppDomain);
+        pDomainAssembly = pAssembly->GetDomainAssembly();
         pPEFile = pDomainAssembly->GetFile();
 
         if (FAILED(pAssembly->GetManifestImport()->FindManifestResourceByName(

@@ -2316,9 +2316,8 @@ ClrDataAccess::GetAppDomainData(CLRDATA_ADDRESS addr, struct DacpAppDomainData *
         if (pBaseDomain->IsAppDomain())
         {
             AppDomain * pAppDomain = pBaseDomain->AsAppDomain();
-            appdomainData->DomainLocalBlock = appdomainData->AppDomainPtr +
-                offsetof(AppDomain, m_sDomainLocalBlock);
-            appdomainData->pDomainLocalModules = PTR_CDADDR(pAppDomain->m_sDomainLocalBlock.m_pModuleSlots);
+            appdomainData->DomainLocalBlock = 0;
+            appdomainData->pDomainLocalModules = 0;
 
             appdomainData->dwId = DefaultADID;
             appdomainData->appDomainStage = (DacpAppDomainDataStage)pAppDomain->m_Stage.Load();
@@ -3197,7 +3196,7 @@ ClrDataAccess::GetDomainLocalModuleDataFromModule(CLRDATA_ADDRESS addr, struct D
     SOSDacEnter();
 
     Module* pModule = PTR_Module(TO_TADDR(addr));
-    DomainLocalModule* pLocalModule = PTR_DomainLocalModule(pModule->GetDomainLocalModule(NULL));
+    DomainLocalModule* pLocalModule = PTR_DomainLocalModule(pModule->GetDomainLocalModule());
     if (!pLocalModule)
     {
         hr = E_INVALIDARG;
@@ -3226,8 +3225,22 @@ ClrDataAccess::GetDomainLocalModuleDataFromAppDomain(CLRDATA_ADDRESS appDomainAd
     pLocalModuleData->ModuleID = moduleID;
 
     AppDomain *pAppDomain = PTR_AppDomain(TO_TADDR(appDomainAddr));
+
     ModuleIndex index = Module::IDToIndex(moduleID);
-    DomainLocalModule* pLocalModule = pAppDomain->GetDomainLocalBlock()->GetModuleSlot(index);
+
+    DomainLocalModule* pLocalModule = NULL;
+
+    AppDomain::AssemblyIterator i = pAppDomain->IterateAssembliesEx(
+        (AssemblyIterationFlags)(kIncludeLoading | kIncludeLoaded | kIncludeExecution));
+    CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
+    while (i.Next(pDomainAssembly.This()))
+    {
+        if (pDomainAssembly->GetModule()->GetModuleIndex() == index)
+        {
+            pLocalModule = pDomainAssembly->GetModule()->GetDomainLocalModule();
+        }
+    }
+
     if (!pLocalModule)
     {
         hr = E_INVALIDARG;
