@@ -112,6 +112,7 @@ nativeStringResourceTable_mscorrc_debug
 #GetCurrentDirectoryW
 #GetCurrentProcess
 #GetCurrentProcessId
+#GetCurrentProcessorNumberEx
 #GetCurrentThreadId
 #GetEnvironmentVariableA
 #GetEnvironmentVariableW
@@ -119,9 +120,12 @@ nativeStringResourceTable_mscorrc_debug
 #GetFileAttributesW
 #GetFileSize
 #GetFullPathNameW
+#GetLogicalProcessorInformationEx
 #GetLastError
 #GetLongPathNameW
 #GetModuleFileNameW
+#GetNumaHighestNodeNumber
+#GetNumaProcessorNodeEx
 #GetProcAddress
 #GetProcessAffinityMask
 #GetProcessHeap
@@ -133,6 +137,7 @@ nativeStringResourceTable_mscorrc_debug
 #GetTempFileNameW
 #GetTempPathA
 #GetTempPathW
+#GetThreadGroupAffinity
 #HeapAlloc
 #HeapFree
 #HeapSetInformation
@@ -168,6 +173,7 @@ nativeStringResourceTable_mscorrc_debug
 #SetFilePointer
 #SetLastError
 #SetErrorMode
+#SetThreadGroupAffinity
 #Sleep
 #SleepEx
 #SwitchToThread
@@ -179,6 +185,7 @@ nativeStringResourceTable_mscorrc_debug
 #TlsGetValue
 #TlsSetValue
 #VirtualAlloc
+#VirtualAllocExNuma
 #VirtualFree
 #VirtualProtect
 #VirtualQuery
