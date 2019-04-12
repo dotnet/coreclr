@@ -92,7 +92,9 @@ namespace System.Diagnostics.Tracing
             { sessionIdBit = sessionIdBit_; etwSessionId = etwSessionId_; }
         }
 
+#if PLATFORM_WINDOWS
         private static bool m_setInformationMissing;
+#endif
 
         internal IEventProvider m_eventProvider;         // The interface that implements the specific logging mechanism functions.
         Interop.Advapi32.EtwEnableCallback m_etwCallback;     // Trace Callback function
