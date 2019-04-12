@@ -1,0 +1,1073 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26124.0
+MinimumVisualStudioVersion = 15.0.26124.0
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "baseservices", "baseservices", "{F6FB109C-9F1D-4612-B21E-809E0344B623}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "threading", "threading", "{73FACAE4-379C-435A-8DAD-DD8338F66508}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "mutex", "mutex", "{91201758-38C9-4D5C-951A-18F4BC4F59D8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg6", "baseservices\threading\mutex\openexisting\openmutexneg6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Interop", "Interop", "{DFD344C1-115C-46A5-BB36-0EB8C0051B02}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PInvoke", "PInvoke", "{40FFD834-EF60-49B8-92F5-89D25D983971}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BestFitMapping", "BestFitMapping", "{93CD8F60-DE8D-49AC-9A27-F56952CFFC3F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Char", "Char", "{6B4CB412-F6E3-4EA3-B968-4A8B9101576F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFT_PTT", "Interop\PInvoke\BestFitMapping\Char\AFT_PTT\AFT_PTT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "JIT", "JIT", "{5A5B7054-3A49-4EF8-941F-3D5BFB6A6D2B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Regression", "Regression", "{D97FEC63-A2C9-47C0-952B-DC4DF706DDDC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CLR-x86-JIT", "CLR-x86-JIT", "{1D631F60-8542-4BCD-A750-FCD4B1A3EC19}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "V1-M09.5-PDC", "V1-M09.5-PDC", "{38BD2180-F639-4205-9537-72B18D908822}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b26324a", "JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b26324\b26324a.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Methodical", "Methodical", "{A8067133-DD1D-49CE-B229-4EFA331984C6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "explicit", "explicit", "{DB3C2E4E-18F6-40E2-973F-3881812C5EA7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_short_1_r", "JIT\Methodical\explicit\coverage\seq_gc_short_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Directed", "Directed", "{2A03D8CB-5DE3-4144-A286-C4A0806C55E9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "preemptive_cooperative", "JIT\Directed\pinvoke\preemptive_cooperative.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "jit64", "jit64", "{4E369BD6-9D7B-4D40-9B82-6A716F076F12}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "mcc", "mcc", "{31882638-31F6-4225-9E1C-825E1BA63DDD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i73", "JIT\jit64\mcc\interop\mcc_i73.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_long_1_r", "JIT\Methodical\explicit\coverage\expl_long_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "IL", "IL", "{52C4B43D-9B73-42F3-991D-BBD146C90D6A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PInvokeTail", "JIT\Directed\IL\PInvokeTail\PInvokeTail.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i87", "JIT\jit64\mcc\interop\mcc_i87.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i71", "JIT\jit64\mcc\interop\mcc_i71.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_float_1_d", "JIT\Methodical\explicit\coverage\seq_float_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sysinfo_cs", "JIT\Directed\pinvoke\sysinfo_cs.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i37", "JIT\jit64\mcc\interop\mcc_i37.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "waithandle", "waithandle", "{73FB7D54-0B48-408A-B1F2-69D40FC7AD6D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex4", "baseservices\threading\waithandle\waitall\waitallex4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b28901", "JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b28901\b28901.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "semaphore", "semaphore", "{7F3E5C2D-98FC-4405-863A-20B6C81258BA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg1", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i64", "JIT\jit64\mcc\interop\mcc_i64.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_obj_1_d", "JIT\Methodical\explicit\coverage\expl_gc_obj_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i84", "JIT\jit64\mcc\interop\mcc_i84.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i50", "JIT\jit64\mcc\interop\mcc_i50.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_long_1_d", "JIT\Methodical\explicit\coverage\expl_gc_long_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Generics", "Generics", "{997BFD08-9360-4DB2-B078-685E56A58962}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "instance02", "JIT\Generics\pinvoke\instance02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i66", "JIT\jit64\mcc\interop\mcc_i66.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "loop2_cs_d", "JIT\Directed\UnrollLoop\loop2_cs_d.csproj", "{2E795F75-9DA6-4D10-9C32-C1D3FB854231}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_double_1_d", "JIT\Methodical\explicit\coverage\seq_double_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NativeCallManagedComVisible", "NativeCallManagedComVisible", "{294E31F6-7131-4F36-BE1D-3467F900576C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DefaultTestInALC", "Interop\PInvoke\NativeCallManagedComVisible\Default\DefaultTestInALC.csproj", "{43531C46-AFE2-4254-93C6-7F17E30D750C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFF_PFF", "Interop\PInvoke\BestFitMapping\Char\AFF_PFF\AFF_PFF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg3", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_val_1_r", "JIT\Methodical\explicit\coverage\seq_gc_val_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorector4", "baseservices\threading\semaphore\ctoropen\semaphorector4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg7", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg7.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "instance01", "JIT\Generics\pinvoke\instance01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LPStr", "LPStr", "{B0DA24E2-1229-4A76-B6C8-A94DB3C74BE7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATT_PTT", "Interop\PInvoke\BestFitMapping\LPStr\ATT_PTT\ATT_PTT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i60", "JIT\jit64\mcc\interop\mcc_i60.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b30838", "JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b30838\b30838.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex10", "baseservices\threading\waithandle\waitany\waitanyex10.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_obj_1_r", "JIT\Methodical\explicit\coverage\seq_obj_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "V1-M11-Beta1", "V1-M11-Beta1", "{1EAD0B69-4845-4643-A641-224CF2F9E244}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b36472", "JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b36472\b36472.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_float_1_d", "JIT\Methodical\explicit\coverage\expl_gc_float_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "COM", "COM", "{99D8F89F-2EDC-40D2-B5A6-EA52CB588ED1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Activator", "Interop\COM\Activator\Activator.csproj", "{C6C8577F-DE01-4B94-9169-42F54E5C923D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "getclassfrommethodparam", "JIT\Generics\Fields\getclassfrommethodparam.csproj", "{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i62", "JIT\jit64\mcc\interop\mcc_i62.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_long_1_r", "JIT\Methodical\explicit\coverage\seq_long_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "V1-M12-Beta2", "V1-M12-Beta2", "{05602149-6538-423E-BBDC-D10D97690775}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b79250", "JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b79250\b79250.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_int_1_d", "JIT\Methodical\explicit\coverage\expl_gc_int_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TailWinApi", "JIT\Directed\IL\PInvokeTail\TailWinApi.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NETClients", "NETClients", "{A556E4CD-4B62-43AD-A985-CD365E325E39}"
+EndProject
+Project("{87799F5D-CEBD-499D-BDBA-B2C6105CD766}") = "NETClientPrimitivesInALC", "Interop\COM\NETClients\Primitives\NETClientPrimitivesInALC.csproj", "{85C57688-DA98-4DE3-AC9B-526E4747434C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex1", "baseservices\threading\waithandle\waitall\waitallex1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_byte_1_r", "JIT\Methodical\explicit\coverage\seq_byte_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFT_PTF", "Interop\PInvoke\BestFitMapping\Char\AFT_PTF\AFT_PTF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex2", "baseservices\threading\waithandle\waitany\waitanyex2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_short_1_r", "JIT\Methodical\explicit\coverage\expl_short_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "static02", "JIT\Generics\pinvoke\static02.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am04waitany", "baseservices\threading\mutex\abandonedmutex\am04waitany.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex2", "baseservices\threading\waithandle\waitone\waitoneex2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IEnumeratorTest", "Interop\PInvoke\IEnumerator\IEnumeratorTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i03", "JIT\jit64\mcc\interop\mcc_i03.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_double_1_r", "JIT\Methodical\explicit\coverage\expl_gc_double_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_obj_1_r", "JIT\Methodical\explicit\coverage\expl_obj_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "StringMarshalling", "StringMarshalling", "{C635EEAF-1BAC-40E9-A448-743DC4B0F3CE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VBByRefStrTest", "Interop\StringMarshalling\VBByRefStr\VBByRefStrTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "IJW", "IJW", "{79A70256-FD00-408A-AD1A-827C831F7AB0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManagedCallingNative", "Interop\IJW\ManagedCallingNative\ManagedCallingNative.csproj", "{49D1D482-E783-4CA9-B6BA-A9714BF81036}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i72", "JIT\jit64\mcc\interop\mcc_i72.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "threadpool", "threadpool", "{BD9617D2-3EDB-4F54-B012-301D086242DF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandleinvalid6", "baseservices\threading\threadpool\bindhandle\bindhandleinvalid6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_byte_1_r", "JIT\Methodical\explicit\coverage\expl_gc_byte_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am08mixedarray", "baseservices\threading\mutex\abandonedmutex\am08mixedarray.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i74", "JIT\jit64\mcc\interop\mcc_i74.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg5", "baseservices\threading\mutex\openexisting\openmutexneg5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex5", "baseservices\threading\waithandle\waitall\waitallex5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "gc", "gc", "{478BA1A0-40B8-496E-90A0-BDCBCE6775F0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "funclet", "JIT\jit64\gc\misc\funclet.csproj", "{A323618C-1BE2-4C13-835C-357550C2045B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_val_1_r", "JIT\Methodical\explicit\coverage\expl_val_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "V1-M13-RTM", "V1-M13-RTM", "{9AF03DD5-1376-4054-8A05-E7D823C343D9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b88793", "JIT\Regression\CLR-x86-JIT\V1-M13-RTM\b88793\b88793.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexpos3", "baseservices\threading\mutex\openexisting\openmutexpos3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i34", "JIT\jit64\mcc\interop\mcc_i34.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_long_1_r", "JIT\Methodical\explicit\coverage\expl_gc_long_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex3", "baseservices\threading\waithandle\waitall\waitallex3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "JitBlue", "JitBlue", "{E0E63E6D-E818-4E14-B16F-68B3D7C51B70}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHub_22583", "JIT\Regression\JitBlue\GitHub_22583\GitHub_22583.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i52", "JIT\jit64\mcc\interop\mcc_i52.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pinvoke-bug", "JIT\Directed\pinvoke\pinvoke-bug.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i02", "JIT\jit64\mcc\interop\mcc_i02.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VariantTest", "Interop\PInvoke\Variant\VariantTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_obj_1_d", "JIT\Methodical\explicit\coverage\seq_obj_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex6", "baseservices\threading\waithandle\waitall\waitallex6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CoreMangLib", "CoreMangLib", "{0861A419-464B-48BE-BA16-D98D78963423}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "system", "system", "{61619A3A-8818-482D-9464-7BB0BE3C1A3E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "reflection", "reflection", "{3BAEE843-4499-4535-A589-C655E2A244D1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "emit", "emit", "{02541624-7572-42E5-808F-2A5F0F774950}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynMethodJumpStubTests", "CoreMangLib\system\reflection\emit\DynMethodJumpStubTests\DynMethodJumpStubTests.csproj", "{742D9E05-668D-4B90-97F9-717A7572FE6C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SafeHandles", "SafeHandles", "{B1EBB615-2179-4388-AA36-BC67326B63E3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbstractDerivedTest", "Interop\PInvoke\SafeHandles\AbstractDerived\AbstractDerivedTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b91248", "JIT\Regression\CLR-x86-JIT\V1-M13-RTM\b91248\b91248.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "readytorun", "readytorun", "{A80F2B5D-3690-49B2-998E-D3980DD19760}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "R2RDumpTest", "readytorun\r2rdump\R2RDumpTest.csproj", "{9031C162-693D-4694-A08D-DF75CE94B35D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg4", "baseservices\threading\mutex\openexisting\openmutexneg4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Attributes", "Attributes", "{BECAB7F9-61EE-4407-B05A-9FF6EFE917BD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LCIDTest", "Interop\PInvoke\Attributes\LCID\LCIDTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "regress", "regress", "{D9195611-921F-422B-880F-E732DC92C95A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "vsw", "vsw", "{C7058D6B-D60F-4580-8184-5FF1230F0A4C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test", "JIT\jit64\regress\vsw\286991\test.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex11", "baseservices\threading\waithandle\waitall\waitallex11.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MarshalAPI", "MarshalAPI", "{392B80E0-F6D9-4024-BFA4-D68B7EE7238E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IUnknownTest", "Interop\MarshalAPI\IUnknown\IUnknownTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "loop2_cs_r", "JIT\Directed\UnrollLoop\loop2_cs_r.csproj", "{FDFA7555-C1FF-400D-8DBC-5672E2E76494}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i04", "JIT\jit64\mcc\interop\mcc_i04.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pinvoke_True_False", "Interop\PInvoke\BestFitMapping\LPStr\Pinvoke_True_False\Pinvoke_True_False.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i10", "JIT\jit64\mcc\interop\mcc_i10.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_byte_1_r", "JIT\Methodical\explicit\coverage\seq_gc_byte_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am05waitanymutex", "baseservices\threading\mutex\abandonedmutex\am05waitanymutex.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DefaultStackCommit", "baseservices\threading\commitstackonlyasneeded\DefaultStackCommit.csproj", "{C485E164-F82C-4A4F-A02E-BC711827E5BE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly_False_False", "Interop\PInvoke\BestFitMapping\Char\Assembly_False_False\Assembly_False_False.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IUnknownTestInALC", "Interop\MarshalAPI\IUnknown\IUnknownTestInALC.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_val_1_d", "JIT\Methodical\explicit\coverage\expl_val_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg4", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i32", "JIT\jit64\mcc\interop\mcc_i32.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InvalidMarshalAsTest", "Interop\PInvoke\SafeHandles\InvalidMarshalAs\InvalidMarshalAsTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_int_1_r", "JIT\Methodical\explicit\coverage\expl_int_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i06", "JIT\jit64\mcc\interop\mcc_i06.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_int_1_r", "JIT\Methodical\explicit\coverage\seq_gc_int_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "regressions", "regressions", "{B468450A-6A3F-4922-AC7B-D1BDAC7269B3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "200176", "baseservices\threading\regressions\whidbey_m3\200176.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i36", "JIT\jit64\mcc\interop\mcc_i36.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_long_1_r", "JIT\Methodical\explicit\coverage\seq_gc_long_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semtest", "baseservices\threading\semaphore\unit\semtest.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg7", "baseservices\threading\mutex\openexisting\openmutexneg7.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex8", "baseservices\threading\waithandle\waitall\waitallex8.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CleanUpCheckTest", "Interop\PInvoke\SafeHandles\CleanUpCheck\CleanUpCheckTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i75", "JIT\jit64\mcc\interop\mcc_i75.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i30", "JIT\jit64\mcc\interop\mcc_i30.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg5", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{87799F5D-CEBD-499D-BDBA-B2C6105CD766}") = "NETClientPrimitives", "Interop\COM\NETClients\Primitives\NETClientPrimitives.csproj", "{85C57688-DA98-4DE3-AC9B-526E4747434C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "coverage", "coverage", "{8D03875D-4433-4B57-BCFC-1AC59BD7177D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "oldtests", "oldtests", "{194CFEB8-A061-4022-A2E5-9128DDF3AE6E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "callipinvoke_il_r", "JIT\Directed\coverage\oldtests\Desktop\callipinvoke_il_r.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorector2", "baseservices\threading\semaphore\ctoropen\semaphorector2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i07", "JIT\jit64\mcc\interop\mcc_i07.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg2", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFT_PFF", "Interop\PInvoke\BestFitMapping\LPStr\AFT_PFF\AFT_PFF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i83", "JIT\jit64\mcc\interop\mcc_i83.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i81", "JIT\jit64\mcc\interop\mcc_i81.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i63", "JIT\jit64\mcc\interop\mcc_i63.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiscTest", "Interop\PInvoke\SafeHandles\Misc\MiscTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandleinvalid", "baseservices\threading\threadpool\bindhandle\bindhandleinvalid.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i65", "JIT\jit64\mcc\interop\mcc_i65.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{87799F5D-CEBD-499D-BDBA-B2C6105CD766}") = "NETClientIDispatch", "Interop\COM\NETClients\IDispatch\NETClientIDispatch.csproj", "{85C57688-DA98-4DE3-AC9B-526E4747434C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "loop2_cs_ro", "JIT\Directed\UnrollLoop\loop2_cs_ro.csproj", "{4499F174-5CA5-4447-81A0-A8E3BA1908D7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i54", "JIT\jit64\mcc\interop\mcc_i54.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{87799F5D-CEBD-499D-BDBA-B2C6105CD766}") = "NETClientLicense", "Interop\COM\NETClients\Licensing\NETClientLicense.csproj", "{85C57688-DA98-4DE3-AC9B-526E4747434C}"
+EndProject
+Project("{87799F5D-CEBD-499D-BDBA-B2C6105CD766}") = "NETClientEvents", "Interop\COM\NETClients\Events\NETClientEvents.csproj", "{85C57688-DA98-4DE3-AC9B-526E4747434C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFF_PTT", "Interop\PInvoke\BestFitMapping\Char\AFF_PTT\AFF_PTT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_byte_1_r", "JIT\Methodical\explicit\coverage\expl_byte_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "clr-x64-JIT", "clr-x64-JIT", "{CC685AC5-4E07-453C-9A54-54C7EDF42F1E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "v2.1", "v2.1", "{3E5AFC26-0609-48A7-8E27-E87D32AEF3B4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b173569", "JIT\Regression\clr-x64-JIT\v2.1\b173569\b173569.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_short_1_d", "JIT\Methodical\explicit\coverage\seq_gc_short_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex9", "baseservices\threading\waithandle\waitany\waitanyex9.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i56", "JIT\jit64\mcc\interop\mcc_i56.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GC", "GC", "{2B816ADF-A57B-42B7-9AE0-C93B9F74D2E4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "smalloom", "GC\Coverage\smalloom.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DefaultTest", "Interop\PInvoke\SafeHandles\Default\DefaultTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Regressions", "Regressions", "{EFDDF6D0-630F-4AA6-A125-C9000426AF09}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "coreclr", "coreclr", "{8F2B4717-7FA7-4ABC-A7DD-6EEFB1DC0456}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test584", "Regressions\coreclr\0584\Test584.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex2", "baseservices\threading\waithandle\waitall\waitallex2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_double_1_d", "JIT\Methodical\explicit\coverage\expl_double_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg1", "baseservices\threading\mutex\openexisting\openmutexneg1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i51", "JIT\jit64\mcc\interop\mcc_i51.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_val_1_r", "JIT\Methodical\explicit\coverage\seq_val_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "loop2_cs_do", "JIT\Directed\UnrollLoop\loop2_cs_do.csproj", "{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i86", "JIT\jit64\mcc\interop\mcc_i86.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly_True_True", "Interop\PInvoke\BestFitMapping\LPStr\Assembly_True_True\Assembly_True_True.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex7", "baseservices\threading\waithandle\waitany\waitanyex7.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am06abandonall", "baseservices\threading\mutex\abandonedmutex\am06abandonall.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SigDiffTest", "Interop\PInvoke\SafeHandles\SigDiff\SigDiffTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandle1", "baseservices\threading\threadpool\bindhandle\bindhandle1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandleinvalid3", "baseservices\threading\threadpool\bindhandle\bindhandleinvalid3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyTrueTest", "Interop\PInvoke\NativeCallManagedComVisible\AssemblyTrue\AssemblyTrueTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i82", "JIT\jit64\mcc\interop\mcc_i82.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiscUnsupportedTest", "Interop\PInvoke\SafeHandles\Misc.Unsupported\MiscUnsupportedTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Delegate", "Delegate", "{2F97D189-A22F-4EDF-9706-03A09DED3B33}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MarshalDelegateAsParam", "MarshalDelegateAsParam", "{A8510650-11B1-4972-94B8-60308787D706}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsInterfaceTest", "Interop\PInvoke\Delegate\MarshalDelegateAsParam\AsInterface\AsInterfaceTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i14", "JIT\jit64\mcc\interop\mcc_i14.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pinvoke_True_True", "Interop\PInvoke\BestFitMapping\LPStr\Pinvoke_True_True\Pinvoke_True_True.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex1", "baseservices\threading\waithandle\waitany\waitanyex1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATT_PTF", "Interop\PInvoke\BestFitMapping\LPStr\ATT_PTF\ATT_PTF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATF_PTF", "Interop\PInvoke\BestFitMapping\LPStr\ATF_PTF\ATF_PTF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SizeConstTest", "Interop\SizeConst\SizeConstTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly_False_True", "Interop\PInvoke\BestFitMapping\LPStr\Assembly_False_True\Assembly_False_True.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "opt", "opt", "{61F6963F-C821-46F2-AB0F-B7A348738141}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TailcallVerifyWithPrefix", "JIT\opt\Tailcall\TailcallVerifyWithPrefix.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_byte_1_d", "JIT\Methodical\explicit\coverage\expl_gc_byte_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_int_1_d", "JIT\Methodical\explicit\coverage\expl_int_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "v4.0", "v4.0", "{3647F46C-5A56-4F0E-A80A-25FD201F2AAF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevDiv_374539", "JIT\Regression\clr-x64-JIT\v4.0\devdiv374539\DevDiv_374539.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_float_1_r", "JIT\Methodical\explicit\coverage\seq_gc_float_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_val_1_d", "JIT\Methodical\explicit\coverage\seq_gc_val_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_double_1_r", "JIT\Methodical\explicit\coverage\expl_double_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "jump", "JIT\Directed\pinvoke\jump.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i11", "JIT\jit64\mcc\interop\mcc_i11.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex4", "baseservices\threading\waithandle\waitone\waitoneex4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "managed", "managed", "{BB63476C-DE48-40F0-8355-B78A5A99F092}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Compilation", "managed\Compilation\Compilation.csproj", "{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyWithoutComVisibleTest", "Interop\PInvoke\NativeCallManagedComVisible\AssemblyWithoutComVisible\AssemblyWithoutComVisibleTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pinvoke_False_True", "Interop\PInvoke\BestFitMapping\Char\Pinvoke_False_True\Pinvoke_False_True.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DefaultInterfaces", "Interop\COM\NativeClients\DefaultInterfaces.csproj", "{C5691498-5927-46FF-9B81-BB7D5E07113C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_short_1_r", "JIT\Methodical\explicit\coverage\expl_gc_short_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pinvoke_False_False", "Interop\PInvoke\BestFitMapping\Char\Pinvoke_False_False\Pinvoke_False_False.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Primitives", "Interop\COM\NativeClients\Primitives.csproj", "{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFF_PFT", "Interop\PInvoke\BestFitMapping\Char\AFF_PFT\AFF_PFT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_float_1_r", "JIT\Methodical\explicit\coverage\seq_float_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i80", "JIT\jit64\mcc\interop\mcc_i80.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomMarshalersTest", "Interop\PInvoke\CustomMarshalers\CustomMarshalersTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_double_1_d", "JIT\Methodical\explicit\coverage\seq_gc_double_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATT_PFT", "Interop\PInvoke\BestFitMapping\LPStr\ATT_PFT\ATT_PFT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i57", "JIT\jit64\mcc\interop\mcc_i57.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg2", "baseservices\threading\mutex\openexisting\openmutexneg2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b26324b", "JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b26324\b26324b.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b30864", "JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b30864\b30864.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_obj_1_d", "JIT\Methodical\explicit\coverage\expl_obj_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tracing", "tracing", "{34FA04BD-71E2-467C-94C6-DA93792DCD2E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "regress", "regress", "{49BF47D9-F9EC-42C6-872F-618213C8D4BF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHub_22247", "tracing\regress\GitHub_22247\GitHub_22247.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "eventsource", "eventsource", "{EA916732-758B-4ED7-97F7-F79AE3AE08BB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eventpipeandetw", "tracing\eventsource\eventpipeandetw\eventpipeandetw.csproj", "{8E3244CB-407F-4142-BAAB-E7A55901A5FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i31", "JIT\jit64\mcc\interop\mcc_i31.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_val_1_d", "JIT\Methodical\explicit\coverage\expl_gc_val_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i61", "JIT\jit64\mcc\interop\mcc_i61.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_float_1_d", "JIT\Methodical\explicit\coverage\expl_float_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i77", "JIT\jit64\mcc\interop\mcc_i77.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_double_1_r", "JIT\Methodical\explicit\coverage\seq_gc_double_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandleinvalid4", "baseservices\threading\threadpool\bindhandle\bindhandleinvalid4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "am07abandonmultiplemutex", "baseservices\threading\mutex\abandonedmutex\am07abandonmultiplemutex.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b32374", "JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b32374\b32374.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATT_PFF", "Interop\PInvoke\BestFitMapping\LPStr\ATT_PFF\ATT_PFF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i85", "JIT\jit64\mcc\interop\mcc_i85.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "callipinvoke", "JIT\Directed\coverage\oldtests\callipinvoke.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_obj_1_d", "JIT\Methodical\explicit\coverage\seq_gc_obj_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_int_1_r", "JIT\Methodical\explicit\coverage\seq_int_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex8a", "baseservices\threading\waithandle\waitany\waitanyex8a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b35784", "JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b35784\b35784.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_long_1_d", "JIT\Methodical\explicit\coverage\seq_long_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex4", "baseservices\threading\waithandle\waitany\waitanyex4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex8a", "baseservices\threading\waithandle\waitall\waitallex8a.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Licensing", "Interop\COM\NativeClients\Licensing.csproj", "{6E005FF2-70E8-443E-932B-5C6979DE4F2E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_byte_1_d", "JIT\Methodical\explicit\coverage\seq_gc_byte_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ArrayMarshalling", "ArrayMarshalling", "{1B674343-30CB-41EB-9A76-32E4100B6BCE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafeArrayTest", "Interop\ArrayMarshalling\SafeArray\SafeArrayTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg8", "baseservices\threading\mutex\openexisting\openmutexneg8.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex10", "baseservices\threading\waithandle\waitall\waitallex10.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_double_1_r", "JIT\Methodical\explicit\coverage\seq_double_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_byte_1_d", "JIT\Methodical\explicit\coverage\expl_byte_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i53", "JIT\jit64\mcc\interop\mcc_i53.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "static01", "JIT\Generics\pinvoke\static01.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i01", "JIT\jit64\mcc\interop\mcc_i01.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i55", "JIT\jit64\mcc\interop\mcc_i55.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_val_1_d", "JIT\Methodical\explicit\coverage\seq_val_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex9", "baseservices\threading\waithandle\waitall\waitallex9.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex3", "baseservices\threading\waithandle\waitone\waitoneex3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATF_PTT", "Interop\PInvoke\BestFitMapping\Char\ATF_PTT\ATF_PTT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexpos1", "baseservices\threading\mutex\openexisting\openmutexpos1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitallex7", "baseservices\threading\waithandle\waitall\waitallex7.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_long_1_d", "JIT\Methodical\explicit\coverage\seq_gc_long_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sin", "JIT\Directed\pinvoke\sin.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b46867", "JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b46867\b46867.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_short_1_d", "JIT\Methodical\explicit\coverage\expl_short_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_short_1_d", "JIT\Methodical\explicit\coverage\seq_short_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterfaceTest", "Interop\PInvoke\SafeHandles\Interface\InterfaceTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_byte_1_d", "JIT\Methodical\explicit\coverage\seq_byte_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitoneex1", "baseservices\threading\waithandle\waitone\waitoneex1.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexpos4", "baseservices\threading\mutex\openexisting\openmutexpos4.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATF_PFT", "Interop\PInvoke\BestFitMapping\LPStr\ATF_PFT\ATF_PFT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i05", "JIT\jit64\mcc\interop\mcc_i05.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex6", "baseservices\threading\waithandle\waitany\waitanyex6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorector3", "baseservices\threading\semaphore\ctoropen\semaphorector3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexpos2", "baseservices\threading\mutex\openexisting\openmutexpos2.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex5", "baseservices\threading\waithandle\waitany\waitanyex5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_float_1_d", "JIT\Methodical\explicit\coverage\seq_gc_float_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "StructMarshalling", "StructMarshalling", "{0D85C695-6E20-40AC-934F-6EB4DF366CCC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ReversePInvoke", "ReversePInvoke", "{FA793518-C774-4509-A5AB-F409E0D6A621}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MarshalExpStruct", "MarshalExpStruct", "{CDD5A3D6-3D3F-4579-9D0F-C53C33422335}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DelegatePInvokeTest", "Interop\StructMarshalling\ReversePInvoke\MarshalExpStruct\DelegatePInvoke\DelegatePInvokeTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATF_PFF", "Interop\PInvoke\BestFitMapping\Char\ATF_PFF\ATF_PFF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{87799F5D-CEBD-499D-BDBA-B2C6105CD766}") = "NETClientAggregation", "Interop\COM\NETClients\Aggregation\NETClientAggregation.csproj", "{85C57688-DA98-4DE3-AC9B-526E4747434C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_float_1_r", "JIT\Methodical\explicit\coverage\expl_gc_float_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphoreopenneg6", "baseservices\threading\semaphore\ctoropen\semaphoreopenneg6.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_int_1_d", "JIT\Methodical\explicit\coverage\seq_int_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReversePInvokeTest", "Interop\StructMarshalling\ReversePInvoke\MarshalExpStruct\ReversePInvokeManaged\ReversePInvokeTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_short_1_d", "JIT\Methodical\explicit\coverage\expl_gc_short_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex3", "baseservices\threading\waithandle\waitany\waitanyex3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i12", "JIT\jit64\mcc\interop\mcc_i12.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_float_1_r", "JIT\Methodical\explicit\coverage\expl_float_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_val_1_r", "JIT\Methodical\explicit\coverage\expl_gc_val_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "waitanyex8", "baseservices\threading\waithandle\waitany\waitanyex8.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_int_1_d", "JIT\Methodical\explicit\coverage\seq_gc_int_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFF_PTF", "Interop\PInvoke\BestFitMapping\Char\AFF_PTF\AFF_PTF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_int_1_r", "JIT\Methodical\explicit\coverage\expl_gc_int_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "calli_excep", "JIT\Directed\pinvoke\calli_excep.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_short_1_r", "JIT\Methodical\explicit\coverage\seq_short_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_double_1_d", "JIT\Methodical\explicit\coverage\expl_gc_double_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_long_1_d", "JIT\Methodical\explicit\coverage\expl_long_1_d.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sysinfo_il", "JIT\Directed\pinvoke\sysinfo_il.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i17", "JIT\jit64\mcc\interop\mcc_i17.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i76", "JIT\jit64\mcc\interop\mcc_i76.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i35", "JIT\jit64\mcc\interop\mcc_i35.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "V2.0-Beta2", "V2.0-Beta2", "{47D655D9-E566-4E49-8070-EB61837C0A12}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b409748", "JIT\Regression\CLR-x86-JIT\V2.0-Beta2\b409748\b409748.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i33", "JIT\jit64\mcc\interop\mcc_i33.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b31745", "JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b31745\b31745.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bindhandleinvalid5", "baseservices\threading\threadpool\bindhandle\bindhandleinvalid5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i16", "JIT\jit64\mcc\interop\mcc_i16.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "openmutexneg3", "baseservices\threading\mutex\openexisting\openmutexneg3.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "instance03", "JIT\Generics\pinvoke\instance03.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i67", "JIT\jit64\mcc\interop\mcc_i67.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "VS-ia64-JIT", "VS-ia64-JIT", "{68B8ADB4-FDBD-41FD-BCBA-AC0C05E04A1A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "V2.0-RTM", "V2.0-RTM", "{A730FC54-778A-4687-A146-63746FE57C5B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b286991", "JIT\Regression\VS-ia64-JIT\V2.0-RTM\b286991\b286991.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "semaphorector5", "baseservices\threading\semaphore\ctoropen\semaphorector5.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i15", "JIT\jit64\mcc\interop\mcc_i15.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DateTimeTest", "Interop\PInvoke\DateTime\DateTimeTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly_True_False", "Interop\PInvoke\BestFitMapping\LPStr\Assembly_True_False\Assembly_True_False.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i70", "JIT\jit64\mcc\interop\mcc_i70.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "b37598", "JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b37598\b37598.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFT_PFT", "Interop\PInvoke\BestFitMapping\LPStr\AFT_PFT\AFT_PFT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NativeCallingManaged", "Interop\IJW\NativeCallingManaged\NativeCallingManaged.csproj", "{8B76A001-5654-4F11-A80B-EF12644EAD3D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "seq_gc_obj_1_r", "JIT\Methodical\explicit\coverage\seq_gc_obj_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mcc_i13", "JIT\jit64\mcc\interop\mcc_i13.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "callipinvoke_il_d", "JIT\Directed\coverage\oldtests\Desktop\callipinvoke_il_d.ilproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "expl_gc_obj_1_r", "JIT\Methodical\explicit\coverage\expl_gc_obj_1_r.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "pinvoke-examples", "JIT\Directed\pinvoke\pinvoke-examples.csproj", "{95DFC527-4DC1-495E-97D7-E94EE1F7140D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReleaseHandleTest", "Interop\PInvoke\SafeHandles\ReleaseHandle\ReleaseHandleTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|x64.Build.0 = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Debug|x86.Build.0 = Debug|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|x64.ActiveCfg = Release|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|x64.Build.0 = Release|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|x86.ActiveCfg = Release|Any CPU
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D}.Release|x86.Build.0 = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|x64.Build.0 = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|x86.Build.0 = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|x64.ActiveCfg = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|x64.Build.0 = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|x86.ActiveCfg = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|x86.Build.0 = Release|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Debug|x64.Build.0 = Debug|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Debug|x86.Build.0 = Debug|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Release|x64.ActiveCfg = Release|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Release|x64.Build.0 = Release|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Release|x86.ActiveCfg = Release|Any CPU
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231}.Release|x86.Build.0 = Release|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Debug|x64.Build.0 = Debug|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Debug|x86.Build.0 = Debug|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Release|x64.ActiveCfg = Release|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Release|x64.Build.0 = Release|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Release|x86.ActiveCfg = Release|Any CPU
+		{43531C46-AFE2-4254-93C6-7F17E30D750C}.Release|x86.Build.0 = Release|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Debug|x64.Build.0 = Debug|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Debug|x86.Build.0 = Debug|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Release|x64.ActiveCfg = Release|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Release|x64.Build.0 = Release|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Release|x86.ActiveCfg = Release|Any CPU
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D}.Release|x86.Build.0 = Release|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Debug|x64.Build.0 = Debug|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Debug|x86.Build.0 = Debug|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Release|x64.ActiveCfg = Release|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Release|x64.Build.0 = Release|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Release|x86.ActiveCfg = Release|Any CPU
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87}.Release|x86.Build.0 = Release|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Debug|x64.Build.0 = Debug|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Debug|x86.Build.0 = Debug|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Release|x64.ActiveCfg = Release|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Release|x64.Build.0 = Release|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Release|x86.ActiveCfg = Release|Any CPU
+		{85C57688-DA98-4DE3-AC9B-526E4747434C}.Release|x86.Build.0 = Release|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Debug|x64.Build.0 = Debug|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Debug|x86.Build.0 = Debug|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Release|Any CPU.Build.0 = Release|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Release|x64.ActiveCfg = Release|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Release|x64.Build.0 = Release|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Release|x86.ActiveCfg = Release|Any CPU
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036}.Release|x86.Build.0 = Release|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Debug|x64.Build.0 = Debug|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Debug|x86.Build.0 = Debug|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Release|x64.ActiveCfg = Release|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Release|x64.Build.0 = Release|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Release|x86.ActiveCfg = Release|Any CPU
+		{A323618C-1BE2-4C13-835C-357550C2045B}.Release|x86.Build.0 = Release|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Debug|x64.Build.0 = Debug|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Debug|x86.Build.0 = Debug|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Release|x64.ActiveCfg = Release|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Release|x64.Build.0 = Release|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Release|x86.ActiveCfg = Release|Any CPU
+		{742D9E05-668D-4B90-97F9-717A7572FE6C}.Release|x86.Build.0 = Release|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Debug|x64.Build.0 = Debug|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Debug|x86.Build.0 = Debug|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Release|x64.ActiveCfg = Release|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Release|x64.Build.0 = Release|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Release|x86.ActiveCfg = Release|Any CPU
+		{9031C162-693D-4694-A08D-DF75CE94B35D}.Release|x86.Build.0 = Release|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Debug|x64.Build.0 = Debug|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Debug|x86.Build.0 = Debug|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Release|x64.ActiveCfg = Release|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Release|x64.Build.0 = Release|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Release|x86.ActiveCfg = Release|Any CPU
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494}.Release|x86.Build.0 = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|x64.Build.0 = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Debug|x86.Build.0 = Debug|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|x64.ActiveCfg = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|x64.Build.0 = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|x86.ActiveCfg = Release|Any CPU
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE}.Release|x86.Build.0 = Release|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Debug|x64.Build.0 = Debug|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Debug|x86.Build.0 = Debug|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Release|x64.ActiveCfg = Release|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Release|x64.Build.0 = Release|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Release|x86.ActiveCfg = Release|Any CPU
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7}.Release|x86.Build.0 = Release|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Debug|x64.Build.0 = Debug|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Debug|x86.Build.0 = Debug|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Release|x64.ActiveCfg = Release|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Release|x64.Build.0 = Release|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Release|x86.ActiveCfg = Release|Any CPU
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B}.Release|x86.Build.0 = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|x64.Build.0 = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Debug|x86.Build.0 = Debug|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|x64.ActiveCfg = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|x64.Build.0 = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|x86.ActiveCfg = Release|Any CPU
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5}.Release|x86.Build.0 = Release|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Debug|x64.Build.0 = Debug|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Debug|x86.Build.0 = Debug|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Release|x64.ActiveCfg = Release|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Release|x64.Build.0 = Release|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Release|x86.ActiveCfg = Release|Any CPU
+		{C5691498-5927-46FF-9B81-BB7D5E07113C}.Release|x86.Build.0 = Release|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Debug|x64.Build.0 = Debug|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Debug|x86.Build.0 = Debug|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Release|x64.ActiveCfg = Release|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Release|x64.Build.0 = Release|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Release|x86.ActiveCfg = Release|Any CPU
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6}.Release|x86.Build.0 = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|x64.Build.0 = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Debug|x86.Build.0 = Debug|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|x64.ActiveCfg = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|x64.Build.0 = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|x86.ActiveCfg = Release|Any CPU
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA}.Release|x86.Build.0 = Release|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Debug|x64.Build.0 = Debug|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Debug|x86.Build.0 = Debug|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Release|x64.ActiveCfg = Release|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Release|x64.Build.0 = Release|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Release|x86.ActiveCfg = Release|Any CPU
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E}.Release|x86.Build.0 = Release|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Debug|x64.Build.0 = Debug|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Debug|x86.Build.0 = Debug|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Release|x64.ActiveCfg = Release|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Release|x64.Build.0 = Release|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Release|x86.ActiveCfg = Release|Any CPU
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{73FACAE4-379C-435A-8DAD-DD8338F66508} = {F6FB109C-9F1D-4612-B21E-809E0344B623}
+		{91201758-38C9-4D5C-951A-18F4BC4F59D8} = {73FACAE4-379C-435A-8DAD-DD8338F66508}
+		{95DFC527-4DC1-495E-97D7-E94EE1F7140D} = {2A03D8CB-5DE3-4144-A286-C4A0806C55E9}
+		{40FFD834-EF60-49B8-92F5-89D25D983971} = {DFD344C1-115C-46A5-BB36-0EB8C0051B02}
+		{93CD8F60-DE8D-49AC-9A27-F56952CFFC3F} = {40FFD834-EF60-49B8-92F5-89D25D983971}
+		{6B4CB412-F6E3-4EA3-B968-4A8B9101576F} = {93CD8F60-DE8D-49AC-9A27-F56952CFFC3F}
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0} = {B1EBB615-2179-4388-AA36-BC67326B63E3}
+		{D97FEC63-A2C9-47C0-952B-DC4DF706DDDC} = {5A5B7054-3A49-4EF8-941F-3D5BFB6A6D2B}
+		{1D631F60-8542-4BCD-A750-FCD4B1A3EC19} = {D97FEC63-A2C9-47C0-952B-DC4DF706DDDC}
+		{38BD2180-F639-4205-9537-72B18D908822} = {1D631F60-8542-4BCD-A750-FCD4B1A3EC19}
+		{A8067133-DD1D-49CE-B229-4EFA331984C6} = {5A5B7054-3A49-4EF8-941F-3D5BFB6A6D2B}
+		{DB3C2E4E-18F6-40E2-973F-3881812C5EA7} = {A8067133-DD1D-49CE-B229-4EFA331984C6}
+		{2A03D8CB-5DE3-4144-A286-C4A0806C55E9} = {5A5B7054-3A49-4EF8-941F-3D5BFB6A6D2B}
+		{4E369BD6-9D7B-4D40-9B82-6A716F076F12} = {5A5B7054-3A49-4EF8-941F-3D5BFB6A6D2B}
+		{31882638-31F6-4225-9E1C-825E1BA63DDD} = {4E369BD6-9D7B-4D40-9B82-6A716F076F12}
+		{52C4B43D-9B73-42F3-991D-BBD146C90D6A} = {2A03D8CB-5DE3-4144-A286-C4A0806C55E9}
+		{73FB7D54-0B48-408A-B1F2-69D40FC7AD6D} = {73FACAE4-379C-435A-8DAD-DD8338F66508}
+		{7F3E5C2D-98FC-4405-863A-20B6C81258BA} = {73FACAE4-379C-435A-8DAD-DD8338F66508}
+		{997BFD08-9360-4DB2-B078-685E56A58962} = {5A5B7054-3A49-4EF8-941F-3D5BFB6A6D2B}
+		{2E795F75-9DA6-4D10-9C32-C1D3FB854231} = {2A03D8CB-5DE3-4144-A286-C4A0806C55E9}
+		{294E31F6-7131-4F36-BE1D-3467F900576C} = {40FFD834-EF60-49B8-92F5-89D25D983971}
+		{43531C46-AFE2-4254-93C6-7F17E30D750C} = {294E31F6-7131-4F36-BE1D-3467F900576C}
+		{B0DA24E2-1229-4A76-B6C8-A94DB3C74BE7} = {93CD8F60-DE8D-49AC-9A27-F56952CFFC3F}
+		{1EAD0B69-4845-4643-A641-224CF2F9E244} = {1D631F60-8542-4BCD-A750-FCD4B1A3EC19}
+		{99D8F89F-2EDC-40D2-B5A6-EA52CB588ED1} = {DFD344C1-115C-46A5-BB36-0EB8C0051B02}
+		{C6C8577F-DE01-4B94-9169-42F54E5C923D} = {99D8F89F-2EDC-40D2-B5A6-EA52CB588ED1}
+		{96FA8C13-55B6-4B71-A7A1-93AC7A4D8B87} = {997BFD08-9360-4DB2-B078-685E56A58962}
+		{05602149-6538-423E-BBDC-D10D97690775} = {1D631F60-8542-4BCD-A750-FCD4B1A3EC19}
+		{A556E4CD-4B62-43AD-A985-CD365E325E39} = {99D8F89F-2EDC-40D2-B5A6-EA52CB588ED1}
+		{85C57688-DA98-4DE3-AC9B-526E4747434C} = {A556E4CD-4B62-43AD-A985-CD365E325E39}
+		{C635EEAF-1BAC-40E9-A448-743DC4B0F3CE} = {DFD344C1-115C-46A5-BB36-0EB8C0051B02}
+		{79A70256-FD00-408A-AD1A-827C831F7AB0} = {DFD344C1-115C-46A5-BB36-0EB8C0051B02}
+		{49D1D482-E783-4CA9-B6BA-A9714BF81036} = {79A70256-FD00-408A-AD1A-827C831F7AB0}
+		{BD9617D2-3EDB-4F54-B012-301D086242DF} = {73FACAE4-379C-435A-8DAD-DD8338F66508}
+		{478BA1A0-40B8-496E-90A0-BDCBCE6775F0} = {4E369BD6-9D7B-4D40-9B82-6A716F076F12}
+		{A323618C-1BE2-4C13-835C-357550C2045B} = {478BA1A0-40B8-496E-90A0-BDCBCE6775F0}
+		{9AF03DD5-1376-4054-8A05-E7D823C343D9} = {1D631F60-8542-4BCD-A750-FCD4B1A3EC19}
+		{E0E63E6D-E818-4E14-B16F-68B3D7C51B70} = {D97FEC63-A2C9-47C0-952B-DC4DF706DDDC}
+		{61619A3A-8818-482D-9464-7BB0BE3C1A3E} = {0861A419-464B-48BE-BA16-D98D78963423}
+		{3BAEE843-4499-4535-A589-C655E2A244D1} = {61619A3A-8818-482D-9464-7BB0BE3C1A3E}
+		{02541624-7572-42E5-808F-2A5F0F774950} = {3BAEE843-4499-4535-A589-C655E2A244D1}
+		{742D9E05-668D-4B90-97F9-717A7572FE6C} = {02541624-7572-42E5-808F-2A5F0F774950}
+		{B1EBB615-2179-4388-AA36-BC67326B63E3} = {40FFD834-EF60-49B8-92F5-89D25D983971}
+		{9031C162-693D-4694-A08D-DF75CE94B35D} = {A80F2B5D-3690-49B2-998E-D3980DD19760}
+		{BECAB7F9-61EE-4407-B05A-9FF6EFE917BD} = {40FFD834-EF60-49B8-92F5-89D25D983971}
+		{D9195611-921F-422B-880F-E732DC92C95A} = {4E369BD6-9D7B-4D40-9B82-6A716F076F12}
+		{C7058D6B-D60F-4580-8184-5FF1230F0A4C} = {D9195611-921F-422B-880F-E732DC92C95A}
+		{392B80E0-F6D9-4024-BFA4-D68B7EE7238E} = {DFD344C1-115C-46A5-BB36-0EB8C0051B02}
+		{FDFA7555-C1FF-400D-8DBC-5672E2E76494} = {2A03D8CB-5DE3-4144-A286-C4A0806C55E9}
+		{C485E164-F82C-4A4F-A02E-BC711827E5BE} = {73FACAE4-379C-435A-8DAD-DD8338F66508}
+		{B468450A-6A3F-4922-AC7B-D1BDAC7269B3} = {73FACAE4-379C-435A-8DAD-DD8338F66508}
+		{8D03875D-4433-4B57-BCFC-1AC59BD7177D} = {2A03D8CB-5DE3-4144-A286-C4A0806C55E9}
+		{194CFEB8-A061-4022-A2E5-9128DDF3AE6E} = {8D03875D-4433-4B57-BCFC-1AC59BD7177D}
+		{4499F174-5CA5-4447-81A0-A8E3BA1908D7} = {2A03D8CB-5DE3-4144-A286-C4A0806C55E9}
+		{CC685AC5-4E07-453C-9A54-54C7EDF42F1E} = {D97FEC63-A2C9-47C0-952B-DC4DF706DDDC}
+		{3E5AFC26-0609-48A7-8E27-E87D32AEF3B4} = {CC685AC5-4E07-453C-9A54-54C7EDF42F1E}
+		{8F2B4717-7FA7-4ABC-A7DD-6EEFB1DC0456} = {EFDDF6D0-630F-4AA6-A125-C9000426AF09}
+		{1FB4BDC4-7EDD-4EF9-8F2F-363F7E83F31B} = {2A03D8CB-5DE3-4144-A286-C4A0806C55E9}
+		{2F97D189-A22F-4EDF-9706-03A09DED3B33} = {40FFD834-EF60-49B8-92F5-89D25D983971}
+		{A8510650-11B1-4972-94B8-60308787D706} = {2F97D189-A22F-4EDF-9706-03A09DED3B33}
+		{61F6963F-C821-46F2-AB0F-B7A348738141} = {5A5B7054-3A49-4EF8-941F-3D5BFB6A6D2B}
+		{3647F46C-5A56-4F0E-A80A-25FD201F2AAF} = {CC685AC5-4E07-453C-9A54-54C7EDF42F1E}
+		{39DD9A75-2535-4EBD-94A4-C7DF7EF12CF5} = {BB63476C-DE48-40F0-8355-B78A5A99F092}
+		{C5691498-5927-46FF-9B81-BB7D5E07113C} = {99D8F89F-2EDC-40D2-B5A6-EA52CB588ED1}
+		{7BF013BA-C26D-491B-A981-D09ABF1EB9F6} = {99D8F89F-2EDC-40D2-B5A6-EA52CB588ED1}
+		{49BF47D9-F9EC-42C6-872F-618213C8D4BF} = {34FA04BD-71E2-467C-94C6-DA93792DCD2E}
+		{8E3244CB-407F-4142-BAAB-E7A55901A5FA} = {EA916732-758B-4ED7-97F7-F79AE3AE08BB}
+		{EA916732-758B-4ED7-97F7-F79AE3AE08BB} = {34FA04BD-71E2-467C-94C6-DA93792DCD2E}
+		{6E005FF2-70E8-443E-932B-5C6979DE4F2E} = {99D8F89F-2EDC-40D2-B5A6-EA52CB588ED1}
+		{1B674343-30CB-41EB-9A76-32E4100B6BCE} = {DFD344C1-115C-46A5-BB36-0EB8C0051B02}
+		{0D85C695-6E20-40AC-934F-6EB4DF366CCC} = {DFD344C1-115C-46A5-BB36-0EB8C0051B02}
+		{FA793518-C774-4509-A5AB-F409E0D6A621} = {0D85C695-6E20-40AC-934F-6EB4DF366CCC}
+		{CDD5A3D6-3D3F-4579-9D0F-C53C33422335} = {FA793518-C774-4509-A5AB-F409E0D6A621}
+		{47D655D9-E566-4E49-8070-EB61837C0A12} = {1D631F60-8542-4BCD-A750-FCD4B1A3EC19}
+		{68B8ADB4-FDBD-41FD-BCBA-AC0C05E04A1A} = {D97FEC63-A2C9-47C0-952B-DC4DF706DDDC}
+		{A730FC54-778A-4687-A146-63746FE57C5B} = {68B8ADB4-FDBD-41FD-BCBA-AC0C05E04A1A}
+		{8B76A001-5654-4F11-A80B-EF12644EAD3D} = {79A70256-FD00-408A-AD1A-827C831F7AB0}
+	EndGlobalSection
+EndGlobal

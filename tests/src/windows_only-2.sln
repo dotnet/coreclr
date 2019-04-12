@@ -1,0 +1,110 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26124.0
+MinimumVisualStudioVersion = 15.0.26124.0
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Interop", "Interop", "{1C5D8A7A-9F1F-4156-9904-355684DBFCED}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PInvoke", "PInvoke", "{62C83F65-6F09-44AC-BF7D-2676E583CF1F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BestFitMapping", "BestFitMapping", "{99A24039-1985-4B20-9493-E73D7BDD541D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LPStr", "LPStr", "{72C22B7A-7398-4B3C-BEA8-B21FE1574024}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFT_PTT", "Interop\PInvoke\BestFitMapping\LPStr\AFT_PTT\AFT_PTT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Char", "Char", "{B9DEB161-2C27-4442-8B91-9455ACBEF21C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly_True_True", "Interop\PInvoke\BestFitMapping\Char\Assembly_True_True\Assembly_True_True.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATF_PTT", "Interop\PInvoke\BestFitMapping\LPStr\ATF_PTT\ATF_PTT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATT_PFF", "Interop\PInvoke\BestFitMapping\Char\ATT_PFF\ATT_PFF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pinvoke_True_True", "Interop\PInvoke\BestFitMapping\Char\Pinvoke_True_True\Pinvoke_True_True.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATT_PTF", "Interop\PInvoke\BestFitMapping\Char\ATT_PTF\ATT_PTF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATF_PTF", "Interop\PInvoke\BestFitMapping\Char\ATF_PTF\ATF_PTF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pinvoke_False_False", "Interop\PInvoke\BestFitMapping\LPStr\Pinvoke_False_False\Pinvoke_False_False.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly_False_True", "Interop\PInvoke\BestFitMapping\Char\Assembly_False_True\Assembly_False_True.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATF_PFT", "Interop\PInvoke\BestFitMapping\Char\ATF_PFT\ATF_PFT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATF_PFF", "Interop\PInvoke\BestFitMapping\LPStr\ATF_PFF\ATF_PFF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly_False_False", "Interop\PInvoke\BestFitMapping\LPStr\Assembly_False_False\Assembly_False_False.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFF_PFF", "Interop\PInvoke\BestFitMapping\LPStr\AFF_PFF\AFF_PFF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pinvoke_False_True", "Interop\PInvoke\BestFitMapping\LPStr\Pinvoke_False_True\Pinvoke_False_True.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pinvoke_True_False", "Interop\PInvoke\BestFitMapping\Char\Pinvoke_True_False\Pinvoke_True_False.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATT_PTT", "Interop\PInvoke\BestFitMapping\Char\ATT_PTT\ATT_PTT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFF_PFT", "Interop\PInvoke\BestFitMapping\LPStr\AFF_PFT\AFF_PFT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ATT_PFT", "Interop\PInvoke\BestFitMapping\Char\ATT_PFT\ATT_PFT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Delegate", "Delegate", "{46D71BCB-4D33-41A3-AE74-5D7CD345D7F2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MarshalDelegateAsField", "MarshalDelegateAsField", "{A8324303-2E72-46AA-8280-441E9BDA3BEE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsInterfaceTest", "Interop\PInvoke\Delegate\MarshalDelegateAsField\AsInterface\AsInterfaceTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFF_PTF", "Interop\PInvoke\BestFitMapping\LPStr\AFF_PTF\AFF_PTF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFT_PTF", "Interop\PInvoke\BestFitMapping\LPStr\AFT_PTF\AFT_PTF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFT_PFF", "Interop\PInvoke\BestFitMapping\Char\AFT_PFF\AFT_PFF.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly_True_False", "Interop\PInvoke\BestFitMapping\Char\Assembly_True_False\Assembly_True_False.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFF_PTT", "Interop\PInvoke\BestFitMapping\LPStr\AFF_PTT\AFF_PTT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFT_PFT", "Interop\PInvoke\BestFitMapping\Char\AFT_PFT\AFT_PFT.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NativeCallManagedComVisible", "NativeCallManagedComVisible", "{9086791C-0090-43C6-91FD-F685A9018237}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DefaultTest", "Interop\PInvoke\NativeCallManagedComVisible\Default\DefaultTest.csproj", "{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|x64.Build.0 = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Debug|x86.Build.0 = Debug|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|x64.ActiveCfg = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|x64.Build.0 = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|x86.ActiveCfg = Release|Any CPU
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{62C83F65-6F09-44AC-BF7D-2676E583CF1F} = {1C5D8A7A-9F1F-4156-9904-355684DBFCED}
+		{99A24039-1985-4B20-9493-E73D7BDD541D} = {62C83F65-6F09-44AC-BF7D-2676E583CF1F}
+		{72C22B7A-7398-4B3C-BEA8-B21FE1574024} = {99A24039-1985-4B20-9493-E73D7BDD541D}
+		{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0} = {9086791C-0090-43C6-91FD-F685A9018237}
+		{B9DEB161-2C27-4442-8B91-9455ACBEF21C} = {99A24039-1985-4B20-9493-E73D7BDD541D}
+		{46D71BCB-4D33-41A3-AE74-5D7CD345D7F2} = {62C83F65-6F09-44AC-BF7D-2676E583CF1F}
+		{A8324303-2E72-46AA-8280-441E9BDA3BEE} = {46D71BCB-4D33-41A3-AE74-5D7CD345D7F2}
+		{9086791C-0090-43C6-91FD-F685A9018237} = {62C83F65-6F09-44AC-BF7D-2676E583CF1F}
+	EndGlobalSection
+EndGlobal

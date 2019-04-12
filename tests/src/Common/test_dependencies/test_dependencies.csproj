@@ -5,8 +5,6 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <CLRTestKind>BuildOnly</CLRTestKind>
-    <NugetTargetMoniker>.NETCoreApp,Version=v3.0</NugetTargetMoniker>
-    <NugetTargetMonikerShort>netcoreapp3.0</NugetTargetMonikerShort>
     <IsTestProject>false</IsTestProject>
     <TargetFrameworks>netcoreapp3.0</TargetFrameworks>
   </PropertyGroup>
@@ -14,6 +12,28 @@
     
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Private.CoreFx.NETCoreApp">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Security.Permissions">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Diagnostics.EventLog">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Drawing.Common">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+    </PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PackageConflictPreferredPackages>Microsoft.Private.CoreFx.NETCoreApp;$(PackageConflictPreferredPackages)</PackageConflictPreferredPackages>
   </PropertyGroup>
 
   <ItemGroup>

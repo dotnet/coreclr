@@ -1,18 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="dir.traversal.targets" />
-
-  <PropertyGroup>
-    <TraversalBuildDependsOn>
-      BatchRestorePackages;
-      BuildTargetingPack;
-      $(TraversalBuildDependsOn);
-    </TraversalBuildDependsOn>
-  </PropertyGroup>
 
   <ItemGroup>
     <RestoreProjects Include="$(MSBuildThisFileDirectory)scripts\scripts.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\targeting_pack_ref\targeting_pack_ref.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\test_dependencies\test_dependencies.csproj" />
+    <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\CoreCLRTestLibrary\CoreCLRTestLibrary.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\test_runtime\test_runtime.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\JIT\config\benchmark+roslyn\benchmark+roslyn.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\JIT\config\benchmark+serialize\benchmark+serialize.csproj" />

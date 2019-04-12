@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.4</TargetFramework>
+    <TargetFrameworks>netstandard1.4;netstandard1.6;netcoreapp3.0</TargetFrameworks>
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
   <ItemGroup>

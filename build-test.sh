@@ -127,7 +127,7 @@ generate_layout()
     # ===
     # =========================================================================================
 
-    build_MSBuild_projects "Restore_Packages" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "/t:BatchRestorePackages"
+    build_MSBuild_projects "Restore_Packages" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" restore "/t:BatchRestorePackages"
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
         __up="/t:UpdateInvalidPackageVersions"
@@ -147,7 +147,7 @@ generate_layout()
 
     mkdir -p $CORE_ROOT
 
-    build_MSBuild_projects "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "Creating test overlay" "/t:CreateTestOverlay"
+    build_MSBuild_projects "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "Creating test overlay" msbuild "/t:CreateTestOverlay"
 
     chmod +x $__BinDir/corerun
     chmod +x $__BinDir/crossgen
@@ -168,7 +168,7 @@ generate_testhost()
 
     mkdir -p $TEST_HOST
 
-    build_MSBuild_projects "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "Creating test host" "/t:CreateTestHost"
+    build_MSBuild_projects "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "Creating test host" msbuild "/t:CreateTestHost"
 }
 
 
@@ -238,7 +238,7 @@ build_Tests()
     # =========================================================================================
 
     if [ ${__SkipRestorePackages} != 1 ]; then
-        build_MSBuild_projects "Restore_Product" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "/t:BatchRestorePackages"
+        build_MSBuild_projects "Restore_Product" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" restore "/t:BatchRestorePackages /p:__DistroRid=${__DistroRid}"
     fi
 
     if [ $__SkipNative != 1 ]; then
@@ -261,7 +261,7 @@ build_Tests()
         else
             echo "Checking the Managed Tests Build..."
 
-            build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "/t:CheckTestBuild"
+            build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" msbuild "/t:CheckTestBuild"
 
             if [ $? -ne 0 ]; then
                 echo "${__MsgPrefix}Error: Check Test Build failed."
@@ -288,6 +288,8 @@ build_MSBuild_projects()
     projectName=$1
     shift
     stepName="$1"
+    shift
+    msbuildCommand=$1
     shift
     extraBuildParameters=("$@")
 
@@ -330,7 +332,7 @@ build_MSBuild_projects()
             buildArgs+=("${__CommonMSBuildArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-            nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild ${buildArgs[@]}"
+            nextCommand="\"$__ProjectRoot/dotnet.sh\" $msbuildCommand ${buildArgs[@]}"
             echo "Building step '$stepName' testGroupToBuild=$testGroupToBuild via $nextCommand"
             eval $nextCommand
 
@@ -347,12 +349,14 @@ build_MSBuild_projects()
             __AppendToLog=true
         done
     else
-        __msbuildLog="\"/flp:Verbosity=normal;LogFile=${__BuildLog}\""
-        __msbuildWrn="\"/flp1:WarningsOnly;LogFile=${__BuildWrn}\""
-        __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr}\""
+        if [[ "$msbuildCommand" == "msbuild" ]]; then
+            __msbuildLog="\"/flp:Verbosity=normal;LogFile=${__BuildLog}\""
+            __msbuildWrn="\"/flp1:WarningsOnly;LogFile=${__BuildWrn}\""
+            __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr}\""
+        fi
 
         # Generate build command
-        buildArgs=("/nologo" "/verbosity:minimal" "/clp:Summary")
+        buildArgs=("/nologo" "/verbosity:n" "/clp:Summary")
         buildArgs+=("/p:RestoreDefaultOptimizationDataPackage=false" "/p:PortableBuild=true")
         buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
 
@@ -361,7 +365,7 @@ build_MSBuild_projects()
         buildArgs+=("${__CommonMSBuildArgs[@]}")
         buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-        nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild ${buildArgs[@]}"
+        nextCommand="\"$__ProjectRoot/dotnet.sh\" $msbuildCommand ${buildArgs[@]}"
         echo "Building step '$stepName' via $nextCommand"
         eval $nextCommand
 

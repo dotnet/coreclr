@@ -10,6 +10,6 @@
     <TargetFrameworks>netcoreapp3.0</TargetFrameworks>
   </PropertyGroup>
 
-  <Import Project="$(MSBuildThisFileDirectory)/../../../dependencies.props" Condition="'$(ArcadeBuild)' != 'true'" />
+  <Import Project="$(MSBuildThisFileDirectory)/../../../../dependencies.props" />
 
 </Project>

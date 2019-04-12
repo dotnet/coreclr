@@ -1,0 +1,11 @@
+<Project>
+
+  <Import Project="$(MSBuildThisFileDirectory)/../Directory.Build.props" />
+
+  <PropertyGroup>
+    <PerformanceTest>true</PerformanceTest>
+
+    <!-- Default value, this will be overwritten by most perf tests -->
+    <ProjectAssetsFile>$(RootArtifactsDir)tests/obj/$(OSPlatformConfig)/Managed/performance/performance/project.assets.json</ProjectAssetsFile>
+  </PropertyGroup>
+</Project>

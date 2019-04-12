@@ -129,7 +129,7 @@ def divide_tests_for_slns(test_projects, max_sln_count):
         csproj_variant = project_name[0] + ".csproj"
         ilproj_variant = project_name[0] + ".ilproj"
 
-        if ilproj_variant in bucket or csproj_variant in bucket:
+        if ilproj_variant.lower() in bucket or csproj_variant.lower() in bucket:
             return True
         
         return False
