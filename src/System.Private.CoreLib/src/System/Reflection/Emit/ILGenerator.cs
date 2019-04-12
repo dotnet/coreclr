@@ -1526,10 +1526,10 @@ namespace System.Reflection.Emit
     /// OpenScope or CloseScope. m_iOffset records the offset where the action
     /// takes place.
     /// </summary>
-    internal enum ScopeAction
+    internal enum ScopeAction : sbyte
     {
-        Open = 0x0,
-        Close = 0x1,
+        Close = -0x1,
+        Open = 0x1
     }
 
     internal sealed class ScopeTree
@@ -1557,7 +1557,7 @@ namespace System.Reflection.Emit
 
             for (int cClose = 0; cClose > 0 || m_ScopeActions[i] == ScopeAction.Close; i--)
             {
-                cClose += m_ScopeActions[i] == ScopeAction.Open ? -1 : 1;
+                cClose += (sbyte)m_ScopeActions[i];
             }
 
             return i;
@@ -1605,7 +1605,7 @@ namespace System.Reflection.Emit
             m_localSymInfos[m_iCount] = null;
             checked { m_iCount++; }
 
-            m_iOpenScopeCount += sa == ScopeAction.Open ? 1 : -1;
+            m_iOpenScopeCount += (byte)sa;
         }
 
         /// <summary>
