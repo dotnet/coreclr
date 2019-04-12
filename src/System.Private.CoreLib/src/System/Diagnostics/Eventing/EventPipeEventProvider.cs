@@ -19,7 +19,7 @@ namespace System.Diagnostics.Tracing
         // Register an event provider.
         unsafe uint IEventProvider.EventRegister(
             EventSource eventSource,
-            UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback,
+            Interop.Advapi32.EtwEnableCallback enableCallback,
             void* callbackContext,
             ref long registrationHandle)
         {
@@ -48,7 +48,7 @@ namespace System.Diagnostics.Tracing
         }
 
         // Write an event.
-        unsafe int IEventProvider.EventWriteTransferWrapper(
+        unsafe int IEventProvider.EventWriteTransfer(
             long registrationHandle,
             ref EventDescriptor eventDescriptor,
             IntPtr eventHandle,
@@ -81,7 +81,7 @@ namespace System.Diagnostics.Tracing
         }
 
         // Get or set the per-thread activity ID.
-        int IEventProvider.EventActivityIdControl(UnsafeNativeMethods.ManifestEtw.ActivityControl ControlCode, ref Guid ActivityId)
+        int IEventProvider.EventActivityIdControl(Interop.Advapi32.ActivityControl ControlCode, ref Guid ActivityId)
         {
             return EventPipeInternal.EventActivityIdControl((uint)ControlCode, ref ActivityId);
         }
