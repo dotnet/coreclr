@@ -303,11 +303,6 @@ build_MSBuild_projects()
         # Execute msbuild managed test build in stages - workaround for excessive data retention in MSBuild ConfigCache
         # See https://github.com/Microsoft/msbuild/issues/2993
 
-        # __SkipPackageRestore and __SkipTargetingPackBuild used  to control build by tests/src/dirs.proj
-        export __SkipPackageRestore=false
-        export __SkipTargetingPackBuild=false
-        export __NumberOfTestGroups=3
-
         __AppendToLog=false
 
         if [ -n "$__priority1" ]; then
@@ -356,7 +351,7 @@ build_MSBuild_projects()
         fi
 
         # Generate build command
-        buildArgs=("/nologo" "/verbosity:n" "/clp:Summary")
+        buildArgs=("/nologo" "/verbosity:m" "/clp:Summary")
         buildArgs+=("/p:RestoreDefaultOptimizationDataPackage=false" "/p:PortableBuild=true")
         buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
 
@@ -576,8 +571,8 @@ __CodeCoverage=
 __IncludeTests=INCLUDE_TESTS
 
 # Set the various build properties here so that CMake and MSBuild can pick them up
-export __ProjectDir="$__ProjectRoot"
-export ArcadeBuild="true"
+__ProjectDir="$__ProjectRoot"
+ArcadeBuild="true"
 __SourceDir="$__ProjectDir/src"
 __PackagesDir="${DotNetRestorePackagesPath:-${HOME}/.nuget/packages/}"
 __RootArtifactsDir="$__ProjectDir/artifacts/"
