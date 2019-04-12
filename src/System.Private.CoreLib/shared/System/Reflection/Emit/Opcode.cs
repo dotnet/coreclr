@@ -109,7 +109,7 @@ namespace System.Reflection.Emit
             }
         }
 
-        private static volatile string[] g_nameCache;
+        private static volatile string[]? g_nameCache;
 
         public string? Name
         {
@@ -120,7 +120,7 @@ namespace System.Reflection.Emit
 
                 // Create and cache the opcode names lazily. They should be rarely used (only for logging, etc.)
                 // Note that we do not any locks here because of we always get the same names. The last one wins.
-                string[] nameCache = g_nameCache;
+                string[]? nameCache = g_nameCache;
                 if (nameCache == null)
                 {
                     nameCache = new string[0x11f];
