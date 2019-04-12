@@ -136,10 +136,14 @@ namespace System.Reflection.Emit
             short opcodeValue = opcode.Value;
             if (opcode.Size != 1)
             {
-                m_ILStream[m_length++] = (byte)(opcodeValue >> 8);
+                BinaryPrimitives.WriteInt16BigEndian(m_ILStream.AsSpan(m_length), opcodeValue);
+                m_length += 2;
+            }
+            else
+            {
+                m_ILStream[m_length++] = (byte)opcodeValue;
             }
 
-            m_ILStream[m_length++] = (byte)opcodeValue;
             UpdateStackSize(opcode, opcode.StackChange());
         }
 
@@ -168,10 +172,15 @@ namespace System.Reflection.Emit
             // each basic block.
             if (opcode.EndsUncondJmpBlk())
             {
-                m_maxStackSize += m_maxMidStack;
-                m_maxMidStack = 0;
-                m_maxMidStackCur = 0;
+                FixupBasicBlock();
             }
+        }
+
+        private void FixupBasicBlock()
+        {
+            m_maxStackSize += m_maxMidStack;
+            m_maxMidStack = 0;
+            m_maxMidStackCur = 0;
         }
 
         private int GetMethodToken(MethodBase method, Type[] optionalParameterTypes, bool useMethodDef)
@@ -380,7 +389,6 @@ namespace System.Reflection.Emit
         public void Emit(OpCode opcode, sbyte arg)
         {
             // Puts opcode onto the stream of instructions followed by arg
-
             EnsureCapacity(4);
             InternalEmit(opcode);
             m_ILStream[m_length++] = (byte)arg;
@@ -391,8 +399,7 @@ namespace System.Reflection.Emit
             // Puts opcode onto the stream of instructions followed by arg
             EnsureCapacity(5);
             InternalEmit(opcode);
-            m_ILStream[m_length]     = (byte)arg;
-            m_ILStream[m_length + 1] = (byte)(arg >> 8);
+            BinaryPrimitives.WriteInt16LittleEndian(m_ILStream.AsSpan(m_length), arg);
             m_length += 2;
         }
 
@@ -430,7 +437,6 @@ namespace System.Reflection.Emit
                 PutInteger4(tk);
             }
         }
-
 
         public virtual void EmitCalli(OpCode opcode, CallingConventions callingConvention,
             Type returnType, Type[] parameterTypes, Type[] optionalParameterTypes)
@@ -823,8 +829,7 @@ namespace System.Reflection.Emit
 
             if (!OpCodes.TakesSingleByteArgument(opcode))
             {
-                m_ILStream[m_length]     = (byte)tempVal;
-                m_ILStream[m_length + 1] = (byte)(tempVal >> 8);
+                BinaryPrimitives.WriteInt16LittleEndian(m_ILStream.AsSpan(m_length), (short)tempVal);
                 m_length += 2;
             }
             else
