@@ -668,7 +668,7 @@ namespace System.Reflection.Emit
             m_length += 8;
         }
 
-        public unsafe virtual void Emit(OpCode opcode, float arg)
+        public virtual void Emit(OpCode opcode, float arg)
         {
             EnsureCapacity(7);
             InternalEmit(opcode);
@@ -676,7 +676,7 @@ namespace System.Reflection.Emit
             m_length += 4;
         }
 
-        public unsafe virtual void Emit(OpCode opcode, double arg)
+        public virtual void Emit(OpCode opcode, double arg)
         {
             EnsureCapacity(11);
             InternalEmit(opcode);
