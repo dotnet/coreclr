@@ -74,45 +74,6 @@ done
 
 OS=`uname`
 
-# Locate llvm
-# This can be a little complicated, because the common use-case of Ubuntu with
-# llvm-3.5 installed uses a rather unusual llvm installation with the version
-# number postfixed (i.e. llvm-ar-3.5), so we check for that first.
-# On FreeBSD the version number is appended without point and dash (i.e.
-# llvm-ar35).
-# Additionally, OSX doesn't use the llvm- prefix.
-if [ $OS = "Linux" -o $OS = "FreeBSD" -o $OS = "OpenBSD" -o $OS = "NetBSD" -o $OS = "SunOS" ]; then
-  llvm_prefix="llvm-"
-elif [ $OS = "Darwin" ]; then
-  llvm_prefix=""
-else
-  echo "Unable to determine build platform"
-  exit 1
-fi
-
-locate_llvm_exec() {
-  if command -v "$llvm_prefix$1$desired_llvm_version" > /dev/null 2>&1
-  then
-    echo "$(command -v $llvm_prefix$1$desired_llvm_version)"
-  elif command -v "$llvm_prefix$1" > /dev/null 2>&1
-  then
-    echo "$(command -v $llvm_prefix$1)"
-  else
-    exit 1
-  fi
-}
-
-llvm_ar="$(locate_llvm_exec ar)"
-[[ $? -eq 0 ]] || { echo "Unable to locate llvm-ar"; exit 1; }
-llvm_link="$(locate_llvm_exec link)"
-[[ $? -eq 0 ]] || { echo "Unable to locate llvm-link"; exit 1; }
-llvm_nm="$(locate_llvm_exec nm)"
-[[ $? -eq 0 ]] || { echo "Unable to locate llvm-nm"; exit 1; }
-if [ $OS = "Linux" -o $OS = "FreeBSD" -o $OS = "OpenBSD" -o $OS = "NetBSD" -o $OS = "SunOS" ]; then
-  llvm_objdump="$(locate_llvm_exec objdump)"
-  [[ $? -eq 0 ]] || { echo "Unable to locate llvm-objdump"; exit 1; }
-fi
-
 cmake_extra_defines=
 if [[ -n "$LLDB_LIB_DIR" ]]; then
     cmake_extra_defines="$cmake_extra_defines -DWITH_LLDB_LIBS=$LLDB_LIB_DIR"
@@ -171,10 +132,6 @@ fi
 $cmake_command \
   -G "$generator" \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=${__currentScriptDir}/$overridefile" \
-  "-DCMAKE_AR=$llvm_ar" \
-  "-DCMAKE_LINKER=$llvm_link" \
-  "-DCMAKE_NM=$llvm_nm" \
-  "-DCMAKE_OBJDUMP=$llvm_objdump" \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
   "-DCMAKE_EXPORT_COMPILE_COMMANDS=1 " \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
