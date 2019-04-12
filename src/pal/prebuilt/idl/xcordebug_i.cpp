@@ -78,6 +78,8 @@ MIDL_DEFINE_GUID(IID, IID_ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindows
 }
 #endif
 
+#if !(defined(_MSC_VER) || defined(__llvm__))
 BIND_UUID_OF(ICorDebugProcess4)
 BIND_UUID_OF(ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly)
+#endif
 

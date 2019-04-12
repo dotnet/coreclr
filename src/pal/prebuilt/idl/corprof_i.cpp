@@ -148,6 +148,7 @@ MIDL_DEFINE_GUID(IID, IID_ICorProfilerAssemblyReferenceProvider,0x66A78C24,0x2EE
 }
 #endif
 
+#if !(defined(_MSC_VER) || defined(__llvm__))
 BIND_UUID_OF(ICorProfilerCallback)
 BIND_UUID_OF(ICorProfilerCallback2)
 BIND_UUID_OF(ICorProfilerCallback3)
@@ -174,5 +175,5 @@ BIND_UUID_OF(ICorProfilerInfo9)
 BIND_UUID_OF(ICorProfilerMethodEnum)
 BIND_UUID_OF(ICorProfilerThreadEnum)
 BIND_UUID_OF(ICorProfilerAssemblyReferenceProvider)
-
+#endif
 

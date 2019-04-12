@@ -171,6 +171,7 @@ MIDL_DEFINE_GUID(IID, IID_ISymUnmanagedAsyncMethod,0xB20D55B3,0x532E,0x4906,0x87
 }
 #endif
 
+#if !(defined(_MSC_VER) || defined(__llvm__))
 BIND_UUID_OF(ISymUnmanagedBinder)
 BIND_UUID_OF(ISymUnmanagedBinder2)
 BIND_UUID_OF(ISymUnmanagedBinder3)
@@ -199,5 +200,5 @@ BIND_UUID_OF(ISymNGenWriter)
 BIND_UUID_OF(ISymNGenWriter2)
 BIND_UUID_OF(ISymUnmanagedAsyncMethodPropertiesWriter)
 BIND_UUID_OF(ISymUnmanagedAsyncMethod)
-
+#endif
 

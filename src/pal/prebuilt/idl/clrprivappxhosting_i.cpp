@@ -72,6 +72,8 @@ MIDL_DEFINE_GUID(IID, IID_ICLRPrivAppXDomain,0x6633398E,0x823D,0x4361,0xB3,0x0E,
 }
 #endif
 
+#if !(defined(_MSC_VER) || defined(__llvm__))
 BIND_UUID_OF(ICLRPrivAppXRuntime)
 BIND_UUID_OF(ICLRPrivAppXDomain)
+#endif
 

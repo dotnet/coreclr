@@ -138,7 +138,7 @@ MIDL_DEFINE_GUID(IID, IID_ICorSvcSetTaskDelayStartTriggerState,0x261DD1E3,0xF07E
 }
 #endif
 
-
+#if !(defined(_MSC_VER) || defined(__llvm__))
 BIND_UUID_OF(ICorSvcDependencies)
 BIND_UUID_OF(ICorSvcWorker)
 BIND_UUID_OF(ICorSvcWorker2)
@@ -162,4 +162,5 @@ BIND_UUID_OF(ICorSvcManager2)
 BIND_UUID_OF(ICorSvcSetLegacyServiceBehavior)
 BIND_UUID_OF(ICorSvcSetTaskBootTriggerState)
 BIND_UUID_OF(ICorSvcSetTaskDelayStartTriggerState)
+#endif
 

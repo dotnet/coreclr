@@ -471,6 +471,7 @@ MIDL_DEFINE_GUID(CLSID, CLSID_EmbeddedCLRCorDebug,0x211f1254,0xbc7e,0x4af5,0xb9,
 }
 #endif
 
+#if !(defined(_MSC_VER) || defined(__llvm__))
 BIND_UUID_OF(ICorDebugDataTarget)
 BIND_UUID_OF(ICorDebugStaticFieldSymbol)
 BIND_UUID_OF(ICorDebugInstanceFieldSymbol)
@@ -600,4 +601,5 @@ BIND_UUID_OF(ICorDebugEditAndContinueErrorInfo)
 BIND_UUID_OF(ICorDebugEditAndContinueSnapshot)
 BIND_UUID_OF(ICorDebugExceptionObjectCallStackEnum)
 BIND_UUID_OF(ICorDebugExceptionObjectValue)
+#endif
 

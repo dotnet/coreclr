@@ -75,6 +75,9 @@ MIDL_DEFINE_GUID(IID, IID_IPrivateManagedExceptionReporting,0xAD76A023,0x332D,0x
 }
 #endif
 
+#if !(defined(_MSC_VER) || defined(__llvm__))
 BIND_UUID_OF(IExecutionEngine)
 BIND_UUID_OF(IEEMemoryManager)
 BIND_UUID_OF(IPrivateManagedExceptionReporting)
+#endif
+

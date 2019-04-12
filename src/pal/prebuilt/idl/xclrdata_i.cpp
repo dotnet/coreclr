@@ -141,6 +141,7 @@ MIDL_DEFINE_GUID(IID, IID_IXCLRDataExceptionNotification5,0xe77a39ea,0x3548,0x44
 }
 #endif
 
+#if !(defined(_MSC_VER) || defined(__llvm__))
 BIND_UUID_OF(IXCLRDataTarget3)
 BIND_UUID_OF(IXCLRLibrarySupport)
 BIND_UUID_OF(IXCLRDisassemblySupport)
@@ -166,5 +167,5 @@ BIND_UUID_OF(IXCLRDataExceptionNotification2)
 BIND_UUID_OF(IXCLRDataExceptionNotification3)
 BIND_UUID_OF(IXCLRDataExceptionNotification4)
 BIND_UUID_OF(IXCLRDataExceptionNotification5)
-
+#endif
 
