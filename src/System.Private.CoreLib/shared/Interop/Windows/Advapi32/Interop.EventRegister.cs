@@ -9,27 +9,6 @@ internal partial class Interop
 {
     internal partial class Advapi32
     {
-        internal const int EVENT_CONTROL_CODE_DISABLE_PROVIDER = 0;
-        internal const int EVENT_CONTROL_CODE_ENABLE_PROVIDER = 1;
-        internal const int EVENT_CONTROL_CODE_CAPTURE_STATE = 2;
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct EVENT_FILTER_DESCRIPTOR
-        {
-            public long Ptr;
-            public int Size;
-            public int Type;
-        };
-
-        internal unsafe delegate void EtwEnableCallback(
-            [In] ref Guid sourceId,
-            [In] int isEnabled,
-            [In] byte level,
-            [In] long matchAnyKeywords,
-            [In] long matchAllKeywords,
-            [In] EVENT_FILTER_DESCRIPTOR* filterData,
-            [In] void* callbackContext);
-
         [DllImport(Libraries.Advapi32, ExactSpelling = true)]
         internal static extern unsafe uint EventRegister(
             [In] ref Guid providerId,

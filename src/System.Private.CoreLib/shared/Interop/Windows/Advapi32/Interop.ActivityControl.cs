@@ -9,11 +9,13 @@ internal partial class Interop
 {
     internal partial class Advapi32
     {
-        [DllImport(Libraries.Advapi32, ExactSpelling = true)]
-        internal static unsafe extern int EventSetInformation(
-            [In] long registrationHandle,
-            [In] EVENT_INFO_CLASS informationClass,
-            [In] void* eventInformation,
-            [In] int informationLength);
+        internal enum ActivityControl : uint
+        {
+            EVENT_ACTIVITY_CTRL_GET_ID = 1,
+            EVENT_ACTIVITY_CTRL_SET_ID = 2,
+            EVENT_ACTIVITY_CTRL_CREATE_ID = 3,
+            EVENT_ACTIVITY_CTRL_GET_SET_ID = 4,
+            EVENT_ACTIVITY_CTRL_CREATE_SET_ID = 5
+        };
     }
 }
