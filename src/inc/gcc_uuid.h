@@ -20,7 +20,7 @@ public:
 };
 
 
-#define BIND_UUID_OF(T) template<> IID TypeToIID::GetIID<T>() { return IID_##T; }
+#define BIND_UUID_OF(T) struct T; template<> IID TypeToIID::GetIID<T>() { return IID_##T; }
 #define __uuidof(T) TypeToIID::GetIID<T>()
 #define DECLSPEC_UUID(x)
 

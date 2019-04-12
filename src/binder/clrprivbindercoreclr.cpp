@@ -8,9 +8,6 @@
 
 using namespace BINDER_SPACE;
 
-BIND_UUID_OF(ICLRPrivBinder)
-BIND_UUID_OF(IUnknown)
-
 //=============================================================================
 // Helper functions
 //-----------------------------------------------------------------------------

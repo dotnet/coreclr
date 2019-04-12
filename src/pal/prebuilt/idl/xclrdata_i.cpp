@@ -141,5 +141,30 @@ MIDL_DEFINE_GUID(IID, IID_IXCLRDataExceptionNotification5,0xe77a39ea,0x3548,0x44
 }
 #endif
 
+BIND_UUID_OF(IXCLRDataTarget3)
+BIND_UUID_OF(IXCLRLibrarySupport)
+BIND_UUID_OF(IXCLRDisassemblySupport)
+BIND_UUID_OF(IXCLRDataDisplay)
+BIND_UUID_OF(IXCLRDataProcess)
+BIND_UUID_OF(IXCLRDataProcess2)
+BIND_UUID_OF(IXCLRDataAppDomain)
+BIND_UUID_OF(IXCLRDataAssembly)
+BIND_UUID_OF(IXCLRDataModule)
+BIND_UUID_OF(IXCLRDataModule2)
+BIND_UUID_OF(IXCLRDataTypeDefinition)
+BIND_UUID_OF(IXCLRDataTypeInstance)
+BIND_UUID_OF(IXCLRDataMethodDefinition)
+BIND_UUID_OF(IXCLRDataMethodInstance)
+BIND_UUID_OF(IXCLRDataTask)
+BIND_UUID_OF(IXCLRDataStackWalk)
+BIND_UUID_OF(IXCLRDataFrame)
+BIND_UUID_OF(IXCLRDataFrame2)
+BIND_UUID_OF(IXCLRDataExceptionState)
+BIND_UUID_OF(IXCLRDataValue)
+BIND_UUID_OF(IXCLRDataExceptionNotification)
+BIND_UUID_OF(IXCLRDataExceptionNotification2)
+BIND_UUID_OF(IXCLRDataExceptionNotification3)
+BIND_UUID_OF(IXCLRDataExceptionNotification4)
+BIND_UUID_OF(IXCLRDataExceptionNotification5)
 
 

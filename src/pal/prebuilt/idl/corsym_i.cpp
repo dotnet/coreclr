@@ -171,5 +171,33 @@ MIDL_DEFINE_GUID(IID, IID_ISymUnmanagedAsyncMethod,0xB20D55B3,0x532E,0x4906,0x87
 }
 #endif
 
+BIND_UUID_OF(ISymUnmanagedBinder)
+BIND_UUID_OF(ISymUnmanagedBinder2)
+BIND_UUID_OF(ISymUnmanagedBinder3)
+BIND_UUID_OF(ISymUnmanagedDispose)
+BIND_UUID_OF(ISymUnmanagedDocument)
+BIND_UUID_OF(ISymUnmanagedDocumentWriter)
+BIND_UUID_OF(ISymUnmanagedMethod)
+BIND_UUID_OF(ISymENCUnmanagedMethod)
+BIND_UUID_OF(ISymUnmanagedNamespace)
+BIND_UUID_OF(ISymUnmanagedReader)
+BIND_UUID_OF(ISymUnmanagedSourceServerModule)
+BIND_UUID_OF(ISymUnmanagedENCUpdate)
+BIND_UUID_OF(ISymUnmanagedReaderSymbolSearchInfo)
+BIND_UUID_OF(ISymUnmanagedScope)
+BIND_UUID_OF(ISymUnmanagedConstant)
+BIND_UUID_OF(ISymUnmanagedScope2)
+BIND_UUID_OF(ISymUnmanagedVariable)
+BIND_UUID_OF(ISymUnmanagedSymbolSearchInfo)
+BIND_UUID_OF(ISymUnmanagedWriter)
+BIND_UUID_OF(ISymUnmanagedWriter2)
+BIND_UUID_OF(ISymUnmanagedWriter3)
+BIND_UUID_OF(ISymUnmanagedWriter4)
+BIND_UUID_OF(ISymUnmanagedWriter5)
+BIND_UUID_OF(ISymUnmanagedReader2)
+BIND_UUID_OF(ISymNGenWriter)
+BIND_UUID_OF(ISymNGenWriter2)
+BIND_UUID_OF(ISymUnmanagedAsyncMethodPropertiesWriter)
+BIND_UUID_OF(ISymUnmanagedAsyncMethod)
 
 

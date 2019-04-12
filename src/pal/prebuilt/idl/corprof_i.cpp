@@ -148,5 +148,31 @@ MIDL_DEFINE_GUID(IID, IID_ICorProfilerAssemblyReferenceProvider,0x66A78C24,0x2EE
 }
 #endif
 
+BIND_UUID_OF(ICorProfilerCallback)
+BIND_UUID_OF(ICorProfilerCallback2)
+BIND_UUID_OF(ICorProfilerCallback3)
+BIND_UUID_OF(ICorProfilerCallback4)
+BIND_UUID_OF(ICorProfilerCallback5)
+BIND_UUID_OF(ICorProfilerCallback6)
+BIND_UUID_OF(ICorProfilerCallback7)
+BIND_UUID_OF(ICorProfilerCallback8)
+BIND_UUID_OF(ICorProfilerCallback9)
+BIND_UUID_OF(ICorProfilerInfo)
+BIND_UUID_OF(ICorProfilerInfo2)
+BIND_UUID_OF(ICorProfilerInfo3)
+BIND_UUID_OF(ICorProfilerObjectEnum)
+BIND_UUID_OF(ICorProfilerFunctionEnum)
+BIND_UUID_OF(ICorProfilerModuleEnum)
+BIND_UUID_OF(IMethodMalloc)
+BIND_UUID_OF(ICorProfilerFunctionControl)
+BIND_UUID_OF(ICorProfilerInfo4)
+BIND_UUID_OF(ICorProfilerInfo5)
+BIND_UUID_OF(ICorProfilerInfo6)
+BIND_UUID_OF(ICorProfilerInfo7)
+BIND_UUID_OF(ICorProfilerInfo8)
+BIND_UUID_OF(ICorProfilerInfo9)
+BIND_UUID_OF(ICorProfilerMethodEnum)
+BIND_UUID_OF(ICorProfilerThreadEnum)
+BIND_UUID_OF(ICorProfilerAssemblyReferenceProvider)
 
 

@@ -87,5 +87,11 @@ MIDL_DEFINE_GUID(IID, IID_ICLRDataEnumMemoryRegions,0x471c35b4,0x7c2f,0x4ef0,0xa
 }
 #endif
 
-
+BIND_UUID_OF(ICLRDataTarget)
+BIND_UUID_OF(ICLRDataTarget2)
+BIND_UUID_OF(ICLRDataTarget3)
+BIND_UUID_OF(ICLRMetadataLocator)
+BIND_UUID_OF(ICLRDataEnumMemoryRegionsCallback)
+BIND_UUID_OF(ICLRDataEnumMemoryRegionsCallback2)
+BIND_UUID_OF(ICLRDataEnumMemoryRegions)
 

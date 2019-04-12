@@ -90,5 +90,10 @@ MIDL_DEFINE_GUID(IID, IID_ICorPublishAppDomainEnum,0x9F0C98F5,0x5A6A,0x11d3,0x8F
 }
 #endif
 
-
+BIND_UUID_OF(ICorPublish)
+BIND_UUID_OF(ICorPublishEnum)
+BIND_UUID_OF(ICorPublishProcess)
+BIND_UUID_OF(ICorPublishAppDomain)
+BIND_UUID_OF(ICorPublishProcessEnum)
+BIND_UUID_OF(ICorPublishAppDomainEnum)
 

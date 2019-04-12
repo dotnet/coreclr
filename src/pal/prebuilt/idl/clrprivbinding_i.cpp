@@ -96,5 +96,13 @@ MIDL_DEFINE_GUID(IID, IID_ICLRPrivWinRtTypeBinder,0x6DE2A085,0xEFF4,0x4078,0x9F,
 }
 #endif
 
-
-
+BIND_UUID_OF(ICLRPrivBinder)
+BIND_UUID_OF(ICLRPrivAssembly)
+BIND_UUID_OF(ICLRPrivResource)
+BIND_UUID_OF(ICLRPrivResourcePath)
+BIND_UUID_OF(ICLRPrivResourceStream)
+BIND_UUID_OF(ICLRPrivResourceHMODULE)
+BIND_UUID_OF(ICLRPrivResourceAssembly)
+BIND_UUID_OF(ICLRPrivAssemblyInfo)
+BIND_UUID_OF(ICLRPrivAssemblyID_WinRT)
+BIND_UUID_OF(ICLRPrivWinRtTypeBinder)

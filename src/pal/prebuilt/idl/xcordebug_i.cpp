@@ -78,5 +78,6 @@ MIDL_DEFINE_GUID(IID, IID_ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindows
 }
 #endif
 
-
+BIND_UUID_OF(ICorDebugProcess4)
+BIND_UUID_OF(ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly)
 
