@@ -3052,7 +3052,7 @@ void CodeGen::genSIMDIntrinsicUpperSave(GenTreeSIMD* simdNode)
     else
     {
         // The localVar must have a stack home.
-        unsigned   varNum = op1->AsLclVarCommon()->gtLclNum;
+        unsigned   varNum = op1->AsLclVarCommon()->GetLclNum();
         LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
         assert(varDsc->lvOnFrame);
         // We want to store this to the upper 16 bytes of this localVar's home.
@@ -3093,7 +3093,7 @@ void CodeGen::genSIMDIntrinsicUpperRestore(GenTreeSIMD* simdNode)
     else
     {
         // The localVar must have a stack home.
-        unsigned   varNum = op1->AsLclVarCommon()->gtLclNum;
+        unsigned   varNum = op1->AsLclVarCommon()->GetLclNum();
         LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
         assert(varDsc->lvOnFrame);
         // We will load this from the upper 16 bytes of this localVar's home.

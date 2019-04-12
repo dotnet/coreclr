@@ -1562,8 +1562,8 @@ void CodeGen::genSSE2Intrinsic(GenTreeHWIntrinsic* node)
             assert((ival >= 0) && (ival <= 127));
 
             instruction ins = HWIntrinsicInfo::lookupIns(intrinsicId, baseType);
-            op1Reg          = op1->gtRegNum;
-            op2Reg          = op2->gtRegNum;
+            op1Reg          = op1->GetRegNum();
+            op2Reg          = op2->GetRegNum();
             emit->emitIns_SIMD_R_R_R_I(ins, emitTypeSize(TYP_SIMD16), targetReg, op1Reg, op2Reg, ival);
 
             break;

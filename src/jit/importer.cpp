@@ -10845,7 +10845,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     }
                     if (lclVar != nullptr)
                     {
-                        impSpillLclRefs(lclVar->gtLclNum);
+                        impSpillLclRefs(lclVar->GetLclNum());
                     }
                 }
 

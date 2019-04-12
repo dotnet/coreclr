@@ -6453,7 +6453,7 @@ void LinearScan::insertUpperVectorRestore(GenTree*     tree,
 
     GenTree* restoreLcl  = nullptr;
     restoreLcl           = compiler->gtNewLclvNode(lclVarInterval->varNum, varDsc->lvType);
-    restoreLcl->gtRegNum = lclVarReg;
+    restoreLcl->SetRegNum(lclVarReg);
     SetLsraAdded(restoreLcl);
 
     GenTreeSIMD* simdNode =
@@ -6476,7 +6476,7 @@ void LinearScan::insertUpperVectorRestore(GenTree*     tree,
         restoreReg = refPosition->assignedReg();
 #endif
     }
-    simdNode->gtRegNum = restoreReg;
+    simdNode->SetRegNum(restoreReg);
 
     LIR::Range& blockRange = LIR::AsRange(block);
     JITDUMP("Adding UpperVectorRestore ");
