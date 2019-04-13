@@ -16526,8 +16526,8 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTreeStmt* stmt)
     helperBlock->inheritWeightPercentage(cond2Block, 50);
 
     // Append cond1 as JTRUE to cond1Block
-    GenTree* jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, condExpr);
-    GenTree* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
+    GenTree*     jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, condExpr);
+    GenTreeStmt* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(cond1Block, jmpStmt);
 
     // Append cond2 as JTRUE to cond2Block
@@ -16536,14 +16536,14 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTreeStmt* stmt)
     fgInsertStmtAtEnd(cond2Block, jmpStmt);
 
     // AsgBlock should get tmp = op1 assignment.
-    trueExpr          = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), trueExpr);
-    GenTree* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmtILoffsx);
+    trueExpr              = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), trueExpr);
+    GenTreeStmt* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(asgBlock, trueStmt);
 
     // Since we are adding helper in the JTRUE false path, reverse the cond2 and add the helper.
     gtReverseCond(cond2Expr);
-    GenTree* helperExpr = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), true2Expr);
-    GenTree* helperStmt = fgNewStmtFromTree(helperExpr, stmt->gtStmtILoffsx);
+    GenTree*     helperExpr = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), true2Expr);
+    GenTreeStmt* helperStmt = fgNewStmtFromTree(helperExpr, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(helperBlock, helperStmt);
 
     // Finally remove the nested qmark stmt.
@@ -16741,8 +16741,8 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTreeStmt* stmt)
         elseBlock->inheritWeightPercentage(condBlock, 50);
     }
 
-    GenTree* jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, qmark->gtGetOp1());
-    GenTree* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
+    GenTree*     jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, qmark->gtGetOp1());
+    GenTreeStmt* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(condBlock, jmpStmt);
 
     // Remove the original qmark statement.
@@ -16868,7 +16868,7 @@ void Compiler::fgMorph()
         CORINFO_INITCLASS_USE_HELPER)
     {
         fgEnsureFirstBBisScratch();
-        fgInsertStmtAtBeg(fgFirstBB, fgInitThisClass());
+        fgInsertTreeAtBeg(fgFirstBB, fgInitThisClass());
     }
 
 #ifdef DEBUG
@@ -16884,7 +16884,7 @@ void Compiler::fgMorph()
                 op                   = gtNewHelperCallNode(CORINFO_HELP_CHECK_OBJ, TYP_VOID, args);
 
                 fgEnsureFirstBBisScratch();
-                fgInsertStmtAtEnd(fgFirstBB, op);
+                fgInsertTreeAtEnd(fgFirstBB, op);
             }
         }
     }
@@ -17518,7 +17518,7 @@ void Compiler::fgRetypeImplicitByRefArgs()
                     GenTree* addr   = gtNewLclvNode(lclNum, TYP_BYREF);
                     GenTree* rhs    = gtNewBlockVal(addr, (unsigned)size);
                     GenTree* assign = gtNewAssignNode(lhs, rhs);
-                    fgInsertStmtAtBeg(fgFirstBB, assign);
+                    fgInsertTreeAtBeg(fgFirstBB, assign);
                 }
 
                 // Update the locals corresponding to the promoted fields.

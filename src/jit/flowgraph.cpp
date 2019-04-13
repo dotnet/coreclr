@@ -325,7 +325,7 @@ void Compiler::fgInstrumentMethod()
             GenTree* lhsNode = gtNewIndOfIconHandleNode(TYP_INT, addrOfCurrentExecutionCount, GTF_ICON_BBC_PTR, false);
             GenTree* asgNode = gtNewAssignNode(lhsNode, rhsNode);
 
-            fgInsertStmtAtBeg(block, asgNode);
+            fgInsertTreeAtBeg(block, asgNode);
 
             // Advance to the next BlockCounts tuple [ILOffset, ExecutionCount]
             currentBlockCounts++;
@@ -550,19 +550,9 @@ bool Compiler::fgBlockContainsStatementBounded(BasicBlock*  block,
 //    In other cases, if there are any phi assignments and/or an assignment of
 //    the GT_CATCH_ARG, we insert after those.
 
-GenTreeStmt* Compiler::fgInsertStmtAtBeg(BasicBlock* block, GenTree* node)
+GenTreeStmt* Compiler::fgInsertStmtAtBeg(BasicBlock* block, GenTreeStmt* stmt)
 {
-    GenTreeStmt* stmt;
-    if (node->gtOper == GT_STMT)
-    {
-        stmt = node->AsStmt();
-    }
-    else
-    {
-        stmt = gtNewStmt(node);
-    }
-
-    GenTree* list = block->firstStmt();
+    GenTreeStmt* firstStmt = block->firstStmt();
 
     if (!stmt->IsPhiDefnStmt())
     {
@@ -571,42 +561,41 @@ GenTreeStmt* Compiler::fgInsertStmtAtBeg(BasicBlock* block, GenTree* node)
         {
             return fgInsertStmtBefore(block, insertBeforeStmt, stmt);
         }
-        else if (list != nullptr)
+        else if (firstStmt != nullptr)
         {
             return fgInsertStmtAtEnd(block, stmt);
         }
         // Otherwise, we will simply insert at the beginning, below.
     }
 
-    /* The new tree will now be the first one of the block */
-
+    // The new tree will now be the first one of the block.
     block->bbTreeList = stmt;
-    stmt->gtNext      = list;
+    stmt->gtNext      = firstStmt;
 
-    /* Are there any statements in the block? */
-
-    if (list)
+    // Are there any statements in the block?
+    if (firstStmt != nullptr)
     {
-        GenTree* last;
+        // There is at least one statement already.
+        GenTreeStmt* lastStmt = firstStmt->getPrevStmt();
+        noway_assert(lastStmt != nullptr && lastStmt->gtNext == nullptr);
 
-        /* There is at least one statement already */
-
-        last = list->gtPrev;
-        noway_assert(last && last->gtNext == nullptr);
-
-        /* Insert the statement in front of the first one */
-
-        list->gtPrev = stmt;
-        stmt->gtPrev = last;
+        // Insert the statement in front of the first one.
+        firstStmt->gtPrev = stmt;
+        stmt->gtPrev      = lastStmt;
     }
     else
     {
-        /* The block was completely empty */
-
+        // The block was completely empty.
         stmt->gtPrev = stmt;
     }
 
     return stmt;
+}
+
+GenTreeStmt* Compiler::fgInsertTreeAtBeg(BasicBlock* block, GenTree* tree)
+{
+    GenTreeStmt* stmt = gtNewStmt(tree);
+    return fgInsertStmtAtBeg(block, stmt);
 }
 
 /*****************************************************************************
@@ -616,46 +605,37 @@ GenTreeStmt* Compiler::fgInsertStmtAtBeg(BasicBlock* block, GenTree* node)
  *  If the block can be a conditional block, use fgInsertStmtNearEnd.
  */
 
-GenTreeStmt* Compiler::fgInsertStmtAtEnd(BasicBlock* block, GenTree* node)
+GenTreeStmt* Compiler::fgInsertStmtAtEnd(BasicBlock* block, GenTreeStmt* stmt)
 {
-    GenTree*     list = block->firstStmt();
-    GenTreeStmt* stmt;
-
-    if (node->gtOper != GT_STMT)
-    {
-        stmt = gtNewStmt(node);
-    }
-    else
-    {
-        stmt = node->AsStmt();
-    }
 
     assert(stmt->gtNext == nullptr); // We don't set it, and it needs to be this after the insert
 
-    if (list)
+    GenTreeStmt* firstStmt = block->firstStmt();
+    if (firstStmt != nullptr)
     {
-        GenTree* last;
+        // There is at least one statement already.
+        GenTreeStmt* lastStmt = firstStmt->getPrevStmt();
+        noway_assert(lastStmt != nullptr && lastStmt->getNextStmt() == nullptr);
 
-        /* There is at least one statement already */
-
-        last = list->gtPrev;
-        noway_assert(last && last->gtNext == nullptr);
-
-        /* Append the statement after the last one */
-
-        last->gtNext = stmt;
-        stmt->gtPrev = last;
-        list->gtPrev = stmt;
+        // Append the statement after the last one.
+        lastStmt->gtNext  = stmt;
+        stmt->gtPrev      = lastStmt;
+        firstStmt->gtPrev = stmt;
     }
     else
     {
-        /* The block is completely empty */
-
+        // The block is completely empty.
         block->bbTreeList = stmt;
         stmt->gtPrev      = stmt;
     }
 
     return stmt;
+}
+
+GenTreeStmt* Compiler::fgInsertTreeAtEnd(BasicBlock* block, GenTree* tree)
+{
+    GenTreeStmt* stmt = gtNewStmt(tree);
+    return fgInsertStmtAtEnd(block, stmt);
 }
 
 /*****************************************************************************
@@ -665,80 +645,71 @@ GenTreeStmt* Compiler::fgInsertStmtAtEnd(BasicBlock* block, GenTree* node)
  *  Returns the (potentially) new GT_STMT node.
  */
 
-GenTreeStmt* Compiler::fgInsertStmtNearEnd(BasicBlock* block, GenTree* node)
+GenTreeStmt* Compiler::fgInsertStmtNearEnd(BasicBlock* block, GenTreeStmt* stmt)
 {
-    GenTreeStmt* stmt;
-
     // This routine can only be used when in tree order.
     assert(fgOrder == FGOrderTree);
 
     if ((block->bbJumpKind == BBJ_COND) || (block->bbJumpKind == BBJ_SWITCH) || (block->bbJumpKind == BBJ_RETURN))
     {
-        if (node->gtOper != GT_STMT)
-        {
-            stmt = gtNewStmt(node);
-        }
-        else
-        {
-            stmt = node->AsStmt();
-        }
-
-        GenTreeStmt* first = block->firstStmt();
-        noway_assert(first);
-        GenTreeStmt* last = block->lastStmt();
-        noway_assert(last && last->gtNext == nullptr);
-        GenTree* after = last->gtPrev;
+        GenTreeStmt* firstStmt = block->firstStmt();
+        noway_assert(firstStmt != nullptr);
+        GenTreeStmt* lastStmt = block->lastStmt();
+        noway_assert(lastStmt != nullptr && lastStmt->gtNext == nullptr);
+        GenTree* insertionPoint = lastStmt->gtPrev;
 
 #if DEBUG
         if (block->bbJumpKind == BBJ_COND)
         {
-            noway_assert(last->gtStmtExpr->gtOper == GT_JTRUE);
+            assert(lastStmt->gtStmtExpr->gtOper == GT_JTRUE);
         }
         else if (block->bbJumpKind == BBJ_RETURN)
         {
-            noway_assert((last->gtStmtExpr->gtOper == GT_RETURN) || (last->gtStmtExpr->gtOper == GT_JMP) ||
-                         // BBJ_RETURN blocks in functions returning void do not get a GT_RETURN node if they
-                         // have a .tail prefix (even if canTailCall returns false for these calls)
-                         // code:Compiler::impImportBlockCode (search for the RET: label)
-                         // Ditto for real tail calls (all code after them has been removed)
-                         ((last->gtStmtExpr->gtOper == GT_CALL) &&
-                          ((info.compRetType == TYP_VOID) || last->gtStmtExpr->AsCall()->IsTailCall())));
+            assert((lastStmt->gtStmtExpr->gtOper == GT_RETURN) || (lastStmt->gtStmtExpr->gtOper == GT_JMP) ||
+                   // BBJ_RETURN blocks in functions returning void do not get a GT_RETURN node if they
+                   // have a .tail prefix (even if canTailCall returns false for these calls)
+                   // code:Compiler::impImportBlockCode (search for the RET: label)
+                   // Ditto for real tail calls (all code after them has been removed)
+                   ((lastStmt->gtStmtExpr->gtOper == GT_CALL) &&
+                    ((info.compRetType == TYP_VOID) || lastStmt->gtStmtExpr->AsCall()->IsTailCall())));
         }
         else
         {
-            noway_assert(block->bbJumpKind == BBJ_SWITCH);
-            noway_assert(last->gtStmtExpr->gtOper == GT_SWITCH);
+            assert(block->bbJumpKind == BBJ_SWITCH);
+            assert(lastStmt->gtStmtExpr->gtOper == GT_SWITCH);
         }
 #endif // DEBUG
 
-        /* Append 'stmt' before 'last' */
+        // Append 'stmt' before 'lastStmt'.
+        stmt->gtNext     = lastStmt;
+        lastStmt->gtPrev = stmt;
 
-        stmt->gtNext = last;
-        last->gtPrev = stmt;
-
-        if (first == last)
+        if (firstStmt == lastStmt)
         {
-            /* There is only one stmt in the block */
-
+            // There is only one stmt in the block.
             block->bbTreeList = stmt;
-            stmt->gtPrev      = last;
+            stmt->gtPrev      = lastStmt;
         }
         else
         {
-            noway_assert(after && (after->gtNext == last));
-
-            /* Append 'stmt' after 'after' */
-
-            after->gtNext = stmt;
-            stmt->gtPrev  = after;
+            // Append 'stmt' after 'insertionPoint'.
+            noway_assert(insertionPoint != nullptr && (insertionPoint->gtNext == lastStmt));
+            insertionPoint->gtNext = stmt;
+            stmt->gtPrev           = insertionPoint;
         }
 
         return stmt;
     }
     else
     {
-        return fgInsertStmtAtEnd(block, node);
+        return fgInsertStmtAtEnd(block, stmt);
     }
+}
+
+GenTreeStmt* Compiler::fgInsertTreeNearEnd(BasicBlock* block, GenTree* tree)
+{
+    GenTreeStmt* stmt = gtNewStmt(tree);
+    return fgInsertStmtNearEnd(block, stmt);
 }
 
 /*****************************************************************************
@@ -3872,11 +3843,11 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         // for BBJ_ALWAYS I don't need to insert it before the condition.  Just append it.
         if (block->bbJumpKind == BBJ_ALWAYS)
         {
-            fgInsertStmtAtEnd(block, call);
+            fgInsertTreeAtEnd(block, call);
         }
         else
         {
-            GenTreeStmt* newStmt = fgInsertStmtNearEnd(block, call);
+            GenTreeStmt* newStmt = fgInsertTreeNearEnd(block, call);
             // For DDB156656, we need to associate the GC Poll with the IL offset (and therefore sequence
             // point) of the tree before which we inserted the poll.  One example of when this is a
             // problem:
@@ -3946,7 +3917,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
 
         //  2) Add a GC_CALL node to Poll.
         GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
-        fgInsertStmtAtEnd(poll, call);
+        fgInsertTreeAtEnd(poll, call);
 
         //  3) Remove the last statement from Top and add it to Bottom.
         if (oldJumpKind != BBJ_ALWAYS)
@@ -3998,7 +3969,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
 
         trapRelop->gtFlags |= GTF_RELOP_JMP_USED | GTF_DONT_CSE;
         GenTree* trapCheck = gtNewOperNode(GT_JTRUE, TYP_VOID, trapRelop);
-        fgInsertStmtAtEnd(top, trapCheck);
+        fgInsertTreeAtEnd(top, trapCheck);
         top->bbJumpDest = bottom;
         top->bbJumpKind = BBJ_COND;
         bottom->bbFlags |= BBF_JMP_TARGET;
@@ -8118,7 +8089,7 @@ void Compiler::fgAddSyncMethodEnterExit()
         GenTree* varNode  = gtNewLclvNode(lvaMonAcquired, typeMonAcquired);
         GenTree* initNode = gtNewAssignNode(varNode, zero);
 
-        fgInsertStmtAtEnd(fgFirstBB, initNode);
+        fgInsertTreeAtEnd(fgFirstBB, initNode);
 
 #ifdef DEBUG
         if (verbose)
@@ -8143,7 +8114,7 @@ void Compiler::fgAddSyncMethodEnterExit()
         GenTree* copyNode = gtNewLclvNode(lvaCopyThis, TYP_REF);
         GenTree* initNode = gtNewAssignNode(copyNode, thisNode);
 
-        fgInsertStmtAtEnd(tryBegBB, initNode);
+        fgInsertTreeAtEnd(tryBegBB, initNode);
     }
 
     fgCreateMonitorTree(lvaMonAcquired, info.compThisArg, tryBegBB, true /*enter*/);
@@ -8235,12 +8206,12 @@ GenTree* Compiler::fgCreateMonitorTree(unsigned lvaMonAcquired, unsigned lvaThis
         else
         {
             // Insert this immediately before the GT_RETURN
-            fgInsertStmtNearEnd(block, tree);
+            fgInsertTreeNearEnd(block, tree);
         }
     }
     else
     {
-        fgInsertStmtAtEnd(block, tree);
+        fgInsertTreeAtEnd(block, tree);
     }
 
     return tree;
@@ -8319,7 +8290,7 @@ void Compiler::fgAddReversePInvokeEnterExit()
 
     fgEnsureFirstBBisScratch();
 
-    fgInsertStmtAtBeg(fgFirstBB, tree);
+    fgInsertTreeAtBeg(fgFirstBB, tree);
 
 #ifdef DEBUG
     if (verbose)
@@ -8339,7 +8310,7 @@ void Compiler::fgAddReversePInvokeEnterExit()
 
     assert(genReturnBB != nullptr);
 
-    fgInsertStmtNearEnd(genReturnBB, tree);
+    fgInsertTreeNearEnd(genReturnBB, tree);
 
 #ifdef DEBUG
     if (verbose)
@@ -8641,7 +8612,7 @@ private:
         }
 
         // Add 'return' expression to the return block
-        comp->fgInsertStmtAtEnd(newReturnBB, returnExpr);
+        comp->fgInsertTreeAtEnd(newReturnBB, returnExpr);
         // Flag that this 'return' was generated by return merging so that subsequent
         // return block morhping will know to leave it alone.
         returnExpr->gtFlags |= GTF_RET_MERGED;
@@ -8940,7 +8911,7 @@ void Compiler::fgAddInternal()
 
             fgEnsureFirstBBisScratch();
 
-            fgInsertStmtAtEnd(fgFirstBB, tree);
+            fgInsertTreeAtEnd(fgFirstBB, tree);
 
 #ifdef DEBUG
             if (verbose)
@@ -9095,7 +9066,7 @@ void Compiler::fgAddInternal()
         // Stick the conditional call at the start of the method
 
         fgEnsureFirstBBisScratch();
-        fgInsertStmtAtEnd(fgFirstBB, gtNewQmarkNode(TYP_VOID, guardCheckCond, callback));
+        fgInsertTreeAtEnd(fgFirstBB, gtNewQmarkNode(TYP_VOID, guardCheckCond, callback));
     }
 
     /* Do we need to call out for security ? */
@@ -9120,7 +9091,7 @@ void Compiler::fgAddInternal()
 
         fgEnsureFirstBBisScratch();
 
-        fgInsertStmtAtEnd(fgFirstBB, tree);
+        fgInsertTreeAtEnd(fgFirstBB, tree);
 
 #ifdef DEBUG
         if (verbose)
@@ -9164,7 +9135,7 @@ void Compiler::fgAddInternal()
 
         fgEnsureFirstBBisScratch();
 
-        fgInsertStmtAtEnd(fgFirstBB, tree);
+        fgInsertTreeAtEnd(fgFirstBB, tree);
 
 #ifdef DEBUG
         if (verbose)
@@ -9195,7 +9166,7 @@ void Compiler::fgAddInternal()
             tree = gtNewHelperCallNode(CORINFO_HELP_MON_EXIT, TYP_VOID, gtNewArgList(tree));
         }
 
-        fgInsertStmtNearEnd(genReturnBB, tree);
+        fgInsertTreeNearEnd(genReturnBB, tree);
 
 #ifdef DEBUG
         if (verbose)
@@ -9229,7 +9200,7 @@ void Compiler::fgAddInternal()
 
         fgEnsureFirstBBisScratch();
 
-        fgInsertStmtAtEnd(fgFirstBB, tree);
+        fgInsertTreeAtEnd(fgFirstBB, tree);
 
 #ifdef DEBUG
         if (verbose)
@@ -14033,7 +14004,7 @@ bool Compiler::fgOptimizeEmptyBlock(BasicBlock* block)
                         }
                         else
                         {
-                            GenTreeStmt* nopStmt = fgInsertStmtAtEnd(block, nop);
+                            GenTreeStmt* nopStmt = fgInsertTreeAtEnd(block, nop);
                             fgSetStmtSeq(nopStmt);
                             gtSetStmtInfo(nopStmt);
                         }

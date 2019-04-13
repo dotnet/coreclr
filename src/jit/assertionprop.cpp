@@ -425,11 +425,11 @@ void Compiler::optAddCopies()
             if (BlockSetOps::IsEmpty(this, paramImportantUseDom) ||
                 BlockSetOps::IsMember(this, varDsc->lvRefBlks, bestBlock->bbNum))
             {
-                stmt = fgInsertStmtAtBeg(bestBlock, copyAsgn);
+                stmt = fgInsertTreeAtBeg(bestBlock, copyAsgn);
             }
             else
             {
-                stmt = fgInsertStmtNearEnd(bestBlock, copyAsgn);
+                stmt = fgInsertTreeNearEnd(bestBlock, copyAsgn);
             }
         }
         else
@@ -4777,12 +4777,12 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test)
         GenTreeStmt* newStmt;
         if (sideEffList->OperGet() == GT_COMMA)
         {
-            newStmt     = fgInsertStmtNearEnd(block, sideEffList->gtGetOp1());
+            newStmt     = fgInsertTreeNearEnd(block, sideEffList->gtGetOp1());
             sideEffList = sideEffList->gtGetOp2();
         }
         else
         {
-            newStmt     = fgInsertStmtNearEnd(block, sideEffList);
+            newStmt     = fgInsertTreeNearEnd(block, sideEffList);
             sideEffList = nullptr;
         }
         // fgMorphBlockStmt could potentially affect stmts after the current one,

@@ -4246,7 +4246,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
     /* Create a statement entry out of the condition and
        append the condition test at the end of 'block' */
 
-    GenTreeStmt* copyOfCondStmt = fgInsertStmtAtEnd(block, condTree);
+    GenTreeStmt* copyOfCondStmt = fgInsertTreeAtEnd(block, condTree);
 
     copyOfCondStmt->gtFlags |= GTF_STMT_CMPADD;
 

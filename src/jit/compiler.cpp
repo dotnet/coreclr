@@ -3764,7 +3764,7 @@ void Compiler::compInitDebuggingInfo()
 
         fgEnsureFirstBBisScratch();
 
-        fgInsertStmtAtEnd(fgFirstBB, gtNewNothingNode());
+        fgInsertTreeAtEnd(fgFirstBB, gtNewNothingNode());
 
         JITDUMP("Debuggable code - Add new %s to perform initialization of variables\n", fgFirstBB->dspToString());
     }

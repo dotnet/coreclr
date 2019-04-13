@@ -5238,13 +5238,17 @@ public:
 #endif
 
 public:
-    GenTreeStmt* fgInsertStmtAtEnd(BasicBlock* block, GenTree* node);
+    GenTreeStmt* fgInsertStmtAtEnd(BasicBlock* block, GenTreeStmt* stmt);
+    GenTreeStmt* fgInsertTreeAtEnd(BasicBlock* block, GenTree* tree);
 
 public: // Used by linear scan register allocation
-    GenTreeStmt* fgInsertStmtNearEnd(BasicBlock* block, GenTree* node);
+    GenTreeStmt* fgInsertStmtNearEnd(BasicBlock* block, GenTreeStmt* stmt);
+    GenTreeStmt* fgInsertTreeNearEnd(BasicBlock* block, GenTree* tree);
 
 private:
-    GenTreeStmt* fgInsertStmtAtBeg(BasicBlock* block, GenTree* node);
+    GenTreeStmt* fgInsertStmtAtBeg(BasicBlock* block, GenTreeStmt* stmt);
+    GenTreeStmt* fgInsertTreeAtBeg(BasicBlock* block, GenTree* tree);
+
     GenTreeStmt* fgInsertStmtAfter(BasicBlock* block, GenTreeStmt* insertionPoint, GenTreeStmt* stmt);
 
 public: // Used by linear scan register allocation
