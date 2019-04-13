@@ -2753,7 +2753,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
                         // (returning small value types by value in registers) is already done in JIT64.
                         if (        !m_byref   // Permit register-sized structs as return values
                                  && !isParam
-                                 && !onInstanceMethod
                                  && CorIsPrimitiveType(m_pMT->GetInternalCorElementType())
                                  && !IsUnmanagedValueTypeReturnedByRef(nativeSize)
                                  && managedSize <= sizeof(void*)
