@@ -41,6 +41,7 @@ JitInstance* JitInstance::InitJit(char*          nameOfJit,
     if (hr != S_OK)
     {
         LogError("Startup of JIT(%s) failed %d", nameOfJit, hr);
+        delete jit;
         return nullptr;
     }
     if (st1 != nullptr)
