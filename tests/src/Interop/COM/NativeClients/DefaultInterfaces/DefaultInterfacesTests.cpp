@@ -64,7 +64,7 @@ void CallDefaultInterface()
     HRESULT hr;
 
     ComSmartPtr<IDefaultInterfaceTesting> defInterface;
-    hr = ::CoCreateInstance(CLSID_DefaultInterfaceTesting, nullptr, CLSCTX_INPROC, IID_IDefaultInterfaceTesting, (void**)&defInterface)
+    hr = ::CoCreateInstance(CLSID_DefaultInterfaceTesting, nullptr, CLSCTX_INPROC, IID_IDefaultInterfaceTesting, (void**)&defInterface);
 
     const int COR_E_INVALIDOPERATION = 0x80131509;
     THROW_FAIL_IF_FALSE(hr == COR_E_INVALIDOPERATION);
