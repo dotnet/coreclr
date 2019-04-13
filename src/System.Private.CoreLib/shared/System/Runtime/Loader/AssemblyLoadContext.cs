@@ -510,9 +510,9 @@ namespace System.Runtime.Loader
         public static ContextualReflectionScope EnterContextualReflection(Assembly activating)
         {
             if (activating == null)
-                return ContextualReflectionScope(null);
+                return new ContextualReflectionScope(null);
 
-            AssemblyLoadContext? assemblyLoadContext = GetLoadContext(activating);
+            AssemblyLoadContext assemblyLoadContext = GetLoadContext(activating);
 
             if (assemblyLoadContext == null)
             {

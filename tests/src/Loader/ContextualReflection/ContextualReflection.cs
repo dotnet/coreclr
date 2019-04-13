@@ -17,6 +17,11 @@ namespace ContextualReflectionTest
     {
     }
 
+    class MockAssembly : Assembly
+    {
+        public MockAssembly() {}
+    }
+
     class Program : IProgram
     {
         public AssemblyLoadContext alc { get; set; }
@@ -717,6 +722,11 @@ namespace ContextualReflectionTest
             }
         }
 
+        void TestMockAssemblyThrows()
+        {
+            Exception e = Assert.ThrowsArgumentException("activating", () => ContextualReflectionProxy.EnterContextualReflection(new MockAssembly()));
+        }
+
         public void RunTests()
         {
             VerifyIsolationDefault();
@@ -735,6 +745,7 @@ namespace ContextualReflectionTest
             TestTypeGetType(isolated);
             TestAssemblyGetType(isolated);
             TestActivatorCreateInstance(isolated);
+            TestMockAssemblyThrows();
         }
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
