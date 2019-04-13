@@ -98,7 +98,7 @@ void ThreadLocalBlock::FreeTable()
         SpinLock::Holder lock(&m_TLMTableLock);
 
         // Free the table itself
-        delete m_pTLMTable;
+        delete[] m_pTLMTable;
         m_pTLMTable = NULL;
     }
 
