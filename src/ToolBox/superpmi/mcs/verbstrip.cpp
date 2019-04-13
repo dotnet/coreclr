@@ -29,10 +29,9 @@ int verbStrip::DoWork(
 
     // The method context reader handles skipping any unrequested method contexts
     // Used in conjunction with an MCI file, it does a lot less work...
-    MethodContextReader* reader = new MethodContextReader(nameOfInput, indexes, indexCount);
-    if (!reader->isValid())
+    MethodContextReader reader(nameOfInput, indexes, indexCount);
+    if (!reader.isValid())
     {
-        delete reader;
         return -1;
     }
 
@@ -41,7 +40,6 @@ int verbStrip::DoWork(
     if (hFileOut == INVALID_HANDLE_VALUE)
     {
         LogError("Failed to open input 1 '%s'. GetLastError()=%u", nameOfOutput, GetLastError());
-        delete reader;
         return -1;
     }
 
@@ -49,10 +47,9 @@ int verbStrip::DoWork(
         strip = true; // Copy command with no indexes listed should copy all the inputs...
     while (true)
     {
-        MethodContextBuffer mcb = reader->GetNextMethodContext();
+        MethodContextBuffer mcb = reader.GetNextMethodContext();
         if (mcb.Error())
         {
-            delete reader;
             return -1;
         }
         else if (mcb.allDone())
@@ -64,14 +61,13 @@ int verbStrip::DoWork(
         if ((loadedCount % 500 == 0) && (loadedCount > 0))
         {
             st1->Stop();
-            LogVerbose("%2.1f%% - Loaded %d at %d per second", reader->PercentComplete(), loadedCount,
+            LogVerbose("%2.1f%% - Loaded %d at %d per second", reader.PercentComplete(), loadedCount,
                        (int)((double)500 / st1->GetSeconds()));
             st1->Start();
         }
 
         if (!MethodContext::Initialize(loadedCount, mcb.buff, mcb.size, &mc))
         {
-            delete reader;
             return -1;
         }
 
@@ -87,12 +83,10 @@ int verbStrip::DoWork(
     if (CloseHandle(hFileOut) == 0)
     {
         LogError("2nd CloseHandle failed. GetLastError()=%u", GetLastError());
-        delete reader;
         return -1;
     }
     LogInfo("Loaded %d, Saved %d", loadedCount, savedCount);
 
-    delete reader;
     return 0;
 }
 
