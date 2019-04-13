@@ -618,6 +618,41 @@ public:
 #else
                 byrefNativeReturn = true;
 #endif
+                // We need to adjust the treatment of a struct with one field to be the type of the field
+                // in the struct for return values on member functions because some teams such as WPF create wrapper structs
+                // for HRESULTs on PreserveSig'd members. Since native HRESULTs are actually ints, they are returned in-register
+                // by the Windows calling convention. However, structs are never returned in registers from member functions on Windows
+                // unless the type is an HFA (on ARM32). So, by defining an HRESULT struct return type for a member function that returns a native HRESULT,
+                // the user is violating the Windows ABI. To avoid breaking people who have been violating the Windows ABI but have been working
+                // because .NET Framework and .NET Core before 3.0 didn't implement this facet of the Windows ABI correctly,
+                // we actively violate the Windows ABI when the user provides
+                // a struct return type of a member function that has only one field.
+                bool forceViolatingByValueReturn = false;
+                TypeHandle th = nativeType.InternalToken;
+                // Every struct will either have zero fields, multiple fields, or a single field.
+                // If it has a single field, get the type of that field.
+                // If that type is a value type with a single field that isn't a primitive, repeat.
+                // Eventually we will reach a type that has zero fields, multiple fields, or a single field of primitive type.
+                // If we reach a single field of primitive type, then set byrefNativeReturn to false.
+                // This also works for ARM HFAs since a struct containing one HFA field would already have set byrefNativeReturn to false.
+                do
+                {
+                    MethodTable *pMT = th.GetMethodTable();
+                    if(pMT == NULL || !pMT->IsValueType() || pMT->GetNumInstanceFields() != 1)
+                    {
+                        break;
+                    }
+
+                    // get the only instance field
+                    PTR_FieldDesc fieldDesc = pMT->GetApproxFieldDescListRaw();
+                    th = fieldDesc->GetApproxFieldTypeHandleThrowing();
+                }
+                while (!th.GetMethodTable()->IsTruePrimitive());
+
+                if (th.AsMethodTable()->IsTruePrimitive())
+                {
+                    byrefNativeReturn = false;
+                }
             }
             else
             {

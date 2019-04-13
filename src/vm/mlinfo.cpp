@@ -1645,29 +1645,8 @@ MarshalInfo::MarshalInfo(Module* pModule,
     // "un-normalized" signature type. It has to be verified that all the value types
     // that have been normalized away have default marshaling or MarshalAs(Struct).
     // In addition, the nativeType must be updated with the type of the real primitive inside.
-    // We don't normalize on return values of member functions since struct return values need to be treated as structures.
-    if (isParam || !onInstanceMethod)
-    {
-        VerifyAndAdjustNormalizedType(pModule, sig, pTypeContext, &mtype, &nativeType);
-    }
-    else
-    {
-        SigPointer sigtmp = sig;
-        CorElementType closedElemType = sigtmp.PeekElemTypeClosed(pModule, pTypeContext);
-        if (closedElemType == ELEMENT_TYPE_VALUETYPE)
-        {
-            TypeHandle th = sigtmp.GetTypeHandleThrowing(pModule, pTypeContext); 
-            // If the return type of an instance method is a value-type we need the actual return type.
-            // However, if the return type is an enum, we can normalize it.
-            if (!th.IsEnum())
-            {
-                mtype = closedElemType;
-            }
-        }
-
-    }
+    VerifyAndAdjustNormalizedType(pModule, sig, pTypeContext, &mtype, &nativeType);
 #endif // _TARGET_X86_
-
 
     if (nativeType == NATIVE_TYPE_CUSTOMMARSHALER)
     {

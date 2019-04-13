@@ -17,6 +17,7 @@ unsafe class ThisCallNative
             public IntPtr getSize;
             public IntPtr getWidth;
             public IntPtr getHeightAsInt;
+            public IntPtr getInt;
         }
 
         public VtableLayout* vtable;
@@ -31,12 +32,29 @@ unsafe class ThisCallNative
         public float height;
     }
 
+    [StructLayout(LayoutKind.Explicit)]
     public struct Width
     {
+        // Add a duplicate field so we can still test a 4-byte HFA return type being passed byref
+        // without hitting our workaround for single-field struct returns on instance methods.
+        [FieldOffset(0)]
+        private float dummyField;
+        [FieldOffset(0)]
         public float width;
     }
 
-    public struct IntWrapper
+    [StructLayout(LayoutKind.Explicit)]
+    public struct HeightAsInt
+    {
+        // Add a duplicate field so we can still test a 4-byte non HFA return type being passed byref
+        // without hitting our workaround for single-field struct returns on instance methods.
+        [FieldOffset(0)]
+        private int dummyField;
+        [FieldOffset(0)]
+        public int i;
+    }
+
+    public struct StructWrappingSingleInt
     {
         public int i;
     }
@@ -46,7 +64,12 @@ unsafe class ThisCallNative
     [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
     public delegate Width GetWidthFn(C* c);
     [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
-    public delegate IntWrapper GetHeightAsIntFn(C* c);
+    public delegate HeightAsInt GetHeightAsIntFn(C* c);
+
+    // We specifically don't want to match the return type here so that we can correctly test
+    // the workaround.
+    [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
+    public delegate StructWrappingSingleInt GetIntFn(C* c, int value);
 
     [DllImport(nameof(ThisCallNative))]
     public static extern C* CreateInstanceOfC(float width, float height);
@@ -64,6 +87,7 @@ class ThisCallTest
             Test8ByteHFA(instance);
             Test4ByteHFA(instance);
             Test4ByteNonHFA(instance);
+            TestSingleFieldStructReturnWorkaround(instance);
         }
         catch (System.Exception ex)
         {
@@ -96,8 +120,18 @@ class ThisCallTest
     {
         ThisCallNative.GetHeightAsIntFn callback = Marshal.GetDelegateForFunctionPointer<ThisCallNative.GetHeightAsIntFn>(instance->vtable->getHeightAsInt);
 
-        ThisCallNative.IntWrapper result = callback(instance);
+        ThisCallNative.HeightAsInt result = callback(instance);
 
         Assert.AreEqual((int)instance->height, result.i);
+    }
+
+    private static unsafe void TestSingleFieldStructReturnWorkaround(ThisCallNative.C* instance)
+    {
+        ThisCallNative.GetIntFn callback = Marshal.GetDelegateForFunctionPointer<ThisCallNative.GetIntFn>(instance->vtable->getInt);
+
+        int value = 42;
+        ThisCallNative.StructWrappingSingleInt result = callback(instance, value);
+
+        Assert.AreEqual(value, result.i);
     }
 }

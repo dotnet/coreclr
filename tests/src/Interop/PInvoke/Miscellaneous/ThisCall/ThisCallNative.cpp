@@ -48,6 +48,11 @@ public:
     {
         return {(int)height};
     }
+
+    virtual int GetInt(int i)
+    {
+        return i;
+    }
 };
 
 
