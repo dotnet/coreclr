@@ -4849,6 +4849,7 @@ HRESULT InitCorDebugInterface()
     hr = pDebuggingImpl->QueryInterface(IID_ICLRDebugging, (LPVOID *)&pClrDebugging);
     if (FAILED(hr))
     {
+        delete pDebuggingImpl;
         return hr;
     }
 
