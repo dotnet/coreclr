@@ -190,18 +190,62 @@ bool RangeCheck::BetweenBounds(Range& range, int lower, GenTree* upper)
 
 void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreeStmt* stmt, GenTree* treeParent)
 {
-    // Check if we are dealing with a bounds check node.
-    if (treeParent->OperGet() != GT_COMMA)
+    switch (treeParent->OperGet())
     {
-        return;
-    }
+        case GT_COMMA:
+        {
+            if (treeParent->gtGetOp1()->OperIsBoundsCheck())
+            {
+                OptimizeRangeCheckWithAssertion(block, stmt, treeParent);
+            }
 
+            break;
+        }
+        case GT_JTRUE:
+        {
+            GenTree*   gtCmp    = treeParent->gtGetOp1();
+            genTreeOps opCmp    = gtCmp->OperGet();
+            GenTree*   gtCmpLen = gtCmp->gtGetOp1();
+            GenTree*   gtCmpCns = gtCmp->gtGetOp2IfPresent();
+
+            // The compare expression can be comma because of CSE expansion. extract effeictive value before checking it
+            if (gtCmpLen->OperIs(GT_COMMA))
+            {
+                GenTree* cmmOp1 = gtCmpLen->gtGetOp1();
+                GenTree* cmmOp2 = gtCmpLen->gtGetOp2();
+
+                if (cmmOp1->OperIs(GT_ASG))
+                {
+                    if (cmmOp1->gtGetOp2()->OperIs(GT_ARR_LENGTH))
+                    {
+                        gtCmpLen = cmmOp1->gtGetOp2()->AsArrLen();
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // The target comparer should contains GTF_ARRLEN_ARR_IDX flags which is mean this local variable is length
+            // also check that this is kind of explicit range checking
+            if (gtCmpCns == nullptr || !gtCmpCns->OperIs(GT_CNS_INT) || !gtCmpLen->OperIs(GT_ARR_LENGTH))
+            {
+                break;
+            }
+
+            OptimizeRangeCheckWithExplicitCheck(block, stmt, treeParent,
+                                                m_pCompiler->vnStore->VNConservativeNormalValue(gtCmpLen->gtVNPair));
+
+            break;
+        }
+    }
+}
+
+void RangeCheck::OptimizeRangeCheckWithAssertion(BasicBlock* block, GenTreeStmt* stmt, GenTree* treeParent)
+{
     // If we are not looking at array bounds check, bail.
     GenTree* tree = treeParent->gtOp.gtOp1;
-    if (!tree->OperIsBoundsCheck())
-    {
-        return;
-    }
 
     GenTreeBoundsChk* bndsChk = tree->AsBoundsChk();
     m_pCurBndsChk             = bndsChk;
@@ -320,6 +364,76 @@ void RangeCheck::Widen(BasicBlock* block, GenTree* tree, Range* pRange)
             *pRange = GetRange(block, tree, true DEBUGARG(0));
         }
     }
+}
+
+void RangeCheck::OptimizeRangeCheckWithExplicitCheck(BasicBlock*  block,
+                                                     GenTreeStmt* stmt,
+                                                     GenTree*     treeParent,
+                                                     unsigned int arrVn)
+{
+
+    GenTree*   gtCmp    = treeParent->gtGetOp1();
+    genTreeOps opCmp    = gtCmp->OperGet();
+    GenTree*   gtCmpLen = gtCmp->gtGetOp1();
+    GenTree*   gtCmpCns = gtCmp->gtGetOp2IfPresent();
+
+    ssize_t condVal = gtCmpCns->gtIntCon.IconValue();
+
+    bool isReversedCond = false;
+    switch (opCmp)
+    {
+        case GT_LE:
+            condVal += 1;
+
+        case GT_NE:
+        case GT_LT:
+            isReversedCond = true;
+            break;
+
+        case GT_GT:
+            condVal += 1;
+
+        case GT_GE:
+        case GT_EQ:
+            break;
+
+        default:
+            noway_assert("Unknown condition type!");
+            break;
+    }
+
+    jitstd::vector<BasicBlock*> extracted(m_pCompiler->getAllocator());
+    if (!m_pCompiler->optExtractUniqueBBFromCondScope(block, &extracted, isReversedCond))
+    {
+        return;
+    }
+
+    for (BasicBlock* bbIter : extracted)
+    {
+        for (GenTreeStmt* gtStmtIter = bbIter->bbTreeList->AsStmt(); gtStmtIter; gtStmtIter = gtStmtIter->gtNextStmt)
+        {
+            for (GenTree* gtTreeIter = gtStmtIter->gtStmtList; gtTreeIter; gtTreeIter = gtTreeIter->gtNext)
+            {
+                if (gtTreeIter->OperIs(GT_COMMA) && gtTreeIter->gtGetOp1()->OperIs(GT_ARR_BOUNDS_CHECK))
+                {
+                    GenTreeBoundsChk* gtBndChk = gtTreeIter->gtGetOp1()->AsBoundsChk();
+
+                    if (m_pCompiler->vnStore->VNConservativeNormalValue(gtBndChk->gtArrLen->gtVNPair) != arrVn)
+                    {
+                        continue;
+                    }
+
+                    GenTree* index = gtBndChk->gtIndex;
+                    if (index->OperIs(GT_CNS_INT) && condVal > index->AsIntCon()->IconValue())
+                    {
+                        m_pCompiler->optRemoveRangeCheck(gtTreeIter, gtStmtIter);
+                    }
+                }
+            }
+        }
+    }
+
+    return;
 }
 
 bool RangeCheck::IsBinOpMonotonicallyIncreasing(GenTreeOp* binop)

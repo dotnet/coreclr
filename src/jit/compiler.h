@@ -6851,6 +6851,10 @@ public:
     void optObtainLoopCloningOpts(LoopCloneContext* context);
     bool optIsLoopClonable(unsigned loopInd);
 
+    bool optExtractUniqueBBFromCondScope(BasicBlock*                  bbCond,
+                                         jitstd::vector<BasicBlock*>* extracted,
+                                         bool                         isReversedCond = false);
+
     bool optCanCloneLoops();
 
 #ifdef DEBUG

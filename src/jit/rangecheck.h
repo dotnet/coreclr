@@ -465,6 +465,12 @@ public:
     // contain the tree.
     void OptimizeRangeCheck(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree);
 
+    void OptimizeRangeCheckWithAssertion(BasicBlock* block, GenTreeStmt* stmt, GenTree* treeParent);
+    void OptimizeRangeCheckWithExplicitCheck(BasicBlock*  block,
+                                             GenTreeStmt* stmt,
+                                             GenTree*     treeParent,
+                                             unsigned int arrVn);
+
     // Given the index expression try to find its range.
     // The range of a variable depends on its rhs which in turn depends on its constituent variables.
     // The "path" is the path taken in the search for the rhs' range and its constituents' range.

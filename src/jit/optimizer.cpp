@@ -5039,6 +5039,183 @@ bool Compiler::optIsLoopClonable(unsigned loopInd)
     return true;
 }
 
+bool optCheckBBFlowHasSideEffect(jitstd::unordered_map<BasicBlock*, bool>& records, BasicBlock* block)
+{
+    for (flowList* preds = block->bbPreds; preds != nullptr; preds = preds->flNext)
+    {
+        BasicBlock* flBlock = preds->flBlock;
+        if (records.find(flBlock) == records.end() || !records[flBlock])
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+//---------------------------------------------------------------------------------------------------------------
+//  optExtractUniqueBBFromCondScope: Try to extract the all blocks that target true condition block flows to
+//
+//  Arguments:
+//      bbCond      the block that on scope
+//      extracted   result that blocks extracted
+//
+//  Return Value:
+//      None
+//
+//  Operation:
+//      Extract all blocks that unique blocks that scoped on bbCond. for example.
+//
+//      [BB0]--T-->[BB1] (bbCond)
+//        |          |
+//        |          |
+//        |          |
+//      [BB2]<-----[BB3]
+//        |          |
+//        |        [BB4]
+//        |          |
+//      [BB5]<-----[BB6]
+//
+//      this will extract [BB1], [BB3], [BB4], [BB6].
+bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCond,
+                                               jitstd::vector<BasicBlock*>* extracted,
+                                               bool                         isReversedCond)
+{
+    BasicBlock* bbFalse = bbCond->bbJumpDest;
+    BasicBlock* bbTrue  = bbCond->bbNext;
+
+    if (isReversedCond)
+    {
+        std::swap(bbFalse, bbTrue);
+    }
+
+    jitstd::unordered_map<BasicBlock*, bool> recFlow(this->getAllocator());
+    jitstd::vector<BasicBlock*> recTemp(this->getAllocator());
+    jitstd::vector<BasicBlock*> recNext(this->getAllocator());
+
+    recFlow.insert(bbFalse, false);
+    recFlow.insert(bbTrue, true);
+    recNext.push_back(bbTrue);
+
+    while (!recNext.empty())
+    {
+        for (BasicBlock* bbIter : recNext)
+        {
+            switch (bbIter->bbJumpKind)
+            {
+                case BBJ_ALWAYS:
+                {
+                    BasicBlock* bbFlowTo = bbIter->bbJumpDest;
+                    if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowTo))
+                    {
+                        recFlow[bbFlowTo] = true;
+                        recTemp.push_back(bbFlowTo);
+                    }
+                    else
+                    {
+                        recFlow[bbFlowTo] = false;
+                    }
+
+                    break;
+                }
+
+                case BBJ_NONE:
+                {
+                    BasicBlock* bbFlowTo = bbIter->bbNext;
+                    if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowTo))
+                    {
+                        recFlow[bbFlowTo] = true;
+                        recTemp.push_back(bbFlowTo);
+                    }
+                    else
+                    {
+                        recFlow[bbFlowTo] = false;
+                    }
+
+                    break;
+                }
+
+                case BBJ_COND:
+                {
+                    BasicBlock* bbFlowToF = bbIter->bbNext;
+                    if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowToF))
+                    {
+                        recFlow[bbFlowToF] = true;
+                        recTemp.push_back(bbFlowToF);
+                    }
+                    else
+                    {
+                        recFlow[bbFlowToF] = false;
+                    }
+
+                    BasicBlock* bbFlowToT = bbIter->bbJumpDest;
+                    if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowToT))
+                    {
+                        recFlow[bbFlowToT] = true;
+                        recTemp.push_back(bbFlowToT);
+                    }
+                    else
+                    {
+                        recFlow[bbFlowToT] = false;
+                    }
+
+                    break;
+                }
+
+                case BBJ_SWITCH:
+                {
+                    unsigned int bbSwtCount = bbIter->bbJumpSwt->bbsCount;
+                    BasicBlock** bbSwtTable = bbIter->bbJumpSwt->bbsDstTab;
+
+                    for (unsigned int i = 0; i < bbSwtCount; ++i)
+                    {
+                        BasicBlock* bbFlowTo = bbSwtTable[i];
+                        if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowTo))
+                        {
+                            recFlow[bbFlowTo] = true;
+                            recTemp.push_back(bbFlowTo);
+                        }
+                        else
+                        {
+                            recFlow[bbFlowTo] = false;
+                        }
+                    }
+                    break;
+                }
+
+                case BBJ_RETURN:
+                    break;
+
+                default:
+                    // Do not handle some kind of block that handles specal things.
+                    // TODO-CQ : Implements for exception traps
+                    return false;
+            }
+        }
+        recNext.clear();
+
+        for (BasicBlock* bbToAnalysis : recTemp)
+        {
+            // We do not analysis again that marked as true in records
+            if (recFlow.find(bbToAnalysis) == recFlow.end() || !recFlow[bbToAnalysis])
+            {
+                recNext.push_back(bbToAnalysis);
+            }
+        }
+        recTemp.clear();
+    }
+
+    for (auto& recordPair : recFlow)
+    {
+        if (recordPair.second)
+        {
+            extracted->push_back(recordPair.first);
+        }
+    }
+
+    return true;
+}
+
 /*****************************************************************************
  *
  *  Identify loop cloning opportunities, derive loop cloning conditions,
