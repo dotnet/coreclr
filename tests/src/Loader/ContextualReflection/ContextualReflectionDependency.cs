@@ -20,7 +20,7 @@ namespace ContextualReflectionTest
         void RunTestsIsolated();
     }
 
-    public class ConntextualReflectionProxy
+    public class ContextualReflectionProxy
     {
         public static AssemblyLoadContext CurrentContextualReflectionContext
         {
