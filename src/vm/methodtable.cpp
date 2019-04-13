@@ -1741,7 +1741,54 @@ TypeHandle::CastResult MethodTable::CanCastToClassNoGC(MethodTable *pTargetMT)
 
     return TypeHandle::CannotCast;
 }
+
+//==========================================================================================
+TypeHandle::CastResult MethodTable::ArraySupportsBizarreInterfaceNoGC(MethodTable * pInterfaceMT)
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+        PRECONDITION(this->IsArray());
+        PRECONDITION(pInterfaceMT->IsInterface());
+    } CONTRACTL_END;
+
+    // IList<T> & IReadOnlyList<T> only supported for SZ_ARRAYS
+    if (this->IsMultiDimArray())
+    {
+        CastCache::TryAddToCacheNoGC(this, pInterfaceMT, FALSE);
+        return TypeHandle::CannotCast;
+    }
+
+    if (pInterfaceMT->GetLoadLevel() < CLASS_DEPENDENCIES_LOADED)
+    {
+        if (!pInterfaceMT->HasInstantiation())
+        {
+            CastCache::TryAddToCacheNoGC(this, pInterfaceMT, FALSE);
+            return TypeHandle::CannotCast;
+        }
+
+        // The slow path will take care of restoring the interface
+        return TypeHandle::MaybeCast;
+    }
+
+    if (!IsImplicitInterfaceOfSZArray(pInterfaceMT))
+    {
+        CastCache::TryAddToCacheNoGC(this, pInterfaceMT, FALSE);
+        return TypeHandle::CannotCast;
+    }
+
+    //TODO: "Approx" API may need renaming. Arrays know their ElementType quite precisely.
+    TypeHandle::CastResult result = TypeDesc::CanCastParamNoGC(this->GetApproxArrayElementTypeHandle(), pInterfaceMT->GetInstantiation()[0]);
+    if (result != TypeHandle::MaybeCast)
+    {
+        CastCache::TryAddToCacheNoGC(this, pInterfaceMT, (BOOL)result);
+    }
+
+    return result;
+}
 #include <optdefault.h>
+
 
 BOOL 
 MethodTable::IsExternallyVisible()
