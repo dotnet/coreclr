@@ -16191,10 +16191,10 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
     }
 
 #ifdef DEBUG
-    // If we are importing an inlinee and have GC ref locals we always
+    // If we are importing an inlinee and have must null locals we always
     // need to have a spill temp for the return value.  This temp
     // should have been set up in advance, over in fgFindBasicBlocks.
-    if (compIsForInlining() && impInlineInfo->HasGcRefLocals() && (info.compRetType != TYP_VOID))
+    if (compIsForInlining() && impInlineInfo->HasMustNullLocals() && (info.compRetType != TYP_VOID))
     {
         assert(lvaInlineeReturnSpillTemp != BAD_VAR_NUM);
     }
@@ -16319,7 +16319,7 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                 if (fgNeedReturnSpillTemp())
                 {
                     assert(info.compRetNativeType != TYP_VOID &&
-                           (fgMoreThanOneReturnBlock() || impInlineInfo->HasGcRefLocals()));
+                           (fgMoreThanOneReturnBlock() || impInlineInfo->HasMustNullLocals()));
 
                     // If this method returns a ref type, track the actual types seen
                     // in the returns.
@@ -16434,7 +16434,7 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                     // in this case we have to insert multiple struct copies to the temp
                     // and the retexpr is just the temp.
                     assert(info.compRetNativeType != TYP_VOID);
-                    assert(fgMoreThanOneReturnBlock() || impInlineInfo->HasGcRefLocals());
+                    assert(fgMoreThanOneReturnBlock() || impInlineInfo->HasMustNullLocals());
 
                     impAssignTempGen(lvaInlineeReturnSpillTemp, op2, se.seTypeInfo.GetClassHandle(),
                                      (unsigned)CHECK_SPILL_ALL);
@@ -18932,9 +18932,10 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         lclVarInfo[i + argCnt].lclIsPinned    = isPinned;
         lclVarInfo[i + argCnt].lclTypeInfo    = type;
 
-        if (varTypeIsGC(type))
+        // We will null out GC refs and pinned locals in the inlinee "epilog"
+        if (varTypeIsGC(type) || isPinned)
         {
-            pInlineInfo->numberOfGcRefLocals++;
+            pInlineInfo->numberOfMustNullLocals++;
         }
 
         if (isPinned)
@@ -19070,18 +19071,12 @@ unsigned Compiler::impInlineFetchLocal(unsigned lclNum DEBUGARG(const char* reas
         }
 
 #ifdef DEBUG
-        // Sanity check that we're properly prepared for gc ref locals.
-        if (varTypeIsGC(lclTyp))
+        // Sanity check that we're properly prepared for must null locals.
+        if (varTypeIsGC(lclTyp) || inlineeLocal.lclIsPinned)
         {
-            // Since there are gc locals we should have seen them earlier
-            // and if there was a return value, set up the spill temp.
-            assert(impInlineInfo->HasGcRefLocals());
+            // We should have noted this local earlier, and set up the spill temp.
+            assert(impInlineInfo->HasMustNullLocals());
             assert((info.compRetNativeType == TYP_VOID) || fgNeedReturnSpillTemp());
-        }
-        else
-        {
-            // Make sure all pinned locals count as gc refs.
-            assert(!inlineeLocal.lclIsPinned);
         }
 #endif // DEBUG
     }

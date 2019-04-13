@@ -5879,8 +5879,8 @@ void Compiler::fgFindBasicBlocks()
         info.compXcptnsCount = impInlineInfo->InlinerCompiler->info.compXcptnsCount;
 
         // Use a spill temp for the return value if there are multiple return blocks,
-        // or if the inlinee has GC ref locals.
-        if ((info.compRetNativeType != TYP_VOID) && ((retBlocks > 1) || impInlineInfo->HasGcRefLocals()))
+        // or if the inlinee has locals that we must null out "on return" from the inlinee.
+        if ((info.compRetNativeType != TYP_VOID) && ((retBlocks > 1) || impInlineInfo->HasMustNullLocals()))
         {
             // If we've spilled the ret expr to a temp we can reuse the temp
             // as the inlinee return spill temp.
@@ -23583,11 +23583,11 @@ void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* bloc
         }
     }
 
-    // Null out any gc ref locals
-    if (!inlineInfo->HasGcRefLocals())
+    // Null out any locals that need nulling (gc refs and pinned ptrs)
+    if (!inlineInfo->HasMustNullLocals())
     {
-        // No ref locals, nothing to do.
-        JITDUMP("fgInlineAppendStatements: no gc ref inline locals.\n");
+        // No must null locals, nothing to do.
+        JITDUMP("fgInlineAppendStatements: no gc ref or pin ptr inline locals.\n");
         return;
     }
 
@@ -23597,34 +23597,36 @@ void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* bloc
         return;
     }
 
-    JITDUMP("fgInlineAppendStatements: nulling out gc ref inlinee locals.\n");
+    JITDUMP("fgInlineAppendStatements: nulling out gc ref and pin ptr inlinee locals.\n");
 
     GenTreeStmt*         callStmt          = inlineInfo->iciStmt;
     IL_OFFSETX           callILOffset      = callStmt->gtStmtILoffsx;
     CORINFO_METHOD_INFO* InlineeMethodInfo = InlineeCompiler->info.compMethodInfo;
     const unsigned       lclCnt            = InlineeMethodInfo->locals.numArgs;
     InlLclVarInfo*       lclVarInfo        = inlineInfo->lclVarInfo;
-    unsigned             gcRefLclCnt       = inlineInfo->numberOfGcRefLocals;
+    unsigned             nullLclCnt        = inlineInfo->numberOfMustNullLocals;
     const unsigned       argCnt            = inlineInfo->argCnt;
 
     noway_assert(callStmt->gtOper == GT_STMT);
 
     for (unsigned lclNum = 0; lclNum < lclCnt; lclNum++)
     {
-        // Is the local a gc ref type? Need to look at the
+        // Is the local a gc ref type or a pinned pointer? Need to look at the
         // inline info for this since we will not have local
         // temps for unused inlinee locals.
-        const var_types lclTyp = lclVarInfo[argCnt + lclNum].lclTypeInfo;
+        const var_types lclTyp    = lclVarInfo[argCnt + lclNum].lclTypeInfo;
+        const bool      lclPinned = lclVarInfo[argCnt + lclNum].lclIsPinned;
+        const bool      mustNull  = varTypeIsGC(lclTyp) || lclPinned;
 
-        if (!varTypeIsGC(lclTyp))
+        if (!mustNull)
         {
-            // Nope, nothing to null out.
+            // No need to null out this local, move on to the next.
             continue;
         }
 
         // Ensure we're examining just the right number of locals.
-        assert(gcRefLclCnt > 0);
-        gcRefLclCnt--;
+        assert(nullLclCnt > 0);
+        nullLclCnt--;
 
         // Fetch the temp for this inline local
         const unsigned tmpNum = inlineInfo->lclTmpNum[lclNum];
@@ -23670,8 +23672,8 @@ void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* bloc
 #endif // DEBUG
     }
 
-    // There should not be any GC ref locals left to null out.
-    assert(gcRefLclCnt == 0);
+    // There should not be any locals left to null out.
+    assert(nullLclCnt == 0);
 }
 
 /*****************************************************************************/
