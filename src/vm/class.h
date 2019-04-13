@@ -587,6 +587,8 @@ class EEClassLayoutInfo
         void SetNativeHFAType(CorElementType hfaType)
         {
             LIMITED_METHOD_CONTRACT;
+            // We should call this at most once.
+            _ASSERTE((m_bFlags & e_HFATypeFlags) == 0);
             switch (hfaType)
             {
             case ELEMENT_TYPE_R4: m_bFlags |= e_R4_HFA; break;

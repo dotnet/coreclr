@@ -755,12 +755,15 @@ public:
                 assert(!"lvHfaSlots called for non-HFA");
                 break;
             case HFA_ELEM_FLOAT:
+                assert((lvExactSize % 4) == 0);
                 slots = lvExactSize >> 2;
                 break;
             case HFA_ELEM_DOUBLE:
+                assert((lvExactSize % 8) == 0);
                 slots = lvExactSize >> 3;
                 break;
             case HFA_ELEM_SIMD16:
+                assert((lvExactSize % 16) == 0);
                 slots = lvExactSize >> 4;
                 break;
             default:

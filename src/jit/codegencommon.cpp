@@ -10208,7 +10208,7 @@ var_types Compiler::GetHfaType(CORINFO_CLASS_HANDLE hClass)
         if (corType == CORINFO_TYPE_VALUECLASS)
         {
             // This is a vector type.
-            // HVAs are only supported on ARM64, and only for sizes of 8 or 16 bytes.
+            // HVAs are only supported on ARM64, and only for homogeneous aggregates of 8 or 16 byte vectors.
             // For 8-byte vectors corType will be returned as CORINFO_TYPE_DOUBLE.
             result = TYP_SIMD16;
             // This type may not appear elsewhere, but it will occupy a floating point register.

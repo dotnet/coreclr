@@ -50,7 +50,22 @@ struct ArgLocDesc
 #endif // UNIX_AMD64_ABI
 
 #if defined(_TARGET_ARM64_)
-    int      m_hfaFieldSize;      // Size of HFA field
+    unsigned m_hfaFieldSize;      // Size of HFA field in bytes.
+    static unsigned getHFAFieldSize(CorElementType  hfaType)
+    {
+        switch (hfaType)
+        {
+        case ELEMENT_TYPE_R4: return 4;
+        case ELEMENT_TYPE_R8: return 8;
+        // We overload VALUETYPE for 16-byte vectors.
+        case ELEMENT_TYPE_VALUETYPE: return 16;
+        default: _ASSERTE(!"Invalid HFA Type"); return 0;
+        }
+    }
+    void setHFAFieldSize(CorElementType  hfaType)
+    {
+        m_hfaFieldSize = getHFAFieldSize(hfaType);
+    }
 #endif // defined(_TARGET_ARM64_)
 
 #if defined(_TARGET_ARM_)
@@ -588,19 +603,9 @@ public:
             if (!m_argTypeHandle.IsNull() && m_argTypeHandle.IsHFA())
             {
                 CorElementType type = m_argTypeHandle.GetHFAType();
-                int hfaFieldSize = 0;
-                switch (type)
-                {
-                case ELEMENT_TYPE_R4: hfaFieldSize = 4; break;
-                case ELEMENT_TYPE_R8: hfaFieldSize = 8; break;
-#ifdef _TARGET_ARM64_
-                case ELEMENT_TYPE_VALUETYPE: hfaFieldSize = 16; break;
-#endif
-                default: _ASSERTE(!"Invalid HFA Type");
-                }
+                pLoc->setHFAFieldSize(type);
+                pLoc->m_cFloatReg = GetArgSize()/pLoc->m_hfaFieldSize;
 
-                pLoc->m_cFloatReg = GetArgSize()/hfaFieldSize;
-                pLoc->m_hfaFieldSize = hfaFieldSize;
             }
             else
             {
@@ -1306,23 +1311,11 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         {
             CorElementType type = thValueType.GetHFAType();
 
-            int hfaFieldSize = 0;
-            switch (type)
-            {
-            case ELEMENT_TYPE_R4: hfaFieldSize = 4; break;
-            case ELEMENT_TYPE_R8: hfaFieldSize = 8; break;
-#ifdef _TARGET_ARM64_
-            case ELEMENT_TYPE_VALUETYPE: hfaFieldSize = 16; break;
-#endif
-            default: _ASSERTE(!"Invalid HFA Type");
-            }
-            cFPRegs = argSize/hfaFieldSize;
-
             m_argLocDescForStructInRegs.Init();
-            m_argLocDescForStructInRegs.m_cFloatReg = cFPRegs;
             m_argLocDescForStructInRegs.m_idxFloatReg = m_idxFPReg;
 
-            m_argLocDescForStructInRegs.m_hfaFieldSize = hfaFieldSize;
+            m_argLocDescForStructInRegs.setHFAFieldSize(type);
+            m_argLocDescForStructInRegs.m_cFloatReg = argSize/m_argLocDescForStructInRegs.m_hfaFieldSize;
 
             m_hasArgLocDescForStructInRegs = true;
         }
@@ -1491,18 +1484,8 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
             {
                 CorElementType hfaType = thValueType.GetHFAType();
 
-                int hfaFieldSize = 0;
-                switch (hfaType)
-                {
-                case ELEMENT_TYPE_R4: hfaFieldSize = 4; break;
-                case ELEMENT_TYPE_R8: hfaFieldSize = 8; break;
-#ifdef _TARGET_ARM64_
-                case ELEMENT_TYPE_VALUETYPE: hfaFieldSize = 16; break;
-#endif
-                default: _ASSERTE(!"Invalid HFA Type");
-                }
+                int hfaFieldSize = ArgLocDesc::getHFAFieldSize(hfaType);
                 flags |= ((4 * hfaFieldSize) << RETURN_FP_SIZE_SHIFT);
-
                 break;
             }
 #endif

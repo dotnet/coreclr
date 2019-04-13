@@ -800,9 +800,9 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         //
         if (structSize <= MAX_PASS_MULTIREG_BYTES)
         {
-            // Structs that are HFA's are passed by value in multiple registers.
-            // Arm64 Windows VarArg methods arguments will not classify HFA types, they will need to be treated
-            // as if they are not HFA types.
+            // Structs that are HFA/HVA's are passed by value in multiple registers.
+            // Arm64 Windows VarArg methods arguments will not classify HFA/HVA types, they will need to be treated
+            // as if they are not HFA/HVA types.
             var_types hfaType;
 #if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
             if (isVarArg)
