@@ -537,6 +537,13 @@ int doParallelSuperPMI(CommandLine::Options& o)
         if (hStdOutput[i] == INVALID_HANDLE_VALUE)
         {
             LogError("Unable to open '%s'. GetLastError()=%u", arrStdOutputPath[i], GetLastError());
+            delete[] hProcesses;
+            delete[] hStdOutput;
+            delete[] hStdError;
+            delete[] arrFailingMCListPath;
+            delete[] arrDiffMCListPath;
+            delete[] arrStdOutputPath;
+            delete[] arrStdErrorPath;
             return -1;
         }
 
@@ -546,12 +553,26 @@ int doParallelSuperPMI(CommandLine::Options& o)
         if (hStdError[i] == INVALID_HANDLE_VALUE)
         {
             LogError("Unable to open '%s'. GetLastError()=%u", arrStdErrorPath[i], GetLastError());
+            delete[] hProcesses;
+            delete[] hStdOutput;
+            delete[] hStdError;
+            delete[] arrFailingMCListPath;
+            delete[] arrDiffMCListPath;
+            delete[] arrStdOutputPath;
+            delete[] arrStdErrorPath;
             return -1;
         }
 
         // Create a SuperPMI worker process and redirect its output to file
         if (!StartProcess(cmdLine, hStdOutput[i], hStdError[i], &hProcesses[i]))
         {
+            delete[] hProcesses;
+            delete[] hStdOutput;
+            delete[] hStdError;
+            delete[] arrFailingMCListPath;
+            delete[] arrDiffMCListPath;
+            delete[] arrStdOutputPath;
+            delete[] arrStdErrorPath;
             return -1;
         }
     }
@@ -660,6 +681,11 @@ int doParallelSuperPMI(CommandLine::Options& o)
             DeleteFile(arrStdErrorPath[i]);
         }
     }
+
+    delete[] hStdOutput;
+    delete[] hStdError;
+    delete[] arrStdOutputPath;
+    delete[] arrStdErrorPath;
 
     return (int)result;
 }
