@@ -776,7 +776,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
                 structSize = compiler->info.compCompHnd->getClassSize(objClass);
 
-                // The codegen code below doesn't not have proper support for struct sizes
+                // The codegen code below doesn't have proper support for struct sizes
                 // that are not multiple of the slot size. Call arg morphing handles this
                 // case by copying non-local values to temporary local variables.
                 // More generally, we can always round up the struct size when the OBJ node
