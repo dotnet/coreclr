@@ -5686,7 +5686,6 @@ GetLastMethodIlOffset(
             return E_UNEXPECTED;
         }
 
-        delete[] Map;
         Map = new CLRDATA_IL_ADDRESS_MAP[MapNeeded];
         if (!Map)
         {
