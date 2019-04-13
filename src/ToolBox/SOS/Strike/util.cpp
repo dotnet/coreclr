@@ -4859,6 +4859,7 @@ HRESULT InitCorDebugInterface()
     hr = g_ExtSymbols->GetNumberModules(&cLoadedModules, &cUnloadedModules);
     if (FAILED(hr))
     {
+        delete pDebuggingImpl;
         return hr;
     }
 
@@ -4868,6 +4869,7 @@ HRESULT InitCorDebugInterface()
         hr = g_ExtSymbols->GetModuleByIndex(i, &ulBase);
         if (FAILED(hr))
         {
+            delete pDebuggingImpl;
             return hr;
         }
 
@@ -4878,6 +4880,7 @@ HRESULT InitCorDebugInterface()
         hr = InitCorDebugInterfaceFromModule(ulBase, pClrDebugging);
         if (SUCCEEDED(hr))
         {
+            delete pDebuggingImpl;
             return hr;
         }
 
@@ -4886,6 +4889,7 @@ HRESULT InitCorDebugInterface()
 
     // Still here?  Didn't find the right module.
     // TODO: Anything useful to return or log here?
+    delete pDebuggingImpl;
     return E_FAIL;
 #else
     ULONG64 ulBase;
@@ -5686,6 +5690,7 @@ GetLastMethodIlOffset(
             return E_UNEXPECTED;
         }
 
+        delete[] Map;
         Map = new CLRDATA_IL_ADDRESS_MAP[MapNeeded];
         if (!Map)
         {
