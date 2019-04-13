@@ -57,10 +57,6 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 
             switch (header.RequestType)
             {
-            case DiagnosticMessageType::StartEventPipeTracing:
-                EventPipeProtocolHelper::StartTracing(pStream);
-                break;
-
             case DiagnosticMessageType::StopEventPipeTracing:
                 EventPipeProtocolHelper::StopTracing(pStream);
                 break;

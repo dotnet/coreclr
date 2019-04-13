@@ -33,9 +33,11 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
         sessionID = EventPipe::Enable(
             outputFile,
             circularBufferSizeInMB,
-            profilerSamplingRateInNanoseconds,
+            static_cast<uint32_t>(profilerSamplingRateInNanoseconds),
             pProviders,
-            numProviders);
+            numProviders,
+            outputFile != NULL ? EventPipeSessionType::File : EventPipeSessionType::Streaming,
+            nullptr);
     }
     END_QCALL;
 

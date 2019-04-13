@@ -16,7 +16,6 @@ class EventPipeProtocolHelper
 {
 public:
     // IPC event handlers.
-    static void StartTracing(IpcStream *pStream);
     static void StopTracing(IpcStream *pStream);
     static void CollectTracing(IpcStream *pStream); // `dotnet-trace collect`
 
