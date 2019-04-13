@@ -32,6 +32,7 @@ int verbStrip::DoWork(
     MethodContextReader* reader = new MethodContextReader(nameOfInput, indexes, indexCount);
     if (!reader->isValid())
     {
+        delete reader;
         return -1;
     }
 
@@ -40,6 +41,7 @@ int verbStrip::DoWork(
     if (hFileOut == INVALID_HANDLE_VALUE)
     {
         LogError("Failed to open input 1 '%s'. GetLastError()=%u", nameOfOutput, GetLastError());
+        delete reader;
         return -1;
     }
 
@@ -50,6 +52,7 @@ int verbStrip::DoWork(
         MethodContextBuffer mcb = reader->GetNextMethodContext();
         if (mcb.Error())
         {
+            delete reader;
             return -1;
         }
         else if (mcb.allDone())
@@ -67,7 +70,10 @@ int verbStrip::DoWork(
         }
 
         if (!MethodContext::Initialize(loadedCount, mcb.buff, mcb.size, &mc))
+        {
+            delete reader;
             return -1;
+        }
 
         if (stripCR)
         {
@@ -81,10 +87,12 @@ int verbStrip::DoWork(
     if (CloseHandle(hFileOut) == 0)
     {
         LogError("2nd CloseHandle failed. GetLastError()=%u", GetLastError());
+        delete reader;
         return -1;
     }
     LogInfo("Loaded %d, Saved %d", loadedCount, savedCount);
 
+    delete reader;
     return 0;
 }
 
