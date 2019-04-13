@@ -565,8 +565,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-#endregion
-
         /// <summary>
         /// When a thread starts work that is on behalf of 'something else' (typically another 
         /// thread or network request) it should mark the thread as working on that other work.
@@ -615,6 +613,7 @@ namespace System.Diagnostics.Tracing
             if (TplEventSource.Log != null)
                 TplEventSource.Log.SetActivityId(activityId);
         }
+#endregion
 
 #region protected
         /// <summary>
