@@ -5956,12 +5956,6 @@ namespace System.Diagnostics.Tracing
                 return typeName.Replace("win:Int", "win:UInt"); // ETW requires enums to be unsigned.  
             }
 
-            return GetTypeNameHelper(type);
-        }
-
-#if !ES_BUILD_STANDALONE
-        private string GetTypeNameHelper(Type type)
-        {
             switch (type.GetTypeCode())
             {
                 case TypeCode.Boolean:
@@ -5999,11 +5993,10 @@ namespace System.Diagnostics.Tracing
                     else if ((type.IsArray || type.IsPointer) && type.GetElementType() == typeof(byte))
                         return "win:Binary";
 
-                    ManifestError(Resources.GetResourceString("EventSource_UnsupportedEventTypeInManifest", type.Name), true);
+                    ManifestError(SR.Format(SR.EventSource_UnsupportedEventTypeInManifest, type.Name), true);
                     return string.Empty;
             }
         }
-#endif
 
         private static void UpdateStringBuilder(ref StringBuilder stringBuilder, string eventMessage, int startIndex, int count)
         {

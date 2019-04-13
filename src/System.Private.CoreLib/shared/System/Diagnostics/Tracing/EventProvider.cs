@@ -1244,7 +1244,6 @@ namespace System.Diagnostics.Tracing
             return m_eventProvider.EventUnregister(registrationHandle);
         }
 
-#if !ES_BUILD_STANDALONE
         internal unsafe int SetInformation(
             Interop.Advapi32.EVENT_INFO_CLASS eventInfoClass,
             IntPtr data,
@@ -1272,7 +1271,6 @@ namespace System.Diagnostics.Tracing
 
             return status;
         }
-#endif
     }
 
 #if PLATFORM_WINDOWS
