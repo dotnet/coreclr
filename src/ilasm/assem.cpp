@@ -398,7 +398,11 @@ BOOL Assembler::AddMethod(Method *pMethod)
     BYTE* endbuf;
     BinStr* pbsBody;
     if((pbsBody = new BinStr())==NULL) return FALSE;
-    if((outBuff = pbsBody->getBuff(totalSize))==NULL) return FALSE;
+    if((outBuff = pbsBody->getBuff(totalSize))==NULL)
+    {
+        delete pbsBody;
+        return FALSE;
+    }
     endbuf = &outBuff[totalSize];
 
     // Emit the header
