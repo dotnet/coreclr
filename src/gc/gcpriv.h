@@ -63,7 +63,7 @@ inline void FATAL_GC_ERROR()
 
 #ifdef RESPECT_LARGE_ALIGNMENT
 // SHORT_PLUGS may have rare interference with RESPECT_LARGE_ALIGNMENT which has some effects similar to SHORT_PLUGS
-// RESPECT_LARGE_ALIGNMENT is generally used on ARM32 where SHORT_PLUGS have limited utility 
+// RESPECT_LARGE_ALIGNMENT is generally used on ARM32 where SHORT_PLUGS have limited utility  
 #undef SHORT_PLUGS
 #endif //RESPECT_LARGE_ALIGNMENT
 
