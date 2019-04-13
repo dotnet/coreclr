@@ -416,7 +416,11 @@ HRESULT Assembler::CreateExportDirectory()
     memset(&exportDirIDD,0,sizeof(IMAGE_EXPORT_DIRECTORY));
     // Grab the timestamp of the PE file.
     DWORD fileTimeStamp;
-    if (FAILED(hr = m_pCeeFileGen->GetFileTimeStamp(m_pCeeFile,&fileTimeStamp))) return hr;
+    if (FAILED(hr = m_pCeeFileGen->GetFileTimeStamp(m_pCeeFile,&fileTimeStamp)))
+    {
+        delete [] pAlias;
+        return hr;
+    }
     // Fill in the directory entry.
     // Characteristics, MajorVersion and MinorVersion play no role and stay 0
     exportDirIDD.TimeDateStamp = VAL32(fileTimeStamp);
@@ -432,12 +436,20 @@ HRESULT Assembler::CreateExportDirectory()
     HCEESECTION sec = m_pGlobalDataSection;
     BYTE *de;
     if (FAILED(hr = m_pCeeFileGen->GetSectionBlock(sec,
-                                                   sizeof(IMAGE_EXPORT_DIRECTORY) + exportDirDataSize,
-                                                   4,
-                                                   (void**) &de))) return hr;
+        sizeof(IMAGE_EXPORT_DIRECTORY) + exportDirDataSize,
+        4,
+        (void**) &de)))
+    {
+        delete [] pAlias;
+        return hr;
+    }
     // Where did we get that memory?
     ULONG deOffset, deDataOffset;
-    if (FAILED(hr = m_pCeeFileGen->GetSectionDataLen(sec, &deDataOffset))) return hr;
+    if (FAILED(hr = m_pCeeFileGen->GetSectionDataLen(sec, &deDataOffset)))
+    {
+        delete [] pAlias;
+        return hr;
+    }
 
     deDataOffset -= exportDirDataSize;
     deOffset = deDataOffset - sizeof(IMAGE_EXPORT_DIRECTORY);
@@ -445,16 +457,32 @@ HRESULT Assembler::CreateExportDirectory()
     // Add offsets and set up relocs for header entries
     exportDirIDD.Name = VAL32(VAL32(exportDirIDD.Name) + deDataOffset);
     if (FAILED(hr = m_pCeeFileGen->AddSectionReloc(sec,deOffset + offsetof(IMAGE_EXPORT_DIRECTORY,Name),
-                                          sec, srRelocAbsolute))) return hr;
+        sec, srRelocAbsolute)))
+    {
+        delete [] pAlias;
+        return hr;
+    }
     exportDirIDD.AddressOfFunctions = VAL32(VAL32(exportDirIDD.AddressOfFunctions) + deDataOffset);
     if (FAILED(hr = m_pCeeFileGen->AddSectionReloc(sec,deOffset + offsetof(IMAGE_EXPORT_DIRECTORY,AddressOfFunctions),
-                                          sec, srRelocAbsolute))) return hr;
+        sec, srRelocAbsolute)))
+    {
+        delete [] pAlias;
+        return hr;
+    }
     exportDirIDD.AddressOfNames = VAL32(VAL32(exportDirIDD.AddressOfNames) + deDataOffset);
     if (FAILED(hr = m_pCeeFileGen->AddSectionReloc(sec,deOffset + offsetof(IMAGE_EXPORT_DIRECTORY,AddressOfNames),
-                                          sec, srRelocAbsolute))) return hr;
+        sec, srRelocAbsolute)))
+    {
+        delete [] pAlias;
+        return hr;
+    }
     exportDirIDD.AddressOfNameOrdinals = VAL32(VAL32(exportDirIDD.AddressOfNameOrdinals) + deDataOffset);
     if (FAILED(hr = m_pCeeFileGen->AddSectionReloc(sec,deOffset + offsetof(IMAGE_EXPORT_DIRECTORY,AddressOfNameOrdinals),
-                                          sec, srRelocAbsolute))) return hr;
+        sec, srRelocAbsolute)))
+    {
+        delete [] pAlias;
+        return hr;
+    }
 
     // Add offsets and set up relocs for Name Pointer Table
     j = deDataOffset + Nentries*5*sizeof(WORD); // EA, NP and O Tables come first
@@ -462,13 +490,21 @@ HRESULT Assembler::CreateExportDirectory()
     {
         pNPT[i] += j;
         if (FAILED(hr = m_pCeeFileGen->AddSectionReloc(sec,exportDirIDD.AddressOfNames+i*sizeof(DWORD),
-            sec, srRelocAbsolute))) return hr;
+            sec, srRelocAbsolute)))
+        {
+            delete [] pAlias;
+            return hr;
+        }
     }
 
 
     // Emit the directory entry.
     if (FAILED(hr = m_pCeeFileGen->SetDirectoryEntry(m_pCeeFile, sec, IMAGE_DIRECTORY_ENTRY_EXPORT,
-                                                     sizeof(IMAGE_EXPORT_DIRECTORY), deOffset)))  return hr;
+        sizeof(IMAGE_EXPORT_DIRECTORY), deOffset)))
+    {
+        delete [] pAlias;
+        return hr;
+    }
 
     // Copy the debug directory into the section.
     memcpy(de, &exportDirIDD, sizeof(IMAGE_EXPORT_DIRECTORY));
