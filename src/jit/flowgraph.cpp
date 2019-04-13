@@ -9492,10 +9492,10 @@ BasicBlock* Compiler::fgSplitBlockAfterNode(BasicBlock* curr, GenTree* node)
         {
             if ((*riter)->gtOper == GT_IL_OFFSET)
             {
-                GenTreeStmt* stmt = (*riter)->AsStmt();
-                if (stmt->gtStmtILoffsx != BAD_IL_OFFSET)
+                GenTreeILOffset* ilOffset = (*riter)->AsILOffset();
+                if (ilOffset->gtStmtILoffsx != BAD_IL_OFFSET)
                 {
-                    splitPointILOffset = jitGetILoffs(stmt->gtStmtILoffsx);
+                    splitPointILOffset = jitGetILoffs(ilOffset->gtStmtILoffsx);
                     break;
                 }
             }
