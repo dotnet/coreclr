@@ -2072,7 +2072,6 @@ HCIMPLEND_RAW
 //
 //========================================================================
 
-// pObject MUST be an instance of an array.
 TypeHandle::CastResult ArrayIsInstanceOfNoGC(MethodTable* pMT, TypeHandle toTypeHnd)
 {
     CONTRACTL {
@@ -2138,52 +2137,6 @@ TypeHandle::CastResult ArrayIsInstanceOfNoGC(MethodTable* pMT, TypeHandle toType
     return result;
 }
 
-// pObject MUST be an instance of an array.
-TypeHandle::CastResult ArraySupportsBizarreInterfaceNoGC(MethodTable* pMT, MethodTable * pInterfaceMT)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        PRECONDITION(pMT->IsArray());
-        PRECONDITION(pInterfaceMT->IsInterface());
-    } CONTRACTL_END;
-
-    // IList<T> & IReadOnlyList<T> only supported for SZ_ARRAYS
-    if (pMT->IsMultiDimArray())
-    {
-        CastCache::TryAddToCacheNoGC(pMT, pInterfaceMT, FALSE);
-        return TypeHandle::CannotCast;
-    }
-
-    if (pInterfaceMT->GetLoadLevel() < CLASS_DEPENDENCIES_LOADED)
-    {
-        if (!pInterfaceMT->HasInstantiation())
-        {
-            CastCache::TryAddToCacheNoGC(pMT, pInterfaceMT, FALSE);
-            return TypeHandle::CannotCast;
-        }
-
-        // The slow path will take care of restoring the interface
-        return TypeHandle::MaybeCast;
-    }
-
-    if (!IsImplicitInterfaceOfSZArray(pInterfaceMT))
-    {
-        CastCache::TryAddToCacheNoGC(pMT, pInterfaceMT, FALSE);
-        return TypeHandle::CannotCast;
-    }
-
-    //TODO: "Approx" API may need renaming. Arrays know their ElementType quite precisely.
-    TypeHandle::CastResult result = TypeDesc::CanCastParamNoGC(pMT->GetApproxArrayElementTypeHandle(), pInterfaceMT->GetInstantiation()[0]);
-    if (result != TypeHandle::MaybeCast)
-    {
-        CastCache::TryAddToCacheNoGC(pMT, pInterfaceMT, (BOOL)result);
-    }
-
-    return result;
-}
-
 TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTypeHnd)
 {
     CONTRACTL {
@@ -2213,7 +2166,7 @@ TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTyp
         {
             MethodTable * pInterfaceMT = toTypeHnd.AsMethodTable();
             if (pInterfaceMT->HasInstantiation())
-                return ArraySupportsBizarreInterfaceNoGC(pMT, pInterfaceMT);
+                return pMT->ArraySupportsBizarreInterfaceNoGC(pInterfaceMT);
 
             BOOL result = pMT->ImplementsInterface(pInterfaceMT);
             CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, result);
@@ -2647,7 +2600,7 @@ NOINLINE HCIMPL2(Object *, JITutil_IsInstanceOfInterface, MethodTable *pInterfac
     MethodTable* pMT = pObject->GetMethodTable();
     if (pMT->IsArray())
     {
-        switch (ArraySupportsBizarreInterfaceNoGC(pMT, pInterfaceMT)) {
+        switch (pMT->ArraySupportsBizarreInterfaceNoGC(pInterfaceMT)) {
         case TypeHandle::CanCast:
             return pObject;
         case TypeHandle::CannotCast:
@@ -2671,7 +2624,7 @@ NOINLINE HCIMPL2(Object *, JITutil_ChkCastInterface, MethodTable *pInterfaceMT, 
     MethodTable* pMT = pObject->GetMethodTable();
     if (pMT->IsArray())
     {
-        if (ArraySupportsBizarreInterfaceNoGC(pMT, pInterfaceMT) == TypeHandle::CanCast)
+        if (pMT->ArraySupportsBizarreInterfaceNoGC(pInterfaceMT) == TypeHandle::CanCast)
         {
             return pObject;
         }

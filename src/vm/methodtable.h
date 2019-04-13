@@ -2006,6 +2006,7 @@ public:
     TypeHandle::CastResult CanCastToInterfaceNoGC(MethodTable *pTargetMT);
     TypeHandle::CastResult CanCastToClassNoGC(MethodTable *pTargetMT);
     TypeHandle::CastResult CanCastToClassOrInterfaceNoGC(MethodTable *pTargetMT);
+    TypeHandle::CastResult ArraySupportsBizarreInterfaceNoGC(MethodTable *pTargetMT);
 
     // The inline part of equivalence check.
 #ifndef DACCESS_COMPILE
