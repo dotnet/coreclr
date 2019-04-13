@@ -21,19 +21,6 @@ namespace System.Diagnostics.Tracing
             return eventData.Parameters[parameterId].ParameterType;
         }
 
-        private static string GetResourceString(string key, params object[] args)
-        {
-            return SR.Format(SR.GetResourceString(key), args);
-        }
-
         private static readonly bool m_EventSourcePreventRecursion = false;
-    }
-
-    internal static class Resources
-    {
-        internal static string GetResourceString(string key, params object[] args)
-        {
-            return SR.Format(SR.GetResourceString(key), args);
-        }
     }
 }
