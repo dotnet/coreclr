@@ -209,7 +209,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
             GenTree*   gtCmpCns = gtCmp->gtGetOp2IfPresent();
 
             // The compare expression can be comma because of CSE expansion. extract effeictive value before checking it
-            if (gtCmpLen->OperIs(GT_COMMA) && gtCmpLen->gtFlags & GTF_STMT_HAS_CSE)
+            if (gtCmpLen->OperIs(GT_COMMA))
             {
                 GenTree* cmmOp1 = gtCmpLen->gtGetOp1();
                 GenTree* cmmOp2 = gtCmpLen->gtGetOp2();
@@ -391,14 +391,13 @@ void RangeCheck::OptimizeRangeCheckWithExplicitCheck(BasicBlock*  block,
     {
         for (GenTreeStmt* gtStmtIter = bbIter->bbTreeList->AsStmt(); gtStmtIter; gtStmtIter = gtStmtIter->gtNextStmt)
         {
-            for (GenTree* gtTreeIter = gtStmtIter->gtStmtExpr; gtTreeIter; gtTreeIter = gtTreeIter->gtNext)
+            for (GenTree* gtTreeIter = gtStmtIter->gtStmtList; gtTreeIter; gtTreeIter = gtTreeIter->gtNext)
             {
-                if (gtTreeIter->OperIs(GT_ARR_BOUNDS_CHECK))
+                if (gtTreeIter->OperIs(GT_COMMA) && gtTreeIter->gtGetOp1()->OperIs(GT_ARR_BOUNDS_CHECK))
                 {
-                    GenTreeBoundsChk* gtBndChk = gtTreeIter->AsBoundsChk();
+                    GenTreeBoundsChk* gtBndChk = gtTreeIter->gtGetOp1()->AsBoundsChk();
 
-                    if (ValueNum arrLenVN =
-                            m_pCompiler->vnStore->VNConservativeNormalValue(gtBndChk->gtArrLen->gtVNPair) != arrVn)
+                    if (m_pCompiler->vnStore->VNConservativeNormalValue(gtBndChk->gtArrLen->gtVNPair) != arrVn)
                     {
                         continue;
                     }

@@ -8353,6 +8353,7 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
                     return false;
             }
         }
+        recNext.clear();
 
         for (BasicBlock* bbToAnalysis : recTemp)
         {
