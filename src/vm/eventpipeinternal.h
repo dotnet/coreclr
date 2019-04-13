@@ -47,7 +47,7 @@ public:
     static UINT64 QCALLTYPE Enable(
         __in_z LPCWSTR outputFile,
         UINT32 circularBufferSizeInMB,
-        INT64 profilerSamplingRateInNanoseconds,
+        UINT64 profilerSamplingRateInNanoseconds, // TODO: This might as well be uint32_t, as this is used when calling SampleProfiler::SetSamplingRate(unsigned long);
         EventPipeProviderConfiguration *pProviders,
         UINT32 numProviders);
 

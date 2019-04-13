@@ -64,7 +64,7 @@ bool EventPipeProtocolHelper::TryParseProviderConfiguration(uint8_t *&bufferCurs
     return true;
 }
 
-void EventPipeProtocolHelper::EnableFileTracingEventHandler(IpcStream *pStream)
+void EventPipeProtocolHelper::StartTracing(IpcStream *pStream)
 {
     CONTRACTL
     {
@@ -139,7 +139,7 @@ void EventPipeProtocolHelper::EnableFileTracingEventHandler(IpcStream *pStream)
     delete pStream;
 }
 
-void EventPipeProtocolHelper::DisableFileTracingEventHandler(IpcStream *pStream)
+void EventPipeProtocolHelper::StopTracing(IpcStream *pStream)
 {
     CONTRACTL
     {
@@ -178,7 +178,7 @@ void EventPipeProtocolHelper::DisableFileTracingEventHandler(IpcStream *pStream)
     delete pStream;
 }
 
-void EventPipeProtocolHelper::AttachTracingEventHandler(IpcStream *pStream)
+void EventPipeProtocolHelper::CollectTracing(IpcStream *pStream)
 {
     CONTRACTL
     {

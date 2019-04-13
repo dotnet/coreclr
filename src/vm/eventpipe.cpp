@@ -243,18 +243,24 @@ EventPipeSessionID EventPipe::Enable(
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(circularBufferSizeInMB > 0);
+        PRECONDITION(profilerSamplingRateInNanoseconds > 0);
         PRECONDITION((numProviders == 0) || (numProviders > 0 && pProviders != nullptr));
     }
     CONTRACTL_END;
 
+    if (circularBufferSizeInMB == 0)
+        return 0;
+    if (profilerSamplingRateInNanoseconds == 0)
+        return 0;
     if (numProviders == 0 || pProviders == nullptr)
-        return (EventPipeSessionID) nullptr;
+        return 0;
 
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());
 
     if (s_pFile != nullptr) // There is an active session
-        return (EventPipeSessionID) nullptr;
+        return 0;
 
     // Create a new session.
     SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
@@ -263,9 +269,6 @@ EventPipeSessionID EventPipe::Enable(
         circularBufferSizeInMB,
         pProviders,
         numProviders);
-
-    // Initialize the last file switch time.
-    s_lastFlushSwitchTime = CLRGetTickCount64();
 
     // Create the event pipe file.
     // A NULL output path means that we should not write the results to a file.
@@ -288,20 +291,26 @@ EventPipeSessionID EventPipe::Enable(
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pStream != nullptr);
+        PRECONDITION(circularBufferSizeInMB > 0);
+        PRECONDITION(profilerSamplingRateInNanoseconds > 0);
         PRECONDITION((numProviders == 0) || (numProviders > 0 && pProviders != nullptr));
     }
     CONTRACTL_END;
 
     if (pStream == nullptr)
-        return (EventPipeSessionID) nullptr;
+        return 0;
+    if (circularBufferSizeInMB == 0)
+        return 0;
+    if (profilerSamplingRateInNanoseconds == 0)
+        return 0;
     if (numProviders == 0 || pProviders == nullptr)
-        return (EventPipeSessionID) nullptr;
+        return 0;
 
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());
 
     if (s_pFile != nullptr) // There is an active session
-        return (EventPipeSessionID) nullptr;
+        return 0;
 
     // Create a new session.
     SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
@@ -310,9 +319,6 @@ EventPipeSessionID EventPipe::Enable(
         circularBufferSizeInMB,
         pProviders,
         numProviders);
-
-    // Initialize the last file switch time.
-    s_lastFlushSwitchTime = CLRGetTickCount64();
 
     // Reply back to client with the SessionId
     uint32_t nBytesWritten = 0;
@@ -324,7 +330,7 @@ EventPipeSessionID EventPipe::Enable(
         s_pConfig->DeleteSession(pSession);
 
         delete pStream;
-        return (EventPipeSessionID) nullptr;
+        return 0;
     }
 
     s_pFile = new EventPipeFile(new IpcStreamWriter(pStream));
@@ -371,7 +377,12 @@ EventPipeSessionID EventPipe::Enable(
     SampleProfiler::Enable();
 
     if (callback != nullptr)
+    {
+        // Initialize the last file switch time.
+        s_lastFlushSwitchTime = CLRGetTickCount64();
+
         CreateFlushTimerCallback(callback, dueTime, period);
+    }
 
     // Return the session ID.
     return (EventPipeSessionID)s_pSession;
