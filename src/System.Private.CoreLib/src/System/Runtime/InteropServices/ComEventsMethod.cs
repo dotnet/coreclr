@@ -56,7 +56,7 @@ namespace System.Runtime.InteropServices
                     {
                         if (_cachedTargetTypes[i] != null)
                         {
-                            args[i] = Enum.ToObject(_cachedTargetTypes[i]!, args[i]!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
+                            args[i] = Enum.ToObject(_cachedTargetTypes[i]!, args[i]); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
                         }
                     }
                 }
