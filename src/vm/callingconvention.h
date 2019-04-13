@@ -1315,7 +1315,8 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
             m_argLocDescForStructInRegs.m_idxFloatReg = m_idxFPReg;
 
             m_argLocDescForStructInRegs.setHFAFieldSize(type);
-            m_argLocDescForStructInRegs.m_cFloatReg = argSize/m_argLocDescForStructInRegs.m_hfaFieldSize;
+            cFPRegs = argSize/m_argLocDescForStructInRegs.m_hfaFieldSize;
+            m_argLocDescForStructInRegs.m_cFloatReg = cFPRegs;
 
             m_hasArgLocDescForStructInRegs = true;
         }
