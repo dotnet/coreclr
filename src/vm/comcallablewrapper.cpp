@@ -3452,7 +3452,12 @@ IUnknown* ComCallWrapper::GetComIPFromCCW(ComCallWrapper *pWrap, REFIID riid, Me
         {
             COMPlusThrow(kInvalidOperationException, IDS_EE_ATTEMPT_TO_CREATE_GENERIC_CCW);
         }
-            
+
+        if (pIntfMT->IsInterface() && !pIntfMT->HasOnlyAbstractMethods())
+        {
+            COMPlusThrow(kInvalidOperationException, IDS_EE_ATTEMPT_TO_CREATE_NON_ABSTRACT_CCW);
+        }
+
         // The first block has one slot for the IClassX vtable pointer
         //  and one slot for the basic vtable pointer.
         imapIndex += Slot_FirstInterface;

@@ -64,20 +64,8 @@ void CallDefaultInterface()
     HRESULT hr;
 
     ComSmartPtr<IDefaultInterfaceTesting> defInterface;
-    THROW_IF_FAILED(::CoCreateInstance(CLSID_DefaultInterfaceTesting, nullptr, CLSCTX_INPROC, IID_IDefaultInterfaceTesting, (void**)&defInterface));
+    hr = ::CoCreateInstance(CLSID_DefaultInterfaceTesting, nullptr, CLSCTX_INPROC, IID_IDefaultInterfaceTesting, (void**)&defInterface)
 
-    int i;
-
-    THROW_IF_FAILED(defInterface->DefOnInterfaceRet2(&i));
-    THROW_FAIL_IF_FALSE(i == 2);
-
-    THROW_IF_FAILED(defInterface->DefOnClassRet3(&i));
-    THROW_FAIL_IF_FALSE(i == 3);
-
-    //
-    // Overridden default interface defintions do not work
-    // https://github.com/dotnet/coreclr/issues/15683
-    //
-    //THROW_IF_FAILED(defInterface->DefOnInterface2Ret5(&i));
-    //THROW_FAIL_IF_FALSE(i == 5);
+    const int COR_E_INVALIDOPERATION = 0x80131509;
+    THROW_FAIL_IF_FALSE(hr == COR_E_INVALIDOPERATION);
 }
