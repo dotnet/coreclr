@@ -2081,6 +2081,20 @@ namespace System.Diagnostics.Tracing
 #endif //!ES_BUILD_PCL
         }
 
+#if !CORERT
+        private int GetParameterCount(EventMetadata eventData)
+        {
+            return eventData.Parameters.Length;
+        }
+
+        private Type GetDataType(EventMetadata eventData, int parameterId)
+        {
+            return eventData.Parameters[parameterId].ParameterType;
+        }
+
+        private static readonly bool m_EventSourcePreventRecursion = false;
+#endif
+
         private unsafe void WriteToAllListeners(int eventId, Guid* activityID, Guid* childActivityID, int eventDataCount, EventSource.EventData* data)
         {
             // We represent a byte[] as a integer denoting the length  and then a blob of bytes in the data pointer. This causes a spurious
