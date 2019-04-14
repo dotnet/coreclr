@@ -1654,14 +1654,13 @@ inline BOOL MethodTable::CanCastToClassOrInterface(MethodTable *pTargetMT, TypeH
     CONTRACTL_END
 
     BOOL result = pTargetMT->IsInterface() ?
-                                CanCastToInterface(pTargetMT) :
-                                CanCastToClass(pTargetMT);
+                                CanCastToInterface(pTargetMT, pVisited) :
+                                CanCastToClass(pTargetMT, pVisited);
 
-    // do not add to the cache
-    // - it is contextual because of pVisited
-    // - array may yet to convert via bizzare interfaces.
-
-    //TODO: VS check callers.
+    if (!(pTargetMT->IsInterface() && ( this->IsComObjectType() || this->IsICastable())))
+    {
+        CastCache::TryAddToCache(this, pTargetMT, (BOOL)result);
+    }
 
     return result;
 }

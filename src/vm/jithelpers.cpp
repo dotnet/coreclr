@@ -2166,16 +2166,12 @@ TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTyp
         {
             return pMT->ArraySupportsBizarreInterfaceNoGC(toMT);
         }
-
-        return pMT->CanCastToClassOrInterfaceNoGC(toMT);
     }
-
-    if (toTypeHnd.IsTypeDesc())
+    else if (toTypeHnd.IsTypeDesc())
     {
         CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
         return TypeHandle::CannotCast;
     }
-
 
     return pMT->CanCastToClassOrInterfaceNoGC(toTypeHnd.AsMethodTable());
 }

@@ -650,6 +650,8 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
     }
     CONTRACTL_END
 
+    //TODO: VS check cache? 
+
     if (*this == type)
         return(true);
 
@@ -666,6 +668,8 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
 TypeHandle::CastResult TypeHandle::CanCastToNoGC(TypeHandle type)  const
 {
     LIMITED_METHOD_CONTRACT;
+
+    //TODO: VS check cache? 
 
     if (*this == type)
         return(CanCast);
