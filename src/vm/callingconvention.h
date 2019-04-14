@@ -49,19 +49,21 @@ struct ArgLocDesc
 
 #endif // UNIX_AMD64_ABI
 
-#if defined(_TARGET_ARM64_)
-    unsigned m_hfaFieldSize;      // Size of HFA field in bytes.
+#ifdef FEATURE_HFA
     static unsigned getHFAFieldSize(CorElementType  hfaType)
     {
         switch (hfaType)
         {
         case ELEMENT_TYPE_R4: return 4;
         case ELEMENT_TYPE_R8: return 8;
-        // We overload VALUETYPE for 16-byte vectors.
+            // We overload VALUETYPE for 16-byte vectors.
         case ELEMENT_TYPE_VALUETYPE: return 16;
         default: _ASSERTE(!"Invalid HFA Type"); return 0;
         }
     }
+#endif
+#if defined(_TARGET_ARM64_)
+    unsigned m_hfaFieldSize;      // Size of HFA field in bytes.
     void setHFAFieldSize(CorElementType  hfaType)
     {
         m_hfaFieldSize = getHFAFieldSize(hfaType);
