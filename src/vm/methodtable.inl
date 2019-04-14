@@ -1657,7 +1657,10 @@ inline BOOL MethodTable::CanCastToClassOrInterface(MethodTable *pTargetMT, TypeH
                                 CanCastToInterface(pTargetMT, pVisited) :
                                 CanCastToClass(pTargetMT, pVisited);
 
-    CastCache::TryAddToCacheNoGC(this, pTargetMT, (BOOL)result);
+    if (!(pTargetMT->IsInterface() && ( this->IsComObjectType() || this->IsICastable())))
+    {
+        CastCache::TryAddToCache(this, pTargetMT, (BOOL)result);
+    }
 
     return result;
 }
