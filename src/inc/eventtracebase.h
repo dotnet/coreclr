@@ -70,7 +70,7 @@ enum EtwThreadFlags
 //
 
 #define ETW_TRACING_INITIALIZED(RegHandle) \
-    ((g_pEtwTracer && RegHandle) || EVENT_PIPE_ENABLED())
+    ((g_pEtwTracer && (RegHandle)) || EVENT_PIPE_ENABLED())
 
 //
 // Use this macro to check if an event is enabled
@@ -303,7 +303,7 @@ extern "C" {
 // User defined callback
 //
 #define MCGEN_PRIVATE_ENABLE_CALLBACK(RequestCode, Context, InOutBufferSize, Buffer) \
-        EtwCallback(NULL /* SourceId */, (RequestCode==WMI_ENABLE_EVENTS) ? EVENT_CONTROL_CODE_ENABLE_PROVIDER : EVENT_CONTROL_CODE_DISABLE_PROVIDER, 0 /* Level */, 0 /* MatchAnyKeyword */, 0 /* MatchAllKeyword */, NULL /* FilterData */, Context)
+        EtwCallback(NULL /* SourceId */, ((RequestCode)==WMI_ENABLE_EVENTS) ? EVENT_CONTROL_CODE_ENABLE_PROVIDER : EVENT_CONTROL_CODE_DISABLE_PROVIDER, 0 /* Level */, 0 /* MatchAnyKeyword */, 0 /* MatchAllKeyword */, NULL /* FilterData */, Context)
 
 //
 // User defined callback2

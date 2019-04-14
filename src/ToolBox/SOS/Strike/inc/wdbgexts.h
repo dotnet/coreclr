@@ -1466,7 +1466,7 @@ typedef struct _KDDEBUGGER_DATA64 {
 //
 // Specifies how much deep into structs we can go
 //
-#define DBG_DUMP_RECUR_LEVEL(l)           ((l & 0xf) << 8)
+#define DBG_DUMP_RECUR_LEVEL(l)           (((l) & 0xf) << 8)
 //
 // No newlines are printed after each field
 //

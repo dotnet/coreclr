@@ -318,7 +318,7 @@ PrintVmStatsHeader(
 
 }   // PrintVmStatsHeader
 
-#define BYTES_TO_K(x) (x/1024)
+#define BYTES_TO_K(x) ((x)/1024)
 
 VOID
 PrintIndividualStat(
