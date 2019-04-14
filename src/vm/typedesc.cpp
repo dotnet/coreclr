@@ -413,17 +413,7 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
             return FALSE;
         }
 
-        MethodTable *pMT = GetMethodTable();
-        _ASSERTE(pMT != 0);
-
-        // todo: vs do this after bizzare?
-        // This does the right thing if 'type' == System.Array or System.Object, System.Clonable ...
-        if (pMT->CanCastToClassOrInterface(toType.AsMethodTable(), pVisited) != 0)
-        {
-            return TRUE;
-        }
-
-        if (IsArray() && toType.AsMethodTable()->IsInterface())
+        if (toType.AsMethodTable()->IsInterface())
         {
             if (ArraySupportsBizarreInterface((ArrayTypeDesc*)this, toType.AsMethodTable()))
             {
@@ -431,7 +421,11 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
             }
         }
 
-        return FALSE;
+        MethodTable *pMT = GetMethodTable();
+        _ASSERTE(pMT != 0);
+
+        // This does the right thing if 'type' == System.Array or System.Object, System.Clonable ...
+        return pMT->CanCastToClassOrInterface(toType.AsMethodTable(), pVisited);
     }
 
     TypeDesc* toTypeDesc = toType.AsTypeDesc();
@@ -569,6 +563,11 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
 
         MethodTable *pMT = GetMethodTable();
         _ASSERTE(pMT != 0);
+
+        if (toType.AsMethodTable()->IsInterface())
+        {
+            return pMT->ArraySupportsBizarreInterfaceNoGC(toType.AsMethodTable());
+        }
 
         // This does the right thing if 'type' == System.Array or System.Object, System.Clonable ...
         return pMT->CanCastToClassOrInterfaceNoGC(toType.AsMethodTable());
