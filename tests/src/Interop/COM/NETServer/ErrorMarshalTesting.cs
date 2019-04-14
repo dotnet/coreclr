@@ -27,7 +27,7 @@ public class ErrorMarshalTesting : Server.Contract.IErrorMarshalTesting
     }
 
     [PreserveSig]
-    public Server.Contract.HResult Return_As_HResult(int hresultToReturn)
+    public Server.Contract.HResult Return_As_HResult_Struct(int hresultToReturn)
     {
         return new Server.Contract.HResult { hr = hresultToReturn };
     }
