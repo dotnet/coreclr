@@ -48,7 +48,7 @@ namespace System.Diagnostics.Tracing
         }
 
         // Write an event.
-        unsafe int IEventProvider.EventWriteTransfer(
+        unsafe EventProvider.WriteEventErrorCode IEventProvider.EventWriteTransfer(
             long registrationHandle,
             in EventDescriptor eventDescriptor,
             IntPtr eventHandle,
@@ -63,7 +63,7 @@ namespace System.Diagnostics.Tracing
                 if (userDataCount == 0)
                 {
                     EventPipeInternal.WriteEventData(eventHandle, eventID, null, 0, activityId, relatedActivityId);
-                    return 0;
+                    return EventProvider.WriteEventErrorCode.NoError;
                 }
 
                 // If Channel == 11, this is a TraceLogging event.
@@ -77,7 +77,7 @@ namespace System.Diagnostics.Tracing
                 }
                 EventPipeInternal.WriteEventData(eventHandle, eventID, userData, (uint) userDataCount, activityId, relatedActivityId);
             }
-            return 0;
+            return EventProvider.WriteEventErrorCode.NoError;
         }
 
         // Get or set the per-thread activity ID.
