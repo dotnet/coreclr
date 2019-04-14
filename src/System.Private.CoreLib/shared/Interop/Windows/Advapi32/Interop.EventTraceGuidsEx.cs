@@ -18,12 +18,14 @@ internal partial class Interop
             MaxTraceSetInfoClass
         }
 
+        [StructLayout(LayoutKind.Sequential)]
         internal struct TRACE_GUID_INFO
         {
             public int InstanceCount;
             public int Reserved;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
         internal struct TRACE_PROVIDER_INSTANCE_INFO
         {
             public int NextOffset;
@@ -32,6 +34,7 @@ internal partial class Interop
             public int Flags;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
         internal struct TRACE_ENABLE_INFO
         {
             public int IsEnabled;
