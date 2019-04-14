@@ -2161,25 +2161,13 @@ TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTyp
         if (toTypeHnd.IsArray())
             return ArrayIsInstanceOfNoGC(pMT, toTypeHnd);
 
-        if (toTypeHnd.IsInterface())
+        MethodTable* toMT = toTypeHnd.AsMethodTable();
+        if (toMT->IsInterface() && toMT->HasInstantiation())
         {
-            MethodTable * pInterfaceMT = toTypeHnd.AsMethodTable();
-            if (pInterfaceMT->HasInstantiation())
-                return pMT->ArraySupportsBizarreInterfaceNoGC(pInterfaceMT);
-
-            BOOL result = pMT->ImplementsInterface(pInterfaceMT);
-            CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, result);
-            return (TypeHandle::CastResult)result;
+            return pMT->ArraySupportsBizarreInterfaceNoGC(toMT);
         }
 
-        if (toTypeHnd == TypeHandle(g_pObjectClass) || toTypeHnd == TypeHandle(g_pArrayClass))
-        {
-            CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, TRUE);
-            return TypeHandle::CanCast;
-        }
-
-        CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
-        return TypeHandle::CannotCast;
+        return pMT->CanCastToClassOrInterfaceNoGC(toMT);
     }
 
     if (toTypeHnd.IsTypeDesc())
@@ -2597,7 +2585,7 @@ NOINLINE HCIMPL2(Object *, JITutil_IsInstanceOfInterface, MethodTable *pInterfac
     FCALL_CONTRACT;
 
     MethodTable* pMT = pObject->GetMethodTable();
-    if (pMT->IsArray())
+    if (pMT->IsArray() && pInterfaceMT->HasInstantiation())
     {
         switch (pMT->ArraySupportsBizarreInterfaceNoGC(pInterfaceMT)) {
         case TypeHandle::CanCast:
@@ -2621,7 +2609,7 @@ NOINLINE HCIMPL2(Object *, JITutil_ChkCastInterface, MethodTable *pInterfaceMT, 
     FCALL_CONTRACT;
 
     MethodTable* pMT = pObject->GetMethodTable();
-    if (pMT->IsArray())
+    if (pMT->IsArray() && pInterfaceMT->HasInstantiation())
     {
         if (pMT->ArraySupportsBizarreInterfaceNoGC(pInterfaceMT) == TypeHandle::CanCast)
         {

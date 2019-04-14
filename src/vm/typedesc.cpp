@@ -413,9 +413,10 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
             return FALSE;
         }
 
-        if (toType.AsMethodTable()->IsInterface())
+        MethodTable* toMT = toType.AsMethodTable();
+        if (toMT->IsInterface() && toMT->HasInstantiation())
         {
-            if (ArraySupportsBizarreInterface((ArrayTypeDesc*)this, toType.AsMethodTable()))
+            if (ArraySupportsBizarreInterface((ArrayTypeDesc*)this, toMT))
             {
                 return TRUE;
             }
@@ -425,7 +426,7 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
         _ASSERTE(pMT != 0);
 
         // This does the right thing if 'type' == System.Array or System.Object, System.Clonable ...
-        return pMT->CanCastToClassOrInterface(toType.AsMethodTable(), pVisited);
+        return pMT->CanCastToClassOrInterface(toMT, pVisited);
     }
 
     TypeDesc* toTypeDesc = toType.AsTypeDesc();
@@ -564,13 +565,14 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
         MethodTable *pMT = GetMethodTable();
         _ASSERTE(pMT != 0);
 
-        if (toType.AsMethodTable()->IsInterface())
+        MethodTable* toMT = toType.AsMethodTable();
+        if (toMT->IsInterface() && toMT->HasInstantiation())
         {
-            return pMT->ArraySupportsBizarreInterfaceNoGC(toType.AsMethodTable());
+            return pMT->ArraySupportsBizarreInterfaceNoGC(toMT);
         }
 
         // This does the right thing if 'type' == System.Array or System.Object, System.Clonable ...
-        return pMT->CanCastToClassOrInterfaceNoGC(toType.AsMethodTable());
+        return pMT->CanCastToClassOrInterfaceNoGC(toMT);
     }
 
     TypeDesc* toTypeDesc = toType.AsTypeDesc();
