@@ -5199,7 +5199,7 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
         for (BasicBlock* bbToAnalysis : recTemp)
         {
             // We do not analysis again that marked as true in records
-            if (recFlow.Lookup(bbToAnalysis) || !recFlow[bbToAnalysis])
+            if (!recFlow[bbToAnalysis])
             {
                 recNext.push_back(bbToAnalysis);
             }
