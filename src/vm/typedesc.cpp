@@ -434,6 +434,8 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
     CorElementType toKind = toTypeDesc->GetInternalCorElementType();
     CorElementType fromKind = GetInternalCorElementType();
 
+    //TODO: VS cache the result? except when calling CanCastToClassOrInterface.
+
     // The element kinds must match, only exception is that SZARRAY matches a one dimension ARRAY
     if (!(toKind == fromKind || (toKind == ELEMENT_TYPE_ARRAY && fromKind == ELEMENT_TYPE_SZARRAY)))
         return FALSE;
