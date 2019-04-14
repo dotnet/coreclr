@@ -5039,12 +5039,14 @@ bool Compiler::optIsLoopClonable(unsigned loopInd)
     return true;
 }
 
-bool optCheckBBFlowHasSideEffect(jitstd::unordered_map<BasicBlock*, bool>& records, BasicBlock* block)
+bool optCheckBBFlowHasSideEffect(BlkSet& records, BasicBlock* block)
 {
     for (flowList* preds = block->bbPreds; preds != nullptr; preds = preds->flNext)
     {
         BasicBlock* flBlock = preds->flBlock;
-        if (records.find(flBlock) == records.end() || !records[flBlock])
+
+        bool isMarked = false;
+        if (!records.Lookup(flBlock, &isMarked) || !isMarked)
         {
             return true;
         }
@@ -5089,12 +5091,12 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
         std::swap(bbFalse, bbTrue);
     }
 
-    jitstd::unordered_map<BasicBlock*, bool> recFlow(this->getAllocator());
+    BlkSet                      recFlow(this->getAllocator());
     jitstd::vector<BasicBlock*> recTemp(this->getAllocator());
     jitstd::vector<BasicBlock*> recNext(this->getAllocator());
 
-    recFlow.insert(bbFalse, false);
-    recFlow.insert(bbTrue, true);
+    recFlow.Set(bbFalse, false);
+    recFlow.Set(bbTrue, true);
     recNext.push_back(bbTrue);
 
     while (!recNext.empty())
@@ -5108,12 +5110,12 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
                     BasicBlock* bbFlowTo = bbIter->bbJumpDest;
                     if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowTo))
                     {
-                        recFlow[bbFlowTo] = true;
+                        recFlow.Set(bbFlowTo, true, BlkSet::SetKind::Overwrite);
                         recTemp.push_back(bbFlowTo);
                     }
                     else
                     {
-                        recFlow[bbFlowTo] = false;
+                        recFlow.Set(bbFlowTo, false, BlkSet::SetKind::Overwrite);
                     }
 
                     break;
@@ -5124,12 +5126,12 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
                     BasicBlock* bbFlowTo = bbIter->bbNext;
                     if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowTo))
                     {
-                        recFlow[bbFlowTo] = true;
+                        recFlow.Set(bbFlowTo, true, BlkSet::SetKind::Overwrite);
                         recTemp.push_back(bbFlowTo);
                     }
                     else
                     {
-                        recFlow[bbFlowTo] = false;
+                        recFlow.Set(bbFlowTo, false, BlkSet::SetKind::Overwrite);
                     }
 
                     break;
@@ -5140,23 +5142,23 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
                     BasicBlock* bbFlowToF = bbIter->bbNext;
                     if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowToF))
                     {
-                        recFlow[bbFlowToF] = true;
+                        recFlow.Set(bbFlowToF, true, BlkSet::SetKind::Overwrite);
                         recTemp.push_back(bbFlowToF);
                     }
                     else
                     {
-                        recFlow[bbFlowToF] = false;
+                        recFlow.Set(bbFlowToF, false, BlkSet::SetKind::Overwrite);
                     }
 
                     BasicBlock* bbFlowToT = bbIter->bbJumpDest;
                     if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowToT))
                     {
-                        recFlow[bbFlowToT] = true;
+                        recFlow.Set(bbFlowToT, true, BlkSet::SetKind::Overwrite);
                         recTemp.push_back(bbFlowToT);
                     }
                     else
                     {
-                        recFlow[bbFlowToT] = false;
+                        recFlow.Set(bbFlowToT, false, BlkSet::SetKind::Overwrite);
                     }
 
                     break;
@@ -5172,12 +5174,12 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
                         BasicBlock* bbFlowTo = bbSwtTable[i];
                         if (!optCheckBBFlowHasSideEffect(recFlow, bbFlowTo))
                         {
-                            recFlow[bbFlowTo] = true;
+                            recFlow.Set(bbFlowTo, true, BlkSet::SetKind::Overwrite);
                             recTemp.push_back(bbFlowTo);
                         }
                         else
                         {
-                            recFlow[bbFlowTo] = false;
+                            recFlow.Set(bbFlowTo, false, BlkSet::SetKind::Overwrite);
                         }
                     }
                     break;
@@ -5197,7 +5199,7 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
         for (BasicBlock* bbToAnalysis : recTemp)
         {
             // We do not analysis again that marked as true in records
-            if (recFlow.find(bbToAnalysis) == recFlow.end() || !recFlow[bbToAnalysis])
+            if (recFlow.Lookup(bbToAnalysis) || !recFlow[bbToAnalysis])
             {
                 recNext.push_back(bbToAnalysis);
             }
@@ -5205,11 +5207,11 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
         recTemp.clear();
     }
 
-    for (auto& recordPair : recFlow)
+    for (auto iter = recFlow.Begin(); !iter.Equal(recFlow.End()); iter.Next())
     {
-        if (recordPair.second)
+        if (iter.GetValue() == true)
         {
-            extracted->push_back(recordPair.first);
+            extracted->push_back(iter.Get());
         }
     }
 

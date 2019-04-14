@@ -239,7 +239,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreeStmt* stmt, GenTre
 
             break;
         }
-        
+
         default:
             break;
     }
