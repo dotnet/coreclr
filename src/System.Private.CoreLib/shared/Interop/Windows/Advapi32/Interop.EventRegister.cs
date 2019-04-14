@@ -11,9 +11,9 @@ internal partial class Interop
     {
         [DllImport(Libraries.Advapi32, ExactSpelling = true)]
         internal static extern unsafe uint EventRegister(
-            [In] ref Guid providerId,
-            [In] EtwEnableCallback enableCallback,
-            [In] void* callbackContext,
-            [In][Out] ref long registrationHandle);
+            in Guid providerId,
+            EtwEnableCallback enableCallback,
+            void* callbackContext,
+            ref long registrationHandle);
     }
 }

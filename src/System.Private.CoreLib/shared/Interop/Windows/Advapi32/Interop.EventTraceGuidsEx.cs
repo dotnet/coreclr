@@ -16,13 +16,13 @@ internal partial class Interop
             TraceGuidQueryProcess,
             TraceStackTracingInfo,
             MaxTraceSetInfoClass
-        };
+        }
 
         internal struct TRACE_GUID_INFO
         {
             public int InstanceCount;
             public int Reserved;
-        };
+        }
 
         internal struct TRACE_PROVIDER_INSTANCE_INFO
         {
@@ -30,7 +30,7 @@ internal partial class Interop
             public int EnableCount;
             public int Pid;
             public int Flags;
-        };
+        }
 
         internal struct TRACE_ENABLE_INFO
         {
@@ -42,7 +42,7 @@ internal partial class Interop
             public int Reserved2;
             public long MatchAnyKeyword;
             public long MatchAllKeyword;
-        };
+        }
 
         [DllImport(Interop.Libraries.Advapi32, ExactSpelling = true)]
         internal static unsafe extern int EnumerateTraceGuidsEx(
@@ -51,6 +51,6 @@ internal partial class Interop
             int InBufferSize,
             void* OutBuffer,
             int OutBufferSize,
-            ref int ReturnLength);
+            out int ReturnLength);
     }
 }

@@ -19,7 +19,7 @@ internal partial class Interop
             public long Ptr;
             public int Size;
             public int Type;
-        };
+        }
 
         internal unsafe delegate void EtwEnableCallback(
             [In] ref Guid sourceId,

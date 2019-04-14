@@ -10,6 +10,6 @@ internal partial class Interop
     internal partial class Advapi32
     {
         [DllImport(Libraries.Advapi32, ExactSpelling = true)]
-        internal static extern int EventActivityIdControl([In] ActivityControl ControlCode, [In][Out] ref Guid ActivityId);
+        internal static extern int EventActivityIdControl(ActivityControl ControlCode, ref Guid ActivityId);
     }
 }

@@ -494,7 +494,7 @@ namespace System.Diagnostics.Tracing
                 fixed (Guid* provider = &m_providerId)
                 {
                     hr = Interop.Advapi32.EnumerateTraceGuidsEx(Interop.Advapi32.TRACE_QUERY_INFO_CLASS.TraceGuidQueryInfo,
-                        provider, sizeof(Guid), buffer, buffSize, ref buffSize);
+                        provider, sizeof(Guid), buffer, buffSize, out buffSize);
                 }
                 if (hr == 0)
                     break;
@@ -1111,7 +1111,7 @@ namespace System.Diagnostics.Tracing
                                 userDataPtr[refObjPosition[7]].Ptr = (ulong)v7;
                             }
 
-                            status = m_eventProvider.EventWriteTransfer(m_regHandle, ref eventDescriptor, eventHandle, activityID, childActivityID, argCount, userData);
+                            status = m_eventProvider.EventWriteTransfer(m_regHandle, in eventDescriptor, eventHandle, activityID, childActivityID, argCount, userData);
                         }
                     }
                     else
@@ -1137,7 +1137,7 @@ namespace System.Diagnostics.Tracing
                             }
                         }
 
-                        status = m_eventProvider.EventWriteTransfer(m_regHandle, ref eventDescriptor, eventHandle, activityID, childActivityID, argCount, userData);
+                        status = m_eventProvider.EventWriteTransfer(m_regHandle, in eventDescriptor, eventHandle, activityID, childActivityID, argCount, userData);
 
                         for (int i = 0; i < refObjIndex; ++i)
                         {
@@ -1190,7 +1190,7 @@ namespace System.Diagnostics.Tracing
                                 (EventOpcode)eventDescriptor.Opcode == EventOpcode.Stop);
             }
 
-            int status = m_eventProvider.EventWriteTransfer(m_regHandle, ref eventDescriptor, eventHandle, activityID, childActivityID, dataCount, (EventData*)data);
+            int status = m_eventProvider.EventWriteTransfer(m_regHandle, in eventDescriptor, eventHandle, activityID, childActivityID, dataCount, (EventData*)data);
 
             if (status != 0)
             {
@@ -1213,7 +1213,7 @@ namespace System.Diagnostics.Tracing
 
             status = m_eventProvider.EventWriteTransfer(
                 m_regHandle,
-                ref eventDescriptor,
+                in eventDescriptor,
                 eventHandle,
                 activityID,
                 relatedActivityID,
@@ -1287,7 +1287,7 @@ namespace System.Diagnostics.Tracing
         {
             Guid providerId = eventSource.Guid;
             return Interop.Advapi32.EventRegister(
-                ref providerId,
+                in providerId,
                 enableCallback,
                 callbackContext,
                 ref registrationHandle);
@@ -1302,7 +1302,7 @@ namespace System.Diagnostics.Tracing
         // Write an event.
         unsafe int IEventProvider.EventWriteTransfer(
             long registrationHandle,
-            ref EventDescriptor eventDescriptor,
+            in EventDescriptor eventDescriptor,
             IntPtr eventHandle,
             Guid* activityId,
             Guid* relatedActivityId,
@@ -1311,7 +1311,7 @@ namespace System.Diagnostics.Tracing
         {
             return Interop.Advapi32.EventWriteTransfer(
                 registrationHandle,
-                ref eventDescriptor,
+                in eventDescriptor,
                 activityId,
                 relatedActivityId,
                 userDataCount,
@@ -1352,7 +1352,7 @@ namespace System.Diagnostics.Tracing
 
         unsafe int IEventProvider.EventWriteTransfer(
             long registrationHandle,
-            ref EventDescriptor eventDescriptor,
+            in EventDescriptor eventDescriptor,
             IntPtr eventHandle,
             Guid* activityId,
             Guid* relatedActivityId,

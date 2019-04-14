@@ -50,7 +50,7 @@ namespace System.Diagnostics.Tracing
         // Write an event.
         unsafe int IEventProvider.EventWriteTransfer(
             long registrationHandle,
-            ref EventDescriptor eventDescriptor,
+            in EventDescriptor eventDescriptor,
             IntPtr eventHandle,
             Guid* activityId,
             Guid* relatedActivityId,

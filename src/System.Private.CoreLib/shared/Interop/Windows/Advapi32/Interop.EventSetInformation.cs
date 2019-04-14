@@ -11,9 +11,9 @@ internal partial class Interop
     {
         [DllImport(Libraries.Advapi32, ExactSpelling = true)]
         internal static unsafe extern int EventSetInformation(
-            [In] long registrationHandle,
-            [In] EVENT_INFO_CLASS informationClass,
-            [In] void* eventInformation,
-            [In] int informationLength);
+            long registrationHandle,
+            EVENT_INFO_CLASS informationClass,
+            void* eventInformation,
+            int informationLength);
     }
 }

@@ -17,17 +17,17 @@ internal partial class Interop
         /// </summary>
         internal static unsafe int EventWriteTransfer(
             long registrationHandle,
-            ref EventDescriptor eventDescriptor,
+            in EventDescriptor eventDescriptor,
             Guid* activityId,
             Guid* relatedActivityId,
             int userDataCount,
             EventProvider.EventData* userData)
         {
-            int HResult = EventWriteTransfer_PInvoke(registrationHandle, ref eventDescriptor, activityId, relatedActivityId, userDataCount, userData);
+            int HResult = EventWriteTransfer_PInvoke(registrationHandle, in eventDescriptor, activityId, relatedActivityId, userDataCount, userData);
             if (HResult == Errors.ERROR_INVALID_PARAMETER && relatedActivityId == null)
             {
                 Guid emptyGuid = Guid.Empty;
-                HResult = EventWriteTransfer_PInvoke(registrationHandle, ref eventDescriptor, activityId, &emptyGuid, userDataCount, userData);
+                HResult = EventWriteTransfer_PInvoke(registrationHandle, in eventDescriptor, activityId, &emptyGuid, userDataCount, userData);
             }
 
             return HResult;
@@ -35,11 +35,11 @@ internal partial class Interop
 
         [DllImport(Interop.Libraries.Advapi32, ExactSpelling = true, EntryPoint = "EventWriteTransfer")]
         private static unsafe extern int EventWriteTransfer_PInvoke(
-            [In] long registrationHandle,
-            [In] ref EventDescriptor eventDescriptor,
-            [In] Guid* activityId,
-            [In] Guid* relatedActivityId,
-            [In] int userDataCount,
-            [In] EventProvider.EventData* userData);
+            long registrationHandle,
+            in EventDescriptor eventDescriptor,
+            Guid* activityId,
+            Guid* relatedActivityId,
+            int userDataCount,
+            EventProvider.EventData* userData);
     }
 }

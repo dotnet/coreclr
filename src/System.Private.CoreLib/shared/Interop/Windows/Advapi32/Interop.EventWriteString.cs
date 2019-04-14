@@ -11,9 +11,9 @@ internal partial class Interop
     {
         [DllImport(Libraries.Advapi32, ExactSpelling = true)]
         internal static extern int EventWriteString(
-            [In] long registrationHandle,
-            [In] byte level,
-            [In] long keyword,
-            [In] string msg);
+            long registrationHandle,
+            byte level,
+            long keyword,
+            string msg);
     }
 }

@@ -10,6 +10,6 @@ internal partial class Interop
     internal partial class Advapi32
     {
         [DllImport(Libraries.Advapi32, ExactSpelling = true)]
-        internal static extern uint EventUnregister([In] long registrationHandle);
+        internal static extern uint EventUnregister(long registrationHandle);
     }
 }
