@@ -2577,16 +2577,16 @@ HCIMPL2(Object *, JIT_ChkCastAny, CORINFO_CLASS_HANDLE type, Object *pObject)
 HCIMPLEND
 
 
-NOINLINE HCIMPL2(Object *, JITutil_IsInstanceOfInterface, MethodTable *pInterfaceMT, Object* pObject)
+NOINLINE HCIMPL2(Object *, JITutil_IsInstanceOfInterface, MethodTable *pInterfaceMT, Object* obj)
 {
     FCALL_CONTRACT;
 
-    MethodTable* pMT = pObject->GetMethodTable();
+    MethodTable* pMT = obj->GetMethodTable();
     if (pMT->IsArray() && pInterfaceMT->HasInstantiation())
     {
         switch (pMT->ArraySupportsBizarreInterfaceNoGC(pInterfaceMT)) {
         case TypeHandle::CanCast:
-            return pObject;
+            return obj;
         case TypeHandle::CannotCast:
             return NULL;
         default:
@@ -2596,26 +2596,26 @@ NOINLINE HCIMPL2(Object *, JITutil_IsInstanceOfInterface, MethodTable *pInterfac
     }
 
     ENDFORBIDGC();
-    return HCCALL2(JITutil_IsInstanceOfAny, CORINFO_CLASS_HANDLE(pInterfaceMT), pObject);
+    return HCCALL2(JITutil_IsInstanceOfAny, CORINFO_CLASS_HANDLE(pInterfaceMT), obj);
 
 }
 HCIMPLEND
 
-NOINLINE HCIMPL2(Object *, JITutil_ChkCastInterface, MethodTable *pInterfaceMT, Object *pObject)
+NOINLINE HCIMPL2(Object *, JITutil_ChkCastInterface, MethodTable *pInterfaceMT, Object *obj)
 {
     FCALL_CONTRACT;
 
-    MethodTable* pMT = pObject->GetMethodTable();
+    MethodTable* pMT = obj->GetMethodTable();
     if (pMT->IsArray() && pInterfaceMT->HasInstantiation())
     {
         if (pMT->ArraySupportsBizarreInterfaceNoGC(pInterfaceMT) == TypeHandle::CanCast)
         {
-            return pObject;
+            return obj;
         }
     }
 
     ENDFORBIDGC();
-    return HCCALL2(JITutil_ChkCastAny, CORINFO_CLASS_HANDLE(pInterfaceMT), pObject);
+    return HCCALL2(JITutil_ChkCastAny, CORINFO_CLASS_HANDLE(pInterfaceMT), obj);
 }
 HCIMPLEND
 
