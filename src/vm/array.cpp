@@ -1296,6 +1296,7 @@ BOOL IsImplicitInterfaceOfSZArray(MethodTable *pInterfaceMT)
 {
     LIMITED_METHOD_CONTRACT;
     PRECONDITION(pInterfaceMT->IsInterface());
+    PRECONDITION(pInterfaceMT->HasInstantiation());
 
     // Is target interface Anything<T> in mscorlib?
     if (!pInterfaceMT->HasInstantiation() || !pInterfaceMT->GetModule()->IsSystem())
@@ -1324,8 +1325,9 @@ BOOL ArraySupportsBizarreInterface(ArrayTypeDesc *pArrayTypeDesc, MethodTable *p
         GC_TRIGGERS;
         INJECT_FAULT(COMPlusThrowOM(););
 
-        PRECONDITION(pInterfaceMT->IsInterface());
         PRECONDITION(pArrayTypeDesc->IsArray());
+        PRECONDITION(pInterfaceMT->IsInterface());
+        PRECONDITION(pInterfaceMT->HasInstantiation());
     }
     CONTRACTL_END
 

@@ -839,18 +839,24 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
     {
         if (tb.IsArray())
             return MergeArrayTypeHandlesToCommonParent(ta, tb);
-        else if (tb.IsInterface())
+
+        if (tb.IsInterface() && tb.HasInstantiation())
         {
             //Check to see if we can merge the array to a common interface (such as Derived[] and IList<Base>)
             if (ArraySupportsBizarreInterface(ta.AsArray(), tb.AsMethodTable()))
                 return tb;
         }
+
         ta = TypeHandle(g_pArrayClass);         // keep merging from here. 
     }
     else if (tb.IsArray())
     {
-        if (ta.IsInterface() && ArraySupportsBizarreInterface(tb.AsArray(), ta.AsMethodTable()))
-            return ta;
+        if (ta.IsInterface() && ta.HasInstantiation())
+        {
+            //Check to see if we can merge the array to a common interface (such as Derived[] and IList<Base>)
+            if (ArraySupportsBizarreInterface(tb.AsArray(), ta.AsMethodTable()))
+                return ta;
+        }
 
         tb = TypeHandle(g_pArrayClass);
     }

@@ -1490,15 +1490,10 @@ BOOL MethodTable::CanCastToInterface(MethodTable *pTargetMT, TypeHandlePairList 
 
     if (!pTargetMT->HasVariance())
     {
-        if (HasTypeEquivalence() || pTargetMT->HasTypeEquivalence())
-        {
-            if (IsInterface() && IsEquivalentTo(pTargetMT))
-                return TRUE;
+        if (IsInterface() && IsEquivalentTo(pTargetMT))
+            return TRUE;
 
-            return ImplementsEquivalentInterface(pTargetMT);
-        }
-
-        return CanCastToNonVariantInterface(pTargetMT);
+        return ImplementsEquivalentInterface(pTargetMT);
     }
     else
     {
@@ -1762,6 +1757,7 @@ TypeHandle::CastResult MethodTable::ArraySupportsBizarreInterfaceNoGC(MethodTabl
         MODE_COOPERATIVE;
         PRECONDITION(this->IsArray());
         PRECONDITION(pInterfaceMT->IsInterface());
+        PRECONDITION(pInterfaceMT->HasInstantiation());
     } CONTRACTL_END;
 
     // IList<T> & IReadOnlyList<T> only supported for SZ_ARRAYS
@@ -1773,12 +1769,6 @@ TypeHandle::CastResult MethodTable::ArraySupportsBizarreInterfaceNoGC(MethodTabl
 
     if (pInterfaceMT->GetLoadLevel() < CLASS_DEPENDENCIES_LOADED)
     {
-        if (!pInterfaceMT->HasInstantiation())
-        {
-            CastCache::TryAddToCacheNoGC(this, pInterfaceMT, FALSE);
-            return TypeHandle::CannotCast;
-        }
-
         // The slow path will take care of restoring the interface
         return TypeHandle::MaybeCast;
     }
