@@ -413,7 +413,7 @@ void RangeCheck::OptimizeRangeCheckWithExplicitCheck(BasicBlock*  block,
 
     for (BasicBlock* bbIter : extracted)
     {
-        for (GenTreeStmt* gtStmtIter = bbIter->bbTreeList->AsStmt(); gtStmtIter; gtStmtIter = gtStmtIter->gtNextStmt)
+        for (GenTreeStmt* gtStmtIter = bbIter->firstStmt(); gtStmtIter != nullptr; gtStmtIter = gtStmtIter->getNextStmt())
         {
             for (GenTree* gtTreeIter = gtStmtIter->gtStmtList; gtTreeIter; gtTreeIter = gtTreeIter->gtNext)
             {
