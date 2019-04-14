@@ -2996,8 +2996,7 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                     GenTree** pAddr = &node->gtOp1;
                     ContainCheckHWIntrinsicAddr(node, pAddr);
 
-                    if (!node->gtGetOp1()->isContained() &&
-                        ((intrinsicId == NI_SSE_Store) || (intrinsicId == NI_SSE2_Store)) && op2->OperIsHWIntrinsic() &&
+                    if (((intrinsicId == NI_SSE_Store) || (intrinsicId == NI_SSE2_Store)) && op2->OperIsHWIntrinsic() &&
                         ((op2->AsHWIntrinsic()->gtHWIntrinsicId == NI_AVX_ExtractVector128) ||
                          (op2->AsHWIntrinsic()->gtHWIntrinsicId == NI_AVX2_ExtractVector128)) &&
                         op2->gtGetOp2()->IsIntegralConst())

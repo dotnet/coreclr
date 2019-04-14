@@ -152,13 +152,13 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                         assert((extract->gtHWIntrinsicId == NI_AVX_ExtractVector128) ||
                                (extract->gtHWIntrinsicId == NI_AVX2_ExtractVector128));
 
-                        regNumber regAddr = op1->GetRegNum();
                         regNumber regData = genConsumeReg(extract->gtGetOp1());
 
                         ins  = HWIntrinsicInfo::lookupIns(extract->gtHWIntrinsicId, extract->gtSIMDBaseType);
                         ival = static_cast<int>(extract->gtGetOp2()->AsIntCon()->IconValue());
 
-                        emit->emitIns_AR_R_I(ins, EA_32BYTE, regAddr, 0, regData, ival);
+                        GenTreeIndir indir = indirForm(TYP_SIMD16, op1);
+                        emit->emitIns_A_R_I(ins, EA_32BYTE, &indir, regData, ival);
                     }
                     else
                     {
