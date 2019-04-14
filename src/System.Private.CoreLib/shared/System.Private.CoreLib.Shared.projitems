@@ -1265,6 +1265,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Environment.NoRegistry.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureHardwareIntrinsics)' == 'true' AND ('$(Platform)' == 'x64' OR ('$(Platform)' == 'x86' AND '$(TargetsUnix)' != 'true'))">
+    <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\Intrinsics\X86\AddCarry.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\Intrinsics\X86\Aes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\Intrinsics\X86\Avx.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\Intrinsics\X86\Avx2.cs" />
@@ -1282,6 +1283,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\Intrinsics\X86\Ssse3.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureHardwareIntrinsics)' != 'true' OR ('$(Platform)' != 'x64' AND ('$(Platform)' != 'x86' OR ('$(Platform)' == 'x86' AND '$(TargetsUnix)' == 'true')))">
+    <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\Intrinsics\X86\AddCarry.PlatformNotSupported.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\Intrinsics\X86\Aes.PlatformNotSupported.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\Intrinsics\X86\Avx.PlatformNotSupported.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\Intrinsics\X86\Avx2.PlatformNotSupported.cs" />
