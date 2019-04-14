@@ -5,18 +5,6 @@
 
 #include <comdef.h>
 
-struct SizeF
-{
-    float width;
-    float height;
-};
-
-struct Size
-{
-    BYTE width;
-    BYTE height;
-};
-
 struct HFA_4
 {
     float x;
@@ -376,6 +364,8 @@ IErrorMarshalTesting : IUnknown
       virtual HRESULT STDMETHODCALLTYPE Throw_HResult (
         /*[in]*/ int hresultToReturn ) = 0;
       virtual int STDMETHODCALLTYPE Return_As_HResult (
+        /*[in]*/ int hresultToReturn ) = 0;
+      virtual int STDMETHODCALLTYPE Return_As_HResult_Struct (
         /*[in]*/ int hresultToReturn ) = 0;
 };
 

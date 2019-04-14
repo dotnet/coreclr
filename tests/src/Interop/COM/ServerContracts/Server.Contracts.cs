@@ -11,18 +11,6 @@ namespace Server.Contract
     using System.Runtime.InteropServices;
     using System.Text;
 
-    public struct SizeF
-    {
-        public float width;
-        public float height;
-    }
-
-    public struct Size
-    {
-        public byte width;
-        public byte height;
-    }
-
     [ComVisible(true)]
     [Guid("05655A94-A915-4926-815D-A9EA648BAAD9")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -190,6 +178,11 @@ namespace Server.Contract
         void Reverse_BStr_OutAttr([MarshalAs(UnmanagedType.BStr)] string a, [Out][MarshalAs(UnmanagedType.BStr)] string b);
     }
 
+    public struct HResult
+    {
+        public int hr;
+    }
+
     [ComVisible(true)]
     [Guid("592386A5-6837-444D-9DE3-250815D18556")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -199,6 +192,9 @@ namespace Server.Contract
 
         [PreserveSig]
         int Return_As_HResult(int hresultToReturn);
+
+        [PreserveSig]
+        HResult Return_As_HResult_Struct(int hresultToReturn);
     }
 
     public enum IDispatchTesting_Exception
