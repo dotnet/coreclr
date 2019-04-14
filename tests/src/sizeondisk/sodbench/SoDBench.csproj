@@ -37,6 +37,8 @@
   <Import Project="$(TestSrcDir)performance/performance.targets" />
 
   <PropertyGroup>
-    <ProjectAssetsFile>$(TestSrcDir)performance/obj/project.assets.json</ProjectAssetsFile>
+    <!-- Reference the performance restored packages. -->
+    <PerformanceTest>true</PerformanceTest>
+    <ProjectAssetsFile>$(RootArtifactsDir)tests/obj/$(OSPlatformConfig)/Managed/performance/performance/project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 </Project>

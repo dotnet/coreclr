@@ -22,7 +22,11 @@
     <Compile Include="Class2_ImplicitOverrideVirtual_Interface.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="Class_ImplicitOverrideVirtualNewslot.csproj" />
+    <ProjectReference Include="Class_ImplicitOverrideVirtualNewslot.csproj" >
+      <!-- Set a global variable to force the imported project to build as a -->
+      <!-- lib. See Class_ImplicitOverrideVirtualNewslot.csproj for usage.   -->
+      <Properties>IsProjectReference=true</Properties>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />

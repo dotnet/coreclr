@@ -30,6 +30,8 @@
     <PackageReference Include="System.Drawing.Common">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
     </PackageReference>
+    <PackageReference Include="xunit" Version="$(XunitPackageVersion)" />
+    <PackageReference Include="xunit.runner.console" Version="$(XunitPackageVersion)" />
   </ItemGroup>
 
   <PropertyGroup>

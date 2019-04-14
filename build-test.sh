@@ -253,7 +253,29 @@ build_Tests()
     if [ $__SkipManaged != 1 ]; then
         echo "Starting the Managed Tests Build..."
 
-        ${__DotNetCli} build ${__TestDir}/tests.sln /p:maxcpucount /p:Platform=${__BuildArch} /verbosity:m
+        ${__DotNetCli} build ${__TestDir}/src/priority_0-1.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+        ${__DotNetCli} build ${__TestDir}/src/priority_0-2.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+        ${__DotNetCli} build ${__TestDir}/src/priority_0-3.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+        ${__DotNetCli} build ${__TestDir}/src/priority_0-4.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+        ${__DotNetCli} build ${__TestDir}/src/priority_0-5.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+        ${__DotNetCli} build ${__TestDir}/src/priority_0-6.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+        ${__DotNetCli} build ${__TestDir}/src/priority_0-7.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+        ${__DotNetCli} build ${__TestDir}/src/priority_0-8.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+
+        if [ ! -n "${__priority1}" ]; then
+
+            ${__DotNetCli} build ${__TestDir}/src/priority_0-1.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+            ${__DotNetCli} build ${__TestDir}/src/priority_1-2.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+            ${__DotNetCli} build ${__TestDir}/src/priority_1-3.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+            ${__DotNetCli} build ${__TestDir}/src/priority_1-4.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+            ${__DotNetCli} build ${__TestDir}/src/priority_1-5.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+            ${__DotNetCli} build ${__TestDir}/src/priority_1-6.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+            ${__DotNetCli} build ${__TestDir}/src/priority_1-7.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+            ${__DotNetCli} build ${__TestDir}/src/priority_1-8.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+            ${__DotNetCli} build ${__TestDir}/src/priority_1-9.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+            ${__DotNetCli} build ${__TestDir}/src/priority_1-10.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+
+        fi
 
         if [ $? -ne 0 ]; then
             echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"

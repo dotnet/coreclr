@@ -51,6 +51,8 @@ parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", defa
 parser.add_argument("-old_test_build", dest="old_test_build")
 parser.add_argument("-max_sln_count", dest="max_sln_count", default="10")
 parser.add_argument("--use_subdir_for_sln_creation", dest="use_subdir_for_sln_creation", default=False)
+parser.add_argument("--priority_0_only", dest="priority_0_only", action="store_true", default=False)
+parser.add_argument("--priority_1_only", dest="priority_1_only", action="store_true", default=True)
 
 ################################################################################
 # Helper Methods
@@ -147,16 +149,38 @@ def divide_tests_for_slns(test_projects, max_sln_count):
     conflicts = []
 
     last_root_dir = None
+    force_split = False
+
+    forced_gc_performance = False
+    forced_performance = False
     for item in test_projects:
         this_root_dir = item.split(os.path.sep)[0].lower()
-        if this_root_dir != last_root_dir and len(current_split) > naive_split_amount:
+        project_name = item.split(os.path.sep)[-1]
+        force_split_for_gc_perf = False
+        force_split_for_perf = False
+
+        if "performance" == this_root_dir and forced_performance is not True:
+            force_split_for_perf = True
+
+        if os.path.join("GC", "Performance") in item and forced_gc_performance is not True:
+            force_split_for_gc_perf = True
+
+        if force_split_for_perf or force_split_for_perf:
+            force_split = True
+
+        if (this_root_dir != last_root_dir and len(current_split) > naive_split_amount) or force_split is True:
             split_test_projects.append(current_split)
             current_split = defaultdict(lambda: None)
 
+            if force_split_for_gc_perf is True:
+                forced_gc_performance = True
+                force_split = False
+            elif force_split_for_perf is True:
+                forced_performance = False
+                force_split = False
+
         if last_root_dir is None:
             last_root_dir = item.split(os.path.sep)[0].lower()
-
-        project_name = item.split(os.path.sep)[-1]
 
         # Projects with the same name need to be pushed to their own sln.
         if not has_conflict(current_split, project_name):
@@ -174,7 +198,24 @@ def divide_tests_for_slns(test_projects, max_sln_count):
     # opportunistic approach will not be enough.
     for item in conflicts:
         if not has_conflict(current_split, item[0]):
-            current_split[item[0]] = item[1]
+            current_split[item[0].lower()] = item[1]
+        else:
+            new_conflicts.append(item)
+
+    next_current_split = defaultdict(lambda: None)
+    conflicts = new_conflicts
+
+    # Append the conflict list
+    split_test_projects.append(current_split)
+
+    current_split = defaultdict(lambda: None)
+    new_conflicts = []
+
+    # Try to put all conflicts into their own sln. Note it is very possible this
+    # opportunistic approach will not be enough.
+    for item in conflicts:
+        if not has_conflict(current_split, item[0]):
+            current_split[item[0].lower()] = item[1]
         else:
             new_conflicts.append(item)
 
@@ -186,25 +227,37 @@ def divide_tests_for_slns(test_projects, max_sln_count):
 
     new_conflicts = []
 
-    # For all tests which have conflicts, we will need to try to fit them
-    # wherever we can. At this point we can either change the test names
-    # or we can keep creating slns.
+    # For all tests which have conflicts, we will need to try to backfill them. 
+    # At this point we can either change the test names or we can keep creating 
+    # slns.
     for item in conflicts:
         conflict_handled = False
         for bucket in split_test_projects:
-            if not has_conflict(current_split, item[0]):
-                bucket[item[0]] = item[1]
+            if not has_conflict(bucket, item[0]):
+                bucket[item[0].lower()] = item[1]
                 conflict_handled = True
                 break
 
         if not conflict_handled:
             new_conflicts.append(item)
 
+    current_split = defaultdict(lambda: None)
+
     if len(new_conflicts) > 0:
+        # Create a conflict bucket.
+        for item in new_conflicts:
+            current_split[item[0]] = item[1]
+
+        # Append the conflict list
+        split_test_projects.append(current_split)
+
+    if len(current_split) > 0:
         print("""After attempting to add conflicts to different sln files, there
 where too many conflicts to generate unconflicted sln files. You can avoid this
 problem by either increasing the max_sln_count, or renaming tests such that
 there are less conflicting project names.""")
+
+    print(len(current_split))
 
     assert len(split_test_projects) <= max_sln_count
     
@@ -251,13 +304,21 @@ def split_buckets_between_priorities(coreclr_test_src_dir, buckets):
             # Priority 1
             elif "CLRTestPriority>1" in contents:
                 priority_1.append(item)
+
+            # We build Exe tests only.
+            elif "<OutputType>Library" in contents:
+                continue
+
+            # Skip referenced projects.
+            elif "BuildOnly" in contents:
+                continue
             
             else:
                 priority_0.append(item)
 
     return (priority_0, priority_1, test_builds_windows_only)
 
-def create_sln_files(dotnetcli, coreclr_test_dir, max_sln_count, priority_0, priority_1, win32_tests):
+def create_sln_files(dotnetcli, coreclr_test_dir, max_sln_count, priority_0, priority_1, win32_tests, coreclr_args):
     """ Create sln files based on a set of sln buckets.
     """
 
@@ -302,9 +363,14 @@ def create_sln_files(dotnetcli, coreclr_test_dir, max_sln_count, priority_0, pri
 
             count += 1
 
-    create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "priority_0", priority_0)
-    create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "priority_1", priority_1)
-    create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "windows_only", win32_tests)
+    if not coreclr_args.priority_1_only:
+        print("Creating pri0 slns.")
+        create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "priority_0", priority_0)
+    
+    if not coreclr_args.priority_0_only:
+        print("Creating pri1 slns.")
+        create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "priority_1", priority_1)
+        create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "windows_only", win32_tests)
 
 ################################################################################
 # main
@@ -330,6 +396,14 @@ def main(args):
                         "use_subdir_for_sln_creation",
                         lambda unused: True,
                         "Error, unable to set use_subdir_for_sln_creation.")
+    coreclr_args.verify(args,
+                        "priority_0_only",
+                        lambda unused: True,
+                        "Error, unable to set priority_0_only.")
+    coreclr_args.verify(args,
+                        "priority_1_only",
+                        lambda unused: True,
+                        "Error, unable to set priority_1_only.")
 
     # Find old tests
     print("Finding old tests at {}...".format(coreclr_args.old_test_build))
@@ -375,7 +449,7 @@ def main(args):
     print("")
     print("Disabled: {} tests.".format(disabled_test_count))
 
-    create_sln_files(dotnetcli, coreclr_test_dir, coreclr_args.max_sln_count, priority_0, priority_1, win32_tests)
+    create_sln_files(dotnetcli, coreclr_test_dir, coreclr_args.max_sln_count, priority_0, priority_1, win32_tests, coreclr_args)
 
     return 0
 
