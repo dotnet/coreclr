@@ -166,6 +166,7 @@ private:
     static const DWORD MAXIMUM_CACHE_SIZE = 128 * 1024; //TODO: VS too big?
     static const DWORD BUCKET_SIZE = 8;
 
+    //TODO: VS consider allocating this on the managed heap.
     static CastCache*   s_cache;
 
     CastCacheEntry*     m_Table;
@@ -183,7 +184,13 @@ private:
             return CastCacheResult::CanCast;
         }
 
-        return s_cache->TryGet(source, target);
+        CastCache* cache = s_cache;
+        if (cache == NULL)
+        {
+            return CastCacheResult::NotCached;
+        }
+
+        return cache->TryGet(source, target);
     }
 
     FORCEINLINE static void TryAddToCache(TADDR source, TADDR target, BOOL result, BOOL noGC)
@@ -192,11 +199,11 @@ private:
 
         if (source == target)
             return;
-
-        s_cache->TrySet(source, target, result, noGC);
+        
+        TrySet(source, target, result, noGC);
     }
 
-    FORCEINLINE static BOOL TryGrow()
+    FORCEINLINE static CastCache* TryGrow()
     {
         WRAPPER_NO_CONTRACT;
 
@@ -204,13 +211,12 @@ private:
 
         //TODO: VS need to be smarter with resize or this is enough? 
         //TODO: any problems with concurent expansion and waste, perhaps a spinlock?
-        if (currentCache->Size() < MAXIMUM_CACHE_SIZE)
+        if (currentCache == NULL || currentCache->Size() < MAXIMUM_CACHE_SIZE)
         {
-            MaybeReplaceCacheWithLarger(currentCache);
-            return TRUE;
+            return MaybeReplaceCacheWithLarger(currentCache);
         }
 
-        return FALSE;
+        return NULL;
     }
 
     FORCEINLINE DWORD Size()
@@ -237,7 +243,7 @@ private:
 #endif
     }
 
-    static void MaybeReplaceCacheWithLarger(CastCache* currentCache);
+    static CastCache* MaybeReplaceCacheWithLarger(CastCache* currentCache);
     CastCacheResult TryGet(TADDR source, TADDR target);
     static void TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC);
 
