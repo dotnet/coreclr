@@ -8,7 +8,7 @@
 #include "common.h"
 #include "castcache.h"
 
-CastCache* CastCache::s_cache = new CastCache(INITIAL_CACHE_SIZE);
+CastCache* CastCache::s_cache = NULL;
 
 // this is only called on GC or during shutdown (see: SyncClean::CleanUp).
 CastCache::~CastCache()
@@ -17,23 +17,36 @@ CastCache::~CastCache()
     delete[] m_Table;
 }
 
-void CastCache::MaybeReplaceCacheWithLarger(CastCache* currentCache)
+CastCache* CastCache::MaybeReplaceCacheWithLarger(CastCache* currentCache)
 {
     WRAPPER_NO_CONTRACT;
 
+    if (currentCache == NULL)
+    {
+        CastCache* newCache = new (nothrow) CastCache(INITIAL_CACHE_SIZE);
+        if (newCache != NULL)
+        {
+            s_cache = newCache;
+        }
+
+        return newCache;
+    }
+
     CastCache* newCache = new (nothrow) CastCache(currentCache->Size() * 2);
     if (newCache == NULL)
-        return; // oh well, continue using the old cache.
+        return FALSE; // oh well, continue using the old cache.
 
-    CastCache* obsoleteCache = FastInterlockCompareExchangePointer(&s_cache, newCache, currentCache);
+    CastCache* prevCache = FastInterlockCompareExchangePointer(&s_cache, newCache, currentCache);
 
-    if (obsoleteCache == currentCache)
+    if (prevCache == currentCache)
     {
-        SyncClean::AddObsoleteCastCache(obsoleteCache);
+        SyncClean::AddObsoleteCastCache(prevCache);
+        return newCache;
     }
     else
     {
         SyncClean::AddObsoleteCastCache(newCache);
+        return prevCache;
     }
 }
 
@@ -47,15 +60,19 @@ void CastCache::FlushCurrentCache()
     }
     CONTRACTL_END;
 
-    CastCache* newCache = new (nothrow) CastCache(s_cache->Size());
+    CastCache* oldCache = s_cache;
+    int newSize = oldCache == NULL ? INITIAL_CACHE_SIZE : oldCache->Size();
+
+    CastCache* newCache = new (nothrow) CastCache(newSize);
     if (newCache == NULL)
         newCache = new (nothrow) CastCache(INITIAL_CACHE_SIZE);
 
-    if (newCache == NULL)
-        newCache = new CastCache(8); // REVIEW: OOM ok here?
-
     CastCache* obsoleteCache = FastInterlockExchangePointer(&s_cache, newCache);
-    SyncClean::AddObsoleteCastCache(obsoleteCache);
+
+    if (obsoleteCache != NULL)
+    {
+        SyncClean::AddObsoleteCastCache(obsoleteCache);
+    }
 }
 
 CastCache::CastCacheResult CastCache::TryGet(TADDR source, TADDR target)
@@ -114,12 +131,20 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
 {
     WRAPPER_NO_CONTRACT;
 
+    if (s_cache == NULL && !noGC)
+        TryGrow();
+
     DWORD bucket;
     CastCache* currentCache;
 
     do
     {
         currentCache = VolatileLoadWithoutBarrier(&s_cache);
+        if (currentCache == NULL)
+        {
+            return;
+        }
+
         bucket = currentCache->KeyToBucket(source, target);
         DWORD index = bucket;
         CastCacheEntry* pEntry = &currentCache->m_Table[index];
