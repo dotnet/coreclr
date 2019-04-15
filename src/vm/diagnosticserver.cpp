@@ -66,7 +66,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
                 break;
 
             default:
-                STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknow request type (%d)\n", header.RequestType);
+                STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", header.RequestType);
                 delete pStream;
                 break;
             }
