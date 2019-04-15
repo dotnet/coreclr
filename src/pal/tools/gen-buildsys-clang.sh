@@ -166,7 +166,6 @@ fi
 # Include CMAKE_USER_MAKE_RULES_OVERRIDE as uninitialized since it will hold its value in the CMake cache otherwise can cause issues when branch switching
 $cmake_command \
   -G "$generator" \
-  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \ 
   "-DCMAKE_AR=$llvm_ar" \
   "-DCMAKE_LINKER=$llvm_link" \
   "-DCMAKE_NM=$llvm_nm" \
@@ -175,6 +174,7 @@ $cmake_command \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
   "-DCMAKE_INSTALL_PREFIX=$__CMakeBinDir" \
   "-DCLR_CMAKE_COMPILER=Clang" \
+  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \
   $cmake_extra_defines \
   $__UnprocessedCMakeArgs \
   "$1"
