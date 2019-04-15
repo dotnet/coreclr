@@ -166,9 +166,10 @@ else
     cmake_command=$(command -v cmake)
 fi
 
+# Include CMAKE_USER_MAKE_RULES_OVERRIDE as uninitialized since it will hold its value in the CMake cache otherwise can cause issues when branch switching
 $cmake_command \
   -G "$generator" \
-  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \ # Include this variable as uninitialized since it will hold its value in the CMake cache otherwise can cause issues when branch switching
+  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \
   "-DCMAKE_AR=$gcc_ar" \
   "-DCMAKE_LINKER=$gcc_link" \
   "-DCMAKE_NM=$gcc_nm" \
