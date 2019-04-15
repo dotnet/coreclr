@@ -233,7 +233,6 @@ public:
 };
 
 typedef UINT64 EventPipeSessionID;
-typedef void (*FlushTimerCallback)();
 
 class EventPipe
 {
