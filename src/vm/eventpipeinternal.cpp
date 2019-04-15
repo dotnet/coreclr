@@ -28,12 +28,21 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
 
     UINT64 sessionID = 0;
 
+    // Invalid input!
+    if (circularBufferSizeInMB == 0 ||
+        profilerSamplingRateInNanoseconds == 0 ||
+        numProviders == 0 ||
+        pProviders == nullptr)
+    {
+        return 0;
+    }
+
     BEGIN_QCALL;
     {
         sessionID = EventPipe::Enable(
             outputFile,
             circularBufferSizeInMB,
-            static_cast<uint32_t>(profilerSamplingRateInNanoseconds),
+            profilerSamplingRateInNanoseconds,
             pProviders,
             numProviders,
             outputFile != NULL ? EventPipeSessionType::File : EventPipeSessionType::Streaming,

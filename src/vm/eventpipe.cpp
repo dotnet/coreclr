@@ -234,7 +234,7 @@ void EventPipe::Shutdown()
 EventPipeSessionID EventPipe::Enable(
     LPCWSTR strOutputPath,
     uint32_t circularBufferSizeInMB,
-    uint32_t profilerSamplingRateInNanoseconds,
+    uint64_t profilerSamplingRateInNanoseconds,
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders,
     EventPipeSessionType sessionType,
@@ -247,17 +247,9 @@ EventPipeSessionID EventPipe::Enable(
         MODE_ANY;
         PRECONDITION(circularBufferSizeInMB > 0);
         PRECONDITION(profilerSamplingRateInNanoseconds > 0);
-        PRECONDITION((numProviders == 0) || (numProviders > 0 && pProviders != nullptr));
+        PRECONDITION(numProviders > 0 && pProviders != nullptr);
     }
     CONTRACTL_END;
-
-    // Invalid input!
-    if (circularBufferSizeInMB == 0)
-        return 0;
-    if (profilerSamplingRateInNanoseconds == 0)
-        return 0;
-    if (numProviders == 0 || pProviders == nullptr)
-        return 0;
 
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());

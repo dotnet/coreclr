@@ -64,7 +64,7 @@ bool EventPipeProtocolHelper::TryParseProviderConfiguration(uint8_t *&bufferCurs
 
         pConfigs[i] = EventPipeProviderConfiguration(pProviderName, keywords, logLevel, pFilterData);
     }
-    return true;
+    return (countConfigs > 0);
 }
 
 void EventPipeProtocolHelper::StopTracing(IpcStream *pStream)
@@ -104,6 +104,12 @@ void EventPipeProtocolHelper::StopTracing(IpcStream *pStream)
         // TODO: Add error handling.
     }
     delete pStream;
+}
+
+static bool TryParseCircularBufferSize(uint8_t *&bufferCursor, uint32_t &bufferLen, uint32_t &circularBufferSizeInMB)
+{
+    const bool CanParse = TryParse(bufferCursor, bufferLen, circularBufferSizeInMB);
+    return CanParse && (circularBufferSizeInMB > 0);
 }
 
 void EventPipeProtocolHelper::CollectTracing(IpcStream *pStream)
@@ -146,8 +152,8 @@ void EventPipeProtocolHelper::CollectTracing(IpcStream *pStream)
 
     uint8_t *pBufferCursor = buffer;
     uint32_t bufferLen = nNumberOfBytesRead;
-    if (!TryParse(pBufferCursor, bufferLen, circularBufferSizeInMB) ||
-        !TryParseString(pBufferCursor, bufferLen, strOutputPath) || // Currently ignored in this scenario.
+    if (!TryParseCircularBufferSize(pBufferCursor, bufferLen, circularBufferSizeInMB) ||
+        !TryParseString(pBufferCursor, bufferLen, strOutputPath) || // TODO: Remove. Currently ignored in this scenario.
         !TryParseProviderConfiguration(pBufferCursor, bufferLen, providerConfigs))
     {
         // TODO: error handling
