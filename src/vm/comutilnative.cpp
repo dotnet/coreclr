@@ -1229,12 +1229,7 @@ FCIMPL0(INT64, GCInterface::GetAllocatedBytesForCurrentThread)
 {
     FCALL_CONTRACT;
 
-    INT64 currentAllocated = 0;
-    Thread *pThread = GetThread();
-    gc_alloc_context* ac = pThread->GetAllocContext();
-    currentAllocated = ac->alloc_bytes + ac->alloc_bytes_loh - (ac->alloc_limit - ac->alloc_ptr);
-
-    return currentAllocated;
+    return ::GetAllocatedBytesForCurrentThread();
 }
 FCIMPLEND
 
