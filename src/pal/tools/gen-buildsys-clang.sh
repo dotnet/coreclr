@@ -167,6 +167,7 @@ $cmake_command --version
 
 $cmake_command \
   -G "$generator" \
+  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \ # Include this variable as uninitialized since it will hold its value in the CMake cache otherwise can cause issues when branch switching
   "-DCMAKE_AR=$llvm_ar" \
   "-DCMAKE_LINKER=$llvm_link" \
   "-DCMAKE_NM=$llvm_nm" \
