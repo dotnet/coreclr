@@ -46,7 +46,6 @@ for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& "%bas
 
 
 :DoGen
-"%CMakePath%" --version
 "%CMakePath%" -DCMAKE_USER_MAKE_RULES_OVERRIDE= -DCMAKE_INSTALL_PREFIX=%__CMakeBinDir% "-DCLR_CMAKE_HOST_ARCH=%__Arch%" %__ExtraCmakeParams% -G "%__CmakeGenerator%" %__SourceDir%
 endlocal
 GOTO :DONE

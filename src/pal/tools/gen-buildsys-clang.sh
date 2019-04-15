@@ -163,8 +163,6 @@ if [[ "$scan_build" == "ON" ]]; then
     cmake_command="$SCAN_BUILD_COMMAND $cmake_command"
 fi
 
-$cmake_command --version
-
 $cmake_command \
   -G "$generator" \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \ # Include this variable as uninitialized since it will hold its value in the CMake cache otherwise can cause issues when branch switching
