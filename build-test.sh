@@ -262,9 +262,9 @@ build_Tests()
         ${__DotNetCli} build ${__TestDir}/src/priority_0-7.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
         ${__DotNetCli} build ${__TestDir}/src/priority_0-8.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
 
-        if [ ! -n "${__priority1}" ]; then
+        if [ -n "${__priority1}" ]; then
 
-            ${__DotNetCli} build ${__TestDir}/src/priority_0-1.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
+            ${__DotNetCli} build ${__TestDir}/src/priority_1-1.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
             ${__DotNetCli} build ${__TestDir}/src/priority_1-2.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
             ${__DotNetCli} build ${__TestDir}/src/priority_1-3.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore
             ${__DotNetCli} build ${__TestDir}/src/priority_1-4.sln /p:ArcadeBuild=true /maxcpucount /verbosity:m --no-restore

@@ -1,0 +1,11 @@
+Interop/ICustomMarshaler/Primitives/ICustomMarshaler.csproj
+JIT/Intrinsics/BinaryPrimitivesReverseEndianness_r.csproj
+JIT/Intrinsics/BinaryPrimitivesReverseEndianness_r.csproj
+JIT/Intrinsics/BinaryPrimitivesReverseEndianness_ro.csproj
+JIT/HardwareIntrinsics/Arm64/Simd.csproj
+JIT/HardwareIntrinsics/Arm64/Base.csproj
+JIT/HardwareIntrinsics/Arm64/Crypto.csproj
+Loader/binding/assemblies/basicapi/assemblynamector/server3.csproj
+Loader/binding/assemblies/basicapi/assemblynamector/server2.csproj
+hosting/coreclr/activation/sxshost/UserCode.csproj
+reflection/GenericAttribute/GenericAttributeTests.csproj

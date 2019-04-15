@@ -50,9 +50,10 @@ parser.add_argument("-build_type", dest="build_type", nargs='?', default="Checke
 parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 parser.add_argument("-old_test_build", dest="old_test_build")
 parser.add_argument("-max_sln_count", dest="max_sln_count", default="10")
+parser.add_argument("-tests_failing_to_build", dest="tests_failing_to_build", default=None)
 parser.add_argument("--use_subdir_for_sln_creation", dest="use_subdir_for_sln_creation", default=False)
 parser.add_argument("--priority_0_only", dest="priority_0_only", action="store_true", default=False)
-parser.add_argument("--priority_1_only", dest="priority_1_only", action="store_true", default=True)
+parser.add_argument("--priority_1_only", dest="priority_1_only", action="store_true", default=False)
 
 ################################################################################
 # Helper Methods
@@ -113,7 +114,7 @@ def find_tests(path, split_string=None, extension=".exe"):
 
     return data_structure
 
-def divide_tests_for_slns(test_projects, max_sln_count):
+def divide_tests_for_slns(test_projects, max_sln_count, coreclr_args):
     """ Create multiple lists of test projects
     
     Args:
@@ -123,6 +124,16 @@ def divide_tests_for_slns(test_projects, max_sln_count):
     Returns:
         test_projects_split: [[str]]
     """
+
+    failure_to_build_tests = defaultdict(lambda: None)
+    
+    if coreclr_args.tests_failing_to_build:
+        lines = None
+        with open(coreclr_args.tests_failing_to_build) as file_handle:
+            lines = file_handle.readlines()
+
+        for item in lines:
+            failure_to_build_tests[item.strip()] = True
 
     def has_conflict(bucket, item):
         assert ("/" not in item)
@@ -147,6 +158,7 @@ def divide_tests_for_slns(test_projects, max_sln_count):
     split_test_projects = []
     current_split = defaultdict(lambda: None)
     conflicts = []
+    tests_that_fail_to_build = []
 
     last_root_dir = None
     force_split = False
@@ -184,7 +196,10 @@ def divide_tests_for_slns(test_projects, max_sln_count):
 
         # Projects with the same name need to be pushed to their own sln.
         if not has_conflict(current_split, project_name):
-            current_split[project_name.lower()] = item
+            if item not in failure_to_build_tests:
+                current_split[project_name.lower()] = item
+            else:
+                tests_that_fail_to_build.append(item)
         else:
             conflicts.append((project_name.lower(), item))
 
@@ -198,6 +213,7 @@ def divide_tests_for_slns(test_projects, max_sln_count):
     # opportunistic approach will not be enough.
     for item in conflicts:
         if not has_conflict(current_split, item[0]):
+            assert item not in failure_to_build_tests
             current_split[item[0].lower()] = item[1]
         else:
             new_conflicts.append(item)
@@ -215,6 +231,7 @@ def divide_tests_for_slns(test_projects, max_sln_count):
     # opportunistic approach will not be enough.
     for item in conflicts:
         if not has_conflict(current_split, item[0]):
+            assert item not in failure_to_build_tests
             current_split[item[0].lower()] = item[1]
         else:
             new_conflicts.append(item)
@@ -234,6 +251,7 @@ def divide_tests_for_slns(test_projects, max_sln_count):
         conflict_handled = False
         for bucket in split_test_projects:
             if not has_conflict(bucket, item[0]):
+                assert item not in failure_to_build_tests
                 bucket[item[0].lower()] = item[1]
                 conflict_handled = True
                 break
@@ -251,6 +269,20 @@ def divide_tests_for_slns(test_projects, max_sln_count):
         # Append the conflict list
         split_test_projects.append(current_split)
 
+    current_split = defaultdict(lambda: None)
+    has_failure_bucket = False
+
+    if len(tests_that_fail_to_build) > 0:
+        # Create a new unused sln.
+        for item in tests_that_fail_to_build:
+            current_split[item] = item
+
+        # Append the conflict list
+        split_test_projects.append(current_split)
+        has_failure_bucket = True
+
+        print ("Has {} tests that fail to build in their own bucket.".format(len(current_split)))
+
     if len(current_split) > 0:
         print("""After attempting to add conflicts to different sln files, there
 where too many conflicts to generate unconflicted sln files. You can avoid this
@@ -259,7 +291,7 @@ there are less conflicting project names.""")
 
     print(len(current_split))
 
-    assert len(split_test_projects) <= max_sln_count
+    assert len(split_test_projects) <= max_sln_count 
     
     # Convert to lists instead of dicts.
     buckets = []
@@ -267,7 +299,7 @@ there are less conflicting project names.""")
     for bucket in split_test_projects:
         buckets.append([key for item, key in bucket.items()])
 
-    return buckets
+    return buckets, has_failure_bucket
 
 def split_buckets_between_priorities(coreclr_test_src_dir, buckets):
     """ Given a set of buckets separate them between Pri0/Pri1 and Win32 only
@@ -322,8 +354,8 @@ def create_sln_files(dotnetcli, coreclr_test_dir, max_sln_count, priority_0, pri
     """ Create sln files based on a set of sln buckets.
     """
 
-    def create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, group_name, sln_buckets):
-        buckets = divide_tests_for_slns(sln_buckets, max_sln_count)
+    def create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, group_name, sln_buckets, coreclr_args):
+        buckets, has_failure_bucket = divide_tests_for_slns(sln_buckets, max_sln_count, coreclr_args)
         coreclr_test_src_dir = os.path.join(coreclr_test_dir, "src")
 
         extension = ".sh" if sys.platform != "win32" else ".cmd"
@@ -345,10 +377,13 @@ def create_sln_files(dotnetcli, coreclr_test_dir, max_sln_count, priority_0, pri
         os.chdir(coreclr_test_src_dir)
 
         count = 1
-        for bucket in buckets:
+        for index, bucket in enumerate(buckets):
             if not os.path.isfile(os.path.join(coreclr_test_src_dir, sln_base_name + str(count) + sln_extension)):
+                new_sln_name = sln_base_name + str(count)
+                if index == len(buckets) - 1 and has_failure_bucket:
+                    new_sln_name = sln_base_name + "test_failures"
                 # Create the sln
-                command = [dotnetcli, "new", "sln", "-n", sln_base_name + str(count)]
+                command = [dotnetcli, "new", "sln", "-n", new_sln_name]
 
                 print(" ".join(command))
                 subprocess.check_output(command)
@@ -365,12 +400,12 @@ def create_sln_files(dotnetcli, coreclr_test_dir, max_sln_count, priority_0, pri
 
     if not coreclr_args.priority_1_only:
         print("Creating pri0 slns.")
-        create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "priority_0", priority_0)
+        create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "priority_0", priority_0, coreclr_args)
     
     if not coreclr_args.priority_0_only:
         print("Creating pri1 slns.")
-        create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "priority_1", priority_1)
-        create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "windows_only", win32_tests)
+        create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "priority_1", priority_1, coreclr_args)
+        create_sln_files_for_group(dotnetcli, coreclr_test_dir, max_sln_count, "windows_only", win32_tests, coreclr_args)
 
 ################################################################################
 # main
@@ -404,6 +439,10 @@ def main(args):
                         "priority_1_only",
                         lambda unused: True,
                         "Error, unable to set priority_1_only.")
+    coreclr_args.verify(args,
+                        "tests_failing_to_build",
+                        lambda unused: True,
+                        "Error, unable to set tests_failing_to_build.")
 
     # Find old tests
     print("Finding old tests at {}...".format(coreclr_args.old_test_build))

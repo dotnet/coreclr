@@ -25,6 +25,7 @@
     <RootArtifactsDir Condition="'$(RootArtifactsDir)'==''">$(ProjectDir)artifacts/</RootArtifactsDir>
 
     <OSPlatformConfig>$(BuildOS)/$(BuildArch)/$(Configuration)</OSPlatformConfig>
+    <BaseOutputPathWithConfig>$(RootArtifactsDir)tests/$(OSPlatformConfig)/</BaseOutputPathWithConfig>
 
     <TestSrcDir>$(MSBuildThisFileDirectory)src/</TestSrcDir>
     <__NativeTestIntermediatesDir Condition="'$(__NativeTestIntermediatesDir)' == ''">$([System.IO.Path]::GetFullPath($(RootArtifactsDir)tests\obj\$(OSPlatformConfig)\Native\))</__NativeTestIntermediatesDir>
