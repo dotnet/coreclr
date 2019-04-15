@@ -1857,33 +1857,16 @@ BOOL Module::IsManifest()
 
 DomainAssembly* Module::GetDomainAssembly()
 {
-    CONTRACT(DomainAssembly *)
-    {
-        INSTANCE_CHECK;
-        POSTCONDITION(CheckPointer(RETVAL));
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACT_END;
+    LIMITED_METHOD_DAC_CONTRACT;
 
-    RETURN dac_cast<PTR_DomainAssembly>(m_ModuleID->GetDomainFile());
+    return dac_cast<PTR_DomainAssembly>(m_ModuleID->GetDomainFile());
 }
 
 DomainFile *Module::GetDomainFile()
 {
-    CONTRACT(DomainFile *)
-    {
-        INSTANCE_CHECK;
-        POSTCONDITION(CheckPointer(RETVAL));
-        GC_TRIGGERS;
-        THROWS;
-        MODE_ANY;
-        SUPPORTS_DAC;
-    }
-    CONTRACT_END;
+    LIMITED_METHOD_DAC_CONTRACT;
 
-    RETURN dac_cast<PTR_DomainFile>(m_ModuleID->GetDomainFile());
+    return dac_cast<PTR_DomainFile>(m_ModuleID->GetDomainFile());
 }
 
 #ifndef DACCESS_COMPILE 
