@@ -265,5 +265,4 @@ void Run_NumericTests()
     MarshalFloat(numericTesting, (float)a / 100.f, (float)b / 100.f);
     MarshalDouble(numericTesting, (double)a / 100.0, (double)b / 100.0);
     MarshalManyInts(numericTesting);
-    MarshalStructReturn(numericTesting);
 }

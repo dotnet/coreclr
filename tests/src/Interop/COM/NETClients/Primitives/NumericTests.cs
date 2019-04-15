@@ -38,7 +38,6 @@ namespace NetClient
             this.Marshal_Float(a / 100f, b / 100f);
             this.Marshal_Double(a / 100.0, b / 100.0);
             this.Marshal_ManyInts();
-            this.Marshal_Struct_Return();
         }
 
         static private bool EqualByBound(float expected, float actual)
