@@ -1618,22 +1618,3 @@ SetCardsAfterBulkCopy(Object **start, size_t len)
 #if defined(_MSC_VER) && defined(_TARGET_X86_)
 #pragma optimize("", on)        // Go back to command line default optimizations
 #endif //_MSC_VER && _TARGET_X86_
-
-INT64 GetAllocatedBytesForCurrentThread()
-{
-    INT64 currentAllocated;
-
-    if (GCHeapUtilities::UseThreadAllocationContexts())
-    {
-        gc_alloc_context* ac = GetThread()->GetAllocContext();
-        currentAllocated = ac->alloc_bytes + ac->alloc_bytes_loh - (ac->alloc_limit - ac->alloc_ptr);
-    }
-    else
-    {
-        GlobalAllocLockHolder holder(&g_global_alloc_lock);
-        gc_alloc_context* ac = &g_global_alloc_context;
-        currentAllocated = ac->alloc_bytes + ac->alloc_bytes_loh - (ac->alloc_limit - ac->alloc_ptr);
-    }
-
-    return currentAllocated;
-}

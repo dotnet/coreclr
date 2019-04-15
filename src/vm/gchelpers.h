@@ -130,8 +130,6 @@ extern void FlushWriteBarrierInstructionCache();
 
 extern void ThrowOutOfMemoryDimensionsExceeded();
 
-extern INT64 GetAllocatedBytesForCurrentThread();
-
 //========================================================================
 //
 //      WRITE BARRIER HELPERS
