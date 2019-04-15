@@ -54,8 +54,6 @@ inline gc_alloc_context* GetThreadAllocContext()
 {
     WRAPPER_NO_CONTRACT;
 
-    assert(GCHeapUtilities::UseThreadAllocationContexts());
-
     return & GetThread()->m_alloc_context;
 }
 
@@ -146,17 +144,6 @@ struct AsmOffsets {
     static_assert(offsetof(GlobalAllocLock, m_lock) == 0, "ASM code relies on this property");
 };
 
-// For single-proc machines, the global allocation context is protected
-// from concurrent modification by this lock.
-//
-// When not using per-thread allocation contexts, certain methods on IGCHeap
-// require that this lock be held before calling. These methods are documented
-// on the IGCHeap interface.
-extern "C"
-{
-    GlobalAllocLock g_global_alloc_lock;
-}
-
 
 // Checks to see if the given allocation size exceeds the
 // largest object size allowed - if it does, it throws
@@ -233,20 +220,9 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
     Object *retVal = NULL;
     CheckObjectSize(size);
 
-    if (GCHeapUtilities::UseThreadAllocationContexts())
-    {
-        gc_alloc_context *threadContext = GetThreadAllocContext();
-        GCStress<gc_on_alloc>::MaybeTrigger(threadContext);
-        retVal = GCHeapUtilities::GetGCHeap()->Alloc(threadContext, size, flags);
-    }
-    else
-    {
-        GlobalAllocLockHolder holder(&g_global_alloc_lock);
-        gc_alloc_context *globalContext = &g_global_alloc_context;
-        GCStress<gc_on_alloc>::MaybeTrigger(globalContext);
-        retVal = GCHeapUtilities::GetGCHeap()->Alloc(globalContext, size, flags);
-    }
-
+    gc_alloc_context *threadContext = GetThreadAllocContext();
+    GCStress<gc_on_alloc>::MaybeTrigger(threadContext);
+    retVal = GCHeapUtilities::GetGCHeap()->Alloc(threadContext, size, flags);
 
     if (!retVal)
     {
@@ -274,19 +250,9 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
     Object *retVal = NULL;
     CheckObjectSize(size);
 
-    if (GCHeapUtilities::UseThreadAllocationContexts())
-    {
-        gc_alloc_context *threadContext = GetThreadAllocContext();
-        GCStress<gc_on_alloc>::MaybeTrigger(threadContext);
-        retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(threadContext, size, flags);
-    }
-    else
-    {
-        GlobalAllocLockHolder holder(&g_global_alloc_lock);
-        gc_alloc_context *globalContext = &g_global_alloc_context;
-        GCStress<gc_on_alloc>::MaybeTrigger(globalContext);
-        retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(globalContext, size, flags);
-    }
+    gc_alloc_context *threadContext = GetThreadAllocContext();
+    GCStress<gc_on_alloc>::MaybeTrigger(threadContext);
+    retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(threadContext, size, flags);
 
     if (!retVal)
     {

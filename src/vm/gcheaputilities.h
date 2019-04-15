@@ -21,12 +21,6 @@ GVAL_DECL(GCHeapType, g_heap_type);
 }
 #endif // !DACCESS_COMPILE
 
-// For single-proc machines, the EE will use a single, shared alloc context
-// for all allocations. In order to avoid extra indirections in assembly
-// allocation helpers, the EE owns the global allocation context and the
-// GC will update it when it needs to.
-extern "C" gc_alloc_context g_global_alloc_context;
-
 extern "C" uint32_t* g_card_bundle_table;
 extern "C" uint8_t* g_ephemeral_low;
 extern "C" uint8_t* g_ephemeral_high;
@@ -118,18 +112,6 @@ public:
 #else
         return false;
 #endif // FEATURE_SVR_GC
-    }
-
-    static bool UseThreadAllocationContexts()
-    {
-        // When running on a single-proc system, it's more efficient to use a single global
-        // allocation context for SOH allocations than to use one for every thread.
-#if defined(_TARGET_ARM_) || defined(FEATURE_PAL) || defined(FEATURE_REDHAWK)
-        return true;
-#else
-        return IsServerHeap() || ::GetCurrentProcessCpuCount() != 1;
-#endif
-
     }
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP

@@ -2762,8 +2762,6 @@ HCIMPL1(Object*, JIT_NewS_MP_FastPortable, CORINFO_CLASS_HANDLE typeHnd_)
 
     do
     {
-        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
-
         // This is typically the only call in the fast path. Making the call early seems to be better, as it allows the compiler
         // to use volatile registers for intermediate values. This reduces the number of push/pop instructions and eliminates
         // some reshuffling of intermediate values into nonvolatile registers around the call.
@@ -2847,8 +2845,6 @@ HCIMPL1(StringObject*, AllocateString_MP_FastPortable, DWORD stringLength)
 
     do
     {
-        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
-
         // Instead of doing elaborate overflow checks, we just limit the number of elements. This will avoid all overflow
         // problems, as well as making sure big string objects are correctly allocated in the big object heap.
         if (stringLength >= (LARGE_OBJECT_SIZE - 256) / sizeof(WCHAR))
@@ -2902,8 +2898,6 @@ HCIMPL1(Utf8StringObject*, AllocateUtf8String_MP_FastPortable, DWORD stringLengt
 
     do
     {
-        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
-
         // Instead of doing elaborate overflow checks, we just limit the number of elements. This will avoid all overflow
         // problems, as well as making sure big string objects are correctly allocated in the big object heap.
         if (stringLength >= LARGE_OBJECT_SIZE - 256)
@@ -3074,8 +3068,6 @@ HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, IN
 
     do
     {
-        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
-
         // Do a conservative check here.  This is to avoid overflow while doing the calculations.  We don't
         // have to worry about "large" objects, since the allocation quantum is never big enough for
         // LARGE_OBJECT_SIZE.
@@ -3142,8 +3134,6 @@ HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, I
 
     do
     {
-        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
-
         // Make sure that the total size cannot reach LARGE_OBJECT_SIZE, which also allows us to avoid overflow checks. The
         // "256" slack is to cover the array header size and round-up, using a constant value here out of laziness.
         SIZE_T componentCount = static_cast<SIZE_T>(size);

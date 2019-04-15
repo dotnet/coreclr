@@ -332,17 +332,10 @@ void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, void* par
     }
     CONTRACTL_END;
 
-    if (GCHeapUtilities::UseThreadAllocationContexts())
+    Thread * pThread = NULL;
+    while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
     {
-        Thread * pThread = NULL;
-        while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
-        {
-            fn(pThread->GetAllocContext(), param);
-        }
-    }
-    else
-    {
-        fn(&g_global_alloc_context, param);
+        fn(pThread->GetAllocContext(), param);
     }
 }
 

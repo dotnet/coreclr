@@ -39,8 +39,6 @@ class JIT_TrialAlloc
 public:
     enum Flags
     {
-        NORMAL       = 0x0,
-        MP_ALLOCATOR = 0x1,
         SIZE_IN_EAX  = 0x2,
         OBJ_ARRAY    = 0x4,
         ALIGN8       = 0x8,     // insert a dummy object to insure 8 byte alignment (until the next GC)
@@ -59,8 +57,6 @@ private:
     static void EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *noAlloc, Flags flags);
     static void EmitNoAllocCode(CPUSTUBLINKER *psl, Flags flags);
 };
-
-extern "C" LONG g_global_alloc_lock;
 
 extern "C" void STDCALL JIT_WriteBarrierReg_PreGrow();// JIThelp.asm/JIThelp.s
 extern "C" void STDCALL JIT_WriteBarrierReg_PostGrow();// JIThelp.asm/JIThelp.s
@@ -451,136 +447,77 @@ void JIT_TrialAlloc::EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *
     // Upon entry here, ecx contains the method we are to try allocate memory for
     // Upon exit, eax contains the allocated memory, edx is trashed, and ecx undisturbed
 
-    if (flags & MP_ALLOCATOR)
+    if (flags & (ALIGN8 | SIZE_IN_EAX | ALIGN8OBJ))
     {
-        if (flags & (ALIGN8 | SIZE_IN_EAX | ALIGN8OBJ))
-        {
-            if (flags & ALIGN8OBJ)
-            {
-                // mov             eax, [ecx]MethodTable.m_BaseSize
-                psl->X86EmitIndexRegLoad(kEAX, kECX, offsetof(MethodTable, m_BaseSize));
-            }
-
-            psl->X86EmitPushReg(kEBX);  // we need a spare register
-        }
-        else
+        if (flags & ALIGN8OBJ)
         {
             // mov             eax, [ecx]MethodTable.m_BaseSize
             psl->X86EmitIndexRegLoad(kEAX, kECX, offsetof(MethodTable, m_BaseSize));
         }
 
-        assert( ((flags & ALIGN8)==0     ||  // EAX loaded by else statement
-                 (flags & SIZE_IN_EAX)   ||  // EAX already comes filled out
-                 (flags & ALIGN8OBJ)     )   // EAX loaded in the if (flags & ALIGN8OBJ) statement
-                 && "EAX should contain size for allocation and it doesnt!!!");
-
-        // Fetch current thread into EDX, preserving EAX and ECX
-        psl->X86EmitCurrentThreadFetch(kEDX, (1 << kEAX) | (1 << kECX));
-
-        // Try the allocation.
-
-
-        if (flags & (ALIGN8 | SIZE_IN_EAX | ALIGN8OBJ))
-        {
-            // MOV EBX, [edx]Thread.m_alloc_context.alloc_ptr
-            psl->X86EmitOffsetModRM(0x8B, kEBX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
-            // add EAX, EBX
-            psl->Emit16(0xC303);
-            if (flags & ALIGN8)
-                EmitAlignmentRoundup(psl, kEBX, kEAX, flags);      // bump EAX up size by 12 if EBX unaligned (so that we are aligned)
-        }
-        else
-        {
-            // add             eax, [edx]Thread.m_alloc_context.alloc_ptr
-            psl->X86EmitOffsetModRM(0x03, kEAX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
-        }
-
-        // cmp             eax, [edx]Thread.m_alloc_context.alloc_limit
-        psl->X86EmitOffsetModRM(0x3b, kEAX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_limit));
-
-        // ja              noAlloc
-        psl->X86EmitCondJump(noAlloc, X86CondCode::kJA);
-
-        // Fill in the allocation and get out.
-
-        // mov             [edx]Thread.m_alloc_context.alloc_ptr, eax
-        psl->X86EmitIndexRegStore(kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr), kEAX);
-
-        if (flags & (ALIGN8 | SIZE_IN_EAX | ALIGN8OBJ))
-        {
-            // mov EAX, EBX
-            psl->Emit16(0xC38B);
-            // pop EBX
-            psl->X86EmitPopReg(kEBX);
-
-            if (flags & ALIGN8)
-                EmitDummyObject(psl, kEAX, flags);
-        }
-        else
-        {
-            // sub             eax, [ecx]MethodTable.m_BaseSize
-            psl->X86EmitOffsetModRM(0x2b, kEAX, kECX, offsetof(MethodTable, m_BaseSize));
-        }
-
-        // mov             dword ptr [eax], ecx
-        psl->X86EmitIndexRegStore(kEAX, 0, kECX);
+        psl->X86EmitPushReg(kEBX);  // we need a spare register
     }
     else
     {
-        // Take the GC lock (there is no lock prefix required - we will use JIT_TrialAllocSFastMP on an MP System).
-        // inc             dword ptr [g_global_alloc_lock]
-        psl->Emit16(0x05ff);
-        psl->Emit32((int)(size_t)&g_global_alloc_lock);
-
-        // jnz             NoLock
-        psl->X86EmitCondJump(noLock, X86CondCode::kJNZ);
-
-        if (flags & SIZE_IN_EAX)
-        {
-            // mov edx, eax
-            psl->Emit16(0xd08b);
-        }
-        else
-        {
-            // mov             edx, [ecx]MethodTable.m_BaseSize
-            psl->X86EmitIndexRegLoad(kEDX, kECX, offsetof(MethodTable, m_BaseSize));
-        }
-
-        // mov             eax, dword ptr [g_global_alloc_context]
-        psl->Emit8(0xA1);
-        psl->Emit32((int)(size_t)&g_global_alloc_context);
-
-        // Try the allocation.
-        // add             edx, eax
-        psl->Emit16(0xd003);
-
-        if (flags & (ALIGN8 | ALIGN8OBJ))
-            EmitAlignmentRoundup(psl, kEAX, kEDX, flags);      // bump up EDX size by 12 if EAX unaligned (so that we are aligned)
-
-        // cmp             edx, dword ptr [g_global_alloc_context+4]
-        psl->Emit16(0x153b);
-        psl->Emit32((int)(size_t)&g_global_alloc_context + 4);
-
-        // ja              noAlloc
-        psl->X86EmitCondJump(noAlloc, X86CondCode::kJA);
-
-        // Fill in the allocation and get out.
-        // mov             dword ptr [g_global_alloc_context], edx
-        psl->Emit16(0x1589);
-        psl->Emit32((int)(size_t)&g_global_alloc_context);
-
-        if (flags & (ALIGN8 | ALIGN8OBJ))
-            EmitDummyObject(psl, kEAX, flags);
-
-        // mov             dword ptr [eax], ecx
-        psl->X86EmitIndexRegStore(kEAX, 0, kECX);
-
-        // mov             dword ptr [g_global_alloc_lock], 0FFFFFFFFh
-        psl->Emit16(0x05C7);
-        psl->Emit32((int)(size_t)&g_global_alloc_lock);
-        psl->Emit32(0xFFFFFFFF);
+        // mov             eax, [ecx]MethodTable.m_BaseSize
+        psl->X86EmitIndexRegLoad(kEAX, kECX, offsetof(MethodTable, m_BaseSize));
     }
 
+    assert( ((flags & ALIGN8)==0     ||  // EAX loaded by else statement
+                (flags & SIZE_IN_EAX)   ||  // EAX already comes filled out
+                (flags & ALIGN8OBJ)     )   // EAX loaded in the if (flags & ALIGN8OBJ) statement
+                && "EAX should contain size for allocation and it doesnt!!!");
+
+    // Fetch current thread into EDX, preserving EAX and ECX
+    psl->X86EmitCurrentThreadFetch(kEDX, (1 << kEAX) | (1 << kECX));
+
+    // Try the allocation.
+
+
+    if (flags & (ALIGN8 | SIZE_IN_EAX | ALIGN8OBJ))
+    {
+        // MOV EBX, [edx]Thread.m_alloc_context.alloc_ptr
+        psl->X86EmitOffsetModRM(0x8B, kEBX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
+        // add EAX, EBX
+        psl->Emit16(0xC303);
+        if (flags & ALIGN8)
+            EmitAlignmentRoundup(psl, kEBX, kEAX, flags);      // bump EAX up size by 12 if EBX unaligned (so that we are aligned)
+    }
+    else
+    {
+        // add             eax, [edx]Thread.m_alloc_context.alloc_ptr
+        psl->X86EmitOffsetModRM(0x03, kEAX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
+    }
+
+    // cmp             eax, [edx]Thread.m_alloc_context.alloc_limit
+    psl->X86EmitOffsetModRM(0x3b, kEAX, kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_limit));
+
+    // ja              noAlloc
+    psl->X86EmitCondJump(noAlloc, X86CondCode::kJA);
+
+    // Fill in the allocation and get out.
+
+    // mov             [edx]Thread.m_alloc_context.alloc_ptr, eax
+    psl->X86EmitIndexRegStore(kEDX, offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr), kEAX);
+
+    if (flags & (ALIGN8 | SIZE_IN_EAX | ALIGN8OBJ))
+    {
+        // mov EAX, EBX
+        psl->Emit16(0xC38B);
+        // pop EBX
+        psl->X86EmitPopReg(kEBX);
+
+        if (flags & ALIGN8)
+            EmitDummyObject(psl, kEAX, flags);
+    }
+    else
+    {
+        // sub             eax, [ecx]MethodTable.m_BaseSize
+        psl->X86EmitOffsetModRM(0x2b, kEAX, kECX, offsetof(MethodTable, m_BaseSize));
+    }
+
+    // mov             dword ptr [eax], ecx
+    psl->X86EmitIndexRegStore(kEAX, 0, kECX);
 
 #ifdef INCREMENTAL_MEMCLR 
     // <TODO>We're planning to get rid of this anyhow according to Patrick</TODO>
@@ -592,18 +529,8 @@ void JIT_TrialAlloc::EmitNoAllocCode(CPUSTUBLINKER *psl, Flags flags)
 {
     STANDARD_VM_CONTRACT;
 
-    if (flags & MP_ALLOCATOR)
-    {
-        if (flags & (ALIGN8|SIZE_IN_EAX))
-            psl->X86EmitPopReg(kEBX);
-    }
-    else
-    {
-        // mov             dword ptr [g_global_alloc_lock], 0FFFFFFFFh
-        psl->Emit16(0x05c7);
-        psl->Emit32((int)(size_t)&g_global_alloc_lock);
-        psl->Emit32(0xFFFFFFFF);
-    }
+    if (flags & (ALIGN8|SIZE_IN_EAX))
+        psl->X86EmitPopReg(kEBX);
 }
 
 void *JIT_TrialAlloc::GenAllocSFast(Flags flags)
@@ -1291,9 +1218,6 @@ void InitJITHelpers1()
 
     _ASSERTE(g_SystemInfo.dwNumberOfProcessors != 0);
 
-    JIT_TrialAlloc::Flags flags = GCHeapUtilities::UseThreadAllocationContexts() ?
-        JIT_TrialAlloc::MP_ALLOCATOR : JIT_TrialAlloc::NORMAL;
-
     // Get CPU features and check for SSE2 support.
     // This code should eventually probably be moved into codeman.cpp,
     // where we set the cpu feature flags for the JIT based on CPU type and features.
@@ -1337,28 +1261,28 @@ void InitJITHelpers1()
     {
         // Replace the slow helpers with faster version
 
-        pMethodAddresses[0] = JIT_TrialAlloc::GenAllocSFast(flags);
+        pMethodAddresses[0] = JIT_TrialAlloc::GenAllocSFast((JIT_TrialAlloc::Flags)0);
         SetJitHelperFunction(CORINFO_HELP_NEWSFAST, pMethodAddresses[0]);
-        pMethodAddresses[1] = JIT_TrialAlloc::GenAllocSFast((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::ALIGN8 | JIT_TrialAlloc::ALIGN8OBJ));
+        pMethodAddresses[1] = JIT_TrialAlloc::GenAllocSFast((JIT_TrialAlloc::Flags)(JIT_TrialAlloc::ALIGN8 | JIT_TrialAlloc::ALIGN8OBJ));
         SetJitHelperFunction(CORINFO_HELP_NEWSFAST_ALIGN8, pMethodAddresses[1]);
-        pMethodAddresses[2] = JIT_TrialAlloc::GenBox(flags);
+        pMethodAddresses[2] = JIT_TrialAlloc::GenBox((JIT_TrialAlloc::Flags)0);
         SetJitHelperFunction(CORINFO_HELP_BOX, pMethodAddresses[2]);
-        pMethodAddresses[3] = JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::OBJ_ARRAY));
+        pMethodAddresses[3] = JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(JIT_TrialAlloc::OBJ_ARRAY));
         SetJitHelperFunction(CORINFO_HELP_NEWARR_1_OBJ, pMethodAddresses[3]);
-        pMethodAddresses[4] = JIT_TrialAlloc::GenAllocArray(flags);
+        pMethodAddresses[4] = JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)0);
         SetJitHelperFunction(CORINFO_HELP_NEWARR_1_VC, pMethodAddresses[4]);
-        pMethodAddresses[5] = JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::ALIGN8));
+        pMethodAddresses[5] = JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(JIT_TrialAlloc::ALIGN8));
         SetJitHelperFunction(CORINFO_HELP_NEWARR_1_ALIGN8, pMethodAddresses[5]);
 
-        fastObjectArrayAllocator = (FastObjectArrayAllocatorFuncPtr)JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::NO_FRAME|JIT_TrialAlloc::OBJ_ARRAY));
-        fastPrimitiveArrayAllocator = (FastPrimitiveArrayAllocatorFuncPtr)JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::NO_FRAME));
+        fastObjectArrayAllocator = (FastObjectArrayAllocatorFuncPtr)JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(JIT_TrialAlloc::NO_FRAME|JIT_TrialAlloc::OBJ_ARRAY));
+        fastPrimitiveArrayAllocator = (FastPrimitiveArrayAllocatorFuncPtr)JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(JIT_TrialAlloc::NO_FRAME));
 
         // If allocation logging is on, then we divert calls to FastAllocateString to an Ecall method, not this
         // generated method. Find this workaround in Ecall::Init() in ecall.cpp.
-        ECall::DynamicallyAssignFCallImpl((PCODE) JIT_TrialAlloc::GenAllocString(flags), ECall::FastAllocateString);
+        ECall::DynamicallyAssignFCallImpl((PCODE) JIT_TrialAlloc::GenAllocString((JIT_TrialAlloc::Flags)0), ECall::FastAllocateString);
 
         // generate another allocator for use from unmanaged code (won't need a frame)
-        fastStringAllocator = (FastStringAllocatorFuncPtr) JIT_TrialAlloc::GenAllocString((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::NO_FRAME));
+        fastStringAllocator = (FastStringAllocatorFuncPtr) JIT_TrialAlloc::GenAllocString((JIT_TrialAlloc::Flags)(JIT_TrialAlloc::NO_FRAME));
         //UnframedAllocateString;
     }
 

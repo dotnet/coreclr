@@ -32,16 +32,11 @@ EXTERN_C Object* JIT_NewArr1VC_MP_InlineGetThread (CORINFO_CLASS_HANDLE arrayMT,
 // This next set is the fast version that invoke GetThread but is still faster than the VM implementation (i.e.
 // the "slow" versions).
 EXTERN_C Object* JIT_TrialAllocSFastMP(CORINFO_CLASS_HANDLE typeHnd_);
-EXTERN_C Object* JIT_TrialAllocSFastSP(CORINFO_CLASS_HANDLE typeHnd_);
 EXTERN_C Object* JIT_BoxFastMP (CORINFO_CLASS_HANDLE type, void* unboxedData);
-EXTERN_C Object* JIT_BoxFastUP (CORINFO_CLASS_HANDLE type, void* unboxedData);
 EXTERN_C Object* AllocateStringFastMP (CLR_I4 cch);
-EXTERN_C Object* AllocateStringFastUP (CLR_I4 cch);
 
 EXTERN_C Object* JIT_NewArr1OBJ_MP (CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
-EXTERN_C Object* JIT_NewArr1OBJ_UP (CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 EXTERN_C Object* JIT_NewArr1VC_MP (CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
-EXTERN_C Object* JIT_NewArr1VC_UP (CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 
 #ifdef _TARGET_AMD64_
 extern WriteBarrierManager g_WriteBarrierManager;
@@ -85,36 +80,16 @@ void InitJITHelpers1()
 #endif // FEATURE_UTF8STRING
 #else // FEATURE_PAL
         // if (multi-proc || server GC)
-        if (GCHeapUtilities::UseThreadAllocationContexts())
-        {
-            SetJitHelperFunction(CORINFO_HELP_NEWSFAST, JIT_TrialAllocSFastMP_InlineGetThread);
-            SetJitHelperFunction(CORINFO_HELP_NEWSFAST_ALIGN8, JIT_TrialAllocSFastMP_InlineGetThread);
-            SetJitHelperFunction(CORINFO_HELP_BOX, JIT_BoxFastMP_InlineGetThread);
-            SetJitHelperFunction(CORINFO_HELP_NEWARR_1_VC, JIT_NewArr1VC_MP_InlineGetThread);
-            SetJitHelperFunction(CORINFO_HELP_NEWARR_1_OBJ, JIT_NewArr1OBJ_MP_InlineGetThread);
+        SetJitHelperFunction(CORINFO_HELP_NEWSFAST, JIT_TrialAllocSFastMP_InlineGetThread);
+        SetJitHelperFunction(CORINFO_HELP_NEWSFAST_ALIGN8, JIT_TrialAllocSFastMP_InlineGetThread);
+        SetJitHelperFunction(CORINFO_HELP_BOX, JIT_BoxFastMP_InlineGetThread);
+        SetJitHelperFunction(CORINFO_HELP_NEWARR_1_VC, JIT_NewArr1VC_MP_InlineGetThread);
+        SetJitHelperFunction(CORINFO_HELP_NEWARR_1_OBJ, JIT_NewArr1OBJ_MP_InlineGetThread);
 
-            ECall::DynamicallyAssignFCallImpl(GetEEFuncEntryPoint(AllocateStringFastMP_InlineGetThread), ECall::FastAllocateString);
+        ECall::DynamicallyAssignFCallImpl(GetEEFuncEntryPoint(AllocateStringFastMP_InlineGetThread), ECall::FastAllocateString);
 #ifdef FEATURE_UTF8STRING
-            ECall::DynamicallyAssignFCallImpl(GetEEFuncEntryPoint(AllocateUtf8String_MP_FastPortable), ECall::FastAllocateUtf8String);
+        ECall::DynamicallyAssignFCallImpl(GetEEFuncEntryPoint(AllocateUtf8String_MP_FastPortable), ECall::FastAllocateUtf8String);
 #endif // FEATURE_UTF8STRING
-        }
-        else
-        {
-            // Replace the 1p slow allocation helpers with faster version
-            //
-            // When we're running Workstation GC on a single proc box we don't have 
-            // InlineGetThread versions because there is no need to call GetThread
-            SetJitHelperFunction(CORINFO_HELP_NEWSFAST, JIT_TrialAllocSFastSP);
-            SetJitHelperFunction(CORINFO_HELP_NEWSFAST_ALIGN8, JIT_TrialAllocSFastSP);
-            SetJitHelperFunction(CORINFO_HELP_BOX, JIT_BoxFastUP);
-            SetJitHelperFunction(CORINFO_HELP_NEWARR_1_VC, JIT_NewArr1VC_UP);
-            SetJitHelperFunction(CORINFO_HELP_NEWARR_1_OBJ, JIT_NewArr1OBJ_UP);
-
-            ECall::DynamicallyAssignFCallImpl(GetEEFuncEntryPoint(AllocateStringFastUP), ECall::FastAllocateString);
-#ifdef FEATURE_UTF8STRING
-            ECall::DynamicallyAssignFCallImpl(GetEEFuncEntryPoint(AllocateUtf8String_MP_FastPortable), ECall::FastAllocateUtf8String);
-#endif // FEATURE_UTF8STRING
-        }
 #endif // FEATURE_PAL
     }
 #endif // _TARGET_AMD64_

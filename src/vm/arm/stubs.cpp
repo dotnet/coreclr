@@ -2527,8 +2527,6 @@ void InitJITHelpers1()
 #endif // _DEBUG
         ))
     {
-        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
-
         SetJitHelperFunction(CORINFO_HELP_NEWSFAST, JIT_NewS_MP_FastPortable);
         SetJitHelperFunction(CORINFO_HELP_NEWARR_1_VC, JIT_NewArr1VC_MP_FastPortable);
         SetJitHelperFunction(CORINFO_HELP_NEWARR_1_OBJ, JIT_NewArr1OBJ_MP_FastPortable);
