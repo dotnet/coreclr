@@ -3459,7 +3459,8 @@ HRESULT DacDbiInterfaceImpl::GetDelegateType(VMPTR_Object delegateObject, Delega
         // We could get a native code for this case from _methodPtr, but not a methodDef as we'll need.
         // We can also get the shuffling thunk. However, this doesn't have a token and there's
         // no easy way to expose through the DBI now.
-        return kUnmanagedFunctionDelegate;
+        *delegateType = kUnmanagedFunctionDelegate;
+        return S_OK;
     }
 
     PTR_Object pInvocationList = OBJECTREFToObject(pDelObj->GetInvocationList());
@@ -3470,26 +3471,18 @@ HRESULT DacDbiInterfaceImpl::GetDelegateType(VMPTR_Object delegateObject, Delega
         {
             // If this delegate points to a static function or this is a open virtual delegate, this should be non-null
             // Special case: This might fail in a VSD delegate (instance open virtual)...
+            // TODO: There is the special signatures cases missing.
             TADDR targetMethodPtr = PCODEToPINSTR(pDelObj->GetMethodPtrAux());
             if (targetMethodPtr == NULL)
             {
-                return kOpenDelegate;
+                *delegateType = kOpenDelegate;
+            }
+            else {
+                // Static extension methods, other closed static delegates, and instance delegates fall into this category.
+                *delegateType = kClosedDelegate;
             }
 
-            // Static extension methods, other closed static delegates, and instance delegates fall into this category.
-            return kClosedDelegate;
-
-            // HRESULT hr = GetMethodDescFromIP(targetMethodPtr, ppMD);
-            // if (hr != S_OK)
-            // {
-            //     return kUnknownDelegateType;
-            // }
-
-            // PTR_AppDomain pAD = ppMD->GetDacPtr()->GetDomain()->AsAppDomain();
-            // ppMD->GetDacPtr()->GetModule()->GetDomainFile();
-            // ppTarget->GetDacPtr()->Get
-
-            // return kSingleFunctionDelegate;
+            return S_OK;
         }
     }
     else
@@ -3499,12 +3492,13 @@ HRESULT DacDbiInterfaceImpl::GetDelegateType(VMPTR_Object delegateObject, Delega
             PTR_MethodTable invocationListMT = pInvocationList->GetGCSafeMethodTable();
 
             if (invocationListMT->IsArray())
-                return kTrueMulticastDelegate;
+                *delegateType = kTrueMulticastDelegate;
 
             if (invocationListMT->IsDelegate())
-                return kSecureDelegate;
+                *delegateType = kSecureDelegate;
 
             // Cases missing: Loader allocator, or dynamic resolver.
+            return S_OK;
         }
 
         // According to the table in comdelegates.cpp, there shouldn't be a case where .
@@ -3512,7 +3506,9 @@ HRESULT DacDbiInterfaceImpl::GetDelegateType(VMPTR_Object delegateObject, Delega
     }
 
     _ASSERT(FALSE);
-    return kUnknownDelegateType;
+    *delegateType = kUnknownDelegateType;
+    return CORDBG_E_UNSUPPORTED_DELEGATE;
+
 
 
     // if (invocationCount == NULL)
@@ -3599,7 +3595,8 @@ HRESULT DacDbiInterfaceImpl::GetDelegateFunctionData(
     if (hr != S_OK)
         return hr;
 
-    ppFunctionDomainFile->SetDacTargetPtr(pMD.GetDacPtr()->GetModule()->GetDomainFile());
+    AppDomain *pTargetObjAppDomain = pMD.GetDacPtr()->GetDomain()->AsAppDomain();
+    ppFunctionDomainFile->SetDacTargetPtr(dac_cast<TADDR>(pMD.GetDacPtr()->GetModule()->GetDomainFile(pTargetObjAppDomain)));
     *pMethodDef = pMD.GetDacPtr()->GetMemberDef();
 
     return hr;
@@ -3626,8 +3623,8 @@ HRESULT DacDbiInterfaceImpl::GetDelegateTargetObject(
         case kClosedDelegate:
         {
             PTR_Object pRemoteTargetObj = OBJECTREFToObject(pDelObj->GetTarget());
-            ppTargetObj->SetDacTargetPtr(PTR_TO_TADDR(pRemoteTargetObj));
-            ppTargetAppDomain->SetDacTargetPtr(pRemoteTargetObj->GetAppDomain());
+            ppTargetObj->SetDacTargetPtr(pRemoteTargetObj.GetAddr());
+            ppTargetAppDomain->SetDacTargetPtr(dac_cast<TADDR>(pRemoteTargetObj->GetGCSafeMethodTable()->GetDomain()->AsAppDomain()));
             break;
         }
 

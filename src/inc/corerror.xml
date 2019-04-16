@@ -2184,9 +2184,15 @@
 </HRESULT>
 
 <HRESULT NumericValue="0x80131c68">
-  <SymbolicName>CORDBG_E_MULTIFUNC_DELEGATE</SymbolicName>
-  <Message>"The delegate contains more than one function to invoke, currently an unsupported scenario."</Message>
-  <Comment>The delegate contains more than one function to invoke, currently an unsupported scenario.</Comment>
+  <SymbolicName>CORDBG_E_UNSUPPORTED_DELEGATE</SymbolicName>
+  <Message>"The delegate contains more than one function to invoke or a similar unsupported scenario."</Message>
+  <Comment>The delegate contains more than one function to invoke or a similar unsupported scenario.</Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x80131c69">
+  <SymbolicName>CORDBG_E_NATIVE_DELEGATE</SymbolicName>
+  <Message>"The delegate points to a native function. Unable to inspect."</Message>
+  <Comment>The delegate points to a native function. Unable to inspect.</Comment>
 </HRESULT>
 
 <HRESULT NumericValue="0x80131d02">

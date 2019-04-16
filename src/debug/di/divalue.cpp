@@ -2574,9 +2574,9 @@ HRESULT IsSupportedDelegateHelper(IDacDbiInterface::DelegateType delType)
     case IDacDbiInterface::DelegateType::kClosedDelegate:
         return S_OK;
     case IDacDbiInterface::DelegateType::kUnmanagedFunctionDelegate:
-        return CORDBG_E_BAD_REFERENCE_VALUE;
+        return CORDBG_E_NATIVE_DELEGATE;
     default:
-        return CORDBG_E_MULTIFUNC_DELEGATE;
+        return CORDBG_E_UNSUPPORTED_DELEGATE;
     }
 }
 
@@ -2600,11 +2600,9 @@ HRESULT CordbObjectValue::GetTargetHelper(ICorDebugReferenceValue **ppTarget)
     if (hr != S_OK)
         return hr;
 
-    hr = pDAC->GetDelegateTargetObject(delType, pDelegateObj, &pDelegateObj, &pAppDomainOfTarget);
+    hr = pDAC->GetDelegateTargetObject(delType, pDelegateObj, &pDelegateTargetObj, &pAppDomainOfTarget);
     if (hr != S_OK || pDelegateObj.IsNull())
         return hr;
-
-    pDAC->GetAppDomainForObject(pDelegateTargetObj.get);
 
     RSSmartPtr<CordbAppDomain> pCordbAppDomForTarget(GetProcess()->LookupOrCreateAppDomain(pAppDomainOfTarget));
     RSSmartPtr<CordbReferenceValue> targetObjRefVal(CordbValue::CreateHeapReferenceValue(pCordbAppDomForTarget, pDelegateTargetObj));
