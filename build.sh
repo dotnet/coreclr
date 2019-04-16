@@ -62,6 +62,7 @@ usage()
     echo "-numproc - set the number of build processes."
     echo "-portablebuild - pass -portablebuild=false to force a non-portable build."
     echo "-staticanalyzer - build with clang static analyzer enabled."
+    echo "-defaultvisibility - set all functions to be exported during build."
     exit 1
 }
 
@@ -962,6 +963,10 @@ while :; do
 
         -staticanalyzer)
             __StaticAnalyzer=1
+            ;;
+
+        -defaultvisibility)
+            __cmakeargs="$__cmakeargs -DDEFAULT_VISIBILITY=true"
             ;;
 
         --)

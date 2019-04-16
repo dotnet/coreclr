@@ -492,8 +492,12 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   # as x64 does. It has been causing issues in ARM (https://github.com/dotnet/coreclr/issues/4746)
   add_compile_options(-fsigned-char)
 
-  # We mark the function which needs exporting with DLLEXPORT
-  add_compile_options(-fvisibility=hidden)
+  # Check to see if build wants to keep visibility to default.
+  # Note: Once -defaultvisibility is set, it will be cached to always be true.
+  if(NOT DEFAULT_VISIBILITY)
+    # We mark the function which needs exporting with DLLEXPORT
+    add_compile_options(-fvisibility=hidden)
+  endif()
 
   # Specify the minimum supported version of macOS
   if(CLR_CMAKE_PLATFORM_DARWIN)
