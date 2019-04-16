@@ -129,10 +129,11 @@ int __cdecl RVAFieldCmp(const void * a_, const void * b_)
 
     if (a->pData != b->pData)
     {
+        // Ascending order on rva
         return (a->pData > b->pData) ? 1 : -1;
     }
 
-    return 0;
+    return (int)(b->cbSize - a->cbSize);    // Descending order on size
 }
 
 void ZapILMetaData::CopyRVAFields()
@@ -171,8 +172,8 @@ void ZapILMetaData::CopyRVAFields()
         // Handle overlapping fields by reusing blobs based on the address, and just updating size and alignment.
         pRVADataNode->UpdateSizeAndAlignment(field.cbSize, field.cbAlignment);
 
-        if (!pRVADataNode->IsPlaced())
-             m_pImage->m_pReadOnlyDataSection->Place(pRVADataNode);
+        _ASSERTE(!pRVADataNode->IsPlaced());
+        m_pImage->m_pReadOnlyDataSection->Place(pRVADataNode);
     }
 }
 
