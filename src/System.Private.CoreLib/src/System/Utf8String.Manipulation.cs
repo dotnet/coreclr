@@ -77,11 +77,9 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Utf8String Substring(Range range)
-        {
-            (int start, int length) = range.GetOffsetAndLength(Length);
-            return Substring(start, length);
-        }
+        [ComponentModel.EditorBrowsable(ComponentModel.EditorBrowsableState.Never)]
+        public Utf8String Slice(int startIndex, int length) => Substring(startIndex, length);
+
 
         [StackTraceHidden]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
