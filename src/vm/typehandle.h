@@ -277,8 +277,12 @@ public:
     // - do not restore encoded pointers on demand
     // - does not throw, does not trigger GC
     // - return type is three-valued (CanCast, CannotCast, MaybeCast)
-    // - MaybeCast indicates that the test tripped on an encoded pointer
-    //   so the caller should now call CanCastTo if it cares
+    //
+    // MaybeCast indicates an inconclusive result
+    // - the test tripped on an encoded pointer
+    // - the test required calling into GC-triggering or throwing helpers
+    // - the test result could not be obtained from a cache
+    // so the caller should now call CanCastTo if it cares
     //
     // Note that if the TypeHandle is a valuetype, the caller is responsible
     // for checking that the valuetype is in its boxed form before calling
