@@ -123,7 +123,7 @@ namespace System.Runtime.Loader
 {
     public partial class AssemblyLoadContext
     {
-        private static readonly AsyncLocal<AssemblyLoadContext> asyncLocalActiveContext;
+        private static readonly AsyncLocal<AssemblyLoadContext> _asyncLocalActiveContext;
         public static AssemblyLoadContext CurrentContextualReflectionContext
         {
             get { return _asyncLocalCurrentContextualReflectionContext?.Value; }
@@ -214,7 +214,7 @@ namespace System.Runtime.Loader
 {
     public partial class AssemblyLoadContext
     {
-        public static AssemblyLoadContext CurrentContextualReflectionContext { get { return _asyncLocalCurrentContextualReflectionContext.Value; }}
+        public static AssemblyLoadContext CurrentContextualReflectionContext { get { return _asyncLocalCurrentContextualReflectionContext?.Value; }}
 
         public ContextualReflectionScope EnterContextualReflection();
 
@@ -314,8 +314,8 @@ scope.Dispose(); // Will restore the context as set during `EnterContextualRefle
 
 * Early dispose
 ```C#
-using ContextualReflectionScope scope = myAssemblyLoadContext.EnterContextualReflection();
-
-scope.Dispose(); // Will restore the context as set during `EnterContextualReflection()`
-// `using` will restore the context as set during `EnterContextualReflection()` (again)
+using (ContextualReflectionScope scope = myAssemblyLoadContext.EnterContextualReflection())
+{
+    scope.Dispose(); // Will restore the context as set during `EnterContextualReflection()`
+} // `using` will restore the context as set during `EnterContextualReflection()` (again)
 ```
