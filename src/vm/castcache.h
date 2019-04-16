@@ -98,13 +98,6 @@ public:
         memset(m_Table, 0, size * sizeof(CastCacheEntry));
     }
 
-    enum CastCacheResult
-    {
-        CannotCast,
-        CanCast,
-        NotCached
-    };
-
     FORCEINLINE static void TryAddToCache(TypeHandle source, TypeHandle target, BOOL result)
     {
         WRAPPER_NO_CONTRACT;
@@ -129,28 +122,16 @@ public:
         TryAddToCache((TADDR)pSourceMT, target.AsTAddr(), result, true);
     }
 
-    FORCEINLINE static CastCacheResult TryGetFromCache(TypeHandle source, TypeHandle target)
+    FORCEINLINE static TypeHandle::CastResult TryGetFromCache(TypeHandle source, TypeHandle target)
     {
         WRAPPER_NO_CONTRACT;
         return TryGetFromCache(source.AsTAddr(), target.AsTAddr());
     }
 
-    FORCEINLINE static CastCacheResult TryGetFromCache(MethodTable* pSourceMT, TypeHandle target)
+    FORCEINLINE static TypeHandle::CastResult TryGetFromCache(MethodTable* pSourceMT, TypeHandle target)
     {
         WRAPPER_NO_CONTRACT;
         return TryGetFromCache((TADDR)pSourceMT, target.AsTAddr());
-    }
-
-    FORCEINLINE static BOOL IsConvertible(MethodTable* pSourceMT, MethodTable* pTargetMT)
-    {
-        WRAPPER_NO_CONTRACT;
-        return TryGetFromCache((TADDR)pSourceMT, (TADDR)pTargetMT) == CastCacheResult::CanCast;
-    }
-
-    FORCEINLINE static BOOL IsConvertible(MethodTable* pSourceMT, TypeHandle target)
-    {
-        WRAPPER_NO_CONTRACT;
-        return TryGetFromCache((TADDR)pSourceMT, target.AsTAddr()) == CastCacheResult::CanCast;
     }
 
     static void FlushCurrentCache();
@@ -175,19 +156,19 @@ private:
     DWORD               m_victimCount;
     CastCache*          m_NextObsolete;
 
-    FORCEINLINE static CastCacheResult TryGetFromCache(TADDR source, TADDR target)
+    FORCEINLINE static TypeHandle::CastResult TryGetFromCache(TADDR source, TADDR target)
     {
         WRAPPER_NO_CONTRACT;
 
         if (source == target)
         {
-            return CastCacheResult::CanCast;
+            return TypeHandle::CanCast;
         }
 
         CastCache* cache = s_cache;
         if (cache == NULL)
         {
-            return CastCacheResult::NotCached;
+            return TypeHandle::MaybeCast;
         }
 
         return cache->TryGet(source, target);
@@ -244,7 +225,7 @@ private:
     }
 
     static CastCache* MaybeReplaceCacheWithLarger(CastCache* currentCache);
-    CastCacheResult TryGet(TADDR source, TADDR target);
+    TypeHandle::CastResult TryGet(TADDR source, TADDR target);
     static void TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC);
 
     // only SyncClean is supposed to call this in GC

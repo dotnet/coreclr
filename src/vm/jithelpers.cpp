@@ -2186,10 +2186,10 @@ TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle t
     } CONTRACTL_END;
 
     MethodTable *pMT = pObject->GetMethodTable();
-    CastCache::CastCacheResult result = CastCache::TryGetFromCache(pMT, toTypeHnd);
-    if (result != CastCache::CastCacheResult::NotCached)
+    TypeHandle::CastResult result = CastCache::TryGetFromCache(pMT, toTypeHnd);
+    if (result != TypeHandle::MaybeCast)
     {
-        return (TypeHandle::CastResult)result;
+        return result;
     }
 
     return ObjIsInstanceOfNoGCCore(pObject, toTypeHnd);
@@ -2443,20 +2443,18 @@ HCIMPL2(Object *, JIT_ChkCastArray, CORINFO_CLASS_HANDLE type, Object *pObject)
     TypeHandle::CastResult result;
 
     MethodTable* pMT = refObj->GetMethodTable();
-    TypeHandle th = TypeHandle(type);
     if (!pMT->IsArray())
     {
         result = TypeHandle::CannotCast;
     }
     else
     {
-        CastCache::CastCacheResult cachedResult = CastCache::TryGetFromCache(pMT, th);
-        if (CastCache::IsConvertible(pMT, th))
+        TypeHandle th = TypeHandle(type);
+        result = CastCache::TryGetFromCache(pMT, th);
+        if (result == TypeHandle::MaybeCast)
         {
-            return pObject;
+            result = ArrayIsInstanceOfNoGC(pMT, th);
         }
-
-        result = ArrayIsInstanceOfNoGC(pMT, th);
     }
 
     if (result == TypeHandle::CanCast)
@@ -2497,13 +2495,13 @@ HCIMPL2(Object *, JIT_IsInstanceOfArray, CORINFO_CLASS_HANDLE type, Object *pObj
     else
     {
         TypeHandle th = TypeHandle(type);
-        CastCache::CastCacheResult result = CastCache::TryGetFromCache(pMT, th);
-        if (result != CastCache::CastCacheResult::NotCached)
+        TypeHandle::CastResult result = CastCache::TryGetFromCache(pMT, th);
+        if (result == TypeHandle::MaybeCast)
         {
-            return result ==CastCache::CastCacheResult::CanCast? pObject: NULL;
+            result = ArrayIsInstanceOfNoGC(pMT, th);
         }
 
-        switch (ArrayIsInstanceOfNoGC(pMT, TypeHandle(type))) {
+        switch (result) {
         case TypeHandle::CanCast:
             return pObject;
         case TypeHandle::CannotCast:
@@ -2523,19 +2521,19 @@ HCIMPLEND
 // IsInstanceOf test used for unusual cases (naked type parameters, variant generic types)
 // Unlike the IsInstanceOfInterface, IsInstanceOfClass, and IsIsntanceofArray functions,
 // this test must deal with all kinds of type tests
-HCIMPL2(Object *, JIT_IsInstanceOfAny, CORINFO_CLASS_HANDLE type, Object* pObject)
+HCIMPL2(Object *, JIT_IsInstanceOfAny, CORINFO_CLASS_HANDLE type, Object* obj)
 {
     FCALL_CONTRACT;
 
-    if (NULL == pObject)
+    if (NULL == obj)
     {
         return NULL;
     }
 
     TypeHandle th = TypeHandle(type);
-    switch (ObjIsInstanceOfNoGC(pObject, th)) {
+    switch (ObjIsInstanceOfNoGC(obj, th)) {
     case TypeHandle::CanCast:
-        return pObject;
+        return obj;
     case TypeHandle::CannotCast:
         return NULL;
     default:
@@ -2544,7 +2542,7 @@ HCIMPL2(Object *, JIT_IsInstanceOfAny, CORINFO_CLASS_HANDLE type, Object* pObjec
     }
 
     ENDFORBIDGC();
-    return HCCALL2(JITutil_IsInstanceOfAny, type, pObject);
+    return HCCALL2(JITutil_IsInstanceOfAny, type, obj);
 }
 HCIMPLEND
 

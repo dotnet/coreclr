@@ -75,7 +75,7 @@ void CastCache::FlushCurrentCache()
     }
 }
 
-CastCache::CastCacheResult CastCache::TryGet(TADDR source, TADDR target)
+TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -110,7 +110,7 @@ CastCache::CastCacheResult CastCache::TryGet(TADDR source, TADDR target)
                 break;
             }
 
-            return CastCache::CastCacheResult(entryTargetAndResult & 1);
+            return TypeHandle::CastResult(entryTargetAndResult & 1);
         }
 
         if (version1 == 0)
@@ -124,7 +124,7 @@ CastCache::CastCacheResult CastCache::TryGet(TADDR source, TADDR target)
         pEntry = &m_Table[index & m_TableMask];
     }
 
-    return CastCacheResult::NotCached;
+    return TypeHandle::MaybeCast;
 }
 
 void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
