@@ -119,6 +119,8 @@ public:
 
     static BOOL IsReJITEnabled();
 
+    static BOOL IsReJITInlineTrackingEnabled();
+
     static HRESULT RequestReJIT(
         ULONG       cFunctions,
         ModuleID    rgModuleIDs[],

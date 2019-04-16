@@ -1038,31 +1038,36 @@ HRESULT ReJitManager::ConfigureILCodeVersion(ILCodeVersion ilCodeVersion)
 
     if (fNeedsParameters)
     {
-        // Here's where we give a chance for the rejit requestor to
-        // examine and modify the IL & codegen flags before it gets to
-        // the JIT. This allows one to add probe calls for things like
-        // code coverage, performance, or whatever. These will be
-        // stored in pShared.
-        _ASSERTE(pModule != NULL);
-        _ASSERTE(methodDef != mdTokenNil);
-        ReleaseHolder<ProfilerFunctionControl> pFuncControl =
-            new (nothrow)ProfilerFunctionControl(pModule->GetLoaderAllocator()->GetLowFrequencyHeap());
         HRESULT hr = S_OK;
-        if (pFuncControl == NULL)
+        ReleaseHolder<ProfilerFunctionControl> pFuncControl = NULL;
+
+        if (!ilCodeVersion.GetSuppressReJITCallback())
         {
-            hr = E_OUTOFMEMORY;
-        }
-        else
-        {
-            BEGIN_PIN_PROFILER(CORProfilerPresent());
-            hr = g_profControlBlock.pProfInterface->GetReJITParameters(
-                (ModuleID)pModule,
-                methodDef,
-                pFuncControl);
-            END_PIN_PROFILER();
+            // Here's where we give a chance for the rejit requestor to
+            // examine and modify the IL & codegen flags before it gets to
+            // the JIT. This allows one to add probe calls for things like
+            // code coverage, performance, or whatever. These will be
+            // stored in pShared.
+            _ASSERTE(pModule != NULL);
+            _ASSERTE(methodDef != mdTokenNil);
+            pFuncControl =
+                new (nothrow)ProfilerFunctionControl(pModule->GetLoaderAllocator()->GetLowFrequencyHeap());
+            if (pFuncControl == NULL)
+            {
+                hr = E_OUTOFMEMORY;
+            }
+            else
+            {
+                BEGIN_PIN_PROFILER(CORProfilerPresent());
+                hr = g_profControlBlock.pProfInterface->GetReJITParameters(
+                    (ModuleID)pModule,
+                    methodDef,
+                    pFuncControl);
+                END_PIN_PROFILER();
+            }
         }
 
-        if (FAILED(hr))
+        if (ilCodeVersion.GetSuppressReJITCallback() || FAILED(hr))
         {
             {
                 // Historically on failure we would revert to the kRequested state and fall-back
@@ -1074,6 +1079,9 @@ HRESULT ReJitManager::ConfigureILCodeVersion(ILCodeVersion ilCodeVersion)
                 // This is similar to a fallback except the profiler won't get any further attempts
                 // to provide the parameters correctly. If the profiler wants another attempt it would
                 // need to call RequestRejit again.
+                //
+                // This code path also happens if the GetReJITParameters callback was suppressed due to
+                // the method being ReJITted as an inliner by the runtime (instead of by the user).
                 CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
                 if (ilCodeVersion.GetRejitState() == ILCodeVersion::kStateGettingReJITParameters)
                 {
@@ -1081,11 +1089,18 @@ HRESULT ReJitManager::ConfigureILCodeVersion(ILCodeVersion ilCodeVersion)
                     ilCodeVersion.SetIL(ILCodeVersion(pModule, methodDef).GetIL());
                 }
             }
-            ReportReJITError(pModule, methodDef, pModule->LookupMethodDef(methodDef), hr);
+
+            if (FAILED(hr))
+            {
+                // Only call if the GetReJITParamters call failed
+                ReportReJITError(pModule, methodDef, pModule->LookupMethodDef(methodDef), hr);
+            }
             return S_OK;
         }
         else
         {
+            _ASSERTE(pFuncControl != NULL);
+
             CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
             if (ilCodeVersion.GetRejitState() == ILCodeVersion::kStateGettingReJITParameters)
             {

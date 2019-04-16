@@ -8043,8 +8043,6 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
 #if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             if (CORProfilerEnableRejit())
             {
-                // TODO: this is a breaking change, profilers could have purposefully only made certain inlinings fail before. Need
-                // to think about if it is an important scenario.
                 CodeVersionManager* pCodeVersionManager = pCallee->GetCodeVersionManager();
                 CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
                 ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pCallee);

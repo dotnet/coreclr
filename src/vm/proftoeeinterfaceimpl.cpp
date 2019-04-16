@@ -6790,7 +6790,8 @@ HRESULT ProfToEEInterfaceImpl::GetCodeInfo4(UINT_PTR pNativeCodeStartAddress,
                                     codeInfos);
 }
 
-HRESULT ProfToEEInterfaceImpl::RequestReJITWithInlining(
+HRESULT ProfToEEInterfaceImpl::RequestReJITWithInliners(
+            DWORD       dwRejitFlags,
             ULONG       cFunctions,
             ModuleID    moduleIds[],
             mdMethodDef methodIds[])
@@ -6810,7 +6811,7 @@ HRESULT ProfToEEInterfaceImpl::RequestReJITWithInlining(
         kP2EETriggers | kP2EEAllowableAfterAttach,
         (LF_CORPROF, 
          LL_INFO1000, 
-         "**PROF: RequestReJITWithInlining.\n"));
+         "**PROF: RequestReJITWithInliners.\n"));
 
     if (!g_profControlBlock.pProfInterface->IsCallback4Supported())
     {
@@ -6822,8 +6823,19 @@ HRESULT ProfToEEInterfaceImpl::RequestReJITWithInlining(
         return CORPROF_E_REJIT_NOT_ENABLED;
     }
 
+    if (!ReJitManager::IsReJITInlineTrackingEnabled())
+    {
+        return CORPROF_E_REJIT_INLINING_DISABLED;
+    }
+
     // Request at least 1 method to reJIT!
     if ((cFunctions == 0) || (moduleIds == NULL) || (methodIds == NULL))
+    {
+        return E_INVALIDARG;
+    }
+
+    // We only support disabling inlining currently
+    if ((dwRejitFlags & COR_PRF_REJIT_BLOCK_INLINING) != COR_PRF_REJIT_BLOCK_INLINING)
     {
         return E_INVALIDARG;
     }
@@ -6833,60 +6845,6 @@ HRESULT ProfToEEInterfaceImpl::RequestReJITWithInlining(
     
     GCX_PREEMP();
     return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, TRUE);
-}
-
-/*
- * This method will revert the function, as well as any inliner that was 
- * ReJITted, to the original IL.
- */
-HRESULT ProfToEEInterfaceImpl::RequestRevertWithInlining(
-            ULONG       cFunctions,
-            ModuleID    moduleIds[],
-            mdMethodDef methodIds[],
-            HRESULT     rgHrStatuses[])
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-        CAN_TAKE_LOCK;
-        PRECONDITION(CheckPointer(moduleIds, NULL_OK));
-        PRECONDITION(CheckPointer(methodIds, NULL_OK));
-        PRECONDITION(CheckPointer(rgHrStatuses, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
-        kP2EEAllowableAfterAttach | kP2EETriggers,
-        (LF_CORPROF, 
-         LL_INFO1000, 
-         "**PROF: RequestRevert.\n"));
-
-    if (!CORProfilerEnableRejit())
-    {
-        return CORPROF_E_REJIT_NOT_ENABLED;
-    }
-
-    // Request at least 1 method to revert!
-    if ((cFunctions == 0) || (moduleIds == NULL) || (methodIds == NULL))
-    {
-        return E_INVALIDARG;
-    }
-
-    // Remember the profiler is doing this, as that means we must never detach it!
-    g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
-
-    // Initialize the status array
-    if (rgHrStatuses != NULL)
-    {
-        memset(rgHrStatuses, 0, sizeof(HRESULT) * cFunctions);
-        _ASSERTE(S_OK == rgHrStatuses[0]);
-    }
-
-
-    GCX_PREEMP();
-    return ReJitManager::RequestRevert(cFunctions, moduleIds, methodIds, rgHrStatuses, TRUE);
 }
 
 /*

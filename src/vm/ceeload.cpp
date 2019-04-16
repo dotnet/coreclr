@@ -655,7 +655,11 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
         EnableEditAndContinue();
 
 #if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-    m_pJitInlinerTrackingMap = new JITInlineTrackingMap(GetLoaderAllocator());
+    m_pJitInlinerTrackingMap = NULL;
+    if (ReJitManager::IsReJITInlineTrackingEnabled())
+    {
+        m_pJitInlinerTrackingMap = new JITInlineTrackingMap(GetLoaderAllocator());
+    }
 #endif // defined (PROFILING_SUPPORTED) &&!defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
     LOG((LF_CLASSLOADER, LL_INFO10, "Loaded pModule: \"%ws\".\n", GetDebugName()));

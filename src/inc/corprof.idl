@@ -717,6 +717,20 @@ typedef enum
     COR_PRF_CORE_CLR    = 0x2,
 } COR_PRF_RUNTIME_TYPE;
 
+/*
+ * COR_PRF_REJIT_FLAGS contains values used to control the behavior of
+ * RequestReJITWithInliners.
+ */
+typedef enum
+{
+    // ReJITted methods will be prevented from being inlined
+    COR_PRF_REJIT_BLOCK_INLINING = 0x1,
+
+    // This flag controls whether the runtime will call GetReJITParameters
+    // on methods that are 
+    COR_PRF_REJIT_INLINING_CALLBACKS    = 0x2
+} COR_PRF_REJIT_FLAGS;
+
 
 /* -------------------------------------------------------------------------- *
  * Forward declarations
@@ -3943,20 +3957,11 @@ interface ICorProfilerInfo10 : ICorProfilerInfo9
      * not present to monitor inlining. This method can be called to guarantee
      * that the full set of inliners will be ReJITted as well.
      */
-    HRESULT RequestReJITWithInlining(
+    HRESULT RequestReJITWithInliners(
+                [in]                       DWORD       dwRejitFlags,
                 [in]                       ULONG       cFunctions,
                 [in, size_is(cFunctions)]  ModuleID    moduleIds[],
                 [in, size_is(cFunctions)]  mdMethodDef methodIds[]);
-
-    /*
-     * This method will revert the function, as well as any inliner that was 
-     * ReJITted, to the original IL.
-     */
-    HRESULT RequestRevertWithInlining(
-                [in]                       ULONG       cFunctions,
-                [in, size_is(cFunctions)]  ModuleID    moduleIds[],
-                [in, size_is(cFunctions)]  mdMethodDef methodIds[],
-                [out, size_is(cFunctions)] HRESULT     status[]);
 };
 
 [

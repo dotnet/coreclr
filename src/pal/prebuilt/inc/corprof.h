@@ -539,16 +539,16 @@ enum __MIDL___MIDL_itf_corprof_0000_0000_0005
 typedef /* [public] */ 
 enum __MIDL___MIDL_itf_corprof_0000_0000_0006
     {
-        COR_PRF_HIGH_MONITOR_NONE	= 0,
-        COR_PRF_HIGH_ADD_ASSEMBLY_REFERENCES	= 0x1,
-        COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED	= 0x2,
-        COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS	= 0x4,
-        COR_PRF_HIGH_DISABLE_TIERED_COMPILATION	= 0x8,
-        COR_PRF_HIGH_BASIC_GC = 0x10,
-        COR_PRF_HIGH_REQUIRE_PROFILE_IMAGE	= 0,
-        COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH	= ( COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED | COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS | COR_PRF_HIGH_BASIC_GC) ,
-        COR_PRF_HIGH_MONITOR_IMMUTABLE	= COR_PRF_HIGH_DISABLE_TIERED_COMPILATION
-    } 	COR_PRF_HIGH_MONITOR;
+        COR_PRF_HIGH_MONITOR_NONE   = 0,
+        COR_PRF_HIGH_ADD_ASSEMBLY_REFERENCES    = 0x1,
+        COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED  = 0x2,
+        COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS   = 0x4,
+        COR_PRF_HIGH_DISABLE_TIERED_COMPILATION = 0x8,
+        COR_PRF_HIGH_BASIC_GC   = 0x10,
+        COR_PRF_HIGH_REQUIRE_PROFILE_IMAGE  = 0,
+        COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH = ( ( COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED | COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS )  | COR_PRF_HIGH_BASIC_GC ) ,
+        COR_PRF_HIGH_MONITOR_IMMUTABLE  = COR_PRF_HIGH_DISABLE_TIERED_COMPILATION
+    }   COR_PRF_HIGH_MONITOR;
 
 typedef /* [public] */ 
 enum __MIDL___MIDL_itf_corprof_0000_0000_0007
@@ -591,6 +591,13 @@ enum __MIDL___MIDL_itf_corprof_0000_0000_0011
         COR_PRF_DESKTOP_CLR = 0x1,
         COR_PRF_CORE_CLR    = 0x2
     }   COR_PRF_RUNTIME_TYPE;
+
+typedef /* [public] */ 
+enum __MIDL___MIDL_itf_corprof_0000_0000_0012
+    {
+        COR_PRF_REJIT_BLOCK_INLINING    = 0x1,
+        COR_PRF_REJIT_INLINING_CALLBACKS    = 0x2
+    }   COR_PRF_REJIT_FLAGS;
 
 
 
@@ -15183,16 +15190,11 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
     ICorProfilerInfo10 : public ICorProfilerInfo9
     {
     public:
-        virtual HRESULT STDMETHODCALLTYPE RequestReJITWithInlining( 
+        virtual HRESULT STDMETHODCALLTYPE RequestReJITWithInliners( 
+            /* [in] */ DWORD dwRejitFlags,
             /* [in] */ ULONG cFunctions,
             /* [size_is][in] */ ModuleID moduleIds[  ],
             /* [size_is][in] */ mdMethodDef methodIds[  ]) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE RequestRevertWithInlining( 
-            /* [in] */ ULONG cFunctions,
-            /* [size_is][in] */ ModuleID moduleIds[  ],
-            /* [size_is][in] */ mdMethodDef methodIds[  ],
-            /* [size_is][out] */ HRESULT status[  ]) = 0;
         
     };
     
@@ -15779,18 +15781,12 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
             ULONG32 *pcCodeInfos,
             COR_PRF_CODE_INFO codeInfos[  ]);
         
-        HRESULT ( STDMETHODCALLTYPE *RequestReJITWithInlining )( 
+        HRESULT ( STDMETHODCALLTYPE *RequestReJITWithInliners )( 
             ICorProfilerInfo10 * This,
+            /* [in] */ DWORD dwRejitFlags,
             /* [in] */ ULONG cFunctions,
             /* [size_is][in] */ ModuleID moduleIds[  ],
             /* [size_is][in] */ mdMethodDef methodIds[  ]);
-        
-        HRESULT ( STDMETHODCALLTYPE *RequestRevertWithInlining )( 
-            ICorProfilerInfo10 * This,
-            /* [in] */ ULONG cFunctions,
-            /* [size_is][in] */ ModuleID moduleIds[  ],
-            /* [size_is][in] */ mdMethodDef methodIds[  ],
-            /* [size_is][out] */ HRESULT status[  ]);
         
         END_INTERFACE
     } ICorProfilerInfo10Vtbl;
@@ -16094,11 +16090,8 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
     ( (This)->lpVtbl -> GetCodeInfo4(This,pNativeCodeStartAddress,cCodeInfos,pcCodeInfos,codeInfos) ) 
 
 
-#define ICorProfilerInfo10_RequestReJITWithInlining(This,cFunctions,moduleIds,methodIds)    \
-    ( (This)->lpVtbl -> RequestReJITWithInlining(This,cFunctions,moduleIds,methodIds) ) 
-
-#define ICorProfilerInfo10_RequestRevertWithInlining(This,cFunctions,moduleIds,methodIds,status)    \
-    ( (This)->lpVtbl -> RequestRevertWithInlining(This,cFunctions,moduleIds,methodIds,status) ) 
+#define ICorProfilerInfo10_RequestReJITWithInliners(This,dwRejitFlags,cFunctions,moduleIds,methodIds)   \
+    ( (This)->lpVtbl -> RequestReJITWithInliners(This,dwRejitFlags,cFunctions,moduleIds,methodIds) ) 
 
 #endif /* COBJMACROS */
 

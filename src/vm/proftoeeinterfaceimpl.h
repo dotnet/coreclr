@@ -613,16 +613,11 @@ public:
 
     COM_METHOD GetLOHObjectSizeThreshold(DWORD *pThreshold);
 
-    COM_METHOD RequestReJITWithInlining(
+    COM_METHOD RequestReJITWithInliners(
+        DWORD       dwRejitFlags,
         ULONG       cFunctions,
         ModuleID    moduleIds[],
         mdMethodDef methodIds[]);
-
-    COM_METHOD RequestRevertWithInlining(
-        ULONG       cFunctions,
-        ModuleID    moduleIds[],
-        mdMethodDef methodIds[],
-        HRESULT     status[]);
 
     // end ICorProfilerInfo10    
 
