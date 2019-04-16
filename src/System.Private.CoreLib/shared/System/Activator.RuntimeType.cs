@@ -91,7 +91,7 @@ namespace System
                 return rt.CreateInstanceDefaultCtor(publicOnly: !nonPublic, skipCheckThis: false, fillCache: true, wrapExceptions: wrapExceptions);
 
             throw new ArgumentException(SR.Arg_MustBeType, nameof(type));
-        }        
+        }
 
         private static ObjectHandle? CreateInstanceInternal(string assemblyString,
                                                            string typeName,
@@ -133,20 +133,106 @@ namespace System
 
             object? o = CreateInstance(type, bindingAttr, binder, args, culture, activationAttributes);
 
-            return o != null ? new ObjectHandle(o) : null;          
+            return o != null ? new ObjectHandle(o) : null;
         }
 
         public static T CreateInstance<T>()
         {
-            var rt = (RuntimeType)typeof(T);
+            var entry = ActivatorCache<T>.Entry;
+            if (entry.IsNotActivatable)
+                throw new MissingMethodException(SR.Format(SR.Arg_NoDefCTor, entry.RuntimeType));
 
-            // This is a workaround to maintain compatibility with V2. Without this we would throw a NotSupportedException for void[].
-            // Array, Ref, and Pointer types don't have default constructors.
-            if (rt.HasElementType)
-                throw new MissingMethodException(SR.Format(SR.Arg_NoDefCTor, rt));
+            if (entry.IsValueType)
+            {
+                T instance = default!;
 
-            // Skip the CreateInstanceCheckThis call to avoid perf cost and to maintain compatibility with V2 (throwing the same exceptions).
-            return (T)rt.CreateInstanceDefaultCtor(publicOnly: true, skipCheckThis: true, fillCache: true, wrapExceptions: true);
+                if (entry.ConstructStruct != null)
+                {
+                    try
+                    {
+                        entry.ConstructStruct(ref instance);
+                    }
+                    catch (Exception exception)
+                    {
+                        throw new TargetInvocationException(exception);
+                    }
+                }
+
+                return instance;
+            }
+            else
+            {
+                if (entry.ConstructClass == null)
+                    throw new MissingMethodException(SR.Format(SR.Arg_NoDefCTor, entry.RuntimeType));
+
+                T instance = (T)RuntimeTypeHandle.Allocate(entry.RuntimeType);
+
+                try
+                {
+                    entry.ConstructClass(instance);
+                }
+                catch (Exception exception)
+                {
+                    throw new TargetInvocationException(exception);
+                }
+
+                return instance;
+            }
+        }
+
+        private delegate void ClassConstructor<T>(T instance);
+        private delegate void StructConstructor<T>(ref T instance);
+
+        private static T CreateDelegate<T>(MethodBase methodInfo)
+            where T : Delegate
+        {
+            return (T)typeof(T)
+                .GetConstructor(new[] { typeof(object), typeof(IntPtr) })!
+                .Invoke(new object?[] { null, methodInfo.MethodHandle.GetFunctionPointer() });
+        }
+
+        private sealed class ActivatorCache<T>
+        {
+            internal static readonly ActivatorCache<T> Entry = new ActivatorCache<T>();
+
+            internal readonly RuntimeType RuntimeType;
+
+            internal readonly bool IsValueType;
+            internal readonly bool IsNotActivatable;
+
+            internal readonly ClassConstructor<T>? ConstructClass;
+            internal readonly StructConstructor<T>? ConstructStruct;
+
+            private ActivatorCache()
+            {
+                RuntimeType = (RuntimeType)typeof(T);
+                IsValueType = RuntimeType.IsValueType;
+
+                // The HasElementType check is a workaround to maintain compatibility with V2.
+                // Without this we would throw a NotSupportedException for void[].
+                // Array, Ref, and Pointer types don't have default constructors.
+                IsNotActivatable = RuntimeType.IsAbstract || RuntimeType.HasElementType;
+
+                if (IsNotActivatable)
+                    return;
+
+                ConstructorInfo? runtimeCtorInfo = RuntimeType.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+
+                if (IsValueType)
+                {
+                    if (runtimeCtorInfo != null && runtimeCtorInfo.IsPublic)
+                        ConstructStruct = CreateDelegate<StructConstructor<T>>(runtimeCtorInfo);
+                    else
+                        IsNotActivatable = runtimeCtorInfo != null;
+                }
+                else
+                {
+                    if (runtimeCtorInfo != null && runtimeCtorInfo.IsPublic)
+                        ConstructClass = CreateDelegate<ClassConstructor<T>>(runtimeCtorInfo);
+                    else
+                        IsNotActivatable = true;
+                }
+            }
         }
     }
 }
