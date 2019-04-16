@@ -76,6 +76,8 @@ namespace System
             return InternalSubstring(startIndex, length);
         }
 
+        // Slice intended to be used by the compiler only to provide indexer with range parameter functionality.
+        // Developers should be using Substring method instead.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [ComponentModel.EditorBrowsable(ComponentModel.EditorBrowsableState.Never)]
         public Utf8String Slice(int startIndex, int length) => Substring(startIndex, length);
