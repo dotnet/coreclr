@@ -717,14 +717,21 @@ namespace System.Reflection.Emit
             stackSize = m_stackSize;
             if (m_exceptionHeader != null && m_exceptionHeader.Length != 0)
             {
-                if (m_exceptionHeader.Length < 4)
+                // If length < 4, fail. Below pattern elides future bounds checks in method.
+                if (3 >= (uint)m_exceptionHeader.Length)
                     throw new FormatException();
 
                 byte header = m_exceptionHeader[0];
 
                 if ((header & 0x40) != 0) // Fat
                 {
-                    EHCount = (BinaryPrimitives.ReadInt32LittleEndian(m_exceptionHeader.AsSpan(1)) - 4) / 24;
+                    Span<byte> size = stackalloc byte[4];
+                    size[0] = m_exceptionHeader[1]; // n.b. this is a 24-bit integer, not a 32-bit integer
+                    size[1] = m_exceptionHeader[2];
+                    size[2] = m_exceptionHeader[3];
+                    size[3] = 0;
+
+                    EHCount = (BitConverter.ToInt32(size) - 4) / 24;
                 }
                 else
                     EHCount = (m_exceptionHeader[1] - 2) / 12;
