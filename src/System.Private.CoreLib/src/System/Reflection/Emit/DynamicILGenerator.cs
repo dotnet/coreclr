@@ -725,13 +725,12 @@ namespace System.Reflection.Emit
 
                 if ((header & 0x40) != 0) // Fat
                 {
-                    Span<byte> size = stackalloc byte[4];
-                    size[0] = m_exceptionHeader[1]; // n.b. this is a 24-bit integer, not a 32-bit integer
-                    size[1] = m_exceptionHeader[2];
-                    size[2] = m_exceptionHeader[3];
-                    size[3] = 0;
+                    // Positions 1..3 of m_exceptionHeader are a 24-bit little-endian integer.
+                    int size = m_exceptionHeader[3] << 16;
+                    size |= m_exceptionHeader[2] << 8;
+                    size |= m_exceptionHeader[1];
 
-                    EHCount = (BitConverter.ToInt32(size) - 4) / 24;
+                    EHCount = (size - 4) / 24;
                 }
                 else
                     EHCount = (m_exceptionHeader[1] - 2) / 12;
