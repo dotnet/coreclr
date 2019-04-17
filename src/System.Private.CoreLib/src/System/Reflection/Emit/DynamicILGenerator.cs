@@ -717,8 +717,7 @@ namespace System.Reflection.Emit
             stackSize = m_stackSize;
             if (m_exceptionHeader != null && m_exceptionHeader.Length != 0)
             {
-                // If length < 4, fail. Below pattern elides future bounds checks in method.
-                if (3 >= (uint)m_exceptionHeader.Length)
+                if (m_exceptionHeader.Length < 4)
                     throw new FormatException();
 
                 byte header = m_exceptionHeader[0];
