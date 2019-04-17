@@ -323,7 +323,6 @@ endif(WIN32)
 if(CLR_CMAKE_PLATFORM_UNIX)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CLR_ADDITIONAL_LINKER_FLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CLR_ADDITIONAL_LINKER_FLAGS}" )
-    add_compile_options(${CLR_ADDITIONAL_COMPILER_OPTIONS})
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(CLR_CMAKE_PLATFORM_LINUX)
@@ -492,12 +491,8 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   # as x64 does. It has been causing issues in ARM (https://github.com/dotnet/coreclr/issues/4746)
   add_compile_options(-fsigned-char)
 
-  # Check to see if build wants to keep visibility to default.
-  # Note: Once -defaultvisibility is set, it will be cached to always be true.
-  if(NOT DEFAULT_VISIBILITY)
-    # We mark the function which needs exporting with DLLEXPORT
-    add_compile_options(-fvisibility=hidden)
-  endif()
+  # We mark the function which needs exporting with DLLEXPORT
+  add_compile_options(-fvisibility=hidden)
 
   # Specify the minimum supported version of macOS
   if(CLR_CMAKE_PLATFORM_DARWIN)
@@ -519,6 +514,10 @@ if(CLR_CMAKE_PLATFORM_UNIX_ARM)
      add_compile_options(-mfloat-abi=softfp)
    endif(ARM_SOFTFP)
 endif(CLR_CMAKE_PLATFORM_UNIX_ARM)
+
+if(CLR_CMAKE_PLATFORM_UNIX)
+  add_compile_options(${CLR_ADDITIONAL_COMPILER_OPTIONS})
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if (WIN32)
   # Compile options for targeting windows
