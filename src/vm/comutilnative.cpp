@@ -1260,6 +1260,35 @@ FCIMPL0(INT64, GCInterface::GetAllocatedBytesForCurrentThread)
 }
 FCIMPLEND
 
+/*===============================AllocateNewArray===============================
+**Action: Allocates a new array object. Allows passing extra flags
+**Returns: The allocated array.
+**Arguments: elementTypeHandle -> type of the element, 
+**           length -> number of elements, 
+**           clearMemory -> whether user prefer to skip clearing the content of the array.
+**Exceptions: IDS_EE_ARRAY_DIMENSIONS_EXCEEDED when size is too large. OOM if can't allocate.
+==============================================================================*/
+FCIMPL3(Object*, GCInterface::AllocateNewArray, void* elementTypeHandle, INT32 length, CLR_BOOL clearMemory)
+{
+    CONTRACTL {
+        FCALL_CHECK;
+        PRECONDITION(length >= 0);
+    } CONTRACTL_END;
+
+    OBJECTREF pRet = NULL;
+    TypeHandle elementType = TypeHandle::FromPtr(elementTypeHandle);
+
+    HELPER_METHOD_FRAME_BEGIN_RET_1(pRet);
+
+    //REVIEW: ArrayNative has a number of specialized helpers like for primitive arrays. Do we want smth similar?
+    pRet = AllocateSzArray(elementType, length, /*zeroingOptional*/ !clearMemory);
+
+    HELPER_METHOD_FRAME_END();
+
+    return OBJECTREFToObject(pRet);
+}
+FCIMPLEND
+
 #ifdef FEATURE_BASICFREEZE
 
 /*===============================RegisterFrozenSegment===============================

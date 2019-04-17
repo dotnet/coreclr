@@ -81,7 +81,11 @@ namespace System
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _EndNoGCRegion();
-        
+
+        // NYI: generation, pinned, alignment
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern Array AllocateNewArray(IntPtr typeHandle, int length, bool clearMemory);
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
 
@@ -642,6 +646,42 @@ namespace System
                 // We only register the callback from the runtime in InvokeMemoryLoadChangeNotifications, so to avoid race conditions between
                 // UnregisterMemoryLoadChangeNotification and InvokeMemoryLoadChangeNotifications in native.
             }
+        }
+
+        // generation: -1 means to let GC decide (equivalent to regular new T[])
+        // 0 means to allocate in gen0
+        // GC.MaxGeneration means to allocate in the oldest generation
+        //
+        // pinned: true means you want to pin this object that you are allocating
+        // otherwise it's not pinned.
+        //
+        // alignment: only supported if pinned is true.
+        // -1 means you don't care which means it'll use the default alignment.
+        // otherwise specify a power of 2 value that's >= pointer size
+        // the beginning of the payload of the object (&array[0]) will be aligned with this alignment.
+        // static T[] AllocateArray<T>(int length, int generation = -1, bool pinned = false, int alignment = -1)
+        //
+        // TODO: VS  NYI generation, pinned, alignment. Probably should throw Unsupported?
+        public static T[] AllocateArray<T>(int length)
+        {
+            return AllocateArrayWorker<T>(length, clearMemory: true);
+        }
+
+        // Skips zero-initialization of the array if possible. If T contains object references, 
+        // the array is always zero-initialized.
+        //
+        // TODO: VS  NYI generation, pinned, alignment. Probably should throw Unsupported?
+        public static T[] AllocateUninitializedArray<T>(int length)
+        {
+            return AllocateArrayWorker<T>(length, clearMemory: false);
+        }
+
+        private static T[] AllocateArrayWorker<T>(int length, bool clearMemory)
+        {
+            if (length < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+
+            return (T[])AllocateNewArray(typeof(T).TypeHandle.Value, length, clearMemory);
         }
     }
 }

@@ -914,6 +914,7 @@ void updateGCShadow(Object** ptr, Object* val);
 #define GC_ALLOC_CONTAINS_REF 0x2
 #define GC_ALLOC_ALIGN8_BIAS 0x4
 #define GC_ALLOC_ALIGN8 0x8
+#define GC_ALLOC_ZEROING_OPTIONAL 0x10
 
 #if defined(USE_CHECKED_OBJECTREFS) && !defined(_NOVM)
 #define OBJECTREF_TO_UNCHECKED_OBJECTREF(objref)    (*((_UNCHECKED_OBJECTREF*)&(objref)))

@@ -170,7 +170,7 @@ CustomAttributeManagedValues Attribute::GetManagedCaValue(CaValue* pCaVal)
 
             if (length != (ULONG)-1)
             {
-                gc.array = (CaValueArrayREF)AllocateValueSzArray(MscorlibBinder::GetClass(CLASS__CUSTOM_ATTRIBUTE_ENCODED_ARGUMENT), length);
+                gc.array = (CaValueArrayREF)AllocateSzArray(MscorlibBinder::GetClass(CLASS__CUSTOM_ATTRIBUTE_ENCODED_ARGUMENT), length);
                 CustomAttributeValue* pValues = gc.array->GetDirectPointerToNonObjectElements();
 
                 for (COUNT_T i = 0; i < length; i ++)
