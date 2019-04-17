@@ -129,11 +129,10 @@ int __cdecl RVAFieldCmp(const void * a_, const void * b_)
 
     if (a->pData != b->pData)
     {
-        // Ascending order on rva
         return (a->pData > b->pData) ? 1 : -1;
     }
 
-    return (int)(b->cbSize - a->cbSize);    // Descending order on size
+    return 0;
 }
 
 void ZapILMetaData::CopyRVAFields()
@@ -163,6 +162,15 @@ void ZapILMetaData::CopyRVAFields()
     // Managed C++ binaries depend on the order of RVA fields
     qsort(&fields[0], fields.GetCount(), sizeof(RVAField), RVAFieldCmp);
 
+#ifdef _DEBUG
+    for (COUNT_T i = 0; i < fields.GetCount(); i++)
+    {
+        // Make sure no RVA field node has been placed during compilation. This would mess up the ordering
+        // and can potentially break the Managed C++ scenarios.
+        _ASSERTE(!GetRVAField(fields[i].pData)->IsPlaced());
+    }
+#endif
+
     for (COUNT_T i = 0; i < fields.GetCount(); i++)
     {
         RVAField field = fields[i];
@@ -172,8 +180,8 @@ void ZapILMetaData::CopyRVAFields()
         // Handle overlapping fields by reusing blobs based on the address, and just updating size and alignment.
         pRVADataNode->UpdateSizeAndAlignment(field.cbSize, field.cbAlignment);
 
-        _ASSERTE(!pRVADataNode->IsPlaced());
-        m_pImage->m_pReadOnlyDataSection->Place(pRVADataNode);
+        if (!pRVADataNode->IsPlaced())
+            m_pImage->m_pReadOnlyDataSection->Place(pRVADataNode);
     }
 }
 
