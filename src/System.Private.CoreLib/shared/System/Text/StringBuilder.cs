@@ -625,7 +625,18 @@ namespace System.Text
             /// <summary>
             /// Implements the IEnumerator pattern.
             /// </summary>
-            public ReadOnlyMemory<char> Current => new ReadOnlyMemory<char>(_currentChunk.m_ChunkChars, 0, _currentChunk.m_ChunkLength);
+            public ReadOnlyMemory<char> Current
+            {
+                get
+                {
+                    if (_currentChunk == null)
+                    {
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();
+                    }
+
+                    return new ReadOnlyMemory<char>(_currentChunk.m_ChunkChars, 0, _currentChunk.m_ChunkLength);
+                }
+            }
 
             #region private
             internal ChunkEnumerator(StringBuilder stringBuilder)
