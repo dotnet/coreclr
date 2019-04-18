@@ -4695,9 +4695,9 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
             // We have a HFA struct.
             // Note that GetHfaType may not be the same as elemType, since TYP_SIMD8 is handled the same as TYP_DOUBLE.
             var_types useElemType = elemType;
-#ifdef _TARGET_ARM64_
+#if defined(_TARGET_ARM64_) & defined(FEATURE_SIMD)
             useElemType = (elemType == TYP_SIMD8) ? TYP_DOUBLE : useElemType;
-#endif // _TARGET_ARM64_
+#endif // _TARGET_ARM64_ && FEATURE_SIMD
             noway_assert(useElemType == varDsc->GetHfaType());
             noway_assert(elemSize == genTypeSize(elemType));
             noway_assert(elemCount == (varDsc->lvExactSize / elemSize));
@@ -12991,24 +12991,31 @@ DONE_MORPHING_CHILDREN:
                     op1->gtOp.gtOp2->gtOper == GT_CNS_INT && op2->gtOp.gtOp2->gtOper == GT_CNS_INT &&
                     !op1->gtOverflow() && !op2->gtOverflow())
                 {
-                    cns1 = op1->gtOp.gtOp2;
-                    cns2 = op2->gtOp.gtOp2;
-                    cns1->gtIntCon.gtIconVal += cns2->gtIntCon.gtIconVal;
-#ifdef _TARGET_64BIT_
-                    if (cns1->TypeGet() == TYP_INT)
+                    // Don't create a byref pointer that may point outside of the ref object.
+                    // If a GC happens, the byref won't get updated. This can happen if one
+                    // of the int components is negative. It also requires the address generation
+                    // be in a fully-interruptible code region.
+                    if (!varTypeIsGC(op1->gtOp.gtOp1->TypeGet()) && !varTypeIsGC(op2->gtOp.gtOp1->TypeGet()))
                     {
-                        // we need to properly re-sign-extend or truncate after adding two int constants above
-                        cns1->AsIntCon()->TruncateOrSignExtend32();
-                    }
+                        cns1 = op1->gtOp.gtOp2;
+                        cns2 = op2->gtOp.gtOp2;
+                        cns1->gtIntCon.gtIconVal += cns2->gtIntCon.gtIconVal;
+#ifdef _TARGET_64BIT_
+                        if (cns1->TypeGet() == TYP_INT)
+                        {
+                            // we need to properly re-sign-extend or truncate after adding two int constants above
+                            cns1->AsIntCon()->TruncateOrSignExtend32();
+                        }
 #endif //_TARGET_64BIT_
 
-                    tree->gtOp.gtOp2 = cns1;
-                    DEBUG_DESTROY_NODE(cns2);
+                        tree->gtOp.gtOp2 = cns1;
+                        DEBUG_DESTROY_NODE(cns2);
 
-                    op1->gtOp.gtOp2 = op2->gtOp.gtOp1;
-                    op1->gtFlags |= (op1->gtOp.gtOp2->gtFlags & GTF_ALL_EFFECT);
-                    DEBUG_DESTROY_NODE(op2);
-                    op2 = tree->gtOp.gtOp2;
+                        op1->gtOp.gtOp2 = op2->gtOp.gtOp1;
+                        op1->gtFlags |= (op1->gtOp.gtOp2->gtFlags & GTF_ALL_EFFECT);
+                        DEBUG_DESTROY_NODE(op2);
+                        op2 = tree->gtOp.gtOp2;
+                    }
                 }
 
                 if (op2->IsCnsIntOrI() && varTypeIsIntegralOrI(typ))
@@ -14036,39 +14043,36 @@ GenTree* Compiler::fgMorphSmpOpOptional(GenTreeOp* tree)
     if (fgGlobalMorph && (oper == GT_ADD) && !tree->gtOverflow() && (op1->gtOper == GT_ADD) && !op1->gtOverflow() &&
         varTypeIsIntegralOrI(typ))
     {
+        GenTree* ad1 = op1->gtOp.gtOp1;
         GenTree* ad2 = op1->gtOp.gtOp2;
 
-        if (op2->OperIsConst() == 0 && ad2->OperIsConst() != 0)
+        if (!op2->OperIsConst() && ad2->OperIsConst())
         {
-            // This takes
-            //       + (tree)
-            //      / \.
-            //     /   \.
-            //    /     \.
-            //   + (op1) op2
-            //  / \.
-            //     \.
-            //     ad2
+            //  This takes
+            //        + (tree)
+            //       / \.
+            //      /   \.
+            //     /     \.
+            //    + (op1) op2
+            //   / \.
+            //  /   \.
+            // ad1  ad2
             //
-            // And it swaps ad2 and op2.  If (op2) is varTypeIsGC, then this implies that (tree) is
-            // varTypeIsGC.  If (op1) is not, then when we swap (ad2) and (op2), then we have a TYP_INT node
-            // (op1) with a child that is varTypeIsGC.  If we encounter that situation, make (op1) the same
-            // type as (tree).
-            //
-            // Also, if (ad2) is varTypeIsGC then (tree) must also be (since op1 is), so no fixing is
-            // necessary
+            // and it swaps ad2 and op2.
 
-            if (varTypeIsGC(op2->TypeGet()))
+            // Don't create a byref pointer that may point outside of the ref object.
+            // If a GC happens, the byref won't get updated. This can happen if one
+            // of the int components is negative. It also requires the address generation
+            // be in a fully-interruptible code region.
+            if (!varTypeIsGC(ad1->TypeGet()) && !varTypeIsGC(op2->TypeGet()))
             {
-                noway_assert(varTypeIsGC(typ));
-                op1->gtType = typ;
+                tree->gtOp2 = ad2;
+
+                op1->gtOp.gtOp2 = op2;
+                op1->gtFlags |= op2->gtFlags & GTF_ALL_EFFECT;
+
+                op2 = tree->gtOp2;
             }
-            tree->gtOp2 = ad2;
-
-            op1->gtOp.gtOp2 = op2;
-            op1->gtFlags |= op2->gtFlags & GTF_ALL_EFFECT;
-
-            op2 = tree->gtOp2;
         }
     }
 
@@ -17061,9 +17065,8 @@ void Compiler::fgMorph()
     fgUpdateFinallyTargetFlags();
 
     /* For x64 and ARM64 we need to mark irregular parameters */
-
     lvaRefCountState = RCS_EARLY;
-    fgMarkImplicitByRefArgs();
+    fgResetImplicitByRefRefCount();
 
     /* Promote struct locals if necessary */
     fgPromoteStructs();
@@ -17491,63 +17494,29 @@ void Compiler::fgMorphLocalField(GenTree* tree, GenTree* parent)
 }
 
 //------------------------------------------------------------------------
-// fgMarkImplicitByRefArgs: Identify any by-value struct parameters which are "implicit by-reference";
-//                          i.e. which the ABI requires to be passed by making a copy in the caller and
-//                          passing its address to the callee.  Mark their `LclVarDsc`s such that
-//                          `lvaIsImplicitByRefLocal` will return true for them.
+// fgResetImplicitByRefRefCount: Clear the ref count field of all implicit byrefs
 
-void Compiler::fgMarkImplicitByRefArgs()
+void Compiler::fgResetImplicitByRefRefCount()
 {
 #if (defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)) || defined(_TARGET_ARM64_)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\n*************** In fgMarkImplicitByRefs()\n");
+        printf("\n*************** In fgResetImplicitByRefRefCount()\n");
     }
 #endif // DEBUG
 
-    for (unsigned lclNum = 0; lclNum < info.compArgsCount; lclNum++)
+    for (unsigned lclNum = 0; lclNum < info.compArgsCount; ++lclNum)
     {
-        LclVarDsc* varDsc = &lvaTable[lclNum];
+        LclVarDsc* varDsc = lvaGetDesc(lclNum);
 
-        if (varDsc->lvIsParam && varTypeIsStruct(varDsc))
+        if (varDsc->lvIsImplicitByRef)
         {
-            size_t size = varDsc->lvExactSize;
-            assert(size == info.compCompHnd->getClassSize(varDsc->lvVerTypeInfo.GetClassHandle()));
-
-            bool isPassedByReference;
-#if defined(_TARGET_AMD64_)
-            isPassedByReference = (size > REGSIZE_BYTES || (size & (size - 1)) != 0);
-#elif defined(_TARGET_ARM64_)
-            if (size > TARGET_POINTER_SIZE)
-            {
-                CORINFO_CLASS_HANDLE clsHnd = varDsc->lvVerTypeInfo.GetClassHandleForValueClass();
-                structPassingKind    howToPassStruct;
-                var_types            type =
-                    getArgTypeForStruct(clsHnd, &howToPassStruct, this->info.compIsVarArgs, varDsc->lvExactSize);
-                isPassedByReference = (howToPassStruct == SPK_ByReference);
-            }
-            else
-            {
-                isPassedByReference = false;
-            }
-#endif
-
-            if (isPassedByReference)
-            {
-                // Previously nobody was ever setting lvIsParam and lvIsTemp on the same local
-                // So I am now using it to indicate that this is one of the weird implicit
-                // by ref locals.
-                // The address taken cleanup will look for references to locals marked like
-                // this, and transform them appropriately.
-                varDsc->lvIsTemp = 1;
-
-                // Clear the ref count field; fgMarkAddressTakenLocals will increment it per
-                // appearance of implicit-by-ref param so that call arg morphing can do an
-                // optimization for single-use implicit-by-ref params whose single use is as
-                // an outgoing call argument.
-                varDsc->setLvRefCnt(0, RCS_EARLY);
-            }
+            // Clear the ref count field; fgMarkAddressTakenLocals will increment it per
+            // appearance of implicit-by-ref param so that call arg morphing can do an
+            // optimization for single-use implicit-by-ref params whose single use is as
+            // an outgoing call argument.
+            varDsc->setLvRefCnt(0, RCS_EARLY);
         }
     }
 

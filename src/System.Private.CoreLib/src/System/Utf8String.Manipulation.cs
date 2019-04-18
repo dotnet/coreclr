@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -76,12 +77,12 @@ namespace System
             return InternalSubstring(startIndex, length);
         }
 
+        // Slice intended to be used by the compiler only to provide indexer with range parameter functionality.
+        // Developers should be using Substring method instead.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Utf8String Substring(Range range)
-        {
-            (int start, int length) = range.GetOffsetAndLength(Length);
-            return Substring(start, length);
-        }
+        [ComponentModel.EditorBrowsable(ComponentModel.EditorBrowsableState.Never)]
+        public Utf8String Slice(int startIndex, int length) => Substring(startIndex, length);
+
 
         [StackTraceHidden]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
