@@ -77,13 +77,14 @@ static UErrorCode GetLocaleIso639LanguageTwoLetterName(const char* locale, UChar
     UErrorCode status = U_ZERO_ERROR, ignore = U_ZERO_ERROR;
     int32_t length = uloc_getLanguage(locale, NULL, 0, &ignore) + 1;
 
-    char* buf = calloc(length, sizeof(char));
+    char* buf = malloc(length * sizeof(char));
     if (buf == NULL)
     {
         return U_MEMORY_ALLOCATION_ERROR;
     }
 
     uloc_getLanguage(locale, buf, length, &status);
+    buf[length - 1] = 0;
     u_charsToUChars_safe(buf, value, valueLength, &status);
     free(buf);
 
@@ -120,13 +121,14 @@ static UErrorCode GetLocaleIso3166CountryName(const char* locale, UChar* value, 
     UErrorCode status = U_ZERO_ERROR, ignore = U_ZERO_ERROR;
     int32_t length = uloc_getCountry(locale, NULL, 0, &ignore) + 1;
 
-    char* buf = calloc(length, sizeof(char));
+    char* buf = malloc(length * sizeof(char));
     if (buf == NULL)
     {
         return U_MEMORY_ALLOCATION_ERROR;
     }
 
     uloc_getCountry(locale, buf, length, &status);
+    buf[length - 1] = 0;
     u_charsToUChars_safe(buf, value, valueLength, &status);
     free(buf);
 

@@ -188,14 +188,13 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
     // Use 512 as the starting size, so the customRules won't have to grow if we are just
     // doing the KanaType custom rule.
     customRules->capacity = 512;
-    customRules->items = calloc(customRules->capacity, sizeof(UChar));
+    customRules->size = 0;
+    customRules->items = malloc(customRules->capacity * sizeof(UChar));
     if (customRules->items == NULL)
     {
         free(customRules);
         return NULL;
     }
-
-    customRules->size = 0;
 
     if (needsIgnoreKanaTypeCustomRule || needsNotIgnoreKanaTypeCustomRule)
     {
@@ -280,7 +279,7 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
 
     UCollator* pClonedCollator;
     UCharList* customRules = GetCustomRules(options, strength, isIgnoreSymbols);
-    if (customRules == NULL)
+    if (customRules == NULL || customRules->size == 0)
     {
         pClonedCollator = ucol_safeClone(pCollator, NULL, NULL, pErr);
     }
@@ -292,7 +291,7 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
         const UChar* localeRules = ucol_getRules(pCollator, &localeRulesLength);
         int32_t completeRulesLength = localeRulesLength + customRuleLength + 1;
 
-        UChar* completeRules = calloc(completeRulesLength, sizeof(UChar));
+        UChar* completeRules = malloc(completeRulesLength * sizeof(UChar));
 
         for (int i = 0; i < localeRulesLength; i++)
         {
@@ -302,11 +301,12 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
         {
             completeRules[localeRulesLength + i] = customRules->items[i];
         }
+        completeRules[completeRulesLength - 1] = 0;
 
         pClonedCollator = ucol_openRules(completeRules, completeRulesLength, UCOL_DEFAULT, strength, NULL, pErr);
         free(completeRules);
-        free(customRules);
     }
+    free(customRules);
 
     if (isIgnoreSymbols)
     {

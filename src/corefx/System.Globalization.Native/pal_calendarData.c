@@ -224,7 +224,7 @@ static int InvokeCallbackForDatePattern(const char* locale,
     UErrorCode ignore = U_ZERO_ERROR;
     int32_t patternLen = udat_toPattern(pFormat, FALSE, NULL, 0, &ignore) + 1;
 
-    UChar* pattern = calloc(patternLen, sizeof(UChar));
+    UChar* pattern = malloc(patternLen * sizeof(UChar));
     if (pattern == NULL)
     {
         udat_close(pFormat);
@@ -232,6 +232,7 @@ static int InvokeCallbackForDatePattern(const char* locale,
     }
 
     udat_toPattern(pFormat, FALSE, pattern, patternLen, &err);
+    pattern[patternLen - 1] = 0;
     udat_close(pFormat);
 
     if (U_SUCCESS(err))
@@ -264,7 +265,7 @@ static int InvokeCallbackForDateTimePattern(const char* locale,
     UErrorCode ignore = U_ZERO_ERROR;
     int32_t patternLen = udatpg_getBestPattern(pGenerator, patternSkeleton, -1, NULL, 0, &ignore) + 1;
 
-    UChar* bestPattern = calloc(patternLen, sizeof(UChar));
+    UChar* bestPattern = malloc(patternLen * sizeof(UChar));
     if (bestPattern == NULL)
     {
         udatpg_close(pGenerator);
@@ -272,6 +273,7 @@ static int InvokeCallbackForDateTimePattern(const char* locale,
     }
 
     udatpg_getBestPattern(pGenerator, patternSkeleton, -1, bestPattern, patternLen, &err);
+    bestPattern[patternLen - 1] = 0;
     udatpg_close(pGenerator);
 
     if (U_SUCCESS(err))
@@ -332,7 +334,7 @@ static int32_t EnumSymbols(const char* locale,
         }
         else
         {
-            symbolBuf = calloc(symbolLen, sizeof(UChar));
+            symbolBuf = malloc(symbolLen * sizeof(UChar));
             if (symbolBuf == NULL)
             {
                 err = U_MEMORY_ALLOCATION_ERROR;
@@ -341,6 +343,7 @@ static int32_t EnumSymbols(const char* locale,
         }
 
         udat_getSymbols(pFormat, type, i, symbolBuf, symbolLen, &err);
+        symbolBuf[symbolLen - 1] = 0;
 
         if (U_SUCCESS(err))
         {

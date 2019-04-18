@@ -86,13 +86,13 @@ static char* NormalizeNumericPattern(const UChar* srcPattern, int isNegative)
     if (isNegative && !minusAdded)
     {
         size_t length = (iEnd - iStart) + 2;
-        destPattern = calloc(length, sizeof(char));
+        destPattern = malloc(length * sizeof(char));
         destPattern[index++] = '-';
     }
     else
     {
         size_t length = (iEnd - iStart) + 1;
-        destPattern = calloc(length, sizeof(char));
+        destPattern = malloc(length * sizeof(char));
     }
 
     for (int i = iStart; i <= iEnd; i++)
@@ -142,6 +142,8 @@ static char* NormalizeNumericPattern(const UChar* srcPattern, int isNegative)
         }
     }
 
+    destPattern[index] = 0;
+
     return destPattern;
 }
 
@@ -164,7 +166,7 @@ static int GetNumericPattern(const UNumberFormat* pNumberFormat,
     UErrorCode ignore = U_ZERO_ERROR;
     int32_t icuPatternLength = unum_toPattern(pNumberFormat, FALSE, NULL, 0, &ignore) + 1;
 
-    UChar* icuPattern = calloc(icuPatternLength, sizeof(UChar));
+    UChar* icuPattern = malloc(icuPatternLength * sizeof(UChar));
     if (icuPattern == NULL)
     {
         return U_MEMORY_ALLOCATION_ERROR;
@@ -173,6 +175,7 @@ static int GetNumericPattern(const UNumberFormat* pNumberFormat,
     UErrorCode err = U_ZERO_ERROR;
 
     unum_toPattern(pNumberFormat, FALSE, icuPattern, icuPatternLength, &err);
+    icuPattern[icuPatternLength - 1] = 0;
 
     assert(U_SUCCESS(err));
 
