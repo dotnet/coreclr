@@ -264,25 +264,27 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 throw new InvalidCastException();
             }
 
-            public static void ValidateInterfaceIsMarshallable(object? obj, Type interfaceType)
+            public static void ValidateObjectIsMarshallableAsInterface(object obj, Type interfaceType)
             {
-                Debug.Assert(obj != null && interfaceType != null);
-
-                if (interfaceType != typeof(object))
+                // If the requested "interface type" is type object then return
+                // because type object is always marshallable.
+                if (interfaceType == typeof(object))
                 {
-                    Debug.Assert(interfaceType.IsInterface);
-                    
-                    // The intent of this call is to validate the interface can be
-                    // marshalled to native code. An exception will be thrown if the
-                    // type is unable to be marshalled to native code.
-                    // Scenarios where this is relevant:
-                    //  - Interfaces that use Generics
-                    //  - Interfaces that define implementation
-                    IntPtr ptr = Marshal.GetComInterfaceForObject(obj, interfaceType, CustomQueryInterfaceMode.Ignore);
-                    
-                    // Decrement the above 'Marshal.GetComInterfaceForObject()' 
-                    Marshal.ReleaseComObject(ptr);
+                    return;
                 }
+
+                Debug.Assert(interfaceType.IsInterface);
+
+                // The intent of this call is to validate the interface can be
+                // marshalled to native code. An exception will be thrown if the
+                // type is unable to be marshalled to native code.
+                // Scenarios where this is relevant:
+                //  - Interfaces that use Generics
+                //  - Interfaces that define implementation
+                IntPtr ptr = Marshal.GetComInterfaceForObject(obj, interfaceType, CustomQueryInterfaceMode.Ignore);
+
+                // Decrement the above 'Marshal.GetComInterfaceForObject()'
+                Marshal.Release(ptr);
             }
 
             public static object CreateAggregatedObject(object pUnkOuter, object comObject)
@@ -298,7 +300,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 finally
                 {
                     // Decrement the above 'Marshal.GetIUnknownForObject()'
-                    Marshal.ReleaseComObject(pUnkOuter);
+                    Marshal.Release(outerPtr);
                 }
             }
 
@@ -315,7 +317,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                     ppvObject = BasicClassFactory.CreateAggregatedObject(pUnkOuter, ppvObject);
                 }
 
-                BasicClassFactory.ValidateInterfaceIsMarshallable(ppvObject, interfaceType);
+                BasicClassFactory.ValidateObjectIsMarshallableAsInterface(ppvObject, interfaceType);
             }
 
             public void LockServer([MarshalAs(UnmanagedType.Bool)] bool fLock)
@@ -394,7 +396,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                     ppvObject = BasicClassFactory.CreateAggregatedObject(pUnkOuter, ppvObject);
                 }
 
-                BasicClassFactory.ValidateInterfaceIsMarshallable(ppvObject, interfaceType);
+                BasicClassFactory.ValidateObjectIsMarshallableAsInterface(ppvObject, interfaceType);
             }
         }
     }
@@ -586,12 +588,12 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
             // Types are as follows:
             // Type, out bool, out string -> LicenseContext
-            var parameters = new object[] { targetRcwTypeMaybe, /* out */ null!, /* out */ null! };
+            var parameters = new object?[] { targetRcwTypeMaybe, /* out */ null, /* out */ null };
             _licContext = _getCurrentContextInfo.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
 
             _targetRcwType = targetRcwTypeMaybe;
-            isDesignTime = (bool)parameters[1];
-            bstrKey = Marshal.StringToBSTR((string?)parameters[2]);
+            isDesignTime = (bool)parameters[1]!;
+            bstrKey = Marshal.StringToBSTR((string)parameters[2]!);
         }
 
         // The CLR invokes this when instantiating a licensed COM
