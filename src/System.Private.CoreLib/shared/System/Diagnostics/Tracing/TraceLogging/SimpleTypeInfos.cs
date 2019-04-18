@@ -160,7 +160,7 @@ namespace System.Diagnostics.Tracing
             collector.AddNullTerminatedString((string?)value.ReferenceValue);
         }
         
-        public override object? GetData(object? value)
+        public override object GetData(object? value)
         {
             if (value == null)
             {

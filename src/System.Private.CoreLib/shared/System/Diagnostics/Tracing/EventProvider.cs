@@ -921,7 +921,10 @@ namespace System.Diagnostics.Tracing
                 }
 
                 // To our eyes, everything else is a just a string
-                sRet = data?.ToString() ?? "";
+                if (data == null)
+                    sRet = "";
+                else
+                    sRet = data.ToString()!;
                 dataDescriptor->Size = ((uint)sRet.Length + 1) * 2;
             }
 

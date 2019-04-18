@@ -862,7 +862,7 @@ namespace System.Diagnostics.Tracing
 
         // optimized for common signatures (strings)
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
-        protected unsafe void WriteEvent(int eventId, string arg1)
+        protected unsafe void WriteEvent(int eventId, string? arg1)
         {
             if (m_eventSourceEnabled)
             {
@@ -879,7 +879,7 @@ namespace System.Diagnostics.Tracing
         }
 
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
-        protected unsafe void WriteEvent(int eventId, string arg1, string arg2)
+        protected unsafe void WriteEvent(int eventId, string? arg1, string? arg2)
         {
             if (m_eventSourceEnabled)
             {
@@ -901,7 +901,7 @@ namespace System.Diagnostics.Tracing
         }
 
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
-        protected unsafe void WriteEvent(int eventId, string arg1, string arg2, string arg3)
+        protected unsafe void WriteEvent(int eventId, string? arg1, string? arg2, string? arg3)
         {
             if (m_eventSourceEnabled)
             {
@@ -929,7 +929,7 @@ namespace System.Diagnostics.Tracing
 
         // optimized for common signatures (string and ints)
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
-        protected unsafe void WriteEvent(int eventId, string arg1, int arg2)
+        protected unsafe void WriteEvent(int eventId, string? arg1, int arg2)
         {
             if (m_eventSourceEnabled)
             {
@@ -949,7 +949,7 @@ namespace System.Diagnostics.Tracing
         }
 
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
-        protected unsafe void WriteEvent(int eventId, string arg1, int arg2, int arg3)
+        protected unsafe void WriteEvent(int eventId, string? arg1, int arg2, int arg3)
         {
             if (m_eventSourceEnabled)
             {
@@ -973,7 +973,7 @@ namespace System.Diagnostics.Tracing
 
         // optimized for common signatures (string and longs)
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
-        protected unsafe void WriteEvent(int eventId, string arg1, long arg2)
+        protected unsafe void WriteEvent(int eventId, string? arg1, long arg2)
         {
             if (m_eventSourceEnabled)
             {
@@ -994,7 +994,7 @@ namespace System.Diagnostics.Tracing
 
         // optimized for common signatures (long and string)
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
-        protected unsafe void WriteEvent(int eventId, long arg1, string arg2)
+        protected unsafe void WriteEvent(int eventId, long arg1, string? arg2)
         {
             if (m_eventSourceEnabled)
             {
@@ -3112,8 +3112,7 @@ namespace System.Diagnostics.Tracing
 
                             if (p.PropertyType.IsEnum)
                             {
-                                string? val = value.ToString();
-                                Debug.Assert(val != null);
+                                string val = value.ToString()!;
                                 value = Enum.Parse(p.PropertyType, val);
                             }
 
@@ -4121,8 +4120,7 @@ namespace System.Diagnostics.Tracing
             // This will cause the OnEventSourceCreated callback to fire. 
             CallBackForExistingEventSources(true, (obj, args) =>
             {
-                Debug.Assert(obj != null && args != null && args.EventSource != null);
-                args.EventSource.AddListener((EventListener)obj);
+                args.EventSource!.AddListener((EventListener)obj!);
             });
         }
 
@@ -5175,12 +5173,12 @@ namespace System.Diagnostics.Tracing
         /// Specifies an SDDL access descriptor that controls access to the log file that backs the channel.
         /// See MSDN (https://docs.microsoft.com/en-us/windows/desktop/WES/eventmanifestschema-channeltype-complextype) for details.
         /// </summary>
-        public string Access { get; set; } 
+        public string? Access { get; set; } 
 
         /// <summary>
         /// Allows importing channels defined in external manifests
         /// </summary>
-        public string ImportChannel { get; set; }
+        public string? ImportChannel { get; set; }
 #endif
 
         // TODO: there is a convention that the name is the Provider/Type   Should we provide an override?
@@ -5666,8 +5664,7 @@ namespace System.Diagnostics.Tracing
             string msg;
             if (stringTab.TryGetValue("event_" + eventName, out msg))
             {
-                Debug.Assert(msg != null); // https://github.com/dotnet/roslyn/issues/26761
-                msg = TranslateToManifestConvention(msg, eventName);
+                msg = TranslateToManifestConvention(msg!, eventName); // https://github.com/dotnet/roslyn/issues/26761
                 stringTab["event_" + eventName] = msg;
             }
 
@@ -6199,7 +6196,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private static void UpdateStringBuilder(ref StringBuilder? stringBuilder, string eventMessage, int startIndex, int count) // TODO-NULLABLE: nullable in, non-nullable out
+        private static void UpdateStringBuilder(ref StringBuilder? stringBuilder, string eventMessage, int startIndex, int count) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761 nullable in, non-nullable out
         {
             if (stringBuilder == null)
                 stringBuilder = new StringBuilder();
@@ -6221,16 +6218,14 @@ namespace System.Diagnostics.Tracing
                     if (stringBuilder == null)
                         return eventMessage;
                     UpdateStringBuilder(ref stringBuilder, eventMessage, writtenSoFar, i - writtenSoFar);
-                    Debug.Assert(stringBuilder != null);
-                    return stringBuilder.ToString();
+                    return stringBuilder!.ToString(); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                 }
 
                 if (eventMessage[i] == '%')
                 {
                     // handle format message escaping character '%' by escaping it
                     UpdateStringBuilder(ref stringBuilder, eventMessage, writtenSoFar, i - writtenSoFar);
-                    Debug.Assert(stringBuilder != null);
-                    stringBuilder.Append("%%");
+                    stringBuilder!.Append("%%"); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                     i++;
                     writtenSoFar = i;
                 }
@@ -6239,8 +6234,7 @@ namespace System.Diagnostics.Tracing
                 {
                     // handle C# escaped '{" and '}'
                     UpdateStringBuilder(ref stringBuilder, eventMessage, writtenSoFar, i - writtenSoFar);
-                    Debug.Assert(stringBuilder != null);
-                    stringBuilder.Append(eventMessage[i]);
+                    stringBuilder!.Append(eventMessage[i]); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                     i++; i++;
                     writtenSoFar = i;
                 }
@@ -6258,9 +6252,8 @@ namespace System.Diagnostics.Tracing
                     {
                         i++;
                         UpdateStringBuilder(ref stringBuilder, eventMessage, writtenSoFar, leftBracket - writtenSoFar);
-                        Debug.Assert(stringBuilder != null);
                         int manIndex = TranslateIndexToManifestConvention(argNum, evtName);
-                        stringBuilder.Append('%').Append(manIndex);
+                        stringBuilder!.Append('%').Append(manIndex); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                         // An '!' after the insert specifier {n} will be interpreted as a literal.
                         // We'll escape it so that mc.exe does not attempt to consider it the 
                         // beginning of a format string.
@@ -6279,9 +6272,8 @@ namespace System.Diagnostics.Tracing
                 else if ((chIdx = "&<>'\"\r\n\t".IndexOf(eventMessage[i])) >= 0)
                 {
                     UpdateStringBuilder(ref stringBuilder, eventMessage, writtenSoFar, i - writtenSoFar);
-                    Debug.Assert(stringBuilder != null);
                     i++;
-                    stringBuilder.Append(s_escapes[chIdx]);
+                    stringBuilder!.Append(s_escapes[chIdx]); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                     writtenSoFar = i;
                 }
                 else
