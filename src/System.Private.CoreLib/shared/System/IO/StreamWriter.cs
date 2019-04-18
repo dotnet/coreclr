@@ -98,7 +98,7 @@ namespace System.IO
             }
             if (encoding == null)
             {
-                encoding = Encoding.UTF8;
+                encoding = UTF8NoBOM;
             }
             if (!stream.CanWrite)
             {
