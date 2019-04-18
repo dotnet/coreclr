@@ -1341,7 +1341,7 @@ private:
         // Note that none of these flags survive a prejit save/restore.
 
         MODULE_IS_TENURED           = 0x00000001,   // Set once we know for sure the Module will not be freed until the appdomain itself exits
-        M_CER_ROOT_TABLE_ON_HEAP    = 0x00000002,   // Set when m_pCerNgenRootTable is allocated from heap (at ngen time)
+        // unused                   = 0x00000002,
         CLASSES_FREED               = 0x00000004,
         IS_EDIT_AND_CONTINUE        = 0x00000008,   // is EnC Enabled for this module
 
