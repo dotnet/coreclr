@@ -122,17 +122,16 @@ public:
     static BOOL IsReJITInlineTrackingEnabled();
 
     static HRESULT RequestReJIT(
-        ULONG       cFunctions,
-        ModuleID    rgModuleIDs[],
-        mdMethodDef rgMethodDefs[],
-        BOOL fInlinees);
+        ULONG                   cFunctions,
+        ModuleID                rgModuleIDs[],
+        mdMethodDef             rgMethodDefs[],
+        COR_PRF_REJIT_FLAGS   flags);
     
     static HRESULT RequestRevert(
         ULONG       cFunctions,
         ModuleID    rgModuleIDs[],
         mdMethodDef rgMethodDefs[],
-        HRESULT     rgHrStatuses[],
-        BOOL fInlinees);
+        HRESULT     rgHrStatuses[]);
 
     static HRESULT ConfigureILCodeVersion(ILCodeVersion ilCodeVersion);
     static CORJIT_FLAGS JitFlagsFromProfCodegenFlags(DWORD dwCodegenFlags);
@@ -151,12 +150,12 @@ public:
 private:
 
     static HRESULT UpdateActiveILVersions(
-        ULONG       cFunctions,
-        ModuleID    rgModuleIDs[],
-        mdMethodDef rgMethodDefs[],
-        HRESULT     rgHrStatuses[],
-        BOOL        fIsRevert,
-        BOOL        fInlinees);
+        ULONG               cFunctions,
+        ModuleID            rgModuleIDs[],
+        mdMethodDef         rgMethodDefs[],
+        HRESULT             rgHrStatuses[],
+        BOOL                fIsRevert,
+        COR_PRF_REJIT_FLAGS flags);
 
     struct CodeActivationBatch
     {
@@ -182,25 +181,29 @@ private:
 
     static HRESULT ReJitManager::UpdateActiveILVersion(
         SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
-        Module *    pModule,
-        mdMethodDef methodDef,
-        BOOL        fIsRevert);
+        Module *            pModule,
+        mdMethodDef         methodDef,
+        BOOL                fIsRevert,
+        COR_PRF_REJIT_FLAGS flags);
 
     static HRESULT UpdateNativeInlinerActiveILVersions(
         SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
-        MethodDesc *pInlinee,
-        BOOL        fIsRevert);
+        MethodDesc         *pInlinee,
+        BOOL                fIsRevert,
+        COR_PRF_REJIT_FLAGS flags);
     
     static HRESULT UpdateJitInlinerActiveILVersions(
         SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
-        MethodDesc *pInlinee,
-        BOOL        fIsRevert);
+        MethodDesc         *pInlinee,
+        BOOL                fIsRevert,
+        COR_PRF_REJIT_FLAGS flags);
 
     static HRESULT BindILVersion(
-        CodeVersionManager* pCodeVersionManager,
-        PTR_Module pModule,
-        mdMethodDef methodDef,
-        ILCodeVersion *pILCodeVersion);
+        CodeVersionManager *pCodeVersionManager,
+        PTR_Module          pModule,
+        mdMethodDef         methodDef,
+        ILCodeVersion      *pILCodeVersion,
+        COR_PRF_REJIT_FLAGS flags);
 
 #endif // FEATURE_REJIT
 

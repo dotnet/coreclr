@@ -540,22 +540,22 @@ MethodDesc *NativeImageInliningIterator::GetMethodDesc()
 
 // static
 HRESULT ReJitManager::RequestReJIT(
-    ULONG       cFunctions,
-    ModuleID    rgModuleIDs[],
-    mdMethodDef rgMethodDefs[],
-    BOOL fInlinees)
+    ULONG               cFunctions,
+    ModuleID            rgModuleIDs[],
+    mdMethodDef         rgMethodDefs[],
+    COR_PRF_REJIT_FLAGS flags)
 {
-    return ReJitManager::UpdateActiveILVersions(cFunctions, rgModuleIDs, rgMethodDefs, NULL, FALSE, fInlinees);
+    return ReJitManager::UpdateActiveILVersions(cFunctions, rgModuleIDs, rgMethodDefs, NULL, FALSE, flags);
 }
 
 // static
 HRESULT ReJitManager::UpdateActiveILVersions(
-    ULONG       cFunctions,
-    ModuleID    rgModuleIDs[],
-    mdMethodDef rgMethodDefs[],
-    HRESULT     rgHrStatuses[],
-    BOOL        fIsRevert,
-    BOOL        fInlinees)
+    ULONG               cFunctions,
+    ModuleID            rgModuleIDs[],
+    mdMethodDef         rgMethodDefs[],
+    HRESULT             rgHrStatuses[],
+    BOOL                fIsRevert,
+    COR_PRF_REJIT_FLAGS flags)
 {
     CONTRACTL
     {
@@ -630,21 +630,21 @@ HRESULT ReJitManager::UpdateActiveILVersions(
             }
         }
 
-        hr = UpdateActiveILVersion(&mgrToCodeActivationBatch, pModule, rgMethodDefs[i], fIsRevert);
+        hr = UpdateActiveILVersion(&mgrToCodeActivationBatch, pModule, rgMethodDefs[i], fIsRevert, static_cast<COR_PRF_REJIT_FLAGS>(0));
         if (FAILED(hr))
         {
             return hr;
         }
 
-        if (fInlinees)
+        if ((flags & COR_PRF_REJIT_BLOCK_INLINING) == COR_PRF_REJIT_BLOCK_INLINING)
         {
-            hr = UpdateNativeInlinerActiveILVersions(&mgrToCodeActivationBatch, pMD, fIsRevert);
+            hr = UpdateNativeInlinerActiveILVersions(&mgrToCodeActivationBatch, pMD, fIsRevert, flags);
             if (FAILED(hr))
             {
                 return hr;
             }
 
-            hr = UpdateJitInlinerActiveILVersions(&mgrToCodeActivationBatch, pMD, fIsRevert);
+            hr = UpdateJitInlinerActiveILVersions(&mgrToCodeActivationBatch, pMD, fIsRevert, flags);
             if (FAILED(hr))
             {
                 return hr;
@@ -731,10 +731,11 @@ HRESULT ReJitManager::UpdateActiveILVersions(
 
 // static
 HRESULT ReJitManager::UpdateActiveILVersion(
-        SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
-        Module *    pModule,
-        mdMethodDef methodDef,
-        BOOL        fIsRevert)
+    SHash<CodeActivationBatchTraits>   *pMgrToCodeActivationBatch,
+    Module                             *pModule,
+    mdMethodDef                         methodDef,
+    BOOL                                fIsRevert,
+    COR_PRF_REJIT_FLAGS                 flags)
 {
     _ASSERTE(pMgrToCodeActivationBatch != NULL);
     _ASSERTE(pModule != NULL);
@@ -786,7 +787,7 @@ HRESULT ReJitManager::UpdateActiveILVersion(
         else
         {
             // activate an unused or new IL version
-            hr = ReJitManager::BindILVersion(pCodeVersionManager, pModule, methodDef, pILCodeVersion);
+            hr = ReJitManager::BindILVersion(pCodeVersionManager, pModule, methodDef, pILCodeVersion, flags);
             if (FAILED(hr))
             {
                 _ASSERTE(hr == E_OUTOFMEMORY);
@@ -800,14 +801,16 @@ HRESULT ReJitManager::UpdateActiveILVersion(
 
 // static
 HRESULT ReJitManager::UpdateNativeInlinerActiveILVersions(
-        SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
-        MethodDesc *pInlinee,
-        BOOL        fIsRevert)
+    SHash<CodeActivationBatchTraits>   *pMgrToCodeActivationBatch,
+    MethodDesc                         *pInlinee,
+    BOOL                                fIsRevert,
+    COR_PRF_REJIT_FLAGS                 flags)
 {
     _ASSERTE(pMgrToCodeActivationBatch != NULL);
     _ASSERTE(pInlinee != NULL);
     
     HRESULT hr = S_OK;
+
     // Iterate through all modules, for any that are NGEN or R2R need to check if there are inliners there and call 
     // RequestReJIT on them
     // TODO: is the default domain enough for coreclr?
@@ -843,7 +846,7 @@ HRESULT ReJitManager::UpdateNativeInlinerActiveILVersions(
                         }
                     }
 
-                    hr = UpdateActiveILVersion(pMgrToCodeActivationBatch, pInliner->GetModule(), pInliner->GetMemberDef(), fIsRevert);
+                    hr = UpdateActiveILVersion(pMgrToCodeActivationBatch, pInliner->GetModule(), pInliner->GetMemberDef(), fIsRevert, flags);
                     if (FAILED(hr))
                     {
                         ReportReJITError(pInliner->GetModule(), pInliner->GetMemberDef(), NULL, hr);
@@ -858,9 +861,10 @@ HRESULT ReJitManager::UpdateNativeInlinerActiveILVersions(
 
 // static
 HRESULT ReJitManager::UpdateJitInlinerActiveILVersions(
-        SHash<CodeActivationBatchTraits> *pMgrToCodeActivationBatch,
-        MethodDesc *pInlinee,
-        BOOL        fIsRevert)
+    SHash<CodeActivationBatchTraits>   *pMgrToCodeActivationBatch,
+    MethodDesc                         *pInlinee,
+    BOOL                                fIsRevert,
+    COR_PRF_REJIT_FLAGS                 flags)
 {
     _ASSERTE(pMgrToCodeActivationBatch != NULL);
     _ASSERTE(pInlinee != NULL);
@@ -870,7 +874,9 @@ HRESULT ReJitManager::UpdateJitInlinerActiveILVersions(
     Module *pModule = pInlinee->GetModule();
     if (pModule->HasJitInlineTrackingMap())
     {
-        // InlineSArray can throw, need to guard against it.
+        // JITInlineTrackingMap::VisitInliners wants to be in cooperative mode,
+        // but UpdateActiveILVersion wants to be in preemptive mode. Rather than do
+        // a bunch of mode switching just batch up the inliners.
         InlineSArray<MethodDesc *, 10> inliners;
         auto lambda = [&](MethodDesc *inliner, MethodDesc *inlinee)
         {
@@ -880,6 +886,8 @@ HRESULT ReJitManager::UpdateJitInlinerActiveILVersions(
             {
                 EX_TRY
                 {
+                    // InlineSArray can throw if we run out of memory, 
+                    // need to guard against it.
                     inliners.Append(inliner);
                 }
                 EX_CATCH_HRESULT(hr);
@@ -900,11 +908,12 @@ HRESULT ReJitManager::UpdateJitInlinerActiveILVersions(
 
         EX_TRY
         {
+            // InlineSArray iterator can throw
             for (auto it = inliners.Begin(); it != inliners.End(); ++it)
             {
                 Module *inlinerModule = (*it)->GetModule();
                 mdMethodDef inlinerMethodDef = (*it)->GetMemberDef();
-                hr = UpdateActiveILVersion(pMgrToCodeActivationBatch, inlinerModule, inlinerMethodDef, fIsRevert);
+                hr = UpdateActiveILVersion(pMgrToCodeActivationBatch, inlinerModule, inlinerMethodDef, fIsRevert, flags);
                 if (FAILED(hr))
                 {
                     ReportReJITError(inlinerModule, inlinerMethodDef, NULL, hr);
@@ -919,10 +928,11 @@ HRESULT ReJitManager::UpdateJitInlinerActiveILVersions(
 
 // static
 HRESULT ReJitManager::BindILVersion(
-    CodeVersionManager* pCodeVersionManager,
-    PTR_Module pModule,
-    mdMethodDef methodDef,
-    ILCodeVersion *pILCodeVersion)
+    CodeVersionManager *pCodeVersionManager,
+    PTR_Module          pModule,
+    mdMethodDef         methodDef,
+    ILCodeVersion      *pILCodeVersion,
+    COR_PRF_REJIT_FLAGS flags)
 {
     CONTRACTL
     {
@@ -942,6 +952,7 @@ HRESULT ReJitManager::BindILVersion(
     // Check if there was there a previous rejit request for this method that hasn't been exposed back
     // to the profiler yet
     ILCodeVersion ilCodeVersion = pCodeVersionManager->GetActiveILCodeVersion(pModule, methodDef);
+    BOOL fSuppressGetParams = (flags & COR_PRF_REJIT_INLINING_CALLBACKS) != COR_PRF_REJIT_INLINING_CALLBACKS;
 
     if (ilCodeVersion.GetRejitState() == ILCodeVersion::kStateRequested)
     {
@@ -950,16 +961,31 @@ HRESULT ReJitManager::BindILVersion(
         // twice in a row, without us having a chance to jmp-stamp the code yet OR
         // while iterating through instantiations of a generic, the iterator found
         // duplicate entries for the same instantiation.)
+        // TODO: this assert likely needs to be removed. This code path should be
+        // hit for any duplicates, and that can happen regardless of whether this
+        // is the first ReJIT or not.
         _ASSERTE(ilCodeVersion.HasDefaultIL());
 
         *pILCodeVersion = ilCodeVersion;
+
+        if (!fSuppressGetParams)
+        {
+            // We want to handle the suppression of GetReJITParamters so that it handles duplicates correctly.
+            // There could be a case where the method that a profiler requested ReJIT on also ends up in the 
+            // inlining graph from a different method. In that case we should override the previous setting,
+            // but we should never override a request to get the callback with a request to suppress it.
+            pILCodeVersion->SetSuppressReJITCallback(false);
+        }
+
         return S_FALSE;
     }
 
     // Either there was no ILCodeVersion yet for this MethodDesc OR whatever we've found
     // couldn't be reused (and needed to be reverted).  Create a new ILCodeVersion to return
     // to the caller.
-    return pCodeVersionManager->AddILCodeVersion(pModule, methodDef, InterlockedIncrement(reinterpret_cast<LONG*>(&s_GlobalReJitId)), pILCodeVersion);
+    HRESULT hr = pCodeVersionManager->AddILCodeVersion(pModule, methodDef, InterlockedIncrement(reinterpret_cast<LONG*>(&s_GlobalReJitId)), pILCodeVersion);
+    pILCodeVersion->SetSuppressReJITCallback(fSuppressGetParams);
+    return hr;
 }
 
 //---------------------------------------------------------------------------------------
@@ -987,8 +1013,7 @@ HRESULT ReJitManager::RequestRevert(
     ULONG       cFunctions,
     ModuleID    rgModuleIDs[],
     mdMethodDef rgMethodDefs[],
-    HRESULT     rgHrStatuses[],
-    BOOL fInlinees)
+    HRESULT     rgHrStatuses[])
 {
     CONTRACTL
     {
@@ -999,7 +1024,7 @@ HRESULT ReJitManager::RequestRevert(
     }
     CONTRACTL_END;
 
-    return UpdateActiveILVersions(cFunctions, rgModuleIDs, rgMethodDefs, rgHrStatuses, TRUE, fInlinees);
+    return UpdateActiveILVersions(cFunctions, rgModuleIDs, rgMethodDefs, rgHrStatuses, TRUE, static_cast<COR_PRF_REJIT_FLAGS>(0));
 }
 
 // static
@@ -1312,10 +1337,10 @@ HRESULT ReJitManager::RequestReJIT(
 
 // static
 HRESULT ReJitManager::RequestRevert(
-        ULONG       cFunctions,
-        ModuleID    rgModuleIDs[],
-        mdMethodDef rgMethodDefs[],
-        HRESULT     rgHrStatuses[])
+    ULONG       cFunctions,
+    ModuleID    rgModuleIDs[],
+    mdMethodDef rgMethodDefs[],
+    HRESULT     rgHrStatuses[])
 {
     return E_NOTIMPL;
 }

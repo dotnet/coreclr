@@ -6844,7 +6844,7 @@ HRESULT ProfToEEInterfaceImpl::RequestReJITWithInliners(
     g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
     
     GCX_PREEMP();
-    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, TRUE);
+    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, static_cast<COR_PRF_REJIT_FLAGS>(dwRejitFlags));
 }
 
 /*
@@ -8702,7 +8702,7 @@ HRESULT ProfToEEInterfaceImpl::RequestReJIT(ULONG       cFunctions,   // in
     g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
     
     GCX_PREEMP();
-    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, FALSE);
+    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, static_cast<COR_PRF_REJIT_FLAGS>(0));
 }
 
 HRESULT ProfToEEInterfaceImpl::RequestRevert(ULONG       cFunctions,  // in
@@ -8760,7 +8760,7 @@ HRESULT ProfToEEInterfaceImpl::RequestRevert(ULONG       cFunctions,  // in
     }
 
     GCX_PREEMP();
-    return ReJitManager::RequestRevert(cFunctions, moduleIds, methodIds, rgHrStatuses, FALSE);
+    return ReJitManager::RequestRevert(cFunctions, moduleIds, methodIds, rgHrStatuses);
 }
 
 
