@@ -69,8 +69,16 @@ namespace System.Threading.Tasks
         protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         {
             // If the task was previously scheduled, and we can't pop it, then return false.
-            if (taskWasPreviouslyQueued && !ThreadPool.TryPopCustomWorkItem(task))
-                return false;
+            if (taskWasPreviouslyQueued)
+            {
+                // do not inline in a nontrivial sync context - it could be stricter than what enqueuer had.
+                SynchronizationContext? syncCtx = SynchronizationContext.Current;
+                if (syncCtx != null && syncCtx.GetType() != typeof(SynchronizationContext))
+                    return false;
+
+                if (!ThreadPool.TryPopCustomWorkItem(task))
+                    return false;        
+            } 
 
             try
             {

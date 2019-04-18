@@ -517,6 +517,14 @@ namespace System.Threading
             return currentProcessorId;
         }
 
+        // Clear the cached processor Id
+        // This can be used before/after blocking the thread for nontrivial amount of time
+        // or around other operations which are likely to result in changing executing core.
+        internal static void FlushCurrentProcessorId()
+        {
+            t_currentProcessorIdCache = default;
+        }
+
         // Cached processor id used as a hint for which per-core stack to access. It is periodically
         // refreshed to trail the actual thread core affinity.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -530,7 +538,7 @@ namespace System.Threading
 
             return (currentProcessorIdCache >> ProcessorIdCacheShift);
         }
-
+               
         internal void ResetThreadPoolThread()
         {
             // Currently implemented in unmanaged method Thread::InternalReset and

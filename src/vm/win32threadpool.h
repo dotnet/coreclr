@@ -851,8 +851,10 @@ public:
     {
         WRAPPER_NO_CONTRACT;
 
-        DWORD priorTime = PriorCompletedWorkRequestsTime;
-        MemoryBarrier(); // read fresh value for NextCompletedWorkRequestsTime below
+        // make sure that PriorCompletedWorkRequestsTime is read before NextCompletedWorkRequestsTime
+        // to make sure that NextCompletedWorkRequestsTime is not older than PriorCompletedWorkRequestsTime
+        // NB: we write them in reverse order while holding a lock.
+        DWORD priorTime = VolatileLoad(&PriorCompletedWorkRequestsTime);
         DWORD requiredInterval = NextCompletedWorkRequestsTime - priorTime;
         DWORD elapsedInterval = GetTickCount() - priorTime;
         if (elapsedInterval >= requiredInterval)
@@ -1019,10 +1021,10 @@ private:
     DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) static LONG PriorCompletedWorkRequests;
     static DWORD PriorCompletedWorkRequestsTime;
     static DWORD NextCompletedWorkRequestsTime;
-
     static LARGE_INTEGER CurrentSampleStartTime;
 
-    static unsigned int WorkerThreadSpinLimit;
+    // Move out of from preceeding variables' cache line
+    DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) static unsigned int WorkerThreadSpinLimit;
     static bool IsHillClimbingDisabled;
     static int ThreadAdjustmentInterval;
 
