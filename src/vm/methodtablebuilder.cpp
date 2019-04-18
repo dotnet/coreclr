@@ -2652,10 +2652,23 @@ MethodTableBuilder::EnumerateClassMethods()
         {
             BuildMethodTableThrowException(BFA_METHOD_TOKEN_OUT_OF_RANGE);
         }
-
+        if (FAILED(pMDInternalImport->GetSigOfMethodDef(tok, &cMemberSignature, &pMemberSignature)))
+        {
+            BuildMethodTableThrowException(hr, BFA_BAD_SIGNATURE, mdMethodDefNil);
+        }
         if (FAILED(pMDInternalImport->GetMethodDefProps(tok, &dwMemberAttrs)))
         {
             BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
+        }
+
+        // Signature validation
+        if (!GetModule()->IsSystem())
+        {
+            hr = validateTokenSig(tok,pMemberSignature,cMemberSignature,dwMemberAttrs,pMDInternalImport);
+            if (FAILED(hr))
+            {
+                BuildMethodTableThrowException(hr, BFA_BAD_SIGNATURE, mdMethodDefNil);
+            }
         }
         if (IsMdRTSpecialName(dwMemberAttrs) || IsMdVirtual(dwMemberAttrs) || IsDelegate())
         {
@@ -2676,51 +2689,63 @@ MethodTableBuilder::EnumerateClassMethods()
         DWORD numGenericMethodArgs = 0;
 
         {
-            HENUMInternalHolder hEnumTyPars(pMDInternalImport);
-            hr = hEnumTyPars.EnumInitNoThrow(mdtGenericParam, tok);
+            SigParser genericArgParser(pMemberSignature, cMemberSignature);
+            ULONG ulCallConv;
+            hr = genericArgParser.GetCallingConvInfo(&ulCallConv);
             if (FAILED(hr))
             {
                 BuildMethodTableThrowException(hr, *bmtError);
             }
 
-            numGenericMethodArgs = hEnumTyPars.EnumGetCount();
-
-            // We do not want to support context-bound objects with generic methods.
-
-            if (numGenericMethodArgs != 0)
+            // Only read the generic parameter table if the method signature is generic
+            if (ulCallConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
             {
-                HENUMInternalHolder hEnumGenericPars(pMDInternalImport);
-
-                hEnumGenericPars.EnumInit(mdtGenericParam, tok);
-
-                for (unsigned methIdx = 0; methIdx < numGenericMethodArgs; methIdx++)
+                HENUMInternalHolder hEnumTyPars(pMDInternalImport);
+                hr = hEnumTyPars.EnumInitNoThrow(mdtGenericParam, tok);
+                if (FAILED(hr))
                 {
-                    mdGenericParam tkTyPar;
-                    pMDInternalImport->EnumNext(&hEnumGenericPars, &tkTyPar);
-                    DWORD flags;
-                    if (FAILED(pMDInternalImport->GetGenericParamProps(tkTyPar, NULL, &flags, NULL, NULL, NULL)))
-                    {
-                        BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
-                    }
-                    
-                    if (0 != (flags & ~(gpVarianceMask | gpSpecialConstraintMask)))
-                    {
-                        BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
-                    }
-                    switch (flags & gpVarianceMask)
-                    {
-                        case gpNonVariant:
-                            break;
+                    BuildMethodTableThrowException(hr, *bmtError);
+                }
 
-                        case gpCovariant: // intentional fallthru
-                        case gpContravariant:
-                            BuildMethodTableThrowException(VLDTR_E_GP_ILLEGAL_VARIANT_MVAR);
-                            break;
+                numGenericMethodArgs = hEnumTyPars.EnumGetCount();
 
-                        default:
+                // We do not want to support context-bound objects with generic methods.
+
+                if (numGenericMethodArgs != 0)
+                {
+                    HENUMInternalHolder hEnumGenericPars(pMDInternalImport);
+
+                    hEnumGenericPars.EnumInit(mdtGenericParam, tok);
+
+                    for (unsigned methIdx = 0; methIdx < numGenericMethodArgs; methIdx++)
+                    {
+                        mdGenericParam tkTyPar;
+                        pMDInternalImport->EnumNext(&hEnumGenericPars, &tkTyPar);
+                        DWORD flags;
+                        if (FAILED(pMDInternalImport->GetGenericParamProps(tkTyPar, NULL, &flags, NULL, NULL, NULL)))
+                        {
                             BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
-                    }
+                        }
+                        
+                        if (0 != (flags & ~(gpVarianceMask | gpSpecialConstraintMask)))
+                        {
+                            BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
+                        }
+                        switch (flags & gpVarianceMask)
+                        {
+                            case gpNonVariant:
+                                break;
 
+                            case gpCovariant: // intentional fallthru
+                            case gpContravariant:
+                                BuildMethodTableThrowException(VLDTR_E_GP_ILLEGAL_VARIANT_MVAR);
+                                break;
+
+                            default:
+                                BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
+                        }
+
+                    }
                 }
             }
         }
@@ -2826,198 +2851,191 @@ MethodTableBuilder::EnumerateClassMethods()
         // But first - minimal flags validity checks
         //
         // No methods in Enums!
-        if (fIsClassEnum)
+#ifndef _DEBUG // Don't run the minimal validity checks for the system dll (except in debug builds so we don't build a bad system dll)
+        if (!GetModule()->IsSystem())
+#endif
         {
-            BuildMethodTableThrowException(BFA_METHOD_IN_A_ENUM);
-        }
-        // RVA : 0
-        if (dwMethodRVA != 0)
-        {
-            if(fIsClassComImport)
+            if (fIsClassEnum)
             {
-                BuildMethodTableThrowException(BFA_METHOD_WITH_NONZERO_RVA);
+                BuildMethodTableThrowException(BFA_METHOD_IN_A_ENUM);
             }
+            // RVA : 0
+            if (dwMethodRVA != 0)
+            {
+                if(fIsClassComImport)
+                {
+                    BuildMethodTableThrowException(BFA_METHOD_WITH_NONZERO_RVA);
+                }
+                if(IsMdAbstract(dwMemberAttrs))
+                {
+                    BuildMethodTableThrowException(BFA_ABSTRACT_METHOD_WITH_RVA);
+                }
+                if(IsMiRuntime(dwImplFlags))
+                {
+                    BuildMethodTableThrowException(BFA_RUNTIME_METHOD_WITH_RVA);
+                }
+                if(IsMiInternalCall(dwImplFlags))
+                {
+                    BuildMethodTableThrowException(BFA_INTERNAL_METHOD_WITH_RVA);
+                }
+            }
+
+            // Abstract / not abstract
             if(IsMdAbstract(dwMemberAttrs))
             {
-                BuildMethodTableThrowException(BFA_ABSTRACT_METHOD_WITH_RVA);
-            }
-            if(IsMiRuntime(dwImplFlags))
-            {
-                BuildMethodTableThrowException(BFA_RUNTIME_METHOD_WITH_RVA);
-            }
-            if(IsMiInternalCall(dwImplFlags))
-            {
-                BuildMethodTableThrowException(BFA_INTERNAL_METHOD_WITH_RVA);
-            }
-        }
-
-        // Abstract / not abstract
-        if(IsMdAbstract(dwMemberAttrs))
-        {
-            if(fIsClassNotAbstract)
-            {
-                BuildMethodTableThrowException(BFA_AB_METHOD_IN_AB_CLASS);
-            }
-            if(!IsMdVirtual(dwMemberAttrs))
-            {
-                BuildMethodTableThrowException(BFA_NONVIRT_AB_METHOD);
-            }
-        }
-        else if(fIsClassInterface)
-        {
-            if (IsMdRTSpecialName(dwMemberAttrs))
-            {
-                CONSISTENCY_CHECK(CheckPointer(strMethodName));
-                if (strcmp(strMethodName, COR_CCTOR_METHOD_NAME))
+                if(fIsClassNotAbstract)
                 {
-                    BuildMethodTableThrowException(BFA_NONAB_NONCCTOR_METHOD_ON_INT);
+                    BuildMethodTableThrowException(BFA_AB_METHOD_IN_AB_CLASS);
+                }
+                if(!IsMdVirtual(dwMemberAttrs))
+                {
+                    BuildMethodTableThrowException(BFA_NONVIRT_AB_METHOD);
                 }
             }
-        }
+            else if(fIsClassInterface)
+            {
+                if (IsMdRTSpecialName(dwMemberAttrs))
+                {
+                    CONSISTENCY_CHECK(CheckPointer(strMethodName));
+                    if (strcmp(strMethodName, COR_CCTOR_METHOD_NAME))
+                    {
+                        BuildMethodTableThrowException(BFA_NONAB_NONCCTOR_METHOD_ON_INT);
+                    }
+                }
+            }
 
-        // Virtual / not virtual
-        if(IsMdVirtual(dwMemberAttrs))
-        {
-            if(IsMdPinvokeImpl(dwMemberAttrs))
+            // Virtual / not virtual
+            if(IsMdVirtual(dwMemberAttrs))
             {
-                BuildMethodTableThrowException(BFA_VIRTUAL_PINVOKE_METHOD);
+                if(IsMdPinvokeImpl(dwMemberAttrs))
+                {
+                    BuildMethodTableThrowException(BFA_VIRTUAL_PINVOKE_METHOD);
+                }
+                if(IsMdStatic(dwMemberAttrs))
+                {
+                    BuildMethodTableThrowException(BFA_VIRTUAL_STATIC_METHOD);
+                }
+                if(strMethodName && (0==strcmp(strMethodName, COR_CTOR_METHOD_NAME)))
+                {
+                    BuildMethodTableThrowException(BFA_VIRTUAL_INSTANCE_CTOR);
+                }
             }
-            if(IsMdStatic(dwMemberAttrs))
-            {
-                BuildMethodTableThrowException(BFA_VIRTUAL_STATIC_METHOD);
-            }
-            if(strMethodName && (0==strcmp(strMethodName, COR_CTOR_METHOD_NAME)))
-            {
-                BuildMethodTableThrowException(BFA_VIRTUAL_INSTANCE_CTOR);
-            }
-        }
 
-        // Some interface checks.
-        // We only need them if default interface method support is disabled or if this is fragile crossgen
+            // Some interface checks.
+            // We only need them if default interface method support is disabled or if this is fragile crossgen
 #if !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
-        if (fIsClassInterface
+            if (fIsClassInterface
 #if defined(FEATURE_DEFAULT_INTERFACES)
-            // Only fragile crossgen wasn't upgraded to deal with default interface methods.
-            && !IsReadyToRunCompilation()
+                // Only fragile crossgen wasn't upgraded to deal with default interface methods.
+                && !IsReadyToRunCompilation()
 #endif
-            )
-        {
-            if (IsMdVirtual(dwMemberAttrs))
+                )
             {
-                if (!IsMdAbstract(dwMemberAttrs))
+                if (IsMdVirtual(dwMemberAttrs))
                 {
-                    BuildMethodTableThrowException(BFA_VIRTUAL_NONAB_INT_METHOD);
+                    if (!IsMdAbstract(dwMemberAttrs))
+                    {
+                        BuildMethodTableThrowException(BFA_VIRTUAL_NONAB_INT_METHOD);
+                    }
+                }
+                else
+                {
+                    // Instance method
+                    if (!IsMdStatic(dwMemberAttrs))
+                    {
+                        BuildMethodTableThrowException(BFA_NONVIRT_INST_INT_METHOD);
+                    }
                 }
             }
-            else
-            {
-                // Instance method
-                if (!IsMdStatic(dwMemberAttrs))
-                {
-                    BuildMethodTableThrowException(BFA_NONVIRT_INST_INT_METHOD);
-                }
-            }
-        }
 #endif // !defined(FEATURE_DEFAULT_INTERFACES) || defined(FEATURE_NATIVE_IMAGE_GENERATION)
 
-        // No synchronized methods in ValueTypes
-        if(fIsClassValueType && IsMiSynchronized(dwImplFlags))
-        {
-            BuildMethodTableThrowException(BFA_SYNC_METHOD_IN_VT);
-        }
-
-        // Global methods:
-        if(IsGlobalClass())
-        {
-            if(!IsMdStatic(dwMemberAttrs))
+            // No synchronized methods in ValueTypes
+            if(fIsClassValueType && IsMiSynchronized(dwImplFlags))
             {
-                BuildMethodTableThrowException(BFA_NONSTATIC_GLOBAL_METHOD);
+                BuildMethodTableThrowException(BFA_SYNC_METHOD_IN_VT);
             }
-            if (strMethodName)  //<TODO>@todo: investigate mc++ generating null name</TODO>
+
+            // Global methods:
+            if(IsGlobalClass())
             {
-                if(0==strcmp(strMethodName, COR_CTOR_METHOD_NAME))
+                if(!IsMdStatic(dwMemberAttrs))
                 {
-                    BuildMethodTableThrowException(BFA_GLOBAL_INST_CTOR);
+                    BuildMethodTableThrowException(BFA_NONSTATIC_GLOBAL_METHOD);
+                }
+                if (strMethodName)  //<TODO>@todo: investigate mc++ generating null name</TODO>
+                {
+                    if(0==strcmp(strMethodName, COR_CTOR_METHOD_NAME))
+                    {
+                        BuildMethodTableThrowException(BFA_GLOBAL_INST_CTOR);
+                    }
                 }
             }
-        }
-        //@GENERICS:
-        // Generic methods or methods in generic classes
-        // may not be part of a COM Import class (except for WinRT), PInvoke, internal call outside mscorlib.
-        if ((bmtGenerics->GetNumGenericArgs() != 0 || numGenericMethodArgs != 0) &&
-            (
+            //@GENERICS:
+            // Generic methods or methods in generic classes
+            // may not be part of a COM Import class (except for WinRT), PInvoke, internal call outside mscorlib.
+            if ((bmtGenerics->GetNumGenericArgs() != 0 || numGenericMethodArgs != 0) &&
+                (
 #ifdef FEATURE_COMINTEROP 
-             fIsClassComImport ||
-             bmtProp->fComEventItfType ||
+                fIsClassComImport ||
+                bmtProp->fComEventItfType ||
 #endif // FEATURE_COMINTEROP
-             IsMdPinvokeImpl(dwMemberAttrs) ||
-             (IsMiInternalCall(dwImplFlags) && !GetModule()->IsSystem())))
-        {
+                IsMdPinvokeImpl(dwMemberAttrs) ||
+                (IsMiInternalCall(dwImplFlags) && !GetModule()->IsSystem())))
+            {
 #ifdef FEATURE_COMINTEROP
-            if (!GetHalfBakedClass()->IsProjectedFromWinRT())
+                if (!GetHalfBakedClass()->IsProjectedFromWinRT())
 #endif // FEATURE_COMINTEROP
-            {
-                BuildMethodTableThrowException(BFA_BAD_PLACE_FOR_GENERIC_METHOD);
-            }
-        }
-
-        // Generic methods may not be marked "runtime".  However note that
-        // methods in generic delegate classes are, hence we don't apply this to
-        // methods in generic classes in general.
-        if (numGenericMethodArgs != 0 && IsMiRuntime(dwImplFlags))
-        {
-            BuildMethodTableThrowException(BFA_GENERIC_METHOD_RUNTIME_IMPL);
-        }
-
-
-        // Signature validation
-        if (FAILED(pMDInternalImport->GetSigOfMethodDef(tok, &cMemberSignature, &pMemberSignature)))
-        {
-            BuildMethodTableThrowException(hr, BFA_BAD_SIGNATURE, mdMethodDefNil);
-        }
-        hr = validateTokenSig(tok,pMemberSignature,cMemberSignature,dwMemberAttrs,pMDInternalImport);
-        if (FAILED(hr))
-        {
-            BuildMethodTableThrowException(hr, BFA_BAD_SIGNATURE, mdMethodDefNil);
-        }
-
-        // Check the appearance of covariant and contravariant in the method signature
-        // Note that variance is only supported for interfaces
-        if (bmtGenerics->pVarianceInfo != NULL)
-        {
-            SigPointer sp(pMemberSignature, cMemberSignature);
-            ULONG callConv;
-            IfFailThrow(sp.GetCallingConvInfo(&callConv));
-
-            if (callConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
-                IfFailThrow(sp.GetData(NULL));
-
-            DWORD numArgs;
-            IfFailThrow(sp.GetData(&numArgs));
-
-            // Return type behaves covariantly
-            if (!EEClass::CheckVarianceInSig(
-                    bmtGenerics->GetNumGenericArgs(), 
-                    bmtGenerics->pVarianceInfo, 
-                    GetModule(), 
-                    sp, 
-                    gpCovariant))
-            {
-                BuildMethodTableThrowException(IDS_CLASSLOAD_VARIANCE_IN_METHOD_RESULT, tok);
-            }
-            IfFailThrow(sp.SkipExactlyOne());
-            for (DWORD j = 0; j < numArgs; j++)
-            {
-                // Argument types behave contravariantly
-                if (!EEClass::CheckVarianceInSig(bmtGenerics->GetNumGenericArgs(),
-                                                 bmtGenerics->pVarianceInfo,
-                                                 GetModule(),
-                                                 sp,
-                                                 gpContravariant))
                 {
-                    BuildMethodTableThrowException(IDS_CLASSLOAD_VARIANCE_IN_METHOD_ARG, tok);
+                    BuildMethodTableThrowException(BFA_BAD_PLACE_FOR_GENERIC_METHOD);
+                }
+            }
+
+            // Generic methods may not be marked "runtime".  However note that
+            // methods in generic delegate classes are, hence we don't apply this to
+            // methods in generic classes in general.
+            if (numGenericMethodArgs != 0 && IsMiRuntime(dwImplFlags))
+            {
+                BuildMethodTableThrowException(BFA_GENERIC_METHOD_RUNTIME_IMPL);
+            }
+
+            // Check the appearance of covariant and contravariant in the method signature
+            // Note that variance is only supported for interfaces
+            if (bmtGenerics->pVarianceInfo != NULL)
+            {
+                SigPointer sp(pMemberSignature, cMemberSignature);
+                ULONG callConv;
+                IfFailThrow(sp.GetCallingConvInfo(&callConv));
+
+                if (callConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
+                    IfFailThrow(sp.GetData(NULL));
+
+                DWORD numArgs;
+                IfFailThrow(sp.GetData(&numArgs));
+
+                // Return type behaves covariantly
+                if (!EEClass::CheckVarianceInSig(
+                        bmtGenerics->GetNumGenericArgs(), 
+                        bmtGenerics->pVarianceInfo, 
+                        GetModule(), 
+                        sp, 
+                        gpCovariant))
+                {
+                    BuildMethodTableThrowException(IDS_CLASSLOAD_VARIANCE_IN_METHOD_RESULT, tok);
                 }
                 IfFailThrow(sp.SkipExactlyOne());
+                for (DWORD j = 0; j < numArgs; j++)
+                {
+                    // Argument types behave contravariantly
+                    if (!EEClass::CheckVarianceInSig(bmtGenerics->GetNumGenericArgs(),
+                                                    bmtGenerics->pVarianceInfo,
+                                                    GetModule(),
+                                                    sp,
+                                                    gpContravariant))
+                    {
+                        BuildMethodTableThrowException(IDS_CLASSLOAD_VARIANCE_IN_METHOD_ARG, tok);
+                    }
+                    IfFailThrow(sp.SkipExactlyOne());
+                }
             }
         }
 
@@ -9059,7 +9077,9 @@ MethodTableBuilder::LoadExactInterfaceMap(MethodTable *pMT)
 
         // If there are any __Canon instances in the type argument list, then we defer the
         // ambiguity checking until an exact instantiation.
-        if (!pMT->IsSharedByGenericInstantiations())
+        // As the C# compiler won't allow an ambiguous generic interface to be generated, we don't
+        // need this logic for CoreLib
+        if (!pMT->IsSharedByGenericInstantiations() && !pMT->GetModule()->IsSystem())
         {
             // There are no __Canon types in the instantiation, so do ambiguity check.
             bmtInterfaceAmbiguityCheckInfo bmtCheckInfo;

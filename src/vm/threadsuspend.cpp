@@ -2970,6 +2970,7 @@ void Thread::PulseGCMode()
     if (PreemptiveGCDisabled() && CatchAtSafePoint())
     {
         EnablePreemptiveGC();
+        m_MarshalAlloc.ClearUnallocated();
         DisablePreemptiveGC();
     }
 }
