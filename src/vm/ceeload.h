@@ -737,7 +737,7 @@ struct ModuleCtorInfo
 
 
 
-// #ifdef FEATURE_PREJIT
+#ifdef FEATURE_PREJIT
 
 // For IBC Profiling we collect signature blobs for instantiated types.
 // For such instantiated types and methods we create our own ibc token
@@ -1036,7 +1036,7 @@ public:
 
     DWORD MethodTableRestoreNumReasons[TotalMethodTables + 1];
 };
-// #endif // FEATURE_PREJIT
+#endif // FEATURE_PREJIT
 
 //
 // A Module is the primary unit of code packaging in the runtime.  It
