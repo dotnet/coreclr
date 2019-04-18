@@ -90,7 +90,7 @@ namespace System.IO
         {
         }
 
-        public StreamWriter(Stream stream, Encoding encoding = null, int bufferSize = -1, bool leaveOpen = false)
+        public StreamWriter(Stream stream, Encoding? encoding = null, int bufferSize = -1, bool leaveOpen = false)
             : base(null) // Ask for CurrentCulture all the time
         {
             if (stream == null)
