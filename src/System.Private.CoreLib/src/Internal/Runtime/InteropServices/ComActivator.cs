@@ -264,14 +264,24 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 throw new InvalidCastException();
             }
 
-            public static void ValidateInterfaceIsMarshallable(object obj, Type interfaceType)
+            public static void ValidateInterfaceIsMarshallable(object? obj, Type interfaceType)
             {
                 Debug.Assert(obj != null && interfaceType != null);
 
                 if (interfaceType != typeof(object))
                 {
                     Debug.Assert(interfaceType.IsInterface);
-                    Marshal.GetComInterfaceForObject(obj, interfaceType, CustomQueryInterfaceMode.Ignore);
+                    
+                    // The intent of this call is to validate the interface can be
+                    // marshalled to native code. An exception will be thrown if the
+                    // type is unable to be marshalled to native code.
+                    // Scenarios where this is relevant:
+                    //  - Interfaces that use Generics
+                    //  - Interfaces that define implementation
+                    IntPtr ptr = Marshal.GetComInterfaceForObject(obj, interfaceType, CustomQueryInterfaceMode.Ignore);
+                    
+                    // Decrement the above 'Marshal.GetComInterfaceForObject()' 
+                    Marshal.ReleaseComObject(ptr);
                 }
             }
 
