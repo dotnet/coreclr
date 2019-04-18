@@ -3499,7 +3499,7 @@ namespace System.Diagnostics.Tracing
                     }
                 }
                 else
-                    msg = "Unexpected error: " + (exception?.Message ?? "exception is null");
+                    msg = "Unexpected error: " + exception!.Message;
 
                 throw new ArgumentException(msg, exception);
             }
