@@ -77,6 +77,7 @@ SetWaitableTimerExProc g_pufnSetWaitableTimerEx = NULL;
 BOOL ThreadpoolMgr::InitCompletionPortThreadpool = FALSE;
 HANDLE ThreadpoolMgr::GlobalCompletionPort;                 // used for binding io completions on file handles
 
+// Cacheline aligned
 SVAL_IMPL(ThreadpoolMgr::ThreadCounter,ThreadpoolMgr,CPThreadCounter);
 
 SVAL_IMPL_INIT(LONG,ThreadpoolMgr,MaxLimitTotalCPThreads,1000);   // = MaxLimitCPThreadsPerCPU * number of CPUS
@@ -85,8 +86,8 @@ SVAL_IMPL(LONG,ThreadpoolMgr,MaxFreeCPThreads);                   // = MaxFreeCP
 
 Volatile<LONG> ThreadpoolMgr::NumCPInfrastructureThreads = 0;      // number of threads currently busy handling draining cycle
 
-// Cacheline aligned, hot variable
-DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) SVAL_IMPL(ThreadpoolMgr::ThreadCounter, ThreadpoolMgr, WorkerCounter);
+// Cacheline aligned
+SVAL_IMPL(ThreadpoolMgr::ThreadCounter, ThreadpoolMgr, WorkerCounter);
 
 SVAL_IMPL(LONG,ThreadpoolMgr,MinLimitTotalWorkerThreads);          // = MaxLimitCPThreadsPerCPU * number of CPUS
 SVAL_IMPL(LONG,ThreadpoolMgr,MaxLimitTotalWorkerThreads);        // = MaxLimitCPThreadsPerCPU * number of CPUS
@@ -97,12 +98,9 @@ LONG    ThreadpoolMgr::cpuUtilizationAverage = 0;
 HillClimbing ThreadpoolMgr::HillClimbingInstance;
 
 // Cacheline aligned, 3 hot variables updated in a group
-DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) LONG ThreadpoolMgr::PriorCompletedWorkRequests = 0;
-DWORD ThreadpoolMgr::PriorCompletedWorkRequestsTime;
-DWORD ThreadpoolMgr::NextCompletedWorkRequestsTime;
+ThreadpoolMgr::WorkRequestDataT ThreadpoolMgr::WorkRequestData;
 
 LARGE_INTEGER ThreadpoolMgr::CurrentSampleStartTime;
-
 unsigned int ThreadpoolMgr::WorkerThreadSpinLimit;
 bool ThreadpoolMgr::IsHillClimbingDisabled;
 int ThreadpoolMgr::ThreadAdjustmentInterval;
@@ -924,7 +922,7 @@ void ThreadpoolMgr::AdjustMaxWorkersActive()
 
     DWORD currentTicks = GetTickCount();
     LONG totalNumCompletions = (LONG)Thread::GetTotalWorkerThreadPoolCompletionCount();
-    LONG numCompletions = totalNumCompletions - VolatileLoad(&PriorCompletedWorkRequests);
+    LONG numCompletions = totalNumCompletions - VolatileLoad(&WorkRequestData.PriorCompletedWorkRequests);
 
     LARGE_INTEGER startTime = CurrentSampleStartTime;
     LARGE_INTEGER endTime;
@@ -986,10 +984,12 @@ void ThreadpoolMgr::AdjustMaxWorkersActive()
             }
         }
 
-        PriorCompletedWorkRequests = totalNumCompletions;
-        NextCompletedWorkRequestsTime = currentTicks + ThreadAdjustmentInterval;
-        MemoryBarrier(); // flush previous writes (especially NextCompletedWorkRequestsTime)
-        PriorCompletedWorkRequestsTime = currentTicks;
+        WorkRequestData.PriorCompletedWorkRequests = totalNumCompletions;
+        WorkRequestData.NextCompletedWorkRequestsTime = currentTicks + ThreadAdjustmentInterval;
+        // make sure that NextCompletedWorkRequestsTime is updated before PriorCompletedWorkRequestsTime
+        // so that reader never sees newer PriorCompletedWorkRequestsTime while having stale NextCompletedWorkRequestsTime
+        // NB: we are holding the ThreadAdjustmentLock and therefore the order cannot be violated by two threads writing.
+        VolatileStore(&WorkRequestData.PriorCompletedWorkRequestsTime, currentTicks);
         CurrentSampleStartTime = endTime;;
     }
 }
@@ -1011,12 +1011,13 @@ void ThreadpoolMgr::MaybeAddWorkingWorker()
     while (true)
     {
         newCounts = counts;
-        newCounts.NumWorking = max(counts.NumWorking, min(counts.NumWorking + 1, counts.MaxWorking));
+
+        if (counts.NumWorking + 1 > counts.MaxWorking)
+            return;
+
+        newCounts.NumWorking++;
         newCounts.NumActive = max(counts.NumActive, newCounts.NumWorking);
         newCounts.NumRetired = max(0, counts.NumRetired - (newCounts.NumActive - counts.NumActive));
-
-        if (newCounts == counts)
-            return;
 
         ThreadCounter::Counts oldCounts = WorkerCounter.CompareExchangeCounts(newCounts, counts);
 

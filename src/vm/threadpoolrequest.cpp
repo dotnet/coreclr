@@ -537,18 +537,9 @@ void ManagedPerAppDomainTPCount::SetAppDomainRequestsActive()
     _ASSERTE(m_index.m_dwIndex != UNUSED_THREADPOOL_INDEX);
 
 #ifndef DACCESS_COMPILE
-        LONG count = VolatileLoad(&m_numRequestsPending);
-        while (true)
-        {
-            LONG prev = FastInterlockCompareExchange(&m_numRequestsPending, count+1, count);
-            if (prev == count)
-            {
-                ThreadpoolMgr::MaybeAddWorkingWorker();
-                ThreadpoolMgr::EnsureGateThreadRunning();
-                break;
-            }
-            count = prev;
-        }
+    FastInterlockIncrement(&m_numRequestsPending);
+    ThreadpoolMgr::MaybeAddWorkingWorker();
+    ThreadpoolMgr::EnsureGateThreadRunning();
 #endif
 }
 
@@ -560,20 +551,13 @@ void ManagedPerAppDomainTPCount::ClearAppDomainRequestsActive()
 
     _ASSERTE(m_index.m_dwIndex != UNUSED_THREADPOOL_INDEX);
 
-    LONG count = VolatileLoad(&m_numRequestsPending);
-    while (count > 0)
-    {
-        LONG prev = FastInterlockCompareExchange(&m_numRequestsPending, 0, count);
-        if (prev == count)
-            break;
-        count = prev;
-    }
+    m_numRequestsPending = 0;
 }
 
 bool ManagedPerAppDomainTPCount::TakeActiveRequest()
 {
     LIMITED_METHOD_CONTRACT;
-    LONG count = VolatileLoad(&m_numRequestsPending);
+    LONG count = VolatileLoadWithoutBarrier(&m_numRequestsPending);
     while (count > 0)
     {
         LONG prev = FastInterlockCompareExchange(&m_numRequestsPending, count-1, count);
