@@ -46,7 +46,7 @@ struct SortHandle
     void* collatorsPerOptionRoot;
 };
 
-typedef struct { UChar* items; size_t capacity; size_t size; } UCharList;
+typedef struct { UChar* items; size_t size; } UCharList;
 
 static int TreeComparer(const void* left, const void* right)
 {
@@ -137,24 +137,6 @@ static int IsHalfFullHigherSymbol(UChar character)
         || (0xff61 <= character && character <= 0xff65);
 }
 
-static int AddItem(UCharList* list, const UChar item)
-{
-    size_t size = list->size++;
-    if (size >= list->capacity)
-    {
-        list->capacity *= 2;
-        UChar* ptr = (UChar*)realloc(list->items, list->capacity * sizeof(UChar));
-        if (ptr == NULL)
-        {
-            return FALSE;
-        }
-        list->items = ptr;
-    }
-
-    list->items[size] = item;
-    return TRUE;
-}
-
 /*
 Gets a string of custom collation rules, if necessary.
 
@@ -184,12 +166,12 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
     }
 
     // If we need to create customRules, the KanaType custom rule will be 88 kana characters * 4 = 352 chars long
-    // and the Width custom rule will be at least 215 halfwidth characters * 4 = 860 chars long.
+    // and the Width custom rule will be at most 212 halfwidth characters * 5 = 1060 chars long.
     // Use 512 as the starting size, so the customRules won't have to grow if we are just
     // doing the KanaType custom rule.
-    customRules->capacity = 512;
-    customRules->size = 0;
-    customRules->items = malloc(customRules->capacity * sizeof(UChar));
+    int capacity = 88 * 4 + g_HalfFullCharsLength * 5;
+    UChar* items;
+    customRules->items = items = malloc(capacity * sizeof(UChar));
     if (customRules->items == NULL)
     {
         free(customRules);
@@ -205,15 +187,11 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
             // Hiragana is the range 3041 to 3096 & 309D & 309E
             if (hiraganaChar <= 0x3096 || hiraganaChar >= 0x309D) // characters between 3096 and 309D are not mapped to katakana
             {
-                if(!(AddItem(customRules, '&')              &&
-                     AddItem(customRules, hiraganaChar)     &&
-                     AddItem(customRules, compareChar)      &&
-                     AddItem(customRules, hiraganaChar + hiraganaToKatakanaOffset)))
-                {
-                    free(customRules->items);
-                    free(customRules);
-                    return NULL;
-                }
+                assert(items - customRules->items <= capacity - 4);
+                *(items++) = '&';
+                *(items++) = hiraganaChar;
+                *(items++) = compareChar;
+                *(items++) = hiraganaChar + hiraganaToKatakanaOffset;
             }
         }
     }
@@ -236,19 +214,20 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
             // this character is a symbol, and if so skip it
             if (!(isIgnoreSymbols && needsNotIgnoreWidthCustomRule && (needsEscape || IsHalfFullHigherSymbol(higherChar))))
             {
-                if(!(AddItem(customRules, '&')                    &&
-                   (!needsEscape || AddItem(customRules, '\\'))   &&
-                   AddItem(customRules, lowerChar)                &&
-                   AddItem(customRules, compareChar)              &&
-                   AddItem(customRules, higherChar)))
+                assert(items - customRules->items <= capacity - 5);
+                *(items++) = '&';
+                if (needsEscape)
                 {
-                    free(customRules->items);
-                    free(customRules);
-                    return NULL;
+                    *(items++) = '\\';
                 }
+                *(items++) = lowerChar;
+                *(items++) = compareChar;
+                *(items++) = higherChar;
             }
         }
     }
+
+    customRules->size = items - customRules->items;
 
     return customRules;
 }
