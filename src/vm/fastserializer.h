@@ -16,7 +16,7 @@ class IpcStream;
 
 // the enumeration has a specific set of values to keep it compatible with consumer library
 // it's sibling is defined in https://github.com/Microsoft/perfview/blob/10d1f92b242c98073b3817ac5ee6d98cd595d39b/src/FastSerialization/FastSerialization.cs#L2295
-enum class FastSerializerTags : BYTE
+enum class FastSerializerTags : uint8_t
 {
     Error              = 0, // To improve debugabilty, 0 is an illegal tag.
     NullReference      = 1, // Tag for a null object forwardReference.
@@ -53,12 +53,12 @@ public:
 class IpcStreamWriter final : public StreamWriter
 {
 public:
-    IpcStreamWriter(IpcStream *pStream);
+    IpcStreamWriter(uint64_t id, IpcStream *pStream);
     ~IpcStreamWriter();
     bool Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32_t &nBytesWritten) const;
 
 private:
-    IpcStream *const _pStream;
+    IpcStream *_pStream;
 };
 
 //!

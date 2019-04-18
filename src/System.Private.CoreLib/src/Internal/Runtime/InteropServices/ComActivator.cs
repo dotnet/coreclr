@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -23,9 +24,9 @@ namespace Internal.Runtime.InteropServices
     public interface IClassFactory
     {
         void CreateInstance(
-            [MarshalAs(UnmanagedType.Interface)] object pUnkOuter,
+            [MarshalAs(UnmanagedType.Interface)] object? pUnkOuter,
             ref Guid riid,
-            [MarshalAs(UnmanagedType.Interface)] out object ppvObject);
+            [MarshalAs(UnmanagedType.Interface)] out object? ppvObject);
 
         void LockServer([MarshalAs(UnmanagedType.Bool)] bool fLock);
     }
@@ -49,9 +50,9 @@ namespace Internal.Runtime.InteropServices
     internal interface IClassFactory2 : IClassFactory
     {
         new void CreateInstance(
-            [MarshalAs(UnmanagedType.Interface)] object pUnkOuter,
+            [MarshalAs(UnmanagedType.Interface)] object? pUnkOuter,
             ref Guid riid,
-            [MarshalAs(UnmanagedType.Interface)] out object ppvObject);
+            [MarshalAs(UnmanagedType.Interface)] out object? ppvObject);
 
         new void LockServer([MarshalAs(UnmanagedType.Bool)] bool fLock);
 
@@ -62,8 +63,8 @@ namespace Internal.Runtime.InteropServices
             [MarshalAs(UnmanagedType.BStr)] out string pBstrKey);
 
         void CreateInstanceLic(
-            [MarshalAs(UnmanagedType.Interface)] object pUnkOuter,
-            [MarshalAs(UnmanagedType.Interface)] object pUnkReserved,
+            [MarshalAs(UnmanagedType.Interface)] object? pUnkOuter,
+            [MarshalAs(UnmanagedType.Interface)] object? pUnkReserved,
             ref Guid riid,
             [MarshalAs(UnmanagedType.BStr)] string bstrKey,
             [MarshalAs(UnmanagedType.Interface)] out object ppvObject);
@@ -95,7 +96,7 @@ namespace Internal.Runtime.InteropServices
     {
         // Collection of all ALCs used for COM activation. In the event we want to support
         // unloadable COM server ALCs, this will need to be changed.
-        private static Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIgnoreCase);
+        private static readonly Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIgnoreCase);
 
         /// <summary>
         /// Entry point for unmanaged COM activation API from managed code
@@ -149,9 +150,9 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 {
                     ClassId = cxtInt.ClassId,
                     InterfaceId = cxtInt.InterfaceId,
-                    AssemblyPath = Marshal.PtrToStringUni(new IntPtr(cxtInt.AssemblyPathBuffer)),
-                    AssemblyName = Marshal.PtrToStringUni(new IntPtr(cxtInt.AssemblyNameBuffer)),
-                    TypeName = Marshal.PtrToStringUni(new IntPtr(cxtInt.TypeNameBuffer))
+                    AssemblyPath = Marshal.PtrToStringUni(new IntPtr(cxtInt.AssemblyPathBuffer))!,
+                    AssemblyName = Marshal.PtrToStringUni(new IntPtr(cxtInt.AssemblyNameBuffer))!,
+                    TypeName = Marshal.PtrToStringUni(new IntPtr(cxtInt.TypeNameBuffer))!
                 };
 
                 object cf = GetClassFactoryForType(cxt);
@@ -235,7 +236,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 _classType = classType;
             }
 
-            public static Type GetValidatedInterfaceType(Type classType, ref Guid riid, object outer)
+            public static Type GetValidatedInterfaceType(Type classType, ref Guid riid, object? outer)
             {
                 Debug.Assert(classType != null);
                 if (riid == Marshal.IID_IUnknown)
@@ -292,13 +293,13 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             }
 
             public void CreateInstance(
-                [MarshalAs(UnmanagedType.Interface)] object pUnkOuter,
+                [MarshalAs(UnmanagedType.Interface)] object? pUnkOuter,
                 ref Guid riid,
-                [MarshalAs(UnmanagedType.Interface)] out object ppvObject)
+                [MarshalAs(UnmanagedType.Interface)] out object? ppvObject)
             {
                 Type interfaceType = BasicClassFactory.GetValidatedInterfaceType(_classType, ref riid, pUnkOuter);
 
-                ppvObject = Activator.CreateInstance(_classType);
+                ppvObject = Activator.CreateInstance(_classType)!;
                 if (pUnkOuter != null)
                 {
                     ppvObject = BasicClassFactory.CreateAggregatedObject(pUnkOuter, ppvObject);
@@ -327,9 +328,9 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             }
 
             public void CreateInstance(
-                [MarshalAs(UnmanagedType.Interface)] object pUnkOuter,
+                [MarshalAs(UnmanagedType.Interface)] object? pUnkOuter,
                 ref Guid riid,
-                [MarshalAs(UnmanagedType.Interface)] out object ppvObject)
+                [MarshalAs(UnmanagedType.Interface)] out object? ppvObject)
             {
                 CreateInstanceInner(pUnkOuter, ref riid, key: null, isDesignTime: true, out ppvObject);
             }
@@ -358,8 +359,8 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             }
 
             public void CreateInstanceLic(
-                [MarshalAs(UnmanagedType.Interface)] object pUnkOuter,
-                [MarshalAs(UnmanagedType.Interface)] object pUnkReserved,
+                [MarshalAs(UnmanagedType.Interface)] object? pUnkOuter,
+                [MarshalAs(UnmanagedType.Interface)] object? pUnkReserved,
                 ref Guid riid,
                 [MarshalAs(UnmanagedType.BStr)] string bstrKey,
                 [MarshalAs(UnmanagedType.Interface)] out object ppvObject)
@@ -369,9 +370,9 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             }
 
             private void CreateInstanceInner(
-                object pUnkOuter,
+                object? pUnkOuter,
                 ref Guid riid,
-                string key,
+                string? key,
                 bool isDesignTime,
                 out object ppvObject)
             {
@@ -417,8 +418,8 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         private MethodInfo _licInfoHelperContains;
 
         // RCW Activation
-        private object _licContext;
-        private Type _targetRcwType;
+        private object? _licContext;
+        private Type? _targetRcwType;
 
         static LicenseInteropProxy()
         {
@@ -477,15 +478,15 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
             // Types are as follows:
             // LicenseContext, Type, out License, out string
-            object licContext = Activator.CreateInstance(_licInfoHelper);
-            var parameters = new object[] { licContext, type, /* out */ null, /* out */ null };
+            object licContext = Activator.CreateInstance(_licInfoHelper)!;
+            var parameters = new object?[] { licContext, type, /* out */ null, /* out */ null };
             bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
             if (!isValid)
             {
                 return;
             }
 
-            var license = (IDisposable)parameters[2];
+            var license = (IDisposable?)parameters[2];
             if (license != null)
             {
                 license.Dispose();
@@ -509,20 +510,20 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
             // Types are as follows:
             // LicenseContext, Type, out License, out string
-            var parameters = new object[] { /* use global LicenseContext */ null, type, /* out */ null, /* out */ null };
+            var parameters = new object?[] { /* use global LicenseContext */ null, type, /* out */ null, /* out */ null };
             bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
             if (!isValid)
             {
                 throw new COMException(); //E_FAIL
             }
 
-            var license = (IDisposable)parameters[2];
+            var license = (IDisposable?)parameters[2];
             if (license != null)
             {
                 license.Dispose();
             }
 
-            string licenseKey = (string)parameters[3];
+            var licenseKey = (string?)parameters[3];
             if (licenseKey == null)
             {
                 throw new COMException(); //E_FAIL
@@ -541,9 +542,9 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         // If we are being entered because of a call to ICF::CreateInstanceLic(),
         // "isDesignTime" will be "false" and "key" will point to a non-null
         // license key.
-        public object AllocateAndValidateLicense(Type type, string key, bool isDesignTime)
+        public object AllocateAndValidateLicense(Type type, string? key, bool isDesignTime)
         {
-            object[] parameters;
+            object?[] parameters;
             object licContext;
             if (isDesignTime)
             {
@@ -552,7 +553,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             }
             else
             {
-                parameters = new object[] { type, key };
+                parameters = new object?[] { type, key };
                 licContext = _createRuntimeContext.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
             }
 
@@ -575,12 +576,12 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
             // Types are as follows:
             // Type, out bool, out string -> LicenseContext
-            var parameters = new object[] { targetRcwTypeMaybe, /* out */ null, /* out */ null };
+            var parameters = new object[] { targetRcwTypeMaybe, /* out */ null!, /* out */ null! };
             _licContext = _getCurrentContextInfo.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
 
             _targetRcwType = targetRcwTypeMaybe;
             isDesignTime = (bool)parameters[1];
-            bstrKey = Marshal.StringToBSTR((string)parameters[2]);
+            bstrKey = Marshal.StringToBSTR((string?)parameters[2]);
         }
 
         // The CLR invokes this when instantiating a licensed COM
@@ -595,7 +596,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             }
 
             string key = Marshal.PtrToStringBSTR(bstrKey);
-            var parameters = new object[] { _targetRcwType, key };
+            var parameters = new object?[] { _targetRcwType, key };
             _setSavedLicenseKey.Invoke(_licContext, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
         }
     }
