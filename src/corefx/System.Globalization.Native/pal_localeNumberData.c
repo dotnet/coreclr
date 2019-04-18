@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "pal_alloc.h"
 #include "pal_localeNumberData.h"
 
 // invariant character definitions used by ICU
@@ -86,13 +87,13 @@ static char* NormalizeNumericPattern(const UChar* srcPattern, int isNegative)
     if (isNegative && !minusAdded)
     {
         size_t length = (iEnd - iStart) + 2;
-        destPattern = malloc(length * sizeof(char));
+        destPattern = pal_allocarray(length, sizeof(char));
         destPattern[index++] = '-';
     }
     else
     {
         size_t length = (iEnd - iStart) + 1;
-        destPattern = malloc(length * sizeof(char));
+        destPattern = pal_allocarray(length, sizeof(char));
     }
 
     for (int i = iStart; i <= iEnd; i++)
@@ -166,7 +167,7 @@ static int GetNumericPattern(const UNumberFormat* pNumberFormat,
     UErrorCode ignore = U_ZERO_ERROR;
     int32_t icuPatternLength = unum_toPattern(pNumberFormat, FALSE, NULL, 0, &ignore) + 1;
 
-    UChar* icuPattern = malloc(icuPatternLength * sizeof(UChar));
+    UChar* icuPattern = pal_allocarray(icuPatternLength, sizeof(UChar));
     if (icuPattern == NULL)
     {
         return U_MEMORY_ALLOCATION_ERROR;

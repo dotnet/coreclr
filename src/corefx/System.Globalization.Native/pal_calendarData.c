@@ -7,6 +7,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "pal_alloc.h"
 #include "pal_calendarData.h"
 
 #define GREGORIAN_NAME "gregorian"
@@ -224,7 +225,7 @@ static int InvokeCallbackForDatePattern(const char* locale,
     UErrorCode ignore = U_ZERO_ERROR;
     int32_t patternLen = udat_toPattern(pFormat, FALSE, NULL, 0, &ignore) + 1;
 
-    UChar* pattern = malloc(patternLen * sizeof(UChar));
+    UChar* pattern = pal_allocarray(patternLen, sizeof(UChar));
     if (pattern == NULL)
     {
         udat_close(pFormat);
@@ -265,7 +266,7 @@ static int InvokeCallbackForDateTimePattern(const char* locale,
     UErrorCode ignore = U_ZERO_ERROR;
     int32_t patternLen = udatpg_getBestPattern(pGenerator, patternSkeleton, -1, NULL, 0, &ignore) + 1;
 
-    UChar* bestPattern = malloc(patternLen * sizeof(UChar));
+    UChar* bestPattern = pal_allocarray(patternLen, sizeof(UChar));
     if (bestPattern == NULL)
     {
         udatpg_close(pGenerator);
@@ -334,7 +335,7 @@ static int32_t EnumSymbols(const char* locale,
         }
         else
         {
-            symbolBuf = malloc(symbolLen * sizeof(UChar));
+            symbolBuf = pal_allocarray(symbolLen, sizeof(UChar));
             if (symbolBuf == NULL)
             {
                 err = U_MEMORY_ALLOCATION_ERROR;

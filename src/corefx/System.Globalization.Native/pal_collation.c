@@ -10,6 +10,7 @@
 #include <search.h>
 #include <string.h>
 
+#include "pal_alloc.h"
 #include "pal_collation.h"
 
 c_static_assert_msg(UCOL_EQUAL == 0, "managed side requires 0 for equal strings");
@@ -142,8 +143,12 @@ static int AddItem(UCharList* list, const UChar item)
     size_t size = list->size++;
     if (size >= list->capacity)
     {
-        list->capacity *= 2;
-        UChar* ptr = (UChar*)realloc(list->items, list->capacity * sizeof(UChar*));
+        list->capacity += 512;
+        if (list->capacity < size)
+        {
+            return FALSE;
+        }
+        UChar* ptr = (UChar*)pal_reallocarray(list->items, list->capacity, sizeof(UChar));
         if (ptr == NULL)
         {
             return FALSE;
@@ -189,7 +194,7 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
     // doing the KanaType custom rule.
     customRules->capacity = 512;
     customRules->size = 0;
-    customRules->items = malloc(customRules->capacity * sizeof(UChar));
+    customRules->items = pal_allocarray(customRules->capacity, sizeof(UChar));
     if (customRules->items == NULL)
     {
         free(customRules);
@@ -291,7 +296,7 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
         const UChar* localeRules = ucol_getRules(pCollator, &localeRulesLength);
         int32_t completeRulesLength = localeRulesLength + customRuleLength + 1;
 
-        UChar* completeRules = malloc(completeRulesLength * sizeof(UChar));
+        UChar* completeRules = pal_allocarray(completeRulesLength, sizeof(UChar));
 
         for (int i = 0; i < localeRulesLength; i++)
         {
