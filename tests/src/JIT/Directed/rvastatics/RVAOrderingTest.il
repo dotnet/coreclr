@@ -44,6 +44,10 @@
     IL_0018:  ldloc.3
     IL_0019:  call       int32 RVAOrderingTest::AddFields(int32*,
                                                           int32*)
+    ldsflda    int32 RVAOrderingTest::s_Another1
+    ldind.i4
+    add
+    
     IL_001e:  stloc.0
     IL_001f:  ldc.i4.0
     IL_0020:  conv.u
@@ -58,7 +62,7 @@
                                                                         object)
     IL_0036:  nop
     IL_0037:  ldloc.0
-    IL_0038:  ldc.i4     0x5000001f
+    IL_0038:  ldc.i4     0x600000f2
     IL_003d:  ceq
     IL_003f:  stloc.s    V_5
     IL_0041:  ldloc.s    V_5
@@ -116,11 +120,9 @@
     IL_0018:  stloc.1
     IL_0019:  ldloc.1
     IL_001a:  brtrue.s   IL_0005
-
     IL_001c:  ldloc.0
     IL_001d:  stloc.2
     IL_001e:  br.s       IL_0020
-
     IL_0020:  ldloc.2
     IL_0021:  ret
   } // end of method RVAOrderingTest::AddFields
@@ -138,6 +140,7 @@
 
   .field public static int32 s_First at D_00014000
   .field public static int32 s_1 at D_00014008
+  .field public static int32 s_Another1 at D_00014008
   .field public static int32 s_2 at D_00014010
   .field public static int32 s_3 at D_00014018
   .field public static int32 s_4 at D_00014020
@@ -150,9 +153,9 @@
 .data D_00014000 = bytearray (00 00 00 00 00 00 00 00) 
 
 .data D_00014008 = bytearray (01 00 00 10 00 00 00 00) 
-.data D_00014010 = bytearray (02 00 00 10 00 00 00 00) 
-.data D_00014018 = bytearray (04 00 00 10 00 00 00 00) 
-.data D_00014020 = bytearray (08 00 00 10 00 00 00 00) 
-.data D_00014028 = bytearray (10 00 00 10 00 00 00 00) 
+.data D_00014010 = bytearray (10 00 00 10 00 00 00 00) 
+.data D_00014018 = bytearray (20 00 00 10 00 00 00 00) 
+.data D_00014020 = bytearray (40 00 00 10 00 00 00 00) 
+.data D_00014028 = bytearray (80 00 00 10 00 00 00 00) 
 
 .data D_00014030 = bytearray (00 00 00 00 00 00 00 00) 
