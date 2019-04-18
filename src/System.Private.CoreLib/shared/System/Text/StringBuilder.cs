@@ -638,7 +638,7 @@ namespace System.Text
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();
                     }
 
-                    return new ReadOnlyMemory<char>(_currentChunk!.m_ChunkChars, 0, _currentChunk.m_ChunkLength);
+                    return new ReadOnlyMemory<char>(_currentChunk!.m_ChunkChars, 0, _currentChunk.m_ChunkLength); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                 }
             }
 
