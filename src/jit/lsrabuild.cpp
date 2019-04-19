@@ -1407,8 +1407,8 @@ void LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation cu
             // In the rare case where such an interval is live across nested calls, we don't need to insert another.
             if (listNode->ref->getInterval()->recentRefPosition->refType != RefTypeUpperVectorSave)
             {
-                RefPosition* pos = newRefPosition(listNode->ref->getInterval(), currentLoc, RefTypeUpperVectorSave, tree,
-                                                  RBM_FLT_CALLEE_SAVED);
+                RefPosition* pos = newRefPosition(listNode->ref->getInterval(), currentLoc, RefTypeUpperVectorSave,
+                                                  tree, RBM_FLT_CALLEE_SAVED);
             }
         }
     }

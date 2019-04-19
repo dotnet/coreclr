@@ -7076,7 +7076,7 @@ void LinearScan::resolveRegisters()
                                 if (nextRefPosition->assignedReg() != REG_NA)
                                 {
                                     insertCopyOrReload(block, treeNode, currentRefPosition->getMultiRegIdx(),
-                                        nextRefPosition);
+                                                       nextRefPosition);
                                 }
                                 else
                                 {
