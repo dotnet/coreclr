@@ -5681,8 +5681,8 @@ void LinearScan::allocateRegisters()
 
 #ifdef DEBUG
                 // Under stress mode, don't attempt to allocate a reg to
-                // reg optional ref position.
-                if (allocateReg && regOptionalNoAlloc())
+                // reg optional ref position, unless it's a ParamDef.
+                if (allocateReg && regOptionalNoAlloc() && (currentRefPosition->refType != RefTypeParamDef))
                 {
                     allocateReg = false;
                 }
