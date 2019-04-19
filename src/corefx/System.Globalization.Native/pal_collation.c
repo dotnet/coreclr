@@ -22,6 +22,7 @@ const int32_t CompareOptionsIgnoreNonSpace = 0x2;
 const int32_t CompareOptionsIgnoreSymbols = 0x4;
 const int32_t CompareOptionsIgnoreKanaType = 0x8;
 const int32_t CompareOptionsIgnoreWidth = 0x10;
+const int32_t CompareOptionsMask = 0x1f;
 // const int32_t CompareOptionsStringSort = 0x20000000;
 // ICU's default is to use "StringSort", i.e. nonalphanumeric symbols come before alphanumeric.
 // When StringSort is not specified (.NET's default), the sort order will be different between
@@ -41,21 +42,11 @@ typedef struct { int32_t key; UCollator* UCollator; } TCollatorMap;
  */
 struct SortHandle
 {
-    UCollator* regular;
     pthread_mutex_t collatorsLockObject;
-    void* collatorsPerOptionRoot;
+    UCollator* collatorsPerOption[CompareOptionsMask + 1];
 };
 
 typedef struct { UChar* items; size_t size; } UCharList;
-
-static int TreeComparer(const void* left, const void* right)
-{
-    const TCollatorMap* leftMap = left;
-    const TCollatorMap* rightMap = right;
-    if (leftMap->key < rightMap->key) return -1;
-    if (leftMap->key > rightMap->key) return 1;
-    return 0;
-}
 
 // Hiragana character range
 const UChar hiraganaStart = 0x3041;
@@ -343,15 +334,13 @@ static int CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lp
 
 void CreateSortHandle(SortHandle** ppSortHandle)
 {
-    *ppSortHandle = (SortHandle*)malloc(sizeof(SortHandle));
+    *ppSortHandle = (SortHandle*)calloc(1, sizeof(SortHandle));
     if ((*ppSortHandle) == NULL)
     {
         return;
     }
 
-    (*ppSortHandle)->collatorsPerOptionRoot = NULL;
     int result = pthread_mutex_init(&(*ppSortHandle)->collatorsLockObject, NULL);
-
     if (result != 0)
     {
         assert(FALSE && "Unexpected pthread_mutex_init return value.");
@@ -370,7 +359,7 @@ ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandl
 
     UErrorCode err = U_ZERO_ERROR;
 
-    (*ppSortHandle)->regular = ucol_open(lpLocaleName, &err);
+    (*ppSortHandle)->collatorsPerOption[0] = ucol_open(lpLocaleName, &err);
 
     if (U_FAILURE(err))
     {
@@ -384,15 +373,13 @@ ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandl
 
 void GlobalizationNative_CloseSortHandle(SortHandle* pSortHandle)
 {
-    ucol_close(pSortHandle->regular);
-    pSortHandle->regular = NULL;
-
-    while (pSortHandle->collatorsPerOptionRoot != NULL)
+    for (int i = 0; i <= CompareOptionsMask; i++)
     {
-        TCollatorMap* data = *(TCollatorMap **)pSortHandle->collatorsPerOptionRoot;
-        tdelete(data, &pSortHandle->collatorsPerOptionRoot, TreeComparer);
-        ucol_close(data->UCollator);
-        free(data);
+        if (pSortHandle->collatorsPerOption[i] != NULL)
+        {
+            ucol_close(pSortHandle->collatorsPerOption[i]);
+            pSortHandle->collatorsPerOption[i] = NULL;
+        }
     }
 
     pthread_mutex_destroy(&pSortHandle->collatorsLockObject);
@@ -405,7 +392,7 @@ const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t opti
     UCollator* pCollator;
     if (options == 0)
     {
-        pCollator = pSortHandle->regular;
+        pCollator = pSortHandle->collatorsPerOption[0];
     }
     else
     {
@@ -415,22 +402,12 @@ const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t opti
             assert(FALSE && "Unexpected pthread_mutex_lock return value.");
         }
 
-        TCollatorMap* map = (TCollatorMap*)malloc(sizeof(TCollatorMap));
-        map->key = options;
-        // tfind on glibc is significantly faster than tsearch and we expect
-        // to hit the cache here often so it's benefitial to prefer lookup time
-        // over addition time
-        void* entry = tfind(map, &pSortHandle->collatorsPerOptionRoot, TreeComparer);
-        if (entry == NULL)
+        options &= CompareOptionsMask;
+        pCollator = pSortHandle->collatorsPerOption[options];
+        if (pCollator == NULL)
         {
-            pCollator = CloneCollatorWithOptions(pSortHandle->regular, options, pErr);
-            map->UCollator = pCollator;
-            tsearch(map, &pSortHandle->collatorsPerOptionRoot, TreeComparer);
-        }
-        else
-        {
-            free(map);
-            pCollator = (*(TCollatorMap**)entry)->UCollator;
+            pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
+            pSortHandle->collatorsPerOption[options] = pCollator;
         }
 
         pthread_mutex_unlock(&pSortHandle->collatorsLockObject);
