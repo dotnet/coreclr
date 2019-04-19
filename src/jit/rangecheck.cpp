@@ -208,7 +208,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreeStmt* stmt, GenTre
             GenTree*   gtCmpLen = gtCmp->gtGetOp1();
             GenTree*   gtCmpCns = gtCmp->gtGetOp2IfPresent();
 
-            // The compare expression can be comma because of CSE expansion. extract effeictive value before checking it
+            // The compare expression can be comma because of CSE expansion. extract effective value before checking it
             if (gtCmpLen->OperIs(GT_COMMA))
             {
                 GenTree* cmmOp1 = gtCmpLen->gtGetOp1();
@@ -227,8 +227,6 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreeStmt* stmt, GenTre
                 }
             }
 
-            // The target comparer should contains GTF_ARRLEN_ARR_IDX flags which is mean this local variable is length
-            // also check that this is kind of explicit range checking
             if (gtCmpCns == nullptr || !gtCmpCns->OperIs(GT_CNS_INT) || !gtCmpLen->OperIs(GT_ARR_LENGTH))
             {
                 break;
