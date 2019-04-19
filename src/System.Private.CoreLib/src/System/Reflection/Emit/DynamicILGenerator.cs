@@ -7,6 +7,7 @@
 namespace System.Reflection.Emit
 {
     using System;
+    using System.Buffers.Binary;
     using System.Globalization;
     using System.Diagnostics.SymbolStore;
     using System.Runtime.InteropServices;
@@ -638,14 +639,8 @@ namespace System.Reflection.Emit
             }
             catch
             {
-                // We go over all DynamicMethodDesc during AppDomain shutdown and make sure
-                // that everything associated with them is released. So it is ok to skip reregistration
-                // for finalization during appdomain shutdown
-                if (!Environment.HasShutdownStarted)
-                {
-                    // Try again later.
-                    GC.ReRegisterForFinalize(this);
-                }
+                // Try again later.
+                GC.ReRegisterForFinalize(this);
                 return;
             }
 
@@ -666,12 +661,9 @@ namespace System.Reflection.Emit
                 // It is not safe to destroy the method if the managed resolver is alive.
                 if (RuntimeMethodHandle.GetResolver(m_methodHandle) != null)
                 {
-                    if (!Environment.HasShutdownStarted)
-                    {
-                        // Somebody might have been holding a reference on us via weak handle.
-                        // We will keep trying. It will be hopefully released eventually.
-                        GC.ReRegisterForFinalize(this);
-                    }
+                    // Somebody might have been holding a reference on us via weak handle.
+                    // We will keep trying. It will be hopefully released eventually.
+                    GC.ReRegisterForFinalize(this);
                     return;
                 }
 
@@ -732,10 +724,12 @@ namespace System.Reflection.Emit
 
                 if ((header & 0x40) != 0) // Fat
                 {
-                    byte[] size = new byte[4];
-                    for (int q = 0; q < 3; q++)
-                        size[q] = m_exceptionHeader[q + 1];
-                    EHCount = (BitConverter.ToInt32(size, 0) - 4) / 24;
+                    // Positions 1..3 of m_exceptionHeader are a 24-bit little-endian integer.
+                    int size = m_exceptionHeader[3] << 16;
+                    size |= m_exceptionHeader[2] << 8;
+                    size |= m_exceptionHeader[1];
+
+                    EHCount = (size - 4) / 24;
                 }
                 else
                     EHCount = (m_exceptionHeader[1] - 2) / 12;

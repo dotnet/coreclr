@@ -2403,6 +2403,7 @@ void qsort1(uint8_t** low, uint8_t** high, unsigned int depth);
 #endif //USE_INTROSORT
 
 void* virtual_alloc (size_t size);
+void* virtual_alloc (size_t size, bool use_large_pages_p);
 void virtual_free (void* add, size_t size);
 
 /* per heap static initialization */
@@ -2818,6 +2819,7 @@ GCSpinLock gc_heap::gc_lock;
 
 size_t gc_heap::eph_gen_starts_size = 0;
 heap_segment* gc_heap::segment_standby_list;
+size_t        gc_heap::use_large_pages_p = 0;
 size_t        gc_heap::last_gc_index = 0;
 #ifdef SEG_MAPPING_TABLE
 size_t        gc_heap::min_segment_size = 0;
@@ -4263,7 +4265,7 @@ typedef struct
 
 initial_memory_details memory_details;
 
-BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_heaps)
+BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_heaps, bool use_large_pages_p)
 {
     BOOL reserve_success = FALSE;
 
@@ -4304,7 +4306,7 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
 
     size_t requestedMemory = memory_details.block_count * (normal_size + large_size);
 
-    uint8_t* allatonce_block = (uint8_t*)virtual_alloc (requestedMemory);
+    uint8_t* allatonce_block = (uint8_t*)virtual_alloc (requestedMemory, use_large_pages_p);
     if (allatonce_block)
     {
         g_gc_lowest_address =  allatonce_block;
@@ -4324,10 +4326,10 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
         // try to allocate 2 blocks
         uint8_t* b1 = 0;
         uint8_t* b2 = 0;
-        b1 = (uint8_t*)virtual_alloc (memory_details.block_count * normal_size);
+        b1 = (uint8_t*)virtual_alloc (memory_details.block_count * normal_size, use_large_pages_p);
         if (b1)
         {
-            b2 = (uint8_t*)virtual_alloc (memory_details.block_count * large_size);
+            b2 = (uint8_t*)virtual_alloc (memory_details.block_count * large_size, use_large_pages_p);
             if (b2)
             {
                 memory_details.allocation_pattern = initial_memory_details::TWO_STAGE;
@@ -4360,7 +4362,7 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
                                      memory_details.block_size_normal :
                                      memory_details.block_size_large);
                 current_block->memory_base =
-                    (uint8_t*)virtual_alloc (block_size);
+                    (uint8_t*)virtual_alloc (block_size, use_large_pages_p);
                 if (current_block->memory_base == 0)
                 {
                     // Free the blocks that we've allocated so far
@@ -4469,6 +4471,11 @@ heap_segment* get_initial_segment (size_t size, int h_number)
 
 void* virtual_alloc (size_t size)
 {
+    return virtual_alloc(size, false);
+}
+
+void* virtual_alloc (size_t size, bool use_large_pages_p)
+{
     size_t requested_size = size;
 
     if ((gc_heap::reserved_memory_limit - gc_heap::reserved_memory) < requested_size)
@@ -4488,7 +4495,8 @@ void* virtual_alloc (size_t size)
         flags = VirtualReserveFlags::WriteWatch;
     }
 #endif // !FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-    void* prgmem = GCToOSInterface::VirtualReserve (requested_size, card_size * card_word_width, flags);
+
+    void* prgmem = use_large_pages_p ? GCToOSInterface::VirtualReserveAndCommitLargePages(requested_size) : GCToOSInterface::VirtualReserve(requested_size, card_size * card_word_width, flags);
     void *aligned_mem = prgmem;
 
     // We don't want (prgmem + size) to be right at the end of the address space 
@@ -5466,9 +5474,10 @@ bool gc_heap::virtual_commit (void* address, size_t size, int h_number, bool* ha
     }
 
     // If it's a valid heap number it means it's commiting for memory on the GC heap.
-    bool commit_succeeded_p = ((h_number >= 0) ? 
-        virtual_alloc_commit_for_heap (address, size, h_number) : 
-        GCToOSInterface::VirtualCommit(address, size));
+    // In addition if large pages is enabled, we set commit_succeeded_p to true because memory is already committed.
+    bool commit_succeeded_p = ((h_number >= 0) ? (use_large_pages_p ? true :
+                              virtual_alloc_commit_for_heap (address, size, h_number)) :
+                              GCToOSInterface::VirtualCommit(address, size));
 
     if (!commit_succeeded_p && heap_hard_limit)
     {
@@ -8800,10 +8809,6 @@ public:
 #endif //_DEBUG
 
     uint8_t* fit (uint8_t* old_loc,
-#ifdef SHORT_PLUGS
-               BOOL set_padding_on_saved_p,
-               mark* pinned_plug_entry,
-#endif //SHORT_PLUGS
                size_t plug_size
                REQD_ALIGN_AND_OFFSET_DCL)
     {
@@ -8827,11 +8832,11 @@ public:
         size_t plug_size_to_fit = plug_size;
 
         // best fit is only done for gen1 to gen2 and we do not pad in gen2.
-        int pad_in_front = 0;
-
-#ifdef SHORT_PLUGS
-        plug_size_to_fit += (pad_in_front ? Align(min_obj_size) : 0);
-#endif //SHORT_PLUGS
+        // however we must account for requirements of large alignment. 
+        // which may result in realignment padding.
+#ifdef RESPECT_LARGE_ALIGNMENT
+        plug_size_to_fit += switch_alignment_size(FALSE);
+#endif //RESPECT_LARGE_ALIGNMENT
 
         int plug_power2 = index_of_highest_set_bit (round_up_power2 (plug_size_to_fit + Align(min_obj_size)));
         ptrdiff_t i;
@@ -8871,29 +8876,17 @@ retry:
         {
             size_t free_space_size = 0;
             pad = 0;
-#ifdef SHORT_PLUGS
-            BOOL short_plugs_padding_p = FALSE;
-#endif //SHORT_PLUGS
+
             BOOL realign_padding_p = FALSE;
 
             if (bucket_free_space[i].is_plug)
             {
                 mark* m = (mark*)(bucket_free_space[i].start);
                 uint8_t* plug_free_space_start = pinned_plug (m) - pinned_len (m);
-                
-#ifdef SHORT_PLUGS
-                if ((pad_in_front & USE_PADDING_FRONT) &&
-                    (((plug_free_space_start - pin_allocation_context_start_region (m))==0) ||
-                    ((plug_free_space_start - pin_allocation_context_start_region (m))>=DESIRED_PLUG_LENGTH)))
-                {
-                    pad = Align (min_obj_size);
-                    short_plugs_padding_p = TRUE;
-                }
-#endif //SHORT_PLUGS
 
-                if (!((old_loc == 0) || same_large_alignment_p (old_loc, plug_free_space_start+pad)))
+                if (!((old_loc == 0) || same_large_alignment_p (old_loc, plug_free_space_start)))
                 {
-                    pad += switch_alignment_size (pad != 0);
+                    pad += switch_alignment_size (FALSE);
                     realign_padding_p = TRUE;
                 }
 
@@ -8919,14 +8912,6 @@ retry:
                                 (pinned_plug (m) - pinned_len (m)), 
                                 index_of_highest_set_bit (new_free_space_size)));
 #endif //SIMPLE_DPRINTF
-
-#ifdef SHORT_PLUGS
-                    if (short_plugs_padding_p)
-                    {
-                        pin_allocation_context_start_region (m) = plug_free_space_start;
-                        set_padding_in_expand (old_loc, set_padding_on_saved_p, pinned_plug_entry);
-                    }
-#endif //SHORT_PLUGS
 
                     if (realign_padding_p)
                     {
@@ -9219,7 +9204,7 @@ heap_segment* gc_heap::make_heap_segment (uint8_t* new_pages, size_t size, int h
     heap_segment_mem (new_segment) = start;
     heap_segment_used (new_segment) = start;
     heap_segment_reserved (new_segment) = new_pages + size;
-    heap_segment_committed (new_segment) = new_pages + initial_commit;
+    heap_segment_committed (new_segment) = (use_large_pages_p ? heap_segment_reserved(new_segment) : (new_pages + initial_commit));
     init_heap_segment (new_segment);
     dprintf (2, ("Creating heap segment %Ix", (size_t)new_segment));
     return new_segment;
@@ -9310,6 +9295,8 @@ void gc_heap::reset_heap_segment_pages (heap_segment* seg)
 void gc_heap::decommit_heap_segment_pages (heap_segment* seg,
                                            size_t extra_space)
 {
+    if (use_large_pages_p)
+        return;
     uint8_t*  page_start = align_on_page (heap_segment_allocated(seg));
     size_t size = heap_segment_committed (seg) - page_start;
     extra_space = align_on_page (extra_space);
@@ -10019,12 +10006,15 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
     block_count = 1;
 #endif //MULTIPLE_HEAPS
 
+    use_large_pages_p = false;
+
     if (heap_hard_limit)
     {
         check_commit_cs.Initialize();
+        use_large_pages_p = GCConfig::GetGCLargePages();
     }
 
-    if (!reserve_initial_memory(segment_size,heap_size,block_count))
+    if (!reserve_initial_memory(segment_size,heap_size,block_count,use_large_pages_p))
         return E_OUTOFMEMORY;
 
 #ifdef CARD_BUNDLE
@@ -14122,10 +14112,6 @@ uint8_t* gc_heap::allocate_in_expanded_heap (generation* gen,
         dprintf (SEG_REUSE_LOG_1, ("reallocating 0x%Ix in expanded heap, size: %Id", 
                     old_loc, size));
         return bestfit_seg->fit (old_loc, 
-#ifdef SHORT_PLUGS
-                                 set_padding_on_saved_p,
-                                 pinned_plug_entry,
-#endif //SHORT_PLUGS
                                  size REQD_ALIGN_AND_OFFSET_ARG);
     }
 
@@ -19319,7 +19305,7 @@ recheck:
                 uint8_t** tmp = new (nothrow) uint8_t* [new_size];
                 if (tmp)
                 {
-                    delete background_mark_stack_array;
+                    delete [] background_mark_stack_array;
                     background_mark_stack_array = tmp;
                     background_mark_stack_array_length = new_size;
                     background_mark_stack_tos = background_mark_stack_array;

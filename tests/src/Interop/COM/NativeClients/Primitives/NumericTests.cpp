@@ -216,26 +216,6 @@ namespace
         THROW_IF_FAILED(numericTesting->Add_ManyInts12(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, &result));
         THROW_FAIL_IF_FALSE(result == expected);
     }
-
-    void MarshalStructReturn(_In_ INumericTesting* numericTesting)
-    {
-        {
-            ::printf("Marshal struct return type with size > 4 bytes\n");
-            float width = 1.0f;
-            float height = 2.0f;
-            SizeF size = numericTesting->MakeSize(width, height);
-            THROW_FAIL_IF_FALSE(width == size.width);
-            THROW_FAIL_IF_FALSE(height == size.height);
-        }
-        {
-            ::printf("Marshal struct return type with size < 4 bytes\n");
-            BYTE width = 1;
-            BYTE height = 2;
-            Size size = numericTesting->MakeSizeSmall(width, height);
-            THROW_FAIL_IF_FALSE(width == size.width);
-            THROW_FAIL_IF_FALSE(height == size.height);
-        }
-    }
 }
 
 void Run_NumericTests()

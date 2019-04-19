@@ -3145,6 +3145,10 @@ public:
     PER_HEAP_ISOLATED
     size_t current_total_committed_gc_own;
 
+    // This is if large pages should be used.
+    PER_HEAP_ISOLATED
+    size_t use_large_pages_p;
+
     PER_HEAP_ISOLATED
     size_t last_gc_index;
 
@@ -4558,15 +4562,4 @@ inline
 size_t gcard_of (uint8_t* object)
 {
     return (size_t)(object) / card_size;
-}
-
-inline
-void YieldProcessorScalingFactor()
-{
-    unsigned int n = g_yieldProcessorScalingFactor;
-    _ASSERTE(n != 0);
-    do
-    {
-        YieldProcessor();
-    } while (--n != 0);
 }

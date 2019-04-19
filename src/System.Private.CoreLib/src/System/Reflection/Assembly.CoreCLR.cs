@@ -2,26 +2,24 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections.Generic;
-using System.IO;
-using System.Configuration.Assemblies;
+#nullable enable
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
 using System.Runtime.Loader;
+using System.Runtime.Serialization;
 using StackCrawlMark = System.Threading.StackCrawlMark;
 
 namespace System.Reflection
 {
     public abstract partial class Assembly : ICustomAttributeProvider, ISerializable
     {
-        // Locate an assembly by the long form of the assembly name. 
+        // Locate an assembly by the long form of the assembly name.
         // eg. "Toolbox.dll, version=1.1.10.1220, locale=en, publickey=1234567890123456789012345678901234567890"
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Assembly Load(string assemblyString)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RuntimeAssembly.InternalLoad(assemblyString, ref stackMark);
+            return RuntimeAssembly.InternalLoad(assemblyString, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext);
         }
 
         // Locate an assembly by its name. The name can be strong or
@@ -33,14 +31,14 @@ namespace System.Reflection
                 throw new ArgumentNullException(nameof(assemblyRef));
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return Load(assemblyRef, ref stackMark, IntPtr.Zero);
+            return Load(assemblyRef, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext);
         }
 
         // Locate an assembly by its name. The name can be strong or
         // weak. The assembly is loaded into the domain of the caller.
-        internal static Assembly Load(AssemblyName assemblyRef, ref StackCrawlMark stackMark, IntPtr ptrLoadContextBinder)
+        internal static Assembly Load(AssemblyName assemblyRef, ref StackCrawlMark stackMark, AssemblyLoadContext? assemblyLoadContext)
         {
-            AssemblyName modifiedAssemblyRef = null;
+            AssemblyName? modifiedAssemblyRef = null;
             if (assemblyRef.CodeBase != null)
             {
                 modifiedAssemblyRef = (AssemblyName)assemblyRef.Clone();
@@ -51,7 +49,7 @@ namespace System.Reflection
                 modifiedAssemblyRef = assemblyRef;
             }
 
-            return RuntimeAssembly.InternalLoadAssemblyName(modifiedAssemblyRef, ref stackMark, ptrLoadContextBinder);
+            return RuntimeAssembly.InternalLoadAssemblyName(modifiedAssemblyRef, ref stackMark, assemblyLoadContext);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -59,9 +57,9 @@ namespace System.Reflection
 
         internal static RuntimeAssembly GetExecutingAssembly(ref StackCrawlMark stackMark)
         {
-            RuntimeAssembly retAssembly = null;
+            RuntimeAssembly? retAssembly = null;
             GetExecutingAssemblyNative(JitHelpers.GetStackCrawlMarkHandle(ref stackMark), JitHelpers.GetObjectHandleOnStack(ref retAssembly));
-            return retAssembly;
+            return retAssembly!; // TODO-NULLABLE: Confirm this can never be null
         }
 
         // Get the assembly that the current code is running from.
@@ -88,12 +86,12 @@ namespace System.Reflection
         // internal test hook
         private static bool s_forceNullEntryPoint = false;
 
-        public static Assembly GetEntryAssembly()
+        public static Assembly? GetEntryAssembly()
         {
             if (s_forceNullEntryPoint)
                 return null;
 
-            RuntimeAssembly entryAssembly = null;
+            RuntimeAssembly? entryAssembly = null;
             GetEntryAssemblyNative(JitHelpers.GetObjectHandleOnStack(ref entryAssembly));
             return entryAssembly;
         }

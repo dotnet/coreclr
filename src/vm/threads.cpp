@@ -451,7 +451,7 @@ void Thread::ChooseThreadCPUGroupAffinity()
         GC_TRIGGERS;
     }
     CONTRACTL_END;
-
+#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
@@ -471,6 +471,7 @@ void Thread::ChooseThreadCPUGroupAffinity()
     CPUGroupInfo::SetThreadGroupAffinity(GetThreadHandle(), &groupAffinity, NULL);
     m_wCPUGroup = groupAffinity.Group;
     m_pAffinityMask = groupAffinity.Mask;
+#endif // !FEATURE_PAL
 }
 
 void Thread::ClearThreadCPUGroupAffinity()
@@ -481,7 +482,7 @@ void Thread::ClearThreadCPUGroupAffinity()
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-
+#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
@@ -499,6 +500,7 @@ void Thread::ClearThreadCPUGroupAffinity()
 
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
+#endif // !FEATURE_PAL
 }
 
 DWORD Thread::StartThread()
@@ -1561,8 +1563,10 @@ Thread::Thread()
     
     m_fGCSpecial = FALSE;
 
+#ifndef FEATURE_PAL
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
+#endif // !FEATURE_PAL
 
     m_pAllLoggedTypes = NULL;
 
@@ -5209,12 +5213,6 @@ DEBUG_NOINLINE void ThreadStore::Enter()
     ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
     CHECK_ONE_STORE();
     m_Crst.Enter();
-
-    // Threadstore needs special shutdown handling.
-    if (g_fSuspendOnShutdown)
-    {
-        m_Crst.ReleaseAndBlockForShutdownIfNotSpecialThread();
-    }
 }
 
 DEBUG_NOINLINE void ThreadStore::Leave()
