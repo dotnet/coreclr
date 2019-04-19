@@ -1,2 +1,0 @@
-python "E:\git3\coreclr\tests\runtest.py" -arch x64 -build_type Checked -test_env E:\Test\testenv.cmd --generate_layout
-Error, incorrect core_root location.

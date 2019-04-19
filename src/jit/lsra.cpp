@@ -7064,7 +7064,7 @@ void LinearScan::resolveRegisters()
                                 // These have no associated Restore, as we always spill if the vector is
                                 // in a register when this is encountered.
                                 // The nextRefPosition we're interested in (where we may need to insert a
-                                // reload or flag as GTF_NOREG_AT_USE is the subsequent RefPosition.
+                                // reload or flag as GTF_NOREG_AT_USE) is the subsequent RefPosition.
                                 assert(!currentInterval->isLocalVar);
                                 nextRefPosition = nextRefPosition->nextRefPosition;
                                 assert(nextRefPosition->refType != RefTypeUpperVectorSave);
