@@ -158,8 +158,6 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
 
     // If we need to create customRules, the KanaType custom rule will be 88 kana characters * 4 = 352 chars long
     // and the Width custom rule will be at most 212 halfwidth characters * 5 = 1060 chars long.
-    // Use 512 as the starting size, so the customRules won't have to grow if we are just
-    // doing the KanaType custom rule.
     int capacity = 88 * 4 + g_HalfFullCharsLength * 5;
     UChar* items;
     customRules->items = items = malloc(capacity * sizeof(UChar));
