@@ -9022,13 +9022,16 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
             // This LCL_VAR stays as a TYP_STRUCT
             unsigned lclNum = op->gtLclVarCommon.gtLclNum;
 
-            // Make sure this struct type is not struct promoted
-            lvaTable[lclNum].lvIsMultiRegRet = true;
+            if (!lvaIsImplicitByRefLocal(lclNum))
+            {
+                // Make sure this struct type is not struct promoted
+                lvaTable[lclNum].lvIsMultiRegRet = true;
 
-            // TODO-1stClassStructs: Handle constant propagation and CSE-ing of multireg returns.
-            op->gtFlags |= GTF_DONT_CSE;
+                // TODO-1stClassStructs: Handle constant propagation and CSE-ing of multireg returns.
+                op->gtFlags |= GTF_DONT_CSE;
 
-            return op;
+                return op;
+            }
         }
 
         if (op->gtOper == GT_CALL)
@@ -18929,22 +18932,28 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         var_types type = (var_types)eeGetArgType(localsSig, &methInfo->locals, &isPinned);
 
         lclVarInfo[i + argCnt].lclHasLdlocaOp = false;
-        lclVarInfo[i + argCnt].lclIsPinned    = isPinned;
         lclVarInfo[i + argCnt].lclTypeInfo    = type;
 
         if (varTypeIsGC(type))
         {
+            if (isPinned)
+            {
+                JITDUMP("Inlinee local #%02u is pinned\n", i);
+                lclVarInfo[i + argCnt].lclIsPinned = true;
+
+                // Pinned locals may cause inlines to fail.
+                inlineResult->Note(InlineObservation::CALLEE_HAS_PINNED_LOCALS);
+                if (inlineResult->IsFailure())
+                {
+                    return;
+                }
+            }
+
             pInlineInfo->numberOfGcRefLocals++;
         }
-
-        if (isPinned)
+        else if (isPinned)
         {
-            // Pinned locals may cause inlines to fail.
-            inlineResult->Note(InlineObservation::CALLEE_HAS_PINNED_LOCALS);
-            if (inlineResult->IsFailure())
-            {
-                return;
-            }
+            JITDUMP("Ignoring pin on inlinee local #%02u -- not a GC type\n", i);
         }
 
         lclVarInfo[i + argCnt].lclVerTypeInfo = verParseArgSigToTypeInfo(&methInfo->locals, localsSig);
