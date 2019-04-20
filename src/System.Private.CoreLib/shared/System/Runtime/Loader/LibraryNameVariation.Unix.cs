@@ -4,6 +4,7 @@
 
 #nullable enable
 using System.Collections.Generic;
+using System.IO;
 
 namespace System.Runtime.Loader
 {
