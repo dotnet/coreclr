@@ -158,7 +158,10 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
 
     // If we need to create customRules, the KanaType custom rule will be 88 kana characters * 4 = 352 chars long
     // and the Width custom rule will be at most 212 halfwidth characters * 5 = 1060 chars long.
-    int capacity = 88 * 4 + g_HalfFullCharsLength * 5;
+    int capacity = 
+        ((needsIgnoreKanaTypeCustomRule || needsNotIgnoreKanaTypeCustomRule) ? 4 * (hiraganaEnd - hiraganaStart + 1) : 0) +
+        ((needsIgnoreWidthCustomRule || needsNotIgnoreWidthCustomRule) ? 5 * g_HalfFullCharsLength : 0);
+
     UChar* items;
     customRules->items = items = malloc(capacity * sizeof(UChar));
     if (customRules->items == NULL)
@@ -332,11 +335,13 @@ static int CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lp
 
 void CreateSortHandle(SortHandle** ppSortHandle)
 {
-    *ppSortHandle = (SortHandle*)calloc(1, sizeof(SortHandle));
+    *ppSortHandle = (SortHandle*)malloc(sizeof(SortHandle));
     if ((*ppSortHandle) == NULL)
     {
         return;
     }
+
+    memset(*ppSortHandle, 0, sizeof(SortHandle));
 
     int result = pthread_mutex_init(&(*ppSortHandle)->collatorsLockObject, NULL);
     if (result != 0)
