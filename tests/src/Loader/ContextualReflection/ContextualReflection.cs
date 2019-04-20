@@ -751,7 +751,6 @@ namespace ContextualReflectionTest
             TestMockAssemblyThrows();
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         public void RunTestsIsolated()
         {
             VerifyIsolationAlc();
