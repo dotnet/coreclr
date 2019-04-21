@@ -1871,7 +1871,7 @@ void LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
     {
         RegState* intRegState   = &compiler->codeGen->intRegState;
         RegState* floatRegState = &compiler->codeGen->floatRegState;
-        bool      isFloat       = emitter::isFloatReg(argDsc->lvArgReg);
+        bool      isFloat       = emitter::isFloatReg(argDsc->GetArgReg());
 
         if (argDsc->lvIsHfaRegArg())
         {

@@ -847,10 +847,10 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #ifdef _TARGET_ARM64_
             if (argType == TYP_STRUCT)
             {
-                varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
+                varDsc->SetArgReg(genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL));
                 if (cSlots == 2)
                 {
-                    varDsc->lvOtherArgReg          = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
+                    varDsc->SetOtherArgReg(genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL));
                     varDscInfo->hasMultiSlotStruct = true;
                 }
             }

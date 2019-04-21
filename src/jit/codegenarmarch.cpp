@@ -708,7 +708,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 {
                     // Generate code to load the address that we need into a register
                     genConsumeAddress(addrNode);
-                    addrReg = addrNode->gtRegNum;
+                    addrReg = addrNode->GetRegNum();
 
 #ifdef _TARGET_ARM64_
                     // If addrReg equal to loReg, swap(loReg, hiReg)
@@ -766,7 +766,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 // it provides (size and GC layout) even if the node wraps a lclvar. Due
                 // to struct reinterpretation (e.g. Unsafe.As<X, Y>) it is possible that
                 // the OBJ node has a different type than the lclvar.
-                CORINFO_CLASS_HANDLE objClass = source->gtObj.gtClass;
+                CORINFO_CLASS_HANDLE objClass = source->AsObj()->gtClass;
 
                 structSize = compiler->info.compCompHnd->getClassSize(objClass);
 

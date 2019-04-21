@@ -3879,7 +3879,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                 {
                     if (isPow2(passingSize))
                     {
-                        canTransform = (!argEntry->isHfaArg || (passingSize == genTypeSize(argEntry->GetHfaType())));
+                        canTransform = (!argEntry->getIsHfaArg() || (passingSize == genTypeSize(argEntry->GetHfaType())));
                     }
 
 #if defined(_TARGET_ARM64_) || defined(UNIX_AMD64_ABI)
@@ -4386,9 +4386,9 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
             foundStructArg = true;
             if (varTypeIsStruct(argx) && !argx->OperIs(GT_FIELD_LIST))
             {
-                if (fgEntryPtr->isHfaArg)
+                if (fgEntryPtr->getIsHfaArg())
                 {
-                    var_types hfaType = fgEntryPtr->hfaType;
+                    var_types hfaType = fgEntryPtr->GetHfaType();
                     unsigned  structSize;
                     if (argx->OperIs(GT_OBJ))
                     {
@@ -4397,7 +4397,7 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
                     else
                     {
                         assert(argx->OperIs(GT_LCL_VAR));
-                        structSize = lvaGetDesc(argx->AsLclVar()->gtLclNum)->lvExactSize;
+                        structSize = lvaGetDesc(argx->AsLclVar()->GetLclNum())->lvExactSize;
                     }
                     assert(structSize > 0);
                     if (structSize == genTypeSize(hfaType))
@@ -4573,7 +4573,7 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
     unsigned  elemSize                = 0;
     var_types type[MAX_ARG_REG_COUNT] = {}; // TYP_UNDEF = 0
 
-    hfaType = fgEntryPtr->hfaType;
+    hfaType = fgEntryPtr->GetHfaType();
     if (varTypeIsValidHfaType(hfaType)
 #if !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
         && !fgEntryPtr->getIsVararg()
@@ -12986,11 +12986,11 @@ DONE_MORPHING_CHILDREN:
                     // If a GC happens, the byref won't get updated. This can happen if one
                     // of the int components is negative. It also requires the address generation
                     // be in a fully-interruptible code region.
-                    if (!varTypeIsGC(op1->gtOp.gtOp1->TypeGet()) && !varTypeIsGC(op2->gtOp.gtOp1->TypeGet()))
+                    if (!varTypeIsGC(op1->AsOp()->gtOp1->TypeGet()) && !varTypeIsGC(op2->AsOp()->gtOp1->TypeGet()))
                     {
                         cns1 = op1->AsOp()->gtOp2;
                         cns2 = op2->AsOp()->gtOp2;
-                        cns1->gtIntCon.gtIconVal += cns2->gtIntCon.gtIconVal;
+                        cns1->AsIntCon()->gtIconVal += cns2->AsIntCon()->gtIconVal;
 #ifdef _TARGET_64BIT_
                         if (cns1->TypeGet() == TYP_INT)
                         {
@@ -13006,7 +13006,7 @@ DONE_MORPHING_CHILDREN:
                         op1->gtFlags |= (op1->AsOp()->gtOp2->gtFlags & GTF_ALL_EFFECT);
                         DEBUG_DESTROY_NODE(op2);
                         op2 = tree->AsOp()->gtOp2;
--                    }
+                    }
                 }
 
                 if (op2->IsCnsIntOrI() && varTypeIsIntegralOrI(typ))
