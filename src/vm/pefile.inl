@@ -1370,6 +1370,8 @@ inline BOOL PEFile::HasNativeImageMetadata()
                 result.Append(W("AMD64"));
             else if (dwFlags & afPA_ARM)
                 result.Append(W("ARM"));
+            else if (dwFlags & afPA_ARM64)
+                result.Append(W("ARM64"));
         }
     }
 }

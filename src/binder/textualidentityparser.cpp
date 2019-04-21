@@ -150,6 +150,7 @@ namespace BINDER_SPACE
                                       { W("IA64"), peIA64 }, 
                                       { W("AMD64"), peAMD64 },
                                       { W("ARM"), peARM },
+                                      { W("ARM64"), peARM64 },
                                       { W("MSIL"), peMSIL } };
 
         BOOL ValidateAndConvertProcessorArchitecture(SString &processorArchitecture,

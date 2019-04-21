@@ -66,6 +66,13 @@ HRESULT TranslatePEToArchitectureType(CorPEKind CLRPeKind, DWORD dwImageType, DW
             {
                 *pPeKind = peAMD64;
             }
+#ifndef IMAGE_FILE_MACHINE_ARM64
+#define IMAGE_FILE_MACHINE_ARM64             0xAA64  // ARM64 Little-Endian
+#endif
+            else if (dwImageType == IMAGE_FILE_MACHINE_ARM64)
+            {
+                *pPeKind = peARM64;
+            }
             else
             {   // We don't support other architectures
                 *pPeKind = peInvalid;
