@@ -15,7 +15,7 @@ EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter) : FastSerializableObje
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -64,6 +64,12 @@ EventPipeFile::~EventPipeFile()
 
     delete m_pBlock;
     delete m_pSerializer;
+}
+
+bool EventPipeFile::HasErrors() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return (m_pSerializer == nullptr) || m_pSerializer->HasWriteErrors();
 }
 
 void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)

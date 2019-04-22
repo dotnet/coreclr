@@ -18,7 +18,7 @@ IpcStreamWriter::IpcStreamWriter(uint64_t id, IpcStream *pStream) : _pStream(pSt
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(_pStream != nullptr);
     }
     CONTRACTL_END;
@@ -73,7 +73,7 @@ FileStreamWriter::FileStreamWriter(const SString &outputFilePath)
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
     m_pFileStream = new CFileStream();
@@ -126,7 +126,7 @@ FastSerializer::FastSerializer(StreamWriter *pStreamWriter) : m_pStreamWriter(pS
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(m_pStreamWriter != NULL);
     }
     CONTRACTL_END;
@@ -188,7 +188,7 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
     EX_TRY
     {
         uint32_t outCount;
-        m_pStreamWriter->Write(pBuffer, length, outCount);
+        bool fSuccess = m_pStreamWriter->Write(pBuffer, length, outCount);
 
 #ifdef _DEBUG
         size_t prevPos = m_currentPos;
@@ -198,7 +198,7 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
         // This will cause us to stop writing to the file.
         // The file will still remain open until shutdown so that we don't
         // have to take a lock at this level when we touch the file stream.
-        m_writeErrorEncountered = (length != outCount);
+        m_writeErrorEncountered = (length != outCount) || !fSuccess;
 
 #ifdef _DEBUG
         _ASSERTE(m_writeErrorEncountered || (prevPos < m_currentPos));
@@ -268,7 +268,7 @@ void FastSerializer::WriteFileHeader()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 

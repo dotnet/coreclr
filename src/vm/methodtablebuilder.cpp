@@ -1390,7 +1390,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #endif // _DEBUG
 
     // If this is mscorlib, then don't perform some sanity checks on the layout
-    bmtProp->fNoSanityChecks = ((g_pObjectClass == NULL) || pModule == g_pObjectClass->GetModule()) ||
+    bmtProp->fNoSanityChecks = pModule->IsSystem() ||
 #ifdef FEATURE_READYTORUN
         // No sanity checks for ready-to-run compiled images if possible
         (pModule->IsReadyToRun() && pModule->GetReadyToRunInfo()->SkipTypeValidation()) ||
@@ -3228,6 +3228,11 @@ MethodTableBuilder::EnumerateClassMethods()
         {
             bmtMethod->dwNumDeclaredNonAbstractMethods++;
         }
+    }
+
+    if (bmtMethod->dwNumDeclaredNonAbstractMethods == 0)
+    {
+        GetHalfBakedClass()->SetHasOnlyAbstractMethods();
     }
 
     // Check to see that we have all of the required delegate methods (ECMA 13.6 Delegates)

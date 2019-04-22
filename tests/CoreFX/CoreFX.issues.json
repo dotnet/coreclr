@@ -1067,6 +1067,10 @@
             "classes": null,
             "methods": [
                 {
+                    "name": "System.Runtime.InteropServices.HandleCollectorTests.Ctor_InitialThresholdGreaterThanMaximumThreshold_ThrowsArgumentException ",
+                    "reason": "outdated"
+                },
+                {
                     "name": "System.Runtime.InteropServices.Tests.GCHandleTests.Alloc_InvalidPinnedObject_ThrowsArgumentException",
                     "reason": "outdated"
                 },
@@ -1145,6 +1149,20 @@
                 {
                     "name": "System.Runtime.InteropServices.Tests.ThrowExceptionForHRTests.ThrowExceptionForHR_ErrorInfo_ReturnsValidException",
                     "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Runtime.Loader.DefaultContext.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name" : "System.Runtime.Loader.Tests.DefaultLoadContextTests.LoadInDefaultContext",
+                    "reason" : "Waiting for https://github.com/dotnet/corefx/pull/37071"
                 }
             ]
         }
