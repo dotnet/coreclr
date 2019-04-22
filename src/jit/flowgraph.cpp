@@ -4252,6 +4252,67 @@ private:
     unsigned depth;
 };
 
+/*****************************************************************************
+ *
+ *  Determine if conditions are met to allow switching from QuickJittedTier to OptimizedTier.
+ */
+
+bool Compiler::fgCanSwitchTier0ToTier1()
+{
+    return (info.compFlags & CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS) != 0 &&
+           opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) && !compIsForInlining();
+}
+
+/*****************************************************************************
+ *
+ *  Switch from QuickJittedTier to OptimizedTier.
+ */
+
+void Compiler::fgSwitchTier0ToTier1()
+{
+    assert(fgCanSwitchTier0ToTier1());
+
+    // Ensure that it would be safe to change the opt level
+    assert(opts.compFlags == CLFLG_MINOPT);
+    assert(!opts.IsMinOptsSet());
+
+    // Switch to the OptimizedTier and re-init options
+    opts.jitFlags->Clear(JitFlags::JIT_FLAG_TIER0);
+    opts.jitFlags->Set(JitFlags::JIT_FLAG_TIER1);
+    compInitOptions(opts.jitFlags);
+
+    // Notify the VM of the change
+    info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_TIER0_TO_TIER1);
+}
+
+/*****************************************************************************
+ *
+ * Estimate conservatively for an explicit tail call, if the importer may actually use a tail call.
+ * Specifically, a return value of false must guarantee that the importer will not use a tail call. See
+ * impImportCall() for more.
+ */
+
+bool Compiler::fgMayExplicitTailCall()
+{
+    assert(!compIsForInlining());
+
+    if (info.compFlags & CORINFO_FLG_SYNCH)
+    {
+        // Caller is synchronized
+        return false;
+    }
+
+#if !FEATURE_FIXED_OUT_ARGS
+    if (info.compIsVarArgs)
+    {
+        // Caller is varargs
+        return false;
+    }
+#endif // FEATURE_FIXED_OUT_ARGS
+
+    return true;
+}
+
 //------------------------------------------------------------------------
 // fgFindJumpTargets: walk the IL stream, determining jump target offsets
 //
@@ -5158,6 +5219,8 @@ void Compiler::fgLinkBasicBlocks()
 
     /* Walk all the basic blocks, filling in the target addresses */
 
+    bool foundBackwardJump = false;
+
     for (BasicBlock* curBBdesc = fgFirstBB; curBBdesc; curBBdesc = curBBdesc->bbNext)
     {
         switch (curBBdesc->bbJumpKind)
@@ -5169,6 +5232,7 @@ void Compiler::fgLinkBasicBlocks()
                 curBBdesc->bbJumpDest->bbRefs++;
                 if (curBBdesc->bbJumpDest->bbNum <= curBBdesc->bbNum)
                 {
+                    foundBackwardJump = true;
                     fgMarkBackwardJump(curBBdesc->bbJumpDest, curBBdesc);
                 }
 
@@ -5209,6 +5273,7 @@ void Compiler::fgLinkBasicBlocks()
                     (*jumpPtr)->bbRefs++;
                     if ((*jumpPtr)->bbNum <= curBBdesc->bbNum)
                     {
+                        foundBackwardJump = true;
                         fgMarkBackwardJump(*jumpPtr, curBBdesc);
                     }
                 } while (++jumpPtr, --jumpCnt);
@@ -5224,6 +5289,12 @@ void Compiler::fgLinkBasicBlocks()
                 noway_assert(!"Unexpected bbJumpKind");
                 break;
         }
+    }
+
+    if (foundBackwardJump && fgCanSwitchTier0ToTier1())
+    {
+        // Method likely has a loop, switch to the OptimizedTier to avoid spending too much time running slower code
+        fgSwitchTier0ToTier1();
     }
 }
 
@@ -5514,6 +5585,13 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, F
 #else
                         BADCODE3("tail call not followed by ret", " at offset %04X", (IL_OFFSET)(codeAddr - codeBegp));
 #endif // !FEATURE_CORECLR && _TARGET_AMD64_
+                    }
+
+                    if (fgCanSwitchTier0ToTier1() && fgMayExplicitTailCall())
+                    {
+                        // Method has an explicit tail call that may run like a loop, switch to tier 1 to avoid spending
+                        // too much time running slower code
+                        fgSwitchTier0ToTier1();
                     }
 
 #if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)
