@@ -3305,7 +3305,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         {
             // A struct might be passed  partially in XMM register for System V calls.
             // So a single arg might use both register files.
-            if (isFloatRegType(regType) != doingFloat)
+            if (emitter::isFloatReg(varDsc->lvArgReg) != doingFloat)
             {
                 continue;
             }
@@ -7385,17 +7385,15 @@ void CodeGen::genFinalizeFrame()
     }
 #endif // _TARGET_X86_
 
-#if defined(_TARGET_ARMARCH_)
+#if defined(_TARGET_ARM_)
     // We need to determine if we will change SP larger than a specific amount to determine if we want to use a loop
     // to touch stack pages, that will require multiple registers. See genAllocLclFrame() for details.
     if (compiler->compLclFrameSize >= compiler->getVeryLargeFrameSize())
     {
         regSet.rsSetRegsModified(VERY_LARGE_FRAME_SIZE_REG_MASK);
     }
-#endif // defined(_TARGET_ARMARCH_)
 
-#if defined(_TARGET_ARM_)
-    // If there are any reserved registers, add them to the
+    // If there are any reserved registers, add them to the modified set.
     if (regSet.rsMaskResvd != RBM_NONE)
     {
         regSet.rsSetRegsModified(regSet.rsMaskResvd);
@@ -10160,7 +10158,11 @@ bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
     structPassingKind howToReturnStruct;
     var_types         returnType = getReturnTypeForStruct(hClass, &howToReturnStruct);
 
+#ifdef _TARGET_ARM64_
+    return (varTypeIsStruct(returnType) && (howToReturnStruct != SPK_PrimitiveType));
+#else
     return (varTypeIsStruct(returnType));
+#endif
 }
 
 //----------------------------------------------
@@ -10169,11 +10171,7 @@ bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
 
 bool Compiler::IsHfa(CORINFO_CLASS_HANDLE hClass)
 {
-#ifdef FEATURE_HFA
-    return varTypeIsFloating(GetHfaType(hClass));
-#else
-    return false;
-#endif
+    return varTypeIsValidHfaType(GetHfaType(hClass));
 }
 
 bool Compiler::IsHfa(GenTree* tree)
@@ -10206,7 +10204,19 @@ var_types Compiler::GetHfaType(CORINFO_CLASS_HANDLE hClass)
     {
 #ifdef FEATURE_HFA
         CorInfoType corType = info.compCompHnd->getHFAType(hClass);
-        if (corType != CORINFO_TYPE_UNDEF)
+#if defined(_TARGET_ARM64_) && defined(FEATURE_SIMD)
+        if (corType == CORINFO_TYPE_VALUECLASS)
+        {
+            // This is a vector type.
+            // HVAs are only supported on ARM64, and only for homogeneous aggregates of 8 or 16 byte vectors.
+            // For 8-byte vectors corType will be returned as CORINFO_TYPE_DOUBLE.
+            result = TYP_SIMD16;
+            // This type may not appear elsewhere, but it will occupy a floating point register.
+            compFloatingPointUsed = true;
+        }
+        else
+#endif // _TARGET_ARM64_ && FEATURE_SIMD
+            if (corType != CORINFO_TYPE_UNDEF)
         {
             result = JITtype2varType(corType);
         }

@@ -21,6 +21,7 @@ class MethodDesc;
 struct EventPipeProviderConfiguration;
 class EventPipeSession;
 class IpcStream;
+enum class EventPipeSessionType;
 
 // EVENT_FILTER_DESCRIPTOR (This type does not exist on non-Windows platforms.)
 //  https://docs.microsoft.com/en-us/windows/desktop/api/evntprov/ns-evntprov-_event_filter_descriptor
@@ -28,6 +29,7 @@ class IpcStream;
 //  determines which events are reported and traced. The structure gives the
 //  event provider greater control over the selection of events for reporting
 //  and tracing.
+// TODO: EventFilterDescriptor and EventData (defined below) are the same.
 struct EventFilterDescriptor
 {
     // A pointer to the filter data.
@@ -231,7 +233,6 @@ public:
 };
 
 typedef UINT64 EventPipeSessionID;
-typedef void (*FlushTimerCallback)();
 
 class EventPipe
 {
@@ -256,14 +257,8 @@ public:
         uint64_t profilerSamplingRateInNanoseconds,
         const EventPipeProviderConfiguration *pProviders,
         uint32_t numProviders,
-        uint64_t multiFileTraceLengthInSeconds);
-
-    static EventPipeSessionID Enable(
-        IpcStream *pStream,
-        uint32_t circularBufferSizeInMB,
-        uint64_t profilerSamplingRateInNanoseconds,
-        const EventPipeProviderConfiguration *pProviders,
-        uint32_t numProviders);
+        EventPipeSessionType sessionType,
+        IpcStream *const pStream);
 
     // Disable tracing via the event pipe.
     static void Disable(EventPipeSessionID id);
@@ -310,30 +305,20 @@ private:
     // The counterpart to WriteEvent which after the payload is constructed
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
+    static void DisableInternal(EventPipeSessionID id);
+
     // Enable the specified EventPipe session.
     static EventPipeSessionID Enable(
+        LPCWSTR strOutputPath,
         EventPipeSession *const pSession,
-        WAITORTIMERCALLBACK callback,
-        DWORD dueTime,
-        DWORD period);
+        EventPipeSessionType sessionType,
+        IpcStream *const pStream);
 
-    static void CreateFlushTimerCallback(WAITORTIMERCALLBACK Callback, DWORD DueTime, DWORD Period);
+    static void CreateFlushTimerCallback();
 
     static void DeleteFlushTimerCallback();
 
-    // Performs one polling operation to determine if it is necessary to switch to a new file.
-    // If the polling operation decides it is time, it will perform the switch.
-    // Called directly from the timer when the timer is triggered.
-    static void WINAPI SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired);
-
     static void WINAPI FlushTimer(PVOID parameter, BOOLEAN timerFired);
-
-    // If event pipe has been configured to write multiple files, switch to the next file.
-    static void SwitchToNextFile();
-
-    // Generate the file path for the next trace file.
-    // This is used when event pipe has been configured to create multiple trace files with a specified maximum length of time.
-    static void GetNextFilePath(SString &nextTraceFilePath);
 
     // Callback function for the stack walker.  For each frame walked, this callback is invoked.
     static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
@@ -358,14 +343,11 @@ private:
     static EventPipeConfiguration *s_pConfig;
     static EventPipeSession *s_pSession;
     static EventPipeBufferManager *s_pBufferManager;
-    static LPCWSTR s_pOutputPath;
-    static unsigned long s_nextFileIndex;
     static EventPipeFile *s_pFile;
     static EventPipeEventSource *s_pEventSource;
     static LPCWSTR s_pCommandLine;
     static HANDLE s_fileSwitchTimerHandle;
     static ULONGLONG s_lastFlushSwitchTime;
-    static uint64_t s_multiFileTraceLengthInSeconds;
 };
 
 struct EventPipeProviderConfiguration

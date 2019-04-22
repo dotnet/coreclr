@@ -30,6 +30,72 @@
 uint32_t g_pageSizeUnixInl = 0;
 #endif
 
+static AffinitySet g_processAffinitySet;
+
+class GroupProcNo
+{
+    uint16_t m_groupProc;
+
+public:
+
+    static const uint16_t NoGroup = 0x3ff;
+
+    GroupProcNo(uint16_t groupProc) : m_groupProc(groupProc)
+    {
+    }
+
+    GroupProcNo(uint16_t group, uint16_t procIndex) : m_groupProc((group << 6) | procIndex)
+    {
+        assert(group <= 0x3ff);
+        assert(procIndex <= 0x3f);
+    }
+
+    uint16_t GetGroup() { return m_groupProc >> 6; }
+    uint16_t GetProcIndex() { return m_groupProc & 0x3f; }
+    uint16_t GetCombinedValue() { return m_groupProc; }
+};
+
+#if !defined(FEATURE_PAL)
+
+static bool g_SeLockMemoryPrivilegeAcquired = false;
+
+bool InitLargePagesPrivilege()
+{
+    TOKEN_PRIVILEGES tp;
+    LUID luid;
+    if (!LookupPrivilegeValueW(nullptr, SE_LOCK_MEMORY_NAME, &luid))
+    {
+        return false;
+    }
+
+    tp.PrivilegeCount = 1;
+    tp.Privileges[0].Luid = luid;
+    tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+    HANDLE token;
+    if (!OpenProcessToken(::GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &token))
+    {
+        return false;
+    }
+
+    BOOL retVal = AdjustTokenPrivileges(token, FALSE, &tp, 0, nullptr, 0);
+    DWORD gls = GetLastError();
+    CloseHandle(token);
+
+    if (!retVal)
+    {
+        return false;
+    }
+
+    if (gls != 0)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+#endif // FEATURE_PAL
 
 // Initialize the interface implementation
 // Return:
@@ -40,7 +106,49 @@ bool GCToOSInterface::Initialize()
 
 #ifdef FEATURE_PAL
     g_pageSizeUnixInl = GetOsPageSize();
-#endif
+
+    uint32_t currentProcessCpuCount = PAL_GetLogicalCpuCountFromOS();
+    if (PAL_GetCurrentThreadAffinitySet(AffinitySet::BitsetDataSize, g_processAffinitySet.GetBitsetData()))
+    {
+        assert(currentProcessCpuCount == g_processAffinitySet.Count());
+    }
+    else
+    {
+        // There is no way to get affinity on the current OS, set the affinity set to reflect all processors
+        for (size_t i = 0; i < currentProcessCpuCount; i++)
+        {
+            g_processAffinitySet.Add(i);
+        }
+    }
+#else // FEATURE_PAL
+    if (CPUGroupInfo::CanEnableGCCPUGroups())
+    {
+        // When CPU groups are enabled, then the process is not bound by the process affinity set at process launch.
+        // Set the initial affinity mask so that all processors are enabled.
+        for (size_t i = 0; i < CPUGroupInfo::GetNumActiveProcessors(); i++)
+        {
+            g_processAffinitySet.Add(i);
+        }
+    }
+    else
+    {
+        // When CPU groups are disabled, the process affinity mask specified at the process launch cannot be
+        // escaped.
+        uintptr_t pmask, smask;
+        if (!!::GetProcessAffinityMask(::GetCurrentProcess(), (PDWORD_PTR)&pmask, (PDWORD_PTR)&smask))
+        {
+            pmask &= smask;
+
+            for (size_t i = 0; i < 8 * sizeof(uintptr_t); i++)
+            {
+                if ((pmask & ((uintptr_t)1 << i)) != 0)
+                {
+                    g_processAffinitySet.Add(i);
+                }
+            }
+        }
+    }
+#endif // FEATURE_PAL
 
     return true;
 }
@@ -70,43 +178,59 @@ uint32_t GCToOSInterface::GetCurrentProcessId()
     return ::GetCurrentProcessId();
 }
 
-// Set ideal affinity for the current thread
+// Set ideal processor for the current thread
 // Parameters:
-//  affinity - ideal processor affinity for the thread
+//  srcProcNo - processor number the thread currently runs on
+//  dstProcNo - processor number the thread should be migrated to
 // Return:
 //  true if it has succeeded, false if it has failed
-bool GCToOSInterface::SetCurrentThreadIdealAffinity(GCThreadAffinity* affinity)
+bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t dstProcNo)
 {
     LIMITED_METHOD_CONTRACT;
 
     bool success = true;
+#ifndef FEATURE_PAL
+    GroupProcNo srcGroupProcNo(srcProcNo);
+    GroupProcNo dstGroupProcNo(dstProcNo);
+
+    if (CPUGroupInfo::CanEnableGCCPUGroups())
+    {
+        if (srcGroupProcNo.GetGroup() != dstGroupProcNo.GetGroup())
+        {
+            //only set ideal processor when srcProcNo and dstProcNo are in the same cpu
+            //group. DO NOT MOVE THREADS ACROSS CPU GROUPS
+            return true;
+        }
+    }
 
 #if !defined(FEATURE_CORESYSTEM)
-    SetThreadIdealProcessor(GetCurrentThread(), (DWORD)affinity->Processor);
+    SetThreadIdealProcessor(GetCurrentThread(), (DWORD)dstGroupProcNo.GetProcIndex());
 #else
     PROCESSOR_NUMBER proc;
 
-    if (affinity->Group != -1)
+    if (dstGroupProcNo.GetGroup() != GroupProcNo::NoGroup)
     {
-        proc.Group = (WORD)affinity->Group;
-        proc.Number = (BYTE)affinity->Processor;
+        proc.Group = (WORD)dstGroupProcNo.GetGroup();
+        proc.Number = (BYTE)dstGroupProcNo.GetProcIndex();
         proc.Reserved = 0;
-        
+
         success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, NULL);
     }
-#if !defined(FEATURE_PAL)
     else
     {
         if (GetThreadIdealProcessorEx(GetCurrentThread(), &proc))
         {
-            proc.Number = (BYTE)affinity->Processor;
+            proc.Number = (BYTE)dstGroupProcNo.GetProcIndex();
             success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, &proc);
-        }        
+        }
     }
-#endif // !defined(FEATURE_PAL)
-#endif
-
+#endif // !FEATURE_CORESYSTEM
     return success;
+
+#else // !FEATURE_PAL
+    return GCToOSInterface::SetThreadAffinity(dstProcNo);
+
+#endif // !FEATURE_PAL
 }
 
 // Get the number of the current processor
@@ -205,13 +329,40 @@ bool GCToOSInterface::VirtualRelease(void* address, size_t size)
     return !!::ClrVirtualFree(address, 0, MEM_RELEASE);
 }
 
+// Commit virtual memory range.
+// Parameters:
+//  size      - size of the virtual memory range
+// Return:
+//  Starting virtual address of the committed range
+void* GCToOSInterface::VirtualReserveAndCommitLargePages(size_t size)
+{
+    LIMITED_METHOD_CONTRACT;
+
+#if !defined(FEATURE_PAL)
+    if (!g_SeLockMemoryPrivilegeAcquired)
+    {
+        if (!InitLargePagesPrivilege())
+        {
+            return nullptr;
+        }
+
+        g_SeLockMemoryPrivilegeAcquired = true;
+    }
+
+    SIZE_T largePageMinimum = GetLargePageMinimum();
+    size = (size + (largePageMinimum - 1)) & ~(largePageMinimum - 1);
+#endif
+
+    return ::ClrVirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES, PAGE_READWRITE);
+}
+
 // Commit virtual memory range. It must be part of a range reserved using VirtualReserve.
 // Parameters:
 //  address - starting virtual address
 //  size    - size of the virtual memory range
 // Return:
 //  true if it has succeeded, false if it has failed
-bool GCToOSInterface::VirtualCommit(void* address, size_t size, uint32_t node)
+bool GCToOSInterface::VirtualCommit(void* address, size_t size, uint16_t node)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -330,36 +481,33 @@ size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
 }
 
 // Sets the calling thread's affinity to only run on the processor specified
-// in the GCThreadAffinity structure.
 // Parameters:
-//  affinity - The requested affinity for the calling thread. At most one processor
-//             can be provided.
+//  procNo - The requested processor for the calling thread.
 // Return:
 //  true if setting the affinity was successful, false otherwise.
-bool GCToOSInterface::SetThreadAffinity(GCThreadAffinity* affinity)
+bool GCToOSInterface::SetThreadAffinity(uint16_t procNo)
 {
     LIMITED_METHOD_CONTRACT;
+#ifndef FEATURE_PAL
+    GroupProcNo groupProcNo(procNo);
 
-    assert(affinity != nullptr);
-    if (affinity->Group != GCThreadAffinity::None)
+    if (groupProcNo.GetGroup() != GroupProcNo::NoGroup)
     {
-        assert(affinity->Processor != GCThreadAffinity::None);
-        
         GROUP_AFFINITY ga;
-        ga.Group = (WORD)affinity->Group;
+        ga.Group = (WORD)groupProcNo.GetGroup();
         ga.Reserved[0] = 0; // reserve must be filled with zero
         ga.Reserved[1] = 0; // otherwise call may fail
         ga.Reserved[2] = 0;
-        ga.Mask = (size_t)1 << affinity->Processor;
+        ga.Mask = (size_t)1 << groupProcNo.GetProcIndex();
         return !!SetThreadGroupAffinity(GetCurrentThread(), &ga, nullptr);
     }
-    else if (affinity->Processor != GCThreadAffinity::None)
+    else
     {
-        return !!SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR)1 << affinity->Processor);
+        return !!SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR)1 << groupProcNo.GetProcIndex());
     }
-
-    // Given affinity must specify at least one processor to use.
-    return false;
+#else //  FEATURE_PAL
+    return PAL_SetCurrentThreadAffinity(procNo);
+#endif //  FEATURE_PAL
 }
 
 // Boosts the calling thread's thread priority to a level higher than the default
@@ -373,24 +521,48 @@ bool GCToOSInterface::BoostThreadPriority()
     return !!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 }
 
-// Get affinity mask of the current process
+// Set the set of processors enabled for GC threads for the current process based on config specified affinity mask and set
 // Parameters:
-//  processMask - affinity mask for the specified process
-//  systemMask  - affinity mask for the system
+//  configAffinityMask - mask specified by the GCHeapAffinitizeMask config
+//  configAffinitySet  - affinity set specified by the GCHeapAffinitizeRanges config
 // Return:
-//  true if it has succeeded, false if it has failed
-// Remarks:
-//  A process affinity mask is a bit vector in which each bit represents the processors that
-//  a process is allowed to run on. A system affinity mask is a bit vector in which each bit
-//  represents the processors that are configured into a system.
-//  A process affinity mask is a subset of the system affinity mask. A process is only allowed
-//  to run on the processors configured into a system. Therefore, the process affinity mask cannot
-//  specify a 1 bit for a processor when the system affinity mask specifies a 0 bit for that processor.
-bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processMask, uintptr_t* systemMask)
+//  set of enabled processors
+const AffinitySet* GCToOSInterface::SetGCThreadsAffinitySet(uintptr_t configAffinityMask, const AffinitySet* configAffinitySet)
 {
-    LIMITED_METHOD_CONTRACT;
+#ifndef FEATURE_PAL
+    if (CPUGroupInfo::CanEnableGCCPUGroups())
+#endif // !FEATURE_PAL
+    {
+        if (!configAffinitySet->IsEmpty())
+        {
+            // Update the process affinity set using the configured set
+            for (size_t i = 0; i < MAX_SUPPORTED_CPUS; i++)
+            {
+                if (g_processAffinitySet.Contains(i) && !configAffinitySet->Contains(i))
+                {
+                    g_processAffinitySet.Remove(i);
+                }
+            }
+        }
+    }
+#ifndef FEATURE_PAL
+    else
+    {
+        if (configAffinityMask != 0)
+        {
+            // Update the process affinity set using the configured mask
+            for (size_t i = 0; i < 8 * sizeof(uintptr_t); i++)
+            {
+                if (g_processAffinitySet.Contains(i) && ((configAffinityMask & ((uintptr_t)1 << i)) == 0))
+                {
+                    g_processAffinitySet.Remove(i);
+                }
+            }
+        }
+    }
+#endif // !FEATURE_PAL
 
-    return !!::GetProcessAffinityMask(GetCurrentProcess(), (PDWORD_PTR)processMask, (PDWORD_PTR)systemMask);
+    return &g_processAffinitySet;
 }
 
 // Get number of processors assigned to the current process
@@ -400,7 +572,14 @@ uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifndef FEATURE_PAL
+    // GetCurrentProcessCpuCount only returns up to 64 procs.
+    return CPUGroupInfo::CanEnableGCCPUGroups() ?
+                GCToOSInterface::GetTotalProcessorCount():
+                ::GetCurrentProcessCpuCount();
+#else // !FEATURE_PAL
     return ::GetCurrentProcessCpuCount();
+#endif // !FEATURE_PAL
 }
 
 // Return the size of the user-mode portion of the virtual address space of this process.
@@ -735,6 +914,7 @@ uint32_t GCToOSInterface::GetTotalProcessorCount()
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifndef FEATURE_PAL
     if (CPUGroupInfo::CanEnableGCCPUGroups())
     {
         return CPUGroupInfo::GetNumActiveProcessors();
@@ -743,6 +923,9 @@ uint32_t GCToOSInterface::GetTotalProcessorCount()
     {
         return g_SystemInfo.dwNumberOfProcessors;
     }
+#else // !FEATURE_PAL
+    return PAL_GetTotalCpuCount();
+#endif // !FEATURE_PAL
 }
 
 bool GCToOSInterface::CanEnableGCNumaAware()
@@ -752,25 +935,142 @@ bool GCToOSInterface::CanEnableGCNumaAware()
     return NumaNodeInfo::CanEnableGCNumaAware() != FALSE;
 }
 
-bool GCToOSInterface::GetNumaProcessorNode(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
+// Get processor number and optionally its NUMA node number for the specified heap number
+// Parameters:
+//  heap_number - heap number to get the result for
+//  proc_no     - set to the selected processor number
+//  node_no     - set to the NUMA node of the selected processor or to NUMA_NODE_UNDEFINED
+// Return:
+//  true if it succeeded
+bool GCToOSInterface::GetProcessorForHeap(uint16_t heap_number, uint16_t* proc_no, uint16_t* node_no)
 {
-    LIMITED_METHOD_CONTRACT;
+    bool success = false;
 
-    return NumaNodeInfo::GetNumaProcessorNodeEx(proc_no, node_no) != FALSE;
+    // Locate heap_number-th available processor
+    uint16_t procIndex;
+    size_t cnt = heap_number;
+    for (uint16_t i = 0; i < GCToOSInterface::GetTotalProcessorCount(); i++)
+    {
+        if (g_processAffinitySet.Contains(i))
+        {
+            if (cnt == 0)
+            {
+                procIndex = i;
+                success = true;
+                break;
+            }
+
+            cnt--;
+        }
+    }
+
+    if (success)
+    {
+#ifndef FEATURE_PAL
+        WORD gn, gpn;
+
+        if (CPUGroupInfo::CanEnableGCCPUGroups())
+        {
+            CPUGroupInfo::GetGroupForProcessor(procIndex, &gn, &gpn);
+        }
+        else
+        {
+            gn = GroupProcNo::NoGroup;
+            gpn = procIndex;
+        }
+
+        GroupProcNo groupProcNo(gn, gpn);
+        *proc_no = groupProcNo.GetCombinedValue();
+
+        if (GCToOSInterface::CanEnableGCNumaAware())
+        {
+            PROCESSOR_NUMBER procNumber;
+
+            if (CPUGroupInfo::CanEnableGCCPUGroups())
+            {
+                procNumber.Group = gn;
+            }
+            else
+            {
+                // Get the current processor group
+                GetCurrentProcessorNumberEx(&procNumber);
+            }
+
+            procNumber.Number   = (BYTE)gpn;
+            procNumber.Reserved = 0;
+
+            if (!NumaNodeInfo::GetNumaProcessorNodeEx(&procNumber, node_no))
+            {
+                *node_no = NUMA_NODE_UNDEFINED;
+            }
+        }
+        else
+        {   // no numa setting, each cpu group is treated as a node
+            *node_no = groupProcNo.GetGroup();
+        }
+#else // !FEATURE_PAL
+        *proc_no = procIndex;
+        if (!GCToOSInterface::CanEnableGCNumaAware() || !NumaNodeInfo::GetNumaProcessorNodeEx(procIndex, (WORD*)node_no))
+        {
+            *node_no = NUMA_NODE_UNDEFINED;
+        }
+#endif // !FEATURE_PAL
+    }
+
+    return success;
 }
 
-bool GCToOSInterface::CanEnableGCCPUGroups()
+// Parse the confing string describing affinitization ranges and update the passed in affinitySet accordingly
+// Parameters:
+//  config_string - string describing the affinitization range, platform specific
+//  start_index  - the range start index extracted from the config_string
+//  end_index    - the range end index extracted from the config_string, equal to the start_index if only an index and not a range was passed in
+// Return:
+//  true if the configString was successfully parsed, false if it was not correct
+bool GCToOSInterface::ParseGCHeapAffinitizeRangesEntry(const char** config_string, size_t* start_index, size_t* end_index)
 {
-    LIMITED_METHOD_CONTRACT;
+    size_t index_offset = 0;
 
-    return CPUGroupInfo::CanEnableGCCPUGroups() != FALSE;
-}
+    char* number_end;
+#ifndef FEATURE_PAL
+    size_t group_number = strtoul(*config_string, &number_end, 10);
 
-void GCToOSInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)
-{
-    LIMITED_METHOD_CONTRACT;
+    if ((number_end == *config_string) || (*number_end != ':'))
+    {
+        // No number or no colon after the number found, invalid format
+        return false;
+    }
 
-    return CPUGroupInfo::GetGroupForProcessor(processor_number, group_number, group_processor_number);
+    WORD group_begin;
+    WORD group_size;
+    if (!CPUGroupInfo::GetCPUGroupRange((WORD)group_number, &group_begin, &group_size))
+    {
+        // group number out of range
+        return false;
+    }
+
+    index_offset = group_begin;
+    *config_string = number_end + 1;
+#endif // !FEATURE_PAL
+
+    size_t start, end;
+    if (!ParseIndexOrRange(config_string, &start, &end))
+    {
+        return false;
+    }
+
+#ifndef FEATURE_PAL
+    if ((start >= group_size) || (end >= group_size))
+    {
+        // Invalid CPU index values or range
+        return false;
+    }
+#endif // !FEATURE_PAL
+
+    *start_index = index_offset + start;
+    *end_index = index_offset + end;
+
+    return true;
 }
 
 // Initialize the critical section

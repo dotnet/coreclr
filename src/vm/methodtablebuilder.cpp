@@ -1390,7 +1390,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #endif // _DEBUG
 
     // If this is mscorlib, then don't perform some sanity checks on the layout
-    bmtProp->fNoSanityChecks = ((g_pObjectClass == NULL) || pModule == g_pObjectClass->GetModule()) ||
+    bmtProp->fNoSanityChecks = pModule->IsSystem() ||
 #ifdef FEATURE_READYTORUN
         // No sanity checks for ready-to-run compiled images if possible
         (pModule->IsReadyToRun() && pModule->GetReadyToRunInfo()->SkipTypeValidation()) ||
@@ -3228,6 +3228,11 @@ MethodTableBuilder::EnumerateClassMethods()
         {
             bmtMethod->dwNumDeclaredNonAbstractMethods++;
         }
+    }
+
+    if (bmtMethod->dwNumDeclaredNonAbstractMethods == 0)
+    {
+        GetHalfBakedClass()->SetHasOnlyAbstractMethods();
     }
 
     // Check to see that we have all of the required delegate methods (ECMA 13.6 Delegates)
@@ -10771,6 +10776,18 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(bmtRTType *pDeclType,
     // If the interface method is already non-abstract, we are done
     if (!pDeclMD->IsAbstract())
         return TRUE;
+
+    // If the method is an abstract MethodImpl, this is a reabstraction:
+    //
+    // interface IFoo { void Frob() { } }
+    // interface IBar : IFoo { abstract void IFoo.Frob() }
+    //
+    // We don't require these to have an implementation because they're final anyway.
+    if (pDeclMD->IsMethodImpl())
+    {
+        assert(pDeclMD->IsFinal());
+        return TRUE;
+    }
 
     int targetSlot = pDeclMD->GetSlot();
 

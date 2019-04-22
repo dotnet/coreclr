@@ -261,6 +261,20 @@
         }
     },
     {
+        "name": "System.Diagnostics.StackTrace.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Diagnostics.Tests.StackTraceTests.ToString_NullFrame_ThrowsNullReferenceException",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Diagnostics.Tracing.Tests",
         "enabled": true,
         "exclusions": {
@@ -740,6 +754,32 @@
         }
     },
     {
+        "name": "System.IO.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.IO.Tests.CloseTests.AfterDisposeThrows",
+                    "reason": "Readers/writers changed to not null out base stream on dispose"
+                },
+                {
+                    "name": "System.IO.Tests.CloseTests.AfterCloseThrows",
+                    "reason": "Readers/writers changed to not null out base stream on dispose"
+                },
+                {
+                    "name": "System.IO.Tests.StreamWriterWithBufferedStream_CloseTests.AfterDisposeThrows",
+                    "reason": "Readers/writers changed to not null out base stream on dispose"
+                },
+                {
+                    "name": "System.IO.Tests.StreamWriterWithBufferedStream_CloseTests.AfterCloseThrows",
+                    "reason": "Readers/writers changed to not null out base stream on dispose"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.IO.FileSystem.Tests",
         "enabled": true,
         "exclusions": {
@@ -870,15 +910,23 @@
             "methods": [
                 {
                     "name": "System.Text.Tests.EncoderConvert2.EncoderASCIIConvertMixedASCIIUnicodeCharArrayPartial",
-                    "reason": "https://github.com/dotnet/coreclr/issues/23020"
+                    "reason": "https://github.com/dotnet/coreclr/issues/23864"
                 },
                 {
                     "name": "System.Text.Tests.EncoderConvert2.EncoderUTF8ConvertMixedASCIIUnicodeCharArrayPartial",
-                    "reason": "https://github.com/dotnet/coreclr/issues/23020"
+                    "reason": "https://github.com/dotnet/coreclr/issues/23864"
                 },
                 {
                     "name": "System.Text.Tests.EncoderConvert2.EncoderUTF8ConvertUnicodeCharArrayPartial",
-                    "reason": "https://github.com/dotnet/coreclr/issues/23020"
+                    "reason": "https://github.com/dotnet/coreclr/issues/23864"
+                },
+                {
+                    "name": "System.Text.Tests.NegativeEncodingTests.GetByteCount_Invalid",
+                    "reason": "https://github.com/dotnet/coreclr/issues/23864"
+                },
+                {
+                    "name": "System.Text.Tests.UTF8EncodingDecode.Decode_InvalidBytes",
+                    "reason": "https://github.com/dotnet/coreclr/issues/23864"
                 }
             ]
         }
@@ -1015,6 +1063,10 @@
             "classes": null,
             "methods": [
                 {
+                    "name": "System.Runtime.InteropServices.HandleCollectorTests.Ctor_InitialThresholdGreaterThanMaximumThreshold_ThrowsArgumentException ",
+                    "reason": "outdated"
+                },
+                {
                     "name": "System.Runtime.InteropServices.Tests.GCHandleTests.Alloc_InvalidPinnedObject_ThrowsArgumentException",
                     "reason": "outdated"
                 },
@@ -1065,6 +1117,48 @@
                 {
                     "name": "System.Runtime.InteropServices.Tests.StringToHGlobalAutoTests.StringToHGlobalAuto_NonNullString_Roundtrips",
                     "reason": "https://github.com/dotnet/coreclr/pull/23664"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.PtrToStringUTF8.PtrToStringUTF8_NegativeLength_ThrowsArgumentOutOfRangeExeption",
+                    "reason": "https://github.com/dotnet/coreclr/pull/23731"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.PtrToStringUTF8.PtrToStringUTF8_ZeroPointer_ReturnsNull",
+                    "reason": "https://github.com/dotnet/coreclr/pull/23731"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.PtrToStringUTF8.PtrToStringUTF8_Win32AtomPointer_ReturnsNull",
+                    "reason": "https://github.com/dotnet/coreclr/pull/23731"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.PtrToStringAnsiTests.PtrToStringAnsi_NegativeLength_ThrowsArgumentExeption",
+                    "reason": "https://github.com/dotnet/coreclr/pull/23731"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.PtrToStringUniTests.PtrToStringUni_NegativeLength_ThrowsArgumentExeption",
+                    "reason": "https://github.com/dotnet/coreclr/pull/23731"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ThrowExceptionForHRTests.ThrowExceptionForHR_NoErrorInfo_ReturnsValidException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ThrowExceptionForHRTests.ThrowExceptionForHR_ErrorInfo_ReturnsValidException",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Runtime.Loader.DefaultContext.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name" : "System.Runtime.Loader.Tests.DefaultLoadContextTests.LoadInDefaultContext",
+                    "reason" : "Waiting for https://github.com/dotnet/corefx/pull/37071"
                 }
             ]
         }
@@ -1301,6 +1395,18 @@
                     "name": "System.Tests.TimeSpanTests.Total_Days_Hours_Minutes_Seconds_Milliseconds",
                     "reason" : "https://github.com/dotnet/coreclr/pull/22040"
                 },
+                {
+                    "name": "System.Tests.BufferTests.BlockCopy_Invalid",
+                    "reason": "https://github.com/dotnet/coreclr/pull/23636"
+                },
+                {
+                    "name": "System.Tests.VersionTests.Comparisons_NullArgument_ThrowsArgumentNullException",
+                    "reason":  "Version was improved to no longer throw from comparison operators"
+                },
+                {
+                    "name" : "System.Tests.ActivatorNetcoreTests.CreateInstanceAssemblyResolve",
+                    "reason" : "Waiting for https://github.com/dotnet/corefx/pull/37080"
+                }
             ]
         }
     },

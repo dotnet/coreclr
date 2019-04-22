@@ -134,6 +134,61 @@ const unsigned FLG_CCTOR = (CORINFO_FLG_CONSTRUCTOR | CORINFO_FLG_STATIC);
 const int BAD_STK_OFFS = 0xBAADF00D; // for LclVarDsc::lvStkOffs
 #endif
 
+//------------------------------------------------------------------------
+// HFA info shared by LclVarDsc and fgArgTabEntry
+//------------------------------------------------------------------------
+#ifdef FEATURE_HFA
+enum HfaElemKind : unsigned int
+{
+    HFA_ELEM_NONE,
+    HFA_ELEM_FLOAT,
+    HFA_ELEM_DOUBLE,
+    HFA_ELEM_SIMD16
+};
+inline bool IsHfa(HfaElemKind kind)
+{
+    return kind != HFA_ELEM_NONE;
+}
+inline var_types HfaTypeFromElemKind(HfaElemKind kind)
+{
+    switch (kind)
+    {
+        case HFA_ELEM_FLOAT:
+            return TYP_FLOAT;
+        case HFA_ELEM_DOUBLE:
+            return TYP_DOUBLE;
+#ifdef FEATURE_SIMD
+        case HFA_ELEM_SIMD16:
+            return TYP_SIMD16;
+#endif
+        case HFA_ELEM_NONE:
+            return TYP_UNDEF;
+        default:
+            assert(!"Invalid HfaElemKind");
+            return TYP_UNDEF;
+    }
+}
+inline HfaElemKind HfaElemKindFromType(var_types type)
+{
+    switch (type)
+    {
+        case TYP_FLOAT:
+            return HFA_ELEM_FLOAT;
+        case TYP_DOUBLE:
+            return HFA_ELEM_DOUBLE;
+#ifdef FEATURE_SIMD
+        case TYP_SIMD16:
+            return HFA_ELEM_SIMD16;
+#endif
+        case TYP_UNDEF:
+            return HFA_ELEM_NONE;
+        default:
+            assert(!"Invalid HFA Type");
+            return HFA_ELEM_NONE;
+    }
+}
+#endif // FEATURE_HFA
+
 // The following holds the Local var info (scope information)
 typedef const char* VarName; // Actual ASCII string
 struct VarScopeDsc
@@ -555,8 +610,12 @@ public:
     unsigned char lvHasILStoreOp : 1;         // there is at least one STLOC or STARG on this local
     unsigned char lvHasMultipleILStoreOp : 1; // there is more than one STLOC on this local
 
-    unsigned char lvIsTemp : 1; // Short-lifetime compiler temp (if lvIsParam is false), or implicit byref parameter
-                                // (if lvIsParam is true)
+    unsigned char lvIsTemp : 1; // Short-lifetime compiler temp
+
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    unsigned char lvIsImplicitByRef : 1; // Set if the argument is an implicit byref.
+#endif                                   // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
 #if OPT_BOOL_OPS
     unsigned char lvIsBoolean : 1; // set if variable is boolean
 #endif
@@ -595,11 +654,8 @@ public:
     unsigned char lvIsMultiRegRet : 1; // true if this is a multireg LclVar struct assigned from a multireg call
 
 #ifdef FEATURE_HFA
-    unsigned char _lvIsHfa : 1;          // Is this a struct variable who's class handle is an HFA type
-    unsigned char _lvIsHfaRegArg : 1;    // Is this a HFA argument variable?    // TODO-CLEANUP: Remove this and replace
-                                         // with (lvIsRegArg && lvIsHfa())
-    unsigned char _lvHfaTypeIsFloat : 1; // Is the HFA type float or double?
-#endif                                   // FEATURE_HFA
+    HfaElemKind _lvHfaElemKind : 2; // What kind of an HFA this is (HFA_ELEM_NONE if it is not an HFA).
+#endif                              // FEATURE_HFA
 
 #ifdef DEBUG
     // TODO-Cleanup: See the note on lvSize() - this flag is only in use by asserts that are checking for struct
@@ -666,70 +722,60 @@ public:
     bool lvIsHfa() const
     {
 #ifdef FEATURE_HFA
-        return _lvIsHfa;
+        return IsHfa(_lvHfaElemKind);
 #else
         return false;
-#endif
-    }
-
-    void lvSetIsHfa()
-    {
-#ifdef FEATURE_HFA
-        _lvIsHfa = true;
 #endif
     }
 
     bool lvIsHfaRegArg() const
     {
 #ifdef FEATURE_HFA
-        return _lvIsHfaRegArg;
+        return lvIsRegArg && lvIsHfa();
 #else
         return false;
 #endif
     }
 
-    void lvSetIsHfaRegArg(bool value = true)
-    {
-#ifdef FEATURE_HFA
-        _lvIsHfaRegArg = value;
-#endif
-    }
-
-    bool lvHfaTypeIsFloat() const
-    {
-#ifdef FEATURE_HFA
-        return _lvHfaTypeIsFloat;
-#else
-        return false;
-#endif
-    }
-
-    void lvSetHfaTypeIsFloat(bool value)
-    {
-#ifdef FEATURE_HFA
-        _lvHfaTypeIsFloat = value;
-#endif
-    }
-
-    // on Arm64 - Returns 1-4 indicating the number of register slots used by the HFA
-    // on Arm32 - Returns the total number of single FP register slots used by the HFA, max is 8
+    //------------------------------------------------------------------------------
+    // lvHfaSlots: Get the number of slots used by an HFA local
+    //
+    // Return Value:
+    //    On Arm64 - Returns 1-4 indicating the number of register slots used by the HFA
+    //    On Arm32 - Returns the total number of single FP register slots used by the HFA, max is 8
     //
     unsigned lvHfaSlots() const
     {
         assert(lvIsHfa());
         assert(varTypeIsStruct(lvType));
+        unsigned slots = 0;
 #ifdef _TARGET_ARM_
-        return lvExactSize / sizeof(float);
-#else  //  _TARGET_ARM64_
-        if (lvHfaTypeIsFloat())
+        slots = lvExactSize / sizeof(float);
+        assert(slots <= 8);
+#elif defined(_TARGET_ARM64_)
+        switch (_lvHfaElemKind)
         {
-            return lvExactSize / sizeof(float);
+            case HFA_ELEM_NONE:
+                assert(!"lvHfaSlots called for non-HFA");
+                break;
+            case HFA_ELEM_FLOAT:
+                assert((lvExactSize % 4) == 0);
+                slots = lvExactSize >> 2;
+                break;
+            case HFA_ELEM_DOUBLE:
+                assert((lvExactSize % 8) == 0);
+                slots = lvExactSize >> 3;
+                break;
+            case HFA_ELEM_SIMD16:
+                assert((lvExactSize % 16) == 0);
+                slots = lvExactSize >> 4;
+                break;
+            default:
+                unreached();
         }
-        else
-        {
-            return lvExactSize / sizeof(double);
-        }
+        assert(slots <= 4);
 #endif //  _TARGET_ARM64_
+        return slots;
     }
 
     // lvIsMultiRegArgOrRet()
@@ -750,7 +796,7 @@ private:
     regNumberSmall _lvOtherReg; // Used for "upper half" of long var.
 #endif                          // !defined(_TARGET_64BIT_)
 
-    regNumberSmall _lvArgReg; // The register in which this argument is passed.
+    regNumberSmall _lvArgReg; // The (first) register in which this argument is passed.
 
 #if FEATURE_MULTIREG_ARGS
     regNumberSmall _lvOtherArgReg; // Used for the second part of the struct passed in a register.
@@ -915,7 +961,7 @@ public:
 
 private:
     unsigned short m_lvRefCnt; // unweighted (real) reference count.  For implicit by reference
-                               // parameters, this gets hijacked from fgMarkImplicitByRefArgs
+                               // parameters, this gets hijacked from fgResetImplicitByRefRefCount
                                // through fgMarkDemotedImplicitByRefArgs, to provide a static
                                // appearance count (computed during address-exposed analysis)
                                // that fgMakeOutgoingStructArgCopy consults during global morph
@@ -1030,14 +1076,22 @@ public:
     {
         return isFloatRegType(lvType) || lvIsHfaRegArg();
     }
+
     var_types GetHfaType() const
     {
-        return lvIsHfa() ? (lvHfaTypeIsFloat() ? TYP_FLOAT : TYP_DOUBLE) : TYP_UNDEF;
+#ifdef FEATURE_HFA
+        assert(lvIsHfa());
+        return HfaTypeFromElemKind(_lvHfaElemKind);
+#else
+        return TYP_UNDEF;
+#endif // FEATURE_HFA
     }
+
     void SetHfaType(var_types type)
     {
-        assert(varTypeIsFloating(type));
-        lvSetHfaTypeIsFloat(type == TYP_FLOAT);
+#ifdef FEATURE_HFA
+        _lvHfaElemKind = HfaElemKindFromType(type);
+#endif // FEATURE_HFA
     }
 
     var_types lvaArgType();
@@ -1487,8 +1541,7 @@ public:
     bool _isSplit : 1; // True when this argument is split between the registers and OutArg area
 #endif                 // FEATURE_ARG_SPLIT
 #ifdef FEATURE_HFA
-    bool _isHfaArg : 1;    // True when the argument is an HFA type.
-    bool _isDoubleHfa : 1; // True when the argument is an HFA, with an element type of DOUBLE.
+    HfaElemKind _hfaElemKind : 2; // What kind of an HFA this is (HFA_ELEM_NONE if it is not an HFA).
 #endif
 
     bool isLateArg()
@@ -1569,7 +1622,7 @@ public:
     bool getIsHfaArg()
     {
 #ifdef FEATURE_HFA
-        return _isHfaArg;
+        return IsHfa(_hfaElemKind);
 #else
         return false;
 #endif
@@ -1579,23 +1632,23 @@ public:
     bool getIsHfaRegArg()
     {
 #ifdef FEATURE_HFA
-        return _isHfaArg && isPassedInRegisters();
+        return IsHfa(_hfaElemKind) && isPassedInRegisters();
 #else
         return false;
 #endif
     }
 
-    __declspec(property(get = getHfaType)) var_types hfaType;
-    var_types getHfaType()
+    __declspec(property(get = GetHfaType)) var_types hfaType;
+    var_types GetHfaType()
     {
 #ifdef FEATURE_HFA
-        return _isHfaArg ? (_isDoubleHfa ? TYP_DOUBLE : TYP_FLOAT) : TYP_UNDEF;
+        return HfaTypeFromElemKind(_hfaElemKind);
 #else
         return TYP_UNDEF;
-#endif
+#endif // FEATURE_HFA
     }
 
-    void setHfaType(var_types type, unsigned hfaSlots)
+    void SetHfaType(var_types type, unsigned hfaSlots)
     {
 #ifdef FEATURE_HFA
         if (type != TYP_UNDEF)
@@ -1607,29 +1660,33 @@ public:
             // Note that hfaSlots is the number of registers we will use. For ARM, that is twice
             // the number of "double registers".
             unsigned numHfaRegs = hfaSlots;
-            if (isPassedInRegisters())
-            {
 #ifdef _TARGET_ARM_
-                if (type == TYP_DOUBLE)
-                {
-                    // Must be an even number of registers.
-                    assert((numRegs & 1) == 0);
-                    numHfaRegs = hfaSlots / 2;
-                }
+            if (type == TYP_DOUBLE)
+            {
+                // Must be an even number of registers.
+                assert((numRegs & 1) == 0);
+                numHfaRegs = hfaSlots / 2;
+            }
 #endif // _TARGET_ARM_
-                if (_isHfaArg)
-                {
-                    // This should already be set correctly.
-                    assert(numRegs == numHfaRegs);
-                    assert(_isDoubleHfa == (type == TYP_DOUBLE));
-                }
-                else
+
+            if (!isHfaArg)
+            {
+                // We haven't previously set this; do so now.
+                _hfaElemKind = HfaElemKindFromType(type);
+                if (isPassedInRegisters())
                 {
                     numRegs = numHfaRegs;
                 }
             }
-            _isDoubleHfa = (type == TYP_DOUBLE);
-            _isHfaArg    = true;
+            else
+            {
+                // We've already set this; ensure that it's consistent.
+                if (isPassedInRegisters())
+                {
+                    assert(numRegs == numHfaRegs);
+                }
+                assert(type == HfaTypeFromElemKind(_hfaElemKind));
+            }
         }
 #endif // FEATURE_HFA
     }
@@ -1701,22 +1758,32 @@ public:
     {
         unsigned size = getSlotCount();
 #ifdef FEATURE_HFA
+        if (isHfaRegArg)
+        {
 #ifdef _TARGET_ARM_
-        // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
-        if (isHfaRegArg && (hfaType == TYP_DOUBLE))
-        {
-            assert(!isSplit);
-            size <<= 1;
-        }
+            // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
+            if (hfaType == TYP_DOUBLE)
+            {
+                assert(!isSplit);
+                size <<= 1;
+            }
 #elif defined(_TARGET_ARM64_)
-        // We counted the number of regs, but if they are FLOAT hfa regs we have to halve the size.
-        if (isHfaRegArg && (hfaType == TYP_FLOAT))
-        {
-            // Round up in case of odd HFA count.
-            size = (size + 1) >> 1;
-        }
+            // We counted the number of regs, but if they are FLOAT hfa regs we have to halve the size,
+            // or if they are SIMD16 vector hfa regs we have to double the size.
+            if (hfaType == TYP_FLOAT)
+            {
+                // Round up in case of odd HFA count.
+                size = (size + 1) >> 1;
+            }
+#ifdef FEATURE_SIMD
+            else if (hfaType == TYP_SIMD16)
+            {
+                size <<= 1;
+            }
+#endif // FEATURE_SIMD
 #endif // _TARGET_ARM64_
-#endif
+        }
+#endif // FEATURE_HFA
         return size;
     }
 
@@ -2864,11 +2931,13 @@ public:
 #ifdef DEBUG
     void gtDispNode(GenTree* tree, IndentStack* indentStack, __in_z const char* msg, bool isLIR);
 
-    void gtDispVN(GenTree* tree);
     void gtDispConst(GenTree* tree);
     void gtDispLeaf(GenTree* tree, IndentStack* indentStack);
     void gtDispNodeName(GenTree* tree);
     void gtDispRegVal(GenTree* tree);
+    void gtDispZeroFieldSeq(GenTree* tree);
+    void gtDispVN(GenTree* tree);
+    void gtDispCommonEndLine(GenTree* tree);
 
     enum IndentInfo
     {
@@ -3285,16 +3354,16 @@ public:
     BOOL lvaIsOriginalThisReadOnly();           // return TRUE if there is no place in the code
                                                 // that writes to arg0
 
-    // Struct parameters that are passed by reference are marked as both lvIsParam and lvIsTemp
-    // (this is an overload of lvIsTemp because there are no temp parameters).
     // For x64 this is 3, 5, 6, 7, >8 byte structs that are passed by reference.
     // For ARM64, this is structs larger than 16 bytes that are passed by reference.
     bool lvaIsImplicitByRefLocal(unsigned varNum)
     {
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
-        LclVarDsc* varDsc = &(lvaTable[varNum]);
-        if (varDsc->lvIsParam && varDsc->lvIsTemp)
+        LclVarDsc* varDsc = lvaGetDesc(varNum);
+        if (varDsc->lvIsImplicitByRef)
         {
+            assert(varDsc->lvIsParam);
+
             assert(varTypeIsStruct(varDsc) || (varDsc->lvType == TYP_BYREF));
             return true;
         }
@@ -5606,8 +5675,8 @@ private:
     void fgMorphStructField(GenTree* tree, GenTree* parent);
     void fgMorphLocalField(GenTree* tree, GenTree* parent);
 
-    // Identify which parameters are implicit byrefs, and flag their LclVarDscs.
-    void fgMarkImplicitByRefArgs();
+    // Reset the refCount for implicit byrefs.
+    void fgResetImplicitByRefRefCount();
 
     // Change implicit byrefs' types from struct to pointer, and for any that were
     // promoted, create new promoted struct temps.
@@ -6722,7 +6791,7 @@ public:
     fgWalkResult optVNConstantPropCurStmt(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree);
     GenTree* optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test);
     GenTree* optVNConstantPropOnTree(BasicBlock* block, GenTree* tree);
-    GenTree* optPrepareTreeForReplacement(GenTree* extractTree, GenTree* replaceTree);
+    GenTree* optExtractSideEffListFromConst(GenTree* tree);
 
     AssertionIndex GetAssertionCount()
     {
@@ -7611,6 +7680,17 @@ private:
 
     // Should we support SIMD intrinsics?
     bool featureSIMD;
+
+    // Should we recognize SIMD types?
+    // We always do this on ARM64 to support HVA types.
+    bool supportSIMDTypes()
+    {
+#ifdef _TARGET_ARM64_
+        return true;
+#else
+        return featureSIMD;
+#endif
+    }
 
     // Have we identified any SIMD types?
     // This is currently used by struct promotion to avoid getting type information for a struct
@@ -10491,11 +10571,14 @@ extern const BYTE genActualTypes[];
 
 // VERY_LARGE_FRAME_SIZE_REG_MASK is the set of registers we need to use for
 // the probing loop generated for very large stack frames (see `getVeryLargeFrameSize`).
+// We only use this to ensure that if we need to reserve a callee-saved register,
+// it will be reserved. For ARM32, only R12 and LR are non-callee-saved, non-argument
+// registers, so we save at least one more callee-saved register. For ARM64, however,
+// we already know we have at least three non-callee-saved, non-argument integer registers,
+// so we don't need to save any more.
 
 #ifdef _TARGET_ARM_
-#define VERY_LARGE_FRAME_SIZE_REG_MASK (RBM_R4 | RBM_R5 | RBM_R6)
-#elif defined(_TARGET_ARM64_)
-#define VERY_LARGE_FRAME_SIZE_REG_MASK (RBM_R9 | RBM_R10 | RBM_R11)
+#define VERY_LARGE_FRAME_SIZE_REG_MASK (RBM_R4)
 #endif
 
 /*****************************************************************************/

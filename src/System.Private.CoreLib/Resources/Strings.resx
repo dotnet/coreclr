@@ -541,6 +541,9 @@
   <data name="Arg_MustBePrimArray" xml:space="preserve">
     <value>Object must be an array of primitives.</value>
   </data>
+  <data name="Arg_MustBeRuntimeAssembly" xml:space="preserve">
+    <value>Object must be of type RuntimeAssembly.</value>
+  </data>
   <data name="Arg_MustBeSByte" xml:space="preserve">
     <value>Object must be of type SByte.</value>
   </data>
@@ -2934,9 +2937,6 @@
   </data>
   <data name="NotSupported_DBNullSerial" xml:space="preserve">
     <value>Only one DBNull instance may exist, and calls to DBNull deserialization methods are not allowed.</value>
-  </data>
-  <data name="NotSupported_DelegateSerHolderSerial" xml:space="preserve">
-    <value>DelegateSerializationHolder objects are designed to represent a delegate during serialization and are not serializable themselves.</value>
   </data>
   <data name="NotSupported_DynamicAssembly" xml:space="preserve">
     <value>The invoked member is not supported in a dynamic assembly.</value>

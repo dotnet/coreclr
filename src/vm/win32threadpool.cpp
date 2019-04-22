@@ -345,12 +345,16 @@ BOOL ThreadpoolMgr::Initialize()
     UnManagedPerAppDomainTPCount* pADTPCount;
     pADTPCount = PerAppDomainTPCountList::GetUnmanagedTPCount();
 
+#ifndef FEATURE_PAL
     //ThreadPool_CPUGroup
     CPUGroupInfo::EnsureInitialized();
     if (CPUGroupInfo::CanEnableGCCPUGroups() && CPUGroupInfo::CanEnableThreadUseAllCpuGroups())
         NumberOfProcessors = CPUGroupInfo::GetNumActiveProcessors();
     else
         NumberOfProcessors = GetCurrentProcessCpuCount();
+#else // !FEATURE_PAL
+    NumberOfProcessors = GetCurrentProcessCpuCount();
+#endif // !FEATURE_PAL
     InitPlatformVariables();
 
     EX_TRY
@@ -380,20 +384,15 @@ BOOL ThreadpoolMgr::Initialize()
         RetiredWorkerSemaphore = new CLRLifoSemaphore();
         RetiredWorkerSemaphore->Create(0, ThreadCounter::MaxPossibleCount);
 
+#ifndef FEATURE_PAL
         //ThreadPool_CPUGroup
         if (CPUGroupInfo::CanEnableGCCPUGroups() && CPUGroupInfo::CanEnableThreadUseAllCpuGroups())
             RecycledLists.Initialize( CPUGroupInfo::GetNumActiveProcessors() );
         else
             RecycledLists.Initialize( g_SystemInfo.dwNumberOfProcessors );
-        /*
-            {
-                SYSTEM_INFO sysInfo;
-
-                ::GetSystemInfo( &sysInfo );
-
-                RecycledLists.Initialize( sysInfo.dwNumberOfProcessors );
-            }
-        */
+#else // !FEATURE_PAL
+        RecycledLists.Initialize( PAL_GetTotalCpuCount() );
+#endif // !FEATURE_PAL
     }
     EX_CATCH
     {
@@ -405,7 +404,7 @@ BOOL ThreadpoolMgr::Initialize()
             RetiredCPWakeupEvent = NULL;
         }
 
-        // Note: It is fine to call Destroy on unitialized critical sections
+        // Note: It is fine to call Destroy on uninitialized critical sections
         WorkerCriticalSection.Destroy();
         WaitThreadsCriticalSection.Destroy();
         TimerQueueCriticalSection.Destroy();
@@ -694,6 +693,18 @@ BOOL ThreadpoolMgr::GetAvailableThreads(DWORD* AvailableWorkerThreads,
     return TRUE;
 }
 
+INT32 ThreadpoolMgr::GetThreadCount()
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (!IsInitialized())
+    {
+        return 0;
+    }
+
+    return WorkerCounter.DangerousGetDirtyCounts().NumActive + CPThreadCounter.DangerousGetDirtyCounts().NumActive;
+}
+
 void QueueUserWorkItemHelp(LPTHREAD_START_ROUTINE Function, PVOID Context)
 {
     STATIC_CONTRACT_THROWS;
@@ -912,7 +923,7 @@ void ThreadpoolMgr::AdjustMaxWorkersActive()
     _ASSERTE(ThreadAdjustmentLock.IsHeld());
 
     DWORD currentTicks = GetTickCount();
-    LONG totalNumCompletions = Thread::GetTotalThreadPoolCompletionCount();
+    LONG totalNumCompletions = (LONG)Thread::GetTotalWorkerThreadPoolCompletionCount();
     LONG numCompletions = totalNumCompletions - VolatileLoad(&PriorCompletedWorkRequests);
 
     LARGE_INTEGER startTime = CurrentSampleStartTime;
@@ -2865,6 +2876,10 @@ DWORD WINAPI ThreadpoolMgr::AsyncCallbackCompletion(PVOID pArgs)
 
         ((WAITORTIMERCALLBACKFUNC) waitInfo->Callback)
                                     ( waitInfo->Context, asyncCallback->waitTimedOut != FALSE);
+
+#ifndef FEATURE_PAL
+        Thread::IncrementIOThreadPoolCompletionCount(pThread);
+#endif
     }
 
     return ERROR_SUCCESS;
@@ -3095,12 +3110,7 @@ void ThreadpoolMgr::DeregisterWait(WaitInfo* pArgs)
 
     if (InterlockedDecrement(&waitInfo->refCount) == 0)
     {
-        // After we suspend EE during shutdown, a thread may be blocked in WaitForEndOfShutdown in alertable state.
-        // We don't allow a thread reenter runtime while processing APC or pumping message.
-        if (!g_fSuspendOnShutdown )
-        {
-            DeleteWait(waitInfo);
-        }
+        DeleteWait(waitInfo);
     }
     return;
 }
@@ -3610,6 +3620,12 @@ Top:
                     ((LPOVERLAPPED_COMPLETION_ROUTINE) key)(errorCode, numBytes, pOverlapped);
                 }
 
+                if ((void *)key != CallbackForInitiateDrainageOfCompletionPortQueue &&
+                    (void *)key != CallbackForContinueDrainageOfCompletionPortQueue)
+                {
+                    Thread::IncrementIOThreadPoolCompletionCount(pThread);
+                }
+
                 if (pThread == NULL) {
                     pThread = GetThread();
                 }
@@ -4095,9 +4111,10 @@ DWORD WINAPI ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
         return 0;
     }
 
+#ifndef FEATURE_PAL
     //GateThread can start before EESetup, so ensure CPU group information is initialized;
     CPUGroupInfo::EnsureInitialized();
-
+#endif // !FEATURE_PAL
     // initialize CPU usage information structure;
     prevCPUInfo.idleTime.QuadPart   = 0;
     prevCPUInfo.kernelTime.QuadPart = 0;

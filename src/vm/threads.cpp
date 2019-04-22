@@ -83,7 +83,9 @@ PTR_ThreadLocalModule ThreadLocalBlock::GetTLMIfExists(MethodTable* pMT)
 
 BOOL Thread::s_fCleanFinalizedThread = FALSE;
 
-Volatile<LONG> Thread::s_threadPoolCompletionCountOverflow = 0;
+UINT64 Thread::s_workerThreadPoolCompletionCountOverflow = 0;
+UINT64 Thread::s_ioThreadPoolCompletionCountOverflow = 0;
+UINT64 Thread::s_monitorLockContentionCountOverflow = 0;
 
 CrstStatic g_DeadlockAwareCrst;
 
@@ -451,7 +453,7 @@ void Thread::ChooseThreadCPUGroupAffinity()
         GC_TRIGGERS;
     }
     CONTRACTL_END;
-
+#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
@@ -471,6 +473,7 @@ void Thread::ChooseThreadCPUGroupAffinity()
     CPUGroupInfo::SetThreadGroupAffinity(GetThreadHandle(), &groupAffinity, NULL);
     m_wCPUGroup = groupAffinity.Group;
     m_pAffinityMask = groupAffinity.Mask;
+#endif // !FEATURE_PAL
 }
 
 void Thread::ClearThreadCPUGroupAffinity()
@@ -481,7 +484,7 @@ void Thread::ClearThreadCPUGroupAffinity()
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-
+#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
@@ -499,6 +502,7 @@ void Thread::ClearThreadCPUGroupAffinity()
 
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
+#endif // !FEATURE_PAL
 }
 
 DWORD Thread::StartThread()
@@ -1526,7 +1530,9 @@ Thread::Thread()
     m_sfEstablisherOfActualHandlerFrame.Clear();
 #endif // WIN64EXCEPTIONS
 
-    m_threadPoolCompletionCount = 0;
+    m_workerThreadPoolCompletionCount = 0;
+    m_ioThreadPoolCompletionCount = 0;
+    m_monitorLockContentionCount = 0;
 
     Thread *pThread = GetThread();
     InitContext();
@@ -1561,8 +1567,10 @@ Thread::Thread()
     
     m_fGCSpecial = FALSE;
 
+#ifndef FEATURE_PAL
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
+#endif // !FEATURE_PAL
 
     m_pAllLoggedTypes = NULL;
 
@@ -5209,12 +5217,6 @@ DEBUG_NOINLINE void ThreadStore::Enter()
     ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
     CHECK_ONE_STORE();
     m_Crst.Enter();
-
-    // Threadstore needs special shutdown handling.
-    if (g_fSuspendOnShutdown)
-    {
-        m_Crst.ReleaseAndBlockForShutdownIfNotSpecialThread();
-    }
 }
 
 DEBUG_NOINLINE void ThreadStore::Leave()
@@ -5352,9 +5354,15 @@ BOOL ThreadStore::RemoveThread(Thread *target)
         if (target->IsBackground())
             s_pThreadStore->m_BackgroundThreadCount--;
 
-        FastInterlockExchangeAdd(
-            &Thread::s_threadPoolCompletionCountOverflow,
-            target->m_threadPoolCompletionCount);
+        FastInterlockExchangeAddLong(
+            (LONGLONG *)&Thread::s_workerThreadPoolCompletionCountOverflow,
+            target->m_workerThreadPoolCompletionCount);
+        FastInterlockExchangeAddLong(
+            (LONGLONG *)&Thread::s_ioThreadPoolCompletionCountOverflow,
+            target->m_ioThreadPoolCompletionCount);
+        FastInterlockExchangeAddLong(
+            (LONGLONG *)&Thread::s_monitorLockContentionCountOverflow,
+            target->m_monitorLockContentionCount);
 
         _ASSERTE(s_pThreadStore->m_ThreadCount >= 0);
         _ASSERTE(s_pThreadStore->m_BackgroundThreadCount >= 0);
@@ -8004,7 +8012,23 @@ BOOL ThreadStore::HoldingThreadStore(Thread *pThread)
     }
 }
 
-LONG Thread::GetTotalThreadPoolCompletionCount()
+NOINLINE void Thread::OnIncrementCountOverflow(UINT32 *threadLocalCount, UINT64 *overflowCount)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(threadLocalCount != nullptr);
+    _ASSERTE(overflowCount != nullptr);
+
+    // Increment overflow, accumulate the count for this increment into the overflow count and reset the thread-local count
+
+    // The thread store lock, in coordination with other places that read these values, ensures that both changes
+    // below become visible together
+    ThreadStoreLockHolder tsl;
+
+    *threadLocalCount = 0;
+    InterlockedExchangeAdd64((LONGLONG *)overflowCount, (LONGLONG)UINT32_MAX + 1);
+}
+
+UINT64 Thread::GetTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCount)
 {
     CONTRACTL
     {
@@ -8013,31 +8037,43 @@ LONG Thread::GetTotalThreadPoolCompletionCount()
     }
     CONTRACTL_END;
 
-    LONG total;
-    if (g_fEEStarted) //make sure we actually have a thread store
+    // enumerate all threads, summing their local counts.
+    ThreadStoreLockHolder tsl;
+
+    UINT64 total = GetOverflowCount(overflowCount);
+
+    Thread *pThread = NULL;
+    while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
     {
-        // make sure up-to-date thread-local counts are visible to us
-        ::FlushProcessWriteBuffers();
-
-        // enumerate all threads, summing their local counts.
-        ThreadStoreLockHolder tsl;
-
-        total = s_threadPoolCompletionCountOverflow.Load();
-
-        Thread *pThread = NULL;
-        while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
-        {
-            total += pThread->m_threadPoolCompletionCount;
-        }
-    }
-    else
-    {
-        total = s_threadPoolCompletionCountOverflow.Load();
+        total += *GetThreadLocalCountRef(pThread, threadLocalCountOffset);
     }
 
     return total;
 }
 
+UINT64 Thread::GetTotalThreadPoolCompletionCount()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // enumerate all threads, summing their local counts.
+    ThreadStoreLockHolder tsl;
+
+    UINT64 total = GetWorkerThreadPoolCompletionCountOverflow() + GetIOThreadPoolCompletionCountOverflow();
+
+    Thread *pThread = NULL;
+    while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
+    {
+        total += pThread->m_workerThreadPoolCompletionCount;
+        total += pThread->m_ioThreadPoolCompletionCount;
+    }
+
+    return total;
+}
 
 INT32 Thread::ResetManagedThreadObject(INT32 nPriority)
 {

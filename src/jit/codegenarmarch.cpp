@@ -704,6 +704,22 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     varNode  = addrNode->AsLclVarCommon();
                     addrNode = nullptr;
                 }
+                else // addrNode is used
+                {
+                    // Generate code to load the address that we need into a register
+                    genConsumeAddress(addrNode);
+                    addrReg = addrNode->gtRegNum;
+
+#ifdef _TARGET_ARM64_
+                    // If addrReg equal to loReg, swap(loReg, hiReg)
+                    // This reduces code complexity by only supporting one addrReg overwrite case
+                    if (loReg == addrReg)
+                    {
+                        loReg = hiReg;
+                        hiReg = addrReg;
+                    }
+#endif // _TARGET_ARM64_
+                }
             }
 
             // Either varNode or addrNOde must have been setup above,
@@ -714,12 +730,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             BYTE* gcPtrs                        = gcPtrArray;
 
             unsigned gcPtrCount; // The count of GC pointers in the struct
-            int      structSize;
+            unsigned structSize;
             bool     isHfa;
-
-            // This is the varNum for our load operations,
-            // only used when we have a multireg struct with a LclVar source
-            unsigned varNumInp = BAD_VAR_NUM;
 
 #ifdef _TARGET_ARM_
             // On ARM32, size of reference map can be larger than MAX_ARG_REG_COUNT
@@ -727,11 +739,10 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             gcPtrCount = treeNode->gtNumberReferenceSlots;
 #endif
             // Setup the structSize, isHFa, and gcPtrCount
-            if (varNode != nullptr)
+            if (source->OperGet() == GT_LCL_VAR)
             {
-                varNumInp = varNode->gtLclNum;
-                assert(varNumInp < compiler->lvaCount);
-                LclVarDsc* varDsc = &compiler->lvaTable[varNumInp];
+                assert(varNode != nullptr);
+                LclVarDsc* varDsc = compiler->lvaGetDesc(varNode);
 
                 // This struct also must live in the stack frame
                 // And it can't live in a register (SIMD)
@@ -747,29 +758,40 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     gcPtrs[i]   = varDsc->lvGcLayout[i];
 #endif // _TARGET_ARM_
             }
-            else // addrNode is used
+            else // we must have a GT_OBJ
             {
-                assert(addrNode != nullptr);
+                assert(source->OperGet() == GT_OBJ);
 
-                // Generate code to load the address that we need into a register
-                genConsumeAddress(addrNode);
-                addrReg = addrNode->gtRegNum;
-
-#ifdef _TARGET_ARM64_
-                // If addrReg equal to loReg, swap(loReg, hiReg)
-                // This reduces code complexity by only supporting one addrReg overwrite case
-                if (loReg == addrReg)
-                {
-                    loReg = hiReg;
-                    hiReg = addrReg;
-                }
-#endif // _TARGET_ARM64_
-
+                // If the source is an OBJ node then we need to use the type information
+                // it provides (size and GC layout) even if the node wraps a lclvar. Due
+                // to struct reinterpretation (e.g. Unsafe.As<X, Y>) it is possible that
+                // the OBJ node has a different type than the lclvar.
                 CORINFO_CLASS_HANDLE objClass = source->gtObj.gtClass;
 
                 structSize = compiler->info.compCompHnd->getClassSize(objClass);
-                isHfa      = compiler->IsHfa(objClass);
+
+                // The codegen code below doesn't have proper support for struct sizes
+                // that are not multiple of the slot size. Call arg morphing handles this
+                // case by copying non-local values to temporary local variables.
+                // More generally, we can always round up the struct size when the OBJ node
+                // wraps a local variable because the local variable stack allocation size
+                // is also rounded up to be a multiple of the slot size.
+                if (varNode != nullptr)
+                {
+                    structSize = roundUp(structSize, TARGET_POINTER_SIZE);
+                }
+                else
+                {
+                    assert((structSize % TARGET_POINTER_SIZE) == 0);
+                }
+
+                isHfa = compiler->IsHfa(objClass);
+
 #ifdef _TARGET_ARM64_
+                // On ARM32, Lowering places the correct GC layout information in the
+                // GenTreePutArgStk node and the code above already use that. On ARM64,
+                // this information is not available (in order to keep GenTreePutArgStk
+                // nodes small) and we need to retrieve it from the VM here.
                 gcPtrCount = compiler->info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
 #endif
             }
@@ -806,8 +828,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 if (varNode != nullptr)
                 {
                     // Load from our varNumImp source
-                    emit->emitIns_R_R_S_S(INS_ldp, emitTypeSize(type0), emitTypeSize(type1), loReg, hiReg, varNumInp,
-                                          structOffset);
+                    emit->emitIns_R_R_S_S(INS_ldp, emitTypeSize(type0), emitTypeSize(type1), loReg, hiReg,
+                                          varNode->GetLclNum(), structOffset);
                 }
                 else
                 {
@@ -841,7 +863,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 if (varNode != nullptr)
                 {
                     // Load from our varNumImp source
-                    emit->emitIns_R_S(INS_ldr, emitTypeSize(type), loReg, varNumInp, structOffset);
+                    emit->emitIns_R_S(INS_ldr, emitTypeSize(type), loReg, varNode->GetLclNum(), structOffset);
                 }
                 else
                 {
@@ -880,7 +902,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     if (varNode != nullptr)
                     {
                         // Load from our varNumImp source
-                        emit->emitIns_R_S(ins_Load(nextType), nextAttr, loReg, varNumInp, structOffset);
+                        emit->emitIns_R_S(ins_Load(nextType), nextAttr, loReg, varNode->GetLclNum(), structOffset);
                     }
                     else
                     {
@@ -2355,7 +2377,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     }
     else
     {
-        assert(!varTypeIsStruct(call));
+        assert(call->gtType != TYP_STRUCT);
 
         if (call->gtType == TYP_REF)
         {
@@ -2509,9 +2531,13 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 // TCB in REG_PINVOKE_TCB. fgMorphCall() sets the correct argument registers.
                 returnReg = REG_PINVOKE_TCB;
             }
+            else if (compiler->opts.compUseSoftFP)
+            {
+                returnReg = REG_INTRET;
+            }
             else
 #endif // _TARGET_ARM_
-                if (varTypeIsFloating(returnType) && !compiler->opts.compUseSoftFP)
+                if (varTypeUsesFloatArgReg(returnType))
             {
                 returnReg = REG_FLOATRET;
             }
@@ -3501,8 +3527,13 @@ bool CodeGen::isStructReturn(GenTree* treeNode)
     // For the GT_RET_FILT, the return is always
     // a bool or a void, for the end of a finally block.
     noway_assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
+    var_types returnType = treeNode->TypeGet();
 
-    return varTypeIsStruct(treeNode);
+#ifdef _TARGET_ARM64_
+    return varTypeIsStruct(returnType) && (compiler->info.compRetNativeType == TYP_STRUCT);
+#else
+    return varTypeIsStruct(returnType);
+#endif
 }
 
 //------------------------------------------------------------------------
@@ -3744,8 +3775,18 @@ void CodeGen::genStructReturn(GenTree* treeNode)
 // genAllocLclFrame: Probe the stack and allocate the local stack frame: subtract from SP.
 //
 // Notes:
-//      On ARM64, this only does the probing; allocating the frame is done when
-//      callee-saved registers are saved.
+//      On ARM64, this only does the probing; allocating the frame is done when callee-saved registers are saved.
+//      This is done before anything has been pushed. The previous frame might have a large outgoing argument
+//      space that has been allocated, but the lowest addresses have not been touched. Our frame setup might
+//      not touch up to the first 504 bytes. This means we could miss a guard page. On Windows, however,
+//      there are always three guard pages, so we will not miss them all.
+//
+//      On ARM32, the first instruction of the prolog is always a push (which touches the lowest address
+//      of the stack), either of the LR register or of some argument registers, e.g., in the case of
+//      pre-spilling. The LR register is always pushed because we require it to allow for GC return
+//      address hijacking (see the comment in CodeGen::genPushCalleeSavedRegisters()). These pushes
+//      happen immediately before calling this function, so the SP at the current location has already
+//      been touched.
 //
 void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
 {
@@ -3763,24 +3804,28 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
     if (frameSize < pageSize)
     {
 #ifdef _TARGET_ARM_
-        // Frame size is (0x0008..0x1000)
+        // Frame size is (0x0000..0x1000). No probing necessary.
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
 #endif // _TARGET_ARM_
     }
     else if (frameSize < compiler->getVeryLargeFrameSize())
     {
-        // Frame size is (0x1000..0x3000)
+#if defined(_TARGET_ARM64_)
+        regNumber rTemp = REG_ZR; // We don't need a register for the target of the dummy load
+#else
+        regNumber rTemp = initReg;
+#endif
 
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)pageSize);
-        getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
-        regSet.verifyRegUsed(initReg);
-        *pInitRegZeroed = false; // The initReg does not contain zero
-
-        if (frameSize >= 0x2000)
+        for (target_size_t probeOffset = pageSize; probeOffset <= frameSize; probeOffset += pageSize)
         {
-            instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -2 * (ssize_t)pageSize);
-            getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
+            // Generate:
+            //    movw initReg, -probeOffset
+            //    ldr rTemp, [SP + initReg]  // load into initReg on arm32, wzr on ARM64
+
+            instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)probeOffset);
+            getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, initReg);
             regSet.verifyRegUsed(initReg);
+            *pInitRegZeroed = false; // The initReg does not contain zero
         }
 
 #ifdef _TARGET_ARM64_
@@ -3796,29 +3841,28 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // Frame size >= 0x3000
         assert(frameSize >= compiler->getVeryLargeFrameSize());
 
-        // Emit the following sequence to 'tickle' the pages.
-        // Note it is important that stack pointer not change until this is
-        // complete since the tickles could cause a stack overflow, and we
-        // need to be able to crawl the stack afterward (which means the
-        // stack pointer needs to be known).
-
-        instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
-
+        // Emit the following sequence to 'tickle' the pages. Note it is important that stack pointer not change
+        // until this is complete since the tickles could cause a stack overflow, and we need to be able to crawl
+        // the stack afterward (which means the stack pointer needs to be known).
         //
-        // Can't have a label inside the ReJIT padding area
-        //
-        genPrologPadForReJit();
+        // ARM64 needs 2 registers. ARM32 needs 3 registers. See VERY_LARGE_FRAME_SIZE_REG_MASK for how these
+        // are reserved.
 
-        // TODO-ARM64-Bug?: set the availMask properly!
-        regMaskTP availMask =
-            (regSet.rsGetModifiedRegsMask() & RBM_ALLINT) | RBM_R12 | RBM_LR; // Set of available registers
+        regMaskTP availMask = RBM_ALLINT & (regSet.rsGetModifiedRegsMask() | ~RBM_INT_CALLEE_SAVED);
         availMask &= ~maskArgRegsLiveIn;   // Remove all of the incoming argument registers as they are currently live
         availMask &= ~genRegMask(initReg); // Remove the pre-calculated initReg
 
         regNumber rOffset = initReg;
         regNumber rLimit;
-        regNumber rTemp;
         regMaskTP tempMask;
+
+#if defined(_TARGET_ARM64_)
+
+        regNumber rTemp = REG_ZR; // We don't need a register for the target of the dummy load
+
+#else // _TARGET_ARM_
+
+        regNumber rTemp;
 
         // We pick the next lowest register number for rTemp
         noway_assert(availMask != RBM_NONE);
@@ -3826,33 +3870,50 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         rTemp    = genRegNumFromMask(tempMask);
         availMask &= ~tempMask;
 
+#endif // _TARGET_ARM_
+
         // We pick the next lowest register number for rLimit
         noway_assert(availMask != RBM_NONE);
         tempMask = genFindLowestBit(availMask);
         rLimit   = genRegNumFromMask(tempMask);
         availMask &= ~tempMask;
 
-        // TODO-LdStArch-Bug?: review this. The first time we load from [sp+0] which will always succeed. That doesn't
-        // make sense.
-        // TODO-ARM64-CQ: we could probably use ZR on ARM64 instead of rTemp.
+        // Generate:
         //
+        //      mov rOffset, -pageSize    // On arm, this turns out to be "movw r1, 0xf000; sxth r1, r1".
+        //                                // We could save 4 bytes in the prolog by using "movs r1, 0" at the
+        //                                // runtime expense of running a useless first loop iteration.
         //      mov rLimit, -frameSize
         // loop:
-        //      ldr rTemp, [sp+rOffset]
-        //      sub rOffset, 0x1000     // Note that 0x1000 on ARM32 uses the funky Thumb immediate encoding
-        //      cmp rOffset, rLimit
-        //      jge loop
+        //      ldr rTemp, [sp + rOffset] // rTemp = wzr on ARM64
+        //      sub rOffset, pageSize     // Note that 0x1000 (normal ARM32 pageSize) on ARM32 uses the funky
+        //                                // Thumb immediate encoding
+        //      cmp rLimit, rOffset
+        //      b.ls loop                 // If rLimit is lower or same, we need to probe this rOffset. Note
+        //                                // especially that if it is the same, we haven't probed this page.
+
         noway_assert((ssize_t)(int)frameSize == (ssize_t)frameSize); // make sure framesize safely fits within an int
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, rLimit, -(int)frameSize);
+
+        instGen_Set_Reg_To_Imm(EA_PTRSIZE, rOffset, -(ssize_t)pageSize);
+        instGen_Set_Reg_To_Imm(EA_PTRSIZE, rLimit, -(ssize_t)frameSize);
+
+        //
+        // Can't have a label inside the ReJIT padding area
+        //
+        genPrologPadForReJit();
+
+        // There's a "virtual" label here. But we can't create a label in the prolog, so we use the magic
+        // `emitIns_J` with a negative `instrCount` to branch back a specific number of instructions.
+
         getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, rOffset);
-        regSet.verifyRegUsed(rTemp);
 #if defined(_TARGET_ARM_)
+        regSet.verifyRegUsed(rTemp);
         getEmitter()->emitIns_R_I(INS_sub, EA_PTRSIZE, rOffset, pageSize);
 #elif defined(_TARGET_ARM64_)
         getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, rOffset, rOffset, pageSize);
-#endif // _TARGET_ARM64_
-        getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rOffset, rLimit);
-        getEmitter()->emitIns_J(INS_bhi, NULL, -4);
+#endif
+        getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rLimit, rOffset); // If equal, we need to probe again
+        getEmitter()->emitIns_J(INS_bls, NULL, -4);
 
         *pInitRegZeroed = false; // The initReg does not contain zero
 
