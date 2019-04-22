@@ -2572,6 +2572,7 @@ HRESULT IsSupportedDelegateHelper(IDacDbiInterface::DelegateType delType)
     switch (delType)
     {
     case IDacDbiInterface::DelegateType::kClosedDelegate:
+    case IDacDbiInterface::DelegateType::kOpenDelegate:
         return S_OK;
     case IDacDbiInterface::DelegateType::kUnmanagedFunctionDelegate:
         return CORDBG_E_NATIVE_DELEGATE;
@@ -2601,12 +2602,15 @@ HRESULT CordbObjectValue::GetTargetHelper(ICorDebugReferenceValue **ppTarget)
         return hr;
 
     hr = pDAC->GetDelegateTargetObject(delType, pDelegateObj, &pDelegateTargetObj, &pAppDomainOfTarget);
-    if (hr != S_OK || pDelegateObj.IsNull())
+    if (hr != S_OK || pDelegateTargetObj.IsNull())
+    {
+        *ppTarget = NULL;
         return hr;
+    }
 
+    RSLockHolder lockHolder(GetProcess()->GetProcessLock());
     RSSmartPtr<CordbAppDomain> pCordbAppDomForTarget(GetProcess()->LookupOrCreateAppDomain(pAppDomainOfTarget));
     RSSmartPtr<CordbReferenceValue> targetObjRefVal(CordbValue::CreateHeapReferenceValue(pCordbAppDomForTarget, pDelegateTargetObj));
-
     *ppTarget = static_cast<ICorDebugReferenceValue*>(targetObjRefVal.GetValue());
     targetObjRefVal->ExternalAddRef();
 
@@ -2645,7 +2649,11 @@ HRESULT CordbObjectValue::GetFunctionHelper(ICorDebugFunction **ppFunction)
     pDAC->GetNativeCodeInfo(functionDomainFile, functionMethodDef, &nativeCodeForDelFunc);
 
     RSSmartPtr<CordbModule> funcModule(GetProcess()->LookupOrCreateModule(functionDomainFile));
-    RSSmartPtr<CordbFunction> func(funcModule->LookupOrCreateFunction(functionMethodDef, nativeCodeForDelFunc.encVersion));
+    RSSmartPtr<CordbFunction> func;
+    {
+        RSLockHolder lockHolder(GetProcess()->GetProcessLock());
+        func.Assign(funcModule->LookupOrCreateFunction(functionMethodDef, nativeCodeForDelFunc.encVersion));
+    }
 
     *ppFunction = static_cast<ICorDebugFunction*> (func.GetValue());
     func->ExternalAddRef();
