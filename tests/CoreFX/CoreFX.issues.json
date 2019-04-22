@@ -967,7 +967,7 @@
             "classes": null,
             "methods": [
                 {
-                    "name": "System.Threading.ThreadPools.Tests.SetMinMaxThreadsTest",
+                    "name": "System.Threading.ThreadPools.Tests.ThreadPoolTests.SetMinMaxThreadsTest",
                     "reason": "https://github.com/dotnet/corefx/issues/36885"
                 }
             ]
