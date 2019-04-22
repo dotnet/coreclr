@@ -387,15 +387,15 @@ namespace System.Diagnostics.Tracing
             return result;
         }
 
-        public static MethodInfo GetGetMethod(PropertyInfo propInfo)
+        public static MethodInfo? GetGetMethod(PropertyInfo propInfo)
         {
-            MethodInfo result = propInfo.GetGetMethod();
+            MethodInfo? result = propInfo.GetGetMethod();
             return result;
         }
 
-        public static MethodInfo GetDeclaredStaticMethod(Type declaringType, string name)
+        public static MethodInfo? GetDeclaredStaticMethod(Type declaringType, string name)
         {
-            MethodInfo result;
+            MethodInfo? result;
 #if (ES_BUILD_PCL || ES_BUILD_PN)
             result = declaringType.GetTypeInfo().GetDeclaredMethod(name);
 #else
@@ -480,7 +480,7 @@ namespace System.Diagnostics.Tracing
 #if (ES_BUILD_PCL || ES_BUILD_PN)
                 var ifaceTypes = type.GetTypeInfo().ImplementedInterfaces;
 #else
-                var ifaceTypes = type.FindInterfaces(IsGenericMatch, typeof(IEnumerable<>));
+                var ifaceTypes = type.FindInterfaces(IsGenericMatch!, typeof(IEnumerable<>));
 #endif
 
                 foreach (var ifaceType in ifaceTypes)
@@ -611,7 +611,7 @@ namespace System.Diagnostics.Tracing
                 }
                 else
                 {
-                    result = new ArrayTypeInfo(dataType, TraceLoggingTypeInfo.GetInstance(elementType, recursionCheck));
+                    result = new ArrayTypeInfo(dataType, TraceLoggingTypeInfo.GetInstance(elementType!, recursionCheck));
                 }
             }
             else
