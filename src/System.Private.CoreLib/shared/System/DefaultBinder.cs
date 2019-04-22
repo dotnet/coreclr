@@ -217,7 +217,7 @@ namespace System
                     // now do a "classic" type check
                     if (pCls.IsPrimitive)
                     {
-                        if (argTypes[paramOrder[i][j]] == null || !CanChangePrimitiveObjectToType(args[paramOrder[i][j]], pCls))
+                        if (argTypes[paramOrder[i][j]] == null || !CanChangePrimitive(args[paramOrder[i][j]].GetType(), pCls))
                         {
                             break;
                         }
@@ -247,7 +247,7 @@ namespace System
                     {
                         if (paramArrayType.IsPrimitive)
                         {
-                            if (argTypes[j] == null || !CanChangePrimitiveObjectToType(args[j], paramArrayType))
+                            if (argTypes[j] == null || !CanChangePrimitive(args[j]?.GetType(), paramArrayType))
                                 break;
                         }
                         else
@@ -475,7 +475,7 @@ namespace System
                     }
                     if (pCls.IsPrimitive)
                     {
-                        if (CanChangePrimitiveObjectToType(value, pCls))
+                        if (CanChangePrimitive(valueType, pCls))
                         {
                             candidates[CurIdx++] = candidates[i];
                             continue;
@@ -1216,11 +1216,6 @@ namespace System
             Primitives targetCode = (Primitives)(1 << (int)(Type.GetTypeCode(target)));
 
             return (widerCodes & targetCode) != 0;
-        }
-
-        private static bool CanChangePrimitiveObjectToType(object source, Type type)
-        {
-            return source == null || CanChangePrimitive(source.GetType(), type);
         }
 
         private static readonly Primitives[] s_primitiveConversions = {
