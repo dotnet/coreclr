@@ -37,7 +37,7 @@ related to .NET Core including:
 
 .NET Core relies heavily on the [NuGet](https://en.wikipedia.org/wiki/NuGet) package manager,
 which is a system to package, distribute and version software components.  See [https://www.nuget.org/](https://www.nuget.org/) 
-for more information on NuGet.   For now it is enough to know NuGet is a system that
+for more information on NuGet.   For now, it is enough to know that NuGet is a system that
 bundles components into `*.nupkg` files (which are ZIP archives) and these packages can be 'published' 
 either through a local file system path or by a URL (e.g. https://www.nuget.org/).   There are then tools 
 (e.g. nuget.exe, Visual Studio, dotnet.exe) that based on a configuration file (.csproj) know 
