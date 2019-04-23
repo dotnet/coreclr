@@ -7077,14 +7077,6 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
 
             CONSISTENCY_CHECK(pMD->IsNDirect());
 
-            if (pMD->GetModule()->IsReadyToRun())
-            {
-                // We need pMD in the case of an exception unwinding, so we can test if the pinvoke method is
-                // in a R2R module, and if so, properly pop the PInvoke frame from the thread. This is because
-                // the JIT_PInvokeEnd helper that pops the frame will not run when there's an exception.
-                ((InlinedCallFrame*)GetThread()->GetFrame())->m_Datum = pMD;
-            }
-
             //
             // With IL stubs, we don't have to do anything but ensure the DLL is loaded.
             //
@@ -7102,14 +7094,19 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
 
             pMD->CheckRestore();
 
-#if defined(_TARGET_X86_)
-            if (pMD->IsStdCall() && pMD->GetModule()->IsReadyToRun())
+            if (pMD->GetModule()->IsReadyToRun())
             {
+#if defined(_TARGET_X86_)
                 // Computing if marshalling is required also computes the required stack size. We need the stack size to correctly form the
-                // name of the import pinvoke function on x86
+                // name of the import pinvoke function on x86. It's also needed during stack walking, in case an exception is thrown.
                 pMD->MarshalingRequired();
-            }
 #endif
+
+                // We need pMD in the case of an exception unwinding, so we can test if the pinvoke method is
+                // in a R2R module, and if so, properly pop the PInvoke frame from the thread. This is because
+                // the JIT_PInvokeEnd helper that pops the frame will not run when there's an exception.
+                ((InlinedCallFrame*)GetThread()->GetFrame())->m_Datum = pMD;
+            }
 
             NDirect::NDirectLink(pMD);
         }

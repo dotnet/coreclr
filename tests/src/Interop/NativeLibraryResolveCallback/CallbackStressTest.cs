@@ -12,13 +12,14 @@ using System.Threading;
 using Console = Internal.Console;
 
 [assembly: DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-public class Test
+public class CallbackStressTest
 {
     static volatile bool s_RunGC = true;
     
     static int s_LoopCounter = 100;
     static int s_FinallyCalled = 0;
     static int s_CatchCalled = 0;
+    static int s_OtherExceptionCatchCalled = 0;
     static int s_WrongPInvokesExecuted = 0;
     static int s_PInvokesExecuted = 0;
     
@@ -57,6 +58,44 @@ public class Test
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    public static void DoCallTryCatch(bool shouldThrow)
+    {
+        try
+        {
+            var a = NativeSum(10, 10);
+            if (shouldThrow)
+                s_WrongPInvokesExecuted++;
+            else
+                s_PInvokesExecuted += (a == 20 ? 1 : 0);
+        }
+        catch (DllNotFoundException) { s_CatchCalled++; }
+        
+        throw new ArgumentException();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static void DoCallTryRethrowInCatch()
+    {
+        try
+        {
+            var a = NativeSum(10, 10);
+            s_WrongPInvokesExecuted++;
+        }
+        catch (DllNotFoundException) { s_CatchCalled++; throw; }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static void DoCallTryRethrowDifferentExceptionInCatch()
+    {
+        try
+        {
+            var a = NativeSum(10, 10);
+            s_WrongPInvokesExecuted++;
+        }
+        catch (DllNotFoundException) { s_CatchCalled++; throw new InvalidOperationException(); }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public static void DoCallTryFinally()
     {
         try
@@ -85,6 +124,15 @@ public class Test
             
             try { DoCallTryFinally(); }
             catch (DllNotFoundException) { s_CatchCalled++; }
+            
+            try { DoCallTryCatch(true); }
+            catch (ArgumentException) { s_OtherExceptionCatchCalled++; }
+
+            try { DoCallTryRethrowInCatch(); }
+            catch (DllNotFoundException) { s_CatchCalled++; }
+
+            try { DoCallTryRethrowDifferentExceptionInCatch(); }
+            catch (InvalidOperationException) { s_OtherExceptionCatchCalled++; }
         }
         
         SetResolve();
@@ -94,24 +142,28 @@ public class Test
             var a = NativeSum(10, 10);
             var b = NativeSum(10, 10);
             s_PInvokesExecuted += (a == b && a == 20)? 2 : 0;
+
+            try { DoCallTryCatch(false); }
+            catch (ArgumentException) { s_OtherExceptionCatchCalled++; }
         }
         
         s_RunGC = false;
 
-        Console.WriteLine("s_FinallyCalled = " + s_FinallyCalled);
-        Console.WriteLine("s_CatchCalled = " + s_CatchCalled);
-        Console.WriteLine("s_WrongPInvokesExecuted = " + s_WrongPInvokesExecuted);
-        Console.WriteLine("s_PInvokesExecuted = " + s_PInvokesExecuted);
-        
         if (s_FinallyCalled == s_LoopCounter && 
-            s_CatchCalled == (s_LoopCounter * 3) &&
+            s_CatchCalled == (s_LoopCounter * 7) &&
+            s_OtherExceptionCatchCalled == (s_LoopCounter * 3) &&
             s_WrongPInvokesExecuted == 0 &&
-            s_PInvokesExecuted == (s_LoopCounter * 2))
+            s_PInvokesExecuted == (s_LoopCounter * 3))
         {
             Console.WriteLine("PASS");
             return 100;
         }
             
+        Console.WriteLine("s_FinallyCalled = " + s_FinallyCalled);
+        Console.WriteLine("s_CatchCalled = " + s_CatchCalled);
+        Console.WriteLine("s_OtherExceptionCatchCalled = " + s_OtherExceptionCatchCalled);
+        Console.WriteLine("s_WrongPInvokesExecuted = " + s_WrongPInvokesExecuted);
+        Console.WriteLine("s_PInvokesExecuted = " + s_PInvokesExecuted);
         return -1;
     }
 
