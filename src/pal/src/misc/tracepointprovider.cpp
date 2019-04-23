@@ -99,11 +99,12 @@ PAL_InitializeTracing(void)
         return;
     }
     
-
-
-    // Load the tracepoint provider.
-    // It's OK if this fails - that just means that tracing dependencies aren't available.
-    dlopen(tpProvPath, RTLD_NOW | RTLD_GLOBAL);
+    if (CLRConfig::GetConfigValue(CLRConfig::UNSUPORTED_DisableLttngLibraryLoad) == 0)
+    {
+        // Load the tracepoint provider.
+        // It's OK if this fails - that just means that tracing dependencies aren't available.
+        dlopen(tpProvPath, RTLD_NOW | RTLD_GLOBAL);
+    }
 }
 
 #endif
