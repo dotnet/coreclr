@@ -660,19 +660,35 @@ namespace System
         // otherwise specify a power of 2 value that's >= pointer size
         // the beginning of the payload of the object (&array[0]) will be aligned with this alignment.
         // static T[] AllocateArray<T>(int length, int generation = -1, bool pinned = false, int alignment = -1)
-        //
-        // TODO: VS  NYI generation, pinned, alignment. Probably should throw Unsupported?
-        public static T[] AllocateArray<T>(int length)
+        public static T[] AllocateArray<T>(int length, int generation = -1, bool pinned = false, int alignment = -1)
         {
+            // TODO: VS resources
+            if (generation != -1)
+                throw new NotSupportedException();
+
+            if (pinned)
+                throw new NotSupportedException();
+
+            if (alignment != -1)
+                throw new NotSupportedException();
+
             return AllocateArrayWorker<T>(length, clearMemory: true);
         }
 
         // Skips zero-initialization of the array if possible. If T contains object references, 
         // the array is always zero-initialized.
-        //
-        // TODO: VS  NYI generation, pinned, alignment. Probably should throw Unsupported?
-        public static T[] AllocateUninitializedArray<T>(int length)
+        public static T[] AllocateUninitializedArray<T>(int length, int generation = -1, bool pinned = false, int alignment = -1)
         {
+            // TODO: VS resources
+            if (generation != -1)
+                throw new NotSupportedException();
+
+            if (pinned)
+                throw new NotSupportedException();
+
+            if (alignment != -1)
+                throw new NotSupportedException();
+
             return AllocateArrayWorker<T>(length, clearMemory: false);
         }
 
