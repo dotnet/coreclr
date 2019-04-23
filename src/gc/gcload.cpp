@@ -51,17 +51,8 @@ GC_VersionInfo(/* Out */ VersionInfo* info)
 static bool
 ShouldLoadServerGC()
 {
-    if (!GCConfig::GetServerGC())
-    {
-        return false;
-    }
-
-    if (GCToOSInterface::GetCurrentProcessCpuLimit() == 1)
-    {
-        return false;
-    }
-
-    return true;
+    return GCConfig::GetServerGC()
+        && GCToOSInterface::GetCurrentProcessCpuCount() > 1;
 }
 
 GC_EXPORT

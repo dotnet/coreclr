@@ -741,19 +741,6 @@ uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
     return g_currentProcessCpuCount;
 }
 
-uint32_t GCToOSInterface::GetCurrentProcessCpuLimit()
-{
-    uint32_t cpuCount = GCToOSInterface::GetCurrentProcessCpuCount();
-
-    uint32_t cpuLimit;
-    if (GetCpuLimit(&cpuLimit) && cpuLimit < cpuCount)
-    {
-        return cpuLimit;
-    }
-
-    return cpuCount;
-}
-
 // Return the size of the user-mode portion of the virtual address space of this process.
 // Return:
 //  non zero if it has succeeded, 0 if it has failed

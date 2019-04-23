@@ -388,11 +388,6 @@ public:
     //  The number of processors
     static uint32_t GetCurrentProcessCpuCount();
 
-    // Get usage limit of processors assigned to the current process
-    // Return:
-    //  The usage limit of processors
-    static uint32_t GetCurrentProcessCpuLimit();
-
     // Sets the calling thread's affinity to only run on the processor specified.
     // Parameters:
     //  procNo - The requested affinity for the calling thread.

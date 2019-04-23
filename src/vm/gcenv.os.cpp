@@ -27,8 +27,6 @@
 #define MAX_PTR ((uint8_t*)(~(ptrdiff_t)0))
 
 #ifdef FEATURE_PAL
-extern "C" BOOL PAL_GetCpuLimit(UINT* val);
-
 uint32_t g_pageSizeUnixInl = 0;
 #endif
 
@@ -586,23 +584,6 @@ uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
 #else // !FEATURE_PAL
     return g_currentProcessCpuCount;
 #endif // !FEATURE_PAL
-}
-
-uint32_t GCToOSInterface::GetCurrentProcessCpuLimit()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    uint32_t cpuCount = GCToOSInterface::GetCurrentProcessCpuCount();
-
-#ifdef FEATURE_PAL
-    uint32_t cpuLimit;
-    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < cpuCount)
-    {
-        return cpuLimit;
-    }
-#endif // FEATURE_PAL
-
-    return cpuCount;
 }
 
 // Return the size of the user-mode portion of the virtual address space of this process.
