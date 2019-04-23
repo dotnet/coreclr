@@ -232,6 +232,8 @@ namespace System.Runtime.Loader
             yield return new LibraryNameVariation(string.Empty, string.Empty);
 
             if (isRelativePath &&
+                libName.Contains('.') &&
+                !libName.EndsWith('.') &&
                 !libName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) &&
                 !libName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
             {
@@ -294,15 +296,6 @@ namespace System.Runtime.Loader
                         yield return new LibraryNameVariation(LibraryNamePrefix, string.Empty);
                     }
                 }
-            }
-
-            yield return new LibraryNameVariation(string.Empty, string.Empty);
-
-            if (isRelativePath &&
-                !libName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) &&
-                !libName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-            {
-                yield return new LibraryNameVariation(string.Empty, LibraryNameSuffix);
             }
         }
 #endif
