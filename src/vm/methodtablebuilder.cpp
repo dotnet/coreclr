@@ -6188,9 +6188,9 @@ MethodTableBuilder::PlaceMethodImpls()
     // it might contain overrides for other interface methods.
     DWORD dwMaxSlotSize = IsInterface() ? bmtMethod->dwNumberMethodImpls : bmtVT->cVirtualSlots;
 
-    DWORD * slots = new (&GetThread()->m_MarshalAlloc) DWORD[dwMaxSlotSize];
-    mdToken * tokens = new (&GetThread()->m_MarshalAlloc) mdToken[dwMaxSlotSize];
-    RelativePointer<MethodDesc *> * replaced = new (&GetThread()->m_MarshalAlloc) RelativePointer<MethodDesc*>[dwMaxSlotSize];
+    DWORD * slots = new (GetStackingAllocator()) DWORD[dwMaxSlotSize];
+    mdToken * tokens = new (GetStackingAllocator()) mdToken[dwMaxSlotSize];
+    RelativePointer<MethodDesc *> * replaced = new (GetStackingAllocator()) RelativePointer<MethodDesc*>[dwMaxSlotSize];
 
     DWORD iEntry = 0;
     bmtMDMethod * pCurImplMethod = bmtMethodImpl->GetImplementationMethod(iEntry);
@@ -9018,7 +9018,8 @@ MethodTableBuilder::LoadExactInterfaceMap(MethodTable *pMT)
         // First we do a GetCheckpoint for the thread-based allocator.  ExpandExactInheritedInterfaces allocates substitution chains
         // on the thread allocator rather than on the stack.
         Thread * pThread = GetThread();
-        CheckPointHolder cph(pThread->m_MarshalAlloc.GetCheckpoint()); //hold checkpoint for autorelease
+        StackingAllocator *pStackingAllocator = &pThread->m_MarshalAlloc;
+        CheckPointHolder cph(pStackingAllocator->GetCheckpoint()); //hold checkpoint for autorelease
 
         // ***********************************************************
         // ****** This must be consistent with code:ExpandApproxInterface etc. *******
@@ -9028,7 +9029,7 @@ MethodTableBuilder::LoadExactInterfaceMap(MethodTable *pMT)
         // ***********************************************************
 
         bmtExactInterfaceInfo bmtExactInterface;
-        bmtExactInterface.pInterfaceSubstitution = new (&pThread->m_MarshalAlloc) Substitution[pMT->GetNumInterfaces()];
+        bmtExactInterface.pInterfaceSubstitution = new (pStackingAllocator) Substitution[pMT->GetNumInterfaces()];
         bmtExactInterface.pExactMTs = pExactMTs;
         bmtExactInterface.nAssigned = 0;
         bmtExactInterface.typeContext = typeContext;
@@ -9036,9 +9037,9 @@ MethodTableBuilder::LoadExactInterfaceMap(MethodTable *pMT)
         // Do the interfaces inherited from a parent class
         if ((pParentMT != NULL) && (pParentMT->GetNumInterfaces() > 0))
         {
-            Substitution * pParentSubstForTypeLoad = new (&pThread->m_MarshalAlloc) Substitution(
+            Substitution * pParentSubstForTypeLoad = new (pStackingAllocator) Substitution(
                 pMT->GetSubstitutionForParent(NULL));
-            Substitution * pParentSubstForComparing = new (&pThread->m_MarshalAlloc) Substitution(
+            Substitution * pParentSubstForComparing = new (pStackingAllocator) Substitution(
                 pMT->GetSubstitutionForParent(NULL));
             ExpandExactInheritedInterfaces(
                 &bmtExactInterface, 
@@ -9084,11 +9085,11 @@ MethodTableBuilder::LoadExactInterfaceMap(MethodTable *pMT)
             // There are no __Canon types in the instantiation, so do ambiguity check.
             bmtInterfaceAmbiguityCheckInfo bmtCheckInfo;
             bmtCheckInfo.pMT = pMT;
-            bmtCheckInfo.ppInterfaceSubstitutionChains = new (&pThread->m_MarshalAlloc) Substitution *[pMT->GetNumInterfaces()];
-            bmtCheckInfo.ppExactDeclaredInterfaces = new (&pThread->m_MarshalAlloc) MethodTable *[pMT->GetNumInterfaces()];
+            bmtCheckInfo.ppInterfaceSubstitutionChains = new (pStackingAllocator) Substitution *[pMT->GetNumInterfaces()];
+            bmtCheckInfo.ppExactDeclaredInterfaces = new (pStackingAllocator) MethodTable *[pMT->GetNumInterfaces()];
             bmtCheckInfo.nAssigned = 0;
             bmtCheckInfo.typeContext = typeContext;
-            MethodTableBuilder::InterfacesAmbiguityCheck(&bmtCheckInfo, pMT->GetModule(), pMT->GetCl(), NULL);
+            MethodTableBuilder::InterfacesAmbiguityCheck(&bmtCheckInfo, pMT->GetModule(), pMT->GetCl(), NULL, pStackingAllocator);
         }
 
         // OK, there is no ambiguity amongst the instantiated interfaces declared on this class.
@@ -9295,12 +9296,12 @@ MethodTableBuilder::ExpandExactInheritedInterfaces(
     if (pParentMT)
     {
         // Chain parent's substitution for exact type load
-        Substitution * pParentSubstForTypeLoad = new (&GetThread()->m_MarshalAlloc) Substitution(
+        Substitution * pParentSubstForTypeLoad = new (pStackingAllocator) Substitution(
             pMT->GetSubstitutionForParent(pSubstForTypeLoad));
         
         // Chain parent's substitution for comparing interfaces (note that this type is temporarily 
         // considered as open type)
-        Substitution * pParentSubstForComparing = new (&GetThread()->m_MarshalAlloc) Substitution(
+        Substitution * pParentSubstForComparing = new (pStackingAllocator) Substitution(
             pMT->GetSubstitutionForParent(pSubstForComparing));
         
         ExpandExactInheritedInterfaces(
@@ -9314,7 +9315,8 @@ MethodTableBuilder::ExpandExactInheritedInterfaces(
         pMT->GetModule(), 
         pMT->GetCl(), 
         pSubstForTypeLoad, 
-        pSubstForComparing 
+        pSubstForComparing,
+        pStackingAllocator
         COMMA_INDEBUG(pMT));
     
     // Restore type's subsitution chain for comparing interfaces
@@ -9329,7 +9331,8 @@ MethodTableBuilder::ExpandExactDeclaredInterfaces(
     Module *                    pModule, 
     mdToken                     typeDef, 
     const Substitution *        pSubstForTypeLoad, 
-    Substitution *              pSubstForComparing 
+    Substitution *              pSubstForComparing,
+    StackingAllocator *         pStackingAllocator,
     COMMA_INDEBUG(MethodTable * dbg_pClassMT))
 {
     STANDARD_VM_CONTRACT;
@@ -9355,7 +9358,8 @@ MethodTableBuilder::ExpandExactDeclaredInterfaces(
             bmtInfo, 
             pInterface, 
             &ifaceSubstForTypeLoad, 
-            &ifaceSubstForComparing 
+            &ifaceSubstForComparing,
+            pStackingAllocator,
             COMMA_INDEBUG(dbg_pClassMT));
     }
     if (FAILED(hr))
@@ -9371,6 +9375,7 @@ MethodTableBuilder::ExpandExactInterface(
     MethodTable *               pIntf, 
     const Substitution *        pSubstForTypeLoad_OnStack,   // Allocated on stack!
     const Substitution *        pSubstForComparing_OnStack   // Allocated on stack!
+    StackingAllocator *         pStackingAllocator,
     COMMA_INDEBUG(MethodTable * dbg_pClassMT))
 {
     STANDARD_VM_CONTRACT;
@@ -9409,7 +9414,7 @@ MethodTableBuilder::ExpandExactInterface(
     bmtInfo->pInterfaceSubstitution[n] = *pSubstForComparing_OnStack;
     bmtInfo->nAssigned++;
     
-    Substitution * pSubstForTypeLoad = new (&GetThread()->m_MarshalAlloc) Substitution(*pSubstForTypeLoad_OnStack);
+    Substitution * pSubstForTypeLoad = new (pStackingAllocator) Substitution(*pSubstForTypeLoad_OnStack);
     
     ExpandExactDeclaredInterfaces(
         bmtInfo, 
@@ -9425,7 +9430,8 @@ MethodTableBuilder::ExpandExactInterface(
 void MethodTableBuilder::InterfacesAmbiguityCheck(bmtInterfaceAmbiguityCheckInfo *bmtCheckInfo,
                                                   Module *pModule,
                                                   mdToken typeDef,
-                                                  const Substitution *pSubstChain)
+                                                  const Substitution *pSubstChain,
+                                                  StackingAllocator *pStackingAllocator)
 {
     STANDARD_VM_CONTRACT;
 
@@ -9442,7 +9448,7 @@ void MethodTableBuilder::InterfacesAmbiguityCheck(bmtInterfaceAmbiguityCheckInfo
                                                         CLASS_LOAD_EXACTPARENTS,
                                                         TRUE,
                                                         pSubstChain).GetMethodTable();
-        InterfaceAmbiguityCheck(bmtCheckInfo, ie.CurrentSubst(), pInterface);
+        InterfaceAmbiguityCheck(bmtCheckInfo, ie.CurrentSubst(), pInterface, pStackingAllocator);
     }
     if (FAILED(hr))
     {
@@ -9453,7 +9459,8 @@ void MethodTableBuilder::InterfacesAmbiguityCheck(bmtInterfaceAmbiguityCheckInfo
 //*******************************************************************************
 void MethodTableBuilder::InterfaceAmbiguityCheck(bmtInterfaceAmbiguityCheckInfo *bmtCheckInfo,
                                                  const Substitution *pItfSubstChain,
-                                                 MethodTable *pIntf)
+                                                 MethodTable *pIntf,
+                                                 StackingAllocator *pStackingAllocator)
 {
     STANDARD_VM_CONTRACT;
 
@@ -9487,7 +9494,7 @@ void MethodTableBuilder::InterfaceAmbiguityCheck(bmtInterfaceAmbiguityCheckInfo 
 
     DWORD n = bmtCheckInfo->nAssigned;
     bmtCheckInfo->ppExactDeclaredInterfaces[n] = pIntf;
-    bmtCheckInfo->ppInterfaceSubstitutionChains[n] = new (&GetThread()->m_MarshalAlloc) Substitution[pItfSubstChain->GetLength()];
+    bmtCheckInfo->ppInterfaceSubstitutionChains[n] = new (pStackingAllocator) Substitution[pItfSubstChain->GetLength()];
     pItfSubstChain->CopyToArray(bmtCheckInfo->ppInterfaceSubstitutionChains[n]);
 
     bmtCheckInfo->nAssigned++;
@@ -11749,7 +11756,8 @@ MethodTableBuilder::GatherGenericsInfo(
     Module *          pModule, 
     mdTypeDef         cl, 
     Instantiation     inst, 
-    bmtGenericsInfo * bmtGenericsInfo)
+    bmtGenericsInfo * bmtGenericsInfo,
+    StackingAllocator*pStackingAllocator)
 {
     CONTRACTL
     {
@@ -11793,14 +11801,14 @@ MethodTableBuilder::GatherGenericsInfo(
         bmtGenericsInfo->numDicts = 1;
         
         mdGenericParam tkTyPar;
-        bmtGenericsInfo->pVarianceInfo = new (&GetThread()->m_MarshalAlloc) BYTE[numGenericArgs];
+        bmtGenericsInfo->pVarianceInfo = new (pStackingAllocator) BYTE[numGenericArgs];
 
         // If it has generic arguments but none have been specified, then load the instantiation at the formals
         if (inst.IsEmpty())
         {
             bmtGenericsInfo->fTypicalInstantiation = TRUE;
             S_UINT32 scbAllocSize = S_UINT32(numGenericArgs) * S_UINT32(sizeof(TypeHandle));
-            TypeHandle * genericArgs = (TypeHandle *) GetThread()->m_MarshalAlloc.Alloc(scbAllocSize);
+            TypeHandle * genericArgs = (TypeHandle *) pStackingAllocator->Alloc(scbAllocSize);
 
             inst = Instantiation(genericArgs, numGenericArgs);
 
@@ -12029,7 +12037,8 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
     // used during class loading.
     // <NICE> Ideally a debug/checked build should pass around tokens indicating the Checkpoint
     // being used and check these dynamically </NICE>
-    CheckPointHolder cph(pThread->m_MarshalAlloc.GetCheckpoint()); //hold checkpoint for autorelease
+    StackingAllocator *pStackingAllocator = &pThread->m_MarshalAlloc;
+    CheckPointHolder cph(pStackingAllocator->GetCheckpoint()); //hold checkpoint for autorelease
     
     // Gather up generics info
     MethodTableBuilder::GatherGenericsInfo(pModule, cl, inst, &genericsInfo);
@@ -12168,7 +12177,7 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
         DWORD i;
         
         // Allocate the BuildingInterfaceList table
-        pInterfaceBuildInfo = new (&GetThread()->m_MarshalAlloc) BuildingInterfaceInfo_t[cInterfaces];
+        pInterfaceBuildInfo = new (pStackingAllocator) BuildingInterfaceInfo_t[cInterfaces];
         
         mdInterfaceImpl ii;
         for (i = 0; pInternalImport->EnumNext(&hEnumInterfaceImpl, &ii); i++)
@@ -12273,7 +12282,7 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
                 pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
             }
 
-            pLayoutRawFieldInfos = (LayoutRawFieldInfo *)GetThread()->m_MarshalAlloc.Alloc(
+            pLayoutRawFieldInfos = (LayoutRawFieldInfo *)pStackingAllocator->Alloc(
                 (S_UINT32(1) + S_UINT32(cFields)) * S_UINT32(sizeof(LayoutRawFieldInfo)));
             
             {
@@ -12310,7 +12319,7 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
     MethodTableBuilder builder(
         NULL,
         pClass,
-        &GetThread()->m_MarshalAlloc, 
+        pStackingAllocator, 
         pamTracker);
 
     pMT = builder.BuildMethodTableThrowing(

@@ -123,7 +123,8 @@ public:
     static void GatherGenericsInfo(Module *pModule,
                                    mdTypeDef cl,
                                    Instantiation inst,
-                                   bmtGenericsInfo *bmtGenericsInfo);
+                                   bmtGenericsInfo *bmtGenericsInfo,
+                                   StackingAllocator *pStackingAllocator);
 
     MethodTable *
     BuildMethodTableThrowing(
@@ -2426,7 +2427,8 @@ private:
         bmtExactInterfaceInfo *     bmtInfo, 
         MethodTable *               pIntf, 
         const Substitution *        pSubstForTypeLoad_OnStack,  // Allocated on stack!
-        const Substitution *        pSubstForComparing_OnStack  // Allocated on stack!
+        const Substitution *        pSubstForComparing_OnStack, // Allocated on stack!
+        StackingAllocator *         pStackingAllocator
         COMMA_INDEBUG(MethodTable * dbg_pClassMT));
     
 public:
@@ -2444,7 +2446,8 @@ public:
         bmtExactInterfaceInfo * bmtInfo, 
         MethodTable *           pParentMT, 
         const Substitution *    pSubstForTypeLoad, 
-        Substitution *          pSubstForComparing);
+        Substitution *          pSubstForComparing,
+        StackingAllocator *     pStackingAllocator);
 
 public: 
     // --------------------------------------------------------------------------------------------
@@ -2469,7 +2472,8 @@ public:
         bmtInterfaceAmbiguityCheckInfo *,
         Module *pModule, 
         mdToken typeDef,  
-        const Substitution *pSubstChain);
+        const Substitution *pSubstChain,
+        StackingAllocator *pStackingAllocator);
 
 private:
     static void

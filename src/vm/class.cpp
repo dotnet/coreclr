@@ -293,7 +293,8 @@ VOID EEClass::FixupFieldDescForEnC(MethodTable * pMT, EnCFieldDesc *pFD, mdField
     // MethodTableBuilder uses the stacking allocator for most of it's
     // working memory requirements, so this makes sure to free the memory
     // once this function is out of scope.
-    CheckPointHolder cph(GetThread()->m_MarshalAlloc.GetCheckpoint());
+    StackingAllocator *pStackingAllocator = &GetThread()->m_MarshalAlloc;
+    CheckPointHolder cph(pStackingAllocator->GetCheckpoint());
 
     MethodTableBuilder::bmtMetaDataInfo bmtMetaData;
     bmtMetaData.cFields = 1;
@@ -357,7 +358,7 @@ VOID EEClass::FixupFieldDescForEnC(MethodTable * pMT, EnCFieldDesc *pFD, mdField
 
     BaseDomain * pDomain = pMT->GetDomain();
     MethodTableBuilder builder(pMT, pClass,
-                               &GetThread()->m_MarshalAlloc,
+                               pStackingAllocator,
                                &dummyAmTracker);
 
     MethodTableBuilder::bmtGenericsInfo genericsInfo;
