@@ -3956,7 +3956,10 @@ static void CreateNDirectStubWorker(StubState*         pss,
     BOOL fMarshalReturnValueFirst = FALSE;
 
     BOOL fReverseWithReturnBufferArg = FALSE;
-    bool isInstanceMethod = fStubNeedsCOM || fThisCall;
+    // Only consider ThisCall methods to be instance methods.
+    // Techinically COM methods are also instance methods, but we don't want to change the behavior of the built-in
+    // COM abi work because there are many users that rely on the current behavior (for example WPF).
+    bool isInstanceMethod = fThisCall;
     
     // We can only change fMarshalReturnValueFirst to true when we are NOT doing HRESULT-swapping!
     // When we are HRESULT-swapping, the managed return type is actually the type of the last parameter and not the return type.
@@ -5505,12 +5508,16 @@ MethodDesc* GetStubMethodDescFromInteropMethodDesc(MethodDesc* pMD, DWORD dwStub
 #ifdef FEATURE_COMINTEROP
     if (SF_IsReverseCOMStub(dwStubFlags))
     {
+#ifdef FEATURE_PREJIT
         if (fGcMdaEnabled)
             return NULL;
 
         // reverse COM stubs live in a hash table
         StubMethodHashTable *pHash = pMD->GetLoaderModule()->GetStubMethodHashTable();
         return (pHash == NULL ? NULL : pHash->FindMethodDesc(pMD));
+#else
+        return NULL;
+#endif
     }
     else
 #endif // FEATURE_COMINTEROP
@@ -6105,7 +6112,7 @@ private:
 
 // Load the library directly. On Unix systems, don't register it yet with PAL. 
 // * External callers like AssemblyNative::InternalLoadUnmanagedDllFromPath() and the upcoming 
-//   System.Runtime.Interop.Marshall.LoadLibrary() need the raw system handle
+//   System.Runtime.InteropServices.NativeLibrary.Load() need the raw system handle
 // * Internal callers like LoadLibraryModule() can convert this handle to a HMODULE via PAL APIs on Unix
 static NATIVE_LIBRARY_HANDLE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTracker *pErrorTracker )
 {

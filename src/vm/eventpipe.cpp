@@ -236,14 +236,18 @@ EventPipeSessionID EventPipe::Enable(
     uint32_t circularBufferSizeInMB,
     uint64_t profilerSamplingRateInNanoseconds,
     const EventPipeProviderConfiguration *pProviders,
-    uint32_t numProviders)
+    uint32_t numProviders,
+    EventPipeSessionType sessionType,
+    IpcStream *const pStream)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION((numProviders == 0) || (numProviders > 0 && pProviders != nullptr));
+        MODE_PREEMPTIVE;
+        PRECONDITION(circularBufferSizeInMB > 0);
+        PRECONDITION(profilerSamplingRateInNanoseconds > 0);
+        PRECONDITION(numProviders > 0 && pProviders != nullptr);
     }
     CONTRACTL_END;
 
@@ -251,100 +255,43 @@ EventPipeSessionID EventPipe::Enable(
     CrstHolder _crst(GetLock());
 
     // Create a new session.
-    SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
+    SampleProfiler::SetSamplingRate(static_cast<unsigned long>(profilerSamplingRateInNanoseconds));
     EventPipeSession *pSession = s_pConfig->CreateSession(
-        (strOutputPath != nullptr) ? EventPipeSessionType::File : EventPipeSessionType::Streaming,
+        sessionType,
         circularBufferSizeInMB,
         pProviders,
         numProviders);
 
-    // Initialize the last file switch time.
-    s_lastFlushSwitchTime = CLRGetTickCount64();
-
-    // Create the event pipe file.
-    // A NULL output path means that we should not write the results to a file.
-    // This is used in the EventListener streaming case.
-    if (strOutputPath != NULL)
-        s_pFile = new EventPipeFile(new FileStreamWriter(SString(strOutputPath)));
-    return Enable(pSession);
+    EventPipeSessionID sessionId = Enable(strOutputPath, pSession, sessionType, pStream);
+    return sessionId;
 }
 
 EventPipeSessionID EventPipe::Enable(
-    IpcStream *pStream,
-    uint32_t circularBufferSizeInMB,
-    uint64_t profilerSamplingRateInNanoseconds,
-    const EventPipeProviderConfiguration *pProviders,
-    uint32_t numProviders)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(pStream != nullptr);
-        PRECONDITION((numProviders == 0) || (numProviders > 0 && pProviders != nullptr));
-    }
-    CONTRACTL_END;
-
-    if (numProviders == 0 || pProviders == nullptr)
-        return (EventPipeSessionID) nullptr;
-
-    // Take the lock before enabling tracing.
-    CrstHolder _crst(GetLock());
-
-    // Create a new session.
-    SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
-    EventPipeSession *pSession = s_pConfig->CreateSession(
-        EventPipeSessionType::IpcStream,
-        circularBufferSizeInMB,
-        pProviders,
-        numProviders);
-
-    // Initialize the last file switch time.
-    s_lastFlushSwitchTime = CLRGetTickCount64();
-
-    // Reply back to client with the SessionId
-    uint32_t nBytesWritten = 0;
-    EventPipeSessionID sessionId = (EventPipeSessionID) pSession;
-    bool fSuccess = pStream->Write(&sessionId, sizeof(sessionId), nBytesWritten);
-    if (!fSuccess)
-    {
-        // TODO: Add error handling.
-        s_pConfig->DeleteSession(pSession);
-
-        delete pStream;
-        return (EventPipeSessionID) nullptr;
-    }
-
-    s_pFile = new EventPipeFile(new IpcStreamWriter(pStream));
-
-    // Enable the session.
-    const DWORD FlushTimerPeriodMS = 100; // TODO: Define a good number here for streaming.
-    return Enable(pSession, FlushTimer, FlushTimerPeriodMS, FlushTimerPeriodMS);
-}
-
-EventPipeSessionID EventPipe::Enable(
+    LPCWSTR strOutputPath,
     EventPipeSession *const pSession,
-    WAITORTIMERCALLBACK callback,
-    DWORD dueTime,
-    DWORD period)
+    EventPipeSessionType sessionType,
+    IpcStream *const pStream)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(pSession != nullptr);
         PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    // If tracing is not initialized or is already enabled, bail here.
-    if (!s_tracingInitialized || s_pConfig == nullptr || s_pConfig->Enabled())
+    // If the state or arguments are invalid, bail here.
+    if (pSession == nullptr || !pSession->IsValid())
+        return 0;
+    if (sessionType == EventPipeSessionType::File && strOutputPath == nullptr)
+        return 0;
+    if (sessionType == EventPipeSessionType::IpcStream && pStream == nullptr)
         return 0;
 
-    // If the state or arguments are invalid, bail here.
-    if (pSession == NULL || !pSession->IsValid())
+    // If tracing is not initialized or is already enabled, bail here.
+    if (!s_tracingInitialized || s_pConfig == nullptr || s_pConfig->Enabled())
         return 0;
 
     // Enable the EventPipe EventSource.
@@ -352,6 +299,27 @@ EventPipeSessionID EventPipe::Enable(
 
     // Save the session.
     s_pSession = pSession;
+    EventPipeSessionID sessionId = reinterpret_cast<EventPipeSessionID>(s_pSession);
+
+    // Create the event pipe file.
+    // A NULL output path means that we should not write the results to a file.
+    // This is used in the EventListener streaming case.
+    switch (sessionType)
+    {
+        case EventPipeSessionType::File:
+            if (strOutputPath != nullptr)
+                s_pFile = new EventPipeFile(new FileStreamWriter(SString(strOutputPath)));
+            break;
+
+        case EventPipeSessionType::IpcStream:
+            s_pFile = new EventPipeFile(new IpcStreamWriter(sessionId, pStream));
+            CreateFlushTimerCallback();
+            break;
+
+        default:
+            s_pFile = nullptr;
+            break;
+    }
 
     // Enable tracing.
     s_pConfig->Enable(s_pSession);
@@ -359,11 +327,8 @@ EventPipeSessionID EventPipe::Enable(
     // Enable the sample profiler
     SampleProfiler::Enable();
 
-    if (callback != nullptr)
-        CreateFlushTimerCallback(callback, dueTime, period);
-
     // Return the session ID.
-    return (EventPipeSessionID)s_pSession;
+    return sessionId;
 }
 
 void EventPipe::Disable(EventPipeSessionID id)
@@ -386,6 +351,19 @@ void EventPipe::Disable(EventPipeSessionID id)
 
     // Take the lock before disabling tracing.
     CrstHolder _crst(GetLock());
+    DisableInternal(reinterpret_cast<EventPipeSessionID>(s_pSession));
+}
+
+void EventPipe::DisableInternal(EventPipeSessionID id)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
+    }
+    CONTRACTL_END;
 
     if (s_pConfig != NULL && s_pConfig->Enabled())
     {
@@ -459,16 +437,13 @@ void EventPipe::Disable(EventPipeSessionID id)
     }
 }
 
-void EventPipe::CreateFlushTimerCallback(WAITORTIMERCALLBACK callback, DWORD dueTime, DWORD period)
+void EventPipe::CreateFlushTimerCallback()
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(callback != nullptr);
-        PRECONDITION(dueTime > 0);
-        PRECONDITION(period > 0);
         PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END
@@ -482,16 +457,19 @@ void EventPipe::CreateFlushTimerCallback(WAITORTIMERCALLBACK callback, DWORD due
 
     timerContextHolder->TimerId = 0;
 
+    // Initialize the last file switch time.
+    s_lastFlushSwitchTime = CLRGetTickCount64();
+
     bool success = false;
     _ASSERTE(s_fileSwitchTimerHandle == NULL);
     EX_TRY
     {
         if (ThreadpoolMgr::CreateTimerQueueTimer(
                 &s_fileSwitchTimerHandle,
-                callback,
+                FlushTimer,
                 timerContextHolder,
-                dueTime,
-                period,
+                100, // DueTime (msec)
+                100, // Period (msec)
                 0 /* flags */))
         {
             _ASSERTE(s_fileSwitchTimerHandle != NULL);
@@ -538,6 +516,8 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
     }
     CONTRACTL_END;
 
+    GCX_PREEMP();
+
     // Take the lock control lock to make sure that tracing isn't disabled during this operation.
     CrstHolder _crst(GetLock());
 
@@ -547,8 +527,6 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
     // Make sure that we should actually switch files.
     if (!Enabled() || s_pSession->GetSessionType() != EventPipeSessionType::IpcStream)
         return;
-
-    GCX_PREEMP();
 
     if (CLRGetTickCount64() > (s_lastFlushSwitchTime + 100))
     {
@@ -560,6 +538,16 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
         s_pBufferManager->WriteAllBuffersToFile(s_pFile, stopTimeStamp);
 
         s_lastFlushSwitchTime = CLRGetTickCount64();
+    }
+
+    if (s_pFile->HasErrors())
+    {
+        EX_TRY
+        {
+            DisableInternal(reinterpret_cast<EventPipeSessionID>(s_pSession));
+        }
+        EX_CATCH {}
+        EX_END_CATCH(SwallowAllExceptions);
     }
 }
 

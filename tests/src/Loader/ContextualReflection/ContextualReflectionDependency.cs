@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Runtime.Loader;
 
 namespace ContextualReflectionTest
@@ -15,65 +16,7 @@ namespace ContextualReflectionTest
         Assembly alcAssembly { get; }
         Type alcProgramType { get; }
         IProgram alcProgramInstance { get; }
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         void RunTestsIsolated();
-    }
-
-    public class ConntextualReflectionProxy
-    {
-        public static AssemblyLoadContext CurrentContextualReflectionContext
-        {
-            get
-            {
-#if AssemblyLoadContextContextualReflectionFacade
-                return AssemblyLoadContext.CurrentContextualReflectionContext;
-#else
-                Type t = typeof (AssemblyLoadContext);
-
-                object result = t.InvokeMember("CurrentContextualReflectionContext",
-                    BindingFlags.Public | BindingFlags.Static | BindingFlags.GetProperty,
-                    null,
-                    null,
-                    new object [] {});
-
-                return (AssemblyLoadContext) result;
-#endif
-            }
-        }
-
-        static public IDisposable EnterContextualReflection(AssemblyLoadContext alc)
-        {
-#if AssemblyLoadContextContextualReflectionFacade
-            return alc.EnterContextualReflection();
-#else
-            Type t = typeof (AssemblyLoadContext);
-
-            object result = t.InvokeMember("EnterContextualReflection",
-                BindingFlags.Public | BindingFlags.InvokeMethod | BindingFlags.Instance,
-                null,
-                alc,
-                new object [] {});
-
-            return (IDisposable) result;
-#endif
-        }
-
-        static public IDisposable EnterContextualReflection(Assembly activating)
-        {
-#if AssemblyLoadContextContextualReflectionFacade
-            return AssemblyLoadContext.EnterContextualReflection(activating);
-#else
-            Type t = typeof (AssemblyLoadContext);
-
-            object result = t.InvokeMember("EnterContextualReflection",
-                BindingFlags.Public | BindingFlags.InvokeMethod | BindingFlags.Static,
-                null,
-                null,
-                new object [] {activating});
-
-            return (IDisposable) result;
-#endif
-        }
     }
 
     public enum ResolveEvents

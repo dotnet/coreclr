@@ -34,7 +34,7 @@ namespace System.Threading
         public static readonly ThreadPoolWorkQueue workQueue = new ThreadPoolWorkQueue();
 
         /// <summary>Shim used to invoke <see cref="IAsyncStateMachineBox.MoveNext"/> of the supplied <see cref="IAsyncStateMachineBox"/>.</summary>
-        internal static readonly Action<object> s_invokeAsyncStateMachineBox = state =>
+        internal static readonly Action<object?> s_invokeAsyncStateMachineBox = state =>
         {
             if (!(state is IAsyncStateMachineBox box))
             {
@@ -381,6 +381,26 @@ namespace System.Threading
                     return null;
                 }
             }
+
+            public int Count
+            {
+                get
+                {
+                    bool lockTaken = false;
+                    try
+                    {
+                        m_foreignLock.Enter(ref lockTaken);
+                        return Math.Max(0, m_tailIndex - m_headIndex);
+                    }
+                    finally
+                    {
+                        if (lockTaken)
+                        {
+                            m_foreignLock.Exit(useMemoryBarrier: false);
+                        }
+                    }
+                }
+            }
         }
 
         internal bool loggingEnabled;
@@ -511,6 +531,21 @@ namespace System.Threading
 
             return callback;
         }
+
+        public long LocalCount
+        {
+            get
+            {
+                long count = 0;
+                foreach (WorkStealingQueue workStealingQueue in WorkStealingQueueList.Queues)
+                {
+                    count += workStealingQueue.Count;
+                }
+                return count;
+            }
+        }
+
+        public long GlobalCount => workItems.Count;
 
         /// <summary>
         /// Dispatches work items to this thread.
@@ -709,8 +744,9 @@ namespace System.Threading
             currentThread = Thread.CurrentThread;
         }
 
-        private void CleanUp()
+        ~ThreadPoolWorkQueueThreadLocals()
         {
+            // Transfer any pending workitems into the global queue so that they will be executed by another thread
             if (null != workStealingQueue)
             {
                 if (null != workQueue)
@@ -725,17 +761,6 @@ namespace System.Threading
 
                 ThreadPoolWorkQueue.WorkStealingQueueList.Remove(workStealingQueue);
             }
-        }
-
-        ~ThreadPoolWorkQueueThreadLocals()
-        {
-            // Since the purpose of calling CleanUp is to transfer any pending workitems into the global
-            // queue so that they will be executed by another thread, there's no point in doing this cleanup
-            // if we're in the process of shutting down or unloading the AD.  In those cases, the work won't
-            // execute anyway.  And there are subtle race conditions involved there that would lead us to do the wrong
-            // thing anyway.  So we'll only clean up if this is a "normal" finalization.
-            if (!Environment.HasShutdownStarted)
-                CleanUp();
         }
     }
 
@@ -752,8 +777,7 @@ namespace System.Threading
         ~QueueUserWorkItemCallbackBase()
         {
             Debug.Assert(
-                executed != 0 || Environment.HasShutdownStarted,
-                "A QueueUserWorkItemCallback was never called!");
+                executed != 0, "A QueueUserWorkItemCallback was never called!");
         }
 #endif
 
@@ -1252,5 +1276,23 @@ namespace System.Threading
 
         internal static object[] GetLocallyQueuedWorkItemsForDebugger() =>
             ToObjectArray(GetLocallyQueuedWorkItems());
+
+        /// <summary>
+        /// Gets the number of work items that are currently queued to be processed.
+        /// </summary>
+        /// <remarks>
+        /// For a thread pool implementation that may have different types of work items, the count includes all types that can
+        /// be tracked, which may only be the user work items including tasks. Some implementations may also include queued
+        /// timer and wait callbacks in the count. On Windows, the count is unlikely to include the number of pending IO
+        /// completions, as they get posted directly to an IO completion port.
+        /// </remarks>
+        public static long PendingWorkItemCount
+        {
+            get
+            {
+                ThreadPoolWorkQueue workQueue = ThreadPoolGlobals.workQueue;
+                return workQueue.LocalCount + workQueue.GlobalCount + PendingUnmanagedWorkItemCount;
+            }
+        }
     }
 }
