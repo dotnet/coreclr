@@ -95,7 +95,7 @@ bool ParseGCHeapAffinitizeRanges(const char* cpu_index_ranges, AffinitySet* conf
 
     if (cpu_index_ranges != NULL)
     {
-        const char* number_end;
+        const char* number_end = nullptr;
 
         do
         {
@@ -121,7 +121,7 @@ bool ParseGCHeapAffinitizeRanges(const char* cpu_index_ranges, AffinitySet* conf
         }
         while (*number_end == ',');
 
-        success = (*number_end == '\0');
+        success = (number_end != nullptr) && (*number_end == '\0');
     }
 
     return success;
