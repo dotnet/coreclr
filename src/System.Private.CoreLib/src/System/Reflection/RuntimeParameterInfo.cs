@@ -399,7 +399,7 @@ namespace System.Reflection
         {
             Debug.Assert(attr.Constructor.DeclaringType == typeof(DecimalConstantAttribute));
 
-            foreach (CustomAttributeNamedArgument namedArgument in attr.NamedArguments!)
+            foreach (CustomAttributeNamedArgument namedArgument in attr.NamedArguments)
             {
                 if (namedArgument.MemberInfo.Name.Equals("Value"))
                 {
@@ -444,7 +444,7 @@ namespace System.Reflection
             Debug.Assert(attr.Constructor.DeclaringType == typeof(DateTimeConstantAttribute));
             Debug.Assert(attr.ConstructorArguments.Count == 1);
 
-            foreach (CustomAttributeNamedArgument namedArgument in attr.NamedArguments!)
+            foreach (CustomAttributeNamedArgument namedArgument in attr.NamedArguments)
             {
                 if (namedArgument.MemberInfo.Name.Equals("Value"))
                 {
@@ -458,7 +458,7 @@ namespace System.Reflection
 
         private static object? GetRawConstant(CustomAttributeData attr)
         {
-            foreach (CustomAttributeNamedArgument namedArgument in attr.NamedArguments!)
+            foreach (CustomAttributeNamedArgument namedArgument in attr.NamedArguments)
             {
                 if (namedArgument.MemberInfo.Name.Equals("Value"))
                     return namedArgument.TypedValue.Value;

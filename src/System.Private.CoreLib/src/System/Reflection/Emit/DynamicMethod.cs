@@ -15,7 +15,7 @@ namespace System.Reflection.Emit
     {
         private RuntimeType[] m_parameterTypes = null!;
         internal IRuntimeMethodInfo? m_methodHandle;
-        private RuntimeType? m_returnType;
+        private RuntimeType m_returnType = null!;
         private DynamicILGenerator? m_ilGenerator;
         private DynamicILInfo? m_DynamicILInfo;
         private bool m_fInitLocals;
@@ -286,7 +286,7 @@ namespace System.Reflection.Emit
             }
 
             // check and store the return value
-            m_returnType = (returnType == null) ? (RuntimeType)typeof(void) : returnType.UnderlyingSystemType as RuntimeType;
+            m_returnType = (returnType == null) ? (RuntimeType)typeof(void) : (returnType.UnderlyingSystemType as RuntimeType)!;
             if (m_returnType == null)
                 throw new NotSupportedException(SR.Arg_InvalidTypeInRetType);
 
@@ -393,7 +393,7 @@ namespace System.Reflection.Emit
                     }
                 }
             }
-            return new RuntimeMethodHandle(m_methodHandle);
+            return new RuntimeMethodHandle(m_methodHandle!);
         }
 
         //
@@ -454,7 +454,7 @@ namespace System.Reflection.Emit
 
             // create a signature object
             Signature sig = new Signature(
-                this.m_methodHandle!, m_parameterTypes, m_returnType!, CallingConvention);
+                this.m_methodHandle!, m_parameterTypes, m_returnType, CallingConvention);
 
 
             // verify arguments
@@ -708,13 +708,15 @@ namespace System.Reflection.Emit
                 get { return m_owner.IsSecurityTransparent; }
             }
 
-            public override Type? ReturnType
+#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
+            public override Type ReturnType
             {
                 get
                 {
                     return m_owner.m_returnType;
                 }
             }
+#pragma warning restore CS8608
 
             public override ParameterInfo? ReturnParameter
             {

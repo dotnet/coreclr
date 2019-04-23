@@ -720,14 +720,14 @@ namespace System
             return method;
         }
 
-        private IRuntimeMethodInfo? m_value;
+        private IRuntimeMethodInfo m_value;
 
-        internal RuntimeMethodHandle(IRuntimeMethodInfo? method)
+        internal RuntimeMethodHandle(IRuntimeMethodInfo method)
         {
             m_value = method;
         }
 
-        internal IRuntimeMethodInfo? GetMethodInfo()
+        internal IRuntimeMethodInfo GetMethodInfo()
         {
             return m_value;
         }

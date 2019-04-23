@@ -3105,7 +3105,7 @@ namespace System.Diagnostics.Tracing
                     {
                         Type t = attr.GetType();
 
-                        foreach (CustomAttributeNamedArgument namedArgument in data.NamedArguments!)
+                        foreach (CustomAttributeNamedArgument namedArgument in data.NamedArguments)
                         {
                             PropertyInfo p = t.GetProperty(namedArgument.MemberInfo.Name, BindingFlags.Public | BindingFlags.Instance)!;
                             object value = namedArgument.TypedValue.Value!;

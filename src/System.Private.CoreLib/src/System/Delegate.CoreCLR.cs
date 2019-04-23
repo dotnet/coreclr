@@ -402,8 +402,8 @@ namespace System
             // unambiguously provided to us.
 
             if (!d.BindToMethodInfo(target,
-                                    method.GetMethodInfo()!,
-                                    RuntimeMethodHandle.GetDeclaringType(method.GetMethodInfo()!),
+                                    method.GetMethodInfo(),
+                                    RuntimeMethodHandle.GetDeclaringType(method.GetMethodInfo()),
                                     DelegateBindingFlags.RelaxedSignature | DelegateBindingFlags.SkipSecurityChecks))
                 throw new ArgumentException(SR.Arg_DlgtTargMeth);
             return d;

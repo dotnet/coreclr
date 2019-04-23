@@ -17,7 +17,7 @@ namespace System.Reflection
             if (handle.IsNullHandle())
                 throw new ArgumentException(SR.Argument_InvalidHandle);
 
-            MethodBase? m = RuntimeType.GetMethodBase(handle.GetMethodInfo()!);
+            MethodBase? m = RuntimeType.GetMethodBase(handle.GetMethodInfo());
 
             Type? declaringType = m?.DeclaringType;
             if (declaringType != null && declaringType.IsGenericType)
@@ -33,7 +33,7 @@ namespace System.Reflection
             if (handle.IsNullHandle())
                 throw new ArgumentException(SR.Argument_InvalidHandle);
 
-            return RuntimeType.GetMethodBase(declaringType.GetRuntimeType(), handle.GetMethodInfo()!);
+            return RuntimeType.GetMethodBase(declaringType.GetRuntimeType(), handle.GetMethodInfo());
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod

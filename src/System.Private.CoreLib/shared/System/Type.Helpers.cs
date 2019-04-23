@@ -123,7 +123,7 @@ namespace System
             int cnt = 0;
             for (int i = 0; i < c.Length; i++)
             {
-                if (!filter(c[i], filterCriteria))
+                if (!filter(c[i]!, filterCriteria))
                     c[i] = null;
                 else
                     cnt++;
@@ -141,7 +141,7 @@ namespace System
             return ret;
         }
 
-        public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter? filter, object? filterCriteria)
+        public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter? filter, object filterCriteria)
         {
             // Define the work arrays
             MethodInfo?[]? m = null;
@@ -161,7 +161,7 @@ namespace System
                 if (filter != null)
                 {
                     for (i = 0; i < m.Length; i++)
-                        if (!filter(m[i], filterCriteria))
+                        if (!filter(m[i]!, filterCriteria))
                             m[i] = null;
                         else
                             cnt++;
@@ -179,7 +179,7 @@ namespace System
                 if (filter != null)
                 {
                     for (i = 0; i < c.Length; i++)
-                        if (!filter(c[i], filterCriteria))
+                        if (!filter(c[i]!, filterCriteria))
                             c[i] = null;
                         else
                             cnt++;
@@ -197,7 +197,7 @@ namespace System
                 if (filter != null)
                 {
                     for (i = 0; i < f.Length; i++)
-                        if (!filter(f[i], filterCriteria))
+                        if (!filter(f[i]!, filterCriteria))
                             f[i] = null;
                         else
                             cnt++;
@@ -215,7 +215,7 @@ namespace System
                 if (filter != null)
                 {
                     for (i = 0; i < p.Length; i++)
-                        if (!filter(p[i], filterCriteria))
+                        if (!filter(p[i]!, filterCriteria))
                             p[i] = null;
                         else
                             cnt++;
@@ -233,7 +233,7 @@ namespace System
                 if (filter != null)
                 {
                     for (i = 0; i < e.Length; i++)
-                        if (!filter(e[i], filterCriteria))
+                        if (!filter(e[i]!, filterCriteria))
                             e[i] = null;
                         else
                             cnt++;
@@ -251,7 +251,7 @@ namespace System
                 if (filter != null)
                 {
                     for (i = 0; i < t.Length; i++)
-                        if (!filter(t[i], filterCriteria))
+                        if (!filter(t[i]!, filterCriteria))
                             t[i] = null;
                         else
                             cnt++;
@@ -393,7 +393,7 @@ namespace System
         // FilterAttribute
         //  This method will search for a member based upon the attribute passed in.
         //  filterCriteria -- an Int32 representing the attribute
-        private static bool FilterAttributeImpl(MemberInfo m, object filterCriteria)
+        private static bool FilterAttributeImpl(MemberInfo m, object? filterCriteria)
         {
             // Check that the criteria object is an Integer object
             if (filterCriteria == null)

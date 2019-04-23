@@ -1033,8 +1033,8 @@ namespace System.Reflection.Emit
         #region Public Methods
         public int GetTokenFor(RuntimeMethodHandle method)
         {
-            IRuntimeMethodInfo? methodReal = method.GetMethodInfo();
-            if (methodReal != null)
+            IRuntimeMethodInfo methodReal = method.GetMethodInfo();
+            if (methodReal != null) // TODO-NULLABLE: never null
             {
                 RuntimeMethodHandleInternal rmhi = methodReal.Value;
                 if (!RuntimeMethodHandle.IsDynamicMethod(rmhi))

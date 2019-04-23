@@ -89,10 +89,10 @@ namespace System.Reflection.Emit
             if (type.IsGenericTypeDefinition)
                 type = type.MakeGenericType(type.GetGenericArguments());
 
-            if (type is TypeBuilderInstantiation tbi)
-                return MethodOnTypeBuilderInstantiation.GetMethod(method, tbi);
+            if (!(type is TypeBuilderInstantiation))
+                throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(type));
 
-            throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(type));           
+            return MethodOnTypeBuilderInstantiation.GetMethod(method, (TypeBuilderInstantiation)type);
         }
         public static ConstructorInfo GetConstructor(Type type, ConstructorInfo constructor)
         {

@@ -116,7 +116,7 @@ namespace System.Reflection
         protected sealed override MethodInfo GetMethodImpl(string name, BindingFlags bindingAttr, Binder? binder, CallingConventions callConvention, Type[]? types, ParameterModifier[]? modifiers) => throw new NotSupportedException(SR.NotSupported_SignatureType);
         protected sealed override MethodInfo GetMethodImpl(string name, int genericParameterCount, BindingFlags bindingAttr, Binder? binder, CallingConventions callConvention, Type[]? types, ParameterModifier[]? modifiers) => throw new NotSupportedException(SR.NotSupported_SignatureType);
         protected sealed override PropertyInfo GetPropertyImpl(string name, BindingFlags bindingAttr, Binder? binder, Type? returnType, Type[]? types, ParameterModifier[]? modifiers) => throw new NotSupportedException(SR.NotSupported_SignatureType);
-        public sealed override MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter? filter, object? filterCriteria) => throw new NotSupportedException(SR.NotSupported_SignatureType);
+        public sealed override MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter? filter, object filterCriteria) => throw new NotSupportedException(SR.NotSupported_SignatureType);
         public sealed override MemberInfo[] GetMember(string name, BindingFlags bindingAttr) => throw new NotSupportedException(SR.NotSupported_SignatureType);
         public sealed override MemberInfo[] GetMember(string name, MemberTypes type, BindingFlags bindingAttr) => throw new NotSupportedException(SR.NotSupported_SignatureType);
         public sealed override MemberInfo[] GetDefaultMembers() => throw new NotSupportedException(SR.NotSupported_SignatureType);

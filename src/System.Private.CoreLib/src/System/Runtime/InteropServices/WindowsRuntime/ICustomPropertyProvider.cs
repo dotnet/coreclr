@@ -52,10 +52,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Type? indexedParamType = null;
             SystemTypeMarshaler.ConvertToManaged(pIndexedParamType, ref indexedParamType);
 
-            return CreateIndexedProperty(target, propertyName, indexedParamType);
+            return CreateIndexedProperty(target, propertyName, indexedParamType!);
         }
 
-        internal static ICustomProperty? CreateIndexedProperty(object target, string propertyName, Type? indexedParamType)
+        internal static ICustomProperty? CreateIndexedProperty(object target, string propertyName, Type indexedParamType)
         {
             Debug.Assert(target != null);
             Debug.Assert(propertyName != null);
@@ -69,7 +69,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public,
                 null,                                                                   // default binder
                 null,                                                                   // ignore return type
-                new Type[] { indexedParamType! },                                        // indexed parameter type
+                new Type[] { indexedParamType },                                        // indexed parameter type
                 null                                                                    // ignore type modifier
                 );
 

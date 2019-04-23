@@ -480,7 +480,7 @@ namespace System.Diagnostics.Tracing
 #if (ES_BUILD_PCL || ES_BUILD_PN)
                 var ifaceTypes = type.GetTypeInfo().ImplementedInterfaces;
 #else
-                var ifaceTypes = type.FindInterfaces(IsGenericMatch!, typeof(IEnumerable<>));
+                var ifaceTypes = type.FindInterfaces(IsGenericMatch, typeof(IEnumerable<>));
 #endif
 
                 foreach (var ifaceType in ifaceTypes)
@@ -506,9 +506,9 @@ namespace System.Diagnostics.Tracing
             return elementType;
         }
 
-        public static bool IsGenericMatch(Type type, object openType)
+        public static bool IsGenericMatch(Type type, object? openType)
         {
-            return type.IsGenericType() && type.GetGenericTypeDefinition() == (Type)openType;
+            return type.IsGenericType() && type.GetGenericTypeDefinition() == (Type?)openType;
         }
 
         public static Delegate CreateDelegate(Type delegateType, MethodInfo methodInfo)
@@ -548,7 +548,7 @@ namespace System.Diagnostics.Tracing
             }
             else if (dataType.IsArray)
             {
-                var elementType = dataType.GetElementType();
+                Type elementType = dataType.GetElementType()!;
                 if (elementType == typeof(bool))
                 {
                     result = ScalarArrayTypeInfo.Boolean();
@@ -611,7 +611,7 @@ namespace System.Diagnostics.Tracing
                 }
                 else
                 {
-                    result = new ArrayTypeInfo(dataType, TraceLoggingTypeInfo.GetInstance(elementType!, recursionCheck));
+                    result = new ArrayTypeInfo(dataType, TraceLoggingTypeInfo.GetInstance(elementType, recursionCheck));
                 }
             }
             else

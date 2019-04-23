@@ -193,12 +193,12 @@ namespace System.Reflection.Emit
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
 
-            ModuleBuilder? module = m_typeBuilder.Module as ModuleBuilder;
+            ModuleBuilder module = (m_typeBuilder.Module as ModuleBuilder)!;
 
             m_typeBuilder.ThrowIfCreated();
 
-            TypeBuilder.DefineCustomAttribute(module!,
-                m_tkField.Token, module!.GetConstructorToken(con).Token, binaryAttribute, false, false);
+            TypeBuilder.DefineCustomAttribute(module,
+                m_tkField.Token, module.GetConstructorToken(con).Token, binaryAttribute, false, false);
         }
 
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)

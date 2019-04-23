@@ -1770,7 +1770,6 @@ namespace System
                     bool loaderAssuredCompatible = false;
                     for (int i = 0; i < methodBases.Length; i++)
                     {
-
                         IRuntimeMethodInfo rmi = (IRuntimeMethodInfo)methodBases[i];
                         if (rmi.Value.Value == methodHandle.Value)
                             loaderAssuredCompatible = true;
@@ -1780,7 +1779,6 @@ namespace System
                         throw new ArgumentException(SR.Format(
                             SR.Argument_ResolveMethodHandle,
                             reflectedType, declaredType));
-
                 }
                 // Action<in string> is assignable from, but not a subclass of Action<in object>.
                 else if (declaredType.IsGenericType)
@@ -4652,7 +4650,7 @@ namespace System
 
             // Handle arguments that are passed as ByRef and those
             // arguments that need to be wrapped.
-            ParameterModifier[]? aParamMod = null;
+            ParameterModifier[] aParamMod = null!;
             if (cArgs > 0)
             {
                 ParameterModifier paramMod = new ParameterModifier(cArgs);
@@ -4677,12 +4675,12 @@ namespace System
             for (int i = 0; i < cArgs; i++)
             {
                 // Determine if the parameter is ByRef.
-                if (aParamMod![0][i] && aArgs[i] != null)
+                if (aParamMod[0][i] && aArgs[i] != null)
                 {
                     Type argType = aArgsTypes[i];
                     if (!ReferenceEquals(argType, aArgs[i].GetType()))
                     {
-                        aArgs[i] = ForwardCallBinder.ChangeType(aArgs[i], argType, null)!;
+                        aArgs[i] = ForwardCallBinder.ChangeType(aArgs[i], argType, null);
                     }
                 }
             }

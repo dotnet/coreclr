@@ -431,7 +431,7 @@ namespace System.Reflection
                 ctorArgs += string.Format(i == 0 ? "{0}" : ", {0}", ConstructorArguments[i]);
 
             string namedArgs = "";
-            for (int i = 0; i < NamedArguments!.Count; i++)
+            for (int i = 0; i < NamedArguments.Count; i++)
                 namedArgs += string.Format(i == 0 && ctorArgs.Length == 0 ? "{0}" : ", {0}", NamedArguments[i]);
 
             return string.Format("[{0}({1}{2})]", Constructor.DeclaringType!.FullName, ctorArgs, namedArgs);
@@ -467,14 +467,14 @@ namespace System.Reflection
             }
         }
 
-        public virtual IList<CustomAttributeNamedArgument>? NamedArguments
+        public virtual IList<CustomAttributeNamedArgument> NamedArguments
         {
             get
             {
                 if (m_namedArgs == null)
                 {
                     if (m_namedParams == null)
-                        return null;
+                        return null!;
 
                     int cNamedArgs = 0;
                     for (int i = 0; i < m_namedParams.Length; i++)
