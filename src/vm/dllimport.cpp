@@ -7082,7 +7082,7 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
                 // We need pMD in the case of an exception unwinding, so we can test if the pinvoke method is
                 // in a R2R module, and if so, properly pop the PInvoke frame from the thread. This is because
                 // the JIT_PInvokeEnd helper that pops the frame will not run when there's an exception.
-                ((InlinedCallFrame*)pThread->GetFrame())->m_Datum = pMD;
+                ((InlinedCallFrame*)GetThread()->GetFrame())->m_Datum = pMD;
             }
 
             //
