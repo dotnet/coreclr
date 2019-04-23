@@ -103,6 +103,7 @@ namespace System.Diagnostics.Tracing
         private EventPipeController()
         {
             // Set the config file path.
+            // BaseDirectory could be null, in which case this could throw, but it will be caught and ignored: https://github.com/dotnet/coreclr/issues/24053
             m_configFilePath = Path.Combine(AppContext.BaseDirectory!, BuildConfigFileName());
 
             // Initialize the timer, but don't set it to run.

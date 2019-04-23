@@ -17,8 +17,8 @@ namespace System.Diagnostics.Tracing
 {
     internal  class XplatEventLogger : EventListener
     {
-        private static Lazy<string> eventSourceNameFilter = new Lazy<string>(() => CompatibilitySwitch.GetValueInternal("EventSourceFilter"));
-        private static Lazy<string> eventSourceEventFilter = new Lazy<string>(() => CompatibilitySwitch.GetValueInternal("EventNameFilter"));
+        private static Lazy<string?> eventSourceNameFilter = new Lazy<string?>(() => CompatibilitySwitch.GetValueInternal("EventSourceFilter"));
+        private static Lazy<string?> eventSourceEventFilter = new Lazy<string?>(() => CompatibilitySwitch.GetValueInternal("EventNameFilter"));
         
         public XplatEventLogger() {}
 
