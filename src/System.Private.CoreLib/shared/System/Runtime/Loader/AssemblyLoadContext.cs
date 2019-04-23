@@ -100,8 +100,6 @@ namespace System.Runtime.Loader
                 _id = s_nextId++;
                 s_allContexts.Add(_id, new WeakReference<AssemblyLoadContext>(this, true));
             }
-
-            Resolving += ResolveSatelliteAssembly;
         }
 
         ~AssemblyLoadContext()

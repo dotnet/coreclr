@@ -66,7 +66,7 @@ namespace System.Runtime.Loader
             return null;
         }
 
-        static private Assembly? ResolveSatelliteAssembly(AssemblyLoadContext alc, AssemblyName assemblyName)
+        private Assembly? ResolveSatelliteAssembly(AssemblyName assemblyName)
         {
             string? cultureName = assemblyName.CultureName;
 
@@ -78,7 +78,7 @@ namespace System.Runtime.Loader
 
             AssemblyName parentAssemblyName = new AssemblyName(assemblyName.Name);
 
-            Assembly? parentAssembly = alc.LoadFromAssemblyName(parentAssemblyName);
+            Assembly? parentAssembly = LoadFromAssemblyName(parentAssemblyName);
 
             if (parentAssembly == null)
                 return null;
