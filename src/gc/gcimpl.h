@@ -80,6 +80,14 @@ public:
     size_t  GetLastGCDuration(int generation);
     size_t  GetNow();
 
+private:
+    void (*m_notification)(float);
+
+    void InvokeMemoryLoadChangeNotification(float memoryPercent);
+public:
+    void RegisterMemoryLoadChangeNotification(void (*notification)(float));
+    void UnregisterMemoryLoadChangeNotification();
+
     void  DiagTraceGCSegments ();    
     void PublishObject(uint8_t* obj);
     

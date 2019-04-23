@@ -37595,3 +37595,22 @@ void PopulateDacVars(GcDacVars *gcDacVars)
 #endif // MULTIPLE_HEAPS
 #endif // DACCESS_COMPILE
 }
+
+void GCHeap::InvokeMemoryLoadChangeNotification(float memory_percent)
+{
+    if (m_notification != nullptr)
+    {
+        m_notification(memory_percent);
+    }
+}
+
+void GCHeap::RegisterMemoryLoadChangeNotification(void (*notification)(float))
+{
+    _ASSERTE(m_notification == nullptr);
+    m_notification = notification;
+}
+
+void GCHeap::UnregisterMemoryLoadChangeNotification()
+{
+    m_notification = nullptr;
+}

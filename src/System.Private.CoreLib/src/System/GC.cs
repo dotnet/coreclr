@@ -17,6 +17,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace System
 {
@@ -508,5 +509,118 @@ namespace System
         {
             EndNoGCRegionWorker();
         }
+
+        readonly struct MemoryLoadChangeNotification
+        {
+            public float LowMemoryPercent { get; }
+            public float HighMemoryPercent { get; }
+            public Action Notification { get; }
+
+            public MemoryLoadChangeNotification(float lowMemoryPercent, float highMemoryPercent, Action notification)
+            {
+                LowMemoryPercent = lowMemoryPercent;
+                HighMemoryPercent = highMemoryPercent;
+                Notification = notification;
+            }
+        }
+
+        private static List<MemoryLoadChangeNotification> s_notifications = new List<MemoryLoadChangeNotification>();
+        private static Action<float> s_notificationsCallback = new Action<float>(InvokeMemoryLoadChangeNotifications);
+        private static IntPtr s_notificationsFtnPtr = Marshal.GetFunctionPointerForDelegate(s_notificationsCallback);
+
+        private static void InvokeMemoryLoadChangeNotifications(float memoryPercent)
+        {
+            lock (s_notifications)
+            {
+                int last = 0;
+                for (int i = 0; i < s_notifications.Count; ++i)
+                {
+                    if (s_notifications[i].LowMemoryPercent <= memoryPercent && memoryPercent <= s_notifications[i].HighMemoryPercent)
+                    {
+                        s_notifications[i].Notification();
+                        // it will then be overwritten or removed
+                    }
+                    else
+                    {
+                        s_notifications[last++] = s_notifications[i];
+                    }
+                }
+
+                if (last < s_notifications.Count)
+                {
+                    s_notifications.RemoveRange(last, s_notifications.Count - last);
+                }
+
+                if (s_notifications.Count == 0)
+                {
+                    _UnregisterMemoryLoadChangeNotification();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Register a notification to occur *AFTER* a GC occurs in which the memory load changes from within the bound specified
+        /// to outside of the bound specified. This notification will occur once. If repeated notifications are required, the notification
+        /// must be reregistered. The notification will occur on a thread which should not be blocked. Complex processing in the notification should defer work to the threadpool.
+        /// </summary>
+        /// <param name="lowMemoryPercent">percent of HighMemoryLoadThreshold to use as lower bound. Must be a number >= 0 or an ArgumentOutOfRangeException will be thrown.</param>
+        /// <param name="highMemoryPercent">percent of HighMemoryLoadThreshold use to use as lower bound. Must be a number > lowMemory or an ArgumentOutOfRangeException will be thrown. </param>
+        /// <param name="notification">delegate to invoke when operation occurs</param>s
+        internal static void RegisterMemoryLoadChangeNotification(float lowMemoryPercent, float highMemoryPercent, Action notification)
+        {
+            if (highMemoryPercent < 0 || highMemoryPercent > 1.0 || highMemoryPercent <= lowMemoryPercent)
+            {
+                throw new ArgumentOutOfRangeException(nameof(highMemoryPercent));
+            }
+            if (lowMemoryPercent < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(lowMemoryPercent));
+            }
+            if (notification == null)
+            {
+                throw new ArgumentNullException(nameof(notification));
+            }
+
+            lock (s_notifications)
+            {
+                s_notifications.Add (new MemoryLoadChangeNotification(lowMemoryPercent, highMemoryPercent, notification));
+
+                if (s_notifications.Count == 1)
+                {
+                    _RegisterMemoryLoadChangeNotification(s_notificationsFtnPtr);
+                }
+            }
+        }
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern void _RegisterMemoryLoadChangeNotification(IntPtr notification);
+
+        internal static void UnregisterMemoryLoadChangeNotification(Action notification)
+        {
+            if (notification == null)
+            {
+                throw new ArgumentNullException(nameof(notification));
+            }
+
+            lock (s_notifications)
+            {
+                for (int i = 0; i < s_notifications.Count; ++i)
+                {
+                    if (s_notifications[i].Notification == notification)
+                    {
+                        s_notifications.RemoveAt(i);
+                        break;
+                    }
+                }
+
+                if (s_notifications.Count == 0)
+                {
+                    _UnregisterMemoryLoadChangeNotification();
+                }
+            }
+        }
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern void _UnregisterMemoryLoadChangeNotification();
     }
 }

@@ -1707,6 +1707,22 @@ NOINLINE void GCInterface::GarbageCollectModeAny(int generation)
     GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, false, collection_non_blocking);
 }
 
+FCIMPL1(void, GCInterface::RegisterMemoryLoadChangeNotification, void (*notification)(float))
+{
+    FCALL_CONTRACT;
+
+    GCHeapUtilities::GetGCHeap()->RegisterMemoryLoadChangeNotification(notification);
+}
+FCIMPLEND
+
+FCIMPL0(void, GCInterface::UnregisterMemoryLoadChangeNotification)
+{
+    FCALL_CONTRACT;
+
+    GCHeapUtilities::GetGCHeap()->UnregisterMemoryLoadChangeNotification();
+}
+FCIMPLEND
+
 //
 // COMInterlocked
 //
