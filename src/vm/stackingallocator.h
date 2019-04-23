@@ -196,25 +196,7 @@ public:
 
     void* UnsafeAllocSafeThrow(UINT32 size);
     void* UnsafeAlloc(UINT32 size);
-    void ClearUnallocated()
-    {
-        WRAPPER_NO_CONTRACT;
-        if (m_DeferredFreeBlock != NULL)
-        {
-            delete [] (char *)m_DeferredFreeBlock;
-            m_DeferredFreeBlock = NULL;
-        }
-
-        if ((m_FirstBlock == m_InitialBlock) && (m_BytesLeft == m_InitialBlock->m_Length))
-        {
-            // There are no active allocations on this allocator, free the initial block too
-            delete [] (char *)m_InitialBlock;
-            m_FirstBlock = NULL;
-            m_InitialBlock = NULL;
-            m_FirstFree = NULL;
-            m_BytesLeft = 0;
-        }
-    }
+    void ClearUnallocated();
     
 private:
 
