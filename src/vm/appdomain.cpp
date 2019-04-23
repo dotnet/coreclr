@@ -6814,9 +6814,11 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
                 {
                     fResolvedAssembly = true;
                 }
-            
+
+                bool isSatelliteAssemblyRequest = (_gcRefs.oRefAssemblyName->GetCultureInfo() != NULL);
+
                 // Step 3 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName)
-                if (!fResolvedAssembly)
+                if (!fResolvedAssembly && !isSatelliteAssemblyRequest)
                 {
                     // If we could not resolve the assembly using Load method, then attempt fallback with TPA Binder.
                     // Since TPA binder cannot fallback to itself, this fallback does not happen for binds within TPA binder.

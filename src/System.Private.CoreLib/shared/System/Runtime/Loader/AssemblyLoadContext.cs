@@ -100,6 +100,8 @@ namespace System.Runtime.Loader
                 _id = s_nextId++;
                 s_allContexts.Add(_id, new WeakReference<AssemblyLoadContext>(this, true));
             }
+
+            Resolving += ResolveSatelliteAssembly;
         }
 
         ~AssemblyLoadContext()
@@ -187,7 +189,7 @@ namespace System.Runtime.Loader
         //
         // Inputs: The AssemblyLoadContext and AssemblyName to be loaded
         // Returns: The Loaded assembly object.
-        public event Func<AssemblyLoadContext, AssemblyName, Assembly> Resolving
+        public event Func<AssemblyLoadContext, AssemblyName, Assembly?> Resolving
         {
             add
             {
