@@ -62,8 +62,7 @@ FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     if (gc.assemblyName == NULL)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_AssemblyName"));
 
-    Thread * pThread = GetThread();
-    CheckPointHolder cph(pThread->m_MarshalAlloc.GetCheckpoint()); //hold checkpoint for autorelease
+    StackingAllocatorHolder sah(&GetThread()->m_MarshalAlloc); //hold checkpoint for autorelease
 
     DomainAssembly * pParentAssembly = NULL;
     Assembly * pRefAssembly = NULL;
@@ -105,7 +104,7 @@ FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     }
     
     if (gc.codeBase != NULL)
-        spec.SetCodeBase(&(pThread->m_MarshalAlloc), &gc.codeBase);
+        spec.SetCodeBase(sah.GetStackingAllocator(), &gc.codeBase);
 
     if (pParentAssembly != NULL)
         spec.SetParentAssembly(pParentAssembly);

@@ -275,7 +275,7 @@ public:
     BOOL IsAddressInStack (PTR_VOID addr) const { return TRUE; }
     static BOOL IsAddressInCurrentStack (PTR_VOID addr) { return TRUE; }
 
-    StackingAllocator    m_MarshalAlloc;
+    StackingAllocator*    m_stackLocalAllocator = NULL;
 
  private:
     LoadLevelLimiter *m_pLoadLimiter;
@@ -438,15 +438,6 @@ public:
 
     DWORD       m_dwLastError;
 };
-
-inline void DoReleaseCheckpoint(void *checkPointMarker)
-{
-    WRAPPER_NO_CONTRACT;
-    GetThread()->m_MarshalAlloc.Collapse(checkPointMarker);
-}
-
-// CheckPointHolder : Back out to a checkpoint on the thread allocator.
-typedef Holder<void*, DoNothing,DoReleaseCheckpoint> CheckPointHolder;
 
 class AVInRuntimeImplOkayHolder
 {
@@ -1691,7 +1682,7 @@ public:
     // is started using a CheckPointHolder and GetCheckpoint, and this region can then be used for allocations
     // from that point onwards, and then all memory is reclaimed when the static scope for the
     // checkpoint is exited by the running thread.
-    StackingAllocator    m_MarshalAlloc;
+    StackingAllocator*    m_stackLocalAllocator = NULL;
 
     // Flags used to indicate tasks the thread has to do.
     ThreadTasks          m_ThreadTasks;
@@ -6335,20 +6326,6 @@ if (g_pConfig->GetGCStressLevel() && g_pConfig->FastGCStressLevel() > 1) {   \
 #define CLEANSTACKFORFASTGCSTRESS()
 
 #endif  // _DEBUG
-
-
-
-
-inline void DoReleaseCheckpoint(void *checkPointMarker)
-{
-    WRAPPER_NO_CONTRACT;
-    GetThread()->m_MarshalAlloc.Collapse(checkPointMarker);
-}
-
-
-// CheckPointHolder : Back out to a checkpoint on the thread allocator.
-typedef Holder<void*, DoNothing, DoReleaseCheckpoint> CheckPointHolder;
-
 
 #ifdef _DEBUG_IMPL
 // Holder for incrementing the ForbidGCLoaderUse counter.

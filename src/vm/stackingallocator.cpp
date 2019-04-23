@@ -52,7 +52,6 @@ StackingAllocator::StackingAllocator()
 
     m_FirstBlock = NULL;
     m_FirstFree = NULL;
-    m_InitialBlock = NULL;
     m_DeferredFreeBlock = NULL;
 
 #ifdef _DEBUG
@@ -274,7 +273,7 @@ void StackingAllocator::Collapse(void *CheckpointMarker)
 
     // Special case collapsing back to the initial checkpoint.
     if (c == &s_initialCheckpoint || c->m_OldBlock == NULL) {
-        Clear(m_InitialBlock);
+        Clear(&m_InitialBlock.m_InitialBlockHeader);
         Init(false);
 
         // confirm no buffer overruns

@@ -9017,9 +9017,8 @@ MethodTableBuilder::LoadExactInterfaceMap(MethodTable *pMT)
 
         // First we do a GetCheckpoint for the thread-based allocator.  ExpandExactInheritedInterfaces allocates substitution chains
         // on the thread allocator rather than on the stack.
-        Thread * pThread = GetThread();
-        StackingAllocator *pStackingAllocator = &pThread->m_MarshalAlloc;
-        CheckPointHolder cph(pStackingAllocator->GetCheckpoint()); //hold checkpoint for autorelease
+        StackingAllocatorHolder sah(&GetThread()->m_MarshalAlloc);
+        StackingAllocator *pStackingAllocator = sah.GetStackingAllocator();
 
         // ***********************************************************
         // ****** This must be consistent with code:ExpandApproxInterface etc. *******
@@ -12013,8 +12012,6 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
 
     MethodTable * pMT = NULL;
 
-    Thread * pThread = GetThread();
-
     MethodTable * pParentMethodTable = NULL;
     SigPointer    parentInst;
     mdTypeDef     tdEnclosing = mdTypeDefNil;
@@ -12037,8 +12034,8 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
     // used during class loading.
     // <NICE> Ideally a debug/checked build should pass around tokens indicating the Checkpoint
     // being used and check these dynamically </NICE>
-    StackingAllocator *pStackingAllocator = &pThread->m_MarshalAlloc;
-    CheckPointHolder cph(pStackingAllocator->GetCheckpoint()); //hold checkpoint for autorelease
+    StackingAllocatorHolder sah(&GetThread()->m_MarshalAlloc); //hold checkpoint for autorelease
+    StackingAllocator *pStackingAllocator = sah.GetStackingAllocator();
     
     // Gather up generics info
     MethodTableBuilder::GatherGenericsInfo(pModule, cl, inst, &genericsInfo);

@@ -80,9 +80,22 @@ public:
 
     enum
     {
-        MinBlockSize    = 0x8000,
-        MaxBlockSize    = 0x8000,
-        InitBlockSize   = 0x8000
+        MinBlockSize    = 0x2000,
+        MaxBlockSize    = 0x2000,
+        InitBlockSize   = 0x2000
+    };
+
+private:
+    struct InitialStackBlock : StackBlock
+    {
+        InitialStackBlock()
+        {
+            m_initialBlockHeader.m_Next = NULL;
+            m_initialBlockHeader.m_Length = sizeof(m_dataSpace);
+        }
+
+        StackBlock m_initialBlockHeader;
+        char m_dataSpace[InitBlockSize];
     };
 
 #ifndef DACCESS_COMPILE
@@ -202,11 +215,11 @@ private:
 
     bool AllocNewBlockForBytes(unsigned n);
     
-    StackBlock      *m_FirstBlock;       // Pointer to head of allocation block list
-    char       *m_FirstFree;        // Pointer to first free byte in head block
-    unsigned    m_BytesLeft;        // Number of free bytes left in head block
-    StackBlock      *m_InitialBlock;     // The first block is special, we never free it
-    StackBlock      *m_DeferredFreeBlock; // Avoid going to the OS too often by deferring one free
+    StackBlock       *m_FirstBlock;       // Pointer to head of allocation block list
+    char             *m_FirstFree;        // Pointer to first free byte in head block
+    unsigned          m_BytesLeft;        // Number of free bytes left in head block
+    InitialStackBlock m_InitialBlock;     // The first block is special, we never free it
+    StackBlock       *m_DeferredFreeBlock; // Avoid going to the OS too often by deferring one free
 
 #ifdef _DEBUG
     unsigned    m_CheckpointDepth;
@@ -221,21 +234,9 @@ private:
     {
         WRAPPER_NO_CONTRACT;
 
-        if (bResetInitBlock || (m_InitialBlock == NULL))
-        {
-            Clear(NULL);
-            m_FirstBlock = NULL;
-            m_FirstFree = NULL;
-            m_BytesLeft = 0;
-            m_InitialBlock = NULL;
-        }
-        else
-        {
-            m_FirstBlock = m_InitialBlock;
-            m_FirstFree = m_InitialBlock->m_Data;
-            _ASSERTE(FitsIn<unsigned>(m_InitialBlock->m_Length));
-            m_BytesLeft = static_cast<unsigned>(m_InitialBlock->m_Length);
-        }
+        m_FirstBlock = &m_InitialBlock.m_initialBlockHeader;
+        m_FirstFree = m_FirstBlock.m_Data;
+        m_BytesLeft = static_cast<unsigned>(m_FirstBlock->m_Length)
     }
 
 #ifdef _DEBUG
@@ -245,6 +246,7 @@ private:
 
         if (!block) 
             return;
+        _ASSERTE(m_InitialBlock.m_initialBlockHeader.m_Length == InitBlockSize);
         Sentinal* ptr = block->m_Sentinal;
         _ASSERTE(spot);
         while(ptr >= spot)
@@ -261,6 +263,7 @@ private:
             ptr = ptr->m_Next;
         }
         block->m_Sentinal = ptr;
+
     }
 #endif
 
@@ -297,6 +300,49 @@ private:
 private :
     static Checkpoint s_initialCheckpoint;
 };
+
+#define ACQUIRE_STACKING_ALLOCATOR(holderName)  \
+  Thread *pThread__ACQUIRE_STACKING_ALLOCATOR = GetThread(); \
+  StackingAllocator *pStackingAllocator__ACQUIRE_STACKING_ALLOCATOR = pThread->m_stackLocalAllocator; \
+  bool allocatorOwner__ACQUIRE_STACKING_ALLOCATOR = false; \
+  if (pStackingAllocator__ACQUIRE_STACKING_ALLOCATOR == NULL) \
+  { \
+      pStackingAllocator__ACQUIRE_STACKING_ALLOCATOR = _alloca(sizeof(StackingAllocator)); \
+      allocatorOwner__ACQUIRE_STACKING_ALLOCATOR = true; \
+  } \
+  StackingAllocatorHolder holderName(pStackingAllocator__ACQUIRE_STACKING_ALLOCATOR, pThread__ACQUIRE_STACKING_ALLOCATOR, allocatorOwner__ACQUIRE_STACKING_ALLOCATOR)
+
+class Thread;
+class StackingAllocatorHolder
+{
+    StackingAllocator *m_pStackingAllocator;
+    void* m_checkpointMarker;
+    Thread* m_thread;
+    bool m_owner;
+    ~StackingAllocatorHolder()
+    {
+        m_pStackingAllocator->Collapse(m_checkpointMarker);
+        if (m_owner)
+        {
+            m_thread->m_stackLocalAllocator = NULL;
+        }
+    }
+
+    public:
+    StackingAllocatorHolder(StackingAllocator *pStackingAllocator, Thread *pThread, bool owner) :
+        m_pStackingAllocator(pStackingAllocator),
+        m_checkpointMarker(pStackingAllocator->GetCheckpoint()),
+        m_thread(pThread),
+        m_owner(owner)
+    {
+        if (m_owner)
+        {
+            m_thread->m_stackLocalAllocator = pStackingAllocator;
+        }
+    }
+    StackingAllocator *GetStackingAllocator();
+};
+
 
 void * __cdecl operator new(size_t n, StackingAllocator *alloc);
 void * __cdecl operator new[](size_t n, StackingAllocator *alloc);

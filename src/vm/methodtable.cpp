@@ -8448,11 +8448,9 @@ InteropMethodTableData *MethodTable::CreateComInteropData(AllocMemTracker *pamTr
         PRECONDITION(GetParentMethodTable() == NULL || GetParentMethodTable()->LookupComInteropData() != NULL);
     } CONTRACTL_END;
 
-    Thread *pThread = GetThread();
-    StackingAllocator *pStackingAllocator = &pThread->m_MarshalAlloc;
-    CheckPointHolder cph(pStackingAllocator->GetCheckpoint()); //hold checkpoint for autorelease
+    StackingAllocatorHolder sah(&GetThread()->m_MarshalAlloc);
 
-    ClassCompat::MethodTableBuilder builder(this, pStackingAllocator);
+    ClassCompat::MethodTableBuilder builder(this, sah.GetStackingAllocator());
 
     InteropMethodTableData *pData = builder.BuildInteropVTable(pamTracker);
     _ASSERTE(pData);
