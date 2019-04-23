@@ -11655,17 +11655,18 @@ size_t gc_heap::new_allocation_limit (size_t size, size_t physical_limit, int ge
     return limit;
 }
 
-size_t gc_heap::limit_from_size (size_t size, size_t physical_limit, int gen_number,
+size_t gc_heap::limit_from_size (size_t size, uint32_t flags, size_t physical_limit, int gen_number,
                                  int align_const)
 {
     size_t padded_size = size + Align (min_obj_size, align_const);
     // for LOH this is not true...we could select a physical_limit that's exactly the same
     // as size.
     assert ((gen_number != 0) || (physical_limit >= padded_size));
-    size_t min_size_to_allocate = ((gen_number == 0) ? allocation_quantum : 0);
 
-    // For SOH if the size asked for is very small, we want to allocate more than 
-    // just what's asked for if possible.
+    // For SOH if the size asked for is very small, we want to allocate more than just what's asked for if possible. 
+    // Unless we were told not to clean, then we will not force it.
+    size_t min_size_to_allocate = ((gen_number == 0 && !(flags & GC_ALLOC_ZEROING_OPTIONAL)) ? allocation_quantum : 0);
+
     size_t desired_size_to_allocate  = max (padded_size, min_size_to_allocate);
     size_t new_physical_limit = min (physical_limit, desired_size_to_allocate);
 
@@ -12014,7 +12015,7 @@ BOOL gc_heap::a_fit_free_list_p (int gen_number,
                     // We ask for more Align (min_obj_size)
                     // to make sure that we can insert a free object
                     // in adjust_limit will set the limit lower
-                    size_t limit = limit_from_size (size, free_list_size, gen_number, align_const);
+                    size_t limit = limit_from_size (size, flags, free_list_size, gen_number, align_const);
 
                     uint8_t*  remain = (free_list + limit);
                     size_t remain_size = (free_list_size - limit);
@@ -12189,7 +12190,7 @@ BOOL gc_heap::a_fit_free_list_large_p (size_t size,
                     loh_allocator->unlink_item (a_l_idx, free_list, prev_free_item, FALSE);
 
                     // Substract min obj size because limit_from_size adds it. Not needed for LOH
-                    size_t limit = limit_from_size (size - Align(min_obj_size, align_const), free_list_size, 
+                    size_t limit = limit_from_size (size - Align(min_obj_size, align_const), flags, free_list_size, 
                                                     gen_number, align_const);
 
 #ifdef FEATURE_LOH_COMPACTION
@@ -12281,6 +12282,7 @@ BOOL gc_heap::a_fit_segment_end_p (int gen_number,
     if (a_size_fit_p (size, allocated, end, align_const))
     {
         limit = limit_from_size (size, 
+                                 flags,
                                  (end - allocated), 
                                  gen_number, align_const);
         goto found_fit;
@@ -12291,6 +12293,7 @@ BOOL gc_heap::a_fit_segment_end_p (int gen_number,
     if (a_size_fit_p (size, allocated, end, align_const))
     {
         limit = limit_from_size (size, 
+                                 flags,
                                  (end - allocated), 
                                  gen_number, align_const);
 

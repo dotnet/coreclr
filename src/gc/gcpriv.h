@@ -1450,7 +1450,7 @@ protected:
     void fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject);
 
     PER_HEAP
-    size_t limit_from_size (size_t size, size_t room, int gen_number,
+    size_t limit_from_size (size_t size, uint32_t flags, size_t room, int gen_number,
                             int align_const);
     PER_HEAP
     allocation_state try_allocate_more_space (alloc_context* acontext, size_t jsize, uint32_t flags, 
