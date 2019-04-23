@@ -3419,7 +3419,7 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumBridge.Get(this).Cache.GetNames();
+            return Enum.EnumCache.Get(this).GetNames();
         }
 
         public override Array GetEnumValues()
@@ -3427,7 +3427,7 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumBridge.Get(this).GetValuesNonGeneric();
+            return Enum.EnumCache.Get(this).GetValues();
         }
 
         public override Type GetEnumUnderlyingType()
@@ -3435,25 +3435,27 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumBridge.Get(this).UnderlyingType;
+            return Enum.EnumCache.Get(this).UnderlyingType;
         }
 
         public override bool IsEnumDefined(object value)
         {
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
 
-            Enum.EnumBridge bridge = Enum.EnumBridge.Get(this);
-            return bridge.Cache.IsDefined(value, bridge.IsEnum(value));
+            return Enum.EnumCache.Get(this).IsDefined(value);
         }
 
         public override string GetEnumName(object value)
         {
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
 
-            Enum.EnumBridge bridge = Enum.EnumBridge.Get(this);
-            return bridge.Cache.GetName(value, bridge.IsEnum(value));
+            return Enum.EnumCache.Get(this).GetName(value);
         }
         #endregion
 

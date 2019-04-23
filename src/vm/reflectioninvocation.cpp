@@ -2657,6 +2657,22 @@ FCIMPL1(INT32, ReflectionEnum::InternalGetCorElementType, Object *pRefThis) {
 }
 FCIMPLEND
 
+FCIMPL2_IV(Object*, ReflectionEnum::InternalBoxEnum, ReflectClassBaseObject* target, INT64 value) {	
+    FCALL_CONTRACT;	
+
+     VALIDATEOBJECT(target);	
+    OBJECTREF ret = NULL;	
+
+     MethodTable* pMT = target->GetType().AsMethodTable();	
+    HELPER_METHOD_FRAME_BEGIN_RET_0();	
+
+     ret = pMT->Box(ArgSlotEndianessFixup((ARG_SLOT*)&value, pMT->GetNumInstanceFieldBytes()));	
+
+     HELPER_METHOD_FRAME_END();	
+    return OBJECTREFToObject(ret);	
+}	
+FCIMPLEND
+
 //*************************************************************************************************
 //*************************************************************************************************
 //*************************************************************************************************

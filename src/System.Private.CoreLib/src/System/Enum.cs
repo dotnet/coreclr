@@ -79,6 +79,37 @@ namespace System
             }
         }
 
+        private static RuntimeType ValidateRuntimeType(Type enumType)
+        {
+            if (!(enumType is RuntimeType rtType) || !rtType.IsEnum)
+            {
+                return ThrowValidateRuntimeTypeException(enumType);
+            }
+
+            return rtType;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static RuntimeType ThrowValidateRuntimeTypeException(Type enumType)
+        {
+            Debug.Assert(!(enumType is RuntimeType rtType) || !rtType.IsEnum);
+
+            if (enumType == null)
+            {
+                throw new ArgumentNullException(nameof(enumType));
+            }
+
+            if (!enumType.IsEnum)
+            {
+                throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
+            }
+
+            throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
+        }
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern object InternalBoxEnum(RuntimeType enumType, long value);
+
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int InternalCompareTo(object o1, object o2);
         #endregion
@@ -94,9 +125,9 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            EnumBridge bridge = EnumBridge.Get(enumType);
-            bridge.Cache.TryParse(value, ignoreCase, throwOnFailure: true, out ulong result);
-            return bridge.ToObjectNonGeneric(result);
+            ulong result = default;
+            EnumCache.Get(enumType).TryParse(value, ignoreCase, throwOnFailure: true, ref Unsafe.As<ulong, byte>(ref result));
+            return InternalBoxEnum(Unsafe.As<RuntimeType>(enumType), (long)result);
         }
 
         public static TEnum Parse<TEnum>(string value) where TEnum : struct =>
@@ -109,13 +140,14 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            EnumBridge<TEnum> bridge = EnumBridge<TEnum>.Instance;
-            if (bridge == null)
+            EnumCache cache = EnumCache<TEnum>.Instance;
+            if (cache == null)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            bridge.Cache.TryParse(value, ignoreCase, throwOnFailure: true, out ulong result);
-            return bridge.ToObject(result);
+            TEnum result = default;
+            cache.TryParse(value, ignoreCase, throwOnFailure: true, ref Unsafe.As<TEnum, byte>(ref result));
+            return result;
         }
 
         public static bool TryParse(Type enumType, string value, out object result) =>
@@ -123,9 +155,8 @@ namespace System
 
         public static bool TryParse(Type enumType, string value, bool ignoreCase, out object result)
         {
-            EnumBridge bridge = EnumBridge.Get(enumType);
-            bool success = bridge.Cache.TryParse(value, ignoreCase, throwOnFailure: false, out ulong uint64Result);
-            result = success ? bridge.ToObjectNonGeneric(uint64Result) : null;
+            bool success = EnumCache.Get(enumType).TryParse(value, ignoreCase, throwOnFailure: false, out ulong uint64Result);
+            result = success ? InternalBoxEnum((RuntimeType)enumType, (long)uint64Result) : null;
             return success;
         }
 
@@ -134,14 +165,13 @@ namespace System
 
         public static bool TryParse<TEnum>(string value, bool ignoreCase, out TEnum result) where TEnum : struct
         {
-            EnumBridge<TEnum> bridge = EnumBridge<TEnum>.Instance;
-            if (bridge == null)
+            EnumCache cache = EnumCache<TEnum>.Instance;
+            if (cache == null)
             {
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             }
-            bool success = bridge.Cache.TryParse(value, ignoreCase, throwOnFailure: false, out ulong uint64Result);
-            result = success ? bridge.ToObject(uint64Result) : default;
-            return success;
+            result = default;
+            return cache.TryParse(value, ignoreCase, throwOnFailure: false, ref Unsafe.As<TEnum, byte>(ref result));
         }
 
         public static Type GetUnderlyingType(Type enumType)
@@ -196,13 +226,16 @@ namespace System
 
         public static string Format(Type enumType, object value, string format)
         {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
             if (format == null)
             {
                 throw new ArgumentNullException(nameof(format));
             }
 
-            EnumBridge bridge = EnumBridge.Get(enumType);
-            return bridge.Cache.Format(value, format, bridge.IsEnum(value));
+            return EnumCache.Get(enumType).Format(value, format);
         }
         #endregion
 
@@ -214,127 +247,99 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            return ToObject(enumType, ToUInt64(value, throwInvalidOperationException: false));
+            return InternalBoxEnum(ValidateRuntimeType(enumType), (long)ToUInt64(value, throwInvalidOperationException: false));
         }
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, sbyte value) =>
-            ToObject(enumType, (ulong)value);
+            InternalBoxEnum(ValidateRuntimeType(enumType), value);
 
         public static object ToObject(Type enumType, short value) =>
-            ToObject(enumType, (ulong)value);
+            InternalBoxEnum(ValidateRuntimeType(enumType), value);
 
         public static object ToObject(Type enumType, int value) =>
-            ToObject(enumType, (ulong)value);
+            InternalBoxEnum(ValidateRuntimeType(enumType), value);
 
         public static object ToObject(Type enumType, byte value) =>
-            ToObject(enumType, (ulong)value);
+            InternalBoxEnum(ValidateRuntimeType(enumType), value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, ushort value) =>
-            ToObject(enumType, (ulong)value);
+            InternalBoxEnum(ValidateRuntimeType(enumType), value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, uint value) =>
-            ToObject(enumType, (ulong)value);
+            InternalBoxEnum(ValidateRuntimeType(enumType), value);
 
         public static object ToObject(Type enumType, long value) =>
-            ToObject(enumType, (ulong)value);
+            InternalBoxEnum(ValidateRuntimeType(enumType), value);
 
         [CLSCompliant(false)]
         public static object ToObject(Type enumType, ulong value) =>
-            EnumBridge.Get(enumType).ToObjectNonGeneric(value);
+            InternalBoxEnum(ValidateRuntimeType(enumType), (long)value);
         #endregion
 
         #region Definitions
-        #region EnumBridge
-        // Bridges the enum type with it's underlying type and cache
-        internal abstract class EnumBridge
+        #region EnumCache
+        internal abstract class EnumCache
         {
-            internal static EnumBridge Get(Type enumType)
-            {
-                if (!(enumType is RuntimeType rtType) || !rtType.IsEnum)
-                {
-                    return ThrowGetBridgeException(enumType);
-                }
-
-                return Get(rtType);
-            }
-
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            private static EnumBridge ThrowGetBridgeException(Type enumType)
-            {
-                Debug.Assert(!(enumType is RuntimeType rtType) || !rtType.IsEnum);
-
-                if (enumType == null)
-                {
-                    throw new ArgumentNullException(nameof(enumType));
-                }
-
-                if (!enumType.IsEnum)
-                {
-                    throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
-                }
-
-                throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
-            }
+            internal static EnumCache Get(Type enumType) => Get(ValidateRuntimeType(enumType));
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            internal static EnumBridge Get(RuntimeType rtType)
-            {
-                Debug.Assert(rtType.IsEnum);
+            internal static EnumCache Get(RuntimeType rtType) => rtType.GenericCache as EnumCache ?? InitializeGenericCache(rtType);
 
-                return rtType.GenericCache as EnumBridge ?? InitializeGenericCache(rtType);
-            }
+            internal static EnumCache GetUnchecked(Type enumType) => Get((RuntimeType)enumType);
 
             [MethodImpl(MethodImplOptions.NoInlining)]
-            private static EnumBridge InitializeGenericCache(RuntimeType rtType)
+            private static EnumCache InitializeGenericCache(RuntimeType enumType)
             {
-                EnumBridge bridge = (EnumBridge)typeof(EnumBridge<>).MakeGenericType(rtType).GetField(nameof(EnumBridge<DayOfWeek>.Instance), BindingFlags.Static | BindingFlags.Public).GetValue(null) ?? throw new ArgumentException(SR.Argument_InvalidEnum, "enumType");
-                rtType.GenericCache = bridge;
-                return bridge;
+                EnumCache cache = CreateEnumCache(enumType);
+                if (cache != null)
+                {
+                    enumType.GenericCache = cache;
+                }
+                return cache;
             }
 
-            protected static EnumBridge<TEnum> Create<TEnum>()
-                where TEnum : struct
+            private static EnumCache CreateEnumCache(RuntimeType enumType)
             {
-                CorElementType? corElementType = GetCorElementType(typeof(TEnum));
+                CorElementType? corElementType = GetCorElementType(enumType);
                 switch (corElementType)
                 {
                     case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                        return new EnumBridge<TEnum, bool, UnderlyingOperations>();
+                        return new EnumCache<bool, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_CHAR:
-                        return new EnumBridge<TEnum, char, UnderlyingOperations>();
+                        return new EnumCache<char, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_I1:
-                        return new EnumBridge<TEnum, sbyte, UnderlyingOperations>();
+                        return new EnumCache<sbyte, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_U1:
-                        return new EnumBridge<TEnum, byte, UnderlyingOperations>();
+                        return new EnumCache<byte, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_I2:
-                        return new EnumBridge<TEnum, short, UnderlyingOperations>();
+                        return new EnumCache<short, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_U2:
-                        return new EnumBridge<TEnum, ushort, UnderlyingOperations>();
+                        return new EnumCache<ushort, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_I4:
-                        return new EnumBridge<TEnum, int, UnderlyingOperations>();
+                        return new EnumCache<int, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_U4:
-                        return new EnumBridge<TEnum, uint, UnderlyingOperations>();
+                        return new EnumCache<uint, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_I8:
-                        return new EnumBridge<TEnum, long, UnderlyingOperations>();
+                        return new EnumCache<long, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_U8:
-                        return new EnumBridge<TEnum, ulong, UnderlyingOperations>();
+                        return new EnumCache<ulong, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_R4:
-                        return new EnumBridge<TEnum, float, UnderlyingOperations>();
+                        return new EnumCache<float, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_R8:
-                        return new EnumBridge<TEnum, double, UnderlyingOperations>();
+                        return new EnumCache<double, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_I:
-                        return new EnumBridge<TEnum, IntPtr, UnderlyingOperations>();
+                        return new EnumCache<IntPtr, UnderlyingOperations>(enumType);
                     case CorElementType.ELEMENT_TYPE_U:
-                        return new EnumBridge<TEnum, UIntPtr, UnderlyingOperations>();
+                        return new EnumCache<UIntPtr, UnderlyingOperations>(enumType);
                     default:
                         return null;
                 }
             }
 
-            private static CorElementType? GetCorElementType(Type enumType)
+            private static CorElementType? GetCorElementType(RuntimeType enumType)
             {
                 if (!enumType.IsEnum)
                 {
@@ -359,100 +364,18 @@ namespace System
             }
 
             public readonly Type UnderlyingType;
-            private readonly Type _enumType;
-            private EnumCache _cache;
-
-            public EnumCache Cache
-            {
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => _cache ?? GetCache();
-            }
-
-            protected EnumBridge(Type enumType, Type underlyingType)
-            {
-                _enumType = enumType;
-                UnderlyingType = underlyingType;
-            }
-
-            public abstract Array GetValuesNonGeneric();
-            public abstract bool IsEnum(object value);
-            public abstract object ToObjectNonGeneric(ulong value);
-            protected abstract EnumCache GetCache();
-        }
-
-        // Try to minimize code here due to generic code explosion with an Enum generic type argument
-        internal abstract class EnumBridge<TEnum> : EnumBridge
-            where TEnum : struct
-        {
-            public static readonly EnumBridge<TEnum> Instance = Create<TEnum>();
-
-            protected EnumBridge(Type underlyingType)
-                : base(typeof(TEnum), underlyingType)
-            {
-            }
-
-            public abstract TEnum ToObject(ulong value);
-
-            public sealed override bool IsEnum(object value) => value is TEnum;
-        }
-
-        // Try to minimize code here due to generic code explosion with an Enum generic type argument.
-        // Not storing the generic Cache as a static field here allows methods like ToObject to not
-        // require the cache to be generated.
-        private sealed class EnumBridge<TEnum, TUnderlying, TUnderlyingOperations> : EnumBridge<TEnum>
-            where TEnum : struct
-            where TUnderlying : struct, IEquatable<TUnderlying>
-            where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
-        {
-            public EnumBridge()
-                : base(typeof(TUnderlying))
-            {
-            }
-
-            public override Array GetValuesNonGeneric()
-            {
-                EnumCache<TUnderlying, TUnderlyingOperations> cache = EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
-                TUnderlying[] values = cache._values;
-                int nonNegativeStart = cache._nonNegativeStart;
-                int length = values.Length;
-                TEnum[] array = new TEnum[length];
-                for (int i = nonNegativeStart; i < length; ++i)
-                {
-                    array[i - nonNegativeStart] = Unsafe.As<TUnderlying, TEnum>(ref values[i]);
-                }
-                int start = length - nonNegativeStart;
-                for (int i = 0; i < nonNegativeStart; ++i)
-                {
-                    array[start + i] = Unsafe.As<TUnderlying, TEnum>(ref values[i]);
-                }
-                return array;
-            }
-
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            public override TEnum ToObject(ulong value)
-            {
-                TUnderlying underlying = default(TUnderlyingOperations).ToObject(value);
-                return Unsafe.As<TUnderlying, TEnum>(ref underlying);
-            }
-
-            public override object ToObjectNonGeneric(ulong value) => ToObject(value);
-
-            protected override EnumCache GetCache() => EnumCache<TEnum, TUnderlying, TUnderlyingOperations>.Instance;
-        }
-        #endregion
-
-        #region EnumCache
-        internal abstract class EnumCache
-        {
-            protected readonly Type _enumType;
-            protected readonly bool _isFlagEnum;
-            protected string[] _names;
+            internal readonly RuntimeType _enumType;
+            internal readonly bool _isFlagEnum;
+            internal string[] _names;
             internal int _nonNegativeStart;
 
-            protected EnumCache(Type enumType)
+            protected EnumCache(RuntimeType enumType, Type underlyingType)
             {
+                Debug.Assert(enumType.IsEnum);
+
                 _enumType = enumType;
                 _isFlagEnum = enumType.IsDefined(typeof(FlagsAttribute), inherit: false);
+                UnderlyingType = underlyingType;
             }
 
             public string[] GetNames()
@@ -469,12 +392,14 @@ namespace System
                 return namesCopy;
             }
 
-            public abstract string Format(object value, string format, bool isEnum);
-            public abstract string GetName(object value, bool isEnum);
-            public abstract bool IsDefined(object value, bool isEnum);
+            public abstract Array GetValues();
+            public abstract string Format(object value, string format);
+            public abstract string GetName(object value);
+            public abstract bool IsDefined(object value);
             public abstract string ToString(Enum value);
             public abstract string ToStringFlags(Enum value);
             public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out ulong result);
+            public abstract bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, ref byte result);
         }
 
         private sealed class EnumCache<TUnderlying, TUnderlyingOperations> : EnumCache
@@ -486,8 +411,8 @@ namespace System
             private readonly TUnderlying _min; // = _values[0]
             private readonly bool _isContiguous;
 
-            public EnumCache(Type enumType)
-                : base(enumType)
+            public EnumCache(RuntimeType enumType)
+                : base(enumType, typeof(TUnderlying))
             {
                 FieldInfo[] fields = enumType.GetFields(BindingFlags.Public | BindingFlags.Static);
 
@@ -547,6 +472,25 @@ namespace System
                 _isContiguous = uniqueValues > 0 && operations.Subtract(max, operations.ToObject((ulong)uniqueValues - 1)).Equals(min);
             }
 
+            public override Array GetValues()
+            {
+                TUnderlying[] values = _values;
+                int nonNegativeStart = _nonNegativeStart;
+                int length = values.Length;
+                Array array = Array.CreateInstance(_enumType, values.Length);
+                TUnderlyingOperations operations = default;
+                for (int i = nonNegativeStart; i < length; ++i)
+                {
+                    array.SetValue(InternalBoxEnum(_enumType, (long)operations.ToUInt64(values[i])), i - nonNegativeStart);
+                }
+                int start = length - nonNegativeStart;
+                for (int i = 0; i < nonNegativeStart; ++i)
+                {
+                    array.SetValue(InternalBoxEnum(_enumType, (long)operations.ToUInt64(values[i])), start + i);
+                }
+                return array;
+            }
+
             public string GetName(TUnderlying value)
             {
                 int index = HybridSearch(_values, value);
@@ -557,16 +501,14 @@ namespace System
                 return null;
             }
 
-            public override string GetName(object value, bool isEnum)
+            public override string GetName(object value)
             {
-                if (isEnum)
+                Debug.Assert(value != null);
+
+                Type valueType = value.GetType();
+                if (valueType.IsEnum && valueType.IsEquivalentTo(_enumType))
                 {
                     return GetName(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()));
-                }
-
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
                 }
 
                 ulong uint64Value = ToUInt64(value, throwInvalidOperationException: false);
@@ -584,12 +526,9 @@ namespace System
                 return HybridSearch(_values, value) >= 0;
             }
 
-            public override bool IsDefined(object value, bool isEnum)
+            public override bool IsDefined(object value)
             {
-                if (isEnum)
-                {
-                    return IsDefined(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()));
-                }
+                Debug.Assert(value != null);
 
                 switch (value)
                 {
@@ -598,16 +537,15 @@ namespace System
                     case string str:
                         string[] names = _names;
                         return Array.IndexOf(names, str, 0, names.Length) >= 0;
-                    case null:
-                        throw new ArgumentNullException(nameof(value));
                     default:
                         Type valueType = value.GetType();
-
-                        // Check if is another type of enum as checking for the current enum type
-                        // is handled in EnumBridge.
                         if (valueType.IsEnum)
                         {
-                            throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType, _enumType));
+                            if (!valueType.IsEquivalentTo(_enumType))
+                            {
+                                throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType, _enumType));
+                            }
+                            return IsDefined(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()));
                         }
 
                         TypeCode typeCode = Convert.GetTypeCode(value);
@@ -624,7 +562,7 @@ namespace System
                             case TypeCode.UInt64:
                             case TypeCode.Boolean:
                             case TypeCode.Char:
-                                throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType, typeof(TUnderlying)));
+                                throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType, UnderlyingType));
                             default:
                                 throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
                         }
@@ -657,26 +595,26 @@ namespace System
                 throw new FormatException(SR.Format_InvalidEnumFormatSpecification);
             }
 
-            public override string Format(object value, string format, bool isEnum)
+            public override string Format(object value, string format)
             {
-                if (isEnum)
-                {
-                    return Format(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()), format);
-                }
+                Debug.Assert(value != null);
+                Debug.Assert(format != null);
+
                 if (value is TUnderlying underlyingValue)
                 {
                     return Format(underlyingValue, format);
                 }
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
-                }
                 Type valueType = value.GetType();
                 if (valueType.IsEnum)
                 {
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType, _enumType));
+                    if (!valueType.IsEquivalentTo(_enumType))
+                    {
+                        throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType, _enumType));
+                    }
+                    return Format(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()), format);
                 }
-                throw new ArgumentException(SR.Format(SR.Arg_EnumFormatUnderlyingTypeAndObjectMustBeSameType, valueType, typeof(TUnderlying)));
+
+                throw new ArgumentException(SR.Format(SR.Arg_EnumFormatUnderlyingTypeAndObjectMustBeSameType, valueType, UnderlyingType));
             }
 
             public override string ToString(Enum value) => ToString(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()));
@@ -806,27 +744,35 @@ namespace System
 
             public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out ulong result)
             {
+                TUnderlying underlying = default;
+                bool success = TryParse(value, ignoreCase, throwOnFailure, ref Unsafe.As<TUnderlying, byte>(ref underlying));
+                result = default(TUnderlyingOperations).ToUInt64(underlying);
+                return success;
+            }
+
+            public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, ref byte result)
+            {
                 value = value.TrimStart();
-                
+
+                ref TUnderlying underlying = ref Unsafe.As<byte, TUnderlying>(ref result);
+
                 if (value.Length == 0)
                 {
                     if (throwOnFailure)
                     {
                         throw new ArgumentException(SR.Arg_MustContainEnumInfo, nameof(value));
                     }
-                    result = default;
+                    underlying = default;
                     return false;
                 }
                 
                 TUnderlyingOperations operations = default;
                 char firstNonWhitespaceChar = value[0];
-                TUnderlying underlying = default;
                 if (char.IsInRange(firstNonWhitespaceChar, '0', '9') || firstNonWhitespaceChar == '-' || firstNonWhitespaceChar == '+')
                 {
                     Number.ParsingStatus status = operations.TryParse(value, out underlying);
                     if (status == Number.ParsingStatus.OK)
                     {
-                        result = operations.ToUInt64(underlying);
                         return true;
                     }
                     if (status == Number.ParsingStatus.Overflow)
@@ -835,17 +781,15 @@ namespace System
                         {
                             Number.ThrowOverflowException(operations.OverflowTypeCode);
                         }
-                        result = default;
+                        underlying = default;
                         return false;
                     }
                 }
 
                 string[] names = _names;
                 TUnderlying[] values = _values;
-                bool parsed;
                 do
                 {
-                    parsed = false;
                     // Find the next separator.
                     ReadOnlySpan<char> subvalue;
                     int endIndex = value.IndexOf(EnumSeparatorChar);
@@ -874,8 +818,7 @@ namespace System
                             if (subvalue.EqualsOrdinalIgnoreCase(names[i]))
                             {
                                 underlying = operations.Or(underlying, values[i]);
-                                parsed = true;
-                                break;
+                                return true;
                             }
                         }
                     }
@@ -886,20 +829,13 @@ namespace System
                             if (subvalue.EqualsOrdinal(names[i]))
                             {
                                 underlying = operations.Or(underlying, values[i]);
-                                parsed = true;
-                                break;
+                                return true;
                             }
                         }
                     }
-                } while (value.Length > 0 && parsed);
+                } while (value.Length > 0);
 
-                if (parsed)
-                {
-                    result = operations.ToUInt64(underlying);
-                    return true;
-                }
-
-                result = default;
+                underlying = default;
 
                 if (throwOnFailure)
                 {
@@ -958,13 +894,9 @@ namespace System
             }
         }
 
-        // Simply stores the static instance of the generic Cache
-        private static class EnumCache<TEnum, TUnderlying, TUnderlyingOperations>
-            where TEnum : struct
-            where TUnderlying : struct, IEquatable<TUnderlying>
-            where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
+        internal static class EnumCache<TEnum>
         {
-            public static readonly EnumCache<TUnderlying, TUnderlyingOperations> Instance = new EnumCache<TUnderlying, TUnderlyingOperations>(typeof(TEnum));
+            public static readonly EnumCache Instance = EnumCache.GetUnchecked(typeof(TEnum));
         }
         #endregion
 
@@ -1008,13 +940,13 @@ namespace System
 
             IComparer<char> IUnderlyingOperations<char>.Comparer => Comparer<char>.Default;
 
-            IComparer<float> IUnderlyingOperations<float>.Comparer => SpecializedComparer<float, UnderlyingOperations>.Default;
+            IComparer<float> IUnderlyingOperations<float>.Comparer => SpecializedComparer<float, UnderlyingOperations>.Instance;
 
-            IComparer<double> IUnderlyingOperations<double>.Comparer => SpecializedComparer<double, UnderlyingOperations>.Default;
+            IComparer<double> IUnderlyingOperations<double>.Comparer => SpecializedComparer<double, UnderlyingOperations>.Instance;
 
-            IComparer<IntPtr> IUnderlyingOperations<IntPtr>.Comparer => SpecializedComparer<IntPtr, UnderlyingOperations>.Default;
+            IComparer<IntPtr> IUnderlyingOperations<IntPtr>.Comparer => SpecializedComparer<IntPtr, UnderlyingOperations>.Instance;
 
-            IComparer<UIntPtr> IUnderlyingOperations<UIntPtr>.Comparer => SpecializedComparer<UIntPtr, UnderlyingOperations>.Default;
+            IComparer<UIntPtr> IUnderlyingOperations<UIntPtr>.Comparer => SpecializedComparer<UIntPtr, UnderlyingOperations>.Instance;
             #endregion
 
             #region OverflowTypeCode
@@ -1537,7 +1469,7 @@ namespace System
             where TUnderlying : struct, IEquatable<TUnderlying>
             where TUnderlyingOperations : struct, IUnderlyingOperations<TUnderlying>
         {
-            public static SpecializedComparer<TUnderlying, TUnderlyingOperations> Default { get; } = new SpecializedComparer<TUnderlying, TUnderlyingOperations>();
+            public static SpecializedComparer<TUnderlying, TUnderlyingOperations> Instance { get; } = new SpecializedComparer<TUnderlying, TUnderlyingOperations>();
 
             public int Compare(TUnderlying x, TUnderlying y)
             {
@@ -1750,7 +1682,7 @@ namespace System
             // pure powers of 2 OR-ed together, you return a hex value
 
             // Try to see if its one of the enum values, then we return a String back else the value
-            return EnumBridge.Get(Unsafe.As<RuntimeType>(GetType())).Cache.ToString(this);
+            return EnumCache.Get(Unsafe.As<RuntimeType>(GetType())).ToString(this);
         }
         #endregion
 
@@ -1818,7 +1750,7 @@ namespace System
                         return ValueToHexString();
                     case 'F':
                     case 'f':
-                        return EnumBridge.Get(Unsafe.As<RuntimeType>(GetType())).Cache.ToStringFlags(this);
+                        return EnumCache.Get(Unsafe.As<RuntimeType>(GetType())).ToStringFlags(this);
                 }
             }
 
