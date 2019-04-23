@@ -48,6 +48,22 @@ GC_VersionInfo(/* Out */ VersionInfo* info)
     info->Name = "CoreCLR GC";
 }
 
+static bool
+ShouldLoadServerGC()
+{
+    if (!GCConfig::GetServerGC())
+    {
+        return false;
+    }
+
+    if (GCToOSInterface::GetCurrentProcessCpuLimit() == 1)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 GC_EXPORT
 HRESULT
 GC_Initialize(
@@ -87,7 +103,7 @@ GC_Initialize(
     }
 
 #ifdef FEATURE_SVR_GC
-    if (GCConfig::GetServerGC())
+    if (ShouldLoadServerGC())
     {
 #ifdef WRITE_BARRIER_CHECK
         g_GCShadow = 0;
@@ -99,16 +115,12 @@ GC_Initialize(
         SVR::PopulateDacVars(gcDacVars);
     }
     else
+#endif
     {
         g_gc_heap_type = GC_HEAP_WKS;
         heap = WKS::CreateGCHeap();
         WKS::PopulateDacVars(gcDacVars);
     }
-#else
-    g_gc_heap_type = GC_HEAP_WKS;
-    heap = WKS::CreateGCHeap();
-    WKS::PopulateDacVars(gcDacVars);
-#endif
 
     PopulateHandleTableDacVars(gcDacVars);
     if (heap == nullptr)
