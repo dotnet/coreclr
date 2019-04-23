@@ -21,12 +21,12 @@ namespace System.Reflection
             return GetParameters(method, member, sig, out dummy, false);
         }
 
-        internal static unsafe ParameterInfo? GetReturnParameter(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
+        internal static unsafe ParameterInfo GetReturnParameter(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
         {
             Debug.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
 
-            ParameterInfo? returnParameter;
-            GetParameters(method, member, sig, out returnParameter, true);
+            ParameterInfo returnParameter;
+            GetParameters(method, member, sig, out returnParameter!, true);
             return returnParameter;
         }
 

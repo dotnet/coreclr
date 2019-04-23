@@ -319,7 +319,7 @@ namespace System.Reflection
             if (m_parameters == null)
             {
                 int numParams = 0;
-                ParameterInfo[] methParams = null!;
+                ParameterInfo[]? methParams = null;
 
                 // First try to get the Get method.
                 MethodInfo? m = GetGetMethod(true);
@@ -347,7 +347,7 @@ namespace System.Reflection
                 ParameterInfo[] propParams = new ParameterInfo[numParams];
 
                 for (int i = 0; i < numParams; i++)
-                    propParams[i] = new RuntimeParameterInfo((RuntimeParameterInfo)methParams[i], this);
+                    propParams[i] = new RuntimeParameterInfo((RuntimeParameterInfo)methParams![i], this);
 
                 m_parameters = propParams;
             }

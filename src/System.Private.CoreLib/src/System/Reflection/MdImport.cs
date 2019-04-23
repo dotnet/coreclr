@@ -239,8 +239,8 @@ namespace System.Reflection
 
         #region Static Members
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void _GetMarshalAs(IntPtr pNativeType, int cNativeType, out int unmanagedType, out int safeArraySubType, out string safeArrayUserDefinedSubType,
-            out int arraySubType, out int sizeParamIndex, out int sizeConst, out string marshalType, out string marshalCookie,
+        private static extern void _GetMarshalAs(IntPtr pNativeType, int cNativeType, out int unmanagedType, out int safeArraySubType, out string? safeArrayUserDefinedSubType,
+            out int arraySubType, out int sizeParamIndex, out int sizeConst, out string? marshalType, out string? marshalCookie,
             out int iidParamIndex);
         internal static void GetMarshalAs(ConstArray nativeType,
             out UnmanagedType unmanagedType, out VarEnum safeArraySubType, out string? safeArrayUserDefinedSubType,
@@ -314,11 +314,11 @@ namespace System.Reflection
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern string _GetDefaultValue(IntPtr scope, int mdToken, out long value, out int length, out int corElementType);
-        public string GetDefaultValue(int mdToken, out long value, out int length, out CorElementType corElementType)
+        private static extern string? _GetDefaultValue(IntPtr scope, int mdToken, out long value, out int length, out int corElementType);
+        public string? GetDefaultValue(int mdToken, out long value, out int length, out CorElementType corElementType)
         {
             int _corElementType;
-            string stringVal;
+            string? stringVal;
             stringVal = _GetDefaultValue(m_metadataImport2, mdToken, out value, out length, out _corElementType);
             corElementType = (CorElementType)_corElementType;
             return stringVal;

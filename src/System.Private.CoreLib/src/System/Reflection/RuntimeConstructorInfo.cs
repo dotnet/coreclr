@@ -365,7 +365,7 @@ namespace System.Reflection
             bool wrapExceptions = (invokeAttr & BindingFlags.DoNotWrapExceptions) == 0;
             if (actualCount > 0)
             {
-                object[] arguments = CheckArguments(parameters!, binder!, invokeAttr, culture, sig);
+                object[] arguments = CheckArguments(parameters!, binder, invokeAttr, culture, sig);
                 object retValue = RuntimeMethodHandle.InvokeMethod(obj, arguments, sig, false, wrapExceptions);
                 // copy out. This should be made only if ByRef are present.
                 for (int index = 0; index < arguments.Length; index++)

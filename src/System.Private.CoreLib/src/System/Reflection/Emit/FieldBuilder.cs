@@ -109,7 +109,7 @@ namespace System.Reflection.Emit
             get { return m_fieldType; }
         }
 
-        public override object GetValue(object? obj)
+        public override object? GetValue(object? obj)
         {
             // NOTE!!  If this is implemented, make sure that this throws 
             // a NotSupportedException for Save-only dynamic assemblies.
@@ -118,7 +118,7 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override void SetValue(object obj, object val, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture)
+        public override void SetValue(object? obj, object? val, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture)
         {
             // NOTE!!  If this is implemented, make sure that this throws 
             // a NotSupportedException for Save-only dynamic assemblies.

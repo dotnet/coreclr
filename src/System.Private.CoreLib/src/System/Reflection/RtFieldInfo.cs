@@ -156,7 +156,7 @@ namespace System.Reflection
         #region FieldInfo Overrides
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override object GetValue(object? obj)
+        public override object? GetValue(object? obj)
         {
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
             RuntimeType? declaringType = DeclaringType as RuntimeType;
@@ -181,7 +181,7 @@ namespace System.Reflection
             else
             {
                 domainInitialized = declaringType.DomainInitialized;
-                object retVal = RuntimeFieldHandle.GetValue(this, obj, fieldType, declaringType, ref domainInitialized);
+                object? retVal = RuntimeFieldHandle.GetValue(this, obj, fieldType, declaringType, ref domainInitialized);
                 declaringType.DomainInitialized = domainInitialized;
                 return retVal;
             }
@@ -191,7 +191,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override object GetValueDirect(TypedReference obj)
+        public override object? GetValueDirect(TypedReference obj)
         {
             if (obj.IsNull)
                 throw new ArgumentException(SR.Arg_TypedReference_Null);
@@ -205,7 +205,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override void SetValue(object obj, object value, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture)
+        public override void SetValue(object? obj, object? value, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture)
         {
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
             RuntimeType? declaringType = DeclaringType as RuntimeType;
@@ -221,7 +221,7 @@ namespace System.Reflection
             CheckConsistency(obj);
 
             RuntimeType fieldType = (RuntimeType)FieldType;
-            value = fieldType.CheckValue(value, binder, culture, invokeAttr)!;
+            value = fieldType.CheckValue(value, binder, culture, invokeAttr);
 
             bool domainInitialized = false;
             if (declaringType == null)

@@ -26,7 +26,7 @@ namespace System
 
             Type thisType = this.GetType();
             object thisObj = this;
-            object thisResult, thatResult;
+            object? thisResult, thatResult;
 
             while (thisType != typeof(Attribute))
             {
@@ -59,7 +59,7 @@ namespace System
 
                 for (int i = 0; i < fields.Length; i++)
                 {
-                    object fieldValue = fields[i].GetValue(this);
+                    object? fieldValue = fields[i].GetValue(this);
 
                     // The hashcode of an array ignores the contents of the array, so it can produce 
                     // different hashcodes for arrays with the same contents.

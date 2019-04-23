@@ -216,11 +216,11 @@ namespace System
                 #region Private Data Members
 
                 // MemberInfo caches
-                private CerHashtable<string, T[]> m_csMemberInfos;
-                private CerHashtable<string, T[]> m_cisMemberInfos;
+                private CerHashtable<string, T[]?> m_csMemberInfos;
+                private CerHashtable<string, T[]?> m_cisMemberInfos;
                 // List of MemberInfos given out. When m_cacheComplete is false, it may have null entries at the end to avoid
                 // reallocating the list every time a new entry is added.
-                private T[] m_allMembers = null!;
+                private T[]? m_allMembers;
                 private bool m_cacheComplete;
 
                 // This is the strong reference back to the cache
@@ -379,7 +379,7 @@ namespace System
                                 {
                                     // Ensure we always return a list that has 
                                     // been merged with the global list.
-                                    T[] cachedList = m_csMemberInfos[name];
+                                    T[]? cachedList = m_csMemberInfos[name];
                                     if (cachedList == null)
                                     {
                                         MergeWithGlobalList(list);
@@ -394,7 +394,7 @@ namespace System
                                 {
                                     // Ensure we always return a list that has 
                                     // been merged with the global list.
-                                    T[] cachedList = m_cisMemberInfos[name];
+                                    T[]? cachedList = m_cisMemberInfos[name];
                                     if (cachedList == null)
                                     {
                                         MergeWithGlobalList(list);
@@ -411,19 +411,19 @@ namespace System
                                     MergeWithGlobalList(list);
 
                                     // Trim null entries at the end of m_allMembers array
-                                    int memberCount = m_allMembers.Length;
+                                    int memberCount = m_allMembers!.Length;
                                     while (memberCount > 0)
                                     {
                                         if (m_allMembers[memberCount - 1] != null)
                                             break;
                                         memberCount--;
                                     }
-                                    Array.Resize(ref m_allMembers!, memberCount);
+                                    Array.Resize(ref m_allMembers, memberCount);
 
                                     Volatile.Write(ref m_cacheComplete, true);
                                 }
 
-                                list = m_allMembers!; // TODO-NULLABLE: https://github.com/dotnet/coreclr/pull/23708
+                                list = m_allMembers!;
                                 break;
 
                             default:
@@ -443,7 +443,7 @@ namespace System
                 // Modifies the existing list.
                 private void MergeWithGlobalList(T[] list)
                 {
-                    T[] cachedMembers = m_allMembers;
+                    T[]? cachedMembers = m_allMembers;
 
                     if (cachedMembers == null)
                     {
@@ -503,10 +503,10 @@ namespace System
                                 // Use different variable for ref argument to Array.Resize to allow enregistration of cachedMembers by the JIT
                                 T[]? cachedMembers2 = cachedMembers;
                                 Array.Resize(ref cachedMembers2, newSize);
-                                cachedMembers = cachedMembers2!; // TODO-NULLABLE: https://github.com/dotnet/coreclr/pull/23708
+                                cachedMembers = cachedMembers2;
                             }
 
-                            Debug.Assert(cachedMembers[freeSlotIndex] == null);
+                            Debug.Assert(cachedMembers![freeSlotIndex] == null);
                             cachedMembers[freeSlotIndex] = newMemberInfo;
                             freeSlotIndex++;
                         }
@@ -780,7 +780,7 @@ namespace System
                     }
                     else
                     {
-                        Type[] interfaces = RuntimeTypeHandle.GetInterfaces(ReflectedType);
+                        Type[]? interfaces = RuntimeTypeHandle.GetInterfaces(ReflectedType);
 
                         if (interfaces != null)
                         {
@@ -957,7 +957,7 @@ namespace System
 
                     if (!RuntimeTypeHandle.IsGenericVariable(declaringType))
                     {
-                        Type[] ifaces = RuntimeTypeHandle.GetInterfaces(declaringType);
+                        Type[]? ifaces = RuntimeTypeHandle.GetInterfaces(declaringType);
 
                         if (ifaces != null)
                         {
@@ -1365,21 +1365,22 @@ namespace System
                 #endregion
 
                 #region NonPrivate Members
-                internal T[] GetMemberList(MemberListType listType, string name, CacheType cacheType)
+                internal T[] GetMemberList(MemberListType listType, string? name, CacheType cacheType)
                 {
-                    T[] list;
+                    T[]? list;
 
+                    // name can be null only when listType falls into default case
                     switch (listType)
                     {
                         case MemberListType.CaseSensitive:
-                            list = m_csMemberInfos[name];
+                            list = m_csMemberInfos[name!];
                             if (list != null)
                                 return list;
 
                             return Populate(name, listType, cacheType);
 
                         case MemberListType.CaseInsensitive:
-                            list = m_cisMemberInfos[name];
+                            list = m_cisMemberInfos[name!];
                             if (list != null)
                                 return list;
 
@@ -1388,7 +1389,7 @@ namespace System
                         default:
                             Debug.Assert(listType == MemberListType.All);
                             if (Volatile.Read(ref m_cacheComplete))
-                                return m_allMembers;
+                                return m_allMembers!;
 
                             return Populate(null, listType, cacheType);
                     }
@@ -1447,7 +1448,7 @@ namespace System
                 where T : MemberInfo
             {
                 MemberInfoCache<T> existingCache = GetMemberCache<T>(ref m_cache);
-                return existingCache.GetMemberList(listType, name!, cacheType);
+                return existingCache.GetMemberList(listType, name, cacheType);
             }
 
             private MemberInfoCache<T> GetMemberCache<T>(ref MemberInfoCache<T>? m_cache)
@@ -3703,7 +3704,7 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern object AllocateValueType(RuntimeType type, object? value, bool fForceTypeChange);
 
-        internal object? CheckValue(object value, Binder? binder, CultureInfo? culture, BindingFlags invokeAttr)
+        internal object? CheckValue(object? value, Binder? binder, CultureInfo? culture, BindingFlags invokeAttr)
         {
             // this method is used by invocation in reflection to check whether a value can be assigned to type.
             if (IsInstanceOfType(value))
@@ -3712,7 +3713,7 @@ namespace System
                 // because it is faster than IsValueType
                 Debug.Assert(!IsGenericParameter);
 
-                Type type = value.GetType();
+                Type type = value!.GetType();
 
                 if (!ReferenceEquals(type, this) && RuntimeTypeHandle.IsValueType(this))
                 {
@@ -4014,7 +4015,7 @@ namespace System
                             }
 
                             // Set or get the value...
-                            Array a = (Array)selFld.GetValue(target);
+                            Array a = (Array)selFld.GetValue(target)!;
 
                             // Set or get the value in the array
                             if ((bindingFlags & BindingFlags.GetField) != 0)

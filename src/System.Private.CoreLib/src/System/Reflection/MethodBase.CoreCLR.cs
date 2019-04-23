@@ -102,7 +102,7 @@ namespace System.Reflection
             return parameterTypes;
         }
 
-        internal object[] CheckArguments(object[] parameters, Binder binder,
+        internal object[] CheckArguments(object[] parameters, Binder? binder,
             BindingFlags invokeAttr, CultureInfo? culture, Signature sig)
         {
             // copy the arguments in a different array so we detach from any user changes 

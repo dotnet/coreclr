@@ -172,7 +172,7 @@ namespace System.Reflection.Emit
         #region Private Static Members
         internal static FieldInfo GetField(FieldInfo Field, TypeBuilderInstantiation type)
         {
-            FieldInfo m;
+            FieldInfo? m = null;
 
             // This ifdef was introduced when non-generic collections were pulled from
             // silverlight. See code:Dictionary#DictionaryVersusHashtableThreadSafety
@@ -188,7 +188,7 @@ namespace System.Reflection.Emit
             // method isn't expected to be on any critical paths for performance.
             if (type.m_hashtable.Contains(Field))
             {
-                m = (FieldInfo)type.m_hashtable[Field];
+                m = (type.m_hashtable[Field] as FieldInfo)!;
             }
             else
             {
@@ -260,7 +260,7 @@ namespace System.Reflection.Emit
         }
         public override Type FieldType { get { throw new NotImplementedException(); } }
         public override object GetValue(object? obj) { throw new InvalidOperationException(); }
-        public override void SetValue(object obj, object value, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture) { throw new InvalidOperationException(); }
+        public override void SetValue(object? obj, object? value, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture) { throw new InvalidOperationException(); }
         public override FieldAttributes Attributes { get { return m_field.Attributes; } }
         #endregion
     }

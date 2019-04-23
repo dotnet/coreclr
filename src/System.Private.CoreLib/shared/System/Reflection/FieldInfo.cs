@@ -63,12 +63,12 @@ namespace System.Reflection
 
         public static bool operator !=(FieldInfo? left, FieldInfo? right) => !(left == right);
 
-        public abstract object GetValue(object? obj);
+        public abstract object? GetValue(object? obj);
 
         [DebuggerHidden]
         [DebuggerStepThrough]
-        public void SetValue(object obj, object value) => SetValue(obj, value, BindingFlags.Default, Type.DefaultBinder, null);
-        public abstract void SetValue(object obj, object value, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture);
+        public void SetValue(object? obj, object value) => SetValue(obj, value, BindingFlags.Default, Type.DefaultBinder, null);
+        public abstract void SetValue(object? obj, object? value, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture);
 
         [CLSCompliant(false)]
         public virtual void SetValueDirect(TypedReference obj, object value) { throw new NotSupportedException(SR.NotSupported_AbstractNonCLS); }

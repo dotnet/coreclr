@@ -20,8 +20,8 @@ namespace System.Reflection
         private RuntimeTypeCache m_reflectedTypeCache;
         private string? m_name;
         private string? m_toString;
-        private ParameterInfo[] m_parameters = null!;
-        private ParameterInfo? m_returnParameter = null;
+        private ParameterInfo[]? m_parameters;
+        private ParameterInfo? m_returnParameter;
         private BindingFlags m_bindingFlags;
         private MethodAttributes m_methodAttributes;
         private Signature? m_signature;
@@ -115,7 +115,7 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        private ParameterInfo? FetchReturnParameter()
+        private ParameterInfo FetchReturnParameter()
         {
             if (m_returnParameter == null)
                 m_returnParameter = RuntimeParameterInfo.GetReturnParameter(this, this, Signature);
@@ -354,14 +354,14 @@ namespace System.Reflection
         {
             FetchNonReturnParameters();
 
-            return m_parameters;
+            return m_parameters!;
         }
 
         public override ParameterInfo[] GetParameters()
         {
             FetchNonReturnParameters();
 
-            if (m_parameters.Length == 0)
+            if (m_parameters!.Length == 0)
                 return m_parameters;
 
             ParameterInfo[] ret = new ParameterInfo[m_parameters.Length];
@@ -517,14 +517,16 @@ namespace System.Reflection
             get { return ReturnParameter; }
         }
 
-        public override ParameterInfo? ReturnParameter
+#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
+        public override ParameterInfo ReturnParameter
         {
             get
             {
                 FetchReturnParameter();
-                return m_returnParameter as ParameterInfo;
+                return (m_returnParameter as ParameterInfo)!;
             }
         }
+#pragma warning restore CS8608
 
         public override bool IsCollectible => RuntimeMethodHandle.GetIsCollectible(new RuntimeMethodHandleInternal(m_handle));
 
@@ -719,7 +721,7 @@ namespace System.Reflection
         #region Legacy Internal
         internal static MethodBase? InternalGetCurrentMethod(ref StackCrawlMark stackMark)
         {
-            IRuntimeMethodInfo method = RuntimeMethodHandle.GetCurrentMethod(ref stackMark);
+            IRuntimeMethodInfo? method = RuntimeMethodHandle.GetCurrentMethod(ref stackMark);
 
             if (method == null)
                 return null;

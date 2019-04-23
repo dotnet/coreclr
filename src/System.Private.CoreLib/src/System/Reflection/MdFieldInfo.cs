@@ -69,7 +69,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override object GetValueDirect(TypedReference obj)
+        public override object? GetValueDirect(TypedReference obj)
         {
             return GetValue(null);
         }
@@ -83,14 +83,14 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override object GetValue(object? obj)
+        public override object? GetValue(object? obj)
         {
             return GetValue(false);
         }
 
-        public override object GetRawConstantValue() { return GetValue(true); }
+        public override object? GetRawConstantValue() { return GetValue(true); }
 
-        private object GetValue(bool raw)
+        private object? GetValue(bool raw)
         {
             // Cannot cache these because they could be user defined non-agile enumerations
 
@@ -99,12 +99,12 @@ namespace System.Reflection
             if (value == DBNull.Value)
                 throw new NotSupportedException(SR.Arg_EnumLitValueNotFound);
 
-            return value!;
+            return value;
         }
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override void SetValue(object obj, object value, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture)
+        public override void SetValue(object? obj, object? value, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture)
         {
             throw new FieldAccessException(SR.Acc_ReadOnly);
         }
