@@ -43,7 +43,7 @@ namespace System
         private static EnumInfo? CreateEnumInfo(RuntimeType enumType)
         {
             CorElementType? corElementType = GetCorElementType(enumType);
-            if (corElementType.HasValue)
+            if (!corElementType.HasValue)
             {
                 return null;
             }
