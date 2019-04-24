@@ -13677,7 +13677,7 @@ try_again:
 BOOL gc_heap::allocate_more_space(alloc_context* acontext, size_t size,
                                   int alloc_generation_number)
 {
-    allocation_state status;
+    allocation_state status = a_state_start;
     do
     { 
 #ifdef MULTIPLE_HEAPS
