@@ -259,7 +259,7 @@ namespace System.Runtime.Loader
             else
             {
                 bool containsSuffix = false;
-                int indexOfSuffix = libName.IndexOf(LibraryNameSuffix);
+                int indexOfSuffix = libName.IndexOf(LibraryNameSuffix, StringComparison.OrdinalIgnoreCase);
                 if (indexOfSuffix >= 0)
                 {
                     indexOfSuffix += LibraryNameSuffix.Length;
