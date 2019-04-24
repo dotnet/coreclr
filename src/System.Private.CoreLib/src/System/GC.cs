@@ -18,6 +18,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Collections.Generic;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -675,7 +676,7 @@ namespace System
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
-            return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, clearMemory: true);
+            return new T[length];
         }
 
         // Skips zero-initialization of the array if possible. If T contains object references, 
@@ -694,6 +695,17 @@ namespace System
 
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+
+#if DEBUG
+            // in DEBUG arrays of any length can be created uninitialized
+#else
+            // otherwise small arrays are allocated using `new[]` as that is generally faster.
+            //TODO: VS measure the actual threashold size. For now assume CACHE_LINE_SIZE, but probably 2X or 3X of that
+            if (Unsafe.SizeOf<T>() * length <= Internal.PaddingHelpers.CACHE_LINE_SIZE - 3 * IntPtr.Size)
+            {
+                return new T[length];
+            }
+#endif
 
             return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, clearMemory: false);
         }
