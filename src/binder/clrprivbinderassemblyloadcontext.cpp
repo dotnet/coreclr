@@ -65,8 +65,8 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindAssemblyByName(IAssemblyName     *
         //
         // 1) Lookup the assembly within the LoadContext itself. If assembly is found, use it.
         // 2) Invoke the LoadContext's Load method implementation. If assembly is found, use it.
-        // 3) Lookup the assembly within TPABinder (except for ssatellite requests). If assembly is found, use it.
-        // 4) Invoke the LoadContext's ResolveSatelliteAssembly method (for ssatellite requests). If assembly is found, use it.
+        // 3) Lookup the assembly within TPABinder (except for satellite requests). If assembly is found, use it.
+        // 4) Invoke the LoadContext's ResolveSatelliteAssembly method (for satellite requests). If assembly is found, use it.
         // 5) Invoke the LoadContext's Resolving event. If assembly is found, use it.
         // 6) Raise exception.
         //
