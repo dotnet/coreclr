@@ -54,6 +54,7 @@ public:
     static PTR_ReadyToRunInfo Initialize(Module * pModule, AllocMemTracker *pamTracker);
 
     PCODE GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig, BOOL fFixups);
+    BOOL IsReadyToRunEntryPoint(PCODE pCode);
 
     MethodDesc * GetMethodDescForEntryPoint(PCODE entryPoint);
 

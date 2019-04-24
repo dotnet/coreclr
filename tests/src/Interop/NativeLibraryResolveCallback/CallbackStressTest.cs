@@ -16,7 +16,7 @@ public class CallbackStressTest
 {
     static volatile bool s_RunGC = true;
     
-    static int s_LoopCounter = 100;
+    static int s_LoopCounter = 25;
     static int s_FinallyCalled = 0;
     static int s_CatchCalled = 0;
     static int s_OtherExceptionCatchCalled = 0;

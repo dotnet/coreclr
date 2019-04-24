@@ -334,6 +334,12 @@ PTR_BYTE ReadyToRunInfo::GetDebugInfo(PTR_RUNTIME_FUNCTION pRuntimeFunction)
     return dac_cast<PTR_BYTE>(m_pLayout->GetBase()) + debugInfoOffset;
 }
 
+BOOL ReadyToRunInfo::IsReadyToRunEntryPoint(PCODE pCode)
+{
+    return pCode >= dac_cast<TADDR>(m_pLayout->GetBase()) && 
+           pCode < dac_cast<TADDR>(m_pLayout->GetBase()) + m_pLayout->GetSize();
+}
+
 #ifndef DACCESS_COMPILE
 
 BOOL ReadyToRunInfo::IsReadyToRunEnabled()
