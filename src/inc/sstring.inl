@@ -646,9 +646,6 @@ inline const WCHAR *SString::GetUnicode() const
         SUPPORTS_DAC;
     }
     SS_CONTRACT_END;
-    
-    if (this == NULL)
-        SS_RETURN NULL;
 
     ConvertToUnicode();
 

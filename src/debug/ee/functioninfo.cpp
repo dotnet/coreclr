@@ -2391,16 +2391,6 @@ DebuggerMethodInfo *DebuggerMethodInfoTable::GetMethodInfo(Module *pModule, mdMe
     WRAPPER_NO_CONTRACT;
     SUPPORTS_DAC;
 
-    //        CHECK_DMI_TABLE;
-
-    // @review.  One of the BVTs causes this to be called before the table is initialized
-    // In particular, the changes to BREAKPOINT_ADD mean that this table is now consulted
-    // to determine if we have ever seen the method, rather than a call to LookupMethodDesc,
-    // which would have just returned NULL.  In general it seems OK to consult this table
-    // when it is empty, so I've added this....
-    if (this == NULL)
-        return NULL;
-
     DebuggerMethodInfoKey dmik;
     dmik.pModule = dac_cast<PTR_Module>(pModule);
     dmik.token = token;

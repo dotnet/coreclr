@@ -905,22 +905,16 @@ public:
 
     struct CORBBTPROF_TOKEN_INFO *  GetTokenFlagsData(SectionFormat section)
     {
-        if (this == NULL)
-            return NULL;
         return this->profilingTokenFlagsData[section].data;
     }
 
     DWORD GetTokenFlagsCount(SectionFormat section)
     {
-        if (this == NULL)
-            return 0;
         return this->profilingTokenFlagsData[section].count;
     }
 
     CORBBTPROF_BLOB_ENTRY *  GetBlobStream()
     {
-        if (this == NULL)
-            return NULL;
         return this->blobStream;
     }
 

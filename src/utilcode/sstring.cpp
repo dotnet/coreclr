@@ -1841,9 +1841,6 @@ const CHAR *SString::GetANSI(AbstractScratchBuffer &scratch) const
     }
     SS_CONTRACT_END;
 
-    if (this == NULL)
-        SS_RETURN NULL;
-
     if (IsRepresentation(REPRESENTATION_ANSI))
         SS_RETURN GetRawANSI();
 
@@ -1864,9 +1861,6 @@ const UTF8 *SString::GetUTF8(AbstractScratchBuffer &scratch) const
     }
     CONTRACT_END;
 
-    if (this == NULL)
-        RETURN NULL;
-
     if (IsRepresentation(REPRESENTATION_UTF8))
         RETURN GetRawUTF8();
 
@@ -1883,9 +1877,6 @@ const UTF8 *SString::GetUTF8(AbstractScratchBuffer &scratch, COUNT_T *pcbUtf8) c
         GC_NOTRIGGER;
     }
     CONTRACT_END;
-
-    if (this == NULL)
-        RETURN NULL;
 
     if (IsRepresentation(REPRESENTATION_UTF8))
     {
@@ -1910,9 +1901,6 @@ const UTF8 *SString::GetUTF8NoConvert() const
         GC_NOTRIGGER;
     }
     CONTRACT_END;
-
-    if (this == NULL)
-        RETURN NULL;
 
     if (IsRepresentation(REPRESENTATION_UTF8))
         RETURN GetRawUTF8();

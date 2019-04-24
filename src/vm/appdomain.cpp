@@ -4524,13 +4524,6 @@ LPCWSTR AppDomain::GetFriendlyName(BOOL fDebuggerCares/*=TRUE*/)
     }
     CONTRACT_END;
 
-#if _DEBUG
-    // Handle NULL this pointer - this happens sometimes when printing log messages
-    // but in general shouldn't occur in real code
-    if (this == NULL)
-        RETURN NULL;
-#endif // _DEBUG
-
     if (m_friendlyName.IsEmpty())
         SetFriendlyName(NULL, fDebuggerCares);
 
@@ -4547,12 +4540,6 @@ LPCWSTR AppDomain::GetFriendlyNameForLogging()
         POSTCONDITION(CheckPointer(RETVAL,NULL_OK));
     }
     CONTRACT_END;
-#if _DEBUG
-    // Handle NULL this pointer - this happens sometimes when printing log messages
-    // but in general shouldn't occur in real code
-    if (this == NULL)
-        RETURN NULL;
-#endif // _DEBUG
     RETURN (m_friendlyName.IsEmpty() ?W(""):(LPCWSTR)m_friendlyName);
 }
 

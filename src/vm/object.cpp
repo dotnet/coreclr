@@ -524,7 +524,8 @@ VOID Object::Validate(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncBlock)
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
 
-    if (this == NULL)
+    Object* thisPtr = this; // workaround -Werror=nonnull-compare for 'this'
+    if (thisPtr == NULL)
     {
         return;     // NULL is ok
     }

@@ -3940,9 +3940,6 @@ public:
     {
         UNREFERENCED_PARAMETER(bVerifyNextHeader);
 
-        if (this == NULL)
-            return;
-
         MethodTable * pMT = GetMethodTable();
 
         _ASSERTE(pMT->SanityCheck());

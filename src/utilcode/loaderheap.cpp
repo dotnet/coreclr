@@ -2188,8 +2188,6 @@ void *AllocMemTracker::Track(TaggedMemAllocPtr tmap)
     }
     CONTRACTL_END
 
-    _ASSERTE(this); 
-
     void *pv = Track_NoThrow(tmap);
     if (!pv)
     {
@@ -2206,8 +2204,6 @@ void *AllocMemTracker::Track_NoThrow(TaggedMemAllocPtr tmap)
         INJECT_FAULT(return NULL;);
     }
     CONTRACTL_END
-
-    _ASSERTE(this); 
 
     // Calling Track() after calling SuppressRelease() is almost certainly a bug. You're supposed to call SuppressRelease() only after you're
     // sure no subsequent failure will force you to backout the memory.
@@ -2254,17 +2250,12 @@ void *AllocMemTracker::Track_NoThrow(TaggedMemAllocPtr tmap)
 
     }
     return (void *)tmap;
-    
-
-
 }
 
 
 void AllocMemTracker::SuppressRelease()
 {
     LIMITED_METHOD_CONTRACT;
-
-    _ASSERTE(this); 
 
     m_fReleased = TRUE;
 }
