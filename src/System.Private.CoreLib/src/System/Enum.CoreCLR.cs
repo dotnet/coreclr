@@ -6,15 +6,11 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 namespace System
 {
     public abstract partial class Enum
     {
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetEnumValuesAndNames(RuntimeTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, bool getNames);
-
         [MethodImpl(MethodImplOptions.InternalCall)]
         public override extern bool Equals(object? obj);
 
@@ -28,58 +24,100 @@ namespace System
         private extern CorElementType InternalGetCorElementType();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern RuntimeType InternalGetUnderlyingType(RuntimeType enumType);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool InternalHasFlag(Enum flags);
 
-        private class EnumInfo
-        {
-            public readonly bool HasFlagsAttribute;
-            public readonly ulong[] Values;
-            public readonly string[] Names;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static EnumInfo? GetEnumInfo(RuntimeType rtType) => rtType.GenericCache as EnumInfo ?? InitializeGenericCache(rtType);
 
-            // Each entry contains a list of sorted pair of enum field names and values, sorted by values
-            public EnumInfo(bool hasFlagsAttribute, ulong[] values, string[] names)
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static EnumInfo? InitializeGenericCache(RuntimeType enumType)
+        {
+            EnumInfo? info = CreateEnumInfo(enumType);
+            if (info != null)
             {
-                HasFlagsAttribute = hasFlagsAttribute;
-                Values = values;
-                Names = names;
+                enumType.GenericCache = info;
+            }
+            return info;
+        }
+
+        private static EnumInfo? CreateEnumInfo(RuntimeType enumType)
+        {
+            CorElementType? corElementType = GetCorElementType(enumType);
+            if (corElementType.HasValue)
+            {
+                return null;
+            }
+
+            FieldInfo[] fields = enumType.GetFields(BindingFlags.Public | BindingFlags.Static);
+
+            string[] names = new string[fields.Length];
+            ulong[] values = new ulong[fields.Length];
+            for (int i = 0; i < fields.Length; ++i)
+            {
+                ulong value = ToUInt64(fields[i].GetRawConstantValue());
+                names[i] = fields[i].Name;
+                values[i] = value;
+            }
+
+            bool isFlagEnum = enumType.IsDefined(typeof(FlagsAttribute), inherit: false);
+
+            switch (corElementType)
+            {
+                case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                    return new EnumInfo<bool, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_CHAR:
+                    return new EnumInfo<char, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_I1:
+                    return new EnumInfo<sbyte, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_U1:
+                    return new EnumInfo<byte, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_I2:
+                    return new EnumInfo<short, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_U2:
+                    return new EnumInfo<ushort, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_I4:
+                    return new EnumInfo<int, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_U4:
+                    return new EnumInfo<uint, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_I8:
+                    return new EnumInfo<long, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_U8:
+                    return new EnumInfo<ulong, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_R4:
+                    return new EnumInfo<float, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_R8:
+                    return new EnumInfo<double, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_I:
+                    return new EnumInfo<IntPtr, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                case CorElementType.ELEMENT_TYPE_U:
+                    return new EnumInfo<UIntPtr, UnderlyingOperations>(enumType, names, values, isFlagEnum);
+                default:
+                    return null;
             }
         }
 
-        private static EnumInfo GetEnumInfo(RuntimeType enumType, bool getNames = true)
+        private static CorElementType? GetCorElementType(RuntimeType enumType)
         {
-            EnumInfo? entry = enumType.GenericCache as EnumInfo;
-
-            if (entry == null || (getNames && entry.Names == null))
+            if (!enumType.IsEnum)
             {
-                ulong[]? values = null;
-                string[]? names = null;
-                GetEnumValuesAndNames(
-                    enumType.GetTypeHandleInternal(),
-                    JitHelpers.GetObjectHandleOnStack(ref values),
-                    JitHelpers.GetObjectHandleOnStack(ref names),
-                    getNames);
-                bool hasFlagsAttribute = enumType.IsDefined(typeof(FlagsAttribute), inherit: false);
-
-                entry = new EnumInfo(hasFlagsAttribute, values!, names!);
-                enumType.GenericCache = entry;
+                return null;
             }
 
-            return entry;
-        }
+            FieldInfo[] fields = enumType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (fields.Length != 1)
+            {
+                return null;
+            }
 
-        internal static ulong[] InternalGetValues(RuntimeType enumType)
-        {
-            // Get all of the values
-            return GetEnumInfo(enumType, false).Values;
-        }
+            Type underlyingType = fields[0].FieldType;
 
-        internal static string[] InternalGetNames(RuntimeType enumType)
-        {
-            // Get all of the names
-            return GetEnumInfo(enumType, true).Names;
+            // Allow underlying type of another enum type as is done in a System.Reflection.Emit test
+            if (underlyingType.IsEnum && underlyingType != enumType)
+            {
+                underlyingType = underlyingType.GetEnumUnderlyingType();
+            }
+
+            return RuntimeTypeHandle.GetCorElementType((RuntimeType)underlyingType);
         }
 
         [Intrinsic]
@@ -152,6 +190,12 @@ namespace System
             const int retIncompatibleMethodTables = 2;  // indicates that the method tables did not match
             const int retInvalidEnumType = 3; // indicates that the enum was of an unknown/unsupported underlying type
 
+            // Unlike C#, IL does not prevent you from calling a method with null this pointer.
+            // Accessing the null this pointer in managed code produces NullReferenceException that the caller
+            // can handle like any other exception.
+            // Accessing null this pointer in the unmanaged runtime causes immediate fatal crash that does not produce
+            // NullReferenceException. This explicit check for null before calling unmanaged runtime call is there to
+            // still throw NullReferenceException instead of the fatal crash.
             if (this == null)
                 throw new NullReferenceException();
 

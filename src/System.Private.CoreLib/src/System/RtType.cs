@@ -3439,7 +3439,7 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumCache.Get(this).GetNames();
+            return Enum.EnumInfo.Get(this).GetNames();
         }
 
         public override Array GetEnumValues()
@@ -3447,7 +3447,7 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumCache.Get(this).GetValues();
+            return Enum.EnumInfo.Get(this).GetValues();
         }
 
         public override Type GetEnumUnderlyingType()
@@ -3455,7 +3455,7 @@ namespace System
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
-            return Enum.EnumCache.Get(this).UnderlyingType;
+            return Enum.EnumInfo.Get(this).UnderlyingType;
         }
 
         public override bool IsEnumDefined(object value)
@@ -3465,7 +3465,7 @@ namespace System
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
 
-            return Enum.EnumCache.Get(this).IsDefined(value);
+            return Enum.EnumInfo.Get(this).IsDefined(value);
         }
 
         public override string GetEnumName(object value)
@@ -3475,7 +3475,7 @@ namespace System
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
 
-            return Enum.EnumCache.Get(this).GetName(value);
+            return Enum.EnumInfo.Get(this).GetName(value);
         }
         #endregion
 
