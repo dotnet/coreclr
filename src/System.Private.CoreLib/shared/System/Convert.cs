@@ -2541,13 +2541,13 @@ namespace System
                 4, 0x80, 5, 0x80,
                 6, 0x80, 7, 0x80);
 
+        // Based on "Base64 encoding with SIMD instructions" article by Wojciech Muła http://0x80.pl/notesen/2016-01-12-sse-base64-encoding.html (see THIRD-PARTY-NOTICES.txt)
+        // The original code can be found here: https://github.com/WojciechMula/base64simd/blob/master/encode/encode.sse.cpp (and lookup_pshufb_improved as a lookup function)
         private static unsafe (int i, int j, int charcount) ConvertToBase64ArraySsse3(char* outChars, byte* inData, int length, int offset, bool insertLineBreaks)
         {
             int i = offset, j = 0, charcount = 0;
             const int stride = 4 * 3;
 
-            // Based on "Base64 encoding with SIMD instructions" article by Wojciech Muła	
-            // http://0x80.pl/notesen/2016-01-12-sse-base64-encoding.html
             byte* outputBytes = (byte*)outChars;
 
             Vector128<byte>   tt0 = Vector128.Create(0x0fc0fc00).AsByte();
