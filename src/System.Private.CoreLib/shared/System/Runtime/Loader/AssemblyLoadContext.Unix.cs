@@ -11,59 +11,90 @@ namespace System.Runtime.Loader
 {
     public partial class AssemblyLoadContext
     {
+        internal struct OrdinalIgnoreCaseCultureComparer
+        {
+            public readonly string _cultureNameUpper;
+            public OrdinalIgnoreCaseCultureComparer(string cultureName)
+            {
+                _cultureNameUpper = cultureName.ToUpperInvariant();
+            }
+
+            public bool Equals(ref ReadOnlySpan<char> entryName)
+            {
+                if (_cultureNameUpper.Length != entryName.Length)
+                    return false;
+
+                for (int i = 0; i < _cultureNameUpper.Length; ++i)
+                {
+                    if (_cultureNameUpper[i] != char.ToUpperInvariant(entryName[i]))
+                        return false;
+                }
+                return true;
+            }
+        }
+
         // Find satellite path using case insensitive culture name
-        internal static unsafe string? FindCaseInsensitiveSatellitePath(string parentDirectory, string cultureName, string assembly)
+        internal static unsafe string? FindCaseInsensitiveCultureName(string parentDirectory, string cultureName, string assembly)
         {
             int bufferSize = Interop.Sys.GetReadDirRBufferSize();
-            byte[]? dirBuffer = null;
+
+            byte[] dirBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+            IntPtr dirHandle = Interop.Sys.OpenDir(parentDirectory);
+
+            string? result = null;
+
             try
             {
-                dirBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-
-                fixed (byte* dirBufferPtr = dirBuffer)
+                if (dirHandle != IntPtr.Zero)
                 {
-                    IntPtr dirHandle = Interop.Sys.OpenDir(parentDirectory);
-                    if (dirHandle != IntPtr.Zero)
+                    try
                     {
-                        try
+                        fixed (byte* dirBufferPtr = dirBuffer)
                         {
+                            Span<char> nameBuffer = stackalloc char[Interop.Sys.DirectoryEntry.NameBufferSize];
+                            OrdinalIgnoreCaseCultureComparer cultureNameComparer = new OrdinalIgnoreCaseCultureComparer(cultureName);
+
                             Interop.Sys.DirectoryEntry dirent;
                             while (Interop.Sys.ReadDirR(dirHandle, dirBufferPtr, bufferSize, out dirent) == 0)
                             {
                                 if (dirent.InodeType != Interop.Sys.NodeType.DT_DIR)
                                     continue;
 
-                                Span<char> nameBuffer = stackalloc char[Interop.Sys.DirectoryEntry.NameBufferSize];
                                 ReadOnlySpan<char> entryName = dirent.GetName(nameBuffer);
 
-                                if (cultureName.Length != entryName.Length)
+                                if (!cultureNameComparer.Equals(ref entryName))
                                     continue;
 
-                                string entryNameString = entryName.ToString();
-
-                                if (!cultureName.Equals(entryNameString, StringComparison.InvariantCultureIgnoreCase))
-                                    continue;
-
-                                string assemblyPath = $"{parentDirectory}/{entryNameString}/{assembly}.dll";
-
-                                if (Internal.IO.File.InternalExists(assemblyPath))
-                                    return assemblyPath;
+                                if (result == null)
+                                {
+                                    // Convert to string because we will overwrite the backing buffer next loop
+                                    result = entryName.ToString();
+                                    // We do not return here because we do not want to debug/allow cases where
+                                    // there are multiple directories which match case insensitive cultureName
+                                    //
+                                    // Do an exhaustive search
+                                }
+                                else
+                                {
+                                    // We found more than one directory with the same case insensitive name
+                                    // return null to make this case predicatably fail.
+                                    return null;
+                                }
                             }
                         }
-                        finally
-                        {
-                            if (dirHandle != IntPtr.Zero)
-                                Interop.Sys.CloseDir(dirHandle);
-                        }
+                    }
+                    finally
+                    {
+                        Interop.Sys.CloseDir(dirHandle);
                     }
                 }
             }
             finally
             {
-                if (dirBuffer != null)
-                    ArrayPool<byte>.Shared.Return(dirBuffer);
+                ArrayPool<byte>.Shared.Return(dirBuffer);
             }
-            return null;
+
+            return result;
         }
 
         private Assembly? ResolveSatelliteAssembly(AssemblyName assemblyName)
@@ -93,20 +124,17 @@ namespace System.Runtime.Loader
             string assemblyPath = $"{parentDirectory}/{cultureName}/{assemblyName.Name}.dll";
             if (Internal.IO.File.InternalExists(assemblyPath))
             {
-                Assembly satelliteAssembly = parentAlc.LoadFromAssemblyPath(assemblyPath);
-
-                if (satelliteAssembly != null)
-                    return satelliteAssembly;
+                return parentAlc.LoadFromAssemblyPath(assemblyPath);
             }
             else if (Path.IsCaseSensitive)
             {
-                string? caseInsensitiveAssemblyPath = FindCaseInsensitiveSatellitePath(parentDirectory, cultureName, assemblyName.Name);
+                string? caseInsensitiveCultureName = FindCaseInsensitiveCultureName(parentDirectory, cultureName, assemblyName.Name);
 
-                if (caseInsensitiveAssemblyPath != null)
+                if (caseInsensitiveCultureName != null)
                 {
-                    Assembly satelliteAssembly = parentAlc.LoadFromAssemblyPath(caseInsensitiveAssemblyPath);
-
-                    return satelliteAssembly;
+                    assemblyPath = $"{parentDirectory}/{caseInsensitiveCultureName}/{assemblyName.Name}.dll";
+                    if (Internal.IO.File.InternalExists(assemblyPath))
+                        return parentAlc.LoadFromAssemblyPath(assemblyPath);
                 }
             }
             return null;

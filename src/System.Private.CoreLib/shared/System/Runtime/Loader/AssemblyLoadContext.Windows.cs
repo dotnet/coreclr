@@ -37,10 +37,7 @@ namespace System.Runtime.Loader
             string assemblyPath = Path.Combine(parentDirectory, dir, $"{assemblyName.Name}.dll");
             if (Internal.IO.File.InternalExists(assemblyPath))
             {
-                Assembly satelliteAssembly = parentAlc.LoadFromAssemblyPath(assemblyPath);
-
-                if (satelliteAssembly != null)
-                    return satelliteAssembly;
+                return parentAlc.LoadFromAssemblyPath(assemblyPath);
             }
 
             return null;
