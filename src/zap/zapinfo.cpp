@@ -205,8 +205,14 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
+    {
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_READYTORUN);
+#ifndef PLATFORM_UNIX
+        // PInvoke Helpers are not yet implemented on non-Windows platforms
+        jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_PINVOKE_HELPERS);
 #endif
+    }
+#endif  // FEATURE_READYTORUN_COMPILER
 
     return jitFlags;
 }
@@ -549,7 +555,7 @@ class MethodCodeComparer
         if (k1 == k2)
             return TRUE;
 
-        for (int i = 0; i < _countof(equivalentNodes); i++)
+        for (unsigned int i = 0; i < _countof(equivalentNodes); i++)
         {
             if (k1 == equivalentNodes[i][0] && k2 == equivalentNodes[i][1])
                 return TRUE;
@@ -734,7 +740,7 @@ COUNT_T ZapImage::MethodCodeTraits::Hash(key_t k)
             case ZapNodeType_Import_ClassHandle:
             case ZapNodeType_MethodHandle:
             case ZapNodeType_Import_MethodHandle:
-                hash = ((hash << 5) + hash) ^ (COUNT_T)(pTarget);
+                hash = ((hash << 5) + hash) ^ (COUNT_T)((SIZE_T)pTarget);
                 break;
             default:
                 break;
@@ -1988,12 +1994,15 @@ void * ZapInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,void **ppI
 
     m_pImage->m_pPreloader->AddMethodToTransitiveClosureOfInstantiations(method);
 
-    CORINFO_MODULE_HANDLE moduleHandle = m_pEECompileInfo->GetLoaderModuleForEmbeddableMethod(method);
-    if (moduleHandle == m_pImage->m_hModule 
-        && m_pImage->m_pPreloader->CanEmbedMethodHandle(method, m_currentMethodHandle))
+    if (!IsReadyToRunCompilation())
     {
-        *ppIndirection = NULL;
-        return PVOID(m_pImage->GetWrappers()->GetAddrOfPInvokeFixup(method));
+        CORINFO_MODULE_HANDLE moduleHandle = m_pEECompileInfo->GetLoaderModuleForEmbeddableMethod(method);
+        if (moduleHandle == m_pImage->m_hModule
+            && m_pImage->m_pPreloader->CanEmbedMethodHandle(method, m_currentMethodHandle))
+        {
+            *ppIndirection = NULL;
+            return PVOID(m_pImage->GetWrappers()->GetAddrOfPInvokeFixup(method));
+        }
     }
 
     //
@@ -3849,9 +3858,19 @@ CorInfoUnmanagedCallConv ZapInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE met
 BOOL ZapInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method,
                                                        CORINFO_SIG_INFO* sig)
 {
-    // READYTORUN: FUTURE: P/Invoke
+#ifdef PLATFORM_UNIX
+    // TODO: Support for pinvoke helpers on non-Windows platforms
     if (IsReadyToRunCompilation())
+        return TRUE; 
+#endif
+
+    if (IsReadyToRunCompilation() && method != NULL && !m_pImage->GetCompileInfo()->IsInCurrentVersionBubble(m_pEEJitInfo->getMethodModule(method)))
+    {
+        // FUTURE: ZapSig::EncodeMethod does not yet handle cross module references for ReadyToRun
+        // See zapsig.cpp around line 1217.
+        // Once this is implemented, we'll be able to inline pinvokes of extern methods declared in other modules (Ex: PresentationCore.dll)
         return TRUE;
+    }
 
     return m_pEEJitInfo->pInvokeMarshalingRequired(method, sig);
 }

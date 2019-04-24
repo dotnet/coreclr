@@ -1412,6 +1412,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
                          BOOL BestFit,
                          BOOL ThrowOnUnmappableChar,
                          BOOL fEmitsIL,
+                         BOOL onInstanceMethod,
                          MethodDesc* pMD,
                          BOOL fLoadCustomMarshal
 #ifdef _DEBUG
@@ -1438,6 +1439,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
 
     CorNativeType nativeType        = NATIVE_TYPE_DEFAULT;
     Assembly *pAssembly             = pModule->GetAssembly();
+    BOOL fNeedsCopyCtor             = FALSE;
     m_BestFit                       = BestFit;
     m_ThrowOnUnmappableChar         = ThrowOnUnmappableChar;
     m_ms                            = ms;
@@ -1513,8 +1515,9 @@ MarshalInfo::MarshalInfo(Module* pModule,
     }
    
     nativeType = ParamInfo.m_NativeType;
+
     corElemType = sig.PeekElemTypeNormalized(pModule, pTypeContext); 
-    mtype       = corElemType;
+    mtype = corElemType;
 
 #ifdef FEATURE_COMINTEROP
     if (IsWinRTScenario() && nativeType != NATIVE_TYPE_DEFAULT)
@@ -1548,6 +1551,21 @@ MarshalInfo::MarshalInfo(Module* pModule,
         IfFailGoto(sig.GetElemType(NULL), lFail);
         mtype = sig.PeekElemTypeNormalized(pModule, pTypeContext); 
 
+        // Check for Copy Constructor Modifier - peek closed elem type here to prevent ELEMENT_TYPE_VALUETYPE
+        // turning into a primitive.
+        if (sig.PeekElemTypeClosed(pModule, pTypeContext) == ELEMENT_TYPE_VALUETYPE) 
+        {
+            // Skip ET_BYREF
+            IfFailGoto(sigtmp.GetByte(NULL), lFail);
+            
+            if (sigtmp.HasCustomModifier(pModule, "Microsoft.VisualC.NeedsCopyConstructorModifier", ELEMENT_TYPE_CMOD_REQD) ||
+                sigtmp.HasCustomModifier(pModule, "System.Runtime.CompilerServices.IsCopyConstructed", ELEMENT_TYPE_CMOD_REQD) )
+            {
+                mtype = ELEMENT_TYPE_VALUETYPE;
+                fNeedsCopyCtor = TRUE;
+                m_byref = FALSE;
+            }
+        }
     }
     else
     {
@@ -1590,6 +1608,19 @@ MarshalInfo::MarshalInfo(Module* pModule,
                     IfFailGoto(E_FAIL, lFail);
                 }
 
+                // Check for Copy Constructor Modifier
+                if (sigtmp.HasCustomModifier(pModule, "Microsoft.VisualC.NeedsCopyConstructorModifier", ELEMENT_TYPE_CMOD_REQD) ||
+                    sigtmp.HasCustomModifier(pModule, "System.Runtime.CompilerServices.IsCopyConstructed", ELEMENT_TYPE_CMOD_REQD) )
+                {
+                    mtype = mtype2;
+
+                    // Keep the sig pointer in sync with mtype (skip ELEMENT_TYPE_PTR) because for the rest
+                    // of this method we are pretending that the parameter is a value type passed by-value.
+                    IfFailGoto(sig.GetElemType(NULL), lFail);
+
+                    fNeedsCopyCtor = TRUE;
+                    m_byref = FALSE;
+                }
             }
         }
         else
@@ -1614,8 +1645,27 @@ MarshalInfo::MarshalInfo(Module* pModule,
     // "un-normalized" signature type. It has to be verified that all the value types
     // that have been normalized away have default marshaling or MarshalAs(Struct).
     // In addition, the nativeType must be updated with the type of the real primitive inside.
-    // 
-    VerifyAndAdjustNormalizedType(pModule, sig, pTypeContext, &mtype, &nativeType);
+    // We don't normalize on return values of member functions since struct return values need to be treated as structures.
+    if (isParam || !onInstanceMethod)
+    {
+        VerifyAndAdjustNormalizedType(pModule, sig, pTypeContext, &mtype, &nativeType);
+    }
+    else
+    {
+        SigPointer sigtmp = sig;
+        CorElementType closedElemType = sigtmp.PeekElemTypeClosed(pModule, pTypeContext);
+        if (closedElemType == ELEMENT_TYPE_VALUETYPE)
+        {
+            TypeHandle th = sigtmp.GetTypeHandleThrowing(pModule, pTypeContext); 
+            // If the return type of an instance method is a value-type we need the actual return type.
+            // However, if the return type is an enum, we can normalize it.
+            if (!th.IsEnum())
+            {
+                mtype = closedElemType;
+            }
+        }
+
+    }
 #endif // _TARGET_X86_
 
 
@@ -1846,13 +1896,9 @@ MarshalInfo::MarshalInfo(Module* pModule,
             break;
 
         case ELEMENT_TYPE_I:
-#ifdef FEATURE_COMINTEROP
-            if (IsWinRTScenario())
-            {
-                m_resID = IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE;
-                IfFailGoto(E_FAIL, lFail);
-            }
-#endif // FEATURE_COMINTEROP
+            // Technically the "native int" and "native uint" types aren't supported in the WinRT scenario,
+            // but we need to not block ourselves from using them to enable accurate managed->native marshalling of
+            // projected types such as NotifyCollectionChangedEventArgs and NotifyPropertyChangedEventArgs.
 
             if (!(nativeType == NATIVE_TYPE_INT || nativeType == NATIVE_TYPE_UINT || nativeType == NATIVE_TYPE_DEFAULT))
             {
@@ -1863,13 +1909,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
             break;
 
         case ELEMENT_TYPE_U:
-#ifdef FEATURE_COMINTEROP
-            if (IsWinRTScenario())
-            {
-                m_resID = IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE;
-                IfFailGoto(E_FAIL, lFail);
-            }
-#endif // FEATURE_COMINTEROP
 
             if (!(nativeType == NATIVE_TYPE_UINT || nativeType == NATIVE_TYPE_INT || nativeType == NATIVE_TYPE_DEFAULT))
             {
@@ -1985,16 +2024,27 @@ MarshalInfo::MarshalInfo(Module* pModule,
                     IfFailGoto(E_FAIL, lFail);
                 }
 
-                if (m_ms == MARSHAL_SCENARIO_WINRT && COMDelegate::IsDelegate(m_pMT))
+                if (COMDelegate::IsDelegate(m_pMT))
                 {
-                    // In WinRT scenarios delegates must be WinRT delegates
-                    if (!m_pMT->IsProjectedFromWinRT() && !WinRTTypeNameConverter::IsRedirectedType(m_pMT))
+                    if (m_ms == MARSHAL_SCENARIO_WINRT)
                     {
-                        m_resID = IDS_EE_BADMARSHAL_WINRT_DELEGATE;
+                        // In WinRT scenarios delegates must be WinRT delegates
+                        if (!m_pMT->IsProjectedFromWinRT() && !WinRTTypeNameConverter::IsRedirectedType(m_pMT))
+                        {
+                            m_resID = IDS_EE_BADMARSHAL_WINRT_DELEGATE;
+                            IfFailGoto(E_FAIL, lFail);
+                        }
+                    }
+                    else
+                    {
+                        // UnmanagedType.Interface for delegates used to mean the .NET Framework _Delegate interface.
+                        // We don't support that interface in .NET Core, so we disallow marshalling as it here.
+                        // The user can specify UnmanagedType.IDispatch and use the delegate through the IDispatch interface
+                        // if they need an interface pointer.
+                        m_resID = IDS_EE_BADMARSHAL_DELEGATE_TLB_INTERFACE;
                         IfFailGoto(E_FAIL, lFail);
                     }
                 }
-
                 m_type = MARSHAL_TYPE_INTERFACE;
             }
             else if (pDefaultMT != NULL && nativeType == NATIVE_TYPE_DEFAULT)
@@ -2273,17 +2323,29 @@ MarshalInfo::MarshalInfo(Module* pModule,
 
                         case NATIVE_TYPE_DEFAULT:
 #ifdef FEATURE_COMINTEROP
-                            if (m_ms != MARSHAL_SCENARIO_NDIRECT)
+                            if (m_ms == MARSHAL_SCENARIO_WINRT || m_pMT->IsProjectedFromWinRT() || WinRTTypeNameConverter::IsRedirectedType(m_pMT))
                             {
-                                _ASSERTE(m_ms == MARSHAL_SCENARIO_COMINTEROP || m_ms == MARSHAL_SCENARIO_WINRT);
                                 m_type = MARSHAL_TYPE_INTERFACE;
+                            }
+                            else if (m_ms == MARSHAL_SCENARIO_COMINTEROP)
+                            {
+                                // Default for COM marshalling for delegates used to mean the .NET Framework _Delegate interface.
+                                // We don't support that interface in .NET Core, so we disallow marshalling as it here.
+                                // The user can specify UnmanagedType.IDispatch and use the delegate through the IDispatch interface
+                                // if they need an interface pointer.
+                                m_resID = IDS_EE_BADMARSHAL_DELEGATE_TLB_INTERFACE;
+                                IfFailGoto(E_FAIL, lFail);
                             }
                             else
 #endif // FEATURE_COMINTEROP
                                 m_type = MARSHAL_TYPE_DELEGATE;
 
                             break;
-
+#ifdef FEATURE_COMINTEROP
+                        case NATIVE_TYPE_IDISPATCH:
+                            m_type = MARSHAL_TYPE_INTERFACE;
+                            break;
+#endif
                         default:
                         m_resID = IDS_EE_BADMARSHAL_DELEGATE;
                         IfFailGoto(E_FAIL, lFail);
@@ -2684,11 +2746,35 @@ MarshalInfo::MarshalInfo(Module* pModule,
                     }
                     else
                     {
+                        if (fNeedsCopyCtor)
+                        {
+#ifdef FEATURE_COMINTEROP
+                            if (m_ms == MARSHAL_SCENARIO_WINRT)
+                            {
+                                // our WinRT-optimized GetCOMIPFromRCW helpers don't support copy
+                                // constructor stubs so make sure that this marshaler will not be used
+                                m_resID = IDS_EE_BADMARSHAL_WINRT_COPYCTOR;
+                                IfFailGoto(E_FAIL, lFail);
+                            }
+#endif
+
+                            MethodDesc *pCopyCtor;
+                            MethodDesc *pDtor;
+                            FindCopyCtor(pModule, m_pMT, &pCopyCtor);
+                            FindDtor(pModule, m_pMT, &pDtor);
+
+                            m_args.mm.m_pMT = m_pMT;
+                            m_args.mm.m_pCopyCtor = pCopyCtor;
+                            m_args.mm.m_pDtor = pDtor;
+                            m_type = MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR;
+                        }
+                        else
 #ifdef _TARGET_X86_
                         // JIT64 is not aware of normalized value types and this optimization
                         // (returning small value types by value in registers) is already done in JIT64.
                         if (        !m_byref   // Permit register-sized structs as return values
                                  && !isParam
+                                 && !onInstanceMethod
                                  && CorIsPrimitiveType(m_pMT->GetInternalCorElementType())
                                  && !IsUnmanagedValueTypeReturnedByRef(nativeSize)
                                  && managedSize <= sizeof(void*)
@@ -3398,6 +3484,7 @@ UINT16 MarshalInfo::GetNativeSize(MarshalType mtype, MarshalScenario ms)
         {
             case MARSHAL_TYPE_BLITTABLEVALUECLASS:
             case MARSHAL_TYPE_VALUECLASS:
+            case MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR:
                 return (UINT16) m_pMT->GetNativeSize();
 
             default:
@@ -4049,6 +4136,7 @@ DispParamMarshaler *MarshalInfo::GenerateDispParamMarshaler()
         case MARSHAL_TYPE_BLITTABLEVALUECLASS:
         case MARSHAL_TYPE_BLITTABLEPTR:
         case MARSHAL_TYPE_LAYOUTCLASSPTR:
+        case MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR:
             pDispParamMarshaler = new DispParamRecordMarshaler(m_pMT);
             break;
 
@@ -4349,6 +4437,9 @@ VOID MarshalInfo::MarshalTypeToString(SString& strMarshalType, BOOL fSizeIsSpeci
                 break;
             case MARSHAL_TYPE_ARGITERATOR:
                 strRetVal = W("ArgIterator");
+                break;
+            case MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR:
+                strRetVal = W("blittable value class with copy constructor");
                 break;
 #ifdef FEATURE_COMINTEROP
             case MARSHAL_TYPE_OBJECT:

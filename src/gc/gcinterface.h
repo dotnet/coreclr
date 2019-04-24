@@ -7,7 +7,7 @@
 
 // The major version of the GC/EE interface. Breaking changes to this interface
 // require bumps in the major version number.
-#define GC_INTERFACE_MAJOR_VERSION 2
+#define GC_INTERFACE_MAJOR_VERSION 3
 
 // The minor version of the GC/EE interface. Non-breaking changes are required
 // to bump the minor version number. GCs and EEs with minor version number
@@ -199,6 +199,16 @@ extern uint8_t* g_GCShadowEnd;
 extern uint8_t* g_shadow_lowest_address;
 #endif
 
+/*
+ * GCEventProvider represents one of the two providers that the GC can
+ * fire events from: the default and private providers.
+ */
+enum GCEventProvider
+{
+    GCEventProvider_Default = 0,
+    GCEventProvider_Private = 1
+};
+
 // Event levels corresponding to events that can be fired by the GC.
 enum GCEventLevel
 {
@@ -234,8 +244,6 @@ enum GCEventKeyword
       | GCEventKeyword_GCPrivate
       | GCEventKeyword_GCHandle
       | GCEventKeyword_GCHandlePrivate
-      | GCEventKeyword_GCHeapDump
-      | GCEventKeyword_GCSampledObjectAllocationHigh
       | GCEventKeyword_GCHeapDump
       | GCEventKeyword_GCSampledObjectAllocationHigh
       | GCEventKeyword_GCHeapSurvivalAndMovement
@@ -867,6 +875,9 @@ public:
 
     // Unregisters a frozen segment.
     virtual void UnregisterFrozenSegment(segment_handle seg) = 0;
+
+    // Indicates whether an object is in a frozen segment.
+    virtual bool IsInFrozenSegment(Object *object) = 0;
 
     /*
     ===========================================================================

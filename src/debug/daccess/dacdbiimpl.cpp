@@ -184,8 +184,8 @@ template<class T> void DeleteDbiMemory(T *p)
 //    Must call Destroy to on interface to free its resources.
 //
 //---------------------------------------------------------------------------------------
-DLLEXPORT 
 STDAPI
+DLLEXPORT
 DacDbiInterfaceInstance(
     ICorDebugDataTarget * pTarget,
     CORDB_ADDRESS baseAddress,
@@ -570,7 +570,7 @@ ULONG DacDbiInterfaceImpl::GetAppDomainId(VMPTR_AppDomain   vmAppDomain)
     else
     {
         AppDomain * pAppDomain = vmAppDomain.GetDacPtr();
-        return pAppDomain->GetId().m_dwId;
+        return DefaultADID;
     }
 }
 
@@ -1734,7 +1734,7 @@ void DacDbiInterfaceImpl::CollectFields(TypeHandle                   thExact,
                                           FALSE);  // don't fixup EnC (we can't, we're stopped)
 
     PTR_FieldDesc pCurrentFD;
-    int index = 0;
+    unsigned int index = 0;
     while (((pCurrentFD = fdIterator.Next()) != NULL) && (index < pFieldList->Count()))
     {
         // fill in the pCurrentEntry structure
@@ -2238,7 +2238,7 @@ TypeHandle DacDbiInterfaceImpl::TypeDataWalk::FnPtrTypeArg(DebuggerIPCE_TypeArgD
 {
     // allocate space to store a list of type handles, one for the return type and one for each
     // of the parameter types of the function to which the FnPtr type refers. 
-    NewHolder<TypeHandle> pInst(new TypeHandle[sizeof(TypeHandle) * pFnPtrTypeInfo->numTypeArgs]);
+    NewArrayHolder<TypeHandle> pInst(new TypeHandle[sizeof(TypeHandle) * pFnPtrTypeInfo->numTypeArgs]);
     
     if (ReadLoadedTypeHandles(retrieveWhich, pFnPtrTypeInfo->numTypeArgs, pInst))
     {
@@ -3058,7 +3058,7 @@ TypeHandle DacDbiInterfaceImpl::GetExactClassTypeHandle(DebuggerIPCE_ExpandedTyp
         ThrowHR(E_OUTOFMEMORY);
     }
 
-    NewHolder<TypeHandle> pInst(new TypeHandle[allocSize.Value()]);
+    NewArrayHolder<TypeHandle> pInst(new TypeHandle[allocSize.Value()]);
 
     // convert the type information for each parameter to its corresponding type handle
     // and store it in the list
@@ -3093,11 +3093,11 @@ TypeHandle DacDbiInterfaceImpl::GetExactFnPtrTypeHandle(ArgInfoList * pArgInfo)
     {
         ThrowHR(E_OUTOFMEMORY);
     }
-    NewHolder<TypeHandle> pInst(new TypeHandle[allocSize.Value()]);
+    NewArrayHolder<TypeHandle> pInst(new TypeHandle[allocSize.Value()]);
 
     // convert the type information for each parameter to its corresponding type handle
     // and store it in the list
-    for (int i = 0; i < pArgInfo->Count(); i++)
+    for (unsigned int i = 0; i < pArgInfo->Count(); i++)
     {
         pInst[i] = BasicTypeInfoToTypeHandle(&((*pArgInfo)[i]));
     }
@@ -3316,7 +3316,7 @@ void DacDbiInterfaceImpl::GetTypeHandleParams(VMPTR_AppDomain  vmAppDomain,
     pParams->Alloc(typeHandle.GetNumGenericArgs());
     
     // collect type information for each type parameter
-    for (int i = 0; i < pParams->Count(); ++i)
+    for (unsigned int i = 0; i < pParams->Count(); ++i)
     {
         VMPTR_TypeHandle thInst = VMPTR_TypeHandle::NullPtr();
         thInst.SetDacTargetPtr(typeHandle.GetInstantiation()[i].AsTAddr());
@@ -3597,7 +3597,7 @@ void DacDbiInterfaceImpl::GetCachedWinRTTypesForIIDs(
     {
         pTypes->Alloc(iids.Count());
 
-        for (int i = 0; i < iids.Count(); ++i)
+        for (unsigned int i = 0; i < iids.Count(); ++i)
         {
             // There is the possiblity that we'll get this far with a dump and not fail, but still
             // not be able to get full info for a particular param.

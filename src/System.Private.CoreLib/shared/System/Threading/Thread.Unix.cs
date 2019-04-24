@@ -2,16 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Runtime.ConstrainedExecution;
 
 namespace System.Threading
 {
     public sealed partial class Thread
     {
-        public ApartmentState GetApartmentState() => ApartmentState.Unknown;
-        private static Exception GetApartmentStateChangeFailedException() => new PlatformNotSupportedException(SR.PlatformNotSupported_COMInterop);
-        private bool TrySetApartmentStateUnchecked(ApartmentState state) => state == GetApartmentState();
-
-        public void DisableComObjectEagerCleanup() { }
+        private static Exception GetApartmentStateChangeFailedException() => new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
     }
 }

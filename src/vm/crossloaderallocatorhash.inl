@@ -201,7 +201,7 @@ template <class TKey_, class TValue_>
 /*static*/ inline INT32 GCHeapHashDependentHashTrackerHashTraits::Hash(PtrTypeKey *pValue)
 {
     LIMITED_METHOD_CONTRACT;
-    return (INT32)*pValue;
+    return (INT32)(SIZE_T)*pValue;
 }
 
 /*static*/ inline INT32 GCHeapHashDependentHashTrackerHashTraits::Hash(PTRARRAYREF arr, INT32 index)
@@ -274,7 +274,7 @@ template <class TKey>
 /*static*/ INT32 KeyToValuesGCHeapHashTraits<TRAITS>::Hash(TKey *pValue)
 {
     LIMITED_METHOD_CONTRACT;
-    return (INT32)(DWORD)*pValue;
+    return (INT32)(SIZE_T)*pValue;
 }
 
 template<class TRAITS>
@@ -378,7 +378,7 @@ void CrossLoaderAllocatorHash<TRAITS>::Add(TKey key, TValue value, LoaderAllocat
             if (pLoaderAllocatorOfValue != m_pLoaderAllocator)
             {
                 gc.hashKeyToTrackers = (LAHASHKEYTOTRACKERSREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__LAHASHKEYTOTRACKERS));
-                SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.keyValueStore, GetAppDomain());
+                SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.keyValueStore);
                 gc.hashKeyEntry = gc.hashKeyToTrackers;
             }
             else
@@ -416,7 +416,7 @@ void CrossLoaderAllocatorHash<TRAITS>::Add(TKey key, TValue value, LoaderAllocat
             {
                 if (gc.hashKeyToTrackers != NULL)
                 {
-                    SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.keyValueStore, GetAppDomain());
+                    SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.keyValueStore);
                 }
                 else
                 {
@@ -433,7 +433,7 @@ void CrossLoaderAllocatorHash<TRAITS>::Add(TKey key, TValue value, LoaderAllocat
             {
                 // Nothing has yet caused the trackers proxy object to be setup. Create it now, and update the keyToTrackersHash
                 gc.hashKeyToTrackers = (LAHASHKEYTOTRACKERSREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__LAHASHKEYTOTRACKERS));
-                SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.keyValueStore, GetAppDomain());
+                SetObjectReference(&gc.hashKeyToTrackers->_laLocalKeyValueStore, gc.keyValueStore);
                 gc.hashKeyEntry = gc.hashKeyToTrackers;
                 gc.keyToTrackersHash.SetElement(index, gc.hashKeyEntry);
             }
@@ -924,7 +924,7 @@ template <class Visitor>
             WRAPPER_NO_CONTRACT;
 
             m_pKeysToValueHash->GetElement(index, *m_pKeyValueStore);
-            return VisitKeyValueStore(m_pLoaderAllocatorRef, m_pKeyValueStore, visitor);
+            return VisitKeyValueStore(m_pLoaderAllocatorRef, m_pKeyValueStore, m_pVisitor);
         }
     };
 
@@ -1144,7 +1144,7 @@ GCHEAPHASHOBJECTREF CrossLoaderAllocatorHash<TRAITS>::GetKeyToValueCrossLAHashFo
         if (gc.hashKeyToTrackers->_trackerOrTrackerSet == NULL)
         {
             gc.dependentTracker = GetDependentTrackerForLoaderAllocator(pValueLoaderAllocator);
-            SetObjectReference(&gc.hashKeyToTrackers->_trackerOrTrackerSet, gc.dependentTracker, GetAppDomain());
+            SetObjectReference(&gc.hashKeyToTrackers->_trackerOrTrackerSet, gc.dependentTracker);
         }
         else if (gc.hashKeyToTrackers->_trackerOrTrackerSet->GetMethodTable() == MscorlibBinder::GetExistingClass(CLASS__LAHASHDEPENDENTHASHTRACKER))
         {
@@ -1159,7 +1159,7 @@ GCHEAPHASHOBJECTREF CrossLoaderAllocatorHash<TRAITS>::GetKeyToValueCrossLAHashFo
                 gc.dependentTracker = GetDependentTrackerForLoaderAllocator(pValueLoaderAllocator);
                 if (!gc.dependentTrackerMaybe->IsLoaderAllocatorLive())
                 {
-                    SetObjectReference(&gc.hashKeyToTrackers->_trackerOrTrackerSet, gc.dependentTracker, GetAppDomain());
+                    SetObjectReference(&gc.hashKeyToTrackers->_trackerOrTrackerSet, gc.dependentTracker);
                 }
                 else
                 {
@@ -1176,7 +1176,7 @@ GCHEAPHASHOBJECTREF CrossLoaderAllocatorHash<TRAITS>::GetKeyToValueCrossLAHashFo
                         {
                             arr->SetAt(index, (OBJECTREF)gc.dependentTrackerMaybe);
                         });
-                    SetObjectReference(&gc.hashKeyToTrackers->_trackerOrTrackerSet, gc.dependentTrackerHash.GetGCHeapRef(), GetAppDomain());
+                    SetObjectReference(&gc.hashKeyToTrackers->_trackerOrTrackerSet, gc.dependentTrackerHash.GetGCHeapRef());
                 }
             }
         }

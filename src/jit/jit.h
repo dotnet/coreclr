@@ -503,7 +503,7 @@ typedef ptrdiff_t ssize_t;
 #if !defined(_HOST_X86_) && !defined(_HOST_AMD64_)
 #define MEASURE_CLRAPI_CALLS 0 // Cycle counters only hooked up on x86/x64.
 #endif
-#if !defined(_MSC_VER) && !defined(__clang__)
+#if !defined(_MSC_VER) && !defined(__GNUC__)
 #define MEASURE_CLRAPI_CALLS 0 // Only know how to do this with VC and Clang.
 #endif
 
@@ -867,7 +867,7 @@ inline T UninitializedWord(Compiler* comp)
     {
         comp = JitTls::GetCompiler();
     }
-    defaultFill = comp->compGetJitDefaultFill();
+    defaultFill = Compiler::compGetJitDefaultFill(comp);
     assert(defaultFill <= 0xff);
     __int64 word = 0x0101010101010101LL * defaultFill;
     return (T)word;

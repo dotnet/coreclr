@@ -39,7 +39,8 @@ jobs:
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     variables:
-    - group: DotNet-HelixApi-Access
+    - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+      - group: DotNet-HelixApi-Access
     # Map template parameters to command line arguments
     - name: priorityArg
       value: ''
@@ -67,12 +68,6 @@ jobs:
       - name: clangArg
         value: '-clang5.0'
 
-    # TODO: Enable crossgen in build-test.sh. It currently doesn't
-    # accept a crossgen arg, so disable the macos/linux crossgen test
-    # build jobs.
-    ${{ if and(eq(parameters.readyToRun, true), in(parameters.osGroup, 'Linux', 'OSX')) }}:
-      condition: false
-
     # FreeBSD test jobs are disabled since we don't have any FreeBSD helix queues.
     ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
       condition: false
@@ -91,7 +86,7 @@ jobs:
       timeoutInMinutes: 240
     ${{ if eq(parameters.testGroup, 'outerloop') }}:
       timeoutInMinutes: 360
-    ${{ if eq(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2') }}:
+    ${{ if in(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'outerloop-gcstress0x3-gcstress0xc') }}:
       timeoutInMinutes: 480
 
     steps:
@@ -154,7 +149,8 @@ jobs:
 
         helixQueues: ${{ parameters.helixQueues }}
 
-        ${{ if eq(parameters.helixQueues.asString, '') }}:
+        # This tests whether an array is empty
+        ${{ if eq(join('', parameters.helixQueues), '') }}:
           condition: false
 
         publishTestResults: true
@@ -168,10 +164,12 @@ jobs:
         ${{ if eq(parameters.testGroup, 'outerloop') }}:
           timeoutPerTestCollectionInMinutes: 60
           timeoutPerTestInMinutes: 10
-        ${{ if eq(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2') }}:
-          # TODO: Adjust this number as soon as we have more data on how long it takes to run these jobs in Helix.
+        ${{ if in(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs') }}:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 30
+        ${{ if in(parameters.testGroup, 'outerloop-gcstress0x3-gcstress0xc') }}:
+          timeoutPerTestCollectionInMinutes: 240
+          timeoutPerTestInMinutes: 60
 
         runCrossGen: ${{ parameters.readyToRun }}
 
@@ -182,16 +180,48 @@ jobs:
 
         ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
           scenarios:
-            asString: 'normal,no_tiered_compilation'
-            asArray:
-            - normal
-            - no_tiered_compilation
+          - normal
+          - no_tiered_compilation
         ${{ if eq(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2') }}:
           scenarios:
-            asString: 'jitminopts,jitstress1,jitstress1_tiered,jitstress2,jitstress2_tiered'
-            asArray:
-            - jitminopts
-            - jitstress1
-            - jitstress1_tiered
-            - jitstress2
-            - jitstress2_tiered
+          - jitminopts
+          - jitstress1
+          - jitstress1_tiered
+          - jitstress2
+          - jitstress2_tiered
+        ${{ if eq(parameters.testGroup, 'outerloop-jitstressregs') }}:
+          scenarios:
+          - jitstressregs1
+          - jitstressregs2
+          - jitstressregs3
+          - jitstressregs4
+          - jitstressregs8
+          - jitstressregs0x10
+          - jitstressregs0x80
+          - jitstressregs0x1000
+        ${{ if eq(parameters.testGroup, 'outerloop-jitstress2-jitstressregs') }}:
+          scenarios:
+          - jitstress2_jitstressregs1
+          - jitstress2_jitstressregs2
+          - jitstress2_jitstressregs3
+          - jitstress2_jitstressregs4
+          - jitstress2_jitstressregs8
+          - jitstress2_jitstressregs0x10
+          - jitstress2_jitstressregs0x80
+          - jitstress2_jitstressregs0x1000
+        ${{ if eq(parameters.testGroup, 'outerloop-gcstress0x3-gcstress0xc') }}:
+          scenarios:
+          - gcstress0x3
+          - gcstress0xc
+
+    # Publish Logs
+    - task: PublishPipelineArtifact@0
+      displayName: Publish Logs
+      inputs:
+        ${{ if eq(parameters.readyToRun, false) }}:
+          artifactName: ${{ format('testbuild_{0}_{1}_{2}_{3}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
+        ${{ if  eq(parameters.readyToRun, true) }}:
+          artifactName: ${{ format('testbuild_{0}_{1}_{2}_{3}_r2r_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
+        targetPath: $(Build.SourcesDirectory)/bin/Logs
+      continueOnError: true
+      condition: always()

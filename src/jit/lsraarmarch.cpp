@@ -46,8 +46,6 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
         return srcCount;
     }
 
-    bool isStore = (indirTree->gtOper == GT_STOREIND);
-
     GenTree* addr  = indirTree->Addr();
     GenTree* index = nullptr;
     int      cns   = 0;
@@ -210,7 +208,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         assert(retTypeDesc != nullptr);
         dstCandidates = retTypeDesc->GetABIReturnRegs();
     }
-    else if (varTypeIsFloating(registerType))
+    else if (varTypeUsesFloatArgReg(registerType))
     {
         dstCandidates = RBM_FLOATRET;
     }

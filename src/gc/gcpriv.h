@@ -13,7 +13,12 @@
 #pragma optimize( "t", on )
 #endif
 #endif
+
+#ifdef __GNUC__
+#define inline __attribute__((always_inline)) inline
+#else
 #define inline __forceinline
+#endif // __GNUC__
 
 #include "gc.h"
 
@@ -2223,7 +2228,7 @@ protected:
     BOOL loh_object_p (uint8_t* o);
 
     PER_HEAP_ISOLATED
-    BOOL should_compact_loh();
+    BOOL loh_compaction_requested();
 
     // If the LOH compaction mode is just to compact once,
     // we need to see if we should reset it back to not compact.
@@ -3139,6 +3144,10 @@ public:
     // This is what GC's own book keeping consumes.
     PER_HEAP_ISOLATED
     size_t current_total_committed_gc_own;
+
+    // This is if large pages should be used.
+    PER_HEAP_ISOLATED
+    size_t use_large_pages_p;
 
     PER_HEAP_ISOLATED
     size_t last_gc_index;
@@ -4553,15 +4562,4 @@ inline
 size_t gcard_of (uint8_t* object)
 {
     return (size_t)(object) / card_size;
-}
-
-inline
-void YieldProcessorScalingFactor()
-{
-    unsigned int n = g_yieldProcessorScalingFactor;
-    _ASSERTE(n != 0);
-    do
-    {
-        YieldProcessor();
-    } while (--n != 0);
 }

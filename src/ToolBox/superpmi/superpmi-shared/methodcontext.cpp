@@ -2535,8 +2535,8 @@ void MethodContext::recGetArgType(CORINFO_SIG_INFO*       sig,
         GetArgType = new LightWeightMap<GetArgTypeValue, Agnostic_GetArgType_Value>();
 
     GetArgTypeValue key;
-    ZeroMemory(&key, sizeof(GetArgType)); // We use the input structs as a key and use memcmp to compare.. so
-                                          // we need to zero out padding too
+    ZeroMemory(&key, sizeof(key)); // We use the input structs as a key and use memcmp to compare.. so
+                                   // we need to zero out padding too
     // Only setting values for things the EE seems to pay attention to... this is necessary since some of the values
     // are unset and fail our precise comparisons ...
     key.flags                  = (DWORD)sig->flags;
@@ -3547,7 +3547,7 @@ void MethodContext::recGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPtrs, 
 void MethodContext::dmpGetClassGClayout(DWORDLONG key, const Agnostic_GetClassGClayout& value)
 {
     printf("GetClassGCLayout key %016llX, value len %u cnt %u {", key, value.len, value.valCount);
-    if (value.gcPtrs_Index != -1)
+    if (value.gcPtrs_Index != (DWORD)-1)
     {
         BYTE* ptr = (BYTE*)GetClassGClayout->GetBuffer(value.gcPtrs_Index);
         for (unsigned int i = 0; i < value.len; i++)
@@ -3572,7 +3572,7 @@ unsigned MethodContext::repGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPt
     unsigned int len   = (unsigned int)value.len;
     unsigned int index = (unsigned int)value.gcPtrs_Index;
 
-    if (index != -1)
+    if (index != (unsigned int)-1)
     {
         BYTE* ptr = (BYTE*)GetClassGClayout->GetBuffer(index);
         for (unsigned int i = 0; i < len; i++)

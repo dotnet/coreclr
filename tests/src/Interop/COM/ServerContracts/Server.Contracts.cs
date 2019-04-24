@@ -178,6 +178,11 @@ namespace Server.Contract
         void Reverse_BStr_OutAttr([MarshalAs(UnmanagedType.BStr)] string a, [Out][MarshalAs(UnmanagedType.BStr)] string b);
     }
 
+    public struct HResult
+    {
+        public int hr;
+    }
+
     [ComVisible(true)]
     [Guid("592386A5-6837-444D-9DE3-250815D18556")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -187,6 +192,9 @@ namespace Server.Contract
 
         [PreserveSig]
         int Return_As_HResult(int hresultToReturn);
+
+        [PreserveSig]
+        HResult Return_As_HResult_Struct(int hresultToReturn);
     }
 
     public enum IDispatchTesting_Exception
@@ -234,6 +242,24 @@ namespace Server.Contract
     }
 
     [ComVisible(true)]
+    [Guid("83AFF8E4-C46A-45DB-9D91-2ADB5164545E")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
+    public interface IEventTesting
+    {
+        [DispId(1)]
+        void FireEvent();
+    }
+
+    [ComImport]
+    [Guid("28ea6635-42ab-4f5b-b458-4152e78b8e86")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
+    public interface TestingEvents
+    {
+        [DispId(100)]
+        void OnEvent([MarshalAs(UnmanagedType.BStr)] string msg);
+    };
+
+    [ComVisible(true)]
     [Guid("98cc27f0-d521-4f79-8b63-e980e3a92974")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     public interface IAggregationTesting
@@ -254,6 +280,35 @@ namespace Server.Contract
     {
         bool AreColorsEqual(Color managed, int native);
         Color GetRed();
+    }
+
+    [ComVisible(true)]
+    [Guid("6C9E230E-411F-4219-ABFD-E71F2B84FD50")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface ILicenseTesting
+    {
+        void SetNextDenyLicense([MarshalAs(UnmanagedType.VariantBool)] bool denyLicense);
+
+        [return: MarshalAs(UnmanagedType.BStr)]
+        string GetLicense();
+
+        void SetNextLicense([MarshalAs(UnmanagedType.LPWStr)] string lic);
+    }
+
+    /// <remarks>
+    /// This interface is used to test consumption of the NET server from a NET client only.
+    /// </remarks>
+    [ComVisible(true)]
+    [Guid("CCBC1915-3252-4F6B-98AA-411CE6213D94")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IConsumeNETServer
+    {
+        IntPtr GetCCW();
+        object GetRCW();
+        void ReleaseResources();
+
+        bool EqualByCCW(object obj);
+        bool NotEqualByRCW(object obj);
     }
 }
 

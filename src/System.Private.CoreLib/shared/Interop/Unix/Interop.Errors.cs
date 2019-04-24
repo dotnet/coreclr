@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System;
 using System.Runtime.InteropServices;
 
@@ -145,11 +146,11 @@ internal static partial class Interop
             return Interop.Sys.StrError(RawErrno);
         }
 
+#pragma warning disable CS8609 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
         public override string ToString()
+#pragma warning restore CS8609
         {
-            return string.Format(
-                "RawErrno: {0} Error: {1} GetErrorMessage: {2}", // No localization required; text is member names used for debugging purposes
-                RawErrno, Error, GetErrorMessage());
+            return $"RawErrno: {RawErrno} Error: {Error} GetErrorMessage: {GetErrorMessage()}"; // No localization required; text is member names used for debugging purposes
         }
     }
 
@@ -181,7 +182,7 @@ internal static partial class Interop
                 message = buffer;
             }
 
-            return Marshal.PtrToStringAnsi((IntPtr)message);
+            return Marshal.PtrToStringAnsi((IntPtr)message)!;
         }
 
         [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_ConvertErrorPlatformToPal")]

@@ -2157,7 +2157,7 @@ DECLARE_API(DumpDelegate)
                                     DacpObjectData objData;
                                     if (objData.Request(g_sos, invocationList) == S_OK &&
                                         objData.ObjectType == OBJ_ARRAY &&
-                                        invocationCount <= objData.dwNumComponents)
+                                        invocationCount <= (int)objData.dwNumComponents)
                                     {
                                         for (int i = 0; i < invocationCount; i++)
                                         {
@@ -2363,7 +2363,7 @@ Done:
 // Overload that mirrors the code above when the ExceptionObjectData was already retrieved from LS
 BOOL IsAsyncException(const DacpExceptionObjectData & excData)
 {
-    if (excData.XCode != EXCEPTION_COMPLUS)
+    if ((DWORD)excData.XCode != EXCEPTION_COMPLUS)
         return TRUE;
 
     HRESULT ehr = excData.HResult;
@@ -4273,13 +4273,32 @@ void ResolveContinuation(CLRDATA_ADDRESS* contAddr)
                 }
             }
 
-            // If it was, or if it's storing an action, try to follow through to the action's target.
+            // If we now have an Action, try to follow through to the delegate's target.
             if ((offset = GetObjFieldOffset(contObj.GetAddress(), contObj.GetMT(), W("_target"))) != 0)
             {
                 MOVE(*contAddr, contObj.GetAddress() + offset);
                 if (sos::IsObject(*contAddr, false))
                 {
                     contObj = TO_TADDR(*contAddr);
+
+                    // In some cases, the delegate's target might be a ContinuationWrapper, in which case we want to unwrap that as well.
+                    if (_wcsncmp(contObj.GetTypeName(), W("System.Runtime.CompilerServices.AsyncMethodBuilderCore+ContinuationWrapper"), 74) == 0 &&
+                        (offset = GetObjFieldOffset(contObj.GetAddress(), contObj.GetMT(), W("_continuation"))) != 0)
+                    {
+                        MOVE(*contAddr, contObj.GetAddress() + offset);
+                        if (sos::IsObject(*contAddr, false))
+                        {
+                            contObj = TO_TADDR(*contAddr);
+                            if ((offset = GetObjFieldOffset(contObj.GetAddress(), contObj.GetMT(), W("_target"))) != 0)
+                            {
+                                MOVE(*contAddr, contObj.GetAddress() + offset);
+                                if (sos::IsObject(*contAddr, false))
+                                {
+                                    contObj = TO_TADDR(*contAddr);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -4586,7 +4605,7 @@ DECLARE_API(DumpAsync)
                             DacpObjectData objData;
                             if (objData.Request(g_sos, TO_CDADDR(listItemsPtr)) == S_OK && objData.ObjectType == OBJ_ARRAY)
                             {
-                                for (int i = 0; i < objData.dwNumComponents; i++)
+                                for (SIZE_T i = 0; i < objData.dwNumComponents; i++)
                                 {
                                     CLRDATA_ADDRESS elementPtr;
                                     MOVE(elementPtr, TO_CDADDR(objData.ArrayDataPtr + (i * objData.dwComponentSize)));
@@ -6542,10 +6561,6 @@ HRESULT PrintSpecialThreads()
         if (ThreadType & ThreadType_Finalizer)
         {
             type += "Finalizer ";
-        }
-        if (ThreadType & ThreadType_ADUnloadHelper)
-        {
-            type += "ADUnloadHelper ";
         }
         if (ThreadType & ThreadType_ShutdownHelper)
         {
@@ -15529,7 +15544,7 @@ GetStackFrame(CONTEXT* context, ULONG numNativeFrames)
     if (FAILED(hr))
     {
         PDEBUG_STACK_FRAME frame = &g_Frames[0];
-        for (int i = 0; i < numNativeFrames; i++, frame++) {
+        for (unsigned int i = 0; i < numNativeFrames; i++, frame++) {
             if (frame->InstructionOffset == context->Rip)
             {
                 if ((i + 1) >= numNativeFrames) {

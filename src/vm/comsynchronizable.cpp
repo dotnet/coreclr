@@ -53,7 +53,7 @@ struct SharedState
         }
         CONTRACTL_END;
 
-        AppDomain *ad = SystemDomain::GetAppDomainFromId(internal->GetKickOffDomainId(), ADV_CURRENTAD);
+        AppDomain *ad = ::GetAppDomain();
     
         m_Threadable = ad->CreateHandle(threadable);
         m_ThreadStartArg = ad->CreateHandle(threadStartArg);
@@ -357,7 +357,7 @@ ULONG WINAPI ThreadNative::KickOffThread(void* pass)
         // we can adjust the delegate we are going to invoke on.
 
         _ASSERTE(GetThread() == pThread);        // Now that it's started
-        ManagedThreadBase::KickOff(pThread->GetKickOffDomainId(), KickOffThread_Worker, &args);
+        ManagedThreadBase::KickOff(KickOffThread_Worker, &args);
 
         // If TS_FailStarted is set then the args are deleted in ThreadNative::StartInner
         if ((args.share) && !pThread->HasThreadState(Thread::TS_FailStarted))
@@ -676,15 +676,7 @@ FCIMPL1(void, ThreadNative::Sleep, INT32 iTime)
     if ((iTime < 0) && (iTime != INFINITE_TIMEOUT))
         COMPlusThrowArgumentOutOfRange(W("millisecondsTimeout"), W("ArgumentOutOfRange_NeedNonNegOrNegative1"));
 
-    while(true)
-    {
-        INT64 sPauseTime = g_PauseTime;
-        INT64 sTime = CLRGetTickCount64();
-        GetThread()->UserSleep(iTime);       
-        iTime = (INT32)AdditionalWait(sPauseTime, sTime, iTime);
-        if(iTime == 0)
-            break;
-    }
+    GetThread()->UserSleep(iTime);       
 
     HELPER_METHOD_FRAME_END();
 }
@@ -1188,7 +1180,7 @@ void ThreadBaseObject::SetDelegate(OBJECTREF delegate)
     }
 #endif
 
-    SetObjectReferenceUnchecked( (OBJECTREF *)&m_Delegate, delegate );
+    SetObjectReference( (OBJECTREF *)&m_Delegate, delegate );
 
     // If the delegate is being set then initialize the other data members.
     if (m_Delegate != NULL)
@@ -1431,6 +1423,29 @@ BOOL QCALLTYPE ThreadNative::YieldThread()
     return ret;
 }
 
+FCIMPL1(Object*, ThreadNative::GetThreadDeserializationTracker, StackCrawlMark* stackMark)
+{
+    FCALL_CONTRACT;
+    OBJECTREF refRetVal = NULL;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal)
+
+    // To avoid reflection trying to bypass deserialization tracking, check the caller
+    // and only allow SerializationInfo to call into this method.
+    MethodTable* pCallerMT = SystemDomain::GetCallersType(stackMark);
+    if (pCallerMT != MscorlibBinder::GetClass(CLASS__SERIALIZATION_INFO))
+    {
+        COMPlusThrowArgumentException(W("stackMark"), NULL);
+    }
+
+    Thread* pThread = GetThread();
+
+    refRetVal = ObjectFromHandle(pThread->GetOrCreateDeserializationTracker());
+
+    HELPER_METHOD_FRAME_END();
+
+    return OBJECTREFToObject(refRetVal);
+}
+FCIMPLEND
 
 FCIMPL0(INT32, ThreadNative::GetCurrentProcessorNumber)
 {

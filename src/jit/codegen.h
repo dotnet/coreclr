@@ -95,6 +95,7 @@ private:
     static bool genShouldRoundFP();
 
     GenTreeIndir indirForm(var_types type, GenTree* base);
+    GenTreeStoreInd storeIndirForm(var_types type, GenTree* base, GenTree* data);
 
     GenTreeIntCon intForm(var_types type, ssize_t value);
 
@@ -125,10 +126,6 @@ private:
 
     bool     genUseBlockInit;  // true if we plan to block-initialize the local stack frame
     unsigned genInitStkLclCnt; // The count of local variables that we need to zero init
-
-    //  Keeps track of how many bytes we've pushed on the processor's stack.
-    //
-    unsigned genStackLevel;
 
     void SubtractStackLevel(unsigned adjustment)
     {
@@ -261,7 +258,7 @@ protected:
                               regNumber   tmpReg,
                               bool        inUnwindRegion = false);
 
-    void genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg, bool* pTmpRegIsZero);
+    void genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg, bool* pTmpRegIsZero, bool reportUnwindData);
 
     void genPrologSaveRegPair(regNumber reg1,
                               regNumber reg2,
@@ -513,7 +510,7 @@ protected:
 
 #ifdef _TARGET_ARM64_
     virtual void SetSaveFpLrWithAllCalleeSavedRegisters(bool value);
-    virtual bool IsSaveFpLrWithAllCalleeSavedRegisters();
+    virtual bool IsSaveFpLrWithAllCalleeSavedRegisters() const;
     bool         genSaveFpLrWithAllCalleeSavedRegisters;
 #endif // _TARGET_ARM64_
 
@@ -561,38 +558,61 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                          siVarLoc*      varLoc);
 
     void genSetScopeInfo();
+#ifdef USING_VARIABLE_LIVE_RANGE
+    // Send VariableLiveRanges as debug info to the debugger
+    void genSetScopeInfoUsingVariableRanges();
+#endif // USING_VARIABLE_LIVE_RANGE
 
-protected:
-    /*
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XX                                                                           XX
-    XX                           ScopeInfo                                       XX
-    XX                                                                           XX
-    XX  Keeps track of the scopes during code-generation.                        XX
-    XX  This is used to translate the local-variable debugging information       XX
-    XX  from IL offsets to native code offsets.                                  XX
-    XX                                                                           XX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    */
+#ifdef USING_SCOPE_INFO
+    void genSetScopeInfoUsingsiScope();
 
-    /*****************************************************************************/
-    /*****************************************************************************
-     *                              ScopeInfo
-     *
-     * This class is called during code gen at block-boundaries, and when the
-     * set of live variables changes. It keeps track of the scope of the variables
-     * in terms of the native code PC.
-     */
+/*
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XX                                                                           XX
+XX                           ScopeInfo                                       XX
+XX                                                                           XX
+XX  Keeps track of the scopes during code-generation.                        XX
+XX  This is used to translate the local-variable debugging information       XX
+XX  from IL offsets to native code offsets.                                  XX
+XX                                                                           XX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+*/
 
+/*****************************************************************************/
+/*****************************************************************************
+ *                              ScopeInfo
+ *
+ * This class is called during code gen at block-boundaries, and when the
+ * set of live variables changes. It keeps track of the scope of the variables
+ * in terms of the native code PC.
+ */
+
+#endif // USING_VARIABLE_LIVE_RANGE
 public:
     void siInit();
+    void checkICodeDebugInfo();
 
+    // The logic used to report debug info on debug code is the same for ScopeInfo and
+    // VariableLiveRange
     void siBeginBlock(BasicBlock* block);
-
     void siEndBlock(BasicBlock* block);
 
+    // VariableLiveRange and siScope needs this method to report variables on debug code
+    void siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned int lastBlockILEndOffset);
+
+protected:
+#if FEATURE_EH_FUNCLETS
+    bool siInFuncletRegion; // Have we seen the start of the funclet region?
+#endif                      // FEATURE_EH_FUNCLETS
+
+    IL_OFFSET siLastEndOffs; // IL offset of the (exclusive) end of the last block processed
+
+#ifdef USING_SCOPE_INFO
+
+public:
+    // Closes the "ScopeInfo" of the tracked variables that has become dead.
     virtual void siUpdate();
 
     void siCheckVarScope(unsigned varNum, IL_OFFSET offs);
@@ -637,12 +657,6 @@ protected:
 
     siScope** siLatestTrackedScopes;
 
-    IL_OFFSET siLastEndOffs; // IL offset of the (exclusive) end of the last block processed
-
-#if FEATURE_EH_FUNCLETS
-    bool siInFuncletRegion; // Have we seen the start of the funclet region?
-#endif                      // FEATURE_EH_FUNCLETS
-
     // Functions
 
     siScope* siNewScope(unsigned LVnum, unsigned varNum);
@@ -668,24 +682,26 @@ public:
     const char* siStackVarName(size_t offs, size_t size, unsigned reg, unsigned stkOffs);
 #endif // LATE_DISASM
 
-public:
-    /*
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XX                                                                           XX
-    XX                          PrologScopeInfo                                  XX
-    XX                                                                           XX
-    XX We need special handling in the prolog block, as the parameter variables  XX
-    XX may not be in the same position described by genLclVarTable - they all    XX
-    XX start out on the stack                                                    XX
-    XX                                                                           XX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    */
-
+/*
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XX                                                                           XX
+XX                          PrologScopeInfo                                  XX
+XX                                                                           XX
+XX We need special handling in the prolog block, as the parameter variables  XX
+XX may not be in the same position described by genLclVarTable - they all    XX
+XX start out on the stack                                                    XX
+XX                                                                           XX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+*/
+#endif // USING_SCOPE_INFO
 public:
     void psiBegProlog();
 
+    void psiEndProlog();
+
+#ifdef USING_SCOPE_INFO
     void psiAdjustStackLevel(unsigned size);
 
     void psiMoveESPtoEBP();
@@ -693,8 +709,6 @@ public:
     void psiMoveToReg(unsigned varNum, regNumber reg = REG_NA, regNumber otherReg = REG_NA);
 
     void psiMoveToStack(unsigned varNum);
-
-    void psiEndProlog();
 
     /**************************************************************************
      *                          PROTECTED
@@ -748,15 +762,19 @@ protected:
 
     void psiEndPrologScope(psiScope* scope);
 
-    void psSetScopeOffset(psiScope* newScope, LclVarDsc* lclVarDsc1);
+    void psiSetScopeOffset(psiScope* newScope, const LclVarDsc* lclVarDsc) const;
+#endif // USING_SCOPE_INFO
 
-/*****************************************************************************
- *                        TrnslLocalVarInfo
- *
- * This struct holds the LocalVarInfo in terms of the generated native code
- * after a call to genSetScopeInfo()
- */
+    NATIVE_OFFSET psiGetVarStackOffset(const LclVarDsc* lclVarDsc) const;
 
+    /*****************************************************************************
+     *                        TrnslLocalVarInfo
+     *
+     * This struct holds the LocalVarInfo in terms of the generated native code
+     * after a call to genSetScopeInfo()
+     */
+
+protected:
 #ifdef DEBUG
 
     struct TrnslLocalVarInfo
@@ -1042,6 +1060,9 @@ protected:
 
     void genConsumeRegs(GenTree* tree);
     void genConsumeOperands(GenTreeOp* tree);
+#ifdef FEATURE_HW_INTRINSICS
+    void genConsumeHWIntrinsicOperands(GenTreeHWIntrinsic* tree);
+#endif // FEATURE_HW_INTRINSICS
     void genEmitGSCookieCheck(bool pushReg);
     void genSetRegToIcon(regNumber reg, ssize_t val, var_types type = TYP_INT, insFlags flags = INS_FLAGS_DONT_CARE);
     void genCodeForShift(GenTree* tree);
@@ -1190,6 +1211,14 @@ protected:
 
     void genReturn(GenTree* treeNode);
 
+#if defined(_TARGET_XARCH_)
+    void genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta, bool hideSpChangeFromEmitter, regNumber regTmp);
+    void genStackPointerConstantAdjustmentLoopWithProbe(ssize_t   spDelta,
+                                                        bool      hideSpChangeFromEmitter,
+                                                        regNumber regTmp);
+    void genStackPointerDynamicAdjustmentWithProbe(regNumber regSpDelta, regNumber regTmp);
+#endif // defined(_TARGET_XARCH_)
+
     void genLclHeap(GenTree* tree);
 
     bool genIsRegCandidateLocal(GenTree* tree)
@@ -1311,6 +1340,7 @@ public:
 
 #if defined(_TARGET_XARCH_)
     void inst_RV_RV_IV(instruction ins, emitAttr size, regNumber reg1, regNumber reg2, unsigned ival);
+    void inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenTree* rmOp, int ival);
 #endif
 
     void inst_RV_RR(instruction ins, emitAttr size, regNumber reg1, regNumber reg2);

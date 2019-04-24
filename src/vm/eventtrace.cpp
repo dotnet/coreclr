@@ -1492,14 +1492,8 @@ void BulkStaticsLogger::LogAllStatics()
     }
     CONTRACTL_END;
 
-    // Enumerate only active app domains (first parameter).  We use the unsafe
-    // iterator here because this method is called under the threadstore lock
-    // and it's safe to use while the runtime is suspended.
-    UnsafeAppDomainIterator appIter(TRUE);
-    appIter.Init();
-    while (appIter.Next())
     {
-        AppDomain *domain = appIter.GetDomain();
+        AppDomain *domain = ::GetAppDomain(); // There is only 1 AppDomain, so no iterator here.
 
         AppDomain::AssemblyIterator assemblyIter = domain->IterateAssembliesEx((AssemblyIterationFlags)(kIncludeLoaded|kIncludeExecution));
         CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
@@ -1732,7 +1726,7 @@ int BulkTypeEventLogger::LogSingleType(TypeHandle th)
         FireBulkTypeEvent();
     }
     
-    _ASSERTE(m_nBulkTypeValueCount < _countof(m_rgBulkTypeValues));
+    _ASSERTE(m_nBulkTypeValueCount < (int)_countof(m_rgBulkTypeValues));
 
     if (!th.IsTypeDesc() && th.GetMethodTable()->IsArray())
     {
@@ -5204,6 +5198,32 @@ HRESULT ETW::CodeSymbolLog::ReadInMemorySymbols(
     return S_OK;
 }
 
+VOID ETW::MethodLog::GetR2RGetEntryPoint(MethodDesc *pMethodDesc, PCODE pEntryPoint)
+{
+    CONTRACTL{
+        NOTHROW;
+        GC_TRIGGERS;
+    } CONTRACTL_END;
+
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, R2RGetEntryPoint))
+    {
+        EX_TRY
+        {
+                SString tNamespace, tMethodName, tMethodSignature;
+                pMethodDesc->GetMethodInfo(tNamespace, tMethodName, tMethodSignature);
+
+                FireEtwR2RGetEntryPoint(
+                    (UINT64)pMethodDesc,
+                    (PCWSTR)tNamespace.GetUnicode(),
+                    (PCWSTR)tMethodName.GetUnicode(),
+                    (PCWSTR)tMethodSignature.GetUnicode(),
+                    pEntryPoint,
+                    GetClrInstanceId());
+
+        } EX_CATCH{ } EX_END_CATCH(SwallowAllExceptions);
+    }
+}
+
 /*******************************************************/
 /* This is called by the runtime when a method is jitted completely */
 /*******************************************************/
@@ -5650,19 +5670,19 @@ VOID ETW::LoaderLog::SendDomainEvent(BaseDomain *pBaseDomain, DWORD dwEventOptio
 
     if(dwEventOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleLoad)
     {
-        FireEtwAppDomainLoad_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, pBaseDomain->GetId().m_dwId, GetClrInstanceId());
+        FireEtwAppDomainLoad_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, DefaultADID, GetClrInstanceId());
     }
     else if(dwEventOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleUnload)
     {
-        FireEtwAppDomainUnload_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, pBaseDomain->GetId().m_dwId, GetClrInstanceId());
+        FireEtwAppDomainUnload_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, DefaultADID, GetClrInstanceId());
     }
     else if(dwEventOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleDCStart)
     {
-        FireEtwAppDomainDCStart_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, pBaseDomain->GetId().m_dwId, GetClrInstanceId());
+        FireEtwAppDomainDCStart_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, DefaultADID, GetClrInstanceId());
     }
     else if(dwEventOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleDCEnd)
     {
-        FireEtwAppDomainDCEnd_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, pBaseDomain->GetId().m_dwId, GetClrInstanceId());
+        FireEtwAppDomainDCEnd_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, DefaultADID, GetClrInstanceId());
     }
     else
     {
@@ -5770,7 +5790,7 @@ ETW_INLINE
 {
     ULONG Result = ERROR_SUCCESS;
 
-
+#ifdef FEATURE_PREJIT
     // do not fire the ETW event when:
     // 1. We did not load the native image
     // 2. We do not have IBC data for the native image
@@ -5822,6 +5842,8 @@ ETW_INLINE
             Result &= FireEtwModuleRangeLoadPrivate(ClrInstanceId, ModuleID, rangeBegin, rangeSize, rangeType, ibcType, virtualSectionType);
         }
     }
+#endif
+
     return Result;
 }
 
@@ -6044,12 +6066,18 @@ VOID ETW::LoaderLog::SendModuleEvent(Module *pModule, DWORD dwEventOptions, BOOL
         bIsIbcOptimized = pModule->IsIbcOptimized();
     }
     BOOL bIsReadyToRun = pModule->IsReadyToRun();
+    BOOL bIsPartialReadyToRun = FALSE;
+    if (bIsReadyToRun)
+    {
+        bIsPartialReadyToRun = pModule->GetReadyToRunInfo()->IsPartial();
+    }
     ULONG ulReservedFlags = 0;
     ULONG ulFlags = ((bHasNativeImage ? ETW::LoaderLog::LoaderStructs::NativeModule : 0) |
                      (bIsDynamicAssembly ? ETW::LoaderLog::LoaderStructs::DynamicModule : 0) |
                      (bIsManifestModule ? ETW::LoaderLog::LoaderStructs::ManifestModule : 0) |
                      (bIsIbcOptimized ? ETW::LoaderLog::LoaderStructs::IbcOptimized : 0) |
-                     (bIsReadyToRun ? ETW::LoaderLog::LoaderStructs::ReadyToRunModule : 0));
+                     (bIsReadyToRun ? ETW::LoaderLog::LoaderStructs::ReadyToRunModule : 0) |
+                     (bIsPartialReadyToRun ? ETW::LoaderLog::LoaderStructs::PartialReadyToRunModule : 0));
 
     // Grab PDB path, guid, and age for managed PDB and native (NGEN) PDB when
     // available.  Any failures are not fatal.  The corresponding PDB info will remain
@@ -6068,7 +6096,7 @@ VOID ETW::LoaderLog::SendModuleEvent(Module *pModule, DWORD dwEventOptions, BOOL
     }
 
     LPCWSTR pEmptyString = W("");
-    SString moduleName = W("");
+    SString moduleName = SString::Empty();
 
     if(!bIsDynamicAssembly)
     {
@@ -6806,18 +6834,6 @@ VOID ETW::MethodLog::SendEventsForJitMethodsHelper(BaseDomain *pDomainFilter,
         ReJITID rejitID =
             fGetReJitIDs ? ReJitManager::GetReJitIdNoLock(pMD, codeStart) : 0;
 
-        // There are small windows of time where the heap iterator may come across a
-        // codeStart that is not yet published to the MethodDesc. This may happen if
-        // we're JITting the method right now on another thread, and have not completed
-        // yet. Detect the race, and skip the method if appropriate. (If rejitID is
-        // nonzero, there is no race, as GetReJitIdNoLock will not return a nonzero
-        // rejitID if the codeStart has not yet been published for that rejitted version
-        // of the method.) This check also catches recompilations due to EnC, which we do
-        // not want to issue events for, in order to ensure xperf's assumption that
-        // MethodDesc* + ReJITID + extent (hot vs. cold) form a unique key for code
-        // ranges of methods
-        if ((rejitID == 0) && (codeStart != PCODEToPINSTR(pMD->GetNativeCode())))
-            continue;
 
         // When we're called to announce loads, then the methodload event itself must
         // precede any supplemental events, so that the method load or method jitting
@@ -6839,9 +6855,37 @@ VOID ETW::MethodLog::SendEventsForJitMethodsHelper(BaseDomain *pDomainFilter,
             }
         }
 
-        // Send any supplemental events requested for this MethodID
-        if (fSendILToNativeMapEvent)
-            ETW::MethodLog::SendMethodILToNativeMapEvent(pMD, dwEventOptions, codeStart, rejitID);
+        // The filtering line below excludes all methods that don't go directly to the 
+        // native body (And that includes all Tiered JIT methods).   In V3.0 Tiered JIT
+        // is only by default which means important methods are filtered out.
+        //
+        // This filter used to exclude all events for a particular method, but has been
+        // moved here so it only applies to the IL->Native map.   
+        // This filter needs to be removed in its entirety, because right now all Tiered
+        // methods don't have a IL->Native map (and thus can't support source line profiling)
+        // moving it here at least minimizes the damage.  
+        //
+        // We did not remove the filter right now because currently 
+        // SendMethodILToNativeMapEvent relies on a fragile invariant where all lazy data is 
+        // known to be populated (see  g_pDebugInterface->InitializeLazyDataIfNecessary(); above)
+        // and this may not be true for tiered methods.    
+        // 
+        // There was also concern that there are races where the heap-iterator might see
+        // data between the time that the code was created and the debug information was set
+        // (there is a lock that protects the code manager data, however the JIT does not
+        // let all the data in one go (in particular the debug data is set latter).  
+        //
+        // Note that currently the  rejitID variable is likely always 0 because it seems that
+        // fGetReJitIDs=false except in the case that an appdomain is being unloaded (which I
+        // think never happens in .NET core) 
+        // 
+        // Issue #22904 tracks the work to fix the IL->Native mapping.  
+        if ((rejitID != 0) || (codeStart == PCODEToPINSTR(pMD->GetNativeCode())))
+        {
+            // Send any supplemental events requested for this MethodID
+            if (fSendILToNativeMapEvent)
+                ETW::MethodLog::SendMethodILToNativeMapEvent(pMD, dwEventOptions, codeStart, rejitID);
+        }
 
         // When we're called to announce unloads, then the methodunload event itself must
         // come after any supplemental events, so that the method unload event is the
@@ -7253,7 +7297,7 @@ VOID ETW::EnumerationLog::EnumerationHelper(Module *moduleFilter, BaseDomain *do
 
     if(moduleFilter)
     {
-        // Iteratate modules first because their number is ussualy smaller then the number of methods. 
+        // Iterate modules first because their number is usually smaller then the number of methods. 
         // Thus hitting a timeout due to a large number of methods will not affect modules rundown.tf g
         ETW::EnumerationLog::IterateModule(moduleFilter, enumerationOptions);
 

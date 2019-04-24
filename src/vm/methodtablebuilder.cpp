@@ -1390,7 +1390,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #endif // _DEBUG
 
     // If this is mscorlib, then don't perform some sanity checks on the layout
-    bmtProp->fNoSanityChecks = ((g_pObjectClass == NULL) || pModule == g_pObjectClass->GetModule()) ||
+    bmtProp->fNoSanityChecks = pModule->IsSystem() ||
 #ifdef FEATURE_READYTORUN
         // No sanity checks for ready-to-run compiled images if possible
         (pModule->IsReadyToRun() && pModule->GetReadyToRunInfo()->SkipTypeValidation()) ||
@@ -3228,6 +3228,11 @@ MethodTableBuilder::EnumerateClassMethods()
         {
             bmtMethod->dwNumDeclaredNonAbstractMethods++;
         }
+    }
+
+    if (bmtMethod->dwNumDeclaredNonAbstractMethods == 0)
+    {
+        GetHalfBakedClass()->SetHasOnlyAbstractMethods();
     }
 
     // Check to see that we have all of the required delegate methods (ECMA 13.6 Delegates)
@@ -6326,7 +6331,7 @@ MethodTableBuilder::WriteMethodImplData(
             // binary search later
             for (DWORD i = 0; i < cSlots; i++)
             {
-                int min = i;
+                unsigned int min = i;
                 for (DWORD j = i + 1; j < cSlots; j++)
                 {
                     if (rgSlots[j] < rgSlots[min])
@@ -9711,6 +9716,19 @@ void MethodTableBuilder::CheckForSystemTypes()
 
             pMT->SetComponentSize(2);
         }
+#ifdef FEATURE_UTF8STRING
+        else if (strcmp(name, g_Utf8StringName) == 0 && strcmp(nameSpace, g_SystemNS) == 0)
+        {
+            // Utf8Strings are not "normal" objects, so we need to mess with their method table a bit
+            // so that the GC can figure out how big each string is...
+            DWORD baseSize = Utf8StringObject::GetBaseSize();
+            pMT->SetBaseSize(baseSize); // NULL character included
+
+            GetHalfBakedClass()->SetBaseSizePadding(baseSize - bmtFP->NumInstanceFieldBytes);
+
+            pMT->SetComponentSize(1);
+        }
+#endif // FEATURE_UTF8STRING
         else if (strcmp(name, g_CriticalFinalizerObjectName) == 0 && strcmp(nameSpace, g_ConstrainedExecutionNS) == 0)
         {
             // To introduce a class with a critical finalizer,
@@ -10758,6 +10776,18 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(bmtRTType *pDeclType,
     // If the interface method is already non-abstract, we are done
     if (!pDeclMD->IsAbstract())
         return TRUE;
+
+    // If the method is an abstract MethodImpl, this is a reabstraction:
+    //
+    // interface IFoo { void Frob() { } }
+    // interface IBar : IFoo { abstract void IFoo.Frob() }
+    //
+    // We don't require these to have an implementation because they're final anyway.
+    if (pDeclMD->IsMethodImpl())
+    {
+        assert(pDeclMD->IsFinal());
+        return TRUE;
+    }
 
     int targetSlot = pDeclMD->GetSlot();
 
@@ -11838,6 +11868,102 @@ MethodTableBuilder::GatherGenericsInfo(
     SigTypeContext typeContext(inst, Instantiation());
     bmtGenericsInfo->typeContext = typeContext;
 } // MethodTableBuilder::GatherGenericsInfo
+
+//=======================================================================
+// This is invoked from the class loader while building the internal structures for a type
+// This function should check if explicit layout metadata exists.
+//
+// Returns:
+//  TRUE    - yes, there's layout metadata
+//  FALSE   - no, there's no layout.
+//  fail    - throws a typeload exception
+//
+// If TRUE,
+//   *pNLType            gets set to nltAnsi or nltUnicode
+//   *pPackingSize       declared packing size
+//   *pfExplicitoffsets  offsets explicit in metadata or computed?
+//=======================================================================
+BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport* pInternalImport, mdTypeDef cl, MethodTable* pParentMT, BYTE* pPackingSize, BYTE* pNLTType, BOOL* pfExplicitOffsets)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(CheckPointer(pInternalImport));
+        PRECONDITION(CheckPointer(pPackingSize));
+        PRECONDITION(CheckPointer(pNLTType));
+        PRECONDITION(CheckPointer(pfExplicitOffsets));
+    }
+    CONTRACTL_END;
+
+    HRESULT hr;
+    ULONG clFlags;
+
+    if (FAILED(pInternalImport->GetTypeDefProps(cl, &clFlags, NULL)))
+    {
+        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
+    }
+
+    if (IsTdAutoLayout(clFlags))
+    {
+        return FALSE;
+    }
+    else if (IsTdSequentialLayout(clFlags))
+    {
+        *pfExplicitOffsets = FALSE;
+    }
+    else if (IsTdExplicitLayout(clFlags))
+    {
+        *pfExplicitOffsets = TRUE;
+    }
+    else
+    {
+        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
+    }
+
+    // We now know this class has seq. or explicit layout. Ensure the parent does too.
+    if (pParentMT && !(pParentMT->IsObjectClass() || pParentMT->IsValueTypeClass()) && !(pParentMT->HasLayout()))
+        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
+
+    if (IsTdAnsiClass(clFlags))
+    {
+        *pNLTType = nltAnsi;
+    }
+    else if (IsTdUnicodeClass(clFlags))
+    {
+        *pNLTType = nltUnicode;
+    }
+    else if (IsTdAutoClass(clFlags))
+    {
+#ifdef PLATFORM_WINDOWS
+        *pNLTType = nltUnicode;
+#else
+        *pNLTType = nltAnsi; // We don't have a utf8 charset in metadata yet, but ANSI == UTF-8 off-Windows
+#endif
+    }
+    else
+    {
+        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
+    }
+
+    DWORD dwPackSize;
+    hr = pInternalImport->GetClassPackSize(cl, &dwPackSize);
+    if (FAILED(hr) || dwPackSize == 0)
+        dwPackSize = DEFAULT_PACKING_SIZE;
+
+    // This has to be reduced to a BYTE value, so we had better make sure it fits. If
+    // not, we'll throw an exception instead of trying to munge the value to what we
+    // think the user might want.
+    if (!FitsInU1((UINT64)(dwPackSize)))
+    {
+        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
+    }
+
+    *pPackingSize = (BYTE)dwPackSize;
+
+    return TRUE;
+}
 
 //---------------------------------------------------------------------------------------
 // 

@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace System.Buffers.Text
@@ -103,7 +105,7 @@ namespace System.Buffers.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountHexDigits(ulong value)
         {
-            return (64 - BitOps.LeadingZeroCount(value | 1) + 3) >> 2;
+            return (64 - BitOperations.LeadingZeroCount(value | 1) + 3) >> 2;
         }
 
         // Counts the number of trailing '0' digits in a decimal number.

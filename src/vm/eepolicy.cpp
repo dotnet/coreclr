@@ -455,9 +455,7 @@ void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction 
     GCX_PREEMP_NO_DTOR();
     
     FastInterlockExchange((LONG*)&g_fForbidEnterEE, TRUE);
-    
-    ProcessEventForHost(Event_ClrDisabled, NULL);
-    
+
     // Note that for free and retail builds StressLog must also be enabled
     if (g_pConfig && g_pConfig->StressLog())
     {
@@ -504,7 +502,7 @@ void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction 
     if (sca == SCA_ExitProcessWhenShutdownComplete)
     {
         // disabled because if we fault in this code path we will trigger our
-        // Watson code via EntryPointFilter which is THROWS (see Dev11 317016)
+        // Watson code
         CONTRACT_VIOLATION(ThrowsViolation);
 
 #ifdef FEATURE_PAL
@@ -538,62 +536,6 @@ void EEPolicy::ExitProcessViaShim(UINT exitCode)
     // simply exit the process here, which is rude to the others, but the best we can do.
 
     ExitProcess(exitCode);
-}
-
-
-//---------------------------------------------------------------------------------------
-// DisableRuntime disables this runtime, suspending all managed execution and preventing
-// threads from entering the runtime. This will cause the caller to block forever as well
-// unless sca is SCA_ReturnWhenShutdownComplete.
-//---------------------------------------------------------------------------------------
-void DisableRuntime(ShutdownCompleteAction sca)
-{
-    CONTRACTL
-    {
-        DISABLED(GC_TRIGGERS);
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    FastInterlockExchange((LONG*)&g_fForbidEnterEE, TRUE);
-    
-    if (!g_fSuspendOnShutdown)
-    {
-        if (!IsGCThread())
-        {
-            if (ThreadStore::HoldingThreadStore(GetThread()))
-            {
-                ThreadSuspend::UnlockThreadStore();
-            }
-            ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_SHUTDOWN);
-        }
-
-        if (!g_fSuspendOnShutdown)
-        {
-            ThreadStore::TrapReturningThreads(TRUE);
-            g_fSuspendOnShutdown = TRUE;
-            ClrFlsSetThreadType(ThreadType_Shutdown);
-        }
-
-        // Don't restart runtime.  CLR is disabled.
-    }
-
-    GCX_PREEMP_NO_DTOR();
-    
-    ProcessEventForHost(Event_ClrDisabled, NULL);
-    ClrFlsClearThreadType(ThreadType_Shutdown);
-
-    if (g_pDebugInterface != NULL)
-    {
-        g_pDebugInterface->DisableDebugger();
-    }
-
-    if (sca == SCA_ExitProcessWhenShutdownComplete)
-    {
-        __SwitchToThread(INFINITE, CALLER_LIMITS_SPINNING);
-        _ASSERTE (!"Should not reach here");
-        SafeExitProcess(0);
-    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -632,9 +574,6 @@ static void HandleExitProcessHelper(EPolicyAction action, UINT exitCode, Shutdow
         g_fFastExitProcess = 2;
         SafeExitProcess(exitCode, TRUE, sca);
         break;
-    case eDisableRuntime:
-        DisableRuntime(sca);
-        break;
     default:
         _ASSERTE (!"Invalid policy");
         break;
@@ -666,12 +605,6 @@ EPolicyAction EEPolicy::DetermineResourceConstraintAction(Thread *pThread)
     {
         action = eThrowException;
     }
-    // If the current thread is AD unload helper thread, it should not block itself.
-    else if (pThread->HasThreadStateNC(Thread::TSNC_ADUnloadHelper) &&
-        action < eExitProcess) 
-    {
-        action = eThrowException;
-    }
     return action;
 }
 
@@ -695,7 +628,6 @@ void EEPolicy::PerformResourceConstraintAction(Thread *pThread, EPolicyAction ac
     case eExitProcess:
     case eFastExitProcess:
     case eRudeExitProcess:
-    case eDisableRuntime:
         HandleExitProcessFromEscalation(action, exitCode);
         break;
     default:
@@ -763,12 +695,7 @@ void EEPolicy::HandleStackOverflow(StackOverflowDetector detector, void * pLimit
 
     if (pThread == NULL)
     {
-        //_ASSERTE (detector != SOD_ManagedFrameHandler);
-        // ProcessSOEventForHost(NULL, FALSE);
-
         // For security reason, it is not safe to continue execution if stack overflow happens
-        // unless a host tells us to do something different.
-        // EEPolicy::HandleFatalStackOverflow(NULL);
         return;
     }
 
@@ -776,8 +703,6 @@ void EEPolicy::HandleStackOverflow(StackOverflowDetector detector, void * pLimit
     GetCurrentExceptionPointers(&exceptionInfo);
 
     _ASSERTE(exceptionInfo.ExceptionRecord);
-
-    ProcessSOEventForHost(&exceptionInfo, false /* fInSoTolerant */);
 
     EEPolicy::HandleFatalStackOverflow(&exceptionInfo);
 }
@@ -874,44 +799,58 @@ inline void LogCallstackForLogWorker()
 
 //---------------------------------------------------------------------------------------
 //
-// Generate an EventLog entry for unhandled exception.
+// Print information on fatal error to stderr.
 //
 // Arguments:
-//    pExceptionInfo - Exception information
+//    exitCode - code of the fatal error
+//    pszMessage - error message (can be NULL)
+//    errorSource - details on the source of the error
+//    argExceptionString - exception details
 //
 // Return Value:
 //    None
 //
-inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, LPCWSTR argExceptionString)
+void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource, LPCWSTR argExceptionString)
 {
     WRAPPER_NO_CONTRACT;
 
     Thread *pThread = GetThread();
     EX_TRY
     {
-        if (errorSource == NULL)
+        if ((exitCode == (UINT)COR_E_FAILFAST) && (errorSource == NULL))
         {
-            PrintToStdErrA("FailFast:");
-        }
-        else 
-        {
-            PrintToStdErrW((WCHAR*)errorSource);
+            PrintToStdErrA("FailFast:\n");
         }
 
-        PrintToStdErrA("\n");
-        PrintToStdErrW((WCHAR*)pszMessage);
+        if (errorSource != NULL)
+        {
+            PrintToStdErrW(errorSource);
+            PrintToStdErrA("\n");
+        }
+
+        if (pszMessage != NULL)
+        {
+            PrintToStdErrW(pszMessage);
+        }
+        else
+        {
+            // If no message was passed in, generate it from the exitCode
+            SString exitCodeMessage;
+            GetHRMsg(exitCode, exitCodeMessage);
+            PrintToStdErrW((LPCWSTR)exitCodeMessage);
+        }
+
         PrintToStdErrA("\n");
 
         if (pThread && errorSource == NULL)
         {
-            PrintToStdErrA("\n");
             LogCallstackForLogWorker();
 
             if (argExceptionString != NULL) {
                 PrintToStdErrA("\n");
                 PrintToStdErrA("Exception details:");
                 PrintToStdErrA("\n");
-                PrintToStdErrW((WCHAR*)argExceptionString);
+                PrintToStdErrW(argExceptionString);
                 PrintToStdErrA("\n");
             }
         }
@@ -936,11 +875,8 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
 
     _ASSERTE(pExceptionInfo != NULL);
 
-    // Log FailFast exception to StdErr
-    if (exitCode == (UINT)COR_E_FAILFAST)
-    {
-        DoLogForFailFastException(pszMessage, pExceptionInfo, errorSource, argExceptionString);
-    }
+    // Log exception to StdErr
+    LogInfoForFatalError(exitCode, pszMessage, errorSource, argExceptionString);
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
     {
@@ -1045,13 +981,6 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
     }
 #endif // _DEBUG
 
-    // We're here logging a fatal error.  If the policy is to then do anything other than
-    //  disable the runtime (ie, if the policy is to terminate the runtime), we should give
-    //  Watson an opportunity to capture an error report.
-    // Presumably, hosts that are sophisticated enough to disable the runtime are also cognizant
-    //  of how they want to handle fatal errors in the runtime, including whether they want
-    //  to capture Watson information (for which they are responsible).
-    if (GetEEPolicy()->GetActionOnFailureNoHostNotification(FAIL_FatalRuntime) != eDisableRuntime)
     {
 #ifdef DEBUGGING_SUPPORTED
         //Give a managed debugger a chance if this fatal error is on a managed thread.
@@ -1199,10 +1128,26 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
     UNREACHABLE();
 }
 
+#if defined(_TARGET_X86_) && defined(PLATFORM_WINDOWS)
+// This noinline method is required to ensure that RtlCaptureContext captures
+// the context of HandleFatalError. On x86 RtlCaptureContext will not capture
+// the current method's context
+// NOTE: explicitly turning off optimizations to force the compiler to spill to the
+//       stack and establish a stack frame. This is required to ensure that 
+//       RtlCaptureContext captures the context of HandleFatalError
+#pragma optimize("", off)
+int NOINLINE WrapperClrCaptureContext(CONTEXT* context)
+{
+    ClrCaptureContext(context);
+    return 0;
+}
+#pragma optimize("", on)
+#endif // defined(_TARGET_X86_) && defined(PLATFORM_WINDOWS)
 
-
-
-void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, LPCWSTR errorSource /* = NULL */, LPCWSTR argExceptionString /* = NULL */)
+// This method must return a value to avoid getting non-actionable dumps on x86.
+// If this method were a DECLSPEC_NORETURN then dumps would not provide the necessary
+// context at the point of the failure
+int NOINLINE EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, LPCWSTR errorSource /* = NULL */, LPCWSTR argExceptionString /* = NULL */)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1220,7 +1165,12 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
         ZeroMemory(&context, sizeof(context));
         
         context.ContextFlags = CONTEXT_CONTROL;
+#if defined(_TARGET_X86_) && defined(PLATFORM_WINDOWS)
+        // Add a frame to ensure that the context captured is this method and not the caller
+        WrapperClrCaptureContext(&context);
+#else // defined(_TARGET_X86_) && defined(PLATFORM_WINDOWS)
         ClrCaptureContext(&context);
+#endif
 
         exceptionRecord.ExceptionCode = exitCode;
         exceptionRecord.ExceptionAddress = reinterpret_cast< PVOID >(address);
@@ -1263,10 +1213,6 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
             LogFatalError(exitCode, address, pszMessage, pExceptionInfo, errorSource, argExceptionString);
 	        SafeExitProcess(exitCode, TRUE);
             break;
-        case eDisableRuntime:
-            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, errorSource, argExceptionString);
-            DisableRuntime(SCA_ExitProcessWhenShutdownComplete);
-            break;
         default:
             _ASSERTE(!"Invalid action for FAIL_FatalRuntime");
             break;
@@ -1274,6 +1220,7 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
     }
 
     UNREACHABLE();
+    return -1;
 }
 
 void EEPolicy::HandleExitProcessFromEscalation(EPolicyAction action, UINT exitCode)

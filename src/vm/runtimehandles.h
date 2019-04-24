@@ -96,7 +96,7 @@ public:
 
     void SetType(OBJECTREF type)
     {
-        SetObjectReference(&_type, type, GetAppDomain());
+        SetObjectReference(&_type, type);
     }
 
     OBJECTREF _type;
@@ -152,14 +152,18 @@ public:
     static FCDECL1_V(ReflectClassBaseObject*, GetTypeFromHandle, FCALLRuntimeTypeHandle th);
     static FCDECL1_V(EnregisteredTypeHandle, GetValueInternal, FCALLRuntimeTypeHandle RTH);
 
+    static FCDECL2(FC_BOOL_RET, IsEquivalentTo, ReflectClassBaseObject *rtType1UNSAFE, ReflectClassBaseObject *rtType2UNSAFE);
+
     static FCDECL2(FC_BOOL_RET, TypeEQ, Object* left, Object* right);
     static FCDECL2(FC_BOOL_RET, TypeNEQ, Object* left, Object* right);
 
 
 #ifdef FEATURE_COMINTEROP
     static FCDECL1(FC_BOOL_RET, IsWindowsRuntimeObjectType, ReflectClassBaseObject *rtTypeUNSAFE);
+#ifdef FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
     static FCDECL1(FC_BOOL_RET, IsTypeExportedToWindowsRuntime, ReflectClassBaseObject *rtTypeUNSAFE);
-#endif // FEATURE_COMINTEROP
+#endif
+#endif //FEATURE_COMINTEROP
 
     static
     void QCALLTYPE PrepareMemberInfoCache(EnregisteredTypeHandle pMemberInfoCache);
@@ -173,7 +177,7 @@ public:
     static
     void QCALLTYPE GetTypeByName(LPCWSTR pwzClassName, BOOL bThrowOnError, BOOL bIgnoreCase,
                                  QCall::StackCrawlMarkHandle pStackMark, 
-                                 ICLRPrivBinder * pPrivHostBinder,
+                                 QCall::ObjectHandleOnStack pAssemblyLoadContext,
                                  BOOL bLoadTypeFromPartialNameHack, QCall::ObjectHandleOnStack retType,
                                  QCall::ObjectHandleOnStack keepAlive);
 
@@ -532,7 +536,7 @@ private:
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
-        SetObjectReference(&m_returnType, returnType, GetAppDomain());
+        SetObjectReference(&m_returnType, returnType);
     }
 
     void SetKeepAlive(OBJECTREF keepAlive)
@@ -543,7 +547,7 @@ private:
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
-        SetObjectReference(&m_keepalive, keepAlive, GetAppDomain());
+        SetObjectReference(&m_keepalive, keepAlive);
     }
 
     void SetDeclaringType(REFLECTCLASSBASEREF declaringType)
@@ -554,7 +558,7 @@ private:
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
-        SetObjectReference((OBJECTREF*)&m_declaringType, (OBJECTREF)declaringType, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&m_declaringType, (OBJECTREF)declaringType);
     }
 
     void SetArgumentArray(PTRARRAYREF ptrArrayarguments)
@@ -565,7 +569,7 @@ private:
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
-        SetObjectReference((OBJECTREF*)&m_PtrArrayarguments, (OBJECTREF)ptrArrayarguments, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&m_PtrArrayarguments, (OBJECTREF)ptrArrayarguments);
     }
         
     void SetArgument(INT32 argument, OBJECTREF argumentType)

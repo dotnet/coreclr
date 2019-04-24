@@ -12,8 +12,10 @@
 
 #ifndef DACCESS_COMPILE
 
-COUNTER_ONLY(PERF_COUNTER_TIMER_PRECISION g_TotalTimeInGC = 0);
-COUNTER_ONLY(PERF_COUNTER_TIMER_PRECISION g_TotalTimeSinceLastGCEnd = 0);
+#ifdef ENABLE_PERF_COUNTERS
+PERF_COUNTER_TIMER_PRECISION g_TotalTimeInGC = 0;
+PERF_COUNTER_TIMER_PRECISION g_TotalTimeSinceLastGCEnd = 0;
+#endif
 
 #if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
 size_t g_GenerationSizes[NUMBERGENERATIONS];
@@ -69,7 +71,7 @@ void GCHeap::UpdatePreGCCounters()
 #endif //_PREFAST_
     if (hp->settings.reason == reason_induced IN_STRESS_HEAP( && !hp->settings.stress_induced))
     {
-        COUNTER_ONLY(GetPerfCounters().m_GC.cInducedGCs++);
+        GetPerfCounters().m_GC.cInducedGCs++;
     }
 
     GetPerfCounters().m_Security.timeRTchecks = 0;
@@ -596,6 +598,22 @@ void GCHeap::UnregisterFrozenSegment(segment_handle seg)
 #else
     assert(!"Should not call GCHeap::UnregisterFrozenSegment without FEATURE_BASICFREEZE defined!");
 #endif // FEATURE_BASICFREEZE
+}
+
+bool GCHeap::IsInFrozenSegment(Object *object)
+{
+#ifdef FEATURE_BASICFREEZE
+    uint8_t* o = (uint8_t*)object;
+    heap_segment * hs = gc_heap::find_segment (o, FALSE);
+    //We create a frozen object for each frozen segment before the segment is inserted
+    //to segment list; during ngen, we could also create frozen objects in segments which
+    //don't belong to current GC heap.
+    //So we return true if hs is NULL. It might create a hole about detecting invalidate 
+    //object. But given all other checks present, the hole should be very small
+    return !hs || heap_segment_read_only_p (hs);
+#else // FEATURE_BASICFREEZE
+    return false;
+#endif
 }
 
 bool GCHeap::RuntimeStructuresValid()

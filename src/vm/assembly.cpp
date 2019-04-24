@@ -18,7 +18,6 @@
 
 #include "assembly.hpp"
 #include "appdomain.hpp"
-#include "perfcounters.h"
 #include "assemblyname.hpp"
 
 
@@ -127,7 +126,7 @@ Assembly::Assembly(BaseDomain *pDomain, PEAssembly* pFile, DebuggerAssemblyContr
 #ifdef FEATURE_COMINTEROP
     , m_InteropAttributeStatus(INTEROP_ATTRIBUTE_UNSET)
 #endif
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     , m_isInstrumentedStatus(IS_INSTRUMENTED_UNSET)
 #endif
 {
@@ -172,8 +171,6 @@ void Assembly::Init(AllocMemTracker *pamTracker, LoaderAllocator *pLoaderAllocat
 
     m_pClassLoader = new ClassLoader(this);
     m_pClassLoader->Init(pamTracker);
-
-    COUNTER_ONLY(GetPerfCounters().m_Loading.cAssemblies++);
 
 #ifndef CROSSGEN_COMPILE
     if (GetManifestFile()->IsDynamic())
@@ -355,8 +352,6 @@ void Assembly::Terminate( BOOL signalProfiler )
         delete m_pClassLoader;
         m_pClassLoader = NULL;
     }
-
-    COUNTER_ONLY(GetPerfCounters().m_Loading.cAssemblies--);
 
 #ifdef PROFILING_SUPPORTED
     if (CORProfilerTrackAssemblyLoads())
@@ -1871,7 +1866,7 @@ BOOL Assembly::GetResource(LPCSTR szName, DWORD *cbResource,
     return result;
 }
 
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
 BOOL Assembly::IsInstrumented()
 {
     STATIC_CONTRACT_THROWS;

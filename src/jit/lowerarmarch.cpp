@@ -616,15 +616,12 @@ void Lowering::ContainCheckIndir(GenTreeIndir* indirNode)
     bool     makeContained = true;
     if ((addr->OperGet() == GT_LEA) && IsSafeToContainMem(indirNode, addr))
     {
-        GenTreeAddrMode* lea   = addr->AsAddrMode();
-        GenTree*         base  = lea->Base();
-        GenTree*         index = lea->Index();
-        int              cns   = lea->Offset();
-
 #ifdef _TARGET_ARM_
         // ARM floating-point load/store doesn't support a form similar to integer
         // ldr Rdst, [Rbase + Roffset] with offset in a register. The only supported
         // form is vldr Rdst, [Rbase + imm] with a more limited constraint on the imm.
+        GenTreeAddrMode* lea = addr->AsAddrMode();
+        int              cns = lea->Offset();
         if (lea->HasIndex() || !emitter::emitIns_valid_imm_for_vldst_offset(cns))
         {
             if (indirNode->OperGet() == GT_STOREIND)
@@ -870,10 +867,9 @@ void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
 //
 void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
 {
-    NamedIntrinsic  intrinsicID = node->gtHWIntrinsicId;
-    GenTreeArgList* argList     = nullptr;
-    GenTree*        op1         = node->gtOp.gtOp1;
-    GenTree*        op2         = node->gtOp.gtOp2;
+    GenTreeArgList* argList = nullptr;
+    GenTree*        op1     = node->gtOp.gtOp1;
+    GenTree*        op2     = node->gtOp.gtOp2;
 
     if (op1->OperIs(GT_LIST))
     {
@@ -896,6 +892,11 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
             {
                 MakeSrcContained(node, op2);
 
+#if 0
+                // This is currently not supported downstream. The following (at least) need to be modifed:
+                //   GenTree::isContainableHWIntrinsic() needs to handle this.
+                //   CodeGen::genConsumRegs()
+                // 
                 GenTree* op3 = argList->Rest()->Rest()->Current();
 
                 // In the HW intrinsics C# API there is no direct way to specify a vector element to element mov
@@ -913,6 +914,7 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                         MakeSrcContained(node, op3);
                     }
                 }
+#endif
             }
             break;
 

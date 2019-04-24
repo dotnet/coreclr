@@ -41,6 +41,9 @@ void ZapReadyToRunHeader::Save(ZapWriter * pZapWriter)
     if (pImage->GetCompileInfo()->AreAllClassesFullyLoaded(pImage->GetModuleHandle()))
         readyToRunHeader.Flags |= READYTORUN_FLAG_SKIP_TYPE_VALIDATION;
 
+    if (pImage->GetZapperOptions()->m_fPartialNGen)
+        readyToRunHeader.Flags |= READYTORUN_FLAG_PARTIAL;
+
     readyToRunHeader.NumberOfSections = m_Sections.GetCount();
 
     pZapWriter->Write(&readyToRunHeader, sizeof(readyToRunHeader));
@@ -545,6 +548,8 @@ static_assert_no_msg((int)READYTORUN_FIXUP_Check_FieldOffset         == (int)ENC
 static_assert_no_msg((int)READYTORUN_FIXUP_DelegateCtor              == (int)ENCODE_DELEGATE_CTOR);
 
 static_assert_no_msg((int)READYTORUN_FIXUP_DeclaringTypeHandle       == (int)ENCODE_DECLARINGTYPE_HANDLE);
+
+static_assert_no_msg((int)READYTORUN_FIXUP_IndirectPInvokeTarget     == (int)ENCODE_INDIRECT_PINVOKE_TARGET);
 
 //
 // READYTORUN_EXCEPTION

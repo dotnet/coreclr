@@ -27,6 +27,7 @@
 #endif
 
 #include <wchar.h>
+#define static_assert_no_msg(x) static_assert((x), #x)
 
 //
 // types and constants
@@ -78,6 +79,13 @@ typedef unsigned int ULONG, *PULONG;
 #define _HRESULT_TYPEDEF_(_sc) ((HRESULT)_sc)
 #endif // RC_INVOKED
 #define E_INVALIDARG                     _HRESULT_TYPEDEF_(0x80070057L)
+
+#ifdef BIT64
+#define __int64     long
+#else // BIT64
+#define __int64     long long
+#endif // BIT64
+
 #define UInt32x32To64(a, b) ((unsigned __int64)((ULONG)(a)) * (unsigned __int64)((ULONG)(b)))
 
 #define ARRAYSIZE(x) (sizeof(x)/sizeof(*x))

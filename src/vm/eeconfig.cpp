@@ -122,8 +122,6 @@ LPUTF8 NarrowWideChar(__inout_z LPWSTR str)
     RETURN NULL;
 }
 
-extern void UpdateGCSettingFromHost ();
-
 HRESULT EEConfig::Setup()
 {
     STANDARD_VM_CONTRACT;
@@ -144,8 +142,6 @@ HRESULT EEConfig::Setup()
 
     _ASSERTE(pConfigOld == NULL && "EEConfig::Setup called multiple times!");
     
-    UpdateGCSettingFromHost();
-
     return S_OK;
 }
 
@@ -310,9 +306,6 @@ HRESULT EEConfig::Init()
     szZapBBInstr     = NULL;
     szZapBBInstrDir  = NULL;
 
-    fAppDomainUnload = true;
-    dwADURetryCount=1000;
-
 #ifdef _DEBUG
     // interop logging
     m_pTraceIUnknown = NULL;
@@ -355,11 +348,11 @@ HRESULT EEConfig::Init()
 
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = false;
-    fTieredCompilation_DisableTier0Jit = false;
-    fTieredCompilation_CallCounting = false;
-    fTieredCompilation_OptimizeTier0 = false;
-    tieredCompilation_tier1CallCountThreshold = 1;
-    tieredCompilation_tier1CallCountingDelayMs = 0;
+    fTieredCompilation_QuickJit = false;
+    fTieredCompilation_StartupTier_CallCounting = false;
+    fTieredCompilation_StartupTier_OptimizeCode = false;
+    tieredCompilation_StartupTier_CallCountThreshold = 1;
+    tieredCompilation_StartupTier_CallCountingDelayMs = 0;
 #endif
 
 #ifndef CROSSGEN_COMPILE
@@ -1097,17 +1090,6 @@ HRESULT EEConfig::sync()
     fExpandAllOnLoad = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_ExpandAllOnLoad, fExpandAllOnLoad) != 0);
 #endif //_DEBUG
 
-
-#ifdef AD_NO_UNLOAD
-    fAppDomainUnload = (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_AppDomainNoUnload) == 0);
-#endif
-    dwADURetryCount=GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_ADURetryCount, dwADURetryCount);
-    if (dwADURetryCount==(DWORD)-1)
-    {
-        _ASSERTE(!"Reserved value");
-        dwADURetryCount=(DWORD)-2;
-    }
-
 #ifdef ENABLE_STARTUP_DELAY
     {
         //I want this string in decimal
@@ -1222,37 +1204,45 @@ HRESULT EEConfig::sync()
 
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation) != 0;
-    fTieredCompilation_DisableTier0Jit =
+
+    fTieredCompilation_QuickJit =
         Configuration::GetKnobBooleanValue(
-            W("System.Runtime.TieredCompilation.DisableTier0Jit"),
-            CLRConfig::UNSUPPORTED_TieredCompilation_DisableTier0Jit) != 0;
+            W("System.Runtime.TieredCompilation.QuickJit"),
+            CLRConfig::UNSUPPORTED_TC_QuickJit) != 0;
 
-    fTieredCompilation_CallCounting = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_CallCounting) != 0;
-    fTieredCompilation_OptimizeTier0 = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_OptimizeTier0) != 0;
+    fTieredCompilation_StartupTier_CallCounting = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_StartupTier_CallCounting) != 0;
+    fTieredCompilation_StartupTier_OptimizeCode = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_StartupTier_OptimizeCode) != 0;
 
-    tieredCompilation_tier1CallCountThreshold =
-        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1CallCountThreshold);
-    if (tieredCompilation_tier1CallCountThreshold < 1)
+    tieredCompilation_StartupTier_CallCountThreshold =
+        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TC_StartupTier_CallCountThreshold);
+    if (tieredCompilation_StartupTier_CallCountThreshold < 1)
     {
-        tieredCompilation_tier1CallCountThreshold = 1;
+        tieredCompilation_StartupTier_CallCountThreshold = 1;
     }
-    else if (tieredCompilation_tier1CallCountThreshold > INT_MAX) // CallCounter uses 'int'
+    else if (tieredCompilation_StartupTier_CallCountThreshold > INT_MAX) // CallCounter uses 'int'
     {
-        tieredCompilation_tier1CallCountThreshold = INT_MAX;
+        tieredCompilation_StartupTier_CallCountThreshold = INT_MAX;
     }
 
-    tieredCompilation_tier1CallCountingDelayMs =
-        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1CallCountingDelayMs);
-    if (CPUGroupInfo::HadSingleProcessorAtStartup())
+    tieredCompilation_StartupTier_CallCountingDelayMs =
+        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TC_StartupTier_CallCountingDelayMs);
+
+#ifndef FEATURE_PAL
+    bool hadSingleProcessorAtStartup = CPUGroupInfo::HadSingleProcessorAtStartup();
+#else // !FEATURE_PAL
+    bool hadSingleProcessorAtStartup = g_SystemInfo.dwNumberOfProcessors == 1;
+#endif // !FEATURE_PAL
+
+    if (hadSingleProcessorAtStartup)
     {
         DWORD delayMultiplier =
-            CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1DelaySingleProcMultiplier);
+            CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TC_StartupTier_DelaySingleProcMultiplier);
         if (delayMultiplier > 1)
         {
-            DWORD newDelay = tieredCompilation_tier1CallCountingDelayMs * delayMultiplier;
-            if (newDelay / delayMultiplier == tieredCompilation_tier1CallCountingDelayMs)
+            DWORD newDelay = tieredCompilation_StartupTier_CallCountingDelayMs * delayMultiplier;
+            if (newDelay / delayMultiplier == tieredCompilation_StartupTier_CallCountingDelayMs)
             {
-                tieredCompilation_tier1CallCountingDelayMs = newDelay;
+                tieredCompilation_StartupTier_CallCountingDelayMs = newDelay;
             }
         }
     }

@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+#nullable enable
 #if FEATURE_PERFTRACING
 using Internal.IO;
 using Microsoft.Win32;
@@ -46,7 +47,6 @@ namespace System.Diagnostics.Tracing
         private const string ConfigKey_CircularMB = "CircularMB";
         private const string ConfigKey_OutputPath = "OutputPath";
         private const string ConfigKey_ProcessID = "ProcessID";
-        private const string ConfigKey_MultiFileSec = "MultiFileSec";
 
         // The default set of providers/keywords/levels.  Used if an alternative configuration is not specified.
         private static EventPipeProviderConfiguration[] DefaultProviderConfiguration => new EventPipeProviderConfiguration[]
@@ -57,7 +57,7 @@ namespace System.Diagnostics.Tracing
         };
 
         // Singleton controller instance.
-        private static EventPipeController s_controllerInstance;
+        private static EventPipeController? s_controllerInstance;
 
         // Controller object state.
         private Timer m_timer;
@@ -103,7 +103,8 @@ namespace System.Diagnostics.Tracing
         private EventPipeController()
         {
             // Set the config file path.
-            m_configFilePath = Path.Combine(AppContext.BaseDirectory, BuildConfigFileName());
+            // BaseDirectory could be null, in which case this could throw, but it will be caught and ignored: https://github.com/dotnet/coreclr/issues/24053
+            m_configFilePath = Path.Combine(AppContext.BaseDirectory!, BuildConfigFileName());
 
             // Initialize the timer, but don't set it to run.
             // The timer will be set to run each time PollForTracingCommand is called.
@@ -118,7 +119,7 @@ namespace System.Diagnostics.Tracing
             PollForTracingCommand(null);
         }
 
-        private void PollForTracingCommand(object state)
+        private void PollForTracingCommand(object? state)
         {
             // Make sure that any transient errors don't cause the listener thread to exit.
             try
@@ -138,7 +139,7 @@ namespace System.Diagnostics.Tracing
                         // Enable tracing.
                         // Check for null here because it's possible that the configuration contains a process filter
                         // that doesn't match the current process.  IF this occurs, we should't enable tracing.
-                        EventPipeConfiguration config = BuildConfigFromFile(m_configFilePath);
+                        EventPipeConfiguration? config = BuildConfigFromFile(m_configFilePath);
                         if (config != null)
                         {
                             EventPipe.Enable(config);
@@ -157,7 +158,7 @@ namespace System.Diagnostics.Tracing
             catch { }
         }
 
-        private static EventPipeConfiguration BuildConfigFromFile(string configFilePath)
+        private static EventPipeConfiguration? BuildConfigFromFile(string configFilePath)
         {
             // Read the config file in once call.
             byte[] configContents = File.ReadAllBytes(configFilePath);
@@ -166,11 +167,10 @@ namespace System.Diagnostics.Tracing
             string strConfigContents = Encoding.UTF8.GetString(configContents);
 
             // Read all of the config options.
-            string outputPath = null;
-            string strProviderConfig = null;
-            string strCircularMB = null;
-            string strProcessID = null;
-            string strMultiFileSec = null;
+            string? outputPath = null;
+            string? strProviderConfig = null;
+            string? strCircularMB = null;
+            string? strProcessID = null;
 
             // Split the configuration entries by line.
             string[] configEntries = strConfigContents.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
@@ -200,10 +200,6 @@ namespace System.Diagnostics.Tracing
                     {
                         strProcessID = entryComponents[1];
                     }
-                    else if (key.Equals(ConfigKey_MultiFileSec))
-                    {
-                        strMultiFileSec = entryComponents[1];
-                    }
                 }
             }
 
@@ -212,7 +208,7 @@ namespace System.Diagnostics.Tracing
             {
                 // If set, bail out early if the specified process does not match the current process.
                 int processID = Convert.ToInt32(strProcessID);
-                if (processID != Interop.Kernel32.GetCurrentProcessId())
+                if (processID != (int)Interop.GetCurrentProcessId())
                 {
                     return null;
                 }
@@ -222,13 +218,6 @@ namespace System.Diagnostics.Tracing
             if (string.IsNullOrEmpty(outputPath))
             {
                 throw new ArgumentNullException(nameof(outputPath));
-            }
-
-            // Check to see if MultiFileSec is specified.
-            ulong multiFileSec = 0;
-            if (!string.IsNullOrEmpty(strMultiFileSec))
-            {
-                multiFileSec = Convert.ToUInt64(strMultiFileSec);
             }
 
             // Build the full path to the trace file.
@@ -244,7 +233,6 @@ namespace System.Diagnostics.Tracing
 
             // Initialize a new configuration object.
             EventPipeConfiguration config = new EventPipeConfiguration(outputFile, circularMB);
-            config.SetMultiFileTraceLength(multiFileSec);
 
             // Set the provider configuration if specified.
             if (!string.IsNullOrEmpty(strProviderConfig))
@@ -272,7 +260,7 @@ namespace System.Diagnostics.Tracing
                 Config_EventPipeCircularMB);
 
             // Get the configuration.
-            string strConfig = Config_EventPipeConfig;
+            string? strConfig = Config_EventPipeConfig;
             if (!string.IsNullOrEmpty(strConfig))
             {
                 // If the configuration is specified, parse it and save it to the config object.
@@ -294,16 +282,16 @@ namespace System.Diagnostics.Tracing
 
         private static string BuildTraceFileName()
         {
-            return GetAppName() + "." + Interop.Kernel32.GetCurrentProcessId().ToString() + NetPerfFileExtension;
+            return GetAppName() + "." + Interop.GetCurrentProcessId().ToString() + NetPerfFileExtension;
         }
 
         private static string GetAppName()
         {
-            string appName = null;
-            Assembly entryAssembly = Assembly.GetEntryAssembly();
+            string? appName = null;
+            Assembly? entryAssembly = Assembly.GetEntryAssembly();
             if (entryAssembly != null)
             {
-                AssemblyName assemblyName = entryAssembly.GetName();
+                AssemblyName? assemblyName = entryAssembly.GetName();
                 if (assemblyName != null)
                 {
                     appName = assemblyName.Name;
@@ -339,7 +327,7 @@ namespace System.Diagnostics.Tracing
                     4, // if there is ':' in the parameters then anything after it will not be ignored.
                     StringSplitOptions.None); // Keep empty tokens
 
-                string providerName = components.Length > 0 ? components[0] : null;
+                string? providerName = components.Length > 0 ? components[0] : null;
                 if (string.IsNullOrEmpty(providerName))
                     continue;  // No provider name specified.
 
@@ -364,7 +352,7 @@ namespace System.Diagnostics.Tracing
                     uint.TryParse(components[2], out level);
                 }
 
-                string filterData = components.Length > 3 ? components[3] : null;
+                string? filterData = components.Length > 3 ? components[3] : null;
 
                 config.EnableProviderWithFilter(providerName, keywords, level, filterData);
             }
@@ -377,7 +365,7 @@ namespace System.Diagnostics.Tracing
         {
             get
             {
-                string stringValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
+                string? stringValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
                 if ((stringValue == null) || (!int.TryParse(stringValue, out int value)))
                 {
                     value = -1;     // Indicates no value (or is illegal)
@@ -387,13 +375,13 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private static string Config_EventPipeConfig => CompatibilitySwitch.GetValueInternal("EventPipeConfig");
+        private static string? Config_EventPipeConfig => CompatibilitySwitch.GetValueInternal("EventPipeConfig");
 
         private static uint Config_EventPipeCircularMB
         {
             get
             {
-                string stringValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
+                string? stringValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
                 if ((stringValue == null) || (!uint.TryParse(stringValue, out uint value)))
                 {
                     value = DefaultCircularBufferMB;
@@ -407,7 +395,7 @@ namespace System.Diagnostics.Tracing
         {
             get
             {
-                string stringValue = CompatibilitySwitch.GetValueInternal("EventPipeOutputPath");
+                string? stringValue = CompatibilitySwitch.GetValueInternal("EventPipeOutputPath");
                 if (stringValue == null)
                 {
                     stringValue = ".";

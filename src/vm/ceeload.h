@@ -33,10 +33,11 @@
 #include "ilstubcache.h"
 #include "classhash.h"
 
-#ifdef FEATURE_PREJIT
 #include "corcompile.h"
-#include "dataimage.h"
 #include <gcinfodecoder.h>
+
+#ifdef FEATURE_PREJIT
+#include "dataimage.h"
 #endif // FEATURE_PREJIT
 
 #ifdef FEATURE_COMINTEROP
@@ -75,14 +76,15 @@ class AppDomain;
 class DynamicMethodTable;
 class CodeVersionManager;
 class TieredCompilationManager;
-#ifdef FEATURE_PREJIT
-class CerNgenRootTable;
-struct MethodContextElement;
-class TypeHandleList;
 class ProfileEmitter;
+#ifdef FEATURE_PREJIT
+class TypeHandleList;
 class TrackingMap;
 struct MethodInModule;
 class PersistentInlineTrackingMapNGen;
+
+extern VerboseLevel g_CorCompileVerboseLevel;
+#endif
 
 // Hash table parameter of available classes (name -> module/class) hash
 #define AVAILABLE_CLASSES_HASH_BUCKETS 1024
@@ -106,9 +108,6 @@ class PersistentInlineTrackingMapNGen;
 #endif
 
 typedef DPTR(PersistentInlineTrackingMapNGen) PTR_PersistentInlineTrackingMapNGen;
-
-extern VerboseLevel g_CorCompileVerboseLevel;
-#endif  // FEATURE_PREJIT
 
 //
 // LookupMaps are used to implement RID maps
@@ -187,7 +186,7 @@ typedef DPTR(struct LookupMapBase) PTR_LookupMapBase;
 // importantly we cannot mutate compressed entries (for obvious reasons). Many of the lookup maps are only
 // partially populated at ngen time or otherwise might be updated at runtime and thus are not candidates.
 //
-// In the threshhold timeframe (predicted to be .Net 4.5.3 at the time of writing), we added profiler support
+// In the threshhold timeframe (predicted to be .NET Framework 4.5.3 at the time of writing), we added profiler support
 // for adding new types to NGEN images. Historically we could always do this for jitted images, but one of the
 // blockers for NGEN were the compressed RID maps. We worked around that by supporting multi-node maps in which
 // the first node is compressed, but all future nodes are uncompressed. The NGENed portion will all land in the
@@ -1342,7 +1341,7 @@ private:
         // Note that none of these flags survive a prejit save/restore.
 
         MODULE_IS_TENURED           = 0x00000001,   // Set once we know for sure the Module will not be freed until the appdomain itself exits
-        M_CER_ROOT_TABLE_ON_HEAP    = 0x00000002,   // Set when m_pCerNgenRootTable is allocated from heap (at ngen time)
+        // unused                   = 0x00000002,
         CLASSES_FREED               = 0x00000004,
         IS_EDIT_AND_CONTINUE        = 0x00000008,   // is EnC Enabled for this module
 
@@ -1615,17 +1614,21 @@ private:
     PTR_ReadyToRunInfo      m_pReadyToRunInfo;
 #endif
 
-#ifdef FEATURE_PREJIT
-
 private:
-    PTR_NGenLayoutInfo      m_pNGenLayoutInfo;
-
     PTR_ProfilingBlobTable  m_pProfilingBlobTable;   // While performing IBC instrumenting this hashtable is populated with the External defs
     CorProfileData *        m_pProfileData;          // While ngen-ing with IBC optimizations this contains a link to the IBC data for the assembly
 
     // Profile information
     BOOL                            m_nativeImageProfiling;
     CORCOMPILE_METHOD_PROFILE_LIST *m_methodProfileList;
+
+#if PROFILING_SUPPORTED_DATA 
+    DWORD                   m_dwTypeCount;
+    DWORD                   m_dwExportedTypeCount;
+#endif // PROFILING_SUPPORTED_DATA
+
+#ifdef FEATURE_PREJIT
+    PTR_NGenLayoutInfo      m_pNGenLayoutInfo;
 
 #if defined(FEATURE_COMINTEROP)
         public:
@@ -1643,12 +1646,11 @@ private:
 
 #endif // defined(FEATURE_COMINTEROP)
 
-#endif // FEATURE_PREJIT
-
     // Module wide static fields information
     ModuleCtorInfo          m_ModuleCtorInfo;
 
-#ifdef FEATURE_PREJIT
+#endif // FEATURE_PREJIT
+
     struct TokenProfileData
     {
         static TokenProfileData *CreateNoThrow(void);
@@ -1676,6 +1678,7 @@ private:
 
     } *m_tokenProfileData;
 
+#ifdef FEATURE_PREJIT
     // Stats for prejit log
     NgenStats                *m_pNgenStats;
 #endif // FEATURE_PREJIT
@@ -2526,6 +2529,8 @@ public:
                                               DEBUGGER_INFO_SHIFT_PRIV);
     }
 
+    void UpdateNewlyAddedTypes();
+
 #ifdef PROFILING_SUPPORTED
     BOOL IsProfilerNotified() {LIMITED_METHOD_CONTRACT;  return (m_dwTransientFlags & IS_PROFILER_NOTIFIED) != 0; }
     void NotifyProfilerLoadFinished(HRESULT hr);
@@ -2552,13 +2557,15 @@ public:
         m_pDllMain = pMD;
     }
 
+#ifdef FEATURE_PREJIT
     // This data is only valid for NGEN'd modules, and for modules we're creating at NGEN time.
     ModuleCtorInfo* GetZapModuleCtorInfo()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        
+
         return &m_ModuleCtorInfo;
     }
+#endif
 
  private:
 
@@ -2727,8 +2734,9 @@ public:
 
     PCCOR_SIGNATURE GetEncodedSig(RVA fixupRva, Module **ppDefiningModule);
     PCCOR_SIGNATURE GetEncodedSigIfLoaded(RVA fixupRva, Module **ppDefiningModule);
+#endif
 
-    BYTE *GetNativeFixupBlobData(RVA fixup);
+    BYTE* GetNativeFixupBlobData(RVA fixup);
 
     IMDInternalImport *GetNativeAssemblyImport(BOOL loadAllowed = TRUE);
     IMDInternalImport *GetNativeAssemblyImportIfLoaded();
@@ -2746,10 +2754,10 @@ public:
                            PEDecoder * pNativeImage);
     void RunEagerFixups();
 
-    IMDInternalImport *GetNativeFixupImport();
     Module *GetModuleFromIndex(DWORD ix);
     Module *GetModuleFromIndexIfLoaded(DWORD ix);
 
+#ifdef FEATURE_PREJIT
     // This is to rebuild stub dispatch maps to module-local values.
     void UpdateStubDispatchTypeTable(DataImage *image);
 
@@ -2856,6 +2864,7 @@ public:
 
         return m_pNGenLayoutInfo->m_VirtualMethodThunks.IsInRange(code);
     }
+#endif // FEATURE_PREJIT
 
     ICorJitInfo::ProfileBuffer * AllocateProfileBuffer(mdToken _token, DWORD _size, DWORD _ILSize);
     HANDLE OpenMethodProfileDataLogFile(GUID mvid);
@@ -2875,6 +2884,7 @@ public:
     void LogTokenAccess(mdToken token, SectionFormat format, ULONG flagNum);
     void LogTokenAccess(mdToken token, ULONG flagNum);
 
+#ifdef FEATURE_PREJIT
     BOOL AreTypeSpecsTriaged()
     {
         return m_dwTransientFlags & TYPESPECS_TRIAGED;
@@ -3221,7 +3231,6 @@ private:
     LPCSTR               *m_AssemblyRefByNameTable;  // array that maps mdAssemblyRef tokens into their simple name
     DWORD                 m_AssemblyRefByNameCount;  // array size
 
-#if defined(FEATURE_PREJIT)
     // a.dll calls a method in b.dll and that method call a method in c.dll. When ngening
     // a.dll it is possible then method in b.dll can be inlined. When that happens a.ni.dll stores
     // an added native metadata which has information about assemblyRef to c.dll
@@ -3231,10 +3240,9 @@ private:
     // is not called for each fixup
 
     PTR_Assembly           *m_NativeMetadataAssemblyRefMap; 
-#endif // defined(FEATURE_PREJIT)
 
 public:
-#if !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
+#if !defined(DACCESS_COMPILE)
     PTR_Assembly GetNativeMetadataAssemblyRefFromCache(DWORD rid)
     {
         PTR_Assembly * NativeMetadataAssemblyRefMap = VolatileLoadWithoutBarrier(&m_NativeMetadataAssemblyRefMap);
@@ -3247,7 +3255,7 @@ public:
     }
 
     void SetNativeMetadataAssemblyRefInCache(DWORD rid, PTR_Assembly pAssembly);
-#endif // !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
+#endif // !defined(DACCESS_COMPILE)
 };
 
 //

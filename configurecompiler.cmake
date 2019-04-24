@@ -221,11 +221,11 @@ if (WIN32)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /PDBCOMPRESS")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:1572864")
 
-  # Temporarily disable incremental link due to incremental linking CFG bug crashing crossgen. 
+  # Temporarily disable incremental link due to incremental linking CFG bug crashing crossgen.
   # See https://github.com/dotnet/coreclr/issues/12592
   # This has been fixed in VS 2017 Update 5 but we're keeping this around until everyone is off
   # the versions that have the bug. The bug manifests itself as a bad crash.
-  set(NO_INCREMENTAL_LINKER_FLAGS "/INCREMENTAL:NO")  
+  set(NO_INCREMENTAL_LINKER_FLAGS "/INCREMENTAL:NO")
 
   # Debug build specific flags
   set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "/NOVCFEATURE ${NO_INCREMENTAL_LINKER_FLAGS}")
@@ -323,7 +323,6 @@ endif(WIN32)
 if(CLR_CMAKE_PLATFORM_UNIX)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CLR_ADDITIONAL_LINKER_FLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CLR_ADDITIONAL_LINKER_FLAGS}" )
-    add_compile_options(${CLR_ADDITIONAL_COMPILER_OPTIONS})
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(CLR_CMAKE_PLATFORM_LINUX)
@@ -396,6 +395,8 @@ if (CLR_CMAKE_PLATFORM_UNIX)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if (WIN32)
+  add_definitions(-DPLATFORM_WINDOWS=1)
+
   # Define the CRT lib references that link into Desktop imports
   set(STATIC_MT_CRT_LIB  "libcmt$<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:d>.lib")
   set(STATIC_MT_VCRT_LIB  "libvcruntime$<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:d>.lib")
@@ -446,6 +447,14 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-Werror)
   endif(CLR_CMAKE_WARNINGS_ARE_ERRORS)
 
+  # Disabled common warnings
+  add_compile_options(-Wno-unused-variable)
+  add_compile_options(-Wno-unused-value)
+  add_compile_options(-Wno-unused-function)
+
+  #These seem to indicate real issues
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-invalid-offsetof")
+
   if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
     # after hitting just about 20 errors.
@@ -453,7 +462,6 @@ if (CLR_CMAKE_PLATFORM_UNIX)
 
     # Disabled warnings
     add_compile_options(-Wno-unused-private-field)
-    add_compile_options(-Wno-unused-variable)
     # Explicit constructor calls are not supported by clang (this->ClassName::ClassName())
     add_compile_options(-Wno-microsoft)
     # This warning is caused by comparing 'this' to NULL
@@ -462,14 +470,12 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     # and so the compiler thinks that there is a mistake.
     add_compile_options(-Wno-constant-logical-operand)
     # We use pshpack1/2/4/8.h and poppack.h headers to set and restore packing. However
-    # clang 6.0 complains when the packing change lifetime is not contained within 
+    # clang 6.0 complains when the packing change lifetime is not contained within
     # a header file.
     add_compile_options(-Wno-pragma-pack)
 
     add_compile_options(-Wno-unknown-warning-option)
 
-    #These seem to indicate real issues
-    add_compile_options(-Wno-invalid-offsetof)
     # The following warning indicates that an attribute __attribute__((__ms_struct__)) was applied
     # to a struct or a class that has virtual members or a base class. In that case, clang
     # may not generate the same object layout as MSVC.
@@ -478,6 +484,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-Wno-unused-variable)
     add_compile_options(-Wno-unused-but-set-variable)
     add_compile_options(-fms-extensions)
+    add_compile_options(-Wno-unknown-pragmas)
   endif()
 
   # Some architectures (e.g., ARM) assume char type is unsigned while CoreCLR assumes char is signed
@@ -507,6 +514,10 @@ if(CLR_CMAKE_PLATFORM_UNIX_ARM)
      add_compile_options(-mfloat-abi=softfp)
    endif(ARM_SOFTFP)
 endif(CLR_CMAKE_PLATFORM_UNIX_ARM)
+
+if(CLR_CMAKE_PLATFORM_UNIX)
+  add_compile_options(${CLR_ADDITIONAL_COMPILER_OPTIONS})
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if (WIN32)
   # Compile options for targeting windows
@@ -554,22 +565,22 @@ if (WIN32)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /guard:cf")
   set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /guard:cf")
 
-  # Statically linked CRT (libcmt[d].lib, libvcruntime[d].lib and libucrt[d].lib) by default. This is done to avoid  
-  # linking in VCRUNTIME140.DLL for a simplified xcopy experience by reducing the dependency on VC REDIST.  
-  #  
-  # For Release builds, we shall dynamically link into uCRT [ucrtbase.dll] (which is pushed down as a Windows Update on downlevel OS) but  
-  # wont do the same for debug/checked builds since ucrtbased.dll is not redistributable and Debug/Checked builds are not  
-  # production-time scenarios.  
-  add_compile_options($<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/MT>)  
-  add_compile_options($<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:/MTd>)  
+  # Statically linked CRT (libcmt[d].lib, libvcruntime[d].lib and libucrt[d].lib) by default. This is done to avoid
+  # linking in VCRUNTIME140.DLL for a simplified xcopy experience by reducing the dependency on VC REDIST.
+  #
+  # For Release builds, we shall dynamically link into uCRT [ucrtbase.dll] (which is pushed down as a Windows Update on downlevel OS) but
+  # wont do the same for debug/checked builds since ucrtbased.dll is not redistributable and Debug/Checked builds are not
+  # production-time scenarios.
+  add_compile_options($<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/MT>)
+  add_compile_options($<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:/MTd>)
 
   set(CMAKE_ASM_MASM_FLAGS "${CMAKE_ASM_MASM_FLAGS} /ZH:SHA_256")
-  
+
   if (CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_TARGET_ARCH_ARM64)
     # Contracts work too slow on ARM/ARM64 DEBUG/CHECKED.
     add_definitions(-DDISABLE_CONTRACTS)
-  endif (CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_TARGET_ARCH_ARM64)    
-  
+  endif (CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_TARGET_ARCH_ARM64)
+
 endif (WIN32)
 
 if(CLR_CMAKE_ENABLE_CODE_COVERAGE)

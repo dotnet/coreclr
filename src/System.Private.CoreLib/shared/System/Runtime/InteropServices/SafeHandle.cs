@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ConstrainedExecution;
@@ -243,7 +244,12 @@ namespace System.Runtime.InteropServices
             // method on the SafeHandle subclass.
             if (performRelease)
             {
+                // Save last error from P/Invoke in case the implementation of ReleaseHandle
+                // trashes it (important because this ReleaseHandle could occur implicitly
+                // as part of unmarshaling another P/Invoke).
+                int lastError = Marshal.GetLastWin32Error();
                 ReleaseHandle();
+                Marshal.SetLastWin32Error(lastError);
             }
         }
     }

@@ -5,11 +5,17 @@
            instantiations to save in the ngen image. -->
       <method name="CommonlyUsedWinRTRedirectedInterfaceStubs" />
     </type>
+    <type fullname="System.GC">
+      <!-- Methods are used to register and unregister frozen segments. They are private and experimental. -->
+      <method name="_RegisterFrozenSegment" />
+      <method name="_UnregisterFrozenSegment" />
+    </type>
     <!-- Properties and methods used by a debugger. -->
     <type fullname="System.Threading.Tasks.Task">
       <property name="ParentForDebugger" />
       <property name="StateFlagsForDebugger" />
       <method name="GetDelegateContinuationsForDebugger" />
+      <method name="SetNotificationForWaitCompletion" />
     </type>
     <type fullname="System.Threading.ThreadPool">
       <method name="GetQueuedWorkItemsForDebugger" />
@@ -31,6 +37,7 @@
     </type>
     <type fullname="System.Runtime.CompilerServices.AsyncTaskMethodBuilder*">
       <property name="ObjectIdForDebugger" />
+      <method name="SetNotificationForWaitCompletion" />
     </type>
     <type fullname="System.Threading.Tasks.Task">
       <!-- Methods is used by VS Tasks Window. -->
@@ -45,5 +52,7 @@
     <!-- Accessed via native code. -->
     <type fullname="System.Runtime.InteropServices.ComTypes.IEnumerable" />
     <type fullname="System.Runtime.InteropServices.CustomMarshalers.*" />
+    <!-- Accessed by the WinRT Host -->
+    <type fullname="Internal.Runtime.InteropServices.WindowsRuntime.ActivationFactoryLoader" />
   </assembly>
 </linker>

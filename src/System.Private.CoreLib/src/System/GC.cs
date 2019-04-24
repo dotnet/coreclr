@@ -13,8 +13,8 @@
 **
 ===========================================================*/
 
+#nullable enable
 using System.Runtime.CompilerServices;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 
@@ -59,6 +59,21 @@ namespace System
                                                   // The next two are size_t
                                                   out UIntPtr lastRecordedHeapSize,
                                                   out UIntPtr lastRecordedFragmentation);
+
+        public static GCMemoryInfo GetGCMemoryInfo()
+        {
+            GetMemoryInfo(out uint highMemLoadThreshold,
+                          out ulong totalPhysicalMem,
+                          out uint lastRecordedMemLoad,
+                          out UIntPtr lastRecordedHeapSize,
+                          out UIntPtr lastRecordedFragmentation);
+
+            return new GCMemoryInfo((long)((double)highMemLoadThreshold / 100 * totalPhysicalMem),
+                                    (long)((double)lastRecordedMemLoad / 100 * totalPhysicalMem),
+                                    (long)totalPhysicalMem,
+                                    (long)(ulong)lastRecordedHeapSize,
+                                    (long)(ulong)lastRecordedFragmentation);
+        }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _StartNoGCRegion(long totalSize, bool lohSizeKnown, long lohSize, bool disallowFullBlockingGC);
@@ -236,7 +251,7 @@ namespace System
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
         // Foo doesn't get finalized and the stream stays open.
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
-        public static void KeepAlive(object obj)
+        public static void KeepAlive(object? obj)
         {
         }
 
@@ -319,6 +334,12 @@ namespace System
             return newSize;
         }
 
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern IntPtr _RegisterFrozenSegment(IntPtr sectionAddress, int sectionSize);
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern IntPtr _UnregisterFrozenSegment(IntPtr segmentHandle);
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern long _GetAllocatedBytesForCurrentThread();
 
@@ -344,8 +365,7 @@ namespace System
             if ((maxGenerationThreshold <= 0) || (maxGenerationThreshold >= 100))
             {
                 throw new ArgumentOutOfRangeException(nameof(maxGenerationThreshold),
-                                                      string.Format(
-                                                          CultureInfo.CurrentCulture,
+                                                      SR.Format(
                                                           SR.ArgumentOutOfRange_Bounds_Lower_Upper,
                                                           1,
                                                           99));
@@ -354,8 +374,7 @@ namespace System
             if ((largeObjectHeapThreshold <= 0) || (largeObjectHeapThreshold >= 100))
             {
                 throw new ArgumentOutOfRangeException(nameof(largeObjectHeapThreshold),
-                                                      string.Format(
-                                                          CultureInfo.CurrentCulture,
+                                                      SR.Format(
                                                           SR.ArgumentOutOfRange_Bounds_Lower_Upper,
                                                           1,
                                                           99));
