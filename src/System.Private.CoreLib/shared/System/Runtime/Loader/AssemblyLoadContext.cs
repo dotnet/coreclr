@@ -563,18 +563,23 @@ namespace System.Runtime.Loader
             if (cultureName == null || cultureName.Length == 0)
                 return null;
 
-            if (assemblyName.Name == null)
+            if (assemblyName.Name == null || !assemblyName.Name.EndsWith(".resources") )
                 return null;
 
-            AssemblyName parentAssemblyName = new AssemblyName(assemblyName.Name);
+            const int lengthOfResources = 10;
 
-            Assembly? parentAssembly = LoadFromAssemblyName(parentAssemblyName);
+            Debug.Assert(lengthOfResources == ".resources".Length);
+
+            string parentAssemblyName = assemblyName.Name.Substring(0, assemblyName.Name.Length - lengthOfResources);
+
+            Assembly? parentAssembly = LoadFromAssemblyName(new AssemblyName(parentAssemblyName));
 
             if (parentAssembly == null)
                 return null;
 
             // ResolveSatelliteAssembly should always be called on the ALC which loaded parentAssembly
             Debug.Assert(this == GetLoadContext(parentAssembly));
+            Debug.Assert(parentAssembly is RuntimeAssembly);
 
             string parentDirectory = Path.GetDirectoryName(parentAssembly.Location)!;
 
