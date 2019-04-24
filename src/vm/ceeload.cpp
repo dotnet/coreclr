@@ -2703,9 +2703,6 @@ void Module::FreeModuleIndex()
     CONTRACTL_END;
     if (m_ModuleID != NULL)
     {
-        // Module's m_ModuleID should not contain the ID, it should 
-        // contain a pointer to the DLM
-        _ASSERTE(!Module::IsEncodedModuleIndex((SIZE_T)m_ModuleID));
         _ASSERTE(m_ModuleIndex == m_ModuleID->GetModuleIndex());
 
 #ifndef CROSSGEN_COMPILE
@@ -13647,16 +13644,11 @@ void Module::EnumMemoryRegions(CLRDataEnumMemoryFlags flags,
     }
 
     //Save module id data only if it a real pointer, not a tagged sugestion to use ModuleIndex.
-    if (!Module::IsEncodedModuleIndex(GetModuleID()))
+    if (m_ModuleID.IsValid())
     {
-        if (m_ModuleID.IsValid())
-        {
-            m_ModuleID->EnumMemoryRegions(flags);
-        }
+        m_ModuleID->EnumMemoryRegions(flags);
     }
 
-    // TODO: Enumerate DomainLocalModules?  It's not clear if we need all AppDomains 
-    // in the multi-domain case (where m_ModuleID has it's low-bit set).
     if (m_file.IsValid())
     {
         m_file->EnumMemoryRegions(flags);

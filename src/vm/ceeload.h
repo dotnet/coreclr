@@ -2993,33 +2993,6 @@ public:
     // We need this for the jitted shared case,
     inline MethodTable* GetDynamicClassMT(DWORD dynamicClassID);
 
-    static BOOL IsEncodedModuleIndex(SIZE_T ModuleID)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        
-        // We should never see encoded module index in CoreCLR
-        _ASSERTE((ModuleID&1)==0);
-        return FALSE;
-    }
-
-    static SIZE_T IndexToID(ModuleIndex index)
-    {
-        LIMITED_METHOD_CONTRACT
-            
-        return (index.m_dwIndex << 1) | 1;
-    }
-
-    static ModuleIndex IDToIndex(SIZE_T ModuleID)
-    {
-        LIMITED_METHOD_CONTRACT
-        SUPPORTS_DAC;
-            
-        _ASSERTE(IsEncodedModuleIndex(ModuleID));
-        ModuleIndex index(ModuleID >> 1);
-
-        return index;
-    }
-
     static ModuleIndex AllocateModuleIndex();
     static void FreeModuleIndex(ModuleIndex index);
 

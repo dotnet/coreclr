@@ -3216,49 +3216,9 @@ ClrDataAccess::GetDomainLocalModuleDataFromModule(CLRDATA_ADDRESS addr, struct D
 HRESULT
 ClrDataAccess::GetDomainLocalModuleDataFromAppDomain(CLRDATA_ADDRESS appDomainAddr, int moduleID, struct DacpDomainLocalModuleData *pLocalModuleData)
 {
-    if (appDomainAddr == 0 || moduleID < 0 || pLocalModuleData == NULL)
-        return E_INVALIDARG;
-
-    SOSDacEnter();
-
-    pLocalModuleData->appDomainAddr = appDomainAddr;
-    pLocalModuleData->ModuleID = moduleID;
-
-    AppDomain *pAppDomain = PTR_AppDomain(TO_TADDR(appDomainAddr));
-
-    ModuleIndex index = Module::IDToIndex(moduleID);
-
-    DomainLocalModule* pLocalModule = NULL;
-
-    AppDomain::AssemblyIterator i = pAppDomain->IterateAssembliesEx(
-        (AssemblyIterationFlags)(kIncludeLoading | kIncludeLoaded | kIncludeExecution));
-    CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
-    while (i.Next(pDomainAssembly.This()))
-    {
-        if (pDomainAssembly->GetModule()->GetModuleIndex() == index)
-        {
-            pLocalModule = pDomainAssembly->GetModule()->GetDomainLocalModule();
-        }
-    }
-
-    if (!pLocalModule)
-    {
-        hr = E_INVALIDARG;
-    }
-    else
-    {
-        pLocalModuleData->pGCStaticDataStart    = TO_CDADDR(PTR_TO_TADDR(pLocalModule->GetPrecomputedGCStaticsBasePointer()));
-        pLocalModuleData->pNonGCStaticDataStart = TO_CDADDR(pLocalModule->GetPrecomputedNonGCStaticsBasePointer());
-        pLocalModuleData->pDynamicClassTable    = PTR_CDADDR(pLocalModule->m_pDynamicClassTable.Load());
-        pLocalModuleData->pClassData            = (TADDR) (PTR_HOST_MEMBER_TADDR(DomainLocalModule, pLocalModule, m_pDataBlob));
-    }
-
-    SOSDacLeave();
-    return hr;
+    // CoreCLR does not support multi-appdomain shared assembly loading. Thus, a non-pointer sized moduleID cannot exist.
+    return E_INVALIDARG;
 }
-
-
-
 
 HRESULT
 ClrDataAccess::GetThreadLocalModuleData(CLRDATA_ADDRESS thread, unsigned int index, struct DacpThreadLocalModuleData *pLocalModuleData)
