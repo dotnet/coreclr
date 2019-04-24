@@ -420,7 +420,7 @@ inline SIZE_T MaxArrayLength(SIZE_T componentSize)
     return (componentSize == 1) ? 0X7FFFFFC7 : 0X7FEFFFFF;
 }
 
-OBJECTREF AllocateSzArray(TypeHandle elementType, INT32 length, BOOL zeroingOptional)
+OBJECTREF AllocateSzArray(TypeHandle arrayType, INT32 length, BOOL zeroingOptional)
 {
     CONTRACTL {
         THROWS;
@@ -428,7 +428,7 @@ OBJECTREF AllocateSzArray(TypeHandle elementType, INT32 length, BOOL zeroingOpti
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative        
     } CONTRACTL_END;
 
-    return AllocateArrayEx(elementType.MakeSZArray(), &length, 1, FALSE,  zeroingOptional);
+    return AllocateArrayEx(arrayType, &length, 1, FALSE,  zeroingOptional);
 }
 
 void ThrowOutOfMemoryDimensionsExceeded()

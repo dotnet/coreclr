@@ -1268,7 +1268,7 @@ FCIMPLEND
 **           clearMemory -> whether user prefer to skip clearing the content of the array.
 **Exceptions: IDS_EE_ARRAY_DIMENSIONS_EXCEEDED when size is too large. OOM if can't allocate.
 ==============================================================================*/
-FCIMPL3(Object*, GCInterface::AllocateNewArray, void* elementTypeHandle, INT32 length, CLR_BOOL clearMemory)
+FCIMPL3(Object*, GCInterface::AllocateNewArray, void* arrayTypeHandle, INT32 length, CLR_BOOL clearMemory)
 {
     CONTRACTL {
         FCALL_CHECK;
@@ -1276,12 +1276,12 @@ FCIMPL3(Object*, GCInterface::AllocateNewArray, void* elementTypeHandle, INT32 l
     } CONTRACTL_END;
 
     OBJECTREF pRet = NULL;
-    TypeHandle elementType = TypeHandle::FromPtr(elementTypeHandle);
+    TypeHandle arrayType = TypeHandle::FromPtr(arrayTypeHandle);
 
     HELPER_METHOD_FRAME_BEGIN_RET_1(pRet);
 
     //REVIEW: ArrayNative has a number of specialized helpers like for primitive arrays. Do we want smth similar?
-    pRet = AllocateSzArray(elementType, length, /*zeroingOptional*/ !clearMemory);
+    pRet = AllocateSzArray(arrayType, length, /*zeroingOptional*/ !clearMemory);
 
     HELPER_METHOD_FRAME_END();
 

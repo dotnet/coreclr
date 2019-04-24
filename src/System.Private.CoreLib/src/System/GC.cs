@@ -672,7 +672,10 @@ namespace System
             if (alignment != -1)
                 throw new NotSupportedException();
 
-            return AllocateArrayWorker<T>(length, clearMemory: true);
+            if (length < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+
+            return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, clearMemory: true);
         }
 
         // Skips zero-initialization of the array if possible. If T contains object references, 
@@ -689,15 +692,10 @@ namespace System
             if (alignment != -1)
                 throw new NotSupportedException();
 
-            return AllocateArrayWorker<T>(length, clearMemory: false);
-        }
-
-        private static T[] AllocateArrayWorker<T>(int length, bool clearMemory)
-        {
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
-            return (T[])AllocateNewArray(typeof(T).TypeHandle.Value, length, clearMemory);
+            return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, clearMemory: false);
         }
     }
 }

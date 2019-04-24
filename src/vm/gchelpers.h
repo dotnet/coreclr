@@ -20,10 +20,10 @@
 //
 //========================================================================
 
-OBJECTREF AllocateSzArray(TypeHandle elementType, INT32 length, BOOL zeroingOptional = FALSE);
+OBJECTREF AllocateSzArray(TypeHandle arrayType, INT32 length, BOOL zeroingOptional = FALSE);
     // The main Array allocation routine, can do multi-dimensional
 OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap = FALSE, BOOL zeroingOptional = FALSE);
-OBJECTREF AllocateArrayEx(TypeHandle arrayClass, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap = FALSE, BOOL zeroingOptional = FALSE);
+OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap = FALSE, BOOL zeroingOptional = FALSE);
     // Optimized verion of above
 OBJECTREF FastAllocatePrimitiveArray(MethodTable* arrayType, DWORD cElements, BOOL bAllocateInLargeHeap = FALSE);
 
