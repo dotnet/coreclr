@@ -558,35 +558,29 @@ namespace System.Runtime.Loader
 
         private Assembly? ResolveSatelliteAssembly(AssemblyName assemblyName)
         {
-            string? cultureName = assemblyName.CultureName;
+            // Called by native runtime when CultureName is not empty
+            Debug.Assert(assemblyName.CultureName?.Length > 0);
 
-            if (cultureName == null || cultureName.Length == 0)
+            string cultureName = assemblyName.CultureName!;
+
+            string satelliteSuffix = ".resources";
+
+            if (assemblyName.Name == null || !assemblyName.Name.EndsWith(satelliteSuffix))
                 return null;
 
-            if (assemblyName.Name == null || !assemblyName.Name.EndsWith(".resources") )
-                return null;
+            string parentAssemblyName = assemblyName.Name.Substring(0, assemblyName.Name.Length - satelliteSuffix.Length);
 
-            const int lengthOfResources = 10;
+            Assembly parentAssembly = LoadFromAssemblyName(new AssemblyName(parentAssemblyName));
 
-            Debug.Assert(lengthOfResources == ".resources".Length);
-
-            string parentAssemblyName = assemblyName.Name.Substring(0, assemblyName.Name.Length - lengthOfResources);
-
-            Assembly? parentAssembly = LoadFromAssemblyName(new AssemblyName(parentAssemblyName));
-
-            if (parentAssembly == null)
-                return null;
-
-            // ResolveSatelliteAssembly should always be called on the ALC which loaded parentAssembly
-            Debug.Assert(this == GetLoadContext(parentAssembly));
-            Debug.Assert(parentAssembly is RuntimeAssembly);
+            AssemblyLoadContext parentALC = GetLoadContext(parentAssembly)!;
 
             string parentDirectory = Path.GetDirectoryName(parentAssembly.Location)!;
 
             string assemblyPath = Path.Combine(parentDirectory, cultureName, $"{assemblyName.Name}.dll");
+
             if (Internal.IO.File.InternalExists(assemblyPath))
             {
-                return LoadFromAssemblyPath(assemblyPath);
+                return parentALC.LoadFromAssemblyPath(assemblyPath);
             }
 
             return null;

@@ -6792,7 +6792,7 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
             // Initialize the AssemblyName object from the AssemblySpec
             spec.AssemblyNameInit(&_gcRefs.oRefAssemblyName, NULL);
                 
-            bool isSatelliteAssemblyRequest = (_gcRefs.oRefAssemblyName->GetCultureInfo() != NULL);
+            bool isSatelliteAssemblyRequest = !spec.IsNeutralCulture();
 
             if (!fInvokedForTPABinder)
             {
@@ -6835,13 +6835,12 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
                     }
                 }
             }
-            
+
             if (!fResolvedAssembly && isSatelliteAssemblyRequest)
             {
                 // Step 4 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName)
                 //
-                // If we couldnt resolve the assembly using TPA LoadContext as well, then
-                // attempt to resolve it using the ResolveSatelliteAssembly method.
+                // Attempt to resolve it using the ResolveSatelliteAssembly method.
                 // Finally, setup arguments for invocation
                 BinderMethodID idHAR_ResolveSatelitteAssembly = METHOD__ASSEMBLYLOADCONTEXT__RESOLVESATELLITEASSEMBLY;
                 MethodDescCallSite methResolveSatelitteAssembly(idHAR_ResolveSatelitteAssembly);
