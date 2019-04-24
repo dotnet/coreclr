@@ -27,7 +27,7 @@ namespace System
         private extern bool InternalHasFlag(Enum flags);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static EnumInfo? GetEnumInfo(RuntimeType rtType) => rtType.GenericCache as EnumInfo ?? InitializeGenericCache(rtType);
+        internal static EnumInfo? GetEnumInfo(RuntimeType rtType) => rtType.GenericCache as EnumInfo ?? InitializeGenericCache(rtType);
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static EnumInfo? InitializeGenericCache(RuntimeType enumType)
