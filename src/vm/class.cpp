@@ -293,8 +293,7 @@ VOID EEClass::FixupFieldDescForEnC(MethodTable * pMT, EnCFieldDesc *pFD, mdField
     // MethodTableBuilder uses the stacking allocator for most of it's
     // working memory requirements, so this makes sure to free the memory
     // once this function is out of scope.
-    StackingAllocatorHolder sah(&GetThread()->m_MarshalAlloc);
-    StackingAllocator *pStackingAllocator = sah.GetStackingAllocator();
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
     MethodTableBuilder::bmtMetaDataInfo bmtMetaData;
     bmtMetaData.cFields = 1;
@@ -604,12 +603,12 @@ HRESULT EEClass::AddMethod(MethodTable * pMT, mdMethodDef methodDef, RVA newRVA,
     // Get the new MethodDesc (Note: The method desc memory is zero initialized)
     MethodDesc *pNewMD = pChunk->GetFirstMethodDesc();
 
-    StackingAllocatorHolder sah(&GetThread()->m_MarshalAlloc);
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
     // Initialize the new MethodDesc
     MethodTableBuilder builder(pMT,
                                pClass,
-                               sah.GetStackingAllocator(),
+                               pStackingAllocator,
                                &dummyAmTracker);
     EX_TRY
     {

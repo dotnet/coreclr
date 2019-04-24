@@ -9017,8 +9017,7 @@ MethodTableBuilder::LoadExactInterfaceMap(MethodTable *pMT)
 
         // First we do a GetCheckpoint for the thread-based allocator.  ExpandExactInheritedInterfaces allocates substitution chains
         // on the thread allocator rather than on the stack.
-        StackingAllocatorHolder sah(&GetThread()->m_MarshalAlloc);
-        StackingAllocator *pStackingAllocator = sah.GetStackingAllocator();
+        ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
         // ***********************************************************
         // ****** This must be consistent with code:ExpandApproxInterface etc. *******
@@ -9044,7 +9043,8 @@ MethodTableBuilder::LoadExactInterfaceMap(MethodTable *pMT)
                 &bmtExactInterface, 
                 pParentMT, 
                 pParentSubstForTypeLoad, 
-                pParentSubstForComparing);
+                pParentSubstForComparing,
+                pStackingAllocator);
         }
 #ifdef _DEBUG
         //#ExactInterfaceMap_SupersetOfParent
@@ -9097,7 +9097,8 @@ MethodTableBuilder::LoadExactInterfaceMap(MethodTable *pMT)
             pMT->GetModule(), 
             pMT->GetCl(), 
             NULL, 
-            NULL 
+            NULL,
+            pStackingAllocator
             COMMA_INDEBUG(pMT));
         CONSISTENCY_CHECK(bmtExactInterface.nAssigned == pMT->GetNumInterfaces());
         
@@ -9281,7 +9282,8 @@ MethodTableBuilder::ExpandExactInheritedInterfaces(
     bmtExactInterfaceInfo * bmtInfo, 
     MethodTable *           pMT, 
     const Substitution *    pSubstForTypeLoad, 
-    Substitution *          pSubstForComparing)
+    Substitution *          pSubstForComparing,
+    StackingAllocator *     pStackingAllocator)
 {
     STANDARD_VM_CONTRACT;
 
@@ -9307,7 +9309,8 @@ MethodTableBuilder::ExpandExactInheritedInterfaces(
             bmtInfo, 
             pParentMT, 
             pParentSubstForTypeLoad, 
-            pParentSubstForComparing);
+            pParentSubstForComparing,
+            pStackingAllocator);
     }
     ExpandExactDeclaredInterfaces(
         bmtInfo, 
@@ -9331,7 +9334,7 @@ MethodTableBuilder::ExpandExactDeclaredInterfaces(
     mdToken                     typeDef, 
     const Substitution *        pSubstForTypeLoad, 
     Substitution *              pSubstForComparing,
-    StackingAllocator *         pStackingAllocator,
+    StackingAllocator *         pStackingAllocator
     COMMA_INDEBUG(MethodTable * dbg_pClassMT))
 {
     STANDARD_VM_CONTRACT;
@@ -9358,7 +9361,7 @@ MethodTableBuilder::ExpandExactDeclaredInterfaces(
             pInterface, 
             &ifaceSubstForTypeLoad, 
             &ifaceSubstForComparing,
-            pStackingAllocator,
+            pStackingAllocator
             COMMA_INDEBUG(dbg_pClassMT));
     }
     if (FAILED(hr))
@@ -9373,8 +9376,8 @@ MethodTableBuilder::ExpandExactInterface(
     bmtExactInterfaceInfo *     bmtInfo, 
     MethodTable *               pIntf, 
     const Substitution *        pSubstForTypeLoad_OnStack,   // Allocated on stack!
-    const Substitution *        pSubstForComparing_OnStack   // Allocated on stack!
-    StackingAllocator *         pStackingAllocator,
+    const Substitution *        pSubstForComparing_OnStack,  // Allocated on stack!
+    StackingAllocator *         pStackingAllocator
     COMMA_INDEBUG(MethodTable * dbg_pClassMT))
 {
     STANDARD_VM_CONTRACT;
@@ -9420,7 +9423,8 @@ MethodTableBuilder::ExpandExactInterface(
         pIntf->GetModule(), 
         pIntf->GetCl(), 
         pSubstForTypeLoad, 
-        &bmtInfo->pInterfaceSubstitution[n] 
+        &bmtInfo->pInterfaceSubstitution[n],
+        pStackingAllocator
         COMMA_INDEBUG(dbg_pClassMT));
 } // MethodTableBuilder::ExpandExactInterface
 
@@ -9497,7 +9501,7 @@ void MethodTableBuilder::InterfaceAmbiguityCheck(bmtInterfaceAmbiguityCheckInfo 
     pItfSubstChain->CopyToArray(bmtCheckInfo->ppInterfaceSubstitutionChains[n]);
 
     bmtCheckInfo->nAssigned++;
-    InterfacesAmbiguityCheck(bmtCheckInfo,pIntf->GetModule(),pIntf->GetCl(),pItfSubstChain);
+    InterfacesAmbiguityCheck(bmtCheckInfo,pIntf->GetModule(),pIntf->GetCl(),pItfSubstChain, pStackingAllocator);
 }
 
 
@@ -12034,11 +12038,10 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
     // used during class loading.
     // <NICE> Ideally a debug/checked build should pass around tokens indicating the Checkpoint
     // being used and check these dynamically </NICE>
-    StackingAllocatorHolder sah(&GetThread()->m_MarshalAlloc); //hold checkpoint for autorelease
-    StackingAllocator *pStackingAllocator = sah.GetStackingAllocator();
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
     
     // Gather up generics info
-    MethodTableBuilder::GatherGenericsInfo(pModule, cl, inst, &genericsInfo);
+    MethodTableBuilder::GatherGenericsInfo(pModule, cl, inst, &genericsInfo, pStackingAllocator);
 
     Module * pLoaderModule = pModule;
     if (!inst.IsEmpty())

@@ -88,10 +88,10 @@ FCIMPL1(Object*, AssemblyNameNative::ToString, Object* refThisUNSAFE)
     if (pThis == NULL)
         COMPlusThrow(kNullReferenceException, W("NullReference_This"));
 
-    StackingAllocatorHolder sah(&pThread->m_MarshalAlloc); //hold checkpoint for autorelease
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
     AssemblySpec spec;
-    spec.InitializeSpec(sah.GetStackingAllocator(), (ASSEMBLYNAMEREF*) &pThis, FALSE); 
+    spec.InitializeSpec(pStackingAllocator, (ASSEMBLYNAMEREF*) &pThis, FALSE); 
 
     StackSString name;
     spec.GetFileOrDisplayName(ASM_DISPLAYF_VERSION |
@@ -161,10 +161,10 @@ FCIMPL3(void, AssemblyNameNative::Init, Object * refThisUNSAFE, OBJECTREF * pAss
     if (pThis == NULL)
         COMPlusThrow(kNullReferenceException, W("NullReference_This"));
 
-    StackingAllocatorHolder sah(&GetThread()->m_MarshalAlloc); //hold checkpoint for autorelease
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
     AssemblySpec spec;
-    hr = spec.InitializeSpec(sah.GetStackingAllocator(), (ASSEMBLYNAMEREF *) &pThis, TRUE); 
+    hr = spec.InitializeSpec(pStackingAllocator, (ASSEMBLYNAMEREF *) &pThis, TRUE); 
 
     if (SUCCEEDED(hr))
     {

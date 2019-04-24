@@ -8118,8 +8118,6 @@ void Thread::InternalReset(BOOL fNotFinalizerThread, BOOL fThreadObjectResetNeed
         nPriority = ResetManagedThreadObject(nPriority);
     }
 
-    //m_MarshalAlloc.Collapse(NULL);
-
     if (fResetAbort && IsAbortRequested()) {
         UnmarkThreadForAbort(TAR_ALL);
     }

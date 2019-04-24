@@ -2438,7 +2438,8 @@ public:
         Module *                    pModule, 
         mdToken                     typeDef, 
         const Substitution *        pSubstForTypeLoad, 
-        Substitution *              pSubstForComparing 
+        Substitution *              pSubstForComparing,
+        StackingAllocator *     pStackingAllocator
         COMMA_INDEBUG(MethodTable * dbg_pClassMT));
     
     static void
@@ -2480,7 +2481,8 @@ private:
     InterfaceAmbiguityCheck(
         bmtInterfaceAmbiguityCheckInfo *,
         const Substitution *pSubstChain, 
-        MethodTable *pIntfMT);
+        MethodTable *pIntfMT,
+        StackingAllocator *pStackingAllocator);
 
 public:
     static void

@@ -1079,7 +1079,7 @@ VOID MethodTableBuilder::BuildInteropVTable_ResolveInterfaces(
     }
 
     // Create a fully expanded map of all interfaces we implement
-    bmtInterface->pInterfaceMap = new (pStackingAllocator) InterfaceInfo_t[bmtInterface->dwMaxExpandedInterfaces];
+    bmtInterface->pInterfaceMap = new (GetStackingAllocator()) InterfaceInfo_t[bmtInterface->dwMaxExpandedInterfaces];
 
     // # slots of largest interface
     bmtInterface->dwLargestInterfaceSize = 0;
