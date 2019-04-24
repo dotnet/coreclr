@@ -1865,10 +1865,7 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
                     // JIT_PInvokeEnd helper will be skipped, we need to unlink the ICF here. If the executing method
                     // has another pinovoke, it will re-link the ICF again when the JIT_PInvokeBegin helper is called
 
-                    MethodDesc* pPInvokeTargetMD = pFrame->GetFunction();
-                    if (pPInvokeTargetMD != NULL &&
-                        pPInvokeTargetMD->GetModule()->IsReadyToRun() &&
-                        pPInvokeTargetMD->GetModule()->GetReadyToRunInfo()->IsReadyToRunEntryPoint(((InlinedCallFrame*)pFrame)->m_pCallerReturnAddress))
+                    if (ExecutionManager::IsReadyToRunCode(((InlinedCallFrame*)pFrame)->m_pCallerReturnAddress))
                     {
                         pICFForUnwindTarget = pICFForUnwindTarget->Next();
                     }

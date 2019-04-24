@@ -20,6 +20,7 @@ public class CallbackStressTest
     static int s_FinallyCalled = 0;
     static int s_CatchCalled = 0;
     static int s_OtherExceptionCatchCalled = 0;
+    static int s_SEHExceptionCatchCalled = 0;
     static int s_WrongPInvokesExecuted = 0;
     static int s_PInvokesExecuted = 0;
     
@@ -106,10 +107,25 @@ public class CallbackStressTest
         finally { s_FinallyCalled++; }
     }
     
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static void ManualRaiseException()
+    {
+#if WINDOWS
+        try
+        {
+            RaiseException(5, 0, 0, IntPtr.Zero);
+        }
+        catch(SEHException ex) { s_SEHExceptionCatchCalled++; }
+#else
+        // TODO: test on Unix when implementing pinvoke inlining
+        s_SEHExceptionCatchCalled++;
+#endif
+    }        
+
     public static int Main()
     {
         new Thread(Collector).Start();
-
+       
         for(int i = 0; i < s_LoopCounter; i++)
         {
             try
@@ -133,6 +149,8 @@ public class CallbackStressTest
 
             try { DoCallTryRethrowDifferentExceptionInCatch(); }
             catch (InvalidOperationException) { s_OtherExceptionCatchCalled++; }
+            
+            ManualRaiseException();
         }
         
         SetResolve();
@@ -145,6 +163,8 @@ public class CallbackStressTest
 
             try { DoCallTryCatch(false); }
             catch (ArgumentException) { s_OtherExceptionCatchCalled++; }
+            
+            ManualRaiseException();
         }
         
         s_RunGC = false;
@@ -153,7 +173,8 @@ public class CallbackStressTest
             s_CatchCalled == (s_LoopCounter * 7) &&
             s_OtherExceptionCatchCalled == (s_LoopCounter * 3) &&
             s_WrongPInvokesExecuted == 0 &&
-            s_PInvokesExecuted == (s_LoopCounter * 3))
+            s_PInvokesExecuted == (s_LoopCounter * 3) &&
+            s_SEHExceptionCatchCalled == (s_LoopCounter * 2))
         {
             Console.WriteLine("PASS");
             return 100;
@@ -162,6 +183,7 @@ public class CallbackStressTest
         Console.WriteLine("s_FinallyCalled = " + s_FinallyCalled);
         Console.WriteLine("s_CatchCalled = " + s_CatchCalled);
         Console.WriteLine("s_OtherExceptionCatchCalled = " + s_OtherExceptionCatchCalled);
+        Console.WriteLine("s_SEHExceptionCatchCalled = " + s_SEHExceptionCatchCalled);
         Console.WriteLine("s_WrongPInvokesExecuted = " + s_WrongPInvokesExecuted);
         Console.WriteLine("s_PInvokesExecuted = " + s_PInvokesExecuted);
         return -1;
@@ -170,4 +192,9 @@ public class CallbackStressTest
     [DllImport("NativeLib")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     static extern int NativeSum(int arg1, int arg2);
+    
+#if WINDOWS
+    [DllImport("kernel32")]
+    static extern void RaiseException(uint dwExceptionCode, uint dwExceptionFlags, uint nNumberOfArguments, IntPtr lpArguments);
+#endif
 }

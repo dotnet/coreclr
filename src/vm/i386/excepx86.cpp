@@ -1877,10 +1877,7 @@ NOINLINE LPVOID COMPlusEndCatchWorker(Thread * pThread)
         // JIT_PInvokeEnd helper will be skipped, we need to unlink the ICF here. If the executing method
         // has another pinovoke, it will re-link the ICF again when the JIT_PInvokeBegin helper is called
 
-        MethodDesc* pPInvokeTargetMD = pThread->m_pFrame->GetFunction();
-        if (pPInvokeTargetMD != NULL && 
-            pPInvokeTargetMD->GetModule()->IsReadyToRun() &&
-            pPInvokeTargetMD->GetModule()->GetReadyToRunInfo()->IsReadyToRunEntryPoint(((InlinedCallFrame*)pThread->m_pFrame)->m_pCallerReturnAddress))
+        if (ExecutionManager::IsReadyToRunCode(((InlinedCallFrame*)pThread->m_pFrame)->m_pCallerReturnAddress))
         {
             pThread->m_pFrame->Pop(pThread);
         }
