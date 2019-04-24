@@ -693,7 +693,7 @@ if %__BuildCoreLib% EQU 1 (
                   )
                 )
 
-                set IBCMergeCommand=%__ProjectDir%\dotnet.cmd "!IbcMergePath!"
+                set IBCMergeCommand=%__ProjectDir%\dotnet.cmd --roll-forward-on-no-candidate-fx 2 "!IbcMergePath!"
 
                 REM Merge the optimization data into the source DLL
                 set NEXTCMD=!IBCMergeCommand! -q -f -delete -mo "!InputAssemblyFile!" !RawOptimizationDataFile!
