@@ -48,13 +48,6 @@ GC_VersionInfo(/* Out */ VersionInfo* info)
     info->Name = "CoreCLR GC";
 }
 
-static bool
-ShouldLoadServerGC()
-{
-    return GCConfig::GetServerGC()
-        && GCToOSInterface::GetCurrentProcessCpuCount() > 1;
-}
-
 GC_EXPORT
 HRESULT
 GC_Initialize(
@@ -94,7 +87,7 @@ GC_Initialize(
     }
 
 #ifdef FEATURE_SVR_GC
-    if (ShouldLoadServerGC())
+    if (GCConfig::GetServerGC())
     {
 #ifdef WRITE_BARRIER_CHECK
         g_GCShadow = 0;
