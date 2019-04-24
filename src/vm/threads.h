@@ -276,6 +276,7 @@ public:
     static BOOL IsAddressInCurrentStack (PTR_VOID addr) { return TRUE; }
 
     StackingAllocator*    m_stackLocalAllocator = NULL;
+    bool CheckCanUseStackAlloc() { return true; }
 
  private:
     LoadLevelLimiter *m_pLoadLimiter;
@@ -3281,6 +3282,16 @@ public:
     // and GetCachedStackBase for the cached values on this Thread.
     static void * GetStackLowerBound();
     static void * GetStackUpperBound();
+
+    bool CheckCanUseStackAlloc()
+    {
+        int local;
+        UINT_PTR current = reinterpret_cast<UINT_PTR>(&local);
+        UINT_PTR limit = GetCachedStackStackAllocNonRiskyExecutionLimit();
+        return (current > limit);
+    }
+#else // DACCESS_COMPILE
+    bool CheckCanUseStackAlloc() { return true; }
 #endif
 
     enum SetStackLimitScope { fAll, fAllowableOnly };
@@ -3294,6 +3305,7 @@ public:
     PTR_VOID GetCachedStackBase() {LIMITED_METHOD_DAC_CONTRACT;  return m_CacheStackBase; }
     PTR_VOID GetCachedStackLimit() {LIMITED_METHOD_DAC_CONTRACT;  return m_CacheStackLimit;}
     UINT_PTR GetCachedStackSufficientExecutionLimit() {LIMITED_METHOD_DAC_CONTRACT; return m_CacheStackSufficientExecutionLimit;}
+    UINT_PTR GetCachedStackStackAllocNonRiskyExecutionLimit() {LIMITED_METHOD_DAC_CONTRACT; return m_CacheStackStackAllocNonRiskyExecutionLimit;}
 
 private:
     // Access the base and limit of the stack. (I.e. the memory ranges that the thread has reserved for its stack).
@@ -3304,6 +3316,7 @@ private:
     PTR_VOID    m_CacheStackBase;
     PTR_VOID    m_CacheStackLimit;
     UINT_PTR    m_CacheStackSufficientExecutionLimit;
+    UINT_PTR    m_CacheStackStackAllocNonRiskyExecutionLimit;
 
 #define HARD_GUARD_REGION_SIZE GetOsPageSize()
 

@@ -1400,6 +1400,7 @@ Thread::Thread()
     m_CacheStackBase = 0;
     m_CacheStackLimit = 0;
     m_CacheStackSufficientExecutionLimit = 0;
+    m_CacheStackStackAllocNonRiskyExecutionLimit = 0;
 
     m_LastAllowableStackAddress= 0;
     m_ProbeLimit = 0;
@@ -6434,6 +6435,22 @@ BOOL Thread::SetStackLimits(SetStackLimitScope scope)
         else
         {
             m_CacheStackSufficientExecutionLimit = reinterpret_cast<UINT_PTR>(m_CacheStackBase);
+        }
+
+        // Compute the limit used by EnsureSufficientExecutionStack and cache it on the thread. This minimum stack size should
+        // be sufficient to allow a typical non-recursive call chain to execute, including potential exception handling and
+        // garbage collection. Used for probing for available stack space through RuntimeImports.EnsureSufficientExecutionStack,
+        // among other things.
+        const UINT_PTR StackAllocNonRiskyExecutionStackSize = 512 * 1024;
+        _ASSERTE(m_CacheStackBase >= m_CacheStackLimit);
+        if ((reinterpret_cast<UINT_PTR>(m_CacheStackBase) - reinterpret_cast<UINT_PTR>(m_CacheStackLimit)) >
+            StackAllocNonRiskyExecutionStackSize)
+        {
+            m_CacheStackStackAllocNonRiskyExecutionLimit = reinterpret_cast<UINT_PTR>(m_CacheStackLimit) + StackAllocNonRiskyExecutionStackSize;
+        }
+        else
+        {
+            m_CacheStackStackAllocNonRiskyExecutionLimit = reinterpret_cast<UINT_PTR>(m_CacheStackBase);
         }
     }
 

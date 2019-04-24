@@ -228,9 +228,21 @@ private :
   Thread *pThread__ACQUIRE_STACKING_ALLOCATOR = GetThread(); \
   StackingAllocator *stackingAllocatorName = pThread__ACQUIRE_STACKING_ALLOCATOR->m_stackLocalAllocator; \
   bool allocatorOwner__ACQUIRE_STACKING_ALLOCATOR = false; \
+  NewHolder<StackingAllocator> heapAllocatedStackingBuffer__ACQUIRE_STACKING_ALLOCATOR; \
+\
   if (stackingAllocatorName == NULL) \
   { \
-      stackingAllocatorName = new (_alloca(sizeof(StackingAllocator))) StackingAllocator; \
+      if (pThread__ACQUIRE_STACKING_ALLOCATOR->CheckCanUseStackAlloc()) \
+      { \
+          stackingAllocatorName = new (_alloca(sizeof(StackingAllocator))) StackingAllocator; \
+      } \
+      else \
+      {\
+          stackingAllocatorName = new (nothrow) StackingAllocator; \
+          if (stackingAllocatorName == NULL) \
+              ThrowOutOfMemory(); \
+          heapAllocatedStackingBuffer__ACQUIRE_STACKING_ALLOCATOR = stackingAllocatorName; \
+      }\
       allocatorOwner__ACQUIRE_STACKING_ALLOCATOR = true; \
   } \
   StackingAllocatorHolder sah_ACQUIRE_STACKING_ALLOCATOR(stackingAllocatorName, pThread__ACQUIRE_STACKING_ALLOCATOR, allocatorOwner__ACQUIRE_STACKING_ALLOCATOR)
