@@ -114,17 +114,15 @@ namespace System.Runtime.Loader
             if (parentAssembly == null)
                 return null;
 
-            AssemblyLoadContext? parentAlc = GetLoadContext(parentAssembly);
-
-            if (parentAlc == null)
-                return null;
+            // ResolveSatelliteAssembly should always be called on the ALC which loaded parentAssembly
+            Debug.Assert(this == GetLoadContext(parentAssembly));
 
             string parentDirectory = Path.GetDirectoryName(parentAssembly.Location)!;
 
             string assemblyPath = $"{parentDirectory}/{cultureName}/{assemblyName.Name}.dll";
             if (Internal.IO.File.InternalExists(assemblyPath))
             {
-                return parentAlc.LoadFromAssemblyPath(assemblyPath);
+                return LoadFromAssemblyPath(assemblyPath);
             }
             else if (Path.IsCaseSensitive)
             {
@@ -134,7 +132,7 @@ namespace System.Runtime.Loader
                 {
                     assemblyPath = $"{parentDirectory}/{caseInsensitiveCultureName}/{assemblyName.Name}.dll";
                     if (Internal.IO.File.InternalExists(assemblyPath))
-                        return parentAlc.LoadFromAssemblyPath(assemblyPath);
+                        return LoadFromAssemblyPath(assemblyPath);
                 }
             }
             return null;
