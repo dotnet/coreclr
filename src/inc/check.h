@@ -286,6 +286,7 @@ do                                                                  \
 template <typename TYPENAME>
 CHECK CheckInvariant(TYPENAME &obj)
 {
+#if defined(_MSC_VER) || defined(__llvm__)
     __if_exists(TYPENAME::Invariant)
     {
         CHECK(obj.Invariant());
@@ -294,6 +295,7 @@ CHECK CheckInvariant(TYPENAME &obj)
     {
         CHECK(obj.InternalInvariant());
     }
+#endif
 
     CHECK_OK;
 }
@@ -339,10 +341,12 @@ CHECK CheckPointer(TYPENAME *o, IsNullOK ok = NULL_NOT_OK)
     }
     else
     {
+#if defined(_MSC_VER) || defined(__llvm__)
         __if_exists(TYPENAME::Check)
         {
             CHECK(o->Check());
         }
+#endif
     }
 
     CHECK_OK;
@@ -351,10 +355,12 @@ CHECK CheckPointer(TYPENAME *o, IsNullOK ok = NULL_NOT_OK)
 template <typename TYPENAME>
 CHECK CheckValue(TYPENAME &val)
 {
+#if defined(_MSC_VER) || defined(__llvm__)
     __if_exists(TYPENAME::Check)
     {
         CHECK(val.Check());
     }
+#endif
 
     CHECK(CheckInvariant(val));
 
@@ -473,7 +479,7 @@ CHECK CheckValue(TYPENAME &val)
 // in a free build they are passed through to the compiler to use in optimization.
 //--------------------------------------------------------------------------------
 
-#if defined(_PREFAST_) || defined(_PREFIX_) 
+#if defined(_PREFAST_) || defined(_PREFIX_) || defined(__clang_analyzer__)
 #define COMPILER_ASSUME_MSG(_condition, _message) if (!(_condition)) __UNREACHABLE();
 #define COMPILER_ASSUME_MSGF(_condition, args) if (!(_condition)) __UNREACHABLE();
 #else
@@ -561,7 +567,7 @@ CHECK CheckValue(TYPENAME &val)
 # define __UNREACHABLE() __assume(0)
 #endif
 #else
-#define __UNREACHABLE()  do { } while(true)
+#define __UNREACHABLE() __builtin_unreachable()
 #endif
 
 #ifdef _DEBUG_IMPL

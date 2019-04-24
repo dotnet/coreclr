@@ -46,7 +46,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 int LinearScan::BuildNode(GenTree* tree)
 {
     assert(!tree->isContained());
-    Interval* prefSrcInterval = nullptr;
     int       srcCount;
     int       dstCount      = 0;
     regMaskTP dstCandidates = RBM_NONE;
@@ -55,8 +54,6 @@ int LinearScan::BuildNode(GenTree* tree)
 
     // Reset the build-related members of LinearScan.
     clearBuildState();
-
-    RegisterType registerType = TypeGet(tree);
 
     // Set the default dstCount. This may be modified below.
     if (tree->IsValue())
@@ -596,15 +593,15 @@ int LinearScan::BuildNode(GenTree* tree)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
         {
             GenTreeBoundsChk* node = tree->AsBoundsChk();
             // Consumes arrLen & index - has no result
             assert(dstCount == 0);
-
-            GenTree* intCns = nullptr;
-            GenTree* other  = nullptr;
-            srcCount        = BuildOperandUses(tree->AsBoundsChk()->gtIndex);
-            srcCount += BuildOperandUses(tree->AsBoundsChk()->gtArrLen);
+            srcCount = BuildOperandUses(node->gtIndex);
+            srcCount += BuildOperandUses(node->gtArrLen);
         }
         break;
 
@@ -1004,7 +1001,6 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         op1 = op1->AsArgList()->Current();
     }
 
-    int  dstCount       = intrinsicTree->IsValue() ? 1 : 0;
     bool op2IsDelayFree = false;
     bool op3IsDelayFree = false;
 

@@ -384,7 +384,7 @@ namespace System.Reflection.Emit
                         }
                         else
                         {
-                            throw new ArgumentException(SR.Format(SR.Argument_ConstantNotSupported, type.ToString()));
+                            throw new ArgumentException(SR.Format(SR.Argument_ConstantNotSupported, type));
                         }
                         break;
                 }
@@ -1978,8 +1978,6 @@ namespace System.Reflection.Emit
         {
             if (IsCreated())
                 return m_bakedRuntimeType;
-
-            ThrowIfCreated();
 
             if (m_typeInterfaces == null)
                 m_typeInterfaces = new List<Type>();

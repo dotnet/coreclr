@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 namespace System.Threading
 {
     /// <summary>
@@ -48,7 +49,7 @@ namespace System.Threading
         ///     This method was called after the <see cref="ThreadPoolBoundHandle"/> was disposed.
         /// </exception>
         [CLSCompliant(false)]
-        public PreAllocatedOverlapped(IOCompletionCallback callback, object state, object pinData)
+        public PreAllocatedOverlapped(IOCompletionCallback callback, object? state, object? pinData)
         {
             if (callback == null)
                 throw new ArgumentNullException(nameof(callback));
@@ -77,17 +78,12 @@ namespace System.Threading
 
         ~PreAllocatedOverlapped()
         {
-            //
-            // During shutdown, don't automatically clean up, because this instance may still be
-            // reachable/usable by other code.
-            //
-            if (!Environment.HasShutdownStarted)
-                Dispose();
+            Dispose();
         }
 
         unsafe void IDeferredDisposable.OnFinalRelease(bool disposed)
         {
-            if (_overlapped != null)
+            if (_overlapped != null) // protect against ctor throwing exception and leaving field uninitialized
             {
                 if (disposed)
                 {

@@ -240,7 +240,6 @@ if defined __Priority (
     ) else (
         set __PassThroughArgs=-priority=%__Priority%
     )
-    set __UnprocessedBuildArgs=!__UnprocessedBuildArgs! /p:CLRTestPriorityToBuild=%__Priority%
 )
 
 if defined __BuildAll goto BuildAll
@@ -427,7 +426,7 @@ if %__BuildNative% EQU 1 (
     "!PYTHON!" -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern --noxplatheader|| exit /b 1
 
     echo %__MsgPrefix%Laying out dynamically generated EventPipe Implementation
-    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --exc %__SourceDir%\vm\ClrEtwAllMeta.lst --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
 
     echo %__MsgPrefix%Laying out ETW event logging interface
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
@@ -449,7 +448,7 @@ if %__BuildCrossArchNative% EQU 1 (
     "!PYTHON!" -B -Wall  %__SourceDir%\scripts\genEventing.py --inc !__CrossCompIntermediatesIncDir! --dummy !__CrossCompIntermediatesIncDir!\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern || exit /b 1
 
     echo %__MsgPrefix%Laying out dynamically generated EventPipe Implementation
-    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesEventingDir!\eventpipe --nonextern || exit /b 1
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --exc %__SourceDir%\vm\ClrEtwAllMeta.lst --intermediate !__CrossCompIntermediatesEventingDir!\eventpipe --nonextern || exit /b 1
 
     echo %__MsgPrefix%Laying out dynamically generated EventSource classes
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genRuntimeEventSources.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesEventingDir! || exit /b 1
@@ -675,7 +674,7 @@ if %__BuildCoreLib% EQU 1 (
         set IbcMergePath=%__PackagesDir%\microsoft.dotnet.ibcmerge\!__IbcMergeVersion!\lib\net45\ibcmerge.exe
         if exist !IbcMergePath! (
             echo %__MsgPrefix%Optimizing using IBC training data
-            set OptimizationDataDir=%__PackagesDir%\optimization.%__BuildOS%-%__BuildArch%.IBC.CoreCLR\!__IbcOptDataVersion!\data\System.Private.CoreLib\
+            set OptimizationDataDir=%__PackagesDir%\optimization.%__BuildOS%-%__BuildArch%.IBC.CoreCLR\!__IbcOptDataVersion!\data\System.Private.CoreLib.dll\
             set InputAssemblyFile=!OptimizationDataDir!System.Private.CoreLib.dll
             set TargetOptimizationDataFile=!OptimizationDataDir!System.Private.CoreLib.pgo
 
@@ -877,7 +876,11 @@ REM ============================================================================
 if %__BuildTests% EQU 1 (
     echo %__MsgPrefix%Commencing build of tests for %__BuildOS%.%__BuildArch%.%__BuildType%
 
-    set NEXTCMD=call %__ProjectDir%\build-test.cmd %__BuildArch% %__BuildType% %__UnprocessedBuildArgs%
+    set  __PriorityArg=
+    if defined __Priority (
+        set __PriorityArg=-priority=%__Priority%
+    )
+    set NEXTCMD=call %__ProjectDir%\build-test.cmd %__BuildArch% %__BuildType% !__PriorityArg! %__UnprocessedBuildArgs%
     echo %__MsgPrefix%!NEXTCMD!
     !NEXTCMD!
 

@@ -347,6 +347,8 @@ DEFINE_METASIG_T(SM(Str_PtrHStringHeader_RetIntPtr, s P(g(HSTRING_HEADER_MANAGED
 
 DEFINE_METASIG_T(SM(RefDateTimeOffset_RefDateTimeNative_RetVoid, r(g(DATE_TIME_OFFSET)) r(g(DATETIMENATIVE)), v))
 
+DEFINE_METASIG_T(IM(RuntimeTypeHandle_RefBool_RefIntPtr_RetVoid, g(RT_TYPE_HANDLE) r(F) r(I), v))
+
 #endif
 
 
@@ -363,9 +365,6 @@ DEFINE_METASIG(SM(ArrByte_Bool_RetObj, a(b) F, j))
 DEFINE_METASIG(SM(ArrByte_ArrByte_RefObj_RetObj, a(b) a(b) r(j), j))
 DEFINE_METASIG_T(SM(PtrSByt_Int_Int_Encoding_RetStr, P(B) i i C(ENCODING), s))
 
-DEFINE_METASIG_T(SM(Void_RetRuntimeTypeHandle, _, g(RT_TYPE_HANDLE)))
-DEFINE_METASIG(SM(Void_RetIntPtr, _, I))
-
 DEFINE_METASIG_T(SM(UInt_UInt_PtrNativeOverlapped_RetVoid, K K P(g(NATIVEOVERLAPPED)), v))
 
 DEFINE_METASIG(IM(Long_RetVoid, l, v))
@@ -381,6 +380,7 @@ DEFINE_METASIG_T(IM(Str_ArrB_ArrB_Ver_CI_AHA_AVC_Str_ANF_SNKP_RetV,
 DEFINE_METASIG_T(IM(PEK_IFM_RetV,
                  g(PORTABLE_EXECUTABLE_KINDS) g(IMAGE_FILE_MACHINE), v))
 DEFINE_METASIG(IM(RetObj, _, j))
+DEFINE_METASIG(SM(RetObj, _, j))
 DEFINE_METASIG_T(IM(RetIEnumerator, _, C(IENUMERATOR)))
 DEFINE_METASIG(IM(RetStr, _, s))
 DEFINE_METASIG(IM(RetLong, _, l))
@@ -402,6 +402,7 @@ DEFINE_METASIG(IM(Bool_Bool_RetStr, F F, s))
 
 DEFINE_METASIG(IM(PtrChar_RetVoid, P(u), v))
 DEFINE_METASIG(IM(PtrChar_Int_Int_RetVoid, P(u) i i, v))
+DEFINE_METASIG_T(IM(ReadOnlySpanOfByte_RetVoid, GI(g(READONLY_SPAN), 1, b), v))
 DEFINE_METASIG_T(IM(ReadOnlySpanOfChar_RetVoid, GI(g(READONLY_SPAN), 1, u), v))
 DEFINE_METASIG(IM(PtrSByt_RetVoid, P(B), v))
 DEFINE_METASIG(IM(PtrSByt_Int_Int_RetVoid, P(B) i i, v))
@@ -419,6 +420,19 @@ DEFINE_METASIG(IM(PtrSByt_RetStr, P(B), s))
 DEFINE_METASIG(IM(PtrSByt_Int_Int_RetStr, P(B) i i, s))
 DEFINE_METASIG_T(IM(PtrSByt_Int_Int_Encoding_RetStr, P(B) i i C(ENCODING), s))
 DEFINE_METASIG(IM(Obj_Int_RetIntPtr, j i, I))
+
+DEFINE_METASIG(IM(ArrByte_Int_Int_RetVoid, a(b) i i, v))
+DEFINE_METASIG(IM(PtrByte_RetVoid, P(b), v))
+
+#ifdef FEATURE_UTF8STRING
+DEFINE_METASIG_T(IM(ReadOnlySpanOfByte_RetUtf8Str, GI(g(READONLY_SPAN), 1, b), C(UTF8_STRING)))
+DEFINE_METASIG_T(IM(ReadOnlySpanOfChar_RetUtf8Str, GI(g(READONLY_SPAN), 1, u), C(UTF8_STRING)))
+DEFINE_METASIG_T(IM(ArrByte_Int_Int_RetUtf8Str, a(b) i i, C(UTF8_STRING)))
+DEFINE_METASIG_T(IM(PtrByte_RetUtf8Str, P(b), C(UTF8_STRING)))
+DEFINE_METASIG_T(IM(ArrChar_Int_Int_RetUtf8Str, a(u) i i, C(UTF8_STRING)))
+DEFINE_METASIG_T(IM(PtrChar_RetUtf8Str, P(u), C(UTF8_STRING)))
+DEFINE_METASIG_T(IM(String_RetUtf8Str, s, C(UTF8_STRING)))
+#endif // FEATURE_UTF8STRING
 
 DEFINE_METASIG(IM(Char_Char_RetStr, u u, s))
 DEFINE_METASIG(IM(Char_Int_RetVoid, u i, v))
@@ -532,11 +546,6 @@ DEFINE_METASIG_T(IM(RuntimeType_RetVoid, C(CLASS) , v))
 DEFINE_METASIG_T(SM(ArrException_PtrInt_RetVoid, a(C(EXCEPTION)) P(i), v))
 
 DEFINE_METASIG_T(IM(RuntimeArgumentHandle_PtrVoid_RetVoid, g(ARGUMENT_HANDLE) P(v), v))
-DEFINE_METASIG_T(IM(LicenseInteropHelper_GetCurrentContextInfo, r(i) r(I) g(RT_TYPE_HANDLE), v))
-DEFINE_METASIG(IM(LicenseInteropHelper_SaveKeyInCurrentContext, I, v))
-DEFINE_METASIG_T(SM(LicenseInteropHelper_AllocateAndValidateLicense, g(RT_TYPE_HANDLE) I i, j))
-DEFINE_METASIG_T(SM(LicenseInteropHelper_RequestLicKey, g(RT_TYPE_HANDLE) r(I), i))
-DEFINE_METASIG_T(IM(LicenseInteropHelper_GetLicInfo, g(RT_TYPE_HANDLE) r(i) r(i), v))
 
 DEFINE_METASIG_T(SM(Assembly_RetVoid, C(ASSEMBLY), v))
 DEFINE_METASIG_T(SM(Assembly_Str_RetArrAssembly, C(ASSEMBLY) s, a(C(ASSEMBLY))))

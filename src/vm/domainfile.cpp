@@ -555,12 +555,12 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
         EagerFixups();
         break;
 
-    case FILE_LOAD_VTABLE_FIXUPS:
-        VtableFixups();
-        break;
-
     case FILE_LOAD_DELIVER_EVENTS:
         DeliverSyncEvents();
+        break;
+
+    case FILE_LOAD_VTABLE_FIXUPS:
+        VtableFixups();
         break;
 
     case FILE_LOADED:
@@ -851,8 +851,7 @@ void DomainFile::CheckZapRequired()
     GetFile()->FlushExternalLog();
 
     StackSString ss;
-    ss.Printf("ZapRequire: Could not get native image for %s.\n"
-              "Use FusLogVw.exe to check the reason.",
+    ss.Printf("ZapRequire: Could not get native image for %s.\n",
               GetSimpleName());
 
 #if defined(_DEBUG)

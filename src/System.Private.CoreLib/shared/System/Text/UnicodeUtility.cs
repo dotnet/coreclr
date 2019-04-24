@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Runtime.CompilerServices;
 
 namespace System.Text
@@ -11,7 +12,7 @@ namespace System.Text
         /// <summary>
         /// The Unicode replacement character U+FFFD.
         /// </summary>
-        public const uint ReplacementChar = 0xFFFDU;
+        public const uint ReplacementChar = 0xFFFD;
 
         /// <summary>
         /// Returns the Unicode plane (0 through 16, inclusive) which contains this code point.

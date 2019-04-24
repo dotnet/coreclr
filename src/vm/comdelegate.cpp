@@ -479,7 +479,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
         {
             filledSlots[i] = false;
         }
-        for (int i = 0; i < pShuffleEntryArray->GetCount(); i++)
+        for (unsigned int i = 0; i < pShuffleEntryArray->GetCount(); i++)
         {
             entry = (*pShuffleEntryArray)[i];
 
@@ -487,7 +487,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
             // of the entry that filled it in.
             if (filledSlots[GetNormalizedArgumentSlotIndex(entry.srcofs)])
             {
-                int j;
+                unsigned int j;
                 for (j = i; (*pShuffleEntryArray)[j].dstofs != entry.srcofs; j--)
                     (*pShuffleEntryArray)[j] = (*pShuffleEntryArray)[j - 1];
 
@@ -1188,8 +1188,7 @@ LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
             pUMEntryThunk->LoadTimeInit(
                 pManagedTargetForDiagnostics,
                 objhnd,
-                pUMThunkMarshInfo, pInvokeMeth,
-                GetAppDomain()->GetId());
+                pUMThunkMarshInfo, pInvokeMeth);
 
 #ifdef FEATURE_WINDOWSPHONE
             // Perform the runtime initialization lazily for better startup time. Lazy initialization
@@ -1301,9 +1300,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         
         pUMEntryThunk = (UMEntryThunk*)pInteropInfo->GetUMEntryThunk();
         _ASSERTE(pUMEntryThunk);
-
-        if (pUMEntryThunk->GetDomainId() != GetAppDomain()->GetId())
-            COMPlusThrow(kNotSupportedException, W("NotSupported_DelegateMarshalToWrongDomain"));
 
         GCPROTECT_END();
         return pDelegate;

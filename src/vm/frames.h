@@ -543,7 +543,6 @@ public:
     static bool HasValidVTablePtr(Frame * pFrame);
     static PTR_GSCookie SafeGetGSCookiePtr(Frame * pFrame);
     static void Init();
-    static void Term();
 
     // Callers, note that the REGDISPLAY parameter is actually in/out. While
     // UpdateRegDisplay is generally used to fill out the REGDISPLAY parameter, some
@@ -3002,7 +3001,6 @@ public:
     PTR_VOID                m_StubSecretArg;
 #endif // _WIN64
 
-protected:
     // X86: ESP after pushing the outgoing arguments, and just before calling
     // out to unmanaged code.
     // Other platforms: the field stays set throughout the declaring method.

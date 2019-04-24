@@ -4629,8 +4629,10 @@ TypeCompareState CEEInfo::compareTypesForCast(
     // In R2R it is a breaking change for a previously positive
     // cast to become negative, but not for a previously negative
     // cast to become positive. So in R2R a negative result is
-    // always reported back as May.
-    if (IsReadyToRunCompilation() && (result == TypeCompareState::MustNot))
+    // always reported back as May, except for CoreLib version bubble.
+    if (IsReadyToRunCompilation() && (result == TypeCompareState::MustNot)
+        && !GetAppDomain()->ToCompilationDomain()->GetTargetModule()->IsSystem()
+        && !IsLargeVersionBubbleEnabled())
     {
         result = TypeCompareState::May;
     }
@@ -5295,6 +5297,7 @@ void CEEInfo::getCallInfo(
     //
 
     MethodDesc * pTargetMD = pMDAfterConstraintResolution;
+    DWORD dwTargetMethodAttrs = pTargetMD->GetAttrs();
 
     if (pTargetMD->HasMethodInstantiation())
     {
@@ -5352,12 +5355,6 @@ void CEEInfo::getCallInfo(
         directCall = true;
     }
     else
-    // Backwards compat: calls to abstract interface methods are treated as callvirt
-    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsAbstract())
-    {
-        directCall = false;
-    }
-    else
     if (!(flags & CORINFO_CALLINFO_CALLVIRT) || fResolvedConstraint)
     {
         directCall = true;
@@ -5398,12 +5395,11 @@ void CEEInfo::getCallInfo(
         if (pTargetMD->GetMethodTable()->IsInterface())
         {
             // Handle interface methods specially because the Sealed bit has no meaning on interfaces.
-            devirt = !IsMdVirtual(pTargetMD->GetAttrs());
+            devirt = !IsMdVirtual(dwTargetMethodAttrs);
         }
         else
         {
-            DWORD dwMethodAttrs = pTargetMD->GetAttrs();
-            devirt = !IsMdVirtual(dwMethodAttrs) || IsMdFinal(dwMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
+            devirt = !IsMdVirtual(dwTargetMethodAttrs) || IsMdFinal(dwTargetMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
         }
 
         if (devirt)
@@ -5415,6 +5411,14 @@ void CEEInfo::getCallInfo(
 
     if (directCall)
     {
+        // Direct calls to abstract methods are not allowed
+        if (IsMdAbstract(dwTargetMethodAttrs) &&
+            // Compensate for always treating delegates as direct calls above
+            !(((flags & CORINFO_CALLINFO_LDFTN) && (flags & CORINFO_CALLINFO_CALLVIRT) && !resolvedCallVirt)))
+        {
+            COMPlusThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
+        }
+
         bool allowInstParam = (flags & CORINFO_CALLINFO_ALLOWINSTPARAM);
 
         // Create instantiating stub if necesary
@@ -7038,7 +7042,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
             // Call CompareTo method on the primitive type
             int tokCompareTo = pCompareToMD->GetMemberDef();
 
-            int index = (et - ELEMENT_TYPE_I1);
+            unsigned int index = (et - ELEMENT_TYPE_I1);
             _ASSERTE(index < _countof(ilcode));
 
             ilcode[index][0] = CEE_LDARGA_S;
@@ -7476,6 +7480,56 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
         static const BYTE returnFalse[] = { CEE_LDC_I4_0, CEE_RET };
 
         if (!methodTable->IsValueType() || methodTable->ContainsPointers())
+        {
+            methInfo->ILCode = const_cast<BYTE*>(returnTrue);
+        }
+        else
+        {
+            methInfo->ILCode = const_cast<BYTE*>(returnFalse);
+        }
+
+        methInfo->ILCodeSize = sizeof(returnTrue);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+
+    if (tk == MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__IS_BITWISE_EQUATABLE)->GetMemberDef())
+    {
+        _ASSERTE(ftn->HasMethodInstantiation());
+        Instantiation inst = ftn->GetMethodInstantiation();
+
+        _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
+        TypeHandle typeHandle = inst[0];
+        MethodTable * methodTable = typeHandle.GetMethodTable();
+
+        static const BYTE returnTrue[] = { CEE_LDC_I4_1, CEE_RET };
+        static const BYTE returnFalse[] = { CEE_LDC_I4_0, CEE_RET };
+
+        // Ideally we could detect automatically whether a type is trivially equatable
+        // (i.e., its operator == could be implemented via memcmp). But for now we'll
+        // do the simple thing and hardcode the list of types we know fulfill this contract.
+        // n.b. This doesn't imply that the type's CompareTo method can be memcmp-implemented,
+        // as a method like CompareTo may need to take a type's signedness into account.
+
+        if (methodTable == MscorlibBinder::GetClass(CLASS__BOOLEAN)
+            || methodTable == MscorlibBinder::GetClass(CLASS__BYTE)
+            || methodTable == MscorlibBinder::GetClass(CLASS__SBYTE)
+#ifdef FEATURE_UTF8STRING
+            || methodTable == MscorlibBinder::GetClass(CLASS__CHAR8)
+#endif // FEATURE_UTF8STRING
+            || methodTable == MscorlibBinder::GetClass(CLASS__CHAR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT16)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT16)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT32)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT32)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT64)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT64)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INTPTR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINTPTR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__RUNE)
+            || methodTable->IsEnum())
         {
             methInfo->ILCode = const_cast<BYTE*>(returnTrue);
         }
@@ -10127,11 +10181,27 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
     }
     else
     {
-        // inlinedCallFrameInfo is not used for R2R compilation
+        // We'll declare a fixed size to use for the inlined call frame for R2R here. The size we declare
+        // is currently slightly larger that the actual size of the struct, just in case we decide to add
+        // more fields to the struct in the future, in an effort to not completely invalidate existing R2R images.
+        // The assert below ensures that this fixed size is at least large enough to hold the data structures 
+        // used at runtime. 
+        // ** IMPORTANT ** If you ever need to change the value of this fixed size, make sure to change the R2R
+        // version number, otherwise older R2R images will probably crash when used.
+
+        const int r2rInlinedCallFrameSize = TARGET_POINTER_SIZE * 11;
+
+#if defined(_DEBUG) && !defined(CROSSBITNESS_COMPILE)
+        InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
+        _ASSERTE(pEEInfoOut->inlinedCallFrameInfo.size <= r2rInlinedCallFrameSize);
+#endif
+
+        // inlinedCallFrameInfo is mostly not used for R2R compilation (only the size field is used)
         ZeroMemory(&pEEInfoOut->inlinedCallFrameInfo, sizeof(pEEInfoOut->inlinedCallFrameInfo));
 
-        pEEInfoOut->offsetOfThreadFrame = (DWORD)-1;
-        pEEInfoOut->offsetOfGCState     = (DWORD)-1;
+        pEEInfoOut->offsetOfThreadFrame         = (DWORD)-1;
+        pEEInfoOut->offsetOfGCState             = (DWORD)-1;
+        pEEInfoOut->inlinedCallFrameInfo.size   = r2rInlinedCallFrameSize;
     }
 
 #ifndef CROSSBITNESS_COMPILE
@@ -12209,8 +12279,7 @@ CorJitResult invokeCompileMethodHelper(EEJitManager *jitMgr,
         // If we failed to jit, then fall back to the primary Jit.
         if (FAILED(ret))
         {
-            // Consider adding this call:
-            //      ((CEEJitInfo*)comp)->BackoutJitData(jitMgr);
+            ((CEEJitInfo*)comp)->BackoutJitData(jitMgr);
             ((CEEJitInfo*)comp)->ResetForJitRetry();
             ret = CORJIT_SKIPPED;
         }
@@ -13108,6 +13177,7 @@ void Module::LoadHelperTable()
     ClrFlushInstructionCache(table, tableSize);
 #endif // CROSSGEN_COMPILE
 }
+#endif // FEATURE_PREJIT
 
 #ifdef FEATURE_READYTORUN
 CorInfoHelpFunc MapReadyToRunHelper(ReadyToRunHelper helperNum)
@@ -13740,7 +13810,6 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 
     return TRUE;
 }
-#endif // FEATURE_PREJIT
 
 void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
                                         CorInfoHelperTailCallSpecialHandling flags)

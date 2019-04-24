@@ -3700,6 +3700,7 @@ BOOL IsTypeVisibleFromCom(TypeHandle hndType)
     return SpecialIsGenericTypeVisibleFromCom(hndType);
 }
 
+#ifdef FEATURE_PREJIT
 //---------------------------------------------------------------------------
 // Determines if a method is likely to be used for forward COM/WinRT interop.
 BOOL MethodNeedsForwardComStub(MethodDesc *pMD, DataImage *pImage)
@@ -3762,7 +3763,6 @@ BOOL MethodNeedsForwardComStub(MethodDesc *pMD, DataImage *pImage)
     return FALSE;
 }
 
-#ifdef FEATURE_PREJIT
 //---------------------------------------------------------------------------
 // Determines if a method is visible from COM in a way that requires a marshaling
 // stub, i.e. it allows early binding.
@@ -5103,7 +5103,7 @@ void InitializeComInterop()
 }
 
 // Try to load a WinRT type.
-TypeHandle GetWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound)
+TypeHandle LoadWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound, ICLRPrivBinder* loadBinder /* =nullptr */)
 {
     CONTRACT (TypeHandle)
     {
@@ -5116,8 +5116,8 @@ TypeHandle GetWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound)
     TypeHandle typeHandle;
 
     SString ssAssemblyName(SString::Utf8Literal, "WindowsRuntimeAssemblyName, ContentType=WindowsRuntime");
-    DomainAssembly *pAssembly = LoadDomainAssembly(&ssAssemblyName, NULL, 
-                                                   NULL, 
+    DomainAssembly *pAssembly = LoadDomainAssembly(&ssAssemblyName, nullptr, 
+                                                   loadBinder, 
                                                    bThrowIfNotFound, ssTypeName);
     if (pAssembly != NULL)
     {
@@ -6669,7 +6669,7 @@ TypeHandle GetClassFromIInspectable(IUnknown* pUnk, bool *pfSupportsIInspectable
         EX_TRY
         {
             LPCWSTR pszWinRTTypeName = (ssTmpClassName.IsEmpty() ? ssClassName  : ssTmpClassName);
-            classTypeHandle = WinRTTypeNameConverter::GetManagedTypeFromWinRTTypeName(pszWinRTTypeName, /*pbIsPrimitive = */ NULL);
+            classTypeHandle = WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(pszWinRTTypeName, /* pLoadBinder */ nullptr, /*pbIsPrimitive = */ nullptr);
         }
         EX_CATCH
         {
