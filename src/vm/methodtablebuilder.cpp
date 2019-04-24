@@ -2662,7 +2662,7 @@ MethodTableBuilder::EnumerateClassMethods()
         }
 
         // Signature validation
-        if (!GetModule()->IsSystem())
+        if (!bmtProp->fNoSanityChecks)
         {
             hr = validateTokenSig(tok,pMemberSignature,cMemberSignature,dwMemberAttrs,pMDInternalImport);
             if (FAILED(hr))
@@ -2851,8 +2851,8 @@ MethodTableBuilder::EnumerateClassMethods()
         // But first - minimal flags validity checks
         //
         // No methods in Enums!
-#ifndef _DEBUG // Don't run the minimal validity checks for the system dll (except in debug builds so we don't build a bad system dll)
-        if (!GetModule()->IsSystem())
+#ifndef _DEBUG // Don't run the minimal validity checks for the system dll/r2r dlls (except in debug builds so we don't build a bad system dll)
+        if (!bmtProp->fNoSanityChecks)
 #endif
         {
             if (fIsClassEnum)
@@ -9078,7 +9078,9 @@ MethodTableBuilder::LoadExactInterfaceMap(MethodTable *pMT)
         // If there are any __Canon instances in the type argument list, then we defer the
         // ambiguity checking until an exact instantiation.
         // As the C# compiler won't allow an ambiguous generic interface to be generated, we don't
-        // need this logic for CoreLib
+        // need this logic for CoreLib. We can't use the sanity checks flag here, as these ambiguities
+        // are specified to the exact instantiation in use, not just whether or not normal the type is
+        // well formed in metadata.
         if (!pMT->IsSharedByGenericInstantiations() && !pMT->GetModule()->IsSystem())
         {
             // There are no __Canon types in the instantiation, so do ambiguity check.
