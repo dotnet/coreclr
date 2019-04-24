@@ -2558,14 +2558,30 @@ namespace System
             Vector128<sbyte>  tt7 = Vector128.Create((sbyte)26);
             Vector128<byte>   tt8 = Vector128.Create((byte)13);
 
+            // static readonly Vector128 field + assigning its value to a local variable is a C# pattern for `const __mX`
             Vector128<byte> localShiftLut = s_base64ShiftLut;
             Vector128<byte> localShuffleMask = s_base64ShuffleMask;
             Vector128<byte> localTwoBytesStringMaskLo = s_base64TwoBytesStringMaskLo;
 
             for (; i <= length - stride; i += stride)
             {
+                // input = [xxxx|DDDC|CCBB|BAAA]
                 Vector128<byte> inputVector = Sse2.LoadVector128(inData + i);
+
+                // bytes from groups A, B and C are needed in separate 32-bit lanes
+                // in = [DDDD|CCCC|BBBB|AAAA]
+                //
+                //      an input triplet has layout
+                //      [????????|ccdddddd|bbbbcccc|aaaaaabb]
+                //        byte 3   byte 2   byte 1   byte 0    -- byte 3 comes from the next triplet
+                //
+                //      shuffling changes the order of bytes: 1, 0, 2, 1
+                //      [bbbbcccc|ccdddddd|aaaaaabb|bbbbcccc]
+                //           ^^^^ ^^^^^^^^ ^^^^^^^^ ^^^^
+                //                  processed bits
                 inputVector = Ssse3.Shuffle(inputVector, localShuffleMask);
+
+                // unpacking
 
                 // t0      = [0000cccc|cc000000|aaaaaa00|00000000]
                 Vector128<byte> t0 = Sse2.And(inputVector, tt0);
@@ -2578,12 +2594,13 @@ namespace System
                 // indices = [00dddddd|00cccccc|00bbbbbb|00aaaaaa] = t1 | t3
                 Vector128<byte> indices = Sse2.Or(t1, t3);
 
-                // lookup function
+                // lookup function "Single pshufb method" (lookup_pshufb_improved)
                 Vector128<byte> result = Sse2.SubtractSaturate(indices, tt5);
                 Vector128<sbyte> compareResult = Sse2.CompareGreaterThan(tt7, indices.AsSByte());
                 result = Sse2.Or(result, Sse2.And(compareResult.AsByte(), tt8));
                 result = Ssse3.Shuffle(localShiftLut, result);
                 result = Sse2.Add(result, indices);
+                // end of lookup function
 
                 // save as two-bytes string, e.g.:
                 // 1,2,3,4,5..16 => 1,0,2,0,3,0..16,0
