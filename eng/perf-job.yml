@@ -48,7 +48,7 @@ jobs:
     - value: '--benchview-submission-name "test-russellk" --benchview-machine-pool perfsnake --benchview-run-time Private --upload-to-benchview-container coreclr'
 
     - name: commonArguments
-    - value: '--filter "Burgers*" --incremental no --architecture $archType -f netcoreapp3.0 --bdn-arguments="--allCategories CoreClr" --dotnet-compilation-mode Tiered --generate-benchview-data $(benchviewArguments)'
+    - value: '--filter *Adams* --incremental no --architecture $archType -f netcoreapp3.0 --bdn-arguments="--allCategories CoreClr" --dotnet-compilation-mode Tiered --generate-benchview-data $(benchviewArguments)'
 
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
@@ -89,7 +89,7 @@ jobs:
         HelixSource: 'pr/dotnet/coreclr/$(Build.SourceBranch)'
         HelixType: 'test/performance_$(_BuildConfig)/'
         HelixAccessToken: $(HelixApiAccessToken)
-        HelixTargetQueues: ${{ parameters.helixQueues }}
+        HelixTargetQueues: ${{ join(' ', parameters.helixQueues) }}
         HelixPreCommands: ''
         Creator: $(Build.DefinitionName)
         WorkItemTimeout: 4:00 # 4 hours
