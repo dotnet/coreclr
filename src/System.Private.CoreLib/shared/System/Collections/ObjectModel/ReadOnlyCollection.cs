@@ -233,7 +233,7 @@ namespace System.Collections.ObjectModel
         {
             if (IsCompatibleObject(value))
             {
-                return Contains((T)value!);
+                return Contains((T)value!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             }
             return false;
         }
@@ -242,7 +242,7 @@ namespace System.Collections.ObjectModel
         {
             if (IsCompatibleObject(value))
             {
-                return IndexOf((T)value!);
+                return IndexOf((T)value!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             }
             return -1;
         }

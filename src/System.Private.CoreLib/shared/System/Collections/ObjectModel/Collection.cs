@@ -378,11 +378,11 @@ namespace System.Collections.ObjectModel
             get { return items[index]; }
             set
             {
-                ThrowHelper.IfNullAndNullsAreIllegalThenThrow<T>(value!, ExceptionArgument.value);
+                ThrowHelper.IfNullAndNullsAreIllegalThenThrow<T>(value, ExceptionArgument.value);
 
                 try
                 {
-                    this[index] = (T)value!;
+                    this[index] = (T)value!;  // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                 }
                 catch (InvalidCastException)
                 {
@@ -425,7 +425,7 @@ namespace System.Collections.ObjectModel
 
             try
             {
-                Add((T)value!);
+                Add((T)value!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             }
             catch (InvalidCastException)
             {
@@ -439,7 +439,7 @@ namespace System.Collections.ObjectModel
         {
             if (IsCompatibleObject(value))
             {
-                return Contains((T)value!);
+                return Contains((T)value!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             }
             return false;
         }
@@ -448,7 +448,7 @@ namespace System.Collections.ObjectModel
         {
             if (IsCompatibleObject(value))
             {
-                return IndexOf((T)value!);
+                return IndexOf((T)value!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             }
             return -1;
         }
@@ -463,7 +463,7 @@ namespace System.Collections.ObjectModel
 
             try
             {
-                Insert(index, (T)value!);
+                Insert(index, (T)value!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             }
             catch (InvalidCastException)
             {
@@ -480,7 +480,7 @@ namespace System.Collections.ObjectModel
 
             if (IsCompatibleObject(value))
             {
-                Remove((T)value!);
+                Remove((T)value!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             }
         }
 
