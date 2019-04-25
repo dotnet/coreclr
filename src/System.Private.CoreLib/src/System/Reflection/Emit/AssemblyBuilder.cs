@@ -76,7 +76,7 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
 
-        public override FileStream? GetFile(string name)
+        public override FileStream GetFile(string name)
         {
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
@@ -447,7 +447,7 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetManifestResourceNames();
         }
 
-        public override FileStream? GetFile(string name)
+        public override FileStream GetFile(string name)
         {
             return InternalAssembly.GetFile(name);
         }

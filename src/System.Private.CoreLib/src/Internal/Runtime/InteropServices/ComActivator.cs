@@ -371,7 +371,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             {
                 BasicClassFactory.ValidateInterfaceRequest(_classType, ref riid, pUnkOuter);
 
-                ppvObject = _licenseProxy.AllocateAndValidateLicense(_classType, key, isDesignTime)!;
+                ppvObject = _licenseProxy.AllocateAndValidateLicense(_classType, key, isDesignTime);
                 if (pUnkOuter != null)
                 {
                     ppvObject = BasicClassFactory.CreateAggregatedObject(pUnkOuter, ppvObject);
@@ -471,7 +471,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             // LicenseContext, Type, out License, out string
             object licContext = Activator.CreateInstance(_licInfoHelper)!;
             var parameters = new object?[] { licContext, type, /* out */ null, /* out */ null };
-            bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!; // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+            bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!;
             if (!isValid)
             {
                 return;
@@ -485,7 +485,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             }
 
             parameters = new object?[] { type.AssemblyQualifiedName };
-            runtimeKeyAvail = (bool)_licInfoHelperContains.Invoke(licContext, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!; // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+            runtimeKeyAvail = (bool)_licInfoHelperContains.Invoke(licContext, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!;
         }
 
         // The CLR invokes this whenever a COM client invokes
@@ -502,7 +502,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             // Types are as follows:
             // LicenseContext, Type, out License, out string
             var parameters = new object?[] { /* use global LicenseContext */ null, type, /* out */ null, /* out */ null };
-            bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!; // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+            bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!;
             if (!isValid)
             {
                 throw new COMException(); //E_FAIL
@@ -533,7 +533,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         // If we are being entered because of a call to ICF::CreateInstanceLic(),
         // "isDesignTime" will be "false" and "key" will point to a non-null
         // license key.
-        public object? AllocateAndValidateLicense(Type type, string? key, bool isDesignTime)
+        public object AllocateAndValidateLicense(Type type, string? key, bool isDesignTime)
         {
             object?[] parameters;
             object? licContext;
@@ -551,7 +551,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             try
             {
                 parameters = new object?[] { type, licContext };
-                return _createWithContext.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
+                return _createWithContext.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!;
             }
             catch (Exception exception) when (exception.GetType() == s_licenseExceptionType)
             {

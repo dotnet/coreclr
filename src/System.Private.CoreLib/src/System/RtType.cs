@@ -256,7 +256,7 @@ namespace System
                             break;
                     }
 
-                    Insert(ref list, null!, MemberListType.HandleToInfo);
+                    Insert(ref list, null, MemberListType.HandleToInfo);
 
                     return (MethodBase)(object)list[0];
                 }
@@ -278,7 +278,7 @@ namespace System
                         new RtFieldInfo(field, ReflectedType, m_runtimeTypeCache, bindingFlags)
                     };
 
-                    Insert(ref list, null!, MemberListType.HandleToInfo);
+                    Insert(ref list, null, MemberListType.HandleToInfo);
 
                     return (FieldInfo)(object)list[0];
                 }
@@ -317,7 +317,7 @@ namespace System
                         }
                     }
 
-                    Insert(ref list, name!, listType);
+                    Insert(ref list, name, listType);
 
                     return list;
                 }
@@ -364,7 +364,7 @@ namespace System
                 // May replace the list with a new one if certain cache
                 // lookups succeed.  Also, may modify the contents of the list
                 // after merging these new data structures with cached ones.
-                internal void Insert(ref T[] list, string name, MemberListType listType)
+                internal void Insert(ref T[] list, string? name, MemberListType listType)
                 {
                     bool lockTaken = false;
 
@@ -379,11 +379,11 @@ namespace System
                                 {
                                     // Ensure we always return a list that has 
                                     // been merged with the global list.
-                                    T[]? cachedList = m_csMemberInfos[name];
+                                    T[]? cachedList = m_csMemberInfos[name!];
                                     if (cachedList == null)
                                     {
                                         MergeWithGlobalList(list);
-                                        m_csMemberInfos[name] = list;
+                                        m_csMemberInfos[name!] = list;
                                     }
                                     else
                                         list = cachedList;
@@ -394,11 +394,11 @@ namespace System
                                 {
                                     // Ensure we always return a list that has 
                                     // been merged with the global list.
-                                    T[]? cachedList = m_cisMemberInfos[name];
+                                    T[]? cachedList = m_cisMemberInfos[name!];
                                     if (cachedList == null)
                                     {
                                         MergeWithGlobalList(list);
-                                        m_cisMemberInfos[name] = list;
+                                        m_cisMemberInfos[name!] = list;
                                     }
                                     else
                                         list = cachedList;
@@ -1435,7 +1435,7 @@ namespace System
             #endregion
 
             #region Private Members
-            private string ConstructName(ref string? name, TypeNameFormatFlags formatFlags)
+            private string ConstructName(ref string? name, TypeNameFormatFlags formatFlags) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             {
                 if (name == null)
                 {

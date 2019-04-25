@@ -401,28 +401,28 @@ namespace System.Reflection.Emit
                 switch (Type.GetTypeCode(Enum.GetUnderlyingType(type)))
                 {
                     case TypeCode.SByte:
-                        writer.Write((sbyte)value!); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((sbyte)value!);
                         break;
                     case TypeCode.Byte:
-                        writer.Write((byte)value!);  // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((byte)value!);
                         break;
                     case TypeCode.Int16:
-                        writer.Write((short)value!);  // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((short)value!);
                         break;
                     case TypeCode.UInt16:
-                        writer.Write((ushort)value!); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((ushort)value!);
                         break;
                     case TypeCode.Int32:
-                        writer.Write((int)value!);    // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((int)value!);
                         break;
                     case TypeCode.UInt32:
-                        writer.Write((uint)value!);   // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((uint)value!);
                         break;
                     case TypeCode.Int64:
-                        writer.Write((long)value!);   // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((long)value!);
                         break;
                     case TypeCode.UInt64:
-                        writer.Write((ulong)value!);  // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((ulong)value!);
                         break;
                     default:
                         Debug.Fail("Invalid enum base type");
@@ -466,40 +466,40 @@ namespace System.Reflection.Emit
                 switch (Type.GetTypeCode(type))
                 {
                     case TypeCode.SByte:
-                        writer.Write((sbyte)value!); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((sbyte)value!);
                         break;
                     case TypeCode.Byte:
-                        writer.Write((byte)value!);  // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((byte)value!);
                         break;
                     case TypeCode.Char:
-                        writer.Write(Convert.ToUInt16((char)value!)); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write(Convert.ToUInt16((char)value!));
                         break;
                     case TypeCode.Boolean:
-                        writer.Write((byte)((bool)value! ? 1 : 0)); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((byte)((bool)value! ? 1 : 0));
                         break;
                     case TypeCode.Int16:
-                        writer.Write((short)value!); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((short)value!);
                         break;
                     case TypeCode.UInt16:
-                        writer.Write((ushort)value!); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((ushort)value!);
                         break;
                     case TypeCode.Int32:
-                        writer.Write((int)value!); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((int)value!);
                         break;
                     case TypeCode.UInt32:
-                        writer.Write((uint)value!); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((uint)value!);
                         break;
                     case TypeCode.Int64:
-                        writer.Write((long)value!);  // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((long)value!);
                         break;
                     case TypeCode.UInt64:
-                        writer.Write((ulong)value!); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((ulong)value!);
                         break;
                     case TypeCode.Single:
-                        writer.Write((float)value!); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976
+                        writer.Write((float)value!);
                         break;
                     case TypeCode.Double:
-                        writer.Write((double)value!); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34976 
+                        writer.Write((double)value!);
                         break;
                     default:
                         Debug.Fail("Invalid primitive type");

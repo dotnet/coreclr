@@ -3107,7 +3107,7 @@ namespace System.Diagnostics.Tracing
 
                         foreach (CustomAttributeNamedArgument namedArgument in data.NamedArguments)
                         {
-                            PropertyInfo p = t.GetProperty(namedArgument.MemberInfo.Name, BindingFlags.Public | BindingFlags.Instance)!;
+                            PropertyInfo p = t.GetProperty(namedArgument.MemberInfo.Name, BindingFlags.Public | BindingFlags.Instance)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                             object value = namedArgument.TypedValue.Value!;
 
                             if (p.PropertyType.IsEnum)
