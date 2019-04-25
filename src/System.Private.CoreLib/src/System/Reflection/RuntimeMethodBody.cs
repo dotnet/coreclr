@@ -15,7 +15,7 @@ namespace System.Reflection
         private byte[] _IL = null!;
         private ExceptionHandlingClause[] _exceptionHandlingClauses = null!;
         private LocalVariableInfo[] _localVariables = null!;
-        internal MethodBase? _methodBase;
+        internal MethodBase _methodBase = null!;
         private int _localSignatureMetadataToken;
         private int _maxStackSize;
         private bool _initLocals;
