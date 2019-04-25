@@ -1,0 +1,109 @@
+parameters:
+  osName: ''           # required -- windows | linux | macos
+  osVersion: ''        # required -- OS version
+  kind: ''             # required -- benchmark kind. As of today, only "micro" and "mlnet" benchmarks are supported, we plan to add "scenarios" soon
+  architecture: ''     # required -- Architecture. Allowed values: x64, x86, arm32, arm64
+  pool: ''             # required -- name of the Helix pool
+  queue: ''            # required -- name of the Helix queue
+  container: ''        # optional -- id of the container
+  csproj: ''           # required -- relative path to csproj with benchmarks
+  frameworks: []       # required -- list of frameworks. Allowed values: net461, netcoreapp2.0, netcoreapp2.1, netcoreapp2.2, netcoreapp3.0, corert
+  categories: []       # required -- list of categories
+
+jobs:
+- template: ../common/templates/jobs/jobs.yml
+  parameters:
+    enableTelemetry: false
+    enablePublishBuildArtifacts: true
+    helixRepo: dotnet/performance
+    jobs:
+      - job: '${{ parameters.osName }}_${{ parameters.osVersion }}_${{ parameters.architecture }}_${{ parameters.kind }}'
+        displayName: '${{ parameters.osName }} ${{ parameters.osVersion }} ${{ parameters.architecture }} ${{ parameters.kind }}'
+        timeoutInMinutes: 320
+        variables:
+        - ${{ if eq(variables['System.TeamProject'], 'public') }}:
+          - name: BenchViewRunType
+            value: private
+          - name: BenchviewCommitName
+            value: '.NET Performance - $(BenchViewRunType) - $(Build.SourceBranchName) $(System.PullRequest.PullRequestNumber)'
+          # for public runs we want to generate data (--generate-benchview-data ) but don't upload it (missing --upload-to-benchview-container)
+          - name: BenchViewArguments
+            value: '--benchview-submission-name "$(BenchviewCommitName)" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchViewRunType)'
+          - name: Creator
+            value: dotnet-performance
+          # for public runs we want to run the benchmarks exactly once, no warmup, no pilot, no overhead
+          - name: BenchmarkDotNetArguments
+            value: '--allCategories $(_Category) --iterationCount 1 --warmupCount 0 --invocationCount 1 --unrollFactor 1 --strategy ColdStart --stopOnFirstError true'
+          - name: HelixApiAccessToken
+            value: ''
+          - name: HelixPreCommand
+            value: ''
+        - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+          - name: BenchViewRunType
+            value: rolling
+          - name: BenchviewCommitName
+            value: '.NET Performance - $(BenchViewRunType) - $(Build.SourceBranchName) $(Build.SourceVersion)'
+          # for private runs we want to generate data (--generate-benchview-data ) and upload it (--upload-to-benchview-container specifies where)
+          - name: BenchViewArguments
+            value: '--benchview-submission-name "$(BenchviewCommitName)" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchViewRunType) --upload-to-benchview-container $(_Category)'
+          # for private runs we don't provide any custom BDN arguments (the ones from Program.Main are used)
+          - name: BenchmarkDotNetArguments
+            value: '--allCategories $(_Category)'
+          - name: Creator
+            value: ''
+          - ${{ if eq(parameters.osName, 'windows') }}:
+            - name: HelixPreCommand
+              value: 'set "BV_UPLOAD_SAS_TOKEN=$(BenchViewUploadToken)"'
+          - ${{ if ne(parameters.osName, 'windows') }}:
+            - name: HelixPreCommand
+              value: 'export BV_UPLOAD_SAS_TOKEN="$(BenchViewUploadTokenLinux)"'
+          - group: DotNet-HelixApi-Access
+          - group: dotnet-benchview
+        workspace:
+          clean: all
+        pool:
+          name: ${{ parameters.pool }}
+        container: ${{ parameters.container }}
+        strategy:
+          matrix:
+            ${{ each framework in parameters.frameworks }}:
+              ${{ each category in parameters.categories }}:
+                ${{ category }}_${{ framework }}:
+                  _Category: ${{ category }}
+                  _Framework: ${{ framework }}
+                  _CompilationMode: NoTiering
+                  _BuildConfig: ${{ parameters.architecture }}_${{ category }}_$(_Framework)_${{ parameters.kind }} # needs to be unique to avoid logs overwriting in mc.dot.net
+                  ${{ if startsWith(framework, 'netcoreapp') }}:
+                    _BenchViewArguments: $(BenchViewArguments)
+                  ${{ if not(startsWith(framework, 'netcoreapp')) }}: # we don't want to upload non-.NET Core results to BenchView
+                    _BenchViewArguments: ''
+                ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}: # to reduce the number of CI legs for every PR
+                  ${{ if and(startsWith(framework, 'netcoreapp'), ne(framework, 'netcoreapp2.0')) }}: # Tiered JIT was introduced in .NET Core 2.1
+                    ${{ category }}_${{ framework }}_tiered:
+                      _Category: ${{ category }}
+                      _Framework: ${{ framework }}
+                      _CompilationMode: Tiered
+                      _BuildConfig: ${{ parameters.architecture }}_${{ category }}_$(_Framework)_$(_CompilationMode)_${{ parameters.kind }}
+                      _BenchViewArguments: $(BenchViewArguments)
+        steps:
+        - checkout: self
+          clean: true
+        - ${{ if eq(parameters.osName, 'windows') }}:
+          - script: (robocopy $(Build.SourcesDirectory) $(Build.SourcesDirectory)\notLocked /E /XD $(Build.SourcesDirectory)\notLocked $(Build.SourcesDirectory)\artifacts $(Build.SourcesDirectory)\.git) ^& IF %ERRORLEVEL% LEQ 1 exit 0
+            displayName: Workaround to avoid locked file # https://github.com/dotnet/arcade/issues/2125
+        - template: /eng/common/templates/steps/send-to-helix.yml
+          parameters:
+            HelixSource: 'pr/dotnet/performance/$(Build.SourceBranch)' # sources must start with pr/, official/, prodcon/, or agent/
+            HelixType: 'test/performance_$(_BuildConfig)/'
+            HelixAccessToken: $(HelixApiAccessToken)
+            HelixTargetQueues: ${{ parameters.queue }}
+            HelixPreCommands: $(HelixPreCommand)
+            Creator: $(Creator)
+            WorkItemTimeout: 4:00 # 4 hours
+            ${{ if eq(parameters.osName, 'windows') }}:
+              WorkItemDirectory: '$(Build.SourcesDirectory)\docs' # WorkItemDirectory can not be empty, so we send it some docs to keep it happy
+              WorkItemCommand: 'py -3 %HELIX_CORRELATION_PAYLOAD%\scripts\benchmarks_ci.py --csproj %HELIX_CORRELATION_PAYLOAD%\${{ parameters.csproj }} --incremental no --architecture ${{ parameters.architecture }} -f $(_Framework) --bdn-arguments="$(BenchmarkDotNetArguments)" $(_BenchViewArguments) --dotnet-compilation-mode $(_CompilationMode)'
+              CorrelationPayloadDirectory: '$(Build.SourcesDirectory)\notLocked' # it gets checked out to a folder with shorter path than WorkItemDirectory so we can avoid file name too long exceptions
+            ${{ if ne(parameters.osName, 'windows') }}:
+              WorkItemDirectory: '$(Build.SourcesDirectory)'
+              WorkItemCommand: 'python3 scripts/benchmarks_ci.py --csproj ${{ parameters.csproj }} --incremental no --architecture ${{ parameters.architecture }} -f $(_Framework) --bdn-arguments="$(BenchmarkDotNetArguments)" $(_BenchViewArguments) --dotnet-compilation-mode $(_CompilationMode)'
