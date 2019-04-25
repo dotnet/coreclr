@@ -1,0 +1,85 @@
+parameters:
+  steps: []                     # optional -- any additional steps that need to happen before pulling down the performance repo and sending the performance benchmarks to helix (ie building your repo)
+  jobName: ''                   # required -- job name
+  pool: ''                      # required -- name of the Build pool
+  container: ''                 # required -- name of the container
+  extraSetupArguments: ''       # optional -- extra arguments to pass to the setup script
+  continueOnError: 'false'           # optional -- determines whether to continue the build if the step errors
+  dependsOn: ''                 # optional -- dependencies of the job
+
+jobs:
+- template: ../jobs/jobs.yml
+  parameters:
+    dependsOn: ${{ parameters.dependsOn }}
+    enableTelemetry: false
+    enablePublishBuildArtifacts: true
+    continueOnError: ${{ parameters.continueOnError }}
+    jobs:
+      - job: '${{ parameters.jobName }}'
+        displayName: '${{ parameters.jobName }}'
+        timeoutInMinutes: 320
+        variables:
+        - name: _Framework
+          value: netcoreapp3.0
+        - name: _BuildConfig
+          value: ${{ parameters.jobName }}_$(_Framework)
+        - ${{ if eq(variables['System.TeamProject'], 'public') }}:
+          - name: Creator
+            value: $(Build.DefinitionName)
+          # for public runs we want to run the benchmarks exactly once, no warmup, no pilot, no overhead
+          - name: HelixSourcePrefix
+            value: "pr"
+          - name: IsPr
+            value: -Pr
+          - name: HelixApiAccessToken
+            value: ''
+          - ${{ if eq(parameters.osName, 'windows') }}:
+            - name: HelixPreCommand
+              value: ''
+          - ${{ if ne(parameters.osName, 'windows') }}:
+            - name: HelixPreCommand
+              value: ''
+        - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+          - ${{ if eq(parameters.osName, 'windows') }}:
+            - name: HelixPreCommand
+              value: 'set "PERFLAB_UPLOAD_TOKEN=$(PerfCommandUploadToken)"'
+          - ${{ if ne(parameters.osName, 'windows') }}:
+            - name: HelixPreCommand
+              value: 'export PERFLAB_UPLOAD_TOKEN="$(PerfCommandUploadTokenLinux)"'
+          - name: HelixSourcePrefix
+            value: 'official'
+          - group: DotNet-HelixApi-Access
+          - group: dotnet-benchview
+        workspace:
+          clean: all
+        pool:
+          name: ${{ parameters.pool }}
+        container: ${{ parameters.container }}
+        steps:
+        - checkout: self
+          clean: true
+        # Run all of the steps to setup repo
+        - ${{ each step in parameters.steps }}:
+          - ${{ step }}
+        - powershell: $(Build.SourcesDirectory)\eng\common\performance\performance-setup.ps1 $(IsPr) ${{ parameters.extraSetupParameters }}
+          displayName: Performance Setup (Windows)
+          condition: and(succeeded(), eq(variables['Agent.Os'], 'Windows_NT'))
+          continueOnError: ${{ parameters.continueOnError }}
+        - script: $(Build.SourcesDirectory)/eng/common/performance/performance-setup.sh -$(IsPr) ${{ parameters.extraSetupParameters }}
+          displayName: Performance Setup (Unix)
+          condition: and(succeeded(), ne(variables['Agent.Os'], 'Windows_NT'))
+          continueOnError: ${{ parameters.continueOnError }}
+        - script: $(Python) $(PerformanceDirectory)/scripts/ci_setup.py $(SetupArguments)
+          displayName: Run ci setup script
+        # Run perf testing in helix
+        - template: /eng/common/templates/steps/perf-send-to-helix.yml
+          parameters:
+            HelixSource: '$(HelixSourcePrefix)/dotnet/performance/$(Build.SourceBranch)' # sources must start with pr/, official/, prodcon/, or agent/
+            HelixType: 'test/performance_$(_BuildConfig)/'
+            HelixAccessToken: $(HelixApiAccessToken)
+            HelixTargetQueues: $(Queue)
+            HelixPreCommands: $(HelixPreCommand)
+            Creator: $(Creator)
+            WorkItemTimeout: 4:00 # 4 hours
+            WorkItemDirectory: '$(WorkItemDirectory)' # WorkItemDirectory can not be empty, so we send it some docs to keep it happy
+            CorrelationPayloadDirectory: '$(PayloadDirectory)' # it gets checked out to a folder with shorter path than WorkItemDirectory so we can avoid file name too long exceptions
