@@ -197,7 +197,7 @@ namespace System.Diagnostics.Tracing
         {
             get
             {
-                string? stringValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
+                string? stringValue = CompatibilitySwitch.GetValueInternal("EventPipeCircularMB");
                 if ((stringValue == null) || (!uint.TryParse(stringValue, out uint value)))
                 {
                     value = DefaultCircularBufferMB;
