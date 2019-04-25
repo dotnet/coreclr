@@ -48,7 +48,7 @@ jobs:
     - value: '--benchview-submission-name "test-russellk" --benchview-machine-pool perfsnake --benchview-run-time Private --upload-to-benchview-container coreclr'
 
     - name: commonArguments
-    - value: '--incremental no --architecture $archType -f netcoreapp3.0 --bdn-arguments="--allCategories CoreClr" --dotnet-compilation-mode Tiered --generate-benchview-data $(benchviewArguments)'
+    - value: '--filter "Burgers*" --incremental no --architecture $archType -f netcoreapp3.0 --bdn-arguments="--allCategories CoreClr" --dotnet-compilation-mode Tiered --generate-benchview-data $(benchviewArguments)'
 
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
