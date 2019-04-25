@@ -161,14 +161,10 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
     {
         GCX_COOP();
 
-        ENTER_DOMAIN_PTR(pCompilationDomain,ADV_COMPILATION)
-        {
-            pCompilationDomain->CreateFusionContext();
+        pCompilationDomain->CreateFusionContext();
 
-            pCompilationDomain->SetFriendlyName(W("Compilation Domain"));
-            SystemDomain::System()->LoadDomain(pCompilationDomain);
-        }
-        END_DOMAIN_TRANSITION;
+        pCompilationDomain->SetFriendlyName(W("Compilation Domain"));
+        SystemDomain::System()->LoadDomain(pCompilationDomain);
     }
 
     COOPERATIVE_TRANSITION_END();
@@ -198,49 +194,6 @@ HRESULT CEECompileInfo::DestroyDomain(ICorCompilationDomain *pDomain)
 #endif
 
     return S_OK;
-}
-
-HRESULT MakeCrossDomainCallbackWorker(
-    CROSS_DOMAIN_CALLBACK   pfnCallback,
-    LPVOID                  pArgs)
-{
-    STATIC_CONTRACT_MODE_COOPERATIVE;
-
-    return pfnCallback(pArgs);
-}
-
-HRESULT CEECompileInfo::MakeCrossDomainCallback(
-    ICorCompilationDomain*  pDomain,
-    CROSS_DOMAIN_CALLBACK   pfnCallback,
-    LPVOID                  pArgs)
-{
-    STANDARD_VM_CONTRACT;
-
-    HRESULT hrRetVal = E_UNEXPECTED;
-
-    COOPERATIVE_TRANSITION_BEGIN();
-
-    {
-        // Switch to cooperative mode to switch appdomains
-        GCX_COOP();
-
-        ENTER_DOMAIN_PTR((CompilationDomain*)pDomain,ADV_COMPILATION)
-        {
-            //
-            // Switch to preemptive mode on before calling back into
-            // the zapper
-            //
-            
-            GCX_PREEMP();
-            
-            hrRetVal = MakeCrossDomainCallbackWorker(pfnCallback, pArgs);
-        }
-        END_DOMAIN_TRANSITION;
-    }
-
-    COOPERATIVE_TRANSITION_END();
-
-    return hrRetVal;
 }
 
 #ifdef TRITON_STRESS_NEED_IMPL
@@ -3050,7 +3003,7 @@ HRESULT NGenModulePdbWriter::WritePDBData()
 	// Currently DiaSymReader does not work properly generating NGEN PDBS unless 
 	// the DLL whose PDB is being generated ends in .ni.*.   Unfortunately, readyToRun
 	// images do not follow this convention and end up producing bad PDBS.  To fix
-	// this (without changing diasymreader.dll which ships indepdendently of .Net Core)
+	// this (without changing diasymreader.dll which ships indepdendently of .NET Core)
 	// we copy the file to somethign with this convention before generating the PDB
 	// and delete it when we are done.  
 	SString dllPath = pLoadedLayout->GetPath();

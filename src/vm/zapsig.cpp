@@ -11,7 +11,6 @@
 
 
 #include "common.h"
-#ifdef FEATURE_PREJIT
 #include "zapsig.h"
 #include "typedesc.h"
 #include "compile.h"
@@ -566,6 +565,7 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
     RETURN(TRUE);
 }
 
+#ifdef FEATURE_PREJIT
 /*static*/
 BOOL ZapSig::CompareFixupToTypeHandle(Module * pModule, TADDR fixup, TypeHandle handle)
 {
@@ -588,6 +588,7 @@ BOOL ZapSig::CompareFixupToTypeHandle(Module * pModule, TADDR fixup, TypeHandle 
     ZapSig::Context zapSigContext(pDefiningModule, pModule);
     return ZapSig::CompareSignatureToTypeHandle(pSig, pDefiningModule, handle, &zapSigContext);
 }
+#endif // FEATURE_PREJIT
 
 /*static*/
 BOOL ZapSig::CompareTypeHandleFieldToTypeHandle(TypeHandle *pTypeHnd, TypeHandle typeHnd2)
@@ -607,6 +608,7 @@ BOOL ZapSig::CompareTypeHandleFieldToTypeHandle(TypeHandle *pTypeHnd, TypeHandle
     // Ensure that the compiler won't fetch the value twice
     SIZE_T fixup = VolatileLoadWithoutBarrier((SIZE_T *)pTypeHnd);
 
+#ifdef FEATURE_PREJIT
     if (CORCOMPILE_IS_POINTER_TAGGED(fixup))
     {
         Module *pContainingModule = ExecutionManager::FindZapModule(dac_cast<TADDR>(pTypeHnd));
@@ -624,6 +626,7 @@ BOOL ZapSig::CompareTypeHandleFieldToTypeHandle(TypeHandle *pTypeHnd, TypeHandle
         }
     }
     else
+#endif // FEATURE_PREJIT
         return TypeHandle::FromTAddr(fixup) == typeHnd2;
 }
 
@@ -649,7 +652,7 @@ Module *ZapSig::DecodeModuleFromIndex(Module *fromModule,
     {
         if (index < fromModule->GetAssemblyRefMax())
         {
-            pAssembly = fromModule->LoadAssembly(GetAppDomain(), RidToToken(index, mdtAssemblyRef))->GetAssembly();
+            pAssembly = fromModule->LoadAssembly(RidToToken(index, mdtAssemblyRef))->GetAssembly();
         }
         else
         {
@@ -1132,14 +1135,21 @@ BOOL ZapSig::EncodeMethod(
     // FUTURE: This condition should likely be changed or reevaluated once support for smaller version bubbles is implemented.
     if (IsReadyToRunCompilation() && (!IsLargeVersionBubbleEnabled() || !pMethod->GetModule()->IsInCurrentVersionBubble()))
     {
-        if (pResolvedToken == NULL)
+        if (pMethod->IsNDirect())
         {
-            _ASSERTE(!"CORINFO_RESOLVED_TOKEN required to encode method!");
-            ThrowHR(E_FAIL);
+            ownerType = pMethod->GetMethodTable_NoLogging();
         }
+        else
+        {
+            if (pResolvedToken == NULL)
+            {
+                _ASSERTE(!"CORINFO_RESOLVED_TOKEN required to encode method!");
+                ThrowHR(E_FAIL);
+            }
 
-        // Encode the referencing method type
-        ownerType = TypeHandle(pResolvedToken->hClass);
+            // Encode the referencing method type
+            ownerType = TypeHandle(pResolvedToken->hClass);
+        }
     }
     else
 #endif
@@ -1198,7 +1208,9 @@ BOOL ZapSig::EncodeMethod(
             methodFlags |= ENCODE_METHOD_SIG_Constrained;
         }
 
-        Module * pReferencingModule = (Module *)pResolvedToken->tokenScope;
+        Module * pReferencingModule = pMethod->IsNDirect() ?
+            pMethod->GetModule() :
+            (Module *)pResolvedToken->tokenScope;
 
         if (!pReferencingModule->IsInCurrentVersionBubble())
         {
@@ -1208,7 +1220,9 @@ BOOL ZapSig::EncodeMethod(
             ThrowHR(E_FAIL);
         }
 
-        methodToken = pResolvedToken->token;
+        methodToken = pMethod->IsNDirect() ?
+            pMethod->GetMemberDef_NoLogging() :
+            pResolvedToken->token;
 
         if (TypeFromToken(methodToken) == mdtMethodSpec)
         {
@@ -1218,7 +1232,7 @@ BOOL ZapSig::EncodeMethod(
         switch (TypeFromToken(methodToken))
         {
         case mdtMethodDef:
-            _ASSERTE(pResolvedToken->pTypeSpec == NULL);
+            _ASSERTE(pMethod->IsNDirect() || pResolvedToken->pTypeSpec == NULL);
             if (!ownerType.HasInstantiation() || ownerType.IsTypicalTypeDefinition())
             {
                 methodFlags &= ~ENCODE_METHOD_SIG_OwnerType;
@@ -1226,6 +1240,7 @@ BOOL ZapSig::EncodeMethod(
             break;
 
         case mdtMemberRef:
+            _ASSERTE(pResolvedToken != NULL);
             methodFlags |= ENCODE_METHOD_SIG_MemberRefToken;
 
             if (pResolvedToken->pTypeSpec == NULL)
@@ -1520,5 +1535,3 @@ void ZapSig::EncodeField(
 }
 
 #endif // DACCESS_COMPILE
-
-#endif // FEATURE_PREJIT

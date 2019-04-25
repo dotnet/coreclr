@@ -1331,10 +1331,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 // Allocate free memory with specific alignment                                   
 //
 LPVOID ClrVirtualAllocAligned(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect, SIZE_T alignment);
-                                   
-//******************************************************************************
-// Returns the number of processors that a process has been configured to run on
-//******************************************************************************
+
 class NumaNodeInfo 
 {
 private:
@@ -1350,9 +1347,15 @@ public: 	// functions
 
     static LPVOID VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T size,
                                      DWORD allocType, DWORD prot, DWORD node);
+#ifndef FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
+#else // !FEATURE_PAL
+    static BOOL GetNumaProcessorNodeEx(USHORT proc_no, PUSHORT node_no);
+#endif // !FEATURE_PAL
 #endif
 };
+
+#ifndef FEATURE_PAL
 
 struct CPU_Group_Info 
 {
@@ -1402,6 +1405,7 @@ public:
     static BOOL GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime);
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
     static void ClearCPUGroupAffinity(GROUP_AFFINITY *gf);
+    static BOOL GetCPUGroupRange(WORD group_number, WORD* group_begin, WORD* group_size);
 #endif
 
 public:
@@ -1412,8 +1416,14 @@ public:
     }
 };
 
-int GetCurrentProcessCpuCount();
 DWORD_PTR GetCurrentProcessCpuMask();
+
+#endif // !FEATURE_PAL
+
+//******************************************************************************
+// Returns the number of processors that a process has been configured to run on
+//******************************************************************************
+int GetCurrentProcessCpuCount();
 
 uint32_t GetOsPageSize();
 
@@ -4133,12 +4143,6 @@ inline HRESULT FakeCoCreateInstance(REFCLSID   rclsid,
     return FakeCoCreateInstanceEx(rclsid, NULL, riid, ppv, NULL);
 };
 
-HRESULT FakeCoCallDllGetClassObject(REFCLSID       rclsid,
-                               LPCWSTR        wszDllPath,
-                               REFIID riid,
-                               void **        ppv,
-                               HMODULE *      phmodDll);
-
 //*****************************************************************************
 // Gets the directory based on the location of the module. This routine
 // is called at COR setup time. Set is called during EEStartup and by the
@@ -5212,12 +5216,7 @@ namespace Reg
 #ifdef FEATURE_COMINTEROP
 namespace Com
 {
-    HRESULT FindServerUsingCLSID(REFCLSID rclsid, SString & ssServerName);
-    HRESULT FindServerUsingCLSID(REFCLSID rclsid, __deref_out __deref_out_z LPWSTR* pwszServerName);
     HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, SString & ssInprocServer32Name);
-    HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, __deref_out __deref_out_z LPWSTR* pwszInprocServer32Name);
-    BOOL IsMscoreeInprocServer32(const SString & ssInprocServer32Name);
-    BOOL CLSIDHasMscoreeAsInprocServer32(REFCLSID rclsid);
 }
 #endif // FEATURE_COMINTEROP
 

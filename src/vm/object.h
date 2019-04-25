@@ -35,7 +35,10 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref);
  *  |                        sync block index, which is at a negative offset
  *  |
  *  +-- code:StringObject       - String objects are specialized objects for string
- *  |                        storage/retrieval for higher performance
+ *  |                        storage/retrieval for higher performance (UCS-2 / UTF-16 data)
+ *  |
+ *  +-- code:Utf8StringObject       - String objects are specialized objects for string
+ *  |                        storage/retrieval for higher performance (UTF-8 data)
  *  |
  *  +-- BaseObjectWithCachedData - Object Plus one object field for caching.
  *  |       |
@@ -261,36 +264,6 @@ class Object
         WRAPPER_NO_CONTRACT;
         return GetHeader()->GetSyncBlockIndex();
     }
-
-    ADIndex GetAppDomainIndex();
-
-    // Get app domain of object, or NULL if it is agile
-    AppDomain *GetAppDomain();
-
-#ifndef DACCESS_COMPILE
-    // Set app domain of object to current domain.
-    void SetAppDomain() { WRAPPER_NO_CONTRACT; SetAppDomain(::GetAppDomain()); }
-    BOOL SetAppDomainNoThrow();
-    
-#endif
-
-    // Set app domain of object to given domain - it can only be set once
-    void SetAppDomain(AppDomain *pDomain);
-
-#ifdef _DEBUG
-#ifndef DACCESS_COMPILE
-    // For SO-tolerance contract violation purposes, define these DEBUG_ versions to identify
-    // the codepaths to SetAppDomain that are called only from DEBUG code.
-    void DEBUG_SetAppDomain()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        DEBUG_SetAppDomain(::GetAppDomain());
-    }
-#endif //!DACCESS_COMPILE
-
-    void DEBUG_SetAppDomain(AppDomain *pDomain);
-#endif //_DEBUG
 
     // DO NOT ADD ANY ASSERTS TO THIS METHOD.
     // DO NOT USE THIS METHOD.
@@ -524,14 +497,7 @@ class Object
 
 /*
  * Object ref setting routines.  You must use these to do 
- * proper write barrier support, as well as app domain 
- * leak checking.
- *
- * Note that the AppDomain parameter is the app domain affinity
- * of the object containing the field or value class.  It should
- * be NULL if the containing object is app domain agile. Note that
- * you typically get this value by calling obj->GetAppDomain() on 
- * the containing object.
+ * proper write barrier support.
  */
 
 // SetObjectReference sets an OBJECTREF field
@@ -563,9 +529,9 @@ inline void InitValueClass(void *dest, MethodTable *pMT)
 // Initialize value class argument
 void InitValueClassArg(ArgDestination *argDest, MethodTable *pMT);
 
-#define SetObjectReference(_d,_r,_a)        SetObjectReferenceUnchecked(_d, _r)
-#define CopyValueClass(_d,_s,_m,_a)         CopyValueClassUnchecked(_d,_s,_m)       
-#define CopyValueClassArg(_d,_s,_m,_a,_o)   CopyValueClassArgUnchecked(_d,_s,_m,_o)       
+#define SetObjectReference(_d,_r)        SetObjectReferenceUnchecked(_d, _r)
+#define CopyValueClass(_d,_s,_m)         CopyValueClassUnchecked(_d,_s,_m)       
+#define CopyValueClassArg(_d,_s,_m,_o)   CopyValueClassArgUnchecked(_d,_s,_m,_o)       
 
 #include <pshpack4.h>
 
@@ -587,7 +553,7 @@ class ArrayBase : public Object
     friend class GCHeap;
     friend class CObjectHeader;
     friend class Object;
-    friend OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap DEBUG_ARG(BOOL bDontSetAppDomain)); 
+    friend OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap); 
     friend OBJECTREF FastAllocatePrimitiveArray(MethodTable* arrayType, DWORD cElements, BOOL bAllocateInLargeHeap);
     friend FCDECL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
     friend FCDECL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
@@ -789,7 +755,7 @@ public:
         }
         CONTRACTL_END;
         _ASSERTE(i < GetNumComponents());
-        SetObjectReference(m_Array + i, ref, GetAppDomain());
+        SetObjectReference(m_Array + i, ref);
     }
 
     void ClearAt(SIZE_T i)
@@ -870,6 +836,9 @@ typedef DPTR(UPTRArray) PTR_UPTRArray;
 typedef DPTR(PTRArray)  PTR_PTRArray;
 
 class StringObject;
+#ifdef FEATURE_UTF8STRING
+class Utf8StringObject;
+#endif // FEATURE_UTF8STRING
 
 #ifdef USE_CHECKED_OBJECTREFS
 typedef REF<ArrayBase>  BASEARRAYREF;
@@ -888,6 +857,9 @@ typedef REF<UPTRArray>  UPTRARRAYREF;
 typedef REF<CHARArray>  CHARARRAYREF;
 typedef REF<PTRArray>   PTRARRAYREF;  // Warning: Use PtrArray only for single dimensional arrays, not multidim arrays.
 typedef REF<StringObject> STRINGREF;
+#ifdef FEATURE_UTF8STRING
+typedef REF<Utf8StringObject> UTF8STRINGREF;
+#endif // FEATURE_UTF8STRING
 
 #else   // USE_CHECKED_OBJECTREFS
 
@@ -907,6 +879,9 @@ typedef PTR_UPTRArray   UPTRARRAYREF;
 typedef PTR_CHARArray   CHARARRAYREF;
 typedef PTR_PTRArray    PTRARRAYREF;  // Warning: Use PtrArray only for single dimensional arrays, not multidim arrays.
 typedef PTR_StringObject STRINGREF;
+#ifdef FEATURE_UTF8STRING
+typedef PTR_Utf8StringObject UTF8STRINGREF;
+#endif // FEATURE_UTF8STRING
 
 #endif // USE_CHECKED_OBJECTREFS
 
@@ -1181,7 +1156,7 @@ public:
         CONTRACTL_END;
 
         INDEBUG(TypeCheck());
-        SetObjectReference(&m_keepalive, keepalive, GetAppDomain());
+        SetObjectReference(&m_keepalive, keepalive);
     }
 
     TypeHandle GetType() {
@@ -1198,6 +1173,56 @@ public:
     }
 
 };
+
+#ifdef FEATURE_UTF8STRING
+class Utf8StringObject : public Object
+{
+#ifdef DACCESS_COMPILE
+    friend class ClrDataAccess;
+#endif
+
+private:
+    DWORD   m_StringLength;
+    BYTE    m_FirstChar;
+
+public:
+    VOID    SetLength(DWORD len) { LIMITED_METHOD_CONTRACT; _ASSERTE(len >= 0); m_StringLength = len; }
+
+protected:
+    Utf8StringObject() { LIMITED_METHOD_CONTRACT; }
+    ~Utf8StringObject() { LIMITED_METHOD_CONTRACT; }
+
+public:
+
+    /*=================RefInterpretGetStringValuesDangerousForGC======================
+    **N.B.: This perfoms no range checking and relies on the caller to have done this.
+    **Args: (IN)ref -- the Utf8String to be interpretted.
+    **      (OUT)chars -- a pointer to the characters in the buffer.
+    **      (OUT)length -- a pointer to the length of the buffer.
+    **Returns: void.
+    **Exceptions: None.
+    ==============================================================================*/
+    // !!!! If you use this function, you have to be careful because chars is a pointer
+    // !!!! to the data buffer of ref.  If GC happens after this call, you need to make
+    // !!!! sure that you have a pin handle on ref, or use GCPROTECT_BEGINPINNING on ref.
+    void RefInterpretGetStringValuesDangerousForGC(__deref_out_ecount(*length + 1) CHAR **chars, int *length) {
+        WRAPPER_NO_CONTRACT;
+    
+        _ASSERTE(GetGCSafeMethodTable() == g_pUtf8StringClass);
+        *length = GetStringLength();
+        *chars  = GetBuffer();
+#ifdef _DEBUG
+        EnableStressHeapHelper();
+#endif
+    }
+
+    DWORD   GetStringLength()                           { LIMITED_METHOD_DAC_CONTRACT; return( m_StringLength );}
+    CHAR*   GetBuffer()                                 { LIMITED_METHOD_CONTRACT; _ASSERTE(this != nullptr); return (CHAR*)( dac_cast<TADDR>(this) + offsetof(Utf8StringObject, m_FirstChar) );  }
+
+    static DWORD GetBaseSize();
+    static SIZE_T GetSize(DWORD stringLength);
+};
+#endif // FEATURE_UTF8STRING
 
 // This is the Method version of the Reflection object.
 //  A Method has adddition information.
@@ -1232,7 +1257,7 @@ public:
     void SetKeepAlive(OBJECTREF keepalive)
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReference(&m_object, keepalive, GetAppDomain());
+        SetObjectReference(&m_object, keepalive);
     }
 
     MethodDesc *GetMethod() {
@@ -1272,7 +1297,7 @@ public:
     void SetKeepAlive(OBJECTREF keepalive)
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReference(&m_object, keepalive, GetAppDomain());
+        SetObjectReference(&m_object, keepalive);
     }
 
     FieldDesc *GetField() {
@@ -1319,7 +1344,7 @@ class ReflectModuleBaseObject : public Object
     void SetAssembly(OBJECTREF assembly)
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReference(&m_runtimeAssembly, assembly, GetAppDomain());
+        SetObjectReference(&m_runtimeAssembly, assembly);
     }
 };
 
@@ -1491,7 +1516,7 @@ public:
         _ASSERTE(newThreadStartArg == NULL);
         // Note: this is an unchecked assignment.  We are cleaning out the ThreadStartArg field when 
         // a thread starts so that ADU does not cause problems
-        SetObjectReferenceUnchecked( (OBJECTREF *)&m_ThreadStartArg, newThreadStartArg);
+        SetObjectReference( (OBJECTREF *)&m_ThreadStartArg, newThreadStartArg);
     
     }
 
@@ -1579,11 +1604,58 @@ class AssemblyBaseObject : public Object
     void SetSyncRoot(OBJECTREF pSyncRoot)
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReferenceUnchecked(&m_pSyncRoot, pSyncRoot);
+        SetObjectReference(&m_pSyncRoot, pSyncRoot);
     }
 };
 NOINLINE AssemblyBaseObject* GetRuntimeAssemblyHelper(LPVOID __me, DomainAssembly *pAssembly, OBJECTREF keepAlive);
 #define FC_RETURN_ASSEMBLY_OBJECT(pAssembly, refKeepAlive) FC_INNER_RETURN(AssemblyBaseObject*, GetRuntimeAssemblyHelper(__me, pAssembly, refKeepAlive))
+
+// AssemblyLoadContextBaseObject
+// This class is the base class for AssemblyLoadContext
+//
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
+#include "pshpack4.h"
+#endif // defined(_TARGET_X86_) && !defined(FEATURE_PAL)
+class AssemblyLoadContextBaseObject : public Object
+{
+    friend class MscorlibBinder;
+
+  protected:
+    // READ ME:
+    // Modifying the order or fields of this object may require other changes to the
+    //  classlib class definition of this object.
+#ifdef _TARGET_64BIT_
+    OBJECTREF     _unloadLock;
+    OBJECTREF     _resovlingUnmanagedDll;
+    OBJECTREF     _resolving;
+    OBJECTREF     _unloading;
+    OBJECTREF     _name;
+    INT_PTR       _nativeAssemblyLoadContext;
+    int64_t       _id; // On 64-bit platforms this is a value type so it is placed after references and pointers
+    DWORD         _state;
+    CLR_BOOL      _isCollectible;
+#else // _TARGET_64BIT_
+    int64_t       _id; // On 32-bit platforms this 64-bit value type is larger than a pointer so JIT places it first
+    OBJECTREF     _unloadLock;
+    OBJECTREF     _resovlingUnmanagedDll;
+    OBJECTREF     _resolving;
+    OBJECTREF     _unloading;
+    OBJECTREF     _name;
+    INT_PTR       _nativeAssemblyLoadContext;
+    DWORD         _state;
+    CLR_BOOL      _isCollectible;
+#endif // _TARGET_64BIT_
+
+  protected:
+    AssemblyLoadContextBaseObject() { LIMITED_METHOD_CONTRACT; }
+   ~AssemblyLoadContextBaseObject() { LIMITED_METHOD_CONTRACT; }
+
+  public:
+    INT_PTR GetNativeAssemblyLoadContext() { LIMITED_METHOD_CONTRACT; return _nativeAssemblyLoadContext; }
+};
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
+#include "poppack.h"
+#endif // defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 
 // AssemblyNameBaseObject 
 // This class is the base class for assembly names
@@ -1606,9 +1678,7 @@ class AssemblyNameBaseObject : public Object
     OBJECTREF     _codeBase;
     OBJECTREF     _version;
     OBJECTREF     _strongNameKeyPair;
-    U1ARRAYREF    _hashForControl;
     DWORD         _hashAlgorithm;
-    DWORD         _hashAlgorithmForControl;
     DWORD         _versionCompatibility;
     DWORD         _flags;
 
@@ -1626,8 +1696,6 @@ class AssemblyNameBaseObject : public Object
     OBJECTREF GetVersion() { LIMITED_METHOD_CONTRACT; return _version; }
     DWORD GetAssemblyHashAlgorithm() { LIMITED_METHOD_CONTRACT; return _hashAlgorithm; }
     DWORD GetFlags() { LIMITED_METHOD_CONTRACT; return _flags; }
-    U1ARRAYREF GetHashForControl() { LIMITED_METHOD_CONTRACT; return _hashForControl;}
-    DWORD GetHashAlgorithmForControl() { LIMITED_METHOD_CONTRACT; return _hashAlgorithmForControl; }
 };
 
 // VersionBaseObject
@@ -1675,11 +1743,11 @@ typedef REF<ReflectFieldObject> REFLECTFIELDREF;
 
 typedef REF<ThreadBaseObject> THREADBASEREF;
 
-typedef REF<AppDomainBaseObject> APPDOMAINREF;
-
 typedef REF<MarshalByRefObjectBaseObject> MARSHALBYREFOBJECTBASEREF;
 
 typedef REF<AssemblyBaseObject> ASSEMBLYREF;
+
+typedef REF<AssemblyLoadContextBaseObject> ASSEMBLYLOADCONTEXTREF;
 
 typedef REF<AssemblyNameBaseObject> ASSEMBLYNAMEREF;
 
@@ -1728,6 +1796,7 @@ typedef PTR_ReflectMethodObject REFLECTMETHODREF;
 typedef PTR_ReflectFieldObject REFLECTFIELDREF;
 typedef PTR_ThreadBaseObject THREADBASEREF;
 typedef PTR_AssemblyBaseObject ASSEMBLYREF;
+typedef PTR_AssemblyLoadContextBaseObject ASSEMBLYLOADCONTEXTREF;
 typedef PTR_AssemblyNameBaseObject ASSEMBLYNAMEREF;
 
 #ifndef DACCESS_COMPILE
@@ -2161,7 +2230,7 @@ public:
     BOOL IsWrapperDelegate() { LIMITED_METHOD_CONTRACT; return _methodPtrAux == NULL; }
     
     OBJECTREF GetTarget() { LIMITED_METHOD_CONTRACT; return _target; }
-    void SetTarget(OBJECTREF target) { WRAPPER_NO_CONTRACT; SetObjectReference(&_target, target, GetAppDomain()); }
+    void SetTarget(OBJECTREF target) { WRAPPER_NO_CONTRACT; SetObjectReference(&_target, target); }
     static int GetOffsetOfTarget() { LIMITED_METHOD_CONTRACT; return offsetof(DelegateObject, _target); }
 
     PCODE GetMethodPtr() { LIMITED_METHOD_CONTRACT; return _methodPtr; }
@@ -2173,14 +2242,14 @@ public:
     static int GetOffsetOfMethodPtrAux() { LIMITED_METHOD_CONTRACT; return offsetof(DelegateObject, _methodPtrAux); }
 
     OBJECTREF GetInvocationList() { LIMITED_METHOD_CONTRACT; return _invocationList; }
-    void SetInvocationList(OBJECTREF invocationList) { WRAPPER_NO_CONTRACT; SetObjectReference(&_invocationList, invocationList, GetAppDomain()); }
+    void SetInvocationList(OBJECTREF invocationList) { WRAPPER_NO_CONTRACT; SetObjectReference(&_invocationList, invocationList); }
     static int GetOffsetOfInvocationList() { LIMITED_METHOD_CONTRACT; return offsetof(DelegateObject, _invocationList); }
 
     INT_PTR GetInvocationCount() { LIMITED_METHOD_CONTRACT; return _invocationCount; }
     void SetInvocationCount(INT_PTR invocationCount) { LIMITED_METHOD_CONTRACT; _invocationCount = invocationCount; }
     static int GetOffsetOfInvocationCount() { LIMITED_METHOD_CONTRACT; return offsetof(DelegateObject, _invocationCount); }
 
-    void SetMethodBase(OBJECTREF newMethodBase) { LIMITED_METHOD_CONTRACT; SetObjectReference((OBJECTREF*)&_methodBase, newMethodBase, GetAppDomain()); }
+    void SetMethodBase(OBJECTREF newMethodBase) { LIMITED_METHOD_CONTRACT; SetObjectReference((OBJECTREF*)&_methodBase, newMethodBase); }
 
     // README:
     // If you modify the order of these fields, make sure to update the definition in 
@@ -2402,7 +2471,7 @@ public:
     void SetHandleTable(PTRARRAYREF handleTable)
     {
         LIMITED_METHOD_CONTRACT;
-        SetObjectReferenceUnchecked(&m_pSlots, (OBJECTREF)handleTable);
+        SetObjectReference(&m_pSlots, (OBJECTREF)handleTable);
     }
 
     INT32 GetSlotsUsed()
@@ -2507,7 +2576,7 @@ public:
     void SetInnerException(OBJECTREF innerException)
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReference((OBJECTREF*)&_innerException, (OBJECTREF)innerException, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&_innerException, (OBJECTREF)innerException);
     }
 
     OBJECTREF GetInnerException()
@@ -2540,7 +2609,7 @@ public:
     void SetMessage(STRINGREF message)
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReference((OBJECTREF*)&_message, (OBJECTREF)message, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&_message, (OBJECTREF)message);
     }
 
     STRINGREF GetMessage()
@@ -2552,7 +2621,7 @@ public:
     void SetStackTraceString(STRINGREF stackTraceString)
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReference((OBJECTREF*)&_stackTraceString, (OBJECTREF)stackTraceString, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&_stackTraceString, (OBJECTREF)stackTraceString);
     }
 
     STRINGREF GetStackTraceString()
@@ -2570,28 +2639,28 @@ public:
     void SetHelpURL(STRINGREF helpURL)
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReference((OBJECTREF*)&_helpURL, (OBJECTREF)helpURL, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&_helpURL, (OBJECTREF)helpURL);
     }
 
     void SetSource(STRINGREF source)
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReference((OBJECTREF*)&_source, (OBJECTREF)source, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&_source, (OBJECTREF)source);
     }
 
     void ClearStackTraceForThrow()
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReferenceUnchecked((OBJECTREF*)&_remoteStackTraceString, NULL);
-        SetObjectReferenceUnchecked((OBJECTREF*)&_stackTrace, NULL);
-        SetObjectReferenceUnchecked((OBJECTREF*)&_stackTraceString, NULL);
+        SetObjectReference((OBJECTREF*)&_remoteStackTraceString, NULL);
+        SetObjectReference((OBJECTREF*)&_stackTrace, NULL);
+        SetObjectReference((OBJECTREF*)&_stackTraceString, NULL);
     }
 
     void ClearStackTracePreservingRemoteStackTrace()
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReferenceUnchecked((OBJECTREF*)&_stackTrace, NULL);
-        SetObjectReferenceUnchecked((OBJECTREF*)&_stackTraceString, NULL);
+        SetObjectReference((OBJECTREF*)&_stackTrace, NULL);
+        SetObjectReference((OBJECTREF*)&_stackTraceString, NULL);
     }
 
     // This method will set the reference to the array
@@ -2599,7 +2668,7 @@ public:
     void SetWatsonBucketReference(OBJECTREF oWatsonBucketArray)
     {
         WRAPPER_NO_CONTRACT;
-        SetObjectReference((OBJECTREF*)&_watsonBuckets, (OBJECTREF)oWatsonBucketArray, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&_watsonBuckets, (OBJECTREF)oWatsonBucketArray);
     }
 
     // This method will return the reference to the array
@@ -2647,7 +2716,6 @@ public:
     // If you modify the order of these fields, make sure to update the definition in 
     // BCL for this object.
 private:
-    STRINGREF   _className;  //Needed for serialization.
     OBJECTREF   _exceptionMethod;  //Needed for serialization.
     STRINGREF   _message;
     OBJECTREF   _data;
@@ -2660,13 +2728,10 @@ private:
     PTRARRAYREF _dynamicMethods;
     STRINGREF   _source;         // Mainly used by VB.
 
-    IN_WIN64(void* _xptrs;)
-    IN_WIN64(UINT_PTR    _ipForWatsonBuckets;) // Contains the IP of exception for watson bucketing
-    INT32       _remoteStackIndex;
-    INT32       _HResult;
-    IN_WIN32(void* _xptrs;)
+    UINT_PTR    _ipForWatsonBuckets; // Contains the IP of exception for watson bucketing
+    void*       _xptrs;
     INT32       _xcode;
-    IN_WIN32(UINT_PTR    _ipForWatsonBuckets;) // Contains the IP of exception for watson bucketing
+    INT32       _HResult;
 };
 
 // Defined in Contracts.cs
@@ -2695,10 +2760,9 @@ public:
 
 private:
     // keep these in sync with ndp/clr/src/bcl/system/diagnostics/contracts/contractsbcl.cs
-    IN_WIN64(INT32 _Kind;)
     STRINGREF _UserMessage;
     STRINGREF _Condition;
-    IN_WIN32(INT32 _Kind;)
+    INT32 _Kind;
 };
 #include "poppack.h"
 
@@ -2844,7 +2908,7 @@ class GCHeapHashObject : public Object
         STATIC_CONTRACT_GC_NOTRIGGER;
         STATIC_CONTRACT_MODE_COOPERATIVE;
 
-        SetObjectReference((OBJECTREF*)&_data, (OBJECTREF)data, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&_data, (OBJECTREF)data);
     }
 
     protected:

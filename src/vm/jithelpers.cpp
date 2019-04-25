@@ -1129,7 +1129,7 @@ HCIMPL3(VOID, JIT_SetFieldObj, Object *obj, FieldDesc *pFD, Object *value)
     }
 
     void * address = pFD->GetAddressGuaranteedInHeap(obj);
-    SetObjectReference((OBJECTREF*)address, ObjectToOBJECTREF(value), GetAppDomain());
+    SetObjectReference((OBJECTREF*)address, ObjectToOBJECTREF(value));
     FC_GC_POLL();
 }
 HCIMPLEND
@@ -1166,7 +1166,7 @@ HCIMPL4(VOID, JIT_GetFieldStruct_Framed, LPVOID retBuff, Object *obj, FieldDesc 
     if (!fRemoted)
     {
         void * pAddr = pFD->GetAddress(OBJECTREFToObject(objRef));
-        CopyValueClass(retBuff, pAddr, pFieldMT, objRef->GetAppDomain());
+        CopyValueClass(retBuff, pAddr, pFieldMT);
     }
 
     HELPER_METHOD_FRAME_END();          // Tear down the frame
@@ -1187,7 +1187,7 @@ HCIMPL4(VOID, JIT_GetFieldStruct, LPVOID retBuff, Object *obj, FieldDesc *pFD, M
     }
 
     void * pAddr = pFD->GetAddressGuaranteedInHeap(obj);
-    CopyValueClass(retBuff, pAddr, pFieldMT, obj->GetAppDomain());
+    CopyValueClass(retBuff, pAddr, pFieldMT);
 }
 HCIMPLEND
 #include <optdefault.h>
@@ -1220,7 +1220,7 @@ HCIMPL4(VOID, JIT_SetFieldStruct_Framed, Object *obj, FieldDesc *pFD, MethodTabl
     if (!fRemoted)
     {
         void * pAddr = pFD->GetAddress(OBJECTREFToObject(objRef));
-        CopyValueClass(pAddr, valuePtr, pFieldMT, objRef->GetAppDomain());
+        CopyValueClass(pAddr, valuePtr, pFieldMT);
     }
 
     HELPER_METHOD_FRAME_END();          // Tear down the frame
@@ -1241,7 +1241,7 @@ HCIMPL4(VOID, JIT_SetFieldStruct, Object *obj, FieldDesc *pFD, MethodTable *pFie
     }
 
     void * pAddr = pFD->GetAddressGuaranteedInHeap(obj);
-    CopyValueClass(pAddr, valuePtr, pFieldMT, obj->GetAppDomain());
+    CopyValueClass(pAddr, valuePtr, pFieldMT);
 }
 HCIMPLEND
 #include <optdefault.h>
@@ -1337,19 +1337,9 @@ HCIMPLEND
 
 #include <optsmallperfcritical.h>
 
-HCIMPL2(void*, JIT_GetSharedNonGCStaticBase_Portable, SIZE_T moduleDomainID, DWORD dwClassDomainID)
+HCIMPL2(void*, JIT_GetSharedNonGCStaticBase_Portable, DomainLocalModule *pLocalModule, DWORD dwClassDomainID)
 {
     FCALL_CONTRACT;
-
-    DomainLocalModule *pLocalModule = NULL;
-
-    if (!Module::IsEncodedModuleIndex(moduleDomainID))
-        pLocalModule = (DomainLocalModule *) moduleDomainID;
-    else
-    {
-        DomainLocalBlock *pLocalBlock = GetAppDomain()->GetDomainLocalBlock();
-        pLocalModule = pLocalBlock->GetModuleSlot(Module::IDToIndex(moduleDomainID));
-    }
 
     // If type doesn't have a class constructor, the contents of this if statement may 
     // still get executed.  JIT_GetSharedNonGCStaticBaseNoCtor should be used in this case.
@@ -1366,37 +1356,17 @@ HCIMPLEND
 
 // No constructor version of JIT_GetSharedNonGCStaticBase.  Does not check if class has 
 // been initialized.
-HCIMPL1(void*, JIT_GetSharedNonGCStaticBaseNoCtor_Portable, SIZE_T moduleDomainID)
+HCIMPL1(void*, JIT_GetSharedNonGCStaticBaseNoCtor_Portable, DomainLocalModule *pLocalModule)
 {
     FCALL_CONTRACT;
-
-    DomainLocalModule *pLocalModule = NULL;
-
-    if (!Module::IsEncodedModuleIndex(moduleDomainID))
-        pLocalModule = (DomainLocalModule *) moduleDomainID;
-    else
-    {
-        DomainLocalBlock *pLocalBlock = GetAppDomain()->GetDomainLocalBlock();
-        pLocalModule = pLocalBlock->GetModuleSlot(Module::IDToIndex(moduleDomainID));
-    }
 
     return (void*)pLocalModule->GetPrecomputedNonGCStaticsBasePointer();
 }
 HCIMPLEND
 
-HCIMPL2(void*, JIT_GetSharedGCStaticBase_Portable, SIZE_T moduleDomainID, DWORD dwClassDomainID)
+HCIMPL2(void*, JIT_GetSharedGCStaticBase_Portable, DomainLocalModule *pLocalModule, DWORD dwClassDomainID)
 {
     FCALL_CONTRACT;
-
-    DomainLocalModule *pLocalModule = NULL;
-
-    if (!Module::IsEncodedModuleIndex(moduleDomainID))
-        pLocalModule = (DomainLocalModule *) moduleDomainID;
-    else
-    {
-        DomainLocalBlock *pLocalBlock = GetAppDomain()->GetDomainLocalBlock();
-        pLocalModule = pLocalBlock->GetModuleSlot(Module::IDToIndex(moduleDomainID));
-    }
 
     // If type doesn't have a class constructor, the contents of this if statement may 
     // still get executed.  JIT_GetSharedGCStaticBaseNoCtor should be used in this case.
@@ -1413,19 +1383,9 @@ HCIMPLEND
 
 // No constructor version of JIT_GetSharedGCStaticBase.  Does not check if class has been
 // initialized.
-HCIMPL1(void*, JIT_GetSharedGCStaticBaseNoCtor_Portable, SIZE_T moduleDomainID)
+HCIMPL1(void*, JIT_GetSharedGCStaticBaseNoCtor_Portable, DomainLocalModule *pLocalModule)
 {
     FCALL_CONTRACT;
-
-    DomainLocalModule *pLocalModule = NULL;
-
-    if (!Module::IsEncodedModuleIndex(moduleDomainID))
-        pLocalModule = (DomainLocalModule *) moduleDomainID;
-    else
-    {
-        DomainLocalBlock *pLocalBlock = GetAppDomain()->GetDomainLocalBlock();
-        pLocalModule = pLocalBlock->GetModuleSlot(Module::IDToIndex(moduleDomainID));
-    }
 
     return (void*)pLocalModule->GetPrecomputedGCStaticsBasePointer();
 }
@@ -1494,19 +1454,9 @@ HCIMPLEND
 
 /*************************************************************/
 #include <optsmallperfcritical.h>
-HCIMPL2(void*, JIT_GetSharedNonGCStaticBaseDynamicClass, SIZE_T moduleDomainID, DWORD dwDynamicClassDomainID)
+HCIMPL2(void*, JIT_GetSharedNonGCStaticBaseDynamicClass, DomainLocalModule *pLocalModule, DWORD dwDynamicClassDomainID)
 {
     FCALL_CONTRACT;
-
-    DomainLocalModule *pLocalModule;
-
-    if (!Module::IsEncodedModuleIndex(moduleDomainID))
-        pLocalModule = (DomainLocalModule *) moduleDomainID;
-    else
-    {
-        DomainLocalBlock *pLocalBlock = GetAppDomain()->GetDomainLocalBlock();
-        pLocalModule = pLocalBlock->GetModuleSlot(Module::IDToIndex(moduleDomainID));
-    }
 
     DomainLocalModule::PTR_DynamicClassInfo pLocalInfo = pLocalModule->GetDynamicClassInfoIfInitialized(dwDynamicClassDomainID);
     if (pLocalInfo != NULL)
@@ -1546,19 +1496,9 @@ HCIMPL2(void, JIT_ClassInitDynamicClass_Helper, DomainLocalModule *pLocalModule,
 HCIMPLEND
 
 #include <optsmallperfcritical.h>
-HCIMPL2(void, JIT_ClassInitDynamicClass, SIZE_T moduleDomainID, DWORD dwDynamicClassDomainID)
+HCIMPL2(void, JIT_ClassInitDynamicClass, DomainLocalModule *pLocalModule, DWORD dwDynamicClassDomainID)
 {
     FCALL_CONTRACT;
-
-    DomainLocalModule *pLocalModule;
-
-    if (!Module::IsEncodedModuleIndex(moduleDomainID))
-        pLocalModule = (DomainLocalModule *) moduleDomainID;
-    else
-    {
-        DomainLocalBlock *pLocalBlock = GetAppDomain()->GetDomainLocalBlock();
-        pLocalModule = pLocalBlock->GetModuleSlot(Module::IDToIndex(moduleDomainID));
-    }
 
     DomainLocalModule::PTR_DynamicClassInfo pLocalInfo = pLocalModule->GetDynamicClassInfoIfInitialized(dwDynamicClassDomainID);
     if (pLocalInfo != NULL)
@@ -1597,19 +1537,9 @@ HCIMPLEND
 
 /*************************************************************/
 #include <optsmallperfcritical.h>
-HCIMPL2(void*, JIT_GetSharedGCStaticBaseDynamicClass, SIZE_T moduleDomainID, DWORD dwDynamicClassDomainID)
+HCIMPL2(void*, JIT_GetSharedGCStaticBaseDynamicClass, DomainLocalModule *pLocalModule, DWORD dwDynamicClassDomainID)
 {
     FCALL_CONTRACT;
-
-    DomainLocalModule *pLocalModule;
-
-    if (!Module::IsEncodedModuleIndex(moduleDomainID))
-        pLocalModule = (DomainLocalModule *) moduleDomainID;
-    else
-    {
-        DomainLocalBlock *pLocalBlock = GetAppDomain()->GetDomainLocalBlock();
-        pLocalModule = pLocalBlock->GetModuleSlot(Module::IDToIndex(moduleDomainID));
-    }
 
     DomainLocalModule::PTR_DynamicClassInfo pLocalInfo = pLocalModule->GetDynamicClassInfoIfInitialized(dwDynamicClassDomainID);
     if (pLocalInfo != NULL)
@@ -1845,15 +1775,12 @@ HCIMPLEND
 //     possible.
 
 #include <optsmallperfcritical.h>
-HCIMPL2(void*, JIT_GetSharedNonGCThreadStaticBase, SIZE_T moduleDomainID, DWORD dwClassDomainID)
+HCIMPL2(void*, JIT_GetSharedNonGCThreadStaticBase, DomainLocalModule *pDomainLocalModule, DWORD dwClassDomainID)
 {
     FCALL_CONTRACT;
 
     // Get the ModuleIndex
-    ModuleIndex index = 
-        (Module::IsEncodedModuleIndex(moduleDomainID)) ?
-            Module::IDToIndex(moduleDomainID) :
-            ((DomainLocalModule *)moduleDomainID)->GetModuleIndex();
+    ModuleIndex index = pDomainLocalModule->GetModuleIndex();
 
     // Get the relevant ThreadLocalModule
     ThreadLocalModule * pThreadLocalModule = ThreadStatics::GetTLMIfExists(index);
@@ -1866,12 +1793,6 @@ HCIMPL2(void*, JIT_GetSharedNonGCThreadStaticBase, SIZE_T moduleDomainID, DWORD 
     // If the TLM was not allocated or if the class was not marked as initialized
     // then we have to go through the slow path
 
-    // Get the DomainLocalModule
-    DomainLocalModule *pDomainLocalModule =
-        (Module::IsEncodedModuleIndex(moduleDomainID)) ?
-            GetAppDomain()->GetDomainLocalBlock()->GetModuleSlot(Module::IDToIndex(moduleDomainID)) :
-            (DomainLocalModule *) moduleDomainID;
-    
     // Obtain the MethodTable
     MethodTable * pMT = pDomainLocalModule->GetMethodTableFromClassDomainID(dwClassDomainID);
     _ASSERTE(!pMT->HasGenericsStaticsInfo());
@@ -1889,15 +1810,12 @@ HCIMPLEND
 //     possible.
 
 #include <optsmallperfcritical.h>
-HCIMPL2(void*, JIT_GetSharedGCThreadStaticBase, SIZE_T moduleDomainID, DWORD dwClassDomainID)
+HCIMPL2(void*, JIT_GetSharedGCThreadStaticBase, DomainLocalModule *pDomainLocalModule, DWORD dwClassDomainID)
 {
     FCALL_CONTRACT;
 
     // Get the ModuleIndex
-    ModuleIndex index = 
-        (Module::IsEncodedModuleIndex(moduleDomainID)) ?
-            Module::IDToIndex(moduleDomainID) :
-            ((DomainLocalModule *)moduleDomainID)->GetModuleIndex();
+    ModuleIndex index = pDomainLocalModule->GetModuleIndex();
 
     // Get the relevant ThreadLocalModule
     ThreadLocalModule * pThreadLocalModule = ThreadStatics::GetTLMIfExists(index);
@@ -1910,12 +1828,6 @@ HCIMPL2(void*, JIT_GetSharedGCThreadStaticBase, SIZE_T moduleDomainID, DWORD dwC
     // If the TLM was not allocated or if the class was not marked as initialized
     // then we have to go through the slow path
 
-    // Get the DomainLocalModule
-    DomainLocalModule *pDomainLocalModule =
-        (Module::IsEncodedModuleIndex(moduleDomainID)) ?
-            GetAppDomain()->GetDomainLocalBlock()->GetModuleSlot(Module::IDToIndex(moduleDomainID)) :
-            (DomainLocalModule *) moduleDomainID;
-    
     // Obtain the MethodTable
     MethodTable * pMT = pDomainLocalModule->GetMethodTableFromClassDomainID(dwClassDomainID);
     _ASSERTE(!pMT->HasGenericsStaticsInfo());
@@ -1929,15 +1841,9 @@ HCIMPLEND
 // *** This helper corresponds to CORINFO_HELP_GETSHARED_NONGCTHREADSTATIC_BASE_DYNAMICCLASS
 
 #include <optsmallperfcritical.h>
-HCIMPL2(void*, JIT_GetSharedNonGCThreadStaticBaseDynamicClass, SIZE_T moduleDomainID, DWORD dwDynamicClassDomainID)
+HCIMPL2(void*, JIT_GetSharedNonGCThreadStaticBaseDynamicClass, DomainLocalModule *pDomainLocalModule, DWORD dwDynamicClassDomainID)
 {
     FCALL_CONTRACT;
-
-    // Obtain the DomainLocalModule
-    DomainLocalModule *pDomainLocalModule =
-        (Module::IsEncodedModuleIndex(moduleDomainID)) ?
-        GetAppDomain()->GetDomainLocalBlock()->GetModuleSlot(Module::IDToIndex(moduleDomainID)) :
-        (DomainLocalModule *)moduleDomainID;
 
     // Get the ModuleIndex
     ModuleIndex index = pDomainLocalModule->GetModuleIndex();
@@ -1983,15 +1889,9 @@ HCIMPLEND
 // *** This helper corresponds to CORINFO_HELP_GETSHARED_GCTHREADSTATIC_BASE_DYNAMICCLASS
 
 #include <optsmallperfcritical.h>
-HCIMPL2(void*, JIT_GetSharedGCThreadStaticBaseDynamicClass, SIZE_T moduleDomainID, DWORD dwDynamicClassDomainID)
+HCIMPL2(void*, JIT_GetSharedGCThreadStaticBaseDynamicClass, DomainLocalModule *pDomainLocalModule, DWORD dwDynamicClassDomainID)
 {
     FCALL_CONTRACT;
-
-    // Obtain the DomainLocalModule
-    DomainLocalModule *pDomainLocalModule =
-        (Module::IsEncodedModuleIndex(moduleDomainID)) ?
-        GetAppDomain()->GetDomainLocalBlock()->GetModuleSlot(Module::IDToIndex(moduleDomainID)) :
-        (DomainLocalModule *)moduleDomainID;
 
     // Get the ModuleIndex
     ModuleIndex index = pDomainLocalModule->GetModuleIndex();
@@ -2895,6 +2795,61 @@ HCIMPL1(StringObject*, AllocateString_MP_FastPortable, DWORD stringLength)
 }
 HCIMPLEND
 
+#ifdef FEATURE_UTF8STRING
+HCIMPL1(Utf8StringObject*, AllocateUtf8String_MP_FastPortable, DWORD stringLength)
+{
+    FCALL_CONTRACT;
+
+    do
+    {
+        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
+
+        // Instead of doing elaborate overflow checks, we just limit the number of elements. This will avoid all overflow
+        // problems, as well as making sure big string objects are correctly allocated in the big object heap.
+        if (stringLength >= LARGE_OBJECT_SIZE - 256)
+        {
+            break;
+        }
+
+        // This is typically the only call in the fast path. Making the call early seems to be better, as it allows the compiler
+        // to use volatile registers for intermediate values. This reduces the number of push/pop instructions and eliminates
+        // some reshuffling of intermediate values into nonvolatile registers around the call.
+        Thread *thread = GetThread();
+
+        SIZE_T totalSize = Utf8StringObject::GetSize(stringLength);
+
+        // The method table's base size includes space for a terminating null character
+        _ASSERTE(totalSize >= g_pUtf8StringClass->GetBaseSize());
+        _ASSERTE(totalSize - g_pUtf8StringClass->GetBaseSize() == stringLength);
+
+        SIZE_T alignedTotalSize = ALIGN_UP(totalSize, DATA_ALIGNMENT);
+        _ASSERTE(alignedTotalSize >= totalSize);
+        totalSize = alignedTotalSize;
+
+        gc_alloc_context *allocContext = thread->GetAllocContext();
+        BYTE *allocPtr = allocContext->alloc_ptr;
+        _ASSERTE(allocPtr <= allocContext->alloc_limit);
+        if (totalSize > static_cast<SIZE_T>(allocContext->alloc_limit - allocPtr))
+        {
+            break;
+        }
+        allocContext->alloc_ptr = allocPtr + totalSize;
+
+        _ASSERTE(allocPtr != nullptr);
+        Utf8StringObject *stringObject = reinterpret_cast<Utf8StringObject *>(allocPtr);
+        stringObject->SetMethodTable(g_pUtf8StringClass);
+        stringObject->SetLength(stringLength);
+
+        return stringObject;
+    } while (false);
+
+    // Tail call to the slow helper
+    ENDFORBIDGC();
+    return HCCALL1(FramedAllocateUtf8String, stringLength);
+}
+HCIMPLEND
+#endif // FEATURE_UTF8STRING
+
 #include <optdefault.h>
 
 /*********************************************************************/
@@ -2932,6 +2887,22 @@ HCIMPL1(StringObject*, FramedAllocateString, DWORD stringLength)
     return((StringObject*) OBJECTREFToObject(result));
 }
 HCIMPLEND
+
+#ifdef FEATURE_UTF8STRING
+HCIMPL1(Utf8StringObject*, FramedAllocateUtf8String, DWORD stringLength)
+{
+    FCALL_CONTRACT;
+
+    UTF8STRINGREF result = NULL;
+    HELPER_METHOD_FRAME_BEGIN_RET_0();    // Set up a frame
+
+    result = SlowAllocateUtf8String(stringLength);
+
+    HELPER_METHOD_FRAME_END();
+    return((Utf8StringObject*) OBJECTREFToObject(result));
+}
+HCIMPLEND
+#endif // FEATURE_UTF8STRING
 
 /*********************************************************************/
 OBJECTHANDLE ConstructStringLiteral(CORINFO_MODULE_HANDLE scopeHnd, mdToken metaTok)
@@ -3401,7 +3372,7 @@ HCIMPL3(void, JIT_Stelem_Ref_Portable, PtrArray* array, unsigned idx, Object *va
         }
 
 #ifdef _TARGET_ARM64_
-        SetObjectReferenceUnchecked((OBJECTREF*)&array->m_Array[idx], ObjectToOBJECTREF(val));
+        SetObjectReference((OBJECTREF*)&array->m_Array[idx], ObjectToOBJECTREF(val));
 #else
         // The performance gain of the optimized JIT_Stelem_Ref in
         // jitinterfacex86.cpp is mainly due to calling JIT_WriteBarrier
@@ -4144,7 +4115,7 @@ HCIMPL2(VOID, JIT_GetRuntimeFieldHandle, Object ** destPtr, CORINFO_FIELD_HANDLE
 
     FieldDesc *pField = (FieldDesc *)field;
     SetObjectReference((OBJECTREF*) destPtr,
-                       pField->GetStubFieldInfo(), GetAppDomain());
+                       pField->GetStubFieldInfo());
 
     HELPER_METHOD_FRAME_END();
 }
@@ -4175,7 +4146,7 @@ HCIMPL2(VOID, JIT_GetRuntimeMethodHandle, Object ** destPtr, CORINFO_METHOD_HAND
 
     MethodDesc *pMethod = (MethodDesc *)method;
     SetObjectReference((OBJECTREF*) destPtr,
-                       pMethod->GetStubMethodInfo(), GetAppDomain());
+                       pMethod->GetStubMethodInfo());
 
     HELPER_METHOD_FRAME_END();
 }
@@ -4211,7 +4182,7 @@ HCIMPL2(VOID, JIT_GetRuntimeTypeHandle, Object ** destPtr, CORINFO_CLASS_HANDLE 
         if (typePtr != NULL)
         {
             SetObjectReference((OBJECTREF*) destPtr,
-                               typePtr, GetAppDomain());
+                               typePtr);
             return;
         }
     }
@@ -4219,7 +4190,7 @@ HCIMPL2(VOID, JIT_GetRuntimeTypeHandle, Object ** destPtr, CORINFO_CLASS_HANDLE 
     HELPER_METHOD_FRAME_BEGIN_0();
 
     SetObjectReference((OBJECTREF*) destPtr,
-                       typeHnd.GetManagedClassObject(), GetAppDomain());
+                       typeHnd.GetManagedClassObject());
 
     HELPER_METHOD_FRAME_END();
 }
@@ -4534,7 +4505,7 @@ NOINLINE static void JIT_MonExit_Helper(Object* obj, BYTE* pbLockTaken)
 
     if (pbLockTaken != 0) *pbLockTaken = 0;
 
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
+    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,FALSE));
     
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
@@ -4559,7 +4530,7 @@ NOINLINE static void JIT_MonExit_Signal(Object* obj)
     if (psb != NULL)
         psb->QuickGetMonitor()->Signal();
 
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
+    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,FALSE));
     
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
@@ -4697,7 +4668,7 @@ NOINLINE static void JIT_MonExitStatic_Helper(AwareLock *lock, BYTE* pbLockTaken
         COMPlusThrow(kSynchronizationLockException);
     MONHELPER_STATE(*pbLockTaken = 0;)
 
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
+    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,FALSE));
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
     }
@@ -4715,7 +4686,7 @@ NOINLINE static void JIT_MonExitStatic_Signal(AwareLock *lock)
 
     lock->Signal();
 
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
+    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,FALSE));
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
     }
@@ -5486,7 +5457,7 @@ HCIMPL3(VOID, JIT_StructWriteBarrier, void *dest, void* src, CORINFO_CLASS_HANDL
     MethodTable *pMT = typeHnd.AsMethodTable();
 
     HELPER_METHOD_FRAME_BEGIN_NOPOLL();    // Set up a frame
-    CopyValueClassUnchecked(dest, src, pMT);
+    CopyValueClass(dest, src, pMT);
     HELPER_METHOD_FRAME_END_POLL();
 
 }
@@ -5520,15 +5491,50 @@ HCIMPL0(VOID, JIT_PollGC)
 }
 HCIMPLEND
 
+
+/*************************************************************/
+// This helper is similar to JIT_RareDisableHelper, but has more operations
+// tailored to the post-pinvoke operations.
+extern "C" FCDECL0(VOID, JIT_PInvokeEndRarePath);
+
+HCIMPL0(void, JIT_PInvokeEndRarePath)
+{
+    BEGIN_PRESERVE_LAST_ERROR;
+
+    FCALL_CONTRACT;
+
+    Thread *thread = GetThread();
+
+    // We need to disable the implicit FORBID GC region that exists inside an FCALL
+    // in order to call RareDisablePreemptiveGC().
+    FC_CAN_TRIGGER_GC();
+    thread->RareDisablePreemptiveGC();
+    FC_CAN_TRIGGER_GC_END();
+
+    FC_GC_POLL_NOT_NEEDED();
+
+    HELPER_METHOD_FRAME_BEGIN_NOPOLL();    // Set up a frame
+    thread->HandleThreadAbort();
+    HELPER_METHOD_FRAME_END();
+
+    InlinedCallFrame* frame = (InlinedCallFrame*)thread->m_pFrame;
+
+    thread->m_pFrame->Pop(thread);
+
+    END_PRESERVE_LAST_ERROR;
+}
+HCIMPLEND
+
 /*************************************************************/
 // For an inlined N/Direct call (and possibly for other places that need this service)
 // we have noticed that the returning thread should trap for one reason or another.
 // ECall sets up the frame.
 
+extern "C" FCDECL0(VOID, JIT_RareDisableHelper);
+
 #if defined(_TARGET_ARM_) || defined(_TARGET_AMD64_)
 // The JIT expects this helper to preserve the return value on AMD64 and ARM. We should eventually
 // switch other platforms to the same convention since it produces smaller code.
-extern "C" FCDECL0(VOID, JIT_RareDisableHelper);
 extern "C" FCDECL0(VOID, JIT_RareDisableHelperWorker);
 
 HCIMPL0(void, JIT_RareDisableHelperWorker)
@@ -5711,6 +5717,9 @@ Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubS
 }
 
 #endif // _WIN64
+
+EXTERN_C void JIT_PInvokeBegin(InlinedCallFrame* pFrame);
+EXTERN_C void JIT_PInvokeEnd(InlinedCallFrame* pFrame);
 
 //========================================================================
 //

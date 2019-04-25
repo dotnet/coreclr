@@ -1,9 +1,17 @@
-﻿// Created by Microsoft (R) C/C++ Compiler
+// Created by Microsoft (R) C/C++ Compiler
 
 #pragma once
 #pragma pack(push, 8)
 
 #include <comdef.h>
+
+struct HFA_4
+{
+    float x;
+    float y;
+    float z;
+    float w;
+};
 
 struct __declspec(uuid("05655a94-a915-4926-815d-a9ea648baad9"))
 INumericTesting : IUnknown
@@ -357,20 +365,14 @@ IErrorMarshalTesting : IUnknown
         /*[in]*/ int hresultToReturn ) = 0;
       virtual int STDMETHODCALLTYPE Return_As_HResult (
         /*[in]*/ int hresultToReturn ) = 0;
+      virtual int STDMETHODCALLTYPE Return_As_HResult_Struct (
+        /*[in]*/ int hresultToReturn ) = 0;
 };
 
 enum IDispatchTesting_Exception
 {
     IDispatchTesting_Exception_Disp,
     IDispatchTesting_Exception_HResult,
-};
-
-struct HFA_4
-{
-    float x;
-    float y;
-    float z;
-    float w;
 };
 
 struct __declspec(uuid("a5e04c1c-474e-46d2-bbc0-769d04e12b54"))
@@ -465,13 +467,13 @@ IDefaultInterfaceTesting : IUnknown
 
     virtual HRESULT STDMETHODCALLTYPE DefOnClassRet3(_Out_ int *p) = 0;
 
-    virtual HRESULT STDMETHODCALLTYPE DefOnInterface2Ret5(_Out_ int *p) = 0;
+    virtual HRESULT STDMETHODCALLTYPE DefOnInterfaceRet5(_Out_ int *p) = 0;
 };
 
 struct __declspec(uuid("9B3CE792-F063-427D-B48E-4354094BF7A0"))
-IDefaultInterfaceTesting2 : IDefaultInterfaceTesting
+IDefaultInterfaceTesting2 : IUnknown
 {
-
+    // Empty
 };
 
 #pragma pack(pop)

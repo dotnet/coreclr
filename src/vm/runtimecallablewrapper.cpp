@@ -242,6 +242,12 @@ IUnknown *ComClassFactory::CreateInstanceFromClassFactory(IClassFactory *pClassF
             ThrowHRMsg(hr, IDS_EE_CREATEINSTANCE_LIC_FAILED);
     }
 
+    // If the activated COM class has a CCW, mark the
+    // CCW as being activated via COM.
+    ComCallWrapper *ccw = GetCCWFromIUnknown(pUnk);
+    if (ccw != NULL)
+        ccw->MarkComActivated();
+
     pUnk.SuppressRelease();
     RETURN pUnk;
 }
@@ -491,27 +497,6 @@ IClassFactory *ComClassFactory::GetIClassFactory()
     else
     {
         // No server name is specified so we use CLSCTX_SERVER.
-
-#ifdef FEATURE_CLASSIC_COMINTEROP
-        // If the CLSID is hosted by the CLR itself, then we do not want to go through the COM registration
-        // entries, as this will trigger our COM activation code that may not activate against this runtime.
-        // In this scenario, we want to get the address of the DllGetClassObject method on this CLR or a DLL
-        // that lives in the same directory as the CLR and use it directly. The code falls back to
-        // CoGetClassObject if we fail on the call to DllGetClassObject, but it might be better to fail outright.
-        if (Clr::Util::Com::CLSIDHasMscoreeAsInprocServer32(m_rclsid))
-        {
-            typedef HRESULT (STDMETHODCALLTYPE *PDllGetClassObject)(REFCLSID rclsid, REFIID riid, LPVOID FAR *ppv); 
-
-            StackSString ssServer;
-            if (FAILED(Clr::Util::Com::FindServerUsingCLSID(m_rclsid, ssServer)))
-            {
-            }
-            else
-            {   
-            }
-        }
-#endif // FEATURE_CLASSIC_COMINTEROP
-
         if (pClassFactory == NULL)
             hr = CoGetClassObject(m_rclsid, CLSCTX_SERVER, NULL, IID_IClassFactory, (void**)&pClassFactory);
     }
@@ -932,7 +917,7 @@ void WinRTClassFactory::Init()
                 IfFailThrow(cap.GetNonNullString(&szFactoryInterfaceName, &cbFactoryInterfaceName));
 
                 StackSString strFactoryInterface(SString::Utf8, szFactoryInterfaceName, cbFactoryInterfaceName);
-                MethodTable *pMTFactoryInterface = GetWinRTType(&strFactoryInterface, /* bThrowIfNotFound = */ TRUE).GetMethodTable();
+                MethodTable *pMTFactoryInterface = LoadWinRTType(&strFactoryInterface, /* bThrowIfNotFound = */ TRUE).GetMethodTable();
 
                 _ASSERTE(pMTFactoryInterface);
                 m_factoryInterfaces.Append(pMTFactoryInterface);
@@ -972,7 +957,7 @@ void WinRTClassFactory::Init()
             
                 // copy the name to a temporary buffer and NULL terminate it
                 StackSString ss(SString::Utf8, szName, cbName);
-                TypeHandle th = GetWinRTType(&ss, /* bThrowIfNotFound = */ TRUE);
+                TypeHandle th = LoadWinRTType(&ss, /* bThrowIfNotFound = */ TRUE);
 
                 MethodTable *pMTStaticInterface = th.GetMethodTable();
                 m_staticInterfaces.Append(pMTStaticInterface);

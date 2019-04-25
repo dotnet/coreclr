@@ -16,62 +16,35 @@ namespace TestLibrary
         private const CharSet HostpolicyCharSet = CharSet.Ansi;
     #endif
 
-        [DllImport("hostpolicy", CharSet = HostpolicyCharSet)]
+        [DllImport("hostpolicy", CallingConvention = CallingConvention.Cdecl, CharSet = HostpolicyCharSet)]
         private static extern int Set_corehost_resolve_component_dependencies_Values(
             int returnValue,
             string assemblyPaths,
             string nativeSearchPaths,
             string resourceSearchPaths);
 
-        [DllImport("hostpolicy", CharSet = HostpolicyCharSet)]
+        [DllImport("hostpolicy", CallingConvention = CallingConvention.Cdecl, CharSet = HostpolicyCharSet)]
         private static extern void Set_corehost_set_error_writer_returnValue(IntPtr error_writer);
 
-        [DllImport("hostpolicy", CharSet = HostpolicyCharSet)]
+        [DllImport("hostpolicy", CallingConvention = CallingConvention.Cdecl, CharSet = HostpolicyCharSet)]
         private static extern IntPtr Get_corehost_set_error_writer_lastSet_error_writer();
 
-        [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = HostpolicyCharSet)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = HostpolicyCharSet)]
         internal delegate void Callback_corehost_resolve_component_dependencies(
             string component_main_assembly_path);
 
-        [DllImport("hostpolicy", CharSet = HostpolicyCharSet)]
+        [DllImport("hostpolicy", CallingConvention = CallingConvention.Cdecl, CharSet = HostpolicyCharSet)]
         private static extern void Set_corehost_resolve_component_dependencies_Callback(
             IntPtr callback);
 
         private static Type _assemblyDependencyResolverType;
         private static Type _corehost_error_writer_fnType;
 
-        [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = HostpolicyCharSet)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = HostpolicyCharSet)]
         public delegate void ErrorWriterDelegate(string message);
-
-        public static string DeleteExistingHostpolicy(string coreRoot)
-        {
-#if REFERENCING_SYSTEMPRIVATECORELIB
-            throw new Exception("This API is not supported when compiled referencing SPCL");
-
-#else
-            string hostPolicyFileName = XPlatformUtils.GetStandardNativeLibraryFileName("hostpolicy");
-            string destinationPath = Path.Combine(coreRoot, hostPolicyFileName);
-
-            if (File.Exists(destinationPath))
-            {
-                File.Delete(destinationPath);
-            }
-
-            return destinationPath;
-#endif
-        }
 
         public static void Initialize(string testBasePath, string coreRoot)
         {
-#if !REFERENCING_SYSTEMPRIVATECORELIB
-            string hostPolicyFileName = XPlatformUtils.GetStandardNativeLibraryFileName("hostpolicy");
-            string destinationPath = DeleteExistingHostpolicy(coreRoot);
-
-            File.Copy(
-                Path.Combine(testBasePath, hostPolicyFileName),
-                destinationPath);
-#endif
-
             _assemblyDependencyResolverType = typeof(AssemblyDependencyResolver);
 
             // This is needed for marshalling of function pointers to work - requires private access to the ADR unfortunately

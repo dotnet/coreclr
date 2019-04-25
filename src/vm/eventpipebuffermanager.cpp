@@ -263,7 +263,7 @@ EventPipeBufferList* EventPipeBufferManager::FindThreadToStealFrom()
                 pOldestContainingList = pCandidate;
             }
             // Otherwise, to replace the existing candidate, this candidate must have an older timestamp in its oldest buffer.
-            else if((pOldestContainingList->GetHead()->GetMostRecentTimeStamp().QuadPart) > 
+            else if((pOldestContainingList->GetHead()->GetMostRecentTimeStamp().QuadPart) >
                       (pCandidate->GetHead()->GetMostRecentTimeStamp().QuadPart))
             {
                 pOldestContainingList = pCandidate;
@@ -414,7 +414,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(pFile != NULL);
+        PRECONDITION(pFile != nullptr);
     }
     CONTRACTL_END;
 
@@ -434,6 +434,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
     SpinLockHolder _slh(&m_lock);
 
     // Naively walk the circular buffer, writing the event stream in timestamp order.
+    m_numEventsWritten = 0;
     while(true)
     {
         EventPipeEventInstance *pOldestInstance = NULL;
@@ -451,7 +452,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
             {
                 // If it's the oldest event we've seen, then save it.
                 if((pOldestInstance == NULL) ||
-                   (pOldestInstance->GetTimeStamp()->QuadPart > pNext->GetTimeStamp()->QuadPart)) 
+                   (pOldestInstance->GetTimeStamp()->QuadPart > pNext->GetTimeStamp()->QuadPart))
                 {
                     pOldestInstance = pNext;
                     pOldestContainingBuffer = pContainingBuffer;
@@ -470,13 +471,14 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
 
         // Write the oldest event.
         pFile->WriteEvent(*pOldestInstance);
-#ifdef _DEBUG
-        m_numEventsWritten++;
-#endif // _DEBUG
 
+        m_numEventsWritten++;
         // Pop the event from the buffer.
         pOldestContainingList->PopNextEvent(stopTimeStamp);
     }
+
+    if (m_numEventsWritten > 0)
+        pFile->Flush();
 }
 
 EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
