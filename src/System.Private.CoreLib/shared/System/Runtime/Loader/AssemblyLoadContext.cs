@@ -582,6 +582,15 @@ namespace System.Runtime.Loader
             {
                 return parentALC.LoadFromAssemblyPath(assemblyPath);
             }
+            else if (Path.IsCaseSensitive)
+            {
+                assemblyPath = Path.Combine(parentDirectory, cultureName.ToLowerInvariant(), $"{assemblyName.Name}.dll");
+
+                if (Internal.IO.File.InternalExists(assemblyPath))
+                {
+                    return parentALC.LoadFromAssemblyPath(assemblyPath);
+                }
+            }
 
             return null;
         }
