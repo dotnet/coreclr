@@ -35021,6 +35021,11 @@ GCHeap::AllocAlign8Common(void* _hp, alloc_context* acontext, size_t size, uint3
                     // rest of the space should be correctly aligned for the real object.
                     newAlloc = (Object*)((uint8_t*)freeobj + Align(min_obj_size));
                     ASSERT(((size_t)newAlloc & 7) == desiredAlignment);
+                    if (flags & GC_ALLOC_ZEROING_OPTIONAL)
+                    {
+                        // clean the syncblock of the aligned object.
+                        *(((PTR_PTR)newAlloc)-1) = 0;
+                    }
                 }
                 freeobj->SetFree(min_obj_size);
             }
