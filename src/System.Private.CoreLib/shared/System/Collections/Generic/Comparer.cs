@@ -83,7 +83,7 @@ namespace System.Collections.Generic
     // Needs to be public to support binary serialization compatibility
     public sealed partial class NullableComparer<T> : Comparer<T?> where T : struct, IComparable<T>
     {
-        public override int Compare(T? x, T? y) // TODO-NULLABLE-GENERIC: x and y must be marked as nullable
+        public override int Compare(T? x, T? y)
         {
             if (x.HasValue)
             {

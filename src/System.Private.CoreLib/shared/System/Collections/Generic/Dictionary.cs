@@ -100,7 +100,7 @@ namespace System.Collections.Generic
             // avoid the enumerator allocation and overhead by looping through the entries array directly.
             // We only do this when dictionary is Dictionary<TKey,TValue> and not a subclass, to maintain
             // back-compat with subclasses that may have overridden the enumerator behavior.
-            if (dictionary!.GetType() == typeof(Dictionary<TKey, TValue>)) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            if (dictionary!.GetType() == typeof(Dictionary<TKey, TValue>)) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             {
                 Dictionary<TKey, TValue> d = (Dictionary<TKey, TValue>)dictionary;
                 int count = d._count;
@@ -131,7 +131,7 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
             }
 
-            foreach (KeyValuePair<TKey, TValue> pair in collection!) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            foreach (KeyValuePair<TKey, TValue> pair in collection!) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             {
                 Add(pair.Key, pair.Value);
             }
@@ -219,7 +219,7 @@ namespace System.Collections.Generic
                 int i = FindEntry(key);
                 if (i >= 0) return _entries![i].value;
                 ThrowHelper.ThrowKeyNotFoundException(key);
-                return default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761 (annotating ThrowHelper removes this return statement).
+                return default!; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538 (annotating ThrowHelper removes this return statement).
             }
             set
             {
@@ -266,7 +266,7 @@ namespace System.Collections.Generic
                 Debug.Assert(_buckets != null, "_buckets should be non-null");
                 Debug.Assert(_entries != null, "_entries should be non-null");
 
-                Array.Clear(_buckets, 0, _buckets!.Length);
+                Array.Clear(_buckets, 0, _buckets.Length);
 
                 _count = 0;
                 _freeList = -1;
@@ -320,7 +320,7 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if ((uint)index > (uint)array!.Length) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            if ((uint)index > (uint)array!.Length) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             {
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             }
@@ -354,7 +354,7 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.info);
             }
 
-            info!.AddValue(VersionName, _version); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            info!.AddValue(VersionName, _version); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             info.AddValue(ComparerName, _comparer ?? EqualityComparer<TKey>.Default, typeof(IEqualityComparer<TKey>));
             info.AddValue(HashSizeName, _buckets == null ? 0 : _buckets.Length); // This is the length of the bucket array
 
@@ -699,7 +699,7 @@ namespace System.Collections.Generic
                     ThrowHelper.ThrowSerializationException(ExceptionResource.Serialization_MissingKeys);
                 }
 
-                for (int i = 0; i < array!.Length; i++) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                for (int i = 0; i < array!.Length; i++) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                 {
                     if (array[i].Key == null)
                     {
@@ -740,7 +740,7 @@ namespace System.Collections.Generic
                     if (entries[i].next >= -1)
                     {
                         Debug.Assert(_comparer == null);
-                        entries[i].hashCode = (uint)entries[i].key!.GetHashCode();
+                        entries[i].hashCode = (uint)entries[i].key.GetHashCode();
                     }
                 }
             }
@@ -804,11 +804,11 @@ namespace System.Collections.Generic
 
                         if (RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())
                         {
-                            entry.key = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+                            entry.key = default!; // TODO-NULLABLE-GENERIC
                         }
                         if (RuntimeHelpers.IsReferenceOrContainsReferences<TValue>())
                         {
-                            entry.value = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+                            entry.value = default!; // TODO-NULLABLE-GENERIC
                         }
                         _freeList = i;
                         _freeCount++;
@@ -832,7 +832,7 @@ namespace System.Collections.Generic
         // This overload is a copy of the overload Remove(TKey key) with one additional
         // statement to copy the value for entry being removed into the output parameter.
         // Code has been intentionally duplicated for performance reasons.
-        public bool Remove(TKey key, out TValue value)
+        public bool Remove(TKey key, out TValue value) // TODO-NULLABLE-GENERIC: https://github.com/dotnet/roslyn/issues/26761
         {
             if (key == null)
             {
@@ -874,11 +874,11 @@ namespace System.Collections.Generic
 
                         if (RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())
                         {
-                            entry.key = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+                            entry.key = default!; // TODO-NULLABLE-GENERIC
                         }
                         if (RuntimeHelpers.IsReferenceOrContainsReferences<TValue>())
                         {
-                            entry.value = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+                            entry.value = default!; // TODO-NULLABLE-GENERIC
                         }
                         _freeList = i;
                         _freeCount++;
@@ -896,11 +896,11 @@ namespace System.Collections.Generic
                     collisionCount++;
                 }
             }
-            value = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+            value = default!; // TODO-NULLABLE-GENERIC
             return false;
         }
 
-        public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, out TValue value) // TODO-NULLABLE-GENERIC: https://github.com/dotnet/roslyn/issues/26761
         {
             int i = FindEntry(key);
             if (i >= 0)
@@ -908,7 +908,7 @@ namespace System.Collections.Generic
                 value = _entries![i].value;
                 return true;
             }
-            value = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+            value = default!; // TODO-NULLABLE-GENERIC
             return false;
         }
 
@@ -924,7 +924,7 @@ namespace System.Collections.Generic
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if (array!.Rank != 1) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            if (array!.Rank != 1) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             if (array.GetLowerBound(0) != 0)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NonZeroLowerBound);
@@ -1088,7 +1088,7 @@ namespace System.Collections.Generic
 
                 try
                 {
-                    TKey tempKey = (TKey)key!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                    TKey tempKey = (TKey)key!; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                     try
                     {
                         this[tempKey] = (TValue)value!;
@@ -1267,7 +1267,7 @@ namespace System.Collections.Generic
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();
                     }
 
-                    return _current.Key!; // TODO-NULLABLE-GENERIC: entry.Key can't be null.
+                    return _current.Key;
                 }
             }
 
@@ -1384,7 +1384,7 @@ namespace System.Collections.Generic
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            if (entries![i].next >= -1) objects![index++] = entries[i].key!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761 (objects) TODO-NULLABLE-GENERIC: key can't be null.
+                            if (entries![i].next >= -1) objects![index++] = entries[i].key; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538 (objects)
                         }
                     }
                     catch (ArrayTypeMismatchException)
@@ -1410,7 +1410,7 @@ namespace System.Collections.Generic
                     _dictionary = dictionary;
                     _version = dictionary._version;
                     _index = 0;
-                    _currentKey = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+                    _currentKey = default!; // TODO-NULLABLE-GENERIC
                 }
 
                 public void Dispose()
@@ -1436,7 +1436,7 @@ namespace System.Collections.Generic
                     }
 
                     _index = _dictionary._count + 1;
-                    _currentKey = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+                    _currentKey = default!; // TODO-NULLABLE-GENERIC
                     return false;
                 }
 
@@ -1463,7 +1463,7 @@ namespace System.Collections.Generic
                     }
 
                     _index = 0;
-                    _currentKey = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+                    _currentKey = default!; // TODO-NULLABLE-GENERIC
                 }
             }
         }
@@ -1480,7 +1480,7 @@ namespace System.Collections.Generic
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.dictionary);
                 }
-                _dictionary = dictionary!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                _dictionary = dictionary!; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             }
 
             public Enumerator GetEnumerator()
@@ -1493,7 +1493,7 @@ namespace System.Collections.Generic
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
                 }
 
-                if ((uint)index > array!.Length) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                if ((uint)index > array!.Length) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                 {
                     ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
                 }
@@ -1540,7 +1540,7 @@ namespace System.Collections.Generic
             {
                 if (array == null)
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-                if (array!.Rank != 1) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                if (array!.Rank != 1) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                     ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
                 if (array.GetLowerBound(0) != 0)
                     ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NonZeroLowerBound);
@@ -1567,7 +1567,7 @@ namespace System.Collections.Generic
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            if (entries![i].next >= -1) objects![index++] = entries[i].value!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                            if (entries![i].next >= -1) objects![index++] = entries[i].value!; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                         }
                     }
                     catch (ArrayTypeMismatchException)
@@ -1593,7 +1593,7 @@ namespace System.Collections.Generic
                     _dictionary = dictionary;
                     _version = dictionary._version;
                     _index = 0;
-                    _currentValue = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+                    _currentValue = default!; // TODO-NULLABLE-GENERIC
                 }
 
                 public void Dispose()
@@ -1618,7 +1618,7 @@ namespace System.Collections.Generic
                         }
                     }
                     _index = _dictionary._count + 1;
-                    _currentValue = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+                    _currentValue = default!; // TODO-NULLABLE-GENERIC
                     return false;
                 }
 
@@ -1644,7 +1644,7 @@ namespace System.Collections.Generic
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                     }
                     _index = 0;
-                    _currentValue = default!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
+                    _currentValue = default!; // TODO-NULLABLE-GENERIC
                 }
             }
         }

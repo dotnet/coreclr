@@ -13,18 +13,18 @@ namespace System.Collections
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public struct DictionaryEntry
     {
-        private object? _key; // Do not rename (binary serialization)
+        private object _key; // Do not rename (binary serialization)
         private object? _value; // Do not rename (binary serialization)
 
         // Constructs a new DictionaryEnumerator by setting the Key
         // and Value fields appropriately.
-        public DictionaryEntry(object? key, object? value)
+        public DictionaryEntry(object key, object? value)
         {
             _key = key;
             _value = value;
         }
 
-        public object? Key
+        public object Key
         {
             get
             {
@@ -51,7 +51,7 @@ namespace System.Collections
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public void Deconstruct(out object? key, out object? value)
+        public void Deconstruct(out object key, out object? value)
         {
             key = Key;
             value = Value;

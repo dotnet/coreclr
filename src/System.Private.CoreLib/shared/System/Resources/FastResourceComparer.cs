@@ -27,9 +27,9 @@ namespace System.Resources
         internal static readonly FastResourceComparer Default = new FastResourceComparer();
 
         // Implements IHashCodeProvider too, due to Hashtable requirements.
-        public int GetHashCode(object? key) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
+        public int GetHashCode(object key)
         {
-            string s = (string)key!;
+            string s = (string)key;
             return FastResourceComparer.HashFunction(s);
         }
 

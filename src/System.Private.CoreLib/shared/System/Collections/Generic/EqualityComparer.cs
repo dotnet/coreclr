@@ -15,9 +15,11 @@ namespace System.Collections.Generic
         // public static EqualityComparer<T> Default is runtime-specific
 
         public abstract bool Equals(T x, T y);
-        public abstract int GetHashCode(T obj);
+        public abstract int GetHashCode(T obj); // TODO-NULLABLE-GENERIC: Shouldn't accept nulls.
 
+#pragma warning disable CS8617 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/30958
         int IEqualityComparer.GetHashCode(object? obj)
+#pragma warning restore CS8617
         {
             if (obj == null) return 0;
             if (obj is T) return GetHashCode((T)obj);

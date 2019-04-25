@@ -383,7 +383,7 @@ namespace System
 
             for (int i = (this.Length >= 8 ? this.Length - 8 : 0); i < this.Length; i++)
             {
-                ret = CombineHashCodes(ret, comparer!.GetHashCode(GetValue(i))); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+                ret = CombineHashCodes(ret, comparer!.GetHashCode(GetValue(i)!)); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             }
 
             return ret;
