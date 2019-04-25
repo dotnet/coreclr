@@ -37,16 +37,11 @@ namespace System.Diagnostics.Tracing
 
         private static bool IsControllerInitialized { get; set; } = false;
 
-        // Initialization flag used to avoid initializing FrameworkEventSource on the startup path.
-        internal static bool Initializing { get; private set; }
-
         internal static void Initialize()
         {
             // Don't allow failures to propagate upstream.  Ensure program correctness without tracing.
             try
             {
-                Initializing = true;
-
                 if (!IsControllerInitialized)
                 {
                     if (Config_EnableEventPipe > 0)
@@ -56,17 +51,12 @@ namespace System.Diagnostics.Tracing
                         EventPipe.Enable(BuildConfigFromEnvironment());
                     }
 
-                    // If enable is explicitly set to 0, then don't start the controller (to avoid overhead).
                     RuntimeEventSource.Initialize();
 
                     IsControllerInitialized = true;
                 }
             }
             catch { }
-            finally
-            {
-                Initializing = false;
-            }
         }
 
         private static EventPipeConfiguration BuildConfigFromEnvironment()
