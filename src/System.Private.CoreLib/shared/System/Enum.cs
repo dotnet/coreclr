@@ -605,6 +605,7 @@ namespace System
 
             public override bool TryParse(ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, ref byte result)
             {
+                ReadOnlySpan<char> originalValue = value;
                 value = value.TrimStart();
 
                 ref TUnderlying underlying = ref Unsafe.As<byte, TUnderlying>(ref result);
@@ -709,7 +710,7 @@ namespace System
 
                 if (throwOnFailure)
                 {
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumValueNotFound, value.ToString()));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumValueNotFound, originalValue.ToString()));
                 }
                 
                 return false;
