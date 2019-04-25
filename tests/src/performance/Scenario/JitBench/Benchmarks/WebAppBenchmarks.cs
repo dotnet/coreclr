@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using Microsoft.Xunit.Performance.Api;
 
 namespace JitBench
@@ -99,11 +100,12 @@ namespace JitBench
         private async Task CreateStore(DotNetInstallation dotNetInstall, string outputDir, ITestOutputHelper output)
         {
             string tfm = DotNetSetup.GetTargetFrameworkMonikerForFrameworkVersion(dotNetInstall.FrameworkVersion);
-            string rid = $"win7-{dotNetInstall.Architecture}";
             string storeDirName = ".store";
-            await new ProcessRunner("powershell.exe", $".\\AspNet-GenerateStore.ps1 -InstallDir {storeDirName} -Architecture {dotNetInstall.Architecture} -Runtime {rid}")
+            await (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
+                    new ProcessRunner("powershell.exe", $".\\AspNet-GenerateStore.ps1 -InstallDir {storeDirName} -Architecture {dotNetInstall.Architecture} -Runtime win7-{dotNetInstall.Architecture}") :
+                    new ProcessRunner("bash", $"./aspnet-generatestore.sh --install-dir {storeDirName} --architecture {dotNetInstall.Architecture} --runtime-id linux-{dotNetInstall.Architecture} -f {tfm} --fx-version {dotNetInstall.FrameworkVersion}"))
                 .WithWorkingDirectory(GetJitBenchRepoRootDir(outputDir))
-                .WithEnvironmentVariable("PATH", $"{dotNetInstall.DotNetDir};{Environment.GetEnvironmentVariable("PATH")}")
+                .WithEnvironmentVariable("PATH", $"{dotNetInstall.DotNetDir}{Path.PathSeparator}{Environment.GetEnvironmentVariable("PATH")}")
                 .WithEnvironmentVariable("DOTNET_MULTILEVEL_LOOKUP", "0")
                 .WithEnvironmentVariable("JITBENCH_TARGET_FRAMEWORK_MONIKER", tfm)
                 .WithEnvironmentVariable("JITBENCH_FRAMEWORK_VERSION", dotNetInstall.FrameworkVersion)
