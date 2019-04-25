@@ -6,7 +6,6 @@
 using System.IO;
 using System.Reflection;
 using System.Runtime.Versioning;
-using System.Threading;
 
 namespace System.Diagnostics.Tracing
 {
@@ -19,20 +18,14 @@ namespace System.Diagnostics.Tracing
     ///                              If not specified, the default configuration is used.
     ///  - COMPlus_EventPipeOutputFile : The full path to the netperf file to be written.
     ///  - COMPlus_EventPipeCircularMB : The size in megabytes of the circular buffer.
-    /// Once the configuration is set and this controller is enabled, tracing is enabled by creating a marker file that this controller listens for.
-    /// Tracing is disabled by deleting the marker file.  The marker file is the target trace file path with ".ctl" appended to it.  For example,
-    /// if the trace file is /path/to/trace.netperf then the marker file is /path/to/trace.netperf.ctl.
-    /// This listener does not poll very often, and thus takes time to enable and disable tracing.  This is by design to ensure that the listener does
-    /// not starve other threads on the system.
     /// NOTE: If COMPlus_EnableEventPipe != 4 then this listener is not created and does not add any overhead to the process.
     /// </summary>
-    internal sealed class EventPipeController
+    internal static class EventPipeController
     {
         // Miscellaneous constants.
         private const string DefaultAppName = "app";
         private const string NetPerfFileExtension = ".netperf";
-        private const string ConfigFileSuffix = ".eventpipeconfig";
-        private const uint DefaultCircularBufferMB = 1024; // 1 GB
+        private const uint DefaultCircularBufferMB = 256; // MB (PerfView and dotnet-trace default)
         private const char ProviderConfigDelimiter = ',';
         private const char ConfigComponentDelimiter = ':';
 
@@ -44,11 +37,7 @@ namespace System.Diagnostics.Tracing
             new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5, null),
         };
 
-        // Singleton controller instance.
-        private static EventPipeController? s_controllerInstance;
-
-        // Controller object state.
-        private readonly string m_configFilePath;
+        private static bool IsControllerInitialized { get; set; } = false;
 
         // Initialization flag used to avoid initializing FrameworkEventSource on the startup path.
         internal static bool Initializing { get; private set; }
@@ -60,23 +49,19 @@ namespace System.Diagnostics.Tracing
             {
                 Initializing = true;
 
-                if (s_controllerInstance == null)
+                if (!IsControllerInitialized)
                 {
-                    int enabled = Config_EnableEventPipe;
-                    if (enabled > 0)
+                    if (Config_EnableEventPipe > 0)
                     {
                         // Enable tracing immediately.
                         // It will be disabled automatically on shutdown.
                         EventPipe.Enable(BuildConfigFromEnvironment());
                     }
-                    // If not set at all, we listen for changes in the control file.
-                    else if (enabled != 0)
-                    {
-                        // Create a new controller to listen for commands.
-                        s_controllerInstance = new EventPipeController();
-                    }
+
                     // If enable is explicitly set to 0, then don't start the controller (to avoid overhead).
                     RuntimeEventSource.Initialize();
+
+                    IsControllerInitialized = true;
                 }
             }
             catch { }
@@ -84,13 +69,6 @@ namespace System.Diagnostics.Tracing
             {
                 Initializing = false;
             }
-        }
-
-        private EventPipeController()
-        {
-            // Set the config file path.
-            // BaseDirectory could be null, in which case this could throw, but it will be caught and ignored: https://github.com/dotnet/coreclr/issues/24053
-            m_configFilePath = Path.Combine(AppContext.BaseDirectory!, BuildConfigFileName());
         }
 
         private static EventPipeConfiguration BuildConfigFromEnvironment()
@@ -118,11 +96,6 @@ namespace System.Diagnostics.Tracing
             }
 
             return config;
-        }
-
-        private static string BuildConfigFileName()
-        {
-            return GetAppName() + ConfigFileSuffix;
         }
 
         private static string BuildTraceFileName()
