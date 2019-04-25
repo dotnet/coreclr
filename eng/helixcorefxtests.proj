@@ -42,7 +42,6 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <AdditionalRunArguments>-notrait category=OuterLoop -notrait category=RequiresElevation</AdditionalRunArguments>
     <!--
       For windows we need to use call, since the command is going to be called from a bat script created by Helix
       and we exit /b at the end of RunTests.cmd, Helix runs some other commands after ours within the bat script,
@@ -50,17 +49,24 @@
       The arguments passed in to the run script in order are the runtime directory, the dotnet root directory (for
       helix submissions same as the runtime directory) and the global tools directory.
     -->
-    <HelixCommand Condition="'$(TargetsWindows)' == 'true'">call RunTests.cmd %HELIX_CORRELATION_PAYLOAD% %HELIX_CORRELATION_PAYLOAD% %HELIX_CORRELATION_PAYLOAD%\tools "$(AdditionalRunArguments)"</HelixCommand>
-    <HelixCommand Condition="'$(TargetsWindows)' != 'true'">./RunTests.sh $HELIX_CORRELATION_PAYLOAD $HELIX_CORRELATION_PAYLOAD $HELIX_CORRELATION_PAYLOAD/tools "$(AdditionalRunArguments)"</HelixCommand>
+    <HelixCommand Condition="'$(TargetsWindows)' == 'true'">call RunTests.cmd -r %HELIX_CORRELATION_PAYLOAD% -d %HELIX_CORRELATION_PAYLOAD% -g %HELIX_CORRELATION_PAYLOAD%\tools --rsp-file %HELIX_CORRELATION_PAYLOAD%\CoreFX.issues.rsp </HelixCommand>
+    <HelixCommand Condition="'$(TargetsWindows)' != 'true'">./RunTests.sh -r $HELIX_CORRELATION_PAYLOAD -d $HELIX_CORRELATION_PAYLOAD -g $HELIX_CORRELATION_PAYLOAD/tools --rsp-file $HELIX_CORRELATION_PAYLOAD/CoreFX.issues.rsp </HelixCommand>
   </PropertyGroup>
 
   <ItemGroup>
     <TestArchiveRuntimeInputs Include="$(TestHostRootPath)**/*" />
   </ItemGroup>
 
+  <Target Name="CopyRSPFile">
+    <Copy
+      SourceFiles="$(ProjectDir)\tests\CoreFX\CoreFX.issues.rsp"
+      DestinationFolder="$(TestHostRootPath)" />
+  </Target>
+
   <Target Name="CompressRuntimeDirectory"
           Inputs="@(TestArchiveRuntimeInputs)"
-          Outputs="$(TestArchiveRuntimeFile)">
+          Outputs="$(TestArchiveRuntimeFile)"
+          DependsOnTargets="CopyRSPFile" >
 
     <MakeDir Directories="$(TestArchiveRuntimeRoot)" />
 
@@ -95,7 +101,8 @@
           DependsOnTargets="CompressRuntimeDirectory;GetTestAssetManifest">
 
     <ItemGroup>
-      <HelixCorrelationPayload Include="$(TestArchiveRuntimeFile)" />
+      <HelixCorrelationPayload 
+        Include="$(TestArchiveRuntimeFile)" />
 
       <HelixWorkItem Include="@(TestAssetBlobInfos -> '%(FileName)')">
         <PayloadUri>$(TestAssetBlobFeedUrl)/%(Identity)</PayloadUri>
