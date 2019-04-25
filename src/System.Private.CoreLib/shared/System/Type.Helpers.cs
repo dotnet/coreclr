@@ -393,7 +393,7 @@ namespace System
         // FilterAttribute
         //  This method will search for a member based upon the attribute passed in.
         //  filterCriteria -- an Int32 representing the attribute
-        private static bool FilterAttributeImpl(MemberInfo m, object? filterCriteria)
+        private static bool FilterAttributeImpl(MemberInfo m, object filterCriteria)
         {
             // Check that the criteria object is an Integer object
             if (filterCriteria == null)
