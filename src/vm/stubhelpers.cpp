@@ -59,7 +59,10 @@ void StubHelpers::ValidateObjectInternal(Object *pObjUNSAFE, BOOL fValidateNextO
 
 	// validate the object - there's no need to validate next object's
 	// header since we validate the next object explicitly below
-	pObjUNSAFE->Validate(/*bDeep=*/ TRUE, /*bVerifyNextHeader=*/ FALSE, /*bVerifySyncBlock=*/ TRUE);
+	if (pObjUNSAFE)
+	{
+		pObjUNSAFE->Validate(/*bDeep=*/ TRUE, /*bVerifyNextHeader=*/ FALSE, /*bVerifySyncBlock=*/ TRUE);
+	}
 
 	// and the next object as required
 	if (fValidateNextObj)

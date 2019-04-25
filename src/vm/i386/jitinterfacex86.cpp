@@ -76,8 +76,11 @@ extern "C" void STDCALL WriteBarrierAssert(BYTE* ptr, Object* obj)
 
     if (fVerifyHeap)
     {
-        obj->Validate(FALSE);
-        if(GCHeapUtilities::GetGCHeap()->IsHeapPointer(ptr))
+        if (obj)
+        {
+            obj->Validate(FALSE);
+        }
+        if (GCHeapUtilities::GetGCHeap()->IsHeapPointer(ptr))
         {
             Object* pObj = *(Object**)ptr;
             _ASSERTE (pObj == NULL || GCHeapUtilities::GetGCHeap()->IsHeapPointer(pObj));

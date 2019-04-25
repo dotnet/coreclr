@@ -1225,7 +1225,7 @@ void SyncBlockCache::GCWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintp
             for (int nb = 1; nb < (int)m_FreeSyncTableIndex; nb++)
             {
                 Object* o = SyncTableEntry::GetSyncTableEntry()[nb].m_Object;
-                if (((size_t)o & 1) == 0)
+                if (o && ((size_t)o & 1) == 0)
                 {
                     o->Validate();
                 }

@@ -34339,7 +34339,10 @@ HRESULT GCHeap::Initialize()
 bool GCHeap::IsPromoted(Object* object)
 {
 #ifdef _DEBUG
-    ((CObjectHeader*)object)->Validate();
+    if (object)
+    {
+        ((CObjectHeader*)object)->Validate();
+    }
 #endif //_DEBUG
 
     uint8_t* o = (uint8_t*)object;

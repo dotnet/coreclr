@@ -26,7 +26,14 @@
 #if defined(DACCESS_COMPILE) || defined(CROSSGEN_COMPILE)
 #define VALIDATE_OBJECTREF(objref, fDeep)
 #else // DACCESS_COMPILE || CROSSGEN_COMPILE
-#define VALIDATE_OBJECTREF(objref, fDeep) OBJECTREF_TO_UNCHECKED_OBJECTREF(objref)->Validate(fDeep)
+#define VALIDATE_OBJECTREF(objref, fDeep)                          \
+    do {                                                           \
+        Object* objPtr = OBJECTREF_TO_UNCHECKED_OBJECTREF(objref); \
+        if (objPtr)                                                \
+        {                                                          \
+            objPtr->Validate(fDeep);                               \
+        }                                                          \
+    } while(0)
 #endif // DACCESS_COMPILE || CROSSGEN_COMPILE
 #endif // !VALIDATE_OBJECTREF
 

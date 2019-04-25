@@ -524,12 +524,6 @@ VOID Object::Validate(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncBlock)
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
 
-    Object* thisPtr = this; // workaround -Werror=nonnull-compare for 'this'
-    if (thisPtr == NULL)
-    {
-        return;     // NULL is ok
-    }
-
     if (g_IBCLogger.InstrEnabled() && !GCStress<cfg_any>::IsEnabled())
     {
         // If we are instrumenting for IBC (and GCStress is not enabled)
@@ -608,7 +602,7 @@ VOID Object::ValidateInner(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncB
             bSmallObjectHeapPtr = GCHeapUtilities::GetGCHeap()->IsHeapPointer(this, true);
             if (!bSmallObjectHeapPtr)
                 bLargeObjectHeapPtr = GCHeapUtilities::GetGCHeap()->IsHeapPointer(this);
-                
+
             CHECK_AND_TEAR_DOWN(bSmallObjectHeapPtr || bLargeObjectHeapPtr);
         }
 
@@ -618,7 +612,7 @@ VOID Object::ValidateInner(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncB
         {
             CHECK_AND_TEAR_DOWN(GetHeader()->Validate(bVerifySyncBlock));
         }
-        
+
         lastTest = 4;
 
         if (bDeep && (g_pConfig->GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)) {
@@ -1268,7 +1262,10 @@ OBJECTREF::OBJECTREF(Object *pObject)
 void OBJECTREF::Validate(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncBlock)
 {
     LIMITED_METHOD_CONTRACT;
-    m_asObj->Validate(bDeep, bVerifyNextHeader, bVerifySyncBlock);
+    if (m_asObj)
+    {
+        m_asObj->Validate(bDeep, bVerifyNextHeader, bVerifySyncBlock);
+    }
 }
 
 //-------------------------------------------------------------
