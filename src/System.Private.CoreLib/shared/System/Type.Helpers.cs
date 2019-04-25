@@ -114,7 +114,7 @@ namespace System
             }
         }
 
-        public virtual Type[] FindInterfaces(TypeFilter filter, object? filterCriteria)
+        public virtual Type[] FindInterfaces(TypeFilter filter, object filterCriteria)
         {
             if (filter == null)
                 throw new ArgumentNullException(nameof(filter));
@@ -136,7 +136,7 @@ namespace System
             for (int i = 0; i < c.Length; i++)
             {
                 if (c[i] != null)
-                    ret[cnt++] = c[i]!;  // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
+                    ret[cnt++] = c[i]!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
             }
             return ret;
         }
