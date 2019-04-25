@@ -849,17 +849,10 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             // the xor ensures that only one of the two is setup, not both
             assert((varNode != nullptr) ^ (addrNode != nullptr));
 
-            const BYTE* gcPtrs = nullptr;
+            ClassLayout* layout;
+            unsigned     structSize;
+            bool         isHfa;
 
-            unsigned gcPtrCount; // The count of GC pointers in the struct
-            unsigned structSize;
-            bool     isHfa;
-
-#ifdef _TARGET_ARM_
-            // On ARM32, size of reference map can be larger than MAX_ARG_REG_COUNT
-            gcPtrs     = treeNode->gtGcPtrs;
-            gcPtrCount = treeNode->gtNumberReferenceSlots;
-#endif
             // Setup the structSize, isHFa, and gcPtrCount
             if (source->OperGet() == GT_LCL_VAR)
             {
@@ -873,11 +866,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
                 structSize = varDsc->lvSize(); // This yields the roundUp size, but that is fine
                                                // as that is how much stack is allocated for this LclVar
-                isHfa = varDsc->lvIsHfa();
-#ifdef _TARGET_ARM64_
-                gcPtrCount = varDsc->GetLayout()->GetGCPtrCount();
-                gcPtrs     = varDsc->GetLayout()->GetGCPtrs();
-#endif // _TARGET_ARM_
+                isHfa  = varDsc->lvIsHfa();
+                layout = varDsc->GetLayout();
             }
             else // we must have a GT_OBJ
             {
@@ -887,7 +877,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 // it provides (size and GC layout) even if the node wraps a lclvar. Due
                 // to struct reinterpretation (e.g. Unsafe.As<X, Y>) it is possible that
                 // the OBJ node has a different type than the lclvar.
-                ClassLayout* layout = source->AsObj()->GetLayout();
+                layout = source->AsObj()->GetLayout();
 
                 structSize = layout->GetSize();
 
@@ -908,17 +898,9 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
                 isHfa = compiler->IsHfa(layout->GetClassHandle());
 
-#ifdef _TARGET_ARM64_
 #ifndef FEATURE_PUT_STRUCT_ARG_STK
                 // For some reason Lowering::NewPutArg does this only for Win ARM64, not for Linux ARM64.
                 layout->EnsureGCPtrsInitialized(compiler);
-#endif
-                // On ARM32, Lowering places the correct GC layout information in the
-                // GenTreePutArgStk node and the code above already use that. On ARM64,
-                // this information is not available (in order to keep GenTreePutArgStk
-                // nodes small) and we need to retrieve it from the OBJ node here.
-                gcPtrCount = layout->GetGCPtrCount();
-                gcPtrs     = layout->GetGCPtrs();
 #endif
             }
 
@@ -926,7 +908,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             // if not then the max size for the the struct is 16 bytes
             if (isHfa)
             {
-                noway_assert(gcPtrCount == 0);
+                noway_assert(!layout->HasGCPtr());
             }
 #ifdef _TARGET_ARM64_
             else
@@ -937,9 +919,10 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             noway_assert(structSize <= MAX_PASS_MULTIREG_BYTES);
 #endif // _TARGET_ARM64_
 
-            int      remainingSize = structSize;
-            unsigned structOffset  = 0;
-            unsigned nextIndex     = 0;
+            int         remainingSize = structSize;
+            unsigned    structOffset  = 0;
+            unsigned    nextIndex     = 0;
+            const BYTE* gcPtrs        = layout->GetGCPtrs();
 
 #ifdef _TARGET_ARM64_
             // For a >= 16-byte structSize we will generate a ldp and stp instruction each loop
@@ -1228,8 +1211,8 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
         assert((varNode != nullptr) ^ (addrNode != nullptr));
 
         // Setup the structSize, isHFa, and gcPtrCount
-        const BYTE* gcPtrs     = treeNode->gtGcPtrs;
-        unsigned    gcPtrCount = treeNode->gtNumberReferenceSlots; // The count of GC pointers in the struct
+        const BYTE* gcPtrs     = source->AsObj()->GetLayout()->GetGCPtrs();
+        unsigned    gcPtrCount = source->AsObj()->GetLayout()->GetGCPtrCount();
         int         structSize = treeNode->getArgSize();
 
         // This is the varNum for our load operations,

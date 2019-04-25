@@ -5338,8 +5338,6 @@ struct GenTreePutArgStk : public GenTreeUnOp
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
         , gtPutArgStkKind(Kind::Invalid)
         , gtNumSlots(numSlots)
-        , gtNumberReferenceSlots(0)
-        , gtGcPtrs(nullptr)
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 #if defined(DEBUG) || defined(UNIX_X86_ABI)
         , gtCall(callNode)
@@ -5401,28 +5399,6 @@ struct GenTreePutArgStk : public GenTreeUnOp
         return (varTypeIsSIMD(gtOp1) && (gtNumSlots == 3));
     }
 
-    //------------------------------------------------------------------------
-    // setGcPointers: Sets the number of references and the layout of the struct object returned by the VM.
-    //
-    // Arguments:
-    //    numPointers - Number of pointer references.
-    //    pointers    - layout of the struct (with pointers marked.)
-    //
-    // Return Value:
-    //    None
-    //
-    // Notes:
-    //    This data is used in the codegen for GT_PUTARG_STK to decide how to copy the struct to the stack by value.
-    //    If no pointer references are used, block copying instructions are used.
-    //    Otherwise the pointer reference slots are copied atomically in a way that gcinfo is emitted.
-    //    Any non pointer references between the pointer reference slots are copied in block fashion.
-    //
-    void setGcPointers(unsigned numPointers, const BYTE* pointers)
-    {
-        gtNumberReferenceSlots = numPointers;
-        gtGcPtrs               = pointers;
-    }
-
     // Instruction selection: during codegen time, what code sequence we will be using
     // to encode this operation.
     // TODO-Throughput: The following information should be obtained from the child
@@ -5438,9 +5414,7 @@ struct GenTreePutArgStk : public GenTreeUnOp
         return (gtPutArgStkKind == Kind::Push) || (gtPutArgStkKind == Kind::PushAllSlots);
     }
 
-    unsigned    gtNumSlots;             // Number of slots for the argument to be passed on stack
-    unsigned    gtNumberReferenceSlots; // Number of reference slots.
-    const BYTE* gtGcPtrs;               // gcPointers
+    unsigned gtNumSlots; // Number of slots for the argument to be passed on stack
 
 #else  // !FEATURE_PUT_STRUCT_ARG_STK
     unsigned getArgSize();

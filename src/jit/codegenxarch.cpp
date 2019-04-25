@@ -7645,11 +7645,13 @@ bool CodeGen::genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk)
     {
         case GenTreePutArgStk::Kind::RepInstr:
         case GenTreePutArgStk::Kind::Unroll:
-            assert((putArgStk->gtNumberReferenceSlots == 0) && (source->OperGet() != GT_FIELD_LIST) && (argSize >= 16));
+            // assert((putArgStk->gtNumberReferenceSlots == 0) && (source->OperGet() != GT_FIELD_LIST) && (argSize >=
+            // 16));
             break;
         case GenTreePutArgStk::Kind::Push:
         case GenTreePutArgStk::Kind::PushAllSlots:
-            assert((putArgStk->gtNumberReferenceSlots != 0) || (source->OperGet() == GT_FIELD_LIST) || (argSize < 16));
+            // assert((putArgStk->gtNumberReferenceSlots != 0) || (source->OperGet() == GT_FIELD_LIST) || (argSize <
+            // 16));
             break;
         case GenTreePutArgStk::Kind::Invalid:
         default:
@@ -8193,7 +8195,9 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
 
     assert(targetType == TYP_STRUCT);
 
-    if (putArgStk->gtNumberReferenceSlots == 0)
+    ClassLayout* layout = source->AsObj()->GetLayout();
+
+    if (!layout->HasGCPtr())
     {
         switch (putArgStk->gtPutArgStkKind)
         {
@@ -8225,7 +8229,7 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
         assert(m_pushStkArg);
 
         GenTree*       srcAddr  = source->gtGetOp1();
-        const BYTE*    gcPtrs   = putArgStk->gtGcPtrs;
+        const BYTE*    gcPtrs   = layout->GetGCPtrs();
         const unsigned numSlots = putArgStk->gtNumSlots;
 
         regNumber  srcRegNum    = srcAddr->gtRegNum;
@@ -8289,7 +8293,7 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
         unsigned       numGCSlotsCopied = 0;
 #endif // DEBUG
 
-        const BYTE*    gcPtrs   = putArgStk->gtGcPtrs;
+        const BYTE*    gcPtrs   = layout->GetGCPtrs();
         const unsigned numSlots = putArgStk->gtNumSlots;
         for (unsigned i = 0; i < numSlots;)
         {
@@ -8351,7 +8355,7 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
             }
         }
 
-        assert(numGCSlotsCopied == putArgStk->gtNumberReferenceSlots);
+        assert(numGCSlotsCopied == layout->GetGCPtrCount());
 #endif // _TARGET_X86_
     }
 }
