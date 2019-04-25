@@ -13,12 +13,10 @@ namespace System.Diagnostics.Tracing
     /// Simple out-of-process listener for controlling EventPipe.
     /// The following environment variables are used to configure EventPipe:
     ///  - COMPlus_EnableEventPipe=1 : Enable EventPipe immediately for the life of the process.
-    ///  - COMPlus_EnableEventPipe=4 : Enables this controller and creates a thread to listen for enable/disable events.
     ///  - COMPlus_EventPipeConfig : Provides the configuration in xperf string form for which providers/keywords/levels to be enabled.
     ///                              If not specified, the default configuration is used.
     ///  - COMPlus_EventPipeOutputFile : The full path to the netperf file to be written.
     ///  - COMPlus_EventPipeCircularMB : The size in megabytes of the circular buffer.
-    /// NOTE: If COMPlus_EnableEventPipe != 4 then this listener is not created and does not add any overhead to the process.
     /// </summary>
     internal static class EventPipeController
     {
