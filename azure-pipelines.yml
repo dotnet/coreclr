@@ -99,9 +99,9 @@ jobs:
     parameters:
       jobTemplate: build-job.yml
       buildConfig: release
-        platforms:
-        - Linux_x64
-        - Windows_NT_x64
+      platforms:
+      - Linux_x64
+      - Windows_NT_x64
 
 #
 # Release test builds
