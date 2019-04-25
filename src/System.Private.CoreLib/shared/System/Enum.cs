@@ -267,6 +267,7 @@ namespace System
             private readonly TUnderlying _max; // = _values[_values.Length - 1]
             private readonly TUnderlying _min; // = _values[0]
             private readonly bool _isContiguous;
+            private readonly bool _isContiguousAndUnique;
 
             public EnumInfo(RuntimeType enumType, string[] names, ulong[] values, bool isFlagEnum)
                 : base(enumType, typeof(TUnderlying), isFlagEnum)
@@ -327,6 +328,7 @@ namespace System
                 _min = min;
                 _nonNegativeStart = nonNegativeStart;
                 _isContiguous = uniqueValues > 0 && operations.Subtract(max, operations.ToObject((ulong)uniqueValues - 1)).Equals(min);
+                _isContiguousAndUnique = _isContiguous && uniqueValues == newNames.Length;
             }
 
             public override Array GetValues()
@@ -350,10 +352,22 @@ namespace System
 
             public string? GetName(TUnderlying value)
             {
-                int index = HybridSearch(_values, value);
-                if (index >= 0)
+                if (_isContiguousAndUnique)
                 {
-                    return _names[index];
+                    TUnderlyingOperations operations = default;
+                    ulong index = operations.ToUInt64(operations.Subtract(value, _min));
+                    if (index < (ulong)_names.Length)
+                    {
+                        return _names[index];
+                    }
+                }
+                else
+                {
+                    int index = HybridSearch(_values, value);
+                    if (index >= 0)
+                    {
+                        return _names[index];
+                    }
                 }
                 return null;
             }
@@ -373,9 +387,9 @@ namespace System
 
             public bool IsDefined(TUnderlying value)
             {
-                TUnderlyingOperations operations = default;
                 if (_isContiguous)
                 {
+                    TUnderlyingOperations operations = default;
                     return !(operations.LessThan(value, _min) || operations.LessThan(_max, value));
                 }
                 return HybridSearch(_values, value) >= 0;
@@ -469,19 +483,8 @@ namespace System
 
             public override string ToString(Enum value) => ToString(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()));
 
-            public string ToString(TUnderlying value)
-            {
-                if (_isFlagEnum)
-                {
-                    return ToStringFlags(value);
-                }
-                int index = HybridSearch(_values, value);
-                if (index >= 0)
-                {
-                    return _names[index];
-                }
-                return value.ToString()!;
-            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public string ToString(TUnderlying value) => _isFlagEnum ? ToStringFlags(value) : GetName(value) ?? value.ToString()!;
 
             public override string ToStringFlags(Enum value) => ToStringFlags(Unsafe.As<byte, TUnderlying>(ref value.GetRawData()));
 
@@ -636,6 +639,7 @@ namespace System
                     }
                 }
 
+                bool parsed = true;
                 string[] names = _names;
                 TUnderlying[] values = _values;
                 do
@@ -645,6 +649,7 @@ namespace System
                     int endIndex = value.IndexOf(EnumSeparatorChar);
                     if (endIndex == -1)
                     {
+                        // No next separator; use the remainder as the next value.
                         subvalue = value.Trim();
                         value = default;
                     }
@@ -657,10 +662,12 @@ namespace System
                     else
                     {
                         // Last char was a separator, which is invalid.
+                        parsed = false;
                         break;
                     }
 
                     // Try to match this substring against each enum name
+                    bool success = false;
                     if (ignoreCase)
                     {
                         for (int i = 0; i < names.Length; i++)
@@ -668,7 +675,8 @@ namespace System
                             if (subvalue.EqualsOrdinalIgnoreCase(names[i]))
                             {
                                 underlying = operations.Or(underlying, values[i]);
-                                return true;
+                                success = true;
+                                break;
                             }
                         }
                     }
@@ -679,11 +687,23 @@ namespace System
                             if (subvalue.EqualsOrdinal(names[i]))
                             {
                                 underlying = operations.Or(underlying, values[i]);
-                                return true;
+                                success = true;
+                                break;
                             }
                         }
                     }
+
+                    if (!success)
+                    {
+                        parsed = false;
+                        break;
+                    }
                 } while (value.Length > 0);
+
+                if (parsed)
+                {
+                    return true;
+                }
 
                 underlying = default;
 
