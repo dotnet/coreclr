@@ -561,11 +561,9 @@ namespace System.Runtime.Loader
             // Called by native runtime when CultureName is not empty
             Debug.Assert(assemblyName.CultureName?.Length > 0);
 
-            string cultureName = assemblyName.CultureName!;
-
             string satelliteSuffix = ".resources";
 
-            if (assemblyName.Name == null || !assemblyName.Name.EndsWith(satelliteSuffix))
+            if (assemblyName.Name == null || !assemblyName.Name.EndsWith(satelliteSuffix, StringComparison.Ordinal))
                 return null;
 
             string parentAssemblyName = assemblyName.Name.Substring(0, assemblyName.Name.Length - satelliteSuffix.Length);
@@ -576,7 +574,7 @@ namespace System.Runtime.Loader
 
             string parentDirectory = Path.GetDirectoryName(parentAssembly.Location)!;
 
-            string assemblyPath = Path.Combine(parentDirectory, cultureName, $"{assemblyName.Name}.dll");
+            string assemblyPath = Path.Combine(parentDirectory, assemblyName.CultureName!, $"{assemblyName.Name}.dll");
 
             if (Internal.IO.File.InternalExists(assemblyPath))
             {
@@ -584,7 +582,7 @@ namespace System.Runtime.Loader
             }
             else if (Path.IsCaseSensitive)
             {
-                assemblyPath = Path.Combine(parentDirectory, cultureName.ToLowerInvariant(), $"{assemblyName.Name}.dll");
+                assemblyPath = Path.Combine(parentDirectory, assemblyName.CultureName!.ToLowerInvariant(), $"{assemblyName.Name}.dll");
 
                 if (Internal.IO.File.InternalExists(assemblyPath))
                 {
