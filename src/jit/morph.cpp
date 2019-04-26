@@ -4896,14 +4896,14 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 #ifndef UNIX_AMD64_ABI
                 noway_assert(elemSize == TARGET_POINTER_SIZE);
 #endif
-                unsigned    baseIndex = baseOffset / TARGET_POINTER_SIZE;
-                const BYTE* gcPtrs    = varDsc->GetLayout()->GetGCPtrs();
+                unsigned     baseIndex = baseOffset / TARGET_POINTER_SIZE;
+                ClassLayout* layout    = varDsc->GetLayout();
                 for (unsigned inx = 0; (inx < elemCount); inx++)
                 {
                     // The GC information must match what we setup using 'objClass'
-                    if ((gcPtrs[baseIndex + inx] != TYPE_GC_NONE) || varTypeGCtype(type[inx]))
+                    if (layout->IsGCPtr(baseIndex + inx) || varTypeGCtype(type[inx]))
                     {
-                        noway_assert(type[inx] == getJitGCType(gcPtrs[baseIndex + inx]));
+                        noway_assert(type[inx] == layout->GetGCPtrType(baseIndex + inx));
                     }
                 }
             }

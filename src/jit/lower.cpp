@@ -1055,19 +1055,12 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
 
         if (arg->OperGet() == GT_OBJ)
         {
-            ClassLayout* layout   = arg->AsObj()->GetLayout();
-            const BYTE*  gcLayout = layout->GetGCPtrs();
+            ClassLayout* layout = arg->AsObj()->GetLayout();
 
             // Set type of registers
             for (unsigned index = 0; index < info->numRegs; index++)
             {
-                var_types regType = comp->getJitGCType(gcLayout[index]);
-                // Account for the possibility that float fields may be passed in integer registers.
-                if (varTypeIsFloating(regType) && !genIsValidFloatReg(argSplit->GetRegNumByIdx(index)))
-                {
-                    regType = (regType == TYP_FLOAT) ? TYP_INT : TYP_LONG;
-                }
-                argSplit->m_regType[index] = regType;
+                argSplit->m_regType[index] = layout->GetGCPtrType(index);
             }
         }
         else

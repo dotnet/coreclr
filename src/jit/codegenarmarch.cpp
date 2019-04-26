@@ -914,10 +914,9 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             noway_assert(structSize <= MAX_PASS_MULTIREG_BYTES);
 #endif // _TARGET_ARM64_
 
-            int         remainingSize = structSize;
-            unsigned    structOffset  = 0;
-            unsigned    nextIndex     = 0;
-            const BYTE* gcPtrs        = layout->GetGCPtrs();
+            int      remainingSize = structSize;
+            unsigned structOffset  = 0;
+            unsigned nextIndex     = 0;
 
 #ifdef _TARGET_ARM64_
             // For a >= 16-byte structSize we will generate a ldp and stp instruction each loop
@@ -926,8 +925,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
             while (remainingSize >= 2 * TARGET_POINTER_SIZE)
             {
-                var_types type0 = compiler->getJitGCType(gcPtrs[nextIndex + 0]);
-                var_types type1 = compiler->getJitGCType(gcPtrs[nextIndex + 1]);
+                var_types type0 = layout->GetGCPtrType(nextIndex + 0);
+                var_types type1 = layout->GetGCPtrType(nextIndex + 1);
 
                 if (varNode != nullptr)
                 {
@@ -962,7 +961,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             //             str     r2, [sp, #16]
             while (remainingSize >= TARGET_POINTER_SIZE)
             {
-                var_types type = compiler->getJitGCType(gcPtrs[nextIndex]);
+                var_types type = layout->GetGCPtrType(nextIndex);
 
                 if (varNode != nullptr)
                 {
@@ -999,7 +998,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             {
                 if (remainingSize >= TARGET_POINTER_SIZE)
                 {
-                    var_types nextType = compiler->getJitGCType(gcPtrs[nextIndex]);
+                    var_types nextType = layout->GetGCPtrType(nextIndex);
                     emitAttr  nextAttr = emitTypeSize(nextType);
                     remainingSize -= TARGET_POINTER_SIZE;
 
@@ -1032,7 +1031,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     assert(varNode == nullptr);
 
                     // the left over size is smaller than a pointer and thus can never be a GC type
-                    assert(varTypeIsGC(compiler->getJitGCType(gcPtrs[nextIndex])) == false);
+                    assert(!layout->IsGCPtr(nextIndex));
 
                     var_types loadType = TYP_UINT;
                     if (loadSize == 1)
@@ -1205,11 +1204,6 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
         // the xor ensures that only one of the two is setup, not both
         assert((varNode != nullptr) ^ (addrNode != nullptr));
 
-        // Setup the structSize, isHFa, and gcPtrCount
-        const BYTE* gcPtrs     = source->AsObj()->GetLayout()->GetGCPtrs();
-        unsigned    gcPtrCount = source->AsObj()->GetLayout()->GetGCPtrCount();
-        int         structSize = treeNode->getArgSize();
-
         // This is the varNum for our load operations,
         // only used when we have a struct with a LclVar source
         unsigned srcVarNum = BAD_VAR_NUM;
@@ -1247,6 +1241,9 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             assert(!compiler->IsHfa(source->AsObj()->GetLayout()->GetClassHandle()));
         }
 
+        int          structSize = treeNode->getArgSize();
+        ClassLayout* layout     = source->AsObj()->GetLayout();
+
         // Put on stack first
         unsigned nextIndex     = treeNode->gtNumRegs;
         unsigned structOffset  = nextIndex * TARGET_POINTER_SIZE;
@@ -1256,7 +1253,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
         assert(remainingSize % TARGET_POINTER_SIZE == 0);
         while (remainingSize > 0)
         {
-            var_types type = compiler->getJitGCType(gcPtrs[nextIndex]);
+            var_types type = layout->GetGCPtrType(nextIndex);
 
             if (varNode != nullptr)
             {

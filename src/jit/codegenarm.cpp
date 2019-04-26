@@ -839,29 +839,16 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
         instGen_MemoryBarrier();
     }
 
-    unsigned slots = cpObjNode->GetLayout()->GetSlotCount();
-    emitter* emit  = getEmitter();
-
-    const BYTE* gcPtrs = cpObjNode->GetLayout()->GetGCPtrs();
+    emitter*     emit   = getEmitter();
+    ClassLayout* layout = cpObjNode->GetLayout();
+    unsigned     slots  = layout->GetSlotCount();
 
     // If we can prove it's on the stack we don't need to use the write barrier.
-    emitAttr attr = EA_PTRSIZE;
     if (dstOnStack)
     {
         for (unsigned i = 0; i < slots; ++i)
         {
-            if (gcPtrs[i] == GCT_GCREF)
-            {
-                attr = EA_GCREF;
-            }
-            else if (gcPtrs[i] == GCT_BYREF)
-            {
-                attr = EA_BYREF;
-            }
-            else
-            {
-                attr = EA_PTRSIZE;
-            }
+            emitAttr attr = emitTypeSize(layout->GetGCPtrType(i));
 
             emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
                                 INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
@@ -871,26 +858,22 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     }
     else
     {
-        unsigned gcPtrCount = cpObjNode->GetLayout()->GetGCPtrCount();
+        unsigned gcPtrCount = layout->GetGCPtrCount();
 
         unsigned i = 0;
         while (i < slots)
         {
-            switch (gcPtrs[i])
+            if (!layout->IsGCPtr(i))
             {
-                case TYPE_GC_NONE:
-                    emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
-                                        INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
-                    emit->emitIns_R_R_I(INS_str, attr, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE,
-                                        INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
-                    break;
-
-                default:
-                    // In the case of a GC-Pointer we'll call the ByRef write barrier helper
-                    genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
-
-                    gcPtrCount--;
-                    break;
+                emit->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
+                                    INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
+                emit->emitIns_R_R_I(INS_str, EA_PTRSIZE, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE,
+                                    INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
+            }
+            else
+            {
+                genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
+                gcPtrCount--;
             }
             ++i;
         }

@@ -406,6 +406,7 @@ public:
         return m_gcPtrCount != 0;
     }
 
+private:
     const BYTE* GetGCPtrs() const
     {
         assert(m_gcPtrsInitialized);
@@ -414,7 +415,6 @@ public:
         return (GetSlotCount() > sizeof(m_gcPtrsArray)) ? m_gcPtrs : m_gcPtrsArray;
     }
 
-private:
     CorInfoGCType GetGCPtr(unsigned slot) const
     {
         assert(m_gcPtrsInitialized);

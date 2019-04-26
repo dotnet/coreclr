@@ -6340,11 +6340,11 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
             {
                 // We only initialize the GC variables in the TYP_STRUCT
                 const unsigned slots  = (unsigned)compiler->lvaLclSize(varNum) / REGSIZE_BYTES;
-                const BYTE*    gcPtrs = varDsc->GetLayout()->GetGCPtrs();
+                ClassLayout*   layout = varDsc->GetLayout();
 
                 for (unsigned i = 0; i < slots; i++)
                 {
-                    if (gcPtrs[i] != TYPE_GC_NONE)
+                    if (layout->IsGCPtr(i))
                     {
                         getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE,
                                                   genGetZeroReg(initReg, pInitRegZeroed), varNum, i * REGSIZE_BYTES);

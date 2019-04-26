@@ -415,10 +415,9 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* pUntrackedCount, UNALIGNED
 
             untrackedCount++;
         }
-        else if ((varDsc->TypeGet() == TYP_STRUCT) && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
+        else if ((varDsc->TypeGet() == TYP_STRUCT) && varDsc->lvOnFrame)
         {
-			// A struct will have gcSlots only if it is at least TARGET_POINTER_SIZE.
-			count += varDsc->GetLayout()->GetGCPtrCount();
+            untrackedCount += varDsc->GetLayout()->GetGCPtrCount();
         }
     }
 
