@@ -21,6 +21,17 @@ class MethodDesc;
 struct EventPipeProviderConfiguration;
 class EventPipeSession;
 class IpcStream;
+enum class EventPipeSessionType;
+
+enum class EventPipeEventLevel
+{
+    LogAlways,
+    Critical,
+    Error,
+    Warning,
+    Informational,
+    Verbose
+};
 
 // EVENT_FILTER_DESCRIPTOR (This type does not exist on non-Windows platforms.)
 //  https://docs.microsoft.com/en-us/windows/desktop/api/evntprov/ns-evntprov-_event_filter_descriptor
@@ -28,6 +39,7 @@ class IpcStream;
 //  determines which events are reported and traced. The structure gives the
 //  event provider greater control over the selection of events for reporting
 //  and tracing.
+// TODO: EventFilterDescriptor and EventData (defined below) are the same.
 struct EventFilterDescriptor
 {
     // A pointer to the filter data.
@@ -231,7 +243,29 @@ public:
 };
 
 typedef UINT64 EventPipeSessionID;
-typedef void (*FlushTimerCallback)();
+
+struct EventPipeProviderCallbackData
+{
+    LPCWSTR pFilterData;
+    EventPipeCallback pCallbackFunction;
+    bool enabled;
+    INT64 keywords;
+    EventPipeEventLevel providerLevel;
+    void* pCallbackData;
+};
+
+class EventPipeProviderCallbackDataQueue
+{
+public:
+    EventPipeProviderCallbackDataQueue();
+
+    void Enqueue(EventPipeProviderCallbackData* pEventPipeProviderCallbackData);
+
+    bool TryDequeue(EventPipeProviderCallbackData* pEventPipeProviderCallbackData);
+
+private:
+    SList<SListElem<EventPipeProviderCallbackData>> list;
+};
 
 class EventPipe
 {
@@ -255,14 +289,9 @@ public:
         uint32_t circularBufferSizeInMB,
         uint64_t profilerSamplingRateInNanoseconds,
         const EventPipeProviderConfiguration *pProviders,
-        uint32_t numProviders);
-
-    static EventPipeSessionID Enable(
-        IpcStream *pStream,
-        uint32_t circularBufferSizeInMB,
-        uint64_t profilerSamplingRateInNanoseconds,
-        const EventPipeProviderConfiguration *pProviders,
-        uint32_t numProviders);
+        uint32_t numProviders,
+        EventPipeSessionType sessionType,
+        IpcStream *const pStream);
 
     // Disable tracing via the event pipe.
     static void Disable(EventPipeSessionID id);
@@ -275,6 +304,8 @@ public:
 
     // Create a provider.
     static EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
+
+    static EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Get a provider.
     static EventPipeProvider *GetProvider(const SString &providerName);
@@ -305,18 +336,39 @@ public:
     // Get next event.
     static EventPipeEventInstance *GetNextEvent();
 
+    template<class T>
+    static void RunWithCallbackPostponed(T f)
+    {
+        EventPipeProviderCallbackDataQueue eventPipeProviderCallbackDataQueue;
+        EventPipeProviderCallbackData eventPipeProviderCallbackData;
+        {
+            CrstHolder _crst(GetLock());
+            f(&eventPipeProviderCallbackDataQueue);
+        }
+
+        while (eventPipeProviderCallbackDataQueue.TryDequeue(&eventPipeProviderCallbackData))
+        {
+            EventPipe::InvokeCallback(eventPipeProviderCallbackData);
+        }
+    }
+
+    static void InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData);
+
 private:
     // The counterpart to WriteEvent which after the payload is constructed
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
+    static void DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+
     // Enable the specified EventPipe session.
     static EventPipeSessionID Enable(
+        LPCWSTR strOutputPath,
         EventPipeSession *const pSession,
-        WAITORTIMERCALLBACK callback = nullptr,
-        DWORD dueTime = 0,
-        DWORD period = 0);
+        EventPipeSessionType sessionType,
+        IpcStream *const pStream,
+        EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
-    static void CreateFlushTimerCallback(WAITORTIMERCALLBACK Callback, DWORD DueTime, DWORD Period);
+    static void CreateFlushTimerCallback();
 
     static void DeleteFlushTimerCallback();
 

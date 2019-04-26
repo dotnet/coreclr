@@ -91,9 +91,14 @@ void EventPipeConfiguration::Initialize()
         MODE_ANY;
     }
     CONTRACTL_END;
-
-    // Create the configuration provider.
-    m_pConfigProvider = CreateProvider(SL(s_configurationProviderName), NULL, NULL);
+    
+    EventPipe::RunWithCallbackPostponed(
+        [&](EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+        {
+            // Create the configuration provider.
+            m_pConfigProvider = CreateProvider(SL(s_configurationProviderName), NULL, NULL, pEventPipeProviderCallbackDataQueue);
+        }
+    );
 
     // Create the metadata event.
     m_pMetadataEvent = m_pConfigProvider->AddEvent(
@@ -104,13 +109,14 @@ void EventPipeConfiguration::Initialize()
         false); /* needStack */
 }
 
-EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData)
+EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -118,7 +124,7 @@ EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &provide
     EventPipeProvider *pProvider = new EventPipeProvider(this, providerName, pCallbackFunction, pCallbackData);
 
     // Register the provider with the configuration system.
-    RegisterProvider(*pProvider);
+    RegisterProvider(*pProvider, pEventPipeProviderCallbackDataQueue);
 
     return pProvider;
 }
@@ -144,18 +150,16 @@ void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
     delete pProvider;
 }
 
-bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
+bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
-
-    // Take the lock before manipulating the provider list.
-    CrstHolder _crst(EventPipe::GetLock());
 
     // See if we've already registered this provider.
     EventPipeProvider *pExistingProvider = GetProviderNoLock(provider.GetProviderName());
@@ -177,11 +181,12 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
         EventPipeSessionProvider *pSessionProvider = GetSessionProvider(m_pSession, &provider);
         if (pSessionProvider != NULL)
         {
-            provider.SetConfiguration(
+            EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
                 true /* providerEnabled */,
                 pSessionProvider->GetKeywords(),
                 pSessionProvider->GetLevel(),
                 pSessionProvider->GetFilterData());
+            pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
         }
     }
 
@@ -319,7 +324,8 @@ EventPipeSession *EventPipeConfiguration::CreateSession(
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION((numProviders == 0) || (numProviders > 0 && pProviders != nullptr));
+        PRECONDITION(circularBufferSizeInMB > 0);
+        PRECONDITION(numProviders > 0 && pProviders != nullptr);
     }
     CONTRACTL_END;
 
@@ -349,7 +355,7 @@ void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
     }
 }
 
-void EventPipeConfiguration::Enable(EventPipeSession *pSession)
+void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -361,6 +367,8 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession)
         PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
+
+    EventPipeProviderCallbackData eventPipeProviderCallbackData;
 
     m_pSession = pSession;
     m_enabled = true;
@@ -377,11 +385,12 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession)
             EventPipeSessionProvider *pSessionProvider = GetSessionProvider(m_pSession, pProvider);
             if (pSessionProvider != NULL)
             {
-                pProvider->SetConfiguration(
+                eventPipeProviderCallbackData = pProvider->SetConfiguration(
                     true /* providerEnabled */,
                     pSessionProvider->GetKeywords(),
                     pSessionProvider->GetLevel(),
                     pSessionProvider->GetFilterData());
+                pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
             }
 
             pElem = m_pProviderList->GetNext(pElem);
@@ -389,7 +398,7 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession)
     }
 }
 
-void EventPipeConfiguration::Disable(EventPipeSession *pSession)
+void EventPipeConfiguration::Disable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -404,6 +413,8 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession)
     }
     CONTRACTL_END;
 
+    EventPipeProviderCallbackData eventPipeProviderCallbackData;
+
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
     {
@@ -411,11 +422,12 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession)
         while (pElem != NULL)
         {
             EventPipeProvider *pProvider = pElem->GetValue();
-            pProvider->SetConfiguration(
+            eventPipeProviderCallbackData = pProvider->SetConfiguration(
                 false /* providerEnabled */,
                 0 /* keywords */,
                 EventPipeEventLevel::Critical /* level */,
                 NULL /* filterData */);
+            pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
 
             pElem = m_pProviderList->GetNext(pElem);
         }
@@ -439,7 +451,7 @@ bool EventPipeConfiguration::RundownEnabled() const
     return m_rundownEnabled;
 }
 
-void EventPipeConfiguration::EnableRundown(EventPipeSession *pSession)
+void EventPipeConfiguration::EnableRundown(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -462,7 +474,7 @@ void EventPipeConfiguration::EnableRundown(EventPipeSession *pSession)
     m_rundownEnabled = true;
 
     // Enable tracing.
-    Enable(pSession);
+    Enable(pSession, pEventPipeProviderCallbackDataQueue);
 }
 
 EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, unsigned int metadataId)

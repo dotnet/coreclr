@@ -208,7 +208,10 @@ namespace System.Threading
 
         public static bool SetMaxThreads(int workerThreads, int completionPortThreads)
         {
-            return SetMaxThreadsNative(workerThreads, completionPortThreads);
+            return
+                workerThreads >= 0 &&
+                completionPortThreads >= 0 &&
+                SetMaxThreadsNative(workerThreads, completionPortThreads);
         }
 
         public static void GetMaxThreads(out int workerThreads, out int completionPortThreads)
@@ -218,7 +221,10 @@ namespace System.Threading
 
         public static bool SetMinThreads(int workerThreads, int completionPortThreads)
         {
-            return SetMinThreadsNative(workerThreads, completionPortThreads);
+            return
+                workerThreads >= 0 &&
+                completionPortThreads >= 0 &&
+                SetMinThreadsNative(workerThreads, completionPortThreads);
         }
 
         public static void GetMinThreads(out int workerThreads, out int completionPortThreads)
@@ -229,6 +235,36 @@ namespace System.Threading
         public static void GetAvailableThreads(out int workerThreads, out int completionPortThreads)
         {
             GetAvailableThreadsNative(out workerThreads, out completionPortThreads);
+        }
+
+        /// <summary>
+        /// Gets the number of thread pool threads that currently exist.
+        /// </summary>
+        /// <remarks>
+        /// For a thread pool implementation that may have different types of threads, the count includes all types.
+        /// </remarks>
+        public static extern int ThreadCount
+        {
+            [MethodImpl(MethodImplOptions.InternalCall)]
+            get;
+        }
+
+        /// <summary>
+        /// Gets the number of work items that have been processed so far.
+        /// </summary>
+        /// <remarks>
+        /// For a thread pool implementation that may have different types of work items, the count includes all types.
+        /// </remarks>
+        public static extern long CompletedWorkItemCount
+        {
+            [MethodImpl(MethodImplOptions.InternalCall)]
+            get;
+        }
+
+        private static extern long PendingUnmanagedWorkItemCount
+        {
+            [MethodImpl(MethodImplOptions.InternalCall)]
+            get;
         }
 
         private static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
