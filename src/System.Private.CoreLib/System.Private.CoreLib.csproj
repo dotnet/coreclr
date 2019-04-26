@@ -10,16 +10,16 @@
   <Import Project="GenerateCompilerResponseFile.targets" />
 
   <Target Name="GenerateTheRSPFile" BeforeTargets="CoreCompile" DependsOnTargets="GenerateCompilerResponseFile">
-    <Message Text="Call creating rsp file." Importance="High" />
   </Target>
 
   <PropertyGroup>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
     <GenerateResxSourceOmitGetResourceString>true</GenerateResxSourceOmitGetResourceString>
+    <EnsureRuntimePackageDependencies>false</EnsureRuntimePackageDependencies>
 
-    <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
 
     <!-- Default is embedded overwrite this -->
     <DebugType>Portable</DebugType>
@@ -42,7 +42,6 @@
     <Platform Condition=" '$(Platform)' == '' ">$(BuildArch)</Platform>
     <Platform Condition=" '$(Platform)' == 'armel' ">arm</Platform>
     <ProjectGuid>{3DA06C3A-2E7B-4CB7-80ED-9B12916013F9}</ProjectGuid>
-    <OutputType>Library</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- This prevents the default MsBuild targets from referencing System.Core.dll -->
     <AddAdditionalExplicitAssemblyReferences>false</AddAdditionalExplicitAssemblyReferences>
@@ -57,7 +56,6 @@
     <CLSCompliant>true</CLSCompliant>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- Remove CS8608 once https://github.com/dotnet/roslyn/issues/23268 is resolved -->
     <NoWarn>649,1573,1591,0419,3021,CS8609</NoWarn>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <SignAssembly>true</SignAssembly>
@@ -131,9 +129,6 @@
     <TargetArch Condition="'$(Platform)'=='x86'">i386</TargetArch>
     <TargetArch Condition="'$(Platform)'!='x86'">$(Platform)</TargetArch>
   </PropertyGroup>
-  <!-- CLR Features -->
-  <Import Project="$(MSBuildThisFileDirectory)..\..\clr.coreclr.props" />
-  <Import Project="$(MSBuildThisFileDirectory)..\..\clr.defines.targets" />
   <!-- Experimental features -->
   <PropertyGroup Condition="'$(FeatureUtf8String)' == 'true'">
     <DefineConstants>$(DefineConstants);FEATURE_UTF8STRING</DefineConstants>

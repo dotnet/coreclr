@@ -652,13 +652,26 @@ if %__BuildCoreLib% EQU 1 (
         set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
         set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
+        call %__ProjectDir%\dotnet.cmd restore /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+          /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+          /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+          /p:UsePartialNGENOptimization=false /maxcpucount /p:ArcadeBuild=true^
+          %__ProjectDir%\src\build.proj^
+          !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
+        if not !errorlevel! == 0 (
+            echo %__MsgPrefix%Error: System.Private.CoreLib restore failed. Refer to the build log files for details:
+            echo     !__BuildLog!
+            echo     !__BuildWrn!
+            echo     !__BuildErr!
+            exit /b 1
+        )
+
         call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
           /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
           /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
-          /p:UsePartialNGENOptimization=false /maxcpucount^
-          %__ProjectDir%\build.proj^
+          /p:UsePartialNGENOptimization=false /maxcpucount /p:ArcadeBuild=true^
+          %__ProjectDir%\src\build.proj^
           !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
-
         if not !errorlevel! == 0 (
             echo %__MsgPrefix%Error: System.Private.CoreLib build failed. Refer to the build log files for details:
             echo     !__BuildLog!
@@ -816,7 +829,7 @@ if %__BuildNativeCoreLib% EQU 1 (
         set COMPlus_ContinueOnAssert=0
     )
 
-    set NEXTCMD="%__CrossgenExe%" %__IbcTuning% /Platform_Assemblies_Paths "%__BinDir%"\IL /out "%__BinDir%\System.Private.CoreLib.dll" "%__BinDir%\IL\System.Private.CoreLib.dll"
+    set NEXTCMD="%__CrossgenExe%" %__IbcTuning% /Platform_Assemblies_Paths "%__BinDir%\IL" /out "%__BinDir%\System.Private.CoreLib.dll" "%__BinDir%\IL\System.Private.CoreLib.dll"
     echo %__MsgPrefix%!NEXTCMD!
     echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
     !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1

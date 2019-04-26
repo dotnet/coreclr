@@ -1,47 +1,15 @@
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\dir.props"/>
+<Project Sdk="Microsoft.Build.Traversal">
   
   <!-- List the projects that need to be built -->
   <ItemGroup>
-    <Project Condition="$(SkipSOS) != 'true'" Include="ToolBox\SOS\NETCore\SOS.NETCore.csproj" />
-    <Project Include="System.Private.CoreLib\System.Private.CoreLib.csproj" />
+    <ProjectReference Condition="$(SkipSOS) != 'true'" Include="ToolBox\SOS\NETCore\SOS.NETCore.csproj" />
+    <ProjectReference Include="System.Private.CoreLib\System.Private.CoreLib.csproj" />
   </ItemGroup>
 
-  <Import Project="..\dir.targets" />
-
-  <Import Project="..\dir.traversal.targets" />
-
-  <Target Name="MovePostBuildBinaries" AfterTargets="Build">
-    <Move SourceFiles="@(BinariesToMove)"
-        DestinationFolder="$(BinDir)" />
-  </Target>
-
-  <ItemGroup>
-    <ILToCopy Include="$(BinDir)System.Private.CoreLib.dll"/>
-    <PDBSToMove Include="$(BinDir)System.Private.CoreLib.pdb"/>
-  </ItemGroup>
-
-  <PropertyGroup>
-    <CoreLibPath>$(BinDir)System.Private.CoreLib.dll</CoreLibPath>
-    <CoreLibPDBPath>$(BinDir)System.Private.CoreLib.pdb</CoreLibPDBPath>
-  </PropertyGroup>
-
-  <Target Name="BuildR2RDumpPackages" Condition="'$(DotNetBuildFromSource)' != 'true' AND '$(BuildManagedTools)' == 'true'" BeforeTargets="Build">
+  <!-- [SDKSPCL] <Target Name="BuildR2RDumpPackages" Condition="'$(DotNetBuildFromSource)' != 'true' AND '$(BuildManagedTools)' == 'true'" BeforeTargets="Build">
     <Exec Command="$(DotnetToolCommand) build /p:__BuildArch=$(BuildArch) /p:__BuildOS=$(BuildOS) /p:__BuildType=$(BuildType) tools/r2rdump/R2RDump.csproj"
           StandardOutputImportance="Low" />
-  </Target>
-
-  <Target Name="CopyCoreLib" AfterTargets="Build">
-    <Copy Condition="Exists($(CoreLibPath))"
-        SourceFiles="@(ILToCopy)"
-        DestinationFolder="$(BinDir)IL" />
-  </Target>
-
-  <Target Name="MovePDB" AfterTargets="Build">
-    <Move Condition="Exists($(CoreLibPDBPath))"
-        SourceFiles="@(PDBSToMove)"
-        DestinationFolder="$(BinDir)PDB" />
-  </Target>
+  </Target> -->
 
   <ItemGroup>
     <UcrtFilesToCopy Include="$(UniversalCRTSDKDir)Redist\ucrt\DLLs\$(BuildArch)\*.dll" />
