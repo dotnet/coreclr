@@ -32,23 +32,23 @@ jobs:
 
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - name: productPath
-      - value: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
+        value: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - name: productPath
-      - value: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).$(buildConfigUpper)
+        value: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).$(buildConfigUpper)
 
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - name: corerootParentPath
-      - value: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/Tests
+        value: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/Tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - name: corerootParentPath
-      - value: $(Build.SourcesDirectory)\bin\tests\$(osGroup).$(archType).$(buildConfigUpper)\Tests
+        value: $(Build.SourcesDirectory)\bin\tests\$(osGroup).$(archType).$(buildConfigUpper)\Tests
 
     - name: benchviewArguments
-    - value: '--benchview-submission-name "test-russellk" --benchview-machine-pool perfsnake --benchview-run-time Private --upload-to-benchview-container coreclr'
+      value: '--benchview-submission-name "test-russellk" --benchview-machine-pool perfsnake --benchview-run-time Private --upload-to-benchview-container coreclr'
 
     - name: commonArguments
-    - value: '--filter *Adams* --incremental no --architecture $archType -f netcoreapp3.0 --bdn-arguments="--allCategories CoreClr" --dotnet-compilation-mode Tiered --generate-benchview-data $(benchviewArguments)'
+      value: '--filter *Adams* --incremental no --architecture $archType -f netcoreapp3.0 --bdn-arguments="--allCategories CoreClr" --dotnet-compilation-mode Tiered --generate-benchview-data $(benchviewArguments)'
 
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
