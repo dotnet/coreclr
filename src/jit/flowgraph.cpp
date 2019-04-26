@@ -4259,8 +4259,7 @@ private:
 
 bool Compiler::fgCanSwitchTier0ToTier1()
 {
-    return (info.compFlags & CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS) != 0 &&
-           opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) && !compIsForInlining();
+    return opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) && !compIsForInlining();
 }
 
 /*****************************************************************************
@@ -5291,7 +5290,7 @@ void Compiler::fgLinkBasicBlocks()
         }
     }
 
-    if (foundBackwardJump && fgCanSwitchTier0ToTier1())
+    if (foundBackwardJump && (info.compFlags & CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS) != 0 && fgCanSwitchTier0ToTier1())
     {
         // Method likely has a loop, switch to the OptimizedTier to avoid spending too much time running slower code
         fgSwitchTier0ToTier1();
@@ -5589,8 +5588,9 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, F
 
                     if (fgCanSwitchTier0ToTier1() && fgMayExplicitTailCall())
                     {
-                        // Method has an explicit tail call that may run like a loop, switch to tier 1 to avoid spending
-                        // too much time running slower code
+                        // Method has an explicit tail call that may run like a loop or may not be generated as a tail
+                        // call in tier 0, switch to tier 1 to avoid spending too much time running slower code and to
+                        // avoid stack overflow from recursion
                         fgSwitchTier0ToTier1();
                     }
 
