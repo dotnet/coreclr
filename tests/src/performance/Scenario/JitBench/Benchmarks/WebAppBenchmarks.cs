@@ -275,7 +275,7 @@ namespace JitBench
         }
 
         private const string JitBenchRepoUrl = "https://github.com/aspnet/JitBench";
-        private const string JitBenchCommitSha1Id = "6bee730486f272d31f23f1033225090511f856f3";
+        private const string JitBenchCommitSha1Id = "e863c5f9543b4101c41fdd04730ca30684d1f913";
         private const string StoreDirName = ".store";
         private readonly Metric StartupMetric = new Metric("Startup", "ms");
         private readonly Metric FirstRequestMetric = new Metric("First Request", "ms");
