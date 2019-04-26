@@ -670,11 +670,7 @@ if %__BuildCoreLib% EQU 1 (
         for /f "tokens=*" %%s in ('call "%__ProjectDir%\dotnet.cmd" msbuild "!IbcMergeProjectFilePath!" /t:DumpIbcMergePackageVersion /nologo') do @(
             set __IbcMergeVersion=%%s
         )
-
-        echo Restoring IBCMerge version !__IbcMergeVersion!...
-        echo Running: %__ProjectDir%\dotnet.cmd restore "%INIT_TOOLS_RESTORE_PROJECT%" --no-cache --packages "%__PackagesDir%" --source "%BUILDTOOLS_SOURCE%"
-        call %__ProjectDir%\dotnet.cmd restore src/.nuget/optdata/ibcmerge.csproj --no-cache --packages "%__PackagesDir%" /p:UsingToolIbcOptimization=True
-
+  
         set IbcMergePath=%__PackagesDir%\microsoft.dotnet.ibcmerge\!__IbcMergeVersion!\tools\netcoreapp2.0\ibcmerge.dll
         if exist !IbcMergePath! (
             echo %__MsgPrefix%Optimizing using IBC training data
@@ -754,7 +750,7 @@ if %__BuildCoreLib% EQU 1 (
                 goto CrossgenFailure
             )
         ) else (
-          echo Could not find IBCMerge at !IbcMergePath!
+          echo Could not find IBCMerge at !IbcMergePath!. Have you restored src/.nuget/optdata/ibcmerge.csproj?
           goto CrossgenFailure
         )
     )
