@@ -318,9 +318,9 @@ namespace R2RDump
         /// <summary>
         /// Construct the signature decoder by storing the image byte array and offset within the array. 
         /// </summary>
+        /// <param name="options">Dump options and paths</param>
         /// <param name="ecmaReader">EcmaMetadataReader object representing the PE file containing the ECMA metadata</param>
-        /// <param name="offset">Signature offset within the array</param>
-        /// <param name="options">Formatting options</param>
+        /// <param name="offset">Signature offset within the PE file byte array</param>
         public SignatureDecoder(DumpOptions options, EcmaMetadataReader ecmaReader, int offset)
         {
             _ecmaReader = ecmaReader;
@@ -332,10 +332,11 @@ namespace R2RDump
         /// <summary>
         /// Construct the signature decoder by storing the image byte array and offset within the array. 
         /// </summary>
-        /// <param name="metadataReader">Metadata reader for the R2R image</param>
+        /// <param name="options">Dump options and paths</param>
+        /// <param name="ecmaReader">Metadata reader for the R2R image</param>
         /// <param name="signature">Signature to parse</param>
-        /// <param name="offset">Optional signature offset within the signature byte array, 0 by default</param>
-        public SignatureDecoder(DumpOptions options, EcmaMetadataReader ecmaReader, byte[] signature, int offset = 0)
+        /// <param name="offset">Signature offset within the signature byte array</param>
+        public SignatureDecoder(DumpOptions options, EcmaMetadataReader ecmaReader, byte[] signature, int offset)
         {
             _ecmaReader = ecmaReader;
             _options = options;

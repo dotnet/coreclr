@@ -127,6 +127,7 @@ namespace R2RDump
         /// </summary>
         /// <param name="options">Ambient options to use</param>
         /// <param name="filename">PE image</param>
+        /// <param name="manifestReferenceAssemblies">List of reference assemblies from the R2R metadata manifest</param>
         /// <exception cref="BadImageFormatException">The Cor header flag must be ILLibrary</exception>
         public unsafe EcmaMetadataReader(DumpOptions options, string filename, List<string> manifestReferenceAssemblies)
         {
@@ -344,7 +345,7 @@ namespace R2RDump
                 {
                     MetadataReader manifestReader = new MetadataReader(image + GetOffset(manifestMetadata.RelativeVirtualAddress), manifestMetadata.Size);
                     int assemblyRefCount = manifestReader.GetTableRowCount(TableIndex.AssemblyRef);
-                    for (int assemblyRefIndex = 1; assemblyRefIndex < assemblyRefCount; assemblyRefIndex++)
+                    for (int assemblyRefIndex = 1; assemblyRefIndex <= assemblyRefCount; assemblyRefIndex++)
                     {
                         AssemblyReferenceHandle asmRefHandle = MetadataTokens.AssemblyReferenceHandle(assemblyRefIndex);
                         AssemblyReference asmRef = manifestReader.GetAssemblyReference(asmRefHandle);
