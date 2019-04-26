@@ -6273,8 +6273,6 @@ void Compiler::gtSetObjGcInfo(GenTreeObj* objNode)
     assert(varTypeIsStruct(objNode->TypeGet()));
     assert(objNode->TypeGet() == impNormStructType(objNode->GetLayout()->GetClassHandle()));
 
-    objNode->GetLayout()->EnsureGCPtrsInitialized(this);
-
     if (!objNode->GetLayout()->HasGCPtr())
     {
         objNode->SetOper(objNode->OperIs(GT_OBJ) ? GT_BLK : GT_STORE_BLK);

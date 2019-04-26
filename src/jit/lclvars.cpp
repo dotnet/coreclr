@@ -2500,7 +2500,6 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
     if (varDsc->lvExactSize == 0)
     {
         ClassLayout* layout = typGetObjLayout(typeHnd);
-        layout->EnsureGCPtrsInitialized(this);
         varDsc->SetLayout(layout);
         varDsc->lvExactSize = layout->GetSize();
 

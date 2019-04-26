@@ -1055,9 +1055,8 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
 
         if (arg->OperGet() == GT_OBJ)
         {
-            ClassLayout* layout = arg->AsObj()->GetLayout();
-            layout->EnsureGCPtrsInitialized(comp);
-            const BYTE* gcLayout = layout->GetGCPtrs();
+            ClassLayout* layout   = arg->AsObj()->GetLayout();
+            const BYTE*  gcLayout = layout->GetGCPtrs();
 
             // Set type of registers
             for (unsigned index = 0; index < info->numRegs; index++)
@@ -1178,8 +1177,6 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
                 else if (arg->OperIs(GT_OBJ))
                 {
                     assert(!varTypeIsSIMD(arg));
-                    ClassLayout* layout = arg->AsObj()->GetLayout();
-                    layout->EnsureGCPtrsInitialized(comp);
 
 #ifdef _TARGET_X86_
                     // On x86 VM lies about the type of a struct containing a pointer sized

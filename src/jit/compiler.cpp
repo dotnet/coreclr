@@ -10951,7 +10951,10 @@ private:
 
         INDEBUG(const char* className = compiler->info.compCompHnd->getClassName(classHandle);)
 
-        return new (compiler, CMK_ClassLayout) ClassLayout(classHandle, isValueClass, size DEBUGARG(className));
+        ClassLayout* layout =
+            new (compiler, CMK_ClassLayout) ClassLayout(classHandle, isValueClass, size DEBUGARG(className));
+        layout->InitializeGCPtrs(compiler);
+        return layout;
     }
 
     unsigned AddObjLayout(Compiler* compiler, ClassLayout* layout)
@@ -11075,13 +11078,9 @@ ClassLayout* Compiler::typGetObjLayout(CORINFO_CLASS_HANDLE classHandle)
     return typGetClassLayoutTable()->GetObjLayout(this, classHandle);
 }
 
-void ClassLayout::EnsureGCPtrsInitialized(Compiler* compiler)
+void ClassLayout::InitializeGCPtrs(Compiler* compiler)
 {
-    if (m_gcPtrsInitialized)
-    {
-        return;
-    }
-
+    assert(!m_gcPtrsInitialized);
     assert(!IsBlockLayout());
 
     if (m_size < TARGET_POINTER_SIZE)
@@ -11122,7 +11121,7 @@ void ClassLayout::EnsureGCPtrsInitialized(Compiler* compiler)
         m_gcPtrCount = gcPtrCount;
     }
 
-    m_gcPtrsInitialized = true;
+    INDEBUG(m_gcPtrsInitialized = true;)
 }
 
 #ifdef _TARGET_AMD64_
@@ -11150,7 +11149,7 @@ ClassLayout* ClassLayout::GetPPPQuirkLayout(CompAllocator alloc)
             m_pppQuirkLayout->m_gcPtrsArray[i] = TYPE_GC_NONE;
         }
 
-        m_pppQuirkLayout->m_gcPtrsInitialized = true;
+        INDEBUG(m_pppQuirkLayout->m_gcPtrsInitialized = true;)
     }
 
     return m_pppQuirkLayout;

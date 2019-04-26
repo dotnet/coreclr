@@ -306,7 +306,7 @@ class ClassLayout
     const unsigned             m_size;
 
     unsigned m_isValueClass : 1;
-    unsigned m_gcPtrsInitialized : 1;
+    INDEBUG(unsigned m_gcPtrsInitialized : 1;)
     unsigned m_gcPtrCount : 30;
 
     union {
@@ -325,7 +325,9 @@ public:
         : m_classHandle(NO_CLASS_HANDLE)
         , m_size(size)
         , m_isValueClass(false)
+#ifdef DEBUG
         , m_gcPtrsInitialized(true)
+#endif
         , m_gcPtrCount(0)
         , m_gcPtrs(nullptr)
 #ifdef _TARGET_AMD64_
@@ -341,7 +343,9 @@ public:
         : m_classHandle(classHandle)
         , m_size(size)
         , m_isValueClass(isValueClass)
+#ifdef DEBUG
         , m_gcPtrsInitialized(false)
+#endif
         , m_gcPtrCount(0)
         , m_gcPtrs(nullptr)
 #ifdef _TARGET_AMD64_
@@ -445,7 +449,7 @@ public:
         }
     }
 
-    void EnsureGCPtrsInitialized(Compiler* compiler);
+    void InitializeGCPtrs(Compiler* compiler);
 
 #ifdef _TARGET_AMD64_
     ClassLayout* GetPPPQuirkLayout(CompAllocator alloc);

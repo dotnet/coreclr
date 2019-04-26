@@ -377,7 +377,6 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                 {
                     CORINFO_CLASS_HANDLE structHnd = varDsc->lvVerTypeInfo.GetClassHandle();
                     GenTreeObj*          objNode   = comp->gtNewObjNode(structHnd, location)->AsObj();
-                    objNode->GetLayout()->EnsureGCPtrsInitialized(comp);
                     objNode->ChangeOper(GT_STORE_OBJ);
                     objNode->SetData(value);
                     comp->fgMorphUnsafeBlk(objNode);

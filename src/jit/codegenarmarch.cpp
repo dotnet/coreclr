@@ -897,11 +897,6 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 }
 
                 isHfa = compiler->IsHfa(layout->GetClassHandle());
-
-#ifndef FEATURE_PUT_STRUCT_ARG_STK
-                // For some reason Lowering::NewPutArg does this only for Win ARM64, not for Linux ARM64.
-                layout->EnsureGCPtrsInitialized(compiler);
-#endif
             }
 
             // If we have an HFA we can't have any GC pointers,
