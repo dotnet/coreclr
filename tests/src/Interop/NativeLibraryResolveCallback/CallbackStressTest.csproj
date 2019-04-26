@@ -4,17 +4,20 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <AssemblyName>CallbackStressTest</AssemblyName>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{95DFC527-4DC1-495E-97D7-E94EE1F7140D}</ProjectGuid>
+    <ProjectGuid>{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <CLRTestKind>BuildAndRun</CLRTestKind>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ReferenceSystemPrivateCoreLib>true</ReferenceSystemPrivateCoreLib>
+    <DefineConstants Condition="$(OSGroup) == 'Windows_NT'">WINDOWS</DefineConstants>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
   </PropertyGroup>
   <ItemGroup>
     <CodeAnalysisDependentAssemblyPaths Condition=" '$(VS100COMNTOOLS)' != '' " Include="$(VS100COMNTOOLS)..\IDE\PrivateAssemblies">
@@ -22,16 +25,13 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="date.cs" />
+    <Compile Include="CallbackStressTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <ItemGroup>
-    <ProjectReference Include="$(SourceDir)\Common\CoreCLRTestLibrary\CoreCLRTestLibrary.csproj">
-      <Project>{8ffe99c0-22f8-4462-b839-970eac1b3472}</Project>
-      <Name>coreclr</Name>
-    </ProjectReference>
+    <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
