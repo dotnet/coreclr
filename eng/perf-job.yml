@@ -87,11 +87,11 @@ jobs:
     - template: /eng/common/templates/steps/send-to-helix.yml
       parameters:
         HelixSource: 'pr/dotnet/coreclr/$(Build.SourceBranch)'
-        HelixType: 'test/performance_$(_BuildConfig)/'
+        HelixType: 'test/performance/'
         HelixAccessToken: $(HelixApiAccessToken)
         HelixTargetQueues: ${{ join(' ', parameters.helixQueues) }}
         HelixPreCommands: ''
-#        Creator: $(Build.DefinitionName)
+        Creator: dotnet/coreclr
         WorkItemTimeout: 4:00 # 4 hours
         WorkItemDirectory: '$(corerootParentPath)/Core_Root'
         CorrelationPayloadDirectory: '$(corerootParentPath)/perf'
