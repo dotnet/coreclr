@@ -1209,7 +1209,10 @@ HRESULT EEConfig::sync()
         Configuration::GetKnobBooleanValue(
             W("System.Runtime.TieredCompilation.QuickJit"),
             CLRConfig::EXTERNAL_TC_QuickJit);
-    fTieredCompilation_QuickJitForLoops = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TC_QuickJitForLoops) != 0;
+    fTieredCompilation_QuickJitForLoops =
+        Configuration::GetKnobBooleanValue(
+            W("System.Runtime.TieredCompilation.QuickJitForLoops"),
+            CLRConfig::UNSUPPORTED_TC_QuickJitForLoops);
 
     fTieredCompilation_CallCounting = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_CallCounting) != 0;
 
