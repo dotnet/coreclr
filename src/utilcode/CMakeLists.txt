@@ -56,6 +56,7 @@ set(UTILCODE_COMMON_SOURCES
   winfix.cpp
   longfilepathwrappers.cpp
   yieldprocessornormalized.cpp
+  towlowerinvariant.cpp
 )
 
 # These source file do not yet compile on Linux.

@@ -5351,4 +5351,6 @@ extern SpinConstants g_SpinConstants;
 
 void* GetCLRFunction(LPCSTR FunctionName);
 
+wint_t towlowerinvariant(wint_t c);
+
 #endif // __UtilCode_h__

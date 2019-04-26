@@ -3369,7 +3369,7 @@ INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) L
                 // Skip doing this for the supplementary plane characters because we would do the wrong thing anyway
                 // https://github.com/dotnet/coreclr/issues/21168
                 if (c <= 0xFFFF)
-                    c = towlower(c);
+                    c = towlowerinvariant(c);
 
                 // Encode back as UTF-8
                 if (c <= 0x7F)
@@ -3445,7 +3445,7 @@ INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) L
                 // Skip doing this for the supplementary plane characters because we would do the wrong thing anyway
                 // https://github.com/dotnet/coreclr/issues/21168
                 if (c <= 0xFFFF)
-                    c = towlower(c);
+                    c = towlowerinvariant(c);
 
                 if (c <= 0x7F)
                 {

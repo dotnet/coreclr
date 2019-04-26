@@ -68,14 +68,21 @@
   pop
 
   // Two characters from the Supplementary unicode plane
-  ldstr "𐐩𐐪" // 𐐩𐐪
+  ldstr bytearray (01 D8 29 DC 01 D8 2A DC ) // 𐐩𐐪
   ldc.i4.1
   ldc.i4.1
   call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool, bool)
   pop
 
   // Two characters from the Supplementary unicode plane with a standard in between
-  ldstr "𐐪a𐐪" // 𐐪a𐐪
+  ldstr bytearray (01 D8 2A DC 61 00 01 D8 2A DC ) // 𐐪a𐐪
+  ldc.i4.1
+  ldc.i4.1
+  call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool, bool)
+  pop
+
+  // Two characters from the Supplementary unicode plane with z standard in between
+  ldstr bytearray (01 D8 2A DC 7A 00 01 D8 2A DC ) // 𐐪z𐐪
   ldc.i4.1
   ldc.i4.1
   call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool, bool)
@@ -92,4 +99,5 @@
 .class 'Ｂｕｇ' { }
 .class '𐐨' { }
 .class '𐐩𐐪' { }
-.class '𐐪a𐐪' { }
+.class '𐐪A𐐪' { }
+.class '𐐪Z𐐪' { }
