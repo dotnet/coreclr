@@ -13568,7 +13568,7 @@ ptrdiff_t gc_heap::get_balance_heaps_loh_effective_budget ()
     }
     else
     {
-        return dd_new_allocation (dynamic_data_of (max_generation + 1));;
+        return dd_new_allocation (dynamic_data_of (max_generation + 1));
     }
 }
 
