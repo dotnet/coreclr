@@ -205,8 +205,14 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
+    {
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_READYTORUN);
+#ifndef PLATFORM_UNIX
+        // PInvoke Helpers are not yet implemented on non-Windows platforms
+        jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_PINVOKE_HELPERS);
 #endif
+    }
+#endif  // FEATURE_READYTORUN_COMPILER
 
     return jitFlags;
 }
@@ -454,7 +460,8 @@ void ZapInfo::CompileMethod()
 
         if (!(methodAttribs & CORINFO_FLG_NOSECURITYWRAP) || (methodAttribs & CORINFO_FLG_SECURITYCHECK))
         {
-            m_zapper->Warning(W("ReadyToRun: Methods with security checks not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Methods with security checks not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
     }
@@ -474,8 +481,6 @@ void ZapInfo::CompileMethod()
 #ifdef ALLOW_SXS_JIT_NGEN
     if (m_zapper->m_alternateJit)
     {
-        REMOVE_STACK_GUARD;
-
         res = m_zapper->m_alternateJit->compileMethod( this,
                                                      &m_currentMethodInfo,
                                                      CORJIT_FLAGS::CORJIT_FLAG_CALL_GETJITFLAGS,
@@ -491,8 +496,6 @@ void ZapInfo::CompileMethod()
 
     if (FAILED(res))
     {
-        REMOVE_STACK_GUARD;
-
         ICorJitCompiler * pCompiler = m_zapper->m_pJitCompiler;
         res = pCompiler->compileMethod(this,
                                     &m_currentMethodInfo,
@@ -552,7 +555,7 @@ class MethodCodeComparer
         if (k1 == k2)
             return TRUE;
 
-        for (int i = 0; i < _countof(equivalentNodes); i++)
+        for (unsigned int i = 0; i < _countof(equivalentNodes); i++)
         {
             if (k1 == equivalentNodes[i][0] && k2 == equivalentNodes[i][1])
                 return TRUE;
@@ -737,7 +740,7 @@ COUNT_T ZapImage::MethodCodeTraits::Hash(key_t k)
             case ZapNodeType_Import_ClassHandle:
             case ZapNodeType_MethodHandle:
             case ZapNodeType_Import_MethodHandle:
-                hash = ((hash << 5) + hash) ^ (COUNT_T)(pTarget);
+                hash = ((hash << 5) + hash) ^ (COUNT_T)((SIZE_T)pTarget);
                 break;
             default:
                 break;
@@ -1193,20 +1196,8 @@ void ZapInfo::setEHinfo(unsigned EHnumber,
     {
         ilClause->ClassToken = clause->ClassToken;
 
-        if (m_zapper->m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB) && (clause->ClassToken != 0))
+        if (ilClause->ClassToken != 0)
         {
-            // IL stub tokens are 'private' and do not resolve correctly in their parent module's metadata.
-
-            // Currently, the only place we are using a token here is for a COM-to-CLR exception-to-HRESULT
-            // mapping catch clause.  We want this catch clause to catch all exceptions, so we override the
-            // token to be mdTypeRefNil, which used by the EH system to mean catch(...)
-
-#ifdef _DEBUG
-            // The proper way to do this, should we ever want to support arbitrary types here, is to "pre-
-            // resolve" the token and store the TypeHandle in the clause.  But this requires additional 
-            // infrastructure to ensure the TypeHandle is saved and fixed-up properly.  For now, we will
-            // simply assert that the original type was System.Object.
-
             CORINFO_RESOLVED_TOKEN resolvedToken = { 0 };
             resolvedToken.tokenContext = MAKE_METHODCONTEXT(m_currentMethodInfo.ftn);
             resolvedToken.tokenScope = m_currentMethodInfo.scope;
@@ -1215,11 +1206,32 @@ void ZapInfo::setEHinfo(unsigned EHnumber,
 
             resolveToken(&resolvedToken);
 
-            CORINFO_CLASS_HANDLE systemObjectHandle = getBuiltinClass(CLASSID_SYSTEM_OBJECT);
-            _ASSERTE(systemObjectHandle == resolvedToken.hClass);
-#endif // _DEBUG
+            if (m_zapper->m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB))
+            {
+                // IL stub tokens are 'private' and do not resolve correctly in their parent module's metadata.
 
-            ilClause->ClassToken = mdTypeRefNil; 
+                // Currently, the only place we are using a token here is for a COM-to-CLR exception-to-HRESULT
+                // mapping catch clause.  We want this catch clause to catch all exceptions, so we override the
+                // token to be mdTypeRefNil, which used by the EH system to mean catch(...)
+#ifdef _DEBUG
+                // The proper way to do this, should we ever want to support arbitrary types here, is to "pre-
+                // resolve" the token and store the TypeHandle in the clause.  But this requires additional
+                // infrastructure to ensure the TypeHandle is saved and fixed-up properly.  For now, we will
+                // simply assert that the original type was System.Object.
+
+                CORINFO_CLASS_HANDLE systemObjectHandle = getBuiltinClass(CLASSID_SYSTEM_OBJECT);
+                _ASSERTE(systemObjectHandle == resolvedToken.hClass);
+#endif // _DEBUG
+                ilClause->ClassToken = mdTypeRefNil;
+            }
+            else
+            {
+                // For all clause types add fixup to ensure the types are loaded before the code of the method
+                // containing the catch blocks is executed. This ensures that a failure to load the types would
+                // not happen when the exception handling is in progress and it is looking for a catch handler.
+                // At that point, we could only fail fast.
+                classMustBeLoadedBeforeCodeIsRun(resolvedToken.hClass);
+            }
         }
     }
 
@@ -1715,6 +1727,9 @@ ReadyToRunHelper MapReadyToRunHelper(CorInfoHelpFunc func, bool * pfOptimizeForS
     case corInfoHelpFunc: flags return readyToRunHelper;
 #include "readytorunhelpers.h"
 
+    case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE:
+        return READYTORUN_HELPER_GetRuntimeTypeHandle;
+
     case CORINFO_HELP_STRCNS_CURRENT_MODULE:
         *pfOptimizeForSize = true;
         return READYTORUN_HELPER_GetString;
@@ -1738,7 +1753,8 @@ void * ZapInfo::getHelperFtn (CorInfoHelpFunc ftnNum, void **ppIndirection)
 
         if (helperNum == READYTORUN_HELPER_Invalid)
         {
-            m_zapper->Warning(W("ReadyToRun: JIT helper not supported: %S\n"), m_pEEJitInfo->getHelperName(ftnNum));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: JIT helper not supported: %S\n"), m_pEEJitInfo->getHelperName(ftnNum));
             ThrowHR(E_NOTIMPL);
         }
 
@@ -1896,7 +1912,8 @@ void ZapInfo::getFunctionEntryPoint(
     if (IsReadyToRunCompilation())
     {
         // READYTORUN: FUTURE: JIT still calls this for tail. and jmp instructions
-        m_zapper->Warning(W("ReadyToRun: Method entrypoint cannot be encoded\n"));
+        if (m_zapper->m_pOpt->m_verbose)
+            m_zapper->Warning(W("ReadyToRun: Method entrypoint cannot be encoded\n"));
         ThrowHR(E_NOTIMPL);
     }
 
@@ -1977,12 +1994,15 @@ void * ZapInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,void **ppI
 
     m_pImage->m_pPreloader->AddMethodToTransitiveClosureOfInstantiations(method);
 
-    CORINFO_MODULE_HANDLE moduleHandle = m_pEECompileInfo->GetLoaderModuleForEmbeddableMethod(method);
-    if (moduleHandle == m_pImage->m_hModule 
-        && m_pImage->m_pPreloader->CanEmbedMethodHandle(method, m_currentMethodHandle))
+    if (!IsReadyToRunCompilation())
     {
-        *ppIndirection = NULL;
-        return PVOID(m_pImage->GetWrappers()->GetAddrOfPInvokeFixup(method));
+        CORINFO_MODULE_HANDLE moduleHandle = m_pEECompileInfo->GetLoaderModuleForEmbeddableMethod(method);
+        if (moduleHandle == m_pImage->m_hModule
+            && m_pImage->m_pPreloader->CanEmbedMethodHandle(method, m_currentMethodHandle))
+        {
+            *ppIndirection = NULL;
+            return PVOID(m_pImage->GetWrappers()->GetAddrOfPInvokeFixup(method));
+        }
     }
 
     //
@@ -2096,25 +2116,29 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
     {
         if (pResult->sig.isVarArg())
         {
-            m_zapper->Warning(W("ReadyToRun: VarArg methods not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: VarArg methods not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
 
         if (pResult->accessAllowed != CORINFO_ACCESS_ALLOWED)
         {
-            m_zapper->Warning(W("ReadyToRun: Runtime method access checks not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Runtime method access checks not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
 
         if (pResult->methodFlags & CORINFO_FLG_SECURITYCHECK)
         {
-            m_zapper->Warning(W("ReadyToRun: Methods with security checks not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Methods with security checks not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
 
         if (GetCompileInfo()->IsNativeCallableMethod(pResult->hMethod))
         {
-            m_zapper->Warning(W("ReadyToRun: References to methods with NativeCallableAttribute not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: References to methods with NativeCallableAttribute not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
     }
@@ -2319,6 +2343,13 @@ unsigned ZapInfo::getClassDomainID (CORINFO_CLASS_HANDLE cls, void **ppIndirecti
 
 void * ZapInfo::getFieldAddress(CORINFO_FIELD_HANDLE field, void **ppIndirection)
 {
+    if (IsReadyToRunCompilation())
+    {
+        void * pAddress = m_pEEJitInfo->getFieldAddress(field, ppIndirection);
+
+        return m_pImage->m_pILMetaData->GetRVAField(pAddress);
+    }
+
     _ASSERTE(ppIndirection != NULL);
 
     CORINFO_CLASS_HANDLE hClass = m_pEEJitInfo->getFieldClass(field);
@@ -2856,7 +2887,8 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
     {
         if (pResult->accessAllowed != CORINFO_ACCESS_ALLOWED)
         {
-            m_zapper->Warning(W("ReadyToRun: Runtime field access checks not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Runtime field access checks not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
 
@@ -2877,7 +2909,8 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 
                         if (pResult->offset > eeInfo.maxUncheckedOffsetForNullObject / 2)
                         {
-                            m_zapper->Warning(W("ReadyToRun: Cross-module instance fields with large offsets not supported\n"));
+                            if (m_zapper->m_pOpt->m_verbose)
+                                m_zapper->Warning(W("ReadyToRun: Cross-module instance fields with large offsets not supported\n"));
                             ThrowHR(E_NOTIMPL);
                         }
                         pResult->offset = 0;
@@ -2904,7 +2937,8 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 
                         if (pResult->offset > eeInfo.maxUncheckedOffsetForNullObject / 2)
                         {
-                            m_zapper->Warning(W("ReadyToRun: Large objects crossing module boundaries not supported\n"));
+                            if (m_zapper->m_pOpt->m_verbose)
+                                m_zapper->Warning(W("ReadyToRun: Large objects crossing module boundaries not supported\n"));
                             ThrowHR(E_NOTIMPL);
                         }
                         _ASSERTE(pResult->offset >= dwBaseOffset);
@@ -2930,7 +2964,8 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 
         case CORINFO_FIELD_INSTANCE_HELPER:
         case CORINFO_FIELD_INSTANCE_ADDR_HELPER:
-            m_zapper->Warning(W("ReadyToRun: Special instance fields not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Special instance fields not supported\n"));
             ThrowHR(E_NOTIMPL);
             break;
 
@@ -3005,11 +3040,20 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 		}
             break;
 
-        case CORINFO_FIELD_STATIC_ADDRESS:           // field at given address
         case CORINFO_FIELD_STATIC_RVA_ADDRESS:       // RVA field at given address
+            if (m_pEEJitInfo->getClassModule(pResolvedToken->hClass) != m_pImage->m_hModule)
+            {
+                if (m_zapper->m_pOpt->m_verbose)
+                    m_zapper->Warning(W("ReadyToRun: Cross-module RVA static fields not supported\n"));
+                ThrowHR(E_NOTIMPL);
+            }
+            break;
+
+        case CORINFO_FIELD_STATIC_ADDRESS:           // field at given address
         case CORINFO_FIELD_STATIC_ADDR_HELPER:       // static field accessed using address-of helper (argument is FieldDesc *)
         case CORINFO_FIELD_STATIC_TLS:
-            m_zapper->Warning(W("ReadyToRun: Rare kinds of static fields not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Rare kinds of static fields not supported\n"));
             ThrowHR(E_NOTIMPL);
             break;
 
@@ -3164,6 +3208,13 @@ CORINFO_CLASS_HANDLE ZapInfo::mergeClasses(
     return m_pEEJitInfo->mergeClasses(cls1, cls2);
 }
 
+BOOL ZapInfo::isMoreSpecificType(
+                CORINFO_CLASS_HANDLE cls1,
+                CORINFO_CLASS_HANDLE cls2)
+{
+    return m_pEEJitInfo->isMoreSpecificType(cls1, cls2);
+}
+
 BOOL ZapInfo::shouldEnforceCallvirtRestriction(
         CORINFO_MODULE_HANDLE scopeHnd)
 {
@@ -3225,7 +3276,8 @@ CorInfoIsAccessAllowedResult ZapInfo::canAccessClass( CORINFO_RESOLVED_TOKEN * p
 #ifdef FEATURE_READYTORUN_COMPILER
     if (ret != CORINFO_ACCESS_ALLOWED)
     {
-        m_zapper->Warning(W("ReadyToRun: Runtime access checks not supported\n"));
+        if (m_zapper->m_pOpt->m_verbose)
+            m_zapper->Warning(W("ReadyToRun: Runtime access checks not supported\n"));
         ThrowHR(E_NOTIMPL);
     }
 #endif
@@ -3373,149 +3425,152 @@ unsigned ZapInfo::getClassNumInstanceFields(CORINFO_CLASS_HANDLE cls)
     return m_pEEJitInfo->getClassNumInstanceFields(cls);
 }
 
-
-CorInfoHelpFunc ZapInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle)
+CorInfoHelpFunc ZapInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects)
 {
-	if (IsReadyToRunCompilation())
-		return CORINFO_HELP_NEWFAST;
+    if (!IsReadyToRunCompilation())
+    {
+        classMustBeLoadedBeforeCodeIsRun(pResolvedToken->hClass);
+    }
 
-	classMustBeLoadedBeforeCodeIsRun(pResolvedToken->hClass);
-	return m_pEEJitInfo->getNewHelper(pResolvedToken, callerHandle);
+    CorInfoHelpFunc helper = m_pEEJitInfo->getNewHelper(pResolvedToken, callerHandle, pHasSideEffects);
+
+    return IsReadyToRunCompilation() ? CORINFO_HELP_NEWFAST : helper;
 }
 
 CorInfoHelpFunc ZapInfo::getSharedCCtorHelper(CORINFO_CLASS_HANDLE clsHnd)
 {
-	return m_pEEJitInfo->getSharedCCtorHelper(clsHnd);
+    return m_pEEJitInfo->getSharedCCtorHelper(clsHnd);
 }
 
 CorInfoHelpFunc ZapInfo::getSecurityPrologHelper(CORINFO_METHOD_HANDLE ftn)
 {
-	return m_pEEJitInfo->getSecurityPrologHelper(ftn);
+    return m_pEEJitInfo->getSecurityPrologHelper(ftn);
 }
 
 CORINFO_CLASS_HANDLE  ZapInfo::getTypeForBox(CORINFO_CLASS_HANDLE  cls)
 {
-	return m_pEEJitInfo->getTypeForBox(cls);
+    return m_pEEJitInfo->getTypeForBox(cls);
 }
 
 CorInfoHelpFunc ZapInfo::getBoxHelper(CORINFO_CLASS_HANDLE cls)
 {
-	return m_pEEJitInfo->getBoxHelper(cls);
+    return m_pEEJitInfo->getBoxHelper(cls);
 }
 
 CorInfoHelpFunc ZapInfo::getUnBoxHelper(CORINFO_CLASS_HANDLE cls)
 {
-	return m_pEEJitInfo->getUnBoxHelper(cls);
+    return m_pEEJitInfo->getUnBoxHelper(cls);
 }
 
 CorInfoHelpFunc ZapInfo::getCastingHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fThrowing)
 {
-	if (IsReadyToRunCompilation())
-		return (fThrowing ? CORINFO_HELP_CHKCASTANY : CORINFO_HELP_ISINSTANCEOFANY);
+    if (IsReadyToRunCompilation())
+        return (fThrowing ? CORINFO_HELP_CHKCASTANY : CORINFO_HELP_ISINSTANCEOFANY);
 
-	return m_pEEJitInfo->getCastingHelper(pResolvedToken, fThrowing);
+    return m_pEEJitInfo->getCastingHelper(pResolvedToken, fThrowing);
 }
 
 CorInfoHelpFunc ZapInfo::getNewArrHelper(CORINFO_CLASS_HANDLE arrayCls)
 {
-	if (IsReadyToRunCompilation())
-		return CORINFO_HELP_NEWARR_1_R2R_DIRECT;
+    if (IsReadyToRunCompilation())
+        return CORINFO_HELP_NEWARR_1_R2R_DIRECT;
 
-	return m_pEEJitInfo->getNewArrHelper(arrayCls);
+    return m_pEEJitInfo->getNewArrHelper(arrayCls);
 }
 
 bool ZapInfo::getReadyToRunHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken,
-	CORINFO_LOOKUP_KIND * pGenericLookupKind,
-	CorInfoHelpFunc id,
-	CORINFO_CONST_LOOKUP * pLookup)
+    CORINFO_LOOKUP_KIND * pGenericLookupKind,
+    CorInfoHelpFunc id,
+    CORINFO_CONST_LOOKUP * pLookup)
 {
 #ifdef FEATURE_READYTORUN_COMPILER
-	_ASSERTE(IsReadyToRunCompilation());
+    _ASSERTE(IsReadyToRunCompilation());
 
-	ZapImport * pImport = NULL;
+    ZapImport * pImport = NULL;
 
-	DWORD fAtypicalCallsite = (id & CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE);
-	id = (CorInfoHelpFunc)(id & ~CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE);
+    DWORD fAtypicalCallsite = (id & CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE);
+    id = (CorInfoHelpFunc)(id & ~CORINFO_HELP_READYTORUN_ATYPICAL_CALLSITE);
 
-	switch (id)
-	{
-	case CORINFO_HELP_READYTORUN_NEW:
+    switch (id)
+    {
+    case CORINFO_HELP_READYTORUN_NEW:
         // Call CEEInfo::getNewHelper to validate the request (e.g., check for abstract class).
         m_pEEJitInfo->getNewHelper(pResolvedToken, m_currentMethodHandle);
 
-		if ((getClassAttribs(pResolvedToken->hClass) & CORINFO_FLG_SHAREDINST) != 0)
-			return false;   // Requires runtime lookup.
-		pImport = m_pImage->GetImportTable()->GetDynamicHelperCell(
-			(CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_NEW_HELPER | fAtypicalCallsite), pResolvedToken->hClass);
-		break;
+        if ((getClassAttribs(pResolvedToken->hClass) & CORINFO_FLG_SHAREDINST) != 0)
+            return false;   // Requires runtime lookup.
+        pImport = m_pImage->GetImportTable()->GetDynamicHelperCell(
+            (CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_NEW_HELPER | fAtypicalCallsite), pResolvedToken->hClass);
+        break;
 
-	case CORINFO_HELP_READYTORUN_NEWARR_1:
-		if ((getClassAttribs(pResolvedToken->hClass) & CORINFO_FLG_SHAREDINST) != 0)
-			return false;   // Requires runtime lookup.
-		pImport = m_pImage->GetImportTable()->GetDynamicHelperCell(
-			(CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_NEW_ARRAY_HELPER | fAtypicalCallsite), pResolvedToken->hClass);
-		break;
+    case CORINFO_HELP_READYTORUN_NEWARR_1:
+        if ((getClassAttribs(pResolvedToken->hClass) & CORINFO_FLG_SHAREDINST) != 0)
+            return false;   // Requires runtime lookup.
+        pImport = m_pImage->GetImportTable()->GetDynamicHelperCell(
+            (CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_NEW_ARRAY_HELPER | fAtypicalCallsite), pResolvedToken->hClass);
+        break;
 
-	case CORINFO_HELP_READYTORUN_ISINSTANCEOF:
-		if ((getClassAttribs(pResolvedToken->hClass) & CORINFO_FLG_SHAREDINST) != 0)
-			return false;   // Requires runtime lookup.
-		pImport = m_pImage->GetImportTable()->GetDynamicHelperCell(
-			(CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_ISINSTANCEOF_HELPER | fAtypicalCallsite), pResolvedToken->hClass);
-		break;
+    case CORINFO_HELP_READYTORUN_ISINSTANCEOF:
+        if ((getClassAttribs(pResolvedToken->hClass) & CORINFO_FLG_SHAREDINST) != 0)
+            return false;   // Requires runtime lookup.
+        pImport = m_pImage->GetImportTable()->GetDynamicHelperCell(
+            (CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_ISINSTANCEOF_HELPER | fAtypicalCallsite), pResolvedToken->hClass);
+        break;
 
-	case CORINFO_HELP_READYTORUN_CHKCAST:
-		if ((getClassAttribs(pResolvedToken->hClass) & CORINFO_FLG_SHAREDINST) != 0)
-			return false;   // Requires runtime lookup.
-		pImport = m_pImage->GetImportTable()->GetDynamicHelperCell(
-			(CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_CHKCAST_HELPER | fAtypicalCallsite), pResolvedToken->hClass);
-		break;
+    case CORINFO_HELP_READYTORUN_CHKCAST:
+        if ((getClassAttribs(pResolvedToken->hClass) & CORINFO_FLG_SHAREDINST) != 0)
+            return false;   // Requires runtime lookup.
+        pImport = m_pImage->GetImportTable()->GetDynamicHelperCell(
+            (CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_CHKCAST_HELPER | fAtypicalCallsite), pResolvedToken->hClass);
+        break;
 
-	case CORINFO_HELP_READYTORUN_STATIC_BASE:
-		if ((getClassAttribs(pResolvedToken->hClass) & CORINFO_FLG_SHAREDINST) != 0)
-			return false;   // Requires runtime lookup.
-		if (m_pImage->GetCompileInfo()->IsInCurrentVersionBubble(m_pEEJitInfo->getClassModule(pResolvedToken->hClass)))
-		{
-			pImport = m_pImage->GetImportTable()->GetDynamicHelperCell(
-				(CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_CCTOR_TRIGGER | fAtypicalCallsite), pResolvedToken->hClass);
-		}
-		else
-		{
-			// READYTORUN: FUTURE: Cross-module static cctor triggers
-			m_zapper->Warning(W("ReadyToRun: Cross-module static cctor triggers not supported\n"));
-			ThrowHR(E_NOTIMPL);
-		}
-		break;
+    case CORINFO_HELP_READYTORUN_STATIC_BASE:
+        if ((getClassAttribs(pResolvedToken->hClass) & CORINFO_FLG_SHAREDINST) != 0)
+            return false;   // Requires runtime lookup.
+        if (m_pImage->GetCompileInfo()->IsInCurrentVersionBubble(m_pEEJitInfo->getClassModule(pResolvedToken->hClass)))
+        {
+            pImport = m_pImage->GetImportTable()->GetDynamicHelperCell(
+                (CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_CCTOR_TRIGGER | fAtypicalCallsite), pResolvedToken->hClass);
+        }
+        else
+        {
+            // READYTORUN: FUTURE: Cross-module static cctor triggers
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Cross-module static cctor triggers not supported\n"));
+            ThrowHR(E_NOTIMPL);
+        }
+        break;
 
-	case CORINFO_HELP_READYTORUN_GENERIC_HANDLE:
-		_ASSERTE(pGenericLookupKind != NULL && pGenericLookupKind->needsRuntimeLookup);
-		if (pGenericLookupKind->runtimeLookupKind == CORINFO_LOOKUP_METHODPARAM)
-		{
-			pImport = m_pImage->GetImportTable()->GetDictionaryLookupCell(
-				(CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_DICTIONARY_LOOKUP_METHOD | fAtypicalCallsite), pResolvedToken, pGenericLookupKind);
-		}
+    case CORINFO_HELP_READYTORUN_GENERIC_HANDLE:
+        _ASSERTE(pGenericLookupKind != NULL && pGenericLookupKind->needsRuntimeLookup);
+        if (pGenericLookupKind->runtimeLookupKind == CORINFO_LOOKUP_METHODPARAM)
+        {
+            pImport = m_pImage->GetImportTable()->GetDictionaryLookupCell(
+                (CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_DICTIONARY_LOOKUP_METHOD | fAtypicalCallsite), pResolvedToken, pGenericLookupKind);
+        }
         else if (pGenericLookupKind->runtimeLookupKind == CORINFO_LOOKUP_THISOBJ)
         {
             pImport = m_pImage->GetImportTable()->GetDictionaryLookupCell(
                 (CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_DICTIONARY_LOOKUP_THISOBJ | fAtypicalCallsite), pResolvedToken, pGenericLookupKind);
         }
-		else
-		{
-			_ASSERTE(pGenericLookupKind->runtimeLookupKind == CORINFO_LOOKUP_CLASSPARAM);
-			pImport = m_pImage->GetImportTable()->GetDictionaryLookupCell(
-				(CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_DICTIONARY_LOOKUP_TYPE | fAtypicalCallsite), pResolvedToken, pGenericLookupKind);
-		}
-		break;
+        else
+        {
+            _ASSERTE(pGenericLookupKind->runtimeLookupKind == CORINFO_LOOKUP_CLASSPARAM);
+            pImport = m_pImage->GetImportTable()->GetDictionaryLookupCell(
+                (CORCOMPILE_FIXUP_BLOB_KIND)(ENCODE_DICTIONARY_LOOKUP_TYPE | fAtypicalCallsite), pResolvedToken, pGenericLookupKind);
+        }
+        break;
 
-	default:
-		_ASSERTE(false);
-		ThrowHR(E_NOTIMPL);
-	}
+    default:
+        _ASSERTE(false);
+        ThrowHR(E_NOTIMPL);
+    }
 
-	pLookup->accessType = IAT_PVALUE;
-	pLookup->addr = pImport;
-	return true;
+    pLookup->accessType = IAT_PVALUE;
+    pLookup->addr = pImport;
+    return true;
 #else
-	return false;
+    return false;
 #endif
 }
 
@@ -3687,7 +3742,8 @@ bool ZapInfo::canTailCall(CORINFO_METHOD_HANDLE caller,
     {
         if (fIsTailPrefix)
         {
-            m_zapper->Warning(W("ReadyToRun: Explicit tailcalls not supported\n"));
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Warning(W("ReadyToRun: Explicit tailcalls not supported\n"));
             ThrowHR(E_NOTIMPL);
         }
 
@@ -3802,9 +3858,19 @@ CorInfoUnmanagedCallConv ZapInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE met
 BOOL ZapInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method,
                                                        CORINFO_SIG_INFO* sig)
 {
-    // READYTORUN: FUTURE: P/Invoke
+#ifdef PLATFORM_UNIX
+    // TODO: Support for pinvoke helpers on non-Windows platforms
     if (IsReadyToRunCompilation())
+        return TRUE; 
+#endif
+
+    if (IsReadyToRunCompilation() && method != NULL && !m_pImage->GetCompileInfo()->IsInCurrentVersionBubble(m_pEEJitInfo->getMethodModule(method)))
+    {
+        // FUTURE: ZapSig::EncodeMethod does not yet handle cross module references for ReadyToRun
+        // See zapsig.cpp around line 1217.
+        // Once this is implemented, we'll be able to inline pinvokes of extern methods declared in other modules (Ex: PresentationCore.dll)
         return TRUE;
+    }
 
     return m_pEEJitInfo->pInvokeMarshalingRequired(method, sig);
 }

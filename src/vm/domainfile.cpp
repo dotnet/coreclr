@@ -93,7 +93,6 @@ LoaderAllocator * DomainFile::GetLoaderAllocator()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -382,7 +381,6 @@ DomainAssembly *DomainFile::GetDomainAssembly()
         SUPPORTS_DAC;
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -514,7 +512,6 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
     Thread *pThread;
     pThread = GetThread();
     _ASSERTE(pThread);
-    INTERIOR_STACK_PROBE_FOR(pThread, 8);
 
     switch (level)
     {
@@ -558,12 +555,12 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
         EagerFixups();
         break;
 
-    case FILE_LOAD_VTABLE_FIXUPS:
-        VtableFixups();
-        break;
-
     case FILE_LOAD_DELIVER_EVENTS:
         DeliverSyncEvents();
+        break;
+
+    case FILE_LOAD_VTABLE_FIXUPS:
+        VtableFixups();
         break;
 
     case FILE_LOADED:
@@ -581,8 +578,6 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
     default:
         UNREACHABLE();
     }
-
-    END_INTERIOR_STACK_PROBE;
 
 #ifdef FEATURE_MULTICOREJIT
     {
@@ -856,8 +851,7 @@ void DomainFile::CheckZapRequired()
     GetFile()->FlushExternalLog();
 
     StackSString ss;
-    ss.Printf("ZapRequire: Could not get native image for %s.\n"
-              "Use FusLogVw.exe to check the reason.",
+    ss.Printf("ZapRequire: Could not get native image for %s.\n",
               GetSimpleName());
 
 #if defined(_DEBUG)
@@ -1658,7 +1652,6 @@ void DomainAssembly::DeliverAsyncEvents()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -1714,7 +1707,6 @@ void DomainAssembly::DeliverSyncEvents()
 BOOL DomainAssembly::GetResource(LPCSTR szName, DWORD *cbResource,
                                  PBYTE *pbInMemoryResource, DomainAssembly** pAssemblyRef,
                                  LPCSTR *szFileName, DWORD *dwLocation,
-                                 StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                                  BOOL fSkipRaiseResolveEvent)
 {
     CONTRACTL
@@ -1732,8 +1724,6 @@ BOOL DomainAssembly::GetResource(LPCSTR szName, DWORD *cbResource,
                                    pAssemblyRef,
                                    szFileName,
                                    dwLocation,
-                                   pStackMark,
-                                   fSkipSecurityCheck,
                                    fSkipRaiseResolveEvent,
                                    this,
                                    this->m_pDomain );
@@ -2416,6 +2406,12 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
          GCHeapUtilities::IsServerHeap()   &&
          IsGCSpecialThread());
 
+    if (IsCollectible())
+    {
+        // Collectible assemblies have statics stored in managed arrays, so they don't need special handlings
+        return;
+    }
+
     DomainModuleIterator i = IterateModules(kModIterIncludeLoaded);
     while (i.Next())
     {
@@ -2425,8 +2421,8 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
         {
             // We guarantee that at this point the module has it's DomainLocalModule set up
             // , as we create it while we load the module
-            _ASSERTE(pDomainFile->GetLoadedModule()->GetDomainLocalModule(this->GetAppDomain()));
-            pDomainFile->GetLoadedModule()->EnumRegularStaticGCRefs(this->GetAppDomain(), fn, sc);
+            _ASSERTE(pDomainFile->GetLoadedModule()->GetDomainLocalModule());
+            pDomainFile->GetLoadedModule()->EnumRegularStaticGCRefs(fn, sc);
 
             // We current to do not iterate over the ThreadLocalModules that correspond
             // to this Module. The GC discovers thread statics through the handle table.

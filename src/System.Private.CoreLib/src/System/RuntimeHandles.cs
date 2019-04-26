@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 using System.Runtime.Serialization;
 using System.Threading;
 
@@ -36,7 +37,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool IsInstanceOfType(RuntimeType type, object o);
 
-        internal static unsafe Type GetTypeHelper(Type typeStart, Type[] genericArgs, IntPtr pModifiers, int cModifiers)
+        internal static Type GetTypeHelper(Type typeStart, Type[] genericArgs, IntPtr pModifiers, int cModifiers)
         {
             Type type = typeStart;
 
@@ -414,17 +415,17 @@ namespace System
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetTypeByName(string name, bool throwOnError, bool ignoreCase, StackCrawlMarkHandle stackMark,
-            IntPtr pPrivHostBinder,
+            ObjectHandleOnStack assemblyLoadContext,
             bool loadTypeFromPartialName, ObjectHandleOnStack type, ObjectHandleOnStack keepalive);
 
         // Wrapper function to reduce the need for ifdefs.
         internal static RuntimeType GetTypeByName(string name, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark, bool loadTypeFromPartialName)
         {
-            return GetTypeByName(name, throwOnError, ignoreCase, ref stackMark, IntPtr.Zero, loadTypeFromPartialName);
+            return GetTypeByName(name, throwOnError, ignoreCase, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext, loadTypeFromPartialName);
         }
 
         internal static RuntimeType GetTypeByName(string name, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark,
-                                                  IntPtr pPrivHostBinder,
+                                                  AssemblyLoadContext assemblyLoadContext,
                                                   bool loadTypeFromPartialName)
         {
             if (name == null || name.Length == 0)
@@ -438,9 +439,10 @@ namespace System
             RuntimeType type = null;
 
             object keepAlive = null;
+            AssemblyLoadContext assemblyLoadContextStack = assemblyLoadContext;
             GetTypeByName(name, throwOnError, ignoreCase,
                 JitHelpers.GetStackCrawlMarkHandle(ref stackMark),
-                pPrivHostBinder,
+                JitHelpers.GetObjectHandleOnStack(ref assemblyLoadContextStack),
                 loadTypeFromPartialName, JitHelpers.GetObjectHandleOnStack(ref type), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
             GC.KeepAlive(keepAlive);
 
@@ -615,6 +617,11 @@ namespace System
         {
             throw new PlatformNotSupportedException();
         }
+
+#if FEATURE_TYPEEQUIVALENCE
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern bool IsEquivalentTo(RuntimeType rtType1, RuntimeType rtType2);
+#endif // FEATURE_TYPEEQUIVALENCE
     }
 
     // This type is used to remove the expense of having a managed reference object that is dynamically 
@@ -1098,7 +1105,7 @@ namespace System
             return handle.Value == Value;
         }
 
-        public unsafe bool Equals(RuntimeFieldHandle handle)
+        public bool Equals(RuntimeFieldHandle handle)
         {
             return handle.Value == Value;
         }
@@ -1119,7 +1126,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe void* _GetUtf8Name(RuntimeFieldHandleInternal field);
 
-        internal static unsafe MdUtf8String GetUtf8Name(RuntimeFieldHandleInternal field) { return new MdUtf8String(_GetUtf8Name(field)); }
+        internal static MdUtf8String GetUtf8Name(RuntimeFieldHandleInternal field) { return new MdUtf8String(_GetUtf8Name(field)); }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool MatchesNameHash(RuntimeFieldHandleInternal handle, uint hash);
@@ -1172,7 +1179,7 @@ namespace System
         public static readonly ModuleHandle EmptyHandle = GetEmptyMH();
         #endregion
 
-        unsafe private static ModuleHandle GetEmptyMH()
+        private static ModuleHandle GetEmptyMH()
         {
             return new ModuleHandle();
         }
@@ -1210,7 +1217,7 @@ namespace System
             return handle.m_ptr == m_ptr;
         }
 
-        public unsafe bool Equals(ModuleHandle handle)
+        public bool Equals(ModuleHandle handle)
         {
             return handle.m_ptr == m_ptr;
         }
@@ -1519,7 +1526,7 @@ namespace System
         internal abstract byte[] GetCodeInfo(ref int stackSize, ref int initLocals, ref int EHCount);
         internal abstract byte[] GetLocalsSignature();
         internal abstract unsafe void GetEHInfo(int EHNumber, void* exception);
-        internal abstract unsafe byte[] GetRawEHInfo();
+        internal abstract byte[] GetRawEHInfo();
         // token resolution
         internal abstract string GetStringLiteral(int token);
         internal abstract void ResolveToken(int token, out IntPtr typeHandle, out IntPtr methodHandle, out IntPtr fieldHandle);

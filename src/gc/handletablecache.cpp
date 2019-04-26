@@ -103,7 +103,7 @@ void SpinUntil(void *pCond, BOOL fNonZero)
         else
         {
             // nope - just spin again
-            YieldProcessor();           // indicate to the processor that we are spining 
+            YieldProcessor();           // indicate to the processor that we are spinning 
             uNonSleepSpins--;
         }
     }
@@ -772,7 +772,6 @@ void TableFreeSingleHandleToCache(HandleTable *pTable, uint32_t uType, OBJECTHAN
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         CAN_TAKE_LOCK;         // because of TableCacheMissOnFree
     }
     CONTRACTL_END;

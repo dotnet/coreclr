@@ -32,13 +32,12 @@ public:
     static
     void QCALLTYPE GetExecutingAssembly(QCall::StackCrawlMarkHandle stackMark, QCall::ObjectHandleOnStack retAssembly);
 
-    static FCDECL7(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
+    static FCDECL6(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
                                                                 StringObject* codeBaseUNSAFE, 
                                                                 AssemblyBaseObject* requestingAssemblyUNSAFE,
                                                                 StackCrawlMark* stackMark,
-                                                                ICLRPrivBinder * pPrivHostBinder,
                                                                 CLR_BOOL fThrowOnFileNotFound,
-                                                                INT_PTR ptrLoadContextBinder);
+                                                                AssemblyLoadContextBaseObject *assemblyLoadContextUNSAFE);
 
     //
     // instance FCALLs
@@ -70,10 +69,7 @@ public:
     void QCALLTYPE GetCodeBase(QCall::AssemblyHandle pAssembly, BOOL fCopiedName, QCall::StringHandleOnStack retString);
 
     static 
-    BYTE * QCALLTYPE GetResource(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, UINT64 * length, QCall::StackCrawlMarkHandle stackMark, BOOL skipSecurityCheck);
-
-    static 
-    BOOL QCALLTYPE GetNeutralResourcesLanguageAttribute(QCall::AssemblyHandle pAssembly, QCall::StringHandleOnStack cultureName, INT16& outFallbackLocation);
+    BYTE * QCALLTYPE GetResource(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, DWORD * length);
 
     static
     FCDECL1(FC_BOOL_RET, IsDynamic, AssemblyBaseObject * pAssemblyUNSAFE);
@@ -82,13 +78,13 @@ public:
     void QCALLTYPE GetVersion(QCall::AssemblyHandle pAssembly, INT32* pMajorVersion, INT32* pMinorVersion, INT32*pBuildNumber, INT32* pRevisionNumber);
 
     static 
-    void QCALLTYPE GetType(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType, QCall::ObjectHandleOnStack keepAlive);
+    void QCALLTYPE GetType(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType, QCall::ObjectHandleOnStack keepAlive, QCall::ObjectHandleOnStack pAssemblyLoadContext);
 
     static
     void QCALLTYPE GetForwardedType(QCall::AssemblyHandle pAssembly, mdToken mdtExternalType, QCall::ObjectHandleOnStack retType);
 
     static 
-    INT32 QCALLTYPE GetManifestResourceInfo(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, QCall::ObjectHandleOnStack retAssembly, QCall::StringHandleOnStack retFileName, QCall::StackCrawlMarkHandle stackMark);
+    INT32 QCALLTYPE GetManifestResourceInfo(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, QCall::ObjectHandleOnStack retAssembly, QCall::StringHandleOnStack retFileName);
 
     static
     void QCALLTYPE GetModules(QCall::AssemblyHandle pAssembly, BOOL fLoadIfNotFound, BOOL fGetResourceModules, QCall::ObjectHandleOnStack retModules);
@@ -124,7 +120,13 @@ public:
     static void QCALLTYPE LoadFromPath(INT_PTR ptrNativeAssemblyLoadContext, LPCWSTR pwzILPath, LPCWSTR pwzNIPath, QCall::ObjectHandleOnStack retLoadedAssembly);
     static INT_PTR QCALLTYPE InternalLoadUnmanagedDllFromPath(LPCWSTR unmanagedLibraryPath);
     static void QCALLTYPE LoadFromStream(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR ptrAssemblyArray, INT32 cbAssemblyArrayLength, INT_PTR ptrSymbolArray, INT32 cbSymbolArrayLength, QCall::ObjectHandleOnStack retLoadedAssembly);
+#ifndef FEATURE_PAL
+    static void QCALLTYPE LoadFromInMemoryModule(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR hModule, QCall::ObjectHandleOnStack retLoadedAssembly);
+#endif
     static Assembly* LoadFromPEImage(ICLRPrivBinder* pBinderContext, PEImage *pILImage, PEImage *pNIImage);
+#ifdef FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
+    static void QCALLTYPE LoadTypeForWinRTTypeNameInContext(INT_PTR ptrAssemblyLoadContext, LPCWSTR pwzTypeName, QCall::ObjectHandleOnStack retType);
+#endif
     static INT_PTR QCALLTYPE GetLoadContextForAssembly(QCall::AssemblyHandle pAssembly);
 
     static BOOL QCALLTYPE InternalTryGetRawMetadata(QCall::AssemblyHandle assembly, UINT8 **blobRef, INT32 *lengthRef);

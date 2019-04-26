@@ -200,11 +200,6 @@ class CEECompileInfo : public ICorCompileInfo
                          BOOL                     fForceProfiling,
                          BOOL                     fForceInstrument);
 
-    HRESULT MakeCrossDomainCallback(
-                                    ICorCompilationDomain*  pDomain,
-                                    CROSS_DOMAIN_CALLBACK   pfnCallback,
-                                    LPVOID                  pArgs);
-   
     HRESULT DestroyDomain(ICorCompilationDomain   *pDomain);
 
     HRESULT LoadAssemblyByPath(LPCWSTR                  wzPath,
@@ -338,7 +333,8 @@ class CEECompileInfo : public ICorCompileInfo
                              SString                &result);
 
     void GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, 
-                       GCRefMapBuilder * pBuilder);
+                       GCRefMapBuilder * pBuilder,
+                       bool isDispatchCell);
 
     void CompressDebugInfo(
                                     IN ICorDebugInfo::OffsetMapping * pOffsetMapping,
@@ -407,7 +403,6 @@ class CEECompileInfo : public ICorCompileInfo
         {
             THROWS;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_ANY;
         }
         CONTRACTL_END;
@@ -790,7 +785,6 @@ class CompilationDomain : public AppDomain,
     PEAssembly *BindAssemblySpec(
         AssemblySpec *pSpec,
         BOOL fThrowOnFileNotFound,
-        StackCrawlMark *pCallerStackMark = NULL,
         BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
 
     BOOL CanEagerBindToZapFile(Module *targetModule, BOOL limitToHardBindList = TRUE);

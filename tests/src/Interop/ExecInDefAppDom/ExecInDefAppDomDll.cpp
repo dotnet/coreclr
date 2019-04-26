@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include <xplatform.h>
+#include <platformdefines.h>
 
 #ifdef WINDOWS
 #include "mscoree.h"
@@ -53,12 +54,9 @@ CallExecuteInDefaultAppDomain(LPCWSTR pwzAssemblyPath,
     if (!host)
         return E_FAIL;
 
-    if(host->Start())
-        return E_FAIL;
-
     auto result = host->ExecuteInDefaultAppDomain(pwzAssemblyPath, pwzTypeName, pwzMethodName, pwzArgument, pReturnValue);
 
-    host->Stop();
+    host->Release();
 
     return result;
 }

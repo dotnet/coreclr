@@ -421,7 +421,6 @@ BOOL StubManager::CheckIsStub_Worker(PCODE stubStartAddress)
         NOTHROW;
         CAN_TAKE_LOCK;     // CheckIsStub_Internal can enter SimpleRWLock
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -434,10 +433,6 @@ BOOL StubManager::CheckIsStub_Worker(PCODE stubStartAddress)
     {
         return FALSE;
     }
-
-    CONTRACT_VIOLATION(SOToleranceViolation);
-    // @todo : this might not have a thread
-    //    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), return FALSE);
 
     struct Param
     {
@@ -484,11 +479,9 @@ BOOL StubManager::CheckIsStub_Worker(PCODE stubStartAddress)
 #ifdef DACCESS_COMPILE
     PAL_ENDTRY
 #else
-    EX_END_CATCH(SwallowAllExceptions);        
-#endif    
+    EX_END_CATCH(SwallowAllExceptions);
+#endif
 
-    //END_SO_INTOLERANT_CODE;
-    
     return param.fIsStub;
 }
 
@@ -1474,7 +1467,6 @@ BOOL RangeSectionStubManager::DoTraceStub(PCODE stubStartAddress, TraceDestinati
             }
             return TRUE;
         }
-#endif
 
     case STUB_CODE_BLOCK_EXTERNAL_METHOD_THUNK:
         {
@@ -1488,6 +1480,7 @@ BOOL RangeSectionStubManager::DoTraceStub(PCODE stubStartAddress, TraceDestinati
         }
 
         __fallthrough;
+#endif
 
     case STUB_CODE_BLOCK_METHOD_CALL_THUNK:
 #ifdef DACCESS_COMPILE
@@ -1586,7 +1579,6 @@ RangeSectionStubManager::GetStubKind(PCODE stubStartAddress)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -2536,7 +2528,6 @@ JumpStubStubManager::DoEnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     EMEM_OUT(("MEM: %p JumpStubStubManager\n", dac_cast<TADDR>(this)));
 }
 
-#ifdef FEATURE_PREJIT
 void
 RangeSectionStubManager::DoEnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
@@ -2545,7 +2536,6 @@ RangeSectionStubManager::DoEnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     DAC_ENUM_VTHIS();
     EMEM_OUT(("MEM: %p RangeSectionStubManager\n", dac_cast<TADDR>(this)));
 }
-#endif
 
 void
 ILStubManager::DoEnumMemoryRegions(CLRDataEnumMemoryFlags flags)

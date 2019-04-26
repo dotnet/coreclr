@@ -124,7 +124,7 @@ void Compiler::lvaInitTypeRef()
     info.compILargsCount = info.compArgsCount;
 
 #ifdef FEATURE_SIMD
-    if (featureSIMD && (info.compRetNativeType == TYP_STRUCT))
+    if (supportSIMDTypes() && (info.compRetNativeType == TYP_STRUCT))
     {
         var_types structType = impNormStructType(info.compMethodInfo->args.retTypeClass);
         info.compRetType     = structType;
@@ -149,7 +149,7 @@ void Compiler::lvaInitTypeRef()
         if ((howToReturnStruct == SPK_PrimitiveType) || (howToReturnStruct == SPK_EnclosingType))
         {
             assert(returnType != TYP_UNKNOWN);
-            assert(!varTypeIsStruct(returnType));
+            assert(returnType != TYP_STRUCT);
 
             info.compRetNativeType = returnType;
 
@@ -255,7 +255,19 @@ void Compiler::lvaInitTypeRef()
 
         lvaInitVarDsc(varDsc, varNum, corInfoType, typeHnd, localsSig, &info.compMethodInfo->locals);
 
-        varDsc->lvPinned  = ((corInfoTypeWithMod & CORINFO_TYPE_MOD_PINNED) != 0);
+        if ((corInfoTypeWithMod & CORINFO_TYPE_MOD_PINNED) != 0)
+        {
+            if ((corInfoType == CORINFO_TYPE_CLASS) || (corInfoType == CORINFO_TYPE_BYREF))
+            {
+                JITDUMP("Setting lvPinned for V%02u\n", varNum);
+                varDsc->lvPinned = 1;
+            }
+            else
+            {
+                JITDUMP("Ignoring pin for non-GC type V%02u\n", varNum);
+            }
+        }
+
         varDsc->lvOnFrame = true; // The final home for this local variable might be our local stack frame
 
         if (corInfoType == CORINFO_TYPE_CLASS)
@@ -364,7 +376,8 @@ void Compiler::lvaInitArgs(InitVarDscInfo* varDscInfo)
     // Save the stack usage information
     // We can get register usage information using codeGen->intRegState and
     // codeGen->floatRegState
-    info.compArgStackSize = varDscInfo->stackArgSize;
+    info.compArgStackSize     = varDscInfo->stackArgSize;
+    info.compHasMultiSlotArgs = varDscInfo->hasMultiSlotStruct;
 #endif // FEATURE_FASTTAILCALL
 
     // The total argument size must be aligned.
@@ -396,7 +409,7 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
         {
             varDsc->lvType = TYP_BYREF;
 #ifdef FEATURE_SIMD
-            if (featureSIMD)
+            if (supportSIMDTypes())
             {
                 var_types simdBaseType = TYP_UNKNOWN;
                 var_types type         = impNormStructType(info.compClassHnd, nullptr, nullptr, &simdBaseType);
@@ -504,7 +517,7 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
             }
         }
 #ifdef FEATURE_SIMD
-        else if (featureSIMD && varTypeIsSIMD(info.compRetType))
+        else if (supportSIMDTypes() && varTypeIsSIMD(info.compRetType))
         {
             varDsc->lvSIMDType = true;
             varDsc->lvBaseType =
@@ -549,7 +562,10 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
     const unsigned argSigLen = info.compMethodInfo->args.numArgs;
 
+#ifdef _TARGET_ARM_
     regMaskTP doubleAlignMask = RBM_NONE;
+#endif // _TARGET_ARM_
+
     for (unsigned i = 0; i < argSigLen;
          i++, varDscInfo->varNum++, varDscInfo->varDsc++, argLst = info.compCompHnd->getArgNext(argLst))
     {
@@ -568,8 +584,12 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
         }
 
         // For ARM, ARM64, and AMD64 varargs, all arguments go in integer registers
-        var_types argType     = mangleVarArgsType(varDsc->TypeGet());
+        var_types argType = mangleVarArgsType(varDsc->TypeGet());
+
+#ifdef _TARGET_ARM_
         var_types origArgType = argType;
+#endif // TARGET_ARM
+
         // ARM softfp calling convention should affect only the floating point arguments.
         // Otherwise there appear too many surplus pre-spills and other memory operations
         // with the associated locations .
@@ -590,8 +610,9 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             // If the argType is a struct, then check if it is an HFA
             if (varTypeIsStruct(argType))
             {
-                hfaType  = GetHfaType(typeHnd); // set to float or double if it is an HFA, otherwise TYP_UNDEF
-                isHfaArg = varTypeIsFloating(hfaType);
+                // hfaType is set to float, double or SIMD type if it is an HFA, otherwise TYP_UNDEF.
+                hfaType  = GetHfaType(typeHnd);
+                isHfaArg = varTypeIsValidHfaType(hfaType);
             }
         }
         else if (info.compIsVarArgs)
@@ -608,11 +629,12 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
         if (isHfaArg)
         {
-            // We have an HFA argument, so from here on out treat the type as a float or double.
+            // We have an HFA argument, so from here on out treat the type as a float, double or vector.
             // The orginal struct type is available by using origArgType
             // We also update the cSlots to be the number of float/double fields in the HFA
             argType = hfaType;
-            cSlots  = varDsc->lvHfaSlots();
+            varDsc->SetHfaType(hfaType);
+            cSlots = varDsc->lvHfaSlots();
         }
         // The number of slots that must be enregistered if we are to consider this argument enregistered.
         // This is normally the same as cSlots, since we normally either enregister the entire object,
@@ -810,41 +832,52 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             if (isHfaArg)
             {
                 // We need to save the fact that this HFA is enregistered
-                varDsc->lvSetIsHfa();
-                varDsc->lvSetIsHfaRegArg();
-                varDsc->SetHfaType(hfaType);
-                varDsc->lvIsMultiRegArg = (varDsc->lvHfaSlots() > 1);
+                // Note that we can have HVAs of SIMD types even if we are not recognizing intrinsics.
+                // In that case, we won't have normalized the vector types on the varDsc, so if we have a single vector
+                // register, we need to set the type now. Otherwise, later we'll assume this is passed by reference.
+                if (varDsc->lvHfaSlots() != 1)
+                {
+                    varDsc->lvIsMultiRegArg = true;
+                }
             }
 
             varDsc->lvIsRegArg = 1;
 
 #if FEATURE_MULTIREG_ARGS
+#ifdef _TARGET_ARM64_
+            if (argType == TYP_STRUCT)
+            {
+                varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
+                if (cSlots == 2)
+                {
+                    varDsc->lvOtherArgReg          = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
+                    varDscInfo->hasMultiSlotStruct = true;
+                }
+            }
+#elif defined(UNIX_AMD64_ABI)
             if (varTypeIsStruct(argType))
             {
-#if defined(UNIX_AMD64_ABI)
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, firstEightByteType);
 
                 // If there is a second eightbyte, get a register for it too and map the arg to the reg number.
                 if (structDesc.eightByteCount >= 2)
                 {
-                    secondEightByteType      = GetEightByteType(structDesc, 1);
-                    secondAllocatedRegArgNum = varDscInfo->allocRegArg(secondEightByteType, 1);
+                    secondEightByteType            = GetEightByteType(structDesc, 1);
+                    secondAllocatedRegArgNum       = varDscInfo->allocRegArg(secondEightByteType, 1);
+                    varDscInfo->hasMultiSlotStruct = true;
                 }
 
                 if (secondEightByteType != TYP_UNDEF)
                 {
                     varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(secondAllocatedRegArgNum, secondEightByteType);
                 }
-#else // ARM32 or ARM64
-                varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
-#ifdef _TARGET_ARM64_
-                if (cSlots == 2)
-                {
-                    varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
-                }
-#endif //  _TARGET_ARM64_
-#endif // defined(UNIX_AMD64_ABI)
             }
+#else  // ARM32
+            if (varTypeIsStruct(argType))
+            {
+                varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
+            }
+#endif // ARM32
             else
 #endif // FEATURE_MULTIREG_ARGS
             {
@@ -869,14 +902,13 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                     isFloat = varTypeIsFloating(firstEightByteType);
                 }
                 else
-#else
+#endif // !UNIX_AMD64_ABI
                 {
                     isFloat = varTypeIsFloating(argType);
                 }
-#endif // !UNIX_AMD64_ABI
 
 #if defined(UNIX_AMD64_ABI)
-                    if (varTypeIsStruct(argType))
+                if (varTypeIsStruct(argType))
                 {
                     // Print both registers, just to be clear
                     if (firstEightByteType == TYP_UNDEF)
@@ -1260,7 +1292,15 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
         varDsc->lvStructGcCount = 1;
     }
 
-    // Set the lvType (before this point it is TYP_UNDEF).
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    varDsc->lvIsImplicitByRef = 0;
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
+// Set the lvType (before this point it is TYP_UNDEF).
+
+#ifdef FEATURE_HFA
+    varDsc->SetHfaType(TYP_UNDEF);
+#endif
     if ((varTypeIsStruct(type)))
     {
         lvaSetStruct(varNum, typeHnd, typeHnd != nullptr, !tiVerificationNeeded);
@@ -1348,7 +1388,7 @@ unsigned Compiler::compMapILvarNum(unsigned ILvarNum)
  * Returns UNKNOWN_ILNUM if it can't be mapped.
  */
 
-unsigned Compiler::compMap2ILvarNum(unsigned varNum)
+unsigned Compiler::compMap2ILvarNum(unsigned varNum) const
 {
     if (compIsForInlining())
     {
@@ -1946,7 +1986,7 @@ Compiler::lvaStructFieldInfo Compiler::StructPromotionHelper::GetFieldInfo(CORIN
             fieldInfo.fldType = compiler->getSIMDTypeForSize(simdSize);
             fieldInfo.fldSize = simdSize;
 #ifdef DEBUG
-            retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+            retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType, RetypedAsScalarFieldsMap::Overwrite);
 #endif // DEBUG
         }
     }
@@ -1989,8 +2029,6 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
         return false;
     }
 
-    COMP_HANDLE compHandl = compiler->info.compCompHnd;
-
     // Do not promote if the single field is not aligned at its natural boundary within
     // the struct field.
     CORINFO_FIELD_HANDLE innerFieldHndl   = compHandle->getFieldInClass(fieldInfo.fldTypeHnd, 0);
@@ -2004,27 +2042,34 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     var_types   fieldVarType = JITtype2varType(fieldCorType);
     unsigned    fieldSize    = genTypeSize(fieldVarType);
 
-    // Do not promote if either not a primitive type or size equal to ptr size on
-    // target or a struct containing a single floating-point field.
+    // Do not promote if the field is not a primitive type, is floating-point,
+    // or is not properly aligned.
     //
     // TODO-PERF: Structs containing a single floating-point field on Amd64
     // need to be passed in integer registers. Right now LSRA doesn't support
     // passing of floating-point LCL_VARS in integer registers.  Enabling promotion
     // of such structs results in an assert in lsra right now.
     //
-    // TODO-PERF: Right now promotion is confined to struct containing a ptr sized
-    // field (int/uint/ref/byref on 32-bits and long/ulong/ref/byref on 64-bits).
-    // Though this would serve the purpose of promoting Span<T> containing ByReference<T>,
-    // this can be extended to other primitive types as long as they are aligned at their
-    // natural boundary.
-    //
     // TODO-CQ: Right now we only promote an actual SIMD typed field, which would cause
     // a nested SIMD type to fail promotion.
-    if (fieldSize == 0 || fieldSize != TARGET_POINTER_SIZE || varTypeIsFloating(fieldVarType))
+    if (fieldSize == 0 || fieldSize > TARGET_POINTER_SIZE || varTypeIsFloating(fieldVarType))
     {
         JITDUMP("Promotion blocked: struct contains struct field with one field,"
                 " but that field has invalid size or type");
         return false;
+    }
+
+    if (fieldSize != TARGET_POINTER_SIZE)
+    {
+        unsigned outerFieldOffset = compHandle->getFieldOffset(fieldInfo.fldHnd);
+
+        if ((outerFieldOffset % fieldSize) != 0)
+        {
+            JITDUMP("Promotion blocked: struct contains struct field with one field,"
+                    " but the outer struct offset %u is not a multiple of the inner field size %u",
+                    outerFieldOffset, fieldSize);
+            return false;
+        }
     }
 
     // Insist this wrapped field occupy all of its parent storage.
@@ -2043,7 +2088,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     fieldInfo.fldType = fieldVarType;
     fieldInfo.fldSize = fieldSize;
 #ifdef DEBUG
-    retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+    retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType, RetypedAsScalarFieldsMap::Overwrite);
 #endif // DEBUG
     return true;
 }
@@ -2134,6 +2179,10 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
         fieldVarDsc->lvParentLcl     = lclNum;
         fieldVarDsc->lvIsParam       = varDsc->lvIsParam;
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
+        // Reset the implicitByRef flag.
+        fieldVarDsc->lvIsImplicitByRef = 0;
+
         // Do we have a parameter that can be enregistered?
         //
         if (varDsc->lvIsRegArg)
@@ -2160,6 +2209,9 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
             // Set size to zero so that lvaSetStruct will appropriately set the SIMD-relevant fields.
             fieldVarDsc->lvExactSize = 0;
             compiler->lvaSetStruct(varNum, pFieldInfo->fldTypeHnd, false, true);
+            // We will not recursively promote this, so mark it as 'lvRegStruct' (note that we wouldn't
+            // be promoting this if we didn't think it could be enregistered.
+            fieldVarDsc->lvRegStruct = true;
         }
 #endif // FEATURE_SIMD
 
@@ -2441,7 +2493,6 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
     }
 
     // Set the type and associated info if we haven't already set it.
-    var_types structType = varDsc->lvType;
     if (varDsc->lvType == TYP_UNDEF)
     {
         varDsc->lvType = TYP_STRUCT;
@@ -2459,11 +2510,12 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
             varDsc->lvExactSize = info.compCompHnd->getHeapClassSize(typeHnd);
         }
 
-        size_t lvSize = varDsc->lvSize();
-        assert((lvSize % TARGET_POINTER_SIZE) ==
-               0); // The struct needs to be a multiple of TARGET_POINTER_SIZE bytes for getClassGClayout() to be valid.
-        varDsc->lvGcLayout = getAllocator(CMK_LvaTable).allocate<BYTE>(lvSize / TARGET_POINTER_SIZE);
-        unsigned  numGCVars;
+        // Normalize struct types, and fill in GC info for all types
+        unsigned lvSize = varDsc->lvSize();
+        // The struct needs to be a multiple of TARGET_POINTER_SIZE bytes for getClassGClayout() to be valid.
+        assert((lvSize % TARGET_POINTER_SIZE) == 0);
+        varDsc->lvGcLayout     = getAllocator(CMK_LvaTable).allocate<BYTE>(lvSize / TARGET_POINTER_SIZE);
+        unsigned  numGCVars    = 0;
         var_types simdBaseType = TYP_UNKNOWN;
         if (isValueClass)
         {
@@ -2479,10 +2531,27 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
         {
             numGCVars = 7;
         }
+
         varDsc->lvStructGcCount = numGCVars;
 
         if (isValueClass)
         {
+
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+            // Mark implicit byref struct parameters
+            if (varDsc->lvIsParam && !varDsc->lvIsStructField)
+            {
+                structPassingKind howToReturnStruct;
+                getArgTypeForStruct(typeHnd, &howToReturnStruct, this->info.compIsVarArgs, varDsc->lvExactSize);
+
+                if (howToReturnStruct == SPK_ByReference)
+                {
+                    JITDUMP("Marking V%02i as a byref parameter\n", varNum);
+                    varDsc->lvIsImplicitByRef = 1;
+                }
+            }
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
 #if FEATURE_SIMD
             if (simdBaseType != TYP_UNKNOWN)
             {
@@ -2496,10 +2565,9 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
             if (varDsc->lvExactSize <= MAX_PASS_MULTIREG_BYTES)
             {
                 var_types hfaType = GetHfaType(typeHnd); // set to float or double if it is an HFA, otherwise TYP_UNDEF
-                if (varTypeIsFloating(hfaType))
+                if (varTypeIsValidHfaType(hfaType))
                 {
-                    varDsc->_lvIsHfa = true;
-                    varDsc->lvSetHfaTypeIsFloat(hfaType == TYP_FLOAT);
+                    varDsc->SetHfaType(hfaType);
 
                     // hfa variables can never contain GC pointers
                     assert(varDsc->lvStructGcCount == 0);
@@ -2571,8 +2639,7 @@ void Compiler::lvaSetStructUsedAsVarArg(unsigned varNum)
     LclVarDsc* varDsc = &lvaTable[varNum];
     // For varargs methods incoming and outgoing arguments should not be treated
     // as HFA.
-    varDsc->_lvIsHfa          = false;
-    varDsc->_lvHfaTypeIsFloat = false;
+    varDsc->SetHfaType(TYP_UNDEF);
 #endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
 #endif // FEATURE_HFA
 }
@@ -2704,27 +2771,7 @@ void Compiler::lvaUpdateClass(unsigned varNum, CORINFO_CLASS_HANDLE clsHnd, bool
     // updating exact classes.
     if (!varDsc->lvClassIsExact && isNewClass)
     {
-        // Todo: improve this analysis by adding a new jit interface method
-        DWORD newAttrs = info.compCompHnd->getClassAttribs(clsHnd);
-        DWORD oldAttrs = info.compCompHnd->getClassAttribs(varDsc->lvClassHnd);
-
-        // Avoid funny things with __Canon by only merging if both shared or both unshared
-        if ((newAttrs & CORINFO_FLG_SHAREDINST) == (oldAttrs & CORINFO_FLG_SHAREDINST))
-        {
-            // If we merge types and we get back the old class, the new class is more
-            // specific and we should update to it.
-            CORINFO_CLASS_HANDLE mergeClass = info.compCompHnd->mergeClasses(clsHnd, varDsc->lvClassHnd);
-
-            if (mergeClass == varDsc->lvClassHnd)
-            {
-                shouldUpdate = true;
-            }
-        }
-        else if ((newAttrs & CORINFO_FLG_SHAREDINST) == 0)
-        {
-            // Update if we go from shared to unshared
-            shouldUpdate = true;
-        }
+        shouldUpdate = !!info.compCompHnd->isMoreSpecificType(varDsc->lvClassHnd, clsHnd);
     }
     // Else are we attempting to update exactness?
     else if (isExact && !varDsc->lvClassIsExact && !isNewClass)
@@ -2736,9 +2783,9 @@ void Compiler::lvaUpdateClass(unsigned varNum, CORINFO_CLASS_HANDLE clsHnd, bool
     if (isNewClass || (isExact != varDsc->lvClassIsExact))
     {
         JITDUMP("\nlvaUpdateClass:%s Updating class for V%02u", shouldUpdate ? "" : " NOT", varNum);
-        JITDUMP(" from(%p) %s%s", dspPtr(varDsc->lvClassHnd), info.compCompHnd->getClassName(varDsc->lvClassHnd),
+        JITDUMP(" from (%p) %s%s", dspPtr(varDsc->lvClassHnd), info.compCompHnd->getClassName(varDsc->lvClassHnd),
                 varDsc->lvClassIsExact ? " [exact]" : "");
-        JITDUMP(" to(%p) %s%s\n", dspPtr(clsHnd), info.compCompHnd->getClassName(clsHnd), isExact ? " [exact]" : "");
+        JITDUMP(" to (%p) %s%s\n", dspPtr(clsHnd), info.compCompHnd->getClassName(clsHnd), isExact ? " [exact]" : "");
     }
 #endif // DEBUG
 
@@ -2746,6 +2793,11 @@ void Compiler::lvaUpdateClass(unsigned varNum, CORINFO_CLASS_HANDLE clsHnd, bool
     {
         varDsc->lvClassHnd     = clsHnd;
         varDsc->lvClassIsExact = isExact;
+
+#if DEBUG
+        // Note we've modified the type...
+        varDsc->lvClassInfoUpdated = true;
+#endif // DEBUG
     }
 
     return;
@@ -4016,13 +4068,13 @@ void Compiler::lvaMarkLocalVars()
     lvaComputeRefCounts(isRecompute, setSlotNumbers);
 
     // If we're not optimizing, we're done.
-    if (opts.MinOpts() || opts.compDbgCode)
+    if (opts.OptimizationDisabled())
     {
         return;
     }
 
 #if ASSERTION_PROP
-    assert(!opts.MinOpts() && !opts.compDbgCode);
+    assert(opts.OptimizationEnabled());
 
     // Note: optAddCopies() depends on lvaRefBlks, which is set in lvaMarkLocalVars(BasicBlock*), called above.
     optAddCopies();
@@ -4071,7 +4123,7 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
     //
     // On first compute: mark all locals as implicitly referenced and untracked.
     // On recompute: do nothing.
-    if (opts.MinOpts() || opts.compDbgCode)
+    if (opts.OptimizationDisabled())
     {
         if (isRecompute)
         {
@@ -4314,28 +4366,28 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *
  *  The frame is laid out as follows for x86:
  *
- *              ESP frames                
+ *              ESP frames
  *
- *      |                       |         
- *      |-----------------------|         
- *      |       incoming        |         
- *      |       arguments       |         
- *      |-----------------------| <---- Virtual '0'         
- *      |    return address     |         
+ *      |                       |
+ *      |-----------------------|
+ *      |       incoming        |
+ *      |       arguments       |
+ *      |-----------------------| <---- Virtual '0'
+ *      |    return address     |
  *      +=======================+
- *      |Callee saved registers |         
- *      |-----------------------|         
- *      |       Temps           |         
- *      |-----------------------|         
- *      |       Variables       |         
+ *      |Callee saved registers |
+ *      |-----------------------|
+ *      |       Temps           |
+ *      |-----------------------|
+ *      |       Variables       |
  *      |-----------------------| <---- Ambient ESP
- *      |   Arguments for the   |         
- *      ~    next function      ~ 
- *      |                       |         
- *      |       |               |         
- *      |       | Stack grows   |         
- *              | downward                
- *              V                         
+ *      |   Arguments for the   |
+ *      ~    next function      ~
+ *      |                       |
+ *      |       |               |
+ *      |       | Stack grows   |
+ *              | downward
+ *              V
  *
  *
  *              EBP frames
@@ -4344,13 +4396,13 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *      |-----------------------|
  *      |       incoming        |
  *      |       arguments       |
- *      |-----------------------| <---- Virtual '0'         
- *      |    return address     |         
+ *      |-----------------------| <---- Virtual '0'
+ *      |    return address     |
  *      +=======================+
  *      |    incoming EBP       |
  *      |-----------------------| <---- EBP
- *      |Callee saved registers |         
- *      |-----------------------|         
+ *      |Callee saved registers |
+ *      |-----------------------|
  *      |   security object     |
  *      |-----------------------|
  *      |     ParamTypeArg      |
@@ -4380,39 +4432,39 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *
  *  The frame is laid out as follows for x64:
  *
- *              RSP frames                
- *      |                       |         
- *      |-----------------------|         
- *      |       incoming        |         
- *      |       arguments       |         
- *      |-----------------------|         
- *      |   4 fixed incoming    |         
- *      |    argument slots     |         
+ *              RSP frames
+ *      |                       |
+ *      |-----------------------|
+ *      |       incoming        |
+ *      |       arguments       |
+ *      |-----------------------|
+ *      |   4 fixed incoming    |
+ *      |    argument slots     |
  *      |-----------------------| <---- Caller's SP & Virtual '0'
- *      |    return address     |         
+ *      |    return address     |
  *      +=======================+
- *      | Callee saved Int regs |  
+ *      | Callee saved Int regs |
  *      -------------------------
  *      |        Padding        | <---- this padding (0 or 8 bytes) is to ensure flt registers are saved at a mem location aligned at 16-bytes
  *      |                       |       so that we can save 128-bit callee saved xmm regs using performant "movaps" instruction instead of "movups"
  *      -------------------------
  *      | Callee saved Flt regs | <----- entire 128-bits of callee saved xmm registers are stored here
- *      |-----------------------|         
- *      |         Temps         |         
- *      |-----------------------|         
- *      |       Variables       |         
  *      |-----------------------|
- *      |   Arguments for the   |         
- *      ~    next function      ~ 
- *      |                       |         
- *      |-----------------------|         
- *      |   4 fixed outgoing    |         
- *      |    argument slots     |         
+ *      |         Temps         |
+ *      |-----------------------|
+ *      |       Variables       |
+ *      |-----------------------|
+ *      |   Arguments for the   |
+ *      ~    next function      ~
+ *      |                       |
+ *      |-----------------------|
+ *      |   4 fixed outgoing    |
+ *      |    argument slots     |
  *      |-----------------------| <---- Ambient RSP
- *      |       |               |         
- *      ~       | Stack grows   ~         
- *      |       | downward      |         
- *              V                         
+ *      |       |               |
+ *      ~       | Stack grows   ~
+ *      |       | downward      |
+ *              V
  *
  *
  *              RBP frames
@@ -4420,30 +4472,30 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *      |-----------------------|
  *      |       incoming        |
  *      |       arguments       |
- *      |-----------------------|         
- *      |   4 fixed incoming    |         
- *      |    argument slots     |         
+ *      |-----------------------|
+ *      |   4 fixed incoming    |
+ *      |    argument slots     |
  *      |-----------------------| <---- Caller's SP & Virtual '0'
- *      |    return address     |         
+ *      |    return address     |
  *      +=======================+
- *      | Callee saved Int regs |         
+ *      | Callee saved Int regs |
  *      -------------------------
- *      |        Padding        | 
+ *      |        Padding        |
  *      -------------------------
- *      | Callee saved Flt regs | 
- *      |-----------------------|         
+ *      | Callee saved Flt regs |
+ *      |-----------------------|
  *      |   security object     |
  *      |-----------------------|
  *      |     ParamTypeArg      |
  *      |-----------------------|
  *      |                       |
- *      |                       | 
+ *      |                       |
  *      ~       Variables       ~
- *      |                       | 
+ *      |                       |
  *      |                       |
  *      |-----------------------|
  *      |        Temps          |
- *      |-----------------------| 
+ *      |-----------------------|
  *      |                       |
  *      ~       localloc        ~   // not in frames with EH
  *      |                       |
@@ -4451,31 +4503,31 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *      |        PSPSym         |   // only in frames with EH (thus no localloc)
  *      |                       |
  *      |-----------------------| <---- RBP in localloc frames (max 240 bytes from Initial-SP)
- *      |   Arguments for the   |         
- *      ~    next function      ~ 
- *      |                       |         
- *      |-----------------------| 
- *      |   4 fixed outgoing    |         
- *      |    argument slots     |         
+ *      |   Arguments for the   |
+ *      ~    next function      ~
+ *      |                       |
+ *      |-----------------------|
+ *      |   4 fixed outgoing    |
+ *      |    argument slots     |
  *      |-----------------------| <---- Ambient RSP (before localloc, this is Initial-SP)
- *      |       |               |         
- *      ~       | Stack grows   ~         
- *      |       | downward      |         
+ *      |       |               |
+ *      ~       | Stack grows   ~
+ *      |       | downward      |
  *              V
  *
  *
  *  The frame is laid out as follows for ARM (this is a general picture; details may differ for different conditions):
  *
- *              SP frames                
- *      |                       |         
- *      |-----------------------|         
- *      |       incoming        |         
- *      |       arguments       |         
+ *              SP frames
+ *      |                       |
+ *      |-----------------------|
+ *      |       incoming        |
+ *      |       arguments       |
  *      +=======================+ <---- Caller's SP
- *      |  Pre-spill registers  |         
+ *      |  Pre-spill registers  |
  *      |-----------------------| <---- Virtual '0'
- *      |Callee saved registers |         
- *      |-----------------------|         
+ *      |Callee saved registers |
+ *      |-----------------------|
  *      ~ possible double align ~
  *      |-----------------------|
  *      |   security object     |
@@ -4496,13 +4548,13 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *      |-----------------------|
  *      ~ possible double align ~
  *      |-----------------------|
- *      |   Arguments for the   |         
- *      ~    next function      ~ 
- *      |                       |         
+ *      |   Arguments for the   |
+ *      ~    next function      ~
+ *      |                       |
  *      |-----------------------| <---- Ambient SP
- *      |       |               |         
- *      ~       | Stack grows   ~         
- *      |       | downward      |         
+ *      |       |               |
+ *      ~       | Stack grows   ~
+ *      |       | downward      |
  *              V
  *
  *
@@ -4512,10 +4564,10 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *      |       incoming        |
  *      |       arguments       |
  *      +=======================+ <---- Caller's SP
- *      |  Pre-spill registers  |         
+ *      |  Pre-spill registers  |
  *      |-----------------------| <---- Virtual '0'
- *      |Callee saved registers |         
- *      |-----------------------|         
+ *      |Callee saved registers |
+ *      |-----------------------|
  *      |        PSPSym         |   // Only for frames with EH, which means FP-based frames
  *      |-----------------------|
  *      ~ possible double align ~
@@ -4540,32 +4592,31 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *      |-----------------------|
  *      |       localloc        |
  *      |-----------------------|
- *      |   Arguments for the   |         
- *      ~    next function      ~ 
- *      |                       |         
+ *      |   Arguments for the   |
+ *      ~    next function      ~
+ *      |                       |
  *      |-----------------------| <---- Ambient SP
- *      |       |               |         
- *      ~       | Stack grows   ~         
- *      |       | downward      |         
+ *      |       |               |
+ *      ~       | Stack grows   ~
+ *      |       | downward      |
  *              V
  *
  *
  *  The frame is laid out as follows for ARM64 (this is a general picture; details may differ for different conditions):
- *  TODO-ARM64-NYI: this is preliminary (copied from ARM and modified), and needs to be reviewed.
  *  NOTE: SP must be 16-byte aligned, so there may be alignment slots in the frame.
  *  We will often save and establish a frame pointer to create better ETW stack walks.
  *
- *              SP frames                
- *      |                       |         
- *      |-----------------------|         
- *      |       incoming        |         
- *      |       arguments       |         
+ *              SP frames
+ *      |                       |
+ *      |-----------------------|
+ *      |       incoming        |
+ *      |       arguments       |
  *      +=======================+ <---- Caller's SP
  *      |         homed         | // this is only needed if reg argument need to be homed, e.g., for varargs
- *      |   register arguments  |         
+ *      |   register arguments  |
  *      |-----------------------| <---- Virtual '0'
  *      |Callee saved registers |
- *      |   except fp/lr        |         
+ *      |   except fp/lr        |
  *      |-----------------------|
  *      |   security object     |
  *      |-----------------------|
@@ -4586,13 +4637,13 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *      |      Saved LR         |
  *      |-----------------------|
  *      |      Saved FP         | <---- Frame pointer
- *      |-----------------------|         
+ *      |-----------------------|
  *      |  Stack arguments for  |
  *      |   the next function   |
  *      |-----------------------| <---- SP
- *      |       |               |         
- *      ~       | Stack grows   ~         
- *      |       | downward      |         
+ *      |       |               |
+ *      ~       | Stack grows   ~
+ *      |       | downward      |
  *              V
  *
  *
@@ -4603,10 +4654,10 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *      |       arguments       |
  *      +=======================+ <---- Caller's SP
  *      |     optional homed    | // this is only needed if reg argument need to be homed, e.g., for varargs
- *      |   register arguments  |         
- *      |-----------------------| <---- Virtual '0'         
+ *      |   register arguments  |
+ *      |-----------------------| <---- Virtual '0'
  *      |Callee saved registers |
- *      |   except fp/lr        |         
+ *      |   except fp/lr        |
  *      |-----------------------|
  *      |        PSPSym         | // Only for frames with EH, which requires FP-based frames
  *      |-----------------------|
@@ -4635,9 +4686,53 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *      |  Stack arguments for  |
  *      |   the next function   |
  *      |-----------------------| <---- Ambient SP
- *      |       |               |         
- *      ~       | Stack grows   ~         
- *      |       | downward      |         
+ *      |       |               |
+ *      ~       | Stack grows   ~
+ *      |       | downward      |
+ *              V
+ *
+ *
+ *              FP (R29 / x29) frames where FP/LR are stored at the top of the frame (frames requiring GS that have localloc)
+ *      |                       |
+ *      |-----------------------|
+ *      |       incoming        |
+ *      |       arguments       |
+ *      +=======================+ <---- Caller's SP
+ *      |     optional homed    | // this is only needed if reg argument need to be homed, e.g., for varargs
+ *      |   register arguments  |
+ *      |-----------------------| <---- Virtual '0'
+ *      |      Saved LR         |
+ *      |-----------------------|
+ *      |      Saved FP         | <---- Frame pointer
+ *      |-----------------------|
+ *      |Callee saved registers |
+ *      |-----------------------|
+ *      |        PSPSym         | // Only for frames with EH, which requires FP-based frames
+ *      |-----------------------|
+ *      |   security object     |
+ *      |-----------------------|
+ *      |     ParamTypeArg      |
+ *      |-----------------------|
+ *      |  possible GS cookie   |
+ *      |-----------------------|
+ *      |       Variables       |
+ *      |-----------------------|
+ *      |  possible GS cookie   |
+ *      |-----------------------|
+ *      |        Temps          |
+ *      |-----------------------|
+ *      |   Stub Argument Var   |
+ *      |-----------------------|
+ *      |Inlined PInvoke Frame V|
+ *      |-----------------------|
+ *      ~       localloc        ~
+ *      |-----------------------|
+ *      |  Stack arguments for  |
+ *      |   the next function   |
+ *      |-----------------------| <---- Ambient SP
+ *      |       |               |
+ *      ~       | Stack grows   ~
+ *      |       | downward      |
  *              V
  *
  *
@@ -5571,6 +5666,30 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
         codeGen->setFramePointerUsed(codeGen->isFramePointerRequired());
     }
 
+#ifdef _TARGET_ARM64_
+    // Decide where to save FP and LR registers. We store FP/LR registers at the bottom of the frame if there is
+    // a frame pointer used (so we get positive offsets from the frame pointer to access locals), but not if we
+    // need a GS cookie AND localloc is used, since we need the GS cookie to protect the saved return value,
+    // and also the saved frame pointer. See CodeGen::genPushCalleeSavedRegisters() for more details about the
+    // frame types. Since saving FP/LR at high addresses is a relatively rare case, force using it during stress.
+    // (It should be legal to use these frame types for every frame).
+
+    if (opts.compJitSaveFpLrWithCalleeSavedRegisters == 0)
+    {
+        // Default configuration
+        codeGen->SetSaveFpLrWithAllCalleeSavedRegisters((getNeedsGSSecurityCookie() && compLocallocUsed) ||
+                                                        compStressCompile(STRESS_GENERIC_VARN, 20));
+    }
+    else if (opts.compJitSaveFpLrWithCalleeSavedRegisters == 1)
+    {
+        codeGen->SetSaveFpLrWithAllCalleeSavedRegisters(false); // Disable using new frames
+    }
+    else if (opts.compJitSaveFpLrWithCalleeSavedRegisters == 2)
+    {
+        codeGen->SetSaveFpLrWithAllCalleeSavedRegisters(true); // Force using new frames
+    }
+#endif // _TARGET_ARM64_
+
 #ifdef _TARGET_XARCH_
     // On x86/amd64, the return address has already been pushed by the call instruction in the caller.
     stkOffs -= TARGET_POINTER_SIZE; // return address;
@@ -5613,15 +5732,16 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
         stkOffs -= initialStkOffs;
     }
 
-    if (isFramePointerUsed())
+    if (codeGen->IsSaveFpLrWithAllCalleeSavedRegisters() ||
+        !isFramePointerUsed()) // Note that currently we always have a frame pointer
+    {
+        stkOffs -= compCalleeRegsPushed * REGSIZE_BYTES;
+    }
+    else
     {
         // Subtract off FP and LR.
         assert(compCalleeRegsPushed >= 2);
         stkOffs -= (compCalleeRegsPushed - 2) * REGSIZE_BYTES;
-    }
-    else
-    {
-        stkOffs -= compCalleeRegsPushed * REGSIZE_BYTES;
     }
 
 #else  // !_TARGET_ARM64_
@@ -6202,7 +6322,8 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
 #endif // FEATURE_EH_FUNCLETS && defined(_TARGET_AMD64_)
 
 #ifdef _TARGET_ARM64_
-    if (isFramePointerUsed())
+    if (!codeGen->IsSaveFpLrWithAllCalleeSavedRegisters() &&
+        isFramePointerUsed()) // Note that currently we always have a frame pointer
     {
         // Create space for saving FP and LR.
         stkOffs -= 2 * REGSIZE_BYTES;
@@ -6717,7 +6838,7 @@ void Compiler::lvaDumpFrameLocation(unsigned lclNum)
     regNumber baseReg;
 
 #ifdef _TARGET_ARM_
-    offset = lvaFrameAddress(lclNum, compLocallocUsed, &baseReg, 0);
+    offset = lvaFrameAddress(lclNum, compLocallocUsed, &baseReg, 0, /* isFloatUsage */ false);
 #else
     bool EBPbased;
     offset  = lvaFrameAddress(lclNum, &EBPbased);
@@ -6842,16 +6963,9 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
         }
     }
 
-    if (varDsc->lvIsHfaRegArg())
+    if (varDsc->lvIsHfa())
     {
-        if (varDsc->lvHfaTypeIsFloat())
-        {
-            printf(" (enregistered HFA: float) ");
-        }
-        else
-        {
-            printf(" (enregistered HFA: double)");
-        }
+        printf(" HFA(%s) ", varTypeName(varDsc->GetHfaType()));
     }
 
     if (varDsc->lvDoNotEnregister)
@@ -6978,8 +7092,6 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
             printf(" V%02u.%s(offs=0x%02x)", varDsc->lvParentLcl, eeGetFieldName(fldHnd), varDsc->lvFldOffset);
 
             lvaPromotionType promotionType = lvaGetPromotionType(parentvarDsc);
-            // We should never have lvIsStructField set if it is a reg-sized non-field-addressed struct.
-            assert(!varDsc->lvRegStruct);
             switch (promotionType)
             {
                 case PROMOTION_TYPE_NONE:
@@ -7225,7 +7337,7 @@ int Compiler::lvaGetCallerSPRelativeOffset(unsigned varNum)
     return lvaToCallerSPRelativeOffset(varDsc->lvStkOffs, varDsc->lvFramePointerBased);
 }
 
-int Compiler::lvaToCallerSPRelativeOffset(int offset, bool isFpBased)
+int Compiler::lvaToCallerSPRelativeOffset(int offset, bool isFpBased) const
 {
     assert(lvaDoneFrameLayout == FINAL_FRAME_LAYOUT);
 

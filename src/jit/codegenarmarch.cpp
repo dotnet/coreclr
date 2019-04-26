@@ -71,6 +71,13 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             getEmitter()->emitDisableGC();
             break;
 
+        case GT_START_PREEMPTGC:
+            // Kill callee saves GC registers, and create a label
+            // so that information gets propagated to the emitter.
+            gcInfo.gcMarkRegSetNpt(RBM_INT_CALLEE_SAVED);
+            genDefineTempLabel(genCreateTempLabel());
+            break;
+
         case GT_PROF_HOOK:
             // We should be seeing this only if profiler hook is needed
             noway_assert(compiler->compIsProfilerHookNeeded());
@@ -282,7 +289,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
         case GT_JTRUE:
-            genCodeForJumpTrue(treeNode);
+            genCodeForJumpTrue(treeNode->AsOp());
             break;
 
 #ifdef _TARGET_ARM64_
@@ -367,6 +374,9 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             genRangeCheck(treeNode);
             break;
 
@@ -397,8 +407,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
         case GT_LABEL:
-            genPendingCallLabel       = genCreateTempLabel();
-            treeNode->gtLabel.gtLabBB = genPendingCallLabel;
+            genPendingCallLabel = genCreateTempLabel();
             emit->emitIns_R_L(INS_adr, EA_PTRSIZE, genPendingCallLabel, targetReg);
             break;
 
@@ -695,6 +704,22 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     varNode  = addrNode->AsLclVarCommon();
                     addrNode = nullptr;
                 }
+                else // addrNode is used
+                {
+                    // Generate code to load the address that we need into a register
+                    genConsumeAddress(addrNode);
+                    addrReg = addrNode->gtRegNum;
+
+#ifdef _TARGET_ARM64_
+                    // If addrReg equal to loReg, swap(loReg, hiReg)
+                    // This reduces code complexity by only supporting one addrReg overwrite case
+                    if (loReg == addrReg)
+                    {
+                        loReg = hiReg;
+                        hiReg = addrReg;
+                    }
+#endif // _TARGET_ARM64_
+                }
             }
 
             // Either varNode or addrNOde must have been setup above,
@@ -705,12 +730,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             BYTE* gcPtrs                        = gcPtrArray;
 
             unsigned gcPtrCount; // The count of GC pointers in the struct
-            int      structSize;
+            unsigned structSize;
             bool     isHfa;
-
-            // This is the varNum for our load operations,
-            // only used when we have a multireg struct with a LclVar source
-            unsigned varNumInp = BAD_VAR_NUM;
 
 #ifdef _TARGET_ARM_
             // On ARM32, size of reference map can be larger than MAX_ARG_REG_COUNT
@@ -718,11 +739,10 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             gcPtrCount = treeNode->gtNumberReferenceSlots;
 #endif
             // Setup the structSize, isHFa, and gcPtrCount
-            if (varNode != nullptr)
+            if (source->OperGet() == GT_LCL_VAR)
             {
-                varNumInp = varNode->gtLclNum;
-                assert(varNumInp < compiler->lvaCount);
-                LclVarDsc* varDsc = &compiler->lvaTable[varNumInp];
+                assert(varNode != nullptr);
+                LclVarDsc* varDsc = compiler->lvaGetDesc(varNode);
 
                 // This struct also must live in the stack frame
                 // And it can't live in a register (SIMD)
@@ -738,29 +758,40 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     gcPtrs[i]   = varDsc->lvGcLayout[i];
 #endif // _TARGET_ARM_
             }
-            else // addrNode is used
+            else // we must have a GT_OBJ
             {
-                assert(addrNode != nullptr);
+                assert(source->OperGet() == GT_OBJ);
 
-                // Generate code to load the address that we need into a register
-                genConsumeAddress(addrNode);
-                addrReg = addrNode->gtRegNum;
-
-#ifdef _TARGET_ARM64_
-                // If addrReg equal to loReg, swap(loReg, hiReg)
-                // This reduces code complexity by only supporting one addrReg overwrite case
-                if (loReg == addrReg)
-                {
-                    loReg = hiReg;
-                    hiReg = addrReg;
-                }
-#endif // _TARGET_ARM64_
-
+                // If the source is an OBJ node then we need to use the type information
+                // it provides (size and GC layout) even if the node wraps a lclvar. Due
+                // to struct reinterpretation (e.g. Unsafe.As<X, Y>) it is possible that
+                // the OBJ node has a different type than the lclvar.
                 CORINFO_CLASS_HANDLE objClass = source->gtObj.gtClass;
 
                 structSize = compiler->info.compCompHnd->getClassSize(objClass);
-                isHfa      = compiler->IsHfa(objClass);
+
+                // The codegen code below doesn't have proper support for struct sizes
+                // that are not multiple of the slot size. Call arg morphing handles this
+                // case by copying non-local values to temporary local variables.
+                // More generally, we can always round up the struct size when the OBJ node
+                // wraps a local variable because the local variable stack allocation size
+                // is also rounded up to be a multiple of the slot size.
+                if (varNode != nullptr)
+                {
+                    structSize = roundUp(structSize, TARGET_POINTER_SIZE);
+                }
+                else
+                {
+                    assert((structSize % TARGET_POINTER_SIZE) == 0);
+                }
+
+                isHfa = compiler->IsHfa(objClass);
+
 #ifdef _TARGET_ARM64_
+                // On ARM32, Lowering places the correct GC layout information in the
+                // GenTreePutArgStk node and the code above already use that. On ARM64,
+                // this information is not available (in order to keep GenTreePutArgStk
+                // nodes small) and we need to retrieve it from the VM here.
                 gcPtrCount = compiler->info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
 #endif
             }
@@ -797,8 +828,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 if (varNode != nullptr)
                 {
                     // Load from our varNumImp source
-                    emit->emitIns_R_R_S_S(INS_ldp, emitTypeSize(type0), emitTypeSize(type1), loReg, hiReg, varNumInp,
-                                          structOffset);
+                    emit->emitIns_R_R_S_S(INS_ldp, emitTypeSize(type0), emitTypeSize(type1), loReg, hiReg,
+                                          varNode->GetLclNum(), structOffset);
                 }
                 else
                 {
@@ -832,7 +863,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 if (varNode != nullptr)
                 {
                     // Load from our varNumImp source
-                    emit->emitIns_R_S(INS_ldr, emitTypeSize(type), loReg, varNumInp, structOffset);
+                    emit->emitIns_R_S(INS_ldr, emitTypeSize(type), loReg, varNode->GetLclNum(), structOffset);
                 }
                 else
                 {
@@ -871,7 +902,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                     if (varNode != nullptr)
                     {
                         // Load from our varNumImp source
-                        emit->emitIns_R_S(ins_Load(nextType), nextAttr, loReg, varNumInp, structOffset);
+                        emit->emitIns_R_S(ins_Load(nextType), nextAttr, loReg, varNode->GetLclNum(), structOffset);
                     }
                     else
                     {
@@ -1296,6 +1327,7 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTree* treeNode)
             offset += genTypeSize(type);
         }
 
+        genUpdateLife(treeNode);
         varDsc->lvRegNum = REG_STK;
     }
 }
@@ -1305,12 +1337,7 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTree* treeNode)
 //
 void CodeGen::genRangeCheck(GenTree* oper)
 {
-#ifdef FEATURE_SIMD
-    noway_assert(oper->OperGet() == GT_ARR_BOUNDS_CHECK || oper->OperGet() == GT_SIMD_CHK);
-#else  // !FEATURE_SIMD
-    noway_assert(oper->OperGet() == GT_ARR_BOUNDS_CHECK);
-#endif // !FEATURE_SIMD
-
+    noway_assert(oper->OperIsBoundsCheck());
     GenTreeBoundsChk* bndsChk = oper->AsBoundsChk();
 
     GenTree* arrLen    = bndsChk->gtArrLen;
@@ -1331,13 +1358,13 @@ void CodeGen::genRangeCheck(GenTree* oper)
         //  constant operand in the second position
         src1    = arrLen;
         src2    = arrIndex;
-        jmpKind = genJumpKindForOper(GT_LE, CK_UNSIGNED);
+        jmpKind = EJ_ls;
     }
     else
     {
         src1    = arrIndex;
         src2    = arrLen;
-        jmpKind = genJumpKindForOper(GT_GE, CK_UNSIGNED);
+        jmpKind = EJ_hs;
     }
 
     var_types bndsChkType = genActualType(src2->TypeGet());
@@ -1480,8 +1507,7 @@ void CodeGen::genCodeForArrIndex(GenTreeArrIndex* arrIndex)
     emit->emitIns_R_R_I(ins_Load(TYP_INT), EA_PTRSIZE, tmpReg, arrReg, offset); // a 4 BYTE sign extending load
     emit->emitIns_R_R(INS_cmp, EA_4BYTE, tgtReg, tmpReg);
 
-    emitJumpKind jmpGEU = genJumpKindForOper(GT_GE, CK_UNSIGNED);
-    genJumpToThrowHlpBlk(jmpGEU, SCK_RNGCHK_FAIL);
+    genJumpToThrowHlpBlk(EJ_hs, SCK_RNGCHK_FAIL);
 
     genProduceReg(arrIndex);
 }
@@ -1595,9 +1621,11 @@ void CodeGen::genCodeForLclAddr(GenTree* tree)
     regNumber targetReg  = tree->gtRegNum;
 
     // Address of a local var.
-    noway_assert(targetType == TYP_BYREF);
+    noway_assert((targetType == TYP_BYREF) || (targetType == TYP_I_IMPL));
 
-    inst_RV_TT(INS_lea, targetReg, tree, 0, EA_BYREF);
+    emitAttr size = emitTypeSize(targetType);
+
+    inst_RV_TT(INS_lea, targetReg, tree, 0, size);
     genProduceReg(tree);
 }
 
@@ -1688,7 +1716,7 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
 
         // Generate the range check.
         getEmitter()->emitInsBinary(INS_cmp, emitActualTypeSize(TYP_I_IMPL), index, &arrLen);
-        genJumpToThrowHlpBlk(genJumpKindForOper(GT_GE, CK_UNSIGNED), SCK_RNGCHK_FAIL, node->gtIndRngFailBB);
+        genJumpToThrowHlpBlk(EJ_hs, SCK_RNGCHK_FAIL, node->gtIndRngFailBB);
     }
 
     // Can we use a ScaledAdd instruction?
@@ -2170,6 +2198,11 @@ void CodeGen::genRegCopy(GenTree* treeNode)
 
                 genUpdateVarReg(varDsc, treeNode);
 
+#ifdef USING_VARIABLE_LIVE_RANGE
+                // Report the home change for this variable
+                compiler->getVariableLiveKeeper()->siUpdateVariableLiveRange(varDsc, lcl->gtLclNum);
+#endif // USING_VARIABLE_LIVE_RANGE
+
                 // The new location is going live
                 genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));
             }
@@ -2344,7 +2377,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     }
     else
     {
-        assert(!varTypeIsStruct(call));
+        assert(call->gtType != TYP_STRUCT);
 
         if (call->gtType == TYP_REF)
         {
@@ -2498,9 +2531,13 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 // TCB in REG_PINVOKE_TCB. fgMorphCall() sets the correct argument registers.
                 returnReg = REG_PINVOKE_TCB;
             }
+            else if (compiler->opts.compUseSoftFP)
+            {
+                returnReg = REG_INTRET;
+            }
             else
 #endif // _TARGET_ARM_
-                if (varTypeIsFloating(returnType) && !compiler->opts.compUseSoftFP)
+                if (varTypeUsesFloatArgReg(returnType))
             {
                 returnReg = REG_FLOATRET;
             }
@@ -2669,54 +2706,76 @@ void CodeGen::genJmpMethod(GenTree* jmp)
         if (varDsc->lvRegNum != argReg)
         {
             var_types loadType = TYP_UNDEF;
-            if (varTypeIsStruct(varDsc))
+
+            if (varDsc->lvIsHfaRegArg())
             {
-                // Must be <= 16 bytes or else it wouldn't be passed in registers
-                noway_assert(EA_SIZE_IN_BYTES(varDsc->lvSize()) <= MAX_PASS_MULTIREG_BYTES);
-                loadType = compiler->getJitGCType(varDsc->lvGcLayout[0]);
+                // Note that for HFA, the argument is currently marked address exposed so lvRegNum will always be
+                // REG_STK. We home the incoming HFA argument registers in the prolog. Then we'll load them back
+                // here, whether they are already in the correct registers or not. This is such a corner case that
+                // it is not worth optimizing it.
+
+                assert(!compiler->info.compIsVarArgs);
+
+                loadType           = varDsc->GetHfaType();
+                regNumber fieldReg = argReg;
+                emitAttr  loadSize = emitActualTypeSize(loadType);
+                unsigned  cSlots   = varDsc->lvHfaSlots();
+
+                for (unsigned ofs = 0, cSlot = 0; cSlot < cSlots; cSlot++, ofs += (unsigned)loadSize)
+                {
+                    getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, fieldReg, varNum, ofs);
+                    assert(genIsValidFloatReg(fieldReg)); // No GC register tracking for floating point registers.
+                    fieldReg = regNextOfType(fieldReg, loadType);
+                }
             }
             else
             {
-                loadType = compiler->mangleVarArgsType(genActualType(varDsc->TypeGet()));
-            }
-            emitAttr loadSize = emitActualTypeSize(loadType);
-            getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, argReg, varNum, 0);
-
-            // Update argReg life and GC Info to indicate varDsc stack slot is dead and argReg is going live.
-            // Note that we cannot modify varDsc->lvRegNum here because another basic block may not be expecting it.
-            // Therefore manually update life of argReg.  Note that GT_JMP marks the end of the basic block
-            // and after which reg life and gc info will be recomputed for the new block in genCodeForBBList().
-            regSet.AddMaskVars(genRegMask(argReg));
-            gcInfo.gcMarkRegPtrVal(argReg, loadType);
-
-            if (compiler->lvaIsMultiregStruct(varDsc, compiler->info.compIsVarArgs))
-            {
-                if (varDsc->lvIsHfa())
+                if (varTypeIsStruct(varDsc))
                 {
-                    NYI_ARM64("CodeGen::genJmpMethod with multireg HFA arg");
+                    // Must be <= 16 bytes or else it wouldn't be passed in registers, except for HFA,
+                    // which can be bigger (and is handled above).
+                    noway_assert(EA_SIZE_IN_BYTES(varDsc->lvSize()) <= 16);
+                    loadType = compiler->getJitGCType(varDsc->lvGcLayout[0]);
+                }
+                else
+                {
+                    loadType = compiler->mangleVarArgsType(genActualType(varDsc->TypeGet()));
+                }
+                emitAttr loadSize = emitActualTypeSize(loadType);
+                getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, argReg, varNum, 0);
+
+                // Update argReg life and GC Info to indicate varDsc stack slot is dead and argReg is going live.
+                // Note that we cannot modify varDsc->lvRegNum here because another basic block may not be expecting it.
+                // Therefore manually update life of argReg.  Note that GT_JMP marks the end of the basic block
+                // and after which reg life and gc info will be recomputed for the new block in genCodeForBBList().
+                regSet.AddMaskVars(genRegMask(argReg));
+                gcInfo.gcMarkRegPtrVal(argReg, loadType);
+
+                if (compiler->lvaIsMultiregStruct(varDsc, compiler->info.compIsVarArgs))
+                {
+                    // Restore the second register.
+                    argRegNext = genRegArgNext(argReg);
+
+                    loadType = compiler->getJitGCType(varDsc->lvGcLayout[1]);
+                    loadSize = emitActualTypeSize(loadType);
+                    getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, argRegNext, varNum, TARGET_POINTER_SIZE);
+
+                    regSet.AddMaskVars(genRegMask(argRegNext));
+                    gcInfo.gcMarkRegPtrVal(argRegNext, loadType);
                 }
 
-                // Restore the second register.
-                argRegNext = genRegArgNext(argReg);
-
-                loadType = compiler->getJitGCType(varDsc->lvGcLayout[1]);
-                loadSize = emitActualTypeSize(loadType);
-                getEmitter()->emitIns_R_S(ins_Load(loadType), loadSize, argRegNext, varNum, TARGET_POINTER_SIZE);
-
-                regSet.AddMaskVars(genRegMask(argRegNext));
-                gcInfo.gcMarkRegPtrVal(argRegNext, loadType);
-            }
-
-            if (compiler->lvaIsGCTracked(varDsc))
-            {
-                VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varNum);
+                if (compiler->lvaIsGCTracked(varDsc))
+                {
+                    VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex);
+                }
             }
         }
 
-        // In case of a jmp call to a vararg method ensure only integer registers are passed.
         if (compiler->info.compIsVarArgs)
         {
-            assert((genRegMask(argReg) & RBM_ARG_REGS) != RBM_NONE);
+            // In case of a jmp call to a vararg method ensure only integer registers are passed.
+            assert((genRegMask(argReg) & (RBM_ARG_REGS | RBM_ARG_RET_BUFF)) != RBM_NONE);
+            assert(!varDsc->lvIsHfaRegArg());
 
             fixedIntArgMask |= genRegMask(argReg);
 
@@ -2732,7 +2791,9 @@ void CodeGen::genJmpMethod(GenTree* jmp)
                 firstArgVarNum = varNum;
             }
         }
-#else
+
+#else  // !_TARGET_ARM64_
+
         bool      twoParts = false;
         var_types loadType = TYP_UNDEF;
         if (varDsc->TypeGet() == TYP_LONG)
@@ -2827,9 +2888,9 @@ void CodeGen::genJmpMethod(GenTree* jmp)
 
         if (compiler->lvaIsGCTracked(varDsc))
         {
-            VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varNum);
+            VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex);
         }
-#endif
+#endif // !_TARGET_ARM64_
     }
 
     // Jmp call to a vararg method - if the method has fewer than fixed arguments that can be max size of reg,
@@ -3156,204 +3217,72 @@ void CodeGen::genCreateAndStoreGCInfo(unsigned codeSize,
     compiler->compInfoBlkSize = 0; // not exposed by the GCEncoder interface
 }
 
-//-------------------------------------------------------------------------------------------
-// genJumpKindsForTree:  Determine the number and kinds of conditional branches
-//                       necessary to implement the given GT_CMP node
-//
-// Arguments:
-//   cmpTree           - (input) The GenTree node that is used to set the Condition codes
-//                     - The GenTree Relop node that was used to set the Condition codes
-//   jmpKind[2]        - (output) One or two conditional branch instructions
-//   jmpToTrueLabel[2] - (output) On Arm64 both branches will always branch to the true label
-//
-// Return Value:
-//    Sets the proper values into the array elements of jmpKind[] and jmpToTrueLabel[]
-//
-// Assumptions:
-//    At least one conditional branch instruction will be returned.
-//    Typically only one conditional branch is needed
-//     and the second jmpKind[] value is set to EJ_NONE
-//
-void CodeGen::genJumpKindsForTree(GenTree* cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2])
+// clang-format off
+const CodeGen::GenConditionDesc CodeGen::GenConditionDesc::map[32]
 {
-    // On ARM both branches will always branch to the true label
-    jmpToTrueLabel[0] = true;
-    jmpToTrueLabel[1] = true;
+    { },       // NONE
+    { },       // 1
+    { EJ_lt }, // SLT
+    { EJ_le }, // SLE
+    { EJ_ge }, // SGE
+    { EJ_gt }, // SGT
+    { EJ_mi }, // S
+    { EJ_pl }, // NS
 
-    // For integer comparisons just use genJumpKindForOper
-    if (!varTypeIsFloating(cmpTree->gtOp.gtOp1))
-    {
-        CompareKind compareKind = ((cmpTree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-        jmpKind[0]              = genJumpKindForOper(cmpTree->gtOper, compareKind);
-        jmpKind[1]              = EJ_NONE;
-    }
-    else // We have a Floating Point Compare operation
-    {
-        assert(cmpTree->OperIsCompare());
+    { EJ_eq }, // EQ
+    { EJ_ne }, // NE
+    { EJ_lo }, // ULT
+    { EJ_ls }, // ULE
+    { EJ_hs }, // UGE
+    { EJ_hi }, // UGT
+    { EJ_hs }, // C
+    { EJ_lo }, // NC
 
-        // For details on this mapping, see the ARM Condition Code table
-        // at section A8.3   in the ARMv7 architecture manual or
-        // at section C1.2.3 in the ARMV8 architecture manual.
+    { EJ_eq },                // FEQ
+    { EJ_gt, GT_AND, EJ_lo }, // FNE
+    { EJ_lo },                // FLT
+    { EJ_ls },                // FLE
+    { EJ_ge },                // FGE
+    { EJ_gt },                // FGT
+    { EJ_vs },                // O
+    { EJ_vc },                // NO
 
-        // We must check the GTF_RELOP_NAN_UN to find out
-        // if we need to branch when we have a NaN operand.
-        //
-        if ((cmpTree->gtFlags & GTF_RELOP_NAN_UN) != 0)
-        {
-            // Must branch if we have an NaN, unordered
-            switch (cmpTree->gtOper)
-            {
-                case GT_EQ:
-                    jmpKind[0] = EJ_eq; // branch or set when equal (and no NaN's)
-                    jmpKind[1] = EJ_vs; // branch or set when we have a NaN
-                    break;
-
-                case GT_NE:
-                    jmpKind[0] = EJ_ne; // branch or set when not equal (or have NaN's)
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_LT:
-                    jmpKind[0] = EJ_lt; // branch or set when less than (or have NaN's)
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_LE:
-                    jmpKind[0] = EJ_le; // branch or set when less than or equal (or have NaN's)
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_GT:
-                    jmpKind[0] = EJ_hi; // branch or set when greater than (or have NaN's)
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_GE:
-                    jmpKind[0] = EJ_hs; // branch or set when greater than or equal (or have NaN's)
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                default:
-                    unreached();
-            }
-        }
-        else // ((cmpTree->gtFlags & GTF_RELOP_NAN_UN) == 0)
-        {
-            // Do not branch if we have an NaN, unordered
-            switch (cmpTree->gtOper)
-            {
-                case GT_EQ:
-                    jmpKind[0] = EJ_eq; // branch or set when equal (and no NaN's)
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_NE:
-                    jmpKind[0] = EJ_gt; // branch or set when greater than (and no NaN's)
-                    jmpKind[1] = EJ_lo; // branch or set when less than (and no NaN's)
-                    break;
-
-                case GT_LT:
-                    jmpKind[0] = EJ_lo; // branch or set when less than (and no NaN's)
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_LE:
-                    jmpKind[0] = EJ_ls; // branch or set when less than or equal (and no NaN's)
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_GT:
-                    jmpKind[0] = EJ_gt; // branch or set when greater than (and no NaN's)
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_GE:
-                    jmpKind[0] = EJ_ge; // branch or set when greater than or equal (and no NaN's)
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                default:
-                    unreached();
-            }
-        }
-    }
-}
+    { EJ_eq, GT_OR, EJ_vs },  // FEQU
+    { EJ_ne },                // FNEU
+    { EJ_lt },                // FLTU
+    { EJ_le },                // FLEU
+    { EJ_hs },                // FGEU
+    { EJ_hi },                // FGTU
+    { },                      // P
+    { },                      // NP
+};
+// clang-format on
 
 //------------------------------------------------------------------------
-// genCodeForJumpTrue: Generates code for jmpTrue statement.
+// inst_SETCC: Generate code to set a register to 0 or 1 based on a condition.
 //
 // Arguments:
-//    tree - The GT_JTRUE tree node.
+//   condition - The condition
+//   type      - The type of the value to be produced
+//   dstReg    - The destination register to be set to 1 or 0
 //
-// Return Value:
-//    None
-//
-void CodeGen::genCodeForJumpTrue(GenTree* tree)
+void CodeGen::inst_SETCC(GenCondition condition, var_types type, regNumber dstReg)
 {
-    GenTree* cmp = tree->gtOp.gtOp1;
-    assert(cmp->OperIsCompare());
-    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
-
-    // Get the "kind" and type of the comparison.  Note that whether it is an unsigned cmp
-    // is governed by a flag NOT by the inherent type of the node
-    emitJumpKind jumpKind[2];
-    bool         branchToTrueLabel[2];
-    genJumpKindsForTree(cmp, jumpKind, branchToTrueLabel);
-    assert(jumpKind[0] != EJ_NONE);
-
-    // On ARM the branches will always branch to the true label
-    assert(branchToTrueLabel[0]);
-    inst_JMP(jumpKind[0], compiler->compCurBB->bbJumpDest);
-
-    if (jumpKind[1] != EJ_NONE)
-    {
-        // the second conditional branch always has to be to the true label
-        assert(branchToTrueLabel[1]);
-        inst_JMP(jumpKind[1], compiler->compCurBB->bbJumpDest);
-    }
-}
-
-//------------------------------------------------------------------------
-// genCodeForJcc: Produce code for a GT_JCC node.
-//
-// Arguments:
-//    tree - the node
-//
-void CodeGen::genCodeForJcc(GenTreeCC* tree)
-{
-    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
-
-    CompareKind  compareKind = ((tree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-    emitJumpKind jumpKind    = genJumpKindForOper(tree->gtCondition, compareKind);
-
-    inst_JMP(jumpKind, compiler->compCurBB->bbJumpDest);
-}
-
-//------------------------------------------------------------------------
-// genCodeForSetcc: Generates code for a GT_SETCC node.
-//
-// Arguments:
-//    setcc - the GT_SETCC node
-//
-// Assumptions:
-//    The condition represents an integer comparison. This code doesn't
-//    have the necessary logic to deal with floating point comparisons,
-//    in fact it doesn't even know if the comparison is integer or floating
-//    point because SETCC nodes do not have any operands.
-//
-
-void CodeGen::genCodeForSetcc(GenTreeCC* setcc)
-{
-    regNumber    dstReg      = setcc->gtRegNum;
-    CompareKind  compareKind = setcc->IsUnsigned() ? CK_UNSIGNED : CK_SIGNED;
-    emitJumpKind jumpKind    = genJumpKindForOper(setcc->gtCondition, compareKind);
-
+    assert(varTypeIsIntegral(type));
     assert(genIsValidIntReg(dstReg));
-    // Make sure nobody is setting GTF_RELOP_NAN_UN on this node as it is ignored.
-    assert((setcc->gtFlags & GTF_RELOP_NAN_UN) == 0);
 
 #ifdef _TARGET_ARM64_
-    inst_SET(jumpKind, dstReg);
+    const GenConditionDesc& desc = GenConditionDesc::Get(condition);
+
+    inst_SET(desc.jumpKind1, dstReg);
+
+    if (desc.oper != GT_NONE)
+    {
+        BasicBlock* labelNext = genCreateTempLabel();
+        inst_JMP((desc.oper == GT_OR) ? desc.jumpKind1 : emitter::emitReverseJumpKind(desc.jumpKind1), labelNext);
+        inst_SET(desc.jumpKind2, dstReg);
+        genDefineTempLabel(labelNext);
+    }
 #else
     // Emit code like that:
     //   ...
@@ -3366,19 +3295,17 @@ void CodeGen::genCodeForSetcc(GenTreeCC* setcc)
     //   ...
 
     BasicBlock* labelTrue = genCreateTempLabel();
-    getEmitter()->emitIns_J(emitter::emitJumpKindToIns(jumpKind), labelTrue);
+    inst_JCC(condition, labelTrue);
 
-    getEmitter()->emitIns_R_I(INS_mov, emitActualTypeSize(setcc->TypeGet()), dstReg, 0);
+    getEmitter()->emitIns_R_I(INS_mov, emitActualTypeSize(type), dstReg, 0);
 
     BasicBlock* labelNext = genCreateTempLabel();
     getEmitter()->emitIns_J(INS_b, labelNext);
 
     genDefineTempLabel(labelTrue);
-    getEmitter()->emitIns_R_I(INS_mov, emitActualTypeSize(setcc->TypeGet()), dstReg, 1);
+    getEmitter()->emitIns_R_I(INS_mov, emitActualTypeSize(type), dstReg, 1);
     genDefineTempLabel(labelNext);
 #endif
-
-    genProduceReg(setcc);
 }
 
 //------------------------------------------------------------------------
@@ -3600,8 +3527,13 @@ bool CodeGen::isStructReturn(GenTree* treeNode)
     // For the GT_RET_FILT, the return is always
     // a bool or a void, for the end of a finally block.
     noway_assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
+    var_types returnType = treeNode->TypeGet();
 
-    return varTypeIsStruct(treeNode);
+#ifdef _TARGET_ARM64_
+    return varTypeIsStruct(returnType) && (compiler->info.compRetNativeType == TYP_STRUCT);
+#else
+    return varTypeIsStruct(returnType);
+#endif
 }
 
 //------------------------------------------------------------------------
@@ -3843,8 +3775,18 @@ void CodeGen::genStructReturn(GenTree* treeNode)
 // genAllocLclFrame: Probe the stack and allocate the local stack frame: subtract from SP.
 //
 // Notes:
-//      On ARM64, this only does the probing; allocating the frame is done when
-//      callee-saved registers are saved.
+//      On ARM64, this only does the probing; allocating the frame is done when callee-saved registers are saved.
+//      This is done before anything has been pushed. The previous frame might have a large outgoing argument
+//      space that has been allocated, but the lowest addresses have not been touched. Our frame setup might
+//      not touch up to the first 504 bytes. This means we could miss a guard page. On Windows, however,
+//      there are always three guard pages, so we will not miss them all.
+//
+//      On ARM32, the first instruction of the prolog is always a push (which touches the lowest address
+//      of the stack), either of the LR register or of some argument registers, e.g., in the case of
+//      pre-spilling. The LR register is always pushed because we require it to allow for GC return
+//      address hijacking (see the comment in CodeGen::genPushCalleeSavedRegisters()). These pushes
+//      happen immediately before calling this function, so the SP at the current location has already
+//      been touched.
 //
 void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
 {
@@ -3862,24 +3804,28 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
     if (frameSize < pageSize)
     {
 #ifdef _TARGET_ARM_
-        // Frame size is (0x0008..0x1000)
+        // Frame size is (0x0000..0x1000). No probing necessary.
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
 #endif // _TARGET_ARM_
     }
     else if (frameSize < compiler->getVeryLargeFrameSize())
     {
-        // Frame size is (0x1000..0x3000)
+#if defined(_TARGET_ARM64_)
+        regNumber rTemp = REG_ZR; // We don't need a register for the target of the dummy load
+#else
+        regNumber rTemp = initReg;
+#endif
 
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)pageSize);
-        getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
-        regSet.verifyRegUsed(initReg);
-        *pInitRegZeroed = false; // The initReg does not contain zero
-
-        if (frameSize >= 0x2000)
+        for (target_size_t probeOffset = pageSize; probeOffset <= frameSize; probeOffset += pageSize)
         {
-            instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -2 * (ssize_t)pageSize);
-            getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, initReg, REG_SPBASE, initReg);
+            // Generate:
+            //    movw initReg, -probeOffset
+            //    ldr rTemp, [SP + initReg]  // load into initReg on arm32, wzr on ARM64
+
+            instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)probeOffset);
+            getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, initReg);
             regSet.verifyRegUsed(initReg);
+            *pInitRegZeroed = false; // The initReg does not contain zero
         }
 
 #ifdef _TARGET_ARM64_
@@ -3895,29 +3841,28 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // Frame size >= 0x3000
         assert(frameSize >= compiler->getVeryLargeFrameSize());
 
-        // Emit the following sequence to 'tickle' the pages.
-        // Note it is important that stack pointer not change until this is
-        // complete since the tickles could cause a stack overflow, and we
-        // need to be able to crawl the stack afterward (which means the
-        // stack pointer needs to be known).
-
-        instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
-
+        // Emit the following sequence to 'tickle' the pages. Note it is important that stack pointer not change
+        // until this is complete since the tickles could cause a stack overflow, and we need to be able to crawl
+        // the stack afterward (which means the stack pointer needs to be known).
         //
-        // Can't have a label inside the ReJIT padding area
-        //
-        genPrologPadForReJit();
+        // ARM64 needs 2 registers. ARM32 needs 3 registers. See VERY_LARGE_FRAME_SIZE_REG_MASK for how these
+        // are reserved.
 
-        // TODO-ARM64-Bug?: set the availMask properly!
-        regMaskTP availMask =
-            (regSet.rsGetModifiedRegsMask() & RBM_ALLINT) | RBM_R12 | RBM_LR; // Set of available registers
+        regMaskTP availMask = RBM_ALLINT & (regSet.rsGetModifiedRegsMask() | ~RBM_INT_CALLEE_SAVED);
         availMask &= ~maskArgRegsLiveIn;   // Remove all of the incoming argument registers as they are currently live
         availMask &= ~genRegMask(initReg); // Remove the pre-calculated initReg
 
         regNumber rOffset = initReg;
         regNumber rLimit;
-        regNumber rTemp;
         regMaskTP tempMask;
+
+#if defined(_TARGET_ARM64_)
+
+        regNumber rTemp = REG_ZR; // We don't need a register for the target of the dummy load
+
+#else // _TARGET_ARM_
+
+        regNumber rTemp;
 
         // We pick the next lowest register number for rTemp
         noway_assert(availMask != RBM_NONE);
@@ -3925,33 +3870,50 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         rTemp    = genRegNumFromMask(tempMask);
         availMask &= ~tempMask;
 
+#endif // _TARGET_ARM_
+
         // We pick the next lowest register number for rLimit
         noway_assert(availMask != RBM_NONE);
         tempMask = genFindLowestBit(availMask);
         rLimit   = genRegNumFromMask(tempMask);
         availMask &= ~tempMask;
 
-        // TODO-LdStArch-Bug?: review this. The first time we load from [sp+0] which will always succeed. That doesn't
-        // make sense.
-        // TODO-ARM64-CQ: we could probably use ZR on ARM64 instead of rTemp.
+        // Generate:
         //
+        //      mov rOffset, -pageSize    // On arm, this turns out to be "movw r1, 0xf000; sxth r1, r1".
+        //                                // We could save 4 bytes in the prolog by using "movs r1, 0" at the
+        //                                // runtime expense of running a useless first loop iteration.
         //      mov rLimit, -frameSize
         // loop:
-        //      ldr rTemp, [sp+rOffset]
-        //      sub rOffset, 0x1000     // Note that 0x1000 on ARM32 uses the funky Thumb immediate encoding
-        //      cmp rOffset, rLimit
-        //      jge loop
+        //      ldr rTemp, [sp + rOffset] // rTemp = wzr on ARM64
+        //      sub rOffset, pageSize     // Note that 0x1000 (normal ARM32 pageSize) on ARM32 uses the funky
+        //                                // Thumb immediate encoding
+        //      cmp rLimit, rOffset
+        //      b.ls loop                 // If rLimit is lower or same, we need to probe this rOffset. Note
+        //                                // especially that if it is the same, we haven't probed this page.
+
         noway_assert((ssize_t)(int)frameSize == (ssize_t)frameSize); // make sure framesize safely fits within an int
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, rLimit, -(int)frameSize);
+
+        instGen_Set_Reg_To_Imm(EA_PTRSIZE, rOffset, -(ssize_t)pageSize);
+        instGen_Set_Reg_To_Imm(EA_PTRSIZE, rLimit, -(ssize_t)frameSize);
+
+        //
+        // Can't have a label inside the ReJIT padding area
+        //
+        genPrologPadForReJit();
+
+        // There's a "virtual" label here. But we can't create a label in the prolog, so we use the magic
+        // `emitIns_J` with a negative `instrCount` to branch back a specific number of instructions.
+
         getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, rOffset);
-        regSet.verifyRegUsed(rTemp);
 #if defined(_TARGET_ARM_)
+        regSet.verifyRegUsed(rTemp);
         getEmitter()->emitIns_R_I(INS_sub, EA_PTRSIZE, rOffset, pageSize);
 #elif defined(_TARGET_ARM64_)
         getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, rOffset, rOffset, pageSize);
-#endif // _TARGET_ARM64_
-        getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rOffset, rLimit);
-        getEmitter()->emitIns_J(INS_bhi, NULL, -4);
+#endif
+        getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rLimit, rOffset); // If equal, we need to probe again
+        getEmitter()->emitIns_J(INS_bls, NULL, -4);
 
         *pInitRegZeroed = false; // The initReg does not contain zero
 
@@ -3964,11 +3926,12 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
 #ifdef _TARGET_ARM_
     compiler->unwindAllocStack(frameSize);
-
+#ifdef USING_SCOPE_INFO
     if (!doubleAlignOrFramePointerUsed())
     {
         psiAdjustStackLevel(frameSize);
     }
+#endif // USING_SCOPE_INFO
 #endif // _TARGET_ARM_
 }
 

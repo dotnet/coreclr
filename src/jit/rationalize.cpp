@@ -16,9 +16,6 @@ genTreeOps storeForm(genTreeOps loadForm)
             return GT_STORE_LCL_VAR;
         case GT_LCL_FLD:
             return GT_STORE_LCL_FLD;
-        case GT_REG_VAR:
-            noway_assert(!"reg vars only supported in classic backend\n");
-            unreached();
         default:
             noway_assert(!"not a data load opcode\n");
             unreached();
@@ -78,8 +75,8 @@ void copyFlags(GenTree* dst, GenTree* src, unsigned mask)
 void Rationalizer::RewriteSIMDOperand(LIR::Use& use, bool keepBlk)
 {
 #ifdef FEATURE_SIMD
-    // No lowering is needed for non-SIMD nodes, so early out if featureSIMD is not enabled.
-    if (!comp->featureSIMD)
+    // No lowering is needed for non-SIMD nodes, so early out if SIMD types are not supported.
+    if (!comp->supportSIMDTypes())
     {
         return;
     }
@@ -107,7 +104,7 @@ void Rationalizer::RewriteSIMDOperand(LIR::Use& use, bool keepBlk)
         addr->gtType = simdType;
         use.ReplaceWith(comp, addr);
     }
-    else if ((addr->OperGet() == GT_ADDR) && (addr->gtGetOp1()->OperIsSIMDorSimdHWintrinsic()))
+    else if ((addr->OperGet() == GT_ADDR) && (addr->gtGetOp1()->OperIsSimdOrHWintrinsic()))
     {
         // if we have GT_IND(GT_ADDR(GT_SIMD)), remove the GT_IND(GT_ADDR()), leaving just the GT_SIMD.
         BlockRange().Remove(tree);
@@ -231,10 +228,9 @@ void Rationalizer::RewriteIntrinsicAsUserCall(GenTree** use, ArrayStack<GenTree*
 
 #ifdef DEBUG
 
-void Rationalizer::ValidateStatement(GenTree* tree, BasicBlock* block)
+void Rationalizer::ValidateStatement(GenTreeStmt* stmt, BasicBlock* block)
 {
-    assert(tree->gtOper == GT_STMT);
-    DBEXEC(TRUE, JitTls::GetCompiler()->fgDebugCheckNodeLinks(block, tree));
+    DBEXEC(TRUE, JitTls::GetCompiler()->fgDebugCheckNodeLinks(block, stmt));
 }
 
 // sanity checks that apply to all kinds of IR
@@ -244,11 +240,11 @@ void Rationalizer::SanityCheck()
     BasicBlock* block;
     foreach_block(comp, block)
     {
-        for (GenTree* statement = block->bbTreeList; statement != nullptr; statement = statement->gtNext)
+        for (GenTreeStmt* statement = block->firstStmt(); statement != nullptr; statement = statement->getNextStmt())
         {
             ValidateStatement(statement, block);
 
-            for (GenTree* tree = statement->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = statement->gtStmtList; tree; tree = tree->gtNext)
             {
                 // QMARK nodes should have been removed before this phase.
                 assert(tree->OperGet() != GT_QMARK);
@@ -416,7 +412,6 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
     {
         case GT_LCL_VAR:
         case GT_LCL_FLD:
-        case GT_REG_VAR:
         case GT_PHI_ARG:
             RewriteAssignmentIntoStoreLclCore(assignment, location, value, locationOp);
             BlockRange().Remove(location);
@@ -556,7 +551,7 @@ void Rationalizer::RewriteAddress(LIR::Use& use)
     JITDUMP("\n");
 }
 
-Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<GenTree*>& parentStack)
+Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::GenTreeStack& parentStack)
 {
     assert(useEdge != nullptr);
 
@@ -759,42 +754,24 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
             assert(comp->IsTargetIntrinsic(node->gtIntrinsic.gtIntrinsicId));
             break;
 
-#ifdef FEATURE_SIMD
         case GT_BLK:
+            // We should only see GT_BLK for TYP_STRUCT.
+            assert(node->TypeGet() == TYP_STRUCT);
+            break;
+
         case GT_OBJ:
-        {
-            // TODO-1stClassStructs: These should have been transformed to GT_INDs, but in order
-            // to preserve existing behavior, we will keep this as a block node if this is the
-            // lhs of a block assignment, and either:
-            // - It is a "generic" TYP_STRUCT assignment, OR
-            // - It is an initblk, OR
-            // - Neither the lhs or rhs are known to be of SIMD type.
-
-            GenTree* parent  = use.User();
-            bool     keepBlk = false;
-            if ((parent->OperGet() == GT_ASG) && (node == parent->gtGetOp1()))
+            assert(node->TypeGet() == TYP_STRUCT || !use.User()->OperIsInitBlkOp());
+            if (varTypeIsSIMD(node))
             {
-                if ((node->TypeGet() == TYP_STRUCT) || parent->OperIsInitBlkOp())
-                {
-                    keepBlk = true;
-                }
-                else if (!comp->isAddrOfSIMDType(node->AsBlk()->Addr()))
-                {
-                    GenTree* dataSrc = parent->gtGetOp2();
-                    if (!dataSrc->IsLocal() && (dataSrc->OperGet() != GT_SIMD) && (!dataSrc->OperIsHWIntrinsic()))
-                    {
-                        noway_assert(dataSrc->OperIsIndir());
-                        keepBlk = !comp->isAddrOfSIMDType(dataSrc->AsIndir()->Addr());
-                    }
-                }
+                // Rewrite these as GT_IND.
+                RewriteSIMDOperand(use, false);
             }
-            RewriteSIMDOperand(use, keepBlk);
-        }
-        break;
+            break;
 
+#ifdef FEATURE_SIMD
         case GT_SIMD:
         {
-            noway_assert(comp->featureSIMD);
+            noway_assert(comp->supportSIMDTypes());
             GenTreeSIMD* simdNode = node->AsSIMD();
             unsigned     simdSize = simdNode->gtSIMDSize;
             var_types    simdType = comp->getSIMDTypeForSize(simdSize);

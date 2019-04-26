@@ -854,19 +854,8 @@ ClrDataAppDomain::GetUniqueID(
 
     DAC_ENTER_SUB(m_dac);
     
-    EX_TRY
-    {
-        *id = m_appDomain->GetId().m_dwId;
-        status = S_OK;
-    }
-    EX_CATCH
-    {
-        if (!DacExceptionFilter(GET_EXCEPTION(), m_dac, &status))
-        {
-            EX_RETHROW;
-        }
-    }
-    EX_END_CATCH(SwallowAllExceptions)
+    *id = DefaultADID;
+    status = S_OK;
 
     DAC_LEAVE();
     return status;
@@ -2745,7 +2734,12 @@ ClrDataModule::RequestGetModuleData(
         COUNT_T peSize;
         outGMD->LoadedPEAddress = TO_CDADDR(PTR_TO_TADDR(pPEFile->GetLoadedImageContents(&peSize)));
         outGMD->LoadedPESize = (ULONG64)peSize;
-        outGMD->IsFileLayout = pPEFile->GetLoaded()->IsFlat();
+
+        // Can not get the file layout for a dynamic module
+        if (!outGMD->IsDynamic)
+        {
+            outGMD->IsFileLayout = pPEFile->GetLoaded()->IsFlat();
+        }
     }
 
     // If there is a in memory symbol stream

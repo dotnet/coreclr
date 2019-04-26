@@ -19,43 +19,6 @@
 
 #include "appdomain.hpp"
 
-inline  void AppDomain::EnterContext(Thread* pThread, Context* pCtx,ContextTransitionFrame *pFrame)
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(pThread));
-        PRECONDITION(CheckPointer(pCtx));
-        PRECONDITION(CheckPointer(pFrame));
-        PRECONDITION(pCtx->GetDomain()==this);
-    }
-    CONTRACTL_END;
-    pThread->EnterContextRestricted(pCtx,pFrame);
-};
-
-inline DomainAssembly* AppDomain::FindDomainAssembly(Assembly* assembly)
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(assembly));
-    }
-    CONTRACTL_END;
-    return assembly->FindDomainAssembly(this);    
-};
-
-inline BOOL AppDomain::IsRunningIn(Thread* pThread)
-{
-    WRAPPER_NO_CONTRACT;
-    if (IsDefaultDomain()) 
-        return TRUE;
-    return pThread->IsRunningIn(this, NULL)!=NULL;
-}
-
-
-
 inline void AppDomain::AddMemoryPressure()
 {
     STANDARD_VM_CONTRACT;

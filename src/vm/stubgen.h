@@ -60,17 +60,26 @@ struct LocalDesc
 
     void MakeByRef()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_BYREF);
     }
 
     void MakePinned()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_PINNED);
+    }
+
+    void MakeArray()
+    {
+        LIMITED_METHOD_CONTRACT;
+        ChangeType(ELEMENT_TYPE_SZARRAY);
     }
 
     // makes the LocalDesc semantically equivalent to ET_TYPE_CMOD_REQD<IsCopyConstructed>/ET_TYPE_CMOD_REQD<NeedsCopyConstructorModifier>
     void MakeCopyConstructedPointer()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_PTR);
         bIsCopyConstructed = TRUE;
     }
@@ -96,22 +105,40 @@ struct LocalDesc
             THROWS;
             GC_TRIGGERS;
             MODE_ANY;
-            PRECONDITION(cbType == 1);    // this only works on 1-element types for now
         }
         CONTRACTL_END;
+
+        bool lastElementTypeIsValueType = false;
         
-        if (ElementType[0] == ELEMENT_TYPE_VALUETYPE)
+        if (ElementType[cbType - 1] == ELEMENT_TYPE_VALUETYPE)
         {
-            return true;
+            lastElementTypeIsValueType = true;
         }
-        else if ((ElementType[0] == ELEMENT_TYPE_INTERNAL) &&
+        else if ((ElementType[cbType - 1] == ELEMENT_TYPE_INTERNAL) &&
                     (InternalToken.IsNativeValueType() ||
                      InternalToken.GetMethodTable()->IsValueType()))
         {
-            return true;
+            lastElementTypeIsValueType = true;
         }
 
-        return false;
+        if (!lastElementTypeIsValueType)
+        {
+             return false;
+        }
+
+        // verify that the prefix element types don't make the type a non-value type
+        // this only works on LocalDescs with the prefixes exposed in the Add* methods above.
+        for (size_t i = 0; i < cbType - 1; i++)
+        {
+            if (ElementType[i] == ELEMENT_TYPE_BYREF
+                || ElementType[i] == ELEMENT_TYPE_SZARRAY
+                || ElementType[i] == ELEMENT_TYPE_PTR)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 };
 
@@ -351,7 +378,7 @@ class ILStubLinker
 public:
 
     ILStubLinker(Module* pModule, const Signature &signature, SigTypeContext *pTypeContext, MethodDesc *pMD,
-                 BOOL fTargetHasThis, BOOL fStubHasThis, BOOL fIsNDirectStub = FALSE);
+                 BOOL fTargetHasThis, BOOL fStubHasThis, BOOL fIsNDirectStub = FALSE, BOOL fIsReverseStub = FALSE);
     ~ILStubLinker();
     
     void GenerateCode(BYTE* pbBuffer, size_t cbBufferSize);
@@ -397,7 +424,6 @@ public:
     void GetStubReturnType(LocalDesc * pLoc);
     void GetStubReturnType(LocalDesc * pLoc, Module * pModule);
     CorCallingConvention GetStubTargetCallingConv();
-
     
     CorElementType GetStubTargetReturnElementType() { WRAPPER_NO_CONTRACT; return m_nativeFnSigBuilder.GetReturnElementType(); }
 
@@ -477,12 +503,23 @@ protected:
     void SetStubTargetReturnType(LocalDesc* pLoc);
     void SetStubTargetCallingConv(CorCallingConvention uNativeCallingConv);
 
+    bool ReturnOpcodePopsStack()
+    {
+        if ((!m_fIsReverseStub && m_StubHasVoidReturnType) || (m_fIsReverseStub && m_StubTargetHasVoidReturnType))
+        {
+            return false;
+        }
+        return true;
+    }
+
     void TransformArgForJIT(LocalDesc *pLoc);
 
     Module * GetStubSigModule();
     SigTypeContext *GetStubSigTypeContext();
 
     BOOL    m_StubHasVoidReturnType;
+    BOOL    m_StubTargetHasVoidReturnType;
+    BOOL    m_fIsReverseStub;
     INT     m_iTargetStackDelta;
     DWORD   m_cbCurrentCompressedSigLen;
     DWORD   m_nLocals;
@@ -595,6 +632,7 @@ public:
     void EmitLDC        (DWORD_PTR uConst);
     void EmitLDC_R4     (UINT32 uConst);
     void EmitLDC_R8     (UINT64 uConst);
+    void EmitLDELEMA    (int token);
     void EmitLDELEM_REF ();
     void EmitLDFLD      (int token);
     void EmitLDFLDA     (int token);

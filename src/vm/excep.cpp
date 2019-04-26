@@ -22,7 +22,6 @@
 #include "siginfo.hpp"
 #include "gcheaputilities.h"
 #include "eedbginterfaceimpl.h" //so we can clearexception in RealCOMPlusThrow
-#include "perfcounters.h"
 #include "dllimportcallback.h"
 #include "stackwalk.h" //for CrawlFrame, in SetIPFromSrcToDst
 #include "shimload.h"
@@ -81,7 +80,6 @@ BOOL IsExceptionFromManagedCode(const EXCEPTION_RECORD * pExceptionRecord)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
         PRECONDITION(CheckPointer(pExceptionRecord));
     } CONTRACTL_END;
@@ -375,7 +373,6 @@ HRESULT GetExceptionHResult(OBJECTREF throwable)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -402,7 +399,6 @@ DWORD GetExceptionXCode(OBJECTREF throwable)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2759,21 +2755,7 @@ VOID DECLSPEC_NORETURN RaiseTheException(OBJECTREF throwable, BOOL rethrow
         EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
     }
 
-    if (g_CLRPolicyRequested &&
-        throwable->GetMethodTable() == g_pOutOfMemoryExceptionClass)
-    {
-        // We depends on UNINSTALL_UNWIND_AND_CONTINUE_HANDLER to handle out of memory escalation.
-        // We should throw c++ exception instead.
-        ThrowOutOfMemory();
-    }
-#ifdef FEATURE_STACK_PROBE
-    else if (throwable == CLRException::GetPreallocatedStackOverflowException())
-    {
-        ThrowStackOverflow();
-    }
-#else
     _ASSERTE(throwable != CLRException::GetPreallocatedStackOverflowException());
-#endif
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
     if (!g_pConfig->LegacyCorruptedStateExceptionsPolicy())
@@ -2984,58 +2966,12 @@ VOID DECLSPEC_NORETURN RaiseTheExceptionInternalOnly(OBJECTREF throwable, BOOL r
             RaiseException(code, flags, argCount, args);
         }
 
-        // Probe for sufficient stack.
-        PUSH_STACK_PROBE_FOR_THROW(pParam->pThread);
-
-#ifndef STACK_GUARDS_DEBUG
         // This needs to be both here and inside the handler below
         // enable preemptive mode before call into OS
         GCX_PREEMP_NO_DTOR();
 
         // In non-debug, we can just raise the exception once we've probed.
         RaiseException(code, flags, argCount, args);
-
-#else
-        // In a debug build, we need to unwind our probe structure off the stack.
-        BaseStackGuard *pThrowGuard = NULL;
-        // Stach away the address of the guard we just pushed above in PUSH_STACK_PROBE_FOR_THROW
-        SAVE_ADDRESS_OF_STACK_PROBE_FOR_THROW(pThrowGuard);
-
-        // Add the stack guard reference to the structure below so that it can be accessed within
-        // PAL_TRY as well
-        struct ParamInner
-        {
-            ULONG code;
-            ULONG flags;
-            ULONG argCount;
-            ULONG_PTR *args;
-            BaseStackGuard *pGuard;
-        } param;
-        param.code = code;
-        param.flags = flags;
-        param.argCount = argCount;
-        param.args = args;
-        param.pGuard = pThrowGuard;
-
-        PAL_TRY(ParamInner *, pParam, &param)
-        {
-            // enable preemptive mode before call into OS
-            GCX_PREEMP_NO_DTOR();
-
-            RaiseException(pParam->code, pParam->flags, pParam->argCount, pParam->args);
-
-            // We never return from RaiseException, so shouldn't have to call SetNoException.
-            // However, in the debugger we can, and if we don't call SetNoException we get
-            // a short-circuit return assert.
-            RESET_EXCEPTION_FROM_STACK_PROBE_FOR_THROW(pParam->pGuard);
-        }
-        PAL_FINALLY
-        {
-            // pop the guard that we pushed above in PUSH_STACK_PROBE_FOR_THROW
-            POP_STACK_PROBE_FOR_THROW(pThrowGuard);
-        }
-        PAL_ENDTRY
-#endif
     }
     PAL_EXCEPT_FILTER (RaiseExceptionFilter)
     {
@@ -3047,6 +2983,7 @@ VOID DECLSPEC_NORETURN RaiseTheExceptionInternalOnly(OBJECTREF throwable, BOOL r
     // User hits 'g'
     // Then debugger can bring us here.
     EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+    UNREACHABLE();
 }
 
 
@@ -3064,21 +3001,7 @@ static VOID DECLSPEC_NORETURN RealCOMPlusThrowWorker(OBJECTREF throwable, BOOL r
     // Unfortunately, COMPlusFrameHandler installed here, will try to create managed exception object.
     // We may hit a recursion.
 
-    if (g_CLRPolicyRequested &&
-        throwable->GetMethodTable() == g_pOutOfMemoryExceptionClass)
-    {
-        // We depends on UNINSTALL_UNWIND_AND_CONTINUE_HANDLER to handle out of memory escalation.
-        // We should throw c++ exception instead.
-        ThrowOutOfMemory();
-    }
-#ifdef FEATURE_STACK_PROBE
-    else if (throwable == CLRException::GetPreallocatedStackOverflowException())
-    {
-        ThrowStackOverflow();
-    }
-#else
     _ASSERTE(throwable != CLRException::GetPreallocatedStackOverflowException());
-#endif
 
     // TODO: Do we need to install COMPlusFrameHandler here?
     INSTALL_COMPLUS_EXCEPTION_HANDLER();
@@ -3171,37 +3094,17 @@ STRINGREF GetResourceStringFromManaged(STRINGREF key)
     gc.key = key;
     gc.ret = NULL;
 
-    // The standard probe isn't good enough here. It's possible that we only have ~14 pages of stack
-    // left. By the time we transition to the default domain and start fetching this resource string,
-    // another 12 page probe could fail.
-    // This failing probe would cause us to unload the default appdomain, which would cause us
-    // to take down the process.
-
-    // Instead, let's probe for a lots more stack to make sure that doesn' happen.
-
-    // We need to have enough stack to survive 2 more probes... the original entrypoint back
-    // into mscorwks after we go into managed code, and a "large" probe that protects the GC
-
-    INTERIOR_STACK_PROBE_FOR(GetThread(), DEFAULT_ENTRY_PROBE_AMOUNT * 2);
     GCPROTECT_BEGIN(gc);
 
     MethodDescCallSite getResourceStringLocal(METHOD__ENVIRONMENT__GET_RESOURCE_STRING_LOCAL);
 
     // Call Environment::GetResourceStringLocal(String name).  Returns String value (or maybe null)
-
-    ENTER_DOMAIN_PTR(SystemDomain::System()->DefaultDomain(),ADV_DEFAULTAD);
-
     // Don't need to GCPROTECT pArgs, since it's not used after the function call.
 
     ARG_SLOT pArgs[1] = { ObjToArgSlot(gc.key) };
     gc.ret = getResourceStringLocal.Call_RetSTRINGREF(pArgs);
 
-    END_DOMAIN_TRANSITION;
-
     GCPROTECT_END();
-
-    END_INTERIOR_STACK_PROBE;
-
 
     return gc.ret;
 }
@@ -3264,7 +3167,6 @@ void FreeExceptionData(ExceptionData *pedata)
     {
         NOTHROW; 
         GC_TRIGGERS; 
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -3556,7 +3458,6 @@ void StackTraceInfo::Init()
         GC_NOTRIGGER;
         MODE_ANY;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -3577,7 +3478,6 @@ void StackTraceInfo::FreeStackTrace()
         GC_NOTRIGGER;
         MODE_ANY;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -3708,7 +3608,6 @@ BOOL StackTraceInfo::AppendElement(BOOL bAllowAllocMem, UINT_PTR currentIP, UINT
 
         ++m_dFrameCount;
         bRetVal = TRUE;
-        COUNTER_ONLY(GetPerfCounters().m_Excep.cThrowToCatchStackDepth++);
     }
 
 #ifndef FEATURE_PAL // Watson is supported on Windows only   
@@ -3760,12 +3659,8 @@ void UnwindFrameChain(Thread* pThread, LPVOID pvLimitSP)
         NOTHROW;
         DISABLED(GC_TRIGGERS);  // some Frames' ExceptionUnwind methods trigger  :(
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
-
-    // @todo - Remove this and add a hard SO probe as can't throw from here.
-    CONTRACT_VIOLATION(SOToleranceViolation);
 
     Frame* pFrame = pThread->m_pFrame;
     if (pFrame < pvLimitSP)
@@ -3846,7 +3741,6 @@ BOOL IsAsyncThreadException(OBJECTREF *pThrowable) {
 BOOL IsUncatchable(OBJECTREF *pThrowable)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -3879,7 +3773,7 @@ BOOL IsUncatchable(OBJECTREF *pThrowable)
 
 BOOL IsStackOverflowException(Thread* pThread, EXCEPTION_RECORD* pExceptionRecord)
 {
-    if (IsSOExceptionCode(pExceptionRecord->ExceptionCode))
+    if (pExceptionRecord->ExceptionCode == STATUS_STACK_OVERFLOW)
     {
         return true;
     }
@@ -4415,7 +4309,6 @@ static SpinLock initLock;
 void DECLSPEC_NORETURN RaiseDeadLockException()
 {
     STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_SO_TOLERANT;
 
 // Disable the "initialization of static local vars is no thread safe" error
 #ifdef _MSC_VER
@@ -4467,9 +4360,9 @@ void DECLSPEC_NORETURN RaiseDeadLockException()
 //  Returns:
 //    true              If the exception is of a type that is always swallowed.
 //
-bool ExceptionIsAlwaysSwallowed(EXCEPTION_POINTERS *pExceptionInfo)
+BOOL ExceptionIsAlwaysSwallowed(EXCEPTION_POINTERS *pExceptionInfo)
 {
-    bool isSwallowed = false;
+    BOOL isSwallowed = false;
 
     // The exception code must be ours, if it is one of our Exceptions.
     if (IsComPlusException(pExceptionInfo->ExceptionRecord))
@@ -4486,8 +4379,7 @@ bool ExceptionIsAlwaysSwallowed(EXCEPTION_POINTERS *pExceptionInfo)
                 throwable = pThread->LastThrownObject();
             }
             //@todo: could throwable be NULL here?
-            isSwallowed = IsExceptionOfType(kThreadAbortException, &throwable) ||
-                          IsExceptionOfType(kAppDomainUnloadedException, &throwable);
+            isSwallowed = IsExceptionOfType(kThreadAbortException, &throwable);
         }
     }
 
@@ -4506,7 +4398,6 @@ LONG UserBreakpointFilter(EXCEPTION_POINTERS* pEP)
         GC_NOTRIGGER;
         MODE_ANY;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -4580,7 +4471,6 @@ LONG DefaultCatchFilter(EXCEPTION_POINTERS *ep, PVOID pv)
         GC_NOTRIGGER;
         MODE_ANY;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -4848,17 +4738,6 @@ LONG InternalUnhandledExceptionFilter_Worker(
         return EXCEPTION_CONTINUE_SEARCH;
     }
 
-
-    if (GetEEPolicy()->GetActionOnFailure(FAIL_FatalRuntime) == eDisableRuntime)
-    {
-        ETaskType type = ::GetCurrentTaskType();
-        if (type != TT_UNKNOWN && type != TT_USER)
-        {
-            LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter_Worker: calling EEPolicy::HandleFatalError\n"));
-            EEPolicy::HandleFatalError(COR_E_EXECUTIONENGINE, (UINT_PTR)GetIP(pExceptionInfo->ContextRecord), NULL, pExceptionInfo);
-        }
-    }
-
     // We don't do anything when this is called from an unmanaged thread.
     Thread *pThread = GetThread();
 
@@ -4888,12 +4767,6 @@ LONG InternalUnhandledExceptionFilter_Worker(
             _ASSERTE(!"BreakOnUnCaughtException");
         }
     }
-#endif
-
-#ifdef _DEBUG_ADUNLOAD
-    printf("%x InternalUnhandledExceptionFilter_Worker: Called for %x\n",
-           ((pThread == NULL) ? NULL : pThread->GetThreadId()), pExceptionInfo->ExceptionRecord->ExceptionCode);
-    fflush(stdout);
 #endif
 
     // This shouldn't be possible, but MSVC re-installs us... for now, just bail if this happens.
@@ -4932,22 +4805,8 @@ LONG InternalUnhandledExceptionFilter_Worker(
     // simply return back. See comment in threads.h for details for the flag
     // below.
     //
-    if (pThread && (pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) || pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled)))
+    if (pThread && pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException))
     {
-        // This assert shouldnt be hit in CoreCLR since:
-        //
-        // 1) It has no concept of managed entry point that is invoked by the shim. You can
-        //    only run managed code via hosting APIs that will run code in non-default domains.
-        //
-        // 2) Managed threads cannot be created in DefaultDomain since no user code executes
-        //    in default domain.
-        //
-        // So, if this is hit, something is not right!
-        if (pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException))
-        {
-            _ASSERTE(!"How come a thread with TSNC_ProcessedUnhandledException state entered the UEF on CoreCLR?");
-        }
-
         LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter_Worker: have already processed unhandled exception for this thread.\n"));
         return EXCEPTION_CONTINUE_SEARCH;
     }
@@ -5193,8 +5052,6 @@ LONG InternalUnhandledExceptionFilter(
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_ANY;
-    // We don't need to be SO-robust for an unhandled exception
-    SO_NOT_MAINLINE_FUNCTION;
 
     LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter: at sp %p.\n", GetCurrentSP()));
 
@@ -5266,10 +5123,32 @@ LONG InternalUnhandledExceptionFilter(
 
 } // LONG InternalUnhandledExceptionFilter()
 
+
+// Represent the value of USE_ENTRYPOINT_FILTER as passed in the property bag to the host during construction
+static bool s_useEntryPointFilterCorhostProperty = false;
+
+void ParseUseEntryPointFilter(LPCWSTR value)
+{
+    // set s_useEntryPointFilter true if value != "0"
+    if (value && (_wcsicmp(value, W("0")) != 0))
+    {
+        s_useEntryPointFilterCorhostProperty = true;
+    }
+}
+
+bool GetUseEntryPointFilter()
+{
+#ifdef PLATFORM_WINDOWS // This feature has only been tested on Windows, keep it disabled on other platforms
+    static bool s_useEntryPointFilterEnv = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_UseEntryPointFilter) != 0;
+
+    return s_useEntryPointFilterCorhostProperty || s_useEntryPointFilterEnv;
+#else
+    return false;
+#endif
+
+}
+
 // This filter is used to trigger unhandled exception processing for the entrypoint thread
-// incase an exception goes unhandled from it. This makes us independent of the OS
-// UEF mechanism to invoke our registered UEF to trigger CLR specific unhandled exception 
-// processing since that can be skipped if another UEF registered over ours and not chain back.
 LONG EntryPointFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOID _pData)
 {
     CONTRACTL
@@ -5277,31 +5156,43 @@ LONG EntryPointFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOID _pData)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     LONG ret = -1;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return EXCEPTION_CONTINUE_SEARCH;);
+    ret = CLRNoCatchHandler(pExceptionInfo, _pData);
 
-    // Invoke the UEF worker to perform unhandled exception processing
-    ret = InternalUnhandledExceptionFilter_Worker (pExceptionInfo);
+    if (ret != EXCEPTION_CONTINUE_SEARCH)
+    {
+        return ret;
+    }
+
+    if (!GetUseEntryPointFilter())
+    {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
 
     Thread* pThread = GetThread();
-    if (pThread)
+    if (pThread && !GetThread()->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException))
     {
+        // Invoke the UEF worker to perform unhandled exception processing
+        ret = InternalUnhandledExceptionFilter_Worker (pExceptionInfo);
+
         // Set the flag that we have done unhandled exception processing for this thread
         // so that we dont duplicate the effort in the UEF.
         //
         // For details on this flag, refer to threads.h.
         LOG((LF_EH, LL_INFO100, "EntryPointFilter: setting TSNC_ProcessedUnhandledException\n"));
         pThread->SetThreadStateNC(Thread::TSNC_ProcessedUnhandledException);
+
+        if (ret == EXCEPTION_EXECUTE_HANDLER)
+        {
+            // Do not swallow the exception, we just want to log it
+            return EXCEPTION_CONTINUE_SEARCH;
+        }
     }
 
-
-    END_SO_INTOLERANT_CODE;
-    
     return ret;
 }
 
@@ -5329,8 +5220,6 @@ LONG __stdcall COMUnhandledExceptionFilter(     // EXCEPTION_CONTINUE_SEARCH or 
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_ANY;
-    // We don't need to be SO-robust for an unhandled exception
-    SO_NOT_MAINLINE_FUNCTION;
 
     LONG retVal = EXCEPTION_CONTINUE_SEARCH;
 
@@ -5343,8 +5232,7 @@ LONG __stdcall COMUnhandledExceptionFilter(     // EXCEPTION_CONTINUE_SEARCH or 
     // various runtimes again.
     //
     // Thus, check if this UEF has already been invoked in context of this thread and runtime and if so, dont invoke it again.
-    if (GetThread() && (GetThread()->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) ||
-                        GetThread()->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled)))
+    if (GetThread() && (GetThread()->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException)))
     {
         LOG((LF_EH, LL_INFO10, "Exiting COMUnhandledExceptionFilter since we have already done UE processing for this thread!\n"));
         return retVal;
@@ -5573,11 +5461,6 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
     const int buf_size = 128;
     WCHAR buf[buf_size] = {0};
 
-    // See detailed explanation of this flag in threads.cpp.  But the basic idea is that we already
-    // reported the exception in the AppDomain where it went unhandled, so we don't need to report
-    // it at the process level.
-    // Print the unhandled exception message.
-    if (!pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled))
     {
         EX_TRY
         {
@@ -5621,12 +5504,6 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                 else if (SentEvent || IsAsyncThreadException(&throwable))
                 {
                     // We don't print anything on async exceptions, like ThreadAbort.
-                    dump = FALSE;
-                    INDEBUG(suppressSelectiveBreak=TRUE);
-                }
-                else if (isThreadBaseFilter && IsExceptionOfType(kAppDomainUnloadedException, &throwable))
-                {
-                    // AppdomainUnloadedException is also a special case.
                     dump = FALSE;
                     INDEBUG(suppressSelectiveBreak=TRUE);
                 }
@@ -5717,12 +5594,6 @@ BOOL NotifyAppDomainsOfUnhandledException(
         _ASSERTE(g_fEEShutDown);
         return FALSE;
     }
-
-    // See detailed explanation of this flag in threads.cpp.  But the basic idea is that we already
-    // reported the exception in the AppDomain where it went unhandled, so we don't need to report
-    // it at the process level.
-    if (pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled))
-        return FALSE;
 
     ThreadPreventAsyncHolder prevAsync;
 
@@ -5897,7 +5768,7 @@ static LONG ThreadBaseExceptionFilter_Worker(PEXCEPTION_POINTERS pExceptionInfo,
         {
             // No, don't swallow unhandled exceptions...
 
-            // ...except if the exception is of a type that is always swallowed (ThreadAbort, AppDomainUnload)...
+            // ...except if the exception is of a type that is always swallowed (ThreadAbort, ...)
             if (ExceptionIsAlwaysSwallowed(pExceptionInfo))
             {   // ...return EXCEPTION_EXECUTE_HANDLER to swallow the exception anyway.
                 return EXCEPTION_EXECUTE_HANDLER;
@@ -6392,7 +6263,6 @@ LPVOID COMPlusCheckForAbort(UINT_PTR uTryCatchResumeAddress)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -6426,18 +6296,6 @@ LPVOID COMPlusCheckForAbort(UINT_PTR uTryCatchResumeAddress)
     }
 
     // Question: Should we also check for (pThread->m_PreventAsync == 0)
-
-#if !defined(WIN64EXCEPTIONS) && defined(FEATURE_STACK_PROBE)
-    // On Win64, this function is called by our exception handling code which has probed.
-    // But on X86, this is called from JIT code directly.  We probe here so that
-    // we can restore the state of the thread below.
-    if (GetEEPolicy()->GetActionOnFailure(FAIL_StackOverflow) == eRudeUnloadAppDomain)
-    {
-        // In case of SO, we will skip the managed code.
-        CONTRACT_VIOLATION(ThrowsViolation);
-        RetailStackProbe(ADJUST_PROBE(DEFAULT_ENTRY_PROBE_AMOUNT), pThread);
-    }
-#endif // !WIN64EXCEPTIONS && FEATURE_STACK_PROBE
 
     pThread->SetThrowControlForThread(Thread::InducedThreadRedirectAtEndOfCatch);
     if (!pThread->ReadyForAbort())
@@ -6516,7 +6374,6 @@ BOOL IsThreadHijackedForThreadStop(Thread* pThread, EXCEPTION_RECORD* pException
         GC_NOTRIGGER;
         MODE_ANY;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -6558,7 +6415,6 @@ void AdjustContextForThreadStop(Thread* pThread,
         GC_NOTRIGGER;
         MODE_ANY;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -6620,7 +6476,6 @@ CreateCOMPlusExceptionObject(Thread *pThread, EXCEPTION_RECORD *pExceptionRecord
         GC_TRIGGERS;
         MODE_COOPERATIVE;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -6650,12 +6505,6 @@ CreateCOMPlusExceptionObject(Thread *pThread, EXCEPTION_RECORD *pExceptionRecord
     {
         EX_TRY
         {
-            // We need to disable the backout stack validation at this point since CreateThrowable can
-            // take arbitrarily large amounts of stack for different exception types; however we know
-            // for a fact that we will never go through this code path if the exception is a stack
-            // overflow exception since we already handled that case above with the pre-allocated SO exception.
-            DISABLE_BACKOUT_STACK_VALIDATION;
-
             FAULT_NOT_FATAL();
 
             ThreadPreventAsyncHolder preventAsync;
@@ -6710,7 +6559,7 @@ LONG FilterAccessViolation(PEXCEPTION_POINTERS pExceptionPointers, LPVOID lpvPar
 }
 
 /*
- * IsContinuableException
+ * IsInterceptableException
  *
  * Returns whether this is an exception the EE knows how to intercept and continue from.
  *
@@ -6858,7 +6707,6 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
     LIMITED_METHOD_CONTRACT;
 
 #ifdef DEBUGGING_SUPPORTED
-    SO_NOT_MAINLINE_FUNCTION;
 
 #ifdef _TARGET_ARM_
     // On ARM we don't have any reliable hardware support for single stepping so it is emulated in software.
@@ -7282,7 +7130,6 @@ bool ShouldHandleManagedFault(
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -7478,7 +7325,7 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
     }
 #endif // defined(WIN64EXCEPTIONS) && defined(FEATURE_HIJACK)
 
-    if (IsSOExceptionCode(pExceptionInfo->ExceptionRecord->ExceptionCode))
+    if (pExceptionInfo->ExceptionRecord->ExceptionCode == STATUS_STACK_OVERFLOW)
     {
         //
         // Not an Out-of-memory situation, so no need for a forbid fault region here
@@ -7487,18 +7334,6 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
     }
 
     LONG retVal = 0;
-
-#ifdef FEATURE_STACK_PROBE
-    // See if we've got enough stack to handle this exception
-
-    // There isn't much stack left to attempt to report an exception. Let's trigger a hard
-    // SO, so we clear the guard page and give us at least another page of stack to work with.
-
-    if (pThread && !pThread->IsStackSpaceAvailable(ADJUST_PROBE(1)))
-    {
-        DontCallDirectlyForceStackOverflow();
-    }
-#endif // FEATURE_STACK_PROBE
 
     // We can't probe here, because we won't return from the CLRVectoredExceptionHandlerPhase2
     // on WIN64
@@ -7621,8 +7456,6 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
 
         BOOL fExternalException = FALSE;
 
-        BEGIN_SO_INTOLERANT_CODE_NOPROBE;
-
         {
             // ExecutionManager::IsManagedCode takes a spinlock.  Since we're in the middle of throwing,
             // we'll allow the lock, even if a caller didn't expect it.
@@ -7631,8 +7464,6 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
             fExternalException = (!ExecutionManager::IsManagedCode(GetIP(pExceptionInfo->ContextRecord)) &&
                                   !IsIPInModule(g_pMSCorEE, GetIP(pExceptionInfo->ContextRecord)));
         }
-
-        END_SO_INTOLERANT_CODE_NOPROBE;
 
         if (fExternalException)
         {
@@ -7800,7 +7631,7 @@ VEH_ACTION WINAPI CLRVectoredExceptionHandlerPhase3(PEXCEPTION_POINTERS pExcepti
                 PCODE ip = (PCODE)GetIP(pContext);
                 if (IsIPInModule(g_pMSCorEE, ip) || IsIPInModule(GCHeapUtilities::GetGCModule(), ip))
                 {
-                    CONTRACT_VIOLATION(ThrowsViolation|FaultViolation|SOToleranceViolation);
+                    CONTRACT_VIOLATION(ThrowsViolation|FaultViolation);
 
                     //
                     // If you're debugging, set the debugger to catch first-chance AV's, then simply hit F5 or
@@ -8163,11 +7994,11 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
     //
     // WARNING: This function could potentially throw an exception, however it should only
     // be able to do so when an interop debugger is attached
-    if(g_pDebugInterface != NULL)
+    if (g_pDebugInterface != NULL)
     {
-        if(g_pDebugInterface->FirstChanceSuspendHijackWorker(pExceptionInfo->ContextRecord,
+        if (g_pDebugInterface->FirstChanceSuspendHijackWorker(pExceptionInfo->ContextRecord,
             pExceptionInfo->ExceptionRecord) == EXCEPTION_CONTINUE_EXECUTION)
-        return EXCEPTION_CONTINUE_EXECUTION;
+            return EXCEPTION_CONTINUE_EXECUTION;
     }
 #endif
 
@@ -8186,6 +8017,12 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
         return EXCEPTION_CONTINUE_SEARCH;
     }
 #endif
+
+    if (NtCurrentTeb()->ThreadLocalStoragePointer == NULL)
+    {
+        // Ignore exceptions early during thread startup before the thread is fully initialized by the OS
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
 
     bool bIsGCMarker = false;
 
@@ -8397,7 +8234,6 @@ void UnwindAndContinueRethrowHelperInsideCatch(Frame* pEntryFrame, Exception* pE
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     Thread* pThread = GetThread();
 
@@ -8419,13 +8255,11 @@ void UnwindAndContinueRethrowHelperInsideCatch(Frame* pEntryFrame, Exception* pE
     if (!NingenEnabled())
     {
         CONTRACT_VIOLATION(ThrowsViolation);
-        BEGIN_SO_INTOLERANT_CODE(pThread);
     // Call CLRException::GetThrowableFromException to force us to retrieve the THROWABLE
     // while we are still within the context of the catch block. This will help diagnose
     // cases where the last thrown object is NULL.
     OBJECTREF orThrowable = CLRException::GetThrowableFromException(pException);
     CONSISTENCY_CHECK(orThrowable != NULL);
-        END_SO_INTOLERANT_CODE;
     }
 #endif
 }
@@ -8439,14 +8273,6 @@ VOID DECLSPEC_NORETURN UnwindAndContinueRethrowHelperAfterCatch(Frame* pEntryFra
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    // We really should probe before switching to cooperative mode, although there's no chance
-    // we'll SO in doing that as we've just caught an exception.  We can't probe just
-    // yet though, because we want to avoid reprobing on an SO exception and we need to switch
-    // to cooperative to check the throwable for an SO as well as the pException object (as the
-    // pException could be a LastThrownObjectException.)  Blech.
-    CONTRACT_VIOLATION(SOToleranceViolation);
 
     GCX_COOP();
 
@@ -8458,23 +8284,6 @@ VOID DECLSPEC_NORETURN UnwindAndContinueRethrowHelperAfterCatch(Frame* pEntryFra
 
     Exception::Delete(pException);
 
-    if (orThrowable != NULL && g_CLRPolicyRequested)
-    {
-        if (orThrowable->GetMethodTable() == g_pOutOfMemoryExceptionClass)
-        {
-            EEPolicy::HandleOutOfMemory();
-        }
-        else if (orThrowable->GetMethodTable() == g_pStackOverflowExceptionClass)
-        {
-#ifdef FEATURE_STACK_PROBE
-            EEPolicy::HandleSoftStackOverflow();
-#else
-            /* The parameters of the function do not matter here */
-            EEPolicy::HandleStackOverflow(SOD_UnmanagedFrameHandler, NULL);
-#endif
-        }
-    }
-
     RaiseTheExceptionInternalOnly(orThrowable, FALSE);
 }
 
@@ -8485,7 +8294,6 @@ void SaveCurrentExceptionInfo(PEXCEPTION_RECORD pRecord, PCONTEXT pContext)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -8500,10 +8308,10 @@ void SaveCurrentExceptionInfo(PEXCEPTION_RECORD pRecord, PCONTEXT pContext)
     if (CExecutionEngine::CheckThreadStateNoCreate(TlsIdx_PEXCEPTION_RECORD))
     {
         BOOL fSave = TRUE;
-        if (!IsSOExceptionCode(pRecord->ExceptionCode))
+        if (pRecord->ExceptionCode != STATUS_STACK_OVERFLOW)
         {
             DWORD dwLastExceptionCode = (DWORD)(SIZE_T) (ClrFlsGetValue(TlsIdx_EXCEPTION_CODE));
-            if (IsSOExceptionCode(dwLastExceptionCode))
+            if (dwLastExceptionCode == STATUS_STACK_OVERFLOW)
             {
                 PEXCEPTION_RECORD lastRecord =
                     static_cast<PEXCEPTION_RECORD> (ClrFlsGetValue(TlsIdx_PEXCEPTION_RECORD));
@@ -8881,7 +8689,6 @@ BOOL IsException(MethodTable *pMT) {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -8904,7 +8711,6 @@ BOOL ExceptionTypeOverridesStackTraceGetter(PTR_MethodTable pMT)
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -11070,7 +10876,6 @@ void EHWatsonBucketTracker::SaveIpForWatsonBucket(
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(IsWatsonEnabled());
     }
     CONTRACTL_END;
@@ -11113,7 +10918,6 @@ PTR_VOID EHWatsonBucketTracker::RetrieveWatsonBuckets()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(IsWatsonEnabled());
     }
     CONTRACTL_END;
@@ -11137,7 +10941,6 @@ void EHWatsonBucketTracker::ClearWatsonBucketDetails()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(IsWatsonEnabled());
     }
     CONTRACTL_END;
@@ -11209,7 +11012,6 @@ PTR_ExInfo GetEHTrackerForException(OBJECTREF oThrowable, PTR_ExInfo pStartingEH
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
         NOTHROW;
-        SO_TOLERANT;
         PRECONDITION(GetThread() != NULL);
         PRECONDITION(oThrowable != NULL);
     }
@@ -11260,7 +11062,6 @@ BOOL CEHelper::IsProcessCorruptedStateException(DWORD dwExceptionCode, BOOL fChe
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -11508,7 +11309,6 @@ BOOL CEHelper::IsProcessCorruptedStateException(OBJECTREF oThrowable)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
         PRECONDITION(oThrowable != NULL);
     }
     CONTRACTL_END;
@@ -11556,7 +11356,6 @@ void CEHelper::SetupCorruptionSeverityForActiveExceptionInUnwindPass(Thread *pCu
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(!fIsFirstPass); // This method should only be called during an unwind
         PRECONDITION(pCurThread != NULL);
     }
@@ -11898,7 +11697,6 @@ void CEHelper::MarkLastActiveExceptionCorruptionSeverityForReraiseReuse()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(GetThread() != NULL);
     }
     CONTRACTL_END;
@@ -12043,259 +11841,6 @@ BOOL CEHelper::CanIDispatchTargetHandleException()
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
 #ifndef DACCESS_COMPILE
-// When a managed thread starts in non-default domain, its callstack looks like below:
-//
-// <ManagedThreadBase_DispatchOuter>
-// <ManagedThreadBase_DispatchMiddle>
-// <ManagedThreadBase_DispatchInner>
-//
-// -- AD transition is here --        ==> Pushes ContextTransitionFrame and has EX_CATCH
-//
-// <ManagedThreadBase_DispatchOuter>
-// <ManagedThreadBase_DispatchMiddle>
-// <ManagedThreadBase_DispatchInner>
-//
-// In CoreCLR, all managed threads spawned will have a stack like this since they all
-// run in non-DefaultDomain. The upper three frames are in default domain and the lower
-// three are in the non-default domain in which the thread was created. Any exception
-// that is unhandled in non-default domain will be caught at AD transition boundary.
-// The transition boundary does the following tasks:
-//
-// 1) Catch any incoming unhandled exception from the non-default domain using EX_CATCH.
-// 2) Marshal the exception object to the return context (i.e. DefaultDomain)
-// 3) Return to the context of DefaultDomain and throw the marshalled exception object there.
-//
-// All this depends upon the EX_CATCH (which is based upon C++ exception handling) being
-// able to catch the exception.
-//
-// However, if a breakpoint exception ia raised and a debugger is not available to handle it,
-// C++'s catch(...) will not be able to catch it, even when compiled with /EHa. For the curious,
-// refer to "FindHandlerForForeignException" function's implementation in the CRT. One of the first
-// things it does is check for breakpoint exception and if it is, it will simply bail out of the
-// process of finding a handler. Thus, EX_CATCH will not be able to catch this exception and we
-// will not be able to transition to the previous AD context.
-//
-// Imagine a thread in non-default domain suffers breakpoint exception. Assuming it will go unhandled,
-// it will reach the OS, which will trigger an unwind. The execution of termination handlers in lower
-// three frames (above) is fine since they are in the same AD as the thread. But when termination
-// handlers in the upper three frames execute, its a case of bad mixup since the thread is in a different
-// AD context than what the frames are expected to be in.
-//
-// Hence, we need a mechanism to transition to the expected AppDomain in case of breakpoint exception.
-// This function supports this mechanism in a generic fashion, i.e., one can use it to transition to
-// any AppDomain, though only up the stack.
-
-BOOL ReturnToPreviousAppDomain()
-{
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    Thread *pCurThread = GetThread();
-    _ASSERTE(pCurThread != NULL);
-
-    BOOL fTransitioned = FALSE;
-
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(pCurThread, return FALSE);
-
-    // Get the thread's current domain
-    AppDomain *pCurDomain = pCurThread->GetDomain();
-    _ASSERTE(pCurDomain != NULL);
-
-    // Lookup the ContextTransitionFrame for the transition into the current AppDomain.
-    Frame *pCtxTransitionFrame = pCurThread->GetFirstTransitionInto(pCurDomain, NULL);
-    if (pCtxTransitionFrame == NULL)
-    {
-        // Since we couldnt find the context transition frame, check if its the default domain.
-        // If so, we will set fTransitioned to TRUE since there is no context transition frame
-        // setup for the initial entry into the default domain. For all other transitions to it
-        // from non-default domains, we will have a context transition frame. We will do a
-        // debug-only check to assert this invariant.
-        BOOL fIsDefDomain = pCurDomain->IsDefaultDomain();
-#ifdef _DEBUG
-        if (fIsDefDomain)
-        {
-            // Start with the topmost frame and look for a CTX frame until we reach the top of the frame chain.
-            // We better not find one since we couldnt find a transition frame to the DefaultDomain.
-            Frame *pStartFrame = pCurThread->GetFrame();
-            BOOL fFoundCTXFrame = FALSE;
-            while ((pStartFrame != NULL) && (pStartFrame != (Frame *)FRAME_TOP))
-            {
-                 if (pStartFrame->GetVTablePtr() == ContextTransitionFrame::GetMethodFrameVPtr())
-                 {
-                    fFoundCTXFrame = TRUE;
-                    break;
-                 }
-
-                // Get the next frame in the chain
-                pStartFrame = pStartFrame->PtrNextFrame();
-            }
-
-            _ASSERTE_MSG(!fFoundCTXFrame, "How come we didnt find the transition frame to DefDomain but found another CTX frame on the frame chain?");
-        }
-#endif // _DEBUG
-        fTransitioned = fIsDefDomain;
-        LOG((LF_EH, LL_INFO100, "ReturnToPreviousAppDomain: Unable to find the transition into the current domain (IsDefaultDomain: %d).\n", fIsDefDomain));
-
-        goto done;
-    }
-
-    // Confirm its the correct type of frame
-    _ASSERTE_MSG(pCtxTransitionFrame->GetVTablePtr() == ContextTransitionFrame::GetMethodFrameVPtr(),
-                    "How come we didn't find context transition frame for this AD transition?");
-
-    // Get the topmost Frame
-    Frame *pCurFrame;
-    pCurFrame = pCurThread->GetFrame();
-
-    // <ASSUMPTION>
-    //
-    // The loop below assumes we are called during an exception unwind since it
-    // unwinds the Frames and pops them off the thread.
-    //
-    // </ASSUMPTION>
-    //
-    // Clear all the frames until we are at the frame of our interest. If there was a
-    // CTX frame between the topmost frame and the AD transition, then we should be able to
-    // catch it here as well.
-    while((pCurFrame != NULL) && (pCurFrame < pCtxTransitionFrame) &&
-          (pCurFrame->GetVTablePtr() != ContextTransitionFrame::GetMethodFrameVPtr()))
-    {
-        // Invoke exception unwind and pop the frame off
-        pCurFrame->ExceptionUnwind();
-        pCurFrame->Pop();
-        pCurFrame = pCurThread->GetFrame();
-    }
-
-    // Confirm that we are at the expected Frame.
-    _ASSERTE_MSG(((pCurFrame != NULL) &&
-                  (pCurFrame->GetVTablePtr() == ContextTransitionFrame::GetMethodFrameVPtr()) &&
-                  (pCurFrame == pCtxTransitionFrame)),
-                    "How come we are not at the exact context transition frame?");
-
-    // Log our context return
-    LOG((LF_EH, LL_INFO100, "ReturnToPreviousAppDomain: Returning from AD %d to AD %d\n",
-        GetAppDomain()->GetId().m_dwId, pCtxTransitionFrame->GetReturnDomain()->GetId().m_dwId));
-
-    // Return to the previous AD context
-    pCurThread->ReturnToContext((ContextTransitionFrame *)pCtxTransitionFrame);
-
-#ifdef _DEBUG
-    // At this point, the context transition frame would have been popped off by
-    // ReturnToContext above.
-    pCurFrame = pCurThread->GetFrame();
-    _ASSERTE_MSG(pCurFrame != pCtxTransitionFrame, "How come the CTX frame of AD transition is still on the frame chain?");
-#endif // _DEBUG
-
-    // Set the flag that we transitioned correctly.
-    fTransitioned = TRUE;
-
-done:;
-    END_SO_INTOLERANT_CODE;
-
-    return fTransitioned;
-}
-
-// This class defines a holder that can be used to return to previous AppDomain incase an exception
-// goes across an AD transition boundary without reverting the active context.
-//
-// Use this holder *after* you have transitioned to the target AD.
-void ReturnToPreviousAppDomainHolder::Init()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    m_fShouldReturnToPreviousAppDomain = TRUE;
-    m_pThread = GetThread();
-    _ASSERTE(m_pThread != NULL);
-
-#ifdef _DEBUG
-    m_pTransitionedToAD = m_pThread->GetDomain();
-#endif // _DEBUG
-}
-
-ReturnToPreviousAppDomainHolder::ReturnToPreviousAppDomainHolder()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    Init();
-}
-
-void ReturnToPreviousAppDomainHolder::ReturnToPreviousAppDomain()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-        // Test your sanity - we should still be in the transitioned-to AD.
-        PRECONDITION(m_pThread->GetDomain() == m_pTransitionedToAD);
-    }
-    CONTRACTL_END;
-
-    {
-        GCX_COOP();
-        ::ReturnToPreviousAppDomain();
-    }
-
-    // Set the LastThrownObject as NULL since we have returned to a different
-    // AD. Maintaining the reference to an object in the "returned-from" AD
-    // will prevent the AD from getting unloaded.
-    //
-    // Setting to NULL does not require us to be in COOP mode.
-    m_pThread->SafeSetLastThrownObject(NULL);
-}
-
-ReturnToPreviousAppDomainHolder::~ReturnToPreviousAppDomainHolder()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    if (m_fShouldReturnToPreviousAppDomain)
-    {
-        ReturnToPreviousAppDomain();
-    }
-}
-
-// Reset the flag to indicate that reverting to previous AD is not required anymore.
-// This should be invoked when the call has successfully returned from the target execution context.
-//
-// By default, this flag is TRUE (see the contructor above) to enable automatic context
-// revert incase an exception goes past the transition.
-//
-// END_DOMAIN_TRANSITION_NO_EH_AT_TRANSITION macro uses it. See its implementation in threads.h
-// for usage.
-void ReturnToPreviousAppDomainHolder::SuppressRelease()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    m_fShouldReturnToPreviousAppDomain = FALSE;
-}
-
-#endif // !DACCESS_COMPILE
-
-#ifndef DACCESS_COMPILE
 // This method will deliver the actual exception notification. Its assumed that the caller has done the necessary checks, including
 // checking whether the delegate can be invoked for the exception's corruption severity.
 void ExceptionNotifications::DeliverExceptionNotification(ExceptionNotificationHandlerType notificationType, OBJECTREF *pDelegate,
@@ -12397,6 +11942,7 @@ void ExceptionNotifications::GetEventArgsForNotification(ExceptionNotificationHa
 static LONG ExceptionNotificationFilter(PEXCEPTION_POINTERS pExceptionInfo, LPVOID pParam)
 {
     EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+    return -1;
 }
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
@@ -12487,30 +12033,18 @@ BOOL ExceptionNotifications::CanDeliverNotificationToCurrentAppDomain(ExceptionN
 {
     CONTRACTL
     {
-        NOTHROW;
-        GC_NOTRIGGER;
+        THROWS;
+        GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
         PRECONDITION(GetThread() != NULL);
         PRECONDITION(notificationType  != UnhandledExceptionHandler);
     }
     CONTRACTL_END;
 
-    Thread *pCurThread = GetThread();
-
-    // Get the current AppDomain
-    OBJECTREF oCurAppDomain = pCurThread->GetDomain()->GetRawExposedObject();
-    if (oCurAppDomain == NULL)
-    {
-        // Managed object for the current domain does not exist. Hence, no one
-        // can wireup to exception notifications, let alone receive them.
-        return FALSE;
-    }
-
     // Do we have handler(s) of the specific type wired up?
     if (notificationType == FirstChanceExceptionHandler)
     {
-        return (((APPDOMAINREF)oCurAppDomain)->GetFirstChanceExceptionNotificationHandler() != NULL);
+        return MscorlibBinder::GetField(FIELD__APPCONTEXT__FIRST_CHANCE_EXCEPTION)->GetStaticOBJECTREF() != NULL;
     }
     else
     {
@@ -12625,12 +12159,11 @@ void ExceptionNotifications::DeliverNotificationInternal(ExceptionNotificationHa
     // Save the reference to the current AppDomain. If the user code has
     // wired upto this event, then the managed AppDomain object will exist.
     gc.oCurAppDomain = pCurDomain->GetRawExposedObject();
-    _ASSERTE(gc.oCurAppDomain);
 
     // Get the reference to the delegate based upon the type of notification
     if (notificationType == FirstChanceExceptionHandler)
     {
-        gc.oNotificationDelegate = ((APPDOMAINREF)gc.oCurAppDomain)->GetFirstChanceExceptionNotificationHandler();
+        gc.oNotificationDelegate = MscorlibBinder::GetField(FIELD__APPCONTEXT__FIRST_CHANCE_EXCEPTION)->GetStaticOBJECTREF();
     }
     else
     {
@@ -13062,7 +12595,6 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowOM()
         DISABLED(GC_NOTRIGGER);  // Must sanitize first pass handling to enable this
         CANNOT_TAKE_LOCK;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -13509,44 +13041,6 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowHR(EXCEPINFO *pExcepInfo)
 
 #endif // FEATURE_COMINTEROP
 
-
-#ifdef FEATURE_STACK_PROBE
-//==========================================================================
-// Throw a StackOverflowError
-//==========================================================================
-VOID DECLSPEC_NORETURN RealCOMPlusThrowSO()
-{
-    CONTRACTL
-    {
-        // This should be throws... But it isn't because a SO doesn't technically
-        // fall into the same THROW/NOTHROW conventions as the rest of the contract
-        // infrastructure.
-        NOTHROW;
-
-        DISABLED(GC_NOTRIGGER);  // Must sanitize first pass handling to enable this
-        SO_TOLERANT;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // We only use BreakOnSO if we are in debug mode, so we'll only checking if the
-    // _DEBUG flag is set.
-#ifdef _DEBUG
-    static int breakOnSO = -1;
-
-    if (breakOnSO == -1)
-        breakOnSO = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_BreakOnSO);
-
-    if (breakOnSO != 0)
-    {
-        _ASSERTE(!"SO occurred");
-    }
-#endif
-
-    ThrowStackOverflow();
-}
-#endif
-
 //==========================================================================
 // Throw an InvalidCastException
 //==========================================================================
@@ -13590,7 +13084,6 @@ VOID CheckAndThrowSameTypeAndAssemblyInvalidCastException(TypeHandle thCastFrom,
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_INTOLERANT;
     } CONTRACTL_END;
 
      Module *pModuleTypeFrom = thCastFrom.GetModule();

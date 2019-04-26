@@ -105,7 +105,6 @@ if(WIN32)
         ${STATIC_MT_CRT_LIB}
         ${STATIC_MT_VCRT_LIB}
         mdwinmd_wks
-        comnls_wks
         kernel32.lib
         advapi32.lib
         ole32.lib
@@ -121,12 +120,17 @@ else()
     list(APPEND CORECLR_LIBRARIES
         ${START_WHOLE_ARCHIVE} # force all PAL objects to be included so all exports are available
         coreclrpal
-        tracepointprovider
         ${END_WHOLE_ARCHIVE}
         mscorrc_debug
         palrt
     )
 endif(WIN32)
+
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+    list(APPEND CORECLR_LIBRARIES
+        tracepointprovider
+    )
+endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
 if(FEATURE_PERFTRACING)
     list(APPEND CORECLR_LIBRARIES
@@ -164,11 +168,6 @@ if(WIN32)
     endif()
 
     set(DACTABLEGEN_EXE ${CMAKE_BINARY_DIR}/src/ToolBox/SOS/DacTableGen/dactablegen.exe)
-    # The DactTableGen executable that we build needs an msdia140.dll supplied by Visual Studio.
-    # however VS2015 may not have this, so fall back to the DactTableGen in the tools package (which is old)
-    if($ENV{__VSVersion} STREQUAL "vs2015")
-        set(DACTABLEGEN_EXE ${BuildToolsDir}/dactablegen.exe)
-    endif()
 
     add_custom_command(
         DEPENDS coreclr mscordaccore mscordbi ${CLR_DIR}/src/debug/daccess/daccess.cpp

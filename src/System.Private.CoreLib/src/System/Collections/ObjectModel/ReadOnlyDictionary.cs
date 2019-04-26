@@ -10,22 +10,22 @@
 ** Purpose: Read-only wrapper for another generic dictionary.
 **
 ===========================================================*/
+#nullable enable
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 
 namespace System.Collections.ObjectModel
 {
     [DebuggerTypeProxy(typeof(IDictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
-    internal class ReadOnlyDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>
+    internal class ReadOnlyDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> where TKey : object
     {
         private readonly IDictionary<TKey, TValue> m_dictionary;
-        private object m_syncRoot;
-        private KeyCollection m_keys;
-        private ValueCollection m_values;
+        private object? m_syncRoot;
+        private KeyCollection? m_keys;
+        private ValueCollection? m_values;
 
         public ReadOnlyDictionary(IDictionary<TKey, TValue> dictionary)
         {
@@ -212,8 +212,7 @@ namespace System.Collections.ObjectModel
 
         IDictionaryEnumerator IDictionary.GetEnumerator()
         {
-            IDictionary d = m_dictionary as IDictionary;
-            if (d != null)
+            if (m_dictionary is IDictionary d)
             {
                 return d.GetEnumerator();
             }
@@ -251,7 +250,7 @@ namespace System.Collections.ObjectModel
             }
         }
 
-        object IDictionary.this[object key]
+        object? IDictionary.this[object key]
         {
             get
             {
@@ -274,7 +273,7 @@ namespace System.Collections.ObjectModel
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (array.Rank != 1)
+            if (array!.Rank != 1) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             }
@@ -294,15 +293,13 @@ namespace System.Collections.ObjectModel
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall);
             }
 
-            KeyValuePair<TKey, TValue>[] pairs = array as KeyValuePair<TKey, TValue>[];
-            if (pairs != null)
+            if (array is KeyValuePair<TKey, TValue>[] pairs)
             {
                 m_dictionary.CopyTo(pairs, index);
             }
             else
             {
-                DictionaryEntry[] dictEntryArray = array as DictionaryEntry[];
-                if (dictEntryArray != null)
+                if (array is DictionaryEntry[] dictEntryArray)
                 {
                     foreach (var item in m_dictionary)
                     {
@@ -311,7 +308,7 @@ namespace System.Collections.ObjectModel
                 }
                 else
                 {
-                    object[] objects = array as object[];
+                    object[]? objects = array as object[];
                     if (objects == null)
                     {
                         ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
@@ -321,7 +318,7 @@ namespace System.Collections.ObjectModel
                     {
                         foreach (var item in m_dictionary)
                         {
-                            objects[index++] = new KeyValuePair<TKey, TValue>(item.Key, item.Value);
+                            objects![index++] = new KeyValuePair<TKey, TValue>(item.Key, item.Value); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                         }
                     }
                     catch (ArrayTypeMismatchException)
@@ -337,20 +334,19 @@ namespace System.Collections.ObjectModel
             get { return false; }
         }
 
-        object ICollection.SyncRoot
+        object? ICollection.SyncRoot
         {
             get
             {
                 if (m_syncRoot == null)
                 {
-                    ICollection c = m_dictionary as ICollection;
-                    if (c != null)
+                    if (m_dictionary is ICollection c)
                     {
                         m_syncRoot = c.SyncRoot;
                     }
                     else
                     {
-                        System.Threading.Interlocked.CompareExchange<object>(ref m_syncRoot, new object(), null);
+                        Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                     }
                 }
                 return m_syncRoot;
@@ -375,15 +371,15 @@ namespace System.Collections.ObjectModel
 
             public object Key
             {
-                get { return m_enumerator.Current.Key; }
+                get { return m_enumerator.Current.Key!; }
             }
 
-            public object Value
+            public object? Value
             {
                 get { return m_enumerator.Current.Value; }
             }
 
-            public object Current
+            public object? Current
             {
                 get { return Entry; }
             }
@@ -426,7 +422,7 @@ namespace System.Collections.ObjectModel
         public sealed class KeyCollection : ICollection<TKey>, ICollection, IReadOnlyCollection<TKey>
         {
             private readonly ICollection<TKey> m_collection;
-            private object m_syncRoot;
+            private object? m_syncRoot;
 
             internal KeyCollection(ICollection<TKey> collection)
             {
@@ -434,7 +430,7 @@ namespace System.Collections.ObjectModel
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
                 }
-                m_collection = collection;
+                m_collection = collection!; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             }
 
             #region ICollection<T> Members
@@ -488,7 +484,7 @@ namespace System.Collections.ObjectModel
 
             #region IEnumerable Members
 
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            IEnumerator IEnumerable.GetEnumerator()
             {
                 return ((IEnumerable)m_collection).GetEnumerator();
             }
@@ -507,20 +503,19 @@ namespace System.Collections.ObjectModel
                 get { return false; }
             }
 
-            object ICollection.SyncRoot
+            object? ICollection.SyncRoot
             {
                 get
                 {
                     if (m_syncRoot == null)
                     {
-                        ICollection c = m_collection as ICollection;
-                        if (c != null)
+                        if (m_collection is ICollection c)
                         {
                             m_syncRoot = c.SyncRoot;
                         }
                         else
                         {
-                            System.Threading.Interlocked.CompareExchange<object>(ref m_syncRoot, new object(), null);
+                            Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                         }
                     }
                     return m_syncRoot;
@@ -535,7 +530,7 @@ namespace System.Collections.ObjectModel
         public sealed class ValueCollection : ICollection<TValue>, ICollection, IReadOnlyCollection<TValue>
         {
             private readonly ICollection<TValue> m_collection;
-            private object m_syncRoot;
+            private object? m_syncRoot;
 
             internal ValueCollection(ICollection<TValue> collection)
             {
@@ -543,7 +538,7 @@ namespace System.Collections.ObjectModel
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
                 }
-                m_collection = collection;
+                m_collection = collection!; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             }
 
             #region ICollection<T> Members
@@ -597,7 +592,7 @@ namespace System.Collections.ObjectModel
 
             #region IEnumerable Members
 
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            IEnumerator IEnumerable.GetEnumerator()
             {
                 return ((IEnumerable)m_collection).GetEnumerator();
             }
@@ -616,20 +611,19 @@ namespace System.Collections.ObjectModel
                 get { return false; }
             }
 
-            object ICollection.SyncRoot
+            object? ICollection.SyncRoot
             {
                 get
                 {
                     if (m_syncRoot == null)
                     {
-                        ICollection c = m_collection as ICollection;
-                        if (c != null)
+                        if (m_collection is ICollection c)
                         {
                             m_syncRoot = c.SyncRoot;
                         }
                         else
                         {
-                            System.Threading.Interlocked.CompareExchange<object>(ref m_syncRoot, new object(), null);
+                            Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                         }
                     }
                     return m_syncRoot;
@@ -653,7 +647,7 @@ namespace System.Collections.ObjectModel
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (array.Rank != 1)
+            if (array!.Rank != 1) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             }
@@ -674,15 +668,13 @@ namespace System.Collections.ObjectModel
             }
 
             // Easy out if the ICollection<T> implements the non-generic ICollection
-            ICollection nonGenericCollection = collection as ICollection;
-            if (nonGenericCollection != null)
+            if (collection is ICollection nonGenericCollection)
             {
                 nonGenericCollection.CopyTo(array, index);
                 return;
             }
 
-            T[] items = array as T[];
-            if (items != null)
+            if (array is T[] items)
             {
                 collection.CopyTo(items, index);
             }
@@ -705,7 +697,7 @@ namespace System.Collections.ObjectModel
                 // We can't cast array of value type to object[], so we don't support 
                 // widening of primitive types here.
                 //
-                object[] objects = array as object[];
+                object?[]? objects = array as object[];
                 if (objects == null)
                 {
                     ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
@@ -715,7 +707,7 @@ namespace System.Collections.ObjectModel
                 {
                     foreach (var item in collection)
                     {
-                        objects[index++] = item;
+                        objects![index++] = item; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                     }
                 }
                 catch (ArrayTypeMismatchException)

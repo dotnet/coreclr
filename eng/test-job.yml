@@ -2,10 +2,11 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
-  osGroupName: ''
-  priority: 0
-  crossgen: false
-  scenarios: ''
+  osIdentifier: ''
+  testGroup: ''
+  readyToRun: false
+  helixQueues: ''
+  crossrootfsDir: ''
 
 ### Test job
 
@@ -18,54 +19,76 @@ jobs:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
-    osGroupName: ${{ parameters.osGroupName }}
+    osIdentifier: ${{ parameters.osIdentifier }}
+    helixType: 'build/tests/'
 
     # Compute job name from template parameters
-    ${{ if eq(parameters.crossgen, 'false') }}:
-        name: ${{ format('testbuild_pri{0}_{1}_{2}_{3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
-        displayName: ${{ format('Test pri{0} {1} {2} {3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
-    ${{ if eq(parameters.crossgen, 'true') }}:
-        name: ${{ format('testbuild_pri{0}_r2r_{1}_{2}_{3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
-        displayName: ${{ format('Test Pri{0} R2R {1} {2} {3}', parameters.priority, parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
+    ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, false)) }}:
+      name: ${{ format('testbuild_pri0_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Test Pri0 {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, true)) }}:
+      name: ${{ format('testbuild_pri0_r2r_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Test Pri0 R2R {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    ${{ if and(ne(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, false)) }}:
+      name: ${{ format('testbuild_pri1_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Test Pri1 {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    ${{ if and(ne(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, true)) }}:
+      name: ${{ format('testbuild_pri1_r2r_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Test Pri1 R2R {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     variables:
-      # Map template parameters to command line arguments
-      - ${{ if eq(parameters.priority, '1') }}:
-        - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-          - name: priorityArg
-            value: 'priority1'
-        - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-          - name: priorityArg
-            value: '-priority=1'
-      - ${{ if eq(parameters.priority, '0') }}:
+    - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+      - group: DotNet-HelixApi-Access
+    # Map template parameters to command line arguments
+    - name: priorityArg
+      value: ''
+    - ${{ if ne(parameters.testGroup, 'innerloop') }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
         - name: priorityArg
-          value: ''
+          value: 'priority1'
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        - name: priorityArg
+          value: '-priority=1'
 
-      - ${{ if eq(parameters.crossgen, 'true') }}:
-        - name: crossgenArg
-          value: 'crossgen'
-      - ${{ if eq(parameters.crossgen, 'false') }}:
-        - name: crossgenArg
-          value: ''
-      - ${{ if ne(parameters.scenarios, '') }}:
-        - name: scenariosArg
-          value: ${{ format('/p:Scenarios=\"{0}\"', parameters.scenarios) }}
-      - ${{ if eq(parameters.scenarios, '') }}:
-        - name: scenariosArg
-          value: ''
+    - name: crossgenArg
+      value: ''
+    - ${{ if eq(parameters.readyToRun, true) }}:
+      - name: crossgenArg
+        value: 'crossgen'
 
-    # TODO: Enable crossgen in build-test.sh. It currently doesn't
-    # accept a crossgen arg, so disable the macos/linux crossgen test
-    # build jobs.
-    ${{ if and(eq(parameters.crossgen, 'true'), or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX'))) }}:
+    - name: clangArg
+      value: ''
+    # Our FreeBSD doesn't yet detect available clang versions, so pass it explicitly.
+    - ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+      - name: clangArg
+        value: '-clang6.0'
+    - ${{ if and(eq(parameters.osIdentifier, 'Linux_musl'), eq(parameters.archType, 'arm64')) }}:
+      - name: clangArg
+        value: '-clang5.0'
+
+    # FreeBSD test jobs are disabled since we don't have any FreeBSD helix queues.
+    ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
       condition: false
 
     # Test job depends on the corresponding build job
-    dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
+    dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Run all steps in the container.
     # Note that the containers are resources defined in azure-pipelines.yml
     containerName: ${{ parameters.containerName }}
+
+    # "Total" means building tests, waiting for a queue in Helix to become available, and running the tests.
+    # In case test-job.yml gets split into two separate jobs (e.g. build-test-job.yml and run-test.yml)
+    # this number should be adjusted accordingly.
+    ${{ if eq(parameters.testGroup, 'innerloop') }}:
+      timeoutInMinutes: 240
+    ${{ if eq(parameters.testGroup, 'outerloop') }}:
+      timeoutInMinutes: 360
+    ${{ if in(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'outerloop-gcstress0x3-gcstress0xc') }}:
+      timeoutInMinutes: 480
 
     steps:
 
@@ -76,59 +99,123 @@ jobs:
 
 
     # Download product build from pipeline artifact storage
-    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - task: DownloadPipelineArtifact@0
         displayName: Download product build pipeline artifact
         inputs:
-          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
+          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
           targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - task: DownloadPipelineArtifact@0
         displayName: Download product build pipeline artifact
         inputs:
-          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osGroupName, parameters.archType, parameters.buildConfig) }}
+          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
           targetPath: $(Build.SourcesDirectory)\bin\Product\Windows_NT.$(archType).$(buildConfigUpper)
 
-      
+
     # Build tests
-    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-        # TODO: enable crossgen in build-test.sh
-      - script: ./build-test.sh $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg)
         displayName: Build tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
         displayName: Build tests
 
 
-    # Prepare tests for helix
-    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-      - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/Tests/Core_Root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType) /p:UsePython=true
-        # TODO: remove UsePython argument once we've removed generated wrappers in helixprep.proj
-        displayName: Prepare test archives for Helix
-    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-        # TODO: remove UsePython argument once we've removed generated wrappers in helixprep.proj
-      - script: .\Tools\dotnetcli\dotnet.exe msbuild tests\helixprep.proj /p:CORE_ROOT=$(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfigUpper)\tests\core_root /p:__BuildType=$(buildConfig) /p:__BuildArch=$(archType) /p:UsePython=true
-        displayName: Prepare test archives for Helix
+    # Send tests to Helix
+    - template: /eng/send-to-helix-step.yml
+      parameters:
+        displayName: Send tests to Helix
+        buildConfig: ${{ parameters.buildConfig }}
+        archType: ${{ parameters.archType }}
+        osGroup: ${{ parameters.osGroup }}
 
+        ${{ if eq(variables['System.TeamProject'], 'public') }}:
+          creator: $(Build.DefinitionName)
 
-    # Send tests to helix
-    - ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-      - script: ./Tools/dotnetcli/dotnet msbuild tests/helixpublishwitharcade.proj /t:Test $(scenariosArg)
-        displayName: Send test jobs to Helix
-        env:
-          ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-            # Access token variable for internal project
-            HelixAccessToken: $(DotNet-HelixApi-Access)
-          ${{ if eq(variables['System.TeamProject'], 'public') }}:
-            # Access token variable for public project
-            HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
-    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: .\Tools\dotnetcli\dotnet msbuild tests\helixpublishwitharcade.proj /t:Test $(scenariosArg)
-        displayName: Send test jobs to Helix
-        env:
-          ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-            # Access token variable for internal project
-            HelixAccessToken: $(DotNet-HelixApi-Access)
-          ${{ if eq(variables['System.TeamProject'], 'public') }}:
-            # Access token variable for public project
-            HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
+        helixBuild: $(Build.BuildNumber)
+        helixSource: $(_HelixSource)
+
+        ${{ if eq(parameters.readyToRun, false) }}:
+          helixType: 'test/functional/cli/'
+        ${{ if eq(parameters.readyToRun, true) }}:
+          helixType: 'test/functional/r2r/cli/'
+
+        helixQueues: ${{ parameters.helixQueues }}
+
+        # This tests whether an array is empty
+        ${{ if eq(join('', parameters.helixQueues), '') }}:
+          condition: false
+
+        publishTestResults: true
+
+        ${{ if eq(parameters.testGroup, 'innerloop') }}:
+          # "PerCollection" is time needed for the "biggest" xUnit test collection to complete.
+          # In case xUnit test wrappers get refactored this number should also be adjusted.
+          timeoutPerTestCollectionInMinutes: 30
+          # "PerTest" corresponds to individual test running time (i.e. __TestTimeout).
+          timeoutPerTestInMinutes: 10
+        ${{ if eq(parameters.testGroup, 'outerloop') }}:
+          timeoutPerTestCollectionInMinutes: 60
+          timeoutPerTestInMinutes: 10
+        ${{ if in(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs') }}:
+          timeoutPerTestCollectionInMinutes: 120
+          timeoutPerTestInMinutes: 30
+        ${{ if in(parameters.testGroup, 'outerloop-gcstress0x3-gcstress0xc') }}:
+          timeoutPerTestCollectionInMinutes: 240
+          timeoutPerTestInMinutes: 60
+
+        runCrossGen: ${{ parameters.readyToRun }}
+
+        ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+          # Access token variable for internal project from the
+          # DotNet-HelixApi-Access variable group
+          helixAccessToken: $(HelixApiAccessToken)
+
+        ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
+          scenarios:
+          - normal
+          - no_tiered_compilation
+        ${{ if eq(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2') }}:
+          scenarios:
+          - jitminopts
+          - jitstress1
+          - jitstress1_tiered
+          - jitstress2
+          - jitstress2_tiered
+        ${{ if eq(parameters.testGroup, 'outerloop-jitstressregs') }}:
+          scenarios:
+          - jitstressregs1
+          - jitstressregs2
+          - jitstressregs3
+          - jitstressregs4
+          - jitstressregs8
+          - jitstressregs0x10
+          - jitstressregs0x80
+          - jitstressregs0x1000
+        ${{ if eq(parameters.testGroup, 'outerloop-jitstress2-jitstressregs') }}:
+          scenarios:
+          - jitstress2_jitstressregs1
+          - jitstress2_jitstressregs2
+          - jitstress2_jitstressregs3
+          - jitstress2_jitstressregs4
+          - jitstress2_jitstressregs8
+          - jitstress2_jitstressregs0x10
+          - jitstress2_jitstressregs0x80
+          - jitstress2_jitstressregs0x1000
+        ${{ if eq(parameters.testGroup, 'outerloop-gcstress0x3-gcstress0xc') }}:
+          scenarios:
+          - gcstress0x3
+          - gcstress0xc
+
+    # Publish Logs
+    - task: PublishPipelineArtifact@0
+      displayName: Publish Logs
+      inputs:
+        ${{ if eq(parameters.readyToRun, false) }}:
+          artifactName: ${{ format('testbuild_{0}_{1}_{2}_{3}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
+        ${{ if  eq(parameters.readyToRun, true) }}:
+          artifactName: ${{ format('testbuild_{0}_{1}_{2}_{3}_r2r_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
+        targetPath: $(Build.SourcesDirectory)/bin/Logs
+      continueOnError: true
+      condition: always()

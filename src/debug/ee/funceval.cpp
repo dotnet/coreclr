@@ -20,8 +20,6 @@
 #include "eeconfig.h" // This is here even for retail & free builds...
 #include "../../dlls/mscorrc/resource.h"
 
-
-#include "context.h"
 #include "vars.hpp"
 #include "threads.h"
 #include "appdomain.inl"
@@ -741,7 +739,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 
                 if (pAddr == NULL)
                 {
-                    COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+                    COMPlusThrow(kArgumentNullException);
                 }
             }
 
@@ -963,7 +961,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 
                     if (o1 == NULL)
                     {
-                        COMPlusThrow(kArgumentException, W("ArgumentNull_Obj"));
+                        COMPlusThrow(kArgumentNullException);
                     }
 
 
@@ -982,7 +980,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
                     if (size <= sizeof(ARG_SLOT))
                     {
                         // Its not ByRef, so we need to copy the value class onto the ARG_SLOT.
-                        CopyValueClassUnchecked(ArgSlotEndianessFixup(pArgument, sizeof(LPVOID)), pData, o1->GetMethodTable());
+                        CopyValueClass(ArgSlotEndianessFixup(pArgument, sizeof(LPVOID)), pData, o1->GetMethodTable());
                     }
                     else
                     {
@@ -999,7 +997,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
                     OBJECTREF* op1 = (OBJECTREF*)ArgSlotToPtr(*pArgument);
                     if (op1 == NULL)
                     {
-                        COMPlusThrow(kArgumentException, W("ArgumentNull_Obj"));
+                        COMPlusThrow(kArgumentNullException);
                     }
                     OBJECTREF o1 = *op1;
 
@@ -1020,7 +1018,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 
                     if (o1 == NULL)
                     {
-                        COMPlusThrow(kArgumentException, W("ArgumentNull_Obj"));
+                        COMPlusThrow(kArgumentNullException);
                     }
 
                     _ASSERTE(o1->GetMethodTable()->IsValueType());
@@ -1665,7 +1663,7 @@ void BoxFuncEvalThisParameter(DebuggerEval *pDE,
 
                         if (pAddr == NULL)
                         {
-                            COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+                            COMPlusThrow(kArgumentNullException);
                         }
                     }
 
@@ -1696,7 +1694,7 @@ void BoxFuncEvalThisParameter(DebuggerEval *pDE,
                 *pObjectRefArg = typeHandle.GetMethodTable()->Box(pAddr);
                 if (Nullable::IsNullableType(typeHandle.GetMethodTable()) && (*pObjectRefArg == NULL))
                 {
-                    COMPlusThrow(kArgumentNullException, W("ArgumentNull_Obj"));
+                    COMPlusThrow(kArgumentNullException);
                 }
                 GCPROTECT_END();
 
@@ -1786,7 +1784,7 @@ void GatherFuncEvalArgInfo(DebuggerEval *pDE,
         //
         bool fNeedBoxOrUnbox = ((argSigType == ELEMENT_TYPE_CLASS) && (pFEAD->argElementType == ELEMENT_TYPE_VALUETYPE)) ||
             (((argSigType == ELEMENT_TYPE_VALUETYPE) && ((pFEAD->argElementType == ELEMENT_TYPE_CLASS) || (pFEAD->argElementType == ELEMENT_TYPE_OBJECT))) ||
-            // This is when method signature is expecting a BYREF ValueType, yet we recieve the boxed valuetype's handle.
+            // This is when method signature is expecting a BYREF ValueType, yet we receive the boxed valuetype's handle.
             (pFEAD->argElementType == ELEMENT_TYPE_CLASS && argSigType == ELEMENT_TYPE_BYREF && byrefArgSigType == ELEMENT_TYPE_VALUETYPE));
 
         pFEArgInfo[currArgIndex].argSigType = argSigType;
@@ -1892,7 +1890,7 @@ void BoxFuncEvalArguments(DebuggerEval *pDE,
 
                 if (pAddr == NULL)
                 {
-                    COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+                    COMPlusThrow(kArgumentNullException);
                 }
             }
 
@@ -1986,7 +1984,7 @@ void GatherFuncEvalMethodInfo(DebuggerEval *pDE,
         //
         if ((argData[0].argHome.kind == RAK_NONE) && (argData[0].argAddr == NULL))
         {
-            COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+            COMPlusThrow(kArgumentNullException);
         }
 
         //
@@ -2058,7 +2056,7 @@ void GatherFuncEvalMethodInfo(DebuggerEval *pDE,
         //
         if (objRef == NULL)
         {
-            COMPlusThrow(kArgumentNullException, W("ArgumentNull_Obj"));
+            COMPlusThrow(kArgumentNullException);
         }
 
         //
@@ -2228,7 +2226,7 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
 
                 if (pAddr == NULL)
                 {
-                    COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
+                    COMPlusThrow(kArgumentNullException);
                 }
 
                 *pDest = *pAddr;
@@ -2776,16 +2774,14 @@ void UnpackFuncEvalResult(DebuggerEval *pDE,
             // box the object
             CopyValueClass(retObject->GetData(),
                            pRetBuff,
-                           RetValueType.GetMethodTable(),
-                           retObject->GetAppDomain());
+                           RetValueType.GetMethodTable());
         }
         else
         {
             // box the primitive returned, retObject is a true nullable for nullabes, It will be Normalized later
             CopyValueClass(retObject->GetData(),
                            pDE->m_result,
-                           RetValueType.GetMethodTable(),
-                           retObject->GetAppDomain());
+                           RetValueType.GetMethodTable());
         }
 
         pDE->m_result[0] = ObjToArgSlot(retObject);
@@ -3436,8 +3432,6 @@ static void GCProtectArgsAndDoNormalFuncEval(DebuggerEval *pDE,
     // invalid due to an AD unload.
     // All normal func evals should have an AppDomain specified.
     //
-    _ASSERTE( pDE->m_appDomainId.m_dwId != 0 ); 
-    ENTER_DOMAIN_ID( pDE->m_appDomainId );
 
     // Wrap everything in a EX_TRY so we catch any exceptions that could be thrown.
     // Note that we don't let any thrown exceptions cross the AppDomain boundary because we don't 
@@ -3466,9 +3460,6 @@ static void GCProtectArgsAndDoNormalFuncEval(DebuggerEval *pDE,
     // the funceval.  If a ThreadAbort occurred other than for a funcEval abort, we'll re-throw it manually.
     EX_END_CATCH(SwallowAllExceptions);
 
-    // Restore context
-    END_DOMAIN_TRANSITION;
-
     protectValueClassFrame.Pop();
 
     CleanUpTemporaryVariables(protectValueClassFrame.GetValueClassInfoList());
@@ -3492,14 +3483,6 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
         return;
     }
     
-    // The method may be in a different AD than the thread.
-    // The RS already verified that all of the arguments are in the same appdomain as the function
-    // (because we can't verify it here).
-    // Note that this is exception safe, so we are guarenteed to be in the correct AppDomain when
-    // we leave this method.
-    // Before this, we can't safely use the DebuggerModule* since the domain may have been unloaded.
-    ENTER_DOMAIN_ID( pDE->m_appDomainId );
-
     OBJECTREF newObj = NULL;
     GCPROTECT_BEGIN(newObj);
 
@@ -3673,12 +3656,6 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
     EX_END_CATCH(SwallowAllExceptions);
 
     GCPROTECT_END();
-
-    //
-    // Restore context
-    //
-    END_DOMAIN_TRANSITION;
-
 }
 
 //
@@ -3696,7 +3673,6 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
         MODE_COOPERATIVE;
         GC_TRIGGERS;
         THROWS;
-        SO_NOT_MAINLINE;
 
         PRECONDITION(CheckPointer(pDE));
     }

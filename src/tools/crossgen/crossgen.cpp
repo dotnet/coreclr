@@ -114,8 +114,7 @@ void PrintUsageHelper()
        W("                           response file\n")
        W("    /in <file>           - Specifies input filename (optional)\n")
        W("    /out <file>          - Specifies output filename (optional)\n")
-       W("    /Trusted_Platform_Assemblies <path[") PATH_SEPARATOR_STR_W W("path]>\n")
-       W("                         - List of assemblies treated as trusted platform\n")
+       W("    /r <file>            - Specifies a trusted platform assembly reference\n")
        W("                         - Cannot be used with Platform_Assemblies_Paths\n")
        W("    /Platform_Resource_Roots <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing localized assembly directories\n")
@@ -152,6 +151,9 @@ void PrintUsageHelper()
 #ifdef FEATURE_READYTORUN_COMPILER
        W("    /ReadyToRun          - Generate images resilient to the runtime and\n")
        W("                           dependency versions\n")
+       W("    /LargeVersionBubble  - Generate image with a version bubble including all\n")
+       W("                           input assemblies\n")
+
 #endif
 #ifdef FEATURE_WINMD_RESILIENT
        W(" WinMD Parameters\n")
@@ -297,7 +299,7 @@ bool ComputeMscorlibPathFromTrustedPlatformAssemblies(SString& pwzMscorlibPath, 
 // Given a path terminated with "\\" and a search mask, this function will add
 // the enumerated files, corresponding to the search mask, from the path into
 // the refTPAList.
-void PopulateTPAList(SString path, LPCWSTR pwszMask, SString &refTPAList, bool fCompilingMscorlib, bool fCreatePDB)
+void PopulateTPAList(SString path, LPCWSTR pwszMask, SString &refTPAList, bool fCreatePDB)
 {
     _ASSERTE(path.GetCount() > 0);
     ClrDirectoryEnumerator folderEnumerator(path.GetUnicode(), pwszMask);
@@ -339,7 +341,7 @@ void PopulateTPAList(SString path, LPCWSTR pwszMask, SString &refTPAList, bool f
 
 // Given a semi-colon delimited set of absolute folder paths (pwzPlatformAssembliesPaths), this function
 // will enumerate all EXE/DLL modules in those folders and add them to the TPAList buffer (refTPAList).
-void ComputeTPAListFromPlatformAssembliesPath(LPCWSTR pwzPlatformAssembliesPaths, SString &refTPAList, bool fCompilingMscorlib, bool fCreatePDB)
+void ComputeTPAListFromPlatformAssembliesPath(LPCWSTR pwzPlatformAssembliesPaths, SString &refTPAList, bool fCreatePDB)
 {
     // We should have a valid pointer to the paths
     _ASSERTE(pwzPlatformAssembliesPaths != NULL);
@@ -382,8 +384,8 @@ void ComputeTPAListFromPlatformAssembliesPath(LPCWSTR pwzPlatformAssembliesPaths
                 // Enumerate the EXE/DLL modules within this path and add them to the TPAList
                 EX_TRY
                 {
-                    PopulateTPAList(qualifiedPath, W("*.exe"), refTPAList, fCompilingMscorlib, fCreatePDB);
-                    PopulateTPAList(qualifiedPath, W("*.dll"), refTPAList, fCompilingMscorlib, fCreatePDB);
+                    PopulateTPAList(qualifiedPath, W("*.exe"), refTPAList, fCreatePDB);
+                    PopulateTPAList(qualifiedPath, W("*.dll"), refTPAList, fCreatePDB);
                 }
                 EX_CATCH
                 {
@@ -422,7 +424,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     LPWSTR pwzSearchPathForManagedPDB = NULL;
     LPCWSTR pwzOutputFilename = NULL;
     LPCWSTR pwzPublicKeys = nullptr;
-    bool fExplicitReadyToRunSwitch = false;
+    bool fLargeVersionBubbleSwitch = false;
 
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     LPCWSTR pwszCLRJITPath = nullptr;
@@ -444,6 +446,8 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     ConsoleArgs consoleArgs;
     int argc2;
     LPWSTR *argv2;
+
+    SString ssTrustedPlatformAssemblies;
 
     if (argc == 0)
     {
@@ -514,11 +518,15 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         else if (MatchParameter(*argv, W("ReadyToRun")))
         {
             dwFlags |= NGENWORKER_FLAGS_READYTORUN;
-            fExplicitReadyToRunSwitch = true;
         }
         else if (MatchParameter(*argv, W("FragileNonVersionable")))
         {
             dwFlags &= ~NGENWORKER_FLAGS_READYTORUN;
+        }
+        else if (MatchParameter(*argv, W("LargeVersionBubble")))
+        {
+            dwFlags |= NGENWORKER_FLAGS_LARGEVERSIONBUBBLE;
+            fLargeVersionBubbleSwitch = true;
         }
 #endif
         else if (MatchParameter(*argv, W("NoMetaData")))
@@ -529,7 +537,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         {
             if (pwzOutputFilename != NULL)
             {
-                Output(W("Cannot specify multiple output files.\n"));
+                OutputErr(W("Cannot specify multiple output files.\n"));
                 exit(INVALID_ARGUMENTS);
             }
             pwzOutputFilename = argv[1];
@@ -540,16 +548,21 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         {
             if (pwzFilename != NULL)
             {
-                Output(W("Cannot specify multiple input files.\n"));
+                OutputErr(W("Cannot specify multiple input files.\n"));
                 exit(INVALID_ARGUMENTS);
             }
             pwzFilename = argv[1];
             argv++;
             argc--;
         }
-        else if (MatchParameter(*argv, W("Trusted_Platform_Assemblies")) && (argc > 1))
+        else if (MatchParameter(*argv, W("r")) && (argc > 1))
         {
-            pwzTrustedPlatformAssemblies = argv[1];
+            if (!ssTrustedPlatformAssemblies.IsEmpty())
+            {
+                // Add the path delimiter if we already have entries in the TPAList
+                ssTrustedPlatformAssemblies.Append(PATH_SEPARATOR_CHAR_W);
+            }
+            ssTrustedPlatformAssemblies.Append(argv[1]);
 
             // skip path list
             argv++;
@@ -625,7 +638,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 
             if (argc == 0)
             {
-                Output(W("The /CreatePDB switch requires <directory to store PDB> and <assembly name>.\n"));
+                OutputErr(W("The /CreatePDB switch requires <directory to store PDB> and <assembly name>.\n"));
                 exit(FAILURE_RESULT);
             }
 
@@ -639,7 +652,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 
                 if (argc == 0)
                 {
-                    Output(W("The /CreatePDB switch requires <directory to store PDB> and <assembly name>.\n"));
+                    OutputErr(W("The /CreatePDB switch requires <directory to store PDB> and <assembly name>.\n"));
                     exit(FAILURE_RESULT);
                 }
 
@@ -693,7 +706,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 
             if (argc == 0)
             {
-                Output(W("The /CreatePerfMap switch requires <directory to store perfmap> and <assembly name>.\n"));
+                OutputErr(W("The /CreatePerfMap switch requires <directory to store perfmap> and <assembly name>.\n"));
                 exit(FAILURE_RESULT);
             }
 
@@ -707,12 +720,12 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         {
             if (argc == 1)
             {
-#if !defined(FEATURE_PAL)
-                // When not running on Mac, which can have forward-slash pathnames, we know
+#if !defined(PLATFORM_UNIX)
+                // When not running on Mac or Linux, which can have forward-slash pathnames, we know
                 // a command switch here means an invalid argument.
                 if (*argv[0] == W('-') || *argv[0] == W('/'))
                 {
-                    Outputf(W("Invalid parameter: %s\n"), *argv);
+                    OutputErrf(W("Invalid parameter: %s\n"), *argv);
                     exit(INVALID_ARGUMENTS);
                 }
 #endif //!FEATURE_PAL
@@ -724,7 +737,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 
                 if (pwzFilename != NULL)
                 {
-                    Output(W("Cannot use /In and specify an input file as the last argument.\n"));
+                    OutputErr(W("Cannot use /In and specify an input file as the last argument.\n"));
                     exit(INVALID_ARGUMENTS);
                 }
                 
@@ -733,7 +746,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             }
             else
             {
-                Outputf(W("Invalid parameter: %s\n"), *argv);
+                OutputErrf(W("Invalid parameter: %s\n"), *argv);
                 exit(INVALID_ARGUMENTS);
             }
         }
@@ -744,26 +757,26 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 
     if (pwzFilename == NULL)
     {
-        Output(W("You must specify an assembly to compile\n"));
+        OutputErr(W("You must specify an assembly to compile\n"));
         exit(INVALID_ARGUMENTS);
     }
 
     if (fCreatePDB && (dwFlags != 0))
     {
-        Output(W("The /CreatePDB switch cannot be used with other switches, except /lines and the various path switches.\n"));
+        OutputErr(W("The /CreatePDB switch cannot be used with other switches, except /lines and the various path switches.\n"));
         exit(FAILURE_RESULT);
     }
 
     if (pwzAppNiPaths != nullptr && !fCreatePDB)
     {
-        Output(W("The /App_Ni_Paths switch can only be used with the /CreatePDB switch.\n"));
+        OutputErr(W("The /App_Ni_Paths switch can only be used with the /CreatePDB switch.\n"));
         exit(FAILURE_RESULT);
     }
 
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     if (pwszCLRJITPath != nullptr && fCreatePDB)
     {
-        Output(W("The /JITPath switch can not be used with the /CreatePDB switch.\n"));
+        OutputErr(W("The /JITPath switch can not be used with the /CreatePDB switch.\n"));
         exit(FAILURE_RESULT);
     }
 #endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
@@ -771,14 +784,19 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 #if !defined(NO_NGENPDB)
     if (pwzDiasymreaderPath != nullptr && !fCreatePDB)
     {
-        Output(W("The /DiasymreaderPath switch can only be used with the /CreatePDB switch.\n"));
+        OutputErr(W("The /DiasymreaderPath switch can only be used with the /CreatePDB switch.\n"));
         exit(FAILURE_RESULT);
     }
 #endif // !defined(NO_NGENPDB)
 
+    if (!ssTrustedPlatformAssemblies.IsEmpty())
+    {
+        pwzTrustedPlatformAssemblies = (WCHAR *)ssTrustedPlatformAssemblies.GetUnicode();
+    }
+
     if ((pwzTrustedPlatformAssemblies != nullptr) && (pwzPlatformAssembliesPaths != nullptr))
     {
-        Output(W("The /Trusted_Platform_Assemblies and /Platform_Assemblies_Paths switches cannot be both specified.\n"));
+        OutputErr(W("The /r and /Platform_Assemblies_Paths switches cannot be both specified.\n"));
         exit(FAILURE_RESULT);
     }
 
@@ -802,7 +820,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         }
         if (!isWindowsDotWinmd)
         {
-            Output(W("The /NoMetaData switch can only be used with Windows.winmd.\n"));
+            OutputErr(W("The /NoMetaData switch can only be used with Windows.winmd.\n"));
             exit(FAILURE_RESULT);
         }
     }
@@ -831,15 +849,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         // To avoid this issue, put the input file as the first item in TPA.
         ssTPAList.Append(pwzFilename);
     }
-    
-    // Are we compiling mscorlib.dll? 
-    bool fCompilingMscorlib = StringEndsWith((LPWSTR)pwzFilename, CoreLibName_IL_W);
-
-// Disable fragile NGen when compiling Mscorlib for ARM.
-#if !(defined(_TARGET_ARM_) || defined(_TARGET_ARM64_))
-    if (fCompilingMscorlib && !fExplicitReadyToRunSwitch)
-        dwFlags &= ~NGENWORKER_FLAGS_READYTORUN;
-#endif // !(_TARGET_ARM_ || _TARGET_ARM64_)
 
     if(pwzPlatformAssembliesPaths != nullptr)
     {
@@ -847,7 +856,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         _ASSERTE(pwzTrustedPlatformAssemblies == nullptr);
         
         // Formulate the TPAList from Platform_Assemblies_Paths
-        ComputeTPAListFromPlatformAssembliesPath(pwzPlatformAssembliesPaths, ssTPAList, fCompilingMscorlib, fCreatePDB);
+        ComputeTPAListFromPlatformAssembliesPath(pwzPlatformAssembliesPaths, ssTPAList, fCreatePDB);
         pwzTrustedPlatformAssemblies = (WCHAR *)ssTPAList.GetUnicode();
         pwzPlatformAssembliesPaths = NULL;
     }

@@ -597,7 +597,6 @@ void DataImage::StoreRvaInfo(FieldDesc * pFD,
 int __cdecl DataImage::rvaInfoVectorEntryCmp(const void* a_, const void* b_)
 {
     LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;   
     DataImage::RvaInfoStructure *a = (DataImage::RvaInfoStructure *)a_;
     DataImage::RvaInfoStructure *b = (DataImage::RvaInfoStructure *)b_;
     int rvaComparisonResult = (int)(a->rva - b->rva);
@@ -629,7 +628,7 @@ void DataImage::SaveRvaStructure()
         // rvaInfo->size are monotonically decreasing if rva are the same.
         _ASSERTE(previousRvaInfo==NULL ||
                  previousRvaInfo->rva < rvaInfo->rva ||
-                 previousRvaInfo->rva == rvaInfo->rva && previousRvaInfo->size >= rvaInfo->size
+                 ((previousRvaInfo->rva == rvaInfo->rva) && (previousRvaInfo->size >= rvaInfo->size))
                 );
 
         if (previousRvaInfo==NULL || previousRvaInfo->rva != rvaInfo->rva) {

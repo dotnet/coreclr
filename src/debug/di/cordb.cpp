@@ -87,9 +87,6 @@ HINSTANCE       g_hInst;                // Instance handle to this piece of code
 // This was used by the Mix07 release of Silverlight, but it didn't properly support versioning
 // and we no longer support it's debugger protocol so we require callers to use 
 // code:CoreCLRCreateCordbObject instead.
-// 
-// This is also still used on Mac - multi-instance debugging and debugger
-// versioning isn't really implemented there yet.  This probably needs to change.
 //*****************************************************************************
 STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
 {
@@ -112,24 +109,28 @@ STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
         return E_INVALIDARG;
     }
 
-    return Cordb::CreateObject((CorDebugInterfaceVersion)iDebuggerVersion, IID_ICorDebug, (void **) ppCordb);
+    return Cordb::CreateObject(
+        (CorDebugInterfaceVersion)iDebuggerVersion, ProcessDescriptor::UNINITIALIZED_PID, /*lpApplicationGroupId*/ NULL, IID_ICorDebug, (void **) ppCordb);
 }
 
 //
 // Public API.  
-// Telesto Creation path - only way to debug multi-instance.  
-// This supercedes code:CreateCordbObject
+// Telesto Creation path with Mac sandbox support - only way to debug a sandboxed application on Mac.  
+// This supercedes code:CoreCLRCreateCordbObject
 // 
 // Arguments:
 //    iDebuggerVersion - version of ICorDebug interfaces that the debugger is requesting
 //    pid - pid of debuggee that we're attaching to.
+//    lpApplicationGroupId - A string representing the application group ID of a sandboxed
+//                           process running in Mac. Pass NULL if the process is not 
+//                           running in a sandbox and other platforms.
 //    hmodTargetCLR - module handle to clr in target pid that we're attaching to.
 //    ppCordb - (out) the resulting ICorDebug object.
 //
 // Notes:
 //    It's inconsistent that this takes a (handle, pid) but hands back an ICorDebug instead of an ICorDebugProcess.
 //    Callers will need to call *ppCordb->DebugActiveProcess(pid).
-STDAPI CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTargetCLR, IUnknown ** ppCordb)
+STDAPI DLLEXPORT CoreCLRCreateCordbObjectEx(int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, HMODULE hmodTargetCLR, IUnknown ** ppCordb)
 {
     if (ppCordb == NULL)
     {
@@ -145,10 +146,8 @@ STDAPI CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTar
     // Create the ICorDebug object
     // 
     RSExtSmartPtr<ICorDebug> pCordb;
-    Cordb::CreateObject((CorDebugInterfaceVersion)iDebuggerVersion, IID_ICorDebug, (void **) &pCordb);
+    Cordb::CreateObject((CorDebugInterfaceVersion)iDebuggerVersion, pid, lpApplicationGroupId, IID_ICorDebug, (void **) &pCordb);
 
-    // @dbgtodo - we should stash the pid and validate that it's the same pid we're attaching to in ICorDebug::DebugActiveProcess.
-    
     //
     // Associate it with the target instance
     //
@@ -165,6 +164,25 @@ STDAPI CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTar
 
     // Implicit release of pUnk, pCordb
     return hr;
+}
+
+//
+// Public API.  
+// Telesto Creation path - only way to debug multi-instance.  
+// This supercedes code:CreateCordbObject
+// 
+// Arguments:
+//    iDebuggerVersion - version of ICorDebug interfaces that the debugger is requesting
+//    pid - pid of debuggee that we're attaching to.
+//    hmodTargetCLR - module handle to clr in target pid that we're attaching to.
+//    ppCordb - (out) the resulting ICorDebug object.
+//
+// Notes:
+//    It's inconsistent that this takes a (handle, pid) but hands back an ICorDebug instead of an ICorDebugProcess.
+//    Callers will need to call *ppCordb->DebugActiveProcess(pid).
+STDAPI DLLEXPORT CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTargetCLR, IUnknown ** ppCordb)
+{
+    return CoreCLRCreateCordbObjectEx(iDebuggerVersion, pid, NULL, hmodTargetCLR, ppCordb);
 }
 
 
@@ -291,7 +309,7 @@ const GUID IID_IDebugRemoteCorDebug = {0x83C91210, 0xA34F, 0x427c, {0xB3, 0x5F, 
 // Called by COM to get a class factory for a given CLSID.  If it is one we
 // support, instantiate a class factory object and prepare for create instance.
 //*****************************************************************************
-STDAPI DllGetClassObjectInternal(               // Return code.
+STDAPI DLLEXPORT DllGetClassObjectInternal(               // Return code.
     REFCLSID    rclsid,                 // The class to desired.
     REFIID      riid,                   // Interface wanted on class factory.
     LPVOID FAR  *ppv)                   // Return interface pointer here.
@@ -351,7 +369,7 @@ STDAPI DllGetClassObjectInternal(               // Return code.
 // (we went through the shim). CoreCLR doesn't have a shim and we go back to the COM model so we re-expose
 // DllGetClassObject to make that work.
 
-STDAPI DllGetClassObject(               // Return code.
+STDAPI DLLEXPORT DllGetClassObject(               // Return code.
     REFCLSID    rclsid,                 // The class to desired.
     REFIID      riid,                   // Interface wanted on class factory.
     LPVOID FAR  *ppv)                   // Return interface pointer here.

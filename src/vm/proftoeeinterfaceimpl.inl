@@ -50,7 +50,6 @@ inline BOOL AreCallbackStateFlagsSet(DWORD dwFlags)
         MODE_ANY;
         CANNOT_TAKE_LOCK;
         EE_THREAD_NOT_REQUIRED;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -179,14 +178,14 @@ inline ProfToEEInterfaceImpl::ProfToEEInterfaceImpl()
 };
 
 
-inline BOOL IsClassOfMethodTableInited(MethodTable * pMethodTable, AppDomain * pAppDomain)
+inline BOOL IsClassOfMethodTableInited(MethodTable * pMethodTable)
 {
     LIMITED_METHOD_CONTRACT;
 
     return (pMethodTable->IsRestored() &&
         (pMethodTable->GetModuleForStatics() != NULL) &&
-        (pMethodTable->GetDomainLocalModule(pAppDomain) != NULL) &&
-        pMethodTable->IsClassInited(pAppDomain));
+        (pMethodTable->GetDomainLocalModule() != NULL) &&
+        pMethodTable->IsClassInited());
 }
 
 

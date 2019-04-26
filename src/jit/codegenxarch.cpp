@@ -215,9 +215,8 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
         getEmitter()->emitIns_S_R(INS_cmp, EA_PTRSIZE, regGSCheck, compiler->lvaGSSecurityCookie, 0);
     }
 
-    BasicBlock*  gsCheckBlk = genCreateTempLabel();
-    emitJumpKind jmpEqual   = genJumpKindForOper(GT_EQ, CK_SIGNED);
-    inst_JMP(jmpEqual, gsCheckBlk);
+    BasicBlock* gsCheckBlk = genCreateTempLabel();
+    inst_JMP(EJ_je, gsCheckBlk);
     genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, EA_UNKNOWN);
     genDefineTempLabel(gsCheckBlk);
 
@@ -420,7 +419,13 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
     {
         if (genDataIndirAddrCanBeEncodedAsPCRelOffset(imm))
         {
-            getEmitter()->emitIns_R_AI(INS_lea, EA_PTR_DSP_RELOC, reg, imm);
+            emitAttr newSize = EA_PTR_DSP_RELOC;
+            if (EA_IS_BYREF(size))
+            {
+                newSize = EA_SET_FLG(newSize, EA_BYREF_FLG);
+            }
+
+            getEmitter()->emitIns_R_AI(INS_lea, newSize, reg, imm);
         }
         else
         {
@@ -449,7 +454,14 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
 
             if (con->ImmedValNeedsReloc(compiler))
             {
-                instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, targetReg, cnsVal);
+                emitAttr size = EA_HANDLE_CNS_RELOC;
+
+                if (targetType == TYP_BYREF)
+                {
+                    size = EA_SET_FLG(size, EA_BYREF_FLG);
+                }
+
+                instGen_Set_Reg_To_Imm(size, targetReg, cnsVal);
                 regSet.verifyRegUsed(targetReg);
             }
             else
@@ -1121,9 +1133,9 @@ void CodeGen::genStructReturn(GenTree* treeNode)
         unsigned regCount = retTypeDesc.GetReturnRegCount();
         assert(regCount == MAX_RET_REG_COUNT);
 
-        if (varTypeIsEnregisterableStruct(op1))
+        if (varTypeIsEnregisterable(op1))
         {
-            // Right now the only enregistrable structs supported are SIMD vector types.
+            // Right now the only enregisterable structs supported are SIMD vector types.
             assert(varTypeIsSIMD(op1));
             assert(op1->isUsedFromReg());
 
@@ -1372,108 +1384,88 @@ void CodeGen::genCodeForBT(GenTreeOp* bt)
     getEmitter()->emitIns_R_R(INS_bt, emitTypeSize(type), op2->gtRegNum, op1->gtRegNum);
 }
 
-//------------------------------------------------------------------------
-// genCodeForJumpTrue: Generates code for jmpTrue statement.
-//
-// Arguments:
-//    tree - The GT_JTRUE tree node.
-//
-// Return Value:
-//    None
-//
-void CodeGen::genCodeForJumpTrue(GenTree* tree)
+// clang-format off
+const CodeGen::GenConditionDesc CodeGen::GenConditionDesc::map[32]
 {
-    GenTree* cmp = tree->gtOp.gtOp1;
+    { },        // NONE
+    { },        // 1
+    { EJ_jl  }, // SLT
+    { EJ_jle }, // SLE
+    { EJ_jge }, // SGE
+    { EJ_jg  }, // SGT
+    { EJ_js  }, // S
+    { EJ_jns }, // NS
 
-    assert(cmp->OperIsCompare());
-    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
+    { EJ_je  }, // EQ
+    { EJ_jne }, // NE
+    { EJ_jb  }, // ULT
+    { EJ_jbe }, // ULE
+    { EJ_jae }, // UGE
+    { EJ_ja  }, // UGT
+    { EJ_jb  }, // C
+    { EJ_jae }, // NC
+                        
+    // Floating point compare instructions (UCOMISS, UCOMISD etc.) set the condition flags as follows:
+    //    ZF PF CF  Meaning   
+    //   ---------------------
+    //    1  1  1   Unordered 
+    //    0  0  0   Greater   
+    //    0  0  1   Less Than 
+    //    1  0  0   Equal     
+    //
+    // Since ZF and CF are also set when the result is unordered, in some cases we first need to check
+    // PF before checking ZF/CF. In general, ordered conditions will result in a jump only if PF is not
+    // set and unordered conditions will result in a jump only if PF is set.
 
-#if !defined(_TARGET_64BIT_)
-    // Long-typed compares should have been handled by Lowering::LowerCompare.
-    assert(!varTypeIsLong(cmp->gtGetOp1()));
-#endif
-
-    // Get the "kind" and type of the comparison.  Note that whether it is an unsigned cmp
-    // is governed by a flag NOT by the inherent type of the node
-    // TODO-XArch-CQ: Check if we can use the currently set flags.
-    emitJumpKind jumpKind[2];
-    bool         branchToTrueLabel[2];
-    genJumpKindsForTree(cmp, jumpKind, branchToTrueLabel);
-
-    BasicBlock* skipLabel = nullptr;
-    if (jumpKind[0] != EJ_NONE)
-    {
-        BasicBlock* jmpTarget;
-        if (branchToTrueLabel[0])
-        {
-            jmpTarget = compiler->compCurBB->bbJumpDest;
-        }
-        else
-        {
-            // This case arises only for ordered GT_EQ right now
-            assert((cmp->gtOper == GT_EQ) && ((cmp->gtFlags & GTF_RELOP_NAN_UN) == 0));
-            skipLabel = genCreateTempLabel();
-            jmpTarget = skipLabel;
-        }
-
-        inst_JMP(jumpKind[0], jmpTarget);
-    }
-
-    if (jumpKind[1] != EJ_NONE)
-    {
-        // the second conditional branch always has to be to the true label
-        assert(branchToTrueLabel[1]);
-        inst_JMP(jumpKind[1], compiler->compCurBB->bbJumpDest);
-    }
-
-    if (skipLabel != nullptr)
-    {
-        genDefineTempLabel(skipLabel);
-    }
-}
+    { EJ_jnp, GT_AND, EJ_je  }, // FEQ
+    { EJ_jne                 }, // FNE
+    { EJ_jnp, GT_AND, EJ_jb  }, // FLT
+    { EJ_jnp, GT_AND, EJ_jbe }, // FLE
+    { EJ_jae                 }, // FGE
+    { EJ_ja                  }, // FGT
+    { EJ_jo                  }, // O
+    { EJ_jno                 }, // NO
+                        
+    { EJ_je                }, // FEQU
+    { EJ_jp, GT_OR, EJ_jne }, // FNEU
+    { EJ_jb                }, // FLTU
+    { EJ_jbe               }, // FLEU
+    { EJ_jp, GT_OR, EJ_jae }, // FGEU
+    { EJ_jp, GT_OR, EJ_ja  }, // FGTU
+    { EJ_jp                }, // P
+    { EJ_jnp               }, // NP
+};
+// clang-format on
 
 //------------------------------------------------------------------------
-// genCodeForJcc: Produce code for a GT_JCC node.
+// inst_SETCC: Generate code to set a register to 0 or 1 based on a condition.
 //
 // Arguments:
-//    tree - the node
+//   condition - The condition
+//   type      - The type of the value to be produced
+//   dstReg    - The destination register to be set to 1 or 0
 //
-void CodeGen::genCodeForJcc(GenTreeCC* tree)
+void CodeGen::inst_SETCC(GenCondition condition, var_types type, regNumber dstReg)
 {
-    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
-
-    CompareKind  compareKind = ((tree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-    emitJumpKind jumpKind    = genJumpKindForOper(tree->gtCondition, compareKind);
-
-    inst_JMP(jumpKind, compiler->compCurBB->bbJumpDest);
-}
-
-//------------------------------------------------------------------------
-// genCodeForSetcc: Generates a setcc instruction for a GT_SETCC node.
-//
-// Arguments:
-//    tree - the GT_SETCC node
-//
-// Assumptions:
-//    The condition represents an integer comparison. This code doesn't
-//    have the necessary logic to deal with floating point comparisons,
-//    in fact it doesn't even know if the comparison is integer or floating
-//    point because SETCC nodes do not have any operands.
-//
-
-void CodeGen::genCodeForSetcc(GenTreeCC* setcc)
-{
-    regNumber    dstReg      = setcc->gtRegNum;
-    CompareKind  compareKind = setcc->IsUnsigned() ? CK_UNSIGNED : CK_SIGNED;
-    emitJumpKind jumpKind    = genJumpKindForOper(setcc->gtCondition, compareKind);
-
+    assert(varTypeIsIntegral(type));
     assert(genIsValidIntReg(dstReg) && isByteReg(dstReg));
-    // Make sure nobody is setting GTF_RELOP_NAN_UN on this node as it is ignored.
-    assert((setcc->gtFlags & GTF_RELOP_NAN_UN) == 0);
 
-    inst_SET(jumpKind, dstReg);
-    inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), dstReg, dstReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
-    genProduceReg(setcc);
+    const GenConditionDesc& desc = GenConditionDesc::Get(condition);
+
+    inst_SET(desc.jumpKind1, dstReg);
+
+    if (desc.oper != GT_NONE)
+    {
+        BasicBlock* labelNext = genCreateTempLabel();
+        inst_JMP((desc.oper == GT_OR) ? desc.jumpKind1 : emitter::emitReverseJumpKind(desc.jumpKind1), labelNext);
+        inst_SET(desc.jumpKind2, dstReg);
+        genDefineTempLabel(labelNext);
+    }
+
+    if (!varTypeIsByte(type))
+    {
+        getEmitter()->emitIns_R_R(INS_movzx, EA_1BYTE, dstReg, dstReg);
+    }
 }
 
 //------------------------------------------------------------------------
@@ -1497,8 +1489,7 @@ void CodeGen::genCodeForReturnTrap(GenTreeOp* tree)
 
     BasicBlock* skipLabel = genCreateTempLabel();
 
-    emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
-    inst_JMP(jmpEqual, skipLabel);
+    inst_JMP(EJ_je, skipLabel);
 
     // emit the call to the EE-helper that stops for GC (or other reasons)
     regNumber tmpReg = tree->GetSingleTempReg(RBM_ALLINT);
@@ -1568,6 +1559,13 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             getEmitter()->emitDisableGC();
             break;
 #endif // !defined(JIT32_GCENCODER)
+
+        case GT_START_PREEMPTGC:
+            // Kill callee saves GC registers, and create a label
+            // so that information gets propagated to the emitter.
+            gcInfo.gcMarkRegSetNpt(RBM_INT_CALLEE_SAVED);
+            genDefineTempLabel(genCreateTempLabel());
+            break;
 
         case GT_PROF_HOOK:
 #ifdef PROFILING_SUPPORTED
@@ -1783,7 +1781,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
         case GT_JTRUE:
-            genCodeForJumpTrue(treeNode);
+            genCodeForJumpTrue(treeNode->AsOp());
             break;
 
         case GT_JCC:
@@ -1927,8 +1925,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
         case GT_LABEL:
-            genPendingCallLabel       = genCreateTempLabel();
-            treeNode->gtLabel.gtLabBB = genPendingCallLabel;
+            genPendingCallLabel = genCreateTempLabel();
             emit->emitIns_R_L(INS_lea, EA_PTR_DSP_RELOC, genPendingCallLabel, treeNode->gtRegNum);
             break;
 
@@ -2056,29 +2053,27 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTree* treeNode)
 
         if (targetReg != reg0 && targetReg != reg1)
         {
-            // Copy reg0 into targetReg and let it to be handled by one
-            // of the cases below.
+            // targetReg = reg0;
+            // targetReg[127:64] = reg1[127:64]
             inst_RV_RV(ins_Copy(TYP_DOUBLE), targetReg, reg0, TYP_DOUBLE);
-            targetReg = reg0;
+            inst_RV_RV_IV(INS_shufpd, EA_16BYTE, targetReg, reg1, 0x00);
         }
-
-        if (targetReg == reg0)
+        else if (targetReg == reg0)
         {
-            // targeReg[63:0] = targetReg[63:0]
+            // (elided) targetReg = reg0
             // targetReg[127:64] = reg1[127:64]
             inst_RV_RV_IV(INS_shufpd, EA_16BYTE, targetReg, reg1, 0x00);
         }
         else
         {
             assert(targetReg == reg1);
-
             // We need two shuffles to achieve this
             // First:
-            // targeReg[63:0] = targetReg[63:0]
+            // targetReg[63:0] = targetReg[63:0]
             // targetReg[127:64] = reg0[63:0]
             //
             // Second:
-            // targeReg[63:0] = targetReg[127:64]
+            // targetReg[63:0] = targetReg[127:64]
             // targetReg[127:64] = targetReg[63:0]
             //
             // Essentially copy low 8-bytes from reg0 to high 8-bytes of targetReg
@@ -2176,7 +2171,8 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         return;
     }
 
-    const target_size_t pageSize = compiler->eeGetPageSize();
+    const target_size_t pageSize       = compiler->eeGetPageSize();
+    target_size_t       lastTouchDelta = 0; // What offset from the final SP was the last probe?
 
     if (frameSize == REGSIZE_BYTES)
     {
@@ -2187,19 +2183,25 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
     {
         // Frame size is (0x0008..0x1000)
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
+        lastTouchDelta = frameSize;
     }
     else if (frameSize < compiler->getVeryLargeFrameSize())
     {
+        lastTouchDelta = frameSize;
+
         // Frame size is (0x1000..0x3000)
 
         getEmitter()->emitIns_AR_R(INS_test, EA_PTRSIZE, REG_EAX, REG_SPBASE, -(int)pageSize);
+        lastTouchDelta -= pageSize;
 
         if (frameSize >= 0x2000)
         {
             getEmitter()->emitIns_AR_R(INS_test, EA_PTRSIZE, REG_EAX, REG_SPBASE, -2 * (int)pageSize);
+            lastTouchDelta -= pageSize;
         }
 
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
+        assert(lastTouchDelta == frameSize % pageSize);
     }
     else
     {
@@ -2235,6 +2237,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // The encoding differs based on the architecture and what register is
         // used (namely, using RAX has a smaller encoding).
         //
+        //      xor eax,eax
         // loop:
         // For x86
         //      test [esp + eax], eax       3
@@ -2269,7 +2272,11 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
         // Branch backwards to start of loop
         inst_IV(INS_jge, bytesForBackwardJump);
+
+        lastTouchDelta = frameSize % pageSize;
+
 #else // _TARGET_UNIX_
+
         // Code size for each instruction. We need this because the
         // backward branch is hard-coded with the number of bytes to branch.
         // The encoding differs based on the architecture and what register is
@@ -2322,6 +2329,9 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         inst_IV(INS_jge, bytesForBackwardJump); // Branch backwards to start of loop
 
         getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, initReg, frameSize); // restore stack pointer
+
+        lastTouchDelta               = 0; // The loop code above actually over-probes: it always probes beyond the final SP we need.
+
 #endif // _TARGET_UNIX_
 
         *pInitRegZeroed = false; // The initReg does not contain zero
@@ -2337,12 +2347,190 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
     }
 
+    if (lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES > pageSize)
+    {
+        // We haven't probed almost a complete page. If the next action on the stack might subtract from SP
+        // first, before touching the current SP, then we do one more probe at the very bottom. This can
+        // happen on x86, for example, when we copy an argument to the stack using a "SUB ESP; REP MOV"
+        // strategy.
+
+        getEmitter()->emitIns_AR_R(INS_test, EA_PTRSIZE, REG_EAX, REG_SPBASE, 0);
+    }
+
     compiler->unwindAllocStack(frameSize);
 
+#ifdef USING_SCOPE_INFO
     if (!doubleAlignOrFramePointerUsed())
     {
         psiAdjustStackLevel(frameSize);
     }
+#endif // USING_SCOPE_INFO
+}
+
+//------------------------------------------------------------------------
+// genStackPointerConstantAdjustmentWithProbe: add a specified constant value to the stack pointer,
+// and probe the stack as appropriate. Should only be called as a helper for
+// genStackPointerConstantAdjustmentLoopWithProbe.
+//
+// Arguments:
+//    spDelta                 - the value to add to SP. Must be negative or zero. If zero, the probe happens,
+//                              but the stack pointer doesn't move.
+//    hideSpChangeFromEmitter - if true, hide the SP adjustment from the emitter. This only applies to x86,
+//                              and requires that `regTmp` be valid.
+//    regTmp                  - an available temporary register. Will be trashed. Only used on x86.
+//                              Must be REG_NA on non-x86 platforms.
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genStackPointerConstantAdjustmentWithProbe(ssize_t   spDelta,
+                                                         bool      hideSpChangeFromEmitter,
+                                                         regNumber regTmp)
+{
+    assert(spDelta < 0);
+    assert((target_size_t)(-spDelta) <= compiler->eeGetPageSize());
+
+    getEmitter()->emitIns_AR_R(INS_TEST, EA_4BYTE, REG_SPBASE, REG_SPBASE, 0);
+
+    if (hideSpChangeFromEmitter)
+    {
+        // For x86, some cases don't want to use "sub ESP" because we don't want the emitter to track the adjustment
+        // to ESP. So do the work in the count register.
+        // TODO-CQ: manipulate ESP directly, to share code, reduce #ifdefs, and improve CQ. This would require
+        // creating a way to temporarily turn off the emitter's tracking of ESP, maybe marking instrDescs as "don't
+        // track".
+        assert(regTmp != REG_NA);
+        inst_RV_RV(INS_mov, regTmp, REG_SPBASE, TYP_I_IMPL);
+        inst_RV_IV(INS_sub, regTmp, -spDelta, EA_PTRSIZE);
+        inst_RV_RV(INS_mov, REG_SPBASE, regTmp, TYP_I_IMPL);
+    }
+    else
+    {
+        assert(regTmp == REG_NA);
+        inst_RV_IV(INS_sub, REG_SPBASE, -spDelta, EA_PTRSIZE);
+    }
+}
+
+//------------------------------------------------------------------------
+// genStackPointerConstantAdjustmentLoopWithProbe: Add a specified constant value to the stack pointer,
+// and probe the stack as appropriate. Generates one probe per page, up to the total amount required.
+// This will generate a sequence of probes in-line. It is required for the case where we need to expose
+// (not hide) the stack level adjustment. We can't use the dynamic loop in that case, because the total
+// stack adjustment would not be visible to the emitter. It would be possible to use this version for
+// multiple hidden constant stack level adjustments but we don't do that currently (we use the loop
+// version in genStackPointerDynamicAdjustmentWithProbe instead).
+//
+// Arguments:
+//    spDelta                 - the value to add to SP. Must be negative.
+//    hideSpChangeFromEmitter - if true, hide the SP adjustment from the emitter. This only applies to x86,
+//                              and requires that `regTmp` be valid.
+//    regTmp                  - an available temporary register. Will be trashed. Only used on x86.
+//                              Must be REG_NA on non-x86 platforms.
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(ssize_t   spDelta,
+                                                             bool      hideSpChangeFromEmitter,
+                                                             regNumber regTmp)
+{
+    assert(spDelta < 0);
+
+    const target_size_t pageSize = compiler->eeGetPageSize();
+
+    ssize_t spRemainingDelta = spDelta;
+    do
+    {
+        ssize_t spOneDelta = -(ssize_t)min((target_size_t)-spRemainingDelta, pageSize);
+        genStackPointerConstantAdjustmentWithProbe(spOneDelta, hideSpChangeFromEmitter, regTmp);
+        spRemainingDelta -= spOneDelta;
+    } while (spRemainingDelta < 0);
+
+    // What offset from the final SP was the last probe? This depends on the fact that
+    // genStackPointerConstantAdjustmentWithProbe() probes first, then does "SUB SP".
+    target_size_t lastTouchDelta = (target_size_t)(-spDelta) % pageSize;
+    if ((lastTouchDelta == 0) || (lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES > pageSize))
+    {
+        // We haven't probed almost a complete page. If lastTouchDelta==0, then spDelta was an exact
+        // multiple of pageSize, which means we last probed exactly one page back. Otherwise, we probed
+        // the page, but very far from the end. If the next action on the stack might subtract from SP
+        // first, before touching the current SP, then we do one more probe at the very bottom. This can
+        // happen on x86, for example, when we copy an argument to the stack using a "SUB ESP; REP MOV"
+        // strategy.
+
+        getEmitter()->emitIns_AR_R(INS_test, EA_PTRSIZE, REG_EAX, REG_SPBASE, 0);
+    }
+}
+
+//------------------------------------------------------------------------
+// genStackPointerDynamicAdjustmentWithProbe: add a register value to the stack pointer,
+// and probe the stack as appropriate.
+//
+// Note that for x86, we hide the ESP adjustment from the emitter. To do that, currently,
+// requires a temporary register and extra code.
+//
+// Arguments:
+//    regSpDelta              - the register value to add to SP. The value in this register must be negative.
+//                              This register might be trashed.
+//    regTmp                  - an available temporary register. Will be trashed. Only used on x86.
+//                              Must be REG_NA on non-x86 platforms.
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genStackPointerDynamicAdjustmentWithProbe(regNumber regSpDelta, regNumber regTmp)
+{
+    assert(regSpDelta != REG_NA);
+    assert(regTmp != REG_NA);
+
+    // Tickle the pages to ensure that ESP is always valid and is
+    // in sync with the "stack guard page".  Note that in the worst
+    // case ESP is on the last byte of the guard page.  Thus you must
+    // touch ESP-0 first not ESP-0x1000.
+    //
+    // Another subtlety is that you don't want ESP to be exactly on the
+    // boundary of the guard page because PUSH is predecrement, thus
+    // call setup would not touch the guard page but just beyond it.
+    //
+    // Note that we go through a few hoops so that ESP never points to
+    // illegal pages at any time during the tickling process
+    //
+    //       add   regSpDelta, ESP          // reg now holds ultimate ESP
+    //       jb    loop                     // result is smaller than original ESP (no wrap around)
+    //       xor   regSpDelta, regSpDelta   // Overflow, pick lowest possible number
+    //  loop:
+    //       test  ESP, [ESP+0]             // tickle the page
+    //       mov   regTmp, ESP
+    //       sub   regTmp, eeGetPageSize()
+    //       mov   ESP, regTmp
+    //       cmp   ESP, regSpDelta
+    //       jae   loop
+    //       mov   ESP, regSpDelta
+
+    BasicBlock* loop = genCreateTempLabel();
+
+    inst_RV_RV(INS_add, regSpDelta, REG_SPBASE, TYP_I_IMPL);
+    inst_JMP(EJ_jb, loop);
+
+    instGen_Set_Reg_To_Zero(EA_PTRSIZE, regSpDelta);
+
+    genDefineTempLabel(loop);
+
+    // Tickle the decremented value. Note that it must be done BEFORE the update of ESP since ESP might already
+    // be on the guard page. It is OK to leave the final value of ESP on the guard page.
+    getEmitter()->emitIns_AR_R(INS_TEST, EA_4BYTE, REG_SPBASE, REG_SPBASE, 0);
+
+    // Subtract a page from ESP. This is a trick to avoid the emitter trying to track the
+    // decrement of the ESP - we do the subtraction in another reg instead of adjusting ESP directly.
+    inst_RV_RV(INS_mov, regTmp, REG_SPBASE, TYP_I_IMPL);
+    inst_RV_IV(INS_sub, regTmp, compiler->eeGetPageSize(), EA_PTRSIZE);
+    inst_RV_RV(INS_mov, REG_SPBASE, regTmp, TYP_I_IMPL);
+
+    inst_RV_RV(INS_cmp, REG_SPBASE, regSpDelta, TYP_I_IMPL);
+    inst_JMP(EJ_jae, loop);
+
+    // Move the final value to ESP
+    inst_RV_RV(INS_mov, REG_SPBASE, regSpDelta);
 }
 
 //------------------------------------------------------------------------
@@ -2384,8 +2572,7 @@ void CodeGen::genLclHeap(GenTree* tree)
     noway_assert(isFramePointerUsed()); // localloc requires Frame Pointer to be established since SP changes
     noway_assert(genStackLevel == 0);   // Can't have anything on the stack
 
-    unsigned    stackAdjustment = 0;
-    BasicBlock* loop            = nullptr;
+    unsigned stackAdjustment = 0;
 
     // compute the amount of memory to allocate to properly STACK_ALIGN.
     size_t amount = 0;
@@ -2507,9 +2694,11 @@ void CodeGen::genLclHeap(GenTree* tree)
             !compiler->info.compInitMem && (amount < compiler->eeGetPageSize()); // must be < not <=
 
 #ifdef _TARGET_X86_
-        bool needRegCntRegister = true;
+        bool needRegCntRegister      = true;
+        bool hideSpChangeFromEmitter = true;
 #else  // !_TARGET_X86_
-        bool needRegCntRegister = !doNoInitLessThanOnePageAlloc;
+        bool needRegCntRegister      = !doNoInitLessThanOnePageAlloc;
+        bool hideSpChangeFromEmitter = false;
 #endif // !_TARGET_X86_
 
         if (needRegCntRegister)
@@ -2533,23 +2722,9 @@ void CodeGen::genLclHeap(GenTree* tree)
             // Since the size is less than a page, simply adjust ESP.
             // ESP might already be in the guard page, so we must touch it BEFORE
             // the alloc, not after.
-            CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef _TARGET_X86_
-            // For x86, we don't want to use "sub ESP" because we don't want the emitter to track the adjustment
-            // to ESP. So do the work in the count register.
-            // TODO-CQ: manipulate ESP directly, to share code, reduce #ifdefs, and improve CQ. This would require
-            // creating a way to temporarily turn off the emitter's tracking of ESP, maybe marking instrDescs as "don't
-            // track".
-            inst_RV_RV(INS_mov, regCnt, REG_SPBASE, TYP_I_IMPL);
-            getEmitter()->emitIns_AR_R(INS_TEST, EA_4BYTE, REG_SPBASE, REG_SPBASE, 0);
-            inst_RV_IV(INS_sub, regCnt, amount, EA_PTRSIZE);
-            inst_RV_RV(INS_mov, REG_SPBASE, regCnt, TYP_I_IMPL);
-#else  // !_TARGET_X86_
-            getEmitter()->emitIns_AR_R(INS_TEST, EA_4BYTE, REG_SPBASE, REG_SPBASE, 0);
-            inst_RV_IV(INS_sub, REG_SPBASE, amount, EA_PTRSIZE);
-#endif // !_TARGET_X86_
-
+            assert(amount < compiler->eeGetPageSize()); // must be < not <=
+            genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)amount, hideSpChangeFromEmitter, regCnt);
             goto ALLOC_DONE;
         }
 
@@ -2565,7 +2740,6 @@ void CodeGen::genLclHeap(GenTree* tree)
         genSetRegToIcon(regCnt, amount, ((int)amount == amount) ? TYP_INT : TYP_LONG);
     }
 
-    loop = genCreateTempLabel();
     if (compiler->info.compInitMem)
     {
         // At this point 'regCnt' is set to the number of loop iterations for this loop, if each
@@ -2576,6 +2750,7 @@ void CodeGen::genLclHeap(GenTree* tree)
         assert(genIsValidIntReg(regCnt));
 
         // Loop:
+        BasicBlock* loop = genCreateTempLabel();
         genDefineTempLabel(loop);
 
         static_assert_no_msg((STACK_ALIGN % REGSIZE_BYTES) == 0);
@@ -2594,62 +2769,12 @@ void CodeGen::genLclHeap(GenTree* tree)
     else
     {
         // At this point 'regCnt' is set to the total number of bytes to localloc.
-        //
-        // We don't need to zero out the allocated memory. However, we do have
-        // to tickle the pages to ensure that ESP is always valid and is
-        // in sync with the "stack guard page".  Note that in the worst
-        // case ESP is on the last byte of the guard page.  Thus you must
-        // touch ESP+0 first not ESP+x01000.
-        //
-        // Another subtlety is that you don't want ESP to be exactly on the
-        // boundary of the guard page because PUSH is predecrement, thus
-        // call setup would not touch the guard page but just beyond it
-        //
-        // Note that we go through a few hoops so that ESP never points to
-        // illegal pages at any time during the tickling process
-        //
-        //       neg   REGCNT
-        //       add   REGCNT, ESP      // reg now holds ultimate ESP
-        //       jb    loop             // result is smaller than orignial ESP (no wrap around)
-        //       xor   REGCNT, REGCNT,  // Overflow, pick lowest possible number
-        //  loop:
-        //       test  ESP, [ESP+0]     // tickle the page
-        //       mov   REGTMP, ESP
-        //       sub   REGTMP, GetOsPageSize()
-        //       mov   ESP, REGTMP
-        //       cmp   ESP, REGCNT
-        //       jae   loop
-        //
-        //       mov   ESP, REG
-        //  end:
+        // Negate this value before calling the function to adjust the stack (which
+        // adds to ESP).
+
         inst_RV(INS_NEG, regCnt, TYP_I_IMPL);
-        inst_RV_RV(INS_add, regCnt, REG_SPBASE, TYP_I_IMPL);
-        inst_JMP(EJ_jb, loop);
-
-        instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
-
-        genDefineTempLabel(loop);
-
-        // Tickle the decremented value, and move back to ESP,
-        // note that it has to be done BEFORE the update of ESP since
-        // ESP might already be on the guard page.  It is OK to leave
-        // the final value of ESP on the guard page
-        getEmitter()->emitIns_AR_R(INS_TEST, EA_4BYTE, REG_SPBASE, REG_SPBASE, 0);
-
-        // This is a harmless trick to avoid the emitter trying to track the
-        // decrement of the ESP - we do the subtraction in another reg instead
-        // of adjusting ESP directly.
         regNumber regTmp = tree->GetSingleTempReg();
-
-        inst_RV_RV(INS_mov, regTmp, REG_SPBASE, TYP_I_IMPL);
-        inst_RV_IV(INS_sub, regTmp, compiler->eeGetPageSize(), EA_PTRSIZE);
-        inst_RV_RV(INS_mov, REG_SPBASE, regTmp, TYP_I_IMPL);
-
-        inst_RV_RV(INS_cmp, REG_SPBASE, regCnt, TYP_I_IMPL);
-        inst_JMP(EJ_jae, loop);
-
-        // Move the final value to ESP
-        inst_RV_RV(INS_mov, REG_SPBASE, regCnt);
+        genStackPointerDynamicAdjustmentWithProbe(regCnt, regTmp);
     }
 
 ALLOC_DONE:
@@ -2677,13 +2802,6 @@ BAILOUT:
         getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaLocAllocSPvar, 0);
     }
 #endif // JIT32_GCENCODER
-
-#if STACK_PROBES
-    if (compiler->opts.compNeedStackProbes)
-    {
-        genGenerateStackProbe();
-    }
-#endif
 
 #ifdef DEBUG
     // Update local variable to reflect the new stack pointer.
@@ -3129,7 +3247,7 @@ void CodeGen::genCodeForCpBlkRepMovs(GenTreeBlk* cpBlkNode)
     else
 #endif
     {
-#ifdef _TARGET_X64_
+#ifdef _TARGET_AMD64_
         assert(size > CPBLK_UNROLL_LIMIT && size < CPBLK_MOVS_LIMIT);
 #else
         assert(size > CPBLK_UNROLL_LIMIT);
@@ -4396,9 +4514,11 @@ void CodeGen::genCodeForLclAddr(GenTree* tree)
     regNumber targetReg  = tree->gtRegNum;
 
     // Address of a local var.
-    noway_assert(targetType == TYP_BYREF);
+    noway_assert((targetType == TYP_BYREF) || (targetType == TYP_I_IMPL));
 
-    inst_RV_TT(INS_lea, targetReg, tree, 0, EA_BYREF);
+    emitAttr size = emitTypeSize(targetType);
+
+    inst_RV_TT(INS_lea, targetReg, tree, 0, size);
     genProduceReg(tree);
 }
 
@@ -4622,78 +4742,81 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
     GenTree* const base  = node->Arr();
     GenTree* const index = node->Index();
 
-    genConsumeReg(base);
-    genConsumeReg(index);
+    const regNumber baseReg  = genConsumeReg(base);
+    regNumber       indexReg = genConsumeReg(index);
+    const regNumber dstReg   = node->gtRegNum;
 
     // NOTE: `genConsumeReg` marks the consumed register as not a GC pointer, as it assumes that the input registers
     // die at the first instruction generated by the node. This is not the case for `INDEX_ADDR`, however, as the
     // base register is multiply-used. As such, we need to mark the base register as containing a GC pointer until
     // we are finished generating the code for this node.
 
-    gcInfo.gcMarkRegPtrVal(base->gtRegNum, base->TypeGet());
-    assert(!varTypeIsGC(index->TypeGet()));
+    gcInfo.gcMarkRegPtrVal(baseReg, base->TypeGet());
+    assert(varTypeIsIntegral(index->TypeGet()));
 
     regNumber tmpReg = REG_NA;
+#ifdef _TARGET_64BIT_
+    tmpReg = node->GetSingleTempReg();
+#endif
 
     // Generate the bounds check if necessary.
     if ((node->gtFlags & GTF_INX_RNGCHK) != 0)
     {
-        // Create a GT_IND(GT_LEA)) tree for the array length access.
-        GenTreeAddrMode arrLenAddr(base->TypeGet(), base, nullptr, 0, node->gtLenOffset);
-        arrLenAddr.gtRegNum = REG_NA;
-        arrLenAddr.SetContained();
-
-        GenTreeIndir arrLen = indirForm(TYP_INT, &arrLenAddr);
-
 #ifdef _TARGET_64BIT_
         // The CLI Spec allows an array to be indexed by either an int32 or a native int.  In the case that the index
-        // is a native int on a 64-bit platform, we will need to widen the array length and the compare.
+        // is a native int on a 64-bit platform, we will need to widen the array length and then compare.
         if (index->TypeGet() == TYP_I_IMPL)
         {
-            // Load the array length into a register.
-            tmpReg          = node->GetSingleTempReg();
-            arrLen.gtRegNum = tmpReg;
-            arrLen.ClearContained();
-            getEmitter()->emitInsLoadInd(ins_Load(TYP_INT), EA_4BYTE, arrLen.gtRegNum, &arrLen);
+            getEmitter()->emitIns_R_AR(INS_mov, EA_4BYTE, tmpReg, baseReg, static_cast<int>(node->gtLenOffset));
+            getEmitter()->emitIns_R_R(INS_cmp, EA_8BYTE, indexReg, tmpReg);
         }
         else
-#endif
+#endif // _TARGET_64BIT_
         {
-            assert(varTypeIsIntegral(index->TypeGet()));
-
-            arrLen.gtRegNum = REG_NA;
-            arrLen.SetContained();
+            getEmitter()->emitIns_R_AR(INS_cmp, EA_4BYTE, indexReg, baseReg, static_cast<int>(node->gtLenOffset));
         }
 
-        // Generate the range check.
-        getEmitter()->emitInsBinary(INS_cmp, emitTypeSize(TYP_I_IMPL), index, &arrLen);
         genJumpToThrowHlpBlk(EJ_jae, SCK_RNGCHK_FAIL, node->gtIndRngFailBB);
     }
 
+#ifdef _TARGET_64BIT_
+    if (index->TypeGet() != TYP_I_IMPL)
+    {
+        // LEA needs 64-bit operands so we need to widen the index if it's TYP_INT.
+        getEmitter()->emitIns_R_R(INS_mov, EA_4BYTE, tmpReg, indexReg);
+        indexReg = tmpReg;
+    }
+#endif // _TARGET_64BIT_
+
     // Compute the address of the array element.
-    switch (node->gtElemSize)
+    unsigned scale = node->gtElemSize;
+
+    switch (scale)
     {
         case 1:
         case 2:
         case 4:
         case 8:
-            getEmitter()->emitIns_R_ARX(INS_lea, emitTypeSize(node), node->gtRegNum, base->gtRegNum, index->gtRegNum,
-                                        node->gtElemSize, static_cast<int>(node->gtElemOffset));
+            tmpReg = indexReg;
             break;
 
         default:
-        {
-            // Multiply the index by the element size.
-            //
-            // TODO-CQ: this should really just use `imul index, index, #gtElemSize`
-            tmpReg = (tmpReg == REG_NA) ? node->GetSingleTempReg() : tmpReg;
-            CodeGen::genSetRegToIcon(tmpReg, (ssize_t)node->gtElemSize, TYP_INT);
-            inst_RV_RV(INS_imul, tmpReg, index->gtRegNum);
-            getEmitter()->emitIns_R_ARX(INS_lea, emitTypeSize(node), node->gtRegNum, base->gtRegNum, tmpReg, 1,
-                                        static_cast<int>(node->gtElemOffset));
+#ifdef _TARGET_64BIT_
+            // IMUL treats its immediate operand as signed so scale can't be larger than INT32_MAX.
+            // The VM doesn't allow such large array elements but let's be sure.
+            noway_assert(scale <= INT32_MAX);
+#else  // !_TARGET_64BIT_
+            tmpReg = node->GetSingleTempReg();
+#endif // !_TARGET_64BIT_
+
+            getEmitter()->emitIns_R_I(emitter::inst3opImulForReg(tmpReg), EA_PTRSIZE, indexReg,
+                                      static_cast<ssize_t>(scale));
+            scale = 1;
             break;
-        }
     }
+
+    getEmitter()->emitIns_R_ARX(INS_lea, emitTypeSize(node->TypeGet()), dstReg, baseReg, tmpReg, scale,
+                                static_cast<int>(node->gtElemOffset));
 
     gcInfo.gcMarkRegSetNpt(base->gtGetRegMask());
 
@@ -4846,6 +4969,11 @@ void CodeGen::genRegCopy(GenTree* treeNode)
                     gcInfo.gcMarkRegSetNpt(genRegMask(op1->gtRegNum));
 
                     genUpdateVarReg(varDsc, treeNode);
+
+#ifdef USING_VARIABLE_LIVE_RANGE
+                    // Report the home change for this variable
+                    compiler->getVariableLiveKeeper()->siUpdateVariableLiveRange(varDsc, lcl->gtLclNum);
+#endif // USING_VARIABLE_LIVE_RANGE
 
                     // The new location is going live
                     genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));
@@ -5290,6 +5418,12 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 {
                     GenTreeObj* obj      = source->AsObj();
                     unsigned    argBytes = roundUp(obj->gtBlkSize, TARGET_POINTER_SIZE);
+#ifdef _TARGET_X86_
+                    // If we have an OBJ, we must have created a copy if the original arg was not a
+                    // local and was not a multiple of TARGET_POINTER_SIZE.
+                    // Note that on x64/ux this will be handled by unrolling in genStructPutArgUnroll.
+                    assert((argBytes == obj->gtBlkSize) || obj->Addr()->IsLocalAddrExpr());
+#endif // _TARGET_X86_
                     assert((curArgTabEntry->numSlots * TARGET_POINTER_SIZE) == argBytes);
                 }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
@@ -5700,7 +5834,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 
     // If there is nothing next, that means the result is thrown away, so this value is not live.
     // However, for minopts or debuggable code, we keep it live to support managed return value debugging.
-    if ((call->gtNext == nullptr) && !compiler->opts.MinOpts() && !compiler->opts.compDbgCode)
+    if ((call->gtNext == nullptr) && compiler->opts.OptimizationEnabled())
     {
         gcInfo.gcMarkRegSetNpt(RBM_INTRET);
     }
@@ -6083,184 +6217,12 @@ void CodeGen::genLeaInstruction(GenTreeAddrMode* lea)
     genProduceReg(lea);
 }
 
-//-------------------------------------------------------------------------------------------
-// genJumpKindsForTree:  Determine the number and kinds of conditional branches
-//                       necessary to implement the given GT_CMP node
-//
-// Arguments:
-//    cmpTree          - (input) The GenTree node that is used to set the Condition codes
-//                     - The GenTree Relop node that was used to set the Condition codes
-//   jmpKind[2]        - (output) One or two conditional branch instructions
-//   jmpToTrueLabel[2] - (output) When true we branch to the true case
-//                       When false we create a second label and branch to the false case
-//                       Only GT_EQ for a floating point compares can have a false value.
-//
-// Return Value:
-//    Sets the proper values into the array elements of jmpKind[] and jmpToTrueLabel[]
-//
-// Assumptions:
-//    At least one conditional branch instruction will be returned.
-//    Typically only one conditional branch is needed
-//     and the second jmpKind[] value is set to EJ_NONE
-//
-// Notes:
-//    jmpToTrueLabel[i]= true  implies branch when the compare operation is true.
-//    jmpToTrueLabel[i]= false implies branch when the compare operation is false.
-//-------------------------------------------------------------------------------------------
-
-// static
-void CodeGen::genJumpKindsForTree(GenTree* cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2])
-{
-    // Except for BEQ (=  ordered GT_EQ) both jumps are to the true label.
-    jmpToTrueLabel[0] = true;
-    jmpToTrueLabel[1] = true;
-
-    // For integer comparisons just use genJumpKindForOper
-    if (!varTypeIsFloating(cmpTree->gtOp.gtOp1))
-    {
-        CompareKind compareKind = ((cmpTree->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-        jmpKind[0]              = genJumpKindForOper(cmpTree->gtOper, compareKind);
-        jmpKind[1]              = EJ_NONE;
-    }
-    else
-    {
-        assert(cmpTree->OperIsCompare());
-
-        // For details on how we arrived at this mapping, see the comment block in genCodeForTreeNode()
-        // while generating code for compare opererators (e.g. GT_EQ etc).
-        if ((cmpTree->gtFlags & GTF_RELOP_NAN_UN) != 0)
-        {
-            // Must branch if we have an NaN, unordered
-            switch (cmpTree->gtOper)
-            {
-                case GT_LT:
-                case GT_GT:
-                    jmpKind[0] = EJ_jb;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_LE:
-                case GT_GE:
-                    jmpKind[0] = EJ_jbe;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_NE:
-                    jmpKind[0] = EJ_jpe;
-                    jmpKind[1] = EJ_jne;
-                    break;
-
-                case GT_EQ:
-                    jmpKind[0] = EJ_je;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                default:
-                    unreached();
-            }
-        }
-        else // ((cmpTree->gtFlags & GTF_RELOP_NAN_UN) == 0)
-        {
-            // Do not branch if we have an NaN, unordered
-            switch (cmpTree->gtOper)
-            {
-                case GT_LT:
-                case GT_GT:
-                    jmpKind[0] = EJ_ja;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_LE:
-                case GT_GE:
-                    jmpKind[0] = EJ_jae;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_NE:
-                    jmpKind[0] = EJ_jne;
-                    jmpKind[1] = EJ_NONE;
-                    break;
-
-                case GT_EQ:
-                    jmpKind[0]        = EJ_jpe;
-                    jmpKind[1]        = EJ_je;
-                    jmpToTrueLabel[0] = false;
-                    break;
-
-                default:
-                    unreached();
-            }
-        }
-    }
-}
-
 //------------------------------------------------------------------------
 // genCompareFloat: Generate code for comparing two floating point values
 //
 // Arguments:
 //    treeNode - the compare tree
 //
-// Return Value:
-//    None.
-// Comments:
-// SSE2 instruction ucomis[s|d] is performs unordered comparison and
-// updates rFLAGS register as follows.
-//        Result of compare         ZF  PF CF
-//        -----------------        ------------
-//        Unordered                 1   1   1     <-- this result implies one of operands of compare is a NAN.
-//        Greater                   0   0   0
-//        Less Than                 0   0   1
-//        Equal                     1   0   0
-//
-// From the above table the following equalities follow. As per ECMA spec *.UN opcodes perform
-// unordered comparison of floating point values.  That is *.UN comparisons result in true when
-// one of the operands is a NaN whereas ordered comparisons results in false.
-//
-//    Opcode          Amd64 equivalent         Comment
-//    ------          -----------------        --------
-//    BLT.UN(a,b)      ucomis[s|d] a, b        Jb branches if CF=1, which means either a<b or unordered from the above
-//                     jb                      table
-//
-//    BLT(a,b)         ucomis[s|d] b, a        Ja branches if CF=0 and ZF=0, which means b>a that in turn implies a<b
-//                     ja
-//
-//    BGT.UN(a,b)      ucomis[s|d] b, a        branch if b<a or unordered ==> branch if a>b or unordered
-//                     jb
-//
-//    BGT(a, b)        ucomis[s|d] a, b        branch if a>b
-//                     ja
-//
-//    BLE.UN(a,b)      ucomis[s|d] a, b        jbe branches if CF=1 or ZF=1, which implies a<=b or unordered
-//                     jbe
-//
-//    BLE(a,b)         ucomis[s|d] b, a        jae branches if CF=0, which mean b>=a or a<=b
-//                     jae
-//
-//    BGE.UN(a,b)      ucomis[s|d] b, a        branch if b<=a or unordered ==> branch if a>=b or unordered
-//                     jbe
-//
-//    BGE(a,b)         ucomis[s|d] a, b        branch if a>=b
-//                     jae
-//
-//    BEQ.UN(a,b)      ucomis[s|d] a, b        branch if a==b or unordered.  There is no BEQ.UN opcode in ECMA spec.
-//                     je                      This case is given for completeness, in case if JIT generates such
-//                                             a gentree internally.
-//
-//    BEQ(a,b)         ucomis[s|d] a, b        From the above table, PF=0 and ZF=1 corresponds to a==b.
-//                     jpe L1
-//                     je <true label>
-//                 L1:
-//
-//    BNE(a,b)         ucomis[s|d] a, b        branch if a!=b.  There is no BNE opcode in ECMA spec. This case is
-//                     jne                     given for completeness, in case if JIT generates such a gentree
-//                                             internally.
-//
-//    BNE.UN(a,b)      ucomis[s|d] a, b        From the above table, PF=1 or ZF=0 implies unordered or a!=b
-//                     jpe <true label>
-//                     jne <true label>
-//
-// As we can see from the above equalities that the operands of a compare operator need to be
-// reversed in case of BLT/CLT, BGT.UN/CGT.UN, BLE/CLE, BGE.UN/CGE.UN.
 void CodeGen::genCompareFloat(GenTree* treeNode)
 {
     assert(treeNode->OperIsCompare());
@@ -6280,22 +6242,12 @@ void CodeGen::genCompareFloat(GenTree* treeNode)
     instruction ins;
     emitAttr    cmpAttr;
 
-    bool reverseOps;
-    if ((tree->gtFlags & GTF_RELOP_NAN_UN) != 0)
-    {
-        // Unordered comparison case
-        reverseOps = (tree->gtOper == GT_GT || tree->gtOper == GT_GE);
-    }
-    else
-    {
-        reverseOps = (tree->gtOper == GT_LT || tree->gtOper == GT_LE);
-    }
+    GenCondition condition = GenCondition::FromFloatRelop(treeNode);
 
-    if (reverseOps)
+    if (condition.PreferSwap())
     {
-        GenTree* tmp = op1;
-        op1          = op2;
-        op2          = tmp;
+        condition = GenCondition::Swap(condition);
+        std::swap(op1, op2);
     }
 
     ins     = ins_FloatCompare(op1Type);
@@ -6306,7 +6258,7 @@ void CodeGen::genCompareFloat(GenTree* treeNode)
     // Are we evaluating this into a register?
     if (targetReg != REG_NA)
     {
-        genSetRegToCond(targetReg, tree);
+        inst_SETCC(condition, treeNode->TypeGet(), targetReg);
         genProduceReg(tree);
     }
 }
@@ -6415,91 +6367,8 @@ void CodeGen::genCompareInt(GenTree* treeNode)
     // Are we evaluating this into a register?
     if (targetReg != REG_NA)
     {
-        genSetRegToCond(targetReg, tree);
+        inst_SETCC(GenCondition::FromIntegralRelop(tree), tree->TypeGet(), targetReg);
         genProduceReg(tree);
-    }
-}
-
-//-------------------------------------------------------------------------------------------
-// genSetRegToCond:  Set a register 'dstReg' to the appropriate one or zero value
-//                   corresponding to a binary Relational operator result.
-//
-// Arguments:
-//   dstReg          - The target register to set to 1 or 0
-//   tree            - The GenTree Relop node that was used to set the Condition codes
-//
-// Return Value:     none
-//
-// Notes:
-//    A full 64-bit value of either 1 or 0 is setup in the 'dstReg'
-//-------------------------------------------------------------------------------------------
-
-void CodeGen::genSetRegToCond(regNumber dstReg, GenTree* tree)
-{
-    noway_assert((genRegMask(dstReg) & RBM_BYTE_REGS) != 0);
-
-    emitJumpKind jumpKind[2];
-    bool         branchToTrueLabel[2];
-    genJumpKindsForTree(tree, jumpKind, branchToTrueLabel);
-
-    if (jumpKind[1] == EJ_NONE)
-    {
-        // Set (lower byte of) reg according to the flags
-        inst_SET(jumpKind[0], dstReg);
-    }
-    else
-    {
-#ifdef DEBUG
-        // jmpKind[1] != EJ_NONE implies BEQ and BEN.UN of floating point values.
-        // These are represented by two conditions.
-        if (tree->gtOper == GT_EQ)
-        {
-            // This must be an ordered comparison.
-            assert((tree->gtFlags & GTF_RELOP_NAN_UN) == 0);
-        }
-        else
-        {
-            // This must be BNE.UN
-            assert((tree->gtOper == GT_NE) && ((tree->gtFlags & GTF_RELOP_NAN_UN) != 0));
-        }
-#endif
-
-        // Here is the sample code generated in each case:
-        // BEQ ==  cmp, jpe <false label>, je <true label>
-        // That is, to materialize comparison reg needs to be set if PF=0 and ZF=1
-        //      setnp reg  // if (PF==0) reg = 1 else reg = 0
-        //      jpe L1     // Jmp if PF==1
-        //      sete reg
-        //  L1:
-        //
-        // BNE.UN == cmp, jpe <true label>, jne <true label>
-        // That is, to materialize the comparison reg needs to be set if either PF=1 or ZF=0;
-        //     setp reg
-        //     jpe L1
-        //     setne reg
-        //  L1:
-
-        // reverse the jmpkind condition before setting dstReg if it is to false label.
-        inst_SET(branchToTrueLabel[0] ? jumpKind[0] : emitter::emitReverseJumpKind(jumpKind[0]), dstReg);
-
-        BasicBlock* label = genCreateTempLabel();
-        inst_JMP(jumpKind[0], label);
-
-        // second branch is always to true label
-        assert(branchToTrueLabel[1]);
-        inst_SET(jumpKind[1], dstReg);
-        genDefineTempLabel(label);
-    }
-
-    var_types treeType = tree->TypeGet();
-    if (treeType == TYP_INT || treeType == TYP_LONG)
-    {
-        // Set the higher bytes to 0
-        inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), dstReg, dstReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
-    }
-    else
-    {
-        noway_assert(treeType == TYP_BYTE);
     }
 }
 
@@ -6672,6 +6541,7 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
 
     const regNumber srcReg = cast->gtGetOp1()->gtRegNum;
     const regNumber dstReg = cast->gtRegNum;
+    emitter*        emit   = getEmitter();
 
     assert(genIsValidIntReg(srcReg));
     assert(genIsValidIntReg(dstReg));
@@ -6687,6 +6557,7 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
     {
         instruction ins;
         unsigned    insSize;
+        bool        canSkip = false;
 
         switch (desc.ExtendKind())
         {
@@ -6700,6 +6571,12 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
                 break;
 #ifdef _TARGET_64BIT_
             case GenIntCastDesc::ZERO_EXTEND_INT:
+                // We can skip emitting this zero extending move if the previous instruction zero extended implicitly
+                if ((srcReg == dstReg) && compiler->opts.OptimizationEnabled())
+                {
+                    canSkip = emit->AreUpper32BitsZero(srcReg);
+                }
+
                 ins     = INS_mov;
                 insSize = 4;
                 break;
@@ -6710,12 +6587,20 @@ void CodeGen::genIntToIntCast(GenTreeCast* cast)
 #endif
             default:
                 assert(desc.ExtendKind() == GenIntCastDesc::COPY);
+                assert(srcReg != dstReg);
                 ins     = INS_mov;
                 insSize = desc.ExtendSrcSize();
                 break;
         }
 
-        getEmitter()->emitIns_R_R(ins, EA_ATTR(insSize), dstReg, srcReg);
+        if (canSkip)
+        {
+            JITDUMP("\n -- suppressing emission as previous instruction already properly extends.\n");
+        }
+        else
+        {
+            emit->emitIns_R_R(ins, EA_ATTR(insSize), dstReg, srcReg);
+        }
     }
 
     genProduceReg(cast);
@@ -7102,7 +6987,7 @@ void CodeGen::genCkfinite(GenTree* treeNode)
 }
 
 #ifdef _TARGET_AMD64_
-int CodeGenInterface::genSPtoFPdelta()
+int CodeGenInterface::genSPtoFPdelta() const
 {
     int delta;
 
@@ -7154,7 +7039,7 @@ int CodeGenInterface::genSPtoFPdelta()
 //    Total frame size
 //
 
-int CodeGenInterface::genTotalFrameSize()
+int CodeGenInterface::genTotalFrameSize() const
 {
     assert(!IsUninitialized(compiler->compCalleeRegsPushed));
 
@@ -7175,7 +7060,7 @@ int CodeGenInterface::genTotalFrameSize()
 // is based on a maximum delta from Initial-SP, so first we find SP, then
 // compute the FP offset.
 
-int CodeGenInterface::genCallerSPtoFPdelta()
+int CodeGenInterface::genCallerSPtoFPdelta() const
 {
     assert(isFramePointerUsed());
     int callerSPtoFPdelta;
@@ -7191,7 +7076,7 @@ int CodeGenInterface::genCallerSPtoFPdelta()
 //
 // This number will be negative.
 
-int CodeGenInterface::genCallerSPtoInitialSPdelta()
+int CodeGenInterface::genCallerSPtoInitialSPdelta() const
 {
     int callerSPtoSPdelta = 0;
 
@@ -7297,7 +7182,7 @@ void CodeGen::genSSE2BitwiseOp(GenTree* treeNode)
     if (*bitMask == nullptr)
     {
         assert(cnsAddr != nullptr);
-        *bitMask = getEmitter()->emitAnyConst(cnsAddr, genTypeSize(targetType), dblAlign);
+        *bitMask = getEmitter()->emitAnyConst(cnsAddr, genTypeSize(targetType), emitDataAlignment::Preferred);
     }
 
     // We need an additional register for bitmask.
@@ -7752,7 +7637,27 @@ bool CodeGen::genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk)
     else
     {
         m_pushStkArg = false;
-        inst_RV_IV(INS_sub, REG_SPBASE, argSize, EA_PTRSIZE);
+
+        // If argSize is large, we need to probe the stack like we do in the prolog (genAllocLclFrame)
+        // or for localloc (genLclHeap), to ensure we touch the stack pages sequentially, and don't miss
+        // the stack guard pages. The prolog probes, but we don't know at this point how much higher
+        // the last probed stack pointer value is. We default a threshold. Any size below this threshold
+        // we are guaranteed the stack has been probed. Above this threshold, we don't know. The threshold
+        // should be high enough to cover all common cases. Increasing the threshold means adding a few
+        // more "lowest address of stack" probes in the prolog. Since this is relatively rare, add it to
+        // stress modes.
+
+        if ((argSize >= ARG_STACK_PROBE_THRESHOLD_BYTES) ||
+            compiler->compStressCompile(Compiler::STRESS_GENERIC_VARN, 5))
+        {
+            genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)argSize, /* hideSpChangeFromEmitter */ false,
+                                                           REG_NA);
+        }
+        else
+        {
+            inst_RV_IV(INS_sub, REG_SPBASE, argSize, EA_PTRSIZE);
+        }
+
         AddStackLevel(argSize);
         return true;
     }

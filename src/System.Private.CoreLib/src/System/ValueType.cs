@@ -11,6 +11,7 @@
 **
 ===========================================================*/
 
+#nullable enable
 using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -22,14 +23,14 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
     public abstract class ValueType
     {
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (null == obj)
             {
                 return false;
             }
-            RuntimeType thisType = (RuntimeType)this.GetType();
-            RuntimeType thatType = (RuntimeType)obj.GetType();
+            Type thisType = this.GetType();
+            Type thatType = obj.GetType();
 
             if (thatType != thisType)
             {
@@ -48,8 +49,8 @@ namespace System
 
             for (int i = 0; i < thisFields.Length; i++)
             {
-                thisResult = ((RtFieldInfo)thisFields[i]).UnsafeGetValue(thisObj);
-                thatResult = ((RtFieldInfo)thisFields[i]).UnsafeGetValue(obj);
+                thisResult = thisFields[i].GetValue(thisObj);
+                thatResult = thisFields[i].GetValue(obj);
 
                 if (thisResult == null)
                 {
@@ -88,7 +89,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int GetHashCodeOfPtr(IntPtr ptr);
 
-        public override string ToString()
+        public override string? ToString()
         {
             return this.GetType().ToString();
         }

@@ -121,7 +121,7 @@ int Compiler::getSIMDTypeAlignment(var_types simdType)
 //
 var_types Compiler::getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, unsigned* sizeBytes /*= nullptr */)
 {
-    assert(featureSIMD);
+    assert(supportSIMDTypes());
 
     if (m_simdHandleCache == nullptr)
     {
@@ -1022,17 +1022,17 @@ const SIMDIntrinsicInfo* Compiler::getSIMDIntrinsicInfo(CORINFO_CLASS_HANDLE* in
 // Normalizes TYP_STRUCT value in case of GT_CALL, GT_RET_EXPR and arg nodes.
 //
 // Arguments:
-//    type        -  the type of value that the caller expects to be popped off the stack.
-//    expectAddr  -  if true indicates we are expecting type stack entry to be a TYP_BYREF.
-//    structType  -  the class handle to use when normalizing if it is not the same as the stack entry class handle;
-//                   this can happen for certain scenarios, such as folding away a static cast, where we want the
-//                   value popped to have the type that would have been returned.
+//    type         -  the type of value that the caller expects to be popped off the stack.
+//    expectAddr   -  if true indicates we are expecting type stack entry to be a TYP_BYREF.
+//    structHandle -  the class handle to use when normalizing if it is not the same as the stack entry class handle;
+//                    this can happen for certain scenarios, such as folding away a static cast, where we want the
+//                    value popped to have the type that would have been returned.
 //
 // Notes:
 //    If the popped value is a struct, and the expected type is a simd type, it will be set
 //    to that type, otherwise it will assert if the type being popped is not the expected type.
 
-GenTree* Compiler::impSIMDPopStack(var_types type, bool expectAddr, CORINFO_CLASS_HANDLE structType)
+GenTree* Compiler::impSIMDPopStack(var_types type, bool expectAddr, CORINFO_CLASS_HANDLE structHandle)
 {
     StackEntry se   = impPopStack();
     typeInfo   ti   = se.seTypeInfo;
@@ -1055,13 +1055,28 @@ GenTree* Compiler::impSIMDPopStack(var_types type, bool expectAddr, CORINFO_CLAS
 
     bool isParam = false;
 
-    // If we have a ldobj of a SIMD local we need to transform it.
+    // If we are popping a struct type it must have a matching handle if one is specified.
+    // - If we have an existing 'OBJ' and 'structHandle' is specified, we will change its
+    //   handle if it doesn't match.
+    //   This can happen when we have a retyping of a vector that doesn't translate to any
+    //   actual IR.
+    // - (If it's not an OBJ and it's used in a parameter context where it is required,
+    //   impNormStructVal will add one).
+    //
     if (tree->OperGet() == GT_OBJ)
     {
-        GenTree* addr = tree->gtOp.gtOp1;
-        if ((addr->OperGet() == GT_ADDR) && isSIMDTypeLocal(addr->gtOp.gtOp1))
+        if ((structHandle != NO_CLASS_HANDLE) && (tree->AsObj()->gtClass != structHandle))
         {
-            tree = addr->gtOp.gtOp1;
+            // In this case we need to retain the GT_OBJ to retype the value.
+            tree->AsObj()->gtClass = structHandle;
+        }
+        else
+        {
+            GenTree* addr = tree->gtOp.gtOp1;
+            if ((addr->OperGet() == GT_ADDR) && isSIMDTypeLocal(addr->gtOp.gtOp1))
+            {
+                tree = addr->gtOp.gtOp1;
+            }
         }
     }
 
@@ -1077,12 +1092,12 @@ GenTree* Compiler::impSIMDPopStack(var_types type, bool expectAddr, CORINFO_CLAS
     {
         assert(ti.IsType(TI_STRUCT));
 
-        if (structType == nullptr)
+        if (structHandle == nullptr)
         {
-            structType = ti.GetClassHandleForValueClass();
+            structHandle = ti.GetClassHandleForValueClass();
         }
 
-        tree = impNormStructVal(tree, structType, (unsigned)CHECK_SPILL_ALL);
+        tree = impNormStructVal(tree, structHandle, (unsigned)CHECK_SPILL_ALL);
     }
 
     // Now set the type of the tree to the specialized SIMD struct type, if applicable.
@@ -2259,13 +2274,13 @@ GenTree* Compiler::createAddressNodeForSIMDInit(GenTree* tree, unsigned simdSize
 // Arguments:
 //      stmt - GenTree*. Input statement node.
 
-void Compiler::impMarkContiguousSIMDFieldAssignments(GenTree* stmt)
+void Compiler::impMarkContiguousSIMDFieldAssignments(GenTreeStmt* stmt)
 {
-    if (!featureSIMD || opts.MinOpts())
+    if (!featureSIMD || opts.OptimizationDisabled())
     {
         return;
     }
-    GenTree* expr = stmt->gtStmt.gtStmtExpr;
+    GenTree* expr = stmt->gtStmtExpr;
     if (expr->OperGet() == GT_ASG && expr->TypeGet() == TYP_FLOAT)
     {
         GenTree*  curDst            = expr->gtOp.gtOp1;
@@ -2285,7 +2300,7 @@ void Compiler::impMarkContiguousSIMDFieldAssignments(GenTree* stmt)
         else if (fgPreviousCandidateSIMDFieldAsgStmt != nullptr)
         {
             assert(index > 0);
-            GenTree* prevAsgExpr = fgPreviousCandidateSIMDFieldAsgStmt->gtStmt.gtStmtExpr;
+            GenTree* prevAsgExpr = fgPreviousCandidateSIMDFieldAsgStmt->gtStmtExpr;
             GenTree* prevDst     = prevAsgExpr->gtOp.gtOp1;
             GenTree* prevSrc     = prevAsgExpr->gtOp.gtOp2;
             if (!areArgumentsContiguous(prevDst, curDst) || !areArgumentsContiguous(prevSrc, curSrc))
@@ -2349,14 +2364,24 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
                                     CORINFO_CLASS_HANDLE  clsHnd,
                                     CORINFO_METHOD_HANDLE methodHnd,
                                     CORINFO_SIG_INFO*     sig,
+                                    unsigned              methodFlags,
                                     int                   memberRef)
 {
     assert(featureSIMD);
 
+    // Exit early if we are not in one of the SIMD types.
     if (!isSIMDClass(clsHnd))
     {
         return nullptr;
     }
+
+#ifdef FEATURE_CORECLR
+    // For coreclr, we also exit early if the method is not a JIT Intrinsic (which requires the [Intrinsic] attribute).
+    if ((methodFlags & CORINFO_FLG_JIT_INTRINSIC) == 0)
+    {
+        return nullptr;
+    }
+#endif // FEATURE_CORECLR
 
     // Get base type and intrinsic Id
     var_types                baseType = TYP_UNKNOWN;
@@ -2456,7 +2481,6 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
                 unsigned initCount    = argCount - 1;
                 unsigned elementCount = getSIMDVectorLength(size, baseType);
                 noway_assert(initCount == elementCount);
-                GenTree* nextArg = op2;
 
                 // Build a GT_LIST with the N values.
                 // We must maintain left-to-right order of the args, but we will pop
@@ -2465,7 +2489,6 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
                 GenTree* list              = nullptr;
                 GenTree* firstArg          = nullptr;
                 GenTree* prevArg           = nullptr;
-                int      offset            = 0;
                 bool     areArgsContiguous = true;
                 for (unsigned i = 0; i < initCount; i++)
                 {
@@ -2626,7 +2649,6 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
             assert(op2->TypeGet() == TYP_REF);
             GenTree* arrayRefForArgChk = op2;
             GenTree* argRngChk         = nullptr;
-            GenTree* asg               = nullptr;
             if ((arrayRefForArgChk->gtFlags & GTF_SIDE_EFFECT) != 0)
             {
                 op2 = fgInsertCommaFormTemp(&arrayRefForArgChk);
@@ -2731,7 +2753,6 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
             //    op2 - VSmall
             //    op1 - byref of VLarge
             assert(baseType == TYP_FLOAT);
-            unsigned elementByteCount = 4;
 
             GenTree* op4 = nullptr;
             if (argCount == 4)
@@ -2879,6 +2900,18 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
             op2 = impSIMDPopStack(simdType);
             op1 = impSIMDPopStack(simdType, instMethod);
 
+#ifdef _TARGET_XARCH_
+            if (simdIntrinsicID == SIMDIntrinsicBitwiseAndNot)
+            {
+                // XARCH implements SIMDIntrinsicBitwiseAndNot as ~op1 & op2, while the
+                // software implementation does op1 & ~op2, so we need to swap the operands
+
+                GenTree* tmp = op2;
+                op2          = op1;
+                op1          = tmp;
+            }
+#endif // _TARGET_XARCH_
+
             simdTree = gtNewSIMDNode(simdType, op1, op2, simdIntrinsicID, baseType, size);
             retVal   = simdTree;
         }
@@ -2929,6 +2962,10 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
                 {
                     op2 = gtCloneExpr(index);
                 }
+
+                // For the non-constant case, we don't want to CSE the SIMD value, as we will just need to store
+                // it to the stack to do the indexing anyway.
+                op1->gtFlags |= GTF_DONT_CSE;
 
                 GenTree*          lengthNode = new (this, GT_CNS_INT) GenTreeIntCon(TYP_INT, vectorLength);
                 GenTreeBoundsChk* simdChk =
@@ -3085,7 +3122,9 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
             GenTree* dstAddrHi = impSIMDPopStack(TYP_BYREF);
             GenTree* dstAddrLo = impSIMDPopStack(TYP_BYREF);
             op1                = impSIMDPopStack(simdType);
-            GenTree* dupOp1    = fgInsertCommaFormTemp(&op1, gtGetStructHandleForSIMD(simdType, baseType));
+            // op1 must have a valid class handle; the following method will assert it.
+            CORINFO_CLASS_HANDLE op1Handle = gtGetStructHandle(op1);
+            GenTree*             dupOp1    = fgInsertCommaFormTemp(&op1, op1Handle);
 
             // Widen the lower half and assign it to dstAddrLo.
             simdTree = gtNewSIMDNode(simdType, op1, nullptr, SIMDIntrinsicWidenLo, baseType, size);

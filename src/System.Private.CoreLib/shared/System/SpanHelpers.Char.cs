@@ -2,13 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 
-#if !netstandard
 using Internal.Runtime.CompilerServices;
-#endif
 
 #if BIT64
 using nuint = System.UInt64;
@@ -62,6 +62,7 @@ namespace System
             return -1;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int SequenceCompareTo(ref char first, int firstLength, ref char second, int secondLength)
         {
             Debug.Assert(firstLength >= 0);
@@ -125,6 +126,7 @@ namespace System
         }
 
         // Adapted from IndexOf(...)
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe bool Contains(ref char searchSpace, char value, int length)
         {
             Debug.Assert(length >= 0);
@@ -212,6 +214,7 @@ namespace System
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int IndexOf(ref char searchSpace, char value, int length)
         {
             Debug.Assert(length >= 0);
@@ -305,6 +308,7 @@ namespace System
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int IndexOfAny(ref char searchSpace, char value0, char value1, int length)
         {
             Debug.Assert(length >= 0);
@@ -402,6 +406,7 @@ namespace System
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int IndexOfAny(ref char searchSpace, char value0, char value1, char value2, int length)
         {
             Debug.Assert(length >= 0);
@@ -502,6 +507,7 @@ namespace System
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int IndexOfAny(ref char searchSpace, char value0, char value1, char value2, char value3, int length)
         {
             Debug.Assert(length >= 0);
@@ -604,6 +610,7 @@ namespace System
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int IndexOfAny(ref char searchSpace, char value0, char value1, char value2, char value3, char value4, int length)
         {
             Debug.Assert(length >= 0);
@@ -709,6 +716,7 @@ namespace System
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe int LastIndexOf(ref char searchSpace, char value, int length)
         {
             Debug.Assert(length >= 0);
@@ -822,12 +830,20 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateFirstFoundChar(ulong match)
         {
-            unchecked
+            // TODO: Arm variants
+            if (Bmi1.X64.IsSupported)
             {
-                // Flag least significant power of two bit
-                var powerOfTwoFlag = match ^ (match - 1);
-                // Shift all powers of two into the high byte and extract
-                return (int)((powerOfTwoFlag * XorPowerOfTwoToHighChar) >> 49);
+                return (int)(Bmi1.X64.TrailingZeroCount(match) >> 4);
+            }
+            else
+            {
+                unchecked
+                {
+                    // Flag least significant power of two bit
+                    var powerOfTwoFlag = match ^ (match - 1);
+                    // Shift all powers of two into the high byte and extract
+                    return (int)((powerOfTwoFlag * XorPowerOfTwoToHighChar) >> 49);
+                }
             }
         }
 
@@ -859,14 +875,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateLastFoundChar(ulong match)
         {
-            // Find the most significant char that has its highest bit set
-            int index = 3;
-            while ((long)match > 0)
-            {
-                match = match << 16;
-                index--;
-            }
-            return index;
+            return 3 - (BitOperations.LeadingZeroCount(match) >> 4);
         }
     }
 }

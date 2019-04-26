@@ -13,8 +13,7 @@
 // sets and gets values for that field. 
 //
 // This implementation of thread statics closely parallels the implementation for regular statics. Regular
-// statics use the DomainLocalBlock and DomainLocalModule structures to allocate space for statics each time
-// a module is loaded in an AppDomain.
+// statics use the DomainLocalModule structure to allocate space for statics.
 //
 
 // 
@@ -115,7 +114,6 @@ struct ThreadLocalModule
                 NOTHROW;
                 GC_NOTRIGGER;
                 MODE_ANY;
-                SO_TOLERANT;
                 SUPPORTS_DAC;
             }
             CONTRACTL_END;
@@ -169,7 +167,6 @@ struct ThreadLocalModule
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             SUPPORTS_DAC;
         }
         CONTRACTL_END;
@@ -378,7 +375,6 @@ struct ThreadLocalModule
         {
             THROWS;
             GC_NOTRIGGER;
-            SO_INTOLERANT;
             MODE_ANY;
         }
         CONTRACTL_END;

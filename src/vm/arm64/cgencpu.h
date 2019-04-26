@@ -51,7 +51,7 @@ extern PCODE GetPreStubEntryPoint();
 #define CACHE_LINE_SIZE                         64
 #define LOG2SLOT                                LOG2_PTRSIZE
 
-#define ENREGISTERED_RETURNTYPE_MAXSIZE         32  // bytes (four FP registers: d0,d1,d2 and d3)
+#define ENREGISTERED_RETURNTYPE_MAXSIZE         64  // bytes (four vector registers: q0,q1,q2 and q3)
 #define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 16  // bytes (two int registers: x0 and x1)
 #define ENREGISTERED_PARAMTYPE_MAXSIZE          16  // bytes (max value type size that can be passed by value)
 
@@ -100,7 +100,7 @@ static_assert(((STACK_ELEM_SIZE & (STACK_ELEM_SIZE-1)) == 0), "STACK_ELEM_SIZE m
 //**********************************************************************
 
 //--------------------------------------------------------------------
-// This represents the callee saved (non-volatile) registers saved as
+// This represents the callee saved (non-volatile) integer registers saved as
 // of a FramedMethodFrame.
 //--------------------------------------------------------------------
 typedef DPTR(struct CalleeSavedRegisters) PTR_CalleeSavedRegisters;
@@ -111,7 +111,7 @@ struct CalleeSavedRegisters {
 };
 
 //--------------------------------------------------------------------
-// This represents the arguments that are stored in volatile registers.
+// This represents the arguments that are stored in volatile integer registers.
 // This should not overlap the CalleeSavedRegisters since those are already
 // saved separately and it would be wasteful to save the same register twice.
 // If we do use a non-volatile register as an argument, then the ArgIterator
@@ -138,10 +138,10 @@ typedef DPTR(struct FloatArgumentRegisters) PTR_FloatArgumentRegisters;
 struct FloatArgumentRegisters {
     // armV8 supports 32 floating point registers. Each register is 128bits long.
     // It can be accessed as 128-bit value or 64-bit value(d0-d31) or as 32-bit value (s0-s31)
-    // or as 16-bit value or as 8-bit values. C# only has two builtin floating datatypes float(32-bit) and 
-    // double(64-bit). It does not have a quad-precision floating point.So therefore it does not make sense to
-    // store full 128-bit values in Frame when the upper 64 bit will not contain any values.
-    double  d[8];  // d0-d7
+    // or as 16-bit value or as 8-bit values.
+    // Although C# only has two builtin floating datatypes float(32-bit) and double(64-bit),
+    // HW Intrinsics support using the full 128-bit value for passing Vectors.
+    NEON128   q[8];  // q0-q7
 };
 
 

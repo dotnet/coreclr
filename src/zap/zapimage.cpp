@@ -1025,8 +1025,8 @@ HANDLE ZapImage::GenerateFile(LPCWSTR wszOutputFileName, CORCOMPILE_NGEN_SIGNATU
     {    
         // Write the debug directory entry for the NGEN PDB
         RSDS rsds = {0};
-        
-        rsds.magic = 'SDSR';
+
+        rsds.magic = VAL32(0x53445352); // "SDSR";
         rsds.age = 1;
         // our PDB signature will be the same as our NGEN signature.  
         // However we want the printed version of the GUID to be be the same as the
@@ -1082,7 +1082,7 @@ HANDLE ZapImage::GenerateFile(LPCWSTR wszOutputFileName, CORCOMPILE_NGEN_SIGNATU
 
 HANDLE ZapImage::SaveImage(LPCWSTR wszOutputFileName, LPCWSTR wszDllPath, CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
 {
-    if (!IsReadyToRunCompilation())
+    if(!IsReadyToRunCompilation() || IsLargeVersionBubbleEnabled())
     {
         OutputManifestMetadata();
     }
@@ -1835,6 +1835,10 @@ void ZapImage::Compile()
         OutputTypesTableForReadyToRun(m_pMDImport);
         OutputInliningTableForReadyToRun();
         OutputProfileDataForReadyToRun();
+        if (IsLargeVersionBubbleEnabled())
+        {
+            OutputManifestMetadataForReadyToRun();
+        }
     }
     else
 #endif
@@ -2124,13 +2128,6 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
 
     CompileStatus result = NOT_COMPILED;
     
-    // This is an entry point into the JIT which can call back into the VM. There are methods in the
-    // JIT that will swallow exceptions and only the VM guarentees that exceptions caught or swallowed
-    // with restore the debug state of the stack guards. So it is necessary to ensure that the status
-    // is restored on return from the call into the JIT, which this light-weight transition macro
-    // will do.
-    REMOVE_STACK_GUARD;
-
     CORINFO_MODULE_HANDLE module;
 
     // We only compile IL_STUBs from the current assembly
@@ -2173,14 +2170,14 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
         //     messages to the console
         if (IsReadyToRunCompilation())
         {
-            // When compiling the method we may recieve an exeception when the
+            // When compiling the method we may receive an exeception when the
             // method uses a feature that is Not Implemented for ReadyToRun 
             // or a Type Load exception if the method uses for a SIMD type.
             //
             // We skip the compilation of such methods and we don't want to
             // issue a warning or error
             //
-            if ((hrException == E_NOTIMPL) || (hrException == IDS_CLASSLOAD_GENERAL))
+            if ((hrException == E_NOTIMPL) || (hrException == (HRESULT)IDS_CLASSLOAD_GENERAL))
             {
                 result = NOT_COMPILED;
                 level = CORZAP_LOGLEVEL_INFO;
@@ -2451,7 +2448,6 @@ HRESULT ZapImage::LocateProfileData()
         return S_FALSE;
     }
 
-#if !defined(FEATURE_PAL)
     //
     // See if there's profile data in the resource section of the PE
     //
@@ -2466,7 +2462,6 @@ HRESULT ZapImage::LocateProfileData()
     static ConfigDWORD g_UseIBCFile;
     if (g_UseIBCFile.val(CLRConfig::EXTERNAL_UseIBCFile) != 1)
         return S_OK;
-#endif
 
     //
     // Couldn't find profile resource--let's see if there's an ibc file to use instead

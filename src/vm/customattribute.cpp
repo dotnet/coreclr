@@ -118,18 +118,18 @@ void Attribute::SetManagedValue(CustomAttributeManagedValues gc, CustomAttribute
 
     if (type == SERIALIZATION_TYPE_TYPE || type == SERIALIZATION_TYPE_STRING)
     {
-        SetObjectReference((OBJECTREF*)&pValue->m_enumOrTypeName, gc.string, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&pValue->m_enumOrTypeName, gc.string);
     }
     else if (type == SERIALIZATION_TYPE_ENUM)
     {
-        SetObjectReference((OBJECTREF*)&pValue->m_type.m_enumName, gc.string, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&pValue->m_type.m_enumName, gc.string);
     }
     else if (type == SERIALIZATION_TYPE_SZARRAY)
     {
-        SetObjectReference((OBJECTREF*)&pValue->m_value, gc.array, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&pValue->m_value, gc.array);
         
         if (pValue->m_type.m_arrayType == SERIALIZATION_TYPE_ENUM)
-            SetObjectReference((OBJECTREF*)&pValue->m_type.m_enumName, gc.string, GetAppDomain());
+            SetObjectReference((OBJECTREF*)&pValue->m_type.m_enumName, gc.string);
     }   
 }
 
@@ -866,7 +866,6 @@ FCIMPL5(VOID, COMCustomAttribute::ParseAttributeUsageAttribute, PVOID pData, ULO
     int inherited = 0;
     int allowMultiple = 1;    
         
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
     {
         CustomAttributeParser ca(pData, cData);
         
@@ -897,7 +896,6 @@ FCIMPL5(VOID, COMCustomAttribute::ParseAttributeUsageAttribute, PVOID pData, ULO
         *pInherited = namedArgs[inherited].val.boolean == TRUE;
         *pAllowMultiple = namedArgs[allowMultiple].val.boolean == TRUE;
     }
-    END_SO_INTOLERANT_CODE;    
 }
 FCIMPLEND
 

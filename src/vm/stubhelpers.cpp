@@ -52,7 +52,6 @@ void StubHelpers::ValidateObjectInternal(Object *pObjUNSAFE, BOOL fValidateNextO
 	NOTHROW;
 	GC_NOTRIGGER;
 	MODE_ANY;
-	SO_TOLERANT;
 }
 	CONTRACTL_END;
 
@@ -706,6 +705,9 @@ FCIMPL4(IUnknown*, StubHelpers::InterfaceMarshaler__ConvertToNative, Object* pOb
     // This is only called in IL stubs which are in CER, so we don't need to worry about ThreadAbort
     HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_1(Frame::FRAME_ATTR_NO_THREAD_ABORT, pObj);
 
+    // We're going to be making some COM calls, better initialize COM.
+    EnsureComStarted();
+
     pIntf = MarshalObjectToInterface(&pObj, pItfMT, pClsMT, dwFlags);
 
     // No exception will be thrown here (including thread abort as it is delayed in IL stubs)
@@ -726,6 +728,9 @@ FCIMPL4(Object*, StubHelpers::InterfaceMarshaler__ConvertToManaged, IUnknown **p
     
     OBJECTREF pObj = NULL;
     HELPER_METHOD_FRAME_BEGIN_RET_1(pObj);
+    
+    // We're going to be making some COM calls, better initialize COM.
+    EnsureComStarted();
 
     UnmarshalObjectFromInterface(&pObj, ppUnk, pItfMT, pClsMT, dwFlags);
 
@@ -739,12 +744,12 @@ void QCALLTYPE StubHelpers::InterfaceMarshaler__ClearNative(IUnknown * pUnk)
 {
     QCALL_CONTRACT;
 
-    BEGIN_QCALL_SO_TOLERANT;
+    BEGIN_QCALL;
 
     ULONG cbRef = SafeReleasePreemp(pUnk);
     LogInteropRelease(pUnk, cbRef, "InterfaceMarshalerBase::ClearNative: In/Out release");
 
-    END_QCALL_SO_TOLERANT;
+    END_QCALL;
 }
 #include <optdefault.h>
 
@@ -894,7 +899,7 @@ FCIMPL2(ReflectClassBaseObject *, StubHelpers::WinRTTypeNameConverter__GetTypeFr
     HELPER_METHOD_FRAME_BEGIN_RET_2(refClass, refString);
 
     bool isPrimitive;
-    TypeHandle th = WinRTTypeNameConverter::GetManagedTypeFromWinRTTypeName(refString->GetBuffer(), &isPrimitive);
+    TypeHandle th = WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(refString->GetBuffer(), /* pLoadBinder */ nullptr, &isPrimitive);
     *pbIsPrimitive = isPrimitive;
     
     refClass = th.GetManagedClassObject();
@@ -1692,19 +1697,6 @@ FCIMPL1(Object*, StubHelpers::AllocateInternal, EnregisteredTypeHandle pRegister
     HELPER_METHOD_FRAME_END();
 
     return OBJECTREFToObject(objRet);
-}
-FCIMPLEND
-
-FCIMPL1(int, StubHelpers::AnsiStrlen, __in_z char* pszStr)
-{
-    FCALL_CONTRACT;
-
-    size_t len = strlen(pszStr);
-
-    // the length should have been checked earlier (see StubHelpers.CheckStringLength)
-    _ASSERTE(FitsInI4(len));
-
-    return (int)len;
 }
 FCIMPLEND
 

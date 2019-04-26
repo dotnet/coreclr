@@ -106,6 +106,9 @@ public:
     void FirePinObjectAtGCTime(void* object, uint8_t** ppObject) = 0;
 
     virtual
+    void FirePinPlugAtGCTime(uint8_t* plug_start, uint8_t* plug_end, uint8_t* gapBeforeSize) = 0;
+
+    virtual
     void FireGCPerHeapHistory_V3(void *freeListAllocated,
                                  void *freeListRejected,
                                  void *endOfSegAllocated,
@@ -128,6 +131,8 @@ public:
     void FireBGC1stNonConEnd() = 0;
     virtual
     void FireBGC1stConEnd() = 0;
+    virtual
+    void FireBGC1stSweepEnd(uint32_t genNumber) = 0;
     virtual
     void FireBGC2ndNonConBegin() = 0;
     virtual
@@ -291,7 +296,7 @@ public:
     // gives the diagnostics code a chance to run. This includes LOH if we are 
     // compacting LOH.
     virtual
-    void DiagWalkSurvivors(void* gcContext) = 0;
+    void DiagWalkSurvivors(void* gcContext, bool fCompacting) = 0;
 
     // During a full GC after we discover what objects to survive on LOH,
     // gives the diagnostics code a chance to run.
@@ -427,6 +432,12 @@ public:
 
     virtual
     void AnalyzeSurvivorsFinished(int condemnedGeneration) = 0;
+
+    virtual 
+    void VerifySyncTableEntry() = 0;
+
+    virtual
+    void UpdateGCEventStatus(int publicLevel, int publicKeywords, int privateLEvel, int privateKeywords) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

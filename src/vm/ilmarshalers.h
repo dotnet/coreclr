@@ -142,7 +142,6 @@ public:
         }
         CONTRACTL_END;
         
-        CONSISTENCY_CHECK(pManagedType->cbType == 1);
         if (pManagedType->IsValueClass())
         {
             EmitLoadHomeAddr(pslILEmit);    // dest
@@ -584,7 +583,8 @@ public:
         bool byrefNativeReturn = false;
         CorElementType typ = ELEMENT_TYPE_VOID;
         UINT32 nativeSize = 0;
-
+        bool nativeMethodIsMemberFunction = (CorInfoCallConv)m_pslNDirect->GetStubTargetCallingConv() == CORINFO_CALLCONV_THISCALL;
+            
         // we need to convert value type return types to primitives as
         // JIT does not inline P/Invoke calls that return structures
         if (nativeType.IsValueClass())
@@ -600,33 +600,61 @@ public:
                 nativeSize = wNativeSize;
             }
 
-#if defined(_TARGET_X86_)
+#if defined(PLATFORM_WINDOWS)
             // JIT32 and JIT64 (which is only used on the Windows Desktop CLR) has a problem generating
             // code for the pinvoke ILStubs which do a return using a struct type.  Therefore, we
             // change the signature of calli to return void and make the return buffer as first argument. 
 
-            // for X86 and AMD64-Windows we bash the return type from struct to U1, U2, U4 or U8
+            // For Windows, we need to use a return buffer for native member functions returning structures.
+            // On Windows arm we need to respect HFAs and not use a return buffer if the return type is an HFA
+            // for X86 Windows non-member functions we bash the return type from struct to U1, U2, U4 or U8
             // and use byrefNativeReturn for all other structs.
-            // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
-            switch (nativeSize)
+            if (nativeMethodIsMemberFunction)
             {
-#ifndef UNIX_X86_ABI
-                case 1: typ = ELEMENT_TYPE_U1; break;
-                case 2: typ = ELEMENT_TYPE_U2; break;
-                case 4: typ = ELEMENT_TYPE_U4; break;
-                case 8: typ = ELEMENT_TYPE_U8; break;
+#ifdef _TARGET_ARM_
+                byrefNativeReturn = !nativeType.InternalToken.GetMethodTable()->IsNativeHFA();
+#else
+                byrefNativeReturn = true;
 #endif
-                default: byrefNativeReturn = true; break;
             }
+            else
+            {
+#ifdef _TARGET_X86_
+                switch (nativeSize)
+                {
+                    case 1: typ = ELEMENT_TYPE_U1; break;
+                    case 2: typ = ELEMENT_TYPE_U2; break;
+                    case 4: typ = ELEMENT_TYPE_U4; break;
+                    case 8: typ = ELEMENT_TYPE_U8; break;
+                    default: byrefNativeReturn = true; break;
+                }
+#endif // _TARGET_X86_
+            }
+#endif // defined(PLATFORM_WINDOWS)
+
+            // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
+#ifdef UNIX_X86_ABI
+            byrefNativeReturn = true;
 #endif
         }
 
-        if (IsHresultSwap(dwMarshalFlags) || (byrefNativeReturn && IsCLRToNative(dwMarshalFlags)))
+        if (IsHresultSwap(dwMarshalFlags) || (byrefNativeReturn && (IsCLRToNative(m_dwMarshalFlags) || nativeMethodIsMemberFunction)))
         {
             LocalDesc extraParamType = nativeType;
             extraParamType.MakeByRef();
 
             m_pcsMarshal->SetStubTargetArgType(&extraParamType, false);
+            if (byrefNativeReturn && !IsCLRToNative(m_dwMarshalFlags))
+            {
+                // If doing a native->managed call and returning a structure by-ref,
+                // the native signature has an extra param for the struct return
+                // than the managed signature. Adjust the target stack delta to account this extra
+                // parameter.
+                m_pslNDirect->AdjustTargetStackDeltaForExtraParam();
+                // We also need to account for the lack of a return value in the native signature.
+                // To do this, we adjust the stack delta again for the return parameter.
+                m_pslNDirect->AdjustTargetStackDeltaForExtraParam();
+            }
             
             if (IsHresultSwap(dwMarshalFlags))
             {
@@ -742,6 +770,10 @@ public:
                 // we tolerate NULL here mainly for backward compatibility reasons
                 m_nativeHome.EmitCopyToByrefArgWithNullCheck(m_pcsUnmarshal, &nativeType, argidx);
                 m_pcsUnmarshal->EmitLDC(S_OK);
+            }
+            else if (byrefNativeReturn && nativeMethodIsMemberFunction)
+            {
+                m_nativeHome.EmitCopyToByrefArg(m_pcsUnmarshal, &nativeType, argidx);
             }
             else
             {
@@ -1947,7 +1979,7 @@ class ILWSTRMarshaler : public ILMarshaler
 public:
     enum
     {
-        c_fInOnly               = TRUE,
+        c_fInOnly               = FALSE,
         c_nativeSize            = sizeof(void *),
         c_CLRSize               = sizeof(OBJECTREF),
     };
@@ -1962,6 +1994,18 @@ public:
     }
 #endif // _DEBUG
 
+    
+    virtual bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID)
+    {
+        if (IsOut(dwMarshalFlags) && !IsByref(dwMarshalFlags) && IsCLRToNative(dwMarshalFlags))
+        {
+            *pErrorResID = IDS_EE_BADMARSHAL_STRING_OUT;
+            return false;
+        }
+
+        return true;
+    }
+
 protected:
     virtual LocalDesc GetNativeType();
     virtual LocalDesc GetManagedType();
@@ -1973,7 +2017,6 @@ protected:
 
     virtual void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit);
     virtual void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit);
-    virtual void EmitConvertSpaceAndContentsNativeToCLR(ILCodeStream* pslILEmit);
 
     virtual bool NeedsClearNative();
     virtual void EmitClearNative(ILCodeStream* pslILEmit);
@@ -2022,7 +2065,7 @@ public:
 	};
 
 	ILUTF8BufferMarshaler() :
-		ILOptimizedAllocMarshaler(METHOD__WIN32NATIVE__COTASKMEMFREE)
+		ILOptimizedAllocMarshaler(METHOD__MARSHAL__FREE_CO_TASK_MEM)
 	{
 		LIMITED_METHOD_CONTRACT;
 	}
@@ -2051,7 +2094,7 @@ public:
     };
 
     ILWSTRBufferMarshaler() :
-        ILOptimizedAllocMarshaler(METHOD__WIN32NATIVE__COTASKMEMFREE)
+        ILOptimizedAllocMarshaler(METHOD__MARSHAL__FREE_CO_TASK_MEM)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -2080,7 +2123,7 @@ public:
     };
 
     ILCSTRBufferMarshaler() :
-        ILOptimizedAllocMarshaler(METHOD__WIN32NATIVE__COTASKMEMFREE)
+        ILOptimizedAllocMarshaler(METHOD__MARSHAL__FREE_CO_TASK_MEM)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -2381,7 +2424,7 @@ protected:
 
         EmitLoadNativeValue(pslILEmit);
         // static void CoTaskMemFree(IntPtr ptr)
-        pslILEmit->EmitCALL(METHOD__WIN32NATIVE__COTASKMEMFREE, 1, 0);
+        pslILEmit->EmitCALL(METHOD__MARSHAL__FREE_CO_TASK_MEM, 1, 0);
     }
 
     virtual void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit)
@@ -2393,7 +2436,7 @@ protected:
             pslILEmit->EmitLDC(sizeof(ELEMENT));
             pslILEmit->EmitCONV_U();
             // static IntPtr CoTaskMemAlloc(UIntPtr cb)
-            pslILEmit->EmitCALL(METHOD__WIN32NATIVE__COTASKMEMALLOC, 1, 1);
+            pslILEmit->EmitCALL(METHOD__MARSHAL__ALLOC_CO_TASK_MEM, 1, 1);
             EmitStoreNativeValue(pslILEmit);
         }
     }
@@ -2715,8 +2758,40 @@ protected:
     virtual void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit);
 };
 
+class ILBlittableValueClassWithCopyCtorMarshaler : public ILMarshaler
+{
+public:
+    enum
+    {
+        c_fInOnly               = TRUE,
+        c_nativeSize            = VARIABLESIZE,
+        c_CLRSize               = sizeof(OBJECTREF),
+    };
+
+    LocalDesc GetManagedType()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return LocalDesc();
+    }
+
+    LocalDesc GetNativeType()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return LocalDesc();
+    }
+
+    static MarshalerOverrideStatus ArgumentOverride(NDirectStubLinker* psl,
+                                            BOOL               byref,
+                                            BOOL               fin,
+                                            BOOL               fout,
+                                            BOOL               fManagedToNative,
+                                            OverrideProcArgs*  pargs,
+                                            UINT*              pResID,
+                                            UINT               argidx,
+                                            UINT               nativeStackOffset);
 
 
+};
 
 class ILArgIteratorMarshaler : public ILMarshaler
 {
@@ -3128,7 +3203,7 @@ public:
                         METHOD__MNGD_HIDDEN_LENGTH_ARRAY_MARSHALER__CONVERT_CONTENTS_TO_MANAGED,
                         METHOD__MNGD_HIDDEN_LENGTH_ARRAY_MARSHALER__CONVERT_SPACE_TO_NATIVE,
                         METHOD__MNGD_HIDDEN_LENGTH_ARRAY_MARSHALER__CONVERT_CONTENTS_TO_NATIVE,
-                        METHOD__WIN32NATIVE__COTASKMEMFREE,
+                        METHOD__MARSHAL__FREE_CO_TASK_MEM,
                         METHOD__MNGD_HIDDEN_LENGTH_ARRAY_MARSHALER__CLEAR_NATIVE_CONTENTS,
                         METHOD__NIL)
     {
@@ -3235,8 +3310,8 @@ public:
         c_CLRSize               = sizeof(OBJECTREF),
     };
 
-    static void EmitConvertCLRUriToWinRTUri(ILCodeStream* pslILEmit, BaseDomain* pDomain);
-    static void EmitConvertWinRTUriToCLRUri(ILCodeStream* pslILEmit, BaseDomain* pDomain);
+    static void EmitConvertCLRUriToWinRTUri(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
+    static void EmitConvertWinRTUriToCLRUri(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
 
 protected:
     virtual LocalDesc GetNativeType();
@@ -3259,8 +3334,8 @@ public:
         c_CLRSize               = sizeof(OBJECTREF),
     };
 
-    static void EmitConvertCLREventArgsToWinRTEventArgs(ILCodeStream* pslILEmit, BaseDomain* pDomain);
-    static void EmitConvertWinRTEventArgsToCLREventArgs(ILCodeStream* pslILEmit, BaseDomain* pDomain);
+    static void EmitConvertCLREventArgsToWinRTEventArgs(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
+    static void EmitConvertWinRTEventArgsToCLREventArgs(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
 
 protected:
     virtual LocalDesc GetNativeType();
@@ -3283,8 +3358,8 @@ public:
         c_CLRSize               = sizeof(OBJECTREF),
     };
 
-    static void EmitConvertCLREventArgsToWinRTEventArgs(ILCodeStream* pslILEmit, BaseDomain* pDomain);
-    static void EmitConvertWinRTEventArgsToCLREventArgs(ILCodeStream* pslILEmit, BaseDomain* pDomain);
+    static void EmitConvertCLREventArgsToWinRTEventArgs(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
+    static void EmitConvertWinRTEventArgsToCLREventArgs(ILCodeStream* pslILEmit, LoaderAllocator* pLoader);
 
 protected:
     virtual LocalDesc GetNativeType();

@@ -20,8 +20,8 @@ namespace System.Reflection
 
             Type declaringType = m.DeclaringType;
             if (declaringType != null && declaringType.IsGenericType)
-                throw new ArgumentException(string.Format(
-                    CultureInfo.CurrentCulture, SR.Argument_MethodDeclaringTypeGeneric,
+                throw new ArgumentException(SR.Format(
+                    SR.Argument_MethodDeclaringTypeGeneric,
                     m, declaringType.GetGenericTypeDefinition()));
 
             return m;
@@ -72,7 +72,7 @@ namespace System.Reflection
                 // Why don't we just use "&"?
                 if (t.IsByRef)
                 {
-                    sbParamList.Append(typeName.TrimEnd('&'));
+                    sbParamList.Append(typeName.AsSpan().TrimEnd('&'));
                     sbParamList.Append(" ByRef");
                 }
                 else

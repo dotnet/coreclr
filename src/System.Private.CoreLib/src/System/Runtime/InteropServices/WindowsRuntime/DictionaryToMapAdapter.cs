@@ -2,17 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
-using System.Reflection;
-using System.Collections;
+#nullable enable
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -33,7 +26,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // V Lookup(K key)
-        internal V Lookup<K, V>(K key)
+        internal V Lookup<K, V>(K key) where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             V value;
@@ -41,6 +34,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (!keyFound)
             {
+                Debug.Assert(key != null);
                 Exception e = new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
                 e.HResult = HResults.E_BOUNDS;
                 throw e;
@@ -50,29 +44,28 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint Size { get }
-        internal uint Size<K, V>()
+        internal uint Size<K, V>() where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             return (uint)_this.Count;
         }
 
         // bool HasKey(K key)
-        internal bool HasKey<K, V>(K key)
+        internal bool HasKey<K, V>(K key) where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             return _this.ContainsKey(key);
         }
 
         // IMapView<K, V> GetView()
-        internal IReadOnlyDictionary<K, V> GetView<K, V>()
+        internal IReadOnlyDictionary<K, V> GetView<K, V>() where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             Debug.Assert(_this != null);
 
             // Note: This dictionary is not really read-only - you could QI for a modifiable
             // dictionary.  We gain some perf by doing this.  We believe this is acceptable.
-            IReadOnlyDictionary<K, V> roDictionary = _this as IReadOnlyDictionary<K, V>;
-            if (roDictionary == null)
+            if (!(_this is IReadOnlyDictionary<K, V> roDictionary))
             {
                 roDictionary = new ReadOnlyDictionary<K, V>(_this);
             }
@@ -80,7 +73,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Insert(K key, V value)
-        internal bool Insert<K, V>(K key, V value)
+        internal bool Insert<K, V>(K key, V value) where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             bool replacing = _this.ContainsKey(key);
@@ -89,13 +82,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Remove(K key)
-        internal void Remove<K, V>(K key)
+        internal void Remove<K, V>(K key) where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             bool removed = _this.Remove(key);
 
             if (!removed)
             {
+                Debug.Assert(key != null);
                 Exception e = new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
                 e.HResult = HResults.E_BOUNDS;
                 throw e;
@@ -103,7 +97,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        internal void Clear<K, V>()
+        internal void Clear<K, V>() where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             _this.Clear();

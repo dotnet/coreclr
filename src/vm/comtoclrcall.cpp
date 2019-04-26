@@ -101,7 +101,6 @@ void ProfilerTransitionCallbackHelper(MethodDesc* pMD, Thread* pThread, COR_PRF_
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMD));
         PRECONDITION(CheckPointer(pThread));
         PRECONDITION(CORProfilerTrackTransitions());
@@ -131,10 +130,6 @@ extern "C" HRESULT STDCALL StubRareDisableHRWorker(Thread *pThread)
     
     // Do not add a CONTRACT here.  We haven't set up SEH.  We rely
     // on HandleThreadAbort dealing with this situation properly.
-
-    // @todo -  We need to probe here, but can't introduce destructors etc.
-    BEGIN_CONTRACT_VIOLATION(SOToleranceViolation);
-
 
     // WARNING!!!!
     // when we start executing here, we are actually in cooperative mode.  But we
@@ -169,8 +164,6 @@ extern "C" HRESULT STDCALL StubRareDisableHRWorker(Thread *pThread)
 
     // should always be in coop mode here
     _ASSERTE(pThread->PreemptiveGCDisabled());
-
-    END_CONTRACT_VIOLATION;
 
     // Note that this code does not handle rare signatures that do not return HRESULT properly
 
@@ -209,8 +202,8 @@ inline static void InvokeStub(ComCallMethodDesc *pCMD, PCODE pManagedTarget, OBJ
     PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonILStubWillNotThrow);
 
     //
-    // NOTE! We do not use BEGIN_CALL_TO_MANAGEDEX around this call because we stayed in the SO_TOLERANT
-    // mode and COMToCLRDispatchHelper is responsible for pushing/popping the CPFH into the FS:0 chain.
+    // NOTE! We do not use BEGIN_CALL_TO_MANAGEDEX around this call because COMToCLRDispatchHelper is
+    // responsible for pushing/popping the CPFH into the FS:0 chain.
     //
 
     *pRetValOut = COMToCLRDispatchHelper(
@@ -279,7 +272,6 @@ OBJECTREF COMToCLRGetObjectAndTarget_Delegate(ComCallWrapper * pWrap, PCODE * pp
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -302,7 +294,6 @@ bool COMToCLRGetObjectAndTarget_WinRTCtor(Thread * pThread, MethodDesc * pRealMD
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -322,8 +313,6 @@ bool COMToCLRGetObjectAndTarget_WinRTCtor(Thread * pThread, MethodDesc * pRealMD
 
     bool fSuccess = true;
 
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(pThread, { *pRetValOut = COR_E_STACKOVERFLOW; return false; } );
-
     EX_TRY
     {
         *pObjectOut = AllocateObject(pMT);
@@ -334,8 +323,6 @@ bool COMToCLRGetObjectAndTarget_WinRTCtor(Thread * pThread, MethodDesc * pRealMD
         *pRetValOut = SetupErrorInfo(GET_THROWABLE());
     }
     EX_END_CATCH(SwallowAllExceptions);
-
-    END_SO_INTOLERANT_CODE;
 
     return fSuccess;
 }
@@ -348,7 +335,6 @@ OBJECTREF COMToCLRGetObjectAndTarget_Virtual(ComCallWrapper * pWrap, MethodDesc 
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -390,7 +376,6 @@ OBJECTREF COMToCLRGetObjectAndTarget_NonVirtual(ComCallWrapper * pWrap, MethodDe
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -409,7 +394,6 @@ void COMToCLRInvokeTarget(PCODE pManagedTarget, OBJECTREF pObject, ComCallMethod
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -433,7 +417,6 @@ void COMToCLRWorkerBody_Rare(Thread * pThread, ComMethodFrame * pFrame, ComCallW
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -494,7 +477,6 @@ void COMToCLRWorkerBody(
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -565,79 +547,6 @@ void COMToCLRWorkerBody(
     return;
 }
 
-void COMToCLRWorkerBody_SOIntolerant(Thread * pThread, ComMethodFrame * pFrame, ComCallWrapper * pWrap, UINT64 * pRetValOut)
-{
-    STATIC_CONTRACT_THROWS;             // THROWS due to END_SO_TOLERANT_CODE
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_INTOLERANT; 
-
-    BEGIN_SO_TOLERANT_CODE(pThread);
-
-    COMToCLRWorkerBody(pThread, pFrame, pWrap, pRetValOut);
-
-    END_SO_TOLERANT_CODE;
-}
-
-#ifdef _TARGET_X86_
-// On x86, we do not want the non-AD-transition path to push an extra FS:0 handler just to 
-// pop off the ComMethodFrame.  On non-x86, we have a personality routine that does this
-// (ReverseComUnwindFrameChainHandler), but on x86 we will latch onto the typical CPFH by
-// pushing COMPlusFrameHandlerRevCom as the FS:0 handler instead of COMPlusFrameHandler.  
-// COMPlusFrameHandlerRevCom will look at the Frame chain from the current Frame up to
-// the ComMethodFrame and, if it finds a ContextTransitionFrame, it will do nothing.  
-// Otherwise, it will unwind the Frame chain up to the ComMethodFrame.  So here we latch
-// onto the AD transition rethrow as the point at which to unwind the Frame chain up to
-// the ComMethodFrame.
-#define REVERSE_COM_RETHROW_HOOK(pFrame)    { ComMethodFrame::DoSecondPassHandlerCleanup(pFrame); }
-#else
-#define REVERSE_COM_RETHROW_HOOK(pFrame)    NULL
-#endif // _TARGET_X86_
-
-NOINLINE
-void COMToCLRWorkerBodyWithADTransition(
-    Thread * pThread,
-    ComMethodFrame * pFrame,
-    ComCallWrapper * pWrap,
-    UINT64 * pRetValOut)
-{
-    CONTRACTL
-    {
-        NOTHROW;    // Although CSE can be thrown 
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        SO_TOLERANT; 
-    }
-    CONTRACTL_END;
-
-    BOOL fEnteredDomain = FALSE;
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(pThread, { *pRetValOut = COR_E_STACKOVERFLOW; return; } );
-    EX_TRY
-    {
-        ADID pTgtDomain = pWrap->GetDomainID();
-        ENTER_DOMAIN_ID(pTgtDomain)
-        {
-            fEnteredDomain = TRUE;
-            COMToCLRWorkerBody_SOIntolerant(pThread, pFrame, pWrap, pRetValOut);
-        }
-        END_DOMAIN_TRANSITION;
-    }
-    EX_CATCH
-    {
-        *pRetValOut = SetupErrorInfo(GET_THROWABLE(), pFrame->GetComCallMethodDesc());
-    }
-    EX_END_CATCH(
-        RethrowCorruptingExceptionsExAndHookRethrow(
-            // If it was thrown at us from the IL stub (which will evaluate the CE policy), then we must 
-            // rethrow it here.  But we should swallow exceptions generated by our domain transition.
-            fEnteredDomain,   
-            REVERSE_COM_RETHROW_HOOK(pThread->GetFrame())
-            ));
-
-    END_SO_INTOLERANT_CODE;
-}
-
-
 //------------------------------------------------------------------
 // UINT64 __stdcall COMToCLRWorker(Thread *pThread, 
 //                                  ComMethodFrame* pFrame)
@@ -657,7 +566,6 @@ extern "C" UINT64 __stdcall COMToCLRWorker(Thread *pThread, ComMethodFrame* pFra
         // to leave the MODE_ contract enabled on x86.
         DISABLED(MODE_PREEMPTIVE);
 #endif
-        SO_TOLERANT; 
         PRECONDITION(CheckPointer(pFrame));
         PRECONDITION(CheckPointer(pThread, NULL_OK));
     }
@@ -745,17 +653,7 @@ extern "C" UINT64 __stdcall COMToCLRWorker(Thread *pThread, ComMethodFrame* pFra
 
             // Obtain the managed 'this' for the call
             ComCallWrapper *pWrap = ComCallWrapper::GetWrapperFromIP(pUnk);
-            _ASSERTE(pWrap != NULL);
-            if (pWrap->NeedToSwitchDomains(pThread))
-            {
-                COMToCLRWorkerBodyWithADTransition(pThread, pFrame, pWrap, &retVal);
-            }
-            else
-            {
-                // This is the common case that needs to be fast: we are in the right domain and
-                // all we have to do is marshal the parameters and deliver the call. 
-                COMToCLRWorkerBody(pThread, pFrame, pWrap, &retVal);
-            }
+            COMToCLRWorkerBody(pThread, pFrame, pWrap, &retVal);
         }
     }
 
@@ -838,9 +736,6 @@ static UINT64 __stdcall FieldCallWorker(Thread *pThread, ComMethodFrame* pFrame)
     
     HRESULT hrRetVal = S_OK;
 
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(pThread, return COR_E_STACKOVERFLOW);
-    // BEGIN_ENTRYPOINT_NOTHROW_WITH_THREAD(pThread);
-   
     IUnknown** pip = (IUnknown **)pFrame->GetPointerToArguments();
     IUnknown* pUnk = (IUnknown *)*pip; 
     _ASSERTE(pUnk != NULL);
@@ -852,93 +747,21 @@ static UINT64 __stdcall FieldCallWorker(Thread *pThread, ComMethodFrame* pFrame)
     OBJECTREF pThrowable = NULL;
     GCPROTECT_BEGIN(pThrowable);
     {
-        if (!pWrap->NeedToSwitchDomains(pThread))
+        EX_TRY
         {
-            // This is the common case that needs to be fast: we are in the right domain and
-            // all we have to do is marshal the parameters and deliver the call. We still have to
-            // set up an EX_TRY/EX_CATCH to transform any exceptions that were thrown into 
-            // HRESULTs.       
-            EX_TRY
-            {
-                FieldCallWorkerDebuggerWrapper(pThread, pFrame);
-            }
-            EX_CATCH
-            {
-                pThrowable = GET_THROWABLE();
-            }
-            EX_END_CATCH(SwallowAllExceptions);
-
-            if (pThrowable != NULL)
-            {
-                // Transform the exception into an HRESULT. This also sets up
-                // an IErrorInfo on the current thread for the exception.
-                hrRetVal = SetupErrorInfo(pThrowable, pFrame->GetComCallMethodDesc());
-                pThrowable = NULL;
-            }
+            FieldCallWorkerDebuggerWrapper(pThread, pFrame);
         }
-        else
+        EX_CATCH
         {
-            ADID pTgtDomain = pWrap->GetDomainID();
-            if (!pTgtDomain.m_dwId)
-            {
-                hrRetVal = COR_E_APPDOMAINUNLOADED;
-            }
-            else
-            {
-                // We need a try/catch around the code to enter the domain since entering
-                // an AppDomain can throw an exception. 
-                EX_TRY
-                {
-                    ENTER_DOMAIN_ID(pTgtDomain)
-                    {
-                        // Set up a new GC protection frame for any exceptions thrown inside the AppDomain. Do
-                        // this so we can be sure we don't leak an AppDomain-specific object outside the
-                        // lifetime of the AppDomain (which can happen if an AppDomain unload causes us to
-                        // unwind out via a ThreadAbortException).
-                        OBJECTREF pAppDomainThrowable = NULL;
-                        GCPROTECT_BEGIN(pAppDomainThrowable);
-                        {
-                            // We need a try/catch around the call to the worker since we need
-                            // to transform any exceptions into HRESULTs. We want to do this
-                            // inside the AppDomain of the CCW.
-                            EX_TRY
-                            {
-                                FieldCallWorkerDebuggerWrapper(pThread, pFrame);
-                            }
-                            EX_CATCH
-                            {
-                                pAppDomainThrowable = GET_THROWABLE();
-                            }
-                            EX_END_CATCH(RethrowTerminalExceptions);
+            pThrowable = GET_THROWABLE();
+        }
+        EX_END_CATCH(SwallowAllExceptions);
 
-                            if (pAppDomainThrowable != NULL)
-                            {
-                                // Transform the exception into an HRESULT. This also sets up
-                                // an IErrorInfo on the current thread for the exception.
-                                hrRetVal = SetupErrorInfo(pAppDomainThrowable, pFrame->GetComCallMethodDesc());
-                                pAppDomainThrowable = NULL;
-                            }
-                        }
-                        GCPROTECT_END();
-                    }
-                    END_DOMAIN_TRANSITION;        
-                }
-                EX_CATCH
-                {
-                    // Transform the exception into an HRESULT. This also sets up
-                    // an IErrorInfo on the current thread for the exception.
-                    pThrowable = GET_THROWABLE();
-                }
-                EX_END_CATCH(SwallowAllExceptions);
-
-                if (pThrowable != NULL)
-                {
-                    // Transform the exception into an HRESULT. This also sets up
-                    // an IErrorInfo on the current thread for the exception.
-                    hrRetVal = SetupErrorInfo(pThrowable, pFrame->GetComCallMethodDesc());
-                    pThrowable = NULL;
-                }
-            }
+        if (pThrowable != NULL)
+        {
+            // Transform the exception into an HRESULT. This also sets up
+            // an IErrorInfo on the current thread for the exception.
+            hrRetVal = SetupErrorInfo(pThrowable, pFrame->GetComCallMethodDesc());
         }
     }
 
@@ -950,9 +773,6 @@ static UINT64 __stdcall FieldCallWorker(Thread *pThread, ComMethodFrame* pFrame)
 
     LOG((LF_STUBS, LL_INFO1000000, "FieldCallWorker leave\n"));
 
-    END_SO_INTOLERANT_CODE;
-    //END_ENTRYPOINT_NOTHROW_WITH_THREAD;
-    
     return hrRetVal;
 }
 
@@ -1329,7 +1149,7 @@ void ComCallMethodDesc::InitNativeInfo()
 
             MarshalInfo info(fsig.GetModule(), fsig.GetArgProps(), fsig.GetSigTypeContext(), pFD->GetMemberDef(), MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                              (CorNativeLinkType)0, (CorNativeLinkFlags)0, 
-                             FALSE, 0, fsig.NumFixedArgs(), BestFit, ThrowOnUnmappableChar, FALSE, NULL, FALSE
+                             FALSE, 0, fsig.NumFixedArgs(), BestFit, ThrowOnUnmappableChar, FALSE, TRUE, NULL, FALSE
 #ifdef _DEBUG
                              , szDebugName, szDebugClassName, 0
 #endif
@@ -1435,7 +1255,7 @@ void ComCallMethodDesc::InitNativeInfo()
                 MarshalInfo info(msig.GetModule(), msig.GetArgProps(), msig.GetSigTypeContext(), params[iArg],
                                  WinRTType ? MarshalInfo::MARSHAL_SCENARIO_WINRT : MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                                  (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                                 TRUE, iArg, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, pMD, FALSE
+                                 TRUE, iArg, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, FALSE
 #ifdef _DEBUG
                                  , szDebugName, szDebugClassName, iArg
 #endif
@@ -1497,7 +1317,7 @@ void ComCallMethodDesc::InitNativeInfo()
                 MarshalInfo info(msig.GetModule(), msig.GetReturnProps(), msig.GetSigTypeContext(), params[0],
                                     WinRTType ? MarshalInfo::MARSHAL_SCENARIO_WINRT : MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                                     (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                                    FALSE, 0, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, pMD, FALSE
+                                    FALSE, 0, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, FALSE
 #ifdef _DEBUG
                                 ,szDebugName, szDebugClassName, 0
 #endif

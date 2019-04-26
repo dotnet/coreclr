@@ -139,8 +139,11 @@ namespace R2RDump
 
         public void WriteTo(TextWriter writer, DumpOptions options)
         {
-            writer.WriteLine($"Id: {Id}");
-            writer.WriteLine($"StartAddress: 0x{StartAddress:X8}");
+            if (!options.Naked)
+            {
+                writer.WriteLine($"Id: {Id}");
+                writer.WriteLine($"StartAddress: 0x{StartAddress:X8}");
+            }
             if (Size == -1)
             {
                 writer.WriteLine("Size: Unavailable");
@@ -149,7 +152,10 @@ namespace R2RDump
             {
                 writer.WriteLine($"Size: {Size} bytes");
             }
-            writer.WriteLine($"UnwindRVA: 0x{UnwindRVA:X8}");
+            if (!options.Naked)
+            {
+                writer.WriteLine($"UnwindRVA: 0x{UnwindRVA:X8}");
+            }
             if (UnwindInfo is Amd64.UnwindInfo amd64UnwindInfo)
             {
                 string parsedFlags = "";
@@ -175,7 +181,10 @@ namespace R2RDump
                 writer.WriteLine($"CountOfUnwindCodes: {amd64UnwindInfo.CountOfUnwindCodes}");
                 writer.WriteLine($"FrameRegister:      {amd64UnwindInfo.FrameRegister}");
                 writer.WriteLine($"FrameOffset:        0x{amd64UnwindInfo.FrameOffset}");
-                writer.WriteLine($"PersonalityRVA:     0x{amd64UnwindInfo.PersonalityRoutineRVA:X4}");
+                if (!options.Naked)
+                {
+                    writer.WriteLine($"PersonalityRVA:     0x{amd64UnwindInfo.PersonalityRoutineRVA:X4}");
+                }
 
                 for (int unwindCodeIndex = 0; unwindCodeIndex < amd64UnwindInfo.CountOfUnwindCodes; unwindCodeIndex++)
                 {
@@ -189,6 +198,49 @@ namespace R2RDump
                 }
             }
             writer.WriteLine();
+
+            if (Method.GcInfo is Amd64.GcInfo gcInfo)
+            {
+                writer.WriteLine("GC info:");
+                writer.WriteLine($@"    Version:                           {gcInfo.Version}");
+                writer.WriteLine($@"    ReturnKind:                        {gcInfo.ReturnKind}");
+                writer.WriteLine($@"    ValidRangeStart:                   0x{gcInfo.ValidRangeStart:X4}");
+                writer.WriteLine($@"    ValidRangeEnd:                     0x{gcInfo.ValidRangeEnd:X4}");
+                writer.WriteLine($@"    SecurityObjectStackSlot:           0x{gcInfo.SecurityObjectStackSlot:X4}");
+                writer.WriteLine($@"    GSCookieStackSlot:                 0x{gcInfo.GSCookieStackSlot:X4}");
+                writer.WriteLine($@"    PSPSymStackSlot:                   0x{gcInfo.PSPSymStackSlot:X4}");
+                writer.WriteLine($@"    GenericsInstContextStackSlot:      0x{gcInfo.GenericsInstContextStackSlot:X4}");
+                writer.WriteLine($@"    StackBaseRegister:                 {gcInfo.StackBaseRegister}");
+                writer.WriteLine($@"    SizeOfENCPreservedArea:            0x{gcInfo.SizeOfEditAndContinuePreservedArea:X4}");
+                writer.WriteLine($@"    ReversePInvokeFrameStackSlot:      0x{gcInfo.ReversePInvokeFrameStackSlot:X4}");
+                writer.WriteLine($@"    SizeOfStackOutgoingAndScratchArea: 0x{gcInfo.SizeOfStackOutgoingAndScratchArea:X4}");
+                writer.WriteLine($@"    NumSafePoints:                     {gcInfo.NumSafePoints}");
+                writer.WriteLine($@"    NumInterruptibleRanges:            {gcInfo.NumInterruptibleRanges}");
+
+                writer.WriteLine($@"    SafePointOffsets: {gcInfo.SafePointOffsets.Count}");
+                foreach (Amd64.GcInfo.SafePointOffset safePoint in gcInfo.SafePointOffsets)
+                {
+                    writer.WriteLine($@"        Index: {safePoint.Index,2}; Value: 0x{safePoint.Value:X4}");
+                }
+
+                writer.WriteLine($@"    InterruptibleRanges: {gcInfo.InterruptibleRanges.Count}");
+                foreach (Amd64.InterruptibleRange range in gcInfo.InterruptibleRanges)
+                {
+                    writer.WriteLine($@"        Index: {range.Index,2}; StartOffset: 0x{range.StartOffset:X4}; StopOffset: 0x{range.StopOffset:X4}");
+                }
+
+                writer.WriteLine("    SlotTable:");
+                writer.WriteLine($@"        NumRegisters:  {gcInfo.SlotTable.NumRegisters}");
+                writer.WriteLine($@"        NumStackSlots: {gcInfo.SlotTable.NumStackSlots}");
+                writer.WriteLine($@"        NumUntracked:  {gcInfo.SlotTable.NumUntracked}");
+                writer.WriteLine($@"        NumSlots:      {gcInfo.SlotTable.NumSlots}");
+                writer.WriteLine($@"        GcSlots:       {gcInfo.SlotTable.GcSlots.Count}");
+                foreach (Amd64.GcSlotTable.GcSlot slot in gcInfo.SlotTable.GcSlots)
+                {
+                    writer.WriteLine($@"            Index: {slot.Index,2}; RegisterNumber: {slot.RegisterNumber,2}; Flags: {slot.Flags}");
+                }
+                writer.WriteLine();
+            }
 
             if (EHInfo != null)
             {
@@ -375,7 +427,10 @@ namespace R2RDump
 
             writer.WriteLine($"Handle: 0x{MetadataTokens.GetToken(R2RReader.MetadataReader, MethodHandle):X8}");
             writer.WriteLine($"Rid: {MetadataTokens.GetRowNumber(R2RReader.MetadataReader, MethodHandle)}");
-            writer.WriteLine($"EntryPointRuntimeFunctionId: {EntryPointRuntimeFunctionId}");
+            if (!options.Naked)
+            {
+                writer.WriteLine($"EntryPointRuntimeFunctionId: {EntryPointRuntimeFunctionId}");
+            }
             writer.WriteLine($"Number of RuntimeFunctions: {RuntimeFunctions.Count}");
             if (Fixups != null)
             {
@@ -388,7 +443,12 @@ namespace R2RDump
 
                 foreach (FixupCell cell in fixups)
                 {
-                    writer.WriteLine($"    TableIndex {cell.TableIndex}, Offset {cell.CellOffset:X4}: {cell.Signature}");
+                    writer.Write("    ");
+                    if (!options.Naked)
+                    {
+                        writer.Write($"TableIndex {cell.TableIndex}, Offset {cell.CellOffset:X4}: ");
+                    }
+                    writer.WriteLine(cell.Signature);
                 }
             }
         }

@@ -18,7 +18,6 @@
 
 #include "assembly.hpp"
 #include "appdomain.hpp"
-#include "perfcounters.h"
 #include "assemblyname.hpp"
 
 
@@ -118,6 +117,7 @@ Assembly::Assembly(BaseDomain *pDomain, PEAssembly* pFile, DebuggerAssemblyContr
     m_pLoaderAllocator(NULL),
     m_isDisabledPrivateReflection(0),
 #ifdef FEATURE_COMINTEROP
+    m_pITypeLib(NULL),
     m_winMDStatus(WinMDStatus_Unknown),
     m_pManifestWinMDImport(NULL),
 #endif // FEATURE_COMINTEROP
@@ -126,7 +126,7 @@ Assembly::Assembly(BaseDomain *pDomain, PEAssembly* pFile, DebuggerAssemblyContr
 #ifdef FEATURE_COMINTEROP
     , m_InteropAttributeStatus(INTEROP_ATTRIBUTE_UNSET)
 #endif
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     , m_isInstrumentedStatus(IS_INSTRUMENTED_UNSET)
 #endif
 {
@@ -171,8 +171,6 @@ void Assembly::Init(AllocMemTracker *pamTracker, LoaderAllocator *pLoaderAllocat
 
     m_pClassLoader = new ClassLoader(this);
     m_pClassLoader->Init(pamTracker);
-
-    COUNTER_ONLY(GetPerfCounters().m_Loading.cAssemblies++);
 
 #ifndef CROSSGEN_COMPILE
     if (GetManifestFile()->IsDynamic())
@@ -275,6 +273,11 @@ Assembly::~Assembly()
     {
         m_pManifestWinMDImport->Release();
     }
+
+    if (m_pITypeLib != nullptr && m_pITypeLib != Assembly::InvalidTypeLib)
+    {
+        m_pITypeLib->Release();
+    }
 #endif // FEATURE_COMINTEROP
 }
 
@@ -350,8 +353,6 @@ void Assembly::Terminate( BOOL signalProfiler )
         m_pClassLoader = NULL;
     }
 
-    COUNTER_ONLY(GetPerfCounters().m_Loading.cAssemblies--);
-
 #ifdef PROFILING_SUPPORTED
     if (CORProfilerTrackAssemblyLoads())
     {
@@ -375,9 +376,6 @@ Assembly * Assembly::Create(
 
     NewHolder<Assembly> pAssembly (new Assembly(pDomain, pFile, debuggerFlags, fIsCollectible));
 
-    // If there are problems that arise from this call stack, we'll chew up a lot of stack
-    // with the various EX_TRY/EX_HOOKs that we will encounter.
-    INTERIOR_STACK_PROBE_FOR(GetThread(), DEFAULT_ENTRY_PROBE_SIZE); 
 #ifdef PROFILING_SUPPORTED
     {
         BEGIN_PIN_PROFILER(CORProfilerTrackAssemblyLoads());
@@ -406,7 +404,6 @@ Assembly * Assembly::Create(
     EX_END_HOOK;
 #endif
     pAssembly.SuppressRelease();
-    END_INTERIOR_STACK_PROBE;
     
     return pAssembly;
 } // Assembly::Create
@@ -729,36 +726,10 @@ void Assembly::SetDomainAssembly(DomainAssembly *pDomainAssembly)
 
 #endif // #ifndef DACCESS_COMPILE
 
-DomainAssembly *Assembly::GetDomainAssembly(AppDomain *pDomain)
+DomainAssembly *Assembly::GetDomainAssembly()
 {
-    CONTRACT(DomainAssembly *)
-    {
-        PRECONDITION(CheckPointer(pDomain, NULL_NOT_OK));
-        POSTCONDITION(CheckPointer(RETVAL));
-        THROWS;
-        GC_TRIGGERS;
-    }
-    CONTRACT_END;
-
-    RETURN GetManifestModule()->GetDomainAssembly(pDomain);
-}
-
-DomainAssembly *Assembly::FindDomainAssembly(AppDomain *pDomain)
-{
-    CONTRACT(DomainAssembly *)
-    {
-        PRECONDITION(CheckPointer(pDomain));
-        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-        NOTHROW;
-        GC_NOTRIGGER;
-        FORBID_FAULT;
-        SO_TOLERANT;
-        SUPPORTS_DAC;
-    }
-    CONTRACT_END;
-
-    PREFIX_ASSUME (GetManifestModule() !=NULL); 
-    RETURN GetManifestModule()->FindDomainAssembly(pDomain);
+    LIMITED_METHOD_DAC_CONTRACT;
+    return GetManifestModule()->GetDomainAssembly();
 }
 
 PTR_LoaderHeap Assembly::GetLowFrequencyHeap()
@@ -887,7 +858,7 @@ Module *Assembly::FindModuleByExportedType(mdExportedType mdType,
 #ifndef DACCESS_COMPILE
                     // LoadAssembly never returns NULL
                     DomainAssembly * pDomainAssembly =
-                        GetManifestModule()->LoadAssembly(::GetAppDomain(), mdLinkRef);
+                        GetManifestModule()->LoadAssembly(mdLinkRef);
                     PREFIX_ASSUME(pDomainAssembly != NULL);
 
                     RETURN pDomainAssembly->GetCurrentModule();
@@ -1141,7 +1112,6 @@ Module * Assembly::FindModuleByTypeRef(
 
             
             DomainAssembly * pDomainAssembly = pModule->LoadAssembly(
-                    ::GetAppDomain(), 
                     tkType, 
                     szNamespace, 
                     szClassName);
@@ -1849,7 +1819,6 @@ BOOL Assembly::FileNotFound(HRESULT hr)
 BOOL Assembly::GetResource(LPCSTR szName, DWORD *cbResource,
                               PBYTE *pbInMemoryResource, Assembly** pAssemblyRef,
                               LPCSTR *szFileName, DWORD *dwLocation,
-                              StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                               BOOL fSkipRaiseResolveEvent)
 {
     CONTRACTL
@@ -1863,15 +1832,15 @@ BOOL Assembly::GetResource(LPCSTR szName, DWORD *cbResource,
     DomainAssembly *pAssembly = NULL;
     BOOL result = GetDomainAssembly()->GetResource(szName, cbResource,
                                                    pbInMemoryResource, &pAssembly,
-                                                   szFileName, dwLocation, pStackMark, fSkipSecurityCheck,
+                                                   szFileName, dwLocation,
                                                    fSkipRaiseResolveEvent);
-    if (result && pAssemblyRef != NULL && pAssembly!=NULL)
+    if (result && pAssemblyRef != NULL && pAssembly != NULL)
         *pAssemblyRef = pAssembly->GetAssembly();
 
     return result;
 }
 
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
 BOOL Assembly::IsInstrumented()
 {
     STATIC_CONTRACT_THROWS;
@@ -1982,6 +1951,51 @@ BOOL Assembly::IsInstrumentedHelper()
     return false;    
 }
 #endif // FEATURE_PREJIT
+
+
+#ifdef FEATURE_COMINTEROP
+
+ITypeLib * const Assembly::InvalidTypeLib = (ITypeLib *)-1;
+
+ITypeLib* Assembly::GetTypeLib()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END
+
+    ITypeLib *pTlb = m_pITypeLib;
+    if (pTlb != nullptr && pTlb != Assembly::InvalidTypeLib)
+        pTlb->AddRef();
+
+    return pTlb;
+} // ITypeLib* Assembly::GetTypeLib()
+
+bool Assembly::TrySetTypeLib(_In_ ITypeLib *pNew)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        FORBID_FAULT;
+        PRECONDITION(CheckPointer(pNew));
+    }
+    CONTRACTL_END
+
+    ITypeLib *pOld = InterlockedCompareExchangeT(&m_pITypeLib, pNew, nullptr);
+    if (pOld != nullptr)
+        return false;
+
+    if (pNew != Assembly::InvalidTypeLib)
+        pNew->AddRef();
+
+    return true;
+} // void Assembly::SetTypeLib()
+
+#endif // FEATURE_COMINTEROP
 
 //***********************************************************
 // Add an assembly to the assemblyref list. pAssemEmitter specifies where

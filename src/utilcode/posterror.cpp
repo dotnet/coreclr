@@ -28,16 +28,6 @@
 // Local prototypes.
 HRESULT FillErrorInfo(LPCWSTR szMsg, DWORD dwHelpContext);
 
-//*****************************************************************************
-// Function that we'll expose to the outside world to fire off the shutdown method
-//*****************************************************************************
-#ifdef SHOULD_WE_CLEANUP
-void ShutdownCompRC()
-{
-    CCompRC::ShutdownDefaultResourceDll();
-}
-#endif /* SHOULD_WE_CLEANUP */
-
 void GetResourceCultureCallbacks(
         FPGETTHREADUICULTURENAMES* fpGetThreadUICultureNames,
         FPGETTHREADUICULTUREID* fpGetThreadUICultureId)
@@ -84,13 +74,11 @@ HRESULT UtilLoadResourceString(CCompRC::ResourceCategory eCategory, UINT iResour
     {
         DISABLED(NOTHROW);
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     HRESULT retVal = E_OUTOFMEMORY;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
     SString::Startup();
     EX_TRY
     {
@@ -107,8 +95,6 @@ HRESULT UtilLoadResourceString(CCompRC::ResourceCategory eCategory, UINT iResour
         retVal = E_OUTOFMEMORY;
     }
     EX_END_CATCH(SwallowAllExceptions);
-
-    END_SO_INTOLERANT_CODE;
 
     return retVal;
 }
@@ -127,13 +113,11 @@ STDAPI UtilLoadStringRCEx(
     {
         DISABLED(NOTHROW);
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
         
     HRESULT retVal = E_OUTOFMEMORY;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
     EX_TRY
     {
         SString::Startup();
@@ -150,7 +134,6 @@ STDAPI UtilLoadStringRCEx(
         retVal = E_OUTOFMEMORY;
     }
     EX_END_CATCH(SwallowAllExceptions);
-    END_SO_INTOLERANT_CODE;
 
     return retVal;
 }

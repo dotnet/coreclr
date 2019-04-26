@@ -146,10 +146,9 @@ GetBindableWinRTName(
     // Therefore we do not have to use file name to create fake type name
     IfFailRet(GetFirstWinRTTypeDef(pMDInternalImport, &szNameSpace, &szTypeName, NULL, NULL));
     
-    DWORD dwSize = MAX_PATH_FNAME;
     WCHAR wzAsmName[MAX_PATH_FNAME];
+    DWORD dwSize = sizeof(wzAsmName);
     
-    dwSize = MAX_PATH_FNAME * sizeof(WCHAR);
     IfFailRet(pIAssemblyName->GetProperty(ASM_NAME_NAME, wzAsmName, &dwSize));
 
     StackSString sNamespaceAndType(wzAsmName);
@@ -157,8 +156,8 @@ GetBindableWinRTName(
     sNamespaceAndType.AppendUTF8(szNameSpace);
     sNamespaceAndType.Append(W("."));
     sNamespaceAndType.AppendUTF8(szTypeName);
-    
-    pIAssemblyName->SetProperty(ASM_NAME_NAME, sNamespaceAndType.GetUnicode(), (lstrlenW(sNamespaceAndType.GetUnicode()) + 1) * sizeof(WCHAR));
-    
+
+    pIAssemblyName->SetProperty(ASM_NAME_NAME, sNamespaceAndType.GetUnicode(), (sNamespaceAndType.GetCount() + 1) * sizeof(WCHAR));
+
     return hr;
 }

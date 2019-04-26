@@ -2,51 +2,29 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-//
-// RuntimeHelpers
-//    This class defines a set of static methods that provide support for compilers.
-//
-//
+#nullable enable
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.CompilerServices
 {
-    using System;
-    using System.Diagnostics;
-    using System.Security;
-    using System.Runtime;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.InteropServices;
-    using System.Runtime.ConstrainedExecution;
-    using System.Runtime.Serialization;
-    using System.Threading;
-    using System.Runtime.Versioning;
-    using Internal.Runtime.CompilerServices;
-
-    public static class RuntimeHelpers
+    public static partial class RuntimeHelpers
     {
-        // Exposed here as a more appropriate place than on FormatterServices itself,
-        // which is a high level reflection heavy type.
-        public static object GetUninitializedObject(Type type)
-        {
-            return FormatterServices.GetUninitializedObject(type);
-        }
-
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void InitializeArray(Array array, RuntimeFieldHandle fldHandle);
 
         // GetObjectValue is intended to allow value classes to be manipulated as 'Object'
         // but have aliasing behavior of a value class.  The intent is that you would use
         // this function just before an assignment to a variable of type 'Object'.  If the
-        // value being assigned is a mutable value class, then a shallow copy is returned 
+        // value being assigned is a mutable value class, then a shallow copy is returned
         // (because value classes have copy semantics), but otherwise the object itself
-        // is returned.  
+        // is returned.
         //
         // Note: VB calls this method when they're about to assign to an Object
-        // or pass it as a parameter.  The goal is to make sure that boxed 
-        // value types work identical to unboxed value types - ie, they get 
-        // cloned when you pass them around, and are always passed by value.  
+        // or pass it as a parameter.  The goal is to make sure that boxed
+        // value types work identical to unboxed value types - ie, they get
+        // cloned when you pass them around, and are always passed by value.
         // Of course, reference types are not cloned.
         //
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -57,8 +35,8 @@ namespace System.Runtime.CompilerServices
         // have at least been started by some thread.  In the absence of class constructor
         // deadlock conditions, the call is further guaranteed to have completed.
         //
-        // This call will generate an exception if the specified class constructor threw an 
-        // exception when it ran. 
+        // This call will generate an exception if the specified class constructor threw an
+        // exception when it ran.
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _RunClassConstructor(RuntimeType type);
@@ -73,8 +51,8 @@ namespace System.Runtime.CompilerServices
         // have at least been started by some thread.  In the absence of module constructor
         // deadlock conditions, the call is further guaranteed to have completed.
         //
-        // This call will generate an exception if the specified module constructor threw an 
-        // exception when it ran. 
+        // This call will generate an exception if the specified module constructor threw an
+        // exception when it ran.
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _RunModuleConstructor(System.Reflection.RuntimeModule module);
@@ -91,7 +69,7 @@ namespace System.Runtime.CompilerServices
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe void _PrepareMethod(IRuntimeMethodInfo method, IntPtr* pInstantiation, int cInstantiation);
 
-        public static void PrepareMethod(RuntimeMethodHandle method) 
+        public static void PrepareMethod(RuntimeMethodHandle method)
         {
             unsafe
             {
@@ -99,7 +77,7 @@ namespace System.Runtime.CompilerServices
             }
         }
 
-        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[] instantiation)
+        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[]? instantiation)
         {
             unsafe
             {
@@ -113,8 +91,6 @@ namespace System.Runtime.CompilerServices
             }
         }
 
-        public static void PrepareContractedDelegate(Delegate d) { }
-
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void PrepareDelegate(Delegate d);
 
@@ -122,7 +98,7 @@ namespace System.Runtime.CompilerServices
         public static extern int GetHashCode(object o);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public new static extern bool Equals(object o1, object o2);
+        public new static extern bool Equals(object? o1, object? o2);
 
         public static int OffsetToStringData
         {
@@ -132,10 +108,10 @@ namespace System.Runtime.CompilerServices
             get
             {
                 // Number of bytes from the address pointed to by a reference to
-                // a String to the first 16-bit character in the String.  Skip 
-                // over the MethodTable pointer, & String 
-                // length.  Of course, the String reference points to the memory 
-                // after the sync block, so don't count that.  
+                // a String to the first 16-bit character in the String.  Skip
+                // over the MethodTable pointer, & String
+                // length.  Of course, the String reference points to the memory
+                // after the sync block, so don't count that.
                 // This property allows C#'s fixed statement to work on Strings.
                 // On 64 bit platforms, this should be 12 (8+4) and on 32 bit 8 (4+4).
 #if BIT64
@@ -160,31 +136,10 @@ namespace System.Runtime.CompilerServices
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool TryEnsureSufficientExecutionStack();
 
-        public static void ProbeForSufficientStack()
-        {
-        }
-
-        // This method is a marker placed immediately before a try clause to mark the corresponding catch and finally blocks as
-        // constrained. There's no code here other than the probe because most of the work is done at JIT time when we spot a call to this routine.
-        public static void PrepareConstrainedRegions()
-        {
-            ProbeForSufficientStack();
-        }
-
-        // When we detect a CER with no calls, we can point the JIT to this non-probing version instead
-        // as we don't need to probe.
-        public static void PrepareConstrainedRegionsNoOP()
-        {
-        }
-
-        public delegate void TryCode(object userData);
-
-        public delegate void CleanupCode(object userData, bool exceptionThrown);
-
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, object userData);
+        public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, object? userData);
 
-        internal static void ExecuteBackoutCodeHelper(object backoutCode, object userData, bool exceptionThrown)
+        internal static void ExecuteBackoutCodeHelper(object backoutCode, object? userData, bool exceptionThrown)
         {
             ((CleanupCode)backoutCode)(userData, exceptionThrown);
         }
@@ -193,7 +148,18 @@ namespace System.Runtime.CompilerServices
         public static bool IsReferenceOrContainsReferences<T>()
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementation for how this happens.
+            // See getILIntrinsicImplementationForRuntimeHelpers for how this happens.
+            throw new InvalidOperationException();
+        }
+
+        /// <returns>true if given type is bitwise equatable (memcmp can be used for equality checking)</returns>
+        /// <remarks>
+        /// Only use the result of this for Equals() comparison, not for CompareTo() comparison.
+        /// </remarks>
+        internal static bool IsBitwiseEquatable<T>()
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForRuntimeHelpers for how this happens.
             throw new InvalidOperationException();
         }
 
@@ -228,7 +194,7 @@ namespace System.Runtime.CompilerServices
             // This is not ideal in terms of minimizing instruction count but is the best we can do at the moment.
 
             return Unsafe.Add(ref Unsafe.As<byte, IntPtr>(ref obj.GetRawData()), -1);
-            
+
             // The JIT currently implements this as:
             // lea tmp, [rax + 8h] ; assume rax contains the object reference, tmp is type IntPtr&
             // mov tmp, qword ptr [tmp - 8h] ; tmp now contains the MethodTable* pointer
@@ -236,5 +202,9 @@ namespace System.Runtime.CompilerServices
             // Ideally this would just be a single dereference:
             // mov tmp, qword ptr [rax] ; rax = obj ref, tmp = MethodTable* pointer
         }
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern object GetUninitializedObjectInternal(Type type);
+
     }
 }

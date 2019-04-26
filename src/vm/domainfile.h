@@ -45,8 +45,8 @@ enum FileLoadLevel
     FILE_LOAD_LOADLIBRARY,
     FILE_LOAD_POST_LOADLIBRARY,
     FILE_LOAD_EAGER_FIXUPS,
-    FILE_LOAD_VTABLE_FIXUPS,
     FILE_LOAD_DELIVER_EVENTS,
+    FILE_LOAD_VTABLE_FIXUPS,
     FILE_LOADED,                    // Loaded by not yet active
     FILE_LOAD_VERIFY_EXECUTION,
     FILE_ACTIVE                     // Fully active (constructors run & security checked)
@@ -641,7 +641,6 @@ public:
     BOOL GetResource(LPCSTR szName, DWORD *cbResource,
                      PBYTE *pbInMemoryResource, DomainAssembly** pAssemblyRef,
                      LPCSTR *szFileName, DWORD *dwLocation,
-                     StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                      BOOL fSkipRaiseResolveEvent);
 
 #ifdef FEATURE_PREJIT

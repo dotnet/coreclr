@@ -25,7 +25,6 @@
 #include "field.h"
 #include "threads.h"
 #include "interoputil.h"
-#include "tlbexport.h"
 #include "comdelegate.h"
 #include "olevariant.h"
 #include "eeconfig.h"
@@ -256,7 +255,6 @@ inline BOOL IsCurrentDomainValid(ComCallWrapper* pWrap, Thread* pThread)
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pWrap));
         PRECONDITION(CheckPointer(pThread));
     }
@@ -270,19 +268,19 @@ inline BOOL IsCurrentDomainValid(ComCallWrapper* pWrap, Thread* pThread)
     if ((g_fEEShutDown & ShutDown_Finalize2) || g_fForbidEnterEE)
         return FALSE;
 
-    return (!pWrap->NeedToSwitchDomains(pThread));        
+    return TRUE;
 }
 
 BOOL IsCurrentDomainValid(ComCallWrapper* pWrap)
 {
-    CONTRACTL { NOTHROW; GC_TRIGGERS; MODE_ANY; SO_TOLERANT; } CONTRACTL_END;
+    CONTRACTL { NOTHROW; GC_TRIGGERS; MODE_ANY; } CONTRACTL_END;
 
     return IsCurrentDomainValid(pWrap, GetThread());
 }
 
 struct AppDomainSwitchToPreemptiveHelperArgs
 {
-    Context::ADCallBackFcnType pRealCallback;
+    ADCallBackFcnType pRealCallback;
     void* pRealArgs;
 };
 
@@ -305,14 +303,13 @@ VOID __stdcall AppDomainSwitchToPreemptiveHelper(LPVOID pv)
     pArgs->pRealCallback(pArgs->pRealArgs);
 }
 
-VOID AppDomainDoCallBack(ComCallWrapper* pWrap, Context::ADCallBackFcnType pTarget, LPVOID pArgs, HRESULT* phr)
+VOID AppDomainDoCallBack(ComCallWrapper* pWrap, ADCallBackFcnType pTarget, LPVOID pArgs, HRESULT* phr)
 { 
     CONTRACTL
     {
         DISABLED(NOTHROW);
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pWrap));
         PRECONDITION(CheckPointer(pTarget));
         PRECONDITION(CheckPointer(pArgs));
@@ -330,25 +327,9 @@ VOID AppDomainDoCallBack(ComCallWrapper* pWrap, Context::ADCallBackFcnType pTarg
 
     BEGIN_EXTERNAL_ENTRYPOINT(phr)
     {
-        GCX_COOP_THREAD_EXISTS(GET_THREAD());
-        Thread *pThread = GET_THREAD();
-
-        ADID targetADID;
-        Context *pTargetContext;
-        if (pWrap->NeedToSwitchDomains(pThread, &targetADID, &pTargetContext))
-        {
-            // call ourselves again through DoCallBack with a domain transition.
-            // We need to switch back to preemptive GC mode before we call the 
-            // real target method.
-            AppDomainSwitchToPreemptiveHelperArgs args = {(Context::ADCallBackFcnType)pTarget, pArgs};
-            pThread->DoContextCallBack(targetADID, pTargetContext, AppDomainSwitchToPreemptiveHelper, &args);
-        }
-        else
-        {
-            // make the call directly not forgetting to switch to preemptive GC mode
-            GCX_PREEMP();
-            ((Context::ADCallBackFcnType)pTarget)(pArgs);
-        }
+        // make the call directly not forgetting to switch to preemptive GC mode
+        GCX_PREEMP();
+        ((ADCallBackFcnType)pTarget)(pArgs);
     }
     END_EXTERNAL_ENTRYPOINT;
 }
@@ -372,7 +353,6 @@ VOID __stdcall Unknown_QueryInterface_CallBack(LPVOID ptr)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(ptr));
     }
     CONTRACTL_END;
@@ -399,7 +379,6 @@ HRESULT __stdcall Unknown_QueryInterface(IUnknown* pUnk, REFIID riid, void** ppv
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(ppv, NULL_OK));
     }
@@ -433,7 +412,6 @@ HRESULT __stdcall Unknown_QueryInterface_ICCW(IUnknown *pUnk, REFIID riid, void 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(ppv, NULL_OK));
     }
@@ -514,7 +492,7 @@ VOID __stdcall DirtyCast_Assert(IUnknown* pUnk)
 ULONG __stdcall Unknown_AddRef(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
+    // the other "entering managed code" work like checking for reentrancy.
     // We don't really need to "enter" the runtime to do an interlocked increment on a refcount, so 
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
@@ -524,7 +502,7 @@ ULONG __stdcall Unknown_AddRef(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
@@ -537,7 +515,7 @@ ULONG __stdcall Unknown_AddRef(IUnknown* pUnk)
 ULONG __stdcall Unknown_Release(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
+    // the other "entering managed code" work like checking for reentrancy.
     // We don't really need to "enter" the runtime to do an interlocked decrement on a refcount, so 
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
@@ -547,7 +525,7 @@ ULONG __stdcall Unknown_Release(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
@@ -560,7 +538,7 @@ ULONG __stdcall Unknown_Release(IUnknown* pUnk)
 ULONG __stdcall Unknown_AddRefInner(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
+    // the other "entering managed code" work like checking for reentrancy.
     // We don't really need to "enter" the runtime to do an interlocked increment on a refcount, so 
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
@@ -570,7 +548,7 @@ ULONG __stdcall Unknown_AddRefInner(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
@@ -583,7 +561,7 @@ ULONG __stdcall Unknown_AddRefInner(IUnknown* pUnk)
 ULONG __stdcall Unknown_ReleaseInner(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
+    // the other "entering managed code" work like checking for reentrancy.
     // We don't really need to "enter" the runtime to do an interlocked decrement on a refcount, so 
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
@@ -593,7 +571,7 @@ ULONG __stdcall Unknown_ReleaseInner(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
@@ -606,7 +584,7 @@ ULONG __stdcall Unknown_ReleaseInner(IUnknown* pUnk)
 ULONG __stdcall Unknown_AddRefSpecial(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
+    // the other "entering managed code" work like checking for reentrancy.
     // We don't really need to "enter" the runtime to do an interlocked increment on a refcount, so 
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
@@ -616,7 +594,7 @@ ULONG __stdcall Unknown_AddRefSpecial(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
@@ -629,7 +607,7 @@ ULONG __stdcall Unknown_AddRefSpecial(IUnknown* pUnk)
 ULONG __stdcall Unknown_ReleaseSpecial(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
+    // the other "entering managed code" work like checking for reentrancy.
     // We don't really need to "enter" the runtime to do an interlocked decrement on a refcount, so 
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
@@ -639,7 +617,7 @@ ULONG __stdcall Unknown_ReleaseSpecial(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
@@ -656,7 +634,6 @@ HRESULT __stdcall Unknown_QueryInterface_IErrorInfo(IUnknown* pUnk, REFIID riid,
     SetupForComCallHRNoCheckCanRunManagedCode();
 
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     HRESULT hr = S_OK;
     if (!CanRunManagedCode(LoaderLockCheck::ForCorrectness))
@@ -688,7 +665,6 @@ ULONG __stdcall Unknown_ReleaseSpecial_IErrorInfo(IUnknown* pUnk)
     SetupForComCallDWORDNoCheckCanRunManagedCode();
 
     WRAPPER_NO_CONTRACT;    
-    STATIC_CONTRACT_SO_TOLERANT;
 
     // <TODO>Address this violation in context of bug 27409</TODO>
     CONTRACT_VIOLATION(GCViolation);
@@ -752,7 +728,6 @@ HRESULT __stdcall ClassInfo_GetClassInfo_Wrapper(IUnknown* pUnk, ITypeInfo** ppT
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(ppTI, NULL_OK));
     }
@@ -808,7 +783,6 @@ SupportsErroInfo_IntfSupportsErrorInfo_Wrapper(IUnknown* pUnk, REFIID riid)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
     }
     CONTRACTL_END;
@@ -861,7 +835,6 @@ HRESULT __stdcall ErrorInfo_GetDescription_Wrapper(IUnknown* pUnk, BSTR* pbstrDe
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pbstrDescription, NULL_OK));
     }
@@ -912,7 +885,6 @@ HRESULT __stdcall ErrorInfo_GetGUID_Wrapper(IUnknown* pUnk, GUID* pguid)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pguid, NULL_OK));
     }
@@ -963,7 +935,6 @@ HRESULT _stdcall ErrorInfo_GetHelpContext_Wrapper(IUnknown* pUnk, DWORD* pdwHelp
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pdwHelpCtxt, NULL_OK));
     }
@@ -1014,7 +985,6 @@ HRESULT __stdcall ErrorInfo_GetHelpFile_Wrapper(IUnknown* pUnk, BSTR* pbstrHelpF
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pbstrHelpFile, NULL_OK));
     }
@@ -1065,7 +1035,6 @@ HRESULT __stdcall ErrorInfo_GetSource_Wrapper(IUnknown* pUnk, BSTR* pbstrSource)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pbstrSource, NULL_OK));
     }
@@ -1124,7 +1093,6 @@ HRESULT __stdcall Dispatch_GetTypeInfoCount_Wrapper(IDispatch* pDisp, unsigned i
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pctinfo, NULL_OK));
     }
@@ -1177,7 +1145,6 @@ HRESULT __stdcall Dispatch_GetTypeInfo_Wrapper(IDispatch* pDisp, unsigned int it
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pptinfo, NULL_OK));
     }
@@ -1234,7 +1201,6 @@ HRESULT __stdcall Dispatch_GetIDsOfNames_Wrapper(IDispatch* pDisp, REFIID riid, 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(rgszNames, NULL_OK));
         PRECONDITION(CheckPointer(rgdispid, NULL_OK));
@@ -1281,7 +1247,6 @@ HRESULT __stdcall InternalDispatchImpl_GetIDsOfNames_Wrapper(IDispatch* pDisp, R
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(rgszNames, NULL_OK));
         PRECONDITION(CheckPointer(rgdispid, NULL_OK));
@@ -1339,15 +1304,6 @@ HRESULT __stdcall Dispatch_Invoke_Wrapper(IDispatch* pDisp, DISPID dispidMember,
     HRESULT hrRetVal = S_OK;
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
-    // SetupForComCallHR uses "SO_INTOLERANT_CODE_NOTHROW" to setup the SO-Intolerant transition
-    // for COM Interop. However, "SO_INTOLERANT_CODE_NOTHROW" expects that no exception can escape
-    // through this boundary but all it does is (in addition to checking that no exception has escaped it)
-    // do stack probing.
-    //
-    // However, Corrupting Exceptions [CE] can escape the COM Interop boundary. Thus, to address that scenario,
-    // we use the macro below that uses BEGIN_SO_INTOLERANT_CODE_NOTHROW to do the equivalent of 
-    // SO_INTOLERANT_CODE_NOTHROW and yet allow for CEs to escape through. Since there will be a corresponding
-    // END_SO_INTOLERANT_CODE, the call is splitted into two parts: the Begin and End (see below).
     BeginSetupForComCallHRWithEscapingCorruptingExceptions();
 #else // !FEATURE_CORRUPTING_EXCEPTIONS
     SetupForComCallHR();
@@ -1359,7 +1315,6 @@ HRESULT __stdcall Dispatch_Invoke_Wrapper(IDispatch* pDisp, DISPID dispidMember,
         THROWS; // Dispatch_Invoke_CallBack can throw
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pdispparams, NULL_OK));
         PRECONDITION(CheckPointer(pvarResult, NULL_OK));
@@ -1415,7 +1370,6 @@ HRESULT __stdcall InternalDispatchImpl_Invoke_Wrapper(IDispatch* pDisp, DISPID d
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pdispparams, NULL_OK));
         PRECONDITION(CheckPointer(pvarResult, NULL_OK));
@@ -1473,7 +1427,6 @@ HRESULT __stdcall DispatchEx_GetTypeInfoCount_Wrapper(IDispatchEx* pDisp, unsign
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pctinfo, NULL_OK));
     }
@@ -1526,7 +1479,6 @@ HRESULT __stdcall DispatchEx_GetTypeInfo_Wrapper(IDispatchEx* pDisp, unsigned in
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pptinfo, NULL_OK));
     }
@@ -1583,7 +1535,6 @@ HRESULT __stdcall DispatchEx_GetIDsOfNames_Wrapper(IDispatchEx* pDisp, REFIID ri
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(rgszNames, NULL_OK));
         PRECONDITION(CheckPointer(rgdispid, NULL_OK));
@@ -1646,7 +1597,6 @@ HRESULT __stdcall DispatchEx_Invoke_Wrapper(IDispatchEx* pDisp, DISPID dispidMem
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pdispparams, NULL_OK));
         PRECONDITION(CheckPointer(pvarResult, NULL_OK));
@@ -1701,7 +1651,6 @@ HRESULT __stdcall DispatchEx_DeleteMemberByDispID_Wrapper(IDispatchEx* pDisp, DI
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
     }
     CONTRACTL_END;
@@ -1752,7 +1701,6 @@ HRESULT __stdcall DispatchEx_DeleteMemberByName_Wrapper(IDispatchEx* pDisp, BSTR
         NOTHROW; 
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
     }
     CONTRACTL_END;
@@ -1803,7 +1751,6 @@ HRESULT __stdcall DispatchEx_GetMemberName_Wrapper(IDispatchEx* pDisp, DISPID id
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pbstrName, NULL_OK));
     }
@@ -1856,7 +1803,6 @@ HRESULT __stdcall DispatchEx_GetDispID_Wrapper(IDispatchEx* pDisp, BSTR bstrName
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pid, NULL_OK));
     }
@@ -1910,7 +1856,6 @@ HRESULT __stdcall DispatchEx_GetMemberProperties_Wrapper(IDispatchEx* pDisp, DIS
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pgrfdex, NULL_OK));
     }
@@ -1961,7 +1906,6 @@ HRESULT __stdcall DispatchEx_GetNameSpaceParent_Wrapper(IDispatchEx* pDisp, IUnk
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(ppunk, NULL_OK));
     }
@@ -2014,7 +1958,6 @@ HRESULT __stdcall DispatchEx_GetNextDispID_Wrapper(IDispatchEx* pDisp, DWORD grf
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pid, NULL_OK));
     }
@@ -2074,7 +2017,6 @@ HRESULT __stdcall DispatchEx_InvokeEx_Wrapper(IDispatchEx* pDisp, DISPID id, LCI
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pdp, NULL_OK));
         PRECONDITION(CheckPointer(pVarRes, NULL_OK));
@@ -2132,7 +2074,6 @@ HRESULT __stdcall Inspectable_GetIIDs_Wrapper(IInspectable *pInsp, ULONG *iidCou
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pInsp));
     }
     CONTRACTL_END;
@@ -2182,7 +2123,6 @@ HRESULT __stdcall Inspectable_GetRuntimeClassName_Wrapper(IInspectable *pInsp, H
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pInsp));
     }
     CONTRACTL_END;
@@ -2203,7 +2143,6 @@ HRESULT __stdcall Inspectable_GetTrustLevel_Wrapper(IInspectable *pInsp, TrustLe
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pInsp));
     }
     CONTRACTL_END;
@@ -2258,7 +2197,6 @@ HRESULT __stdcall WeakReferenceSource_GetWeakReference_Wrapper(IWeakReferenceSou
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pRefSrc));
     }
     CONTRACTL_END;
@@ -2320,7 +2258,6 @@ HRESULT __stdcall Marshal_GetUnmarshalClass_Wrapper(IMarshal* pMarsh, REFIID rii
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
         PRECONDITION(CheckPointer(pv, NULL_OK));
         PRECONDITION(CheckPointer(pvDestContext, NULL_OK));
@@ -2384,7 +2321,6 @@ HRESULT __stdcall Marshal_GetMarshalSizeMax_Wrapper(IMarshal* pMarsh, REFIID rii
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
         PRECONDITION(CheckPointer(pv, NULL_OK));
         PRECONDITION(CheckPointer(pvDestContext, NULL_OK));
@@ -2446,7 +2382,6 @@ HRESULT __stdcall Marshal_MarshalInterface_Wrapper(IMarshal* pMarsh, LPSTREAM pS
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
         PRECONDITION(CheckPointer(pv, NULL_OK));
         PRECONDITION(CheckPointer(pvDestContext, NULL_OK));
@@ -2502,7 +2437,6 @@ HRESULT __stdcall Marshal_UnmarshalInterface_Wrapper(IMarshal* pMarsh, LPSTREAM 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
         PRECONDITION(CheckPointer(pStm, NULL_OK));
         PRECONDITION(CheckPointer(ppvObj, NULL_OK));
@@ -2555,7 +2489,6 @@ HRESULT __stdcall Marshal_ReleaseMarshalData_Wrapper(IMarshal* pMarsh, LPSTREAM 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
         PRECONDITION(CheckPointer(pStm, NULL_OK));
     }
@@ -2606,7 +2539,6 @@ HRESULT __stdcall Marshal_DisconnectObject_Wrapper(IMarshal* pMarsh, ULONG dwRes
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
     }
     CONTRACTL_END;
@@ -2659,7 +2591,6 @@ HRESULT __stdcall ConnectionPointContainer_EnumConnectionPoints_Wrapper(IUnknown
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(ppEnum, NULL_OK));
     }
@@ -2712,7 +2643,6 @@ HRESULT __stdcall ConnectionPointContainer_FindConnectionPoint_Wrapper(IUnknown*
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(ppCP, NULL_OK));
     }
@@ -2773,7 +2703,6 @@ HRESULT __stdcall ObjectSafety_GetInterfaceSafetyOptions_Wrapper(IUnknown* pUnk,
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pdwSupportedOptions, NULL_OK));
         PRECONDITION(CheckPointer(pdwEnabledOptions, NULL_OK));
@@ -2832,7 +2761,6 @@ HRESULT __stdcall ObjectSafety_SetInterfaceSafetyOptions_Wrapper(IUnknown* pUnk,
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
     }
     CONTRACTL_END;
@@ -2882,7 +2810,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetProperty_Wrapper(IUnknown *pPropert
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
     }
     CONTRACTL_END;
@@ -2934,7 +2861,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetIndexedProperty_Wrapper(IUnknown *p
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
     }
     CONTRACTL_END;
@@ -2980,7 +2906,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetStringRepresentation_Wrapper(IUnkno
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
     }
     CONTRACTL_END;
@@ -3025,7 +2950,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetType_Wrapper(IUnknown *pPropertyPro
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
     }
     CONTRACTL_END;
@@ -3070,7 +2994,6 @@ HRESULT __stdcall  IStringable_ToString_Wrapper(IUnknown *pStringable,
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pStringable));
     }
     CONTRACTL_END;
@@ -3096,8 +3019,7 @@ ULONG __stdcall ICCW_AddRefFromJupiter_Wrapper(IUnknown *pUnk)
     // We do not need to hook with host here
     SetupForComCallDWORDNoHostNotif();
 
-    WRAPPER_NO_CONTRACT;    
-    STATIC_CONTRACT_SO_TOLERANT;
+    WRAPPER_NO_CONTRACT;
 
     return ICCW_AddRefFromJupiter(pUnk);
 }
@@ -3107,8 +3029,7 @@ ULONG __stdcall ICCW_ReleaseFromJupiter_Wrapper(IUnknown *pUnk)
     // We do not need to hook with host here
     SetupForComCallDWORDNoHostNotif();
 
-    WRAPPER_NO_CONTRACT;    
-    STATIC_CONTRACT_SO_TOLERANT;
+    WRAPPER_NO_CONTRACT;
 
     return ICCW_ReleaseFromJupiter(pUnk);
 }
@@ -3119,8 +3040,7 @@ HRESULT __stdcall ICCW_Peg_Wrapper(IUnknown *pUnk)
     // as we are most likely in the middle of a GC
     SetupForComCallHRNoHostNotifNoCheckCanRunManagedCode();
 
-    WRAPPER_NO_CONTRACT;    
-    STATIC_CONTRACT_SO_TOLERANT;
+    WRAPPER_NO_CONTRACT;
 
     return ICCW_Peg(pUnk);
 }
@@ -3131,8 +3051,7 @@ HRESULT __stdcall ICCW_Unpeg_Wrapper(IUnknown *pUnk)
     // as we are most likely in the middle of a GC
     SetupForComCallHRNoHostNotifNoCheckCanRunManagedCode();
 
-    WRAPPER_NO_CONTRACT;    
-    STATIC_CONTRACT_SO_TOLERANT;
+    WRAPPER_NO_CONTRACT;
 
     return ICCW_Unpeg(pUnk);
 }

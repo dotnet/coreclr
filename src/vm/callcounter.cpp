@@ -16,6 +16,16 @@
 
 #ifdef FEATURE_TIERED_COMPILATION
 
+CallCounterEntry CallCounterEntry::CreateWithTier0CallCountingDisabled(const MethodDesc *m)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(m != nullptr);
+
+    CallCounterEntry entry(m, INT_MAX);
+    _ASSERTE(!entry.IsTier0CallCountingEnabled());
+    return entry;
+}
+
 CallCounter::CallCounter()
 {
     LIMITED_METHOD_CONTRACT;
@@ -23,27 +33,76 @@ CallCounter::CallCounter()
     m_lock.Init(LOCK_TYPE_DEFAULT);
 }
 
+bool CallCounter::IsEligibleForTier0CallCounting(MethodDesc* pMethodDesc)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(pMethodDesc != NULL);
+    _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
+
+    return g_pConfig->TieredCompilation_StartupTier_CallCounting() && !pMethodDesc->RequestedAggressiveOptimization();
+}
+
+bool CallCounter::IsTier0CallCountingEnabled(MethodDesc* pMethodDesc)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(pMethodDesc != NULL);
+    _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
+    _ASSERTE(IsEligibleForTier0CallCounting(pMethodDesc));
+
+    SpinLockHolder holder(&m_lock);
+
+    const CallCounterEntry *entry = m_methodToCallCount.LookupPtr(pMethodDesc);
+    return entry == nullptr || entry->IsTier0CallCountingEnabled();
+}
+
+void CallCounter::DisableTier0CallCounting(MethodDesc* pMethodDesc)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(pMethodDesc != NULL);
+    _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
+    _ASSERTE(IsEligibleForTier0CallCounting(pMethodDesc));
+
+    // Disabling call counting will affect the tier of the MethodDesc's first native code version. Callers must ensure that this
+    // change is made deterministically and prior to or while jitting the first native code version such that the tier would not
+    // be changed after it is already jitted. At that point, the call count threshold would already be initialized and the entry
+    // would exist. To disable call counting at different points in time, it would be ok to do so if the method has not been
+    // called yet (if the entry does not yet exist in the hash table), if necessary that could be a different function like
+    // TryDisable...() that would fail to disable call counting if the method has already been called.
+
+    SpinLockHolder holder(&m_lock);
+
+    CallCounterEntry *existingEntry = const_cast<CallCounterEntry *>(m_methodToCallCount.LookupPtr(pMethodDesc));
+    if (existingEntry != nullptr)
+    {
+        existingEntry->DisableTier0CallCounting();
+        return;
+    }
+
+    // Typically, the entry would already exist because OnMethodCalled() would have been called before this function on the same
+    // thread. With multi-core JIT, a function may be jitted before it is called, in which case the entry would not exist.
+    m_methodToCallCount.Add(CallCounterEntry::CreateWithTier0CallCountingDisabled(pMethodDesc));
+}
+
 // This is called by the prestub each time the method is invoked in a particular
 // AppDomain (the AppDomain for which AppDomain.GetCallCounter() == this). These
 // calls continue until we backpatch the prestub to avoid future calls. This allows
 // us to track the number of calls to each method and use it as a trigger for tiered
 // compilation.
-//
-// Returns TRUE if no future invocations are needed (we reached the count we cared about)
-// and FALSE otherwise. It is permissible to keep calling even when TRUE was previously
-// returned and multi-threaded race conditions will surely cause this to occur.
 void CallCounter::OnMethodCalled(
     MethodDesc* pMethodDesc,
     TieredCompilationManager *pTieredCompilationManager,
     BOOL* shouldStopCountingCallsRef,
-    BOOL* wasPromotedToTier1Ref)
+    BOOL* wasPromotedToNextTierRef)
 {
     STANDARD_VM_CONTRACT;
 
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
     _ASSERTE(pTieredCompilationManager != nullptr);
     _ASSERTE(shouldStopCountingCallsRef != nullptr);
-    _ASSERTE(wasPromotedToTier1Ref != nullptr);
+    _ASSERTE(wasPromotedToNextTierRef != nullptr);
+
+    // At the moment, call counting is only done for tier 0 code
+    _ASSERTE(IsEligibleForTier0CallCounting(pMethodDesc));
 
     // PERF: This as a simple to implement, but not so performant, call counter
     // Currently this is only called until we reach a fixed call count and then
@@ -58,9 +117,8 @@ void CallCounter::OnMethodCalled(
     // leaving the prestub unpatched, but may not be good overall as it increases
     // the size of the jitted code.
 
-
-    TieredCompilationManager* pCallCounterSink = NULL;
-    int callCount;
+    bool isFirstTier0Call = false;
+    int tier0CallCountLimit;
     {
         //Be careful if you convert to something fully lock/interlocked-free that
         //you correctly handle what happens when some N simultaneous calls don't
@@ -72,17 +130,30 @@ void CallCounter::OnMethodCalled(
         CallCounterEntry* pEntry = const_cast<CallCounterEntry*>(m_methodToCallCount.LookupPtr(pMethodDesc));
         if (pEntry == NULL)
         {
-            callCount = 1;
-            m_methodToCallCount.Add(CallCounterEntry(pMethodDesc, callCount));
+            isFirstTier0Call = true;
+            tier0CallCountLimit = (int)g_pConfig->TieredCompilation_StartupTier_CallCountThreshold() - 1;
+            _ASSERTE(tier0CallCountLimit >= 0);
+            m_methodToCallCount.Add(CallCounterEntry(pMethodDesc, tier0CallCountLimit));
+        }
+        else if (pEntry->IsTier0CallCountingEnabled())
+        {
+            pEntry->tier0CallCountLimit--;
+            tier0CallCountLimit = pEntry->tier0CallCountLimit;
         }
         else
         {
-            pEntry->callCount++;
-            callCount = pEntry->callCount;
+            *shouldStopCountingCallsRef = true;
+            *wasPromotedToNextTierRef = true;
+            return;
         }
     }
 
-    pTieredCompilationManager->OnMethodCalled(pMethodDesc, callCount, shouldStopCountingCallsRef, wasPromotedToTier1Ref);
+    pTieredCompilationManager->OnTier0MethodCalled(
+        pMethodDesc,
+        isFirstTier0Call,
+        tier0CallCountLimit,
+        shouldStopCountingCallsRef,
+        wasPromotedToNextTierRef);
 }
 
 #endif // FEATURE_TIERED_COMPILATION

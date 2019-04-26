@@ -26,6 +26,10 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include <errno.h> // For EINVAL
 #endif
 
+#ifndef DLLEXPORT
+#define DLLEXPORT
+#endif // !DLLEXPORT
+
 /*****************************************************************************/
 
 FILE* jitstdout = nullptr;
@@ -54,7 +58,7 @@ JitOptions jitOpts = {
 
 /*****************************************************************************/
 
-extern "C" void __stdcall jitStartup(ICorJitHost* jitHost)
+extern "C" DLLEXPORT void __stdcall jitStartup(ICorJitHost* jitHost)
 {
     if (g_jitInitialized)
     {
@@ -159,7 +163,12 @@ void jitShutdown(bool processIsTerminating)
 
 #ifndef FEATURE_MERGE_JIT_AND_ENGINE
 
-extern "C" BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID pvReserved)
+extern "C"
+#ifdef FEATURE_PAL
+    DLLEXPORT // For Win32 PAL LoadLibrary emulation
+#endif
+    BOOL WINAPI
+    DllMain(HANDLE hInstance, DWORD dwReason, LPVOID pvReserved)
 {
     if (dwReason == DLL_PROCESS_ATTACH)
     {
@@ -182,7 +191,7 @@ HINSTANCE GetModuleInst()
     return (g_hInst);
 }
 
-extern "C" void __stdcall sxsJitStartup(CoreClrCallbacks const& cccallbacks)
+extern "C" DLLEXPORT void __stdcall sxsJitStartup(CoreClrCallbacks const& cccallbacks)
 {
 #ifndef SELF_NO_HOST
     InitUtilcode(cccallbacks);
@@ -207,7 +216,7 @@ void* __cdecl operator new(size_t, const CILJitSingletonAllocator&)
 
 ICorJitCompiler* g_realJitCompiler = nullptr;
 
-ICorJitCompiler* __stdcall getJit()
+DLLEXPORT ICorJitCompiler* __stdcall getJit()
 {
     if (ILJitter == nullptr)
     {
@@ -222,7 +231,11 @@ ICorJitCompiler* __stdcall getJit()
 // If you are using it more broadly in retail code, you would need to understand the
 // performance implications of accessing TLS.
 
+#ifndef __GNUC__
 __declspec(thread) void* gJitTls = nullptr;
+#else  // !__GNUC__
+thread_local void* gJitTls = nullptr;
+#endif // !__GNUC__
 
 static void* GetJitTls()
 {
@@ -262,7 +275,7 @@ void JitTls::SetCompiler(Compiler* compiler)
     reinterpret_cast<JitTls*>(GetJitTls())->m_compiler = compiler;
 }
 
-#else // defined(DEBUG)
+#else // !defined(DEBUG)
 
 JitTls::JitTls(ICorJitInfo* jitInfo)
 {
@@ -402,7 +415,12 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_FEATURE_SIMD) &&
         jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
     {
-        if (JitConfig.EnableAVX() != 0 && JitConfig.EnableAVX2() != 0)
+        // Since the ISAs can be disabled individually and since they are hierarchical in nature (that is
+        // disabling SSE also disables SSE2 through AVX2), we need to check each ISA in the hierarchy to
+        // ensure that AVX2 is actually supported. Otherwise, we will end up getting asserts downstream.
+        if ((JitConfig.EnableAVX2() != 0) && (JitConfig.EnableAVX() != 0) && (JitConfig.EnableSSE42() != 0) &&
+            (JitConfig.EnableSSE41() != 0) && (JitConfig.EnableSSSE3() != 0) && (JitConfig.EnableSSE3() != 0) &&
+            (JitConfig.EnableSSE2() != 0) && (JitConfig.EnableSSE() != 0))
         {
             if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
             {
@@ -630,16 +648,13 @@ void Compiler::eeSetLVcount(unsigned count)
     }
 }
 
-void Compiler::eeSetLVinfo(unsigned                  which,
-                           UNATIVE_OFFSET            startOffs,
-                           UNATIVE_OFFSET            length,
-                           unsigned                  varNum,
-                           unsigned                  LVnum,
-                           VarName                   name,
-                           bool                      avail,
-                           const Compiler::siVarLoc& varLoc)
+void Compiler::eeSetLVinfo(unsigned                          which,
+                           UNATIVE_OFFSET                    startOffs,
+                           UNATIVE_OFFSET                    length,
+                           unsigned                          varNum,
+                           const CodeGenInterface::siVarLoc& varLoc)
 {
-    // ICorDebugInfo::VarLoc and Compiler::siVarLoc have to overlap
+    // ICorDebugInfo::VarLoc and CodeGenInterface::siVarLoc have to overlap
     // This is checked in siInit()
 
     assert(opts.compScopeInfo);
@@ -819,20 +834,20 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
     printf("%3d(%10s) : From %08Xh to %08Xh, in ", var->varNumber,
            (VarNameToStr(name) == nullptr) ? "UNKNOWN" : VarNameToStr(name), var->startOffset, var->endOffset);
 
-    switch ((Compiler::siVarLocType)var->loc.vlType)
+    switch ((CodeGenInterface::siVarLocType)var->loc.vlType)
     {
-        case VLT_REG:
-        case VLT_REG_BYREF:
-        case VLT_REG_FP:
+        case CodeGenInterface::VLT_REG:
+        case CodeGenInterface::VLT_REG_BYREF:
+        case CodeGenInterface::VLT_REG_FP:
             printf("%s", getRegName(var->loc.vlReg.vlrReg));
-            if (var->loc.vlType == (ICorDebugInfo::VarLocType)VLT_REG_BYREF)
+            if (var->loc.vlType == (ICorDebugInfo::VarLocType)CodeGenInterface::VLT_REG_BYREF)
             {
                 printf(" byref");
             }
             break;
 
-        case VLT_STK:
-        case VLT_STK_BYREF:
+        case CodeGenInterface::VLT_STK:
+        case CodeGenInterface::VLT_STK_BYREF:
             if ((int)var->loc.vlStk.vlsBaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
             {
                 printf("%s[%d] (1 slot)", getRegName(var->loc.vlStk.vlsBaseReg), var->loc.vlStk.vlsOffset);
@@ -841,18 +856,18 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
             {
                 printf(STR_SPBASE "'[%d] (1 slot)", var->loc.vlStk.vlsOffset);
             }
-            if (var->loc.vlType == (ICorDebugInfo::VarLocType)VLT_REG_BYREF)
+            if (var->loc.vlType == (ICorDebugInfo::VarLocType)CodeGenInterface::VLT_REG_BYREF)
             {
                 printf(" byref");
             }
             break;
 
 #ifndef _TARGET_AMD64_
-        case VLT_REG_REG:
+        case CodeGenInterface::VLT_REG_REG:
             printf("%s-%s", getRegName(var->loc.vlRegReg.vlrrReg1), getRegName(var->loc.vlRegReg.vlrrReg2));
             break;
 
-        case VLT_REG_STK:
+        case CodeGenInterface::VLT_REG_STK:
             if ((int)var->loc.vlRegStk.vlrsStk.vlrssBaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
             {
                 printf("%s-%s[%d]", getRegName(var->loc.vlRegStk.vlrsReg),
@@ -865,10 +880,10 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
             }
             break;
 
-        case VLT_STK_REG:
+        case CodeGenInterface::VLT_STK_REG:
             unreached(); // unexpected
 
-        case VLT_STK2:
+        case CodeGenInterface::VLT_STK2:
             if ((int)var->loc.vlStk2.vls2BaseReg != (int)ICorDebugInfo::REGNUM_AMBIENT_SP)
             {
                 printf("%s[%d] (2 slots)", getRegName(var->loc.vlStk2.vls2BaseReg), var->loc.vlStk2.vls2Offset);
@@ -879,11 +894,11 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
             }
             break;
 
-        case VLT_FPSTK:
+        case CodeGenInterface::VLT_FPSTK:
             printf("ST(L-%d)", var->loc.vlFPstk.vlfReg);
             break;
 
-        case VLT_FIXED_VA:
+        case CodeGenInterface::VLT_FIXED_VA:
             printf("fxd_va[%d]", var->loc.vlFixedVarArg.vlfvOffset);
             break;
 #endif // !_TARGET_AMD64_
@@ -899,7 +914,7 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
 void Compiler::eeDispVars(CORINFO_METHOD_HANDLE ftn, ULONG32 cVars, ICorDebugInfo::NativeVarInfo* vars)
 {
     printf("*************** Variable debug info\n");
-    printf("%d vars\n", cVars);
+    printf("%d live ranges\n", cVars);
     for (unsigned i = 0; i < cVars; i++)
     {
         eeDispVar(&vars[i]);

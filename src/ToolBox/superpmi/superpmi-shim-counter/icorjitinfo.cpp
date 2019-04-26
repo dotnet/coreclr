@@ -587,10 +587,11 @@ BOOL interceptor_ICJI::checkMethodModifier(CORINFO_METHOD_HANDLE hMethod, LPCSTR
 
 // returns the "NEW" helper optimized for "newCls."
 CorInfoHelpFunc interceptor_ICJI::getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
-                                               CORINFO_METHOD_HANDLE   callerHandle)
+                                               CORINFO_METHOD_HANDLE   callerHandle,
+                                               bool* pHasSideEffects)
 {
     mcs->AddCall("getNewHelper");
-    return original_ICorJitInfo->getNewHelper(pResolvedToken, callerHandle);
+    return original_ICorJitInfo->getNewHelper(pResolvedToken, callerHandle, pHasSideEffects);
 }
 
 // returns the newArr (1-Dim array) helper optimized for "arrayCls."
@@ -773,6 +774,13 @@ CORINFO_CLASS_HANDLE interceptor_ICJI::mergeClasses(CORINFO_CLASS_HANDLE cls1, C
 {
     mcs->AddCall("mergeClasses");
     return original_ICorJitInfo->mergeClasses(cls1, cls2);
+}
+
+// Returns true if cls2 is known to be a more specific type than cls1.
+BOOL interceptor_ICJI::isMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
+{
+    mcs->AddCall("isMoreSpecificType");
+    return original_ICorJitInfo->isMoreSpecificType(cls1, cls2);
 }
 
 // Given a class handle, returns the Parent type.

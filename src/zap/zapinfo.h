@@ -550,7 +550,7 @@ public:
 
     unsigned getClassNumInstanceFields(CORINFO_CLASS_HANDLE cls);
 
-    CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle);
+    CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects = NULL);
     CorInfoHelpFunc getCastingHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fThrowing);
     CorInfoHelpFunc getNewArrHelper(CORINFO_CLASS_HANDLE arrayCls);
     CorInfoHelpFunc getSharedCCtorHelper(CORINFO_CLASS_HANDLE clsHnd);
@@ -591,6 +591,9 @@ public:
 
     CORINFO_CLASS_HANDLE mergeClasses(CORINFO_CLASS_HANDLE cls1,
                                 CORINFO_CLASS_HANDLE cls2);
+    BOOL isMoreSpecificType(CORINFO_CLASS_HANDLE cls1,
+                                CORINFO_CLASS_HANDLE cls2);
+
     BOOL shouldEnforceCallvirtRestriction(CORINFO_MODULE_HANDLE scope);
     CORINFO_CLASS_HANDLE getParentType(CORINFO_CLASS_HANDLE  cls);
     CorInfoType getChildType (CORINFO_CLASS_HANDLE       clsHnd,

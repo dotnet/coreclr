@@ -220,7 +220,6 @@
 #include "gms.h"
 #include "runtimeexceptionkind.h"
 #include "debugreturn.h"
-#include "stackprobe.h"
 
 //==============================================================================================
 // These macros defeat compiler optimizations that might mix nonvolatile
@@ -574,7 +573,7 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
 
 #define HELPER_METHOD_FRAME_BEGIN_EX(ret, helperFrame, gcpoll, allowGC)         \
         HELPER_METHOD_FRAME_BEGIN_EX_BODY(ret, helperFrame, gcpoll, allowGC)    \
-            TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,!allowGC)); \
+            TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,!allowGC)); \
             /* <TODO>TODO TURN THIS ON!!!   </TODO> */                    \
             /* gcpoll; */                                                       \
             INSTALL_MANAGED_EXCEPTION_DISPATCHER;                               \
@@ -583,8 +582,7 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
 #define HELPER_METHOD_FRAME_BEGIN_EX_NOTHROW(ret, helperFrame, gcpoll, allowGC, probeFailExpr) \
         HELPER_METHOD_FRAME_BEGIN_EX_BODY(ret, helperFrame, gcpoll, allowGC)    \
             /* <TODO>TODO TURN THIS ON!!!   </TODO> */                    \
-            /* gcpoll; */                                                       \
-            BEGIN_SO_INTOLERANT_CODE_NOTHROW(GET_THREAD(), probeFailExpr);
+            /* gcpoll; */
 
 
 // The while(__helperframe.RestoreState() needs a bit of explanation.
@@ -611,11 +609,10 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
 #define HELPER_METHOD_FRAME_END_EX(gcpoll,allowGC)                          \
             UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;                          \
             UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;                         \
-            TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,!allowGC)); \
+            TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,!allowGC)); \
         HELPER_METHOD_FRAME_END_EX_BODY(gcpoll,allowGC);
 
 #define HELPER_METHOD_FRAME_END_EX_NOTHROW(gcpoll,allowGC)                  \
-            END_SO_INTOLERANT_CODE;                                         \
         HELPER_METHOD_FRAME_END_EX_BODY(gcpoll,allowGC);
 
 #define HELPER_METHOD_FRAME_BEGIN_ATTRIB(attribs)                                       \
@@ -869,8 +866,6 @@ private:
         {                                       \
             Thread *_pThread = GetThread();     \
             Thread::ObjectRefFlush(_pThread);    \
-            /*_ASSERTE (_pThread->IsSOTolerant() ||*/ \
-            /*       _pThread->HasThreadStateNC(Thread::TSNC_DisableSOCheckInHCALL)); */    \
         }                                       \
         FCallCheck __fCallCheck(__FILE__, __LINE__); \
         FCALL_TRANSITION_BEGIN(); \
@@ -1378,8 +1373,7 @@ typedef UINT16 FC_UINT16_RET;
 #define FCALL_CHECK \
         THROWS; \
         DISABLED(GC_TRIGGERS); /* FCALLS with HELPER frames have issues with GC_TRIGGERS */ \
-        MODE_COOPERATIVE; \
-        SO_TOLERANT
+        MODE_COOPERATIVE;
 
 //
 // FCALL_CONTRACT should be the following shortcut:
@@ -1389,7 +1383,6 @@ typedef UINT16 FC_UINT16_RET;
 // Since there is very little value in having runtime contracts in FCalls, FCALL_CONTRACT is defined as static contract only for performance reasons.
 //
 #define FCALL_CONTRACT \
-    STATIC_CONTRACT_SO_TOLERANT; \
     STATIC_CONTRACT_THROWS; \
     /* FCALLS are a special case contract wise, they are "NOTRIGGER, unless you setup a frame" */ \
     STATIC_CONTRACT_GC_NOTRIGGER; \

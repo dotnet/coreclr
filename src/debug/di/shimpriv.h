@@ -216,13 +216,13 @@ public:
     ///
 
     // Implementation of ICorDebugManagedCallback4::BeforeGarbageCollection
-    COM_METHOD ShimProxyCallback::BeforeGarbageCollection(ICorDebugProcess* pProcess);
+    COM_METHOD BeforeGarbageCollection(ICorDebugProcess* pProcess);
 
     // Implementation of ICorDebugManagedCallback4::AfterGarbageCollection
-    COM_METHOD ShimProxyCallback::AfterGarbageCollection(ICorDebugProcess* pProcess);
+    COM_METHOD AfterGarbageCollection(ICorDebugProcess* pProcess);
 
     // Implementation of ICorDebugManagedCallback4::DataBreakpoint
-    COM_METHOD ShimProxyCallback::DataBreakpoint(ICorDebugProcess* pProcess, ICorDebugThread* pThread, BYTE* pContext, ULONG32 contextSize);
+    COM_METHOD DataBreakpoint(ICorDebugProcess* pProcess, ICorDebugThread* pThread, BYTE* pContext, ULONG32 contextSize);
 };
 
 
@@ -358,7 +358,7 @@ public:
     // 3. Create OS-debugging pipeline. This establishes the physical OS process and gets us a pid/handle
     // 4. pShim->InitializeDataTarget - this creates a reader/writer abstraction around the OS process.
     // 5. pShim->SetProcess() - this connects the Shim to the ICDProcess object.
-    HRESULT InitializeDataTarget(DWORD processId);
+    HRESULT InitializeDataTarget(const ProcessDescriptor * pProcessDescriptor);
     void SetProcess(ICorDebugProcess * pProcess);
 
     //-----------------------------------------------------------
@@ -384,7 +384,7 @@ public:
     static HRESULT DebugActiveProcess(
         Cordb * pCordb,
         ICorDebugRemoteTarget * pRemoteTarget,
-        DWORD pid,
+        const ProcessDescriptor * pProcessDescriptor,
         BOOL win32Attach
 
     );

@@ -442,7 +442,6 @@ BOOL EEHashTableBase<KeyType, Helper, bDefaultCopyIsDeep>::GetValue(KeyType pKey
         WRAPPER(THROWS);
         WRAPPER(GC_NOTRIGGER);
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -494,11 +493,36 @@ FORCEINLINE BOOL EEHashTableBase<KeyType, Helper, bDefaultCopyIsDeep>::GetValueS
 #ifdef MODE_COOPERATIVE     // This header file sees contract.h, not eecontract.h - what a kludge!
         MODE_COOPERATIVE;
 #endif
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
     EEHashEntry_t *pItem = FindItemSpeculative(pKey, Helper::Hash(pKey));
+
+    if (pItem != NULL)
+    {
+        *pData = pItem->Data;
+        return TRUE;
+    }
+    else
+    {
+        return FALSE;
+    }
+}
+
+template <class KeyType, class Helper, BOOL bDefaultCopyIsDeep>
+FORCEINLINE BOOL EEHashTableBase<KeyType, Helper, bDefaultCopyIsDeep>::GetValueSpeculative(KeyType pKey, HashDatum *pData, DWORD hashValue)
+{
+    CONTRACTL
+    {
+        WRAPPER(THROWS);
+        WRAPPER(GC_NOTRIGGER);
+#ifdef MODE_COOPERATIVE     // This header file sees contract.h, not eecontract.h - what a kludge!
+        MODE_COOPERATIVE;
+#endif
+    }
+    CONTRACTL_END
+
+    EEHashEntry_t *pItem = FindItemSpeculative(pKey, hashValue);
 
     if (pItem != NULL)
     {
@@ -519,7 +543,6 @@ EEHashEntry_t *EEHashTableBase<KeyType, Helper, bDefaultCopyIsDeep>::FindItem(Ke
         WRAPPER(THROWS);
         WRAPPER(GC_NOTRIGGER);
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -535,7 +558,6 @@ EEHashEntry_t *EEHashTableBase<KeyType, Helper, bDefaultCopyIsDeep>::FindItem(Ke
         WRAPPER(THROWS);
         WRAPPER(GC_NOTRIGGER);
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -604,7 +626,6 @@ FORCEINLINE EEHashEntry_t *EEHashTableBase<KeyType, Helper, bDefaultCopyIsDeep>:
 #ifdef MODE_COOPERATIVE     // This header file sees contract.h, not eecontract.h - what a kludge!
         MODE_COOPERATIVE;
 #endif
-        SO_TOLERANT;
     }
     CONTRACTL_END
 

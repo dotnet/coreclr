@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "ClientTests.h"
+#include <platformdefines.h>
 #include <vector>
 #include <sstream>
 
@@ -188,7 +189,7 @@ namespace
     };
 
     // BSTR string
-    using BStr = AnyStr<OLECHAR, &CoreClrBstrAlloc, &CoreClrBstrFree>;
+    using BStr = AnyStr<OLECHAR, &CoreClrBStrAlloc, &CoreClrBStrFree>;
 
     // Wide string
     using WStr = AnyStr<WCHAR, &CoreClrAlloc, &CoreClrFree>;
@@ -411,7 +412,7 @@ void Run_StringTests()
 {
     HRESULT hr;
 
-    CoreShimComActivation csact{ W("NETServer.dll"), W("StringTesting") };
+    CoreShimComActivation csact{ W("NETServer"), W("StringTesting") };
 
     ComSmartPtr<IStringTesting> stringTesting;
     THROW_IF_FAILED(::CoCreateInstance(CLSID_StringTesting, nullptr, CLSCTX_INPROC, IID_IStringTesting, (void**)&stringTesting));

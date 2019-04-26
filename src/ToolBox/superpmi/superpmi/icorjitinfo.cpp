@@ -644,10 +644,10 @@ BOOL MyICJI::checkMethodModifier(CORINFO_METHOD_HANDLE hMethod, LPCSTR modifier,
 }
 
 // returns the "NEW" helper optimized for "newCls."
-CorInfoHelpFunc MyICJI::getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle)
+CorInfoHelpFunc MyICJI::getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects)
 {
     jitInstance->mc->cr->AddCall("getNewHelper");
-    return jitInstance->mc->repGetNewHelper(pResolvedToken, callerHandle);
+    return jitInstance->mc->repGetNewHelper(pResolvedToken, callerHandle, pHasSideEffects);
 }
 
 // returns the newArr (1-Dim array) helper optimized for "arrayCls."
@@ -826,11 +826,18 @@ TypeCompareState MyICJI::compareTypesForEquality(CORINFO_CLASS_HANDLE cls1, CORI
     return jitInstance->mc->repCompareTypesForEquality(cls1, cls2);
 }
 
-// returns is the intersection of cls1 and cls2.
+// returns the intersection of cls1 and cls2.
 CORINFO_CLASS_HANDLE MyICJI::mergeClasses(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
 {
     jitInstance->mc->cr->AddCall("mergeClasses");
     return jitInstance->mc->repMergeClasses(cls1, cls2);
+}
+
+// Returns true if cls2 is known to be a more specific type than cls1
+BOOL MyICJI::isMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
+{
+    jitInstance->mc->cr->AddCall("isMoreSpecificType");
+    return jitInstance->mc->repIsMoreSpecificType(cls1, cls2);
 }
 
 // Given a class handle, returns the Parent type.

@@ -2,15 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
-using System.Collections;
+#nullable enable
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -38,8 +32,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             object _this = Unsafe.As<object>(this);
 
-            IMap<K, V> _this_map = _this as IMap<K, V>;
-            if (_this_map != null)
+            if (_this is IMap<K, V> _this_map)
             {
                 uint size = _this_map.Size;
 
@@ -75,8 +68,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             object _this = Unsafe.As<object>(this);
 
-            IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
-            if (_this_dictionary != null)
+            if (_this is IDictionary<K, V> _this_dictionary)
             {
                 _this_dictionary.Add(item.Key, item.Value);
             }
@@ -92,8 +84,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             object _this = Unsafe.As<object>(this);
 
-            IMap<K, V> _this_map = _this as IMap<K, V>;
-            if (_this_map != null)
+            if (_this is IMap<K, V> _this_map)
             {
                 _this_map.Clear();
             }
@@ -109,8 +100,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             object _this = Unsafe.As<object>(this);
 
-            IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
-            if (_this_dictionary != null)
+            if (_this is IDictionary<K, V> _this_dictionary)
             {
                 V value;
                 bool hasKey = _this_dictionary.TryGetValue(item.Key, out value);
@@ -157,8 +147,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             object _this = Unsafe.As<object>(this);
 
-            IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
-            if (_this_dictionary != null)
+            if (_this is IDictionary<K, V> _this_dictionary)
             {
                 return _this_dictionary.Remove(item.Key);
             }

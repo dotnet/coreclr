@@ -654,10 +654,19 @@ public:
     void insertCopyOrReload(BasicBlock* block, GenTree* tree, unsigned multiRegIdx, RefPosition* refPosition);
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    // Insert code to save and restore the upper half of a vector that lives
-    // in a callee-save register at the point of a call (the upper half is
-    // not preserved).
-    void insertUpperVectorSaveAndReload(GenTree* tree, RefPosition* refPosition, BasicBlock* block);
+    void makeUpperVectorInterval(unsigned varIndex);
+    Interval* getUpperVectorInterval(unsigned varIndex);
+
+    // Save the upper half of a vector that lives in a callee-save register at the point of a call.
+    void insertUpperVectorSave(GenTree*     tree,
+                               RefPosition* refPosition,
+                               Interval*    upperVectorInterval,
+                               BasicBlock*  block);
+    // Restore the upper half of a vector that's been partially spilled prior to a use in 'tree'.
+    void insertUpperVectorRestore(GenTree*     tree,
+                                  RefPosition* refPosition,
+                                  Interval*    upperVectorInterval,
+                                  BasicBlock*  block);
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
     // resolve along one block-block edge
@@ -960,7 +969,7 @@ private:
     void processBlockEndAllocation(BasicBlock* current);
 
     // Record variable locations at start/end of block
-    void processBlockStartLocations(BasicBlock* current, bool allocationPass);
+    void processBlockStartLocations(BasicBlock* current);
     void processBlockEndLocations(BasicBlock* current);
 
 #ifdef _TARGET_ARM_
@@ -989,10 +998,8 @@ private:
     void buildRefPositionsForNode(GenTree* tree, BasicBlock* block, LsraLocation loc);
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    VARSET_VALRET_TP buildUpperVectorSaveRefPositions(GenTree*     tree,
-                                                      LsraLocation currentLoc,
-                                                      regMaskTP    fpCalleeKillSet);
-    void buildUpperVectorRestoreRefPositions(GenTree* tree, LsraLocation currentLoc, VARSET_VALARG_TP liveLargeVectors);
+    void buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation currentLoc, regMaskTP fpCalleeKillSet);
+    void buildUpperVectorRestoreRefPosition(Interval* lclVarInterval, LsraLocation currentLoc, GenTree* node);
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
 #if defined(UNIX_AMD64_ABI)
@@ -1288,6 +1295,7 @@ private:
     void dumpRegRecordTitleIfNeeded();
     void dumpRegRecordTitleLines();
     void dumpRegRecords();
+    void dumpNewBlock(BasicBlock* currentBlock, LsraLocation location);
     // An abbreviated RefPosition dump for printing with column-based register state
     void dumpRefPositionShort(RefPosition* refPosition, BasicBlock* currentBlock);
     // Print the number of spaces occupied by a dumpRefPositionShort()
@@ -1309,7 +1317,7 @@ private:
         LSRA_EVENT_START_BB, LSRA_EVENT_END_BB,
 
         // Miscellaneous
-        LSRA_EVENT_FREE_REGS,
+        LSRA_EVENT_FREE_REGS, LSRA_EVENT_UPPER_VECTOR_SAVE, LSRA_EVENT_UPPER_VECTOR_RESTORE,
 
         // Characteristics of the current RefPosition
         LSRA_EVENT_INCREMENT_RANGE_END, // ???
@@ -1397,9 +1405,16 @@ private:
     int compareBlocksForSequencing(BasicBlock* block1, BasicBlock* block2, bool useBlockWeights);
     BasicBlockList* blockSequenceWorkList;
     bool            blockSequencingDone;
+#ifdef DEBUG
+    // LSRA must not change number of blocks and blockEpoch that it initializes at start.
+    unsigned blockEpoch;
+#endif // DEBUG
     void addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* block, BlockSet& predSet);
     void removeFromBlockSequenceWorkList(BasicBlockList* listNode, BasicBlockList* prevNode);
     BasicBlock* getNextCandidateFromWorkList();
+
+    // Indicates whether the allocation pass has been completed.
+    bool allocationPassComplete;
 
     // The bbNum of the block being currently allocated or resolved.
     unsigned int curBBNum;
@@ -1454,15 +1469,15 @@ private:
 #if defined(_TARGET_AMD64_)
     static bool varTypeNeedsPartialCalleeSave(var_types type)
     {
-        return (emitTypeSize(type) == 32);
+        return (type == TYP_SIMD32);
     }
     static const var_types LargeVectorSaveType = TYP_SIMD16;
 #elif defined(_TARGET_ARM64_)
     static bool varTypeNeedsPartialCalleeSave(var_types type)
     {
         // ARM64 ABI FP Callee save registers only require Callee to save lower 8 Bytes
-        // For SIMD types longer then 8 bytes Caller is responsible for saving and restoring Upper bytes.
-        return (emitTypeSize(type) == 16);
+        // For SIMD types longer than 8 bytes Caller is responsible for saving and restoring Upper bytes.
+        return ((type == TYP_SIMD16) || (type == TYP_SIMD12));
     }
     static const var_types LargeVectorSaveType = TYP_DOUBLE;
 #else // !defined(_TARGET_AMD64_) && !defined(_TARGET_ARM64_)
@@ -1493,7 +1508,8 @@ private:
     // As we build uses, we may want to preference the next definition (i.e. the register produced
     // by the current node) to the same register as one of its uses. This is done by setting
     // 'tgtPrefUse' to that RefPosition.
-    RefPosition* tgtPrefUse = nullptr;
+    RefPosition* tgtPrefUse  = nullptr;
+    RefPosition* tgtPrefUse2 = nullptr;
 
     // The following keep track of information about internal (temporary register) intervals
     // during the building of a single node.
@@ -1512,6 +1528,7 @@ private:
     void clearBuildState()
     {
         tgtPrefUse               = nullptr;
+        tgtPrefUse2              = nullptr;
         internalCount            = 0;
         setInternalRegsDelayFree = false;
         pendingDelayFree         = false;
@@ -1526,15 +1543,16 @@ private:
 #endif // !_TARGET_XARCH_
     // This is the main entry point for building the RefPositions for a node.
     // These methods return the number of sources.
-    int BuildNode(GenTree* stmt);
+    int BuildNode(GenTree* tree);
 
-    GenTree* getTgtPrefOperand(GenTreeOp* tree);
+    void getTgtPrefOperands(GenTreeOp* tree, bool& prefOp1, bool& prefOp2);
     bool supportsSpecialPutArg();
 
     int BuildSimple(GenTree* tree);
     int BuildOperandUses(GenTree* node, regMaskTP candidates = RBM_NONE);
     int BuildDelayFreeUses(GenTree* node, regMaskTP candidates = RBM_NONE);
     int BuildIndirUses(GenTreeIndir* indirTree, regMaskTP candidates = RBM_NONE);
+    int BuildAddrUses(GenTree* addr, regMaskTP candidates = RBM_NONE);
     void HandleFloatVarArgs(GenTreeCall* call, GenTree* argNode, bool* callHasFloatRegArgs);
     RefPosition* BuildDef(GenTree* tree, regMaskTP dstCandidates = RBM_NONE, int multiRegIdx = 0);
     void BuildDefs(GenTree* tree, int dstCount, regMaskTP dstCandidates = RBM_NONE);
@@ -1565,7 +1583,7 @@ private:
     // returns true if the tree can use the read-modify-write memory instruction form
     bool isRMWRegOper(GenTree* tree);
     int BuildMul(GenTree* tree);
-    void SetContainsAVXFlags(bool isFloatingPointType = true, unsigned sizeOfSIMDVector = 0);
+    void SetContainsAVXFlags(unsigned sizeOfSIMDVector = 0);
     // Move the last use bit, if any, from 'fromTree' to 'toTree'; 'fromTree' must be contained.
     void CheckAndMoveRMWLastUse(GenTree* fromTree, GenTree* toTree)
     {
@@ -1636,6 +1654,10 @@ public:
         , isSpecialPutArg(false)
         , preferCalleeSave(false)
         , isConstant(false)
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+        , isUpperVector(false)
+        , isPartiallySpilled(false)
+#endif
         , physReg(REG_COUNT)
 #ifdef DEBUG
         , intervalIndex(0)
@@ -1706,6 +1728,24 @@ public:
     // able to reuse a constant that's already in a register.
     bool isConstant : 1;
 
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+    // True if this is a special interval for saving the upper half of a large vector.
+    bool isUpperVector : 1;
+    // This is a convenience method to avoid ifdef's everywhere this is used.
+    bool IsUpperVector() const
+    {
+        return isUpperVector;
+    }
+
+    // True if this interval has been partially spilled
+    bool isPartiallySpilled : 1;
+#else
+    bool IsUpperVector() const
+    {
+        return false;
+    }
+#endif
+
     // The register to which it is currently assigned.
     regNumber physReg;
 
@@ -1718,7 +1758,7 @@ public:
     LclVarDsc* getLocalVar(Compiler* comp)
     {
         assert(isLocalVar);
-        return &(comp->lvaTable[this->varNum]);
+        return comp->lvaGetDesc(this->varNum);
     }
 
     // Get the local tracked variable "index" (lvVarIndex), used in bitmasks.
@@ -1753,11 +1793,12 @@ public:
     }
 
     // Assign the related interval, but only if it isn't already assigned.
-    void assignRelatedIntervalIfUnassigned(Interval* newRelatedInterval)
+    bool assignRelatedIntervalIfUnassigned(Interval* newRelatedInterval)
     {
         if (relatedInterval == nullptr)
         {
             assignRelatedInterval(newRelatedInterval);
+            return true;
         }
         else
         {
@@ -1769,16 +1810,22 @@ public:
                 printf(" already has a related interval\n");
             }
 #endif // DEBUG
+            return false;
         }
     }
 
-    // Update the registerPreferences on the interval.
-    // If there are conflicting requirements on this interval, set the preferences to
-    // the union of them.  That way maybe we'll get at least one of them.
-    // An exception is made in the case where one of the existing or new
-    // preferences are all callee-save, in which case we "prefer" the callee-save
+    // Get the current preferences for this Interval.
+    // Note that when we have an assigned register we don't necessarily update the
+    // registerPreferences to that register, as there may be multiple, possibly disjoint,
+    // definitions. This method will return the current assigned register if any, or
+    // the 'registerPreferences' otherwise.
+    //
+    regMaskTP getCurrentPreferences()
+    {
+        return (assignedReg == nullptr) ? registerPreferences : genRegMask(assignedReg->regNum);
+    }
 
-    void updateRegisterPreferences(regMaskTP preferences)
+    void mergeRegisterPreferences(regMaskTP preferences)
     {
         // We require registerPreferences to have been initialized.
         assert(registerPreferences != RBM_NONE);
@@ -1832,6 +1879,25 @@ public:
         }
         registerPreferences = newPreferences;
     }
+
+    // Update the registerPreferences on the interval.
+    // If there are conflicting requirements on this interval, set the preferences to
+    // the union of them.  That way maybe we'll get at least one of them.
+    // An exception is made in the case where one of the existing or new
+    // preferences are all callee-save, in which case we "prefer" the callee-save
+
+    void updateRegisterPreferences(regMaskTP preferences)
+    {
+        // If this interval is preferenced, that interval may have already been assigned a
+        // register, and we want to include that in the preferences.
+        if ((relatedInterval != nullptr) && !relatedInterval->isActive)
+        {
+            mergeRegisterPreferences(relatedInterval->getCurrentPreferences());
+        }
+
+        // Now merge the new preferences.
+        mergeRegisterPreferences(preferences);
+    }
 };
 
 class RefPosition
@@ -1840,8 +1906,7 @@ public:
     // A RefPosition refers to either an Interval or a RegRecord. 'referent' points to one
     // of these types. If it refers to a RegRecord, then 'isPhysRegRef' is true. If it
     // refers to an Interval, then 'isPhysRegRef' is false.
-    //
-    // Q: can 'referent' be NULL?
+    // referent can never be null.
 
     Referenceable* referent;
 
@@ -1871,7 +1936,7 @@ public:
     // Indicates whether this ref position is to be allocated a reg only if profitable. Currently these are the
     // ref positions that lower/codegen has indicated as reg optional and is considered a contained memory operand if
     // no reg is allocated.
-    unsigned char allocRegIfProfitable : 1;
+    unsigned char regOptional : 1;
 
     // Used by RefTypeDef/Use positions of a multi-reg call node.
     // Indicates the position of the register that this ref position refers to.
@@ -1998,33 +2063,43 @@ public:
     // Returns true if it is a reference on a gentree node.
     bool IsActualRef()
     {
-        return (refType == RefTypeDef || refType == RefTypeUse);
-    }
-
-    bool RequiresRegister()
-    {
-        return (IsActualRef()
+        switch (refType)
+        {
+            case RefTypeDef:
+            case RefTypeUse:
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                || refType == RefTypeUpperVectorSaveDef || refType == RefTypeUpperVectorSaveUse
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                ) &&
-               !AllocateIfProfitable();
+            case RefTypeUpperVectorSave:
+            case RefTypeUpperVectorRestore:
+#endif
+                return true;
+
+            // These must always be marked RegOptional.
+            case RefTypeExpUse:
+            case RefTypeParamDef:
+            case RefTypeDummyDef:
+            case RefTypeZeroInit:
+                assert(RegOptional());
+                return false;
+
+            default:
+                return false;
+        }
     }
 
-    void setAllocateIfProfitable(bool val)
+    void setRegOptional(bool val)
     {
-        allocRegIfProfitable = val;
+        regOptional = val;
     }
 
     // Returns true whether this ref position is to be allocated
     // a reg only if it is profitable.
-    bool AllocateIfProfitable()
+    bool RegOptional()
     {
         // TODO-CQ: Right now if a ref position is marked as
         // copyreg or movereg, then it is not treated as
         // 'allocate if profitable'. This is an implementation
         // limitation that needs to be addressed.
-        return allocRegIfProfitable && !copyReg && !moveReg;
+        return regOptional && !copyReg && !moveReg;
     }
 
     void setMultiRegIdx(unsigned idx)
@@ -2041,6 +2116,24 @@ public:
     LsraLocation getRefEndLocation()
     {
         return delayRegFree ? nodeLocation + 1 : nodeLocation;
+    }
+
+    RefPosition* getRangeEndRef()
+    {
+        if (lastUse || nextRefPosition == nullptr)
+        {
+            return this;
+        }
+        // It would seem to make sense to only return 'nextRefPosition' if it is a lastUse,
+        // and otherwise return `lastRefPosition', but that tends to  excessively lengthen
+        // the range for heuristic purposes.
+        // TODO-CQ: Look into how this might be improved .
+        return nextRefPosition;
+    }
+
+    LsraLocation getRangeEndLocation()
+    {
+        return getRangeEndRef()->getRefEndLocation();
     }
 
     bool isIntervalRef()

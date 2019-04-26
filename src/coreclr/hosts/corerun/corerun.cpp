@@ -423,6 +423,58 @@ private:
     ULONG_PTR _actCookie;
 };
 
+class ClrInstanceDetails
+{
+    static void * _currentClrInstance;
+    static unsigned int _currentAppDomainId;
+
+public: // static
+    static HRESULT GetDetails(void **clrInstance, unsigned int *appDomainId)
+    {
+        *clrInstance = _currentClrInstance;
+        *appDomainId = _currentAppDomainId;
+        return S_OK;
+    }
+
+public:
+    ClrInstanceDetails(void *clrInstance, unsigned int appDomainId)
+    {
+        _currentClrInstance = clrInstance;
+        _currentAppDomainId = appDomainId;
+    }
+
+    ~ClrInstanceDetails()
+    {
+        _currentClrInstance = nullptr;
+        _currentAppDomainId = 0;
+    }
+};
+
+void * ClrInstanceDetails::_currentClrInstance;
+unsigned int ClrInstanceDetails::_currentAppDomainId;
+
+extern "C" __declspec(dllexport) HRESULT __cdecl GetCurrentClrDetails(void **clrInstance, unsigned int *appDomainId)
+{
+    return ClrInstanceDetails::GetDetails(clrInstance, appDomainId);
+}
+
+bool TryLoadHostPolicy(StackSString& hostPolicyPath)
+{
+    const WCHAR *hostpolicyName = W("hostpolicy.dll");
+    HMODULE hMod = ::GetModuleHandleW(hostpolicyName);
+    if (hMod != nullptr)
+    {
+        return true;
+    }
+    // Check if a hostpolicy exists and if it does, load it.
+    if (INVALID_FILE_ATTRIBUTES != ::GetFileAttributesW(hostPolicyPath.GetUnicode()))
+    {
+        hMod = ::LoadLibraryExW(hostPolicyPath.GetUnicode(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+    }
+
+    return hMod != nullptr;
+}
+
 bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbose, const bool waitForDebugger, DWORD &exitCode)
 {
 
@@ -497,6 +549,17 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
     }
     nativeDllSearchDirs.Append(W(";"));
     nativeDllSearchDirs.Append(hostEnvironment.m_coreCLRDirectoryPath);
+
+    // Preload mock hostpolicy if requested.
+    StackSString hostpolicyPath;
+    if (WszGetEnvironmentVariable(W("MOCK_HOSTPOLICY"), hostpolicyPath) > 0 && hostpolicyPath.GetCount() > 0)
+    {
+        if (!TryLoadHostPolicy(hostpolicyPath))
+        {
+            log << W("Unable to load requested mock hostpolicy.");
+            return false;
+        }
+    }
 
     // Start the CoreCLR
 
@@ -638,6 +701,7 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
 
     {
         ActivationContext cxt{ log, managedAssemblyFullName.GetUnicode() };
+        ClrInstanceDetails current{ host, domainId };
 
         hr = host->ExecuteAssembly(domainId, managedAssemblyFullName, argc - 1, (argc - 1) ? &(argv[1]) : NULL, &exitCode);
         if (FAILED(hr))

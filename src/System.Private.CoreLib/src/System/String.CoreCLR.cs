@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -77,7 +78,7 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         private extern string Intern();
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private extern string IsInterned();
+        private extern string? IsInterned();
 
         public static string Intern(string str)
         {
@@ -89,7 +90,7 @@ namespace System
             return str.Intern();
         }
 
-        public static string IsInterned(string str)
+        public static string? IsInterned(string str)
         {
             if (str == null)
             {
@@ -119,40 +120,6 @@ namespace System
             {
                 return encoding.GetBytes(pwzChar, Length, pbNativeBuffer, cbNativeBuffer);
             }
-        }
-
-        internal unsafe int ConvertToAnsi(byte* pbNativeBuffer, int cbNativeBuffer, bool fBestFit, bool fThrowOnUnmappableChar)
-        {
-            Debug.Assert(cbNativeBuffer >= (Length + 1) * Marshal.SystemMaxDBCSCharSize, "Insufficient buffer length passed to ConvertToAnsi");
-
-            const uint CP_ACP = 0;
-            int nb;
-
-            const uint WC_NO_BEST_FIT_CHARS = 0x00000400;
-
-            uint flgs = (fBestFit ? 0 : WC_NO_BEST_FIT_CHARS);
-            uint DefaultCharUsed = 0;
-
-            fixed (char* pwzChar = &_firstChar)
-            {
-                nb = Win32Native.WideCharToMultiByte(
-                    CP_ACP,
-                    flgs,
-                    pwzChar,
-                    this.Length,
-                    pbNativeBuffer,
-                    cbNativeBuffer,
-                    IntPtr.Zero,
-                    (fThrowOnUnmappableChar ? new IntPtr(&DefaultCharUsed) : IntPtr.Zero));
-            }
-
-            if (0 != DefaultCharUsed)
-            {
-                throw new ArgumentException(SR.Interop_Marshal_Unmappable_Char);
-            }
-
-            pbNativeBuffer[nb] = 0;
-            return nb;
         }
     }
 }

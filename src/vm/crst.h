@@ -183,13 +183,13 @@ private:
     void SpinEnter();
 
 #ifndef DACCESS_COMPILE
-    DEBUG_NOINLINE static void AcquireLock(CrstBase *c) PUB {
+    DEBUG_NOINLINE static void AcquireLock(CrstBase *c) {
         WRAPPER_NO_CONTRACT;
         ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
         c->Enter(); 
     }
 
-    DEBUG_NOINLINE static void ReleaseLock(CrstBase *c) PUB { 
+    DEBUG_NOINLINE static void ReleaseLock(CrstBase *c) {
         WRAPPER_NO_CONTRACT;
         ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
         c->Leave(); 
@@ -202,8 +202,8 @@ private:
     // Argument: 
     //     input: c - the lock to be checked. 
     // Note: Throws
-    static void AcquireLock(CrstBase * c) PUB
-    { 
+    static void AcquireLock(CrstBase * c)
+    {
         SUPPORTS_DAC;
         if (c->GetEnterCount() != 0) 
         {
@@ -211,8 +211,8 @@ private:
         }
     };
 
-    static void ReleaseLock(CrstBase *c) PUB
-    { 
+    static void ReleaseLock(CrstBase *c)
+    {
         SUPPORTS_DAC;
     };
 #endif // DACCESS_COMPILE
@@ -265,7 +265,7 @@ public:
     CrstBase *GetThreadsOwnedCrsts();
     void SetThreadsOwnedCrsts(CrstBase *pCrst);
 
-    __declspec(noinline) EEThreadId GetHolderThreadId()
+    NOINLINE EEThreadId GetHolderThreadId()
     {
         LIMITED_METHOD_CONTRACT;
         return m_holderthreadid;
@@ -391,21 +391,19 @@ private:
         inline ~CrstHolder()
         {
             WRAPPER_NO_CONTRACT;
-
-            VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(HSV_ValidateMinimumStackReq);
             ReleaseLock(m_pCrst);
         }
     };
 
     // Note that the holders for CRSTs are used in extremely low stack conditions. Because of this, they 
     // aren't allowed to use more than HOLDER_CODE_MINIMUM_STACK_LIMIT pages of stack.
-    typedef DacHolder<CrstBase *, CrstBase::AcquireLock, CrstBase::ReleaseLock, 0, CompareDefault, HSV_ValidateMinimumStackReq> CrstHolderWithState;
+    typedef DacHolder<CrstBase *, CrstBase::AcquireLock, CrstBase::ReleaseLock, 0, CompareDefault> CrstHolderWithState;
 
     // We have some situations where we're already holding a lock, and we need to release and reacquire the lock across a window.
     // This is a dangerous construct because the backout code can block.
     // Generally, it's better to use a regular CrstHolder, and then use the Release() / Acquire() methods on it.
     // This just exists to convert legacy OS Critical Section patterns over to holders.
-    typedef DacHolder<CrstBase *, CrstBase::ReleaseLock, CrstBase::AcquireLock, 0, CompareDefault, HSV_ValidateMinimumStackReq> UnsafeCrstInverseHolder;
+    typedef DacHolder<CrstBase *, CrstBase::ReleaseLock, CrstBase::AcquireLock, 0, CompareDefault> UnsafeCrstInverseHolder;
 };
 
 typedef CrstBase::CrstHolder CrstHolder;
@@ -539,5 +537,3 @@ __inline BOOL IsOwnerOfCrst(LPVOID lock)
 void DebugTryCrst(CrstBase * pLock);
 #endif
 #endif // __crst_h__
-
-

@@ -1,25 +1,24 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-using System;
+#nullable enable
 using System.Reflection;
 using EventMetadata = System.Diagnostics.Tracing.EventSource.EventMetadata;
 
 namespace System.Diagnostics.Tracing
 {
 #if FEATURE_PERFTRACING
-
     internal sealed class EventPipeMetadataGenerator
     {
         public static EventPipeMetadataGenerator Instance = new EventPipeMetadataGenerator();
 
         private EventPipeMetadataGenerator() { }
 
-        public unsafe byte[] GenerateEventMetadata(EventMetadata eventMetadata)
+        public byte[]? GenerateEventMetadata(EventMetadata eventMetadata)
         {
             ParameterInfo[] parameters = eventMetadata.Parameters;
             EventParameterInfo[] eventParams = new EventParameterInfo[parameters.Length];
-            for(int i=0; i<parameters.Length; i++)
+            for(int i = 0; i < parameters.Length; i++)
             {
                 eventParams[i].SetInfo(parameters[i].Name, parameters[i].ParameterType);
             }
@@ -33,7 +32,7 @@ namespace System.Diagnostics.Tracing
                 eventParams);
         }
 
-        public unsafe byte[] GenerateEventMetadata(
+        public byte[]? GenerateEventMetadata(
             int eventId,
             string eventName,
             EventKeywords keywords,
@@ -42,9 +41,9 @@ namespace System.Diagnostics.Tracing
             TraceLoggingEventTypes eventTypes)
         {
             TraceLoggingTypeInfo[] typeInfos = eventTypes.typeInfos;
-            string[] paramNames = eventTypes.paramNames;
+            string[]? paramNames = eventTypes.paramNames;
             EventParameterInfo[] eventParams = new EventParameterInfo[typeInfos.Length];
-            for(int i=0; i<typeInfos.Length; i++)
+            for(int i = 0; i < typeInfos.Length; i++)
             {
                 string paramName = string.Empty;
                 if(paramNames != null)
@@ -57,7 +56,7 @@ namespace System.Diagnostics.Tracing
             return GenerateMetadata(eventId, eventName, (long)keywords, (uint)level, version, eventParams);
         }
 
-        private unsafe byte[] GenerateMetadata(
+        private unsafe byte[]? GenerateMetadata(
             int eventId,
             string eventName,
             long keywords,
@@ -65,7 +64,7 @@ namespace System.Diagnostics.Tracing
             uint version,
             EventParameterInfo[] parameters)
         {
-            byte[] metadata = null;
+            byte[]? metadata = null;
             try
             {
                 // eventID          : 4 bytes
@@ -75,6 +74,7 @@ namespace System.Diagnostics.Tracing
                 // level            : 4 bytes
                 // parameterCount   : 4 bytes
                 uint metadataLength = 24 + ((uint)eventName.Length + 1) * 2;
+                uint defaultMetadataLength = metadataLength;
 
                 // Check for an empty payload.
                 // Write<T> calls with no arguments by convention have a parameter of
@@ -87,7 +87,16 @@ namespace System.Diagnostics.Tracing
                 // Increase the metadataLength for parameters.
                 foreach (var parameter in parameters)
                 {
-                    metadataLength = metadataLength + parameter.GetMetadataLength();
+                    int pMetadataLength = parameter.GetMetadataLength();
+                    // The call above may return -1 which means we failed to get the metadata length. 
+                    // We then return a default metadata blob (with parameterCount of 0) to prevent it from generating malformed metadata.
+                    if (pMetadataLength < 0)
+                    {
+                        parameters = Array.Empty<EventParameterInfo>();
+                        metadataLength = defaultMetadataLength;
+                        break;
+                    }
+                    metadataLength += (uint)pMetadataLength;
                 }
 
                 metadata = new byte[metadataLength];
@@ -107,7 +116,11 @@ namespace System.Diagnostics.Tracing
                     WriteToBuffer(pMetadata, metadataLength, ref offset, (uint)parameters.Length);
                     foreach (var parameter in parameters)
                     {
-                        parameter.GenerateMetadata(pMetadata, ref offset, metadataLength);
+                        if(!parameter.GenerateMetadata(pMetadata, ref offset, metadataLength))
+                        {
+                            // If we fail to generate metadata for any parameter, we should return the "default" metadata without any parameters
+                            return GenerateMetadata(eventId, eventName, keywords, level, version, Array.Empty<EventParameterInfo>());
+                        }
                     }
                     Debug.Assert(metadataLength == offset);
                 }
@@ -158,23 +171,22 @@ namespace System.Diagnostics.Tracing
             *(char *)(buffer + offset) = value;
             offset += 2;
         }
-
     }
 
     internal struct EventParameterInfo
     {
         internal string ParameterName;
         internal Type ParameterType;
-        internal TraceLoggingTypeInfo TypeInfo;
+        internal TraceLoggingTypeInfo? TypeInfo;
 
-        internal void SetInfo(string name, Type type, TraceLoggingTypeInfo typeInfo = null)
+        internal void SetInfo(string name, Type type, TraceLoggingTypeInfo? typeInfo = null)
         {
             ParameterName = name;
             ParameterType = type;
             TypeInfo = typeInfo;
         }
 
-        internal unsafe void GenerateMetadata(byte* pMetadataBlob, ref uint offset, uint blobSize)
+        internal unsafe bool GenerateMetadata(byte* pMetadataBlob, ref uint offset, uint blobSize)
         {
             TypeCode typeCode = GetTypeCodeExtended(ParameterType);
             if(typeCode == TypeCode.Object)
@@ -186,14 +198,13 @@ namespace System.Diagnostics.Tracing
                 //     Nested struct property name  : NULL-terminated string.
                 EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (uint)TypeCode.Object);
 
-                InvokeTypeInfo invokeTypeInfo = TypeInfo as InvokeTypeInfo;
-                if(invokeTypeInfo == null)
+                if(!(TypeInfo is InvokeTypeInfo invokeTypeInfo))
                 {
-                    throw new NotSupportedException();
+                    return false;
                 }
 
                 // Get the set of properties to be serialized.
-                PropertyAnalysis[] properties = invokeTypeInfo.properties;
+                PropertyAnalysis[]? properties = invokeTypeInfo.properties;
                 if(properties != null)
                 {
                     // Write the count of serializable properties.
@@ -201,7 +212,10 @@ namespace System.Diagnostics.Tracing
 
                     foreach(PropertyAnalysis prop in properties)
                     {
-                        GenerateMetadataForProperty(prop, pMetadataBlob, ref offset, blobSize);
+                        if (!GenerateMetadataForProperty(prop, pMetadataBlob, ref offset, blobSize))
+                        {
+                            return false;
+                        }
                     }
                 }
                 else
@@ -225,16 +239,16 @@ namespace System.Diagnostics.Tracing
                     EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (byte *)pParameterName, ((uint)ParameterName.Length + 1) * 2);
                 }
             }
+            return true;
         }
 
-        private static unsafe void GenerateMetadataForProperty(PropertyAnalysis property, byte* pMetadataBlob, ref uint offset, uint blobSize)
+        private static unsafe bool GenerateMetadataForProperty(PropertyAnalysis property, byte* pMetadataBlob, ref uint offset, uint blobSize)
         {
             Debug.Assert(property != null);
             Debug.Assert(pMetadataBlob != null);
 
             // Check if this property is a nested struct.
-            InvokeTypeInfo invokeTypeInfo = property.typeInfo as InvokeTypeInfo;
-            if(invokeTypeInfo != null)
+            if(property.typeInfo is InvokeTypeInfo invokeTypeInfo)
             {
                 // Each nested struct is serialized as:
                 //     TypeCode.Object              : 4 bytes
@@ -244,7 +258,7 @@ namespace System.Diagnostics.Tracing
                 EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (uint)TypeCode.Object);
 
                 // Get the set of properties to be serialized.
-                PropertyAnalysis[] properties = invokeTypeInfo.properties;
+                PropertyAnalysis[]? properties = invokeTypeInfo.properties;
                 if(properties != null)
                 {
                     // Write the count of serializable properties.
@@ -252,7 +266,10 @@ namespace System.Diagnostics.Tracing
 
                     foreach(PropertyAnalysis prop in properties)
                     {
-                        GenerateMetadataForProperty(prop, pMetadataBlob, ref offset, blobSize);
+                        if(!GenerateMetadataForProperty(prop, pMetadataBlob, ref offset, blobSize))
+                        {
+                            return false;
+                        }
                     }
                 }
                 else
@@ -277,7 +294,7 @@ namespace System.Diagnostics.Tracing
                 // EventPipe does not support this type.  Throw, which will cause no metadata to be registered for this event.
                 if(typeCode == TypeCode.Object)
                 {
-                    throw new NotSupportedException();
+                    return false;
                 }
 
                 // Write the type code.
@@ -289,20 +306,19 @@ namespace System.Diagnostics.Tracing
                     EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (byte *)pPropertyName, ((uint)property.name.Length + 1) * 2);
                 }
             }
+            return true;
         }
 
-
-        internal unsafe uint GetMetadataLength()
+        internal int GetMetadataLength()
         {
-            uint ret = 0;
+            int ret = 0;
 
             TypeCode typeCode = GetTypeCodeExtended(ParameterType);
             if(typeCode == TypeCode.Object)
             {
-                InvokeTypeInfo typeInfo = TypeInfo as InvokeTypeInfo;
-                if(typeInfo == null)
+                if(!(TypeInfo is InvokeTypeInfo typeInfo))
                 {
-                    throw new NotSupportedException();
+                    return -1;
                 }
 
                 // Each nested struct is serialized as:
@@ -314,12 +330,12 @@ namespace System.Diagnostics.Tracing
                      + sizeof(uint); // Property count
 
                 // Get the set of properties to be serialized.
-                PropertyAnalysis[] properties = typeInfo.properties;
+                PropertyAnalysis[]? properties = typeInfo.properties;
                 if(properties != null)
                 {
                     foreach(PropertyAnalysis prop in properties)
                     {
-                        ret += GetMetadataLengthForProperty(prop);
+                        ret += (int)GetMetadataLengthForProperty(prop);
                     }
                 }
 
@@ -330,7 +346,7 @@ namespace System.Diagnostics.Tracing
             }
             else
             {
-                ret += (uint)(sizeof(uint) + ((ParameterName.Length + 1) * 2));
+                ret += (int)(sizeof(uint) + ((ParameterName.Length + 1) * 2));
             }
 
             return ret;
@@ -343,8 +359,7 @@ namespace System.Diagnostics.Tracing
             uint ret = 0;
 
             // Check if this property is a nested struct.
-            InvokeTypeInfo invokeTypeInfo = property.typeInfo as InvokeTypeInfo;
-            if(invokeTypeInfo != null)
+            if(property.typeInfo is InvokeTypeInfo invokeTypeInfo)
             {
                 // Each nested struct is serialized as:
                 //     TypeCode.Object      : 4 bytes
@@ -355,7 +370,7 @@ namespace System.Diagnostics.Tracing
                      + sizeof(uint); // Property count
 
                 // Get the set of properties to be serialized.
-                PropertyAnalysis[] properties = invokeTypeInfo.properties;
+                PropertyAnalysis[]? properties = invokeTypeInfo.properties;
                 if(properties != null)
                 {
                     foreach(PropertyAnalysis prop in properties)

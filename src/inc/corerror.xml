@@ -310,6 +310,12 @@
   <Comment> Contract Windows Runtime assemblies cannot be loaded for execution.  Make sure your application only contains non-contract Windows Runtime assemblies </Comment>
 </HRESULT>
 
+<HRESULT NumericValue="0x8013106A">
+  <SymbolicName>COR_E_AMBIGUOUSIMPLEMENTATION</SymbolicName>
+  <Message>"Ambiguous implementation found."</Message>
+  <Comment> Ambiguous implementation found </Comment>
+</HRESULT>
+
 <HRESULT NumericValue="0x80131100">
 	<SymbolicName>CLDB_E_FILE_BADREAD</SymbolicName>
 	<Message>"Error occurred during a read."</Message>
@@ -386,6 +392,12 @@
 	<SymbolicName>META_E_INVALID_TOKEN_TYPE</SymbolicName>
 	<Message>"A token of the wrong type passed to a metadata function."</Message>
 	<Comment> A token of the wrong type passed to a metadata function. </Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x80131165">
+	<SymbolicName>TLBX_E_LIBNOTREGISTERED</SymbolicName>
+	<Message>"Typelib export: Type library is not registered."</Message>
+	<Comment> Typelib export: type library is not registered. </Comment>
 </HRESULT>
 
 <HRESULT NumericValue="0x8013118a">
@@ -2221,6 +2233,18 @@
 	<SymbolicName>CLR_E_GC_OOM</SymbolicName>
 	<Message>"Failfast due to an OOM during a GC"</Message>
 	<Comment>During a GC when we try to allocate memory for GC datastructures we could not.</Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x8013200A">
+	<SymbolicName>CLR_E_GC_BAD_AFFINITY_CONFIG</SymbolicName>
+	<Message>"GCHeapAffinitizeMask or GCHeapAffinitizeRanges didn't specify any CPUs the current process is affinitized to."</Message>
+	<Comment>During a GC initialization, the affinity mask specified via GCHeapAffinitizeMask or GCHeapAffinitizeRanges didn't contain any CPUs the current process is affinitized to.</Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x8013200B">
+	<SymbolicName>CLR_E_GC_BAD_AFFINITY_CONFIG_FORMAT</SymbolicName>
+	<Message>"GCHeapAffinitizeRanges configuration string has invalid format."</Message>
+	<Comment>During a GC initialization, the GCHeapAffinitizeRanges config couldn't be parsed due to its invalid format.</Comment>
 </HRESULT>
 
 <HRESULT NumericValue="E_ACCESSDENIED">

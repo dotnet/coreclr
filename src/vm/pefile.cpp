@@ -553,7 +553,6 @@ CHECK PEFile::CheckLoaded(BOOL bAllowNativeSkip/*=TRUE*/)
         INSTANCE_CHECK;
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACT_CHECK_END;
@@ -791,7 +790,6 @@ void PEFile::ConvertMetadataToRWForEnC()
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1099,7 +1097,6 @@ LPCWSTR CorCompileGetRuntimeDllName(CorCompileRuntimeDlls id)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
@@ -1114,9 +1111,6 @@ LPCWSTR CorCompileGetRuntimeDllName(CorCompileRuntimeDlls id)
 // Will always return a valid HMODULE for CLR_INFO, but will return NULL for NGEN_COMPILER_INFO
 // if the DLL has not yet been loaded (it does not try to cause a load).
 
-// Gets set by IJitManager::LoadJit (yes, this breaks the abstraction boundary).
-HMODULE s_ngenCompilerDll = NULL;
-
 extern HMODULE CorCompileGetRuntimeDll(CorCompileRuntimeDlls id)
 {
     CONTRACTL
@@ -1124,7 +1118,6 @@ extern HMODULE CorCompileGetRuntimeDll(CorCompileRuntimeDlls id)
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_INTOLERANT;
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
@@ -1683,7 +1676,6 @@ void PEFile::FlushExternalLog()
 BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
                                  PBYTE *pbInMemoryResource, DomainAssembly** pAssemblyRef,
                                  LPCSTR *szFileName, DWORD *dwLocation,
-                                 StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                                  BOOL fSkipRaiseResolveEvent, DomainAssembly* pDomainAssembly, AppDomain* pAppDomain)
 {
     CONTRACTL
@@ -1724,7 +1716,7 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
         if (pAssembly == NULL)
             return FALSE;
 
-        pDomainAssembly = pAssembly->GetDomainAssembly(pAppDomain);
+        pDomainAssembly = pAssembly->GetDomainAssembly();
         pPEFile = pDomainAssembly->GetFile();
 
         if (FAILED(pAssembly->GetManifestImport()->FindManifestResourceByName(
@@ -1773,8 +1765,6 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
                                                 pAssemblyRef,
                                                 szFileName,
                                                 dwLocation,
-                                                pStackMark,
-                                                fSkipSecurityCheck,
                                                 fSkipRaiseResolveEvent);
         }
 
@@ -1782,31 +1772,6 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
         if (mdLinkRef == mdFileNil)
         {
             // The resource is embedded in the manifest file
-
-#ifndef CROSSGEN_COMPILE
-            if (!IsMrPublic(dwResourceFlags) && pStackMark && !fSkipSecurityCheck)
-            {
-                Assembly *pCallersAssembly = SystemDomain::GetCallersAssembly(pStackMark);
-
-                if (pCallersAssembly &&  // full trust for interop
-                    (!pCallersAssembly->GetManifestFile()->Equals(this)))
-                {
-                    RefSecContext sCtx(AccessCheckOptions::kMemberAccess);
-
-                    AccessCheckOptions accessCheckOptions(
-                        AccessCheckOptions::kMemberAccess,  /*accessCheckType*/
-                        NULL,                               /*pAccessContext*/
-                        FALSE,                              /*throwIfTargetIsInaccessible*/
-                        (MethodTable *) NULL                /*pTargetMT*/
-                        );
-
-                    // SL: return TRUE only if the caller is critical
-                    // Desktop: return TRUE only if demanding MemberAccess succeeds
-                    if (!accessCheckOptions.DemandMemberAccessOrFail(&sCtx, NULL, TRUE /*visibilityCheck*/))
-                        return FALSE;
-                }
-            }
-#endif // CROSSGEN_COMPILE
 
             if (dwLocation) {
                 *dwLocation = *dwLocation | 5; // ResourceLocation.embedded |
@@ -1937,6 +1902,7 @@ PEAssembly::PEAssembly(
     if (system)
         m_flags |= PEFILE_SYSTEM;
 
+#ifdef FEATURE_PREJIT
     // We check the precondition above that either pBindResultInfo is null or both pPEImageIL and pPEImageNI are,
     // so we'll only get a max of one native image passed in.
     if (pPEImageNI != NULL)
@@ -1944,7 +1910,6 @@ PEAssembly::PEAssembly(
         SetNativeImage(pPEImageNI);
     }
 
-#ifdef FEATURE_PREJIT
     if (pBindResultInfo && pBindResultInfo->HasNativeImage())
         SetNativeImage(pBindResultInfo->GetNativeImage());
 #endif

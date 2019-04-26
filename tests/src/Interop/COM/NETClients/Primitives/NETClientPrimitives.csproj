@@ -19,6 +19,8 @@
 
     <!-- Test unsupported outside of windows -->
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
+    <!-- This test would require the runincontext.exe to include App.manifest describing the COM interfaces -->
+    <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
@@ -32,13 +34,17 @@
     <Compile Include="ErrorTests.cs" />
     <Compile Include="NumericTests.cs" />
     <Compile Include="StringTests.cs" />
-    <Compile Include="../../ServerContracts/NativeServers.cs" />
+    <Compile Include="ColorTests.cs" />
+    <Compile Include="../../ServerContracts/Server.CoClasses.cs" />
     <Compile Include="../../ServerContracts/Server.Contracts.cs" />
     <Compile Include="../../ServerContracts/ServerGuids.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../NativeServer/CMakeLists.txt" />
     <ProjectReference Include="../../../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
+    <PackageReference Include="System.Drawing.Common">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

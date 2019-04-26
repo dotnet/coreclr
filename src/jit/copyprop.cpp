@@ -29,9 +29,9 @@
  */
 void Compiler::optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
 {
-    for (GenTree* stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
+    for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
-        for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
         {
             if (!tree->IsLocal())
             {
@@ -47,7 +47,7 @@ void Compiler::optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrSt
                 GenTreePtrStack* stack = nullptr;
                 curSsaName->Lookup(lclNum, &stack);
                 stack->Pop();
-                if (stack->Height() == 0)
+                if (stack->Empty())
                 {
                     curSsaName->Remove(lclNum);
                 }
@@ -128,7 +128,7 @@ int Compiler::optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDs
 //    tree        -  The tree to perform copy propagation on
 //    curSsaName  -  The map from lclNum to its recently live definitions as a stack
 
-void Compiler::optCopyProp(BasicBlock* block, GenTree* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName)
+void Compiler::optCopyProp(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName)
 {
     // TODO-Review: EH successor/predecessor iteration seems broken.
     if (block->bbCatchTyp == BBCT_FINALLY || block->bbCatchTyp == BBCT_FAULT)
@@ -315,12 +315,12 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
     // There are no definitions at the start of the block. So clear it.
     compCurLifeTree = nullptr;
     VarSetOps::Assign(this, compCurLife, block->bbLiveIn);
-    for (GenTree* stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
+    for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
         VarSetOps::ClearD(this, optCopyPropKillSet);
 
         // Walk the tree to find if any local variable can be replaced with current live definitions.
-        for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
         {
             treeLifeUpdater.UpdateLife(tree);
 
@@ -347,7 +347,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
         }
 
         // This logic must be in sync with SSA renaming process.
-        for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
         {
             if (!optIsSsaLocal(tree))
             {
@@ -365,7 +365,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
                     stack = new (curSsaName->GetAllocator()) GenTreePtrStack(curSsaName->GetAllocator());
                 }
                 stack->Push(tree);
-                curSsaName->Set(lclNum, stack);
+                curSsaName->Set(lclNum, stack, LclNumToGenTreePtrStack::Overwrite);
             }
             // If we encounter first use of a param or this pointer add it as a live definition.
             // Since they are always live, do it only once.

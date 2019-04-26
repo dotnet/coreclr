@@ -311,14 +311,6 @@ void Frame::Init()
 
 } // void Frame::Init()
 
-// static
-void Frame::Term()
-{
-    LIMITED_METHOD_CONTRACT;
-    delete s_pFrameVTables;
-    s_pFrameVTables = NULL;
-}
-
 #endif // DACCESS_COMPILE
 
 // Returns true if the Frame's VTablePtr is valid
@@ -389,7 +381,6 @@ VOID Frame::Push()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -403,7 +394,6 @@ VOID Frame::Push(Thread *pThread)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -439,7 +429,6 @@ VOID Frame::Pop()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -453,7 +442,6 @@ VOID Frame::Pop(Thread *pThread)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -480,7 +468,6 @@ void Frame::PopIfChained()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -568,13 +555,19 @@ BOOL PrestubMethodFrame::TraceFrame(Thread *thread, BOOL fromPatch,
 
     //
     // We want to set a frame patch, unless we're already at the
-    // frame patch, in which case we'll trace stable entrypoint which 
-    // should be set by now.
+    // frame patch, in which case we'll trace the method entrypoint.
     //
 
     if (fromPatch)
     {
-        trace->InitForStub(GetFunction()->GetStableEntryPoint());
+        // In between the time where the Prestub read the method entry point from the slot and the time it reached
+        // ThePrestubPatchLabel, GetMethodEntryPoint() could have been updated due to code versioning. This will result in the
+        // debugger getting some version of the code or the prestub, but not necessarily the exact code pointer that winds up
+        // getting executed. The debugger has code that handles this ambiguity by placing a breakpoint at the start of all
+        // native code versions, even if they aren't the one that was reported by this trace, see
+        // DebuggerController::PatchTrace() under case TRACE_MANAGED. This alleviates the StubManager from having to prevent the
+        // race that occurs here.
+        trace->InitForStub(GetFunction()->GetMethodEntryPoint());
     }
     else
     {
@@ -612,7 +605,6 @@ MethodDesc* StubDispatchFrame::GetFunction()
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     MethodDesc * pMD = m_pMD;
@@ -733,25 +725,11 @@ BOOL StubDispatchFrame::TraceFrame(Thread *thread, BOOL fromPatch,
 {
     WRAPPER_NO_CONTRACT;
 
-    //
-    // We want to set a frame patch, unless we're already at the
-    // frame patch, in which case we'll trace stable entrypoint which 
-    // should be set by now.
-    //
+    // StubDispatchFixupWorker and VSD_ResolveWorker never directly call managed code. Returning false instructs the debugger to
+    // step out of the call that erected this frame and continuing trying to trace execution from there.
+    LOG((LF_CORDB, LL_INFO1000, "StubDispatchFrame::TraceFrame: return FALSE\n"));
 
-    if (fromPatch)
-    {
-        trace->InitForStub(GetFunction()->GetStableEntryPoint());
-    }
-    else
-    {
-        trace->InitForStub(GetPreStubEntryPoint());
-    }
-
-    LOG((LF_CORDB, LL_INFO10000,
-         "StubDispatchFrame::TraceFrame: ip=" FMT_ADDR "\n", DBG_ADDR(trace->GetAddress()) ));
-    
-    return TRUE;
+    return FALSE;
 }
 
 Frame::Interception StubDispatchFrame::GetInterception()
@@ -912,7 +890,6 @@ GCFrame::GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -926,7 +903,6 @@ GCFrame::GCFrame(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL may
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -940,7 +916,6 @@ void GCFrame::Init(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL m
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -1238,7 +1213,16 @@ void TransitionFrame::PromoteCallerStack(promote_func* fn, ScanContext* sc)
     //If not "vararg" calling convention, assume "default" calling convention
     if (!MetaSig::IsVarArg(pFunction->GetModule(), callSignature))
     {
-        MetaSig msig(pFunction);
+        SigTypeContext typeContext(pFunction);
+        PCCOR_SIGNATURE pSig;
+        DWORD cbSigSize;
+        pFunction->GetSig(&pSig, &cbSigSize);
+
+        MetaSig msig(pSig, cbSigSize, pFunction->GetModule(), &typeContext);
+
+        if (pFunction->RequiresInstArg() && !SuppressParamTypeArg())
+            msig.SetHasParamTypeArg();
+
         PromoteCallerStackHelper (fn, sc, pFunction, &msig);
     }
     else
@@ -1338,7 +1322,7 @@ void TransitionFrame::PromoteCallerStackUsingGCRefMap(promote_func* fn, ScanCont
             (TransitionBlock::GetOffsetOfArgumentRegisters() + ARGUMENTREGISTERS_SIZE - (pos + 1) * sizeof(TADDR)) :
             (TransitionBlock::GetOffsetOfArgs() + (pos - NUM_ARGUMENT_REGISTERS) * sizeof(TADDR));
 #else
-        ofs = TransitionBlock::GetOffsetOfArgumentRegisters() + pos * sizeof(TADDR);
+        ofs = TransitionBlock::GetOffsetOfFirstGCRefMapSlot() + pos * sizeof(TADDR);
 #endif
 
         PTR_TADDR ppObj = dac_cast<PTR_TADDR>(pTransitionBlock + ofs);
@@ -1602,7 +1586,6 @@ void HelperMethodFrame::Push()
         if (m_Attribs & FRAME_ATTR_NO_THREAD_ABORT) NOTHROW; else THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     //
@@ -1635,7 +1618,6 @@ void HelperMethodFrame::Pop()
         if (m_Attribs & FRAME_ATTR_NO_THREAD_ABORT) NOTHROW; else THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     Thread * pThread = m_pThread;
@@ -1660,7 +1642,6 @@ NOINLINE void HelperMethodFrame::PushSlowHelper()
         if (m_Attribs & FRAME_ATTR_NO_THREAD_ABORT) NOTHROW; else THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     if (!(m_Attribs & FRAME_ATTR_NO_THREAD_ABORT))
@@ -1679,7 +1660,6 @@ NOINLINE void HelperMethodFrame::PopSlowHelper()
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     m_pThread->HandleThreadAbort();
@@ -1737,7 +1717,6 @@ BOOL HelperMethodFrame::InsureInit(bool initialInit,
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         if ((hostCallPreference == AllowHostCalls) && !m_MachState.isValid()) { HOST_CALLS; } else { HOST_NOCALLS; }
         SUPPORTS_DAC;
     } CONTRACTL_END;
@@ -1966,10 +1945,6 @@ void UnmanagedToManagedFrame::ExceptionUnwind()
 void ContextTransitionFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 {
     WRAPPER_NO_CONTRACT;
-
-    // Don't check app domains here - m_ReturnExecutionContext is in the parent frame's app domain
-    (*fn)(dac_cast<PTR_PTR_Object>(PTR_HOST_MEMBER_TADDR(ContextTransitionFrame, this, m_ReturnExecutionContext)), sc, 0);
-    LOG((LF_GC, INFO3, "    " FMT_ADDR "\n", DBG_ADDR(m_ReturnExecutionContext) ));
 
     // Don't check app domains here - m_LastThrownObjectInParentContext is in the parent frame's app domain
     (*fn)(dac_cast<PTR_PTR_Object>(PTR_HOST_MEMBER_TADDR(ContextTransitionFrame, this, m_LastThrownObjectInParentContext)), sc, 0);

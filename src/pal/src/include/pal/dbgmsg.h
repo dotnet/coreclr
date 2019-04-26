@@ -195,6 +195,9 @@ typedef enum
     DCI_SXS,
 #endif // FEATURE_PAL_SXS
     DCI_NUMA,
+    // Please make sure to update dbg_channel_names when adding entries here.
+
+    // Do not remove this line, as it indicates the end of the list
     DCI_LAST
 } DBG_CHANNEL_ID;
 
@@ -352,6 +355,14 @@ bool DBG_ShouldCheckStackAlignment();
 
 #else /* defined(_DEBUG) */
 
+inline void ANALYZER_NORETURN AssertBreak()
+{
+    if(g_Dbg_asserts_enabled)
+    {
+        DebugBreak();
+    }
+}
+
 #define ASSERT(...)                                                     \
 {                                                                       \
     __ASSERT_ENTER();                                                   \
@@ -359,10 +370,7 @@ bool DBG_ShouldCheckStackAlignment();
     {                                                                   \
         DBG_printf(defdbgchan,DLI_ASSERT,TRUE,__FUNCTION__,__FILE__,__LINE__,__VA_ARGS__); \
     }                                                                   \
-    if(g_Dbg_asserts_enabled)                                           \
-    {                                                                   \
-        DebugBreak();                                                   \
-    }                                                                   \
+    AssertBreak();                                                     \
 }
     
 #define _ASSERT(expr) do { if (!(expr)) { ASSERT(""); } } while(0)

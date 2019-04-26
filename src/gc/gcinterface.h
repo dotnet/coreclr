@@ -7,7 +7,7 @@
 
 // The major version of the GC/EE interface. Breaking changes to this interface
 // require bumps in the major version number.
-#define GC_INTERFACE_MAJOR_VERSION 2
+#define GC_INTERFACE_MAJOR_VERSION 3
 
 // The minor version of the GC/EE interface. Non-breaking changes are required
 // to bump the minor version number. GCs and EEs with minor version number
@@ -199,6 +199,16 @@ extern uint8_t* g_GCShadowEnd;
 extern uint8_t* g_shadow_lowest_address;
 #endif
 
+/*
+ * GCEventProvider represents one of the two providers that the GC can
+ * fire events from: the default and private providers.
+ */
+enum GCEventProvider
+{
+    GCEventProvider_Default = 0,
+    GCEventProvider_Private = 1
+};
+
 // Event levels corresponding to events that can be fired by the GC.
 enum GCEventLevel
 {
@@ -234,8 +244,6 @@ enum GCEventKeyword
       | GCEventKeyword_GCPrivate
       | GCEventKeyword_GCHandle
       | GCEventKeyword_GCHandlePrivate
-      | GCEventKeyword_GCHeapDump
-      | GCEventKeyword_GCSampledObjectAllocationHigh
       | GCEventKeyword_GCHeapDump
       | GCEventKeyword_GCSampledObjectAllocationHigh
       | GCEventKeyword_GCHeapSurvivalAndMovement
@@ -436,6 +444,7 @@ typedef enum
 } GCHeapType;
 
 typedef bool (* walk_fn)(Object*, void*);
+typedef bool (* walk_fn2)(Object*, uint8_t**, void*);
 typedef void (* gen_walk_fn)(void* context, int generation, uint8_t* range_start, uint8_t* range_end, uint8_t* range_reserved);
 typedef void (* record_surv_fn)(uint8_t* begin, uint8_t* end, ptrdiff_t reloc, void* context, bool compacting_p, bool bgc_p);
 typedef void (* fq_walk_fn)(bool, void*);
@@ -718,7 +727,7 @@ public:
 
     // "Fixes" an allocation context by binding its allocation pointer to a
     // location on the heap.
-    virtual void FixAllocContext(gc_alloc_context* acontext, bool lockp, void* arg, void* heap) = 0;
+    virtual void FixAllocContext(gc_alloc_context* acontext, void* arg, void* heap) = 0;
 
     // Gets the total survived size plus the total allocated bytes on the heap.
     virtual size_t GetCurrentObjSize() = 0;
@@ -733,7 +742,7 @@ public:
     virtual void SetSuspensionPending(bool fSuspensionPending) = 0;
 
     // Tells the GC how many YieldProcessor calls are equal to one scaled yield processor call.
-    virtual void SetYieldProcessorScalingFactor(uint32_t yieldProcessorScalingFactor) = 0;
+    virtual void SetYieldProcessorScalingFactor(float yieldProcessorScalingFactor) = 0;
 
     /*
     ============================================================================
@@ -821,6 +830,9 @@ public:
     // Walks an object, invoking a callback on each member.
     virtual void DiagWalkObject(Object* obj, walk_fn fn, void* context) = 0;
 
+    // Walks an object, invoking a callback on each member.
+    virtual void DiagWalkObject2(Object* obj, walk_fn2 fn, void* context) = 0;
+
     // Walk the heap object by object.
     virtual void DiagWalkHeap(walk_fn fn, void* context, int gen_number, bool walk_large_object_heap_p) = 0;
     
@@ -867,6 +879,9 @@ public:
 
     // Unregisters a frozen segment.
     virtual void UnregisterFrozenSegment(segment_handle seg) = 0;
+
+    // Indicates whether an object is in a frozen segment.
+    virtual bool IsInFrozenSegment(Object *object) = 0;
 
     /*
     ===========================================================================

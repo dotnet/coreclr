@@ -31,8 +31,22 @@
 #endif // HAVE_SYS_MMAN_H
 
 #ifdef __linux__
- #include <sys/syscall.h>
-#endif // __linux__
+#include <sys/syscall.h> // __NR_membarrier
+// Ensure __NR_membarrier is defined for portable builds.
+# if !defined(__NR_membarrier)
+#  if defined(__amd64__)
+#   define __NR_membarrier  324
+#  elif defined(__i386__)
+#   define __NR_membarrier  375
+#  elif defined(__arm__)
+#   define __NR_membarrier  389
+#  elif defined(__aarch64__)
+#   define __NR_membarrier  283
+#  elif
+#   error Unknown architecture
+#  endif
+# endif
+#endif
 
 #include <time.h> // nanosleep
 #include <sched.h> // sched_yield
@@ -41,14 +55,70 @@
 #include "globals.h"
 #include "cgroup.h"
 
+#if HAVE_NUMA_H
+
+#include <numa.h>
+#include <numaif.h>
+#include <dlfcn.h>
+
+// List of all functions from the numa library that are used
+#define FOR_ALL_NUMA_FUNCTIONS \
+    PER_FUNCTION_BLOCK(mbind) \
+    PER_FUNCTION_BLOCK(numa_available) \
+    PER_FUNCTION_BLOCK(numa_max_node) \
+    PER_FUNCTION_BLOCK(numa_node_of_cpu)
+
+// Declare pointers to all the used numa functions
+#define PER_FUNCTION_BLOCK(fn) extern decltype(fn)* fn##_ptr;
+FOR_ALL_NUMA_FUNCTIONS
+#undef PER_FUNCTION_BLOCK
+
+// Redefine all calls to numa functions as calls through pointers that are set
+// to the functions of libnuma in the initialization.
+#define mbind(...) mbind_ptr(__VA_ARGS__)
+#define numa_available() numa_available_ptr()
+#define numa_max_node() numa_max_node_ptr()
+#define numa_node_of_cpu(...) numa_node_of_cpu_ptr(__VA_ARGS__)
+
+#endif // HAVE_NUMA_H
+
 #if defined(_ARM_) || defined(_ARM64_)
 #define SYSCONF_GET_NUMPROCS _SC_NPROCESSORS_CONF
 #else
 #define SYSCONF_GET_NUMPROCS _SC_NPROCESSORS_ONLN
 #endif
 
-// The cachced number of logical CPUs observed.
-static uint32_t g_logicalCpuCount = 0;
+// The cached total number of CPUs that can be used in the OS.
+static uint32_t g_totalCpuCount = 0;
+
+// The cached number of CPUs available for the current process.
+static uint32_t g_currentProcessCpuCount = 0;
+
+//
+// Helper membarrier function
+//
+#ifdef __NR_membarrier
+# define membarrier(...)  syscall(__NR_membarrier, __VA_ARGS__)
+#else
+# define membarrier(...)  -ENOSYS
+#endif
+
+enum membarrier_cmd
+{
+    MEMBARRIER_CMD_QUERY                                 = 0,
+    MEMBARRIER_CMD_GLOBAL                                = (1 << 0),
+    MEMBARRIER_CMD_GLOBAL_EXPEDITED                      = (1 << 1),
+    MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED             = (1 << 2),
+    MEMBARRIER_CMD_PRIVATE_EXPEDITED                     = (1 << 3),
+    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED            = (1 << 4),
+    MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE           = (1 << 5),
+    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE  = (1 << 6)
+};
+
+//
+// Tracks if the OS supports FlushProcessWriteBuffers using membarrier
+//
+static int s_flushUsingMemBarrier = 0;
 
 // Helper memory page used by the FlushProcessWriteBuffers
 static uint8_t* g_helperPage = 0;
@@ -63,6 +133,76 @@ bool GetCpuLimit(uint32_t* val);
 static size_t g_RestrictedPhysicalMemoryLimit = 0;
 
 uint32_t g_pageSizeUnixInl = 0;
+
+AffinitySet g_processAffinitySet;
+
+#if HAVE_CPUSET_T
+typedef cpuset_t cpu_set_t;
+#endif
+
+// The highest NUMA node available
+int g_highestNumaNode = 0;
+// Is numa available
+bool g_numaAvailable = false;
+
+void* g_numaHandle = nullptr;
+
+#if HAVE_NUMA_H
+#define PER_FUNCTION_BLOCK(fn) decltype(fn)* fn##_ptr;
+FOR_ALL_NUMA_FUNCTIONS
+#undef PER_FUNCTION_BLOCK
+#endif // HAVE_NUMA_H
+
+
+// Initialize data structures for getting and setting thread affinities to processors and
+// querying NUMA related processor information.
+// On systems with no NUMA support, it behaves as if there was a single NUMA node with
+// a single group of processors.
+void NUMASupportInitialize()
+{
+#if HAVE_NUMA_H
+    g_numaHandle = dlopen("libnuma.so", RTLD_LAZY);
+    if (g_numaHandle == 0)
+    {
+        g_numaHandle = dlopen("libnuma.so.1", RTLD_LAZY);
+    }
+    if (g_numaHandle != 0)
+    {
+        dlsym(g_numaHandle, "numa_allocate_cpumask");
+#define PER_FUNCTION_BLOCK(fn) \
+    fn##_ptr = (decltype(fn)*)dlsym(g_numaHandle, #fn); \
+    if (fn##_ptr == NULL) { fprintf(stderr, "Cannot get symbol " #fn " from libnuma\n"); abort(); }
+FOR_ALL_NUMA_FUNCTIONS
+#undef PER_FUNCTION_BLOCK
+
+        if (numa_available() == -1)
+        {
+            dlclose(g_numaHandle);
+        }
+        else
+        {
+            g_numaAvailable = true;
+            g_highestNumaNode = numa_max_node();
+        }
+    }
+#endif // HAVE_NUMA_H
+    if (!g_numaAvailable)
+    {
+        // No NUMA
+        g_highestNumaNode = 0;
+    }
+}
+
+// Cleanup of the NUMA support data structures
+void NUMASupportCleanup()
+{
+#if HAVE_NUMA_H
+    if (g_numaAvailable)
+    {
+        dlclose(g_numaHandle);
+    }
+#endif // HAVE_NUMA_H
+}
 
 // Initialize the interface implementation
 // Return:
@@ -80,35 +220,54 @@ bool GCToOSInterface::Initialize()
         return false;
     }
 
-    g_logicalCpuCount = cpuCount;
+    g_totalCpuCount = cpuCount;
 
-    assert(g_helperPage == 0);
+    //
+    // support for FlusProcessWriteBuffers
+    //
 
-    g_helperPage = static_cast<uint8_t*>(mmap(0, OS_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
+    assert(s_flushUsingMemBarrier == 0);
 
-    if(g_helperPage == MAP_FAILED)
+    // Starting with Linux kernel 4.14, process memory barriers can be generated
+    // using MEMBARRIER_CMD_PRIVATE_EXPEDITED.
+    int mask = membarrier(MEMBARRIER_CMD_QUERY, 0);
+    if (mask >= 0 &&
+        mask & MEMBARRIER_CMD_PRIVATE_EXPEDITED &&
+        // Register intent to use the private expedited command.
+        membarrier(MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED, 0) == 0)
     {
-        return false;
+        s_flushUsingMemBarrier = TRUE;
     }
-
-    // Verify that the s_helperPage is really aligned to the g_SystemInfo.dwPageSize
-    assert((((size_t)g_helperPage) & (OS_PAGE_SIZE - 1)) == 0);
-
-    // Locking the page ensures that it stays in memory during the two mprotect
-    // calls in the FlushProcessWriteBuffers below. If the page was unmapped between
-    // those calls, they would not have the expected effect of generating IPI.
-    int status = mlock(g_helperPage, OS_PAGE_SIZE);
-
-    if (status != 0)
+    else
     {
-        return false;
-    }
+        assert(g_helperPage == 0);
 
-    status = pthread_mutex_init(&g_flushProcessWriteBuffersMutex, NULL);
-    if (status != 0)
-    {
-        munlock(g_helperPage, OS_PAGE_SIZE);
-        return false;
+        g_helperPage = static_cast<uint8_t*>(mmap(0, OS_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
+
+        if (g_helperPage == MAP_FAILED)
+        {
+            return false;
+        }
+
+        // Verify that the s_helperPage is really aligned to the g_SystemInfo.dwPageSize
+        assert((((size_t)g_helperPage) & (OS_PAGE_SIZE - 1)) == 0);
+
+        // Locking the page ensures that it stays in memory during the two mprotect
+        // calls in the FlushProcessWriteBuffers below. If the page was unmapped between
+        // those calls, they would not have the expected effect of generating IPI.
+        int status = mlock(g_helperPage, OS_PAGE_SIZE);
+
+        if (status != 0)
+        {
+            return false;
+        }
+
+        status = pthread_mutex_init(&g_flushProcessWriteBuffersMutex, NULL);
+        if (status != 0)
+        {
+            munlock(g_helperPage, OS_PAGE_SIZE);
+            return false;
+        }
     }
 
 #if HAVE_MACH_ABSOLUTE_TIME
@@ -120,6 +279,50 @@ bool GCToOSInterface::Initialize()
 #endif // HAVE_MACH_ABSOLUTE_TIME
 
     InitializeCGroup();
+
+#if HAVE_SCHED_GETAFFINITY
+
+    g_currentProcessCpuCount = 0;
+
+    cpu_set_t cpuSet;
+    int st = sched_getaffinity(0, sizeof(cpu_set_t), &cpuSet);
+
+    if (st == 0)
+    {
+        for (size_t i = 0; i < g_totalCpuCount; i++)
+        {
+            if (CPU_ISSET(i, &cpuSet))
+            {
+                g_currentProcessCpuCount++;
+                g_processAffinitySet.Add(i);
+            }
+        }
+    }
+    else
+    {
+        // We should not get any of the errors that the sched_getaffinity can return since none
+        // of them applies for the current thread, so this is an unexpected kind of failure.
+        assert(false);
+    }
+
+#else // HAVE_SCHED_GETAFFINITY
+
+    g_currentProcessCpuCount = g_totalCpuCount;
+
+    for (size_t i = 0; i < g_totalCpuCount; i++)
+    {
+        g_processAffinitySet.Add(i);
+    }
+
+#endif // HAVE_SCHED_GETAFFINITY
+
+    uint32_t cpuLimit;
+    if (GetCpuLimit(&cpuLimit) && cpuLimit < g_currentProcessCpuCount)
+    {
+        g_currentProcessCpuCount = cpuLimit;
+    }
+
+    NUMASupportInitialize();
 
     return true;
 }
@@ -135,6 +338,7 @@ void GCToOSInterface::Shutdown()
     munmap(g_helperPage, OS_PAGE_SIZE);
 
     CleanupCGroup();
+    NUMASupportCleanup();
 }
 
 // Get numeric id of the current thread if possible on the
@@ -163,15 +367,15 @@ uint32_t GCToOSInterface::GetCurrentProcessId()
     return getpid();
 }
 
-// Set ideal affinity for the current thread
+// Set ideal processor for the current thread
 // Parameters:
-//  affinity - ideal processor affinity for the thread
+//  srcProcNo - processor number the thread currently runs on
+//  dstProcNo - processor number the thread should be migrated to
 // Return:
 //  true if it has succeeded, false if it has failed
-bool GCToOSInterface::SetCurrentThreadIdealAffinity(GCThreadAffinity* affinity)
+bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t dstProcNo)
 {
-    // TODO(segilles)
-    return false;
+    return GCToOSInterface::SetThreadAffinity(dstProcNo);
 }
 
 // Get the number of the current processor
@@ -195,24 +399,32 @@ bool GCToOSInterface::CanGetCurrentProcessorNumber()
 // Flush write buffers of processors that are executing threads of the current process
 void GCToOSInterface::FlushProcessWriteBuffers()
 {
-    int status = pthread_mutex_lock(&g_flushProcessWriteBuffersMutex);
-    assert(status == 0 && "Failed to lock the flushProcessWriteBuffersMutex lock");
+    if (s_flushUsingMemBarrier)
+    {
+        int status = membarrier(MEMBARRIER_CMD_PRIVATE_EXPEDITED, 0);
+        assert(status == 0 && "Failed to flush using membarrier");
+    }
+    else
+    {
+        int status = pthread_mutex_lock(&g_flushProcessWriteBuffersMutex);
+        assert(status == 0 && "Failed to lock the flushProcessWriteBuffersMutex lock");
 
-    // Changing a helper memory page protection from read / write to no access
-    // causes the OS to issue IPI to flush TLBs on all processors. This also
-    // results in flushing the processor buffers.
-    status = mprotect(g_helperPage, OS_PAGE_SIZE, PROT_READ | PROT_WRITE);
-    assert(status == 0 && "Failed to change helper page protection to read / write");
+        // Changing a helper memory page protection from read / write to no access
+        // causes the OS to issue IPI to flush TLBs on all processors. This also
+        // results in flushing the processor buffers.
+        status = mprotect(g_helperPage, OS_PAGE_SIZE, PROT_READ | PROT_WRITE);
+        assert(status == 0 && "Failed to change helper page protection to read / write");
 
-    // Ensure that the page is dirty before we change the protection so that
-    // we prevent the OS from skipping the global TLB flush.
-    __sync_add_and_fetch((size_t*)g_helperPage, 1);
+        // Ensure that the page is dirty before we change the protection so that
+        // we prevent the OS from skipping the global TLB flush.
+        __sync_add_and_fetch((size_t*)g_helperPage, 1);
 
-    status = mprotect(g_helperPage, OS_PAGE_SIZE, PROT_NONE);
-    assert(status == 0 && "Failed to change helper page protection to no access");
+        status = mprotect(g_helperPage, OS_PAGE_SIZE, PROT_NONE);
+        assert(status == 0 && "Failed to change helper page protection to no access");
 
-    status = pthread_mutex_unlock(&g_flushProcessWriteBuffersMutex);
-    assert(status == 0 && "Failed to unlock the flushProcessWriteBuffersMutex lock");
+        status = pthread_mutex_unlock(&g_flushProcessWriteBuffersMutex);
+        assert(status == 0 && "Failed to unlock the flushProcessWriteBuffersMutex lock");
+    }
 }
 
 // Break into a debugger. Uses a compiler intrinsic if one is available,
@@ -271,7 +483,7 @@ void GCToOSInterface::YieldThread(uint32_t switchCount)
 //  flags     - flags to control special settings like write watching
 // Return:
 //  Starting virtual address of the reserved range
-void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags)
+static void* VirtualReserveInner(size_t size, size_t alignment, uint32_t flags, uint32_t hugePagesFlag = 0)
 {
     assert(!(flags & VirtualReserveFlags::WriteWatch) && "WriteWatch not supported on Unix");
     if (alignment == 0)
@@ -280,7 +492,7 @@ void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t fl
     }
 
     size_t alignedSize = size + (alignment - OS_PAGE_SIZE);
-    void * pRetVal = mmap(nullptr, alignedSize, PROT_NONE, MAP_ANON | MAP_PRIVATE, -1, 0);
+    void * pRetVal = mmap(nullptr, alignedSize, PROT_NONE, MAP_ANON | MAP_PRIVATE | hugePagesFlag, -1, 0);
 
     if (pRetVal != NULL)
     {
@@ -305,6 +517,18 @@ void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t fl
     return pRetVal;
 }
 
+// Reserve virtual memory range.
+// Parameters:
+//  size      - size of the virtual memory range
+//  alignment - requested memory alignment, 0 means no specific alignment requested
+//  flags     - flags to control special settings like write watching
+// Return:
+//  Starting virtual address of the reserved range
+void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags)
+{
+    return VirtualReserveInner(size, alignment, flags);
+}
+
 // Release virtual memory range previously reserved using VirtualReserve
 // Parameters:
 //  address - starting virtual address
@@ -318,16 +542,61 @@ bool GCToOSInterface::VirtualRelease(void* address, size_t size)
     return (ret == 0);
 }
 
+// Commit virtual memory range.
+// Parameters:
+//  size      - size of the virtual memory range
+// Return:
+//  Starting virtual address of the committed range
+void* GCToOSInterface::VirtualReserveAndCommitLargePages(size_t size)
+{
+#if HAVE_MAP_HUGETLB
+    uint32_t largePagesFlag = MAP_HUGETLB;
+#elif HAVE_VM_FLAGS_SUPERPAGE_SIZE_ANY
+    uint32_t largePagesFlag = VM_FLAGS_SUPERPAGE_SIZE_ANY;
+#else
+    uint32_t largePagesFlag = 0;
+#endif
+
+    void* pRetVal = VirtualReserveInner(size, OS_PAGE_SIZE, 0, largePagesFlag);
+    if (VirtualCommit(pRetVal, size, NUMA_NODE_UNDEFINED))
+    {
+        return pRetVal;
+    }
+
+    return nullptr;
+}
+
 // Commit virtual memory range. It must be part of a range reserved using VirtualReserve.
 // Parameters:
 //  address - starting virtual address
 //  size    - size of the virtual memory range
 // Return:
 //  true if it has succeeded, false if it has failed
-bool GCToOSInterface::VirtualCommit(void* address, size_t size, uint32_t node)
+bool GCToOSInterface::VirtualCommit(void* address, size_t size, uint16_t node)
 {
-    assert(node == NUMA_NODE_UNDEFINED && "Numa allocation is not ported to local GC on unix yet");
-    return mprotect(address, size, PROT_WRITE | PROT_READ) == 0;
+    bool success = mprotect(address, size, PROT_WRITE | PROT_READ) == 0;
+
+#if HAVE_NUMA_H
+    if (success && g_numaAvailable && (node != NUMA_NODE_UNDEFINED))
+    {
+        if ((int)node <= g_highestNumaNode)
+        {
+            int usedNodeMaskBits = g_highestNumaNode + 1;
+            int nodeMaskLength = (usedNodeMaskBits + sizeof(unsigned long) - 1) / sizeof(unsigned long);
+            unsigned long nodeMask[nodeMaskLength];
+            memset(nodeMask, 0, sizeof(nodeMask));
+
+            int index = node / sizeof(unsigned long);
+            nodeMask[index] = ((unsigned long)1) << (node & (sizeof(unsigned long) - 1));
+
+            int st = mbind(address, size, MPOL_PREFERRED, nodeMask, usedNodeMaskBits, 0);
+            assert(st == 0);
+            // If the mbind fails, we still return the allocated memory since the node is just a hint
+        }
+    }
+#endif // HAVE_NUMA_H
+
+    return success;
 }
 
 // Decomit virtual memory range.
@@ -416,16 +685,25 @@ size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
 }
 
 // Sets the calling thread's affinity to only run on the processor specified
-// in the GCThreadAffinity structure.
 // Parameters:
-//  affinity - The requested affinity for the calling thread. At most one processor
-//             can be provided.
+//  procNo - The requested processor for the calling thread.
 // Return:
 //  true if setting the affinity was successful, false otherwise.
-bool GCToOSInterface::SetThreadAffinity(GCThreadAffinity* affinity)
+bool GCToOSInterface::SetThreadAffinity(uint16_t procNo)
 {
-    // [LOCALGC TODO] Thread affinity for unix
+#if HAVE_PTHREAD_GETAFFINITY_NP
+    cpu_set_t cpuSet;
+    CPU_ZERO(&cpuSet);
+    CPU_SET((int)procNo, &cpuSet);
+
+    int st = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuSet);
+
+    return (st == 0);
+
+#else  // HAVE_PTHREAD_GETAFFINITY_NP
+    // There is no API to manage thread affinity, so let's ignore the request
     return false;
+#endif // HAVE_PTHREAD_GETAFFINITY_NP
 }
 
 // Boosts the calling thread's thread priority to a level higher than the default
@@ -440,87 +718,27 @@ bool GCToOSInterface::BoostThreadPriority()
     return false;
 }
 
-/*++
-Function:
-  GetFullAffinityMask
-
-Get affinity mask for the specified number of processors with all
-the processors enabled.
---*/
-static uintptr_t GetFullAffinityMask(int cpuCount)
-{
-    return ((uintptr_t)1 << (cpuCount)) - 1;
-}
-
-// Get affinity mask of the current process
+// Set the set of processors enabled for GC threads for the current process based on config specified affinity mask and set
 // Parameters:
-//  processMask - affinity mask for the specified process
-//  systemMask  - affinity mask for the system
+//  configAffinityMask - mask specified by the GCHeapAffinitizeMask config
+//  configAffinitySet  - affinity set specified by the GCHeapAffinitizeRanges config
 // Return:
-//  true if it has succeeded, false if it has failed
-// Remarks:
-//  A process affinity mask is a bit vector in which each bit represents the processors that
-//  a process is allowed to run on. A system affinity mask is a bit vector in which each bit
-//  represents the processors that are configured into a system.
-//  A process affinity mask is a subset of the system affinity mask. A process is only allowed
-//  to run on the processors configured into a system. Therefore, the process affinity mask cannot
-//  specify a 1 bit for a processor when the system affinity mask specifies a 0 bit for that processor.
-bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processAffinityMask, uintptr_t* systemAffinityMask)
+//  set of enabled processors
+const AffinitySet* GCToOSInterface::SetGCThreadsAffinitySet(uintptr_t configAffinityMask, const AffinitySet* configAffinitySet)
 {
-    if (g_logicalCpuCount > 64)
+    if (!configAffinitySet->IsEmpty())
     {
-        *processAffinityMask = 0;
-        *systemAffinityMask = 0;
-        return true;
-    }
-
-    uintptr_t systemMask = GetFullAffinityMask(g_logicalCpuCount);
-
-#if HAVE_SCHED_GETAFFINITY
-
-    int pid = getpid();
-    cpu_set_t cpuSet;
-    int st = sched_getaffinity(pid, sizeof(cpu_set_t), &cpuSet);
-    if (st == 0)
-    {
-        uintptr_t processMask = 0;
-
-        for (int i = 0; i < g_logicalCpuCount; i++)
+        // Update the process affinity set using the configured set
+        for (size_t i = 0; i < MAX_SUPPORTED_CPUS; i++)
         {
-            if (CPU_ISSET(i, &cpuSet))
+            if (g_processAffinitySet.Contains(i) && !configAffinitySet->Contains(i))
             {
-                processMask |= ((uintptr_t)1) << i;
+                g_processAffinitySet.Remove(i);
             }
         }
-
-        *processAffinityMask = processMask;
-        *systemAffinityMask = systemMask;
-        return true;
-    }
-    else if (errno == EINVAL)
-    {
-        // There are more processors than can fit in a cpu_set_t
-        // return zero in both masks.
-        *processAffinityMask = 0;
-        *systemAffinityMask = 0;
-        return true;
-    }
-    else
-    {
-        // We should not get any of the errors that the sched_getaffinity can return since none
-        // of them applies for the current thread, so this is an unexpected kind of failure.
-        return false;
     }
 
-#else // HAVE_SCHED_GETAFFINITY
-
-    // There is no API to manage thread affinity, so let's return both affinity masks
-    // with all the CPUs on the system set.
-    *systemAffinityMask = systemMask;
-    *processAffinityMask = systemMask;
-    return true;
-
-#endif // HAVE_SCHED_GETAFFINITY
+    return &g_processAffinitySet;
 }
 
 // Get number of processors assigned to the current process
@@ -528,35 +746,7 @@ bool GCToOSInterface::GetCurrentProcessAffinityMask(uintptr_t* processAffinityMa
 //  The number of processors
 uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
 {
-    uintptr_t pmask, smask;
-    uint32_t cpuLimit;
-
-    if (!GetCurrentProcessAffinityMask(&pmask, &smask))
-        return 1;
-
-    pmask &= smask;
-
-    int count = 0;
-    while (pmask)
-    {
-        pmask &= (pmask - 1);
-        count++;
-    }
-
-    // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
-    // than 64 processors, which would leave us with a count of 0.  Since the GC
-    // expects there to be at least one processor to run on (and thus at least one
-    // heap), we'll return 64 here if count is 0, since there are likely a ton of
-    // processors available in that case.  The GC also cannot (currently) handle
-    // the case where there are more than 64 processors, so we will return a
-    // maximum of 64 here.
-    if (count == 0 || count > 64)
-        count = 64;
-
-    if (GetCpuLimit(&cpuLimit) && cpuLimit < count)
-        count = cpuLimit;
-
-    return count;
+    return g_currentProcessCpuCount;
 }
 
 // Return the size of the user-mode portion of the virtual address space of this process.
@@ -582,9 +772,12 @@ size_t GCToOSInterface::GetVirtualMemoryLimit()
 // Remarks:
 //  If a process runs with a restricted memory limit, it returns the limit. If there's no limit 
 //  specified, it returns amount of actual physical memory.
-uint64_t GCToOSInterface::GetPhysicalMemoryLimit()
+uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
 {
     size_t restricted_limit;
+    if (is_restricted)
+        *is_restricted = false;
+
     // The limit was not cached
     if (g_RestrictedPhysicalMemoryLimit == 0)
     {
@@ -594,7 +787,11 @@ uint64_t GCToOSInterface::GetPhysicalMemoryLimit()
     restricted_limit = g_RestrictedPhysicalMemoryLimit;
 
     if (restricted_limit != 0 && restricted_limit != SIZE_T_MAX)
+    {
+        if (is_restricted)
+            *is_restricted = true;
         return restricted_limit;
+    }
 
     long pages = sysconf(_SC_PHYS_PAGES);
     if (pages == -1) 
@@ -700,28 +897,65 @@ uint32_t GCToOSInterface::GetTotalProcessorCount()
 {
     // Calculated in GCToOSInterface::Initialize using
     // sysconf(_SC_NPROCESSORS_ONLN)
-    return g_logicalCpuCount;
+    return g_totalCpuCount;
 }
 
 bool GCToOSInterface::CanEnableGCNumaAware()
 {
-    return false;
+    return g_numaAvailable;
 }
 
-bool GCToOSInterface::GetNumaProcessorNode(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
+// Get processor number and optionally its NUMA node number for the specified heap number
+// Parameters:
+//  heap_number - heap number to get the result for
+//  proc_no     - set to the selected processor number
+//  node_no     - set to the NUMA node of the selected processor or to NUMA_NODE_UNDEFINED
+// Return:
+//  true if it succeeded
+bool GCToOSInterface::GetProcessorForHeap(uint16_t heap_number, uint16_t* proc_no, uint16_t* node_no)
 {
-    assert(!"Numa has not been ported to local GC for unix");
-    return false;
+    bool success = false;
+
+    uint16_t availableProcNumber = 0;
+    for (size_t procNumber = 0; procNumber < g_totalCpuCount; procNumber++)
+    {
+        if (g_processAffinitySet.Contains(procNumber))
+        {
+            if (availableProcNumber == heap_number)
+            {
+                *proc_no = procNumber;
+#if HAVE_NUMA_H
+                if (GCToOSInterface::CanEnableGCNumaAware())
+                {
+                    int result = numa_node_of_cpu(procNumber);
+                    *node_no = (result >= 0) ? (uint16_t)result : NUMA_NODE_UNDEFINED;
+                }
+                else
+#endif // HAVE_NUMA_H
+                {
+                    *node_no = NUMA_NODE_UNDEFINED;
+                }
+
+                success = true;
+                break;
+            }
+            availableProcNumber++;
+        }
+    }
+
+    return success;
 }
 
-bool GCToOSInterface::CanEnableGCCPUGroups()
+// Parse the confing string describing affinitization ranges and update the passed in affinitySet accordingly
+// Parameters:
+//  config_string - string describing the affinitization range, platform specific
+//  start_index  - the range start index extracted from the config_string
+//  end_index    - the range end index extracted from the config_string, equal to the start_index if only an index and not a range was passed in
+// Return:
+//  true if the configString was successfully parsed, false if it was not correct
+bool GCToOSInterface::ParseGCHeapAffinitizeRangesEntry(const char** config_string, size_t* start_index, size_t* end_index)
 {
-    return false;
-}
-
-void GCToOSInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)
-{
-    assert(!"CpuGroup has not been ported to local GC for unix");
+    return ParseIndexOrRange(config_string, start_index, end_index);
 }
 
 // Initialize the critical section

@@ -2,9 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
+using System.Text;
 using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
 using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 using Internal.Runtime.CompilerServices;
@@ -40,7 +42,7 @@ namespace System
         /// <param name="array">The target array.</param>
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan(T[] array)
+        public ReadOnlySpan(T[]? array)
         {
             if (array == null)
             {
@@ -64,7 +66,7 @@ namespace System
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan(T[] array, int start, int length)
+        public ReadOnlySpan(T[]? array, int start, int length)
         {
             if (array == null)
             {
@@ -152,26 +154,6 @@ namespace System
 #endif
         }
 
-        public ref readonly T this[Index index]
-        {
-            get
-            {
-                // Evaluate the actual index first because it helps performance
-                int actualIndex = index.FromEnd ? _length - index.Value : index.Value;
-                return ref this [actualIndex];
-            }
-        }
-
-        public ReadOnlySpan<T> this[Range range]
-        {
-            get
-            {
-                int start = range.Start.FromEnd ? _length - range.Start.Value : range.Start.Value;
-                int end = range.End.FromEnd ? _length - range.End.Value : range.End.Value;
-                return Slice(start, end - start);
-            }
-        }
-
         /// <summary>
         /// Returns a reference to the 0th element of the Span. If the Span is empty, returns null reference.
         /// It can be used for pinning and is required to support the use of span within a fixed statement.
@@ -248,12 +230,15 @@ namespace System
         {
             if (typeof(T) == typeof(char))
             {
-                unsafe
-                {
-                    fixed (char* src = &Unsafe.As<T, char>(ref _pointer.Value))
-                        return new string(src, 0, _length);
-                }
+                return new string(new ReadOnlySpan<char>(ref Unsafe.As<T, char>(ref _pointer.Value), _length));
             }
+#if FEATURE_UTF8STRING
+            else if (typeof(T) == typeof(Char8))
+            {
+                // TODO_UTF8STRING: Call into optimized transcoding routine when it's available.
+                return Encoding.UTF8.GetString(new ReadOnlySpan<byte>(ref Unsafe.As<T, byte>(ref _pointer.Value), _length));
+            }
+#endif // FEATURE_UTF8STRING
             return string.Format("System.ReadOnlySpan<{0}>[{1}]", typeof(T).Name, _length);
         }
 

@@ -41,9 +41,9 @@ namespace R2RDump
             return formatter.EmitHandleName(handle, namespaceQualified, owningTypeOverride);
         }
 
-        public static string FormatSignature(R2RReader r2rReader, int imageOffset)
+        public static string FormatSignature(DumpOptions options, R2RReader r2rReader, int imageOffset)
         {
-            SignatureDecoder decoder = new SignatureDecoder(r2rReader, imageOffset);
+            SignatureDecoder decoder = new SignatureDecoder(options, r2rReader, imageOffset);
             string result = decoder.ReadR2RSignature();
             return result;
         }
@@ -97,14 +97,34 @@ namespace R2RDump
         /// <param name="memberRefHandle">Member reference handle</param>
         private string EmitMemberReferenceName(MemberReferenceHandle memberRefHandle, string owningTypeOverride)
         {
-            MemberReference methodRef = _metadataReader.GetMemberReference(memberRefHandle);
+            MemberReference memberRef = _metadataReader.GetMemberReference(memberRefHandle);
             StringBuilder builder = new StringBuilder();
             DisassemblingGenericContext genericContext = new DisassemblingGenericContext(Array.Empty<string>(), Array.Empty<string>());
-            MethodSignature<String> methodSig = methodRef.DecodeMethodSignature<string, DisassemblingGenericContext>(this, genericContext);
-            builder.Append(methodSig.ReturnType);
-            builder.Append(" ");
-            builder.Append(EmitContainingTypeAndMethodName(methodRef, owningTypeOverride));
-            builder.Append(EmitMethodSignature(methodSig));
+            switch (memberRef.GetKind())
+            {
+                case MemberReferenceKind.Field:
+                    {
+                        string fieldSig = memberRef.DecodeFieldSignature<string, DisassemblingGenericContext>(this, genericContext);
+                        builder.Append(fieldSig);
+                        builder.Append(" ");
+                        builder.Append(EmitContainingTypeAndMemberName(memberRef, owningTypeOverride));
+                        break;
+                    }
+
+                case MemberReferenceKind.Method:
+                    {
+                        MethodSignature<String> methodSig = memberRef.DecodeMethodSignature<string, DisassemblingGenericContext>(this, genericContext);
+                        builder.Append(methodSig.ReturnType);
+                        builder.Append(" ");
+                        builder.Append(EmitContainingTypeAndMemberName(memberRef, owningTypeOverride));
+                        builder.Append(EmitMethodSignature(methodSig));
+                        break;
+                    }
+
+                default:
+                    throw new NotImplementedException(memberRef.GetKind().ToString());
+            }
+
             return builder.ToString();
         }
 
@@ -122,7 +142,7 @@ namespace R2RDump
             builder.Append(" ");
             if (owningTypeOverride == null)
             {
-                owningTypeOverride = EmitHandleName(methodDef.GetDeclaringType(), namespaceQualified: false, owningTypeOverride: null);
+                owningTypeOverride = EmitHandleName(methodDef.GetDeclaringType(), namespaceQualified: true, owningTypeOverride: null);
             }
             builder.Append(owningTypeOverride);
             builder.Append(".");
@@ -176,17 +196,17 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Emit containing type and method name and extract the method signature from a method reference.
+        /// Emit containing type and member name.
         /// </summary>
-        /// <param name="methodRef">Method reference to format</param>
-        /// <param name="methodSignature">Output method signature</param>
-        private string EmitContainingTypeAndMethodName(MemberReference methodRef, string owningTypeOverride)
+        /// <param name="memberRef">Member reference to format</param>
+        /// <param name="owningTypeOverride">Optional override for the owning type, null = MemberReference.Parent</param>
+        private string EmitContainingTypeAndMemberName(MemberReference memberRef, string owningTypeOverride)
         {
             if (owningTypeOverride == null)
             {
-                owningTypeOverride = EmitHandleName(methodRef.Parent, namespaceQualified: true, owningTypeOverride: null);
+                owningTypeOverride = EmitHandleName(memberRef.Parent, namespaceQualified: true, owningTypeOverride: null);
             }
-            return owningTypeOverride + "." + EmitString(methodRef.Name);
+            return owningTypeOverride + "." + EmitString(memberRef.Name);
         }
 
         /// <summary>
@@ -276,6 +296,11 @@ namespace R2RDump
         private readonly MetadataReader _metadataReader;
 
         /// <summary>
+        /// Dump options are used to specify details of signature formatting.
+        /// </summary>
+        private readonly DumpOptions _options;
+
+        /// <summary>
         /// Byte array representing the R2R PE file read from disk.
         /// </summary>
         private readonly byte[] _image;
@@ -295,10 +320,12 @@ namespace R2RDump
         /// </summary>
         /// <param name="reader">R2RReader object representing the R2R PE file</param>
         /// <param name="offset">Signature offset within the array</param>
-        public SignatureDecoder(R2RReader reader, int offset)
+        /// <param name="options">Formatting options</param>
+        public SignatureDecoder(DumpOptions options, R2RReader reader, int offset)
         {
-            _image = reader.Image;
             _metadataReader = reader.MetadataReader;
+            _options = options;
+            _image = reader.Image;
             _offset = offset;
         }
 
@@ -308,10 +335,11 @@ namespace R2RDump
         /// <param name="metadataReader">Metadata reader for the R2R image</param>
         /// <param name="signature">Signature to parse</param>
         /// <param name="offset">Optional signature offset within the signature byte array, 0 by default</param>
-        public SignatureDecoder(MetadataReader metadataReader, byte[] signature, int offset = 0)
+        public SignatureDecoder(DumpOptions options, MetadataReader metadataReader, byte[] signature, int offset = 0)
         {
-            _image = signature;
             _metadataReader = metadataReader;
+            _options = options;
+            _image = signature;
             _offset = offset;
         }
 
@@ -440,7 +468,17 @@ namespace R2RDump
         /// <param name="builder"></param>
         private void ParseSignature(StringBuilder builder)
         {
-            uint fixupType = ReadUInt();
+            uint fixupType = ReadByte();
+            bool moduleOverride = (fixupType & (byte)CORCOMPILE_FIXUP_BLOB_KIND.ENCODE_MODULE_OVERRIDE) != 0;
+            // Check first byte for a module override being encoded
+            if (moduleOverride)
+            {
+                builder.Append("ENCODE_MODULE_OVERRIDE @ ");
+                fixupType &= ~(uint)CORCOMPILE_FIXUP_BLOB_KIND.ENCODE_MODULE_OVERRIDE;
+                uint moduleIndex = ReadUInt();
+                builder.Append(string.Format(" Index:  {0:X2}", moduleIndex));
+            }
+
             switch ((ReadyToRunFixupKind)fixupType)
             {
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_ThisObjDictionaryLookup:
@@ -482,35 +520,49 @@ namespace R2RDump
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_MethodEntry_DefToken:
-                    ParseMethodDefToken(builder, owningTypeOverride: null);
-                    builder.Append(" (METHOD_ENTRY_DEF_TOKEN)");
+                    if (!moduleOverride)
+                    {
+                        ParseMethodDefToken(builder, owningTypeOverride: null);
+                    }
+                    builder.Append(" (METHOD_ENTRY");
+                    builder.Append(_options.Naked ? ")" : "_DEF_TOKEN)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_MethodEntry_RefToken:
                     ParseMethodRefToken(builder, owningTypeOverride: null);
-                    builder.Append(" (METHOD_ENTRY_REF_TOKEN)");
+                    builder.Append(" (METHOD_ENTRY");
+                    builder.Append(_options.Naked ? ")" : "_REF_TOKEN)");
                     break;
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry:
-                    ParseMethod(builder);
+                    if(!moduleOverride)
+                    {
+                        ParseMethod(builder);
+                    }
                     builder.Append(" (VIRTUAL_ENTRY)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry_DefToken:
                     ParseMethodDefToken(builder, owningTypeOverride: null);
-                    builder.Append(" (VIRTUAL_ENTRY_DEF_TOKEN)");
+                    builder.Append(" (VIRTUAL_ENTRY");
+                    builder.Append(_options.Naked ? ")" : "_DEF_TOKEN)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry_RefToken:
                     ParseMethodRefToken(builder, owningTypeOverride: null);
-                    builder.Append(" (VIRTUAL_ENTRY_REF_TOKEN)");
+                    builder.Append(" (VIRTUAL_ENTRY");
+                    builder.Append(_options.Naked ? ")" : "_REF_TOKEN)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry_Slot:
                     {
                         uint slot = ReadUInt();
-                        ParseType(builder);
+                        if (!moduleOverride)
+                        {
+                            ParseType(builder);
+                        }
+
                         builder.Append($@" #{slot} (VIRTUAL_ENTRY_SLOT)");
                     }
                     break;
@@ -550,13 +602,13 @@ namespace R2RDump
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_FieldAddress:
-                    builder.Append("FIELD_ADDRESS");
-                    // TODO
+                    ParseField(builder);
+                    builder.Append(" (FIELD_ADDRESS)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_CctorTrigger:
-                    builder.Append("CCTOR_TRIGGER");
-                    // TODO
+                    ParseType(builder);
+                    builder.Append(" (CCTOR_TRIGGER)");
                     break;
 
 
@@ -582,12 +634,13 @@ namespace R2RDump
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_FieldBaseOffset:
-                    builder.Append("FIELD_BASE_OFFSET");
-                    // TODO
+                    ParseType(builder);
+                    builder.Append(" (FIELD_BASE_OFFSET)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_FieldOffset:
-                    builder.Append("FIELD_OFFSET");
+                    ParseField(builder);
+                    builder.Append(" (FIELD_OFFSET)");
                     // TODO
                     break;
 
@@ -626,6 +679,10 @@ namespace R2RDump
                     builder.Append(" (DECLARING_TYPE_HANDLE)");
                     break;
 
+                case ReadyToRunFixupKind.READYTORUN_FIXUP_IndirectPInvokeTarget:
+                    ParseMethod(builder);
+                    builder.Append(" (INDIRECT_PINVOKE_TARGET)");
+                    break;
 
                 default:
                     builder.Append(string.Format("Unknown fixup type: {0:X2}", fixupType));
@@ -875,7 +932,7 @@ namespace R2RDump
             string owningTypeOverride = null;
             if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_OwnerType) != 0)
             {
-                SignatureDecoder owningTypeDecoder = new SignatureDecoder(_metadataReader, _image, _offset);
+                SignatureDecoder owningTypeDecoder = new SignatureDecoder(_options, _metadataReader, _image, _offset);
                 owningTypeOverride = owningTypeDecoder.ReadTypeSignature();
                 _offset = owningTypeDecoder._offset;
             }
@@ -933,6 +990,32 @@ namespace R2RDump
         {
             uint methodRefToken = ReadUInt() | (uint)CorTokenType.mdtMemberRef;
             builder.Append(MetadataNameFormatter.FormatHandle(_metadataReader, MetadataTokens.Handle((int)methodRefToken), namespaceQualified: false, owningTypeOverride: owningTypeOverride));
+        }
+
+        /// <summary>
+        /// Parse field signature and output its textual representation into the given string builder.
+        /// </summary>
+        /// <param name="builder">Output string builder</param>
+        private void ParseField(StringBuilder builder)
+        {
+            uint flags = ReadUInt();
+            string owningTypeOverride = null;
+            if ((flags & (uint)ReadyToRunFieldSigFlags.READYTORUN_FIELD_SIG_OwnerType) != 0)
+            {
+                StringBuilder owningTypeBuilder = new StringBuilder();
+                ParseType(owningTypeBuilder);
+                owningTypeOverride = owningTypeBuilder.ToString();
+            }
+            uint fieldToken;
+            if ((flags & (uint)ReadyToRunFieldSigFlags.READYTORUN_FIELD_SIG_MemberRefToken) != 0)
+            {
+                fieldToken = ReadUInt() | (uint)CorTokenType.mdtMemberRef;
+            }
+            else
+            {
+                fieldToken = ReadUInt() | (uint)CorTokenType.mdtFieldDef;
+            }
+            builder.Append(MetadataNameFormatter.FormatHandle(_metadataReader, MetadataTokens.Handle((int)fieldToken), namespaceQualified: false, owningTypeOverride: owningTypeOverride));
         }
 
         /// <summary>
@@ -1045,6 +1128,15 @@ namespace R2RDump
 
                 case ReadyToRunHelper.READYTORUN_HELPER_MemCpy:
                     builder.Append("MEM_CPY");
+                    break;
+
+                // PInvoke helpers
+                case ReadyToRunHelper.READYTORUN_HELPER_PInvokeBegin:
+                    builder.Append("PINVOKE_BEGIN");
+                    break;
+
+                case ReadyToRunHelper.READYTORUN_HELPER_PInvokeEnd:
+                    builder.Append("PINVOKE_END");
                     break;
 
                 // Get string handle lazily

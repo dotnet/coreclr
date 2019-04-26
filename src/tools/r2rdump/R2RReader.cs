@@ -8,6 +8,7 @@ using System.IO;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Xml.Serialization;
 
@@ -77,6 +78,11 @@ namespace R2RDump
     public class R2RReader
     {
         /// <summary>
+        /// Option are used to specify details of signature formatting.
+        /// </summary>
+        public readonly DumpOptions Options;
+
+        /// <summary>
         /// Underlying PE image reader is used to access raw PE structures like header
         /// or section list.
         /// </summary>
@@ -107,7 +113,20 @@ namespace R2RDump
         /// </summary>
         public Machine Machine { get; set; }
 
+        /// <summary>
+        /// Targeting operating system for the R2R executable
+        /// </summary>
         public OperatingSystem OS { get; set; }
+
+        /// <summary>
+        /// Targeting processor architecture of the R2R executable
+        /// </summary>
+        public Architecture Architecture { get; set; }
+
+        /// <summary>
+        /// Pointer size in bytes for the target architecture
+        /// </summary>
+        public int PointerSize { get; set; }
 
         /// <summary>
         /// The preferred address of the first byte of image when loaded into memory; 
@@ -164,8 +183,9 @@ namespace R2RDump
         /// </summary>
         /// <param name="filename">PE image</param>
         /// <exception cref="BadImageFormatException">The Cor header flag must be ILLibrary</exception>
-        public unsafe R2RReader(string filename)
+        public unsafe R2RReader(DumpOptions options, string filename)
         {
+            Options = options;
             Filename = filename;
             Image = File.ReadAllBytes(filename);
 
@@ -195,6 +215,36 @@ namespace R2RDump
                 {
                     throw new BadImageFormatException($"Invalid Machine: {machine}");
                 }
+
+                switch (Machine)
+                {
+                    case Machine.I386:
+                        Architecture = Architecture.X86;
+                        PointerSize = 4;
+                        break;
+
+                    case Machine.Amd64:
+                        Architecture = Architecture.X64;
+                        PointerSize = 8;
+                        break;
+
+                    case Machine.Arm:
+                    case Machine.Thumb:
+                    case Machine.ArmThumb2:
+                        Architecture = Architecture.Arm;
+                        PointerSize = 4;
+                        break;
+
+                    case Machine.Arm64:
+                        Architecture = Architecture.Arm64;
+                        PointerSize = 8;
+                        break;
+
+                    default:
+                        throw new NotImplementedException(Machine.ToString());
+                }
+
+
                 ImageBase = PEReader.PEHeaders.PEHeader.ImageBase;
 
                 // initialize R2RHeader
@@ -326,7 +376,7 @@ namespace R2RDump
             NativeParser curParser = allEntriesEnum.GetNext();
             while (!curParser.IsNull())
             {
-                SignatureDecoder decoder = new SignatureDecoder(this, (int)curParser.Offset);
+                SignatureDecoder decoder = new SignatureDecoder(Options, this, (int)curParser.Offset);
 
                 string owningType = null;
 
@@ -412,7 +462,15 @@ namespace R2RDump
                         unwindInfo = new Amd64.UnwindInfo(Image, unwindOffset);
                         if (isEntryPoint[runtimeFunctionId])
                         {
-                            gcInfo = new Amd64.GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
+                            try
+                            {
+                                gcInfo = new Amd64.GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
+                            }
+                            catch (IndexOutOfRangeException)
+                            {
+                                Console.WriteLine($"Warning: Could not parse GC Info for method: {method.SignatureString}");
+                            }
+                            
                         }
                     }
                     else if (Machine == Machine.I386)
@@ -555,7 +613,6 @@ namespace R2RDump
                             break;
 
                         case Machine.Amd64:
-                        case Machine.IA64:
                         case Machine.Arm64:
                             entrySize = 8;
                             break;
@@ -583,7 +640,7 @@ namespace R2RDump
                     long section = NativeReader.ReadInt64(Image, ref sectionOffset);
                     uint sigRva = NativeReader.ReadUInt32(Image, ref signatureOffset);
                     int sigOffset = GetOffset((int)sigRva);
-                    string cellName = MetadataNameFormatter.FormatSignature(this, sigOffset);
+                    string cellName = MetadataNameFormatter.FormatSignature(Options, this, sigOffset);
                     entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, entryOffset + rva, section, sigRva, cellName));
                     ImportCellNames.Add(rva + entrySize * i, cellName);
                 }
@@ -594,7 +651,7 @@ namespace R2RDump
                 {
                     auxDataOffset = GetOffset(auxDataRVA);
                 }
-                ImportSections.Add(new R2RImportSection(ImportSections.Count, Image, rva, size, flags, type, entrySize, signatureRVA, entries, auxDataRVA, auxDataOffset, Machine, R2RHeader.MajorVersion));
+                ImportSections.Add(new R2RImportSection(ImportSections.Count, this, rva, size, flags, type, entrySize, signatureRVA, entries, auxDataRVA, auxDataOffset, Machine, R2RHeader.MajorVersion));
             }
         }
 

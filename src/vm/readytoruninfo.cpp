@@ -25,7 +25,6 @@ IMAGE_DATA_DIRECTORY * ReadyToRunInfo::FindSection(DWORD type)
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -49,7 +48,6 @@ MethodDesc * ReadyToRunInfo::GetMethodDescForEntryPoint(PCODE entryPoint)
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -73,7 +71,6 @@ BOOL ReadyToRunInfo::HasHashtableOfTypes()
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -87,7 +84,6 @@ BOOL ReadyToRunInfo::TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFo
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_INTOLERANT;
         SUPPORTS_DAC;
         PRECONDITION(!m_availableTypesHashtable.IsNull());
     }
@@ -223,7 +219,6 @@ BOOL ReadyToRunInfo::GetTypeNameFromToken(IMDInternalImport * pImport, mdToken m
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_TOLERANT;
         SUPPORTS_DAC;
         PRECONDITION(TypeFromToken(mdType) == mdtTypeDef || TypeFromToken(mdType) == mdtTypeRef || TypeFromToken(mdType) == mdtExportedType);
     }
@@ -248,7 +243,6 @@ BOOL ReadyToRunInfo::GetEnclosingToken(IMDInternalImport * pImport, mdToken mdTy
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_TOLERANT;
         SUPPORTS_DAC;
         PRECONDITION(TypeFromToken(mdType) == mdtTypeDef || TypeFromToken(mdType) == mdtTypeRef || TypeFromToken(mdType) == mdtExportedType);
     }
@@ -277,7 +271,6 @@ BOOL ReadyToRunInfo::CompareTypeNameOfTokens(mdToken mdToken1, IMDInternalImport
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_TOLERANT;
         SUPPORTS_DAC;
         PRECONDITION(TypeFromToken(mdToken1) == mdtTypeDef || TypeFromToken(mdToken1) == mdtTypeRef || TypeFromToken(mdToken1) == mdtExportedType);
         PRECONDITION(TypeFromToken(mdToken2) == mdtTypeDef || TypeFromToken(mdToken2) == mdtExportedType);
@@ -520,8 +513,8 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
 
     READYTORUN_HEADER * pHeader = pLayout->GetReadyToRunHeader();
 
-    // Ignore the content if the image major version is higher than the major version currently supported by the runtime
-    if (pHeader->MajorVersion > READYTORUN_MAJOR_VERSION)
+    // Ignore the content if the image major version is higher or lower than the major version currently supported by the runtime
+    if (pHeader->MajorVersion < MINIMUM_READYTORUN_MAJOR_VERSION || pHeader->MajorVersion > READYTORUN_MAJOR_VERSION)
     {
         DoLog("Ready to Run disabled - unsupported header version");
         return NULL;
@@ -607,7 +600,8 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
                                                     pamTracker, &m_pPersistentInlineTrackingMap);
         }
     }
-    // Fpr format version 2.2 and later, there is an optional profile-data section
+
+    // For format version 2.2 and later, there is an optional profile-data section
     if (IsImageVersionAtLeast(2, 2))
     {
         IMAGE_DATA_DIRECTORY * pProfileDataInfoDir = FindSection(READYTORUN_SECTION_PROFILEDATA_INFO);
@@ -619,6 +613,7 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
             pModule->SetMethodProfileList(pMethodProfileList);  
         }
     }
+
 }
 
 static bool SigMatchesMethodDesc(MethodDesc* pMD, SigPointer &sig, Module * pModule)
@@ -677,20 +672,26 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 {
     STANDARD_VM_CONTRACT;
 
+    PCODE pEntryPoint = NULL;
+#ifndef CROSSGEN_COMPILE
+#ifdef PROFILING_SUPPORTED
+    BOOL fShouldSearchCache = TRUE;
+#endif // PROFILING_SUPPORTED
+#endif // CROSSGEN_COMPILE
     mdToken token = pMD->GetMemberDef();
     int rid = RidFromToken(token);
     if (rid == 0)
-        return NULL;
+        goto done;
 
     uint offset;
     if (pMD->HasClassOrMethodInstantiation())
     {
         if (m_instMethodEntryPoints.IsNull())
-            return NULL;
+            goto done;
 
         NativeHashtable::Enumerator lookup = m_instMethodEntryPoints.Lookup(GetVersionResilientMethodHashCode(pMD));
         NativeParser entryParser;
-        offset = -1;
+        offset = (uint)-1;
         while (lookup.GetNext(entryParser))
         {
             PCCOR_SIGNATURE pBlob = (PCCOR_SIGNATURE)entryParser.GetBlob();
@@ -707,18 +708,17 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
             }
         }
 
-        if (offset == -1)
-            return NULL;
+        if (offset == (uint)-1)
+            goto done;
     }
     else
     {
         if (!m_methodDefEntryPoints.TryGetAt(rid - 1, &offset))
-            return NULL;
+            goto done;
     }
 
 #ifndef CROSSGEN_COMPILE
 #ifdef PROFILING_SUPPORTED
-        BOOL fShouldSearchCache = TRUE;
         {
             BEGIN_PIN_PROFILER(CORProfilerTrackCacheSearches());
             g_profControlBlock.pProfInterface->
@@ -728,7 +728,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
         if (!fShouldSearchCache)
         {
             pConfig->SetProfilerRejectedPrecompiledCode();
-            return NULL;
+            goto done;
         }
 #endif // PROFILING_SUPPORTED
 #endif // CROSSGEN_COMPILE
@@ -752,7 +752,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 #ifndef CROSSGEN_COMPILE
                 pConfig->SetReadyToRunRejectedPrecompiledCode();
 #endif // CROSSGEN_COMPILE
-                return NULL;
+                goto done;
             }
         }
 
@@ -764,7 +764,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
     }
 
     _ASSERTE(id < m_nRuntimeFunctions);
-    PCODE pEntryPoint = dac_cast<TADDR>(m_pLayout->GetBase()) + m_pRuntimeFunctions[id].BeginAddress;
+    pEntryPoint = dac_cast<TADDR>(m_pLayout->GetBase()) + m_pRuntimeFunctions[id].BeginAddress;
 
     {
         CrstHolder ch(&m_Crst);
@@ -786,9 +786,18 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 
     if (g_pDebugInterface != NULL)
     {
-        g_pDebugInterface->JITComplete(pMD, pEntryPoint);
+#if defined(CROSSGEN_COMPILE)
+        g_pDebugInterface->JITComplete(NativeCodeVersion(pMD), pEntryPoint);
+#else
+        g_pDebugInterface->JITComplete(pConfig->GetCodeVersion(), pEntryPoint);
+#endif
     }
 
+done:
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, R2RGetEntryPoint))
+    {
+        ETW::MethodLog::GetR2RGetEntryPoint(pMD, pEntryPoint);
+    }
     return pEntryPoint;
 }
 

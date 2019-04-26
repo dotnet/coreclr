@@ -60,25 +60,24 @@ public:
     //  fieldBytes - size of the structure
     void CopyHFAStructToRegister(void *src, int fieldBytes)
     {
-        // We are either copying either a float or double HFA and need to
+        // We are copying a float, double or vector HFA/HVA and need to
         // enregister each field.
 
         int floatRegCount = m_argLocDescForStructInRegs->m_cFloatReg;
-        bool typeFloat = m_argLocDescForStructInRegs->m_isSinglePrecision;
-        void* dest = this->GetDestinationAddress();
+        int hfaFieldSize = m_argLocDescForStructInRegs->m_hfaFieldSize;
+        UINT64* dest = (UINT64*) this->GetDestinationAddress();
 
-        if (typeFloat)
+        for (int i = 0; i < floatRegCount; ++i) 
         {
-            for (int i = 0; i < floatRegCount; ++i) 
-            {
-                // Copy 4 bytes on 8 bytes alignment
-                *((UINT64*)dest + i) = *((UINT32*)src + i);
-            }
-        }
-        else
-        {
-            // We can just do a memcpy.
-            memcpyNoGCRefs(dest, src, fieldBytes);
+            // Copy 4 or 8 bytes from src.
+            UINT64 val = (hfaFieldSize == 4) ? *((UINT32*)src) : *((UINT64*)src);
+            // Always store 8 bytes
+            *(dest++) = val;
+            // Either zero the next 8 bytes or get the next 8 bytes from src for 16-byte vector.
+            *(dest++) = (hfaFieldSize == 16) ? *((UINT64*)src + 1) : 0;
+
+            // Increment src by the appropriate amount.
+            src = (void*)((char*)src + hfaFieldSize);
         }
     }
 
@@ -129,7 +128,7 @@ public:
         // This function is used rarely and so the overhead of reading the zeros from
         // the stack is negligible.
         long long zeros[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS] = {};
-        _ASSERTE(sizeof(zeros) >= fieldBytes);
+        _ASSERTE(sizeof(zeros) >= (size_t)fieldBytes);
 
         CopyStructToRegisters(zeros, fieldBytes, 0);
     }

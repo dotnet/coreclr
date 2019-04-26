@@ -22,16 +22,6 @@ inline PTR_VOID Object::UnBox()       // if it is a value class, get the pointer
     return dac_cast<PTR_BYTE>(this) + sizeof(*this);
 }
 
-inline ADIndex Object::GetAppDomainIndex()
-{
-    WRAPPER_NO_CONTRACT;
-#ifndef _DEBUG
-    // ok to cast to AppDomain because we know it's a real AppDomain if it's not shared
-    return (dac_cast<PTR_AppDomain>(GetGCSafeMethodTable()->GetDomain())->GetIndex());
-#endif
-    return GetHeader()->GetAppDomainIndex();
-}
-
 inline DWORD Object::GetNumComponents()
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -70,6 +60,22 @@ __forceinline /*static*/ SIZE_T StringObject::GetSize(DWORD strLen)
 
     return GetBaseSize() + strLen * sizeof(WCHAR);
 }
+
+#ifdef FEATURE_UTF8STRING
+__forceinline /*static*/ DWORD Utf8StringObject::GetBaseSize()
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    return OBJECT_BASESIZE + sizeof(DWORD) /* length */ + sizeof(BYTE) /* null terminator */;
+}
+
+__forceinline /*static*/ SIZE_T Utf8StringObject::GetSize(DWORD strLen)
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    return GetBaseSize() + strLen;
+}
+#endif // FEATURE_UTF8STRING
 
 #ifdef DACCESS_COMPILE
 
@@ -119,7 +125,6 @@ inline void Object::EnumMemoryRegions(void)
 FORCEINLINE bool Object::TryEnterObjMonitorSpinHelper()
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -162,7 +167,6 @@ inline /* static */ TypeHandle ArrayBase::GetTypeHandle(MethodTable * pMT)
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -182,9 +186,6 @@ inline /* static */ TypeHandle ArrayBase::GetTypeHandle(MethodTable * pMT)
     // if we have allocated an array object of type T then the ArrayTypeDesc
     // for T[] is available and restored
 
-    // @todo  This should be turned into a probe with a hard SO when we have one
-    // See also: ArrayBase::SetArrayMethodTable, ArrayBase::SetArrayMethodTableForLargeObject and MethodTable::DoFullyLoad
-    CONTRACT_VIOLATION(SOToleranceViolation);
     // == FailIfNotLoadedOrNotRestored
     TypeHandle arrayType = ClassLoader::LoadArrayTypeThrowing(pMT->GetApproxArrayElementTypeHandle(), kind, rank, ClassLoader::DontLoadTypes);  
     CONSISTENCY_CHECK(!arrayType.IsNull()); 
@@ -275,7 +276,6 @@ inline /* static */ unsigned ArrayBase::GetLowerBoundsOffset(MethodTable* pMT)
 // type is stored in the array or not
 inline TypeHandle ArrayBase::GetArrayElementTypeHandle() const 
 {
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
@@ -329,7 +329,6 @@ inline TypeHandle Object::GetTypeHandle()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -348,7 +347,6 @@ inline TypeHandle Object::GetGCSafeTypeHandle() const
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;

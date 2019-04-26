@@ -434,13 +434,6 @@ HRESULT AssemblySpec::InitializeSpec(StackingAllocator* alloc, ASSEMBLYNAMEREF* 
 
     CloneFieldsToStackingAllocator(alloc);
 
-    // Hash for control 
-    // <TODO>@TODO cts, can we use unsafe in this case!!!</TODO>
-    if ((*pName)->GetHashForControl() != NULL)
-        SetHashForControl((*pName)->GetHashForControl()->GetDataPtr(), 
-                          (*pName)->GetHashForControl()->GetNumComponents(), 
-                          (*pName)->GetHashAlgorithmForControl());
-
     // Extract embedded WinRT name, if present.
     ParseEncodedName();
 
@@ -454,7 +447,6 @@ void AssemblySpec::AssemblyNameInit(ASSEMBLYNAMEREF* pAsmName, PEImage* pImageIn
         THROWS;
         MODE_COOPERATIVE;
         GC_TRIGGERS;
-        SO_INTOLERANT;
         PRECONDITION(IsProtectedByGCFrame (pAsmName));
     }
     CONTRACTL_END;
@@ -588,7 +580,7 @@ void AssemblySpec::AssemblyNameInit(ASSEMBLYNAMEREF* pAsmName, PEImage* pImageIn
         IfFailThrow(pImageInfo->GetMDImport()->GetAssemblyProps(TokenFromRid(1, mdtAssembly), NULL, NULL, &hashAlgId, NULL, NULL, NULL));
     }
 
-    MethodDescCallSite init(METHOD__ASSEMBLY_NAME__INIT);
+    MethodDescCallSite init(METHOD__ASSEMBLY_NAME__CTOR);
     
     ARG_SLOT MethodArgs[] =
     {
@@ -753,7 +745,7 @@ PEAssembly *AssemblySpec::ResolveAssemblyFile(AppDomain *pDomain)
 }
 
 
-Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, BOOL fThrowOnFileNotFound, StackCrawlMark *pCallerStackMark)
+Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, BOOL fThrowOnFileNotFound)
 {
     CONTRACTL
     {
@@ -763,7 +755,7 @@ Assembly *AssemblySpec::LoadAssembly(FileLoadLevel targetLevel, BOOL fThrowOnFil
     }
     CONTRACTL_END;
  
-    DomainAssembly * pDomainAssembly = LoadDomainAssembly(targetLevel, fThrowOnFileNotFound, pCallerStackMark);
+    DomainAssembly * pDomainAssembly = LoadDomainAssembly(targetLevel, fThrowOnFileNotFound);
     if (pDomainAssembly == NULL) {
         _ASSERTE(!fThrowOnFileNotFound);
         return NULL;
@@ -871,8 +863,18 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
             // types being referenced from Windows.Foundation.Winmd).
             //
             // If the AssemblySpec does not correspond to WinRT type but our parent assembly binder is a WinRT binder,
-            // then such an assembly will not be found by the binder. In such a case, we reset our binder reference.
+            // then such an assembly will not be found by the binder.
+            // In such a case, the parent binder should be the fallback binder for the WinRT assembly if one exists.
+            ICLRPrivBinder* pParentWinRTBinder = pParentAssemblyBinder;
             pParentAssemblyBinder = NULL;
+            ReleaseHolder<ICLRPrivAssemblyID_WinRT> assembly;
+            if (SUCCEEDED(pParentWinRTBinder->QueryInterface<ICLRPrivAssemblyID_WinRT>(&assembly)))
+            {
+                pParentAssemblyBinder = dac_cast<PTR_CLRPrivAssemblyWinRT>(assembly.GetValue())->GetFallbackBinder();
+
+                // The fallback binder should not be a WinRT binder.
+                _ASSERTE(!AreSameBinderInstance(pWinRTBinder, pParentAssemblyBinder));
+            }
         }
     }
 #endif // defined(FEATURE_COMINTEROP)
@@ -891,8 +893,7 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
 }
 
 DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
-                                                 BOOL fThrowOnFileNotFound,
-                                                 StackCrawlMark *pCallerStackMark)
+                                                 BOOL fThrowOnFileNotFound)
 {
     CONTRACT(DomainAssembly *)
     {
@@ -920,18 +921,6 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
         pBinder = GetBindingContextFromParentAssembly(pDomain);
     }
 
-
-    if (pBinder != nullptr)
-    {
-        ReleaseHolder<ICLRPrivAssembly> pPrivAssembly;
-        HRESULT hrCachedResult;
-        if (SUCCEEDED(pBinder->FindAssemblyBySpec(GetAppDomain(), this, &hrCachedResult, &pPrivAssembly)) &&
-            SUCCEEDED(hrCachedResult))
-        {
-            pAssembly = pDomain->FindAssembly(pPrivAssembly);
-        }
-    }
-
     if ((pAssembly == nullptr) && CanUseWithBindingCache())
     {
         pAssembly = pDomain->FindCachedAssembly(this);
@@ -944,7 +933,7 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
     }
 
 
-    PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound, pCallerStackMark));
+    PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound));
     if (pFile == NULL)
         RETURN NULL;
 
@@ -1235,27 +1224,6 @@ void AssemblySpecBindingCache::Clear()
     }
         
     m_map.Clear();
-}
-
-void AssemblySpecBindingCache::OnAppDomainUnload()
-{
-    CONTRACTL
-    {
-        DESTRUCTOR_CHECK;
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    PtrHashMap::PtrIterator i = m_map.begin();
-    while (!i.end())
-    {
-        AssemblyBinding *b = (AssemblyBinding*) i.GetValue();
-        b->OnAppDomainUnload();
-
-        ++i;
-    }
 }
 
 void AssemblySpecBindingCache::Init(CrstBase *pCrst, LoaderHeap *pHeap)
@@ -1886,6 +1854,11 @@ VOID DomainAssemblyCache::InsertEntry(AssemblySpec* pSpec, LPVOID pData1, LPVOID
 
             pEntry->spec.CopyFrom(pSpec);
             pEntry->spec.CloneFieldsToLoaderHeap(AssemblySpec::ALL_OWNED, m_pDomain->GetLowFrequencyHeap(), pamTracker);
+
+            // Clear the parent assembly, it is not needed for the AssemblySpec in the cache entry and it could contain stale
+            // pointer when the parent was a collectible assembly that was collected.
+            pEntry->spec.SetParentAssembly(NULL);
+
             pEntry->pData[0] = pData1;
             pEntry->pData[1] = pData2;
             DWORD hashValue = pEntry->Hash();

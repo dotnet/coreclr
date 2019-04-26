@@ -197,6 +197,8 @@ bool SharedMemoryHelpers::EnsureDirectoryExists(
 int SharedMemoryHelpers::Open(LPCSTR path, int flags, mode_t mode)
 {
     int openErrorCode;
+
+    flags |= O_CLOEXEC;
     do
     {
         int fileDescriptor = InternalOpen(path, flags, mode);
@@ -313,7 +315,7 @@ SIZE_T SharedMemoryHelpers::GetFileSize(int fileDescriptor)
 void SharedMemoryHelpers::SetFileSize(int fileDescriptor, SIZE_T byteCount)
 {
     _ASSERTE(fileDescriptor != -1);
-    _ASSERTE(static_cast<off_t>(byteCount) == byteCount);
+    _ASSERTE(static_cast<SIZE_T>(byteCount) == byteCount);
 
     while (true)
     {
@@ -393,7 +395,7 @@ void SharedMemoryHelpers::ReleaseFileLock(int fileDescriptor)
 
 void SharedMemoryHelpers::BuildSharedFilesPath(PathCharString& destination, const char *suffix, int suffixCharCount)
 {
-    _ASSERTE(strlen(suffix) == suffixCharCount);
+    _ASSERTE((int)strlen(suffix) == suffixCharCount);
 
     VerifyStringOperation(destination.Set(*gSharedFilesPath));
     VerifyStringOperation(destination.Append(suffix, suffixCharCount));

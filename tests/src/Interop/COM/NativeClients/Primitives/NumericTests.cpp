@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "ClientTests.h"
+#include <platformdefines.h>
 #include <cstdint>
 #include <limits>
 
@@ -221,7 +222,7 @@ void Run_NumericTests()
 {
     HRESULT hr;
 
-    CoreShimComActivation csact{ W("NETServer.dll"), W("NumericTesting") };
+    CoreShimComActivation csact{ W("NETServer"), W("NumericTesting") };
 
     ComSmartPtr<INumericTesting> numericTesting;
     THROW_IF_FAILED(::CoCreateInstance(CLSID_NumericTesting, nullptr, CLSCTX_INPROC, IID_INumericTesting, (void**)&numericTesting));

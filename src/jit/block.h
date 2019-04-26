@@ -897,9 +897,9 @@ struct BasicBlock : private LIR::Range
                              // is bbCodeOffsEnd - bbCodeOffs, assuming neither are BAD_IL_OFFSET.
 
 #ifdef DEBUG
-    void dspBlockILRange(); // Display the block's IL range as [XXX...YYY), where XXX and YYY might be "???" for
-                            // BAD_IL_OFFSET.
-#endif                      // DEBUG
+    void dspBlockILRange() const; // Display the block's IL range as [XXX...YYY), where XXX and YYY might be "???" for
+                                  // BAD_IL_OFFSET.
+#endif                            // DEBUG
 
     VARSET_TP bbVarUse; // variables used     by block (before an assignment)
     VARSET_TP bbVarDef; // variables assigned by block (before a use)
@@ -1076,7 +1076,7 @@ struct BasicBlock : private LIR::Range
     // Returns the first statement in the statement list of "this" that is
     // not an SSA definition (a lcl = phi(...) assignment).
     GenTreeStmt* FirstNonPhiDef();
-    GenTree*     FirstNonPhiDefOrCatchArgAsg();
+    GenTreeStmt* FirstNonPhiDefOrCatchArgAsg();
 
     BasicBlock() : bbLiveIn(VarSetOps::UninitVal()), bbLiveOut(VarSetOps::UninitVal())
     {
@@ -1169,6 +1169,22 @@ struct BasicBlock : private LIR::Range
     {
         return (bbFlags & BBF_DOMINATED_BY_EXCEPTIONAL_ENTRY) != 0;
     }
+
+#ifdef DEBUG
+    bool Contains(const GenTree* node)
+    {
+        for (Iterator iter = begin(); iter != end(); ++iter)
+        {
+            if (*iter == node)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+#endif // DEBUG
+
+    static void DisplayStaticSizes(FILE* fout);
 };
 
 template <>
@@ -1295,10 +1311,6 @@ struct DfsBlockEntry
     DfsStackState dfsStackState; // The pre/post traversal action for this entry
     BasicBlock*   dfsBlock;      // The corresponding block for the action
 
-    DfsBlockEntry() : dfsStackState(DSS_Invalid), dfsBlock(nullptr)
-    {
-    }
-
     DfsBlockEntry(DfsStackState state, BasicBlock* basicBlock) : dfsStackState(state), dfsBlock(basicBlock)
     {
     }
@@ -1388,12 +1400,6 @@ class AllSuccessorEnumerator
     AllSuccessorIterPosition m_pos;
 
 public:
-    // Needed only because ArrayStack is broken - its built-in storage is such
-    // that it default constructs elements that do not actually exist.
-    AllSuccessorEnumerator() : m_block(nullptr), m_pos()
-    {
-    }
-
     // Constructs an enumerator of all `block`'s successors.
     AllSuccessorEnumerator(Compiler* comp, BasicBlock* block) : m_block(block), m_pos(comp, block)
     {

@@ -2157,7 +2157,7 @@ DECLARE_API(DumpDelegate)
                                     DacpObjectData objData;
                                     if (objData.Request(g_sos, invocationList) == S_OK &&
                                         objData.ObjectType == OBJ_ARRAY &&
-                                        invocationCount <= objData.dwNumComponents)
+                                        invocationCount <= (int)objData.dwNumComponents)
                                     {
                                         for (int i = 0; i < invocationCount; i++)
                                         {
@@ -2363,7 +2363,7 @@ Done:
 // Overload that mirrors the code above when the ExceptionObjectData was already retrieved from LS
 BOOL IsAsyncException(const DacpExceptionObjectData & excData)
 {
-    if (excData.XCode != EXCEPTION_COMPLUS)
+    if ((DWORD)excData.XCode != EXCEPTION_COMPLUS)
         return TRUE;
 
     HRESULT ehr = excData.HResult;
@@ -3386,7 +3386,10 @@ DECLARE_API(EEHeap)
         // The first one is the system domain.
         ExtOut("Loader Heap:\n");
         IfFailRet(PrintDomainHeapInfo("System Domain", adsData.systemDomain, &allHeapSize, &wasted));
-        IfFailRet(PrintDomainHeapInfo("Shared Domain", adsData.sharedDomain, &allHeapSize, &wasted));
+        if (adsData.sharedDomain != NULL)
+        {
+            IfFailRet(PrintDomainHeapInfo("Shared Domain", adsData.sharedDomain, &allHeapSize, &wasted));
+        }
         
         ArrayHolder<CLRDATA_ADDRESS> pArray = new NOTHROW CLRDATA_ADDRESS[adsData.DomainCount];
 
@@ -4270,13 +4273,32 @@ void ResolveContinuation(CLRDATA_ADDRESS* contAddr)
                 }
             }
 
-            // If it was, or if it's storing an action, try to follow through to the action's target.
+            // If we now have an Action, try to follow through to the delegate's target.
             if ((offset = GetObjFieldOffset(contObj.GetAddress(), contObj.GetMT(), W("_target"))) != 0)
             {
                 MOVE(*contAddr, contObj.GetAddress() + offset);
                 if (sos::IsObject(*contAddr, false))
                 {
                     contObj = TO_TADDR(*contAddr);
+
+                    // In some cases, the delegate's target might be a ContinuationWrapper, in which case we want to unwrap that as well.
+                    if (_wcsncmp(contObj.GetTypeName(), W("System.Runtime.CompilerServices.AsyncMethodBuilderCore+ContinuationWrapper"), 74) == 0 &&
+                        (offset = GetObjFieldOffset(contObj.GetAddress(), contObj.GetMT(), W("_continuation"))) != 0)
+                    {
+                        MOVE(*contAddr, contObj.GetAddress() + offset);
+                        if (sos::IsObject(*contAddr, false))
+                        {
+                            contObj = TO_TADDR(*contAddr);
+                            if ((offset = GetObjFieldOffset(contObj.GetAddress(), contObj.GetMT(), W("_target"))) != 0)
+                            {
+                                MOVE(*contAddr, contObj.GetAddress() + offset);
+                                if (sos::IsObject(*contAddr, false))
+                                {
+                                    contObj = TO_TADDR(*contAddr);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -4583,7 +4605,7 @@ DECLARE_API(DumpAsync)
                             DacpObjectData objData;
                             if (objData.Request(g_sos, TO_CDADDR(listItemsPtr)) == S_OK && objData.ObjectType == OBJ_ARRAY)
                             {
-                                for (int i = 0; i < objData.dwNumComponents; i++)
+                                for (SIZE_T i = 0; i < objData.dwNumComponents; i++)
                                 {
                                     CLRDATA_ADDRESS elementPtr;
                                     MOVE(elementPtr, TO_CDADDR(objData.ArrayDataPtr + (i * objData.dwComponentSize)));
@@ -5660,8 +5682,6 @@ DECLARE_API(SyncBlk)
     return Status;
 }
 
-#ifndef FEATURE_PAL
-
 #ifdef FEATURE_COMINTEROP
 struct VisitRcwArgs
 {
@@ -5746,7 +5766,6 @@ DECLARE_API(RCWCleanupList)
     return Status;
 }
 #endif // FEATURE_COMINTEROP
-
 
 /**********************************************************************\
 * Routine Description:                                                 *
@@ -5889,8 +5908,6 @@ DECLARE_API(FinalizeQueue)
 
     return Status;
 }
-
-#endif // FEATURE_PAL
 
 enum {
     // These are the values set in m_dwTransientFlags.
@@ -6086,14 +6103,17 @@ DECLARE_API(DumpDomain)
     }
     DomainInfo(&appDomain);
     
-    ExtOut("--------------------------------------\n");
-    DMLOut("Shared Domain:      %s\n", DMLDomain(adsData.sharedDomain));
-    if ((Status=appDomain.Request(g_sos, adsData.sharedDomain))!=S_OK)
+    if (adsData.sharedDomain != NULL)
     {
-        ExtOut("Unable to get shared domain info\n");
-        return Status;
+        ExtOut("--------------------------------------\n");
+        DMLOut("Shared Domain:      %s\n", DMLDomain(adsData.sharedDomain));
+        if ((Status=appDomain.Request(g_sos, adsData.sharedDomain))!=S_OK)
+        {
+            ExtOut("Unable to get shared domain info\n");
+            return Status;
+        }
+        DomainInfo(&appDomain);
     }
-    DomainInfo(&appDomain);
 
     ArrayHolder<CLRDATA_ADDRESS> pArray = new NOTHROW CLRDATA_ADDRESS[adsData.DomainCount];
     if (pArray==NULL)
@@ -6541,10 +6561,6 @@ HRESULT PrintSpecialThreads()
         if (ThreadType & ThreadType_Finalizer)
         {
             type += "Finalizer ";
-        }
-        if (ThreadType & ThreadType_ADUnloadHelper)
-        {
-            type += "ADUnloadHelper ";
         }
         if (ThreadType & ThreadType_ShutdownHelper)
         {
@@ -9413,8 +9429,7 @@ DECLARE_API(DumpLog)
     return Status;
 }
 
-#ifdef TRACE_GC
-
+#ifndef FEATURE_PAL
 DECLARE_API (DumpGCLog)
 {
     INIT_API_NODAC();
@@ -9427,6 +9442,10 @@ DECLARE_API (DumpGCLog)
     }
 
     const char* fileName = "GCLog.txt";
+    int iLogSize = 1024*1024;
+    BYTE* bGCLog = NULL;
+    int iRealLogSize = iLogSize - 1;
+    DWORD dwWritten = 0;
 
     while (isspace (*args))
         args ++;
@@ -9471,8 +9490,7 @@ DECLARE_API (DumpGCLog)
         goto exit;
     }
 
-    int iLogSize = 1024*1024;
-    BYTE* bGCLog = new NOTHROW BYTE[iLogSize];
+    bGCLog = new NOTHROW BYTE[iLogSize];
     if (bGCLog == NULL)
     {
         ReportOOM();
@@ -9485,7 +9503,6 @@ DECLARE_API (DumpGCLog)
         ExtOut("failed to read memory from %08x\n", dwAddr);
     }
 
-    int iRealLogSize = iLogSize - 1;
     while (iRealLogSize >= 0)
     {
         if (bGCLog[iRealLogSize] != '*')
@@ -9496,12 +9513,16 @@ DECLARE_API (DumpGCLog)
         iRealLogSize--;
     }
 
-    DWORD dwWritten = 0;
     WriteFile (hGCLog, bGCLog, iRealLogSize + 1, &dwWritten, NULL);
 
     Status = S_OK;
 
 exit:
+
+    if (bGCLog != NULL)
+    {
+        delete [] bGCLog;
+    }
 
     if (hGCLog != INVALID_HANDLE_VALUE)
     {
@@ -9517,9 +9538,7 @@ exit:
 
     return Status;
 }
-#endif //TRACE_GC
 
-#ifndef FEATURE_PAL
 DECLARE_API (DumpGCConfigLog)
 {
     INIT_API();
@@ -10734,11 +10753,8 @@ DECLARE_API(FindRoots)
 class GCHandleStatsForDomains
 {
 public:
-    const static int SHARED_DOMAIN_INDEX = 0;
-    const static int SYSTEM_DOMAIN_INDEX = 1;
-    
     GCHandleStatsForDomains() 
-        : m_singleDomainMode(FALSE), m_numDomains(0), m_pStatistics(NULL), m_pDomainPointers(NULL)
+        : m_singleDomainMode(FALSE), m_numDomains(0), m_pStatistics(NULL), m_pDomainPointers(NULL), m_sharedDomainIndex(-1), m_systemDomainIndex(-1)
     {
     }
 
@@ -10772,19 +10788,28 @@ public:
             if (adsData.Request(g_sos) != S_OK)
                 return FALSE;
 
-            m_numDomains = adsData.DomainCount + 2;
-            ArrayHolder<CLRDATA_ADDRESS> pArray = new NOTHROW CLRDATA_ADDRESS[adsData.DomainCount + 2];
+            LONG numSpecialDomains = (adsData.sharedDomain != NULL) ? 2 : 1;
+            m_numDomains = adsData.DomainCount + numSpecialDomains;
+            ArrayHolder<CLRDATA_ADDRESS> pArray = new NOTHROW CLRDATA_ADDRESS[m_numDomains];
             if (pArray == NULL)
                 return FALSE;
 
-            pArray[SHARED_DOMAIN_INDEX] = adsData.sharedDomain;
-            pArray[SYSTEM_DOMAIN_INDEX] = adsData.systemDomain;
+            int i = 0;
+            if (adsData.sharedDomain != NULL)
+            {
+                pArray[i++] = adsData.sharedDomain;
+            }
+
+            pArray[i] = adsData.systemDomain;
+
+            m_sharedDomainIndex = i - 1; // The m_sharedDomainIndex is set to -1 if there is no shared domain
+            m_systemDomainIndex = i;
             
-            if (g_sos->GetAppDomainList(adsData.DomainCount, pArray+2, NULL) != S_OK)
+            if (g_sos->GetAppDomainList(adsData.DomainCount, pArray+numSpecialDomains, NULL) != S_OK)
                 return FALSE;
             
             m_pDomainPointers = pArray.Detach();
-            m_pStatistics = new NOTHROW GCHandleStatistics[adsData.DomainCount + 2];
+            m_pStatistics = new NOTHROW GCHandleStatistics[m_numDomains];
             if (m_pStatistics == NULL)
                 return FALSE;
         }
@@ -10829,12 +10854,24 @@ public:
         SOS_Assert(index < m_numDomains);
         return m_pDomainPointers[index];
     }
-    
+
+    int GetSharedDomainIndex()
+    {
+        return m_sharedDomainIndex;
+    }
+
+    int GetSystemDomainIndex()
+    {
+        return m_systemDomainIndex;
+    }
+
 private:
     BOOL m_singleDomainMode;
     int m_numDomains;
     GCHandleStatistics *m_pStatistics;
     CLRDATA_ADDRESS *m_pDomainPointers;
+    int m_sharedDomainIndex;
+    int m_systemDomainIndex;
 };
 
 class GCHandlesImpl
@@ -10905,9 +10942,9 @@ public:
                 Print( "------------------------------------------------------------------------------\n");           
                 Print("GC Handle Statistics for AppDomain ", AppDomainPtr(mHandleStat.GetDomain(i)));
             
-                if (i == GCHandleStatsForDomains::SHARED_DOMAIN_INDEX)
+                if (i == mHandleStat.GetSharedDomainIndex())
                     Print(" (Shared Domain)\n");
-                else if (i == GCHandleStatsForDomains::SYSTEM_DOMAIN_INDEX)
+                else if (i == mHandleStat.GetSystemDomainIndex())
                     Print(" (System Domain)\n");
                 else
                     Print("\n");
@@ -15127,7 +15164,7 @@ DECLARE_API(ExposeDML)
 // According to kksharma the Windows debuggers always sign-extend
 // arguments when calling externally, therefore StackObjAddr 
 // conforms to CLRDATA_ADDRESS contract.
-HRESULT CALLBACK 
+HRESULT CALLBACK
 _EFN_GetManagedExcepStack(
     PDEBUG_CLIENT client,
     ULONG64 StackObjAddr,
@@ -15174,7 +15211,7 @@ _EFN_GetManagedExcepStackW(
 // According to kksharma the Windows debuggers always sign-extend
 // arguments when calling externally, therefore objAddr 
 // conforms to CLRDATA_ADDRESS contract.
-HRESULT CALLBACK 
+HRESULT CALLBACK
 _EFN_GetManagedObjectName(
     PDEBUG_CLIENT client,
     ULONG64 objAddr,
@@ -15202,7 +15239,7 @@ _EFN_GetManagedObjectName(
 // According to kksharma the Windows debuggers always sign-extend
 // arguments when calling externally, therefore objAddr 
 // conforms to CLRDATA_ADDRESS contract.
-HRESULT CALLBACK 
+HRESULT CALLBACK
 _EFN_GetManagedObjectFieldInfo(
     PDEBUG_CLIENT client,
     ULONG64 objAddr,
@@ -15507,7 +15544,7 @@ GetStackFrame(CONTEXT* context, ULONG numNativeFrames)
     if (FAILED(hr))
     {
         PDEBUG_STACK_FRAME frame = &g_Frames[0];
-        for (int i = 0; i < numNativeFrames; i++, frame++) {
+        for (unsigned int i = 0; i < numNativeFrames; i++, frame++) {
             if (frame->InstructionOffset == context->Rip)
             {
                 if ((i + 1) >= numNativeFrames) {

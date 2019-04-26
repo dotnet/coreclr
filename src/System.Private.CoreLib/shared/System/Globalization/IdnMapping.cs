@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 // This file contains the IDN functions and implementation.
 //
 // This allows encoding of non-ASCII domain names in a "punycode" form,
@@ -143,11 +144,10 @@ namespace System.Globalization
             }
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            IdnMapping that = obj as IdnMapping;
             return
-                that != null &&
+                obj is IdnMapping that &&
                 _allowUnassigned == that._allowUnassigned &&
                 _useStd3AsciiRules == that._useStd3AsciiRules;
         }

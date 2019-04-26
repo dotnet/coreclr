@@ -2,14 +2,24 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
 using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 
 using Internal.Runtime.CompilerServices;
+
+#if BIT64
+using nint = System.Int64;
+using nuint = System.UInt64;
+#else // BIT64
+using nint = System.Int32;
+using nuint = System.UInt32;
+#endif // BIT64
 
 namespace System
 {
@@ -19,7 +29,7 @@ namespace System
     /// </summary>
     [DebuggerTypeProxy(typeof(MemoryDebugView<>))]
     [DebuggerDisplay("{ToString(),raw}")]
-    public readonly struct Memory<T>
+    public readonly struct Memory<T> : IEquatable<Memory<T>>
     {
         // NOTE: With the current implementation, Memory<T> and ReadOnlyMemory<T> must have the same layout,
         // as code uses Unsafe.As to cast between them.
@@ -27,10 +37,10 @@ namespace System
         // The highest order bit of _index is used to discern whether _object is a pre-pinned array.
         // (_index < 0) => _object is a pre-pinned array, so Pin() will not allocate a new GCHandle
         //       (else) => Pin() needs to allocate a new GCHandle to pin the object.
-        private readonly object _object;
+        private readonly object? _object;
         private readonly int _index;
         private readonly int _length;
-        
+
         /// <summary>
         /// Creates a new memory over the entirety of the target array.
         /// </summary>
@@ -38,14 +48,14 @@ namespace System
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Memory(T[] array)
+        public Memory(T[]? array)
         {
             if (array == null)
             {
                 this = default;
                 return; // returns default
             }
-            if (default(T) == null && array.GetType() != typeof(T[]))
+            if (default(T)! == null && array.GetType() != typeof(T[])) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
                 ThrowHelper.ThrowArrayTypeMismatchException();
 
             _object = array;
@@ -54,7 +64,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Memory(T[] array, int start)
+        internal Memory(T[]? array, int start)
         {
             if (array == null)
             {
@@ -63,7 +73,7 @@ namespace System
                 this = default;
                 return; // returns default
             }
-            if (default(T) == null && array.GetType() != typeof(T[]))
+            if (default(T)! == null && array.GetType() != typeof(T[])) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
                 ThrowHelper.ThrowArrayTypeMismatchException();
             if ((uint)start > (uint)array.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
@@ -86,7 +96,7 @@ namespace System
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Memory(T[] array, int start, int length)
+        public Memory(T[]? array, int start, int length)
         {
             if (array == null)
             {
@@ -95,7 +105,7 @@ namespace System
                 this = default;
                 return; // returns default
             }
-            if (default(T) == null && array.GetType() != typeof(T[]))
+            if (default(T)! == null && array.GetType() != typeof(T[])) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34757
                 ThrowHelper.ThrowArrayTypeMismatchException();
 #if BIT64
             // See comment in Span<T>.Slice for how this works.
@@ -159,12 +169,18 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Memory(object obj, int start, int length)
+        internal Memory(object? obj, int start, int length)
         {
             // No validation performed in release builds; caller must provide any necessary validation.
 
             // 'obj is T[]' below also handles things like int[] <-> uint[] being convertible
-            Debug.Assert((obj == null) || (typeof(T) == typeof(char) && obj is string) || (obj is T[]) || (obj is MemoryManager<T>));
+            Debug.Assert((obj == null)
+                || (typeof(T) == typeof(char) && obj is string)
+#if FEATURE_UTF8STRING
+                || ((typeof(T) == typeof(byte) || typeof(T) == typeof(Char8)) && obj is Utf8String)
+#endif // FEATURE_UTF8STRING
+                || (obj is T[])
+                || (obj is MemoryManager<T>));
 
             _object = obj;
             _index = start;
@@ -174,7 +190,7 @@ namespace System
         /// <summary>
         /// Defines an implicit conversion of an array to a <see cref="Memory{T}"/>
         /// </summary>
-        public static implicit operator Memory<T>(T[] array) => new Memory<T>(array);
+        public static implicit operator Memory<T>(T[]? array) => new Memory<T>(array);
 
         /// <summary>
         /// Defines an implicit conversion of a <see cref="ArraySegment{T}"/> to a <see cref="Memory{T}"/>
@@ -212,6 +228,14 @@ namespace System
             {
                 return (_object is string str) ? str.Substring(_index, _length) : Span.ToString();
             }
+#if FEATURE_UTF8STRING
+            else if (typeof(T) == typeof(Char8))
+            {
+                // TODO_UTF8STRING: Call into optimized transcoding routine when it's available.
+                Span<T> span = Span;
+                return Encoding.UTF8.GetString(new ReadOnlySpan<byte>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(span)), span.Length));
+            }
+#endif // FEATURE_UTF8STRING
             return string.Format("System.Memory<{0}>[{1}]", typeof(T).Name, _length);
         }
 
@@ -278,7 +302,7 @@ namespace System
 
                 // Copy this field into a local so that it can't change out from under us mid-operation.
 
-                object tmpObject = _object;
+                object? tmpObject = _object;
                 if (tmpObject != null)
                 {
                     if (typeof(T) == typeof(char) && tmpObject.GetType() == typeof(string))
@@ -288,6 +312,13 @@ namespace System
                         refToReturn = ref Unsafe.As<char, T>(ref Unsafe.As<string>(tmpObject).GetRawStringData());
                         lengthOfUnderlyingSpan = Unsafe.As<string>(tmpObject).Length;
                     }
+#if FEATURE_UTF8STRING
+                    else if ((typeof(T) == typeof(byte) || typeof(T) == typeof(Char8)) && tmpObject.GetType() == typeof(Utf8String))
+                    {
+                        refToReturn = ref Unsafe.As<byte, T>(ref Unsafe.As<Utf8String>(tmpObject).DangerousGetMutableReference());
+                        lengthOfUnderlyingSpan = Unsafe.As<Utf8String>(tmpObject).Length;
+                    }
+#endif // FEATURE_UTF8STRING
                     else if (RuntimeHelpers.ObjectHasComponentSize(tmpObject))
                     {
                         // We know the object is not null, it's not a string, and it is variable-length. The only
@@ -321,12 +352,12 @@ namespace System
                     // least to be in-bounds when compared with the original Memory<T> instance, so using the span won't
                     // AV the process.
 
-                    int desiredStartIndex = _index & ReadOnlyMemory<T>.RemoveFlagsBitMask;
+                    nuint desiredStartIndex = (uint)_index & (uint)ReadOnlyMemory<T>.RemoveFlagsBitMask;
                     int desiredLength = _length;
 
 #if BIT64
                     // See comment in Span<T>.Slice for how this works.
-                    if ((ulong)(uint)desiredStartIndex + (ulong)(uint)desiredLength > (ulong)(uint)lengthOfUnderlyingSpan)
+                    if ((ulong)desiredStartIndex + (ulong)(uint)desiredLength > (ulong)(uint)lengthOfUnderlyingSpan)
                     {
                         ThrowHelper.ThrowArgumentOutOfRangeException();
                     }
@@ -336,8 +367,8 @@ namespace System
                         ThrowHelper.ThrowArgumentOutOfRangeException();
                     }
 #endif
-                    
-                    refToReturn = ref Unsafe.Add(ref refToReturn, desiredStartIndex);
+
+                    refToReturn = ref Unsafe.Add(ref refToReturn, (IntPtr)(void*)desiredStartIndex);
                     lengthOfUnderlyingSpan = desiredLength;
                 }
 
@@ -389,7 +420,7 @@ namespace System
             // is torn. This is ok since the caller is expecting to use raw pointers,
             // and we're not required to keep this as safe as the other Span-based APIs.
 
-            object tmpObject = _object;
+            object? tmpObject = _object;
             if (tmpObject != null)
             {
                 if (typeof(T) == typeof(char) && tmpObject is string s)
@@ -398,6 +429,14 @@ namespace System
                     ref char stringData = ref Unsafe.Add(ref s.GetRawStringData(), _index);
                     return new MemoryHandle(Unsafe.AsPointer(ref stringData), handle);
                 }
+#if FEATURE_UTF8STRING
+                else if ((typeof(T) == typeof(byte) || typeof(T) == typeof(Char8)) && tmpObject is Utf8String utf8String)
+                {
+                    GCHandle handle = GCHandle.Alloc(tmpObject, GCHandleType.Pinned);
+                    ref byte stringData = ref utf8String.DangerousGetMutableReference(_index);
+                    return new MemoryHandle(Unsafe.AsPointer(ref stringData), handle);
+                }
+#endif // FEATURE_UTF8STRING
                 else if (RuntimeHelpers.ObjectHasComponentSize(tmpObject))
                 {
                     // 'tmpObject is T[]' below also handles things like int[] <-> uint[] being convertible
@@ -438,7 +477,7 @@ namespace System
         /// Returns true if the object is Memory or ReadOnlyMemory and if both objects point to the same array and have the same length.
         /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is ReadOnlyMemory<T>)
             {

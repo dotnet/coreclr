@@ -9,6 +9,7 @@
 #include "eventpipemetadatagenerator.h"
 #include "eventpipeprovider.h"
 #include "eventpipesession.h"
+#include "eventpipesessionprovider.h"
 
 #ifdef FEATURE_PERFTRACING
 
@@ -50,12 +51,13 @@ EventPipeEventSource::EventPipeEventSource()
         0,      /* keywords */
         0,      /* eventVersion */
         EventPipeEventLevel::LogAlways,
+        false,  /* needStack */
         pMetadata,
         (unsigned int)metadataLength);
 
     // Delete the metadata after the event is created.
     // The metadata blob will be copied into EventPipe-owned memory.
-    delete(pMetadata);
+    delete [] pMetadata;
 }
 
 EventPipeEventSource::~EventPipeEventSource()

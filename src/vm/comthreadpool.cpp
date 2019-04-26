@@ -76,8 +76,7 @@ typedef Wrapper<DelegateInfo *, AcquireDelegateInfo, ReleaseDelegateInfo> Delega
 
 /*****************************************************************************************************/
 // Caller has to GC protect Objectrefs being passed in
-DelegateInfo *DelegateInfo::MakeDelegateInfo(AppDomain *pAppDomain,
-                                             OBJECTREF *state,
+DelegateInfo *DelegateInfo::MakeDelegateInfo(OBJECTREF *state,
                                              OBJECTREF *waitEvent,
                                              OBJECTREF *registeredWaitHandle)
 {
@@ -96,14 +95,13 @@ DelegateInfo *DelegateInfo::MakeDelegateInfo(AppDomain *pAppDomain,
         PRECONDITION(state == NULL || IsProtectedByGCFrame(state));
         PRECONDITION(waitEvent == NULL || IsProtectedByGCFrame(waitEvent));
         PRECONDITION(registeredWaitHandle == NULL || IsProtectedByGCFrame(registeredWaitHandle));
-        PRECONDITION(CheckPointer(pAppDomain));
         INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END;
     
     DelegateInfoHolder delegateInfo = (DelegateInfo*) ThreadpoolMgr::GetRecycledMemory(ThreadpoolMgr::MEMTYPE_DelegateInfo);
-    
-    delegateInfo->m_appDomainId = pAppDomain->GetId();
+
+    AppDomain* pAppDomain = ::GetAppDomain();    
 
     if (state != NULL)
         delegateInfo->m_stateHandle = pAppDomain->CreateHandle(*state);
@@ -131,7 +129,7 @@ FCIMPL2(FC_BOOL_RET, ThreadPoolNative::CorSetMaxThreads,DWORD workerThreads, DWO
     FCALL_CONTRACT;
 
     BOOL bRet = FALSE;
-    HELPER_METHOD_FRAME_BEGIN_RET_0(); // Eventually calls BEGIN_SO_INTOLERANT_CODE_NOTHROW
+    HELPER_METHOD_FRAME_BEGIN_RET_0();
 
     bRet = ThreadpoolMgr::SetMaxThreads(workerThreads,completionPortThreads);
     HELPER_METHOD_FRAME_END();    
@@ -155,7 +153,7 @@ FCIMPL2(FC_BOOL_RET, ThreadPoolNative::CorSetMinThreads,DWORD workerThreads, DWO
     FCALL_CONTRACT;
 
     BOOL bRet = FALSE;
-    HELPER_METHOD_FRAME_BEGIN_RET_0(); // Eventually calls BEGIN_SO_INTOLERANT_CODE_NOTHROW
+    HELPER_METHOD_FRAME_BEGIN_RET_0();
 
     bRet = ThreadpoolMgr::SetMinThreads(workerThreads,completionPortThreads);
     HELPER_METHOD_FRAME_END();    
@@ -180,6 +178,30 @@ FCIMPL2(VOID, ThreadPoolNative::CorGetAvailableThreads,DWORD* workerThreads, DWO
 
     ThreadpoolMgr::GetAvailableThreads(workerThreads,completionPortThreads);
     return;
+}
+FCIMPLEND
+
+/*****************************************************************************************************/
+FCIMPL0(INT32, ThreadPoolNative::GetThreadCount)
+{
+    FCALL_CONTRACT;
+    return ThreadpoolMgr::GetThreadCount();
+}
+FCIMPLEND
+
+/*****************************************************************************************************/
+FCIMPL0(INT64, ThreadPoolNative::GetCompletedWorkItemCount)
+{
+    FCALL_CONTRACT;
+    return (INT64)Thread::GetTotalThreadPoolCompletionCount();
+}
+FCIMPLEND
+
+/*****************************************************************************************************/
+FCIMPL0(INT64, ThreadPoolNative::GetPendingUnmanagedWorkItemCount)
+{
+    FCALL_CONTRACT;
+    return PerAppDomainTPCountList::GetUnmanagedTPCount()->GetNumRequests();
 }
 FCIMPLEND
 
@@ -262,7 +284,7 @@ FCIMPL0(FC_BOOL_RET, ThreadPoolNative::NotifyRequestComplete)
         }
 
         if (needReset)
-            pThread->InternalReset(FALSE, TRUE, TRUE, FALSE);
+            pThread->InternalReset(TRUE, TRUE, FALSE);
 
         HELPER_METHOD_FRAME_END();    
     }
@@ -362,7 +384,7 @@ VOID NTAPI RegisterWaitForSingleObjectCallback(PVOID delegateInfo, BOOLEAN Timer
 
     RegisterWaitForSingleObjectCallback_Args args = { ((DelegateInfo*) delegateInfo), TimerOrWaitFired };
 
-    ManagedThreadBase::ThreadPool(((DelegateInfo*) delegateInfo)->m_appDomainId, RegisterWaitForSingleObjectCallback_Worker, &args);
+    ManagedThreadBase::ThreadPool(RegisterWaitForSingleObjectCallback_Worker, &args);
 
     // We should have released all locks.
     _ASSERTE(g_fEEShutDown || pThread->m_dwLockCount == 0 || pThread->m_fRudeAborted);
@@ -388,10 +410,10 @@ FCIMPL5(LPVOID, ThreadPoolNative::CorRegisterWaitForSingleObject,
     gc.waitObject = (WAITHANDLEREF) ObjectToOBJECTREF(waitObjectUNSAFE);
     gc.state = (OBJECTREF) stateUNSAFE;
     gc.registeredWaitObject = (OBJECTREF) registeredWaitObjectUNSAFE;
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);  // Eventually calls BEGIN_SO_INTOLERANT_CODE_NOTHROW
+    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
 
     if(gc.waitObject == NULL)
-        COMPlusThrow(kArgumentNullException, W("ArgumentNull_Obj"));
+        COMPlusThrow(kArgumentNullException);
 
     _ASSERTE(gc.registeredWaitObject != NULL);
 
@@ -403,10 +425,7 @@ FCIMPL5(LPVOID, ThreadPoolNative::CorRegisterWaitForSingleObject,
     Thread* pCurThread = GetThread();
     _ASSERTE( pCurThread);
 
-    AppDomain* appDomain = pCurThread->GetDomain();
-    _ASSERTE(appDomain);
-
-    DelegateInfoHolder delegateInfo = DelegateInfo::MakeDelegateInfo(appDomain,
+    DelegateInfoHolder delegateInfo = DelegateInfo::MakeDelegateInfo(
                                                                 &gc.state,
                                                                 (OBJECTREF *)&gc.waitObject,
                                                                 &gc.registeredWaitObject);
@@ -487,7 +506,7 @@ FCIMPL2(FC_BOOL_RET, ThreadPoolNative::CorUnregisterWait, LPVOID WaitHandle, Obj
 
     BOOL retVal = false;
     SAFEHANDLEREF refSH = (SAFEHANDLEREF) ObjectToOBJECTREF(objectToNotify);
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refSH); // Eventually calls BEGIN_SO_INTOLERANT_CODE_NOTHROW
+    HELPER_METHOD_FRAME_BEGIN_RET_1(refSH);
 
     HANDLE hWait = (HANDLE) WaitHandle;
     HANDLE hObjectToNotify = NULL;
@@ -501,7 +520,6 @@ FCIMPL2(FC_BOOL_RET, ThreadPoolNative::CorUnregisterWait, LPVOID WaitHandle, Obj
     {
         // Create a GCHandle in the WaitInfo, so that it can hold on to the safe handle
         pWaitInfo->ExternalEventSafeHandle = GetAppDomain()->CreateHandle(NULL);
-        pWaitInfo->handleOwningAD = GetAppDomain()->GetId();
 
         // Holder will now release objecthandle in face of exceptions
         wiHolder.Assign(pWaitInfo);
@@ -541,7 +559,7 @@ FCIMPL1(void, ThreadPoolNative::CorWaitHandleCleanupNative, LPVOID WaitHandle)
 {
     FCALL_CONTRACT;
 
-    HELPER_METHOD_FRAME_BEGIN_0(); // Eventually calls BEGIN_SO_INTOLERANT_CODE_NOTHROW
+    HELPER_METHOD_FRAME_BEGIN_0();
 
     HANDLE hWait = (HANDLE)WaitHandle;
     ThreadpoolMgr::WaitHandleCleanup(hWait);
@@ -570,8 +588,6 @@ void SetAsyncResultProperties(
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
-
 }
 
 VOID BindIoCompletionCallBack_Worker(LPVOID args)
@@ -579,7 +595,6 @@ VOID BindIoCompletionCallBack_Worker(LPVOID args)
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
     DWORD        ErrorCode = ((BindIoCompletion_Args *)args)->ErrorCode;
     DWORD        numBytesTransferred = ((BindIoCompletion_Args *)args)->numBytesTransferred;
@@ -639,7 +654,6 @@ void __stdcall BindIoCompletionCallbackStubEx(DWORD ErrorCode,
         THROWS;
         MODE_ANY;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -651,7 +665,7 @@ void __stdcall BindIoCompletionCallbackStubEx(DWORD ErrorCode,
     GCX_COOP();
 
     BindIoCompletion_Args args = {ErrorCode, numBytesTransferred, lpOverlapped};
-    ManagedThreadBase::ThreadPool((ADID)DefaultADID, BindIoCompletionCallBack_Worker, &args);
+    ManagedThreadBase::ThreadPool(BindIoCompletionCallBack_Worker, &args);
 
     LOG((LF_INTEROP, LL_INFO10000, "Leaving IO_CallBackStub thread 0x%x retCode 0x%x, overlap 0x%x\n",  pThread, ErrorCode, lpOverlapped));
         // We should have released all locks.
@@ -688,7 +702,7 @@ FCIMPL1(FC_BOOL_RET, ThreadPoolNative::CorBindIoCompletionCallback, HANDLE fileH
 
     BOOL retVal = FALSE;
 
-    HELPER_METHOD_FRAME_BEGIN_RET_0(); // Eventually calls BEGIN_SO_INTOLERANT_CODE_NOTHROW
+    HELPER_METHOD_FRAME_BEGIN_RET_0();
 
     HANDLE hFile = (HANDLE) fileHandle;
     DWORD errCode = 0;
@@ -721,7 +735,7 @@ FCIMPL1(FC_BOOL_RET, ThreadPoolNative::CorPostQueuedCompletionStatus, LPOVERLAPP
 
     BOOL res = FALSE;
 
-    HELPER_METHOD_FRAME_BEGIN_RET_1(overlapped); // Eventually calls BEGIN_SO_INTOLERANT_CODE_NOTHROW
+    HELPER_METHOD_FRAME_BEGIN_RET_1(overlapped);
 
     // OS doesn't signal handle, so do it here
     lpOverlapped->Internal = 0;
@@ -793,7 +807,6 @@ VOID WINAPI AppDomainTimerCallback(PVOID callbackState, BOOLEAN timerOrWaitFired
         THROWS;
         MODE_ANY;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -803,7 +816,7 @@ VOID WINAPI AppDomainTimerCallback(PVOID callbackState, BOOLEAN timerOrWaitFired
     GCX_COOP();
 
     ThreadpoolMgr::TimerInfoContext* pTimerInfoContext = (ThreadpoolMgr::TimerInfoContext*)callbackState;
-    ManagedThreadBase::ThreadPool(pTimerInfoContext->AppDomainId, AppDomainTimerCallback_Worker, pTimerInfoContext);
+    ManagedThreadBase::ThreadPool(AppDomainTimerCallback_Worker, pTimerInfoContext);
 
     // We should have released all locks.
     _ASSERTE(g_fEEShutDown || pThread->m_dwLockCount == 0 || pThread->m_fRudeAborted);
@@ -820,10 +833,8 @@ HANDLE QCALLTYPE AppDomainTimerNative::CreateAppDomainTimer(INT32 dueTime, INT32
     _ASSERTE(timerId >= 0);
 
     AppDomain* pAppDomain = GetThread()->GetDomain();
-    ADID adid = pAppDomain->GetId();
 
     ThreadpoolMgr::TimerInfoContext* timerContext = new ThreadpoolMgr::TimerInfoContext();
-    timerContext->AppDomainId = adid;
     timerContext->TimerId = timerId;
     NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder(timerContext);
 

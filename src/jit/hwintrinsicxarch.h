@@ -15,10 +15,6 @@ enum HWIntrinsicCategory : unsigned int
     // - the codegen of overloads can be determined by intrinsicID and base type of returned vector
     HW_Category_SimpleSIMD,
 
-    // IsSupported Property
-    // - each ISA class has an "IsSupported" property
-    HW_Category_IsSupportedProperty,
-
     // IMM intrinsics
     // - some SIMD intrinsics requires immediate value (i.e. imm8) to generate instruction
     HW_Category_IMM,
@@ -56,10 +52,6 @@ enum HWIntrinsicFlag : unsigned int
     // Full range IMM intrinsic
     // - the immediate value is valid on the full range of imm8 (0-255)
     HW_Flag_FullRangeIMM = 0x2,
-
-    // Generic
-    // - must throw NotSupportException if the type argument is not numeric type
-    HW_Flag_OneTypeGeneric = 0x4,
 
     // NoCodeGen
     // - should be transformed in the compiler front-end, cannot reach CodeGen
@@ -133,7 +125,10 @@ struct HWIntrinsicInfo
 
     static const HWIntrinsicInfo& lookup(NamedIntrinsic id);
 
-    static NamedIntrinsic lookupId(const char* className, const char* methodName, const char* enclosingClassName);
+    static NamedIntrinsic lookupId(Compiler*   comp,
+                                   const char* className,
+                                   const char* methodName,
+                                   const char* enclosingClassName);
     static InstructionSet lookupIsa(const char* className, const char* enclosingClassName);
 
     static unsigned lookupSimdSize(Compiler* comp, NamedIntrinsic id, CORINFO_SIG_INFO* sig);
@@ -209,12 +204,6 @@ struct HWIntrinsicInfo
     {
         HWIntrinsicFlag flags = lookupFlags(id);
         return (flags & HW_Flag_FullRangeIMM) != 0;
-    }
-
-    static bool IsOneTypeGeneric(NamedIntrinsic id)
-    {
-        HWIntrinsicFlag flags = lookupFlags(id);
-        return (flags & HW_Flag_OneTypeGeneric) != 0;
     }
 
     static bool RequiresCodegen(NamedIntrinsic id)

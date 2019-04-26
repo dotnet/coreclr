@@ -37,7 +37,6 @@ static TypeHandle NullableTypeOfByref(TypeHandle th) {
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -276,7 +275,7 @@ FCIMPL3(Object*, ReflectionInvocation::AllocateValueType, ReflectClassBaseObject
             gc.obj = allocMT->Allocate();
 
             if (gc.value != NULL)
-                    CopyValueClassUnchecked(gc.obj->UnBox(), gc.value->UnBox(), allocMT);
+                    CopyValueClass(gc.obj->UnBox(), gc.value->UnBox(), allocMT);
         }
     }
 
@@ -527,6 +526,7 @@ FCIMPL6(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
         }
     }
 DoneCreateInstance:
+    ;
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(rv);
 }
@@ -1001,6 +1001,7 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     // Skip the activation optimization for remoting because of remoting proxy is not always activated.
     // It would be nice to clean this up and get remoting to always activate methodtable behind the proxy.
     BOOL fForceActivationForRemoting = FALSE;
+    BOOL fCtorOfVariableSizedObject = FALSE;
 
     if (fConstructor)
     {
@@ -1018,7 +1019,8 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
         MethodTable * pMT = ownerType.AsMethodTable();
 
         {
-            if (pMT != g_pStringClass)
+            fCtorOfVariableSizedObject = pMT->HasComponentSize();
+            if (!fCtorOfVariableSizedObject)
                 gc.retVal = pMT->Allocate();
         }
     }
@@ -1039,10 +1041,6 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     SIZE_T nAllocaSize = TransitionBlock::GetNegSpaceSize() + sizeof(TransitionBlock) + nStackBytes;
 
     Thread * pThread = GET_THREAD();
-
-    // Make sure we have enough room on the stack for this. Note that we will need the stack amount twice - once to build the stack
-    // and second time to actually make the call.
-    INTERIOR_STACK_PROBE_FOR(pThread, 1 + static_cast<UINT>((2 * nAllocaSize) / GetOsPageSize()) + static_cast<UINT>(HOLDER_CODE_NORMAL_STACK_LIMIT));
 
     LPBYTE pAlloc = (LPBYTE)_alloca(nAllocaSize);
 
@@ -1328,7 +1326,11 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     if (fConstructor)
     {
         // We have a special case for Strings...The object is returned...
-        if (ownerType == TypeHandle(g_pStringClass)) {
+        if (ownerType == TypeHandle(g_pStringClass)
+#ifdef FEATURE_UTF8STRING
+            || ownerType == TypeHandle(g_pUtf8StringClass)
+#endif // FEATURE_UTF8STRING
+            ) {
             PVOID pReturnValue = &callDescrData.returnValue;
             gc.retVal = *(OBJECTREF *)pReturnValue;
         }
@@ -1350,17 +1352,17 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
             {
                 COMPlusThrow(kNullReferenceException, IDS_INVOKE_NULLREF_RETURNED);
             }
-            CopyValueClass(gc.retVal->GetData(), pReturnedReference, gc.retVal->GetMethodTable(), gc.retVal->GetAppDomain());
+            CopyValueClass(gc.retVal->GetData(), pReturnedReference, gc.retVal->GetMethodTable());
         }
         // if the structure is returned by value, then we need to copy in the boxed object
         // we have allocated for this purpose.
         else if (!fHasRetBuffArg) 
         {
-            CopyValueClass(gc.retVal->GetData(), &callDescrData.returnValue, gc.retVal->GetMethodTable(), gc.retVal->GetAppDomain());
+            CopyValueClass(gc.retVal->GetData(), &callDescrData.returnValue, gc.retVal->GetMethodTable());
         }
         else if (pRetBufStackCopy)
         {
-            CopyValueClass(gc.retVal->GetData(), pRetBufStackCopy, gc.retVal->GetMethodTable(), gc.retVal->GetAppDomain());
+            CopyValueClass(gc.retVal->GetData(), pRetBufStackCopy, gc.retVal->GetMethodTable());
         }
         // From here on out, it is OK to have GCs since the return object (which may have had
         // GC pointers has been put into a GC object and thus protected. 
@@ -1387,17 +1389,17 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
 
     while (byRefToNullables != NULL) {
         OBJECTREF obj = Nullable::Box(byRefToNullables->data, byRefToNullables->type.GetMethodTable());
-        SetObjectReference(&gc.args->m_Array[byRefToNullables->argNum], obj, gc.args->GetAppDomain());
+        SetObjectReference(&gc.args->m_Array[byRefToNullables->argNum], obj);
         byRefToNullables = byRefToNullables->next;
     }
 
     if (pProtectValueClassFrame != NULL)
         pProtectValueClassFrame->Pop(pThread);
 
-    END_INTERIOR_STACK_PROBE;
     }
 
 Done:
+    ;
     HELPER_METHOD_FRAME_END();
 
     return OBJECTREFToObject(gc.retVal);
@@ -1833,7 +1835,7 @@ FCIMPL5(void, RuntimeFieldHandle::SetValueDirect, ReflectFieldObject *pFieldUNSA
     case ELEMENT_TYPE_ARRAY:            // General Array
     case ELEMENT_TYPE_CLASS:
     case ELEMENT_TYPE_OBJECT:
-        SetObjectReferenceUnchecked((OBJECTREF*)pDst, gc.oValue);
+        SetObjectReference((OBJECTREF*)pDst, gc.oValue);
     break;
 
     case ELEMENT_TYPE_VALUETYPE:
@@ -1924,7 +1926,7 @@ FCIMPL1(void, ReflectionInvocation::RunModuleConstructor, ReflectModuleBaseObjec
 
     Assembly *pAssem = pModule->GetAssembly();
 
-    DomainFile *pDomainFile = pModule->FindDomainFile(GetAppDomain());
+    DomainFile *pDomainFile = pModule->GetDomainFile();
     if (pDomainFile==NULL || !pDomainFile->IsActive())
     {
         HELPER_METHOD_FRAME_BEGIN_1(refModule);
@@ -1947,6 +1949,8 @@ static void PrepareMethodHelper(MethodDesc * pMD)
     CONTRACTL_END;
 
     GCX_PREEMP();
+
+    pMD->EnsureActive();
 
     if (pMD->IsPointingToPrestub())
         pMD->DoPrestub(NULL);
@@ -2082,49 +2086,6 @@ FCIMPL0(FC_BOOL_RET, ReflectionInvocation::TryEnsureSufficientExecutionStack)
 }
 FCIMPLEND
 
-struct ECWGCFContext
-{
-    BOOL fHandled;
-    Frame *pStartFrame;
-};
-
-// Crawl the stack looking for Thread Abort related information (whether we're executing inside a CER or an error handling clauses
-// of some sort).
-StackWalkAction ECWGCFCrawlCallBack(CrawlFrame* pCf, void* data)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    ECWGCFContext *pData = (ECWGCFContext *)data;
-
-    Frame *pFrame = pCf->GetFrame();
-    if (pFrame && pFrame->GetFunction() != NULL && pFrame != pData->pStartFrame)
-    {
-        // We walk through a transition frame, but it is not our start frame.
-        // This means ExecuteCodeWithGuarantee is not at the bottom of stack.
-        pData->fHandled = TRUE;
-        return SWA_ABORT;
-    }
-
-    MethodDesc *pMD = pCf->GetFunction();
-
-    // Non-method frames don't interest us.
-    if (pMD == NULL)
-        return SWA_CONTINUE;
-
-    if (!pMD->GetModule()->IsSystem())
-    {
-        // We walk through some user code.  This means that ExecuteCodeWithGuarantee is not at the bottom of stack.
-        pData->fHandled = TRUE;
-        return SWA_ABORT;
-    }
-
-    return SWA_CONTINUE;
-}
-
 struct ECWGC_Param
 {
     BOOL fExceptionThrownInTryCode;
@@ -2232,14 +2193,9 @@ void ExecuteCodeWithGuaranteedCleanupHelper (ECWGC_GC *gc)
     }
     PAL_ENDTRY;
 
-#ifdef FEATURE_STACK_PROBE
-    if (param.fStackOverflow)   
-        COMPlusThrowSO();
-#else
     //This will not be set as clr to managed transition code will terminate the
     //process if there is an SO before SODetectionFilter() is called.
     _ASSERTE(!param.fStackOverflow);
-#endif
 }
 
 //
@@ -2374,15 +2330,6 @@ FCIMPL1(Object*, ReflectionInvocation::TypedReferenceToObject, TypedByRef * valu
     return OBJECTREFToObject(Obj);
 }
 FCIMPLEND
-
-#ifdef _DEBUG
-FCIMPL1(FC_BOOL_RET, ReflectionInvocation::IsAddressInStack, void * ptr)
-{
-    FCALL_CONTRACT;
-    FC_RETURN_BOOL(Thread::IsAddressInCurrentStack(ptr));
-}
-FCIMPLEND
-#endif
 
 FCIMPL2_IV(Object*, ReflectionInvocation::CreateEnum, ReflectClassBaseObject *pTypeUNSAFE, INT64 value) {
     FCALL_CONTRACT;
@@ -2640,10 +2587,6 @@ FCIMPL1(Object*, ReflectionSerialization::GetUninitializedObject, ReflectClassBa
 
     HELPER_METHOD_FRAME_BEGIN_RET_NOPOLL();
 
-    if (objType == NULL) {
-        COMPlusThrowArgumentNull(W("type"), W("ArgumentNull_Type"));
-    }
-
     TypeHandle type = objType->GetType();
 
     // Don't allow arrays, pointers, byrefs or function pointers.
@@ -2653,8 +2596,12 @@ FCIMPL1(Object*, ReflectionSerialization::GetUninitializedObject, ReflectClassBa
     MethodTable *pMT = type.GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);
 
-    //We don't allow unitialized strings.
-    if (pMT == g_pStringClass) {
+    //We don't allow unitialized Strings or Utf8Strings.
+    if (pMT == g_pStringClass
+#ifdef FEATURE_UTF8STRING
+        || pMT == g_pUtf8StringClass
+#endif // FEATURE_UTF8STRING
+        ) {
         COMPlusThrow(kArgumentException, W("Argument_NoUninitializedStrings"));
     }
 

@@ -91,18 +91,26 @@ code_t AddRexXPrefix(instruction ins, code_t code);
 code_t AddRexBPrefix(instruction ins, code_t code);
 code_t AddRexPrefix(instruction ins, code_t code);
 
-bool useSSE4Encodings;
-bool UseSSE4()
-{
-    return useSSE4Encodings;
-}
-void SetUseSSE4(bool value)
-{
-    useSSE4Encodings = value;
-}
 bool EncodedBySSE38orSSE3A(instruction ins);
-bool Is4ByteSSE4Instruction(instruction ins);
-bool Is4ByteSSE4OrAVXInstruction(instruction ins);
+bool Is4ByteSSEInstruction(instruction ins);
+
+bool AreUpper32BitsZero(regNumber reg);
+
+// Adjust code size for CRC32 that has 4-byte opcode
+// but does not use SSE38 or EES3A encoding.
+UNATIVE_OFFSET emitAdjustSizeCrc32(instruction ins, emitAttr attr)
+{
+    UNATIVE_OFFSET szDelta = 0;
+    if (ins == INS_crc32)
+    {
+        szDelta += 1;
+        if (attr == EA_2BYTE)
+        {
+            szDelta += 1;
+        }
+    }
+    return szDelta;
+}
 
 bool hasRexPrefix(code_t code)
 {
@@ -355,6 +363,8 @@ void emitIns_R_R_A_I(
     instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, GenTreeIndir* indir, int ival, insFormat fmt);
 void emitIns_R_R_AR_I(
     instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, regNumber base, int offs, int ival);
+void emitIns_S_R_I(instruction ins, emitAttr attr, int varNum, int offs, regNumber reg, int ival);
+
 void emitIns_AR_R_I(instruction ins, emitAttr attr, regNumber base, int disp, regNumber ireg, int ival);
 
 void emitIns_R_R_C_I(
@@ -441,7 +451,8 @@ void emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNumber reg,
 void emitIns_SIMD_R_R_I(instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, int ival);
 
 void emitIns_SIMD_R_R_A(instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, GenTreeIndir* indir);
-void emitIns_SIMD_R_R_AR(instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber base);
+void emitIns_SIMD_R_R_AR(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber base, int offset);
 void emitIns_SIMD_R_R_C(
     instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, CORINFO_FIELD_HANDLE fldHnd, int offs);
 void emitIns_SIMD_R_R_R(instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg);

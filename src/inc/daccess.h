@@ -620,8 +620,10 @@ typedef struct _DacGlobals
 
     ULONG fn__ThePreStubPatchLabel;
     ULONG fn__PrecodeFixupThunk;
+#ifdef FEATURE_PREJIT
     ULONG fn__StubDispatchFixupStub;
-    ULONG fn__StubDispatchFixupPatchLabel;;
+    ULONG fn__StubDispatchFixupPatchLabel;
+#endif
 #ifdef FEATURE_COMINTEROP
     ULONG fn__Unknown_AddRef;
     ULONG fn__Unknown_AddRefSpecial;
@@ -2159,7 +2161,7 @@ public: name(int dummy) : base(dummy) {}
 #endif // FEATURE_PAL
 
 // helper macro to make the vtables unique for DAC
-#define VPTR_UNIQUE(unique) virtual int MakeVTableUniqueForDAC() {    STATIC_CONTRACT_SO_TOLERANT; return unique; }
+#define VPTR_UNIQUE(unique) virtual int MakeVTableUniqueForDAC() { return unique; }
 #define VPTR_UNIQUE_BaseDomain                          (100000)
 #define VPTR_UNIQUE_SystemDomain                        (VPTR_UNIQUE_BaseDomain + 1)
 #define VPTR_UNIQUE_ComMethodFrame                      (VPTR_UNIQUE_SystemDomain + 1)

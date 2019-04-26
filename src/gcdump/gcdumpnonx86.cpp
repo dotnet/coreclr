@@ -213,7 +213,7 @@ BOOL StackSlotStateChangeCallback (
         if (pState->fAnythingPrinted)
             pState->pfnPrintf("\n");
 
-        if ((CodeOffset == -2) && !pState->fAnythingPrinted)
+        if ((CodeOffset == (UINT32)-2) && !pState->fAnythingPrinted)
             pState->pfnPrintf("Untracked:");
         else
             pState->pfnPrintf("%08x", CodeOffset);
@@ -285,7 +285,11 @@ size_t      GCDump::DumpGCTable(PTR_CBYTE      gcInfoBlock,
                                                   | DECODE_GENERICS_INST_CONTEXT
                                                   | DECODE_GC_LIFETIMES
                                                   | DECODE_PROLOG_LENGTH
-                                                  | DECODE_RETURN_KIND),
+                                                  | DECODE_RETURN_KIND
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+                                                  | DECODE_HAS_TAILCALLS
+#endif
+                                                 ),
                              0);
 
     if (NO_SECURITY_OBJECT != hdrdecoder.GetSecurityObjectStackSlot() ||

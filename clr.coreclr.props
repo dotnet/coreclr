@@ -8,6 +8,8 @@
     <FeatureManagedEtw>true</FeatureManagedEtw>
     <FeaturePerfTracing>true</FeaturePerfTracing>
     <FeatureTypeEquivalence>true</FeatureTypeEquivalence>
+    <FeatureBasicFreeze>true</FeatureBasicFreeze>
+    <FeatureDefaultInterfaces>true</FeatureDefaultInterfaces>
     <ProfilingSupportedBuild>true</ProfilingSupportedBuild>
   </PropertyGroup>
 
@@ -18,8 +20,6 @@
     <FeatureArrayStubAsIL>true</FeatureArrayStubAsIL>
     <FeatureMulticastStubAsIL>true</FeatureMulticastStubAsIL>
     <FeatureStubsAsIL>true</FeatureStubsAsIL>
-
-    <FeatureCoreFxGlobalization>true</FeatureCoreFxGlobalization>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetsWindows)' == 'true'">

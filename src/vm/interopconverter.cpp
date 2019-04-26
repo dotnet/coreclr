@@ -207,7 +207,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, ComIpType ReqIpType, ComIpType
                     // This is a redirected type - see if we need to manually marshal it                    
                     if (redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Uri)
                     {
-                        UriMarshalingInfo *pUriMarshalInfo = GetAppDomain()->GetMarshalingData()->GetUriMarshalingInfo();
+                        UriMarshalingInfo *pUriMarshalInfo = GetAppDomain()->GetLoaderAllocator()->GetMarshalingData()->GetUriMarshalingInfo();
                         struct
                         {
                             OBJECTREF ref;
@@ -241,7 +241,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, ComIpType ReqIpType, ComIpType
                              redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventArgs)
                     {
                         MethodDesc *pMD;
-                        EventArgsMarshalingInfo *pInfo = GetAppDomain()->GetMarshalingData()->GetEventArgsMarshalingInfo();
+                        EventArgsMarshalingInfo *pInfo = GetAppDomain()->GetLoaderAllocator()->GetMarshalingData()->GetEventArgsMarshalingInfo();
 
                         if (redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventArgs)
                             pMD = pInfo->GetSystemNCCEventArgsToWinRTNCCEventArgsMD();
@@ -414,7 +414,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, REFIID iid, bool throwIfNoComI
 // GetObjectRefFromComIP
 // pUnk : input IUnknown
 // pMTClass : specifies the type of instance to be returned
-// NOTE:**  As per COM Rules, the IUnknown passed is shouldn't be AddRef'ed
+// NOTE:**  As per COM Rules, the IUnknown passed in shouldn't be AddRef'ed
 //+----------------------------------------------------------------------------
 void GetObjectRefFromComIP(OBJECTREF* pObjOut, IUnknown **ppUnk, MethodTable *pMTClass, MethodTable *pItfMT, DWORD dwFlags)
 {
@@ -456,26 +456,27 @@ void GetObjectRefFromComIP(OBJECTREF* pObjOut, IUnknown **ppUnk, MethodTable *pM
     if (pUnk != NULL)
     {
         // get CCW for IUnknown
-        ComCallWrapper* pWrap = GetCCWFromIUnknown(pUnk);
-        if (pWrap == NULL)
+        ComCallWrapper *ccw = GetCCWFromIUnknown(pUnk);
+        if (ccw == NULL)
         {
             // could be aggregated scenario
             HRESULT hr = SafeQueryInterface(pUnk, IID_IUnknown, &pOuter);
             LogInteropQI(pUnk, IID_IUnknown, hr, "GetObjectRefFromComIP: QI for Outer");
             IfFailThrow(hr);
-                
+
             // store the outer in the auto pointer
             pAutoOuterUnk = pOuter; 
-            pWrap = GetCCWFromIUnknown(pOuter);
+            ccw = GetCCWFromIUnknown(pOuter);
         }
 
-        if (pWrap != NULL)
-        {   // our tear-off
-            _ASSERTE(pWrap != NULL);
-            AppDomain* pCurrDomain = pThread->GetDomain();
-            ADID pObjDomain = pWrap->GetDomainID();
-            _ASSERTE(pObjDomain == pCurrDomain->GetId());
-            *pObjOut = pWrap->GetObjectRef();
+        // If the CCW was activated via COM, do not unwrap it.
+        // Unwrapping a CCW would deliver the underlying OBJECTREF,
+        // but when a managed class is activated via COM it should
+        // remain a COM object and adhere to COM rules.
+        if (ccw != NULL
+            && !ccw->IsComActivated())
+        {
+            *pObjOut = ccw->GetObjectRef();
         }
 
         if (*pObjOut != NULL)

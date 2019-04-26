@@ -27,6 +27,7 @@
 #ifdef FEATURE_COMINTEROP
 #define g_ECMAKeyToken "B77A5C561934E089"       // The ECMA key used by some framework assemblies: mscorlib, system, etc.
 #define g_FXKeyToken "b03f5f7f11d50a3a"         // The FX key used by other framework assemblies: System.Web, System.Drawing, etc.
+#define g_CorelibAsmName "System.Private.CoreLib"
 #define g_SystemAsmName "System"
 #define g_SystemRuntimeAsmName "System.Runtime"
 #define g_DrawingAsmName "System.Drawing"
@@ -137,6 +138,10 @@
 
 #define g_ThreadClassName "System.Threading.Thread"
 #define g_TypeClassName   "System.Type"
+
+#ifdef FEATURE_UTF8STRING
+#define g_Utf8StringName "Utf8String"
+#endif // FEATURE_UTF8STRING
 
 #define g_VariantClassName "System.Variant"
 #define g_GuidClassName "System.Guid"

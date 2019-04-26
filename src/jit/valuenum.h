@@ -281,7 +281,7 @@ public:
     ValueNum VNForLongCon(INT64 cnsVal);
     ValueNum VNForFloatCon(float cnsVal);
     ValueNum VNForDoubleCon(double cnsVal);
-    ValueNum VNForByrefCon(INT64 byrefVal);
+    ValueNum VNForByrefCon(size_t byrefVal);
 
 #ifdef _TARGET_64BIT_
     ValueNum VNForPtrSizeIntCon(INT64 cnsVal)
@@ -402,6 +402,20 @@ public:
     void VNUnpackExc(ValueNum vnWx, ValueNum* pvn, ValueNum* pvnx);
 
     void VNPUnpackExc(ValueNumPair vnWx, ValueNumPair* pvn, ValueNumPair* pvnx);
+
+    // This returns the Union of exceptions from vnWx and vnExcSet
+    ValueNum VNUnionExcSet(ValueNum vnWx, ValueNum vnExcSet);
+
+    // This returns the Union of exceptions from vnpWx and vnpExcSet
+    ValueNumPair VNPUnionExcSet(ValueNumPair vnpWx, ValueNumPair vnpExcSet);
+
+    // Sets the normal value to a new unique ValueNum
+    // Keeps any Exception set values
+    ValueNum VNMakeNormalUnique(ValueNum vn);
+
+    // Sets the liberal & conservative
+    // Keeps any Exception set values
+    ValueNumPair VNPMakeNormalUniquePair(ValueNumPair vnp);
 
     // If "vn" is a "VNF_ValWithExc(norm, excSet)" value, returns the "norm" argument; otherwise,
     // just returns "vn".
@@ -1236,12 +1250,13 @@ private:
         return m_doubleCnsMap;
     }
 
-    LongToValueNumMap* m_byrefCnsMap;
-    LongToValueNumMap* GetByrefCnsMap()
+    typedef VNMap<size_t> ByrefToValueNumMap;
+    ByrefToValueNumMap*   m_byrefCnsMap;
+    ByrefToValueNumMap*   GetByrefCnsMap()
     {
         if (m_byrefCnsMap == nullptr)
         {
-            m_byrefCnsMap = new (m_alloc) LongToValueNumMap(m_alloc);
+            m_byrefCnsMap = new (m_alloc) ByrefToValueNumMap(m_alloc);
         }
         return m_byrefCnsMap;
     }
@@ -1387,8 +1402,8 @@ struct ValueNumStore::VarTypConv<TYP_DOUBLE>
 template <>
 struct ValueNumStore::VarTypConv<TYP_BYREF>
 {
-    typedef INT64 Type;
-    typedef void* Lang;
+    typedef size_t Type;
+    typedef void*  Lang;
 };
 template <>
 struct ValueNumStore::VarTypConv<TYP_REF>

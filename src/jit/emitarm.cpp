@@ -3344,9 +3344,7 @@ void emitter::emitIns_R_R_R_I(instruction ins,
     assert(sf != INS_FLAGS_DONT_CARE);
 
     // 3-reg ops can't use the small instrdesc
-    instrDescCns* id = emitAllocInstrCns(attr);
-    id->idSetIsLargeCns();
-    id->idcCnsVal = imm;
+    instrDesc* id = emitNewInstrCns(attr, imm);
 
     id->idIns(ins);
     id->idInsFmt(fmt);
@@ -3474,7 +3472,8 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
     int      disp;
     unsigned undisp;
 
-    base = emitComp->lvaFrameAddress(varx, emitComp->funCurrentFunc()->funKind != FUNC_ROOT, &reg2, offs);
+    base = emitComp->lvaFrameAddress(varx, emitComp->funCurrentFunc()->funKind != FUNC_ROOT, &reg2, offs,
+                                     CodeGen::instIsFP(ins));
 
     disp   = base + offs;
     undisp = unsigned_abs(disp);
@@ -3495,7 +3494,7 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
         else
         {
             regNumber rsvdReg = codeGen->rsGetRsvdReg();
-            emitIns_genStackOffset(rsvdReg, varx, offs);
+            emitIns_genStackOffset(rsvdReg, varx, offs, /* isFloatUsage */ true);
             emitIns_R_R(INS_add, EA_4BYTE, rsvdReg, reg2);
             emitIns_R_R_I(ins, attr, reg1, rsvdReg, 0);
             return;
@@ -3519,7 +3518,7 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
         {
             // Load disp into a register
             regNumber rsvdReg = codeGen->rsGetRsvdReg();
-            emitIns_genStackOffset(rsvdReg, varx, offs);
+            emitIns_genStackOffset(rsvdReg, varx, offs, /* isFloatUsage */ false);
             fmt = IF_T2_E0;
         }
     }
@@ -3545,7 +3544,7 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
         {
             // Load disp into a register
             regNumber rsvdReg = codeGen->rsGetRsvdReg();
-            emitIns_genStackOffset(rsvdReg, varx, offs);
+            emitIns_genStackOffset(rsvdReg, varx, offs, /* isFloatUsage */ false);
             emitIns_R_R_R(ins, attr, reg1, reg2, rsvdReg);
             return;
         }
@@ -3583,13 +3582,14 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber reg1, int va
 }
 
 // generate the offset of &varx + offs into a register
-void emitter::emitIns_genStackOffset(regNumber r, int varx, int offs)
+void emitter::emitIns_genStackOffset(regNumber r, int varx, int offs, bool isFloatUsage)
 {
     regNumber regBase;
     int       base;
     int       disp;
 
-    base = emitComp->lvaFrameAddress(varx, emitComp->funCurrentFunc()->funKind != FUNC_ROOT, &regBase, offs);
+    base =
+        emitComp->lvaFrameAddress(varx, emitComp->funCurrentFunc()->funKind != FUNC_ROOT, &regBase, offs, isFloatUsage);
     disp = base + offs;
 
     emitIns_R_S(INS_movw, EA_4BYTE, r, varx, offs);
@@ -3633,7 +3633,8 @@ void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber reg1, int va
     int      disp;
     unsigned undisp;
 
-    base = emitComp->lvaFrameAddress(varx, emitComp->funCurrentFunc()->funKind != FUNC_ROOT, &reg2, offs);
+    base = emitComp->lvaFrameAddress(varx, emitComp->funCurrentFunc()->funKind != FUNC_ROOT, &reg2, offs,
+                                     CodeGen::instIsFP(ins));
 
     disp   = base + offs;
     undisp = unsigned_abs(disp);
@@ -3654,7 +3655,7 @@ void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber reg1, int va
         else
         {
             regNumber rsvdReg = codeGen->rsGetRsvdReg();
-            emitIns_genStackOffset(rsvdReg, varx, offs);
+            emitIns_genStackOffset(rsvdReg, varx, offs, /* isFloatUsage */ true);
             emitIns_R_R(INS_add, EA_4BYTE, rsvdReg, reg2);
             emitIns_R_R_I(ins, attr, reg1, rsvdReg, 0);
             return;
@@ -3676,7 +3677,7 @@ void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber reg1, int va
     {
         // Load disp into a register
         regNumber rsvdReg = codeGen->rsGetRsvdReg();
-        emitIns_genStackOffset(rsvdReg, varx, offs);
+        emitIns_genStackOffset(rsvdReg, varx, offs, /* isFloatUsage */ false);
         fmt = IF_T2_E0;
     }
     assert((fmt == IF_T1_J2) || (fmt == IF_T2_E0) || (fmt == IF_T2_H0) || (fmt == IF_T2_VLDST) || (fmt == IF_T2_K1));
@@ -6363,7 +6364,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         int       varNum = id->idAddr()->iiaLclVar.lvaVarNum();
         unsigned  ofs    = AlignDown(id->idAddr()->iiaLclVar.lvaOffset(), TARGET_POINTER_SIZE);
         regNumber regBase;
-        int       adr = emitComp->lvaFrameAddress(varNum, true, &regBase, ofs);
+        int adr = emitComp->lvaFrameAddress(varNum, true, &regBase, ofs, /* isFloatUsage */ false); // no float GC refs
         if (id->idGCref() != GCT_NONE)
         {
             emitGCvarLiveUpd(adr + ofs, varNum, id->idGCref(), dst);
@@ -6777,7 +6778,7 @@ void emitter::emitDispGC(emitAttr attr)
  *  Display (optionally) the instruction encoding in hex
  */
 
-void emitter::emitDispInsHex(BYTE* code, size_t sz)
+void emitter::emitDispInsHex(instrDesc* id, BYTE* code, size_t sz)
 {
     // We do not display the instruction hex if we want diff-able disassembly
     if (!emitComp->opts.disDiffable)
@@ -6789,6 +6790,27 @@ void emitter::emitDispInsHex(BYTE* code, size_t sz)
         else if (sz == 4)
         {
             printf("  %04X %04X", (*((unsigned short*)(code + 0))), (*((unsigned short*)(code + 2))));
+        }
+        else
+        {
+            assert(sz == 0);
+
+            // At least display the encoding size of the instruction, even if not displaying its actual encoding.
+            insSize isz = emitInsSize(id->idInsFmt());
+            switch (isz)
+            {
+                case ISZ_16BIT:
+                    printf("  2B");
+                    break;
+                case ISZ_32BIT:
+                    printf("  4B");
+                    break;
+                case ISZ_48BIT:
+                    printf("  6B");
+                    break;
+                default:
+                    unreached();
+            }
         }
     }
 }
@@ -6821,7 +6843,7 @@ void emitter::emitDispInsHelp(
 
     /* Display the instruction hex code */
 
-    emitDispInsHex(code, sz);
+    emitDispInsHex(id, code, sz);
 
     printf("      ");
 

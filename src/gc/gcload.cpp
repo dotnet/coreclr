@@ -13,11 +13,13 @@
 #include "gcenv.h"
 #include "gc.h"
 
+#ifndef DLLEXPORT
 #ifdef _MSC_VER
 #define DLLEXPORT __declspec(dllexport)
 #else
 #define DLLEXPORT __attribute__ ((visibility ("default")))
 #endif // _MSC_VER
+#endif // DLLEXPORT
 
 #define GC_EXPORT extern "C" DLLEXPORT
 
@@ -97,16 +99,12 @@ GC_Initialize(
         SVR::PopulateDacVars(gcDacVars);
     }
     else
+#endif
     {
         g_gc_heap_type = GC_HEAP_WKS;
         heap = WKS::CreateGCHeap();
         WKS::PopulateDacVars(gcDacVars);
     }
-#else
-    g_gc_heap_type = GC_HEAP_WKS;
-    heap = WKS::CreateGCHeap();
-    WKS::PopulateDacVars(gcDacVars);
-#endif
 
     PopulateHandleTableDacVars(gcDacVars);
     if (heap == nullptr)

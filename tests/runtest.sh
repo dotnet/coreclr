@@ -30,18 +30,19 @@ function print_usage {
     echo '  --jitforcerelocs                 : Runs the tests with COMPlus_ForceRelocs=1'
     echo '  --jitdisasm                      : Runs jit-dasm on the tests'
     echo '  --gcstresslevel=<n>              : Runs the tests with COMPlus_GCStress=n'
-    echo '  --gcname=<n>                     : Runs the tests with COMPlus_GCName=n'
-    echo '  --ilasmroundtrip                 : Runs ilasm round trip on the tests'
     echo '    0: None                                1: GC on all allocs and '"'easy'"' places'
     echo '    2: GC on transitions to preemptive GC  4: GC on every allowable JITed instr'
     echo '    8: GC on every allowable NGEN instr   16: GC only on a unique stack trace'
+    echo '  --gcname=<n>                     : Runs the tests with COMPlus_GCName=n'
     echo '  --long-gc                        : Runs the long GC tests'
+    echo '  --ilasmroundtrip                 : Runs ilasm round trip on the tests'
     echo '  --gcsimulator                    : Runs the GCSimulator tests'
     echo '  --tieredcompilation              : Runs the tests with COMPlus_TieredCompilation=1'
     echo '  --link <ILlink>                  : Runs the tests after linking via ILlink'
     echo '  --xunitOutputPath=<path>         : Create xUnit XML report at the specifed path (default: <test root>/coreclrtests.xml)'
     echo '  --buildXUnitWrappers             : Force creating the xunit wrappers, this is useful if there have been changes to issues.targets'
     echo '  --printLastResultsOnly           : Print the results of the last run'
+    echo '  --runincontext                   : Run each tests in an unloadable AssemblyLoadContext'
     echo ''
     echo 'CoreFX Test Options '
     echo '  --corefxtests                    : Runs CoreFX tests'
@@ -59,8 +60,7 @@ function create_testhost
     fi
 
     # Initialize test variables
-    local buildToolsDir=$coreClrSrc/Tools
-    local dotnetExe=$buildToolsDir/dotnetcli/dotnet
+    local dotnetExe=$coreClrSrc/dotnet.sh
     local coreClrSrcTestDir=$coreClrSrc/tests
     
     if [ -z $coreClrBinDir ]; then
@@ -225,6 +225,7 @@ printLastResultsOnly=
 generateLayoutOnly=
 generateLayout=
 runSequential=0
+runincontext=0
 
 for i in "$@"
 do
@@ -398,6 +399,9 @@ do
         --xunitOutputPath=*)
             xunitOutputPath=${i#*=}
             ;;
+        --runincontext)
+            runincontext=1
+            ;;
         *)
             echo "Unknown switch: $i"
             print_usage
@@ -556,6 +560,11 @@ fi
 
 if [ "$limitedCoreDumps" == "ON" ]; then
     runtestPyArguments+=("--limited_core_dumps")
+fi
+
+if [[ ! "$runincontext" -eq 0 ]]; then
+    echo "Running in an unloadable AssemblyLoadContext"
+    runtestPyArguments+=("--run_in_context")
 fi
 
 # Default to python3 if it is installed

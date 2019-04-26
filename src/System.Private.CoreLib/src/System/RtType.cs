@@ -14,6 +14,8 @@ using System.Threading;
 using DebuggerStepThroughAttribute = System.Diagnostics.DebuggerStepThroughAttribute;
 using MdToken = System.Reflection.MetadataToken;
 
+using Internal.Runtime.CompilerServices;
+
 namespace System
 {
     // this is a work around to get the concept of a calli. It's not as fast but it would be interesting to 
@@ -164,7 +166,7 @@ namespace System
 
                 public unsafe Filter(byte* pUtf8Name, int cUtf8Name, MemberListType listType)
                 {
-                    m_name = new MdUtf8String((void*)pUtf8Name, cUtf8Name);
+                    m_name = new MdUtf8String(pUtf8Name, cUtf8Name);
                     m_listType = listType;
                     m_nameHash = 0;
 
@@ -229,9 +231,6 @@ namespace System
 
                 internal MemberInfoCache(RuntimeTypeCache runtimeTypeCache)
                 {
-#if MDA_SUPPORTED
-                    Mda.MemberInfoCacheCreation();
-#endif
                     m_runtimeTypeCache = runtimeTypeCache;
                 }
 
@@ -747,7 +746,7 @@ namespace System
                     return list.ToArray();
                 }
 
-                private unsafe RuntimeFieldInfo[] PopulateFields(Filter filter)
+                private RuntimeFieldInfo[] PopulateFields(Filter filter)
                 {
                     ListBuilder<RuntimeFieldInfo> list = new ListBuilder<RuntimeFieldInfo>();
 
@@ -870,7 +869,7 @@ namespace System
                     }
                 }
 
-                private unsafe void PopulateLiteralFields(Filter filter, RuntimeType declaringType, ref ListBuilder<RuntimeFieldInfo> list)
+                private void PopulateLiteralFields(Filter filter, RuntimeType declaringType, ref ListBuilder<RuntimeFieldInfo> list)
                 {
                     Debug.Assert(declaringType != null);
                     Debug.Assert(ReflectedType != null);
@@ -1039,7 +1038,7 @@ namespace System
                     return list.ToArray();
                 }
 
-                private unsafe RuntimeType[] PopulateNestedClasses(Filter filter)
+                private RuntimeType[] PopulateNestedClasses(Filter filter)
                 {
                     RuntimeType declaringType = ReflectedType;
 
@@ -1089,7 +1088,7 @@ namespace System
                     return list.ToArray();
                 }
 
-                private unsafe RuntimeEventInfo[] PopulateEvents(Filter filter)
+                private RuntimeEventInfo[] PopulateEvents(Filter filter)
                 {
                     Debug.Assert(ReflectedType != null);
 
@@ -1121,7 +1120,7 @@ namespace System
                     return list.ToArray();
                 }
 
-                private unsafe void PopulateEvents(
+                private void PopulateEvents(
                     Filter filter, RuntimeType declaringType, Dictionary<string, RuntimeEventInfo> csEventInfos, ref ListBuilder<RuntimeEventInfo> list)
                 {
                     int tkDeclaringType = RuntimeTypeHandle.GetToken(declaringType);
@@ -1181,7 +1180,7 @@ namespace System
                     }
                 }
 
-                private unsafe RuntimePropertyInfo[] PopulateProperties(Filter filter)
+                private RuntimePropertyInfo[] PopulateProperties(Filter filter)
                 {
                     Debug.Assert(ReflectedType != null);
 
@@ -1221,7 +1220,7 @@ namespace System
                     return list.ToArray();
                 }
 
-                private unsafe void PopulateProperties(
+                private void PopulateProperties(
                     Filter filter,
                     RuntimeType declaringType,
                     Dictionary<string, List<RuntimePropertyInfo>> csPropertyInfos,
@@ -1511,7 +1510,7 @@ namespace System
                 }
             }
 
-            internal unsafe string GetNameSpace()
+            internal string GetNameSpace()
             {
                 // @Optimization - Use ConstructName to populate m_namespace
                 if (m_namespace == null)
@@ -1534,7 +1533,7 @@ namespace System
                 set => m_typeCode = value;
             }
 
-            internal unsafe RuntimeType GetEnclosingType()
+            internal RuntimeType GetEnclosingType()
             {
                 if (m_enclosingType == null)
                 {
@@ -1731,7 +1730,7 @@ namespace System
             return retval;
         }
 
-        internal static unsafe MethodBase GetMethodBase(RuntimeType reflectedType, RuntimeMethodHandleInternal methodHandle)
+        internal static MethodBase GetMethodBase(RuntimeType reflectedType, RuntimeMethodHandleInternal methodHandle)
         {
             Debug.Assert(!methodHandle.IsNullHandle());
 
@@ -1777,9 +1776,9 @@ namespace System
                     }
 
                     if (!loaderAssuredCompatible)
-                        throw new ArgumentException(string.Format(
-                            CultureInfo.CurrentCulture, SR.Argument_ResolveMethodHandle,
-                            reflectedType.ToString(), declaredType.ToString()));
+                        throw new ArgumentException(SR.Format(
+                            SR.Argument_ResolveMethodHandle,
+                            reflectedType, declaredType));
                 }
                 // Action<in string> is assignable from, but not a subclass of Action<in object>.
                 else if (declaredType.IsGenericType)
@@ -1805,9 +1804,9 @@ namespace System
                     if (baseType == null)
                     {
                         // ignoring instantiation is the ReflectedType is not a subtype of the DeclaringType
-                        throw new ArgumentException(string.Format(
-                            CultureInfo.CurrentCulture, SR.Argument_ResolveMethodHandle,
-                            reflectedType.ToString(), declaredType.ToString()));
+                        throw new ArgumentException(SR.Format(
+                            SR.Argument_ResolveMethodHandle,
+                            reflectedType, declaredType));
                     }
 
                     // remap the method to same method on the subclass ReflectedType
@@ -1873,12 +1872,12 @@ namespace System
             set => Cache.DomainInitialized = value;
         }
 
-        internal static unsafe FieldInfo GetFieldInfo(IRuntimeFieldInfo fieldHandle)
+        internal static FieldInfo GetFieldInfo(IRuntimeFieldInfo fieldHandle)
         {
             return GetFieldInfo(RuntimeFieldHandle.GetApproxDeclaringType(fieldHandle), fieldHandle);
         }
 
-        internal static unsafe FieldInfo GetFieldInfo(RuntimeType reflectedType, IRuntimeFieldInfo field)
+        internal static FieldInfo GetFieldInfo(RuntimeType reflectedType, IRuntimeFieldInfo field)
         {
             RuntimeFieldHandleInternal fieldHandle = field.Value;
 
@@ -1895,10 +1894,10 @@ namespace System
                     if (!RuntimeFieldHandle.AcquiresContextFromThis(fieldHandle) ||
                         !RuntimeTypeHandle.CompareCanonicalHandles(declaredType, reflectedType))
                     {
-                        throw new ArgumentException(string.Format(
-                            CultureInfo.CurrentCulture, SR.Argument_ResolveFieldHandle,
-                            reflectedType.ToString(),
-                            declaredType.ToString()));
+                        throw new ArgumentException(SR.Format(
+                            SR.Argument_ResolveFieldHandle,
+                            reflectedType,
+                            declaredType));
                     }
                 }
             }
@@ -1909,7 +1908,7 @@ namespace System
         }
 
         // Called internally
-        private static unsafe PropertyInfo GetPropertyInfo(RuntimeType reflectedType, int tkProperty)
+        private static PropertyInfo GetPropertyInfo(RuntimeType reflectedType, int tkProperty)
         {
             RuntimePropertyInfo property = null;
             RuntimePropertyInfo[] candidates =
@@ -1930,7 +1929,7 @@ namespace System
         {
             if (type.IsPointer || type.IsByRef || type == typeof(void))
                 throw new ArgumentException(
-                    SR.Format(SR.Argument_NeverValidGenericArgument, type.ToString()));
+                    SR.Format(SR.Argument_NeverValidGenericArgument, type));
         }
 
 
@@ -1986,7 +1985,7 @@ namespace System
                     typeContext, methodContext, genericArgument.GetTypeHandleInternal().GetTypeChecked()))
                 {
                     throw new ArgumentException(
-                        SR.Format(SR.Argument_GenConstraintViolation, i.ToString(CultureInfo.CurrentCulture), genericArgument.ToString(), definition.ToString(), genericParameter.ToString()), e);
+                        SR.Format(SR.Argument_GenConstraintViolation, i.ToString(), genericArgument, definition, genericParameter), e);
                 }
             }
         }
@@ -2379,30 +2378,44 @@ namespace System
 
         private RuntimeTypeCache Cache
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (m_cache == IntPtr.Zero)
+                if (m_cache != IntPtr.Zero)
                 {
-                    IntPtr newgcHandle = new RuntimeTypeHandle(this).GetGCHandle(GCHandleType.WeakTrackResurrection);
-                    IntPtr gcHandle = Interlocked.CompareExchange(ref m_cache, newgcHandle, IntPtr.Zero);
-                    // Leak the handle if the type is collectible. It will be reclaimed when
-                    // the type goes away.
-                    if (gcHandle != IntPtr.Zero && !IsCollectible)
-                        GCHandle.InternalFree(newgcHandle);
+                    object cache = GCHandle.InternalGet(m_cache);
+                    if (cache != null)
+                    {
+                        Debug.Assert(cache is RuntimeTypeCache);
+                        return Unsafe.As<RuntimeTypeCache>(cache);
+                    }
                 }
-
-                RuntimeTypeCache cache = GCHandle.InternalGet(m_cache) as RuntimeTypeCache;
-                if (cache == null)
-                {
-                    cache = new RuntimeTypeCache(this);
-                    RuntimeTypeCache existingCache = GCHandle.InternalCompareExchange(m_cache, cache, null, false) as RuntimeTypeCache;
-                    if (existingCache != null)
-                        cache = existingCache;
-                }
-
-                Debug.Assert(cache != null);
-                return cache;
+                return InitializeCache();
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private RuntimeTypeCache InitializeCache()
+        {
+            if (m_cache == IntPtr.Zero)
+            {
+                IntPtr newgcHandle = new RuntimeTypeHandle(this).GetGCHandle(GCHandleType.WeakTrackResurrection);
+                IntPtr gcHandle = Interlocked.CompareExchange(ref m_cache, newgcHandle, IntPtr.Zero);
+                if (gcHandle != IntPtr.Zero)
+                    GCHandle.InternalFree(newgcHandle);
+            }
+
+            RuntimeTypeCache cache = (RuntimeTypeCache)GCHandle.InternalGet(m_cache);
+            if (cache == null)
+            {
+                cache = new RuntimeTypeCache(this);
+                RuntimeTypeCache existingCache = (RuntimeTypeCache)GCHandle.InternalCompareExchange(m_cache, cache, null);
+                if (existingCache != null)
+                    cache = existingCache;
+            }
+
+            Debug.Assert(cache != null);
+            return cache;
         }
 
         private string GetDefaultMemberName()
@@ -2598,11 +2611,7 @@ namespace System
         public override Type[] GetInterfaces()
         {
             RuntimeType[] candidates = Cache.GetInterfaceList(MemberListType.All, null);
-            Type[] interfaces = new Type[candidates.Length];
-            for (int i = 0; i < candidates.Length; i++)
-                JitHelpers.UnsafeSetArrayElement(interfaces, i, candidates[i]);
-
-            return interfaces;
+            return new ReadOnlySpan<Type>(candidates).ToArray();
         }
 
         public override Type[] GetNestedTypes(BindingFlags bindingAttr)
@@ -3216,6 +3225,25 @@ namespace System
             return false;
         }
 
+#if FEATURE_TYPEEQUIVALENCE
+        // Reflexive, symmetric, transitive.
+        public override bool IsEquivalentTo(Type other)
+        {
+            var otherRtType = other as RuntimeType;
+            if (otherRtType is null)
+            {
+                return false;
+            }
+
+            if (otherRtType == this)
+            {
+                return true;
+            }
+
+            return RuntimeTypeHandle.IsEquivalentTo(this, otherRtType);
+        }
+#endif // FEATURE_TYPEEQUIVALENCE
+
         public override Type BaseType => GetBaseType();
 
         private RuntimeType GetBaseType()
@@ -3336,14 +3364,15 @@ namespace System
 #if FEATURE_COMINTEROP
         internal override bool IsWindowsRuntimeObjectImpl() => IsWindowsRuntimeObjectType(this);
 
-        internal override bool IsExportedToWindowsRuntimeImpl() => IsTypeExportedToWindowsRuntime(this);
-
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool IsWindowsRuntimeObjectType(RuntimeType type);
 
+#if FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
+        internal override bool IsExportedToWindowsRuntimeImpl() => IsTypeExportedToWindowsRuntime(this);
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool IsTypeExportedToWindowsRuntime(RuntimeType type);
-
+#endif // FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
 #endif // FEATURE_COMINTEROP
 
         internal bool IsDelegate() => GetBaseType() == typeof(MulticastDelegate);
@@ -3414,11 +3443,7 @@ namespace System
             string[] ret = Enum.InternalGetNames(this);
 
             // Make a copy since we can't hand out the same array since users can modify them
-            string[] retVal = new string[ret.Length];
-
-            Array.Copy(ret, retVal, ret.Length);
-
-            return retVal;
+            return new ReadOnlySpan<string>(ret).ToArray();
         }
 
         public override Array GetEnumValues()
@@ -3461,7 +3486,7 @@ namespace System
             if (valueType.IsEnum)
             {
                 if (!valueType.IsEquivalentTo(this))
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType.ToString(), ToString()));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType, this));
 
                 valueType = (RuntimeType)valueType.GetEnumUnderlyingType();
             }
@@ -3482,7 +3507,7 @@ namespace System
             {
                 RuntimeType underlyingType = Enum.InternalGetUnderlyingType(this);
                 if (underlyingType != valueType)
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType.ToString(), underlyingType.ToString()));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType, underlyingType));
 
                 ulong[] ulValues = Enum.InternalGetValues(this);
                 ulong ulValue = Enum.ToUInt64(value);
@@ -3682,7 +3707,7 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern object AllocateValueType(RuntimeType type, object value, bool fForceTypeChange);
 
-        internal unsafe object CheckValue(object value, Binder binder, CultureInfo culture, BindingFlags invokeAttr)
+        internal object CheckValue(object value, Binder binder, CultureInfo culture, BindingFlags invokeAttr)
         {
             // this method is used by invocation in reflection to check whether a value can be assigned to type.
             if (IsInstanceOfType(value))
@@ -3745,7 +3770,7 @@ namespace System
             }
 
             if ((invokeAttr & BindingFlags.ExactBinding) == BindingFlags.ExactBinding)
-                throw new ArgumentException(string.Format(CultureInfo.CurrentUICulture, SR.Arg_ObjObjEx, value.GetType(), this));
+                throw new ArgumentException(SR.Format(SR.Arg_ObjObjEx, value.GetType(), this));
 
             return TryChangeType(value, binder, culture, needsSpecialCast);
         }
@@ -3786,7 +3811,7 @@ namespace System
                 }
             }
 
-            throw new ArgumentException(string.Format(CultureInfo.CurrentUICulture, SR.Arg_ObjObjEx, value.GetType(), this));
+            throw new ArgumentException(SR.Format(SR.Arg_ObjObjEx, value.GetType(), this));
         }
 
         // GetDefaultMembers
@@ -4089,8 +4114,7 @@ namespace System
                 if (results != null)
                 {
                     Debug.Assert(results.Count > 1);
-                    finalists = new MethodInfo[results.Count];
-                    results.CopyTo(finalists);
+                    finalists = results.ToArray();
                 }
             }
 
@@ -4141,8 +4165,7 @@ namespace System
                 if (results != null)
                 {
                     Debug.Assert(results.Count > 1);
-                    finalists = new MethodInfo[results.Count];
-                    results.CopyTo(finalists);
+                    finalists = results.ToArray();
                 }
             }
 
@@ -4325,7 +4348,7 @@ namespace System
         }
 
         internal object CreateInstanceImpl(
-            BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
+            BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture)
         {
             CreateInstanceCheckThis();
 
@@ -4333,8 +4356,6 @@ namespace System
 
             if (args == null)
                 args = Array.Empty<object>();
-
-            int argCnt = args.Length;
 
             // Without a binder we need to do use the default binder...
             if (binder == null)
@@ -4344,7 +4365,7 @@ namespace System
             // so a call to GetMemberCons would fail
             bool publicOnly = (bindingAttr & BindingFlags.NonPublic) == 0;
             bool wrapExceptions = (bindingAttr & BindingFlags.DoNotWrapExceptions) == 0;
-            if (argCnt == 0 && (bindingAttr & BindingFlags.Public) != 0 && (bindingAttr & BindingFlags.Instance) != 0
+            if (args.Length == 0 && (bindingAttr & BindingFlags.Public) != 0 && (bindingAttr & BindingFlags.Instance) != 0
                 && (IsGenericCOMObjectImpl() || IsValueType))
             {
                 server = CreateInstanceDefaultCtor(publicOnly, false, true, wrapExceptions);
@@ -4355,8 +4376,8 @@ namespace System
                 List<MethodBase> matches = new List<MethodBase>(candidates.Length);
 
                 // We cannot use Type.GetTypeArray here because some of the args might be null
-                Type[] argsType = new Type[argCnt];
-                for (int i = 0; i < argCnt; i++)
+                Type[] argsType = new Type[args.Length];
+                for (int i = 0; i < args.Length; i++)
                 {
                     if (args[i] != null)
                     {
@@ -4370,15 +4391,12 @@ namespace System
                         matches.Add(candidates[i]);
                 }
 
-                MethodBase[] cons = new MethodBase[matches.Count];
-                matches.CopyTo(cons);
-                if (cons != null && cons.Length == 0)
-                    cons = null;
-
-                if (cons == null)
+                if (matches.Count == 0)
                 {
                     throw new MissingMethodException(SR.Format(SR.MissingConstructor_Name, FullName));
                 }
+
+                MethodBase[] cons = matches.ToArray();
 
                 MethodBase invokeMethod;
                 object state = null;
@@ -4400,8 +4418,7 @@ namespace System
                     {
                         Debug.Assert((invokeMethod.CallingConvention & CallingConventions.VarArgs) ==
                                             CallingConventions.VarArgs);
-                        throw new NotSupportedException(string.Format(CultureInfo.CurrentCulture,
-                            SR.NotSupported_CallToVarArg));
+                        throw new NotSupportedException(SR.NotSupported_CallToVarArg);
                     }
 
                     // fast path??
@@ -4808,108 +4825,69 @@ namespace System
     #region Library
     internal readonly unsafe struct MdUtf8String
     {
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern unsafe bool EqualsCaseSensitive(void* szLhs, void* szRhs, int cSz);
-
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern unsafe bool EqualsCaseInsensitive(void* szLhs, void* szRhs, int cSz);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern unsafe uint HashCaseInsensitive(void* sz, int cSz);
 
-        private static int GetUtf8StringByteLength(void* pUtf8String)
-        {
-            int len = 0;
-
-            unsafe
-            {
-                byte* pItr = (byte*)pUtf8String;
-
-                while (*pItr != 0)
-                {
-                    len++;
-                    pItr++;
-                }
-            }
-
-            return len;
-        }
-
-        private readonly void* m_pStringHeap;        // This is the raw UTF8 string.
+        private readonly byte* m_pStringHeap;        // This is the raw UTF8 string.
         private readonly int m_StringHeapByteLength;
 
         internal MdUtf8String(void* pStringHeap)
         {
-            m_pStringHeap = pStringHeap;
+            byte* pStringBytes = (byte*)pStringHeap;
             if (pStringHeap != null)
             {
-                m_StringHeapByteLength = GetUtf8StringByteLength(pStringHeap);
+                m_StringHeapByteLength = string.strlen(pStringBytes);
             }
             else
             {
                 m_StringHeapByteLength = 0;
             }
+
+            m_pStringHeap = pStringBytes;
         }
 
-        internal unsafe MdUtf8String(void* pUtf8String, int cUtf8String)
+        internal unsafe MdUtf8String(byte* pUtf8String, int cUtf8String)
         {
             m_pStringHeap = pUtf8String;
             m_StringHeapByteLength = cUtf8String;
         }
 
-        internal unsafe bool Equals(MdUtf8String s)
+        // Very common called version of the Equals pair
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool Equals(MdUtf8String s)
         {
-            if (m_pStringHeap == null)
+            if (s.m_StringHeapByteLength != m_StringHeapByteLength)
             {
-                return s.m_StringHeapByteLength == 0;
+                return false;
             }
-            if ((s.m_StringHeapByteLength == m_StringHeapByteLength) && (m_StringHeapByteLength != 0))
+            else
             {
-                return EqualsCaseSensitive(s.m_pStringHeap, m_pStringHeap, m_StringHeapByteLength);
+                return SpanHelpers.SequenceEqual<byte>(ref *s.m_pStringHeap, ref *m_pStringHeap, m_StringHeapByteLength);
             }
-            return false;
         }
 
-        internal unsafe bool EqualsCaseInsensitive(MdUtf8String s)
+        internal bool EqualsCaseInsensitive(MdUtf8String s)
         {
-            if (m_pStringHeap == null)
+            if (s.m_StringHeapByteLength != m_StringHeapByteLength)
             {
-                return s.m_StringHeapByteLength == 0;
+                return false;
             }
-            if ((s.m_StringHeapByteLength == m_StringHeapByteLength) && (m_StringHeapByteLength != 0))
+            else
             {
-                return EqualsCaseInsensitive(s.m_pStringHeap, m_pStringHeap, m_StringHeapByteLength);
+                return (m_StringHeapByteLength == 0) || EqualsCaseInsensitive(s.m_pStringHeap, m_pStringHeap, m_StringHeapByteLength);
             }
-            return false;
         }
 
-        internal unsafe uint HashCaseInsensitive()
+        internal uint HashCaseInsensitive()
         {
             return HashCaseInsensitive(m_pStringHeap, m_StringHeapByteLength);
         }
 
         public override string ToString()
-        {
-            unsafe
-            {
-                byte* buf = stackalloc byte[m_StringHeapByteLength];
-                byte* pItr = (byte*)m_pStringHeap;
-
-                for (int currentPos = 0; currentPos < m_StringHeapByteLength; currentPos++)
-                {
-                    buf[currentPos] = *pItr;
-                    pItr++;
-                }
-
-                if (m_StringHeapByteLength == 0)
-                    return "";
-
-                int cResult = Encoding.UTF8.GetCharCount(buf, m_StringHeapByteLength);
-                char* result = stackalloc char[cResult];
-                Encoding.UTF8.GetChars(buf, m_StringHeapByteLength, result, cResult);
-                return new string(result, 0, cResult);
-            }
-        }
+            => Encoding.UTF8.GetString(new ReadOnlySpan<byte>(m_pStringHeap, m_StringHeapByteLength));
     }
     #endregion
 }
@@ -4980,10 +4958,8 @@ namespace System.Reflection
 
         private static int GetHashCodeHelper(K key)
         {
-            string sKey = key as string;
-
             // For strings we don't want the key to differ across domains as CerHashtable might be shared.
-            if (sKey == null)
+            if (!(key is string sKey))
             {
                 return key.GetHashCode();
             }

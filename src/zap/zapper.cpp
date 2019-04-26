@@ -21,6 +21,7 @@ bool g_fNGenWinMDResilient;
 
 #ifdef FEATURE_READYTORUN_COMPILER
 bool g_fReadyToRunCompilation;
+bool g_fLargeVersionBubble;
 #endif
 
 static bool s_fNGenNoMetaData;
@@ -110,6 +111,7 @@ STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembl
 
 #ifdef FEATURE_READYTORUN_COMPILER
         g_fReadyToRunCompilation = !!(dwFlags & NGENWORKER_FLAGS_READYTORUN);
+        g_fLargeVersionBubble = !!(dwFlags & NGENWORKER_FLAGS_LARGEVERSIONBUBBLE);
 #endif
 
         if (pLogger != NULL)
@@ -834,37 +836,6 @@ BOOL Zapper::IsAssembly(LPCWSTR path)
     return TRUE;
 }
 
-/*static*/ HRESULT Zapper::GenericDomainCallback(LPVOID pvArgs)
-{
-    STATIC_CONTRACT_ENTRY_POINT;
-
-    HRESULT hr = S_OK;
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-    EX_TRY
-    {
-        REMOVE_STACK_GUARD;
-        ((DomainCallback *) pvArgs)->doCallback();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    END_ENTRYPOINT_NOTHROW;
-    
-    return hr;
-}
-
-void Zapper::InvokeDomainCallback(DomainCallback *callback)
-{
-#ifdef CROSSGEN_COMPILE
-    // Call the callback directly for better error messages (avoids exception swallowing and rethrow)
-    callback->doCallback();
-#else
-    IfFailThrow(m_pEECompileInfo->MakeCrossDomainCallback(m_pDomain,
-                                                          Zapper::GenericDomainCallback,
-                                                          (LPVOID) callback));
-#endif
-}
-
 void Zapper::SetContextInfo(LPCWSTR assemblyName)
 {
     // A special case:  If we're compiling mscorlib, ignore m_exeName and don't set any context. 
@@ -959,73 +930,16 @@ void Zapper::CreateCompilationDomain()
 
 void Zapper::CreateDependenciesLookupDomain()
 {
-    class Callback : public DomainCallback
-    {
-    public:
-        Callback(Zapper *pZapper)
-        {
-            this->pZapper = pZapper;
-        }
-
-        virtual void doCallback()
-        {
-            pZapper->CreateDependenciesLookupDomainInCurrentDomain();
-        }
-
-        Zapper* pZapper;
-    };
-
-
     CreateCompilationDomain();
-
-    Callback callback(this);
-    InvokeDomainCallback(&callback);
+    CreateDependenciesLookupDomainInCurrentDomain();
 }
 
 void Zapper::CreatePdb(BSTR pAssemblyPathOrName, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
 {
-    class Callback : public DomainCallback {
-
-    public:
-
-        Callback(Zapper *pZapper, BSTR pAssemblyPathOrName, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
-            : m_pZapper(pZapper),
-              m_pAssemblyPathOrName(pAssemblyPathOrName),
-              m_pNativeImagePath(pNativeImagePath),
-              m_pPdbPath(pPdbPath),
-              m_pdbLines(pdbLines),
-              m_pManagedPdbSearchPath(pManagedPdbSearchPath)
-        {
-        }
-                
-        virtual void doCallback()
-        {
-            m_pZapper->CreatePdbInCurrentDomain(m_pAssemblyPathOrName, m_pNativeImagePath, m_pPdbPath, m_pdbLines, m_pManagedPdbSearchPath);
-        };
-
-    private:
-
-        Zapper *m_pZapper;
-        BSTR m_pAssemblyPathOrName;
-        BSTR m_pNativeImagePath;
-        BSTR m_pPdbPath;
-        BOOL m_pdbLines;
-        BSTR m_pManagedPdbSearchPath;
-
-    };
-
 #ifdef CROSSGEN_COMPILE
     CreateCompilationDomain();
 #endif
-    _ASSERTE(m_pDomain);
 
-    Callback callback(this, pAssemblyPathOrName, pNativeImagePath, pPdbPath, pdbLines, pManagedPdbSearchPath);
-    InvokeDomainCallback(&callback);
-}
-
-
-void Zapper::CreatePdbInCurrentDomain(BSTR pAssemblyPathOrName, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
-{
     EX_TRY
     {
         CORINFO_ASSEMBLY_HANDLE hAssembly = NULL;
@@ -1096,26 +1010,6 @@ void Zapper::ComputeDependencies(LPCWSTR pAssemblyName, CORCOMPILE_NGEN_SIGNATUR
 
 HRESULT Zapper::Compile(LPCWSTR string, CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
 {
-    class Callback : public DomainCallback
-    {
-    public:
-        Callback(Zapper *pZapper, LPCWSTR pAssemblyName, CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
-        {
-            this->pZapper         = pZapper;
-            this->pAssemblyName   = pAssemblyName;
-            this->pNativeImageSig = pNativeImageSig;
-        }
-
-        virtual void doCallback()
-        {
-            pZapper->CompileInCurrentDomain(pAssemblyName, pNativeImageSig);
-        }
-
-        Zapper* pZapper;
-        LPCWSTR pAssemblyName;
-        CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig;
-    };
-
     HRESULT hr = S_OK;
 
     bool fMscorlib = false;
@@ -1139,8 +1033,7 @@ HRESULT Zapper::Compile(LPCWSTR string, CORCOMPILE_NGEN_SIGNATURE * pNativeImage
 
     EX_TRY
     {
-        Callback callback(this, string, pNativeImageSig);
-        InvokeDomainCallback(&callback);
+        CompileInCurrentDomain(string, pNativeImageSig);
     }
     EX_CATCH
     {

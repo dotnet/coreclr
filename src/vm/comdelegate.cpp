@@ -479,7 +479,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
         {
             filledSlots[i] = false;
         }
-        for (int i = 0; i < pShuffleEntryArray->GetCount(); i++)
+        for (unsigned int i = 0; i < pShuffleEntryArray->GetCount(); i++)
         {
             entry = (*pShuffleEntryArray)[i];
 
@@ -487,7 +487,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
             // of the entry that filled it in.
             if (filledSlots[GetNormalizedArgumentSlotIndex(entry.srcofs)])
             {
-                int j;
+                unsigned int j;
                 for (j = i; (*pShuffleEntryArray)[j].dstofs != entry.srcofs; j--)
                     (*pShuffleEntryArray)[j] = (*pShuffleEntryArray)[j - 1];
 
@@ -1018,7 +1018,7 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
         else
 #ifdef HAS_THISPTR_RETBUF_PRECODE
         if (pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
-            pTargetCode = pTargetMethod->GetLoaderAllocatorForCode()->GetFuncPtrStubs()->GetFuncPtrStub(pTargetMethod, PRECODE_THISPTR_RETBUF);
+            pTargetCode = pTargetMethod->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pTargetMethod, PRECODE_THISPTR_RETBUF);
         else
 #endif // HAS_THISPTR_RETBUF_PRECODE
             pTargetCode = pTargetMethod->GetMultiCallableAddrOfCode();
@@ -1188,8 +1188,7 @@ LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
             pUMEntryThunk->LoadTimeInit(
                 pManagedTargetForDiagnostics,
                 objhnd,
-                pUMThunkMarshInfo, pInvokeMeth,
-                GetAppDomain()->GetId());
+                pUMThunkMarshInfo, pInvokeMeth);
 
 #ifdef FEATURE_WINDOWSPHONE
             // Perform the runtime initialization lazily for better startup time. Lazy initialization
@@ -1301,9 +1300,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         
         pUMEntryThunk = (UMEntryThunk*)pInteropInfo->GetUMEntryThunk();
         _ASSERTE(pUMEntryThunk);
-
-        if (pUMEntryThunk->GetDomainId() != GetAppDomain()->GetId())
-            COMPlusThrow(kNotSupportedException, W("NotSupported_DelegateMarshalToWrongDomain"));
 
         GCPROTECT_END();
         return pDelegate;
@@ -1657,7 +1653,7 @@ FCIMPL3(PCODE, COMDelegate::AdjustTarget, Object* refThisUNSAFE, Object* targetU
 
     // Use the Unboxing stub for value class methods, since the value
     // class is constructed using the boxed instance.
-    if (pMTTarg->IsValueType() && !pCorrectedMethod->IsUnboxingStub())
+    if (pCorrectedMethod->GetMethodTable()->IsValueType() && !pCorrectedMethod->IsUnboxingStub())
     {
         // those should have been ruled out at jit time (code:COMDelegate::GetDelegateCtor)
         _ASSERTE((pMTMeth != g_pValueTypeClass) && (pMTMeth != g_pObjectClass));
@@ -1882,7 +1878,7 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
         }
 #ifdef HAS_THISPTR_RETBUF_PRECODE
         else if (pMeth->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
-            method = pMeth->GetLoaderAllocatorForCode()->GetFuncPtrStubs()->GetFuncPtrStub(pMeth, PRECODE_THISPTR_RETBUF);
+            method = pMeth->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pMeth, PRECODE_THISPTR_RETBUF);
 #endif // HAS_THISPTR_RETBUF_PRECODE
 
         gc.refThis->SetTarget(gc.target);
@@ -3432,7 +3428,6 @@ BOOL COMDelegate::IsSecureDelegate(DELEGATEREF dRef)
         MODE_ANY;
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     DELEGATEREF innerDel = NULL;
@@ -3579,103 +3574,6 @@ static void InvokeUnhandledSwallowing(OBJECTREF *pDelegate,
         // some point, a MDA may be warranted.
     }
     EX_END_CATCH(SwallowAllExceptions)
-}
-
-
-// Helper to dispatch a single event notification.
-static void InvokeNotify(OBJECTREF *pDelegate, OBJECTREF *pDomain)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    _ASSERTE(pDelegate  != NULL && IsProtectedByGCFrame(pDelegate));
-    _ASSERTE(pDomain    != NULL && IsProtectedByGCFrame(pDomain));
-
-    STRESS_LOG2(LF_GC, LL_INFO1000, "Distributing reliable event: MethodPtr=%p MethodPtrAux=%p\n",
-        DELEGATEREF(*pDelegate)->GetMethodPtr(),
-        DELEGATEREF(*pDelegate)->GetMethodPtrAux());
-
-    // All reliable events should be delivered on finalizer thread
-    _ASSERTE(IsFinalizerThread());
-
-    INDEBUG(Thread* pThread = GetThread());
-
-    // This is an early check for condition that we assert in Thread::InternalReset called from DoOneFinalization later.
-    _ASSERTE(!pThread->HasCriticalRegion());
-    _ASSERTE(!pThread->HasThreadAffinity());
-
-    PREPARE_NONVIRTUAL_CALLSITE_USING_CODE(DELEGATEREF(*pDelegate)->GetMethodPtr());
-
-    DECLARE_ARGHOLDER_ARRAY(args, 3);
-
-    args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(DELEGATEREF(*pDelegate)->GetTarget());
-    args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(*pDomain);
-    args[ARGNUM_2] = NULL;
-
-    CALL_MANAGED_METHOD_NORET(args);
-
-    // This is an early check for condition that we assert in Thread::InternalReset called from DoOneFinalization later.
-    _ASSERTE(!pThread->HasCriticalRegion());
-    _ASSERTE(!pThread->HasThreadAffinity());
-}
-
-
-void DistributeEvent(OBJECTREF *pDelegate, OBJECTREF *pDomain)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    _ASSERTE(pDelegate  != NULL && IsProtectedByGCFrame(pDelegate));
-    _ASSERTE(pDomain    != NULL && IsProtectedByGCFrame(pDomain));
-
-    Thread *pThread = GetThread();
-
-    struct _gc
-    {
-        PTRARRAYREF Array;
-        OBJECTREF   InnerDelegate;
-    } gc;
-    ZeroMemory(&gc, sizeof(gc));
-
-    GCPROTECT_BEGIN(gc);
-
-    gc.Array = (PTRARRAYREF) ((DELEGATEREF)(*pDelegate))->GetInvocationList();
-    if (gc.Array == NULL || !gc.Array->GetMethodTable()->IsArray())
-    {
-        InvokeNotify(pDelegate, pDomain);
-    }
-    else
-    {
-        // The _invocationCount could be less than the array size, if we are sharing
-        // immutable arrays cleverly.
-        INT_PTR invocationCount = ((DELEGATEREF)(*pDelegate))->GetInvocationCount();
-            
-        _ASSERTE(FitsInU4(invocationCount));
-        DWORD cnt = static_cast<DWORD>(invocationCount);
-
-        _ASSERTE(cnt <= gc.Array->GetNumComponents());
-
-        for (DWORD i=0; i<cnt; i++)
-        {
-            gc.InnerDelegate = gc.Array->m_Array[i];
-            InvokeNotify(&gc.InnerDelegate, pDomain);
-            if (pThread->IsAbortRequested())
-            {
-                pThread->UnmarkThreadForAbort(Thread::TAR_Thread);
-            }
-        }
-    }
-    GCPROTECT_END();
 }
 
 // The unhandled exception event is a little easier to distribute, because

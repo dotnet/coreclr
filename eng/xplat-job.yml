@@ -2,12 +2,20 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
-  osGroupName: ''
+  osIdentifier: ''
   name: ''
   displayName: ''
+  helixType: '(unspecified)'
   condition: ''
   dependsOn: ''
   containerName: ''
+  timeoutInMinutes: ''
+  crossrootfsDir: ''
+  enableMicrobuild: ''
+
+  # arcade-specific parameters
+  gatherAssetManifests: false
+
   variables: {} ## any extra variables to add to the defaults defined below
 
 jobs:
@@ -18,23 +26,49 @@ jobs:
     displayName: ${{ parameters.displayName }}
 
     condition: ${{ parameters.condition }}
-
     dependsOn: ${{ parameters.dependsOn }}
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+
+    # Send telemetry for all builds
+    enableTelemetry: true
+    helixRepo: 'dotnet/coreclr'
+    helixType: ${{ parameters.helixType }}
+
+    enableMicrobuild: ${{ parameters.enableMicrobuild }}
 
     pool:
+
+      # Public Linux Build Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
-        name: Hosted Ubuntu 1604
+        name:  NetCorePublic-Int-Pool
+        queue: BuildPool.Ubuntu.1604.Amd64.Open
+
+      # Official Build Linux Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
-        name: dnceng-linux-internal-temp
+        name: NetCoreInternal-Int-Pool
+        queue: BuildPool.Ubuntu.1604.Amd64
+
+      # FreeBSD builds only in the internal project
+      ${{ if and(eq(parameters.osGroup, 'FreeBSD'), ne(variables['System.TeamProject'], 'public')) }}:
+        name: dnceng-freebsd-internal
+
+      # Public OSX Build Pool
       ${{ if and(eq(parameters.osGroup, 'OSX'), ne(variables['System.TeamProject'], 'public')) }}:
         name: Hosted Mac Internal
+
+      # Official Build OSX Pool
       ${{ if and(eq(parameters.osGroup, 'OSX'), eq(variables['System.TeamProject'], 'public')) }}:
         name: Hosted MacOS
+
+      # Official Build Windows Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), ne(variables['System.TeamProject'], 'public')) }}:
-        name: dotnet-internal-temp
+        name: NetCoreInternal-Int-Pool
+        queue: BuildPool.Windows.10.Amd64.VS2017
+
+      # Public Windows Build Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
-        name: dotnet-external-temp
-      timeoutInMinutes: 240
+        name: NetCorePublic-Int-Pool
+        queue: BuildPool.Windows.10.Amd64.VS2017.Open
 
     workspace:
       clean: all
@@ -44,49 +78,71 @@ jobs:
 
     ${{ if eq(parameters.osGroup, 'Linux') }}:
       agentOs: Ubuntu
+    ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+      agentOs: FreeBSD
     ${{ if eq(parameters.osGroup, 'OSX') }}:
       agentOs: MacOS
     ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       agentOs: Windows_NT
 
+    # Setting this results in the arcade job template including a step
+    # that gathers asset manifests and publishes them to pipeline
+    # storage. Only relevant for build jobs.
+    enablePublishBuildAssets: ${{ parameters.gatherAssetManifests }}
+
     variables:
-      - name: buildConfig
-        value: ${{ parameters.buildConfig }}
+    - name: buildConfig
+      value: ${{ parameters.buildConfig }}
         
-      - ${{ if eq(parameters.buildConfig, 'checked') }}:
-          - name: buildConfigUpper
-            value: 'Checked'
+    - ${{ if eq(parameters.buildConfig, 'checked') }}:
+      - name: buildConfigUpper
+        value: 'Checked'
 
-      - ${{ if eq(parameters.buildConfig, 'debug') }}:
-          - name: buildConfigUpper
-            value: 'Debug'
+    - ${{ if eq(parameters.buildConfig, 'debug') }}:
+      - name: buildConfigUpper
+        value: 'Debug'
 
-      - ${{ if eq(parameters.buildConfig, 'release') }}:
-          - name: buildConfigUpper
-            value: 'Release'
+    - ${{ if eq(parameters.buildConfig, 'release') }}:
+      - name: buildConfigUpper
+        value: 'Release'
 
-      - name: archType
-        value: ${{ parameters.archType }}
+    - name: _BuildConfig
+      value: $(buildConfigUpper)
 
-      - name: osGroup
-        value: ${{ parameters.osGroup }}
+    - name: archType
+      value: ${{ parameters.archType }}
 
-      - name: osGroupName
-        value: ${{ parameters.osGroupName }}
+    - name: osGroup
+      value: ${{ parameters.osGroup }}
+
+    - name: osIdentifier
+      value: ${{ parameters.osIdentifier }}
       
-      # Crossbuild specific variables.
-      - ${{ if eq(parameters.archType, 'arm') }}:
-          - name: rootfsDir
-            value: /crossrootfs/arm
+    - ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - name: _HelixSource
+        value: official/dotnet/coreclr/$(Build.SourceBranch)
+    - ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
+      - name: _HelixSource
+        value: pr/dotnet/coreclr/$(Build.SourceBranch)
+    - ${{ if and(eq(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - name: _HelixSource
+        value: ci/dotnet/coreclr/$(Build.SourceBranch)
 
-          - name: cacRootfsDir
-            value: /crossrootfs/x86
+    - ${{ if ne(parameters.crossrootfsDir, '') }}:
+      - name: crossArg
+        value: 'cross'
+      - name: crossPackagesArg
+        value: '-__DoCrossArchBuild=1'
+      # This is only required for cross builds.
+      - name: ROOTFS_DIR
+        value: ${{ parameters.crossrootfsDir }}
+    - ${{ if eq(parameters.crossrootfsDir, '') }}:
+      - name: crossArg
+        value: ''
+      - name: crossPackagesArg
+        value: ''
 
-      - ${{ if eq(parameters.archType, 'arm64') }}:
-          - name: rootfsDir
-            value: /crossrootfs/arm64
-
-      - ${{ each variable in parameters.variables }}:
-        - ${{insert}}: ${{ variable }}
+    - ${{ each variable in parameters.variables }}:
+      - ${{insert}}: ${{ variable }}
 
     steps: ${{ parameters.steps }}

@@ -242,11 +242,6 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"from unmanaged to managed where an LCID was used to specify the culture for the call. This will "     \
     L"cause the thread's culture to remain set to the one associated with the LCID. The cause of the failure was: %1$s"  
 
-#define MDARC_MARSHALCLEANUPERROR_SAFEHANDLERELEASE_MSG                                                     \
-    L"The CLR marshaler encountered an error while attempting to release the reference to a SafeHandle "    \
-    L"it acquired in order to marshal the SafeHandle to an unmanaged pointer during a call from managed to unmanaged. " \
-    L"This may cause the unmanaged resource the SafeHandle represents to be leaked. The cause of the failure was: %1$s"  
-
 #define MDARC_MARSHALCLEANUPERROR_SAFEHANDLEPROP_MSG                                                        \
     L"The CLR marshaler encountered an error while attempting to associate a SafeHandle with an unmanaged resource. " \
     L"This may cause the unmanaged resource to be leaked. The cause of the failure was: %1$s"  
@@ -265,9 +260,6 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"Function DllMain, called with reason DLL_PROCESS_ATTACH, returned FALSE. DLL initialization failed. " \
     L"To ignore the DllMain return, set Registry value "                                                    \
     L"HKEY_LOCAL_MACHINE\\Software\\Microsoft\\.NETFramework\\IgnoreDllMainReturn to 1"
-
-#define MDARC_REFLECTION_PERFORMANCE_MEMBERINFOCACHECREATION_MSG                                            \
-    L"Reflection has created a memberInfo cache."
     
 #define MDARC_INVALID_MEMBER_DECLARATION_MSG                                                                \
     L"The following error occurred while determining how to marshal the parameters of member '%1$s' of type '%2$s': " \
@@ -288,16 +280,6 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #define MDARC_DANGEROUS_THREADINGAPI_MSG                                                                    \
     L"User code has attempted to call the following API: '%1$s'. This may result in a deadlock in the process."
 
-#define MDARC_DATETIME_INVALID_LOCAL_FORMAT_MSG                                                             \
-    L"A UTC DateTime is being converted to text in a format that is only correct for local times. "         \
-    L"This can happen when calling DateTime.ToString using the 'z' format specifier, which will "     \
-    L"include a local time zone offset in the output. In that case, either use the 'Z' format specifier, "  \
-    L"which designates a UTC time, or use the 'o' format string, which is the recommended way to persist "  \
-    L"a DateTime in text. This can also occur when passing a DateTime to be serialized by "                 \
-    L"XmlConvert or DataSet. If using XmlConvert.ToString, pass in "                                        \
-    L"XmlDateTimeSerializationMode.RoundtripKind to serialize correctly. If using DataSet, set the "        \
-    L"DateTimeMode on the DataColumn object to DataSetDateTime.Utc. "                                  
-
 #define MDARC_NON_COMVISIBLE_BASE_CLASS_CLASSITF_MSG                                                        \
     L"A QueryInterface call was made requesting the class interface of COM visible managed class '%1$s'. "  \
     L"However since this class derives from non COM visible class '%2$s', the QueryInterface call will fail. " \
@@ -309,16 +291,6 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
     L"class '%1$s'. However since this class does not have an explicit default interface and derives from non "\
     L"COM visible class '%2$s', the QueryInterface call will fail. This is done to prevent the non COM "    \
     L"visible base class from being constrained by the COM versioning rules."    
-
-#define MDARC_INVALID_GCHANDLE_COOKIE_MSG                                                                   \
-    L"An attempt was made to retrieve a GCHandle from an invalid IntPtr cookie (0x%1$x). "                  \
-    L"The cookie was most likely invalid because the cookie does not represent a GCHandle, "                \
-    L"the GCHandle has already been freed, "                                                                \
-    L"the retrieval was attempted in the wrong AppDomain, "                                                 \
-    L"or the GCHandle was marshaled to native code as a GCHandle but passed back into "                     \
-    L"managed code as an IntPtr where a cast was attempted. " \
-    L"Attempting to use an invalid pointer to reclaim a GC handle can cause unexpected exceptions, crashes, " \
-    L"corruption or data loss. "
 
 #define MDARC_FATAL_EXECUTION_ENGINE_ERROR_MSG \
     L"The runtime has encountered a fatal error. The address of the error was at 0x%1$08x, on thread 0x%2$x. "\
@@ -366,7 +338,6 @@ BEGIN
     MDARC_DISCONNECTED_CONTEXT_2                MDARC_DISCONNECTED_CONTEXT_2_MSG
     MDARC_NOTMARSHALABLE                        MDARC_NOTMARSHALABLE_MSG
     MDARC_MARSHALCLEANUPERROR_THREADCULTURE     MDARC_MARSHALCLEANUPERROR_THREADCULTURE_MSG
-    MDARC_MARSHALCLEANUPERROR_SAFEHANDLERELEASE MDARC_MARSHALCLEANUPERROR_SAFEHANDLERELEASE_MSG
     MDARC_MARSHALCLEANUPERROR_SAFEHANDLEPROP    MDARC_MARSHALCLEANUPERROR_SAFEHANDLEPROP_MSG
     MDARC_MARSHALCLEANUPERROR_CUSTOMCLEANUP     MDARC_MARSHALCLEANUPERROR_CUSTOMCLEANUP_MSG
     MDARC_INVALID_IUNKNOWN                      MDARC_INVALID_IUNKNOWN_MSG
@@ -380,14 +351,11 @@ BEGIN
     MDARC_OPENGENERIC_CER_CALL                  MDARC_OPENGENERIC_CER_CALL_MSG
     MDARC_ILLEGAL_PCR                           MDARC_ILLEGAL_PCR_MSG
     MDARC_SAFEHANDLE_CRITICAL_FAILURE           MDARC_SAFEHANDLE_CRITICAL_FAILURE_MSG
-    MDARC_REFLECTION_PERFORMANCE_MEMBERINFOCACHECREATION            MDARC_REFLECTION_PERFORMANCE_MEMBERINFOCACHECREATION_MSG
-    MDARC_DATETIME_INVALID_LOCAL_FORMAT         MDARC_DATETIME_INVALID_LOCAL_FORMAT_MSG
     MDARC_DLLMAIN_RETURNS_FALSE                 MDARC_DLLMAIN_RETURNS_FALSE_MSG
     MDARC_INVALID_MEMBER_DECLARATION            MDARC_INVALID_MEMBER_DECLARATION_MSG
     MDARC_EXCEPTION_SWALLOWED_COM_TO_CLR        MDARC_EXCEPTION_SWALLOWED_COM_TO_CLR_MSG
     MDARC_NON_COMVISIBLE_BASE_CLASS_CLASSITF    MDARC_NON_COMVISIBLE_BASE_CLASS_CLASSITF_MSG  
     MDARC_NON_COMVISIBLE_BASE_CLASS_IDISPATCH   MDARC_NON_COMVISIBLE_BASE_CLASS_IDISPATCH_MSG  
-    MDARC_INVALID_GCHANDLE_COOKIE               MDARC_INVALID_GCHANDLE_COOKIE_MSG
     MDARC_PINVOKE_LOG                           MDARC_PINVOKE_LOG_MSG
     MDARC_FATAL_EXECUTION_ENGINE_ERROR          MDARC_FATAL_EXECUTION_ENGINE_ERROR_MSG
     MDARC_INVALID_OVERLAPPED_TO_PINVOKE         MDARC_INVALID_OVERLAPPED_TO_PINVOKE_MSG
@@ -528,7 +496,6 @@ BEGIN
 STRINGTABLE DISCARDABLE 
 BEGIN
     CEE_E_CVTRES_NOT_FOUND                  "Could not execute CVTRES.EXE."
-    IDS_EE_EXCEPTION_FROM_HRESULT           "Exception from HRESULT: "
     IDS_EE_NDIRECT_UNSUPPORTED_SIG          "Method's type signature is not PInvoke compatible."
     IDS_EE_COM_UNSUPPORTED_SIG              "Method's type signature is not Interop compatible."
     IDS_EE_COM_UNSUPPORTED_TYPE             "The method returned a COM Variant type that is not Interop compatible."
@@ -590,6 +557,7 @@ BEGIN
     IDS_EE_BADMARSHAL_DECIMALARRAY          "Invalid managed/unmanaged type combination (Decimal[] must be paired with an ArraySubType of Struct or Currency)."
     IDS_EE_BADMARSHAL_WINRT_MARSHAL_AS      "Invalid managed/unmanaged type combination (Windows Runtime parameters and fields must not have a MarshalAs attribute set)."
     IDS_EE_BADMARSHAL_WINRT_MISSING_GUID    "Invalid managed/unmanaged type combination (Windows Runtime interfaces, classes and delegates must have a Guid or a default interface)."
+    IDS_EE_BADMARSHAL_WINRT_COPYCTOR        "Windows Runtime marshaler does not support types with copy constructor."
     IDS_EE_BADMARSHAL_WINRT_DELEGATE        "Invalid managed/unmanaged type combination (Delegates must be Windows Runtime delegates)."
     IDS_EE_BADMARSHAL_DEFAULTIFACE_NOT_WINRT_IFACE "The default interface must refer to a Windows Runtime interface with a GUID."
     IDS_EE_BADMARSHAL_DEFAULTIFACE_NOT_SUBTYPE "The default interface must refer to an interface that is implemented by the type."
@@ -618,7 +586,8 @@ BEGIN
     IDS_EE_BADMARSHAL_R8                    "Invalid managed/unmanaged type combination (Double must be paired with R8)."
     IDS_EE_BADMARSHAL_PTR                   "Invalid managed/unmanaged type combination (pointers must not have a MarshalAs attribute set)."
     IDS_EE_BADMARSHAL_NOLAYOUT              "The type definition of this type has no layout information."
-    IDS_EE_BADMARSHAL_DELEGATE              "Invalid managed/unmanaged type combination (Delegates must be paired with FunctionPtr or Interface)."
+    IDS_EE_BADMARSHAL_DELEGATE              "Invalid managed/unmanaged type combination (Delegates must be paired with FunctionPtr or IDispatch)."
+    IDS_EE_BADMARSHAL_DELEGATE_TLB_INTERFACE ".NET Core does not support marshalling delegates to the _Delegate interface provided by the .NET Framework COM Type Library. To marshal a delegate as an interface, marshal it as an IDispatch pointer."
     IDS_EE_BADMARSHAL_FNPTR                 "Invalid managed/unmanaged type combination (function pointers must be paired with FunctionPtr)."
     IDS_EE_BADMARSHAL_INTERFACE             "Invalid managed/unmanaged type combination (Interfaces must be paired with Interface)."
     IDS_EE_BADMARSHAL_CLASS                 "Invalid managed/unmanaged type combination (this type must be paired with LPStruct or Interface)."
@@ -644,6 +613,7 @@ BEGIN
     IDS_EE_BADMARSHAL_ASANYRESTRICTION      "AsAny cannot be used on return types, ByRef parameters, ArrayWithOffset, or parameters passed from unmanaged to managed."
     IDS_EE_BADMARSHAL_VBBYVALSTRRESTRICTION "VBByRefStr can only be used in combination with in/out, ByRef managed-to-unmanaged strings."
     IDS_EE_BADMARSHAL_AWORESTRICTION        "ArrayWithOffsets can only be marshaled as inout, non-ByRef, managed-to-unmanaged parameters."
+    IDS_EE_BADMARSHAL_COPYCTORRESTRICTION   "Classes with copy-ctors can only be marshaled by value."
     IDS_EE_BADMARSHAL_ARGITERATORRESTRICTION "ArgIterators cannot be marshaled ByRef."
     IDS_EE_BADMARSHAL_HANDLEREFRESTRICTION  "HandleRefs cannot be marshaled ByRef or from unmanaged to managed."
     IDS_EE_BADMARSHAL_SAFEHANDLENATIVETOCOM "SafeHandles cannot be marshaled from unmanaged to managed."
@@ -657,6 +627,7 @@ BEGIN
     IDS_EE_BADMARSHAL_BADMETADATA           "Invalid marshaling metadata."
     IDS_EE_BADMARSHAL_CUSTOMMARSHALER       "Custom marshalers are only allowed on classes, strings, arrays, and boxed value types."
     IDS_EE_BADMARSHAL_GENERICS_RESTRICTION  "Generic types cannot be marshaled."
+    IDS_EE_BADMARSHAL_STRING_OUT            "Cannot marshal a string by-value with the [Out] attribute."
 
     IDS_EE_BADMARSHALPARAM_STRINGBUILDER    "Invalid managed/unmanaged type combination (StringBuilders must be paired with LPStr, LPWStr, or LPTStr)."
     IDS_EE_BADMARSHALPARAM_NO_LPTSTR        "Invalid managed/unmanaged type combination (Strings cannot be paired with LPTStr for parameters and return types of methods in interfaces exposed to COM)."
@@ -761,6 +732,8 @@ BEGIN
     IDS_CLASSLOAD_MI_BAD_SIG                "Type '%1' from assembly '%2' contains an invalid method implementation signature."
     IDS_CLASSLOAD_MI_FINAL_IMPL             "Method implementation on an interface '%1' from assembly '%2' must be a final method."
     IDS_CLASSLOAD_AMBIGUOUS_OVERRIDE        "Could not call method '%1' on interface '%2' with type '%3' from assembly '%4' because there are multiple incompatible interface methods overriding this method."
+    IDS_CLASSLOAD_UNSUPPORTED_DISPATCH      "Could not make constrained call to method '%1' on interface '%2' with type '%3' from assembly '%4'. Dispatch to default interface methods is not supported in this situation."
+    IDS_CLASSLOAD_METHOD_NOT_IMPLEMENTED    "Could not call method '%1' on type '%2' with an instance of '%3' from assembly '%4' because there is no implementation for the method."
 
     IDS_CLASSLOAD_MISSINGMETHODRVA          "Could not load type '%1' from assembly '%2' because the method '%3' has no implementation (no RVA)."
     SECURITY_E_INCOMPATIBLE_EVIDENCE        "Assembly '%1' already loaded without additional security evidence."
@@ -820,7 +793,6 @@ BEGIN
     CORSECATTR_E_BAD_ACTION                 "Security custom attribute has invalid SecurityAction."
     
     IDS_EE_COPY_OUTOFRANGE                   "Requested range extends past the end of the array."
-    IDS_EE_ARRAYWITHOFFSETOVERFLOW           "ArrayWithOffset: offset exceeds array size."
     IDS_EE_NOCUSTOMMARSHALER                "A call to GetInstance() for custom marshaler '%1' returned null, which is not allowed."
     IDS_EE_SIZECONTROLOUTOFRANGE            "Array size control parameter index is out of range."
     IDS_EE_SIZECONTROLBADTYPE               "Array size control parameter type not supported."
@@ -939,10 +911,11 @@ BEGIN
     IDS_CLASSLOAD_CONSTRAINT_MISMATCH_ON_INTERFACE_METHOD_IMPL "Method '%3' on type '%1' from assembly '%2' tried to explicitly implement an interface method with weaker type parameter constraints."
     IDS_CLASSLOAD_EXPLICIT_GENERIC "Could not load type '%1' from assembly '%2' because generic types cannot have explicit layout."
     
-    IDS_EE_COM_INVISIBLE_PARENT "This type has a ComVisible(false) parent in its hierarchy, therefore QueryInterface calls for IDispatch or class interfaces are disallowed."
+    IDS_EE_COM_INVISIBLE_PARENT "Type '%1' has a ComVisible(false) parent '%2' in its hierarchy, therefore QueryInterface calls for IDispatch or class interfaces are disallowed."
 
-    IDS_EE_COMIMPORT_METHOD_NO_INTERFACE    "Method '%1' in ComImport class '%2' must implement an interface method."
     IDS_EE_ATTEMPT_TO_CREATE_GENERIC_CCW    "Generic types cannot be marshaled to COM interface pointers."
+    IDS_EE_ATTEMPT_TO_CREATE_NON_ABSTRACT_CCW "Types with non-abstract methods cannot be marshaled to COM interface pointers."
+    IDS_EE_COMIMPORT_METHOD_NO_INTERFACE    "Method '%1' in ComImport class '%2' must implement an interface method."
 
     IDS_CLASSLOAD_BAD_METHOD_COUNT          "Metadata method count does not match method enumeration length for type '%1' from assembly '%2'."
     IDS_CLASSLOAD_BAD_FIELD_COUNT           "Metadata field count does not match field enumeration length for type '%1' from assembly '%2'."
@@ -1109,6 +1082,7 @@ BEGIN
         BFA_UNEXPECTED_TOKEN_AFTER_GENINST      "A valid typedef or typeref token is expected to follow a ELEMENT_TYPE_GENERICINST."
         BFA_TYPEDBYREFCANNOTHAVEBYREF           "An ELEMENT_TYPE_TYPEDBYREF cannot have a ELEMENT_TYPE_BYREF modifier."
         BFA_REFERENCE_ASSEMBLY                  "Cannot load a reference assembly for execution."
+        BFA_IJW_IN_COLLECTIBLE_ALC              "Cannot load a mixed assembly into a collectible AssemblyLoadContext."
 
 #ifdef FEATURE_COMINTEROP
         BFA_WINRT_INVALID_NAMESPACE_FOR_TYPE    "Windows Runtime type '%1' has invalid namespace that does not begin with the file name in assembly '%2'."

@@ -15,6 +15,33 @@ public struct InnerSequential
 }
 
 [StructLayout(LayoutKind.Sequential)]
+struct IntWithInnerSequential
+{
+    public int i1;
+    public InnerSequential sequential;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+struct SequentialWrapper
+{
+    public InnerSequential sequential;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+struct SequentialDoubleWrapper
+{
+    public SequentialWrapper wrapper;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+struct AggregateSequentialWrapper
+{
+    public SequentialWrapper wrapper1;
+    public InnerSequential sequential;
+    public SequentialWrapper wrapper2;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct ComplexStruct
 {
     public int i;
@@ -184,20 +211,20 @@ public struct S9
 public delegate void TestDelegate1(S9 myStruct);
 
 [StructLayout(LayoutKind.Sequential)]
-public struct IntergerStructSequential
+public struct IntegerStructSequential
 {
     public int i;
 }
 [StructLayout(LayoutKind.Sequential)]
-public struct OuterIntergerStructSequential
+public struct OuterIntegerStructSequential
 {
     public int i;
-    public IntergerStructSequential s_int;
+    public IntegerStructSequential s_int;
 }
 [StructLayout(LayoutKind.Sequential)]
-public struct IncludeOuterIntergerStructSequential
+public struct IncludeOuterIntegerStructSequential
 {
-    public OuterIntergerStructSequential s;
+    public OuterIntegerStructSequential s;
 }
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct S11
@@ -269,4 +296,192 @@ public struct LongStructPack16Explicit
     public long l1;
     [FieldOffset(8)]
     public long l2;
+}
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+public struct AutoString
+{
+    public string str;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct HFA
+{
+    public float f1;
+    public float f2;
+    public float f3;
+    public float f4;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct ExplicitHFA
+{
+    [FieldOffset(0)]
+    public float f1;
+    [FieldOffset(4)]
+    public float f2;
+    [FieldOffset(8)]
+    public float f3;
+    [FieldOffset(12)]
+    public float f4;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public unsafe struct ExplicitFixedHFA
+{
+    [FieldOffset(0)]
+    public float f1;
+    [FieldOffset(4)]
+    public float f2;
+    [FieldOffset(8)]
+    public fixed float fs[2];
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct OverlappingHFA
+{
+    [FieldOffset(0)]
+    public HFA hfa;
+
+    [FieldOffset(0)]
+    public ExplicitHFA explicitHfa;
+
+    [FieldOffset(0)]
+    public ExplicitFixedHFA explicitFixedHfa;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct DoubleHFA
+{
+    public double d1;
+    public double d2;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct ManyInts
+{
+    public int i1;
+    public int i2;
+    public int i3;
+    public int i4;
+    public int i5;
+    public int i6;
+    public int i7;
+    public int i8;
+    public int i9;
+    public int i10;
+    public int i11;
+    public int i12;
+    public int i13;
+    public int i14;
+    public int i15;
+    public int i16;
+    public int i17;
+    public int i18;
+    public int i19;
+    public int i20;
+
+    public System.Collections.Generic.IEnumerator<int> GetEnumerator()
+    {
+        yield return i1;
+        yield return i2;
+        yield return i3;
+        yield return i4;
+        yield return i5;
+        yield return i6;
+        yield return i7;
+        yield return i8;
+        yield return i9;
+        yield return i10;
+        yield return i11;
+        yield return i12;
+        yield return i13;
+        yield return i14;
+        yield return i15;
+        yield return i16;
+        yield return i17;
+        yield return i18;
+        yield return i19;
+        yield return i20;
+    }
+}
+
+
+[StructLayout(LayoutKind.Sequential)]
+public struct MultipleBool
+{
+    public bool b1;
+    public bool b2;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct OverlappingLongFloat
+{
+    [FieldOffset(0)]
+    public long l;
+
+    [FieldOffset(4)]
+    public float f;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct OverlappingLongFloat2
+{
+    [FieldOffset(4)]
+    public float f;
+    [FieldOffset(0)]
+    public long l;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct OverlappingMultipleEightbyte
+{
+    [FieldOffset(8)]
+    public int i;
+    [FieldOffset(0), MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+    public float[] arr;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct FixedBufferClassificationTestBlittable
+{
+    public fixed int arr[3];
+    public float f;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct FixedBufferClassificationTest
+{
+    public fixed int arr[3];
+    public NonBlittableFloat f;
+}
+
+// A non-blittable wrapper for a float value.
+// Used to force a type with a float field to be non-blittable
+// and take a different code path.
+[StructLayout(LayoutKind.Sequential)]
+public struct NonBlittableFloat
+{
+    public NonBlittableFloat(float f)
+    {
+        arr = new []{f};
+    }
+
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1)]
+    private float[] arr;
+    
+    public float F => arr[0];
+}
+
+public struct Int32Wrapper
+{
+    public int i;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct FixedArrayClassificationTest
+{
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+    public Int32Wrapper[] arr;
+    public float f;
 }

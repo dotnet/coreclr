@@ -505,12 +505,9 @@ void DacDbiInterfaceImpl::EnumerateInternalFrames(VMPTR_Thread                  
                         PTR_IUnknown pUnk          = dac_cast<PTR_IUnknown>(*dac_cast<PTR_TADDR>(pUnkStackSlot));
                         ComCallWrapper * pCCW      = ComCallWrapper::GetWrapperFromIP(pUnk);
 
-                        if (!pCCW->NeedToSwitchDomains(pAppDomain->GetId()))
-                        {
-                            ComCallMethodDesc * pCMD = NULL;
-                            pCMD = dac_cast<PTR_ComCallMethodDesc>(pCOMFrame->ComMethodFrame::GetDatum());
-                            pMD  = pCMD->GetInterfaceMethodDesc();
-                        }
+                        ComCallMethodDesc * pCMD = NULL;
+                        pCMD = dac_cast<PTR_ComCallMethodDesc>(pCOMFrame->ComMethodFrame::GetDatum());
+                        pMD  = pCMD->GetInterfaceMethodDesc();
                     }
                 }
                 EX_END_CATCH_ALLOW_DATATARGET_MISSING_MEMORY
@@ -518,7 +515,7 @@ void DacDbiInterfaceImpl::EnumerateInternalFrames(VMPTR_Thread                  
 #endif // FEATURE_COMINTEROP
 
             Module *     pModule = (pMD ? pMD->GetModule() : NULL);
-            DomainFile * pDomainFile = (pModule ? pModule->GetDomainFile(pAppDomain) : NULL);
+            DomainFile * pDomainFile = (pModule ? pModule->GetDomainFile() : NULL);
 
             if (frameData.stubFrame.frameType == STUBFRAME_FUNC_EVAL)
             {
@@ -717,7 +714,7 @@ void DacDbiInterfaceImpl::InitFrameData(StackFrameIterator *   pIter,
         DomainFile *pDomainFile = NULL;
         EX_TRY_ALLOW_DATATARGET_MISSING_MEMORY
         {
-            pDomainFile = (pModule ? pModule->GetDomainFile(pAppDomain) : NULL);
+            pDomainFile = (pModule ? pModule->GetDomainFile() : NULL);
             _ASSERTE(pDomainFile != NULL);
         }
         EX_END_CATCH_ALLOW_DATATARGET_MISSING_MEMORY

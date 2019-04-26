@@ -906,8 +906,6 @@ private:
     // calls operator new, which may occur during shutdown paths.
     static EEThreadId               s_DbgHelperThreadId;
 
-    friend void AssertAllocationAllowed();
-
 public:
     // The OS ThreadId of the helper as determined from the CreateThread call.
     DWORD                           m_DbgHelperThreadOSTid;
@@ -1013,7 +1011,7 @@ public:
 
     // Creating the Jit-infos.
     DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd, PCODE startAddr);
-    DebuggerJitInfo *CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr, BOOL* jitInfoWasCreated);
+    DebuggerJitInfo *CreateInitAndAddJitInfo(NativeCodeVersion nativeCodeVersion, TADDR startAddr, BOOL* jitInfoWasCreated);
 
 
     void DeleteJitInfo(DebuggerJitInfo *dji);
@@ -1418,7 +1416,7 @@ private:
 class DebuggerJitInfo
 {
 public:
-    PTR_MethodDesc           m_fd;
+    NativeCodeVersion        m_nativeCodeVersion;
 
     // Loader module is used to control life-time of DebufferJitInfo. Ideally, we would refactor the code to use LoaderAllocator here
     // instead because of it is what the VM actually uses to track the life time. It would make the debugger interface less chatty.
@@ -1524,7 +1522,7 @@ public:
 
 #ifndef DACCESS_COMPILE
 
-    DebuggerJitInfo(DebuggerMethodInfo *minfo, MethodDesc *fd);
+    DebuggerJitInfo(DebuggerMethodInfo *minfo, NativeCodeVersion nativeCodeVersion);
     ~DebuggerJitInfo();
 
 #endif // #ifdef DACCESS_COMPILE
@@ -1974,7 +1972,7 @@ public:
     void FuncEvalComplete(Thread *pThread, DebuggerEval *pDE);
 
     DebuggerMethodInfo *CreateMethodInfo(Module *module, mdMethodDef md);
-    void JITComplete(MethodDesc* fd, TADDR newAddress);
+    void JITComplete(NativeCodeVersion nativeCodeVersion, TADDR newAddress);
 
     HRESULT RequestFavor(FAVORCALLBACK fp, void * pData);
 
@@ -2581,9 +2579,6 @@ public:
     // Allows the debugger to keep an up to date list of special threads
     HRESULT UpdateSpecialThreadList(DWORD cThreadArrayLength, DWORD *rgdwThreadIDArray);
 
-    // Updates the pointer for the debugger services
-    void SetIDbgThreadControl(IDebuggerThreadControl *pIDbgThreadControl);
-
 #ifndef DACCESS_COMPILE
     static void AcquireDebuggerDataLock(Debugger *pDebugger);
 
@@ -2899,10 +2894,6 @@ private:
 
 public:
 
-
-    IDebuggerThreadControl       *m_pIDbgThreadControl;
-
-
     // Sometimes we force all exceptions to be non-interceptable.
     // There are currently three cases where we set this field to true:
     //
@@ -2954,10 +2945,12 @@ public:
     DWORD m_defines;
     DWORD m_mdDataStructureVersion;
 #ifndef DACCESS_COMPILE
-    virtual void BeforeGarbageCollection();
-    virtual void AfterGarbageCollection();
+    virtual void SuspendForGarbageCollectionStarted();
+    virtual void SuspendForGarbageCollectionCompleted();
+    virtual void ResumeForGarbageCollectionStarted();
 #endif
     BOOL m_isBlockedOnGarbageCollectionEvent;
+    BOOL m_willBlockOnGarbageCollectionEvent;
     BOOL m_isGarbageCollectionEventsEnabled;
     // this latches m_isGarbageCollectionEventsEnabled in BeforeGarbageCollection so we can 
     // guarantee the corresponding AfterGC event is sent even if the events are disabled during GC.
@@ -3436,7 +3429,6 @@ public:
     DebuggerIPCE_FuncEvalType          m_evalType;
     mdMethodDef                        m_methodToken;
     mdTypeDef                          m_classToken;
-    ADID                               m_appDomainId;       // Safe even if AD unloaded
     PTR_DebuggerModule                 m_debuggerModule;     // Only valid if AD is still around
     RSPTR_CORDBEVAL                    m_funcEvalKey;
     bool                               m_successful;        // Did the eval complete successfully

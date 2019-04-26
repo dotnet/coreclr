@@ -18,10 +18,6 @@
 #ifndef _COR_COMPILE_H_
 #define _COR_COMPILE_H_
 
-#ifndef FEATURE_PREJIT
-#error FEATURE_PREJIT is required for this file
-#endif // FEATURE_PREJIT
-
 #if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
 #ifndef WIN64EXCEPTIONS
 #define WIN64EXCEPTIONS
@@ -698,13 +694,14 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
 
     ENCODE_DECLARINGTYPE_HANDLE,
 
+    ENCODE_INDIRECT_PINVOKE_TARGET,                 /* For calling a pinvoke method ptr  */
+
     ENCODE_MODULE_HANDLE                = 0x50,     /* Module token */
     ENCODE_STATIC_FIELD_ADDRESS,                    /* For accessing a static field */
     ENCODE_MODULE_ID_FOR_STATICS,                   /* For accessing static fields */
     ENCODE_MODULE_ID_FOR_GENERIC_STATICS,           /* For accessing static fields */
     ENCODE_CLASS_ID_FOR_STATICS,                    /* For accessing static fields */
     ENCODE_SYNC_LOCK,                               /* For synchronizing access to a type */
-    ENCODE_INDIRECT_PINVOKE_TARGET,                 /* For calling a pinvoke method ptr  */
     ENCODE_PROFILING_HANDLE,                        /* For the method's profiling counter */
     ENCODE_VARARGS_METHODDEF,                       /* For calling a varargs method */
     ENCODE_VARARGS_METHODREF,
@@ -1416,8 +1413,6 @@ typedef DWORD (*ENCODEMODULE_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HAN
 // Define function pointer DEFINETOKEN_CALLBACK
 typedef void (*DEFINETOKEN_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle, DWORD index, mdTypeRef* token);
 
-typedef HRESULT (*CROSS_DOMAIN_CALLBACK)(LPVOID pArgs);
-
 class ICorCompileInfo
 {
   public:
@@ -1454,13 +1449,6 @@ class ICorCompileInfo
             BOOL fForceDebug,
             BOOL fForceProfiling,
             BOOL fForceInstrument
-            ) = 0;
-
-    // calls pfnCallback in the specified domain
-    virtual HRESULT MakeCrossDomainCallback(
-            ICorCompilationDomain*  pDomain,
-            CROSS_DOMAIN_CALLBACK   pfnCallback,
-            LPVOID                  pArgs
             ) = 0;
 
     // Destroys a compilation domain
@@ -1711,7 +1699,8 @@ class ICorCompileInfo
     //
     virtual void GetCallRefMap(
             CORINFO_METHOD_HANDLE hMethod,
-            GCRefMapBuilder * pBuilder) = 0;
+            GCRefMapBuilder * pBuilder,
+            bool isDispatchCell) = 0;
 
     // Returns a compressed block of debug information
     //
@@ -1811,6 +1800,7 @@ extern bool g_fNGenWinMDResilient;
 
 #ifdef FEATURE_READYTORUN_COMPILER
 extern bool g_fReadyToRunCompilation;
+extern bool g_fLargeVersionBubble;
 #endif
 
 inline bool IsReadyToRunCompilation()
@@ -1821,5 +1811,12 @@ inline bool IsReadyToRunCompilation()
     return false;
 #endif
 }
+
+#ifdef FEATURE_READYTORUN_COMPILER
+inline bool IsLargeVersionBubbleEnabled()
+{
+    return g_fLargeVersionBubble;
+}
+#endif
 
 #endif /* COR_COMPILE_H_ */

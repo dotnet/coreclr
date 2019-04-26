@@ -102,7 +102,6 @@
 ///
 /// AppDomain
 ///
-CONFIG_DWORD_INFO(INTERNAL_ADBreakOnCannotUnload, W("ADBreakOnCannotUnload"), 0, "Used to troubleshoot failures to unload appdomain (e.g. someone sitting in unmanged code). In some cases by the time we throw the appropriate exception the thread has moved from the offending call. This setting allows in an instrumented build to stop exactly at the right moment.")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_AddRejitNops, W("AddRejitNops"), "Control for the profiler rejit feature infrastructure")
 CONFIG_DWORD_INFO(INTERNAL_ADDumpSB, W("ADDumpSB"), 0, "Not used")
 CONFIG_DWORD_INFO(INTERNAL_ADForceSB, W("ADForceSB"), 0, "Forces sync block creation for all objects")
@@ -110,13 +109,6 @@ CONFIG_DWORD_INFO(INTERNAL_ADLogMemory, W("ADLogMemory"), 0, "Superseded by test
 CONFIG_DWORD_INFO(INTERNAL_ADTakeDHSnapShot, W("ADTakeDHSnapShot"), 0, "Superseded by test hooks")
 CONFIG_DWORD_INFO(INTERNAL_ADTakeSnapShot, W("ADTakeSnapShot"), 0, "Superseded by test hooks")
 CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_EnableFullDebug, W("EnableFullDebug"), "Heavy-weight checking for AD boundary violations (AD leaks)")
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ADULazyMemoryRelease, W("ADULazyMemoryRelease"), 1, "On by default. Turned off in cases when people try to catch memory leaks, in which case AD unload should be immediately followed by GC)")
-RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_ADURetryCount, W("ADURetryCount"), "Controls timeout of AD unload. Used for workarounds when machine is too slow, there are network issues etc.")
-
-// For the proposal and discussion on why finalizers are not run on shutdown by default anymore in CoreCLR, see the API review:
-// https://github.com/dotnet/corefx/issues/5205
-#define DEFAULT_FinalizeOnShutdown (0)
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_FinalizeOnShutdown, W("FinalizeOnShutdown"), DEFAULT_FinalizeOnShutdown, "When enabled, on shutdown, blocks all user threads and calls finalizers for all finalizable objects, including live objects")
 
 ///
 /// ARM
@@ -153,7 +145,6 @@ CONFIG_DWORD_INFO_EX(INTERNAL_BreakOnDumpToken, W("BreakOnDumpToken"), 0xfffffff
 RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_BreakOnEELoad, W("BreakOnEELoad"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO(INTERNAL_BreakOnEEShutdown, W("BreakOnEEShutdown"), 0, "")
 CONFIG_DWORD_INFO_EX(INTERNAL_BreakOnExceptionInGetThrowable, W("BreakOnExceptionInGetThrowable"), 0, "", CLRConfig::REGUTIL_default)
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_BreakOnFinalizeTimeOut, W("BreakOnFinalizeTimeOut"), 0, "Triggers a debug break on the finalizer thread when it has exceeded the maximum wait time")
 CONFIG_DWORD_INFO(INTERNAL_BreakOnFindMethod, W("BreakOnFindMethod"), 0, "Breaks in findMethodInternal when it searches for the specified token.")
 CONFIG_DWORD_INFO_EX(INTERNAL_BreakOnFirstPass, W("BreakOnFirstPass"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_BreakOnHR, W("BreakOnHR"), 0, "Debug.cpp, IfFailxxx use this macro to stop if hr matches ", CLRConfig::REGUTIL_default)
@@ -161,7 +152,6 @@ CONFIG_STRING_INFO(INTERNAL_BreakOnInstantiation, W("BreakOnInstantiation"), "Ve
 CONFIG_STRING_INFO(INTERNAL_BreakOnInteropStubSetup, W("BreakOnInteropStubSetup"), "Throws an assert when marshaling stub for the given method is about to be built.")
 CONFIG_STRING_INFO_EX(INTERNAL_BreakOnInteropVTableBuild, W("BreakOnInteropVTableBuild"), "Specifies a type name for which an assert should be thrown when building interop v-table.", CLRConfig::REGUTIL_default)
 CONFIG_STRING_INFO(INTERNAL_BreakOnMethodName, W("BreakOnMethodName"), "Very useful for debugging method override placement code.")
-RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_BreakOnNGenRegistryAccessCount, W("BreakOnNGenRegistryAccessCount"), 0, "Breaks on the Nth' root store write", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_BreakOnNotify, W("BreakOnNotify"), 0, "", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO_EX(INTERNAL_BreakOnRetailAssert, W("BreakOnRetailAssert"), 0, "Used for debugging \"retail\" asserts (fatal errors)", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_BreakOnSecondPass, W("BreakOnSecondPass"), 0, "", CLRConfig::REGUTIL_default)
@@ -272,6 +262,8 @@ CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_AssertOnFailFast, W("AssertOnFailFast")
 RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_legacyCorruptedStateExceptionsPolicy, W("legacyCorruptedStateExceptionsPolicy"), 0, "Enabled Pre-V4 CSE behavior", CLRConfig::FavorConfigFile)
 CONFIG_DWORD_INFO_EX(INTERNAL_SuppressLostExceptionTypeAssert, W("SuppressLostExceptionTypeAssert"), 0, "", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_FailFastOnCorruptedStateException, W("FailFastOnCorruptedStateException"), 0, "Failfast if a CSE is encountered", CLRConfig::FavorConfigFile)
+RETAIL_CONFIG_DWORD_INFO_EX(INTERNAL_UseEntryPointFilter, W("UseEntryPointFilter"), 0, "", CLRConfig::REGUTIL_default)
+RETAIL_CONFIG_DWORD_INFO_EX(INTERNAL_Corhost_Swallow_Uncaught_Exceptions, W("Corhost_Swallow_Uncaught_Exceptions"), 0, "", CLRConfig::REGUTIL_default)
 
 ///
 /// Garbage collector
@@ -289,6 +281,7 @@ CONFIG_STRING_INFO(INTERNAL_GcCoverage, W("GcCoverage"), "Specify a method or re
 CONFIG_STRING_INFO(INTERNAL_SkipGCCoverage, W("SkipGcCoverage"), "Specify a list of assembly names to skip with GC Coverage")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_gcForceCompact, W("gcForceCompact"), "When set to true, always do compacting GC")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCgen0size, W("GCgen0size"), "Specifies the smallest gen0 size")
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCGen0MaxBudget, W("GCGen0MaxBudget"), "Specifies the largest gen0 allocation budget")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_GCStressMix, W("GCStressMix"), 0, "Specifies whether the GC mix mode is enabled or not")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_GCStressStep, W("GCStressStep"), 1, "Specifies how often StressHeap will actually do a GC in GCStressMix mode")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_GCStressMaxFGCsPerBGC, W("GCStressMaxFGCsPerBGC"), ~0U, "Specifies how many FGCs will occur during one BGC in GCStressMix mode")
@@ -306,6 +299,7 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCCompactRatio, W("GCCompactRatio"), 0, "Sp
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCPollType, W("GCPollType"), "")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCRetainVM, W("GCRetainVM"), 0, "When set we put the segments that should be deleted on a standby list (instead of releasing them back to the OS) which will be considered to satisfy new segment requests (note that the same thing can be specified via API which is the supported way)")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCSegmentSize, W("GCSegmentSize"), "Specifies the managed heap segment size")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCLOHThreshold, W("GCLOHThreshold"), 0, "Specifies the size that will make objects go on LOH")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_GCLOHCompact, W("GCLOHCompact"), "Specifies the LOH compaction mode")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_gcAllowVeryLargeObjects, W("gcAllowVeryLargeObjects"), 1, "Allow allocation of 2GB+ objects on GC heap")
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_GCStress, W("GCStress"), 0, "Trigger GCs at regular intervals", CLRConfig::REGUTIL_default)
@@ -319,9 +313,17 @@ RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_HeapVerify, W("HeapVerify"), 
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_SetupGcCoverage, W("SetupGcCoverage"), "This doesn't appear to be a config flag", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCNumaAware, W("GCNumaAware"), 1, "Specifies if to enable GC NUMA aware")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCCpuGroup, W("GCCpuGroup"), 0, "Specifies if to enable GC to support CPU groups")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCHeapCount, W("GCHeapCount"), 0, "")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCNoAffinitize, W("GCNoAffinitize"), 0, "")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCHeapCount, W("GCHeapCount"), 0, "")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCNoAffinitize, W("GCNoAffinitize"), 0, "")
+// this config is only in effect if the process is not running in multiple CPU groups.
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapAffinitizeMask, W("GCHeapAffinitizeMask"), "Specifies processor mask for Server GC threads")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCProvModeStress, W("GCProvModeStress"), 0, "Stress the provisional modes")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCHighMemPercent, W("GCHighMemPercent"), 0, "Specifies the percent for GC to consider as high memory")
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_GCName, W("GCName"), "")
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapHardLimit, W("GCHeapHardLimit"), "Specifies the maximum commit size for the GC heap")
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapHardLimitPercent, W("GCHeapHardLimitPercent"), "Specifies the GC heap usage as a percentage of the total memory")
+RETAIL_CONFIG_STRING_INFO(EXTERNAL_GCHeapAffinitizeRanges, W("GCHeapAffinitizeRanges"), "Specifies list of processors for Server GC threads. The format is a comma separated list of processor numbers or ranges of processor numbers. Example: 1,3,5,7-9,12")
+RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCLargePages, W("GCLargePages"), "Specifies whether large pages should be used when a heap hard limit is set")
 
 ///
 /// IBC
@@ -366,6 +368,8 @@ RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_StackSamplingNumMethods, W("StackSamplingNu
 #if defined(ALLOW_SXS_JIT_NGEN)
 RETAIL_CONFIG_STRING_INFO_EX(INTERNAL_AltJitNgen, W("AltJitNgen"), "Enables AltJit for NGEN and selectively limits it to the specified methods.", CLRConfig::REGUTIL_default)
 #endif // defined(ALLOW_SXS_JIT_NGEN)
+
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_JitHostMaxSlabCache, W("JitHostMaxSlabCache"), 0x1000000, "Sets jit host max slab cache size, 16MB default")
 
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_JitOptimizeType, W("JitOptimizeType"), "")
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_JitPrintInlinedMethods, W("JitPrintInlinedMethods"), 0, "", CLRConfig::REGUTIL_default)
@@ -517,17 +521,17 @@ CONFIG_DWORD_INFO_EX(INTERNAL_SymDiffDump, W("SymDiffDump"), 0, "Used to create 
 /// NGEN
 ///
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_NGen_JitName, W("NGen_JitName"), "", CLRConfig::REGUTIL_default)
-RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_NGenFramed, W("NGenFramed"), -1, "Same as JitFramed, but for ngen", CLRConfig::REGUTIL_default)
+RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_NGenFramed, W("NGenFramed"), (DWORD)-1, "Same as JitFramed, but for ngen", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NGenOnlyOneMethod, W("NGenOnlyOneMethod"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NgenOrder, W("NgenOrder"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_partialNGenStress, W("partialNGenStress"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_ZapDoNothing, W("ZapDoNothing"), 0, "", CLRConfig::REGUTIL_default)
-CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureMask, W("NgenForceFailureMask"), -1, "Bitmask used to control which locations will check and raise the failure (defaults to bits: -1)", CLRConfig::REGUTIL_default)
+CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureMask, W("NgenForceFailureMask"), (DWORD)-1, "Bitmask used to control which locations will check and raise the failure (defaults to bits: -1)", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureCount, W("NgenForceFailureCount"), 0, "If set to >0 and we have IBC data we will force a failure after we reference an IBC data item <value> times", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NgenForceFailureKind, W("NgenForceFailureKind"), 1, "If set to 1, We will throw a TypeLoad exception; If set to 2, We will cause an A/V", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_NGenEnableCreatePdb, W("NGenEnableCreatePdb"), 0, "If set to >0 ngen.exe displays help on, recognizes createpdb in the command line")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_NGenSimulateDiskFull, W("NGenSimulateDiskFull"), 0, "If set to 1, ngen will throw a Disk full exception in ZapWriter.cpp:Save()")
-RETAIL_CONFIG_DWORD_INFO(INTERNAL_PartialNGen, W("PartialNGen"), -1, "Generate partial NGen images")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_PartialNGen, W("PartialNGen"), (DWORD)-1, "Generate partial NGen images")
 
 CONFIG_DWORD_INFO(INTERNAL_NoASLRForNgen, W("NoASLRForNgen"), 0, "Turn off IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE bit in generated ngen images. Makes nidump output repeatable from run to run.")
 
@@ -638,20 +642,26 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_HillClimbing_SampleIntervalLow,               
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_HillClimbing_SampleIntervalHigh,                  W("HillClimbing_SampleIntervalHigh"),                 200, "");
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_HillClimbing_GainExponent,                        W("HillClimbing_GainExponent"),                       200, "The exponent to apply to the gain, times 100.  100 means to use linear gain, higher values will enhance large moves and damp small ones.");
 
-
 ///
 /// Tiered Compilation
 ///
 #ifdef FEATURE_TIERED_COMPILATION
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TieredCompilation, W("TieredCompilation"), 1, "Enables tiered compilation")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1CallCountThreshold, W("TieredCompilation_Tier1CallCountThreshold"), 30, "Number of times a method must be called after which it is promoted to tier 1.")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1CallCountingDelayMs, W("TieredCompilation_Tier1CallCountingDelayMs"), 100, "A perpetual delay in milliseconds that is applied to tier 1 call counting and jitting, while there is tier 0 activity.")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1DelaySingleProcMultiplier, W("TieredCompilation_Tier1DelaySingleProcMultiplier"), 10, "Multiplier for TieredCompilation_Tier1CallCountingDelayMs that is applied on a single-processor machine or when the process is affinitized to a single processor.")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_QuickJit, W("TC_QuickJit"), 0, "For methods that would be jitted, enable using quick JIT when appropriate.")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_StartupTier_CallCountThreshold, W("TC_StartupTier_CallCountThreshold"), 30, "Number of times a method must be called in the startup tier after which it is promoted to the next tier.")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_StartupTier_CallCountingDelayMs, W("TC_StartupTier_CallCountingDelayMs"), 100, "A perpetual delay in milliseconds that is applied call counting in the startup tier and jitting at higher tiers, while there is startup-like activity.")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_StartupTier_DelaySingleProcMultiplier, W("TC_StartupTier_DelaySingleProcMultiplier"), 10, "Multiplier for TC_StartupTier_CallCountingDelayMs that is applied on a single-processor machine or when the process is affinitized to a single processor.")
 
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Test_CallCounting, W("TieredCompilation_Test_CallCounting"), 1, "Enabled by default (only activates when TieredCompilation is also enabled). If disabled immediately backpatches prestub, and likely prevents any tier1 promotion")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Test_OptimizeTier0, W("TieredCompilation_Test_OptimizeTier0"), 0, "Use optimized codegen (normally used by tier1) in tier0")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_StartupTier_CallCounting, W("TC_StartupTier_CallCounting"), 1, "Enabled by default (only activates when TieredCompilation is also enabled). If disabled immediately backpatches prestub, and likely prevents any promotion to higher tiers")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_StartupTier_OptimizeCode, W("TC_StartupTier_OptimizeCode"), 0, "Use optimized codegen (normally used by the optimized tier) in the startup tier")
 #endif
 
+///
+/// Entry point slot backpatch
+///
+#ifndef CROSSGEN_COMPILE
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_BackpatchEntryPointSlots, W("BackpatchEntryPointSlots"), 1, "Indicates whether to enable entry point slot backpatching, for instance to avoid making virtual calls through a precode and instead to patch virtual slots for a method when its entry point changes.")
+#endif
 
 ///
 /// TypeLoader
@@ -783,7 +793,6 @@ CONFIG_DWORD_INFO(INTERNAL_MessageDebugOut, W("MessageDebugOut"), 0, "")
 CONFIG_DWORD_INFO_EX(INTERNAL_MscorsnLogging, W("MscorsnLogging"), 0, "Enables strong name logging", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_NativeImageRequire, W("NativeImageRequire"), 0, "", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_NestedEhOom, W("NestedEhOom"), 0, "", CLRConfig::REGUTIL_default)
-RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_NO_SO_NOT_MAINLINE, W("NO_SO_NOT_MAINLINE"), 0, "", CLRConfig::REGUTIL_default)
 #define INTERNAL_NoGuiOnAssert_Default 1
 RETAIL_CONFIG_DWORD_INFO_EX(INTERNAL_NoGuiOnAssert, W("NoGuiOnAssert"), INTERNAL_NoGuiOnAssert_Default, "", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_NoProcedureSplitting, W("NoProcedureSplitting"), 0, "", CLRConfig::REGUTIL_default)

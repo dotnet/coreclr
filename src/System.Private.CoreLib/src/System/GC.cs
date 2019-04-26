@@ -12,18 +12,10 @@
 **
 **
 ===========================================================*/
-//This class only static members and doesn't require the serializable keyword.
 
-using System;
-using System.Reflection;
-using System.Security;
-using System.Threading;
-using System.Runtime;
+#nullable enable
 using System.Runtime.CompilerServices;
-using System.Runtime.ConstrainedExecution;
-using System.Globalization;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using System.Diagnostics;
 
 namespace System
@@ -61,12 +53,6 @@ namespace System
     public static class GC
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int GetGCLatencyMode();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int SetGCLatencyMode(int newLatencyMode);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
                                                   out ulong totalPhysicalMem,
                                                   out uint lastRecordedMemLoad,
@@ -74,18 +60,27 @@ namespace System
                                                   out UIntPtr lastRecordedHeapSize,
                                                   out UIntPtr lastRecordedFragmentation);
 
+        public static GCMemoryInfo GetGCMemoryInfo()
+        {
+            GetMemoryInfo(out uint highMemLoadThreshold,
+                          out ulong totalPhysicalMem,
+                          out uint lastRecordedMemLoad,
+                          out UIntPtr lastRecordedHeapSize,
+                          out UIntPtr lastRecordedFragmentation);
+
+            return new GCMemoryInfo((long)((double)highMemLoadThreshold / 100 * totalPhysicalMem),
+                                    (long)((double)lastRecordedMemLoad / 100 * totalPhysicalMem),
+                                    (long)totalPhysicalMem,
+                                    (long)(ulong)lastRecordedHeapSize,
+                                    (long)(ulong)lastRecordedFragmentation);
+        }
+
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _StartNoGCRegion(long totalSize, bool lohSizeKnown, long lohSize, bool disallowFullBlockingGC);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _EndNoGCRegion();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int GetLOHCompactionMode();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void SetLOHCompactionMode(int newLOHCompactionMode);
-
+        
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
 
@@ -102,7 +97,7 @@ namespace System
         private static extern int _CollectionCount(int generation, int getSpecialGCCount);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern bool IsServerGC();
+        internal static extern ulong GetSegmentSize();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _AddMemoryPressure(ulong bytesAllocated);
@@ -256,7 +251,7 @@ namespace System
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
         // Foo doesn't get finalized and the stream stays open.
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
-        public static void KeepAlive(object obj)
+        public static void KeepAlive(object? obj)
         {
         }
 
@@ -339,6 +334,12 @@ namespace System
             return newSize;
         }
 
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern IntPtr _RegisterFrozenSegment(IntPtr sectionAddress, int sectionSize);
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern IntPtr _UnregisterFrozenSegment(IntPtr segmentHandle);
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern long _GetAllocatedBytesForCurrentThread();
 
@@ -364,8 +365,7 @@ namespace System
             if ((maxGenerationThreshold <= 0) || (maxGenerationThreshold >= 100))
             {
                 throw new ArgumentOutOfRangeException(nameof(maxGenerationThreshold),
-                                                      string.Format(
-                                                          CultureInfo.CurrentCulture,
+                                                      SR.Format(
                                                           SR.ArgumentOutOfRange_Bounds_Lower_Upper,
                                                           1,
                                                           99));
@@ -374,8 +374,7 @@ namespace System
             if ((largeObjectHeapThreshold <= 0) || (largeObjectHeapThreshold >= 100))
             {
                 throw new ArgumentOutOfRangeException(nameof(largeObjectHeapThreshold),
-                                                      string.Format(
-                                                          CultureInfo.CurrentCulture,
+                                                      SR.Format(
                                                           SR.ArgumentOutOfRange_Bounds_Lower_Upper,
                                                           1,
                                                           99));

@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
@@ -202,7 +204,7 @@ namespace System
                     high++;
 
                 if (high > uint.MaxValue)
-                    throw new OverflowException(SR.Overflow_Decimal);
+                    Number.ThrowOverflowException(TypeCode.Decimal);
                 result.Low64 = low;
                 result.High = (uint)high;
             }
@@ -547,7 +549,7 @@ PosRem:
                 if (hiRes > 2)
                 {
                     newScale = (int)hiRes * 32 - 64 - 1;
-                    newScale -= X86.Lzcnt.IsSupported ? (int)X86.Lzcnt.LeadingZeroCount(result[hiRes]) : LeadingZeroCount(result[hiRes]);
+                    newScale -= BitOperations.LeadingZeroCount(result[hiRes]);
 
                     // Multiply bit position by log10(2) to figure it's power of 10.
                     // We scale the log by 256.  log(2) = .30103, * 256 = 77.  Doing this
@@ -687,7 +689,8 @@ PosRem:
                 return scale;
 
 ThrowOverflow:
-                throw new OverflowException(SR.Overflow_Decimal);
+                Number.ThrowOverflowException(TypeCode.Decimal);
+                return 0;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -723,34 +726,6 @@ ThrowOverflow:
                 return power;
             }
 
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private static int LeadingZeroCount(uint value)
-            {
-                Debug.Assert(value > 0);
-                int c = 1;
-                if ((value & 0xFFFF0000) == 0)
-                {
-                    value <<= 16;
-                    c += 16;
-                }
-                if ((value & 0xFF000000) == 0)
-                {
-                    value <<= 8;
-                    c += 8;
-                }
-                if ((value & 0xF0000000) == 0)
-                {
-                    value <<= 4;
-                    c += 4;
-                }
-                if ((value & 0xC0000000) == 0)
-                {
-                    value <<= 2;
-                    c += 2;
-                }
-                return c + ((int)value >> 31);
-            }
-
             /// <summary>
             /// Adjust the quotient to deal with an overflow.
             /// We need to divide by 10, feed in the high bit to undo the overflow and then round as required.
@@ -758,7 +733,7 @@ ThrowOverflow:
             private static int OverflowUnscale(ref Buf12 bufQuo, int scale, bool sticky)
             {
                 if (--scale < 0)
-                    throw new OverflowException(SR.Overflow_Decimal);
+                    Number.ThrowOverflowException(TypeCode.Decimal);
 
                 Debug.Assert(bufQuo.U2 == 0);
 
@@ -870,7 +845,7 @@ ThrowOverflow:
                 // positive if it isn't already.
                 //
                 if (curScale + scale < 0)
-                    throw new OverflowException(SR.Overflow_Decimal);
+                    Number.ThrowOverflowException(TypeCode.Decimal);
 
                 return curScale;
             }
@@ -1138,7 +1113,7 @@ AlignedScale:
                     // Divide the value by 10, dropping the scale factor.
                     //
                     if ((flags & ScaleMask) == 0)
-                        throw new OverflowException(SR.Overflow_Decimal);
+                        Number.ThrowOverflowException(TypeCode.Decimal);
                     flags -= 1 << ScaleShift;
 
                     const uint den = 10;
@@ -1242,7 +1217,7 @@ ReturnResult:
                 else
                 {
                     if (scale != 0)
-                        InternalRound(ref pdecIn, (uint)scale, RoundingMode.ToEven);
+                        InternalRound(ref pdecIn, (uint)scale, MidpointRounding.ToEven);
                     if (pdecIn.High != 0)
                         goto ThrowOverflow;
                     value = (long)pdecIn.Low64;
@@ -1578,7 +1553,7 @@ ReturnZero:
                     return; // result should be zeroed out
 
                 if (exp > 96)
-                    throw new OverflowException(SR.Overflow_Decimal);
+                    Number.ThrowOverflowException(TypeCode.Decimal);
 
                 uint flags = 0;
                 if (input < 0)
@@ -1745,7 +1720,7 @@ ReturnZero:
                     return; // result should be zeroed out
 
                 if (exp > 96)
-                    throw new OverflowException(SR.Overflow_Decimal);
+                    Number.ThrowOverflowException(TypeCode.Decimal);
 
                 uint flags = 0;
                 if (input < 0)
@@ -2046,7 +2021,7 @@ ReturnZero:
                     if (tmp == 0)
                         tmp = d2.Mid;
 
-                    curScale = X86.Lzcnt.IsSupported ? (int)X86.Lzcnt.LeadingZeroCount(tmp) : LeadingZeroCount(tmp);
+                    curScale = BitOperations.LeadingZeroCount(tmp);
 
                     // Shift both dividend and divisor left by curScale.
                     //
@@ -2213,7 +2188,7 @@ RoundUp:
                 }
 
 ThrowOverflow:
-                throw new OverflowException(SR.Overflow_Decimal);
+                Number.ThrowOverflowException(TypeCode.Decimal);
             }
 
             /// <summary>
@@ -2327,7 +2302,7 @@ ThrowOverflow:
                 uint tmp = d2.High;
                 if (tmp == 0)
                     tmp = d2.Mid;
-                int shift = X86.Lzcnt.IsSupported ? (int)X86.Lzcnt.LeadingZeroCount(tmp) : LeadingZeroCount(tmp);
+                int shift = BitOperations.LeadingZeroCount(tmp);
 
                 Buf28 b;
                 _ = &b; // workaround for CS0165
@@ -2407,19 +2382,8 @@ ThrowOverflow:
                 }
             }
 
-            internal enum RoundingMode
-            {
-                ToEven = 0,
-                AwayFromZero = 1,
-                Truncate = 2,
-                Floor = 3,
-                Ceiling = 4,
-            }
-
-            /// <summary>
-            /// Does an in-place round by the specified scale
-            /// </summary>
-            internal static void InternalRound(ref DecCalc d, uint scale, RoundingMode mode)
+            // Does an in-place round by the specified scale
+            internal static void InternalRound(ref DecCalc d, uint scale, MidpointRounding mode)
             {
                 // the scale becomes the desired decimal count
                 d.uflags -= scale << ScaleShift;
@@ -2472,7 +2436,7 @@ ThrowOverflow:
                         ulong tmp = d.Low64;
                         if (tmp == 0)
                         {
-                            if (mode <= RoundingMode.Truncate)
+                            if (mode <= MidpointRounding.ToZero)
                                 goto done;
                             remainder = 0;
                             goto checkRemainder;
@@ -2502,9 +2466,9 @@ ThrowOverflow:
                 }
 
 checkRemainder:
-                if (mode == RoundingMode.Truncate)
+                if (mode == MidpointRounding.ToZero)
                     goto done;
-                else if (mode == RoundingMode.ToEven)
+                else if (mode == MidpointRounding.ToEven)
                 {
                     // To do IEEE rounding, we add LSB of result to sticky bits so either causes round up if remainder * 2 == last divisor.
                     remainder <<= 1;
@@ -2513,14 +2477,14 @@ checkRemainder:
                     if (power >= remainder)
                         goto done;
                 }
-                else if (mode == RoundingMode.AwayFromZero)
+                else if (mode == MidpointRounding.AwayFromZero)
                 {
                     // Round away from zero at the mid point.
                     remainder <<= 1;
                     if (power > remainder)
                         goto done;
                 }
-                else if (mode == RoundingMode.Floor)
+                else if (mode == MidpointRounding.ToNegativeInfinity)
                 {
                     // Round toward -infinity if we have chopped off a non-zero amount from a negative value.
                     if ((remainder | sticky) == 0 || !d.IsNegative)
@@ -2528,7 +2492,7 @@ checkRemainder:
                 }
                 else
                 {
-                    Debug.Assert(mode == RoundingMode.Ceiling);
+                    Debug.Assert(mode == MidpointRounding.ToPositiveInfinity);
                     // Round toward infinity if we have chopped off a non-zero amount from a positive value.
                     if ((remainder | sticky) == 0 || d.IsNegative)
                         goto done;

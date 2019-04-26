@@ -13,6 +13,7 @@
 
 //This class contains only static members and doesn't require serialization.
 
+#nullable enable
 using System.Runtime.CompilerServices;
 
 namespace System
@@ -64,6 +65,7 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern double Floor(double d);
 
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern double FusedMultiplyAdd(double x, double y, double z);
 

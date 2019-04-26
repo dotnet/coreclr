@@ -69,7 +69,6 @@ inline PTR_LCGMethodResolver DynamicMethodDesc::GetLCGMethodResolver()
         GC_NOTRIGGER;
         NOTHROW;
         PRECONDITION(IsLCGMethod());
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -84,7 +83,6 @@ inline PTR_ILStubResolver DynamicMethodDesc::GetILStubResolver()
         GC_NOTRIGGER;
         NOTHROW;
         PRECONDITION(IsILStub());
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -99,7 +97,6 @@ inline PTR_DynamicMethodDesc MethodDesc::AsDynamicMethodDesc()
         GC_NOTRIGGER;
         NOTHROW;
         PRECONDITION(IsDynamicMethod());
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -182,7 +179,15 @@ inline CodeVersionManager * MethodDesc::GetCodeVersionManager()
 inline CallCounter * MethodDesc::GetCallCounter()
 {
     LIMITED_METHOD_CONTRACT;
-    return GetModule()->GetCallCounter();
+    return GetLoaderAllocator()->GetCallCounter();
+}
+#endif
+
+#ifndef CROSSGEN_COMPILE
+inline MethodDescBackpatchInfoTracker * MethodDesc::GetBackpatchInfoTracker()
+{
+    LIMITED_METHOD_CONTRACT;
+    return GetLoaderAllocator()->GetMethodDescBackpatchInfoTracker();
 }
 #endif
 

@@ -55,7 +55,7 @@ LoaderAllocator::LoaderAllocator()
     m_pFatTokenSetLock = NULL;
     m_pFatTokenSet = NULL;
 #endif
-    
+
 #ifndef CROSSGEN_COMPILE
     m_pVirtualCallStubManager = NULL;
 #endif
@@ -72,6 +72,8 @@ LoaderAllocator::LoaderAllocator()
     m_pLastUsedDynamicCodeHeap = NULL;
     m_pJumpStubCache = NULL;
     m_IsCollectible = false;
+
+    m_pMarshalingData = NULL;
 
 #ifdef FEATURE_COMINTEROP
     m_pComCallWrapperCache = NULL;
@@ -197,7 +199,6 @@ BOOL LoaderAllocator::CheckAddReference_Unlocked(LoaderAllocator *pOtherLA)
     CONTRACTL
     {
         THROWS;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -232,7 +233,6 @@ BOOL LoaderAllocator::EnsureReference(LoaderAllocator *pOtherLA)
     CONTRACTL
     {
         THROWS;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -258,7 +258,6 @@ BOOL LoaderAllocator::EnsureInstantiation(Module *pDefiningModule, Instantiation
     CONTRACTL
     {
         THROWS;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -358,7 +357,6 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
     // List of LoaderAllocators being deleted
@@ -485,6 +483,8 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
     {
         _ASSERTE(!pDomainLoaderAllocatorDestroyIterator->IsAlive());
 
+        GetAppDomain()->RemoveTypesFromTypeIDMap(pDomainLoaderAllocatorDestroyIterator);
+
         DomainAssemblyIterator domainAssemblyIt(pDomainLoaderAllocatorDestroyIterator->m_pFirstDomainAssemblyFromSameALCToDelete);
 
         // Release all assemblies from the same ALC
@@ -523,7 +523,6 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
     
@@ -640,7 +639,7 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
     
     // Deleting the DomainAssemblies will have created a list of LoaderAllocator's on the AppDomain
     // Call this shutdown function to clean those up.
-    pAppDomain->ShutdownFreeLoaderAllocators(TRUE);
+    pAppDomain->ShutdownFreeLoaderAllocators();
 } // LoaderAllocator::GCLoaderAllocators
         
 //---------------------------------------------------------------------------------------
@@ -687,15 +686,7 @@ BOOL QCALLTYPE LoaderAllocator::Destroy(QCall::LoaderAllocatorHandle pLoaderAllo
         if (pDomainAssembly != NULL)
         {
             Assembly *pAssembly = pDomainAssembly->GetCurrentAssembly();
-
-            //if not fully loaded, it is still domain specific, so just get one from DomainAssembly
-            BaseDomain *pDomain = pAssembly ? pAssembly->Parent() : pDomainAssembly->GetAppDomain();
-
-            // This will probably change for shared code unloading
-            _ASSERTE(pDomain->IsAppDomain());
-
-            AppDomain *pAppDomain = pDomain->AsAppDomain();
-            pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete = pAssembly->GetDomainAssembly(pAppDomain);
+            pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete = pAssembly->GetDomainAssembly();
         }
 
         // Iterate through all references to other loader allocators and decrement their reference
@@ -849,7 +840,7 @@ LOADERHANDLE LoaderAllocator::AllocateHandle(OBJECTREF value)
     else
     {
         OBJECTREF* pRef = GetDomain()->AllocateObjRefPtrsInLargeTable(1);
-        SetObjectReference(pRef, gc.value, GetDomain()->AsAppDomain());
+        SetObjectReference(pRef, gc.value);
         retVal = (((UINT_PTR)pRef) + 1);
     }
 
@@ -865,7 +856,6 @@ OBJECTREF LoaderAllocator::GetHandleValue(LOADERHANDLE handle)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -934,7 +924,7 @@ OBJECTREF LoaderAllocator::CompareExchangeValueInHandle(LOADERHANDLE handle, OBJ
         gc.previous = *ptr;
         if ((*ptr) == gc.compare)
         {
-            SetObjectReference(ptr, gc.value, GetDomain()->AsAppDomain());
+            SetObjectReference(ptr, gc.value);
         }
     }
     else
@@ -981,7 +971,7 @@ void LoaderAllocator::SetHandleValue(LOADERHANDLE handle, OBJECTREF value)
     if ((((UINT_PTR)handle) & 1) != 0)
     {
         OBJECTREF *ptr = (OBJECTREF *)(((UINT_PTR)handle) - 1);
-        SetObjectReference(ptr, value, GetDomain()->AsAppDomain());
+        SetObjectReference(ptr, value);
     }
     else
     {
@@ -1069,9 +1059,13 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     m_pDomain = pDomain;
 
     m_crstLoaderAllocator.Init(CrstLoaderAllocator, (CrstFlags)CRST_UNSAFE_COOPGC);
-#ifdef FEATURE_COMINTEROP
     m_InteropDataCrst.Init(CrstInteropData, CRST_REENTRANCY);
+#ifdef FEATURE_COMINTEROP
     m_ComCallWrapperCrst.Init(CrstCOMCallWrapper);
+#endif
+
+#ifndef CROSSGEN_COMPILE
+    m_methodDescBackpatchInfoTracker.Initialize(this);
 #endif
 
     //
@@ -1217,6 +1211,9 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     m_pPrecodeHeap = new (&m_PrecodeHeapInstance) CodeFragmentHeap(this, STUB_CODE_BLOCK_PRECODE);
 #endif
 
+    // Initialize the EE marshaling data to NULL.
+    m_pMarshalingData = NULL;
+
     // Set up the IL stub cache
     m_ILStubCache.Init(m_pHighFrequencyHeap);
 
@@ -1312,7 +1309,6 @@ void LoaderAllocator::Terminate()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
     } CONTRACTL_END;
 
     if (m_fTerminated)
@@ -1321,6 +1317,8 @@ void LoaderAllocator::Terminate()
     m_fTerminated = true;
 
     LOG((LF_CLASSLOADER, LL_INFO100, "Begin LoaderAllocator::Terminate for loader allocator %p\n", reinterpret_cast<void *>(static_cast<PTR_LoaderAllocator>(this))));
+
+    DeleteMarshalingData();
 
     if (m_fGCPressure)
     {
@@ -1549,7 +1547,6 @@ DispatchToken LoaderAllocator::TryLookupDispatchToken(UINT32 typeId, UINT32 slot
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
 #ifdef FAT_DISPATCH_TOKENS
@@ -1563,14 +1560,12 @@ DispatchToken LoaderAllocator::TryLookupDispatchToken(UINT32 typeId, UINT32 slot
             // exceptions and just return an invalid token, since this is
             EX_TRY
             {
-                BEGIN_SO_INTOLERANT_CODE(GetThread());
                 SimpleReadLockHolder rlock(m_pFatTokenSetLock);
                 if (m_pFatTokenSet != NULL)
                 {
                     DispatchTokenFat key(typeId, slotNumber);
                     pFat = m_pFatTokenSet->Lookup(&key);
                 }
-                END_SO_INTOLERANT_CODE;
             }
             EX_CATCH
             {
@@ -1619,7 +1614,52 @@ void LoaderAllocator::UninitVirtualCallStubManager()
         m_pVirtualCallStubManager = NULL;
     }
 }
+
 #endif // !CROSSGEN_COMPILE
+
+EEMarshalingData *LoaderAllocator::GetMarshalingData()
+{
+    CONTRACT (EEMarshalingData*)
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
+        POSTCONDITION(CheckPointer(m_pMarshalingData));
+    }
+    CONTRACT_END;
+
+    if (!m_pMarshalingData)
+    {
+        // Take the lock
+        CrstHolder holder(&m_InteropDataCrst);
+
+        if (!m_pMarshalingData)
+        {
+            m_pMarshalingData = new (GetLowFrequencyHeap()) EEMarshalingData(this, &m_InteropDataCrst);
+        }
+    }
+
+    RETURN m_pMarshalingData;
+}
+
+void LoaderAllocator::DeleteMarshalingData()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // We are in shutdown - no need to take any lock
+    if (m_pMarshalingData)
+    {
+        delete m_pMarshalingData;
+        m_pMarshalingData = NULL;
+    }
+}
 
 #endif // !DACCESS_COMPILE
 
@@ -1889,7 +1929,6 @@ void AssemblyLoaderAllocator::ReleaseManagedAssemblyLoadContext()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 

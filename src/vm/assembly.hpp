@@ -413,7 +413,6 @@ public:
     BOOL GetResource(LPCSTR szName, DWORD *cbResource,
                      PBYTE *pbInMemoryResource, Assembly **pAssemblyRef,
                      LPCSTR *szFileName, DWORD *dwLocation,
-                     StackCrawlMark *pStackMark = NULL, BOOL fSkipSecurityCheck = FALSE,
                      BOOL fSkipRaiseResolveEvent = FALSE);
 
     //****************************************************************************************
@@ -433,16 +432,8 @@ public:
 
     //****************************************************************************************
 
-    DomainAssembly *GetDomainAssembly(AppDomain *pDomain);
+    DomainAssembly *GetDomainAssembly();
     void SetDomainAssembly(DomainAssembly *pAssembly);
-
-    // Verison of GetDomainAssembly that uses the current AppDomain (N/A in DAC builds)
-#ifndef DACCESS_COMPILE
-    DomainAssembly *GetDomainAssembly()     { WRAPPER_NO_CONTRACT; return GetDomainAssembly(GetAppDomain()); }
-#endif
-
-    // FindDomainAssembly will return NULL if the assembly is not in the given domain
-    DomainAssembly *FindDomainAssembly(AppDomain *pDomain);
 
 #if defined(FEATURE_COLLECTIBLE_TYPES) && !defined(DACCESS_COMPILE)
     OBJECTHANDLE GetLoaderAllocatorObjectHandle() { WRAPPER_NO_CONTRACT; return GetLoaderAllocator()->GetLoaderAllocatorObjectHandle(); }
@@ -450,10 +441,20 @@ public:
 
     BOOL IsSIMDVectorAssembly() { LIMITED_METHOD_DAC_CONTRACT; return m_fIsSIMDVectorAssembly; }
 
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     BOOL IsInstrumented();
     BOOL IsInstrumentedHelper();
 #endif // FEATURE_PREJIT
+
+#ifdef FEATURE_COMINTEROP
+    static ITypeLib * const InvalidTypeLib;
+
+    // Get any cached ITypeLib* for the assembly.
+    ITypeLib *GetTypeLib();
+
+    // Try to set the ITypeLib*, if one is not already cached.
+    bool TrySetTypeLib(_In_ ITypeLib *pTlb);
+#endif // FEATURE_COMINTEROP
 
 #ifndef DACCESS_COMPILE
 
@@ -604,6 +605,8 @@ private:
     DWORD                 m_isDisabledPrivateReflection;
 
 #ifdef FEATURE_COMINTEROP
+    // If a TypeLib is ever required for this module, cache the pointer here.
+    ITypeLib              *m_pITypeLib;
     InteropAttributeStatus m_InteropAttributeStatus;
 
     WinMDStatus            m_winMDStatus;
@@ -616,7 +619,7 @@ private:
 
     BOOL                  m_fIsSIMDVectorAssembly;
 
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     enum IsInstrumentedStatus {
         IS_INSTRUMENTED_UNSET = 0,
         IS_INSTRUMENTED_FALSE = 1,

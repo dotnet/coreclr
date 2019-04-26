@@ -42,74 +42,18 @@ class AppDomain;
 class Assembly;
 
 
-class CorExecutionManager
-    : public ICLRExecutionManager
-{
-public:
-    CorExecutionManager();
-
-    STDMETHODIMP STDMETHODCALLTYPE Pause(DWORD dwAppDomainId, DWORD dwFlags);
-    STDMETHODIMP STDMETHODCALLTYPE Resume(DWORD dwAppDomainId);
-
-private:
-    DWORD m_dwFlags; //flags passed to the last Pause call.
-    INT64 m_pauseStartTime;
-};
-
 class CorRuntimeHostBase
 {
 protected:
     CorRuntimeHostBase()
     :m_Started(FALSE),
      m_cRef(0)
-    , m_fStarted(FALSE)
     {LIMITED_METHOD_CONTRACT;}
 
     STDMETHODIMP_(ULONG) AddRef(void);
 
     // Starts the runtime. This is equivalent to CoInitializeCor()
     STDMETHODIMP Start();
-
-#ifdef FEATURE_COMINTEROP
-    // Creates a domain in the runtime. The identity array is
-    // a pointer to an array TYPE containing IIdentity objects defining
-    // the security identity.
-    STDMETHODIMP CreateDomain(LPCWSTR pwzFriendlyName,   // Optional
-                              IUnknown* pIdentityArray, // Optional
-                              IUnknown ** pAppDomain);
-
-    // Returns the default domain.
-    STDMETHODIMP GetDefaultDomain(IUnknown ** pAppDomain);
-
-    // Enumerate currently existing domains.
-    STDMETHODIMP EnumDomains(HDOMAINENUM *hEnum);
-
-    // Returns S_FALSE when there are no more domains. A domain
-    // is passed out only when S_OK is returned.
-    STDMETHODIMP NextDomain(HDOMAINENUM hEnum,
-                            IUnknown** pAppDomain);
-
-    // Close the enumeration releasing resources
-    STDMETHODIMP CloseEnum(HDOMAINENUM hEnum);
-
-    STDMETHODIMP CreateDomainEx(LPCWSTR pwzFriendlyName,
-                                IUnknown* pSetup, // Optional
-                                IUnknown* pEvidence, // Optional
-                                IUnknown ** pAppDomain);
-
-    // Create appdomain setup object that can be passed into CreateDomainEx
-    STDMETHODIMP CreateDomainSetup(IUnknown** pAppDomainSetup);
-
-    // Create Evidence object that can be passed into CreateDomainEx
-    STDMETHODIMP CreateEvidence(IUnknown** pEvidence);
-
-    // Unload a domain, releasing the reference will only release the
-    // the wrapper to the domain not unload the domain.
-    STDMETHODIMP UnloadDomain(IUnknown* pAppDomain);
-
-    // Returns the threads domain if there is one.
-    STDMETHODIMP CurrentDomain(IUnknown ** pAppDomain);
-#endif // FEATURE_COMINTEROP
 
     STDMETHODIMP MapFile(                       // Return code.
         HANDLE     hFile,                       // [in]  Handle for file
@@ -124,10 +68,6 @@ protected:
     BOOL        m_Started;              // Has START been called?
 
     LONG        m_cRef;                 // Ref count.
-
-    // This flag will be used to ensure that a CoreCLR host can invoke Start/Stop in pairs only.
-    BOOL m_fStarted; 
-    BOOL m_fAppDomainCreated; // this flag is used when an appdomain can only create a single appdomain
 
     static ULONG       m_Version;              // Version of ICorRuntimeHost.
                                         // Some functions are only available in ICLRRuntimeHost.
@@ -161,86 +101,12 @@ enum ESymbolReadingSetBy
     eSymbolReadingSetBy_COUNT
 };
 
-
-#if defined(FEATURE_WINDOWSPHONE)
-class CCLRErrorReportingManager :
-#ifdef FEATURE_WINDOWSPHONE
-    public ICLRErrorReportingManager2
-#else
-    public ICLRErrorReportingManager
-#endif // FEATURE_WINDOWSPHONE
-{
-    friend class ClrDataAccess;
-    friend struct _DacGlobals;
-
-    SVAL_DECL(ECustomDumpFlavor, g_ECustomDumpFlavor);
-    
-#ifdef FEATURE_WINDOWSPHONE
-    WCHAR* m_pApplicationId;
-    WCHAR* m_pInstanceId;
-    
-    class BucketParamsCache
-    {
-    private:
-        WCHAR** m_pParams;
-        DWORD const m_cMaxParams;
-    public:
-        BucketParamsCache(DWORD maxNumParams);
-        ~BucketParamsCache();
-        
-        WCHAR const* GetAt(BucketParameterIndex index);
-        HRESULT SetAt(BucketParameterIndex index, WCHAR const* val);
-    };
-    
-    BucketParamsCache* m_pBucketParamsCache;
-    
-    HRESULT CopyToDataCache(_In_ WCHAR** pTarget, WCHAR const* pSource);
-#endif // FEATURE_WINDOWSPHONE
-
-public:
-    CCLRErrorReportingManager();
-    ~CCLRErrorReportingManager();
-
-    STDMETHODIMP    QueryInterface(REFIID riid, void** ppv);
-    STDMETHODIMP_(ULONG) AddRef(void);
-    STDMETHODIMP_(ULONG) Release(void);
-
-    // ICLRErrorReportingManager APIs //
-    
-    // Get Watson bucket parameters for "current" exception (on calling thread).
-    STDMETHODIMP GetBucketParametersForCurrentException(BucketParameters *pParams);
-    STDMETHODIMP BeginCustomDump(   ECustomDumpFlavor dwFlavor,
-                                        DWORD dwNumItems,
-                                        CustomDumpItem items[],
-                                        DWORD dwReserved);
-    STDMETHODIMP EndCustomDump();
-    
-#ifdef FEATURE_WINDOWSPHONE
-    // ICLRErrorReportingManager2 APIs //
-    
-    STDMETHODIMP SetApplicationData(ApplicationDataKey key, WCHAR const* pValue);
-    STDMETHODIMP SetBucketParametersForUnhandledException(BucketParameters const* pBucketParams, DWORD* pCountParams);
-    
-    // internal APIs
-    
-    // returns the application data for the specified key if available, else returns NULL.
-    WCHAR const* GetApplicationData(ApplicationDataKey key);
-    
-    // returns bucket parameter override data if available, else returns NULL.
-    WCHAR const* GetBucketParamOverride(BucketParameterIndex bucketParamId);
-#endif // FEATURE_WINDOWSPHONE
-};
-
-extern CCLRErrorReportingManager g_CLRErrorReportingManager;
-#endif // defined(FEATURE_WINDOWSPHONE)
-
 class CorHost2 :
     public CorRuntimeHostBase
 #ifndef FEATURE_PAL    
     , public IPrivateManagedExceptionReporting /* This interface is for internal Watson testing only*/
 #endif // FEATURE_PAL    
     , public ICLRRuntimeHost4
-    , public CorExecutionManager
 {
     friend struct _DacGlobals;
 
@@ -354,8 +220,6 @@ public:
 
     static STARTUP_FLAGS GetStartupFlags();
 
-    static EInitializeNewDomainFlags GetAppDomainManagerInitializeNewDomainFlags();
-
     static BOOL HasStarted()
     {
         return m_RefCount != 0;
@@ -365,9 +229,9 @@ private:
     // This flag indicates if this instance was the first to load and start CoreCLR
     BOOL m_fFirstToLoadCLR;
 
-    // This flag indicates if the host has authenticated with us or not
-    BOOL m_fIsHostAuthenticated;
-
+    // This flag will be used to ensure that a CoreCLR host can invoke Start/Stop in pairs only.
+    BOOL m_fStarted;
+    BOOL m_fAppDomainCreated; // this flag is used when an appdomain can only create a single appdomain
 
     // Helpers for both ICLRRuntimeHost2 and ICLRPrivRuntime
     HRESULT _CreateAppDomain(
@@ -392,37 +256,7 @@ private:
 
     static LONG  m_RefCount;
 
-    static IHostControl *m_HostControl;
-
     SVAL_DECL(STARTUP_FLAGS, m_dwStartupFlags);
-};
-
-class CorHostProtectionManager
-{
-private:
-    EApiCategories m_eProtectedCategories;
-    bool m_fEagerSerializeGrantSet;
-    bool m_fFrozen;
-
-public:
-    CorHostProtectionManager();
-
-    // IUnknown methods
-    HRESULT STDMETHODCALLTYPE QueryInterface(
-        REFIID id,
-        void **pInterface);
-    ULONG STDMETHODCALLTYPE AddRef();
-    ULONG STDMETHODCALLTYPE Release();
-
-    // Interface methods
-    virtual HRESULT STDMETHODCALLTYPE SetProtectedCategories(/* [in] */ EApiCategories eFullTrustOnlyResources);
-    virtual HRESULT STDMETHODCALLTYPE SetEagerSerializeGrantSets();
-
-    // Getters
-    EApiCategories GetProtectedCategories();
-    bool GetEagerSerializeGrantSets() const;
-
-    void Freeze();
 };
 
 #ifdef FEATURE_COMINTEROP

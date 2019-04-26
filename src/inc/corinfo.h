@@ -210,14 +210,18 @@ TODO: Talk about initializing strutures before use
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if !defined(SELECTANY)
+#if defined(__GNUC__)
+    #define SELECTANY extern __attribute__((weak))
+#else
     #define SELECTANY extern __declspec(selectany)
 #endif
+#endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* FF09DB9F-26A8-4A0B-AF2C-78E32A516FE1 */
-    0xff09db9f,
-    0x26a8,
-    0x4a0b,
-    {0xaf, 0x2c, 0x78, 0xe3, 0x2a, 0x51, 0x6f, 0xe1}
+SELECTANY const GUID JITEEVersionIdentifier = { /* d609bed1-7831-49fc-bd49-b6f054dd4d46 */
+    0xd609bed1,
+    0x7831,
+    0x49fc,
+    {0xbd, 0x49, 0xb6, 0xf0, 0x54, 0xdd, 0x4d, 0x46}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -396,7 +400,10 @@ enum CorInfoHelpFunc
     CORINFO_HELP_NEW_CROSSCONTEXT,  // cross context new object
     CORINFO_HELP_NEWFAST,
     CORINFO_HELP_NEWSFAST,          // allocator for small, non-finalizer, non-array object
+    CORINFO_HELP_NEWSFAST_FINALIZE, // allocator for small, finalizable, non-array object
     CORINFO_HELP_NEWSFAST_ALIGN8,   // allocator for small, non-finalizer, non-array object, 8 byte aligned
+    CORINFO_HELP_NEWSFAST_ALIGN8_VC,// allocator for small, value class, 8 byte aligned
+    CORINFO_HELP_NEWSFAST_ALIGN8_FINALIZE, // allocator for small, finalizable, non-array object, 8 byte aligned
     CORINFO_HELP_NEW_MDARR,         // multi-dim array helper (with or without lower bounds - dimensions passed in as vararg)
     CORINFO_HELP_NEW_MDARR_NONVARARG,// multi-dim array helper (with or without lower bounds - dimensions passed in as unmanaged array)
     CORINFO_HELP_NEWARR_1_DIRECT,   // helper for any one dimensional array creation
@@ -2447,7 +2454,8 @@ public:
     // returns the "NEW" helper optimized for "newCls."
     virtual CorInfoHelpFunc getNewHelper(
             CORINFO_RESOLVED_TOKEN * pResolvedToken,
-            CORINFO_METHOD_HANDLE    callerHandle
+            CORINFO_METHOD_HANDLE    callerHandle,
+            bool *                   pHasSideEffects = NULL /* OUT */
             ) = 0;
 
     // returns the newArr (1-Dim array) helper optimized for "arrayCls."
@@ -2588,8 +2596,18 @@ public:
             CORINFO_CLASS_HANDLE        cls2
             ) = 0;
 
-    // returns is the intersection of cls1 and cls2.
+    // Returns the intersection of cls1 and cls2.
     virtual CORINFO_CLASS_HANDLE mergeClasses(
+            CORINFO_CLASS_HANDLE        cls1,
+            CORINFO_CLASS_HANDLE        cls2
+            ) = 0;
+
+    // Returns true if cls2 is known to be a more specific type
+    // than cls1 (a subtype or more restrictive shared type)
+    // for purposes of jit type tracking. This is a hint to the
+    // jit for optimization; it does not have correctness
+    // implications.
+    virtual BOOL isMoreSpecificType(
             CORINFO_CLASS_HANDLE        cls1,
             CORINFO_CLASS_HANDLE        cls2
             ) = 0;

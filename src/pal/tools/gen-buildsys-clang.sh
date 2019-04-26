@@ -3,15 +3,17 @@
 # This file invokes cmake and generates the build system for Clang.
 #
 
-if [ $# -lt 4 ]
+if [ $# -lt 5 ]
 then
   echo "Usage..."
-  echo "gen-buildsys-clang.sh <path to top level CMakeLists.txt> <ClangMajorVersion> <ClangMinorVersion> <Architecture> [build flavor] [coverage] [ninja] [cmakeargs]"
+  echo "gen-buildsys-clang.sh <path to top level CMakeLists.txt> <ClangMajorVersion> <ClangMinorVersion> <Architecture> <ScriptDirectory> [build flavor] [coverage] [ninja] [scan-build] [cmakeargs]"
   echo "Specify the path to the top level CMake file - <ProjectK>/src/NDP"
   echo "Specify the clang version to use, split into major and minor version"
-  echo "Specify the target architecture." 
+  echo "Specify the target architecture."
+  echo "Specify the script directory."
   echo "Optionally specify the build configuration (flavor.) Defaults to DEBUG." 
   echo "Optionally specify 'coverage' to enable code coverage build."
+  echo "Optionally specify 'scan-build' to enable build with clang static analyzer."
   echo "Target ninja instead of make. ninja must be on the PATH."
   echo "Pass additional arguments to CMake call."
   exit 1
@@ -39,13 +41,15 @@ export CC="$(command -v clang$desired_llvm_version)"
 export CXX="$(command -v clang++$desired_llvm_version)"
 
 build_arch="$4"
+script_dir="$5"
 buildtype=DEBUG
 code_coverage=OFF
 build_tests=OFF
+scan_build=OFF
 generator="Unix Makefiles"
 __UnprocessedCMakeArgs=""
 
-for i in "${@:5}"; do
+for i in "${@:6}"; do
     upperI="$(echo $i | awk '{print toupper($0)}')"
     case $upperI in
       # Possible build types are DEBUG, CHECKED, RELEASE, RELWITHDEBINFO, MINSIZEREL.
@@ -58,6 +62,10 @@ for i in "${@:5}"; do
       ;;
       NINJA)
       generator=Ninja
+      ;;
+      SCAN-BUILD)
+      echo "Static analysis is turned on for this build."
+      scan_build=ON
       ;;
       *)
       __UnprocessedCMakeArgs="${__UnprocessedCMakeArgs}${__UnprocessedCMakeArgs:+ }$i"
@@ -149,10 +157,18 @@ else
     overridefile=clang-compiler-override.txt
 fi
 
-# Determine the current script directory
-__currentScriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+__currentScriptDir="$script_dir"
 
-cmake \
+cmake_command=cmake
+
+if [[ "$scan_build" == "ON" ]]; then
+    export CCC_CC=$CC
+    export CCC_CXX=$CXX
+    export SCAN_BUILD_COMMAND=$(command -v scan-build$desired_llvm_version)
+    cmake_command="$SCAN_BUILD_COMMAND $cmake_command"
+fi
+
+$cmake_command \
   -G "$generator" \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=${__currentScriptDir}/$overridefile" \
   "-DCMAKE_AR=$llvm_ar" \
@@ -162,6 +178,7 @@ cmake \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
   "-DCMAKE_EXPORT_COMPILE_COMMANDS=1 " \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
+  "-DCLR_CMAKE_COMPILER=Clang" \
   $cmake_extra_defines \
   $__UnprocessedCMakeArgs \
   "$1"

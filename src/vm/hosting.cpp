@@ -10,189 +10,11 @@
 
 #include "hosting.h"
 #include "mscoree.h"
-#include "mscoreepriv.h"
 #include "corhost.h"
 #include "threads.h"
 
 
 #define countof(x) (sizeof(x) / sizeof(x[0]))
-
-//Copied from winbase.h
-#ifndef STARTF_TITLEISAPPID
-#define STARTF_TITLEISAPPID     	  0x00001000
-#endif
-#ifndef STARTF_PREVENTPINNING
-#define STARTF_PREVENTPINNING    0x00002000
-#endif
-
-//Flags encoded in the first parameter of CorLaunchApplication.
-#define MASK_NOTPINNABLE 	0x80000000
-#define MASK_HOSTTYPE 		0x00000003
-#define MASK_DONT_SHOW_INSTALL_DIALOG 	0x00000100
-
-#ifdef _DEBUG
-// This function adds a static annotation read by SCAN to indicate HOST_CALLS. Its
-// purpose is to be called from the BEGIN_SO_TOLERANT_CODE_CALLING_HOST macro, to
-// effectively mark all functions that use BEGIN_SO_TOLERANT_CODE_CALLING_HOST as being
-// HOST_CALLS. If you hit a SCAN violation that references AddHostCallsStaticMarker, then
-// you have a function marked as HOST_NOCALLS that eventually calls into a function that
-// uses BEGIN_SO_TOLERANT_CODE_CALLING_HOST.
-DEBUG_NOINLINE void AddHostCallsStaticMarker()
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
-    STATIC_CONTRACT_HOST_CALLS;
-
-    METHOD_CANNOT_BE_FOLDED_DEBUG;
-}
-#endif  //_DEBUG
-
-//
-// memory management functions
-//
-
-// global debug only tracking utilities
-#ifdef _DEBUG
-
-static const LONG MaxGlobalAllocCount = 8;
-
-class GlobalAllocStore {
-public:
-    static void AddAlloc (LPVOID p)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (!p) {
-            return;
-        }
-        if (m_Disabled) {
-            return;
-        }
-
-        //InterlockedIncrement (&numMemWriter);
-        //if (CheckMemFree) {
-        //    goto Return;
-        //}
-
-        //m_Count is number of allocation we've ever tried, it's OK to be bigger than
-        //size of m_Alloc[]
-        InterlockedIncrement (&m_Count);
-
-        //this is by no means an accurate record of heap allocation.
-        //the algorithm used here can't guarantee an allocation is saved in
-        //m_Alloc[] even there's enough free space. However this is only used
-        //for debugging purpose and most importantly, m_Count is accurate.
-        for (size_t n = 0; n < countof(m_Alloc); n ++) {
-            if (m_Alloc[n] == 0) {
-                if (InterlockedCompareExchangeT(&m_Alloc[n],p,0) == 0) {
-                    return;
-                }
-            }
-        }
-        
-        //InterlockedDecrement (&numMemWriter);
-    }
-
-    //this is called in non-host case where we don't care the free after
-    //alloc store is disabled
-    static BOOL RemoveAlloc (LPVOID p)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (m_Disabled)
-        {
-            return TRUE;
-        }
-        //decrement the counter even we might not find the allocation
-        //in m_Alloc. Because it's possible for an allocation not to be saved
-        //in the array
-        InterlockedDecrement (&m_Count);
-        // Binary search        
-        for (size_t n = 0; n < countof(m_Alloc); n ++) {
-            if (m_Alloc[n] == p) {
-                m_Alloc[n] = 0;
-                return TRUE;
-            }
-        }
-        return FALSE;
-    }
-
-    //this is called in host case where if the store is disabled, we want to 
-    //guarantee we don't try to free anything the host doesn't know about
-    static void ValidateFree(LPVOID p)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (p == 0) {
-            return;
-        }
-        if (m_Disabled) {
-            for (size_t n = 0; n < countof(m_Alloc); n ++) {
-                //there could be miss, because an allocation might not be saved
-                //in the array
-                if (m_Alloc[n] == p) {
-                    _ASSERTE (!"Free a memory that host interface does not know");
-                    return;
-                }
-            }
-        }
-    }
-
-    static void Validate()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (m_Count > MaxGlobalAllocCount) {
-            _ASSERTE (!"Using too many memory allocator before Host Interface is set up");
-        }       
-        
-        //while (numMemWriter != 0) {
-        //    Sleep(5);
-        //}
-        //qsort (GlobalMemAddr, (MemAllocCount>MaxAllocCount)?MaxAllocCount:MemAllocCount, sizeof(LPVOID), MemAddrCompare);
-    }
-
-    static void Disable ()
-    {
-        LIMITED_METHOD_CONTRACT;
-        if (!m_Disabled) 
-        {
-            // Let all threads know
-            InterlockedIncrement((LONG*)&m_Disabled);
-        }
-    }
-
-private:
-    static BOOL m_Disabled;    
-    static LPVOID m_Alloc[MaxGlobalAllocCount];
-    //m_Count is number of allocation we tried, it's legal to be bigger than
-    //size of m_Alloc[]
-    static LONG m_Count;
-    // static LONG numMemWriter = 0;
-};
-
-// used from corhost.cpp
-void ValidateHostInterface()
-{
-    WRAPPER_NO_CONTRACT;
-
-    GlobalAllocStore::Validate();
-    GlobalAllocStore::Disable();    
-}
-
-void DisableGlobalAllocStore ()
-{
-    WRAPPER_NO_CONTRACT;
-    GlobalAllocStore::Disable();
-}
-LPVOID GlobalAllocStore::m_Alloc[MaxGlobalAllocCount];
-LONG GlobalAllocStore::m_Count = 0;
-BOOL GlobalAllocStore::m_Disabled = FALSE;
-
-#endif
-
 
 
 HANDLE g_ExecutableHeapHandle = NULL;
@@ -203,7 +25,6 @@ LPVOID EEVirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, D
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -257,10 +78,6 @@ LPVOID EEVirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, D
             p = ::VirtualAlloc (lpAddress, dwSize, flAllocationType, flProtect);
         }
 
-#ifdef _DEBUG
-        GlobalAllocStore::AddAlloc (p);
-#endif
-
         if(p == NULL){
              STRESS_LOG_OOM_STACK(dwSize);
         }
@@ -277,21 +94,10 @@ BOOL EEVirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType) {
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
-    BOOL retVal = FALSE;
-
-    {
-#ifdef _DEBUG
-        GlobalAllocStore::RemoveAlloc (lpAddress);
-#endif
-
-        retVal = (BOOL)(BYTE)::VirtualFree (lpAddress, dwSize, dwFreeType);
-    }
-
-    return retVal;
+    return (BOOL)(BYTE)::VirtualFree (lpAddress, dwSize, dwFreeType);
 }
 #define VirtualFree(lpAddress, dwSize, dwFreeType) Dont_Use_VirtualFree(lpAddress, dwSize, dwFreeType)
 
@@ -302,7 +108,6 @@ SIZE_T EEVirtualQuery(LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZ
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -319,7 +124,6 @@ BOOL EEVirtualProtect(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWOR
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -335,11 +139,8 @@ HANDLE EEGetProcessHeap()
     // Note: this can be called a little early for real contracts, so we use static contracts instead.
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
 
-    {
-        return GetProcessHeap();
-    }
+    return GetProcessHeap();
 }
 #define GetProcessHeap() Dont_Use_GetProcessHeap()
 
@@ -350,7 +151,6 @@ HANDLE EEHeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -372,7 +172,6 @@ BOOL EEHeapDestroy(HANDLE hHeap)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -400,7 +199,6 @@ BOOL EEHeapDestroy(HANDLE hHeap)
 LPVOID EEHeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes) 
 {
     STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
 #ifdef FAILPOINTS_ENABLED
     if (RFS_HashStack ())
@@ -419,7 +217,6 @@ LPVOID EEHeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
             *((HANDLE*)p) = hHeap;
             p = (BYTE*)p + OS_HEAP_ALIGN;
         }
-        GlobalAllocStore::AddAlloc (p);
 #else
         p = ::HeapAlloc (hHeap, dwFlags, dwBytes);
 #endif
@@ -442,7 +239,6 @@ LPVOID EEHeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
 LPVOID EEHeapAllocInProcessHeap(DWORD dwFlags, SIZE_T dwBytes)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
 #ifdef _DEBUG
     // Check whether (indispensable) implicit casting in ClrAllocInProcessHeapBootstrap is safe.
@@ -450,12 +246,6 @@ LPVOID EEHeapAllocInProcessHeap(DWORD dwFlags, SIZE_T dwBytes)
 #endif
 
     static HANDLE ProcessHeap = NULL;
-
-    // We need to guarentee a very small stack consumption in allocating.  And we can't allow
-    // an SO to happen while calling into the host.  This will force a hard SO which is OK because
-    // we shouldn't ever get this close inside the EE in SO-intolerant code, so this should
-    // only fail if we call directly in from outside the EE, such as the JIT.
-    MINIMAL_STACK_PROBE_CHECK_THREAD(GetThread());
 
     if (ProcessHeap == NULL)
         ProcessHeap = EEGetProcessHeap();
@@ -468,18 +258,11 @@ BOOL EEHeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    // @todo -  Need a backout validation here.
-    CONTRACT_VIOLATION(SOToleranceViolation);
-
 
     BOOL retVal = FALSE;
 
     {
 #ifdef _DEBUG
-        GlobalAllocStore::RemoveAlloc (lpMem);
-
         if (lpMem != NULL)
         {
             // Check the heap handle to detect heap contamination
@@ -509,7 +292,6 @@ BOOL EEHeapFreeInProcessHeap(DWORD dwFlags, LPVOID lpMem)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -518,10 +300,6 @@ BOOL EEHeapFreeInProcessHeap(DWORD dwFlags, LPVOID lpMem)
     // Check whether (indispensable) implicit casting in ClrFreeInProcessHeapBootstrap is safe.
     static FastFreeInProcessHeapFunc pFunc = EEHeapFreeInProcessHeap;
 #endif
-
-    // Take a look at comment in EEHeapFree and EEHeapAllocInProcessHeap, obviously someone
-    // needs to take a little time to think more about this code.
-    //CONTRACT_VIOLATION(SOToleranceViolation);
 
     static HANDLE ProcessHeap = NULL;
 
@@ -602,7 +380,6 @@ DWORD EESleepEx(DWORD dwMilliseconds, BOOL bAlertable)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -627,7 +404,6 @@ BOOL __SwitchToThread (DWORD dwSleepMSec, DWORD dwSwitchCount)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 	
@@ -643,7 +419,6 @@ BOOL __DangerousSwitchToThread (DWORD dwSleepMSec, DWORD dwSwitchCount, BOOL goT
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(dwSleepMSec < 10000 || GetThread() == NULL || !GetThread()->PreemptiveGCDisabled());
     }
     CONTRACTL_END;
@@ -759,11 +534,8 @@ void EEDeleteCriticalSection(CRITSEC_COOKIE cookie)
     {
         NOTHROW;
         WRAPPER(GC_NOTRIGGER);
-        SO_TOLERANT;
     }
     CONTRACTL_END;
-
-    VALIDATE_BACKOUT_STACK_CONSUMPTION;
 
     Crst *pCrst = CookieToCrst(cookie);
     _ASSERTE(pCrst);
@@ -782,7 +554,6 @@ DEBUG_NOINLINE void EEEnterCriticalSection(CRITSEC_COOKIE cookie) {
     {
         WRAPPER(THROWS);
         WRAPPER(GC_TRIGGERS);
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -800,7 +571,6 @@ DEBUG_NOINLINE void EELeaveCriticalSection(CRITSEC_COOKIE cookie)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -818,7 +588,6 @@ LPVOID EETlsGetValue(DWORD slot)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     //
     // @todo: we don't want TlsGetValue to throw, but CheckThreadState throws right now. Either modify
@@ -840,7 +609,6 @@ BOOL EETlsCheckValue(DWORD slot, LPVOID * pValue)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     //
     // @todo: we don't want TlsGetValue to throw, but CheckThreadState throws right now. Either modify
@@ -865,7 +633,6 @@ VOID EETlsSetValue(DWORD slot, LPVOID pData)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     void **pTlsData = CExecutionEngine::CheckThreadState(slot);
 

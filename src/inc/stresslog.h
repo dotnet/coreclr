@@ -127,7 +127,7 @@
             LOG((facility, level, msg, data1, data2, data3, data4, data5, data6, data7));               \
             } while(0)
 
-#define STRESS_LOG_COND0(facility, level, msg) do {                           \
+#define STRESS_LOG_COND0(facility, level, cond, msg) do {                     \
             if (StressLog::LogOn(facility, level) && (cond))                  \
                 StressLog::LogMsg(level, facility, 0, msg);                   \
             LOG((facility, level, msg));                                      \
@@ -397,7 +397,7 @@ typedef USHORT
     static StressLog theLog;    // We only have one log, and this is it
 };
 
-typedef Holder<CRITSEC_COOKIE, StressLog::Enter, StressLog::Leave, NULL, CompareDefault<CRITSEC_COOKIE>, HSV_NoValidation> StressLogLockHolder;
+typedef Holder<CRITSEC_COOKIE, StressLog::Enter, StressLog::Leave, NULL, CompareDefault<CRITSEC_COOKIE>> StressLogLockHolder;
 
 #if defined(DACCESS_COMPILE)
 inline BOOL StressLog::LogOn(unsigned facility, unsigned level)

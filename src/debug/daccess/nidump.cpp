@@ -447,7 +447,7 @@ static OptionDependencies g_dependencies[] =
 // 
 
 // This function gets the Dispenser interface given the CLSID and REFIID.
-STDAPI MetaDataGetDispenser(
+STDAPI DLLEXPORT MetaDataGetDispenser(
     REFCLSID     rclsid,    // The class to desired.
     REFIID       riid,      // Interface wanted on class factory.
     LPVOID FAR * ppv)       // Return interface pointer here.
@@ -2462,7 +2462,7 @@ const NativeImageDumper::Dependency *NativeImageDumper::GetDependencyForFixup(RV
     {
         unsigned idx = DacSigUncompressData(sig);
 
-        _ASSERTE(idx >= 0 && idx < (int)m_numImports);
+        _ASSERTE(idx >= 0 && idx < m_numImports);
         return OpenImport(idx)->dependency;
     }
 
@@ -3647,7 +3647,6 @@ NativeImageDumper::EnumMnemonics NativeImageDumper::s_ModulePersistedFlags[] =
     MPF_ENTRY(DEFAULT_DLL_IMPORT_SEARCH_PATHS_IS_CACHED),
     MPF_ENTRY(DEFAULT_DLL_IMPORT_SEARCH_PATHS_STATUS),
 
-    MPF_ENTRY(NEUTRAL_RESOURCES_LANGUAGE_IS_CACHED),
     MPF_ENTRY(COMPUTED_METHODDEF_TO_PROPERTYINFO_MAP),
     MPF_ENTRY(LOW_LEVEL_SYSTEM_ASSEMBLY_BY_NAME),    
 #undef MPF_ENTRY
@@ -9107,6 +9106,17 @@ mdTypeRef NativeImageDumper::FindTypeRefForMT( PTR_MethodTable mt )
 }
 #endif
 
+#else //!FEATURE_PREJIT
+//dummy implementation for dac
+HRESULT ClrDataAccess::DumpNativeImage(CLRDATA_ADDRESS loadedBase,
+    LPCWSTR name,
+    IXCLRDataDisplay* display,
+    IXCLRLibrarySupport* support,
+    IXCLRDisassemblySupport* dis)
+{
+    return E_FAIL;
+}
+#endif //FEATURE_PREJIT
 
 /* REVISIT_TODO Mon 10/10/2005
  * Here is where it gets bad.  There is no DAC build of gcdump, so instead
@@ -9152,16 +9162,3 @@ mdTypeRef NativeImageDumper::FindTypeRefForMT( PTR_MethodTable mt )
 #pragma warning(default:4244)
 #pragma warning(default:4189)
 #endif // __MSC_VER
-
-
-#else //!FEATURE_PREJIT
-//dummy implementation for dac
-HRESULT ClrDataAccess::DumpNativeImage(CLRDATA_ADDRESS loadedBase,
-                                       LPCWSTR name,
-                                       IXCLRDataDisplay * display,
-                                       IXCLRLibrarySupport * support,
-                                       IXCLRDisassemblySupport * dis)
-{
-    return E_FAIL;
-}
-#endif //FEATURE_PREJIT

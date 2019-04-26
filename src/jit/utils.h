@@ -458,7 +458,6 @@ private:
     bool m_isAllocator[CORINFO_HELP_COUNT];
     bool m_mutatesHeap[CORINFO_HELP_COUNT];
     bool m_mayRunCctor[CORINFO_HELP_COUNT];
-    bool m_mayFinalize[CORINFO_HELP_COUNT];
 
     void init();
 
@@ -509,13 +508,6 @@ public:
         assert(helperId < CORINFO_HELP_COUNT);
         return m_mayRunCctor[helperId];
     }
-
-    bool MayFinalize(CorInfoHelpFunc helperId)
-    {
-        assert(helperId > CORINFO_HELP_UNDEF);
-        assert(helperId < CORINFO_HELP_COUNT);
-        return m_mayFinalize[helperId];
-    }
 };
 
 //*****************************************************************************
@@ -555,6 +547,60 @@ public:
     bool IsEmpty()
     {
         return m_pNames == nullptr;
+    }
+};
+
+// MethodSet: Manage a list of methods that is read from a file.
+//
+// Methods are approximately in the format output by JitFunctionTrace, e.g.:
+//
+//     System.CLRConfig:GetBoolValue(ref,byref):bool (MethodHash=3c54d35e)
+//       -- use the MethodHash, not the method name
+//
+//     System.CLRConfig:GetBoolValue(ref,byref):bool
+//       -- use just the name
+//
+// Method names should not have any leading whitespace.
+//
+// TODO: Should this be more related to JitConfigValues::MethodSet?
+//
+class MethodSet
+{
+    // TODO: use a hash table? or two: one on hash value, one on function name
+    struct MethodInfo
+    {
+        char*       m_MethodName;
+        int         m_MethodHash;
+        MethodInfo* m_next;
+
+        MethodInfo(char* methodName, int methodHash)
+            : m_MethodName(methodName), m_MethodHash(methodHash), m_next(nullptr)
+        {
+        }
+    };
+
+    MethodInfo*   m_pInfos; // List of function info
+    HostAllocator m_alloc;  // HostAllocator to use in this class
+
+public:
+    // Take a Unicode string with the filename containing a list of function names, parse it, and store it.
+    MethodSet(const wchar_t* filename, HostAllocator alloc);
+
+    ~MethodSet();
+
+    // Return 'true' if 'functionName' (in UTF-8 format) is in the stored set of assembly names.
+    bool IsInSet(const char* functionName);
+
+    // Return 'true' if 'functionHash' (in UTF-8 format) is in the stored set of assembly names.
+    bool IsInSet(int functionHash);
+
+    // Return 'true' if this method is active. Prefer non-zero methodHash for check over (non-null) methodName.
+    bool IsActiveMethod(const char* methodName, int methodHash);
+
+    // Return 'true' if the assembly name set is empty.
+    bool IsEmpty()
+    {
+        return m_pInfos == nullptr;
     }
 };
 
