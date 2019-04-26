@@ -808,10 +808,13 @@ Compiler::AssertionDsc* Compiler::optGetAssertion(AssertionIndex assertIndex)
  * if they don't care about it. Refer overloaded method optCreateAssertion.
  *
  */
-AssertionIndex Compiler::optCreateAssertion(GenTree* op1, GenTree* op2, optAssertionKind assertionKind)
+AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
+                                            GenTree*         op2,
+                                            optAssertionKind assertionKind,
+                                            bool             helperCallArgs)
 {
     AssertionDsc assertionDsc;
-    return optCreateAssertion(op1, op2, assertionKind, &assertionDsc);
+    return optCreateAssertion(op1, op2, assertionKind, &assertionDsc, helperCallArgs);
 }
 
 /*****************************************************************************
@@ -830,11 +833,13 @@ AssertionIndex Compiler::optCreateAssertion(GenTree* op1, GenTree* op2, optAsser
  *  NO_ASSERTION_INDEX and we could not create the assertion.
  *
  */
-AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
-                                            GenTree*         op2,
-                                            optAssertionKind assertionKind,
-                                            AssertionDsc*    assertion)
+AssertionIndex Compiler::optCreateAssertion(
+    GenTree* op1, GenTree* op2, optAssertionKind assertionKind, AssertionDsc* assertion, bool helperCallArgs)
 {
+    assert((op1 != nullptr) && !op1->OperIs(GT_LIST));
+    assert((op2 == nullptr) || !op2->OperIs(GT_LIST));
+    assert(!helperCallArgs || (op2 != nullptr));
+
     memset(assertion, 0, sizeof(AssertionDsc));
     //
     // If we cannot create an assertion using op1 and op2 then the assertionKind
@@ -842,7 +847,6 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
     // to a valid assertion when everything is good.
     //
     assertion->assertionKind = OAK_INVALID;
-    bool      haveArgs       = false;
     var_types toType;
 
     if (op1->gtOper == GT_ARR_BOUNDS_CHECK)
@@ -859,25 +863,10 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
     }
 
     //
-    // Did we receive Helper call args?
-    //
-    if (op1->gtOper == GT_LIST)
-    {
-        if (op2->gtOper != GT_LIST)
-        {
-            goto DONE_ASSERTION; // Don't make an assertion
-        }
-        op1      = op1->gtOp.gtOp1;
-        op2      = op2->gtOp.gtOp1;
-        haveArgs = true;
-    }
-
-    //
     // Are we trying to make a non-null assertion?
     //
     if (op2 == nullptr)
     {
-        assert(haveArgs == false);
         //
         // Must an OAK_NOT_EQUAL assertion
         //
@@ -1000,7 +989,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
             goto DONE_ASSERTION; // Don't make an assertion
         }
 
-        if (haveArgs)
+        if (helperCallArgs)
         {
             //
             // Must either be an OAK_EQUAL or an OAK_NOT_EQUAL assertion
@@ -1701,7 +1690,10 @@ void Compiler::optDebugCheckAssertions(AssertionIndex index)
  *
  */
 
-void Compiler::optCreateComplementaryAssertion(AssertionIndex assertionIndex, GenTree* op1, GenTree* op2)
+void Compiler::optCreateComplementaryAssertion(AssertionIndex assertionIndex,
+                                               GenTree*       op1,
+                                               GenTree*       op2,
+                                               bool           helperCallArgs)
 {
     if (assertionIndex == NO_ASSERTION_INDEX)
     {
@@ -1720,23 +1712,18 @@ void Compiler::optCreateComplementaryAssertion(AssertionIndex assertionIndex, Ge
 
     if (candidateAssertion.assertionKind == OAK_EQUAL)
     {
-        AssertionIndex index = optCreateAssertion(op1, op2, OAK_NOT_EQUAL);
+        AssertionIndex index = optCreateAssertion(op1, op2, OAK_NOT_EQUAL, helperCallArgs);
         optMapComplementary(index, assertionIndex);
     }
     else if (candidateAssertion.assertionKind == OAK_NOT_EQUAL)
     {
-        AssertionIndex index = optCreateAssertion(op1, op2, OAK_EQUAL);
+        AssertionIndex index = optCreateAssertion(op1, op2, OAK_EQUAL, helperCallArgs);
         optMapComplementary(index, assertionIndex);
     }
 
     // Are we making a subtype or exact type assertion?
     if ((candidateAssertion.op1.kind == O1K_SUBTYPE) || (candidateAssertion.op1.kind == O1K_EXACT_TYPE))
     {
-        // Did we recieve helper call args?
-        if (op1->gtOper == GT_LIST)
-        {
-            op1 = op1->gtOp.gtOp1;
-        }
         optCreateAssertion(op1, nullptr, OAK_NOT_EQUAL);
     }
 }
@@ -1748,15 +1735,18 @@ void Compiler::optCreateComplementaryAssertion(AssertionIndex assertionIndex, Ge
  * for the operands.
  */
 
-AssertionIndex Compiler::optCreateJtrueAssertions(GenTree* op1, GenTree* op2, Compiler::optAssertionKind assertionKind)
+AssertionIndex Compiler::optCreateJtrueAssertions(GenTree*                   op1,
+                                                  GenTree*                   op2,
+                                                  Compiler::optAssertionKind assertionKind,
+                                                  bool                       helperCallArgs)
 {
     AssertionDsc   candidateAssertion;
-    AssertionIndex assertionIndex = optCreateAssertion(op1, op2, assertionKind, &candidateAssertion);
+    AssertionIndex assertionIndex = optCreateAssertion(op1, op2, assertionKind, &candidateAssertion, helperCallArgs);
     // Don't bother if we don't have an assertion on the JTrue False path. Current implementation
     // allows for a complementary only if there is an assertion on the False path (tree->HasAssertion()).
     if (assertionIndex != NO_ASSERTION_INDEX)
     {
-        optCreateComplementaryAssertion(assertionIndex, op1, op2);
+        optCreateComplementaryAssertion(assertionIndex, op1, op2, helperCallArgs);
     }
     return assertionIndex;
 }
@@ -1973,36 +1963,36 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
     {
         return NO_ASSERTION_INDEX;
     }
-    if (op1->gtCall.gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFINTERFACE) &&
-        op1->gtCall.gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFARRAY) &&
-        op1->gtCall.gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFCLASS) &&
-        op1->gtCall.gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFANY))
+
+    GenTreeCall* call = op1->AsCall();
+
+    if (call->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFINTERFACE) &&
+        call->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFARRAY) &&
+        call->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFCLASS) &&
+        call->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFANY))
     {
         return NO_ASSERTION_INDEX;
     }
 
-    op2 = op1->gtCall.gtCallLateArgs->gtOp.gtOp2;
-    op1 = op1->gtCall.gtCallLateArgs;
+    op1 = call->gtCallLateArgs->GetNode();
+    op2 = call->gtCallLateArgs->GetNext()->GetNode();
 
     // For the assertion, ensure op1 is the object being tested.
     // Morph may have swizzled the operand order.
-    GenTree* op1op = op1->gtOp.gtOp1;
-
-    if (op1op->TypeGet() == TYP_I_IMPL)
+    if (op1->TypeGet() == TYP_I_IMPL)
     {
         jitstd::swap(op1, op2);
-        op1op = op1->gtOp.gtOp1;
     }
 
-    assert(op1op->TypeGet() == TYP_REF);
+    assert(op1->TypeGet() == TYP_REF);
 
     // Reverse the assertion
-    assert(assertionKind == OAK_EQUAL || assertionKind == OAK_NOT_EQUAL);
+    assert((assertionKind == OAK_EQUAL) || (assertionKind == OAK_NOT_EQUAL));
     assertionKind = (assertionKind == OAK_EQUAL) ? OAK_NOT_EQUAL : OAK_EQUAL;
 
-    if (op1op->OperIs(GT_LCL_VAR))
+    if (op1->OperIs(GT_LCL_VAR))
     {
-        return optCreateJtrueAssertions(op1, op2, assertionKind);
+        return optCreateJtrueAssertions(op1, op2, assertionKind, true);
     }
 
     return NO_ASSERTION_INDEX;
