@@ -1016,6 +1016,40 @@
         }
     },
     {
+        "name": "System.Runtime",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Tests.TimeSpanTests.FromMilliseconds",
+                    "reason": "The test will be enabled after https://github.com/dotnet/corefx/pull/37235"
+                },
+                {
+                    "name": "System.Tests.TimeSpanTests.FromMilliseconds_Invalid",
+                    "reason": "The test will be enabled after https://github.com/dotnet/corefx/pull/37235"
+                },
+                {
+                    "name": "System.Tests.TimeSpanTests.NamedMultiplication",
+                    "reason": "The test will be enabled after https://github.com/dotnet/corefx/pull/37235"
+                },
+                {
+                    "name": "System.Tests.TimeSpanTests.Multiplication",
+                    "reason": "The test will be enabled after https://github.com/dotnet/corefx/pull/37235"
+                },
+                {
+                    "name": "System.Tests.TimeSpanTests.Division",
+                    "reason": "The test will be enabled after https://github.com/dotnet/corefx/pull/37235"
+                },
+                {
+                    "name": "System.Tests.TimeSpanTests.NamedDivision",
+                    "reason": "The test will be enabled after https://github.com/dotnet/corefx/pull/37235"
+                },
+            ]
+        }
+    },
+    {
         "name": "System.Runtime.Extensions.Tests",
         "enabled": true,
         "exclusions": {
