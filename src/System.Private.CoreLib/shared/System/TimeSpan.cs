@@ -239,11 +239,10 @@ namespace System
         {
             if (double.IsNaN(value))
                 throw new ArgumentException(SR.Arg_CannotBeNaN);
-            double tmp = value * scale;
-            double millis = tmp + (value >= 0 ? 0.5 : -0.5);
+            double millis = value * scale;
             if ((millis > long.MaxValue / TicksPerMillisecond) || (millis < long.MinValue / TicksPerMillisecond))
                 throw new OverflowException(SR.Overflow_TimeSpanTooLong);
-            return new TimeSpan((long)millis * TicksPerMillisecond);
+            return new TimeSpan((long)(millis * TicksPerMillisecond));
         }
 
         public static TimeSpan FromMilliseconds(double value)
