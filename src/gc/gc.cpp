@@ -13578,13 +13578,31 @@ try_again:
     acontext->alloc_count++;
 }
 
+ptrdiff_t gc_heap::get_balance_heaps_loh_effective_budget ()
+{
+    if (heap_hard_limit)
+    {
+        const ptrdiff_t free_list_space = generation_free_list_space (generation_of (max_generation + 1));
+        heap_segment* seg = generation_start_segment (generation_of (max_generation + 1));
+        assert (heap_segment_next (seg) == nullptr);
+        const ptrdiff_t allocated = heap_segment_allocated (seg) - seg->mem;
+        // We could calculate the actual end_of_seg_space by taking reserved - allocated,
+        // but all heaps have the same reserved memory and this value is only used for comparison.
+        return free_list_space - allocated;
+    }
+    else
+    {
+        return dd_new_allocation (dynamic_data_of (max_generation + 1));;
+    }
+}
+
 gc_heap* gc_heap::balance_heaps_loh (alloc_context* acontext, size_t alloc_size)
 {
     const int home_hp_num = heap_select::select_heap(acontext, 0);
     dprintf (3, ("[h%d] LA: %Id", home_heap, alloc_size));
     gc_heap* home_hp = GCHeap::GetHeap(home_hp_num)->pGenGCHeap;
     dynamic_data* dd = home_hp->dynamic_data_of (max_generation + 1);
-    const ptrdiff_t home_hp_size = dd_new_allocation (dd);
+    const ptrdiff_t home_hp_size = home_hp->get_balance_heaps_loh_effective_budget ();
 
     size_t delta = dd_min_size (dd) / 2;
     int start, end;
@@ -13602,8 +13620,7 @@ try_again:
     for (int i = start; i < end; i++)
     {
         gc_heap* hp = GCHeap::GetHeap(i%n_heaps)->pGenGCHeap;
-        dd = hp->dynamic_data_of (max_generation + 1);
-        const ptrdiff_t size = dd_new_allocation (dd);
+        const ptrdiff_t size = hp->get_balance_heaps_loh_effective_budget ();
 
         dprintf (3, ("hp: %d, size: %d", hp->heap_number, size));
         if (size > max_size)

@@ -1224,6 +1224,8 @@ public:
 #ifdef MULTIPLE_HEAPS
     static
     void balance_heaps (alloc_context* acontext);
+    PER_HEAP
+    ptrdiff_t get_balance_heaps_loh_effective_budget ();
     static 
     gc_heap* balance_heaps_loh (alloc_context* acontext, size_t size);
     // Unlike balance_heaps_loh, this may return nullptr if we failed to change heaps.
