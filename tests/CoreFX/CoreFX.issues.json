@@ -1016,7 +1016,7 @@
         }
     },
     {
-        "name": "System.Runtime",
+        "name": "System.Runtime.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
