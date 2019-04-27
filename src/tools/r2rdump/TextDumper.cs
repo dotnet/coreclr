@@ -360,7 +360,7 @@ namespace R2RDump
                     break;
                 case R2RSection.SectionType.READYTORUN_SECTION_MANIFEST_METADATA:
                     int assemblyRefCount = _r2r.MetadataReader.GetTableRowCount(TableIndex.AssemblyRef);
-                    _writer.WriteLine($"MSIL AssemblyRef's ({assemblyRefCount - 1} entries):");
+                    _writer.WriteLine($"MSIL AssemblyRef's ({assemblyRefCount} entries):");
                     for (int assemblyRefIndex = 1; assemblyRefIndex <= assemblyRefCount; assemblyRefIndex++)
                     {
                         AssemblyReference assemblyRef = _r2r.MetadataReader.GetAssemblyReference(MetadataTokens.AssemblyReferenceHandle(assemblyRefIndex));
