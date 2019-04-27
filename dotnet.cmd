@@ -21,9 +21,7 @@ if NOT [%ERRORLEVEL%]==[0] (
 )
 
 pushd %~dp0
-if NOT [%DotNet_Cmd_Quiet%]==[1] (
-  echo Running: dotnet %*
-)
+echo Running: dotnet %*
 call "%~dp0\.dotnet\dotnet.exe" %*
 popd
 if NOT [%ERRORLEVEL%]==[0] (

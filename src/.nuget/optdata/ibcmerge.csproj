@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+
   <PropertyGroup>
     <TargetFramework>netstandard</TargetFramework>
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
@@ -7,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="microsoft.dotnet.ibcmerge" Version="$(IbcMergePackageVersion)" Condition="'$(IbcMergePackageVersion)'!=''" />
+    <PackageReference Include="microsoft.dotnet.ibcmerge" Version="[$(IbcMergePackageVersion)]" Condition="'$(IbcMergePackageVersion)'!=''" />
   </ItemGroup>
 
   <Target Name="DumpIbcMergePackageVersion">
