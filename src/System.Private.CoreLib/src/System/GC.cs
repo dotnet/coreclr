@@ -649,50 +649,11 @@ namespace System
             }
         }
 
-        // generation: -1 means to let GC decide (equivalent to regular new T[])
-        // 0 means to allocate in gen0
-        // GC.MaxGeneration means to allocate in the oldest generation
-        //
-        // pinned: true means you want to pin this object that you are allocating
-        // otherwise it's not pinned.
-        //
-        // alignment: only supported if pinned is true.
-        // -1 means you don't care which means it'll use the default alignment.
-        // otherwise specify a power of 2 value that's >= pointer size
-        // the beginning of the payload of the object (&array[0]) will be aligned with this alignment.
-        // static T[] AllocateArray<T>(int length, int generation = -1, bool pinned = false, int alignment = -1)
-        public static T[] AllocateArray<T>(int length, int generation = -1, bool pinned = false, int alignment = -1)
-        {
-            // TODO: VS resources
-            if (generation != -1)
-                throw new NotSupportedException();
-
-            if (pinned)
-                throw new NotSupportedException();
-
-            if (alignment != -1)
-                throw new NotSupportedException();
-
-            if (length < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-
-            return new T[length];
-        }
 
         // Skips zero-initialization of the array if possible. If T contains object references, 
         // the array is always zero-initialized.
-        public static T[] AllocateUninitializedArray<T>(int length, int generation = -1, bool pinned = false, int alignment = -1)
+        internal static T[] AllocateUninitializedArray<T>(int length)
         {
-            // TODO: VS resources
-            if (generation != -1)
-                throw new NotSupportedException();
-
-            if (pinned)
-                throw new NotSupportedException();
-
-            if (alignment != -1)
-                throw new NotSupportedException();
-
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
@@ -700,8 +661,10 @@ namespace System
             // in DEBUG arrays of any length can be created uninitialized
 #else
             // otherwise small arrays are allocated using `new[]` as that is generally faster.
-            //TODO: VS measure the actual threashold size. For now assume CACHE_LINE_SIZE, but probably 2X or 3X of that
-            if (Unsafe.SizeOf<T>() * length <= Internal.PaddingHelpers.CACHE_LINE_SIZE - 3 * IntPtr.Size)
+            // The threshold was derived from various simulations. 
+            // As turned out the threshold depends on overal pattern of allocations and gradient around the number is shallow.
+            // As a result the and exact value of the threshold does not matter a lot and we chose 256.
+            if (Unsafe.SizeOf<T>() * length <= 256)
             {
                 return new T[length];
             }
