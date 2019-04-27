@@ -24,7 +24,7 @@
     <!-- Default is embedded overwrite this -->
     <DebugType>Portable</DebugType>
 
-    <!-- Force System.Private.CoreLib.dll to be put in $(BinFolder)/IL -->
+    <!-- Force System.Private.CoreLib.dll into a special IL output directory -->
     <OutputPath>$(BinDir)IL/</OutputPath>
   </PropertyGroup>
 

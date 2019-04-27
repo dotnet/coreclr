@@ -659,7 +659,7 @@ if %__BuildCoreLib% EQU 1 (
           %__ProjectDir%\src\build.proj^
           !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
         if not !errorlevel! == 0 (
-            echo %__MsgPrefix%Error: System.Private.CoreLib restore failed. Refer to the build log files for details:
+            echo %__MsgPrefix%Error: Managed Product assemblies restore failed. Refer to the build log files for details:
             echo     !__BuildLog!
             echo     !__BuildWrn!
             echo     !__BuildErr!
@@ -673,7 +673,7 @@ if %__BuildCoreLib% EQU 1 (
           %__ProjectDir%\src\build.proj^
           !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
         if not !errorlevel! == 0 (
-            echo %__MsgPrefix%Error: System.Private.CoreLib build failed. Refer to the build log files for details:
+            echo %__MsgPrefix%Error: Managed Product assemblies build failed. Refer to the build log files for details:
             echo     !__BuildLog!
             echo     !__BuildWrn!
             echo     !__BuildErr!

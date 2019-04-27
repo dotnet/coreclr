@@ -9,13 +9,9 @@
   <!-- List the projects that need to be built -->
   <ItemGroup>
     <ProjectReference Condition="'$(SkipSOS)' != 'true'" Include="ToolBox\SOS\NETCore\SOS.NETCore.csproj" />
+    <ProjectReference Condition="'$(BuildManagedTools)' == 'true'" Include="tools/r2rdump/R2RDump.csproj" />
     <ProjectReference Include="System.Private.CoreLib\System.Private.CoreLib.csproj" />
   </ItemGroup>
-
-  <!-- [SDKSPCL] <Target Name="BuildR2RDumpPackages" Condition="'$(DotNetBuildFromSource)' != 'true' AND '$(BuildManagedTools)' == 'true'" BeforeTargets="Build">
-    <Exec Command="$(DotnetToolCommand) build /p:__BuildArch=$(BuildArch) /p:__BuildOS=$(BuildOS) /p:__BuildType=$(BuildType) tools/r2rdump/R2RDump.csproj"
-          StandardOutputImportance="Low" />
-  </Target> -->
 
   <ItemGroup>
     <UcrtFilesToCopy Include="$(UniversalCRTSDKDir)Redist\ucrt\DLLs\$(BuildArch)\*.dll" />
