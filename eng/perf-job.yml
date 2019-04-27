@@ -31,10 +31,10 @@ jobs:
       - name: BenchViewRunType
         value: private
       - name: BenchviewCommitName
-        value: '.NET Performance - $(BenchViewRunType) - $(Build.SourceBranchName) $(System.PullRequest.PullRequestNumber)'
+        value: '.NET Performance - $(BenchViewRunType) - $(Build.SourceBranch) $(System.PullRequest.PullRequestNumber)'
       # for public runs we want to generate data (--generate-benchview-data ) but don't upload it (missing --upload-to-benchview-container)
       - name: BenchViewArguments
-        value: '--benchview-submission-name "$(BenchviewCommitName)" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchViewRunType)'
+        value: '--benchview-submission-name ""$(BenchviewCommitName)"" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchViewRunType)'
       - name: Creator
         value: dotnet-performance
       - name: HelixApiAccessToken
@@ -45,7 +45,7 @@ jobs:
       - name: BenchViewRunType
         value: rolling
       - name: BenchviewCommitName
-        value: '.NET Performance - $(BenchViewRunType) - $(Build.SourceBranchName) $(Build.SourceVersion)'
+        value: '.NET Performance - $(BenchViewRunType) - $(Build.SourceBranch) $(Build.SourceVersion)'
       # for private runs we want to generate data (--generate-benchview-data ) and upload it (--upload-to-benchview-container specifies where)
       - name: BenchViewArguments
         value: '--benchview-submission-name "$(BenchviewCommitName)" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchViewRunType) --upload-to-benchview-container $(_Category)'
@@ -72,7 +72,7 @@ jobs:
         value: $(Build.SourcesDirectory)\bin\tests\$(osGroup).$(archType).$(buildConfigUpper)\Tests
 
     - name: commonArguments
-      value: '--filter *Adams* --incremental no --architecture $archType -f netcoreapp3.0 --bdn-arguments="--allCategories CoreClr" --dotnet-compilation-mode Tiered --generate-benchview-data $(BenchviewArguments)'
+      value: '--filter *Adams* --incremental no --architecture $(archType) -f netcoreapp3.0 --bdn-arguments="--allCategories CoreClr" --dotnet-compilation-mode Tiered --generate-benchview-data $(BenchviewArguments)'
 
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
