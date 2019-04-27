@@ -63,11 +63,6 @@
     <BinDir>$(__BinDir)\</BinDir>
     <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)Product\$(PlatformConfigPathPart)\</BinDir>
 
-    <!-- [SDKSPCL] This change is only required for SPCL -->
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <IntermediateOutputPath>$(__IntermediatesDir)\</IntermediateOutputPath>
-    <IntermediateOutputPath Condition="'$(__IntermediatesDir)' == ''">$(RootBinDir)obj\$(PlatformConfigPathPart)\</IntermediateOutputPath>
-
     <!-- We don't append back slash because this path is used by nuget.exe as output directory and it
          fails to write packages to it if the path contains the forward slash.
     -->
@@ -94,7 +89,11 @@
   <!-- Output paths -->
   <PropertyGroup>
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)obj\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)$(PlatformConfigPathPart)\$(MSBuildProjectName)</IntermediateOutputPath>
+
+    <AppendTargetFrameworkToOutputPath Condition="'$(ArcadeBuild)' == 'true'">false</AppendTargetFrameworkToOutputPath>
+    <IntermediateOutputPath>$(__IntermediatesDir)\$(MSBuildProjectName)\</IntermediateOutputPath>
+    <IntermediateOutputPath Condition="'$(__IntermediatesDir)' == ''">$(RootBinDir)obj/$(PlatformConfigPathPart)/$(MSBuildProjectName)/</IntermediateOutputPath>
+
     <OutputPath Condition="'$(OutputPath)' == ''">$(BinDir)</OutputPath>
   </PropertyGroup>
 
