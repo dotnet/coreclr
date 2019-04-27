@@ -329,6 +329,11 @@ namespace System.Text.Unicode
                             ushort surrogatePairsCount = 0;
                             for (int i = 0; i < Vector<ushort>.Count - 1; i++)
                             {
+                                if (lowSurrogateChars[0] != 0)
+                                {
+                                    goto NonVectorizedLoop; // error: start of buffer contains standalone low surrogate char
+                                }
+
                                 surrogatePairsCount -= highSurrogateChars[i]; // turns into +1 or +0
                                 if (highSurrogateChars[i] != lowSurrogateChars[i + 1])
                                 {
