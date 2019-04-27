@@ -476,7 +476,7 @@ int dumpStack(BYTE* topOfStack, unsigned len)
 
         if (isRetAddr((TADDR)*ptr, &whereCalled))
         {
-            if (_snwprintf_s(buffPtr, buff+NumItems(buff)-buffPtr-1, _TRUNCATE,  W("STK[%08X] = %08X "), (size_t)ptr, *ptr)  <0)
+            if (_snwprintf_s(buffPtr, buff + nLen - buffPtr - 1, _TRUNCATE,  W("STK[%08X] = %08X "), (size_t)ptr, *ptr)  <0)
             {
                 return(0);
             }
