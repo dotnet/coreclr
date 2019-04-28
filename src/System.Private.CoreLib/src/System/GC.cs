@@ -661,10 +661,12 @@ namespace System
             // in DEBUG arrays of any length can be created uninitialized
 #else
             // otherwise small arrays are allocated using `new[]` as that is generally faster.
+            //
             // The threshold was derived from various simulations. 
-            // As turned out the threshold depends on overal pattern of allocations and gradient around the number is shallow.
-            // As a result the and exact value of the threshold does not matter a lot and we chose 256.
-            if (Unsafe.SizeOf<T>() * length <= 256)
+            // As it turned out the threshold depends on overal pattern of all allocations and is typically in 200-300 byte range.
+            // The gradient around the number is shallow (there is no perf cliff) and the exact value of the threshold does not matter a lot.
+            // So it is 256 bytes including array header.
+            if (Unsafe.SizeOf<T>() * length < 256 - 3 * IntPtr.Size)
             {
                 return new T[length];
             }
