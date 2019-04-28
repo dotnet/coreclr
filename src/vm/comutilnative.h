@@ -140,7 +140,7 @@ public:
     
     static FCDECL0(INT64,   GetAllocatedBytesForCurrentThread);
 
-    static FCDECL3(Object*, AllocateNewArray, void* elementTypeHandle, INT32 length, CLR_BOOL clearMemory);
+    static FCDECL3(Object*, AllocateNewArray, void* elementTypeHandle, INT32 length, CLR_BOOL zeroingOptional);
 
 #ifdef FEATURE_BASICFREEZE
     static

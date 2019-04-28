@@ -782,7 +782,6 @@ HCIMPL2_RAW(Object*, UnframedAllocateObjectArray, MethodTable *pArrayMT, DWORD c
     return OBJECTREFToObject(AllocateArrayEx(pArrayMT,
                                                (INT32 *)(&cElements),
                                                1,
-                                               FALSE,
                                                FALSE));
 }
 HCIMPLEND_RAW

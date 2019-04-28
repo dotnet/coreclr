@@ -85,7 +85,7 @@ namespace System
 
         // NYI: generation, pinned, alignment
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern Array AllocateNewArray(IntPtr typeHandle, int length, bool clearMemory);
+        internal static extern Array AllocateNewArray(IntPtr typeHandle, int length, bool zeroingOptional);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
@@ -670,7 +670,7 @@ namespace System
             }
 #endif
 
-            return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, clearMemory: false);
+            return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
         }
     }
 }
