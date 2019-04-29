@@ -110,9 +110,9 @@ jobs:
     # TODO: Crossgen the framework
 
     - ${{ if eq(parameters.osName, 'Windows_NT') }}:
-      - script: echo 'WorkItemCommand: -3  %HELIX_CORRELATION_PAYLOAD%\scripts\benchmarks_ci.py $(commonArguments) --corerun %HELIX_WORKITEM_PAYLOAD%\corerun.exe'
+      - script: echo WorkItemCommand -3  %HELIX_CORRELATION_PAYLOAD%\scripts\benchmarks_ci.py $(commonArguments) --corerun %HELIX_WORKITEM_PAYLOAD%\corerun.exe
     - ${{ if ne(parameters.osName, 'Windows_NT') }}:
-      - script: echo 'WorkItemCommand: python3 $HELIX_CORRELATION_PAYLOAD/scripts/benchmarks_ci.py $(commonArguments) --corerun  $HELIX_WORKITEM_PAYLOAD/corerun'
+      - script: echo WorkItemCommand python3 $HELIX_CORRELATION_PAYLOAD/scripts/benchmarks_ci.py $(commonArguments) --corerun  $HELIX_WORKITEM_PAYLOAD/corerun
 
     # Send everything to Helix
     - template: /eng/common/templates/steps/send-to-helix.yml
