@@ -3320,7 +3320,7 @@ static LPCUTF8 Utf8DecodeMultibyteChar(__in_z LPCUTF8 szIn, INT32 *pRet)
     return szIn;
 }
 
-UINT32 towlowerinvariant(UINT32 c)
+UINT16 towlowerinvariant(UINT16 c)
 {
     CONTRACTL
     {
@@ -3399,7 +3399,7 @@ INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) L
                 // Skip doing this for the supplementary plane characters because we would do the wrong thing anyway
                 // https://github.com/dotnet/coreclr/issues/21168
                 if (c <= 0xFFFF)
-                    c = towlowerinvariant(c);
+                    c = towlowerinvariant((UINT16)c);
 
                 // Encode back as UTF-8
                 if (c <= 0x7F)
@@ -3475,7 +3475,7 @@ INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) L
                 // Skip doing this for the supplementary plane characters because we would do the wrong thing anyway
                 // https://github.com/dotnet/coreclr/issues/21168
                 if (c <= 0xFFFF)
-                    c = towlowerinvariant(c);
+                    c = towlowerinvariant((UINT16)c);
 
                 if (c <= 0x7F)
                 {
