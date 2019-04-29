@@ -74,6 +74,9 @@ namespace R2RDump
                 case HandleKind.TypeDefinition:
                     return EmitTypeDefinitionName((TypeDefinitionHandle)handle, namespaceQualified);
 
+                case HandleKind.FieldDefinition:
+                    return EmitFieldDefinitionName((FieldDefinitionHandle)handle, namespaceQualified, owningTypeOverride);
+
                 default:
                     throw new NotImplementedException();
             }
@@ -277,6 +280,26 @@ namespace R2RDump
             TypeSpecification typeSpec = _metadataReader.GetTypeSpecification(typeSpecHandle);
             DisassemblingGenericContext genericContext = new DisassemblingGenericContext(Array.Empty<string>(), Array.Empty<string>());
             return typeSpec.DecodeSignature<string, DisassemblingGenericContext>(this, genericContext);
+        }
+
+        /// <summary>
+        /// Emit the textual representation of a FieldDef metadata record.
+        /// </summary>
+        /// <param name="fieldDefHandle">Field definition handle to format</param>
+        /// <param name="namespaceQualified">True = display namespace information for the owning type</param>
+        /// <param name="owningTypeOverride">Owning type override when non-null</param>
+        /// <returns>Textual representation of the field declaration</returns>
+        private string EmitFieldDefinitionName(FieldDefinitionHandle fieldDefHandle, bool namespaceQualified, string owningTypeOverride)
+        {
+            FieldDefinition fieldDef = _metadataReader.GetFieldDefinition(fieldDefHandle);
+            DisassemblingGenericContext genericContext = new DisassemblingGenericContext(Array.Empty<string>(), Array.Empty<string>());
+            StringBuilder output = new StringBuilder();
+            output.Append(fieldDef.DecodeSignature<string, DisassemblingGenericContext>(this, genericContext));
+            output.Append(' ');
+            output.Append(EmitHandleName(fieldDef.GetDeclaringType(), namespaceQualified, owningTypeOverride));
+            output.Append('.');
+            output.Append(_metadataReader.GetString(fieldDef.Name));
+            return output.ToString();
         }
 
         private string EmitString(StringHandle handle)
@@ -523,8 +546,8 @@ namespace R2RDump
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_FieldHandle:
-                    builder.Append("FIELD_HANDLE");
-                    // TODO
+                    ParseField(builder);
+                    builder.Append(" (FIELD_HANDLE)");
                     break;
 
 
