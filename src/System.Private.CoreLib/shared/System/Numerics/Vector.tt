@@ -271,23 +271,25 @@ namespace System.Numerics
         /// <summary>
         /// Constructs a vector from the given <see cref="ReadOnlySpan{Byte}"/>. The span must contain at least <see cref="Vector{Byte}.Count"/> elements.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector(ReadOnlySpan<byte> values)
             : this()
         {
             ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
-            if (!MemoryMarshal.TryRead(values, out this))
+            if (values.Length < Vector<byte>.Count)
             {
                 Vector.ThrowInsufficientNumberOfElementsException(Vector<byte>.Count);
             }
+            this = Unsafe.ReadUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(values));
         }
         
         /// <summary>
         /// Constructs a vector from the given <see cref="ReadOnlySpan{T}"/>. The span must contain at least <see cref="Vector{T}.Count"/> elements.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector(ReadOnlySpan<T> values)
             : this()
         {
-            ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
             if (values.Length < Count)
             {
                 Vector.ThrowInsufficientNumberOfElementsException(Vector<T>.Count);
@@ -298,10 +300,10 @@ namespace System.Numerics
         /// <summary>
         /// Constructs a vector from the given <see cref="Span{T}"/>. The span must contain at least <see cref="Vector{T}.Count"/> elements.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector(Span<T> values)
             : this()
         {
-            ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
             if (values.Length < Count)
             {
                 Vector.ThrowInsufficientNumberOfElementsException(Vector<T>.Count);
