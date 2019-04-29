@@ -719,26 +719,10 @@ namespace System.Numerics
         public Vector(ReadOnlySpan<byte> values)
             : this()
         {
-            if ((typeof(T) == typeof(byte))
-                || (typeof(T) == typeof(sbyte))
-                || (typeof(T) == typeof(ushort))
-                || (typeof(T) == typeof(short))
-                || (typeof(T) == typeof(uint))
-                || (typeof(T) == typeof(int))
-                || (typeof(T) == typeof(ulong))
-                || (typeof(T) == typeof(long))
-                || (typeof(T) == typeof(float))
-                || (typeof(T) == typeof(double)))
+            ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
+            if (!MemoryMarshal.TryRead(values, out this))
             {
-                if (values.Length < Vector<byte>.Count)
-                {
-                    throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, Vector<byte>.Count, nameof(values)));
-                }
-                this = Unsafe.ReadUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(values));
-            }
-            else
-            {
-                throw new NotSupportedException(SR.Arg_TypeNotSupported);
+                Vector.ThrowInsufficientNumberOfElementsException(Vector<byte>.Count);
             }
         }
         
@@ -748,27 +732,12 @@ namespace System.Numerics
         public Vector(ReadOnlySpan<T> values)
             : this()
         {
-            if ((typeof(T) == typeof(byte))
-                || (typeof(T) == typeof(sbyte))
-                || (typeof(T) == typeof(ushort))
-                || (typeof(T) == typeof(short))
-                || (typeof(T) == typeof(uint))
-                || (typeof(T) == typeof(int))
-                || (typeof(T) == typeof(ulong))
-                || (typeof(T) == typeof(long))
-                || (typeof(T) == typeof(float))
-                || (typeof(T) == typeof(double)))
+            ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
+            if (values.Length < Count)
             {
-                if (values.Length < Count)
-                {
-                    throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, Vector<T>.Count, nameof(values)));
-                }
-                this = Unsafe.ReadUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(values)));
+                Vector.ThrowInsufficientNumberOfElementsException(Vector<T>.Count);
             }
-            else
-            {
-                throw new NotSupportedException(SR.Arg_TypeNotSupported);
-            }
+            this = Unsafe.ReadUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(values)));
         }
 
         /// <summary>
@@ -777,27 +746,12 @@ namespace System.Numerics
         public Vector(Span<T> values)
             : this()
         {
-            if ((typeof(T) == typeof(byte))
-                || (typeof(T) == typeof(sbyte))
-                || (typeof(T) == typeof(ushort))
-                || (typeof(T) == typeof(short))
-                || (typeof(T) == typeof(uint))
-                || (typeof(T) == typeof(int))
-                || (typeof(T) == typeof(ulong))
-                || (typeof(T) == typeof(long))
-                || (typeof(T) == typeof(float))
-                || (typeof(T) == typeof(double)))
+            ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
+            if (values.Length < Count)
             {
-                if (values.Length < Count)
-                {
-                    throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, Vector<T>.Count, nameof(values)));
-                }
-                this = Unsafe.ReadUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(values)));
+                Vector.ThrowInsufficientNumberOfElementsException(Vector<T>.Count);
             }
-            else
-            {
-                throw new NotSupportedException(SR.Arg_TypeNotSupported);
-            }
+            this = Unsafe.ReadUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(values)));
         }
 #endif
         #endregion Constructors
@@ -810,28 +764,12 @@ namespace System.Numerics
         /// <exception cref="ArgumentException">If number of elements in source vector is greater than those available in destination span</exception>
         public void CopyTo(Span<byte> destination)
         {
-            if ((typeof(T) == typeof(byte))
-                || (typeof(T) == typeof(sbyte))
-                || (typeof(T) == typeof(ushort))
-                || (typeof(T) == typeof(short))
-                || (typeof(T) == typeof(uint))
-                || (typeof(T) == typeof(int))
-                || (typeof(T) == typeof(ulong))
-                || (typeof(T) == typeof(long))
-                || (typeof(T) == typeof(float))
-                || (typeof(T) == typeof(double)))
+            ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
+            if ((uint)destination.Length < (uint)Vector<byte>.Count)
             {
-                if ((uint)destination.Length < (uint)Vector<byte>.Count)
-                {
-                    ThrowHelper.ThrowArgumentException_DestinationTooShort();
-                }
-
-                Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
             }
-            else
-            {
-                throw new NotSupportedException(SR.Arg_TypeNotSupported);
-            }
+            Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
         }
 
         /// <summary>
@@ -1639,29 +1577,14 @@ namespace System.Numerics
         /// <paramref name="destination"/> is not large enough to hold the source vector.</returns>
         public bool TryCopyTo(Span<byte> destination)
         {
-            if ((typeof(T) == typeof(byte))
-                || (typeof(T) == typeof(sbyte))
-                || (typeof(T) == typeof(ushort))
-                || (typeof(T) == typeof(short))
-                || (typeof(T) == typeof(uint))
-                || (typeof(T) == typeof(int))
-                || (typeof(T) == typeof(ulong))
-                || (typeof(T) == typeof(long))
-                || (typeof(T) == typeof(float))
-                || (typeof(T) == typeof(double)))
+            ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
+            if ((uint)destination.Length < (uint)Vector<byte>.Count)
             {
-                if ((uint)destination.Length < (uint)Vector<byte>.Count)
-                {
-                    return false;
-                }
+                return false;
+            }
 
-                Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
-                return true;
-            }
-            else
-            {
-                throw new NotSupportedException(SR.Arg_TypeNotSupported);
-            }
+            Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
+            return true;
         }
 
         /// <summary>
@@ -5424,5 +5347,12 @@ namespace System.Numerics
         }
 
         #endregion Same-Size Conversion
+
+        #region Throw Helpers
+        internal static void ThrowInsufficientNumberOfElementsException(int requiredElementCount)
+        {
+            throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, requiredElementCount, "values"));
+        }
+        #endregion
     }
 }
