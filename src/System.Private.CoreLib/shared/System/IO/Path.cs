@@ -434,6 +434,23 @@ namespace System.IO
             return JoinInternal(path1, path2, path3);
         }
 
+        public static string Join(ReadOnlySpan<char> path1, ReadOnlySpan<char> path2, ReadOnlySpan<char> path3, ReadOnlySpan<char> path4)
+        {
+            if (path1.Length == 0)
+                return Join(path2, path3, path4);
+
+            if (path2.Length == 0)
+                return Join(path1, path3, path4);
+
+            if (path3.Length == 0)
+                return Join(path1, path2, path4);
+
+            if (path4.Length == 0)
+                return Join(path1, path2, path3);
+
+            return JoinInternal(path1, path2, path3, path4);
+        }
+
         public static string Join(string? path1, string? path2)
         {
             return Join(path1.AsSpan(), path2.AsSpan());
@@ -442,6 +459,61 @@ namespace System.IO
         public static string Join(string? path1, string? path2, string? path3)
         {
             return Join(path1.AsSpan(), path2.AsSpan(), path3.AsSpan());
+        }
+
+        public static string Join(string? path1, string? path2, string? path3, string? path4)
+        {
+            return Join(path1.AsSpan(), path2.AsSpan(), path3.AsSpan(), path4.AsSpan());
+        }
+
+        public static string Join(params string[] paths)
+        {
+            if (paths == null)
+            {
+                throw new ArgumentNullException(nameof(paths));
+            }
+
+            int finalSize = 0;
+            
+            for (int i = 0; i < paths.Length; i++)
+            {
+                if (paths[i] == null || paths[i].Length == 0)
+                {
+                    continue;
+                }
+
+                finalSize += paths[i].Length;
+
+                char ch = paths[i][paths[i].Length - 1];
+                if (!PathInternal.IsDirectorySeparator(ch))
+                    finalSize++;
+            }
+
+            StringBuilder finalPath = StringBuilderCache.Acquire(finalSize);
+
+            for (int i = 0; i < paths.Length; i++)
+            {
+                if (paths[i] == null || paths[i].Length == 0)
+                {
+                    continue;
+                }
+
+                if (finalPath.Length == 0)
+                {
+                    finalPath.Append(paths[i]);
+                }
+                else
+                {
+                    if (!PathInternal.IsDirectorySeparator(finalPath[finalPath.Length - 1]) && !PathInternal.IsDirectorySeparator(paths[i][0]))
+                    {
+                        finalPath.Append(PathInternal.DirectorySeparatorChar);
+                    }
+
+                    finalPath.Append(paths[i]);
+                }
+            }
+
+            return StringBuilderCache.GetStringAndRelease(finalPath);
         }
 
         public static bool TryJoin(ReadOnlySpan<char> path1, ReadOnlySpan<char> path2, Span<char> destination, out int charsWritten)
