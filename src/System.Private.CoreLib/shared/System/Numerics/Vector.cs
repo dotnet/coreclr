@@ -59,10 +59,10 @@ namespace System.Numerics
             [Intrinsic]
             get
             {
-                return s_count;
+                ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
+                return Unsafe.SizeOf<Vector<T>>() / Unsafe.SizeOf<T>();
             }
         }
-        private static readonly int s_count = InitializeCount();
 
         /// <summary>
         /// Returns a vector containing all zeroes.
@@ -100,71 +100,6 @@ namespace System.Numerics
         }
         private static readonly Vector<T> s_allOnes = new Vector<T>(GetAllBitsSetValue());
         #endregion Static Members
-
-        #region Static Initialization
-        private struct VectorSizeHelper
-        {
-            internal Vector<T> _placeholder;
-            internal byte _byte;
-        }
-
-        // Calculates the size of this struct in bytes, by computing the offset of a field in a structure
-        private static unsafe int InitializeCount()
-        {
-            VectorSizeHelper vsh;
-            byte* vectorBase = &vsh._placeholder.register.byte_0;
-            byte* byteBase = &vsh._byte;
-            int vectorSizeInBytes = (int)(byteBase - vectorBase);
-
-            int typeSizeInBytes = -1;
-            if (typeof(T) == typeof(byte))
-            {
-                typeSizeInBytes = sizeof(byte);
-            }
-            else if (typeof(T) == typeof(sbyte))
-            {
-                typeSizeInBytes = sizeof(sbyte);
-            }
-            else if (typeof(T) == typeof(ushort))
-            {
-                typeSizeInBytes = sizeof(ushort);
-            }
-            else if (typeof(T) == typeof(short))
-            {
-                typeSizeInBytes = sizeof(short);
-            }
-            else if (typeof(T) == typeof(uint))
-            {
-                typeSizeInBytes = sizeof(uint);
-            }
-            else if (typeof(T) == typeof(int))
-            {
-                typeSizeInBytes = sizeof(int);
-            }
-            else if (typeof(T) == typeof(ulong))
-            {
-                typeSizeInBytes = sizeof(ulong);
-            }
-            else if (typeof(T) == typeof(long))
-            {
-                typeSizeInBytes = sizeof(long);
-            }
-            else if (typeof(T) == typeof(float))
-            {
-                typeSizeInBytes = sizeof(float);
-            }
-            else if (typeof(T) == typeof(double))
-            {
-                typeSizeInBytes = sizeof(double);
-            }
-            else
-            {
-                throw new NotSupportedException(SR.Arg_TypeNotSupported);
-            }
-
-            return vectorSizeInBytes / typeSizeInBytes;
-        }
-        #endregion Static Initialization
 
         #region Constructors
         /// <summary>
