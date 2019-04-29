@@ -21,7 +21,7 @@
     <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
 
-    <!-- Default is embedded overwrite this -->
+    <!-- Ensure a portable PDB is emitted for the project. A PDB is needed for crossgen. -->
     <DebugType>Portable</DebugType>
 
     <!-- Force System.Private.CoreLib.dll into a special IL output directory -->
