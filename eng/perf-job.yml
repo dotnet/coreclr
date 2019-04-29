@@ -28,13 +28,13 @@ jobs:
 
     variables:
     - ${{ if eq(variables['System.TeamProject'], 'public') }}:
-      - name: BenchViewRunType
+      - name: BenchviewRunType
         value: private
       - name: BenchviewCommitName
-        value: '.NET Performance - $(BenchViewRunType) - $(Build.SourceBranch) $(System.PullRequest.PullRequestNumber)'
+        value: '.NET Performance - $(BenchviewRunType) - $(Build.SourceBranch) $(System.PullRequest.PullRequestNumber)'
       # for public runs we want to generate data (--generate-benchview-data ) but don't upload it (missing --upload-to-benchview-container)
-      - name: BenchViewArguments
-        value: '--benchview-submission-name ""$(BenchviewCommitName)"" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchViewRunType)'
+      - name: BenchviewArguments
+        value: '--benchview-submission-name ""$(BenchviewCommitName)"" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchviewRunType)'
       - name: Creator
         value: dotnet-performance
       - name: HelixApiAccessToken
@@ -42,21 +42,21 @@ jobs:
       - name: HelixPreCommand
         value: ''
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-      - name: BenchViewRunType
+      - name: BenchviewRunType
         value: rolling
       - name: BenchviewCommitName
-        value: '.NET Performance - $(BenchViewRunType) - $(Build.SourceBranch) $(Build.SourceVersion)'
+        value: '.NET Performance - $(BenchviewRunType) - $(Build.SourceBranch) $(Build.SourceVersion)'
       # for private runs we want to generate data (--generate-benchview-data ) and upload it (--upload-to-benchview-container specifies where)
-      - name: BenchViewArguments
-        value: '--benchview-submission-name "$(BenchviewCommitName)" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchViewRunType) --upload-to-benchview-container $(_Category)'
+      - name: BenchviewArguments
+        value: '--benchview-submission-name "$(BenchviewCommitName)" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchviewRunType) --upload-to-benchview-container $(_Category)'
       - name: Creator
         value: ''
       - ${{ if eq(parameters.osName, 'windows') }}:
         - name: HelixPreCommand
-          value: 'set "BV_UPLOAD_SAS_TOKEN=$(BenchViewUploadToken)"'
+          value: 'set "BV_UPLOAD_SAS_TOKEN=$(BenchviewUploadToken)"'
       - ${{ if ne(parameters.osName, 'windows') }}:
         - name: HelixPreCommand
-          value: 'export BV_UPLOAD_SAS_TOKEN="$(BenchViewUploadTokenLinux)"'
+          value: 'export BV_UPLOAD_SAS_TOKEN="$(BenchviewUploadTokenLinux)"'
       - group: DotNet-HelixApi-Access
       - group: dotnet-benchview
 
@@ -108,6 +108,11 @@ jobs:
         displayName: Create Core_Root
 
     # TODO: Crossgen the framework
+
+    - ${{ if eq(parameters.osName, 'Windows_NT') }}:
+      - script: echo 'WorkItemCommand: -3  %HELIX_CORRELATION_PAYLOAD%\scripts\benchmarks_ci.py $(commonArguments) --corerun %HELIX_WORKITEM_PAYLOAD%\corerun.exe'
+    - ${{ if ne(parameters.osName, 'Windows_NT') }}:
+      - script: echo 'WorkItemCommand: python3 $HELIX_CORRELATION_PAYLOAD/scripts/benchmarks_ci.py $(commonArguments) --corerun  $HELIX_WORKITEM_PAYLOAD/corerun'
 
     # Send everything to Helix
     - template: /eng/common/templates/steps/send-to-helix.yml
