@@ -83,7 +83,6 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _EndNoGCRegion();
 
-        // NYI: generation, pinned, alignment
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern Array AllocateNewArray(IntPtr typeHandle, int length, bool zeroingOptional);
 

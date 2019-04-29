@@ -428,12 +428,11 @@ OBJECTREF AllocateSzArray(TypeHandle arrayType, INT32 cElements, BOOL zeroingOpt
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative        
     } CONTRACTL_END;
 
-    SetTypeHandleOnThreadForAlloc(arrayType);
-
     ArrayTypeDesc* arrayDesc = arrayType.AsArray();
     MethodTable* pArrayMT = arrayDesc->GetMethodTable();
+    SetTypeHandleOnThreadForAlloc(TypeHandle(pArrayMT));
 
-   _ASSERTE(pArrayMT->CheckInstanceActivated());
+    _ASSERTE(pArrayMT->CheckInstanceActivated());
     _ASSERTE(pArrayMT->GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY);
     
     CorElementType elemType = pArrayMT->GetArrayElementType();
