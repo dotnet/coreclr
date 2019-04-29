@@ -669,7 +669,7 @@ if %__BuildCoreLib% EQU 1 (
         call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
           /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
           /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
-          /p:UsePartialNGENOptimization=false /maxcpucount /p:IncludeRestoreOnlyProjects=true /p:ArcadeBuild=true^
+          /p:UsePartialNGENOptimization=false /maxcpucount /p:DotNetUseShippingVersions=true /p:ArcadeBuild=true^
           %__ProjectDir%\src\build.proj^
           !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
         if not !errorlevel! == 0 (
