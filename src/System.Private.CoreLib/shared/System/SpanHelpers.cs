@@ -24,7 +24,7 @@ namespace System
                 return;
 
 #if CORECLR && (AMD64 || ARM64)
-            if (byteLength > 4096)
+            if (byteLength > 768)
                 goto PInvoke;
             Unsafe.InitBlockUnaligned(ref b, 0, (uint)byteLength);
             return;
