@@ -173,6 +173,9 @@ DEFINE_METHOD(CLASS,                GET_METHOD_BASE,        GetMethodBase,      
 DEFINE_METHOD(CLASS,                GET_FIELD_INFO,         GetFieldInfo,               SM_RuntimeType_IRuntimeFieldInfo_RetFieldInfo)
 DEFINE_METHOD(CLASS,                GET_PROPERTY_INFO,      GetPropertyInfo,            SM_RuntimeType_Int_RetPropertyInfo)
 
+DEFINE_CLASS(SYSTEM_CHAR,           System,                 Char)
+DEFINE_METHOD(SYSTEM_CHAR,          TO_LOWER_INVARIANT,     ToLowerInvariant,           SM_Char_RetChar)
+
 #ifdef FEATURE_COMINTEROP
 DEFINE_METHOD(CLASS,                FORWARD_CALL_TO_INVOKE, ForwardCallToInvokeMember,  IM_Str_BindingFlags_Obj_ArrObj_ArrBool_ArrInt_ArrType_Type_RetObj)
 #endif // FEATURE_COMINTEROP

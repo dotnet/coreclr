@@ -3272,7 +3272,7 @@ INT32 InternalCasingHelper::InvariantToLowerNoThrow(__out_bcount_opt(cMaxBytes) 
 {
     CONTRACTL {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
         INJECT_FAULT(return 0;);
     } CONTRACTL_END
@@ -3320,6 +3320,36 @@ static LPCUTF8 Utf8DecodeMultibyteChar(__in_z LPCUTF8 szIn, INT32 *pRet)
     return szIn;
 }
 
+UINT32 towlowerinvariant(UINT32 c)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+    }
+    CONTRACTL_END
+
+#if CROSSGEN_COMPILE
+    assert(!"unreached");
+    return 0;
+#else
+    UINT16 ret;
+
+    EX_TRY
+    {
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__SYSTEM_CHAR__TO_LOWER_INVARIANT);
+        DECLARE_ARGHOLDER_ARRAY(args, 1);
+        args[ARGNUM_0] = DWORD_TO_ARGHOLDER(c);
+        CALL_MANAGED_METHOD(ret, UINT16, args);
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(SwallowAllExceptions)
+
+    return ret;
+#endif
+}
+
 // Convert szIn to lower case in the Invariant locale.
 INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn, BOOL fAllowThrow)
 {
@@ -3327,7 +3357,7 @@ INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) L
     {
         // This fcn can trigger a lazy load of the TextInfo class.
         if (fAllowThrow) THROWS; else NOTHROW;
-        if (fAllowThrow) GC_TRIGGERS; else GC_NOTRIGGER;
+        GC_TRIGGERS;
         if (fAllowThrow) {INJECT_FAULT(COMPlusThrowOM());} else {INJECT_FAULT(return 0);}
         MODE_ANY;
 

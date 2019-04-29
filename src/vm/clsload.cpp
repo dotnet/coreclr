@@ -541,7 +541,7 @@ EEClassHashEntry_t* ClassLoader::InsertValue(EEClassHashTable *pClassHash, EECla
     {
         INSTANCE_CHECK;
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
         INJECT_FAULT(COMPlusThrowOM(););
     }
@@ -1489,7 +1489,7 @@ BOOL ClassLoader::FindClassModuleThrowing(
     {
         INSTANCE_CHECK;
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
-        if (FORBIDGC_LOADER_USE_ENABLED()) GC_NOTRIGGER; else GC_TRIGGERS;
+        GC_TRIGGERS;
         if (FORBIDGC_LOADER_USE_ENABLED()) FORBID_FAULT; else { INJECT_FAULT(COMPlusThrowOM()); }
         PRECONDITION(CheckPointer(pOriginalName));
         PRECONDITION(CheckPointer(ppModule));
@@ -1760,7 +1760,7 @@ ClassLoader::LoadTypeHandleThrowing(
     CONTRACT(TypeHandle) {
         INSTANCE_CHECK;
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
-        if (FORBIDGC_LOADER_USE_ENABLED()) GC_NOTRIGGER; else GC_TRIGGERS;
+        GC_TRIGGERS;
         if (FORBIDGC_LOADER_USE_ENABLED()) FORBID_FAULT; else { INJECT_FAULT(COMPlusThrowOM()); }
         DAC_LOADS_TYPE(level, !pName->OKToLoad()); 
         PRECONDITION(level > CLASS_LOAD_BEGIN && level <= CLASS_LOADED);
@@ -2137,7 +2137,7 @@ VOID ClassLoader::CreateCanonicallyCasedKey(LPCUTF8 pszNameSpace, LPCUTF8 pszNam
     {
         INSTANCE_CHECK;
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         INJECT_FAULT(COMPlusThrowOM(););
         MODE_ANY;
     }

@@ -244,6 +244,7 @@ DEFINE_METASIG(SM(IntPtr_Int_IntPtr_Int_Int_Int_RetVoid, I i I i i i, v))
 DEFINE_METASIG(SM(IntPtr_IntPtr_Int_Int_RetVoid, I I i i, v))
 DEFINE_METASIG(SM(IntPtr_RefObj_IntPtr_Obj_RetVoid, I r(j) I j, v))
 DEFINE_METASIG(SM(Obj_Int_RetVoid, j i,v))
+DEFINE_METASIG(SM(Char_RetChar, u, u))
 
 DEFINE_METASIG(SM(Flt_RetFlt, f, f))
 DEFINE_METASIG(SM(Dbl_RetDbl, d, d))
