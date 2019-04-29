@@ -7291,7 +7291,8 @@ BOOL Thread::HaveExtraWorkForFinalizer()
         || Thread::CleanupNeededForFinalizedThread()
         || (m_DetachCount > 0)
         || SystemDomain::System()->RequireAppDomainCleanup()
-        || ThreadStore::s_pThreadStore->ShouldTriggerGCForDeadThreads();
+        || ThreadStore::s_pThreadStore->ShouldTriggerGCForDeadThreads()
+        || m_memoryLoadChangeNotification;
 }
 
 void Thread::DoExtraWorkForFinalizer()
@@ -7343,6 +7344,11 @@ void Thread::DoExtraWorkForFinalizer()
     ThreadpoolMgr::FlushQueueOfTimerInfos();
 
     ThreadStore::s_pThreadStore->TriggerGCForDeadThreadsIfNecessary();
+
+    if (m_memoryLoadChangeNotification)
+    {
+        InvokeMemoryLoadChangeNotification();
+    }
 }
 
 

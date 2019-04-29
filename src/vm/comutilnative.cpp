@@ -1707,11 +1707,11 @@ NOINLINE void GCInterface::GarbageCollectModeAny(int generation)
     GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, false, collection_non_blocking);
 }
 
-FCIMPL1(void, GCInterface::RegisterMemoryLoadChangeNotification, void (*notification)(float))
+FCIMPL1(void, GCInterface::RegisterMemoryLoadChangeNotification, void (*notification)(void))
 {
     FCALL_CONTRACT;
 
-    GCHeapUtilities::GetGCHeap()->RegisterMemoryLoadChangeNotification(notification);
+    FinalizerThread::GetFinalizerThread()->RegisterMemoryLoadChangeNotification(notification);
 }
 FCIMPLEND
 
@@ -1719,7 +1719,7 @@ FCIMPL0(void, GCInterface::UnregisterMemoryLoadChangeNotification)
 {
     FCALL_CONTRACT;
 
-    GCHeapUtilities::GetGCHeap()->UnregisterMemoryLoadChangeNotification();
+    FinalizerThread::GetFinalizerThread()->UnregisterMemoryLoadChangeNotification();
 }
 FCIMPLEND
 

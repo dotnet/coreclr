@@ -510,7 +510,7 @@ namespace System
             EndNoGCRegionWorker();
         }
 
-        readonly struct MemoryLoadChangeNotification
+        private readonly struct MemoryLoadChangeNotification
         {
             public float LowMemoryPercent { get; }
             public float HighMemoryPercent { get; }
@@ -524,18 +524,48 @@ namespace System
             }
         }
 
-        private static List<MemoryLoadChangeNotification> s_notifications = new List<MemoryLoadChangeNotification>();
-        private static Action<float> s_notificationsCallback = new Action<float>(InvokeMemoryLoadChangeNotifications);
-        private static IntPtr s_notificationsFtnPtr = Marshal.GetFunctionPointerForDelegate(s_notificationsCallback);
+        private static readonly List<MemoryLoadChangeNotification> s_notifications = new List<MemoryLoadChangeNotification>();
+        private static readonly Action s_notificationsCallback = new Action(InvokeMemoryLoadChangeNotifications);
+        private static readonly IntPtr s_notificationsFtnPtr = Marshal.GetFunctionPointerForDelegate(s_notificationsCallback);
+        private static readonly float s_previousMemoryLoad = -1.0;
 
-        private static void InvokeMemoryLoadChangeNotifications(float memoryPercent)
+        private static float GetMemoryLoad()
         {
+            GCMemoryInfo memoryInfo = GC.GetMemoryInfo();
+            return (float)memoryInfo.MemoryLoadBytes / memoryInfo.TotalAvailableMemoryBytes;
+        }
+
+        private static void InvokeMemoryLoadChangeNotifications()
+        {
+            float currentMemoryLoad = GetMemoryLoad();
+
             lock (s_notifications)
             {
-                int last = 0;
-                for (int i = 0; i < s_notifications.Count; ++i)
+                if (s_previousMemoryLoad == -1.0)
                 {
-                    if (s_notifications[i].LowMemoryPercent <= memoryPercent && memoryPercent <= s_notifications[i].HighMemoryPercent)
+                    s_previousMemoryLoad = currentMemoryLoad;
+                    return;
+                }
+
+                // We need to take a snapshot of s_notifications.Count, so that in the case that s_notifications[i].Notification() registers new notifications,
+                // we neither get rid of them nor iterate over them
+                int count = s_notifications.Count;
+
+                // If there is no existing notifications, we won't be iterating over any and we won't be adding any new one. Also, there wasn't any added since
+                // we last invoked this method so it's safe to assume we can reset s_previousMemoryLoad.
+                if (count == 0)
+                {
+                    s_previousMemoryLoad = -1.0;
+                    _UnregisterMemoryLoadChangeNotification();
+                    return;
+                }
+
+                int last = 0;
+                for (int i = 0; i < count; ++i)
+                {
+                    // If s_notifications[i] changes from within s_previousMemoryLoad bound to outside s_previousMemoryLoad, we trigger the notification
+                    if (s_notifications[i].LowMemoryPercent <= s_previousMemoryLoad && s_previousMemoryLoad <= s_notifications[i].HighMemoryPercent
+                         && !(s_notifications[i].LowMemoryPercent <= currentMemoryLoad && currentMemoryLoad <= s_notifications[i].HighMemoryPercent))
                     {
                         s_notifications[i].Notification();
                         // it will then be overwritten or removed
@@ -546,14 +576,9 @@ namespace System
                     }
                 }
 
-                if (last < s_notifications.Count)
+                if (last < count)
                 {
-                    s_notifications.RemoveRange(last, s_notifications.Count - last);
-                }
-
-                if (s_notifications.Count == 0)
-                {
-                    _UnregisterMemoryLoadChangeNotification();
+                    s_notifications.RemoveRange(last, count - last);
                 }
             }
         }
@@ -613,10 +638,8 @@ namespace System
                     }
                 }
 
-                if (s_notifications.Count == 0)
-                {
-                    _UnregisterMemoryLoadChangeNotification();
-                }
+                // We only register the callback from the runtime in InvokeMemoryLoadChangeNotifications, so to avoid race conditions between
+                // UnregisterMemoryLoadChangeNotification and InvokeMemoryLoadChangeNotifications in native.
             }
         }
 

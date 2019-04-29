@@ -170,7 +170,7 @@ public:
     static void NewRemoveMemoryPressure(UINT64 bytesAllocated);
     static void NewAddMemoryPressure(UINT64 bytesAllocated);
 
-    static FCDECL1(void, RegisterMemoryLoadChangeNotification, void (*notification)(float));
+    static FCDECL1(void, RegisterMemoryLoadChangeNotification, void (*notification)(void));
     static FCDECL0(void, UnregisterMemoryLoadChangeNotification);
 
 private:

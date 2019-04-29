@@ -762,19 +762,6 @@ public:
     virtual size_t GetNow() = 0;
 
     /*
-    ============================================================================
-    GC.RegisterMemoryLoadChangeNotification/UnregisterMemoryLoadChangeNotification routines
-    ============================================================================
-    */
-
-    /* Register notification to be called whenever the memory threshold goes under
-     * lowMemoryPercent or over highMemoryPercent */
-    virtual void RegisterMemoryLoadChangeNotification(void (*notification)(float)) = 0;
-
-    /* Unregister notification to be called */
-    virtual void UnregisterMemoryLoadChangeNotification() = 0;
-
-    /*
     ===========================================================================
     Allocation routines. These all call into the GC's allocator and may trigger a garbage
     collection. All allocation routines return NULL when the allocation request
