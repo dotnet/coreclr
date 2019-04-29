@@ -19,6 +19,7 @@
 #include "eventtracebase.h"
 #include "sampleprofiler.h"
 #include "win32threadpool.h"
+#include "ceemain.h"
 
 #ifdef FEATURE_PAL
 #include "pal.h"
@@ -33,7 +34,6 @@ EventPipeSession *EventPipe::s_pSession = NULL;
 EventPipeBufferManager *EventPipe::s_pBufferManager = NULL;
 EventPipeFile *EventPipe::s_pFile = NULL;
 EventPipeEventSource *EventPipe::s_pEventSource = NULL;
-LPCWSTR EventPipe::s_pCommandLine = NULL;
 HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
 ULONGLONG EventPipe::s_lastFlushSwitchTime = 0;
 
@@ -223,12 +223,6 @@ void EventPipe::Shutdown()
     delete s_pEventSource;
     s_pEventSource = NULL;
 
-    // On Windows, this is just a pointer to the return value from
-    // GetCommandLineW(), so don't attempt to free it.
-#ifdef FEATURE_PAL
-    delete[] s_pCommandLine;
-    s_pCommandLine = NULL;
-#endif
 }
 
 EventPipeSessionID EventPipe::Enable(
@@ -251,18 +245,23 @@ EventPipeSessionID EventPipe::Enable(
     }
     CONTRACTL_END;
 
-    // Take the lock before enabling tracing.
-    CrstHolder _crst(GetLock());
+    EventPipeSessionID sessionId;
+    EventPipe::RunWithCallbackPostponed(
+        [&](EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+        {
+            // Create a new session.
+            SampleProfiler::SetSamplingRate(static_cast<unsigned long>(profilerSamplingRateInNanoseconds));
+            EventPipeSession *pSession = s_pConfig->CreateSession(
+                sessionType,
+                circularBufferSizeInMB,
+                pProviders,
+                numProviders);
 
-    // Create a new session.
-    SampleProfiler::SetSamplingRate(static_cast<unsigned long>(profilerSamplingRateInNanoseconds));
-    EventPipeSession *pSession = s_pConfig->CreateSession(
-        sessionType,
-        circularBufferSizeInMB,
-        pProviders,
-        numProviders);
+            // Enable the session.
+            sessionId = Enable(strOutputPath, pSession, sessionType, pStream, pEventPipeProviderCallbackDataQueue);
+        }
+    );
 
-    EventPipeSessionID sessionId = Enable(strOutputPath, pSession, sessionType, pStream);
     return sessionId;
 }
 
@@ -270,7 +269,8 @@ EventPipeSessionID EventPipe::Enable(
     LPCWSTR strOutputPath,
     EventPipeSession *const pSession,
     EventPipeSessionType sessionType,
-    IpcStream *const pStream)
+    IpcStream *const pStream,
+    EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -322,10 +322,10 @@ EventPipeSessionID EventPipe::Enable(
     }
 
     // Enable tracing.
-    s_pConfig->Enable(s_pSession);
+    s_pConfig->Enable(s_pSession, pEventPipeProviderCallbackDataQueue);
 
     // Enable the sample profiler
-    SampleProfiler::Enable();
+    SampleProfiler::Enable(pEventPipeProviderCallbackDataQueue);
 
     // Return the session ID.
     return sessionId;
@@ -349,12 +349,15 @@ void EventPipe::Disable(EventPipeSessionID id)
     // Don't block GC during clean-up.
     GCX_PREEMP();
 
-    // Take the lock before disabling tracing.
-    CrstHolder _crst(GetLock());
-    DisableInternal(reinterpret_cast<EventPipeSessionID>(s_pSession));
+    EventPipe::RunWithCallbackPostponed(
+        [&](EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+        {
+            DisableInternal(reinterpret_cast<EventPipeSessionID>(s_pSession), pEventPipeProviderCallbackDataQueue);
+        }
+    );
 }
 
-void EventPipe::DisableInternal(EventPipeSessionID id)
+void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -371,13 +374,13 @@ void EventPipe::DisableInternal(EventPipeSessionID id)
         SampleProfiler::Disable();
 
         // Log the process information event.
-        s_pEventSource->SendProcessInfo(s_pCommandLine);
+        s_pEventSource->SendProcessInfo(GetManagedCommandLine());
 
         // Log the runtime information event.
         ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Normal);
 
         // Disable tracing.
-        s_pConfig->Disable(s_pSession);
+        s_pConfig->Disable(s_pSession, pEventPipeProviderCallbackDataQueue);
 
         // Delete the session.
         s_pConfig->DeleteSession(s_pSession);
@@ -410,14 +413,14 @@ void EventPipe::DisableInternal(EventPipeSessionID id)
                     1 /* circularBufferSizeInMB */,
                     RundownProviders,
                     sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration));
-                s_pConfig->EnableRundown(s_pSession);
+                s_pConfig->EnableRundown(s_pSession, pEventPipeProviderCallbackDataQueue);
 
                 // Ask the runtime to emit rundown events.
                 if (g_fEEStarted && !g_fEEShutDown)
                     ETW::EnumerationLog::EndRundown();
 
                 // Disable the event pipe now that rundown is complete.
-                s_pConfig->Disable(s_pSession);
+                s_pConfig->Disable(s_pSession, pEventPipeProviderCallbackDataQueue);
 
                 // Delete the rundown session.
                 s_pConfig->DeleteSession(s_pSession);
@@ -518,37 +521,39 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
 
     GCX_PREEMP();
 
-    // Take the lock control lock to make sure that tracing isn't disabled during this operation.
-    CrstHolder _crst(GetLock());
-
-    if (s_pSession == nullptr || s_pFile == nullptr)
-        return;
-
-    // Make sure that we should actually switch files.
-    if (!Enabled() || s_pSession->GetSessionType() != EventPipeSessionType::IpcStream)
-        return;
-
-    if (CLRGetTickCount64() > (s_lastFlushSwitchTime + 100))
-    {
-        // Get the current time stamp.
-        // WriteAllBuffersToFile will use this to ensure that no events after
-        // the current timestamp are written into the file.
-        LARGE_INTEGER stopTimeStamp;
-        QueryPerformanceCounter(&stopTimeStamp);
-        s_pBufferManager->WriteAllBuffersToFile(s_pFile, stopTimeStamp);
-
-        s_lastFlushSwitchTime = CLRGetTickCount64();
-    }
-
-    if (s_pFile->HasErrors())
-    {
-        EX_TRY
+    EventPipe::RunWithCallbackPostponed(
+        [&](EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
         {
-            DisableInternal(reinterpret_cast<EventPipeSessionID>(s_pSession));
+            if (s_pSession == nullptr || s_pFile == nullptr)
+                return;
+
+            // Make sure that we should actually switch files.
+            if (!Enabled() || s_pSession->GetSessionType() != EventPipeSessionType::IpcStream)
+                return;
+
+            if (CLRGetTickCount64() > (s_lastFlushSwitchTime + 100))
+            {
+                // Get the current time stamp.
+                // WriteAllBuffersToFile will use this to ensure that no events after
+                // the current timestamp are written into the file.
+                LARGE_INTEGER stopTimeStamp;
+                QueryPerformanceCounter(&stopTimeStamp);
+                s_pBufferManager->WriteAllBuffersToFile(s_pFile, stopTimeStamp);
+
+                s_lastFlushSwitchTime = CLRGetTickCount64();
+            }
+
+            if (s_pFile->HasErrors())
+            {
+                EX_TRY
+                {
+                    DisableInternal(reinterpret_cast<EventPipeSessionID>(s_pSession), pEventPipeProviderCallbackDataQueue);
+                }
+                EX_CATCH {}
+                EX_END_CATCH(SwallowAllExceptions);
+            }
         }
-        EX_CATCH {}
-        EX_END_CATCH(SwallowAllExceptions);
-    }
+    );
 }
 
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
@@ -583,15 +588,37 @@ EventPipeProvider *EventPipe::CreateProvider(const SString &providerName, EventP
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(!GetLock()->OwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
+    EventPipeProvider *pProvider = NULL;
+    EventPipe::RunWithCallbackPostponed(
+        [&](EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+        {
+            pProvider = EventPipe::CreateProvider(providerName, pCallbackFunction, pCallbackData, pEventPipeProviderCallbackDataQueue);
+        }
+    );
+
+    return pProvider;
+}
+
+EventPipeProvider *EventPipe::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
 
     EventPipeProvider *pProvider = NULL;
     if (s_pConfig != NULL)
     {
-        pProvider = s_pConfig->CreateProvider(providerName, pCallbackFunction, pCallbackData);
+        pProvider = s_pConfig->CreateProvider(providerName, pCallbackFunction, pCallbackData, pEventPipeProviderCallbackDataQueue);
     }
-
     return pProvider;
 }
 
@@ -857,47 +884,6 @@ StackWalkAction EventPipe::StackWalkCallback(CrawlFrame *pCf, StackContents *pDa
     return SWA_CONTINUE;
 }
 
-void EventPipe::SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        PRECONDITION(pwzAssemblyPath != NULL);
-        PRECONDITION(argc <= 0 || argv != NULL);
-    }
-    CONTRACTL_END;
-
-    // Get the command line.
-    LPCWSTR osCommandLine = GetCommandLineW();
-
-#ifndef FEATURE_PAL
-    // On Windows, osCommandLine contains the executable and all arguments.
-    s_pCommandLine = osCommandLine;
-#else
-    // On UNIX, the PAL doesn't have the command line arguments, so we must build the command line.
-    // osCommandLine contains the full path to the executable.
-    SString commandLine(osCommandLine);
-    commandLine.Append((WCHAR)' ');
-    commandLine.Append(pwzAssemblyPath);
-
-    for (int i = 0; i < argc; i++)
-    {
-        commandLine.Append((WCHAR)' ');
-        commandLine.Append(argv[i]);
-    }
-
-    // Allocate a new string for the command line.
-    SIZE_T commandLineLen = commandLine.GetCount();
-    WCHAR *pCommandLine = new WCHAR[commandLineLen + 1];
-    wcsncpy(pCommandLine, commandLine.GetUnicode(), commandLineLen);
-    pCommandLine[commandLineLen] = '\0';
-
-    s_pCommandLine = pCommandLine;
-#endif
-}
-
 EventPipeEventInstance *EventPipe::GetNextEvent()
 {
     CONTRACTL
@@ -918,6 +904,11 @@ EventPipeEventInstance *EventPipe::GetNextEvent()
     }
 
     return pInstance;
+}
+
+/* static */ void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)
+{
+    EventPipeProvider::InvokeCallback(eventPipeProviderCallbackData);
 }
 
 #endif // FEATURE_PERFTRACING

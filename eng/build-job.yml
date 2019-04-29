@@ -15,6 +15,7 @@ jobs:
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
     osIdentifier: ${{ parameters.osIdentifier }}
+    helixType: 'build/product/'
     enableMicrobuild: true
 
     # Compute job name from template parameters
@@ -68,8 +69,6 @@ jobs:
       # Variables used by arcade to gather asset manifests
       - name: _DotNetPublishToBlobFeed
         value: true
-      - name: _BuildConfig
-        value: $(buildConfigUpper)
     - name: officialBuildIdArg
       value: ''
     - name: ibcOptimizeArg
@@ -101,6 +100,26 @@ jobs:
       # Necessary to install python
       - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
         displayName: Install native dependencies
+
+    # Install internal tools on official builds
+    # Since our internal tools are behind an authenticated feed,
+    # we need to use the DotNetCli AzDO task to restore from the feed using a service connection.
+    # We can't do this from within the build, so we need to do this as a separate step.
+    - ${{ if and(and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')), eq(parameters.osGroup, 'Windows_NT')) }}:
+        - task: DotNetCoreInstaller@0
+          inputs:
+            packageType: 'sdk'
+            version: '2.1.503'
+        - task: DotNetCoreCLI@2
+          displayName: Restore internal tools
+          inputs:
+            command: restore
+            feedsToUse: config
+            projects: 'src/.nuget/optdata/ibcmerge.csproj'
+            nugetConfigPath: 'eng/internal/NuGet.config'
+            restoreDirectory: '$(Build.SourcesDirectory)\packages'
+            verbosityRestore: 'normal'
+            externalFeedCredentials: 'dotnet-core-internal-tooling'
 
     # Build
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
