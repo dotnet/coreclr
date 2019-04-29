@@ -1,3 +1,8 @@
+cmake_minimum_required(VERSION 3.8) # This project is only included on Win32 platforms so we can have a higher CMake version requirement since we already require a newer CMake version on Windows for various reasons.
+# Quick note: The CMake C# support is using the CSC bundled with the MSBuild that the native build runs on, not the one supplied by the local .NET SDK.
+
+project(DacTableGen LANGUAGES CSharp)
+
 set(DACTABLEGEN_SOURCES
     cvconst.cs
     diautil.cs
@@ -5,19 +10,15 @@ set(DACTABLEGEN_SOURCES
     MapSymbolProvider.cs
 )
 
-# Cmake does not support C# sources so add custom command
-# Disable:
-#   warning CS1668: Invalid search path 'C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Tools\MSVC\14.14.26428\atlmfc\lib\ARM64' specified in 'LIB environment variable' -- 'The system cannot find the path specified. '
-# There are several problems here: (1) the C++ project files are adding non-existent directories to the LIB path, especially for ARM and ARM64,
-# (2) This CSC is invoking the desktop .NET Framework CSC, not the buildtools version.
-add_custom_target(dactablegen ALL 
-    COMMAND csc.exe /t:exe /platform:anycpu32bitpreferred /r:System.dll /r:DiaLib.dll /nowarn:1668 /out:${CMAKE_CURRENT_BINARY_DIR}/dactablegen.exe ${DACTABLEGEN_SOURCES}
-    COMMAND ${CMAKE_COMMAND} -E copy DIAlib.dll ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS ${DACTABLEGEN_SOURCES} DIAlib.dll
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
+# Remove defines that aren't just by-name but actually have defined values.
+# C# doesn't support preprocessor defines with values.
+remove_definitions(-D_SECURE_SCL=0 -DWINVER=0x0602 -D_WIN32_WINNT=0x0602)
 
-# In order to use dactablegen as an executable target it needs to be imported. 
-# Target is used in dll/mscoree/coreclr/cmakelists.txt
-add_executable(dactablegen_exe IMPORTED GLOBAL)
-set_property(TARGET dactablegen_exe PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/dactablegen.exe)
+get_directory_property(DIRECTORY_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
+string(REGEX REPLACE "[A-Za-z0-9_]+=[^ ]" "" DIRECTORY_COMPILE_DEFINITIONS "${DIRECTORY_COMPILE_DEFINITIONS}")
+set_directory_properties(PROPERTIES COMPILE_DEFINITIONS "${DIRECTORY_COMPILE_DEFINITIONS}")
+
+add_executable(dactablegen ${DACTABLEGEN_SOURCES})
+
+set_target_properties(dactablegen PROPERTIES VS_DOTNET_REFERENCES "System")
+set_target_properties(dactablegen PROPERTIES VS_DOTNET_REFERENCE_DIALib ${CMAKE_CURRENT_SOURCE_DIR}/DIALib.dll)

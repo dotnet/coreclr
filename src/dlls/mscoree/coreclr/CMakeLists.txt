@@ -167,7 +167,7 @@ if(WIN32)
         clr_unknown_arch()
     endif()
 
-    set(DACTABLEGEN_EXE ${CMAKE_BINARY_DIR}/src/ToolBox/SOS/DacTableGen/dactablegen.exe)
+    set(DACTABLEGEN_EXE $<TARGET_FILE:dactablegen>)
 
     add_custom_command(
         DEPENDS coreclr mscordaccore mscordbi ${CLR_DIR}/src/debug/daccess/daccess.cpp
