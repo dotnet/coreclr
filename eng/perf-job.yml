@@ -63,11 +63,13 @@ jobs:
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - name: productPath
         value: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - name: corerootParentPath
         value: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/Tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - name: productPath
         value: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).$(buildConfigUpper)
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - name: corerootParentPath
         value: $(Build.SourcesDirectory)\bin\tests\$(osGroup).$(archType).$(buildConfigUpper)\Tests
 
