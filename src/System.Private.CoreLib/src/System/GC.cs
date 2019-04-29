@@ -527,12 +527,17 @@ namespace System
         private static readonly List<MemoryLoadChangeNotification> s_notifications = new List<MemoryLoadChangeNotification>();
         private static readonly Action s_notificationsCallback = new Action(InvokeMemoryLoadChangeNotifications);
         private static readonly IntPtr s_notificationsFtnPtr = Marshal.GetFunctionPointerForDelegate(s_notificationsCallback);
-        private static readonly float s_previousMemoryLoad = -1.0;
+        private static float s_previousMemoryLoad = float.MaxValue;
 
         private static float GetMemoryLoad()
         {
-            GCMemoryInfo memoryInfo = GC.GetMemoryInfo();
-            return (float)memoryInfo.MemoryLoadBytes / memoryInfo.TotalAvailableMemoryBytes;
+            GetMemoryInfo(out uint _,
+                          out ulong _,
+                          out uint lastRecordedMemLoad,
+                          out UIntPtr _,
+                          out UIntPtr _);
+
+            return (float)lastRecordedMemLoad / 100;
         }
 
         private static void InvokeMemoryLoadChangeNotifications()
@@ -541,7 +546,7 @@ namespace System
 
             lock (s_notifications)
             {
-                if (s_previousMemoryLoad == -1.0)
+                if (s_previousMemoryLoad == float.MaxValue)
                 {
                     s_previousMemoryLoad = currentMemoryLoad;
                     return;
@@ -555,7 +560,7 @@ namespace System
                 // we last invoked this method so it's safe to assume we can reset s_previousMemoryLoad.
                 if (count == 0)
                 {
-                    s_previousMemoryLoad = -1.0;
+                    s_previousMemoryLoad = float.MaxValue;
                     _UnregisterMemoryLoadChangeNotification();
                     return;
                 }

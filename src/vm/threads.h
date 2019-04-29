@@ -1464,36 +1464,6 @@ public:
     }
 #endif // !DACCESS_COMPILE
 
-private:
-    void (*m_memoryLoadChangeNotification)(void);
-
-    void InvokeMemoryLoadChangeNotification()
-    {
-        _ASSERTE(m_memoryLoadChangeNotification != nullptr);
-
-        m_memoryLoadChangeNotification();
-    }
-
-public:
-    /* Register notification to be called whenever the memory threshold goes under
-     * lowMemoryPercent or over highMemoryPercent */
-    void RegisterMemoryLoadChangeNotification(void (*notification)(void))
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(m_memoryLoadChangeNotification == nullptr);
-
-        m_memoryLoadChangeNotification = notification;
-    }
-
-    /* Unregister notification to be called */
-    void UnregisterMemoryLoadChangeNotification()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(m_memoryLoadChangeNotification != nullptr);
-
-        m_memoryLoadChangeNotification = nullptr;
-    }
-
     // returns if there is some extra work for the finalizer thread.
     BOOL HaveExtraWorkForFinalizer();
 
@@ -5052,6 +5022,36 @@ public:
 
 private:
     OBJECTHANDLE m_DeserializationTracker;
+
+private:
+    void (*m_memoryLoadChangeNotification)(void);
+
+    void InvokeMemoryLoadChangeNotification()
+    {
+        _ASSERTE(m_memoryLoadChangeNotification != nullptr);
+
+        m_memoryLoadChangeNotification();
+    }
+
+public:
+    /* Register notification to be called whenever the memory threshold goes under
+     * lowMemoryPercent or over highMemoryPercent */
+    void RegisterMemoryLoadChangeNotification(void (*notification)(void))
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(m_memoryLoadChangeNotification == nullptr);
+
+        m_memoryLoadChangeNotification = notification;
+    }
+
+    /* Unregister notification to be called */
+    void UnregisterMemoryLoadChangeNotification()
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(m_memoryLoadChangeNotification != nullptr);
+
+        m_memoryLoadChangeNotification = nullptr;
+    }
 };
 
 // End of class Thread
