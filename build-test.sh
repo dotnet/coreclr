@@ -150,7 +150,7 @@ generate_layout()
     build_MSBuild_projects "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "Creating test overlay" "/t:CreateTestOverlay"
 
     chmod +x $__BinDir/corerun
-    chmod +x $__BinDir/crossgen
+    chmod +x $__CrossgenExe
 
     # Make sure to copy over the pulled down packages
     cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
@@ -160,6 +160,75 @@ generate_layout()
         echo "Resolve runtime dependences via $nextCommand"
         eval $nextCommand
     fi
+
+    # Precompile framework assemblies with crossgen if required
+    if [ $__DoCrossgen -ne 0 ]; then
+        precompile_coreroot_fx
+    fi
+}
+
+precompile_coreroot_fx()
+{
+    echo "${__MsgPrefix}Running crossgen on framework assemblies in CORE_ROOT: '${CORE_ROOT}'"
+
+    # Read the exclusion file for this platform
+    skipCrossGenFiles=($(read_array "$(dirname "$0")/tests/skipCrossGenFiles.${__BuildArch}.txt"))
+
+    local overlayDir=$CORE_ROOT
+
+    filesToPrecompile=$(find -L $overlayDir -iname \*.dll -not -iname \*.ni.dll -not -iname \*-ms-win-\* -not -iname xunit.\* -type f)
+    for fileToPrecompile in ${filesToPrecompile}
+    do
+        local filename=${fileToPrecompile}
+        if is_skip_crossgen_test "$(basename $filename)"; then
+                continue
+        fi
+        echo Precompiling $filename
+        $__CrossgenExe /Platform_Assemblies_Paths $overlayDir $filename 1> $filename.stdout 2>$filename.stderr
+        local exitCode=$?
+        if [[ $exitCode != 0 ]]; then
+            if grep -q -e '0x80131018' $filename.stderr; then
+                printf "\n\t$filename is not a managed assembly.\n\n"
+            else
+                echo Unable to precompile $filename.
+                cat $filename.stdout
+                cat $filename.stderr
+                exit $exitCode
+            fi
+        else
+            rm $filename.{stdout,stderr}
+        fi
+    done
+}
+
+declare -a skipCrossGenFiles
+
+function is_skip_crossgen_test {
+    for skip in "${skipCrossGenFiles[@]}"; do
+        if [ "$1" == "$skip" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Get an array of items by reading the specified file line by line.
+function read_array {
+    local theArray=()
+
+    if [ ! -f "$1" ]; then
+        return
+    fi
+
+    # bash in Mac OS X doesn't support 'readarray', so using alternate way instead.
+    # readarray -t theArray < "$1"
+    # Any line that starts with '#' is ignored.
+    while IFS='' read -r line || [ -n "$line" ]; do
+        if [[ $line != "#"* ]]; then
+            theArray[${#theArray[@]}]=$line
+        fi
+    done < "$1"
+    echo ${theArray[@]}
 }
 
 generate_testhost()
@@ -499,6 +568,7 @@ usage()
     echo "generatelayoutonly - only pull down dependencies and build coreroot"
     echo "generatetesthostonly - only pull down dependencies and build coreroot and the CoreFX testhost"
     echo "skiprestorepackages - skip package restore"
+    echo "crossgen - Precompiles the framework managed assemblies in coreroot"
     echo "runtests - run tests after building them"
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
@@ -630,6 +700,7 @@ __GenerateLayoutOnly=
 __GenerateTestHostOnly=
 __priority1=
 __BuildTestWrappersOnly=
+__DoCrossgen=0
 CORE_ROOT=
 
 while :; do
@@ -808,6 +879,10 @@ while :; do
             __SkipRestorePackages=1
             ;;
 
+        crossgen)
+            __DoCrossgen=1
+            ;;
+
         bindir)
             if [ -n "$2" ]; then
                 __RootBinDir="$2"
@@ -889,9 +964,6 @@ __CrossComponentBinDir="$__BinDir"
 __CrossCompIntermediatesDir="$__IntermediatesDir/crossgen"
 
 __CrossArch="$__HostArch"
-if [[ "$__HostArch" == "x64" && "$__BuildArch" == "arm" ]]; then
-    __CrossArch="x86"
-fi
 if [ $__CrossBuild == 1 ]; then
     __CrossComponentBinDir="$__CrossComponentBinDir/$__CrossArch"
 fi

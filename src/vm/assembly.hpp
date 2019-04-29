@@ -432,16 +432,8 @@ public:
 
     //****************************************************************************************
 
-    DomainAssembly *GetDomainAssembly(AppDomain *pDomain);
+    DomainAssembly *GetDomainAssembly();
     void SetDomainAssembly(DomainAssembly *pAssembly);
-
-    // Verison of GetDomainAssembly that uses the current AppDomain (N/A in DAC builds)
-#ifndef DACCESS_COMPILE
-    DomainAssembly *GetDomainAssembly()     { WRAPPER_NO_CONTRACT; return GetDomainAssembly(GetAppDomain()); }
-#endif
-
-    // FindDomainAssembly will return NULL if the assembly is not in the given domain
-    DomainAssembly *FindDomainAssembly(AppDomain *pDomain);
 
 #if defined(FEATURE_COLLECTIBLE_TYPES) && !defined(DACCESS_COMPILE)
     OBJECTHANDLE GetLoaderAllocatorObjectHandle() { WRAPPER_NO_CONTRACT; return GetLoaderAllocator()->GetLoaderAllocatorObjectHandle(); }
@@ -449,7 +441,7 @@ public:
 
     BOOL IsSIMDVectorAssembly() { LIMITED_METHOD_DAC_CONTRACT; return m_fIsSIMDVectorAssembly; }
 
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     BOOL IsInstrumented();
     BOOL IsInstrumentedHelper();
 #endif // FEATURE_PREJIT
@@ -627,7 +619,7 @@ private:
 
     BOOL                  m_fIsSIMDVectorAssembly;
 
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     enum IsInstrumentedStatus {
         IS_INSTRUMENTED_UNSET = 0,
         IS_INSTRUMENTED_FALSE = 1,

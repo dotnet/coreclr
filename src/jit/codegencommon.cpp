@@ -3305,7 +3305,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         {
             // A struct might be passed  partially in XMM register for System V calls.
             // So a single arg might use both register files.
-            if (isFloatRegType(regType) != doingFloat)
+            if (emitter::isFloatReg(varDsc->lvArgReg) != doingFloat)
             {
                 continue;
             }
@@ -4464,6 +4464,10 @@ void CodeGen::genCheckUseBlockInit()
 
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
+        // The logic below is complex. Make sure we are not
+        // double-counting the initialization impact of any locals.
+        bool counted = false;
+
         if (varDsc->lvIsParam)
         {
             continue;
@@ -4535,6 +4539,7 @@ void CodeGen::genCheckUseBlockInit()
                                 // Var is on the stack at entry.
                                 initStkLclCnt +=
                                     roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
+                                counted = true;
                             }
                         }
                         else
@@ -4542,6 +4547,7 @@ void CodeGen::genCheckUseBlockInit()
                             // Var is partially enregistered
                             noway_assert(genTypeSize(varDsc->TypeGet()) > sizeof(int) && varDsc->lvOtherReg == REG_STK);
                             initStkLclCnt += genTypeStSz(TYP_INT);
+                            counted = true;
                         }
                     }
                 }
@@ -4555,9 +4561,14 @@ void CodeGen::genCheckUseBlockInit()
             if ((!varDsc->lvTracked || (varDsc->lvType == TYP_STRUCT)) && varDsc->lvOnFrame &&
                 (!varDsc->lvIsTemp || varTypeIsGC(varDsc->TypeGet()) || (varDsc->lvStructGcCount > 0)))
             {
+
                 varDsc->lvMustInit = true;
 
-                initStkLclCnt += roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
+                if (!counted)
+                {
+                    initStkLclCnt += roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
+                    counted = true;
+                }
             }
 
             continue;
@@ -4588,7 +4599,11 @@ void CodeGen::genCheckUseBlockInit()
 
         if (varDsc->lvMustInit && varDsc->lvOnFrame)
         {
-            initStkLclCnt += varDsc->lvStructGcCount;
+            if (!counted)
+            {
+                initStkLclCnt += varDsc->lvStructGcCount;
+                counted = true;
+            }
         }
 
         if ((compiler->lvaLclSize(varNum) > (3 * TARGET_POINTER_SIZE)) && (largeGcStructs <= 4))
@@ -4611,19 +4626,33 @@ void CodeGen::genCheckUseBlockInit()
         }
     }
 
-    // After debugging this further it was found that this logic is incorrect:
-    // it incorrectly assumes the stack slots are always 4 bytes (not necessarily the case)
-    // and this also double counts variables (we saw this in the debugger) around line 4829.
-    // Even though this doesn't pose a problem with correctness it will improperly decide to
-    // zero init the stack using a block operation instead of a 'case by case' basis.
+    // Record number of 4 byte slots that need zeroing.
     genInitStkLclCnt = initStkLclCnt;
 
-    /* If we have more than 4 untracked locals, use block initialization */
-    /* TODO-Review: If we have large structs, bias toward not using block initialization since
-       we waste all the other slots.  Really need to compute the correct
-       and compare that against zeroing the slots individually */
+    // Decide if we will do block initialization in the prolog, or use
+    // a series of individual stores.
+    //
+    // Primary factor is the number of slots that need zeroing. We've
+    // been counting by sizeof(int) above. We assume for now we can
+    // only zero register width bytes per store.
+    //
+    // Current heuristic is to use block init when more than 4 stores
+    // are required.
+    //
+    // Secondary factor is the presence of large structs that
+    // potentially only need some fields set to zero. We likely don't
+    // model this very well, but have left the logic as is for now.
+    CLANG_FORMAT_COMMENT_ANCHOR;
+
+#ifdef _TARGET_64BIT_
+
+    genUseBlockInit = (genInitStkLclCnt > (largeGcStructs + 8));
+
+#else
 
     genUseBlockInit = (genInitStkLclCnt > (largeGcStructs + 4));
+
+#endif // _TARGET_64BIT_
 
     if (genUseBlockInit)
     {
@@ -7356,17 +7385,15 @@ void CodeGen::genFinalizeFrame()
     }
 #endif // _TARGET_X86_
 
-#if defined(_TARGET_ARMARCH_)
+#if defined(_TARGET_ARM_)
     // We need to determine if we will change SP larger than a specific amount to determine if we want to use a loop
     // to touch stack pages, that will require multiple registers. See genAllocLclFrame() for details.
     if (compiler->compLclFrameSize >= compiler->getVeryLargeFrameSize())
     {
         regSet.rsSetRegsModified(VERY_LARGE_FRAME_SIZE_REG_MASK);
     }
-#endif // defined(_TARGET_ARMARCH_)
 
-#if defined(_TARGET_ARM_)
-    // If there are any reserved registers, add them to the
+    // If there are any reserved registers, add them to the modified set.
     if (regSet.rsMaskResvd != RBM_NONE)
     {
         regSet.rsSetRegsModified(regSet.rsMaskResvd);
@@ -7855,8 +7882,8 @@ void CodeGen::genFnProlog()
     {
         if (genInitStkLclCnt > 0)
         {
-            printf("Found %u lvMustInit stk vars, frame offsets %d through %d\n", genInitStkLclCnt, -untrLclLo,
-                   -untrLclHi);
+            printf("Found %u lvMustInit int-sized stack slots, frame offsets %d through %d\n", genInitStkLclCnt,
+                   -untrLclLo, -untrLclHi);
         }
     }
 #endif
@@ -10131,7 +10158,11 @@ bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
     structPassingKind howToReturnStruct;
     var_types         returnType = getReturnTypeForStruct(hClass, &howToReturnStruct);
 
+#ifdef _TARGET_ARM64_
+    return (varTypeIsStruct(returnType) && (howToReturnStruct != SPK_PrimitiveType));
+#else
     return (varTypeIsStruct(returnType));
+#endif
 }
 
 //----------------------------------------------
@@ -10140,11 +10171,7 @@ bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
 
 bool Compiler::IsHfa(CORINFO_CLASS_HANDLE hClass)
 {
-#ifdef FEATURE_HFA
-    return varTypeIsFloating(GetHfaType(hClass));
-#else
-    return false;
-#endif
+    return varTypeIsValidHfaType(GetHfaType(hClass));
 }
 
 bool Compiler::IsHfa(GenTree* tree)
@@ -10177,7 +10204,19 @@ var_types Compiler::GetHfaType(CORINFO_CLASS_HANDLE hClass)
     {
 #ifdef FEATURE_HFA
         CorInfoType corType = info.compCompHnd->getHFAType(hClass);
-        if (corType != CORINFO_TYPE_UNDEF)
+#if defined(_TARGET_ARM64_) && defined(FEATURE_SIMD)
+        if (corType == CORINFO_TYPE_VALUECLASS)
+        {
+            // This is a vector type.
+            // HVAs are only supported on ARM64, and only for homogeneous aggregates of 8 or 16 byte vectors.
+            // For 8-byte vectors corType will be returned as CORINFO_TYPE_DOUBLE.
+            result = TYP_SIMD16;
+            // This type may not appear elsewhere, but it will occupy a floating point register.
+            compFloatingPointUsed = true;
+        }
+        else
+#endif // _TARGET_ARM64_ && FEATURE_SIMD
+            if (corType != CORINFO_TYPE_UNDEF)
         {
             result = JITtype2varType(corType);
         }

@@ -3099,15 +3099,10 @@ STRINGREF GetResourceStringFromManaged(STRINGREF key)
     MethodDescCallSite getResourceStringLocal(METHOD__ENVIRONMENT__GET_RESOURCE_STRING_LOCAL);
 
     // Call Environment::GetResourceStringLocal(String name).  Returns String value (or maybe null)
-
-    ENTER_DOMAIN_PTR(SystemDomain::System()->DefaultDomain(),ADV_DEFAULTAD);
-
     // Don't need to GCPROTECT pArgs, since it's not used after the function call.
 
     ARG_SLOT pArgs[1] = { ObjToArgSlot(gc.key) };
     gc.ret = getResourceStringLocal.Call_RetSTRINGREF(pArgs);
-
-    END_DOMAIN_TRANSITION;
 
     GCPROTECT_END();
 
@@ -4741,17 +4736,6 @@ LONG InternalUnhandledExceptionFilter_Worker(
     {
         LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter_Worker: g_fForbidEnterEE is TRUE\n"));
         return EXCEPTION_CONTINUE_SEARCH;
-    }
-
-
-    if (GetEEPolicy()->GetActionOnFailure(FAIL_FatalRuntime) == eDisableRuntime)
-    {
-        ETaskType type = ::GetCurrentTaskType();
-        if (type != TT_UNKNOWN && type != TT_USER)
-        {
-            LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter_Worker: calling EEPolicy::HandleFatalError\n"));
-            EEPolicy::HandleFatalError(COR_E_EXECUTIONENGINE, (UINT_PTR)GetIP(pExceptionInfo->ContextRecord), NULL, pExceptionInfo);
-        }
     }
 
     // We don't do anything when this is called from an unmanaged thread.
@@ -8004,7 +7988,7 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
     // in-proc helper thread to work. What it does is continue the exception unhandled which
     // will let the thread immediately execute to this point. Inside this worker the thread
     // will block until the debugger knows how to continue the exception. If it decides the
-    // exception was handled then we immediately resume execution as if the exeption had never
+    // exception was handled then we immediately resume execution as if the exception had never
     // even been allowed to run into this handler. If it is unhandled then we keep processing
     // this handler
     //

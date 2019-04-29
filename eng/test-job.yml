@@ -20,6 +20,7 @@ jobs:
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
     osIdentifier: ${{ parameters.osIdentifier }}
+    helixType: 'build/tests/'
 
     # Compute job name from template parameters
     ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, false)) }}:
@@ -68,12 +69,6 @@ jobs:
       - name: clangArg
         value: '-clang5.0'
 
-    # TODO: Enable crossgen in build-test.sh. It currently doesn't
-    # accept a crossgen arg, so disable the macos/linux crossgen test
-    # build jobs.
-    ${{ if and(eq(parameters.readyToRun, true), in(parameters.osGroup, 'Linux', 'OSX')) }}:
-      condition: false
-
     # FreeBSD test jobs are disabled since we don't have any FreeBSD helix queues.
     ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
       condition: false
@@ -119,7 +114,6 @@ jobs:
 
 
     # Build tests
-    # TODO: enable crossgen in build-test.sh
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg)
         displayName: Build tests
@@ -140,13 +134,7 @@ jobs:
           creator: $(Build.DefinitionName)
 
         helixBuild: $(Build.BuildNumber)
-
-        ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
-          helixSource: official/dotnet/coreclr/$(Build.SourceBranch)
-        ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
-          helixSource: pr/dotnet/coreclr/$(Build.SourceBranch)
-        ${{ if and(eq(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
-          helixSource: ci/dotnet/coreclr/$(Build.SourceBranch)
+        helixSource: $(_HelixSource)
 
         ${{ if eq(parameters.readyToRun, false) }}:
           helixType: 'test/functional/cli/'
@@ -155,7 +143,8 @@ jobs:
 
         helixQueues: ${{ parameters.helixQueues }}
 
-        ${{ if eq(parameters.helixQueues.asString, '') }}:
+        # This tests whether an array is empty
+        ${{ if eq(join('', parameters.helixQueues), '') }}:
           condition: false
 
         publishTestResults: true
@@ -185,49 +174,39 @@ jobs:
 
         ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
           scenarios:
-            asString: 'normal,no_tiered_compilation'
-            asArray:
-            - normal
-            - no_tiered_compilation
+          - normal
+          - no_tiered_compilation
         ${{ if eq(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2') }}:
           scenarios:
-            asString: 'jitminopts,jitstress1,jitstress1_tiered,jitstress2,jitstress2_tiered'
-            asArray:
-            - jitminopts
-            - jitstress1
-            - jitstress1_tiered
-            - jitstress2
-            - jitstress2_tiered
+          - jitminopts
+          - jitstress1
+          - jitstress1_tiered
+          - jitstress2
+          - jitstress2_tiered
         ${{ if eq(parameters.testGroup, 'outerloop-jitstressregs') }}:
           scenarios:
-            asString: 'jitstressregs1,jitstressregs2,jitstressregs3,jitstressregs4,jitstressregs8,jitstressregs0x10,jitstressregs0x80,jitstressregs0x1000'
-            asArray:
-            - jitstressregs1
-            - jitstressregs2
-            - jitstressregs3
-            - jitstressregs4
-            - jitstressregs8
-            - jitstressregs0x10
-            - jitstressregs0x80
-            - jitstressregs0x1000
+          - jitstressregs1
+          - jitstressregs2
+          - jitstressregs3
+          - jitstressregs4
+          - jitstressregs8
+          - jitstressregs0x10
+          - jitstressregs0x80
+          - jitstressregs0x1000
         ${{ if eq(parameters.testGroup, 'outerloop-jitstress2-jitstressregs') }}:
           scenarios:
-            asString: 'jitstress2_jitstressregs1,jitstress2_jitstressregs2,jitstress2_jitstressregs3,jitstress2_jitstressregs4,jitstress2_jitstressregs8,jitstress2_jitstressregs0x10,jitstress2_jitstressregs0x80,jitstress2_jitstressregs0x1000'
-            asArray:
-            - jitstress2_jitstressregs1
-            - jitstress2_jitstressregs2
-            - jitstress2_jitstressregs3
-            - jitstress2_jitstressregs4
-            - jitstress2_jitstressregs8
-            - jitstress2_jitstressregs0x10
-            - jitstress2_jitstressregs0x80
-            - jitstress2_jitstressregs0x1000
+          - jitstress2_jitstressregs1
+          - jitstress2_jitstressregs2
+          - jitstress2_jitstressregs3
+          - jitstress2_jitstressregs4
+          - jitstress2_jitstressregs8
+          - jitstress2_jitstressregs0x10
+          - jitstress2_jitstressregs0x80
+          - jitstress2_jitstressregs0x1000
         ${{ if eq(parameters.testGroup, 'outerloop-gcstress0x3-gcstress0xc') }}:
           scenarios:
-            asString: 'gcstress0x3,gcstress0xc'
-            asArray:
-            - gcstress0x3
-            - gcstress0xc
+          - gcstress0x3
+          - gcstress0xc
 
     # Publish Logs
     - task: PublishPipelineArtifact@0

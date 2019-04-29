@@ -18,10 +18,9 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 {
     CONTRACTL
     {
-        // TODO: Maybe this should not throw.
-        THROWS;
+        NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(lpThreadParameter != nullptr);
     }
     CONTRACTL_END;
@@ -37,39 +36,48 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
         STRESS_LOG2(LF_DIAGNOSTICS_PORT, LL_WARNING, "warning (%d): %s.\n", code, szMessage);
     };
 
-    while (true)
+    EX_TRY
     {
-        // FIXME: Ideally this would be something like a std::shared_ptr
-        IpcStream *pStream = pIpc->Accept(LoggingCallback);
-        if (pStream == nullptr)
-            continue;
-
-        // TODO: Read operation should happen in a loop.
-        uint32_t nNumberOfBytesRead = 0;
-        MessageHeader header;
-        bool fSuccess = pStream->Read(&header, sizeof(header), nNumberOfBytesRead);
-        if (!fSuccess || nNumberOfBytesRead != sizeof(header))
+        while (true)
         {
-            delete pStream;
-            continue;
-        }
+            // FIXME: Ideally this would be something like a std::shared_ptr
+            IpcStream *pStream = pIpc->Accept(LoggingCallback);
+            if (pStream == nullptr)
+                continue;
 
-        // TODO: Dispatch thread worker.
-        switch (header.RequestType)
-        {
-        case DiagnosticMessageType::EnableEventPipe:
-            EventPipeProtocolHelper::EnableFileTracingEventHandler(pStream);
-            break;
+            // TODO: Read operation should happen in a loop.
+            uint32_t nNumberOfBytesRead = 0;
+            MessageHeader header;
+            bool fSuccess = pStream->Read(&header, sizeof(header), nNumberOfBytesRead);
+            if (!fSuccess || nNumberOfBytesRead != sizeof(header))
+            {
+                delete pStream;
+                continue;
+            }
 
-        case DiagnosticMessageType::DisableEventPipe:
-            EventPipeProtocolHelper::DisableTracingEventHandler(pStream);
-            break;
+            switch (header.RequestType)
+            {
+            case DiagnosticMessageType::StopEventPipeTracing:
+                EventPipeProtocolHelper::StopTracing(pStream);
+                break;
 
-        default:
-            LOG((LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknow request type (%d)\n", header.RequestType));
-            break;
+            case DiagnosticMessageType::CollectEventPipeTracing:
+                EventPipeProtocolHelper::CollectTracing(pStream);
+                break;
+
+            default:
+                STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", header.RequestType);
+                delete pStream;
+                break;
+            }
         }
     }
+    EX_CATCH
+    {
+        STRESS_LOG0(LF_DIAGNOSTICS_PORT, LL_ERROR, "Exception caught in diagnostic thread. Leaving thread now.\n");
+        _ASSERTE(!"Hit an error in the diagnostic server thread\n.");
+    }
+    EX_END_CATCH(SwallowAllExceptions);
 
     return 0;
 }

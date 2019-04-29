@@ -75,14 +75,6 @@ BOOL bgc_heap_walk_for_etw_p = FALSE;
 #define LOH_PIN_QUEUE_LENGTH 100
 #define LOH_PIN_DECAY 10
 
-#ifdef BIT64
-// Right now we support maximum 1024 procs - meaning that we will create at most
-// that many GC threads and GC heaps. 
-#define MAX_SUPPORTED_CPUS 1024
-#else
-#define MAX_SUPPORTED_CPUS 64
-#endif // BIT64
-
 uint32_t yp_spin_count_unit = 0;
 size_t loh_size_threshold = LARGE_OBJECT_SIZE;
 
@@ -2411,6 +2403,7 @@ void qsort1(uint8_t** low, uint8_t** high, unsigned int depth);
 #endif //USE_INTROSORT
 
 void* virtual_alloc (size_t size);
+void* virtual_alloc (size_t size, bool use_large_pages_p);
 void virtual_free (void* add, size_t size);
 
 /* per heap static initialization */
@@ -2826,6 +2819,7 @@ GCSpinLock gc_heap::gc_lock;
 
 size_t gc_heap::eph_gen_starts_size = 0;
 heap_segment* gc_heap::segment_standby_list;
+size_t        gc_heap::use_large_pages_p = 0;
 size_t        gc_heap::last_gc_index = 0;
 #ifdef SEG_MAPPING_TABLE
 size_t        gc_heap::min_segment_size = 0;
@@ -4271,7 +4265,7 @@ typedef struct
 
 initial_memory_details memory_details;
 
-BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_heaps)
+BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_heaps, bool use_large_pages_p)
 {
     BOOL reserve_success = FALSE;
 
@@ -4312,7 +4306,7 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
 
     size_t requestedMemory = memory_details.block_count * (normal_size + large_size);
 
-    uint8_t* allatonce_block = (uint8_t*)virtual_alloc (requestedMemory);
+    uint8_t* allatonce_block = (uint8_t*)virtual_alloc (requestedMemory, use_large_pages_p);
     if (allatonce_block)
     {
         g_gc_lowest_address =  allatonce_block;
@@ -4332,10 +4326,10 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
         // try to allocate 2 blocks
         uint8_t* b1 = 0;
         uint8_t* b2 = 0;
-        b1 = (uint8_t*)virtual_alloc (memory_details.block_count * normal_size);
+        b1 = (uint8_t*)virtual_alloc (memory_details.block_count * normal_size, use_large_pages_p);
         if (b1)
         {
-            b2 = (uint8_t*)virtual_alloc (memory_details.block_count * large_size);
+            b2 = (uint8_t*)virtual_alloc (memory_details.block_count * large_size, use_large_pages_p);
             if (b2)
             {
                 memory_details.allocation_pattern = initial_memory_details::TWO_STAGE;
@@ -4368,7 +4362,7 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
                                      memory_details.block_size_normal :
                                      memory_details.block_size_large);
                 current_block->memory_base =
-                    (uint8_t*)virtual_alloc (block_size);
+                    (uint8_t*)virtual_alloc (block_size, use_large_pages_p);
                 if (current_block->memory_base == 0)
                 {
                     // Free the blocks that we've allocated so far
@@ -4477,6 +4471,11 @@ heap_segment* get_initial_segment (size_t size, int h_number)
 
 void* virtual_alloc (size_t size)
 {
+    return virtual_alloc(size, false);
+}
+
+void* virtual_alloc (size_t size, bool use_large_pages_p)
+{
     size_t requested_size = size;
 
     if ((gc_heap::reserved_memory_limit - gc_heap::reserved_memory) < requested_size)
@@ -4496,7 +4495,8 @@ void* virtual_alloc (size_t size)
         flags = VirtualReserveFlags::WriteWatch;
     }
 #endif // !FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-    void* prgmem = GCToOSInterface::VirtualReserve (requested_size, card_size * card_word_width, flags);
+
+    void* prgmem = use_large_pages_p ? GCToOSInterface::VirtualReserveAndCommitLargePages(requested_size) : GCToOSInterface::VirtualReserve(requested_size, card_size * card_word_width, flags);
     void *aligned_mem = prgmem;
 
     // We don't want (prgmem + size) to be right at the end of the address space 
@@ -4697,7 +4697,7 @@ gc_heap::soh_get_segment_to_expand()
                     dprintf (GTC_LOG, ("max_gen-1: Found existing segment to expand into %Ix", (size_t)seg));
 
                     // If we return 0 here, the allocator will think since we are short on end
-                    // of seg we neeed to trigger a full compacting GC. So if sustained low latency 
+                    // of seg we need to trigger a full compacting GC. So if sustained low latency 
                     // is set we should acquire a new seg instead, that way we wouldn't be short.
                     // The real solution, of course, is to actually implement seg reuse in gen1.
                     if (settings.pause_mode != pause_sustained_low_latency)
@@ -5062,8 +5062,6 @@ class heap_select
     static uint16_t proc_no_to_heap_no[MAX_SUPPORTED_CPUS];
     static uint16_t heap_no_to_proc_no[MAX_SUPPORTED_CPUS];
     static uint16_t heap_no_to_numa_node[MAX_SUPPORTED_CPUS];
-    static uint16_t heap_no_to_cpu_group[MAX_SUPPORTED_CPUS];
-    static uint16_t heap_no_to_group_proc[MAX_SUPPORTED_CPUS];
     static uint16_t numa_node_to_heap_map[MAX_SUPPORTED_CPUS+4];
 
     static int access_time(uint8_t *sniff_buffer, int heap_number, unsigned sniff_index, unsigned n_sniff_buffers)
@@ -5196,44 +5194,32 @@ public:
         heap_no_to_numa_node[heap_number] = numa_node;
     }
 
-    static uint16_t find_cpu_group_from_heap_no(int heap_number)
-    {
-        return heap_no_to_cpu_group[heap_number];
-    }
-
-    static void set_cpu_group_for_heap(int heap_number, uint16_t group_number)
-    {
-        heap_no_to_cpu_group[heap_number] = group_number;
-    }
-
-    static uint16_t find_group_proc_from_heap_no(int heap_number)
-    {
-        return heap_no_to_group_proc[heap_number];
-    }
-
-    static void set_group_proc_for_heap(int heap_number, uint16_t group_proc)
-    {
-        heap_no_to_group_proc[heap_number] = group_proc;
-    }
-
     static void init_numa_node_to_heap_map(int nheaps)
-    {   // called right after GCHeap::Init() for each heap is finished
-        // when numa is not enabled, heap_no_to_numa_node[] are all filled
-        // with 0s during initialization, and will be treated as one node
-        numa_node_to_heap_map[0] = 0;
-        int node_index = 1;
+    {   // Called right after GCHeap::Init() for each heap
+        // For each NUMA node used by the heaps, the
+        // numa_node_to_heap_map[numa_node] is set to the first heap number on that node and
+        // numa_node_to_heap_map[numa_node + 1] is set to the first heap number not on that node 
+
+        // Set the start of the heap number range for the first NUMA node
+        numa_node_to_heap_map[heap_no_to_numa_node[0]] = 0;
 
         for (int i=1; i < nheaps; i++)
         {
             if (heap_no_to_numa_node[i] != heap_no_to_numa_node[i-1])
-                numa_node_to_heap_map[node_index++] = (uint16_t)i;
+            {
+                // Set the end of the heap number range for the previous NUMA node
+                numa_node_to_heap_map[heap_no_to_numa_node[i-1] + 1] =
+                // Set the start of the heap number range for the current NUMA node
+                numa_node_to_heap_map[heap_no_to_numa_node[i]] = (uint16_t)i;
+            }
         }
-        numa_node_to_heap_map[node_index] = (uint16_t)nheaps; //mark the end with nheaps
+
+        // Set the end of the heap range for the last NUMA node
+        numa_node_to_heap_map[heap_no_to_numa_node[nheaps-1] + 1] = (uint16_t)nheaps; //mark the end with nheaps
     }
 
     static void get_heap_range_for_heap(int hn, int* start, int* end)
-    {   // 1-tier/no numa case: heap_no_to_numa_node[] all zeros, 
-        // and treated as in one node. thus: start=0, end=n_heaps
+    {
         uint16_t numa_node = heap_no_to_numa_node[hn];
         *start = (int)numa_node_to_heap_map[numa_node];
         *end   = (int)(numa_node_to_heap_map[numa_node+1]);
@@ -5245,8 +5231,6 @@ unsigned heap_select::cur_sniff_index;
 uint16_t heap_select::proc_no_to_heap_no[MAX_SUPPORTED_CPUS];
 uint16_t heap_select::heap_no_to_proc_no[MAX_SUPPORTED_CPUS];
 uint16_t heap_select::heap_no_to_numa_node[MAX_SUPPORTED_CPUS];
-uint16_t heap_select::heap_no_to_cpu_group[MAX_SUPPORTED_CPUS];
-uint16_t heap_select::heap_no_to_group_proc[MAX_SUPPORTED_CPUS];
 uint16_t heap_select::numa_node_to_heap_map[MAX_SUPPORTED_CPUS+4];
 
 BOOL gc_heap::create_thread_support (unsigned number_of_heaps)
@@ -5289,79 +5273,22 @@ void gc_heap::destroy_thread_support ()
     }
 }
 
-void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affinity)
+void set_thread_affinity_for_heap(int heap_number)
 {
-    affinity->Group = GCThreadAffinity::None;
-    affinity->Processor = GCThreadAffinity::None;
+    uint16_t proc_no;
+    uint16_t node_no;
 
-    uint16_t gn, gpn;
-    GCToOSInterface::GetGroupForProcessor((uint16_t)heap_number, &gn, &gpn);
-
-    int bit_number = 0;
-    for (uintptr_t mask = 1; mask !=0; mask <<=1) 
+    if (GCToOSInterface::GetProcessorForHeap(heap_number, &proc_no, &node_no))
     {
-        if (bit_number == gpn)
+        heap_select::set_proc_no_for_heap(heap_number, proc_no);
+        if (node_no != NUMA_NODE_UNDEFINED)
         {
-            dprintf(3, ("using processor group %d, mask %Ix for heap %d\n", gn, mask, heap_number));
-            affinity->Processor = gpn;
-            affinity->Group = gn;
-            heap_select::set_cpu_group_for_heap(heap_number, gn);
-            heap_select::set_group_proc_for_heap(heap_number, gpn);
-            if (GCToOSInterface::CanEnableGCNumaAware())
-            {  
-                PROCESSOR_NUMBER proc_no;
-                proc_no.Group    = gn;
-                proc_no.Number   = (uint8_t)gpn;
-                proc_no.Reserved = 0;
-
-                uint16_t node_no = 0;
-                if (GCToOSInterface::GetNumaProcessorNode(&proc_no, &node_no))
-                    heap_select::set_numa_node_for_heap(heap_number, node_no);
-            }
-            else
-            {   // no numa setting, each cpu group is treated as a node
-                heap_select::set_numa_node_for_heap(heap_number, gn);
-            }
-            return;
+            heap_select::set_numa_node_for_heap(heap_number, node_no);
         }
-        bit_number++;
-    }
-}
-
-void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affinity)
-{
-    affinity->Group = GCThreadAffinity::None;
-    affinity->Processor = GCThreadAffinity::None;
-
-    uintptr_t pmask = process_mask;
-    int bit_number = 0; 
-    uint8_t proc_number = 0;
-    for (uintptr_t mask = 1; mask != 0; mask <<= 1)
-    {
-        if ((mask & pmask) != 0)
+        if (!GCToOSInterface::SetThreadAffinity(proc_no))
         {
-            if (bit_number == heap_number)
-            {
-                dprintf (3, ("Using processor %d for heap %d", proc_number, heap_number));
-                affinity->Processor = proc_number;
-                heap_select::set_proc_no_for_heap(heap_number, proc_number);
-                if (GCToOSInterface::CanEnableGCNumaAware())
-                {
-                    uint16_t node_no = 0;
-                    PROCESSOR_NUMBER proc_no;
-                    proc_no.Group = 0;
-                    proc_no.Number = (uint8_t)proc_number;
-                    proc_no.Reserved = 0;
-                    if (GCToOSInterface::GetNumaProcessorNode(&proc_no, &node_no))
-                    {
-                        heap_select::set_numa_node_for_heap(heap_number, node_no);
-                    }
-                }
-                return;
-            }
-            bit_number++;
+            dprintf(1, ("Failed to set thread affinity for server GC thread"));
         }
-        proc_number++;
     }
 }
 
@@ -5501,7 +5428,7 @@ bool gc_heap::virtual_alloc_commit_for_heap (void* addr, size_t size, int h_numb
     {
         if (GCToOSInterface::CanEnableGCNumaAware())
         {
-            uint32_t numa_node = heap_select::find_numa_node_from_heap_no(h_number);
+            uint16_t numa_node = heap_select::find_numa_node_from_heap_no(h_number);
             if (GCToOSInterface::VirtualCommit(addr, size, numa_node))
                 return true;
         }
@@ -5555,9 +5482,10 @@ bool gc_heap::virtual_commit (void* address, size_t size, int h_number, bool* ha
     }
 
     // If it's a valid heap number it means it's commiting for memory on the GC heap.
-    bool commit_succeeded_p = ((h_number >= 0) ? 
-        virtual_alloc_commit_for_heap (address, size, h_number) : 
-        GCToOSInterface::VirtualCommit(address, size));
+    // In addition if large pages is enabled, we set commit_succeeded_p to true because memory is already committed.
+    bool commit_succeeded_p = ((h_number >= 0) ? (use_large_pages_p ? true :
+                              virtual_alloc_commit_for_heap (address, size, h_number)) :
+                              GCToOSInterface::VirtualCommit(address, size));
 
     if (!commit_succeeded_p && heap_hard_limit)
     {
@@ -8889,10 +8817,6 @@ public:
 #endif //_DEBUG
 
     uint8_t* fit (uint8_t* old_loc,
-#ifdef SHORT_PLUGS
-               BOOL set_padding_on_saved_p,
-               mark* pinned_plug_entry,
-#endif //SHORT_PLUGS
                size_t plug_size
                REQD_ALIGN_AND_OFFSET_DCL)
     {
@@ -8916,11 +8840,11 @@ public:
         size_t plug_size_to_fit = plug_size;
 
         // best fit is only done for gen1 to gen2 and we do not pad in gen2.
-        int pad_in_front = 0;
-
-#ifdef SHORT_PLUGS
-        plug_size_to_fit += (pad_in_front ? Align(min_obj_size) : 0);
-#endif //SHORT_PLUGS
+        // however we must account for requirements of large alignment. 
+        // which may result in realignment padding.
+#ifdef RESPECT_LARGE_ALIGNMENT
+        plug_size_to_fit += switch_alignment_size(FALSE);
+#endif //RESPECT_LARGE_ALIGNMENT
 
         int plug_power2 = index_of_highest_set_bit (round_up_power2 (plug_size_to_fit + Align(min_obj_size)));
         ptrdiff_t i;
@@ -8960,29 +8884,17 @@ retry:
         {
             size_t free_space_size = 0;
             pad = 0;
-#ifdef SHORT_PLUGS
-            BOOL short_plugs_padding_p = FALSE;
-#endif //SHORT_PLUGS
+
             BOOL realign_padding_p = FALSE;
 
             if (bucket_free_space[i].is_plug)
             {
                 mark* m = (mark*)(bucket_free_space[i].start);
                 uint8_t* plug_free_space_start = pinned_plug (m) - pinned_len (m);
-                
-#ifdef SHORT_PLUGS
-                if ((pad_in_front & USE_PADDING_FRONT) &&
-                    (((plug_free_space_start - pin_allocation_context_start_region (m))==0) ||
-                    ((plug_free_space_start - pin_allocation_context_start_region (m))>=DESIRED_PLUG_LENGTH)))
-                {
-                    pad = Align (min_obj_size);
-                    short_plugs_padding_p = TRUE;
-                }
-#endif //SHORT_PLUGS
 
-                if (!((old_loc == 0) || same_large_alignment_p (old_loc, plug_free_space_start+pad)))
+                if (!((old_loc == 0) || same_large_alignment_p (old_loc, plug_free_space_start)))
                 {
-                    pad += switch_alignment_size (pad != 0);
+                    pad += switch_alignment_size (FALSE);
                     realign_padding_p = TRUE;
                 }
 
@@ -9008,14 +8920,6 @@ retry:
                                 (pinned_plug (m) - pinned_len (m)), 
                                 index_of_highest_set_bit (new_free_space_size)));
 #endif //SIMPLE_DPRINTF
-
-#ifdef SHORT_PLUGS
-                    if (short_plugs_padding_p)
-                    {
-                        pin_allocation_context_start_region (m) = plug_free_space_start;
-                        set_padding_in_expand (old_loc, set_padding_on_saved_p, pinned_plug_entry);
-                    }
-#endif //SHORT_PLUGS
 
                     if (realign_padding_p)
                     {
@@ -9308,7 +9212,7 @@ heap_segment* gc_heap::make_heap_segment (uint8_t* new_pages, size_t size, int h
     heap_segment_mem (new_segment) = start;
     heap_segment_used (new_segment) = start;
     heap_segment_reserved (new_segment) = new_pages + size;
-    heap_segment_committed (new_segment) = new_pages + initial_commit;
+    heap_segment_committed (new_segment) = (use_large_pages_p ? heap_segment_reserved(new_segment) : (new_pages + initial_commit));
     init_heap_segment (new_segment);
     dprintf (2, ("Creating heap segment %Ix", (size_t)new_segment));
     return new_segment;
@@ -9399,6 +9303,8 @@ void gc_heap::reset_heap_segment_pages (heap_segment* seg)
 void gc_heap::decommit_heap_segment_pages (heap_segment* seg,
                                            size_t extra_space)
 {
+    if (use_large_pages_p)
+        return;
     uint8_t*  page_start = align_on_page (heap_segment_allocated(seg));
     size_t size = heap_segment_committed (seg) - page_start;
     extra_space = align_on_page (extra_space);
@@ -10108,12 +10014,15 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
     block_count = 1;
 #endif //MULTIPLE_HEAPS
 
+    use_large_pages_p = false;
+
     if (heap_hard_limit)
     {
         check_commit_cs.Initialize();
+        use_large_pages_p = GCConfig::GetGCLargePages();
     }
 
-    if (!reserve_initial_memory(segment_size,heap_size,block_count))
+    if (!reserve_initial_memory(segment_size,heap_size,block_count,use_large_pages_p))
         return E_OUTOFMEMORY;
 
 #ifdef CARD_BUNDLE
@@ -13626,43 +13535,18 @@ try_again:
                     acontext->set_alloc_heap(GCHeap::GetHeap(max_hp->heap_number));
                     if (!gc_thread_no_affinitize_p)
                     {
-                        if (GCToOSInterface::CanEnableGCCPUGroups())
-                        {   //only set ideal processor when max_hp and org_hp are in the same cpu
-                            //group. DO NOT MOVE THREADS ACROSS CPU GROUPS
-                            uint16_t org_gn = heap_select::find_cpu_group_from_heap_no(org_hp->heap_number);
-                            uint16_t max_gn = heap_select::find_cpu_group_from_heap_no(max_hp->heap_number);
-                            if (org_gn == max_gn) //only set within CPU group, so SetThreadIdealProcessor is enough
-                            {   
-                                uint16_t group_proc_no = heap_select::find_group_proc_from_heap_no(max_hp->heap_number);
+                        uint16_t src_proc_no = heap_select::find_proc_no_from_heap_no(org_hp->heap_number);
+                        uint16_t dst_proc_no = heap_select::find_proc_no_from_heap_no(max_hp->heap_number);
 
-                                GCThreadAffinity affinity;
-                                affinity.Processor = group_proc_no;
-                                affinity.Group = org_gn;
-                                if (!GCToOSInterface::SetCurrentThreadIdealAffinity(&affinity))
-                                {
-                                    dprintf (3, ("Failed to set the ideal processor and group for heap %d.",
-                                                org_hp->heap_number));
-                                }
-                            }
-                        }
-                        else 
+                        if (!GCToOSInterface::SetCurrentThreadIdealAffinity(src_proc_no, dst_proc_no))
                         {
-                            uint16_t proc_no = heap_select::find_proc_no_from_heap_no(max_hp->heap_number);
-
-                            GCThreadAffinity affinity;
-                            affinity.Processor = proc_no;
-                            affinity.Group = GCThreadAffinity::None;
-
-                            if (!GCToOSInterface::SetCurrentThreadIdealAffinity(&affinity))
-                            {
-                                dprintf (3, ("Failed to set the ideal processor for heap %d.",
-                                            org_hp->heap_number));
-                            }
+                            dprintf (3, ("Failed to set the ideal processor for heap %d.",
+                                        org_hp->heap_number));
                         }
                     }
                     dprintf (3, ("Switching context %p (home heap %d) ", 
                                  acontext,
-                        acontext->get_home_heap()->pGenGCHeap->heap_number));
+                                 acontext->get_home_heap()->pGenGCHeap->heap_number));
                     dprintf (3, (" from heap %d (%Id free bytes, %d contexts) ", 
                                  org_hp->heap_number,
                                  org_size,
@@ -13678,79 +13562,123 @@ try_again:
     acontext->alloc_count++;
 }
 
-gc_heap* gc_heap::balance_heaps_loh (alloc_context* acontext, size_t alloc_size)
+ptrdiff_t gc_heap::get_balance_heaps_loh_effective_budget ()
 {
-    gc_heap* org_hp = acontext->get_alloc_heap()->pGenGCHeap;
-    dprintf (3, ("[h%d] LA: %Id", org_hp->heap_number, alloc_size));
-
-    //if (size > 128*1024)
-    if (1)
+    if (heap_hard_limit)
     {
-        dynamic_data* dd = org_hp->dynamic_data_of (max_generation + 1);
-
-        ptrdiff_t org_size = dd_new_allocation (dd);
-        gc_heap* max_hp;
-        ptrdiff_t max_size;
-        size_t delta = dd_min_size (dd) * 4;
-
-        int start, end, finish;
-        heap_select::get_heap_range_for_heap(org_hp->heap_number, &start, &end);
-        finish = start + n_heaps;
-
-try_again:
-        {
-            max_hp = org_hp;
-            max_size = org_size + delta;
-            dprintf (3, ("orig hp: %d, max size: %d",
-                org_hp->heap_number,
-                max_size));
-
-            for (int i = start; i < end; i++)
-            {
-                gc_heap* hp = GCHeap::GetHeap(i%n_heaps)->pGenGCHeap;
-                dd = hp->dynamic_data_of (max_generation + 1);
-                ptrdiff_t size = dd_new_allocation (dd);
-                dprintf (3, ("hp: %d, size: %d",
-                    hp->heap_number,
-                    size));
-                if (size > max_size)
-                {
-                    max_hp = hp;
-                    max_size = size;
-                    dprintf (3, ("max hp: %d, max size: %d",
-                        max_hp->heap_number,
-                        max_size));
-                }
-            }
-        }
-
-        if ((max_hp == org_hp) && (end < finish))
-        {
-            start = end; end = finish;
-            delta = dd_min_size(dd) * 4;   // Need to tuning delta
-            goto try_again;
-        }
-
-        if (max_hp != org_hp)
-        {
-            dprintf (3, ("loh: %d(%Id)->%d(%Id)", 
-                org_hp->heap_number, dd_new_allocation (org_hp->dynamic_data_of (max_generation + 1)),
-                max_hp->heap_number, dd_new_allocation (max_hp->dynamic_data_of (max_generation + 1))));
-        }
-
-        return max_hp;
+        const ptrdiff_t free_list_space = generation_free_list_space (generation_of (max_generation + 1));
+        heap_segment* seg = generation_start_segment (generation_of (max_generation + 1));
+        assert (heap_segment_next (seg) == nullptr);
+        const ptrdiff_t allocated = heap_segment_allocated (seg) - seg->mem;
+        // We could calculate the actual end_of_seg_space by taking reserved - allocated,
+        // but all heaps have the same reserved memory and this value is only used for comparison.
+        return free_list_space - allocated;
     }
     else
     {
-        return org_hp;
+        return dd_new_allocation (dynamic_data_of (max_generation + 1));
     }
+}
+
+gc_heap* gc_heap::balance_heaps_loh (alloc_context* acontext, size_t alloc_size)
+{
+    const int home_hp_num = heap_select::select_heap(acontext, 0);
+    dprintf (3, ("[h%d] LA: %Id", home_heap, alloc_size));
+    gc_heap* home_hp = GCHeap::GetHeap(home_hp_num)->pGenGCHeap;
+    dynamic_data* dd = home_hp->dynamic_data_of (max_generation + 1);
+    const ptrdiff_t home_hp_size = home_hp->get_balance_heaps_loh_effective_budget ();
+
+    size_t delta = dd_min_size (dd) / 2;
+    int start, end;
+    heap_select::get_heap_range_for_heap(home_hp_num, &start, &end);
+    const int finish = start + n_heaps;
+
+try_again:
+    gc_heap* max_hp = home_hp;
+    ptrdiff_t max_size = home_hp_size + delta;
+    
+    dprintf (3, ("home hp: %d, max size: %d",
+        home_hp_num,
+        max_size));
+
+    for (int i = start; i < end; i++)
+    {
+        gc_heap* hp = GCHeap::GetHeap(i%n_heaps)->pGenGCHeap;
+        const ptrdiff_t size = hp->get_balance_heaps_loh_effective_budget ();
+
+        dprintf (3, ("hp: %d, size: %d", hp->heap_number, size));
+        if (size > max_size)
+        {
+            max_hp = hp;
+            max_size = size;
+            dprintf (3, ("max hp: %d, max size: %d",
+                max_hp->heap_number,
+                max_size));
+        }
+    }
+
+    if ((max_hp == home_hp) && (end < finish))
+    {
+        start = end; end = finish;
+        delta = dd_min_size (dd) * 3 / 2; // Make it harder to balance to remote nodes on NUMA.
+        goto try_again;
+    }
+
+    if (max_hp != home_hp)
+    {
+        dprintf (3, ("loh: %d(%Id)->%d(%Id)", 
+            home_hp->heap_number, dd_new_allocation (home_hp->dynamic_data_of (max_generation + 1)),
+            max_hp->heap_number, dd_new_allocation (max_hp->dynamic_data_of (max_generation + 1))));
+    }
+
+    return max_hp;
+}
+
+gc_heap* gc_heap::balance_heaps_loh_hard_limit_retry (alloc_context* acontext, size_t alloc_size)
+{
+    assert (heap_hard_limit);
+    const int home_heap = heap_select::select_heap(acontext, 0);
+    dprintf (3, ("[h%d] balance_heaps_loh_hard_limit_retry alloc_size: %d", home_heap, alloc_size));
+    int start, end;
+    heap_select::get_heap_range_for_heap (home_heap, &start, &end);
+    const int finish = start + n_heaps;
+
+    gc_heap* max_hp = nullptr;
+    size_t max_end_of_seg_space = alloc_size; // Must be more than this much, or return NULL
+
+try_again:
+    {
+        for (int i = start; i < end; i++)
+        {
+            gc_heap* hp = GCHeap::GetHeap (i%n_heaps)->pGenGCHeap;
+            heap_segment* seg = generation_start_segment (hp->generation_of (max_generation + 1));
+            // With a hard limit, there is only one segment.
+            assert (heap_segment_next (seg) == nullptr);
+            const size_t end_of_seg_space = heap_segment_reserved (seg) - heap_segment_allocated (seg);
+            if (end_of_seg_space >= max_end_of_seg_space)
+            {
+                dprintf (3, ("Switching heaps in hard_limit_retry! To: [h%d], New end_of_seg_space: %d", hp->heap_number, end_of_seg_space));
+                max_end_of_seg_space = end_of_seg_space;
+                max_hp = hp;
+            }
+        }
+    }
+
+    // Only switch to a remote NUMA node if we didn't find space on this one.
+    if ((max_hp == nullptr) && (end < finish))
+    {
+        start = end; end = finish;
+        goto try_again;
+    }
+
+    return max_hp;
 }
 #endif //MULTIPLE_HEAPS
 
 BOOL gc_heap::allocate_more_space(alloc_context* acontext, size_t size,
                                   int alloc_generation_number)
 {
-    allocation_state status;
+    allocation_state status = a_state_start;
     do
     { 
 #ifdef MULTIPLE_HEAPS
@@ -13761,7 +13689,20 @@ BOOL gc_heap::allocate_more_space(alloc_context* acontext, size_t size,
         }
         else
         {
-            gc_heap* alloc_heap = balance_heaps_loh (acontext, size);
+            gc_heap* alloc_heap;
+            if (heap_hard_limit && (status == a_state_retry_allocate))
+            {
+                alloc_heap = balance_heaps_loh_hard_limit_retry (acontext, size);
+                if (alloc_heap == nullptr)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                alloc_heap = balance_heaps_loh (acontext, size);
+            }
+
             status = alloc_heap->try_allocate_more_space (acontext, size, alloc_generation_number);
             if (status == a_state_retry_allocate)
             {
@@ -14236,10 +14177,6 @@ uint8_t* gc_heap::allocate_in_expanded_heap (generation* gen,
         dprintf (SEG_REUSE_LOG_1, ("reallocating 0x%Ix in expanded heap, size: %Id", 
                     old_loc, size));
         return bestfit_seg->fit (old_loc, 
-#ifdef SHORT_PLUGS
-                                 set_padding_on_saved_p,
-                                 pinned_plug_entry,
-#endif //SHORT_PLUGS
                                  size REQD_ALIGN_AND_OFFSET_ARG);
     }
 
@@ -14798,10 +14735,15 @@ int gc_heap::joined_generation_to_condemn (BOOL should_evaluate_elevation,
         dprintf (GTC_LOG, ("committed %Id is %d%% of limit %Id", 
             current_total_committed, (int)((float)current_total_committed * 100.0 / (float)heap_hard_limit),
             heap_hard_limit));
-        if ((current_total_committed * 10) >= (heap_hard_limit * 9))
-        {
-            bool full_compact_gc_p = false;
 
+        bool full_compact_gc_p = false;
+
+        if (joined_last_gc_before_oom)
+        {
+            full_compact_gc_p = true;
+        }
+        else if ((current_total_committed * 10) >= (heap_hard_limit * 9))
+        {
             size_t loh_frag = get_total_gen_fragmentation (max_generation + 1);
             
             // If the LOH frag is >= 1/8 it's worth compacting it
@@ -14818,14 +14760,14 @@ int gc_heap::joined_generation_to_condemn (BOOL should_evaluate_elevation,
                 full_compact_gc_p = ((est_loh_reclaim * 8) >= heap_hard_limit);
                 dprintf (GTC_LOG, ("loh est reclaim: %Id, 1/8 of limit %Id", est_loh_reclaim, (heap_hard_limit / 8)));
             }
+        }
 
-            if (full_compact_gc_p)
-            {
-                n = max_generation;
-                *blocking_collection_p = TRUE;
-                settings.loh_compaction = TRUE;
-                dprintf (GTC_LOG, ("compacting LOH due to hard limit"));
-            }
+        if (full_compact_gc_p)
+        {
+            n = max_generation;
+            *blocking_collection_p = TRUE;
+            settings.loh_compaction = TRUE;
+            dprintf (GTC_LOG, ("compacting LOH due to hard limit"));
         }
     }
 
@@ -19433,7 +19375,7 @@ recheck:
                 uint8_t** tmp = new (nothrow) uint8_t* [new_size];
                 if (tmp)
                 {
-                    delete background_mark_stack_array;
+                    delete [] background_mark_stack_array;
                     background_mark_stack_array = tmp;
                     background_mark_stack_array_length = new_size;
                     background_mark_stack_tos = background_mark_stack_array;
@@ -23188,7 +23130,7 @@ void gc_heap::plan_phase (int condemned_gen_number)
         assert (generation_allocation_segment (consing_gen) ==
                 ephemeral_heap_segment);
 
-        GCToEEInterface::DiagWalkSurvivors(__this);
+        GCToEEInterface::DiagWalkSurvivors(__this, true);
 
         relocate_phase (condemned_gen_number, first_condemned_address);
         compact_phase (condemned_gen_number, first_condemned_address,
@@ -23398,7 +23340,7 @@ void gc_heap::plan_phase (int condemned_gen_number)
             fix_older_allocation_area (older_gen);
         }
 
-        GCToEEInterface::DiagWalkSurvivors(__this);
+        GCToEEInterface::DiagWalkSurvivors(__this, false);
 
         gen0_big_free_spaces = 0;
         make_free_lists (condemned_gen_number);
@@ -25449,22 +25391,10 @@ void gc_heap::gc_thread_stub (void* arg)
     gc_heap* heap = (gc_heap*)arg;
     if (!gc_thread_no_affinitize_p)
     {
-        GCThreadAffinity affinity;
-        affinity.Group = GCThreadAffinity::None;
-        affinity.Processor = GCThreadAffinity::None;
-
         // We are about to set affinity for GC threads. It is a good place to set up NUMA and
         // CPU groups because the process mask, processor number, and group number are all
         // readily available.
-        if (GCToOSInterface::CanEnableGCCPUGroups())
-            set_thread_group_affinity_for_heap(heap->heap_number, &affinity);
-        else
-            set_thread_affinity_mask_for_heap(heap->heap_number, &affinity);
-
-        if (!GCToOSInterface::SetThreadAffinity(&affinity))
-        {
-            dprintf(1, ("Failed to set thread affinity for server GC thread"));
-        }
+        set_thread_affinity_for_heap(heap->heap_number);
     }
 
     // server GC threads run at a higher priority than normal.
@@ -31219,12 +31149,7 @@ CObjectHeader* gc_heap::allocate_large_object (size_t jsize, int64_t& alloc_byte
 {
     //create a new alloc context because gen3context is shared.
     alloc_context acontext;
-    acontext.alloc_ptr = 0;
-    acontext.alloc_limit = 0;
-    acontext.alloc_bytes = 0;
-#ifdef MULTIPLE_HEAPS
-    acontext.set_alloc_heap(vm_heap);
-#endif //MULTIPLE_HEAPS
+    acontext.init();
 
 #if BIT64
     size_t maxObjectSize = (INT64_MAX - 7 - Align(min_obj_size));
@@ -34211,12 +34136,25 @@ HRESULT GCHeap::Initialize()
     uint32_t nhp_from_config = 0;
 
 #ifdef MULTIPLE_HEAPS
+    AffinitySet config_affinity_set;
+    GCConfigStringHolder cpu_index_ranges_holder(GCConfig::GetGCHeapAffinitizeRanges());
+
+    if (!ParseGCHeapAffinitizeRanges(cpu_index_ranges_holder.Get(), &config_affinity_set))
+    {
+        return CLR_E_GC_BAD_AFFINITY_CONFIG_FORMAT;
+    }
+
+    uintptr_t config_affinity_mask = static_cast<uintptr_t>(GCConfig::GetGCHeapAffinitizeMask());
+    const AffinitySet* process_affinity_set = GCToOSInterface::SetGCThreadsAffinitySet(config_affinity_mask, &config_affinity_set);
+
+    if (process_affinity_set->IsEmpty())
+    {
+        return CLR_E_GC_BAD_AFFINITY_CONFIG;
+    }
+
     nhp_from_config = static_cast<uint32_t>(GCConfig::GetHeapCount());
     
-    // GetCurrentProcessCpuCount only returns up to 64 procs.
-    uint32_t nhp_from_process = GCToOSInterface::CanEnableGCCPUGroups() ?
-                                GCToOSInterface::GetTotalProcessorCount():
-                                GCToOSInterface::GetCurrentProcessCpuCount();
+    uint32_t nhp_from_process = GCToOSInterface::GetCurrentProcessCpuCount();
 
     if (nhp_from_config)
     {
@@ -34231,63 +34169,23 @@ HRESULT GCHeap::Initialize()
 #ifndef FEATURE_REDHAWK
     gc_heap::gc_thread_no_affinitize_p = (gc_heap::heap_hard_limit ? false : (GCConfig::GetNoAffinitize() != 0));
 
-    size_t gc_thread_affinity_mask = static_cast<size_t>(GCConfig::GetGCHeapAffinitizeMask());
-
     if (gc_heap::heap_hard_limit)
     {
-        gc_heap::gc_thread_no_affinitize_p = (gc_thread_affinity_mask == 0);
+        gc_heap::gc_thread_no_affinitize_p = ((config_affinity_set.Count() == 0) && (config_affinity_mask == 0));
     }
 
     if (!(gc_heap::gc_thread_no_affinitize_p))
     {
-        if (!(GCToOSInterface::CanEnableGCCPUGroups()))
+        uint32_t num_affinitized_processors = (uint32_t)process_affinity_set->Count();
+
+        if (num_affinitized_processors != 0)
         {
-            uintptr_t pmask, smask;
-            if (GCToOSInterface::GetCurrentProcessAffinityMask(&pmask, &smask))
-            {
-                pmask &= smask;
-
-#ifdef FEATURE_PAL
-                // GetCurrentProcessAffinityMask can return pmask=0 and smask=0 on
-                // systems with more than 1 NUMA node. The pmask decides the
-                // number of GC heaps to be used and the processors they are
-                // affinitized with. So pmask is now set to reflect that 64
-                // processors are available to begin with. The actual processors in
-                // the system may be lower and are taken into account before
-                // finalizing the number of heaps.
-                if (!pmask)
-                {
-                    pmask = SIZE_T_MAX;
-                }
-#endif // FEATURE_PAL
-
-                if (gc_thread_affinity_mask)
-                {
-                    pmask &= gc_thread_affinity_mask;
-                }
-
-                process_mask = pmask;
-
-                unsigned int set_bits_in_pmask = 0;
-                while (pmask)
-                {
-                    if (pmask & 1)
-                        set_bits_in_pmask++;
-                    pmask >>= 1;
-                }
-
-                nhp = min (nhp, set_bits_in_pmask);
-
-#ifdef FEATURE_PAL
-                // Limit the GC heaps to the number of processors available in the system.
-                nhp = min (nhp, GCToOSInterface::GetTotalProcessorCount());
-#endif // FEATURE_PAL
-            }
-            else
-            {
-                gc_heap::gc_thread_no_affinitize_p = true;
-            }
+            nhp = min(nhp, num_affinitized_processors);
         }
+#ifdef FEATURE_PAL
+        // Limit the GC heaps to the number of processors available in the system.
+        nhp = min (nhp, GCToOSInterface::GetTotalProcessorCount());
+#endif // FEATURE_PAL
     }
 #endif //!FEATURE_REDHAWK
 #endif //MULTIPLE_HEAPS
@@ -35206,9 +35104,6 @@ GCHeap::Alloc(gc_alloc_context* context, size_t size, uint32_t flags REQD_ALIGN_
         AssignHeap (acontext);
         assert (acontext->get_alloc_heap());
     }
-#endif //MULTIPLE_HEAPS
-
-#ifdef MULTIPLE_HEAPS
     gc_heap* hp = acontext->get_alloc_heap()->pGenGCHeap;
 #else
     gc_heap* hp = pGenGCHeap;
@@ -37372,6 +37267,23 @@ void GCHeap::DiagWalkObject (Object* obj, walk_fn fn, void* context)
                                         {
                                             Object *oh = (Object*)*oo;
                                             if (!fn (oh, context))
+                                                return;
+                                        }
+                                    }
+            );
+    }
+}
+
+void GCHeap::DiagWalkObject2 (Object* obj, walk_fn2 fn, void* context)
+{
+    uint8_t* o = (uint8_t*)obj;
+    if (o)
+    {
+        go_through_object_cl (method_table (o), o, size(o), oo,
+                                    {
+                                        if (*oo)
+                                        {
+                                            if (!fn (obj, oo, context))
                                                 return;
                                         }
                                     }

@@ -2351,7 +2351,7 @@ public:
                 // If it has a zero-offset field seq, copy annotation to the ref
                 if (hasZeroMapAnnotation)
                 {
-                    m_pCompiler->GetZeroOffsetFieldMap()->Set(ref, fldSeq);
+                    m_pCompiler->fgAddFieldSeqForZeroOffset(ref, fldSeq);
                 }
 
                 /* Create a comma node for the CSE assignment */
@@ -2364,7 +2364,8 @@ public:
             // Walk the statement 'stmt' and find the pointer
             // in the tree is pointing to 'exp'
             //
-            GenTree** link = m_pCompiler->gtFindLink(stmt, exp);
+            Compiler::FindLinkData linkData = m_pCompiler->gtFindLink(stmt, exp);
+            GenTree**              link     = linkData.result;
 
 #ifdef DEBUG
             if (link == nullptr)
@@ -2392,7 +2393,7 @@ public:
             // If it has a zero-offset field seq, copy annotation.
             if (hasZeroMapAnnotation)
             {
-                m_pCompiler->GetZeroOffsetFieldMap()->Set(cse, fldSeq);
+                m_pCompiler->fgAddFieldSeqForZeroOffset(cse, fldSeq);
             }
 
             assert(m_pCompiler->fgRemoveRestOfBlock == false);

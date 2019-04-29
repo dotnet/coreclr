@@ -687,18 +687,30 @@ GenTreeStmt* Compiler::impExtractLastStmt()
     return stmt;
 }
 
-/*****************************************************************************
- *
- *  Insert the given GT_STMT "stmt" before GT_STMT "stmtBefore"
- */
-
+//-------------------------------------------------------------------------
+// impInsertStmtBefore: Insert the given GT_STMT "stmt" before GT_STMT "stmtBefore".
+//
+// Arguments:
+//    stmt       - a statement to insert;
+//    stmtBefore - an insertion point to insert "stmt" before.
+//
 inline void Compiler::impInsertStmtBefore(GenTreeStmt* stmt, GenTreeStmt* stmtBefore)
 {
-    GenTreeStmt* stmtPrev = stmtBefore->getPrevStmt();
-    stmt->gtPrev          = stmtPrev;
-    stmt->gtNext          = stmtBefore;
-    stmtPrev->gtNext      = stmt;
-    stmtBefore->gtPrev    = stmt;
+    assert(stmt != nullptr);
+    assert(stmtBefore != nullptr);
+
+    if (stmtBefore == impStmtList)
+    {
+        impStmtList = stmt;
+    }
+    else
+    {
+        GenTreeStmt* stmtPrev = stmtBefore->getPrevStmt();
+        stmt->gtPrev          = stmtPrev;
+        stmtPrev->gtNext      = stmt;
+    }
+    stmt->gtNext       = stmtBefore;
+    stmtBefore->gtPrev = stmt;
 }
 
 /*****************************************************************************
@@ -1217,7 +1229,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                 // If it is a multi-reg struct return, don't change the oper to GT_LCL_FLD.
                 // That is, the IR will be of the form lclVar = call for multi-reg return
                 //
-                GenTree* lcl = destAddr->gtOp.gtOp1;
+                GenTreeLclVar* lcl = destAddr->gtOp.gtOp1->AsLclVar();
                 if (src->AsCall()->HasMultiRegRetVal())
                 {
                     // Mark the struct LclVar as used in a MultiReg return context
@@ -1227,7 +1239,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                     lcl->gtFlags |= GTF_DONT_CSE;
                     lvaTable[lcl->gtLclVarCommon.gtLclNum].lvIsMultiRegRet = true;
                 }
-                else // The call result is not a multireg return
+                else if (lcl->gtType != src->gtType)
                 {
                     // We change this to a GT_LCL_FLD (from a GT_ADDR of a GT_LCL_VAR)
                     lcl->ChangeOper(GT_LCL_FLD);
@@ -1330,7 +1342,8 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
 
         assert(OFFSETOF__CORINFO_TypedReference__dataPtr == 0);
         assert(destAddr->gtType == TYP_I_IMPL || destAddr->gtType == TYP_BYREF);
-        GetZeroOffsetFieldMap()->Set(destAddr, GetFieldSeqStore()->CreateSingleton(GetRefanyDataField()));
+        fgAddFieldSeqForZeroOffset(destAddr, GetFieldSeqStore()->CreateSingleton(GetRefanyDataField()));
+
         GenTree*       ptrSlot         = gtNewOperNode(GT_IND, TYP_I_IMPL, destAddr);
         GenTreeIntCon* typeFieldOffset = gtNewIconNode(OFFSETOF__CORINFO_TypedReference__type, TYP_I_IMPL);
         typeFieldOffset->gtFieldSeq    = GetFieldSeqStore()->CreateSingleton(GetRefanyTypeField());
@@ -1476,7 +1489,19 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
             // for Op2, but that would be out of order with op1, so we need to
             // spill op1 onto the statement list after whatever was last
             // before we recursed on Op2 (i.e. before whatever Op2 appended).
-            impInsertTreeBefore(structVal->gtOp.gtOp1, impCurStmtOffs, oldLastStmt->getNextStmt());
+            GenTreeStmt* beforeStmt;
+            if (oldLastStmt == nullptr)
+            {
+                // The op1 stmt should be the first in the list.
+                beforeStmt = impStmtList;
+            }
+            else
+            {
+                // Insert after the oldLastStmt before the first inserted for op2.
+                beforeStmt = oldLastStmt->getNextStmt();
+            }
+
+            impInsertTreeBefore(structVal->gtOp.gtOp1, impCurStmtOffs, beforeStmt);
             structVal->gtOp.gtOp1 = gtNewNothingNode();
         }
 
@@ -1532,7 +1557,7 @@ var_types Compiler::impNormStructType(CORINFO_CLASS_HANDLE structHnd,
 
 #ifdef FEATURE_SIMD
     // Check to see if this is a SIMD type.
-    if (featureSIMD && !mayContainGCPtrs)
+    if (supportSIMDTypes() && !mayContainGCPtrs)
     {
         unsigned originalSize = info.compCompHnd->getClassSize(structHnd);
 
@@ -3458,6 +3483,21 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
             ni = lookupNamedIntrinsic(method);
 
 #ifdef FEATURE_HW_INTRINSICS
+            if (ni == NI_IsSupported_True)
+            {
+                return gtNewIconNode(true);
+            }
+
+            if (ni == NI_IsSupported_False)
+            {
+                return gtNewIconNode(false);
+            }
+
+            if (ni == NI_Throw_PlatformNotSupportedException)
+            {
+                return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED, method, sig, mustExpand);
+            }
+
             if ((ni > NI_HW_INTRINSIC_START) && (ni < NI_HW_INTRINSIC_END))
             {
                 GenTree* hwintrinsic = impHWIntrinsic(ni, method, sig, mustExpand);
@@ -4206,18 +4246,39 @@ GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
 
 NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
 {
-    NamedIntrinsic result = NI_Illegal;
-
     const char* className          = nullptr;
     const char* namespaceName      = nullptr;
     const char* enclosingClassName = nullptr;
     const char* methodName =
         info.compCompHnd->getMethodNameFromMetadata(method, &className, &namespaceName, &enclosingClassName);
 
+    JITDUMP("Named Intrinsic ");
+
+    if (namespaceName != nullptr)
+    {
+        JITDUMP("%s.", namespaceName);
+    }
+    if (enclosingClassName != nullptr)
+    {
+        JITDUMP("%s.", enclosingClassName);
+    }
+    if (className != nullptr)
+    {
+        JITDUMP("%s", className);
+    }
+    if (methodName != nullptr)
+    {
+        JITDUMP("%s", methodName);
+    }
+    JITDUMP(": ");
+
     if ((namespaceName == nullptr) || (className == nullptr) || (methodName == nullptr))
     {
-        return result;
+        JITDUMP("Not recognized, not enough metadata\n");
+        return NI_Illegal;
     }
+
+    NamedIntrinsic result = NI_Illegal;
 
     if (strcmp(namespaceName, "System") == 0)
     {
@@ -4272,18 +4333,36 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
 #ifdef FEATURE_HW_INTRINSICS
     else if (strncmp(namespaceName, "System.Runtime.Intrinsics", 25) == 0)
     {
+        namespaceName += 25;
 #if defined(_TARGET_XARCH_)
-        assert(strcmp(namespaceName + 25, ".X86") == 0 || namespaceName[25] == '\0');
-        result = HWIntrinsicInfo::lookupId(className, methodName, enclosingClassName);
+        if ((namespaceName[0] == '\0') || (strcmp(namespaceName, ".X86") == 0))
+        {
+            result = HWIntrinsicInfo::lookupId(this, className, methodName, enclosingClassName);
+        }
 #elif defined(_TARGET_ARM64_)
-        assert(strcmp(namespaceName + 25, ".Arm.Arm64") == 0 || namespaceName[25] == '\0');
-        result = lookupHWIntrinsic(className, methodName);
+        if ((namespaceName[0] == '\0') || (strcmp(namespaceName, ".Arm.Arm64") == 0))
+        {
+            result = lookupHWIntrinsic(className, methodName);
+        }
 #else // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
 #error Unsupported platform
 #endif // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
+        else
+        {
+            assert(strcmp(methodName, "get_IsSupported") == 0);
+            return NI_IsSupported_False;
+        }
     }
 #endif // FEATURE_HW_INTRINSICS
 
+    if (result == NI_Illegal)
+    {
+        JITDUMP("Not recognized\n");
+    }
+    else
+    {
+        JITDUMP("Recognized\n");
+    }
     return result;
 }
 
@@ -5690,6 +5769,122 @@ GenTree* Compiler::impImportLdvirtftn(GenTree*                thisPtr,
     // Call helper function.  This gets the target address of the final destination callsite.
 
     return gtNewHelperCallNode(CORINFO_HELP_VIRTUAL_FUNC_PTR, TYP_I_IMPL, helpArgs);
+}
+
+//------------------------------------------------------------------------
+// impBoxPatternMatch: match and import common box idioms
+//
+// Arguments:
+//   pResolvedToken - resolved token from the box operation
+//   codeAddr - position in IL stream after the box instruction
+//   codeEndp - end of IL stream
+//
+// Return Value:
+//   Number of IL bytes matched and imported, -1 otherwise
+//
+
+int Compiler::impBoxPatternMatch(CORINFO_RESOLVED_TOKEN* pResolvedToken, const BYTE* codeAddr, const BYTE* codeEndp)
+{
+    if (codeAddr >= codeEndp)
+    {
+        return -1;
+    }
+
+    switch (codeAddr[0])
+    {
+        case CEE_UNBOX_ANY:
+            // box + unbox.any
+            if (codeAddr + 1 + sizeof(mdToken) <= codeEndp)
+            {
+                CORINFO_RESOLVED_TOKEN unboxResolvedToken;
+
+                impResolveToken(codeAddr + 1, &unboxResolvedToken, CORINFO_TOKENKIND_Class);
+
+                // See if the resolved tokens describe types that are equal.
+                const TypeCompareState compare =
+                    info.compCompHnd->compareTypesForEquality(unboxResolvedToken.hClass, pResolvedToken->hClass);
+
+                // If so, box/unbox.any is a nop.
+                if (compare == TypeCompareState::Must)
+                {
+                    JITDUMP("\n Importing BOX; UNBOX.ANY as NOP\n");
+                    // Skip the next unbox.any instruction
+                    return 1 + sizeof(mdToken);
+                }
+            }
+            break;
+
+        case CEE_BRTRUE:
+        case CEE_BRTRUE_S:
+        case CEE_BRFALSE:
+        case CEE_BRFALSE_S:
+            // box + br_true/false
+            if ((codeAddr + ((codeAddr[0] >= CEE_BRFALSE) ? 5 : 2)) <= codeEndp)
+            {
+                if (!(impStackTop().val->gtFlags & GTF_SIDE_EFFECT))
+                {
+                    CorInfoHelpFunc boxHelper = info.compCompHnd->getBoxHelper(pResolvedToken->hClass);
+                    if (boxHelper == CORINFO_HELP_BOX)
+                    {
+                        JITDUMP("\n Importing BOX; BR_TRUE/FALSE as constant\n");
+                        impPopStack();
+
+                        impPushOnStack(gtNewIconNode(1), typeInfo(TI_INT));
+                        return 0;
+                    }
+                }
+            }
+            break;
+
+        case CEE_ISINST:
+            // box + isinst + br_true/false
+            if (codeAddr + 1 + sizeof(mdToken) + 1 <= codeEndp)
+            {
+                const BYTE* nextCodeAddr = codeAddr + 1 + sizeof(mdToken);
+
+                switch (nextCodeAddr[0])
+                {
+                    case CEE_BRTRUE:
+                    case CEE_BRTRUE_S:
+                    case CEE_BRFALSE:
+                    case CEE_BRFALSE_S:
+                        if ((nextCodeAddr + ((nextCodeAddr[0] >= CEE_BRFALSE) ? 5 : 2)) <= codeEndp)
+                        {
+                            if (!(impStackTop().val->gtFlags & GTF_SIDE_EFFECT))
+                            {
+                                CorInfoHelpFunc boxHelper = info.compCompHnd->getBoxHelper(pResolvedToken->hClass);
+                                if (boxHelper == CORINFO_HELP_BOX)
+                                {
+                                    CORINFO_RESOLVED_TOKEN isInstResolvedToken;
+
+                                    impResolveToken(codeAddr + 1, &isInstResolvedToken, CORINFO_TOKENKIND_Casting);
+
+                                    TypeCompareState castResult =
+                                        info.compCompHnd->compareTypesForCast(pResolvedToken->hClass,
+                                                                              isInstResolvedToken.hClass);
+                                    if (castResult != TypeCompareState::May)
+                                    {
+                                        JITDUMP("\n Importing BOX; ISINST; BR_TRUE/FALSE as constant\n");
+                                        impPopStack();
+
+                                        impPushOnStack(gtNewIconNode((castResult == TypeCompareState::Must) ? 1 : 0),
+                                                       typeInfo(TI_INT));
+
+                                        // Skip the next isinst instruction
+                                        return 1 + sizeof(mdToken);
+                                    }
+                                }
+                            }
+                        }
+                }
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    return -1;
 }
 
 //------------------------------------------------------------------------
@@ -8852,13 +9047,16 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
             // This LCL_VAR stays as a TYP_STRUCT
             unsigned lclNum = op->gtLclVarCommon.gtLclNum;
 
-            // Make sure this struct type is not struct promoted
-            lvaTable[lclNum].lvIsMultiRegRet = true;
+            if (!lvaIsImplicitByRefLocal(lclNum))
+            {
+                // Make sure this struct type is not struct promoted
+                lvaTable[lclNum].lvIsMultiRegRet = true;
 
-            // TODO-1stClassStructs: Handle constant propagation and CSE-ing of multireg returns.
-            op->gtFlags |= GTF_DONT_CSE;
+                // TODO-1stClassStructs: Handle constant propagation and CSE-ing of multireg returns.
+                op->gtFlags |= GTF_DONT_CSE;
 
-            return op;
+                return op;
+            }
         }
 
         if (op->gtOper == GT_CALL)
@@ -8887,7 +9085,7 @@ REDO_RETURN_NODE:
     {
         // It is possible that we now have a lclVar of scalar type.
         // If so, don't transform it to GT_LCL_FLD.
-        if (varTypeIsStruct(lvaTable[op->AsLclVar()->gtLclNum].lvType))
+        if (lvaTable[op->AsLclVar()->gtLclNum].lvType != info.compRetNativeType)
         {
             op->ChangeOper(GT_LCL_FLD);
         }
@@ -10624,11 +10822,28 @@ void Compiler::impImportBlockCode(BasicBlock* block)
             SPILL_APPEND:
 
                 // We need to call impSpillLclRefs() for a struct type lclVar.
-                // This is done for non-block assignments in the handling of stloc.
-                if ((op1->OperGet() == GT_ASG) && varTypeIsStruct(op1->gtOp.gtOp1) &&
-                    (op1->gtOp.gtOp1->gtOper == GT_LCL_VAR))
+                // This is because there may be loads of that lclVar on the evaluation stack, and
+                // we need to ensure that those loads are completed before we modify it.
+                if ((op1->OperGet() == GT_ASG) && varTypeIsStruct(op1->gtGetOp1()))
                 {
-                    impSpillLclRefs(op1->gtOp.gtOp1->AsLclVarCommon()->gtLclNum);
+                    GenTree*             lhs    = op1->gtGetOp1();
+                    GenTreeLclVarCommon* lclVar = nullptr;
+                    if (lhs->gtOper == GT_LCL_VAR)
+                    {
+                        lclVar = lhs->AsLclVarCommon();
+                    }
+                    else if (lhs->OperIsBlk())
+                    {
+                        // Check for ADDR(LCL_VAR), or ADD(ADDR(LCL_VAR),CNS_INT))
+                        // (the latter may appear explicitly in the IL).
+                        // Local field stores will cause the stack to be spilled when
+                        // they are encountered.
+                        lclVar = lhs->AsBlk()->Addr()->IsLocalAddrExpr();
+                    }
+                    if (lclVar != nullptr)
+                    {
+                        impSpillLclRefs(lclVar->gtLclNum);
+                    }
                 }
 
                 /* Append 'op1' to the list of statements */
@@ -15163,25 +15378,13 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     break;
                 }
 
-                // Look ahead for unbox.any
-                if (codeAddr + (sz + 1 + sizeof(mdToken)) <= codeEndp && codeAddr[sz] == CEE_UNBOX_ANY)
+                // Look ahead for box idioms
+                int matched = impBoxPatternMatch(&resolvedToken, codeAddr + sz, codeEndp);
+                if (matched >= 0)
                 {
-                    CORINFO_RESOLVED_TOKEN unboxResolvedToken;
-
-                    impResolveToken(codeAddr + (sz + 1), &unboxResolvedToken, CORINFO_TOKENKIND_Class);
-
-                    // See if the resolved tokens describe types that are equal.
-                    const TypeCompareState compare =
-                        info.compCompHnd->compareTypesForEquality(unboxResolvedToken.hClass, resolvedToken.hClass);
-
-                    // If so, box/unbox.any is a nop.
-                    if (compare == TypeCompareState::Must)
-                    {
-                        JITDUMP("\n Importing BOX; UNBOX.ANY as NOP\n");
-                        // Skip the next unbox.any instruction
-                        sz += sizeof(mdToken) + 1;
-                        break;
-                    }
+                    // Skip the matched IL instructions
+                    sz += matched;
+                    break;
                 }
 
                 impImportAndPushBox(&resolvedToken);
@@ -18754,22 +18957,28 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         var_types type = (var_types)eeGetArgType(localsSig, &methInfo->locals, &isPinned);
 
         lclVarInfo[i + argCnt].lclHasLdlocaOp = false;
-        lclVarInfo[i + argCnt].lclIsPinned    = isPinned;
         lclVarInfo[i + argCnt].lclTypeInfo    = type;
 
         if (varTypeIsGC(type))
         {
+            if (isPinned)
+            {
+                JITDUMP("Inlinee local #%02u is pinned\n", i);
+                lclVarInfo[i + argCnt].lclIsPinned = true;
+
+                // Pinned locals may cause inlines to fail.
+                inlineResult->Note(InlineObservation::CALLEE_HAS_PINNED_LOCALS);
+                if (inlineResult->IsFailure())
+                {
+                    return;
+                }
+            }
+
             pInlineInfo->numberOfGcRefLocals++;
         }
-
-        if (isPinned)
+        else if (isPinned)
         {
-            // Pinned locals may cause inlines to fail.
-            inlineResult->Note(InlineObservation::CALLEE_HAS_PINNED_LOCALS);
-            if (inlineResult->IsFailure())
-            {
-                return;
-            }
+            JITDUMP("Ignoring pin on inlinee local #%02u -- not a GC type\n", i);
         }
 
         lclVarInfo[i + argCnt].lclVerTypeInfo = verParseArgSigToTypeInfo(&methInfo->locals, localsSig);
@@ -18808,7 +19017,7 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         if ((!foundSIMDType || (type == TYP_STRUCT)) && isSIMDorHWSIMDClass(&(lclVarInfo[i + argCnt].lclVerTypeInfo)))
         {
             foundSIMDType = true;
-            if (featureSIMD && type == TYP_STRUCT)
+            if (supportSIMDTypes() && type == TYP_STRUCT)
             {
                 var_types structType = impNormStructType(lclVarInfo[i + argCnt].lclVerTypeInfo.GetClassHandle());
                 lclVarInfo[i + argCnt].lclTypeInfo = structType;

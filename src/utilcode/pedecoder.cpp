@@ -1801,12 +1801,6 @@ DWORD PEDecoder::ReadResourceDictionary(DWORD rvaOfResourceSection, DWORD rva, L
 
     IMAGE_RESOURCE_DIRECTORY *pResourceDirectory = (IMAGE_RESOURCE_DIRECTORY *)GetRvaData(rva);
 
-    if (pResourceDirectory->MajorVersion != 4)
-        return 0;
-
-    if (pResourceDirectory->MinorVersion != 0)
-        return 0;
-
     // Check to see if entire resource dictionary is accessible
     if (!CheckRva(rva + sizeof(IMAGE_RESOURCE_DIRECTORY), 
                        (sizeof(IMAGE_RESOURCE_DIRECTORY_ENTRY) * pResourceDirectory->NumberOfNamedEntries) +
@@ -1828,7 +1822,7 @@ DWORD PEDecoder::ReadResourceDictionary(DWORD rvaOfResourceSection, DWORD rva, L
         if (((UINT_PTR)name) <= 0xFFFF)
         {
             // name is id
-            if (pDirectoryEntries[iEntry].Name == (DWORD)name)
+            if (pDirectoryEntries[iEntry].Name == (DWORD)(SIZE_T)name)
                 foundEntry = TRUE;
         }
         else
@@ -2565,7 +2559,7 @@ CORCOMPILE_METHOD_PROFILE_LIST *PEDecoder::GetNativeProfileDataList(COUNT_T * pS
     RETURN PTR_CORCOMPILE_METHOD_PROFILE_LIST(GetDirectoryData(pDir));
 }
 
-
+#endif // FEATURE_PREJIT
 
 PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
 {
@@ -2580,7 +2574,13 @@ PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
     CONTRACT_END;
     
     IMAGE_DATA_DIRECTORY *pDir;
-    if (HasReadyToRunHeader())
+#ifdef FEATURE_PREJIT
+    if (!HasReadyToRunHeader())
+    {
+        pDir = GetMetaDataHelper(METADATA_SECTION_MANIFEST);
+    }
+    else
+#endif
     {
         READYTORUN_HEADER * pHeader = GetReadyToRunHeader();
 
@@ -2596,16 +2596,14 @@ PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
                 pDir = &pSection->Section;
         }
     }
-    else
-    {
-        pDir = GetMetaDataHelper(METADATA_SECTION_MANIFEST);
-    }
 
     if (pSize != NULL)
         *pSize = VAL32(pDir->Size);
 
     RETURN dac_cast<PTR_VOID>(GetDirectoryData(pDir));
 }
+
+#ifdef FEATURE_PREJIT
 
 PTR_CORCOMPILE_IMPORT_SECTION PEDecoder::GetNativeImportSections(COUNT_T *pCount) const
 {

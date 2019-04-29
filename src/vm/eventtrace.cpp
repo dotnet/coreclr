@@ -164,7 +164,7 @@ Volatile<LONGLONG> ETW::GCLog::s_l64LastClientSequenceNumber = 0;
 // expensive events on newer runtimes (>= 4.5) where NGEN PDB info IS available. Note
 // that 4.0 has NGEN PDBS but unfortunately not the OverrideAndSuppressNGenEvents
 // keyword, b/c NGEN PDBs were made publicly only after 4.0 shipped. So tools that need
-// to consume both <4.0 and 4.0 events would neeed to enable the expensive NGEN events to
+// to consume both <4.0 and 4.0 events would need to enable the expensive NGEN events to
 // deal properly with 3.5, even though those events aren't necessary on 4.0.
 // 
 // On CoreCLR, this keyword is a no-op, because coregen PDBs don't exist (and thus we'll
@@ -1492,14 +1492,8 @@ void BulkStaticsLogger::LogAllStatics()
     }
     CONTRACTL_END;
 
-    // Enumerate only active app domains (first parameter).  We use the unsafe
-    // iterator here because this method is called under the threadstore lock
-    // and it's safe to use while the runtime is suspended.
-    UnsafeAppDomainIterator appIter(TRUE);
-    appIter.Init();
-    while (appIter.Next())
     {
-        AppDomain *domain = appIter.GetDomain();
+        AppDomain *domain = ::GetAppDomain(); // There is only 1 AppDomain, so no iterator here.
 
         AppDomain::AssemblyIterator assemblyIter = domain->IterateAssembliesEx((AssemblyIterationFlags)(kIncludeLoaded|kIncludeExecution));
         CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
@@ -1519,7 +1513,7 @@ void BulkStaticsLogger::LogAllStatics()
                 if (module == NULL)
                     continue;
 
-                DomainFile *domainFile = module->FindDomainFile(domain);
+                DomainFile *domainFile = module->GetDomainFile();
                 if (domainFile == NULL)
                     continue;
 
@@ -1527,7 +1521,7 @@ void BulkStaticsLogger::LogAllStatics()
                 if (!domainFile->IsActive())
                     continue;
 
-                DomainLocalModule *domainModule = module->GetDomainLocalModule(domain);
+                DomainLocalModule *domainModule = module->GetDomainLocalModule();
                 if (domainModule == NULL)
                     continue;
 
@@ -5204,6 +5198,32 @@ HRESULT ETW::CodeSymbolLog::ReadInMemorySymbols(
     return S_OK;
 }
 
+VOID ETW::MethodLog::GetR2RGetEntryPoint(MethodDesc *pMethodDesc, PCODE pEntryPoint)
+{
+    CONTRACTL{
+        NOTHROW;
+        GC_TRIGGERS;
+    } CONTRACTL_END;
+
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, R2RGetEntryPoint))
+    {
+        EX_TRY
+        {
+                SString tNamespace, tMethodName, tMethodSignature;
+                pMethodDesc->GetMethodInfo(tNamespace, tMethodName, tMethodSignature);
+
+                FireEtwR2RGetEntryPoint(
+                    (UINT64)pMethodDesc,
+                    (PCWSTR)tNamespace.GetUnicode(),
+                    (PCWSTR)tMethodName.GetUnicode(),
+                    (PCWSTR)tMethodSignature.GetUnicode(),
+                    pEntryPoint,
+                    GetClrInstanceId());
+
+        } EX_CATCH{ } EX_END_CATCH(SwallowAllExceptions);
+    }
+}
+
 /*******************************************************/
 /* This is called by the runtime when a method is jitted completely */
 /*******************************************************/
@@ -5650,19 +5670,19 @@ VOID ETW::LoaderLog::SendDomainEvent(BaseDomain *pBaseDomain, DWORD dwEventOptio
 
     if(dwEventOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleLoad)
     {
-        FireEtwAppDomainLoad_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, pBaseDomain->GetId().m_dwId, GetClrInstanceId());
+        FireEtwAppDomainLoad_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, DefaultADID, GetClrInstanceId());
     }
     else if(dwEventOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleUnload)
     {
-        FireEtwAppDomainUnload_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, pBaseDomain->GetId().m_dwId, GetClrInstanceId());
+        FireEtwAppDomainUnload_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, DefaultADID, GetClrInstanceId());
     }
     else if(dwEventOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleDCStart)
     {
-        FireEtwAppDomainDCStart_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, pBaseDomain->GetId().m_dwId, GetClrInstanceId());
+        FireEtwAppDomainDCStart_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, DefaultADID, GetClrInstanceId());
     }
     else if(dwEventOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleDCEnd)
     {
-        FireEtwAppDomainDCEnd_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, pBaseDomain->GetId().m_dwId, GetClrInstanceId());
+        FireEtwAppDomainDCEnd_V1(ullDomainId, ulDomainFlags, szDtraceOutput1, DefaultADID, GetClrInstanceId());
     }
     else
     {
@@ -5770,7 +5790,7 @@ ETW_INLINE
 {
     ULONG Result = ERROR_SUCCESS;
 
-
+#ifdef FEATURE_PREJIT
     // do not fire the ETW event when:
     // 1. We did not load the native image
     // 2. We do not have IBC data for the native image
@@ -5822,6 +5842,8 @@ ETW_INLINE
             Result &= FireEtwModuleRangeLoadPrivate(ClrInstanceId, ModuleID, rangeBegin, rangeSize, rangeType, ibcType, virtualSectionType);
         }
     }
+#endif
+
     return Result;
 }
 
@@ -6070,7 +6092,7 @@ VOID ETW::LoaderLog::SendModuleEvent(Module *pModule, DWORD dwEventOptions, BOOL
     {
         if(pModule->GetDomain()->IsSharedDomain()) // for shared domains, we do not fire domainmodule event
             return;
-        ullAppDomainId = (ULONGLONG)pModule->FindDomainAssembly(pModule->GetDomain()->AsAppDomain())->GetAppDomain();
+        ullAppDomainId = (ULONGLONG)pModule->GetDomainAssembly()->GetAppDomain();
     }
 
     LPCWSTR pEmptyString = W("");
@@ -7171,7 +7193,7 @@ VOID ETW::EnumerationLog::IterateAssembly(Assembly *pAssembly, DWORD enumeration
         {
             if(pAssembly->GetDomain()->IsAppDomain())
             {
-                DomainModuleIterator dmIterator = pAssembly->FindDomainAssembly(pAssembly->GetDomain()->AsAppDomain())->IterateModules(kModIterIncludeLoaded);
+                DomainModuleIterator dmIterator = pAssembly->GetDomainAssembly()->IterateModules(kModIterIncludeLoaded);
                 while (dmIterator.Next()) 
                 {
                     ETW::LoaderLog::SendModuleEvent(dmIterator.GetModule(), enumerationOptions, TRUE);
