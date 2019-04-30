@@ -510,7 +510,7 @@ if %__BuildCrossArchNative% EQU 1 (
       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
       /p:UsePartialNGENOptimization=false /maxcpucount^
       %__CrossCompIntermediatesDir%\install.vcxproj^
-      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__CrossArch% %__CommonMSBuildArgs% /m:2 %__UnprocessedBuildArgs%
+      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__CrossArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
 
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: cross-arch components build failed. Refer to the build log files for details:
@@ -597,7 +597,7 @@ if %__BuildNative% EQU 1 (
       /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
       /p:UsePartialNGENOptimization=false /maxcpucount %__IntermediatesDir%\install.vcxproj^
-      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% /m:2 %__UnprocessedBuildArgs%
+      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
 
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: native component build failed. Refer to the build log files for details:
