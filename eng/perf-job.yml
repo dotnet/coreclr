@@ -103,7 +103,7 @@ jobs:
       - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) generatelayoutonly
         displayName: Create Core_Root
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      # TODO: add generatelayoutonly to build-test.cmd
+      # TODO: add generatelayoutonly to build-test.cmd.
       - script: build-test.cmd $(buildConfig) $(archType)
         displayName: Create Core_Root
 
