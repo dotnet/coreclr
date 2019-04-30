@@ -34,7 +34,7 @@ jobs:
         value: '.NET Performance - $(BenchviewRunType) - $(Build.SourceBranch) $(System.PullRequest.PullRequestNumber)'
       # for public runs we want to generate data (--generate-benchview-data ) but don't upload it (missing --upload-to-benchview-container)
       - name: BenchviewArguments
-        value: '--benchview-submission-name ""$(BenchviewCommitName)"" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchviewRunType)'
+        value: '--generate-benchview-data --benchview-submission-name "$(BenchviewCommitName)" --benchview-machinepool perfsnake --benchview-run-type $(BenchviewRunType)'
       - name: Creator
         value: dotnet-performance
       - name: HelixApiAccessToken
@@ -48,7 +48,7 @@ jobs:
         value: '.NET Performance - $(BenchviewRunType) - $(Build.SourceBranch) $(Build.SourceVersion)'
       # for private runs we want to generate data (--generate-benchview-data ) and upload it (--upload-to-benchview-container specifies where)
       - name: BenchviewArguments
-        value: '--benchview-submission-name "$(BenchviewCommitName)" --benchview-machinepool perfsnake --generate-benchview-data --benchview-run-type $(BenchviewRunType) --upload-to-benchview-container $(_Category)'
+        value: '--generate-benchview-data --benchview-submission-name "$(BenchviewCommitName)" --benchview-machinepool perfsnake --benchview-run-type $(BenchviewRunType) --upload-to-benchview-container $(_Category)'
       - name: Creator
         value: ''
       - ${{ if eq(parameters.osName, 'windows') }}:
@@ -74,7 +74,7 @@ jobs:
         value: $(Build.SourcesDirectory)\bin\tests\$(osGroup).$(archType).$(buildConfigUpper)\Tests
 
     - name: commonArguments
-      value: '--filter *Adams* --incremental no --architecture $(archType) -f netcoreapp3.0 --bdn-arguments="--allCategories CoreClr" --dotnet-compilation-mode Tiered --generate-benchview-data $(BenchviewArguments)'
+      value: '--filter *Adams* --incremental no --architecture $(archType) -f netcoreapp3.0 --bdn-arguments="--allCategories CoreClr" --dotnet-compilation-mode Tiered'
 
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
@@ -110,9 +110,9 @@ jobs:
     # TODO: Crossgen the framework
 
     - ${{ if eq(parameters.osName, 'Windows_NT') }}:
-      - script: echo WorkItemCommand -3  %HELIX_CORRELATION_PAYLOAD%\scripts\benchmarks_ci.py $(commonArguments) --corerun %HELIX_WORKITEM_PAYLOAD%\corerun.exe
+      - script: echo WorkItemCommand -3  %HELIX_CORRELATION_PAYLOAD%\scripts\benchmarks_ci.py $(commonArguments) $(BenchviewArguments) --corerun %HELIX_WORKITEM_PAYLOAD%\corerun.exe
     - ${{ if ne(parameters.osName, 'Windows_NT') }}:
-      - script: echo WorkItemCommand python3 $HELIX_CORRELATION_PAYLOAD/scripts/benchmarks_ci.py $(commonArguments) --corerun  $HELIX_WORKITEM_PAYLOAD/corerun
+      - script: echo WorkItemCommand python3 $HELIX_CORRELATION_PAYLOAD/scripts/benchmarks_ci.py $(commonArguments) $(BenchviewArguments) --corerun  $HELIX_WORKITEM_PAYLOAD/corerun
 
     # Send everything to Helix
     - template: /eng/common/templates/steps/send-to-helix.yml
