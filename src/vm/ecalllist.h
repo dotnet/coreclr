@@ -792,9 +792,6 @@ FCFuncStart(gGCInterfaceFuncs)
     QCFuncElement("_UnregisterFrozenSegment", GCInterface::UnregisterFrozenSegment)
 #endif // FEATURE_BASICFREEZE
 
-    FCFuncElement("_RegisterMemoryLoadChangeNotification", GCInterface::RegisterMemoryLoadChangeNotification)
-    FCFuncElement("_UnregisterMemoryLoadChangeNotification", GCInterface::UnregisterMemoryLoadChangeNotification)
-
 FCFuncEnd()
 
 FCFuncStart(gGCSettingsFuncs)

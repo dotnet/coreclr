@@ -525,8 +525,6 @@ namespace System
         }
 
         private static readonly List<MemoryLoadChangeNotification> s_notifications = new List<MemoryLoadChangeNotification>();
-        private static readonly Action s_notificationsCallback = new Action(InvokeMemoryLoadChangeNotifications);
-        private static readonly IntPtr s_notificationsFtnPtr = Marshal.GetFunctionPointerForDelegate(s_notificationsCallback);
         private static float s_previousMemoryLoad = float.MaxValue;
 
         private static float GetMemoryLoad()
@@ -540,7 +538,7 @@ namespace System
             return (float)lastRecordedMemLoad / 100;
         }
 
-        private static void InvokeMemoryLoadChangeNotifications()
+        private static bool InvokeMemoryLoadChangeNotifications()
         {
             float currentMemoryLoad = GetMemoryLoad();
 
@@ -549,7 +547,7 @@ namespace System
                 if (s_previousMemoryLoad == float.MaxValue)
                 {
                     s_previousMemoryLoad = currentMemoryLoad;
-                    return;
+                    return true;
                 }
 
                 // We need to take a snapshot of s_notifications.Count, so that in the case that s_notifications[i].Notification() registers new notifications,
@@ -561,8 +559,7 @@ namespace System
                 if (count == 0)
                 {
                     s_previousMemoryLoad = float.MaxValue;
-                    _UnregisterMemoryLoadChangeNotification();
-                    return;
+                    return false;
                 }
 
                 int last = 0;
@@ -585,6 +582,8 @@ namespace System
                 {
                     s_notifications.RemoveRange(last, count - last);
                 }
+
+                return true;
             }
         }
 
@@ -617,13 +616,10 @@ namespace System
 
                 if (s_notifications.Count == 1)
                 {
-                    _RegisterMemoryLoadChangeNotification(s_notificationsFtnPtr);
+                    Gen2GcCallback.Register(InvokeMemoryLoadChangeNotifications);
                 }
             }
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void _RegisterMemoryLoadChangeNotification(IntPtr notification);
 
         internal static void UnregisterMemoryLoadChangeNotification(Action notification)
         {
@@ -647,8 +643,5 @@ namespace System
                 // UnregisterMemoryLoadChangeNotification and InvokeMemoryLoadChangeNotifications in native.
             }
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void _UnregisterMemoryLoadChangeNotification();
     }
 }

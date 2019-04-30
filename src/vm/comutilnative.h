@@ -170,9 +170,6 @@ public:
     static void NewRemoveMemoryPressure(UINT64 bytesAllocated);
     static void NewAddMemoryPressure(UINT64 bytesAllocated);
 
-    static FCDECL1(void, RegisterMemoryLoadChangeNotification, void (*notification)(void));
-    static FCDECL0(void, UnregisterMemoryLoadChangeNotification);
-
 private:
     // Out-of-line helper to avoid EH prolog/epilog in functions that otherwise don't throw.
     NOINLINE static void GarbageCollectModeAny(int generation);
