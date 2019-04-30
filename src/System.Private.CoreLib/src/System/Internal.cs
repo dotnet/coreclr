@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 /*============================================================
 **
 ** This file exists to contain miscellaneous module-level attributes
@@ -130,25 +131,25 @@ namespace System
             new KeyValuePair<ushort, double>(ushort.MinValue, double.MinValue);
             new KeyValuePair<object, int>(string.Empty, int.MinValue);
             new KeyValuePair<int, int>(int.MinValue, int.MinValue);
-            SZArrayHelper<bool>(null);
-            SZArrayHelper<byte>(null);
-            SZArrayHelper<DateTime>(null);
-            SZArrayHelper<decimal>(null);
-            SZArrayHelper<double>(null);
-            SZArrayHelper<Guid>(null);
-            SZArrayHelper<short>(null);
-            SZArrayHelper<int>(null);
-            SZArrayHelper<long>(null);
-            SZArrayHelper<TimeSpan>(null);
-            SZArrayHelper<sbyte>(null);
-            SZArrayHelper<float>(null);
-            SZArrayHelper<ushort>(null);
-            SZArrayHelper<uint>(null);
-            SZArrayHelper<ulong>(null);
-            SZArrayHelper<DateTimeOffset>(null);
+            SZArrayHelper<bool>(null!);
+            SZArrayHelper<byte>(null!);
+            SZArrayHelper<DateTime>(null!);
+            SZArrayHelper<decimal>(null!);
+            SZArrayHelper<double>(null!);
+            SZArrayHelper<Guid>(null!);
+            SZArrayHelper<short>(null!);
+            SZArrayHelper<int>(null!);
+            SZArrayHelper<long>(null!);
+            SZArrayHelper<TimeSpan>(null!);
+            SZArrayHelper<sbyte>(null!);
+            SZArrayHelper<float>(null!);
+            SZArrayHelper<ushort>(null!);
+            SZArrayHelper<uint>(null!);
+            SZArrayHelper<ulong>(null!);
+            SZArrayHelper<DateTimeOffset>(null!);
 
-            SZArrayHelper<CustomAttributeTypedArgument>(null);
-            SZArrayHelper<CustomAttributeNamedArgument>(null);
+            SZArrayHelper<CustomAttributeTypedArgument>(null!);
+            SZArrayHelper<CustomAttributeNamedArgument>(null!);
 
 #pragma warning disable 4014
             // This is necessary to generate MDIL for AsyncVoidMethodBuilder
@@ -206,39 +207,39 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.NoOptimization)]
         private static void CommonlyUsedWinRTRedirectedInterfaceStubs()
         {
-            WinRT_IEnumerable<byte>(null, null, null);
-            WinRT_IEnumerable<char>(null, null, null);
-            WinRT_IEnumerable<short>(null, null, null);
-            WinRT_IEnumerable<ushort>(null, null, null);
-            WinRT_IEnumerable<int>(null, null, null);
-            WinRT_IEnumerable<uint>(null, null, null);
-            WinRT_IEnumerable<long>(null, null, null);
-            WinRT_IEnumerable<ulong>(null, null, null);
-            WinRT_IEnumerable<float>(null, null, null);
-            WinRT_IEnumerable<double>(null, null, null);
+            WinRT_IEnumerable<byte>(null!, null!, null!);
+            WinRT_IEnumerable<char>(null!, null!, null!);
+            WinRT_IEnumerable<short>(null!, null!, null!);
+            WinRT_IEnumerable<ushort>(null!, null!, null!);
+            WinRT_IEnumerable<int>(null!, null!, null!);
+            WinRT_IEnumerable<uint>(null!, null!, null!);
+            WinRT_IEnumerable<long>(null!, null!, null!);
+            WinRT_IEnumerable<ulong>(null!, null!, null!);
+            WinRT_IEnumerable<float>(null!, null!, null!);
+            WinRT_IEnumerable<double>(null!, null!, null!);
 
             // The underlying WinRT types for shared instantiations have to be referenced explicitly. 
             // They are not guaranteeed to be created indirectly because of generic code sharing.
-            WinRT_IEnumerable<string>(null, null, null); typeof(IIterable<string>).ToString(); typeof(IIterator<string>).ToString();
-            WinRT_IEnumerable<object>(null, null, null); typeof(IIterable<object>).ToString(); typeof(IIterator<object>).ToString();
+            WinRT_IEnumerable<string>(null!, null!, null!); typeof(IIterable<string>).ToString(); typeof(IIterator<string>).ToString();
+            WinRT_IEnumerable<object>(null!, null!, null!); typeof(IIterable<object>).ToString(); typeof(IIterator<object>).ToString();
 
-            WinRT_IList<int>(null, null, null, null);
-            WinRT_IList<string>(null, null, null, null); typeof(IVector<string>).ToString();
-            WinRT_IList<object>(null, null, null, null); typeof(IVector<object>).ToString();
+            WinRT_IList<int>(null!, null!, null!, null!);
+            WinRT_IList<string>(null!, null!, null!, null!); typeof(IVector<string>).ToString();
+            WinRT_IList<object>(null!, null!, null!, null!); typeof(IVector<object>).ToString();
 
-            WinRT_IReadOnlyList<int>(null, null, null);
-            WinRT_IReadOnlyList<string>(null, null, null); typeof(IVectorView<string>).ToString();
-            WinRT_IReadOnlyList<object>(null, null, null); typeof(IVectorView<object>).ToString();
+            WinRT_IReadOnlyList<int>(null!, null!, null!);
+            WinRT_IReadOnlyList<string>(null!, null!, null!); typeof(IVectorView<string>).ToString();
+            WinRT_IReadOnlyList<object>(null!, null!, null!); typeof(IVectorView<object>).ToString();
 
-            WinRT_IDictionary<string, int>(null, null, null, null); typeof(IMap<string, int>).ToString();
-            WinRT_IDictionary<string, string>(null, null, null, null); typeof(IMap<string, string>).ToString();
-            WinRT_IDictionary<string, object>(null, null, null, null); typeof(IMap<string, object>).ToString();
-            WinRT_IDictionary<object, object>(null, null, null, null); typeof(IMap<object, object>).ToString();
+            WinRT_IDictionary<string, int>(null!, null!, null!, null!); typeof(IMap<string, int>).ToString();
+            WinRT_IDictionary<string, string>(null!, null!, null!, null!); typeof(IMap<string, string>).ToString();
+            WinRT_IDictionary<string, object>(null!, null!, null!, null!); typeof(IMap<string, object>).ToString();
+            WinRT_IDictionary<object, object>(null!, null!, null!, null!); typeof(IMap<object, object>).ToString();
 
-            WinRT_IReadOnlyDictionary<string, int>(null, null, null, null); typeof(IMapView<string, int>).ToString();
-            WinRT_IReadOnlyDictionary<string, string>(null, null, null, null); typeof(IMapView<string, string>).ToString();
-            WinRT_IReadOnlyDictionary<string, object>(null, null, null, null); typeof(IMapView<string, object>).ToString();
-            WinRT_IReadOnlyDictionary<object, object>(null, null, null, null); typeof(IMapView<object, object>).ToString();
+            WinRT_IReadOnlyDictionary<string, int>(null!, null!, null!, null!); typeof(IMapView<string, int>).ToString();
+            WinRT_IReadOnlyDictionary<string, string>(null!, null!, null!, null!); typeof(IMapView<string, string>).ToString();
+            WinRT_IReadOnlyDictionary<string, object>(null!, null!, null!, null!); typeof(IMapView<string, object>).ToString();
+            WinRT_IReadOnlyDictionary<object, object>(null!, null!, null!, null!); typeof(IMapView<object, object>).ToString();
 
             WinRT_Nullable<bool>();
             WinRT_Nullable<byte>();
@@ -259,7 +260,7 @@ namespace System
 
         private static void WinRT_IList<T>(VectorToListAdapter vectorToListAdapter, VectorToCollectionAdapter vectorToCollectionAdapter, ListToVectorAdapter listToVectorAdapter, IVector<T> vector)
         {
-            WinRT_IEnumerable<T>(null, null, null);
+            WinRT_IEnumerable<T>(null!, null!, null!);
 
             // instantiate stubs for commonly used methods on IList<T> and ICollection<T>
             vectorToListAdapter.Indexer_Get<T>(0);
@@ -283,7 +284,7 @@ namespace System
 
         private static void WinRT_IReadOnlyCollection<T>(VectorViewToReadOnlyCollectionAdapter vectorViewToReadOnlyCollectionAdapter)
         {
-            WinRT_IEnumerable<T>(null, null, null);
+            WinRT_IEnumerable<T>(null!, null!, null!);
 
             // instantiate stubs for commonly used methods on IReadOnlyCollection<T>
             vectorViewToReadOnlyCollectionAdapter.Count<T>();
@@ -291,8 +292,8 @@ namespace System
 
         private static void WinRT_IReadOnlyList<T>(IVectorViewToIReadOnlyListAdapter vectorToListAdapter, IReadOnlyListToIVectorViewAdapter listToVectorAdapter, IVectorView<T> vectorView)
         {
-            WinRT_IEnumerable<T>(null, null, null);
-            WinRT_IReadOnlyCollection<T>(null);
+            WinRT_IEnumerable<T>(null!, null!, null!);
+            WinRT_IReadOnlyCollection<T>(null!);
 
             // instantiate stubs for commonly used methods on IReadOnlyList<T>
             vectorToListAdapter.Indexer_Get<T>(0);
@@ -304,7 +305,7 @@ namespace System
 
         private static void WinRT_IDictionary<K, V>(MapToDictionaryAdapter mapToDictionaryAdapter, MapToCollectionAdapter mapToCollectionAdapter, DictionaryToMapAdapter dictionaryToMapAdapter, IMap<K, V> map)
         {
-            WinRT_IEnumerable<KeyValuePair<K, V>>(null, null, null);
+            WinRT_IEnumerable<KeyValuePair<K, V>>(null!, null!, null!);
 
             // instantiate stubs for commonly used methods on IDictionary<K, V> and ICollection<KeyValuePair<K, V>>
             V dummy;
@@ -329,8 +330,8 @@ namespace System
 
         private static void WinRT_IReadOnlyDictionary<K, V>(IMapViewToIReadOnlyDictionaryAdapter mapToDictionaryAdapter, IReadOnlyDictionaryToIMapViewAdapter dictionaryToMapAdapter, IMapView<K, V> mapView, MapViewToReadOnlyCollectionAdapter mapViewToReadOnlyCollectionAdapter)
         {
-            WinRT_IEnumerable<KeyValuePair<K, V>>(null, null, null);
-            WinRT_IReadOnlyCollection<KeyValuePair<K, V>>(null);
+            WinRT_IEnumerable<KeyValuePair<K, V>>(null!, null!, null!);
+            WinRT_IReadOnlyCollection<KeyValuePair<K, V>>(null!);
 
             // instantiate stubs for commonly used methods on IReadOnlyDictionary<K, V>
             V dummy;
