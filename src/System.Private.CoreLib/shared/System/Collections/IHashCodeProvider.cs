@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 namespace System.Collections
 {
     /// <summary>
@@ -13,6 +14,6 @@ namespace System.Collections
     public interface IHashCodeProvider
     {
         /// <summary>Returns a hash code for the given object.</summary>
-        int GetHashCode(object obj);
+        int GetHashCode(object? obj);
     }
 }
