@@ -56,6 +56,7 @@
     <CLSCompliant>true</CLSCompliant>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Remove CS8608 once https://github.com/dotnet/roslyn/issues/23268 is resolved -->
     <NoWarn>649,1573,1591,0419,3021,CS8609</NoWarn>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <SignAssembly>true</SignAssembly>
