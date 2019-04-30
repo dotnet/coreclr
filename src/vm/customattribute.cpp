@@ -1310,7 +1310,7 @@ void COMCustomAttribute::ReadArray(Assembly *pCtorAssembly,
         TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(th);
         if (arrayHandle.IsNull()) 
             goto badBlob;
-        *pArray = (BASEARRAYREF)AllocateArrayEx(arrayHandle, &bounds, 1);
+        *pArray = (BASEARRAYREF)AllocateSzArray(arrayHandle, bounds);
         BOOL fSuccess;
         switch (elementSize)
         {

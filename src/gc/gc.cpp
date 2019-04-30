@@ -13447,13 +13447,16 @@ allocation_state gc_heap::try_allocate_more_space (alloc_context* acontext, size
             FIRE_EVENT(GCAllocationTick_V1, (uint32_t)etw_allocation_running_amount[etw_allocation_index],
                                             (gen_number == 0) ? gc_etw_alloc_soh : gc_etw_alloc_loh);
 #else
+
+#if defined(FEATURE_EVENT_TRACE)
+            // We are explicitly checking whether the event is enabled here.
             // Unfortunately some of the ETW macros do not check whether the ETW feature is enabled.
             // The ones that do are much less efficient.
-#if defined(FEATURE_EVENT_TRACE)
             if (EVENT_ENABLED(GCAllocationTick_V3))
             {
                 fire_etw_allocation_event (etw_allocation_running_amount[etw_allocation_index], gen_number, acontext->alloc_ptr);
             }
+
 #endif //FEATURE_EVENT_TRACE
 #endif //FEATURE_REDHAWK
             etw_allocation_running_amount[etw_allocation_index] = 0;

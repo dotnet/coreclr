@@ -779,10 +779,7 @@ HCIMPL2_RAW(Object*, UnframedAllocateObjectArray, MethodTable *pArrayMT, DWORD c
         MODE_COOPERATIVE;
     } CONTRACTL_END;
 
-    return OBJECTREFToObject(AllocateArrayEx(pArrayMT,
-                                               (INT32 *)(&cElements),
-                                               1,
-                                               FALSE));
+    return OBJECTREFToObject(AllocateSzArray(pArrayMT, cElements));
 }
 HCIMPLEND_RAW
 
@@ -798,7 +795,7 @@ HCIMPL2_RAW(Object*, UnframedAllocatePrimitiveArray, CorElementType type, DWORD 
         MODE_COOPERATIVE;
     } CONTRACTL_END;
 
-    return OBJECTREFToObject( AllocatePrimitiveArray(type, cElements, FALSE) );
+    return OBJECTREFToObject( AllocatePrimitiveArray(type, cElements) );
 }
 HCIMPLEND_RAW
 

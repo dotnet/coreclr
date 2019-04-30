@@ -205,11 +205,11 @@ inline void CheckObjectSize(size_t alloc_size)
 // While this is a choke point into allocating an object, it is primitive (it does not want to know about
 // MethodTable and thus does not initialize that pointer. It also does not know if the object is finalizable
 // or contains pointers. Thus we quickly wrap this function in more user-friendly ones that know about
-// MethodTables etc. (see code:FastAllocatePrimitiveArray code:AllocateArrayEx code:AllocateObject)
+// MethodTables etc. (see code:AllocateSzArray code:AllocateArrayEx code:AllocateObject)
 //
 // You can get an exhaustive list of code sites that allocate GC objects by finding all calls to
 // code:ProfilerObjectAllocatedCallback (since the profiler has to hook them all).
-inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers, BOOL zeroingOptional = FALSE)
+inline Object* Alloc(size_t size, GC_ALLOC_FLAGS flags)
 {
     CONTRACTL {
         THROWS;
@@ -227,12 +227,8 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers, BOOL z
     }
 #endif
 
-    if (bContainsPointers)
-        zeroingOptional = FALSE;
-
-    DWORD flags = ((bContainsPointers ? GC_ALLOC_CONTAINS_REF : 0) |
-                (bFinalize ? GC_ALLOC_FINALIZE : 0) |
-                (zeroingOptional ? GC_ALLOC_ZEROING_OPTIONAL : 0));
+    if (flags & GC_ALLOC_CONTAINS_REF)
+        flags &= ~GC_ALLOC_ZEROING_OPTIONAL;
 
     Object *retVal = NULL;
     CheckObjectSize(size);
@@ -263,7 +259,7 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers, BOOL z
 #ifdef FEATURE_64BIT_ALIGNMENT
 // Helper for allocating 8-byte aligned objects (on platforms where this doesn't happen naturally, e.g. 32-bit
 // platforms).
-inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, BOOL bAlignBias, BOOL zeroingOptional = FALSE)
+inline Object* AllocAlign8(size_t size, GC_ALLOC_FLAGS flags)
 {
     CONTRACTL {
         THROWS;
@@ -271,13 +267,8 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
     } CONTRACTL_END;
 
-    if (bContainsPointers)
-        zeroingOptional = FALSE;
-
-    DWORD flags = ((bContainsPointers ? GC_ALLOC_CONTAINS_REF : 0) |
-                  (bFinalize ? GC_ALLOC_FINALIZE : 0) |
-                  (zeroingOptional ? GC_ALLOC_ZEROING_OPTIONAL : 0) |
-                  (bAlignBias ? GC_ALLOC_ALIGN8_BIAS : 0));
+    if (flags & GC_ALLOC_CONTAINS_REF )
+        flags &= ~ GC_ALLOC_ZEROING_OPTIONAL;
 
     Object *retVal = NULL;
     CheckObjectSize(size);
@@ -311,7 +302,7 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
 // 
 // One (and only?) example of where this is needed is 8 byte aligning of arrays of doubles. See
 // code:EEConfig.GetDoubleArrayToLargeObjectHeapThreshold and code:CORINFO_HELP_NEWARR_1_ALIGN8 for more.
-inline Object* AllocLHeap(size_t size, BOOL bFinalize, BOOL bContainsPointers, BOOL zeroingOptional = FALSE)
+inline Object* AllocLHeap(size_t size, GC_ALLOC_FLAGS flags)
 {
     CONTRACTL {
         THROWS;
@@ -330,12 +321,8 @@ inline Object* AllocLHeap(size_t size, BOOL bFinalize, BOOL bContainsPointers, B
     }
 #endif
 
-    if (bContainsPointers)
-        zeroingOptional = FALSE;
-
-    DWORD flags = ((bContainsPointers ? GC_ALLOC_CONTAINS_REF : 0) |
-                (bFinalize ? GC_ALLOC_FINALIZE : 0) |
-                (zeroingOptional ? GC_ALLOC_ZEROING_OPTIONAL : 0));
+    if (flags & GC_ALLOC_CONTAINS_REF)
+        flags &=  ~GC_ALLOC_ZEROING_OPTIONAL;
 
     Object *retVal = NULL;
     CheckObjectSize(size);
@@ -420,9 +407,9 @@ inline SIZE_T MaxArrayLength(SIZE_T componentSize)
     return (componentSize == 1) ? 0X7FFFFFC7 : 0X7FEFFFFF;
 }
 
-OBJECTREF AllocateSzArray(TypeHandle arrayType, INT32 cElements, BOOL zeroingOptional)
+OBJECTREF AllocateSzArray(TypeHandle arrayType, INT32 cElements, GC_ALLOC_FLAGS flags, BOOL bAllocateInLargeHeap)
 {
-    CONTRACTL {
+    CONTRACTL{
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative        
@@ -430,12 +417,28 @@ OBJECTREF AllocateSzArray(TypeHandle arrayType, INT32 cElements, BOOL zeroingOpt
 
     ArrayTypeDesc* arrayDesc = arrayType.AsArray();
     MethodTable* pArrayMT = arrayDesc->GetMethodTable();
+
+    return AllocateSzArray(pArrayMT, cElements, flags, bAllocateInLargeHeap);
+}
+
+OBJECTREF AllocateSzArray(MethodTable* pArrayMT, INT32 cElements, GC_ALLOC_FLAGS flags, BOOL bAllocateInLargeHeap)
+{
+    CONTRACTL{
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE; // returns an objref without pinning it => cooperative        
+    } CONTRACTL_END;
+
     SetTypeHandleOnThreadForAlloc(TypeHandle(pArrayMT));
 
     _ASSERTE(pArrayMT->CheckInstanceActivated());
     _ASSERTE(pArrayMT->GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY);
-    
+
     CorElementType elemType = pArrayMT->GetArrayElementType();
+    
+    // Disallow the creation of void[] (an array of System.Void)
+    if (elemType == ELEMENT_TYPE_VOID)
+        COMPlusThrow(kArgumentException);
 
     // IBC Log MethodTable access
     g_IBCLogger.LogMethodTableAccess(pArrayMT);
@@ -461,9 +464,8 @@ OBJECTREF AllocateSzArray(TypeHandle arrayType, INT32 cElements, BOOL zeroingOpt
     size_t totalSize = safeTotalSize.Value();
 #endif
 
-    bool bAllocateInLargeHeap = false;
 #ifdef FEATURE_DOUBLE_ALIGNMENT_HINT
-    if ((elemType == ELEMENT_TYPE_R8) && 
+    if ((elemType == ELEMENT_TYPE_R8) &&
         ((DWORD)cElements >= g_pConfig->GetDoubleArrayToLargeObjectHeapThreshold()))
     {
         STRESS_LOG2(LF_GC, LL_INFO10, "Allocating double MD array of size %d and length %d to large object heap\n", totalSize, cElements);
@@ -471,30 +473,68 @@ OBJECTREF AllocateSzArray(TypeHandle arrayType, INT32 cElements, BOOL zeroingOpt
     }
 #endif
 
-    ArrayBase * orArray = NULL;
+    flags |= (pArrayMT->ContainsPointers() ? GC_ALLOC_CONTAINS_REF : GC_ALLOC_NO_FLAGS);
+
+    ArrayBase* orArray = NULL;
     if (bAllocateInLargeHeap)
     {
-        orArray = (ArrayBase *) AllocLHeap(totalSize, FALSE, pArrayMT->ContainsPointers(), zeroingOptional);
+        orArray = (ArrayBase*)AllocLHeap(totalSize, flags);
         orArray->SetArrayMethodTableForLargeObject(pArrayMT);
     }
     else
     {
-#ifdef FEATURE_64BIT_ALIGNMENT
-        MethodTable *pElementMT = pArrayMT->GetApproxArrayElementTypeHandle().GetMethodTable();
-        if (pElementMT->RequiresAlign8() && pElementMT->IsValueType())
+        if ((DATA_ALIGNMENT < sizeof(double)) && (elemType == ELEMENT_TYPE_R8))
         {
-            // This platform requires that certain fields are 8-byte aligned (and the runtime doesn't provide
-            // this guarantee implicitly, e.g. on 32-bit platforms). Since it's the array payload, not the
-            // header that requires alignment we need to be careful. However it just so happens that all the
-            // cases we care about (single and multi-dim arrays of value types) have an even number of DWORDs
-            // in their headers so the alignment requirements for the header and the payload are the same.
-            _ASSERTE(((pArrayMT->GetBaseSize() - SIZEOF_OBJHEADER) & 7) == 0);
-            orArray = (ArrayBase *) AllocAlign8(totalSize, FALSE, pArrayMT->ContainsPointers(), FALSE, zeroingOptional);
+            // Creation of an array of doubles, not in the large object heap.
+            // We want to align the doubles to 8 byte boundaries, but the GC gives us pointers aligned
+            // to 4 bytes only (on 32 bit platforms). To align, we ask for 12 bytes more to fill with a
+            // dummy object.
+            // If the GC gives us a 8 byte aligned address, we use it for the array and place the dummy
+            // object after the array, otherwise we put the dummy object first, shifting the base of
+            // the array to an 8 byte aligned address.
+            //
+            // Note: on 64 bit platforms, the GC always returns 8 byte aligned addresses, and we don't
+            // execute this code because DATA_ALIGNMENT < sizeof(double) is false.
+
+            _ASSERTE(DATA_ALIGNMENT == sizeof(double) / 2);
+            _ASSERTE((MIN_OBJECT_SIZE % sizeof(double)) == DATA_ALIGNMENT);   // used to change alignment
+            _ASSERTE(pArrayMT->GetComponentSize() == sizeof(double));
+            _ASSERTE(g_pObjectClass->GetBaseSize() == MIN_OBJECT_SIZE);
+            _ASSERTE(totalSize < totalSize + MIN_OBJECT_SIZE);
+            orArray = (ArrayBase*)Alloc(totalSize + MIN_OBJECT_SIZE, flags);
+
+            Object* orDummyObject;
+            if ((size_t)orArray % sizeof(double))
+            {
+                orDummyObject = orArray;
+                orArray = (ArrayBase*)((size_t)orArray + MIN_OBJECT_SIZE);
+            }
+            else
+            {
+                orDummyObject = (Object*)((size_t)orArray + totalSize);
+            }
+            _ASSERTE(((size_t)orArray % sizeof(double)) == 0);
+            orDummyObject->SetMethodTable(g_pObjectClass);
         }
         else
-#endif
         {
-            orArray = (ArrayBase *) Alloc(totalSize, FALSE, pArrayMT->ContainsPointers(), zeroingOptional);
+#ifdef FEATURE_64BIT_ALIGNMENT
+            MethodTable* pElementMT = pArrayMT->GetApproxArrayElementTypeHandle().GetMethodTable();
+            if (pElementMT->RequiresAlign8() && pElementMT->IsValueType())
+            {
+                // This platform requires that certain fields are 8-byte aligned (and the runtime doesn't provide
+                // this guarantee implicitly, e.g. on 32-bit platforms). Since it's the array payload, not the
+                // header that requires alignment we need to be careful. However it just so happens that all the
+                // cases we care about (single and multi-dim arrays of value types) have an even number of DWORDs
+                // in their headers so the alignment requirements for the header and the payload are the same.
+                _ASSERTE(((pArrayMT->GetBaseSize() - SIZEOF_OBJHEADER) & 7) == 0);
+                orArray = (ArrayBase*)AllocAlign8(totalSize, flags);
+            }
+            else
+#endif
+            {
+                orArray = (ArrayBase*)Alloc(totalSize, flags);
+            }
         }
         orArray->SetArrayMethodTable(pArrayMT);
     }
@@ -560,7 +600,7 @@ void ThrowOutOfMemoryDimensionsExceeded()
 //
 // This is wrapper overload to handle TypeHandle arrayType
 //
-OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap)
+OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, GC_ALLOC_FLAGS flags, BOOL bAllocateInLargeHeap)
 {
     CONTRACTL
     {
@@ -570,7 +610,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
     ArrayTypeDesc* arrayDesc = arrayType.AsArray();
     MethodTable* pArrayMT = arrayDesc->GetMethodTable();
 
-    return AllocateArrayEx(pArrayMT, pArgs, dwNumArgs, bAllocateInLargeHeap);
+    return AllocateArrayEx(pArrayMT, pArgs, dwNumArgs, flags, bAllocateInLargeHeap);
 }
 
 //
@@ -580,7 +620,7 @@ OBJECTREF AllocateArrayEx(TypeHandle arrayType, INT32 *pArgs, DWORD dwNumArgs, B
 // allocate sub-arrays and fill them in.  
 //
 // For arrays with lower bounds, pBounds is <lower bound 1>, <count 1>, <lower bound 2>, ...
-OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap)
+OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, GC_ALLOC_FLAGS flags, BOOL bAllocateInLargeHeap)
 {
     CONTRACTL {
         THROWS;
@@ -628,12 +668,9 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
 
         // Morph a ARRAY rank 1 with 0 lower bound into an SZARRAY
         if (rank == 1 && (dwNumArgs == 1 || pArgs[0] == 0)) 
-        {   // lower bound is zero
-
-            // This recursive call doesn't go any farther, because the dwNumArgs will be 1,
-            //  so don't bother with stack probe.
+        {   
             TypeHandle szArrayType = ClassLoader::LoadArrayTypeThrowing(pArrayMT->GetApproxArrayElementTypeHandle(), ELEMENT_TYPE_SZARRAY, 1);
-            return AllocateArrayEx(szArrayType, &pArgs[dwNumArgs - 1], 1, bAllocateInLargeHeap);
+            return AllocateSzArray(szArrayType, pArgs[dwNumArgs - 1], flags, bAllocateInLargeHeap);
         }
 
         providedLowerBounds = (dwNumArgs == 2*rank);
@@ -699,9 +736,11 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
     }
 #endif
 
+    flags |= (pArrayMT->ContainsPointers() ? GC_ALLOC_CONTAINS_REF : GC_ALLOC_NO_FLAGS);
+
     if (bAllocateInLargeHeap)
     {
-        orArray = (ArrayBase *) AllocLHeap(totalSize, FALSE, pArrayMT->ContainsPointers());
+        orArray = (ArrayBase *) AllocLHeap(totalSize, flags);
         orArray->SetArrayMethodTableForLargeObject(pArrayMT);
     }
     else
@@ -716,12 +755,12 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
             // cases we care about (single and multi-dim arrays of value types) have an even number of DWORDs
             // in their headers so the alignment requirements for the header and the payload are the same.
             _ASSERTE(((pArrayMT->GetBaseSize() - SIZEOF_OBJHEADER) & 7) == 0);
-            orArray = (ArrayBase *) AllocAlign8(totalSize, FALSE, pArrayMT->ContainsPointers(), FALSE);
+            orArray = (ArrayBase *) AllocAlign8(totalSize, flags);
         }
         else
 #endif
         {
-            orArray = (ArrayBase *) Alloc(totalSize, FALSE, pArrayMT->ContainsPointers());
+            orArray = (ArrayBase *) Alloc(totalSize, flags);
         }
         orArray->SetArrayMethodTable(pArrayMT);
     }
@@ -800,7 +839,7 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
                     TypeHandle subArrayType = pArrayMT->GetApproxArrayElementTypeHandle();
                     for (UINT32 i = 0; i < cElements; i++)
                     {
-                        OBJECTREF obj = AllocateArrayEx(subArrayType, &pArgs[1], dwNumArgs-1, bAllocateInLargeHeap);
+                        OBJECTREF obj = AllocateArrayEx(subArrayType, &pArgs[1], dwNumArgs-1, flags, bAllocateInLargeHeap);
                         outerArray->SetAt(i, obj);
                     }
 
@@ -820,7 +859,7 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
 /*
  * Allocates a single dimensional array of primitive types.
  */
-OBJECTREF   AllocatePrimitiveArray(CorElementType type, DWORD cElements, BOOL bAllocateInLargeHeap)
+OBJECTREF AllocatePrimitiveArray(CorElementType type, DWORD cElements)
 {
     CONTRACTL
     {
@@ -831,6 +870,9 @@ OBJECTREF   AllocatePrimitiveArray(CorElementType type, DWORD cElements, BOOL bA
     }
     CONTRACTL_END
 
+#if defined(_TARGET_X86_)
+    return OBJECTREF( HCCALL2(fastPrimitiveArrayAllocator, type, cElements) );
+#else
 
     // Allocating simple primite arrays is done in various places as internal storage.
     // Because this is unlikely to result in any bad recursions, we will override the type limit
@@ -846,147 +888,14 @@ OBJECTREF   AllocatePrimitiveArray(CorElementType type, DWORD cElements, BOOL bA
         TypeHandle typHnd = ClassLoader::LoadArrayTypeThrowing(elemType, ELEMENT_TYPE_SZARRAY, 0);
         g_pPredefinedArrayTypes[type] = typHnd.AsArray();
     }
-    return FastAllocatePrimitiveArray(g_pPredefinedArrayTypes[type]->GetMethodTable(), cElements, bAllocateInLargeHeap);
-}
-
-/*
- * Allocates a single dimensional array of primitive types.
- */
-
-OBJECTREF   FastAllocatePrimitiveArray(MethodTable* pArrayMT, DWORD cElements, BOOL bAllocateInLargeHeap)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
-        PRECONDITION(pArrayMT->CheckInstanceActivated());
-    } CONTRACTL_END;
-
-#ifdef _DEBUG
-    if (g_pConfig->ShouldInjectFault(INJECTFAULT_GCHEAP))
-    {
-        char *a = new char;
-        delete a;
-    }
+    return AllocateSzArray(g_pPredefinedArrayTypes[type]->GetMethodTable(), cElements);
 #endif
-
-    _ASSERTE(pArrayMT && pArrayMT->IsArray());
-    _ASSERTE(pArrayMT->IsRestored_NoLogging());
-    _ASSERTE(CorTypeInfo::IsPrimitiveType(pArrayMT->GetArrayElementType()) &&
-             g_pPredefinedArrayTypes[pArrayMT->GetArrayElementType()] != NULL);
-    
-    g_IBCLogger.LogMethodTableAccess(pArrayMT);
-    SetTypeHandleOnThreadForAlloc(TypeHandle(pArrayMT));
-
-    SIZE_T componentSize = pArrayMT->GetComponentSize();
-    if (cElements > MaxArrayLength(componentSize))
-        ThrowOutOfMemory();
-
-    // Allocate the space from the GC heap
-#ifdef _TARGET_64BIT_
-    // POSITIVE_INT32 * UINT16 + SMALL_CONST
-    // this cannot overflow on 64bit
-    size_t totalSize = cElements * componentSize + pArrayMT->GetBaseSize();
-
-#else
-    S_SIZE_T safeTotalSize = S_SIZE_T((DWORD)cElements) * S_SIZE_T((DWORD)componentSize) + S_SIZE_T((DWORD)pArrayMT->GetBaseSize());
-    if (safeTotalSize.IsOverflow())
-        ThrowOutOfMemoryDimensionsExceeded();
-
-    size_t totalSize = safeTotalSize.Value();
-#endif
-
-    BOOL bPublish = bAllocateInLargeHeap;
-
-    ArrayBase* orObject;
-    if (bAllocateInLargeHeap)
-    {
-        orObject = (ArrayBase*) AllocLHeap(totalSize, FALSE, FALSE, FALSE);
-    }
-    else 
-    {
-        ArrayTypeDesc *pArrayR8TypeDesc = g_pPredefinedArrayTypes[ELEMENT_TYPE_R8];
-        if (DATA_ALIGNMENT < sizeof(double) && pArrayR8TypeDesc != NULL && pArrayMT == pArrayR8TypeDesc->GetMethodTable() && 
-            (totalSize < g_pConfig->GetGCLOHThreshold() - MIN_OBJECT_SIZE))
-        {
-            // Creation of an array of doubles, not in the large object heap.
-            // We want to align the doubles to 8 byte boundaries, but the GC gives us pointers aligned
-            // to 4 bytes only (on 32 bit platforms). To align, we ask for 12 bytes more to fill with a
-            // dummy object.
-            // If the GC gives us a 8 byte aligned address, we use it for the array and place the dummy
-            // object after the array, otherwise we put the dummy object first, shifting the base of
-            // the array to an 8 byte aligned address.
-            // Note: on 64 bit platforms, the GC always returns 8 byte aligned addresses, and we don't
-            // execute this code because DATA_ALIGNMENT < sizeof(double) is false.
-
-            _ASSERTE(DATA_ALIGNMENT == sizeof(double)/2);
-            _ASSERTE((MIN_OBJECT_SIZE % sizeof(double)) == DATA_ALIGNMENT);   // used to change alignment
-            _ASSERTE(pArrayMT->GetComponentSize() == sizeof(double));
-            _ASSERTE(g_pObjectClass->GetBaseSize() == MIN_OBJECT_SIZE);
-            _ASSERTE(totalSize < totalSize + MIN_OBJECT_SIZE);
-            orObject = (ArrayBase*) Alloc(totalSize + MIN_OBJECT_SIZE, FALSE, FALSE, FALSE);
-
-            Object *orDummyObject;
-            if((size_t)orObject % sizeof(double))
-            {
-                orDummyObject = orObject;
-                orObject = (ArrayBase*) ((size_t)orObject + MIN_OBJECT_SIZE);
-            }
-            else
-            {
-                orDummyObject = (Object*) ((size_t)orObject + totalSize);
-            }
-            _ASSERTE(((size_t)orObject % sizeof(double)) == 0);
-            orDummyObject->SetMethodTable(g_pObjectClass);
-        }
-        else
-        {
-            orObject = (ArrayBase*) Alloc(totalSize, FALSE, FALSE, FALSE);
-            bPublish = (totalSize >= g_pConfig->GetGCLOHThreshold());
-        }
-    }
-
-    // Initialize Object
-    orObject->SetArrayMethodTable( pArrayMT );
-    _ASSERTE(orObject->GetMethodTable() != NULL);
-    orObject->m_NumComponents = cElements;
-
-    if (bPublish)
-    {
-        GCHeapUtilities::GetGCHeap()->PublishObject((BYTE*)orObject);
-    }
-
-    // Notify the profiler of the allocation
-    if (TrackAllocations())
-    {
-        OBJECTREF objref = ObjectToOBJECTREF((Object*)orObject);
-        GCPROTECT_BEGIN(objref);
-        ProfilerObjectAllocatedCallback(objref, (ClassID) orObject->GetTypeHandle().AsPtr());
-        GCPROTECT_END();
-        
-        orObject = (ArrayBase *) OBJECTREFToObject(objref); 
-    }
-
-#ifdef FEATURE_EVENT_TRACE
-    // Send ETW event for allocation
-    if(ETW::TypeSystemLog::IsHeapAllocEventEnabled())
-    {
-        ETW::TypeSystemLog::SendObjectAllocatedEvent(orObject);
-    }
-#endif // FEATURE_EVENT_TRACE
-
-    // IBC Log MethodTable access
-    g_IBCLogger.LogMethodTableAccess(pArrayMT);
-
-    LogAlloc(totalSize, pArrayMT, orObject);
-    
-    return( ObjectToOBJECTREF((Object*)orObject) );
 }
 
 //
 // Allocate an array which is the same size as pRef.  However, do not zero out the array.
 //
-OBJECTREF   DupArrayForCloning(BASEARRAYREF pRef, BOOL bAllocateInLargeHeap)
+OBJECTREF   DupArrayForCloning(BASEARRAYREF pRef)
 {
     CONTRACTL {
         THROWS;
@@ -1015,61 +924,14 @@ OBJECTREF   DupArrayForCloning(BASEARRAYREF pRef, BOOL bAllocateInLargeHeap)
         numArgs = 1;
         args[0] = pRef->GetNumComponents();
     }
-    return AllocateArrayEx(TypeHandle(&arrayType), args, numArgs, bAllocateInLargeHeap);
+    return AllocateArrayEx(TypeHandle(&arrayType), args, numArgs, GC_ALLOC_ZEROING_OPTIONAL);
 }
 
-#if defined(_TARGET_X86_)
-
-// The fast version always allocates in the normal heap
-OBJECTREF AllocatePrimitiveArray(CorElementType type, DWORD cElements)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
-    } CONTRACTL_END;
-
-    return OBJECTREF( HCCALL2(fastPrimitiveArrayAllocator, type, cElements) );
-}
-
-// The fast version always allocates in the normal heap
-OBJECTREF AllocateObjectArray(DWORD cElements, TypeHandle ElementType)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
-    } CONTRACTL_END;
-
-
-    OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
-
-    // We must call this here to ensure the typehandle for this object is
-    // interned before the object is allocated. As soon as the object is allocated,
-    // the profiler could do a heapwalk and it expects to find an interned
-    // typehandle for every object in the heap.
-    TypeHandle ArrayType = ClassLoader::LoadArrayTypeThrowing(ElementType);
-
-    return OBJECTREF( HCCALL2(fastObjectArrayAllocator, ArrayType.AsArray()->GetTemplateMethodTable(), cElements));
-}
-
-STRINGREF AllocateString( DWORD cchStringLength )
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
-    } CONTRACTL_END;
-
-    return STRINGREF(HCCALL1(fastStringAllocator, cchStringLength));
-}
-
-#endif
 
 //
 // Helper for parts of the EE which are allocating arrays
 //
-OBJECTREF   AllocateObjectArray(DWORD cElements, TypeHandle elementType, BOOL bAllocateInLargeHeap)
+OBJECTREF AllocateObjectArray(DWORD cElements, TypeHandle elementType, BOOL bAllocateInLargeHeap)
 {
     CONTRACTL {
         THROWS;
@@ -1078,6 +940,18 @@ OBJECTREF   AllocateObjectArray(DWORD cElements, TypeHandle elementType, BOOL bA
     } CONTRACTL_END;
 
     OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
+
+#if defined(_TARGET_X86_)
+    if (!bAllocateInLargeHeap)
+    {
+        // We must call this here to ensure the typehandle for this object is
+        // interned before the object is allocated. As soon as the object is allocated,
+        // the profiler could do a heapwalk and it expects to find an interned
+        // typehandle for every object in the heap.
+        TypeHandle ArrayType = ClassLoader::LoadArrayTypeThrowing(elementType);
+        return OBJECTREF(HCCALL2(fastObjectArrayAllocator, ArrayType.AsArray()->GetTemplateMethodTable(), cElements));
+    }
+#endif
 
     // The object array class is loaded at startup.
     _ASSERTE(g_pPredefinedArrayTypes[ELEMENT_TYPE_OBJECT] != NULL);
@@ -1088,14 +962,10 @@ OBJECTREF   AllocateObjectArray(DWORD cElements, TypeHandle elementType, BOOL bA
     _ASSERTE(arrayType.GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY);
 #endif //_DEBUG
 
-    return AllocateArrayEx(ClassLoader::LoadArrayTypeThrowing(elementType),
-                           (INT32 *)(&cElements),
-                           1,
-                           bAllocateInLargeHeap);
+    return AllocateSzArray(ClassLoader::LoadArrayTypeThrowing(elementType), (INT32) cElements, GC_ALLOC_NO_FLAGS, bAllocateInLargeHeap);
 }
 
-
-STRINGREF SlowAllocateString( DWORD cchStringLength )
+STRINGREF AllocateString( DWORD cchStringLength )
 {
     CONTRACTL {
         THROWS;
@@ -1103,6 +973,9 @@ STRINGREF SlowAllocateString( DWORD cchStringLength )
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
     } CONTRACTL_END;
 
+#if defined(_TARGET_X86_)
+    return STRINGREF(HCCALL1(fastStringAllocator, cchStringLength));
+#else
     StringObject    *orObject  = NULL;
 
 #ifdef _DEBUG
@@ -1125,7 +998,7 @@ STRINGREF SlowAllocateString( DWORD cchStringLength )
 
     SetTypeHandleOnThreadForAlloc(TypeHandle(g_pStringClass));
 
-    orObject = (StringObject *)Alloc( ObjectSize, FALSE, FALSE, FALSE );
+    orObject = (StringObject *)Alloc( ObjectSize, GC_ALLOC_NO_FLAGS);
 
     // Object is zero-init already
     _ASSERTE( orObject->HasEmptySyncBlockInfo() );
@@ -1162,10 +1035,12 @@ STRINGREF SlowAllocateString( DWORD cchStringLength )
     LogAlloc(ObjectSize, g_pStringClass, orObject);
 
     return( ObjectToSTRINGREF(orObject) );
+
+#endif //_TARGET_X86_
 }
 
 #ifdef FEATURE_UTF8STRING
-UTF8STRINGREF SlowAllocateUtf8String(DWORD cchStringLength)
+UTF8STRINGREF AllocateUtf8String(DWORD cchStringLength)
 {
     CONTRACTL{
         THROWS;
@@ -1200,7 +1075,7 @@ UTF8STRINGREF SlowAllocateUtf8String(DWORD cchStringLength)
 
     SetTypeHandleOnThreadForAlloc(TypeHandle(g_pUtf8StringClass));
 
-    orObject = (Utf8StringObject *)Alloc(ObjectSize, FALSE, FALSE, FALSE);
+    orObject = (Utf8StringObject *)Alloc(ObjectSize, GC_ALLOC_NO_FLAGS);
 
     // Object is zero-init already
     _ASSERTE(orObject->HasEmptySyncBlockInfo());
@@ -1314,6 +1189,8 @@ OBJECTREF AllocateObject(MethodTable *pMT
 #endif // FEATURE_COMINTEROP
     {   
         DWORD baseSize = pMT->GetBaseSize();
+        GC_ALLOC_FLAGS flags = ((pMT->ContainsPointers() ? GC_ALLOC_CONTAINS_REF : GC_ALLOC_NO_FLAGS) |
+                                (pMT->HasFinalizer() ? GC_ALLOC_FINALIZE : GC_ALLOC_NO_FLAGS));
 
 #ifdef FEATURE_64BIT_ALIGNMENT
         if (pMT->RequiresAlign8())
@@ -1325,18 +1202,13 @@ OBJECTREF AllocateObject(MethodTable *pMT
             // first field is aligned relative to the header) and true for boxed value types (where we can't
             // do the same padding without introducing more complexity in type layout and unboxing stubs).
             _ASSERTE(sizeof(Object) == 4);
-            orObject = (Object *) AllocAlign8(baseSize,
-                                              pMT->HasFinalizer(),
-                                              pMT->ContainsPointers(),
-                                              pMT->IsValueType());
+            flags |= pMT->IsValueType() ? GC_ALLOC_ALIGN8_BIAS : GC_ALLOC_NO_FLAGS;
+            orObject = (Object *) AllocAlign8(baseSize, flags);
         }
         else
 #endif // FEATURE_64BIT_ALIGNMENT
         {
-            orObject = (Object *) Alloc(baseSize,
-                                        pMT->HasFinalizer(),
-                                        pMT->ContainsPointers(),
-                                        /*zeroingOptional*/ FALSE);
+            orObject = (Object*)Alloc(baseSize, flags);
         }
 
         // verify zero'd memory (at least for sync block)
