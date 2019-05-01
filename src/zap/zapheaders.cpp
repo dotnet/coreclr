@@ -361,7 +361,7 @@ void ZapImage::CopyWin32Resources()
 
     public:
         ResourceEnumerationCallback(PEDecoder* pModuleDecoder, ZapImage* pZapImage)
-            : m_pModuleDecoder(pModuleDecoder), m_pZapImage(pZapImage)
+            : m_pZapImage(pZapImage), m_pModuleDecoder(pModuleDecoder)
         {
             m_pRootDirectory = new (pZapImage->GetHeap()) ZapWin32ResourceDirectory(pZapImage->m_pWin32ResourceSection);
             m_pCurrentTypesDirectory = m_pCurrentNamesDirectory = NULL;
