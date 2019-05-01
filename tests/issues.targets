@@ -89,9 +89,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/NativeCallingManaged/NativeCallingManaged/*">
             <Issue>23358</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/NativeLibraryResolveCallback/CallbackStressTest/*">
-            <Issue>24305</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <!-- All Unix targets -->
