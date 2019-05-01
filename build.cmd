@@ -100,7 +100,7 @@ set __BuildManagedTools=1
 set __RestoreOptData=1
 set __GenerateLayout=0
 set __CrossgenAltJit=
-set __SkipRestoreArg=
+set __SkipRestoreArg=/p:RestoreDuringBuild=true
 set __OfficialBuildIdArg=
 set __CrossArch=
 set __SkipNugetPackage=0

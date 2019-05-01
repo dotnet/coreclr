@@ -670,7 +670,7 @@ __msbuildonunsupportedplatform=0
 __PgoOptDataVersion=""
 __IbcOptDataVersion=""
 __BuildManagedTools=1
-__SkipRestoreArg=""
+__SkipRestoreArg="/p:RestoreDuringBuild=true"
 __SignTypeArg=""
 __OfficialBuildIdArg=""
 __StaticAnalyzer=0
