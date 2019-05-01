@@ -12089,34 +12089,10 @@ namespace BigFrames
         {
         }
 
-        // A lot of time the stack when we are called has a bunch of committed pages
-        // before the guard page. So eat up a bunch of stack before doing our test,
-        // where we want to be near the guard page.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        public static void EatStackThenTest1(int level = 0)
-        {
-            LargeStruct s = new LargeStruct();
-            s.i2 = level;
-            Escape(ref s);
-
-            if (level < 17)
-            {
-                EatStackThenTest1(level + 1);
-            }
-            else
-            {
-                Test1(level);
-            }
-
-            iret = 100;
-        }
-
         public static int Main()
         {
             Test1(1); // force JIT of this
             Test1(80);
-
-            // EatStackThenTest1(); // If that didn't fail, eat stack then try again.
 
             if (iret == 100)
             {
