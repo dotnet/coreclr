@@ -109,11 +109,6 @@ jobs:
 
     # TODO: Crossgen the framework
 
-    - ${{ if eq(parameters.osName, 'Windows_NT') }}:
-      - script: echo WorkItemCommand -3  %HELIX_CORRELATION_PAYLOAD%\scripts\benchmarks_ci.py $(commonArguments) $(BenchviewArguments) --corerun %HELIX_WORKITEM_PAYLOAD%\corerun.exe
-    - ${{ if ne(parameters.osName, 'Windows_NT') }}:
-      - script: echo WorkItemCommand python3 $HELIX_CORRELATION_PAYLOAD/scripts/benchmarks_ci.py $(commonArguments) $(BenchviewArguments) --corerun  $HELIX_WORKITEM_PAYLOAD/corerun
-
     # Send everything to Helix
     - template: /eng/common/templates/steps/send-to-helix.yml
       parameters:
@@ -124,12 +119,12 @@ jobs:
         HelixPreCommands: $(HelixPreCommand)
         Creator: $(Creator)
         WorkItemTimeout: 4:00 # 4 hours
-        WorkItemDirectory: '$(corerootParentPath)/Core_Root'
-        CorrelationPayloadDirectory: '$(corerootParentPath)/perf'
+        WorkItemDirectory: '$(corerootParentPath)/perf'
+        CorrelationPayloadDirectory: '$(corerootParentPath)/Core_Root'
         ${{ if eq(parameters.osName, 'Windows_NT') }}:
-          WorkItemCommand: 'py -3  %HELIX_CORRELATION_PAYLOAD%\scripts\benchmarks_ci.py $(commonArguments) --corerun %HELIX_WORKITEM_PAYLOAD%\corerun.exe'
+          WorkItemCommand: 'py -3  %HELIX_WORKITEM_PAYLOAD%\scripts\benchmarks_ci.py $(commonArguments) --corerun %HELIX_CORRELATION_PAYLOAD%\corerun.exe'
         ${{ if ne(parameters.osName, 'Windows_NT') }}:
-          WorkItemCommand: 'python3 $HELIX_CORRELATION_PAYLOAD/scripts/benchmarks_ci.py $(commonArguments) --corerun  $HELIX_WORKITEM_PAYLOAD/corerun'
+          WorkItemCommand: 'python3 $HELIX_WORKITEM_PAYLOAD/scripts/benchmarks_ci.py $(commonArguments) --corerun $HELIX_CORRELATION_PAYLOAD/corerun'
 
     # Publish Logs
     - task: PublishPipelineArtifact@0

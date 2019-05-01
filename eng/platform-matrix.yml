@@ -201,7 +201,7 @@ jobs:
           - ${{ if not(contains(parameters.jobTemplate, 'perf')) }}:
             - Windows.10.Amd64.Open
           - ${{ if contains(parameters.jobTemplate, 'perf') }}:
-            - Windows.10.Amd64.ServerRS1.Perf.Open
+            - Windows.10.Amd64.ClientRS4.DevEx.15.8.Open
         - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
           # TODO: add Windows.10.Nano.Amd64.Open once https://github.com/dotnet/coreclr/issues/21693 has been resolved
           - Windows.7.Amd64.Open
