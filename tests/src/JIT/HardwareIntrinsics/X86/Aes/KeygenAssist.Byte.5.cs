@@ -142,7 +142,7 @@ namespace JIT.HardwareIntrinsics.X86
                 testClass.ValidateResult(testClass._dataTable.outArrayPtr);
             }
 
-            public void RunStructFldScenario_Load(AesImmOpTest__KeygenAssistByte testClass)
+            public void RunStructFldScenario_Load(AesImmOpTest__KeygenAssistByte5 testClass)
             {
                 fixed (Vector128<Byte>* pFld = &_fld)
                 {
@@ -348,7 +348,7 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario_Load));
 
-            var test = new SimpleBinaryOpTest__KeygenAssistByte();
+            var test = new AesImmOpTest__KeygenAssistByte5();
 
             fixed (Vector128<Byte>* pFld = &test._fld)
             {

@@ -339,7 +339,7 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario_Load));
 
-            var test = new SimpleBinaryOpTest__{Method}{RetBaseType}();
+            var test = new AesUnaryOpTest__{Method}{RetBaseType}();
 
             fixed ({Op1VectorType}<{Op1BaseType}>* pFld = &test._fld)
             {

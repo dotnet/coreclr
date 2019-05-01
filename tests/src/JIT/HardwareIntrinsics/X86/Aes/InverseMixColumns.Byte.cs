@@ -339,7 +339,7 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario_Load));
 
-            var test = new SimpleBinaryOpTest__InverseMixColumnsByte();
+            var test = new AesUnaryOpTest__InverseMixColumnsByte();
 
             fixed (Vector128<Byte>* pFld = &test._fld)
             {

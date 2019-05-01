@@ -142,7 +142,7 @@ namespace JIT.HardwareIntrinsics.X86
                 testClass.ValidateResult(testClass._dataTable.outArrayPtr);
             }
 
-            public void RunStructFldScenario_Load(AesImmOpTest__{Method}{RetBaseType} testClass)
+            public void RunStructFldScenario_Load(AesImmOpTest__{Method}{RetBaseType}{Imm} testClass)
             {
                 fixed ({Op1VectorType}<{Op1BaseType}>* pFld = &_fld)
                 {
@@ -348,7 +348,7 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario_Load));
 
-            var test = new SimpleBinaryOpTest__{Method}{RetBaseType}();
+            var test = new AesImmOpTest__{Method}{RetBaseType}{Imm}();
 
             fixed ({Op1VectorType}<{Op1BaseType}>* pFld = &test._fld)
             {
