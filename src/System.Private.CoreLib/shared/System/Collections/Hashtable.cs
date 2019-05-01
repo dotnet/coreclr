@@ -302,7 +302,7 @@ namespace System.Collections
         {
         }
 
-        public Hashtable(IEqualityComparer equalityComparer) : this(0, 1.0f, equalityComparer)
+        public Hashtable(IEqualityComparer? equalityComparer) : this(0, 1.0f, equalityComparer)
         {
         }
 

@@ -14,6 +14,6 @@ namespace System.Collections
     public interface IHashCodeProvider
     {
         /// <summary>Returns a hash code for the given object.</summary>
-        int GetHashCode(object? obj);
+        int GetHashCode(object obj);
     }
 }
