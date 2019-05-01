@@ -253,7 +253,7 @@ void ZapWin32ResourceDirectory::Save(ZapWriter * pZapWriter)
         }
         else
         {
-            _ASSERT((((ULONG_PTR)entry.m_pNameOrId) & 0xffff) == (ULONG_PTR)entry.m_pNameOrId);
+            _ASSERT(IS_INTRESOURCE(entry.m_pNameOrId));
             dirEntry.Id = (WORD)((ULONG_PTR)entry.m_pNameOrId & 0xffff);
         }
 
@@ -332,21 +332,12 @@ void ZapImage::CopyWin32Resources()
         ZapWin32ResourceDirectory* m_pCurrentTypesDirectory;
         ZapWin32ResourceDirectory* m_pCurrentNamesDirectory;
 
-        bool AddResource(LPCWSTR lpszResourceType, LPCWSTR lpszResourceName)
+        bool AddResource(LPCWSTR lpszResourceName, LPCWSTR lpszResourceType, DWORD langID, BYTE* pResourceData, COUNT_T cbResourceData)
         {
-            COUNT_T cbResourceData;
-            PVOID pResourceData = m_pModuleDecoder->GetWin32Resource(lpszResourceName, lpszResourceType, &cbResourceData);
-            if (!pResourceData || !cbResourceData)
-                return true; // There wasn't a neutral resource, skip to next.
-
             ZapBlob* pDataBlob = new (m_pZapImage->GetHeap()) ZapBlobPtr(pResourceData, cbResourceData);
             m_dataEntries.push_back(pDataBlob);
 
-            // We enumerate and add entries under the default "neutral" language only, to reduce complexity. 
-            // If we *really* need to add different language levels, we'll need to modify the EnumResourceNamesCallback callback 
-            // and make it enumerate the various languages of resources in the input assembly, and use proper language IDs 
-            // instead of the MAKEINTRESOURCE(0) we use here.
-            m_pCurrentNamesDirectory->AddEntry(MAKEINTRESOURCE(0), false, pDataBlob, false);
+            m_pCurrentNamesDirectory->AddEntry((PVOID)(ULONG_PTR)langID, false, pDataBlob, false);
 
             return true;
         }
@@ -376,6 +367,18 @@ void ZapImage::CopyWin32Resources()
             m_pCurrentTypesDirectory = m_pCurrentNamesDirectory = NULL;
         }
 
+        static bool EnumResourcesCallback(LPCWSTR lpszResourceName, LPCWSTR lpszResourceType, DWORD langID, BYTE* data, COUNT_T cbData, void *context)
+        {
+            ResourceEnumerationCallback* pCallback = (ResourceEnumerationCallback*)context;
+            // Third level in the enumeration: resources by langid for each name/type. 
+
+            // Note that this callback is not equivalent to the Windows enumeration apis as this api provides the resource data
+            // itself, and the resources are guaranteed to be present directly in the associated binary. This does not exactly
+            // match the Windows api, but it is exactly what we want when copying all resource data.
+
+            return pCallback->AddResource(lpszResourceName, lpszResourceType, langID, data, cbData);
+        }
+
         static bool EnumResourceNamesCallback(LPCWSTR lpszResourceName, LPCWSTR lpszResourceType, void *context)
         {
             // Second level in the enumeration: resources by names for each resource type
@@ -383,12 +386,16 @@ void ZapImage::CopyWin32Resources()
             ResourceEnumerationCallback* pCallback = (ResourceEnumerationCallback*)context;
             pCallback->m_pCurrentNamesDirectory = pCallback->CreateResourceSubDirectory(pCallback->m_pCurrentTypesDirectory, lpszResourceName);
             
-            return pCallback->AddResource(lpszResourceType, lpszResourceName);
+            return pCallback->m_pModuleDecoder->EnumerateWin32Resources(lpszResourceName, lpszResourceType, ResourceEnumerationCallback::EnumResourcesCallback, context);
         }
 
         static bool EnumResourceTypesCallback(LPCWSTR lpszType, void *context)
         {
             // First level in the enumeration: resources by types
+
+            // Skip IBC resources
+            if (!IS_INTRESOURCE(lpszType) && (wcscmp(lpszType, W("IBC")) == 0))
+                return true;
 
             ResourceEnumerationCallback* pCallback = (ResourceEnumerationCallback*)context;
             pCallback->m_pCurrentTypesDirectory = pCallback->CreateResourceSubDirectory(pCallback->m_pRootDirectory, lpszType);
