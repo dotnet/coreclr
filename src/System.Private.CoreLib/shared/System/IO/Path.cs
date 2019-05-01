@@ -378,8 +378,8 @@ namespace System.IO
                 if (!PathInternal.IsDirectorySeparator(ch))
                     maxSize++;
             }
-            
-            Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
+
+            Span<char> initialBuffer = stackalloc char[260];    // MaxShortPath on Windows
             var builder = new ValueStringBuilder(initialBuffer);
             builder.EnsureCapacity(maxSize);
 
@@ -487,7 +487,7 @@ namespace System.IO
             }
             maxSize += paths.Length - 1;
 
-            Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
+            Span<char> initialBuffer = stackalloc char[260];    // MaxShortPath on Windows
             var builder = new ValueStringBuilder(initialBuffer);
             builder.EnsureCapacity(maxSize);
 
