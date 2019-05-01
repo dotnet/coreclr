@@ -267,7 +267,7 @@ inline Object* AllocAlign8(size_t size, GC_ALLOC_FLAGS flags)
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
     } CONTRACTL_END;
 
-    if (flags & GC_ALLOC_CONTAINS_REF )
+    if (flags & GC_ALLOC_CONTAINS_REF)
         flags &= ~ GC_ALLOC_ZEROING_OPTIONAL;
 
     Object *retVal = NULL;
@@ -322,7 +322,7 @@ inline Object* AllocLHeap(size_t size, GC_ALLOC_FLAGS flags)
 #endif
 
     if (flags & GC_ALLOC_CONTAINS_REF)
-        flags &=  ~GC_ALLOC_ZEROING_OPTIONAL;
+        flags &= ~GC_ALLOC_ZEROING_OPTIONAL;
 
     Object *retVal = NULL;
     CheckObjectSize(size);
@@ -870,10 +870,6 @@ OBJECTREF AllocatePrimitiveArray(CorElementType type, DWORD cElements)
     }
     CONTRACTL_END
 
-#if defined(_TARGET_X86_)
-    return OBJECTREF( HCCALL2(fastPrimitiveArrayAllocator, type, cElements) );
-#else
-
     // Allocating simple primite arrays is done in various places as internal storage.
     // Because this is unlikely to result in any bad recursions, we will override the type limit
     // here rather forever chase down all the callers.
@@ -889,7 +885,6 @@ OBJECTREF AllocatePrimitiveArray(CorElementType type, DWORD cElements)
         g_pPredefinedArrayTypes[type] = typHnd.AsArray();
     }
     return AllocateSzArray(g_pPredefinedArrayTypes[type]->GetMethodTable(), cElements);
-#endif
 }
 
 //
@@ -941,18 +936,6 @@ OBJECTREF AllocateObjectArray(DWORD cElements, TypeHandle elementType, BOOL bAll
 
     OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
 
-#if defined(_TARGET_X86_)
-    if (!bAllocateInLargeHeap)
-    {
-        // We must call this here to ensure the typehandle for this object is
-        // interned before the object is allocated. As soon as the object is allocated,
-        // the profiler could do a heapwalk and it expects to find an interned
-        // typehandle for every object in the heap.
-        TypeHandle ArrayType = ClassLoader::LoadArrayTypeThrowing(elementType);
-        return OBJECTREF(HCCALL2(fastObjectArrayAllocator, ArrayType.AsArray()->GetTemplateMethodTable(), cElements));
-    }
-#endif
-
     // The object array class is loaded at startup.
     _ASSERTE(g_pPredefinedArrayTypes[ELEMENT_TYPE_OBJECT] != NULL);
 
@@ -973,9 +956,6 @@ STRINGREF AllocateString( DWORD cchStringLength )
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
     } CONTRACTL_END;
 
-#if defined(_TARGET_X86_)
-    return STRINGREF(HCCALL1(fastStringAllocator, cchStringLength));
-#else
     StringObject    *orObject  = NULL;
 
 #ifdef _DEBUG
@@ -989,7 +969,7 @@ STRINGREF AllocateString( DWORD cchStringLength )
     // Limit the maximum string size to <2GB to mitigate risk of security issues caused by 32-bit integer
     // overflows in buffer size calculations.
     //
-    // If the value below is changed, also change SlowAllocateUtf8String.
+    // If the value below is changed, also change AllocateUtf8String.
     if (cchStringLength > 0x3FFFFFDF)
         ThrowOutOfMemory();
 
@@ -1035,8 +1015,6 @@ STRINGREF AllocateString( DWORD cchStringLength )
     LogAlloc(ObjectSize, g_pStringClass, orObject);
 
     return( ObjectToSTRINGREF(orObject) );
-
-#endif //_TARGET_X86_
 }
 
 #ifdef FEATURE_UTF8STRING

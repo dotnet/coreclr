@@ -1280,7 +1280,7 @@ FCIMPL3(Object*, GCInterface::AllocateNewArray, void* arrayTypeHandle, INT32 len
 
     HELPER_METHOD_FRAME_BEGIN_RET_0();
 
-    pRet = AllocateSzArray(arrayType, length, zeroingOptional? GC_ALLOC_ZEROING_OPTIONAL: GC_ALLOC_NO_FLAGS);
+    pRet = AllocateSzArray(arrayType, length, zeroingOptional ? GC_ALLOC_ZEROING_OPTIONAL : GC_ALLOC_NO_FLAGS);
 
     HELPER_METHOD_FRAME_END();
 

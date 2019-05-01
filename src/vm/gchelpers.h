@@ -34,24 +34,7 @@ OBJECTREF AllocatePrimitiveArray(CorElementType type, DWORD cElements);
 // Allocate SD array of object types given an element type
 OBJECTREF AllocateObjectArray(DWORD cElements, TypeHandle ElementType, BOOL bAllocateInLargeHeap = FALSE);
 
-#if defined(_TARGET_X86_)
-// for x86, we generate efficient allocators for some special cases
-// these are called via inline wrappers that call the generated allocators
-// via function pointers.
-
-// Create a SD array of primitive types
-typedef HCCALL2_PTR(Object*, FastPrimitiveArrayAllocatorFuncPtr, CorElementType type, DWORD cElements);
-extern FastPrimitiveArrayAllocatorFuncPtr fastPrimitiveArrayAllocator;
-
-// Allocate SD array of object pointers.
-typedef HCCALL2_PTR(Object*, FastObjectArrayAllocatorFuncPtr, MethodTable *pArrayMT, DWORD cElements);
-extern FastObjectArrayAllocatorFuncPtr fastObjectArrayAllocator;
-
-// Allocate string
-typedef HCCALL1_PTR(StringObject*, FastStringAllocatorFuncPtr, DWORD cchArrayLength);
-extern FastStringAllocatorFuncPtr fastStringAllocator;
-#endif
-
+// Allocate a string
 STRINGREF AllocateString( DWORD cchStringLength );
 
 #ifdef FEATURE_UTF8STRING
