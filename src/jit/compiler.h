@@ -5289,8 +5289,10 @@ protected:
     void        fgInitBBLookup();
     BasicBlock* fgLookupBB(unsigned addr);
 
-    bool fgCanSwitchTier0ToTier1();
-    void fgSwitchTier0ToTier1();
+    bool fgHasBackwardJump;
+
+    bool fgCanSwitchToTier1();
+    void fgSwitchToTier1();
 
     bool fgMayExplicitTailCall();
 

@@ -4252,44 +4252,72 @@ private:
     unsigned depth;
 };
 
-/*****************************************************************************
- *
- *  Determine if conditions are met to allow switching from QuickJittedTier to OptimizedTier.
- */
+//------------------------------------------------------------------------
+// fgCanSwitchToTier1: Determines if conditions are met to allow switching the opt level to tier 1
+//
+// Return Value:
+//    True if the opt level may be switched to tier 1, false otherwise
+//
+// Assumptions:
+//    - compInitOptions() has been called
+//    - compSetOptimizationLevel() has not been called
+//
+// Notes:
+//    This method is to be called at some point before compSetOptimizationLevel() to determine if the opt level may be
+//    changed based on information gathered in early phases.
 
-bool Compiler::fgCanSwitchTier0ToTier1()
+bool Compiler::fgCanSwitchToTier1()
 {
-    return opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) && !compIsForInlining();
+    bool result = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) && !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) &&
+                  !opts.compDbgCode && !compIsForInlining();
+    if (result)
+    {
+        // Ensure that it would be safe to change the opt level
+        assert(opts.compFlags == CLFLG_MINOPT);
+        assert(!opts.IsMinOptsSet());
+    }
+
+    return result;
 }
 
-/*****************************************************************************
- *
- *  Switch from QuickJittedTier to OptimizedTier.
- */
+//------------------------------------------------------------------------
+// fgSwitchToTier1: Switch the opt level to tier 1
+//
+// Assumptions:
+//    - fgCanSwitchToTier1() is true
+//    - compSetOptimizationLevel() has not been called
+//
+// Notes:
+//    This method is to be called at some point before compSetOptimizationLevel() to switch the opt level to tier 1
+//    based on information gathered in early phases.
 
-void Compiler::fgSwitchTier0ToTier1()
+void Compiler::fgSwitchToTier1()
 {
-    assert(fgCanSwitchTier0ToTier1());
+    assert(fgCanSwitchToTier1());
 
-    // Ensure that it would be safe to change the opt level
-    assert(opts.compFlags == CLFLG_MINOPT);
-    assert(!opts.IsMinOptsSet());
-
-    // Switch to the OptimizedTier and re-init options
+    // Switch to tier 1 and re-init options
+    assert(opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0));
     opts.jitFlags->Clear(JitFlags::JIT_FLAG_TIER0);
     opts.jitFlags->Set(JitFlags::JIT_FLAG_TIER1);
     compInitOptions(opts.jitFlags);
 
     // Notify the VM of the change
-    info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_TIER0_TO_TIER1);
+    info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_SWITCHED_TO_TIER1);
 }
 
-/*****************************************************************************
- *
- * Estimate conservatively for an explicit tail call, if the importer may actually use a tail call.
- * Specifically, a return value of false must guarantee that the importer will not use a tail call. See
- * impImportCall() for more.
- */
+//------------------------------------------------------------------------
+// fgMayExplicitTailCall: Estimates conservatively for an explicit tail call, if the importer may actually use a tail
+// call.
+//
+// Return Value:
+//    - False if a tail call will not be generated
+//    - True if a tail call *may* be generated
+//
+// Assumptions:
+//    - compInitOptions() has been called
+//    - info.compIsVarArgs has been initialized
+//    - An explicit tail call has been seen
+//    - compSetOptimizationLevel() has not been called
 
 bool Compiler::fgMayExplicitTailCall()
 {
@@ -5197,6 +5225,7 @@ void Compiler::fgMarkBackwardJump(BasicBlock* startBlock, BasicBlock* endBlock)
         if ((block->bbFlags & BBF_BACKWARD_JUMP) == 0)
         {
             block->bbFlags |= BBF_BACKWARD_JUMP;
+            fgHasBackwardJump = true;
         }
     }
 }
@@ -5218,8 +5247,6 @@ void Compiler::fgLinkBasicBlocks()
 
     /* Walk all the basic blocks, filling in the target addresses */
 
-    bool foundBackwardJump = false;
-
     for (BasicBlock* curBBdesc = fgFirstBB; curBBdesc; curBBdesc = curBBdesc->bbNext)
     {
         switch (curBBdesc->bbJumpKind)
@@ -5231,7 +5258,6 @@ void Compiler::fgLinkBasicBlocks()
                 curBBdesc->bbJumpDest->bbRefs++;
                 if (curBBdesc->bbJumpDest->bbNum <= curBBdesc->bbNum)
                 {
-                    foundBackwardJump = true;
                     fgMarkBackwardJump(curBBdesc->bbJumpDest, curBBdesc);
                 }
 
@@ -5272,7 +5298,6 @@ void Compiler::fgLinkBasicBlocks()
                     (*jumpPtr)->bbRefs++;
                     if ((*jumpPtr)->bbNum <= curBBdesc->bbNum)
                     {
-                        foundBackwardJump = true;
                         fgMarkBackwardJump(*jumpPtr, curBBdesc);
                     }
                 } while (++jumpPtr, --jumpCnt);
@@ -5288,12 +5313,6 @@ void Compiler::fgLinkBasicBlocks()
                 noway_assert(!"Unexpected bbJumpKind");
                 break;
         }
-    }
-
-    if (foundBackwardJump && (info.compFlags & CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS) != 0 && fgCanSwitchTier0ToTier1())
-    {
-        // Method likely has a loop, switch to the OptimizedTier to avoid spending too much time running slower code
-        fgSwitchTier0ToTier1();
     }
 }
 
@@ -5586,12 +5605,12 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, F
 #endif // !FEATURE_CORECLR && _TARGET_AMD64_
                     }
 
-                    if (fgCanSwitchTier0ToTier1() && fgMayExplicitTailCall())
+                    if (fgCanSwitchToTier1() && fgMayExplicitTailCall())
                     {
                         // Method has an explicit tail call that may run like a loop or may not be generated as a tail
                         // call in tier 0, switch to tier 1 to avoid spending too much time running slower code and to
                         // avoid stack overflow from recursion
-                        fgSwitchTier0ToTier1();
+                        fgSwitchToTier1();
                     }
 
 #if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)

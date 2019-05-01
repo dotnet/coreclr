@@ -6852,7 +6852,7 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
 #ifndef CROSSGEN_COMPILE
     if (!g_pConfig->TieredCompilation_QuickJitForLoops())
     {
-        result |= CORINFO_FLG_TIER0_TO_TIER1_FOR_LOOPS;
+        result |= CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS;
     }
 #endif
 
@@ -6909,7 +6909,7 @@ void CEEInfo::setMethodAttribs (
     }
 
 #ifdef FEATURE_TIERED_COMPILATION
-    if (attribs & CORINFO_FLG_TIER0_TO_TIER1)
+    if (attribs & CORINFO_FLG_SWITCHED_TO_TIER1)
     {
         _ASSERTE(ftn->IsEligibleForTieredCompilation());
         ftn->GetCallCounter()->DisableTier0CallCounting(ftn);
