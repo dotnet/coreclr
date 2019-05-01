@@ -26,8 +26,10 @@ using System.Runtime.InteropServices.WindowsRuntime;
 #endif // FEATURE_COMINTEROP
 
 [assembly: DefaultDependencyAttribute(LoadHint.Always)]
-// mscorlib would like to have its literal strings frozen if possible
-[assembly: System.Runtime.CompilerServices.StringFreezingAttribute()]
+// SPCL would like to have its literal strings frozen if possible
+[assembly: StringFreezingAttribute()]
+[assembly: ComVisible(false)]
+[assembly: DefaultDllImportSearchPathsAttribute(DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.System32)]
 
 namespace System
 {

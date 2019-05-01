@@ -444,10 +444,6 @@
   <PropertyGroup>
     <StrongNameSig>Silverlight</StrongNameSig>
   </PropertyGroup>
-  <ItemGroup>
-    <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.ComVisible(false)]" />
-    <AssemblyInfoLines Include="[assembly:System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute(System.Runtime.InteropServices.DllImportSearchPath.AssemblyDirectory | System.Runtime.InteropServices.DllImportSearchPath.System32)]" />
-  </ItemGroup>
 
   <!-- Globals used by ILLink.targets -->
   <PropertyGroup>
