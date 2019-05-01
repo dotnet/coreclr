@@ -15,7 +15,10 @@
 
 typedef void (*ErrorCallback)(const char *szMessage, uint32_t code);
 
-namespace Ipc
+// "DOTNET_IPC_V1\0\0\0"
+#define DOTNET_IPC_V1_MAGIC { 0x44, 0x4F, 0x54, 0x4E, 0x45, 0x54, 0x5f, 0x49, 0x50, 0x43, 0x5F, 0x56, 0x31, 0x00, 0x00, 0x00 }
+
+namespace DiagnosticsIpc
 {
 
     enum IpcVersion : uint8_t
@@ -24,18 +27,18 @@ namespace Ipc
     };
 
     // "DOTNET_IPC_V1\0\0\0"
-    static const char *DOTNET_IPC_V1 = { 0x68, 0x79, 0x84, 0x78, 0x69, 0x84, 0x95, 0x73, 0x80, 0x67, 0x95, 0x86, 0x49, 0x00, 0x00, 0x00 }
+    //static const char DOTNET_IPC_V1[16] = { 0x44, 0x4F, 0x54, 0x4E, 0x45, 0x54, 0x5f, 0x49, 0x50, 0x43, 0x5F, 0x56, 0x31, 0x00, 0x00, 0x00 };
 
-    const char *IpcVersionString(IpcVersion versionEnum)
-    {
-        switch (versionEnum)
-        {
-            case IpcVersion::DOTNET_IPC_V1:
-                return DOTNET_IPC_V1;
-            default:
-                ASSERT("Unkown IPC Version")
-        }
-    };
+    //const char *IpcVersionString(IpcVersion versionEnum)
+    //{
+    //    switch (versionEnum)
+    //    {
+    //        case IpcVersion::DOTNET_IPC_V1:
+    //            return DOTNET_IPC_V1;
+    //        default:
+    //            ASSERT("Unkown IPC Version");
+    //    }
+    //};
 
     // The header to be associated with every command and response
     // to/from the diagnostics server
@@ -50,6 +53,9 @@ namespace Ipc
     // TODO: use a shared pointer
     typedef void *pIpcPacketData;
 
+    // Abstract class for all Payload types to implement.
+    // This allows payload classes to be not-flat for convenience,
+    // while making it simple to be consumed in a flat manner when writing.
     class IpcPackable
     {
     public:
@@ -60,11 +66,14 @@ namespace Ipc
         virtual const uint16_t GetSize() = 0;
     };
 
-    class NullIpcPayload : IpcPackable
+    class NullIpcPayload : public IpcPackable
     {
+    public:
         bool Flatten(BYTE *lpBufferCursor) override {};
         const uint16_t GetSize() override { return 0; };
     };
+
+    static NullIpcPayload EmptyPayload;
 
     template <class T>
     class IpcPacket
@@ -93,28 +102,36 @@ namespace Ipc
 
             S_UINT16 temp_size = S_UINT16(0);
             temp_size += sizeof(struct IpcHeader) + m_Payload.GetSize();
-            if (temp_size.Overflow())
+            if (temp_size.IsOverflow())
             {
-                // TODO: what should this do?
+                // TODO: what should happen here?
+                return false;
             }
 
-            m_size = temp_size;
+            m_Size = temp_size.Value;
 
-            BYTE *temp_buffer = new (no_throw) BYTE[m_Size];
+            BYTE *temp_buffer = new (nothrow) BYTE[m_Size];
             BYTE *temp_buffer_cursor = temp_buffer;
 
             if (temp_buffer == NULL)
             {
                 // TODO: Error
+                return false;
             }
 
-            memcpy(temp_buffer_cursor, m_Header, sizeof(struct IpcHeader));
+            m_Header.Size = m_Size;
+
+            memcpy(temp_buffer_cursor, &m_Header, sizeof(struct IpcHeader));
             temp_buffer_cursor += sizeof(struct IpcHeader);
 
             m_Payload.Flatten(temp_buffer_cursor);
+
+            m_pData = temp_buffer;
+
+            return true;
         };
 
-        BYTE *GetFlatData() const 
+        BYTE *GetFlatData()
         {
             if (!IsFlattened() && !Flatten())
                 return NULL; // TODO: Error
