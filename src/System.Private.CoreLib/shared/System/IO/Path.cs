@@ -477,7 +477,7 @@ namespace System.IO
 
             if (paths.Length == 0)
             {
-                return "";
+                return string.Empty;
             }
             
             int maxSize = 0;
