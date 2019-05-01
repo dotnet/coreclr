@@ -346,7 +346,7 @@ namespace System.IO
                 throw new ArgumentNullException(nameof(paths));
             }
 
-            int finalSize = 0;
+            int maxSize = 0;
             int firstComponent = 0;
 
             // We have two passes, the first calculates how large a buffer to allocate and does some precondition
@@ -367,19 +367,21 @@ namespace System.IO
                 if (IsPathRooted(paths[i]))
                 {
                     firstComponent = i;
-                    finalSize = paths[i].Length;
+                    maxSize = paths[i].Length;
                 }
                 else
                 {
-                    finalSize += paths[i].Length;
+                    maxSize += paths[i].Length;
                 }
 
                 char ch = paths[i][paths[i].Length - 1];
                 if (!PathInternal.IsDirectorySeparator(ch))
-                    finalSize++;
+                    maxSize++;
             }
-
-            StringBuilder finalPath = StringBuilderCache.Acquire(finalSize);
+            
+            Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
+            var builder = new ValueStringBuilder(initialBuffer);
+            builder.EnsureCapacity(maxSize);
 
             for (int i = firstComponent; i < paths.Length; i++)
             {
@@ -388,23 +390,23 @@ namespace System.IO
                     continue;
                 }
 
-                if (finalPath.Length == 0)
+                if (builder.Length == 0)
                 {
-                    finalPath.Append(paths[i]);
+                    builder.Append(paths[i]);
                 }
                 else
                 {
-                    char ch = finalPath[finalPath.Length - 1];
+                    char ch = builder[builder.Length - 1];
                     if (!PathInternal.IsDirectorySeparator(ch))
                     {
-                        finalPath.Append(PathInternal.DirectorySeparatorChar);
+                        builder.Append(PathInternal.DirectorySeparatorChar);
                     }
 
-                    finalPath.Append(paths[i]);
+                    builder.Append(paths[i]);
                 }
             }
 
-            return StringBuilderCache.GetStringAndRelease(finalPath);
+            return builder.ToString();
         }
 
         // Unlike Combine(), Join() methods do not consider rooting. They simply combine paths, ensuring that there
@@ -473,47 +475,47 @@ namespace System.IO
                 throw new ArgumentNullException(nameof(paths));
             }
 
-            int finalSize = 0;
-            
-            for (int i = 0; i < paths.Length; i++)
+            if (paths.Length == 0)
             {
-                if (paths[i] == null || paths[i].Length == 0)
-                {
-                    continue;
-                }
-
-                finalSize += paths[i].Length;
-
-                char ch = paths[i][paths[i].Length - 1];
-                if (!PathInternal.IsDirectorySeparator(ch))
-                    finalSize++;
+                return "";
             }
+            
+            int maxSize = 0;
+            foreach (string path in paths)
+            {
+                maxSize += path?.Length ?? 0;
+            }
+            maxSize += paths.Length - 1;
 
-            StringBuilder finalPath = StringBuilderCache.Acquire(finalSize);
+            Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
+            var builder = new ValueStringBuilder(initialBuffer);
+            builder.EnsureCapacity(maxSize);
 
             for (int i = 0; i < paths.Length; i++)
             {
-                if (paths[i] == null || paths[i].Length == 0)
+                if ((paths[i]?.Length ?? 0) == 0)
                 {
                     continue;
                 }
 
-                if (finalPath.Length == 0)
+                string path = paths[i];
+
+                if (builder.Length == 0)
                 {
-                    finalPath.Append(paths[i]);
+                    builder.Append(path);
                 }
                 else
                 {
-                    if (!PathInternal.IsDirectorySeparator(finalPath[finalPath.Length - 1]) && !PathInternal.IsDirectorySeparator(paths[i][0]))
+                    if (!PathInternal.IsDirectorySeparator(builder[builder.Length - 1]) && !PathInternal.IsDirectorySeparator(path[0]))
                     {
-                        finalPath.Append(PathInternal.DirectorySeparatorChar);
+                        builder.Append(PathInternal.DirectorySeparatorChar);
                     }
 
-                    finalPath.Append(paths[i]);
+                    builder.Append(path);
                 }
             }
 
-            return StringBuilderCache.GetStringAndRelease(finalPath);
+            return builder.ToString();
         }
 
         public static bool TryJoin(ReadOnlySpan<char> path1, ReadOnlySpan<char> path2, Span<char> destination, out int charsWritten)
