@@ -25,9 +25,6 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices.WindowsRuntime;
 #endif // FEATURE_COMINTEROP
 
-[assembly: DefaultDependencyAttribute(LoadHint.Always)]
-// SPCL would like to have its literal strings frozen if possible
-[assembly: StringFreezingAttribute()]
 [assembly: ComVisible(false)]
 [assembly: DefaultDllImportSearchPathsAttribute(DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.System32)]
 
