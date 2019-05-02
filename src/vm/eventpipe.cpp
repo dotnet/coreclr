@@ -389,8 +389,9 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         // Delete the flush timer.
         DeleteFlushTimerCallback();
 
-        // Flush all write buffers to make sure that all threads see the change.
-        FlushProcessWriteBuffers();
+        // Force all in-progress writes to either finish or cancel
+        // This is required to ensure we can safely flush and delete the buffers
+        s_pBufferManager->SuspendWriteEvent();
 
         // Write to the file.
         if (s_pFile != nullptr)
@@ -401,7 +402,10 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 
             if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
             {
-                // Before closing the file, do rundown.
+                // Before closing the file, do rundown. We have to re-enable event writing for this.
+
+                s_pBufferManager->ResumeWriteEvent();
+
                 const EventPipeProviderConfiguration RundownProviders[] = {
                     {W("Microsoft-Windows-DotNETRuntime"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL},       // Public provider.
                     {W("Microsoft-Windows-DotNETRuntimeRundown"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL} // Rundown provider.
@@ -425,6 +429,9 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
                 // Delete the rundown session.
                 s_pConfig->DeleteSession(s_pSession);
                 s_pSession = NULL;
+
+                // Suspend again after rundown session
+                s_pBufferManager->SuspendWriteEvent();
             }
 
             delete s_pFile;
@@ -437,6 +444,10 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         // Delete deferred providers.
         // Providers can't be deleted during tracing because they may be needed when serializing the file.
         s_pConfig->DeleteDeferredProviders();
+
+        // ALlow WriteEvent to begin accepting work again so that sometime in the future
+        // we can re-enable events and they will be recorded
+        s_pBufferManager->ResumeWriteEvent();
     }
 }
 
@@ -741,15 +752,11 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     }
     else if (s_pConfig->RundownEnabled())
     {
-        // It is possible that some events that are enabled on rundown can be emitted from other threads.
-        // We're not interested in these events and they can cause corrupted trace files because rundown
-        // events are written synchronously and not under lock.
-        // If we encounter an event that did not originate on the thread that is doing rundown, ignore it.
-        if (pThread == NULL || !s_pConfig->IsRundownThread(pThread))
+        if (pThread == nullptr)
         {
             return;
         }
-
+        
         BYTE *pData = payload.GetFlatData();
         if (pData != NULL)
         {
@@ -911,5 +918,18 @@ EventPipeEventInstance *EventPipe::GetNextEvent()
 {
     EventPipeProvider::InvokeCallback(eventPipeProviderCallbackData);
 }
+
+#ifdef DEBUG
+/* static */ bool EventPipe::IsLockOwnedByCurrentThread()
+{
+    return GetLock()->OwnedByCurrentThread();
+}
+
+/* static */ bool EventPipe::IsBufferManagerLockOwnedByCurrentThread()
+{
+    return s_pBufferManager->IsLockOwnedByCurrentThread();
+}
+#endif
+
 
 #endif // FEATURE_PERFTRACING
