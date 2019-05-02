@@ -458,7 +458,7 @@ void InitializeStartupFlags()
         g_IGCconcurrent = 0;
 
 
-    g_heap_type = (flags & STARTUP_SERVER_GC) == 0 ? GC_HEAP_WKS : GC_HEAP_SVR;
+    g_heap_type = ((flags & STARTUP_SERVER_GC) && GetCurrentProcessCpuCount() > 1) ? GC_HEAP_SVR : GC_HEAP_WKS;
     g_IGCHoardVM = (flags & STARTUP_HOARD_GC_VM) == 0 ? 0 : 1;
 }
 #endif // CROSSGEN_COMPILE
@@ -770,8 +770,9 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-
-#ifdef FEATURE_PREJIT
+        // Cross-process named objects are not supported in PAL
+        // (see CorUnix::InternalCreateEvent - src/pal/src/synchobj/event.cpp.272)
+#if defined(FEATURE_PREJIT) && !defined(FEATURE_PAL)
         // Initialize the sweeper thread.
         if (g_pConfig->GetZapBBInstr() != NULL)
         {
@@ -785,7 +786,7 @@ void EEStartupHelper(COINITIEE fFlags)
             _ASSERTE(hBBSweepThread);
             g_BBSweep.SetBBSweepThreadHandle(hBBSweepThread);
         }
-#endif // FEATURE_PREJIT
+#endif // FEATURE_PREJIT && FEATURE_PAL
 
 #ifdef FEATURE_INTERPRETER
         Interpreter::Initialize();
@@ -2604,7 +2605,6 @@ INT32 GetLatchedExitCode (void)
     return LatchedExitCode;
 }
 
-    
 // ---------------------------------------------------------------------------
 // Impl for UtilLoadStringRC Callback: In VM, we let the thread decide culture
 // Return an int uniquely describing which language this thread is using for ui.
