@@ -59,8 +59,6 @@
     <!-- Remove CS8608 once https://github.com/dotnet/roslyn/issues/23268 is resolved -->
     <NoWarn>649,1573,1591,0419,3021,CS8609</NoWarn>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
-    <SignAssembly>true</SignAssembly>
-    <DelaySign>true</DelaySign>
     <DefineConstants>$(DefineConstants);CORECLR;netcoreapp</DefineConstants>
     <!-- We don't use any of MSBuild's resolution logic for resolving the framework, so just set these two properties to any folder that exists to skip
          the GenerateReferenceAssemblyPaths task (not target) and to prevent it from outputting a warning (MSB3644). -->
@@ -88,12 +86,12 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DefineConstants>BIT64;ARM64;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
+
   <!-- Configuration specific properties -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug' or '$(Configuration)' == 'Checked'">
     <DebugSymbols>true</DebugSymbols>
     <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Debug'">false</Optimize>
     <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Checked'">true</Optimize>
-    <DebugType Condition="'$(DebugType)' == ''">full</DebugType>
     <DefineConstants>_LOGGING;DEBUG;$(DefineConstants)</DefineConstants>
     <DefineConstants Condition="'$(Platform)' == 'x86' or '$(Platform)' == 'x64'">CODE_ANALYSIS;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
@@ -101,14 +99,22 @@
     <DebugSymbols>true</DebugSymbols>
     <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
   </PropertyGroup>
+
   <!-- Assembly attributes -->
   <PropertyGroup>
     <AssemblyName>System.Private.CoreLib</AssemblyName>
     <AssemblyVersion>4.0.0.0</AssemblyVersion>
-    <MajorVersion>4</MajorVersion>
-    <MinorVersion>6</MinorVersion>
+    <VersionPrefix>4.6.0</VersionPrefix>
     <ExcludeAssemblyInfoPartialFile>true</ExcludeAssemblyInfoPartialFile>
   </PropertyGroup>
+
+  <!-- Signing -->
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>true</DelaySign>
+    <StrongNameKeyId>SilverlightPlatform</StrongNameKeyId>
+  </PropertyGroup>
+
   <!--
     Helper Paths
   -->
@@ -432,9 +438,6 @@
   </PropertyGroup>
   <PropertyGroup>
     <FeatureAsyncCausalityTracer Condition="'$(FeatureCominterop)' == 'true'">true</FeatureAsyncCausalityTracer>
-  </PropertyGroup>
-  <PropertyGroup>
-    <StrongNameSig>Silverlight</StrongNameSig>
   </PropertyGroup>
 
   <!-- Globals used by ILLink.targets -->
