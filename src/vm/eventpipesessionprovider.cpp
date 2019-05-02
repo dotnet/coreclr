@@ -79,7 +79,7 @@ EventPipeSessionProviderList::EventPipeSessionProviderList(
     m_pCatchAllProvider = NULL;
 
     if ((numConfigs > 0) && (pConfigs == nullptr))
-        return; // TODO: This seems the logical thing to do here.
+        return;
 
     for (uint32_t i = 0; i < numConfigs; ++i)
     {
@@ -155,7 +155,7 @@ EventPipeSessionProvider *EventPipeSessionProviderList::GetSessionProvider(
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(pProvider != nullptr); // TODO: This seems like a reasonable pre-condition
+        PRECONDITION(pProvider != nullptr);
     }
     CONTRACTL_END;
 
