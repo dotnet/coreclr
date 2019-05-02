@@ -47,11 +47,8 @@ EventPipeConfiguration::~EventPipeConfiguration()
         EX_CATCH {}
         EX_END_CATCH(SwallowAllExceptions);
     }
-    if (m_pSession != NULL)
-    {
-        DeleteSession(m_pSession);
-        m_pSession = NULL;
-    }
+
+    delete m_pSession;
 
     if (m_pProviderList != NULL)
     {
@@ -90,7 +87,7 @@ void EventPipeConfiguration::Initialize()
         MODE_ANY;
     }
     CONTRACTL_END;
-    
+
     EventPipe::RunWithCallbackPostponed(
         [&](EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
         {
@@ -292,66 +289,7 @@ EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(EventPipeSe
     }
     CONTRACTL_END;
 
-    EventPipeSessionProvider *pRet = NULL;
-    if (pSession != NULL)
-    {
-        pRet = pSession->GetSessionProvider(pProvider);
-    }
-    return pRet;
-}
-
-size_t EventPipeConfiguration::GetCircularBufferSize() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    size_t ret = 0;
-    if (m_pSession != NULL)
-    {
-        ret = m_pSession->GetCircularBufferSize();
-    }
-    return ret;
-}
-
-EventPipeSession *EventPipeConfiguration::CreateSession(
-    EventPipeSessionType sessionType,
-    unsigned int circularBufferSizeInMB,
-    const EventPipeProviderConfiguration *pProviders,
-    uint32_t numProviders)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(circularBufferSizeInMB > 0);
-        PRECONDITION(numProviders > 0 && pProviders != nullptr);
-    }
-    CONTRACTL_END;
-
-    return new EventPipeSession(
-        sessionType,
-        circularBufferSizeInMB,
-        pProviders,
-        numProviders);
-}
-
-void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(pSession != NULL);
-        PRECONDITION(m_enabled == false);
-    }
-    CONTRACTL_END;
-
-    // TODO: Multiple session support will require individual enabled bits.
-    if (pSession != NULL && !m_enabled)
-    {
-        delete (pSession);
-    }
+    return (pSession != nullptr) ? pSession->GetSessionProvider(pProvider) : nullptr;
 }
 
 void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
@@ -366,8 +304,6 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
         PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
-
-    EventPipeProviderCallbackData eventPipeProviderCallbackData;
 
     m_pSession = pSession;
     m_enabled = true;
@@ -384,11 +320,12 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
             EventPipeSessionProvider *pSessionProvider = GetSessionProvider(m_pSession, pProvider);
             if (pSessionProvider != NULL)
             {
-                eventPipeProviderCallbackData = pProvider->SetConfiguration(
-                    true /* providerEnabled */,
-                    pSessionProvider->GetKeywords(),
-                    pSessionProvider->GetLevel(),
-                    pSessionProvider->GetFilterData());
+                EventPipeProviderCallbackData eventPipeProviderCallbackData =
+                    pProvider->SetConfiguration(
+                        true /* providerEnabled */,
+                        pSessionProvider->GetKeywords(),
+                        pSessionProvider->GetLevel(),
+                        pSessionProvider->GetFilterData());
                 pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
             }
 
@@ -457,13 +394,11 @@ void EventPipeConfiguration::EnableRundown(EventPipeSession *pSession, EventPipe
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pSession != NULL);
+        PRECONDITION(m_pSession == NULL);
         // Lock must be held by EventPipe::Disable.
         PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
-
-    // Build the rundown configuration.
-    _ASSERTE(m_pSession == NULL);
 
     // Enable rundown
     m_rundownEnabled = true;

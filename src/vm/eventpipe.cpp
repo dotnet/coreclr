@@ -265,7 +265,7 @@ EventPipeSessionID EventPipe::Enable(
         {
             // Create a new session.
             SampleProfiler::SetSamplingRate(static_cast<unsigned long>(profilerSamplingRateInNanoseconds));
-            EventPipeSession *pSession = s_pConfig->CreateSession(
+            EventPipeSession *pSession = new EventPipeSession(
                 sessionType,
                 circularBufferSizeInMB,
                 pProviders,
@@ -409,7 +409,8 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         s_pConfig->Disable(s_pSession, pEventPipeProviderCallbackDataQueue);
 
         // Delete the session.
-        s_pConfig->DeleteSession(s_pSession);
+        if (!s_pConfig->Enabled())
+            delete s_pSession;
         s_pSession = NULL;
 
         // Delete the flush timer.
@@ -438,7 +439,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
                 };
 
                 // The circular buffer size doesn't matter because all events are written synchronously during rundown.
-                s_pSession = s_pConfig->CreateSession(
+                s_pSession = new EventPipeSession(
                     EventPipeSessionType::File,
                     1 /* circularBufferSizeInMB */,
                     RundownProviders,
@@ -453,7 +454,8 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
                 s_pConfig->Disable(s_pSession, pEventPipeProviderCallbackDataQueue);
 
                 // Delete the rundown session.
-                s_pConfig->DeleteSession(s_pSession);
+                if (!s_pConfig->Enabled())
+                    delete s_pSession;
                 s_pSession = NULL;
 
                 // Suspend again after rundown session

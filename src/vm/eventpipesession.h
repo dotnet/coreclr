@@ -24,14 +24,14 @@ private:
     EventPipeSessionProviderList *m_pProviderList;
 
     // The configured size of the circular buffer.
-    size_t m_circularBufferSizeInBytes;
+    const size_t m_CircularBufferSizeInBytes;
 
     // True if rundown is enabled.
     Volatile<bool> m_rundownEnabled;
 
     // The type of the session.
     // This determines behavior within the system (e.g. policies around which events to drop, etc.)
-    EventPipeSessionType m_sessionType;
+    const EventPipeSessionType m_SessionType;
 
     // Start date and time in UTC.
     FILETIME m_sessionStartTime;
@@ -40,8 +40,6 @@ private:
     LARGE_INTEGER m_sessionStartTimeStamp;
 
 public:
-
-    // TODO: This needs to be exposed via EventPipe::CreateSession() and EventPipe::DeleteSession() to avoid memory ownership issues.
     EventPipeSession(
         EventPipeSessionType sessionType,
         unsigned int circularBufferSizeInMB,
@@ -56,14 +54,14 @@ public:
     EventPipeSessionType GetSessionType() const
     {
         LIMITED_METHOD_CONTRACT;
-        return m_sessionType;
+        return m_SessionType;
     }
 
     // Get the configured size of the circular buffer.
     size_t GetCircularBufferSize() const
     {
         LIMITED_METHOD_CONTRACT;
-        return m_circularBufferSizeInBytes;
+        return m_CircularBufferSizeInBytes;
     }
 
     // Determine if rundown is enabled.
@@ -71,13 +69,6 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_rundownEnabled;
-    }
-
-    // Set the rundown enabled flag.
-    void SetRundownEnabled(bool value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_rundownEnabled = value;
     }
 
     // Get the session start time in UTC.

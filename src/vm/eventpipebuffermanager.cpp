@@ -224,14 +224,7 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
     // Determine if policy allows us to allocate another buffer
     if(!allocateNewBuffer)
     {
-        EventPipeConfiguration *pConfig = EventPipe::GetConfiguration();
-        if(pConfig == NULL)
-        {
-            return NULL;
-        }
-
-        size_t circularBufferSizeInBytes = pConfig->GetCircularBufferSize();
-        if(m_sizeOfAllBuffers < circularBufferSizeInBytes)
+        if (m_sizeOfAllBuffers < session.GetCircularBufferSize())
         {
             // We don't worry about the fact that a new buffer could put us over the circular buffer size.
             // This is OK, and we won't do it again if we actually go over.
@@ -332,8 +325,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         PRECONDITION(pThread == GetThread());
     }
     CONTRACTL_END;
-
-    _ASSERTE(pThread == GetThread());
 
     // Check to see an event thread was specified.  If not, then use the current thread.
     if(pEventThread == NULL)

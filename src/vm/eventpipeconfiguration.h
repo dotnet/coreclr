@@ -40,19 +40,6 @@ public:
     // Get the provider with the specified provider ID if it exists.
     EventPipeProvider *GetProvider(const SString &providerID);
 
-    // Create a new session.
-    EventPipeSession *CreateSession(
-        EventPipeSessionType sessionType,
-        unsigned int circularBufferSizeInMB,
-        const EventPipeProviderConfiguration *pProviders,
-        uint32_t numProviders);
-
-    // Delete a session.
-    void DeleteSession(EventPipeSession *pSession);
-
-    // Get the configured size of the circular buffer.
-    size_t GetCircularBufferSize() const;
-
     // Enable a session in the event pipe.
     void Enable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
