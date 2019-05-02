@@ -12,11 +12,7 @@ set(DACTABLEGEN_SOURCES
 
 # Remove defines that aren't just by-name but actually have defined values.
 # C# doesn't support preprocessor defines with values.
-remove_definitions(-D_SECURE_SCL=0 -DWINVER=0x0602 -D_WIN32_WINNT=0x0602)
-
-get_directory_property(DIRECTORY_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
-string(REGEX REPLACE "[A-Za-z0-9_]+=[^ ]" "" DIRECTORY_COMPILE_DEFINITIONS "${DIRECTORY_COMPILE_DEFINITIONS}")
-set_directory_properties(PROPERTIES COMPILE_DEFINITIONS "${DIRECTORY_COMPILE_DEFINITIONS}")
+set_directory_properties(PROPERTIES COMPILE_DEFINITIONS "")
 
 add_executable(dactablegen ${DACTABLEGEN_SOURCES})
 
