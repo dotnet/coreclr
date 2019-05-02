@@ -168,6 +168,11 @@ if(WIN32)
     endif()
 
     set(DACTABLEGEN_EXE ${CMAKE_BINARY_DIR}/src/ToolBox/SOS/DacTableGen/dactablegen.exe)
+
+    if (CLR_CMAKE_CROSS_ARCH)
+      include(${CMAKE_INSTALL_PREFIX}/${CLR_CMAKE_CROSS_HOST_ARCH}/dactabletools/dactabletools.cmake)
+    endif()
+
     set(INJECT_RESOURCE_EXE $<TARGET_FILE:InjectResource>)
     set(GEN_CLR_DEBUG_RESOURCE_EXE $<TARGET_FILE:GenClrDebugResource>)
 
