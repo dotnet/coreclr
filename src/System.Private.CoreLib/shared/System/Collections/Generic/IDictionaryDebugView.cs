@@ -7,7 +7,7 @@ using System.Diagnostics;
 
 namespace System.Collections.Generic
 {
-    internal sealed class IDictionaryDebugView<K, V>
+    internal sealed class IDictionaryDebugView<K, V> where K : object
     {
         private readonly IDictionary<K, V> _dict;
 

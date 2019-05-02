@@ -171,7 +171,7 @@ namespace System.Collections.Generic
         {
             // Non-null values are fine.  Only accept nulls if T is a class or Nullable<U>.
             // Note that default(T) is not equal to null for value types except when T is Nullable<U>. 
-            return ((value is T) || (value == null && default(T)! == null));
+            return ((value is T) || (value == null && default(T)! == null)); // https://github.com/dotnet/roslyn/issues/34757
         }
 
         object? IList.this[int index] // TODO-NULLABLE-GENERIC: nullability is the same as of T
@@ -346,7 +346,7 @@ namespace System.Collections.Generic
             List<TOutput> list = new List<TOutput>(_size);
             for (int i = 0; i < _size; i++)
             {
-                list._items[i] = converter!(_items[i]);
+                list._items[i] = converter!(_items[i]); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             }
             list._size = _size;
             return list;
@@ -446,7 +446,7 @@ namespace System.Collections.Generic
             List<T> list = new List<T>();
             for (int i = 0; i < _size; i++)
             {
-                if (match!(_items[i]))
+                if (match!(_items[i])) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                 {
                     list.Add(_items[i]);
                 }
@@ -541,7 +541,7 @@ namespace System.Collections.Generic
             int endIndex = startIndex - count;
             for (int i = startIndex; i > endIndex; i--)
             {
-                if (match!(_items[i]))
+                if (match!(_items[i])) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                 {
                     return i;
                 }
@@ -745,7 +745,7 @@ namespace System.Collections.Generic
             }
             else
             {
-                using (IEnumerator<T> en = collection!.GetEnumerator())
+                using (IEnumerator<T> en = collection!.GetEnumerator()) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                 {
                     while (en.MoveNext())
                     {
@@ -865,7 +865,7 @@ namespace System.Collections.Generic
             int freeIndex = 0;   // the first free slot in items array
 
             // Find the first item which needs to be removed.
-            while (freeIndex < _size && !match!(_items[freeIndex])) freeIndex++;
+            while (freeIndex < _size && !match!(_items[freeIndex])) freeIndex++; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             if (freeIndex >= _size) return 0;
 
             int current = freeIndex + 1;
@@ -1024,7 +1024,7 @@ namespace System.Collections.Generic
 
             if (_size > 1)
             {
-                ArraySortHelper<T>.Sort(_items, 0, _size, comparison!);
+                ArraySortHelper<T>.Sort(_items, 0, _size, comparison!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             }
             _version++;
         }
@@ -1124,7 +1124,7 @@ namespace System.Collections.Generic
 
             public T Current => _current;
 
-            object? IEnumerator.Current // TODO-NULLABLE-GENERIC: nullable only when T can be null
+            object? IEnumerator.Current
             {
                 get
                 {
