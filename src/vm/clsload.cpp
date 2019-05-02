@@ -2401,7 +2401,7 @@ VOID ClassLoader::Init(AllocMemTracker *pamTracker)
     // ordering for m_AvailableTypesLock in BaseDomain.
     m_AvailableClassLock.Init(
                              CrstAvailableClass,
-                             CRST_REENTRANCY);
+                             (CrstFlags)(CRST_REENTRANCY | CRST_HOST_BREAKABLE));
 
     // This lock is taken within the classloader whenever we have to insert a new param. type into the table
     // This lock also needs to be taken for a read operation in a GC_NOTRIGGER scope, thus the ANYMODE flag.
