@@ -49,11 +49,13 @@ void SampleProfiler::Enable(EventPipeProviderCallbackDataQueue* pEventPipeProvid
     }
     CONTRACTL_END;
 
-    LoadDependencies();
+    LoadDependencies(); // FIXME: Assuming function always succeed.
 
     if(s_pEventPipeProvider == NULL)
     {
         s_pEventPipeProvider = EventPipe::CreateProvider(SL(s_providerName), nullptr, nullptr, pEventPipeProviderCallbackDataQueue);
+        // FIXME: This could be NULL.
+
         s_pThreadTimeEvent = s_pEventPipeProvider->AddEvent(
             0, /* eventID */
             0, /* keywords */
@@ -70,10 +72,10 @@ void SampleProfiler::Enable(EventPipeProviderCallbackDataQueue* pEventPipeProvid
 
     if(s_pPayloadExternal == NULL)
     {
-        s_pPayloadExternal = new BYTE[sizeof(unsigned int)];
+        s_pPayloadExternal = new BYTE[sizeof(unsigned int)]; // FIXME: It does not get deallocated.
         *((unsigned int *)s_pPayloadExternal) = static_cast<unsigned int>(SampleProfilerSampleType::External);
 
-        s_pPayloadManaged = new BYTE[sizeof(unsigned int)];
+        s_pPayloadManaged = new BYTE[sizeof(unsigned int)]; // FIXME: It does not get deallocated.
         *((unsigned int *)s_pPayloadManaged) = static_cast<unsigned int>(SampleProfilerSampleType::Managed);
     }
 
@@ -230,14 +232,15 @@ void SampleProfiler::WalkManagedThreads()
             // Set the payload.  If the GC mode on suspension > 0, then the thread was in cooperative mode.
             // Even though there are some cases where this is not managed code, we assume it is managed code here.
             // If the GC mode on suspension == 0 then the thread was in preemptive mode, which we qualify as external here.
-            BYTE *pPayload = s_pPayloadExternal;
-            if(pTargetThread->GetGCModeOnSuspension())
-            {
-                pPayload = s_pPayloadManaged;
-            }
 
             // Write the sample.
-            EventPipe::WriteSampleProfileEvent(s_pSamplingThread, s_pThreadTimeEvent, pTargetThread, stackContents, pPayload, c_payloadSize);
+            EventPipe::WriteSampleProfileEvent(
+                s_pSamplingThread,
+                s_pThreadTimeEvent,
+                pTargetThread,
+                stackContents,
+                pTargetThread->GetGCModeOnSuspension() ? s_pPayloadManaged : s_pPayloadExternal,
+                c_payloadSize);
         }
 
         // Reset the GC mode.

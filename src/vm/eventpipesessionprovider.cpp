@@ -88,7 +88,11 @@ EventPipeSessionProviderList::EventPipeSessionProviderList(
         // Enable all events if the provider name == '*', all keywords are on and the requested level == verbose.
         if ((wcscmp(W("*"), pConfig->GetProviderName()) == 0) && (pConfig->GetKeywords() == 0xFFFFFFFFFFFFFFFF) && ((EventPipeEventLevel)pConfig->GetLevel() == EventPipeEventLevel::Verbose) && (m_pCatchAllProvider == NULL))
         {
-            m_pCatchAllProvider = new EventPipeSessionProvider(NULL, 0xFFFFFFFFFFFFFFFF, EventPipeEventLevel::Verbose, NULL);
+            m_pCatchAllProvider = new EventPipeSessionProvider(
+                NULL, // FIXME: This should be "*".
+                0xFFFFFFFFFFFFFFFF,
+                EventPipeEventLevel::Verbose,
+                NULL);
         }
         else
         {
@@ -143,6 +147,8 @@ void EventPipeSessionProviderList::AddSessionProvider(EventPipeSessionProvider *
     }
     CONTRACTL_END;
 
+    // TODO: No validation on input. For example, (provider name == null)?
+
     if (pProvider != nullptr)
         m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider *>(pProvider));
 }
@@ -158,6 +164,9 @@ EventPipeSessionProvider *EventPipeSessionProviderList::GetSessionProvider(
         PRECONDITION(pProvider != nullptr);
     }
     CONTRACTL_END;
+
+    if (pProvider == nullptr)
+        return nullptr;
 
     // Exists when tracing was enabled at start-up and all events were requested. This is a diagnostic config.
     if (m_pCatchAllProvider != NULL)
