@@ -45,7 +45,7 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
             profilerSamplingRateInNanoseconds,
             pProviders,
             numProviders,
-            outputFile != NULL ? EventPipeSessionType::File : EventPipeSessionType::Streaming,
+            outputFile != NULL ? EventPipeSessionType::File : EventPipeSessionType::Listener,
             nullptr);
     }
     END_QCALL;
