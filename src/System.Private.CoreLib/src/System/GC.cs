@@ -648,14 +648,12 @@ namespace System
             }
         }
 
-
         // Skips zero-initialization of the array if possible. If T contains object references, 
         // the array is always zero-initialized.
         internal static T[] AllocateUninitializedArray<T>(int length)
         {
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-
 #if DEBUG
             // in DEBUG arrays of any length can be created uninitialized
 #else
@@ -670,7 +668,6 @@ namespace System
                 return new T[length];
             }
 #endif
-
             return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
         }
     }

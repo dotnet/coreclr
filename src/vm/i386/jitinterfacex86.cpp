@@ -1248,6 +1248,10 @@ void InitJITHelpers1()
         SetJitHelperFunction(CORINFO_HELP_NEWARR_1_VC, pMethodAddresses[4]);
         pMethodAddresses[5] = JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::ALIGN8));
         SetJitHelperFunction(CORINFO_HELP_NEWARR_1_ALIGN8, pMethodAddresses[5]);
+
+        // If allocation logging is on, then we divert calls to FastAllocateString to an Ecall method, not this
+        // generated method. Find this workaround in Ecall::Init() in ecall.cpp.
+        ECall::DynamicallyAssignFCallImpl((PCODE) JIT_TrialAlloc::GenAllocString(flags), ECall::FastAllocateString);
     }
 
     // Replace static helpers with faster assembly versions
