@@ -598,26 +598,13 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
 {
     LIMITED_METHOD_CONTRACT;
-
-    EventPipeSession *pSession = NULL;
-    if ((EventPipeSessionID)s_pSession == id)
-    {
-        pSession = s_pSession;
-    }
-    return pSession;
+    return ((EventPipeSessionID)s_pSession == id) ? s_pSession : nullptr;
 }
 
 bool EventPipe::Enabled()
 {
     LIMITED_METHOD_CONTRACT;
-
-    bool enabled = false;
-    if (s_pConfig != NULL)
-    {
-        enabled = s_pConfig->Enabled();
-    }
-
-    return enabled;
+    return (s_pConfig != NULL) ? s_pConfig->Enabled() : false;
 }
 
 EventPipeProvider *EventPipe::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData)
@@ -653,12 +640,12 @@ EventPipeProvider *EventPipe::CreateProvider(const SString &providerName, EventP
     }
     CONTRACTL_END;
 
-    EventPipeProvider *pProvider = NULL;
-    if (s_pConfig != NULL)
-    {
-        pProvider = s_pConfig->CreateProvider(providerName, pCallbackFunction, pCallbackData, pEventPipeProviderCallbackDataQueue);
-    }
-    return pProvider;
+    return (s_pConfig != NULL) ? s_pConfig->CreateProvider(
+                                     providerName,
+                                     pCallbackFunction,
+                                     pCallbackData,
+                                     pEventPipeProviderCallbackDataQueue)
+                               : nullptr;
 }
 
 EventPipeProvider *EventPipe::GetProvider(const SString &providerName)
@@ -671,13 +658,7 @@ EventPipeProvider *EventPipe::GetProvider(const SString &providerName)
     }
     CONTRACTL_END;
 
-    EventPipeProvider *pProvider = NULL;
-    if (s_pConfig != NULL)
-    {
-        pProvider = s_pConfig->GetProvider(providerName);
-    }
-
-    return pProvider;
+    return (s_pConfig != NULL) ? s_pConfig->GetProvider(providerName) : nullptr;
 }
 
 void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
@@ -848,12 +829,7 @@ bool EventPipe::WalkManagedStackForCurrentThread(StackContents &stackContents)
     CONTRACTL_END;
 
     Thread *pThread = GetThread();
-    if (pThread != NULL)
-    {
-        return WalkManagedStackForThread(pThread, stackContents);
-    }
-
-    return false;
+    return (pThread != NULL) ? WalkManagedStackForThread(pThread, stackContents) : false;
 }
 
 bool EventPipe::WalkManagedStackForThread(Thread *pThread, StackContents &stackContents)
@@ -926,16 +902,9 @@ EventPipeEventInstance *EventPipe::GetNextEvent()
     }
     CONTRACTL_END;
 
-    EventPipeEventInstance *pInstance = NULL;
-
     // Only fetch the next event if a tracing session exists.
     // The buffer manager is not disposed until the process is shutdown.
-    if (s_pSession != NULL)
-    {
-        pInstance = s_pBufferManager->GetNextEvent();
-    }
-
-    return pInstance;
+    return (s_pSession != NULL) ? s_pBufferManager->GetNextEvent() : nullptr;
 }
 
 /* static */ void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)
