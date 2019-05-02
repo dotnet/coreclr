@@ -10,8 +10,7 @@ set(DACTABLEGEN_SOURCES
     MapSymbolProvider.cs
 )
 
-# Remove defines that aren't just by-name but actually have defined values.
-# C# doesn't support preprocessor defines with values.
+# DacTableGen doesn't use the defines from the rest of the build tree, so clear all of the compile definitions
 set_directory_properties(PROPERTIES COMPILE_DEFINITIONS "")
 
 add_executable(dactablegen ${DACTABLEGEN_SOURCES})
