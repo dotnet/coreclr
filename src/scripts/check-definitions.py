@@ -156,8 +156,8 @@ arrays = getDiff(arrayNative, arrayManaged)
 print("Potentially Dangerous Compiler Definitions in clrdefinitions.cmake (omitted in native build):")
 printPotentiallyCritical(arrays[0], os.path.join(projectDir, "clrdefinitions.cmake"), arrayIgnore)
 
-print("Potentially Dangerous Compiler Definitions in clr.defines.targets (omitted in managed build):")
-printPotentiallyCritical(arrays[1], os.path.join(projectDir, "clr.defines.targets"), arrayIgnore)
+print("Potentially Dangerous Compiler Definitions in clr.featuredefines.props (omitted in managed build):")
+printPotentiallyCritical(arrays[1], os.path.join(projectDir, "clr.featuredefines.props"), arrayIgnore)
 
 print("Definition Check Completed.")
 

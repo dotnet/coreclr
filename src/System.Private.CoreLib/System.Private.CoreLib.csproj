@@ -2,10 +2,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
 
-  <!-- Compilation options -->
-  <Import Project="../../clr.coreclr.props" />
-  <Import Project="../../clr.defines.targets" />
-
   <!-- Generate rsp -->
   <Import Project="GenerateCompilerResponseFile.targets" />
 
@@ -104,7 +100,6 @@
   <PropertyGroup>
     <AssemblyName>System.Private.CoreLib</AssemblyName>
     <AssemblyVersion>4.0.0.0</AssemblyVersion>
-    <VersionPrefix>4.6.0</VersionPrefix>
     <ExcludeAssemblyInfoPartialFile>true</ExcludeAssemblyInfoPartialFile>
   </PropertyGroup>
 
@@ -122,16 +117,17 @@
     <CommonPath>$(MSBuildThisFileDirectory)Common</CommonPath>
     <BclSourcesRoot>$(MSBuildThisFileDirectory)src</BclSourcesRoot>
   </PropertyGroup>
+
   <!-- Msbuild variables needed to get CoreCLR features to be set properly. -->
   <PropertyGroup>
     <!-- These are needed to make sure we have the right set of defines -->
     <TargetArch Condition="'$(Platform)'=='x86'">i386</TargetArch>
     <TargetArch Condition="'$(Platform)'!='x86'">$(Platform)</TargetArch>
   </PropertyGroup>
-  <!-- Experimental features -->
-  <PropertyGroup Condition="'$(FeatureUtf8String)' == 'true'">
-    <DefineConstants>$(DefineConstants);FEATURE_UTF8STRING</DefineConstants>
-  </PropertyGroup>
+
+  <!-- Compilation options -->
+  <Import Project="../../clr.featuredefines.props" />
+
   <!-- Sources -->
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\Internal\Console.cs" />
