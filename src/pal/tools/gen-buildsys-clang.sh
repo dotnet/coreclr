@@ -176,7 +176,6 @@ $cmake_command \
   "-DCMAKE_NM=$llvm_nm" \
   "-DCMAKE_OBJDUMP=$llvm_objdump" \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
-  "-DCMAKE_EXPORT_COMPILE_COMMANDS=1 " \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
   "-DCLR_CMAKE_COMPILER=Clang" \
   $cmake_extra_defines \

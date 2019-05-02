@@ -107,6 +107,7 @@ set __SkipNugetPackage=0
 set __PgoOptDataVersion=
 set __IbcOptDataVersion=
 set __IbcMergeVersion=
+set __ExportCompileCommands=
 
 @REM CMD has a nasty habit of eating "=" on the argument list, so passing:
 @REM    -priority=1
@@ -183,7 +184,7 @@ if /i "%1" == "-skiptests"           (set __BuildTests=0&set processedArgs=!proc
 if /i "%1" == "-skipbuildpackages"   (set __BuildPackages=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-skiprestoreoptdata"  (set __RestoreOptData=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-generatelayout"      (set __GenerateLayout=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "-usenmakemakefiles"   (set __NMakeMakefiles=1&set __ConfigureOnly=1&set __BuildNative=1&set __BuildNativeCoreLib=0&set __BuildCoreLib=0&set __BuildTests=0&set __BuildPackages=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-usenmakemakefiles"   (set __NMakeMakefiles=1&set __ConfigureOnly=1&set __BuildNative=1&set __BuildNativeCoreLib=0&set __BuildCoreLib=0&set __BuildTests=0&set __BuildPackages=0&set __ExportCompileCommands=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-pgoinstrument"       (set __PgoInstrument=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-enforcepgo"          (set __EnforcePgo=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-nopgooptimize"       (set __PgoOptimize=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -485,6 +486,10 @@ if %__BuildNative% EQU 1 (
         set ___SDKVersion="-DCMAKE_SYSTEM_VERSION=10.0"
     )
 
+    if defined __ExportCompileCommands (
+      set ___CMakeExportCompileCommandsArg="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
+    )
+
     echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
     call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
     @if defined _echo @echo on
@@ -500,7 +505,7 @@ if %__BuildNative% EQU 1 (
     echo %__MsgPrefix%Regenerating the Visual Studio solution
 
     pushd "%__IntermediatesDir%"
-    set __ExtraCmakeArgs=!___SDKVersion! "-DCLR_CMAKE_TARGET_OS=%__BuildOS%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%"
+    set __ExtraCmakeArgs=!___SDKVersion! "-DCLR_CMAKE_TARGET_OS=%__BuildOS%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%" !___CMakeExportCompileCommandsArg!
     call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
     @if defined _echo @echo on
     popd
