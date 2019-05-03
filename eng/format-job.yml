@@ -20,12 +20,14 @@ jobs:
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
     name: ${{ format('format_{0}_{1}', parameters.osIdentifier, parameters.archType) }}
     displayName: ${{ format('{0} {1} Formatting', parameters.osIdentifier, parameters.archType) }}
+    helixType: 'format'
     steps:
     - task: DotNetCoreInstaller@0
       inputs:
         packageType: 'sdk'
         version: '2.1.402'
     - task: PythonScript@0
+      displayName: Run tests/scripts/format.py
       inputs:
         scriptSource: 'filePath'
         scriptPath: $(Build.SourcesDirectory)/tests/scripts/format.py
