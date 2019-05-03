@@ -19,6 +19,7 @@
 #include "eventtracebase.h"
 #include "sampleprofiler.h"
 #include "win32threadpool.h"
+#include "ceemain.h"
 
 #ifdef FEATURE_PAL
 #include "pal.h"
@@ -33,9 +34,8 @@ EventPipeSession *EventPipe::s_pSession = NULL;
 EventPipeBufferManager *EventPipe::s_pBufferManager = NULL;
 EventPipeFile *EventPipe::s_pFile = NULL;
 EventPipeEventSource *EventPipe::s_pEventSource = NULL;
-LPCWSTR EventPipe::s_pCommandLine = NULL;
 HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
-ULONGLONG EventPipe::s_lastFlushSwitchTime = 0;
+ULONGLONG EventPipe::s_lastFlushTime = 0;
 
 #ifdef FEATURE_PAL
 // This function is auto-generated from /src/scripts/genEventPipe.py
@@ -223,12 +223,6 @@ void EventPipe::Shutdown()
     delete s_pEventSource;
     s_pEventSource = NULL;
 
-    // On Windows, this is just a pointer to the return value from
-    // GetCommandLineW(), so don't attempt to free it.
-#ifdef FEATURE_PAL
-    delete[] s_pCommandLine;
-    s_pCommandLine = NULL;
-#endif
 }
 
 EventPipeSessionID EventPipe::Enable(
@@ -347,6 +341,8 @@ void EventPipe::Disable(EventPipeSessionID id)
     }
     CONTRACTL_END;
 
+    SetupThread();
+
     // Only perform the disable operation if the session ID
     // matches the current active session.
     if (id != (EventPipeSessionID)s_pSession)
@@ -380,7 +376,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         SampleProfiler::Disable();
 
         // Log the process information event.
-        s_pEventSource->SendProcessInfo(s_pCommandLine);
+        s_pEventSource->SendProcessInfo(GetManagedCommandLine());
 
         // Log the runtime information event.
         ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Normal);
@@ -392,11 +388,12 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         s_pConfig->DeleteSession(s_pSession);
         s_pSession = NULL;
 
-        // Delete the file switch timer.
+        // Delete the flush timer.
         DeleteFlushTimerCallback();
 
-        // Flush all write buffers to make sure that all threads see the change.
-        FlushProcessWriteBuffers();
+        // Force all in-progress writes to either finish or cancel
+        // This is required to ensure we can safely flush and delete the buffers
+        s_pBufferManager->SuspendWriteEvent();
 
         // Write to the file.
         if (s_pFile != nullptr)
@@ -407,7 +404,10 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 
             if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
             {
-                // Before closing the file, do rundown.
+                // Before closing the file, do rundown. We have to re-enable event writing for this.
+
+                s_pBufferManager->ResumeWriteEvent();
+
                 const EventPipeProviderConfiguration RundownProviders[] = {
                     {W("Microsoft-Windows-DotNETRuntime"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL},       // Public provider.
                     {W("Microsoft-Windows-DotNETRuntimeRundown"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL} // Rundown provider.
@@ -431,6 +431,9 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
                 // Delete the rundown session.
                 s_pConfig->DeleteSession(s_pSession);
                 s_pSession = NULL;
+
+                // Suspend again after rundown session
+                s_pBufferManager->SuspendWriteEvent();
             }
 
             delete s_pFile;
@@ -443,6 +446,10 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         // Delete deferred providers.
         // Providers can't be deleted during tracing because they may be needed when serializing the file.
         s_pConfig->DeleteDeferredProviders();
+
+        // ALlow WriteEvent to begin accepting work again so that sometime in the future
+        // we can re-enable events and they will be recorded
+        s_pBufferManager->ResumeWriteEvent();
     }
 }
 
@@ -466,8 +473,8 @@ void EventPipe::CreateFlushTimerCallback()
 
     timerContextHolder->TimerId = 0;
 
-    // Initialize the last file switch time.
-    s_lastFlushSwitchTime = CLRGetTickCount64();
+    // Initialize the last flush time.
+    s_lastFlushTime = CLRGetTickCount64();
 
     bool success = false;
     _ASSERTE(s_fileSwitchTimerHandle == NULL);
@@ -533,11 +540,11 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
             if (s_pSession == nullptr || s_pFile == nullptr)
                 return;
 
-            // Make sure that we should actually switch files.
+            // Make sure that we should actually flush.
             if (!Enabled() || s_pSession->GetSessionType() != EventPipeSessionType::IpcStream)
                 return;
 
-            if (CLRGetTickCount64() > (s_lastFlushSwitchTime + 100))
+            if (CLRGetTickCount64() > (s_lastFlushTime + 100))
             {
                 // Get the current time stamp.
                 // WriteAllBuffersToFile will use this to ensure that no events after
@@ -546,7 +553,7 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
                 QueryPerformanceCounter(&stopTimeStamp);
                 s_pBufferManager->WriteAllBuffersToFile(s_pFile, stopTimeStamp);
 
-                s_lastFlushSwitchTime = CLRGetTickCount64();
+                s_lastFlushTime = CLRGetTickCount64();
             }
 
             if (s_pFile->HasErrors())
@@ -747,15 +754,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     }
     else if (s_pConfig->RundownEnabled())
     {
-        // It is possible that some events that are enabled on rundown can be emitted from other threads.
-        // We're not interested in these events and they can cause corrupted trace files because rundown
-        // events are written synchronously and not under lock.
-        // If we encounter an event that did not originate on the thread that is doing rundown, ignore it.
-        if (pThread == NULL || !s_pConfig->IsRundownThread(pThread))
-        {
-            return;
-        }
-
+        _ASSERTE(pThread != nullptr);
         BYTE *pData = payload.GetFlatData();
         if (pData != NULL)
         {
@@ -890,47 +889,6 @@ StackWalkAction EventPipe::StackWalkCallback(CrawlFrame *pCf, StackContents *pDa
     return SWA_CONTINUE;
 }
 
-void EventPipe::SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        PRECONDITION(pwzAssemblyPath != NULL);
-        PRECONDITION(argc <= 0 || argv != NULL);
-    }
-    CONTRACTL_END;
-
-    // Get the command line.
-    LPCWSTR osCommandLine = GetCommandLineW();
-
-#ifndef FEATURE_PAL
-    // On Windows, osCommandLine contains the executable and all arguments.
-    s_pCommandLine = osCommandLine;
-#else
-    // On UNIX, the PAL doesn't have the command line arguments, so we must build the command line.
-    // osCommandLine contains the full path to the executable.
-    SString commandLine(osCommandLine);
-    commandLine.Append((WCHAR)' ');
-    commandLine.Append(pwzAssemblyPath);
-
-    for (int i = 0; i < argc; i++)
-    {
-        commandLine.Append((WCHAR)' ');
-        commandLine.Append(argv[i]);
-    }
-
-    // Allocate a new string for the command line.
-    SIZE_T commandLineLen = commandLine.GetCount();
-    WCHAR *pCommandLine = new WCHAR[commandLineLen + 1];
-    wcsncpy(pCommandLine, commandLine.GetUnicode(), commandLineLen);
-    pCommandLine[commandLineLen] = '\0';
-
-    s_pCommandLine = pCommandLine;
-#endif
-}
-
 EventPipeEventInstance *EventPipe::GetNextEvent()
 {
     CONTRACTL
@@ -938,6 +896,7 @@ EventPipeEventInstance *EventPipe::GetNextEvent()
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        PRECONDITION(!GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -957,5 +916,18 @@ EventPipeEventInstance *EventPipe::GetNextEvent()
 {
     EventPipeProvider::InvokeCallback(eventPipeProviderCallbackData);
 }
+
+#ifdef DEBUG
+/* static */ bool EventPipe::IsLockOwnedByCurrentThread()
+{
+    return GetLock()->OwnedByCurrentThread();
+}
+
+/* static */ bool EventPipe::IsBufferManagerLockOwnedByCurrentThread()
+{
+    return s_pBufferManager->IsLockOwnedByCurrentThread();
+}
+#endif
+
 
 #endif // FEATURE_PERFTRACING
