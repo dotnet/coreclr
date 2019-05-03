@@ -109,7 +109,6 @@ FCFuncStart(gStringFuncs)
     FCFuncElement("IsFastSort", COMString::IsFastSort)
     FCIntrinsic("get_Length", COMString::Length, CORINFO_INTRINSIC_StringLength)
     FCIntrinsic("get_Chars", COMString::GetCharAt, CORINFO_INTRINSIC_StringGetChar)
-    FCFuncElement("IsAscii", COMString::IsAscii)
     FCFuncElement("SetTrailByte", COMString::FCSetTrailByte)
     FCFuncElement("TryGetTrailByte", COMString::FCTryGetTrailByte)
     FCFuncElement("IsInterned", AppDomainNative::IsStringInterned)
@@ -343,11 +342,6 @@ FCFuncStart(gRuntimeMethodHandle)
     QCFuncElement("Destroy", RuntimeMethodHandle::Destroy)
     FCFuncElement("GetResolver", RuntimeMethodHandle::GetResolver)
     FCFuncElement("GetLoaderAllocator", RuntimeMethodHandle::GetLoaderAllocator)
-FCFuncEnd()
-
-FCFuncStart(gCOMDefaultBinderFuncs)
-    FCFuncElement("CanConvertPrimitive", ReflectionBinder::DBCanConvertPrimitive)
-    FCFuncElement("CanConvertPrimitiveObjectToType",  ReflectionBinder::DBCanConvertObjectPrimitive)
 FCFuncEnd()
 
 
@@ -787,6 +781,8 @@ FCFuncStart(gGCInterfaceFuncs)
 
     FCFuncElement("_GetAllocatedBytesForCurrentThread", GCInterface::GetAllocatedBytesForCurrentThread)
 
+    FCFuncElement("AllocateNewArray", GCInterface::AllocateNewArray)
+
 #ifdef FEATURE_BASICFREEZE
     QCFuncElement("_RegisterFrozenSegment", GCInterface::RegisterFrozenSegment)
     QCFuncElement("_UnregisterFrozenSegment", GCInterface::UnregisterFrozenSegment)
@@ -1209,7 +1205,6 @@ FCClassElement("CustomAttributeEncodedArgument", "System.Reflection", gCustomAtt
 FCClassElement("DateMarshaler", "System.StubHelpers", gDateMarshalerFuncs)
 FCClassElement("DateTime", "System", gDateTimeFuncs)
 FCClassElement("Debugger", "System.Diagnostics", gDiagnosticsDebugger)
-FCClassElement("DefaultBinder", "System", gCOMDefaultBinderFuncs)
 FCClassElement("Delegate", "System", gDelegateFuncs)
 FCClassElement("DependentHandle", "System.Runtime.CompilerServices", gDependentHandleFuncs)
 FCClassElement("Enum", "System", gEnumFuncs)
