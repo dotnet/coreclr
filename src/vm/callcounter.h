@@ -90,10 +90,7 @@ public:
     CallCounter();
 #endif
 
-#ifndef DACCESS_COMPILE
-    static bool IsEligibleForCallCounting(MethodDesc* pMethodDesc);
-#endif
-
+    static bool IsEligibleForCallCounting(PTR_MethodDesc pMethodDesc);
     bool IsCallCountingEnabled(PTR_MethodDesc pMethodDesc);
 #ifndef DACCESS_COMPILE
     void DisableCallCounting(MethodDesc* pMethodDesc);

@@ -34,7 +34,9 @@ CallCounter::CallCounter()
     m_lock.Init(LOCK_TYPE_DEFAULT);
 }
 
-bool CallCounter::IsEligibleForCallCounting(MethodDesc* pMethodDesc)
+#endif // !DACCESS_COMPILE
+
+bool CallCounter::IsEligibleForCallCounting(PTR_MethodDesc pMethodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != NULL);
@@ -42,8 +44,6 @@ bool CallCounter::IsEligibleForCallCounting(MethodDesc* pMethodDesc)
 
     return g_pConfig->TieredCompilation_CallCounting() && !pMethodDesc->RequestedAggressiveOptimization();
 }
-
-#endif // !DACCESS_COMPILE
 
 bool CallCounter::IsCallCountingEnabled(PTR_MethodDesc pMethodDesc)
 {
