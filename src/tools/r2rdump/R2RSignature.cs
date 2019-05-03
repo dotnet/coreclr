@@ -85,7 +85,7 @@ namespace R2RDump
             }
             catch (Exception ex)
             {
-                return $"$$INVALID-{handle.Kind}-{MetadataTokens.GetRowNumber((EntityHandle)handle):X6}";
+                return $"$$INVALID-{handle.Kind}-{MetadataTokens.GetRowNumber((EntityHandle)handle):X6}: {ex.Message}";
             }
         }
 
