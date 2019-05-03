@@ -6510,6 +6510,10 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
         instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, compiler->gsGlobalSecurityCookieVal,
                                    compiler->lvaGSSecurityCookie, 0, initReg);
 #endif
+
+#ifndef _TARGET_X86_
+        *pInitRegZeroed = false;
+#endif
     }
     else
     {
