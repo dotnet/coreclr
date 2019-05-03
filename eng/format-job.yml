@@ -25,9 +25,6 @@ jobs:
       inputs:
         packageType: 'sdk'
         version: '2.1.402'
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '2.x'
     - task: PythonScript@0
       inputs:
         scriptSource: 'filePath'
