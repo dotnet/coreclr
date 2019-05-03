@@ -85,9 +85,10 @@ def main(argv):
         bootstrapFilename = "bootstrap.cmd"
 
     bootstrapUrl = "https://raw.githubusercontent.com/dotnet/jitutils/master/" + bootstrapFilename
-
     bootstrapPath = os.path.join(coreclr, bootstrapFilename)
-    urlretrieve(bootstrapUrl, bootstrapPath)
+
+    with urllib.request.urlopen(bootstrapUrl) as bootstrapDownload, open(bootstrapPath, 'wb') as outFile:
+        shutil.copyfileobj(bootstrapDownload, outFile)
 
     if not os.path.isfile(bootstrapPath):
         print("Did not download bootstrap!")
