@@ -9,10 +9,10 @@ set(DACTABLEGEN_SOURCES
     main.cs
     MapSymbolProvider.cs
 )
-
 # DacTableGen doesn't use the defines from the rest of the build tree, so clear all of the compile definitions
 set_directory_properties(PROPERTIES COMPILE_DEFINITIONS "")
 
+set(CMAKE_CSharp_FLAGS "/platform:anycpu32bitpreferred")
 add_executable(dactablegen ${DACTABLEGEN_SOURCES})
 
 set_target_properties(dactablegen PROPERTIES VS_DOTNET_REFERENCES "System")
