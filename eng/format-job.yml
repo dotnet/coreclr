@@ -38,4 +38,4 @@ jobs:
         PathtoPublish: '$(Build.SourcesDirectory)/format.patch'
         ArtifactName: $(osGroup).$(archType) format.patch
       continueOnError: true
-      condition: always()
+      condition: failed()

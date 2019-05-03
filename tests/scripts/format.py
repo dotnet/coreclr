@@ -167,6 +167,19 @@ def main(argv):
     proc = subprocess.Popen(["dotnet", "build-server", "shutdown"], env=my_env)
     output,error = proc.communicate()
 
+    dotnet = ""
+    if platform == 'Linux' or platform == 'OSX':
+        dotnet = "dotnet"
+    elif platform == 'Windows_NT':
+        dotnet = "dotnet.exe"
+
+    # shutdown all spurious dotnet processes using os shell
+    if platform == 'Linux' or platform == 'OSX':
+        subprocess.call(['killall', '-SIGTERM', '-qw', dotnet])
+    elif platform == 'Windows_NT':
+        utilpath = os.path.join(coreclr, 'tests\\scripts\\kill-all.cmd')
+        subprocess.call([utilpath, dotnet])
+
     if os.path.isdir(jitUtilsPath):
         print("Deleting " + jitUtilsPath)
         shutil.rmtree(jitUtilsPath, onerror=del_rw)
