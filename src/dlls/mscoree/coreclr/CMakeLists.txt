@@ -149,8 +149,9 @@ endif(FEATURE_EVENT_TRACE)
 target_link_libraries(coreclr ${CORECLR_LIBRARIES})
 
 if(WIN32)
-    if (NOT CMAKE_GENERATOR MATCHES "Microsoft Visual Studio")
-      add_custom_target(inject_debug_resources COMMAND UNABLE_TO_EMBED_DAC_ON_WINDOWS_NON_VS_GENERATOR)
+    if (NOT CMAKE_GENERATOR MATCHES "Visual Studio .*")
+      add_custom_target(inject_debug_resources ALL COMMAND UNABLE_TO_EMBED_DAC_ON_WINDOWS_NON_VS_GENERATOR)
+      add_dependencies(inject_debug_resources coreclr mscordaccore mscordbi)
     else()
       # Add dac table & debug resource to coreclr
       get_include_directories(INC_DIR)
