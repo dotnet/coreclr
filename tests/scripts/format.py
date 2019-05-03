@@ -20,6 +20,8 @@ import zipfile
 import subprocess
 import shutil
 
+print('Python Major Version: ' + str(sys.version_info.major))
+
 # Version specific imports
 
 if sys.version_info.major < 3:
@@ -87,8 +89,8 @@ def main(argv):
     bootstrapUrl = "https://raw.githubusercontent.com/dotnet/jitutils/master/" + bootstrapFilename
     bootstrapPath = os.path.join(coreclr, bootstrapFilename)
 
-    with urllib.request.urlopen(bootstrapUrl) as bootstrapDownload, open(bootstrapPath, 'wb') as outFile:
-        shutil.copyfileobj(bootstrapDownload, outFile)
+    with urlopen(bootstrapUrl) as bootstrapDownload, open(bootstrapPath, 'wb') as outFile:
+        copyfileobj(bootstrapDownload, outFile)
 
     if not os.path.isfile(bootstrapPath):
         print("Did not download bootstrap!")
