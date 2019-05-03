@@ -20,6 +20,7 @@
 
     <!-- Ensure a portable PDB is emitted for the project. A PDB is needed for crossgen. -->
     <DebugType>Portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
 
     <!-- Force System.Private.CoreLib.dll into a special IL output directory -->
     <OutputPath>$(BinDir)IL/</OutputPath>
@@ -47,15 +48,18 @@
     <NoStdLib>true</NoStdLib>
     <NoCompilerStandardLib>true</NoCompilerStandardLib>
     <SubsystemVersion>6.00</SubsystemVersion>
-    <UTF8OutPut>true</UTF8OutPut>
+    <Utf8Output>true</Utf8Output>
     <HighEntropyVA>true</HighEntropyVA>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Remove CS8608 once https://github.com/dotnet/roslyn/issues/23268 is resolved -->
     <NoWarn>649,1573,1591,0419,3021,CS8609</NoWarn>
-    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
-    <DefineConstants>$(DefineConstants);CORECLR;netcoreapp</DefineConstants>
+
+    <!-- Ignore all previous constants since SPCL is sensitive to what is defined and the Sdk adds some by default -->
+    <DefineConstants>CORECLR;netcoreapp</DefineConstants>
+    <DisableImplicitConfigurationDefines>true</DisableImplicitConfigurationDefines>
+
     <!-- We don't use any of MSBuild's resolution logic for resolving the framework, so just set these two properties to any folder that exists to skip
          the GenerateReferenceAssemblyPaths task (not target) and to prevent it from outputting a warning (MSB3644). -->
     <_TargetFrameworkDirectories>$(MSBuildThisFileDirectory)/Documentation</_TargetFrameworkDirectories>
@@ -85,14 +89,12 @@
 
   <!-- Configuration specific properties -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug' or '$(Configuration)' == 'Checked'">
-    <DebugSymbols>true</DebugSymbols>
     <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Debug'">false</Optimize>
     <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Checked'">true</Optimize>
     <DefineConstants>_LOGGING;DEBUG;$(DefineConstants)</DefineConstants>
     <DefineConstants Condition="'$(Platform)' == 'x86' or '$(Platform)' == 'x64'">CODE_ANALYSIS;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <DebugSymbols>true</DebugSymbols>
     <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
   </PropertyGroup>
 
@@ -101,12 +103,12 @@
     <AssemblyName>System.Private.CoreLib</AssemblyName>
     <AssemblyVersion>4.0.0.0</AssemblyVersion>
     <ExcludeAssemblyInfoPartialFile>true</ExcludeAssemblyInfoPartialFile>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
   <!-- Signing -->
   <PropertyGroup>
     <SignAssembly>true</SignAssembly>
-    <DelaySign>true</DelaySign>
     <StrongNameKeyId>SilverlightPlatform</StrongNameKeyId>
   </PropertyGroup>
 
