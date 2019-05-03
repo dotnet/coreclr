@@ -18,6 +18,8 @@ jobs:
     containerName: ${{ parameters.containerName }}
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+    name: ${{ format('format_{0}_{1}', parameters.osIdentifier, parameters.archType) }}
+    displayName: ${{ format('{0} {1} Formatting', parameters.osIdentifier, parameters.archType) }}
     steps:
     - task: DotNetCoreInstaller@0
       inputs:
