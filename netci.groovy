@@ -862,7 +862,7 @@ def static isValidPrTriggeredInnerLoopJob(os, architecture, configuration, isBui
 // This means the job builds and runs the 'innerloop' test set. This does not mean the job is 
 // scheduled with a default PR trigger despite the correlation being true at the moment.
 def static isInnerloopTestScenario(def scenario) {
-    return (scenario == 'innerloop' || scenario == 'no_tiered_compilation_innerloop')
+    return (scenario == 'innerloop' || scenario == 'no_tiered_compilation_innerloop' || scenario == 'corefx_innerloop')
 }
 
 def static isCrossGenComparisonScenario(def scenario) {
@@ -2577,7 +2577,6 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
     // Innerloop jobs (except corefx_innerloop) are no longer created in Jenkins
     // The only exception is windows arm(64)
     if (isInnerloopTestScenario(scenario) && isPR && !windowsArmJob) {
-        assert scenario != 'corefx_innerloop'
         return false;
     }
 
