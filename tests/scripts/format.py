@@ -19,14 +19,10 @@ import tarfile
 import zipfile
 import subprocess
 import shutil
-
-print('Python Major Version: ' + str(sys.version_info.major))
-
+import urllib
 # Version specific imports
 
-if sys.version_info.major < 3:
-    import urllib
-else:
+if sys.version_info.major >= 3:
     import urllib.request
 
 def expandPath(path):
