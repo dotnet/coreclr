@@ -296,6 +296,14 @@ jobs:
         testGroup: outerloop
         readyToRun: true
 
+# Format
+- template: eng/platform-matrix.yml
+  parameters:
+    jobTemplate: format-job.yml
+    platforms:
+    - Windows_NT_x64
+    - Linux_x64
+
 
 # Publish build information to Build Assets Registry
 
