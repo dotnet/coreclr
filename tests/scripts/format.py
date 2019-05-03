@@ -19,11 +19,12 @@ import tarfile
 import zipfile
 import subprocess
 import shutil
-import urllib
 # Version specific imports
 
-if sys.version_info.major >= 3:
-    import urllib.request
+if sys.version_info.major < 3:
+    from urllib import urlopen
+else:
+    from urllib.request import urlopen
 
 def expandPath(path):
     return os.path.abspath(os.path.expanduser(path))
@@ -86,7 +87,7 @@ def main(argv):
     bootstrapPath = os.path.join(coreclr, bootstrapFilename)
 
     with urlopen(bootstrapUrl) as bootstrapDownload, open(bootstrapPath, 'wb') as outFile:
-        copyfileobj(bootstrapDownload, outFile)
+        shutil.copyfileobj(bootstrapDownload, outFile)
 
     if not os.path.isfile(bootstrapPath):
         print("Did not download bootstrap!")
