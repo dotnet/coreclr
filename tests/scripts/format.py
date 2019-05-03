@@ -19,12 +19,13 @@ import tarfile
 import zipfile
 import subprocess
 import shutil
+
 # Version specific imports
 
 if sys.version_info.major < 3:
-    from urllib import urlopen
+    from urllib import urlretrieve
 else:
-    from urllib.request import urlopen
+    from urllib.request import urlretrieve
 
 def expandPath(path):
     return os.path.abspath(os.path.expanduser(path))
@@ -84,10 +85,9 @@ def main(argv):
         bootstrapFilename = "bootstrap.cmd"
 
     bootstrapUrl = "https://raw.githubusercontent.com/dotnet/jitutils/master/" + bootstrapFilename
-    bootstrapPath = os.path.join(coreclr, bootstrapFilename)
 
-    with urlopen(bootstrapUrl) as bootstrapDownload, open(bootstrapPath, 'wb') as outFile:
-        shutil.copyfileobj(bootstrapDownload, outFile)
+    bootstrapPath = os.path.join(coreclr, bootstrapFilename)
+    urlretrieve(bootstrapUrl, bootstrapPath)
 
     if not os.path.isfile(bootstrapPath):
         print("Did not download bootstrap!")
