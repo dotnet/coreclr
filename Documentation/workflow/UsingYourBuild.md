@@ -64,10 +64,23 @@ needed.
 dotnet publish
 ```
 
-**Note:** If publish fails to restore runtime packages you need to configure custom NuGet feed. To do so you have to:
+**Note:** If publish fails to restore runtime packages you need to configure custom NuGet feeds. This is because you are using a dogfood .NET Core SDK: its dependencies are not yet on the regular NuGet feed. To do so you have to:
 
 1. run `dotnet new nugetconfig`
-2. go to the `NuGet.Config` file and add `<add key="dotnet-core" value="https://dotnet.myget.org/F/dotnet-core/api/v3/index.json" />`
+2. go to the `NuGet.Config` file and replace the content with:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+ <packageSources>
+    <!--To inherit the global NuGet package sources remove the <clear/> line below -->
+    <clear />
+    <add key="nuget" value="https://api.nuget.org/v3/index.json" />
+    <add key="dotnetcore-feed" value="https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json" />
+    <add key="aspnetcore" value="https://dotnetfeed.blob.core.windows.net/aspnet-aspnetcore/index.json" />
+ </packageSources>
+</configuration>
+```
 
 After you publish you will find you all the binaries needed to run your application under `bin\Debug\netcoreapp3.0\win-x64\publish\`.
 
