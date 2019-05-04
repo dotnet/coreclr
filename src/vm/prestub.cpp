@@ -819,6 +819,7 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
                 &methodName,
                 &methodSignature,
                 pCode,
+                pConfig->GetCodeVersion().GetILCodeVersionId(),
                 pConfig->GetCodeVersion().GetVersionId(),
                 pConfig->ProfilerRejectedPrecompiledCode(),
                 pConfig->ReadyToRunRejectedPrecompiledCode());
