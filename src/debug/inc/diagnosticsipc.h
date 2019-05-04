@@ -37,28 +37,10 @@ namespace DiagnosticsIpc
         uint16_t Reserved;   // reserved for future use
     };
 
-    // Abstract class for all Payload types to implement.
-    // This allows payload classes to be not-flat for convenience,
-    // while making it simple to be consumed in a flat manner when writing.
-    class IpcPackable
-    {
-    public:
-        // Flatten  class into given buffer at cursor
-        virtual bool Flatten(BYTE *lpBufferCursor) = 0;
+    // The Following structs are template, meta-programming to enable
+    // users of the IpcMessage class to get free serialization for fixed-size structures.
 
-        // Calculate size of thing
-        virtual const uint16_t GetSize() = 0;
-    };
-
-    class NullIpcPayload : public IpcPackable
-    {
-    public:
-        bool Flatten(BYTE *lpBufferCursor) override {};
-        const uint16_t GetSize() override { return 0; };
-    };
-
-    static NullIpcPayload EmptyPayload;
-
+    // recreates the functionality of the same named helper in std::type_traits
     template <bool B, class T = void>
     using enable_if_t = typename std::enable_if<B, T>::type;
 
@@ -86,18 +68,25 @@ namespace DiagnosticsIpc
         static constexpr bool value = sizeof(test<T>(int())) == sizeof(yes);
     };
 
+    // Encodes the messages sent and received by the Diagnostics Server.
+    //
+    // Payloads that are fixed-size structs don't require any custom functionality.
+    //
+    // Payloads that are NOT fixed-size simply need to implement the following methods:
+    //  * uint16_t GetSize()           -> should return the flattened size of the payload
+    //  * bool Flatten(BYTE *lpBuffer) -> Should serialize and write the payload to the provided buffer
     template <class T>
     class IpcMessage
     {
     public:
-        // Create an IpcMessage from a header and a payload
+        // Create an outgoing IpcMessage from a header and a payload
         IpcMessage(struct IpcHeader header, const T &payload)
             : m_Header(header), m_Payload(payload)
         {
             Flatten(); // TODO: Error checking
         };
 
-        // Create an IpcMessage from an incoming buffer
+        // Create an incoming IpcMessage from an incoming buffer
         // TODO: deal with ownership of pointer here? Don't want to needlesly copy data...
         IpcMessage(BYTE *lpBuffer)
             : m_pData(lpBuffer)
