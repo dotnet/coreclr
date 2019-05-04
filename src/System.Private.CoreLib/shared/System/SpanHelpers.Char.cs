@@ -189,8 +189,7 @@ namespace System
                     {
                         // Using Unsafe.Read instead of ReadUnaligned since the search space is pinned and pCh is always vector aligned
                         Debug.Assert(((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) == 0);
-                        Vector<ushort> vMatches = Vector.Equals(vComparison, Unsafe.Read<Vector<ushort>>(pCh));
-                        if (Vector<ushort>.Zero.Equals(vMatches))
+                        if (!Vector.EqualsAny(vComparison, Unsafe.Read<Vector<ushort>>(pCh)))
                         {
                             pCh += Vector<ushort>.Count;
                             length -= Vector<ushort>.Count;

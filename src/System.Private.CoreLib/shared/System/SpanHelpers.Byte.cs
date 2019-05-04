@@ -111,9 +111,20 @@ namespace System
             IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr lengthToExamine = (IntPtr)length;
 
-            if (Vector.IsHardwareAccelerated && length >= Vector<byte>.Count * 2)
+            if (Avx2.IsSupported || Sse2.IsSupported)
             {
-                lengthToExamine = UnalignedCountVector(ref searchSpace);
+                // Avx2 branch also operates on Sse2 sizes, so check is combined.
+                if (length >= Vector128<byte>.Count * 2)
+                {
+                    lengthToExamine = UnalignedCountVector128(ref searchSpace);
+                }
+            }
+            else if (Vector.IsHardwareAccelerated)
+            {
+                if (length >= Vector<byte>.Count * 2)
+                {
+                    lengthToExamine = UnalignedCountVector(ref searchSpace);
+                }
             }
 
         SequentialScan:
@@ -161,28 +172,135 @@ namespace System
                 offset += 1;
             }
 
-            if (Vector.IsHardwareAccelerated && ((int)(byte*)offset < length))
+            // We get past SequentialScan only if IsHardwareAccelerated or intrinsic .IsSupported is true; and remain length is greater than Vector length.
+            // However, we still have the redundant check to allow the JIT to see that the code is unreachable and eliminate it when the platform does not
+            // have hardware accelerated. After processing Vector lengths we return to SequentialScan to finish any remaining.
+            if (Avx2.IsSupported)
             {
-                lengthToExamine = (IntPtr)((length - (int)(byte*)offset) & ~(Vector<byte>.Count - 1));
-
-                Vector<byte> values = new Vector<byte>(value);
-
-                while ((byte*)lengthToExamine > (byte*)offset)
-                {
-                    var matches = Vector.Equals(values, LoadVector(ref searchSpace, offset));
-                    if (Vector<byte>.Zero.Equals(matches))
-                    {
-                        offset += Vector<byte>.Count;
-                        continue;
-                    }
-
-                    goto Found;
-                }
-
                 if ((int)(byte*)offset < length)
                 {
-                    lengthToExamine = (IntPtr)(length - (int)(byte*)offset);
-                    goto SequentialScan;
+                    if ((((nuint)Unsafe.AsPointer(ref searchSpace) + (nuint)offset) & (nuint)(Vector256<byte>.Count - 1)) != 0)
+                    {
+                        // Not currently aligned to Vector256 (is aligned to Vector128); this can cause a problem for searches
+                        // with no upper bound e.g. String.strlen.
+                        // Start with a check on Vector128 to align to Vector256, before moving to processing Vector256.
+                        // This ensures we do not fault across memory pages while searching for an end of string.
+                        Vector128<byte> values = Vector128.Create(value);
+                        Vector128<byte> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as below
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search));
+                        if (matches == 0)
+                        {
+                            // Zero flags set so no matches
+                            offset += Vector128<byte>.Count;
+                        }
+                        else
+                        {
+                            return true;
+                        }
+                    }
+
+                    lengthToExamine = GetByteVector256SpanLength(offset, length);
+                    if ((byte*)lengthToExamine > (byte*)offset)
+                    {
+                        Vector256<byte> values = Vector256.Create(value);
+                        do
+                        {
+                            Vector256<byte> search = LoadVector256(ref searchSpace, offset);
+                            int matches = Avx2.MoveMask(Avx2.CompareEqual(values, search));
+
+                            if (matches == 0)
+                            {
+                                // Zero flags set so no matches
+                                offset += Vector256<byte>.Count;
+                                continue;
+                            }
+
+                            return true;
+                        } while ((byte*)lengthToExamine > (byte*)offset);
+                    }
+
+                    lengthToExamine = GetByteVector128SpanLength(offset, length);
+                    if ((byte*)lengthToExamine > (byte*)offset)
+                    {
+                        Vector128<byte> values = Vector128.Create(value);
+                        Vector128<byte> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as above
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search));
+                        if (matches == 0)
+                        {
+                            // Zero flags set so no matches
+                            offset += Vector128<byte>.Count;
+                        }
+                        else
+                        {
+                            return true;
+                        }
+                    }
+
+                    if ((int)(byte*)offset < length)
+                    {
+                        lengthToExamine = (IntPtr)(length - (int)(byte*)offset);
+                        goto SequentialScan;
+                    }
+                }
+            }
+            else if (Sse2.IsSupported)
+            {
+                if ((int)(byte*)offset < length)
+                {
+                    lengthToExamine = GetByteVector128SpanLength(offset, length);
+
+                    Vector128<byte> values = Vector128.Create(value);
+                    while ((byte*)lengthToExamine > (byte*)offset)
+                    {
+                        Vector128<byte> search = LoadVector128(ref searchSpace, offset);
+
+                        // Same method as above
+                        int matches = Sse2.MoveMask(Sse2.CompareEqual(values, search));
+                        if (matches == 0)
+                        {
+                            // Zero flags set so no matches
+                            offset += Vector128<byte>.Count;
+                            continue;
+                        }
+
+                        return true;
+                    }
+
+                    if ((int)(byte*)offset < length)
+                    {
+                        lengthToExamine = (IntPtr)(length - (int)(byte*)offset);
+                        goto SequentialScan;
+                    }
+                }
+            }
+            else if (Vector.IsHardwareAccelerated)
+            {
+                if ((int)(byte*)offset < length)
+                {
+                    lengthToExamine = GetByteVectorSpanLength(offset, length);
+
+                    Vector<byte> values = new Vector<byte>(value);
+
+                    while ((byte*)lengthToExamine > (byte*)offset)
+                    {
+                        if (Vector.EqualsAny(values, LoadVector(ref searchSpace, offset)))
+                        {
+                            offset += Vector<byte>.Count;
+                            continue;
+                        }
+
+                        return true;
+                    }
+
+                    if ((int)(byte*)offset < length)
+                    {
+                        lengthToExamine = (IntPtr)(length - (int)(byte*)offset);
+                        goto SequentialScan;
+                    }
                 }
             }
 
