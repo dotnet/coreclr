@@ -1049,7 +1049,7 @@ void DisplayStackOverflowException()
     LIMITED_METHOD_CONTRACT;
     PrintToStdErrA("\n");
 
-    PrintToStdErrA("Process is terminating due to StackOverflowException.\n");
+    PrintToStdErrA("Process is terminating due to a StackOverflowException.\n");
 }
 
 void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pExceptionInfo, BOOL fSkipDebugger)
