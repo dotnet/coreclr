@@ -1482,45 +1482,45 @@ namespace System
             }
         }
 
-        public static void Sort<T>(T[] array)
+        public static void Sort<T>(Span<T> array)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Sort<T>(array!, 0, array!.Length, null); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
         }
 
-        public static void Sort<TKey, TValue>(TKey[] keys, TValue[]? items)
+        public static void Sort<TKey, TValue>(Span<TKey> keys, Span<TValue> items)
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
             Sort<TKey, TValue>(keys!, items, 0, keys!.Length, null); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
         }
 
-        public static void Sort<T>(T[] array, int index, int length)
+        public static void Sort<T>(Span<T> array, int index, int length)
         {
             Sort<T>(array, index, length, null);
         }
 
-        public static void Sort<TKey, TValue>(TKey[] keys, TValue[]? items, int index, int length)
+        public static void Sort<TKey, TValue>(Span<TKey> keys, Span<TValue> items, int index, int length)
         {
             Sort<TKey, TValue>(keys, items, index, length, null);
         }
 
-        public static void Sort<T>(T[] array, System.Collections.Generic.IComparer<T>? comparer)
+        public static void Sort<T>(Span<T> array, System.Collections.Generic.IComparer<T>? comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Sort<T>(array!, 0, array!.Length, comparer); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
         }
 
-        public static void Sort<TKey, TValue>(TKey[] keys, TValue[]? items, System.Collections.Generic.IComparer<TKey>? comparer)
+        public static void Sort<TKey, TValue>(Span<TKey> keys, Span<TValue> items, System.Collections.Generic.IComparer<TKey>? comparer)
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
             Sort<TKey, TValue>(keys!, items, 0, keys!.Length, comparer); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
         }
 
-        public static void Sort<T>(T[] array, int index, int length, System.Collections.Generic.IComparer<T>? comparer)
+        public static void Sort<T>(Span<T> array, int index, int length, System.Collections.Generic.IComparer<T>? comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -1547,7 +1547,7 @@ namespace System
             }
         }
 
-        public static void Sort<TKey, TValue>(TKey[] keys, TValue[]? items, int index, int length, System.Collections.Generic.IComparer<TKey>? comparer)
+        public static void Sort<TKey, TValue>(Span<TKey> keys, Span<TValue> items, int index, int length, System.Collections.Generic.IComparer<TKey>? comparer)
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
@@ -1580,7 +1580,7 @@ namespace System
             }
         }
 
-        public static void Sort<T>(T[] array, Comparison<T> comparison)
+        public static void Sort<T>(Span<T> array, Comparison<T> comparison)
         {
             if (array == null)
             {
