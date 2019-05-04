@@ -41,6 +41,9 @@ int LinearScan::BuildLclHeap(GenTree* tree)
     //   >4 ptr words               Yes             1
     //   Non-const                  Yes             1
     //   Non-const                  No              1
+    //
+    // If the outgoing argument space is too large to encode in an "add/sub sp, icon"
+    // instruction, we also need a temp (which can be shared).
 
     GenTree* size = tree->gtGetOp1();
     int      internalIntCount;
@@ -88,6 +91,11 @@ int LinearScan::BuildLclHeap(GenTree* tree)
         srcCount         = 1;
         internalIntCount = 1;
         BuildUse(size);
+    }
+
+    if (!compiler->codeGen->validImmForInstr(INS_add, compiler->lvaOutgoingArgSpaceSize, INS_FLAGS_DONT_CARE))
+    {
+        internalIntCount = 1;
     }
 
     // If we are needed in temporary registers we should be sure that

@@ -317,6 +317,11 @@ protected:
 
 #if defined(_TARGET_ARM_)
 
+    bool genInstrWithConstant(
+        instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, ssize_t imm, insFlags flags, regNumber tmpReg);
+
+    bool genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg);
+
     void genPushFltRegs(regMaskTP regMask);
     void genPopFltRegs(regMaskTP regMask);
     regMaskTP genStackAllocRegisterMask(unsigned frameSize, regMaskTP maskCalleeSavedFloat);

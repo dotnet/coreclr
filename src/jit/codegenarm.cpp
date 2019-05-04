@@ -22,6 +22,96 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "emit.h"
 
 //------------------------------------------------------------------------
+// genInstrWithConstant: We will typically generate one instruction
+//
+//    ins  reg1, reg2, imm
+//
+// However the imm might not fit as a directly encodable immediate.
+// When it doesn't fit we generate extra instruction(s) that sets up
+// the 'regTmp' with the proper immediate value.
+//
+//     mov  regTmp, imm
+//     ins  reg1, reg2, regTmp
+//
+// Generally, codegen constants are marked non-containable if they don't fit. This function
+// is used for cases that aren't mirrored in the IR, such as in the prolog.
+//
+// Arguments:
+//    ins                 - instruction
+//    attr                - operation size and GC attribute
+//    reg1, reg2          - first and second register operands
+//    imm                 - immediate value (third operand when it fits)
+//    flags               - whether flags are set
+//    tmpReg              - temp register to use when the 'imm' doesn't fit. Can be REG_NA
+//                          if caller knows for certain the constant will fit.
+//
+// Return Value:
+//    returns true if the immediate was too large and tmpReg was used and modified.
+//
+bool CodeGen::genInstrWithConstant(
+    instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, ssize_t imm, insFlags flags, regNumber tmpReg)
+{
+    bool immFitsInIns = false;
+
+    // reg1 is usually a dest register
+    // reg2 is always source register
+    assert(tmpReg != reg2); // regTmp cannot match any source register
+
+    switch (ins)
+    {
+        case INS_add:
+        case INS_sub:
+            immFitsInIns = validImmForInstr(ins, imm, flags);
+            break;
+
+        default:
+            assert(!"Unexpected instruction in genInstrWithConstant");
+            break;
+    }
+
+    if (immFitsInIns)
+    {
+        // generate a single instruction that encodes the immediate directly
+        getEmitter()->emitIns_R_R_I(ins, attr, reg1, reg2, imm);
+    }
+    else
+    {
+        // caller can specify REG_NA  for tmpReg, when it "knows" that the immediate will always fit
+        assert(tmpReg != REG_NA);
+
+        // generate two or more instructions
+
+        // first we load the immediate into tmpReg
+        instGen_Set_Reg_To_Imm(attr, tmpReg, imm);
+
+        // generate the instruction using a three register encoding with the immediate in tmpReg
+        getEmitter()->emitIns_R_R_R(ins, attr, reg1, reg2, tmpReg);
+    }
+    return immFitsInIns;
+}
+
+//------------------------------------------------------------------------
+// genStackPointerAdjustment: add a specified constant value to the stack pointer.
+// An available temporary register is required to be specified, in case the constant
+// is too large to encode in an "add" instruction (or "sub" instruction if we choose
+// to use one), such that we need to load the constant into a register first, before using it.
+//
+// Arguments:
+//    spDelta                 - the value to add to SP (can be negative)
+//    tmpReg                  - an available temporary register
+//
+// Return Value:
+//    true if `tmpReg` was used.
+//
+bool CodeGen::genStackPointerAdjustment(ssize_t spDelta, regNumber tmpReg)
+{
+    // Even though INS_add is specified here, the encoder will choose either
+    // an INS_add or an INS_sub and encode the immediate as a positive value
+    //
+    return genInstrWithConstant(INS_add, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, spDelta, INS_FLAGS_DONT_CARE, tmpReg);
+}
+
+//------------------------------------------------------------------------
 // genCallFinally: Generate a call to the finally block.
 //
 BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
@@ -304,15 +394,25 @@ void CodeGen::genLclHeap(GenTree* tree)
         inst_JMP(EJ_eq, endLabel);
     }
 
+    // Setup the regTmp, if there is one.
+    regNumber regTmp = REG_NA;
+    if (tree->AvailableTempRegCount() > 0)
+    {
+        regTmp = tree->ExtractTempReg();
+    }
+
     stackAdjustment = 0;
 
     // If we have an outgoing arg area then we must adjust the SP by popping off the
     // outgoing arg area. We will restore it right before we return from this method.
     if (compiler->lvaOutgoingArgSpaceSize > 0)
     {
-        assert((compiler->lvaOutgoingArgSpaceSize % STACK_ALIGN) == 0); // This must be true for the stack to remain
-                                                                        // aligned
-        inst_RV_IV(INS_add, REG_SPBASE, compiler->lvaOutgoingArgSpaceSize, EA_PTRSIZE);
+        // This must be true for the stack to remain aligned
+        assert((compiler->lvaOutgoingArgSpaceSize % STACK_ALIGN) == 0);
+
+        // We're guaranteed (by LinearScan::BuildLclHeap()) to have a legal regTmp if we need one.
+        genStackPointerAdjustment(compiler->lvaOutgoingArgSpaceSize, regTmp);
+
         stackAdjustment += compiler->lvaOutgoingArgSpaceSize;
     }
 
@@ -367,7 +467,6 @@ void CodeGen::genLclHeap(GenTree* tree)
         // Since we have to zero out the allocated memory AND ensure that the stack pointer is always valid
         // by tickling the pages, we will just push 0's on the stack.
 
-        regNumber regTmp = tree->ExtractTempReg();
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, regTmp);
 
         // Loop:
@@ -417,9 +516,6 @@ void CodeGen::genLclHeap(GenTree* tree)
         //       mov   SP, regCnt
         //
 
-        // Setup the regTmp
-        regNumber regTmp = tree->ExtractTempReg();
-
         BasicBlock* loop = genCreateTempLabel();
         BasicBlock* done = genCreateTempLabel();
 
@@ -461,7 +557,7 @@ ALLOC_DONE:
     {
         assert((stackAdjustment % STACK_ALIGN) == 0); // This must be true for the stack to remain aligned
         assert(stackAdjustment > 0);
-        getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, (int)stackAdjustment);
+        genStackPointerAdjustment(-(int)stackAdjustment, regTmp);
 
         // Return the stackalloc'ed address in result register.
         // regCnt = RSP + stackAdjustment.
