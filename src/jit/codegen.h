@@ -1216,11 +1216,14 @@ protected:
 
     void genReturn(GenTree* treeNode);
 
+    void genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta ARM_ARG(regNumber regTmp)
+                                                        X86_ARG(bool hideSpChangeFromEmitter)
+                                                            X86_ARG(regNumber regTmp));
+    void genStackPointerConstantAdjustmentLoopWithProbe(ssize_t spDelta ARM_ARG(regNumber regTmp)
+                                                            X86_ARG(bool hideSpChangeFromEmitter)
+                                                                X86_ARG(regNumber regTmp));
+
 #if defined(_TARGET_XARCH_)
-    void genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta, bool hideSpChangeFromEmitter, regNumber regTmp);
-    void genStackPointerConstantAdjustmentLoopWithProbe(ssize_t   spDelta,
-                                                        bool      hideSpChangeFromEmitter,
-                                                        regNumber regTmp);
     void genStackPointerDynamicAdjustmentWithProbe(regNumber regSpDelta, regNumber regTmp);
 #endif // defined(_TARGET_XARCH_)
 

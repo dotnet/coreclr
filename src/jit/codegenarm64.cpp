@@ -2304,7 +2304,7 @@ ALLOC_DONE:
     {
         assert((stackAdjustment % STACK_ALIGN) == 0); // This must be true for the stack to remain aligned
         assert(stackAdjustment > 0);
-        genInstrWithConstant(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, (ssize_t)stackAdjustment, rsGetRsvdReg());
+        genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)stackAdjustment);
 
         // Return the stackalloc'ed address in result register.
         // TargetReg = SP + stackAdjustment.

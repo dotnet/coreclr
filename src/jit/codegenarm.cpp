@@ -552,16 +552,17 @@ void CodeGen::genLclHeap(GenTree* tree)
     }
 
 ALLOC_DONE:
-    // Re-adjust SP to allocate out-going arg area
+    // Re-adjust SP to allocate out-going arg area. We must probe this adjustment.
     if (stackAdjustment != 0)
     {
         assert((stackAdjustment % STACK_ALIGN) == 0); // This must be true for the stack to remain aligned
         assert(stackAdjustment > 0);
-        genStackPointerAdjustment(-(int)stackAdjustment, regTmp);
+        genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)stackAdjustment, regTmp);
 
         // Return the stackalloc'ed address in result register.
-        // regCnt = RSP + stackAdjustment.
-        getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, regCnt, REG_SPBASE, (int)stackAdjustment);
+        // regCnt = SP + stackAdjustment.
+        genInstrWithConstant(INS_add, EA_PTRSIZE, regCnt, REG_SPBASE, (ssize_t)stackAdjustment, INS_FLAGS_DONT_CARE,
+                             regTmp);
     }
     else // stackAdjustment == 0
     {
