@@ -804,8 +804,8 @@ inline void LogCallstackForLogWorker()
 // Arguments:
 //    exitCode - code of the fatal error
 //    pszMessage - error message (can be NULL)
-//    errorSource - details on the source of the error
-//    argExceptionString - exception details
+//    errorSource - details on the source of the error (can be NULL)
+//    argExceptionString - exception details (can be NULL)
 //
 // Return Value:
 //    None
@@ -817,9 +817,14 @@ void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource
     Thread *pThread = GetThread();
     EX_TRY
     {
-        if ((exitCode == (UINT)COR_E_FAILFAST) && (errorSource == NULL))
+        PrintToStdErrA("Terminating process due to a ");
+        if (exitCode == (UINT)COR_E_FAILFAST)
         {
-            PrintToStdErrA("FailFast:\n");
+            PrintToStdErrA("FailFast.\n");
+        }
+        else
+        {
+            PrintToStdErrA("fatal error.\n");
         }
 
         if (errorSource != NULL)
