@@ -10,14 +10,24 @@
 
 #ifdef FEATURE_PERFTRACING
 
-void ReleaseEventPipeThreadRef(EventPipeThread* pThread) { LIMITED_METHOD_CONTRACT; pThread->Release(); }
-void AcquireEventPipeThreadRef(EventPipeThread* pThread) { LIMITED_METHOD_CONTRACT; pThread->AddRef(); } 
+void ReleaseEventPipeThreadRef(EventPipeThread *pThread)
+{
+    LIMITED_METHOD_CONTRACT;
+    pThread->Release();
+}
+
+void AcquireEventPipeThreadRef(EventPipeThread *pThread)
+{
+    LIMITED_METHOD_CONTRACT;
+    pThread->AddRef();
+}
 
 #ifndef __GNUC__
-__declspec(thread) EventPipeThreadHolder EventPipeThread::gCurrentEventPipeThreadHolder;;
+__declspec(thread)
 #else // !__GNUC__
-thread_local EventPipeThreadHolder EventPipeThread::gCurrentEventPipeThreadHolder;
+thread_local
 #endif // !__GNUC__
+EventPipeThreadHolder EventPipeThread::gCurrentEventPipeThreadHolder;
 
 EventPipeThread::EventPipeThread()
 {
@@ -61,6 +71,8 @@ void EventPipeThread::Release()
     LIMITED_METHOD_CONTRACT;
     if (FastInterlockDecrement(&m_refCount) == 0)
     {
+        // https://isocpp.org/wiki/faq/freestore-mgmt#delete-this
+        // As long as you're careful, it's okay (not evil) for an object to commit suicide (delete this).
         delete this;
     }
 }
@@ -85,6 +97,7 @@ void EventPipeThread::SetWriteBuffer(EventPipeBuffer* pNewBuffer)
     _ASSERTE(m_lock.OwnedByCurrentThread());
     _ASSERTE(m_pWriteBuffer == nullptr || m_pWriteBuffer->GetVolatileState() == EventPipeBufferState::WRITABLE);
     _ASSERTE(pNewBuffer == nullptr || pNewBuffer->GetVolatileState() == EventPipeBufferState::WRITABLE);
+
     if (m_pWriteBuffer)
     {
         m_pWriteBuffer->ConvertToReadOnly();
@@ -415,7 +428,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
                     // SuspendWriteEvent() is spinning waiting for this buffer to be relinquished.
                     pBuffer->ConvertToReadOnly();
 
-                    // We treat this as the WriteEvent() call occurring after this session stopped listening for events, effectively the 
+                    // We treat this as the WriteEvent() call occurring after this session stopped listening for events, effectively the
                     // same as if event.IsEnabled() returned false.
                     return false;
                 }
@@ -446,7 +459,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     return !allocNewBuffer;
 }
 
-void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
+void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, EventPipeConfiguration &configuration, LARGE_INTEGER stopTimeStamp)
 {
     CONTRACTL
     {
@@ -516,7 +529,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
                     pOldestContainingBuffer = pContainingBuffer;
                     pOldestContainingList = pBufferList;
                 }
-            }            
+            }
         }
 
         if(pOldestInstance == NULL)
@@ -526,7 +539,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
         }
 
         // Write the oldest event.
-        pFile->WriteEvent(*pOldestInstance);
+        pFile->WriteEvent(*pOldestInstance, configuration);
 
         m_numEventsWritten++;
 
@@ -586,15 +599,15 @@ EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
 
         // Peek the next event out of the buffer.
         EventPipeBuffer *pContainingBuffer = pBuffer;
-        
+
         // PERF: This may be too aggressive? If this method is being called frequently enough to keep pace with the
         // writing threads we could be in a state of high lock contention and lots of churning buffers. Each writer
         // would take several locks, allocate a new buffer, write one event into it, then the reader would take the
         // lock, convert the buffer to read-only and read the single event out of it. Allowing more events to accumulate
-        // in the buffers before converting between writable and read-only amortizes a lot of the overhead. One way 
+        // in the buffers before converting between writable and read-only amortizes a lot of the overhead. One way
         // to achieve that would be picking a stopTimeStamp that was Xms in the past. This would let Xms of events
         // to accumulate in the write buffer before we converted it and forced the writer to allocate another. Other more
-        // sophisticated approaches would probably build a low overhead synchronization mechanism to read and write the 
+        // sophisticated approaches would probably build a low overhead synchronization mechanism to read and write the
         // buffer at the same time.
         EventPipeEventInstance *pNext = pBuffer->PeekNext(stopTimeStamp);
         if (pNext != NULL)
@@ -607,7 +620,7 @@ EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
                 pOldestContainingBuffer = pContainingBuffer;
                 pOldestContainingList = pBufferList;
             }
-        }            
+        }
     }
 
     if(pOldestInstance == NULL)
@@ -621,7 +634,7 @@ EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
         // Pop the event from the buffer.
         pOldestContainingList->PopNextEvent(pOldestContainingBuffer, pOldestInstance);
     }
-    
+
     // Return the oldest event that hasn't yet been processed.
     return pOldestInstance;
 }
@@ -675,7 +688,7 @@ void EventPipeBufferManager::SuspendWriteEvent()
             //                  but after this thread gives it up lower in this function it could be acquired.
             // 2) observe m_writeEventSuspending = False - that won't happen, acquiring m_lock
             //                  guarantees AllocateBufferForThread will observe all the memory changes this
-            //                  thread made prior to releasing m_lock and we've already set it TRUE.        
+            //                  thread made prior to releasing m_lock and we've already set it TRUE.
         }
     }
 
@@ -691,7 +704,7 @@ void EventPipeBufferManager::SuspendWriteEvent()
             for (EventPipeBuffer* pBuffer = pBufferList->GetHead(); pBuffer != nullptr; pBuffer = pBuffer->GetNext())
             {
                 // Above we guaranteed that other threads wouldn't acquire new buffers or keep the ones they
-                // already have indefinitely, but we haven't quite guaranteed the buffer has been relinquished 
+                // already have indefinitely, but we haven't quite guaranteed the buffer has been relinquished
                 // back to us. It's possible the WriteEvent thread allocated the buffer before we took m_lock
                 // above, but it hasn't yet acquired EventPipeThread::m_lock in order to observe that it needs
                 // to relinquish the buffer. In this state, it has a pointer to the buffer stored in registers
@@ -799,14 +812,12 @@ EventPipeBufferList::EventPipeBufferList(EventPipeBufferManager *pManager, Event
 EventPipeBuffer* EventPipeBufferList::GetHead()
 {
     LIMITED_METHOD_CONTRACT;
-
     return m_pHeadBuffer;
 }
 
 EventPipeBuffer* EventPipeBufferList::GetTail()
 {
     LIMITED_METHOD_CONTRACT;
-
     return m_pTailBuffer;
 }
 
@@ -895,7 +906,6 @@ EventPipeBuffer* EventPipeBufferList::GetAndRemoveHead()
 unsigned int EventPipeBufferList::GetCount() const
 {
     LIMITED_METHOD_CONTRACT;
-
     return m_bufferCount;
 }
 
@@ -909,11 +919,11 @@ EventPipeBuffer* EventPipeBufferList::TryGetBuffer(LARGE_INTEGER beforeTimeStamp
      * 2) The head buffer is written to but not read yet, in this case, return that buffer
      *    2.1) It is possible that the head buffer is the only buffer that is created and is empty, or
      *    2.2) The head buffer is written to but not read
-     *    We cannot differentiate the two cases without reading it - but it is okay, in both cases, the buffer represents the head of the buffer list. 
+     *    We cannot differentiate the two cases without reading it - but it is okay, in both cases, the buffer represents the head of the buffer list.
      *    Note that writing to the buffer can happen after we return from this function, and it is also okay.
      * 3.) The head buffer is read but not completely reading, and
      * 4.) The head buffer is read completely.
-     *     This case requires special attention because it is possible that the next buffer in the list contain the oldest event. Fortunately, it is 
+     *     This case requires special attention because it is possible that the next buffer in the list contain the oldest event. Fortunately, it is
      *     already read so it is safe to read it to determine this case.
      *
      * In any case, if the desired buffer is created after beforeTimeStamp, then we can stop.

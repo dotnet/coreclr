@@ -9,9 +9,10 @@
 
 #include "eventpipe.h"
 #include "eventpipeblock.h"
-#include "eventpipeeventinstance.h"
 #include "fastserializableobject.h"
 
+class EventPipeConfiguration;
+class EventPipeEventInstance;
 class FastSerializer;
 
 class EventPipeFile final : public FastSerializableObject
@@ -20,7 +21,7 @@ public:
     EventPipeFile(StreamWriter *pStreamWriter);
     ~EventPipeFile();
 
-    void WriteEvent(EventPipeEventInstance &instance);
+    void WriteEvent(EventPipeEventInstance &instance, EventPipeConfiguration &configuration);
     void Flush();
     bool HasErrors() const;
 

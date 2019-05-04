@@ -18,10 +18,7 @@ EventPipeConfiguration::EventPipeConfiguration()
 {
     STANDARD_VM_CONTRACT;
 
-    m_enabled = false;
-    m_rundownEnabled = false;
     m_pConfigProvider = NULL;
-    m_pSession = NULL;
     m_pProviderList = new SList<SListElem<EventPipeProvider *>>();
 }
 
@@ -47,8 +44,6 @@ EventPipeConfiguration::~EventPipeConfiguration()
         EX_CATCH {}
         EX_END_CATCH(SwallowAllExceptions);
     }
-
-    delete m_pSession;
 
     if (m_pProviderList != NULL)
     {
@@ -120,7 +115,7 @@ EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &provide
     EventPipeProvider *pProvider = new EventPipeProvider(this, providerName, pCallbackFunction, pCallbackData);
 
     // Register the provider with the configuration system.
-    RegisterProvider(*pProvider, pEventPipeProviderCallbackDataQueue);
+    RegisterProvider(NULL, *pProvider, pEventPipeProviderCallbackDataQueue);
 
     return pProvider;
 }
@@ -146,7 +141,7 @@ void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
     delete pProvider;
 }
 
-bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+bool EventPipeConfiguration::RegisterProvider(EventPipeSession *pSession, EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -172,9 +167,9 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
     }
 
     // Set the provider configuration and enable it if it has been requested by a session.
-    if (m_pSession != NULL)
+    if (pSession != NULL)
     {
-        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(m_pSession, &provider);
+        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(pSession, &provider);
         if (pSessionProvider != NULL)
         {
             EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
@@ -305,8 +300,8 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
     }
     CONTRACTL_END;
 
-    m_pSession = pSession;
-    m_enabled = true;
+    if (pSession == NULL)
+        return;
 
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
@@ -317,7 +312,7 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
             EventPipeProvider *pProvider = pElem->GetValue();
 
             // Enable the provider if it has been configured.
-            EventPipeSessionProvider *pSessionProvider = GetSessionProvider(m_pSession, pProvider);
+            EventPipeSessionProvider *pSessionProvider = GetSessionProvider(pSession, pProvider);
             if (pSessionProvider != NULL)
             {
                 EventPipeProviderCallbackData eventPipeProviderCallbackData =
@@ -348,7 +343,8 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession, EventPipeProvid
     }
     CONTRACTL_END;
 
-    EventPipeProviderCallbackData eventPipeProviderCallbackData;
+    if (pSession == NULL)
+        return;
 
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
@@ -357,7 +353,7 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession, EventPipeProvid
         while (pElem != NULL)
         {
             EventPipeProvider *pProvider = pElem->GetValue();
-            eventPipeProviderCallbackData = pProvider->SetConfiguration(
+            EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->SetConfiguration(
                 false /* providerEnabled */,
                 0 /* keywords */,
                 EventPipeEventLevel::Critical /* level */,
@@ -367,43 +363,6 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession, EventPipeProvid
             pElem = m_pProviderList->GetNext(pElem);
         }
     }
-
-    m_enabled = false;
-    m_rundownEnabled = false;
-    m_pSession = NULL;
-}
-
-bool EventPipeConfiguration::Enabled() const
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_enabled;
-}
-
-bool EventPipeConfiguration::RundownEnabled() const
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_rundownEnabled;
-}
-
-void EventPipeConfiguration::EnableRundown(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(pSession != NULL);
-        PRECONDITION(m_pSession == NULL);
-        // Lock must be held by EventPipe::Disable.
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
-    }
-    CONTRACTL_END;
-
-    // Enable rundown
-    m_rundownEnabled = true;
-
-    // Enable tracing.
-    Enable(pSession, pEventPipeProviderCallbackDataQueue);
 }
 
 EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, unsigned int metadataId)

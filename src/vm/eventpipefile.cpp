@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "eventpipeblock.h"
+#include "eventpipeeventinstance.h"
 #include "eventpipefile.h"
 #include "sampleprofiler.h"
 
@@ -40,6 +41,8 @@ EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter) : FastSerializableObje
     m_pSerializer = new FastSerializer(pStreamWriter);
 
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
+
+    // FIXME: Where is this deleted?
     m_pMetadataIds = new MapSHashWithRemove<EventPipeEvent*, unsigned int>();
 
     // Start and 0 - The value is always incremented prior to use, so the first ID will be 1.
@@ -72,7 +75,7 @@ bool EventPipeFile::HasErrors() const
     return (m_pSerializer == nullptr) || m_pSerializer->HasWriteErrors();
 }
 
-void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
+void EventPipeFile::WriteEvent(EventPipeEventInstance &instance, EventPipeConfiguration &configuration)
 {
     CONTRACTL
     {
@@ -89,7 +92,7 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     {
         metadataId = GenerateMetadataId();
 
-        EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance, metadataId);
+        EventPipeEventInstance* pMetadataInstance = configuration.BuildEventMetadataEvent(instance, metadataId);
 
         WriteToBlock(*pMetadataInstance, 0); // 0 breaks recursion and represents the metadata event.
 

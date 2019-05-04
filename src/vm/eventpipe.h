@@ -267,14 +267,14 @@ private:
     SList<SListElem<EventPipeProviderCallbackData>> list;
 };
 
+typedef MapSHashWithRemove<EventPipeSession *, EventPipeFile *> EventPipeSessions;
+
 class EventPipe
 {
     // Declare friends.
     friend class EventPipeConfiguration;
     friend class EventPipeFile;
     friend class EventPipeProvider;
-    friend class EventPipeBufferManager;
-    friend class SampleProfiler;
 
 public:
     // Initialize the event pipe.
@@ -303,7 +303,10 @@ public:
     static bool Enabled();
 
     // Create a provider.
-    static EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
+    static EventPipeProvider *CreateProvider(
+        const SString &providerName,
+        EventPipeCallback pCallbackFunction = nullptr,
+        void *pCallbackData = nullptr);
 
     static EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
@@ -338,8 +341,7 @@ public:
     static bool IsBufferManagerLockOwnedByCurrentThread();
 #endif
 
-
-    template<class T>
+    template <class T>
     static void RunWithCallbackPostponed(T f)
     {
         EventPipeProviderCallbackDataQueue eventPipeProviderCallbackDataQueue;
@@ -350,9 +352,7 @@ public:
         }
 
         while (eventPipeProviderCallbackDataQueue.TryDequeue(&eventPipeProviderCallbackData))
-        {
-            EventPipe::InvokeCallback(eventPipeProviderCallbackData);
-        }
+            InvokeCallback(eventPipeProviderCallbackData);
     }
 
     static void InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData);
@@ -361,7 +361,7 @@ private:
     // The counterpart to WriteEvent which after the payload is constructed
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
-    static void DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+    static void DisableInternal(EventPipeSession &session, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Enable the specified EventPipe session.
     static EventPipeSessionID Enable(
@@ -398,9 +398,7 @@ private:
     static CrstStatic s_configCrst;
     static bool s_tracingInitialized;
     static EventPipeConfiguration *s_pConfig;
-    static EventPipeSession *s_pSession;
-    static EventPipeBufferManager *s_pBufferManager;
-    static EventPipeFile *s_pFile;
+    static EventPipeSessions *s_pSessions;
     static EventPipeEventSource *s_pEventSource;
     static HANDLE s_fileSwitchTimerHandle;
     static ULONGLONG s_lastFlushTime;

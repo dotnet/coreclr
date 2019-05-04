@@ -60,7 +60,11 @@ public:
     const SString& GetProviderName() const;
 
     // Determine if the provider is enabled.
-    bool Enabled() const;
+    bool Enabled() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_enabled;
+    }
 
     // Determine if the specified keywords are enabled.
     bool EventEnabled(INT64 keywords) const;

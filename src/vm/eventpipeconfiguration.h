@@ -14,7 +14,6 @@ class EventPipeEvent;
 class EventPipeEventInstance;
 class EventPipeProvider;
 class EventPipeSession;
-enum class EventPipeSessionType;
 
 class EventPipeConfiguration
 {
@@ -32,7 +31,7 @@ public:
     void DeleteProvider(EventPipeProvider *pProvider);
 
     // Register a provider.
-    bool RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+    bool RegisterProvider(EventPipeSession *pSession, EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Unregister a provider.
     bool UnregisterProvider(EventPipeProvider &provider);
@@ -45,15 +44,6 @@ public:
 
     // Disable a session in the event pipe.
     void Disable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
-
-    // Get the status of the event pipe.
-    bool Enabled() const;
-
-    // Determine if rundown is enabled.
-    bool RundownEnabled() const;
-
-    // Enable rundown using the specified configuration.
-    void EnableRundown(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Get the event used to write metadata to the event stream.
     EventPipeEventInstance *BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, unsigned int metdataId);
@@ -68,12 +58,6 @@ private:
     // Get the enabled provider.
     EventPipeSessionProvider *GetSessionProvider(EventPipeSession *pSession, EventPipeProvider *pProvider);
 
-    // The one and only EventPipe session.
-    EventPipeSession *m_pSession;
-
-    // Determines whether or not the event pipe is enabled.
-    Volatile<bool> m_enabled;
-
     // The list of event pipe providers.
     SList<SListElem<EventPipeProvider *>> *m_pProviderList;
 
@@ -86,9 +70,6 @@ private:
     // The provider name for the configuration event pipe provider.
     // This provider is used to emit configuration events.
     const static WCHAR *s_configurationProviderName;
-
-    // True if rundown is enabled.
-    Volatile<bool> m_rundownEnabled;
 };
 
 #endif // FEATURE_PERFTRACING

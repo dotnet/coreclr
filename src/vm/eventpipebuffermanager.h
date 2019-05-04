@@ -27,7 +27,9 @@ class EventPipeThread
 #else // !__GNUC__
     thread_local static EventPipeThreadHolder gCurrentEventPipeThreadHolder;
 #endif // !__GNUC__
+
     EventPipeBufferList * m_pThreadEventBufferList = NULL;
+
     ~EventPipeThread();
 
     // The EventPipeThreadHolder maintains one count while the thread is alive
@@ -60,7 +62,7 @@ public:
     EventPipeBuffer* GetWriteBuffer();
     void SetWriteBuffer(EventPipeBuffer* pNewBuffer);
     EventPipeBufferList * GetBufferList();
-    void SetBufferList(EventPipeBufferList * pBufferList); 
+    void SetBufferList(EventPipeBufferList * pBufferList);
 };
 
 class EventPipeBufferManager
@@ -127,15 +129,15 @@ public:
     // The caller is required to synchronize all calls to SuspendWriteEvent() and ResumeWriteEvent()
     void ResumeWriteEvent();
 
-    // From the time this function returns until ResumeWriteEvent() is called a suspended state will 
-    // be in effect that blocks all WriteEvent activity. All existing buffers will be in the 
-    // READ_ONLY state and no new EventPipeBuffers or EventPipeBufferLists can be created. Calls to 
-    // WriteEvent that start during the suspension period or were in progress but hadn't yet recorded 
-    // their event into a buffer before the start of the suspension period will return false and the 
-    // event will not be recorded. Any events that not recorded as a result of this suspension will be 
+    // From the time this function returns until ResumeWriteEvent() is called a suspended state will
+    // be in effect that blocks all WriteEvent activity. All existing buffers will be in the
+    // READ_ONLY state and no new EventPipeBuffers or EventPipeBufferLists can be created. Calls to
+    // WriteEvent that start during the suspension period or were in progress but hadn't yet recorded
+    // their event into a buffer before the start of the suspension period will return false and the
+    // event will not be recorded. Any events that not recorded as a result of this suspension will be
     // treated the same as events that were not recorded due to configuration.
-    // EXPECTED USAGE: First the caller will disable all events via configuration, then call 
-    // SuspendWriteEvents() to force any WriteEvent calls that may still be in progress to either
+    // EXPECTED USAGE: First the caller will disable all events via configuration, then call
+    // SuspendWriteEvent() to force any WriteEvent calls that may still be in progress to either
     // finish or cancel. After that all BufferLists and Buffers can be safely drained and/or deleted.
     // The caller is required to synchronize all calls to SuspendWriteEvent() and ResumeWriteEvent()
     void SuspendWriteEvent();
@@ -143,7 +145,7 @@ public:
     // Write the contents of the managed buffers to the specified file.
     // The stopTimeStamp is used to determine when tracing was stopped to ensure that we
     // skip any events that might be partially written due to races when tracing is stopped.
-    void WriteAllBuffersToFile(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp);
+    void WriteAllBuffersToFile(EventPipeFile *pFile, EventPipeConfiguration &configuration, LARGE_INTEGER stopTimeStamp);
 
     // Attempt to de-allocate resources as best we can.  It is possible for some buffers to leak because
     // threads can be in the middle of a write operation and get blocked, and we may not get an opportunity

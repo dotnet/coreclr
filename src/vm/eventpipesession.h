@@ -7,8 +7,11 @@
 
 #ifdef FEATURE_PERFTRACING
 
-class EventPipeSessionProviderList;
+class EventPipeBufferManager;
+class EventPipeEventInstance;
+class EventPipeFile;
 class EventPipeSessionProvider;
+class EventPipeSessionProviderList;
 
 enum class EventPipeSessionType
 {
@@ -26,8 +29,11 @@ private:
     // The configured size of the circular buffer.
     const size_t m_CircularBufferSizeInBytes;
 
+    // Session buffer manager.
+    EventPipeBufferManager *const m_pBufferManager;
+
     // True if rundown is enabled.
-    Volatile<bool> m_rundownEnabled;
+    const bool m_rundownEnabled;
 
     // The type of the session.
     // This determines behavior within the system (e.g. policies around which events to drop, etc.)
@@ -44,7 +50,8 @@ public:
         EventPipeSessionType sessionType,
         unsigned int circularBufferSizeInMB,
         const EventPipeProviderConfiguration *pProviders,
-        uint32_t numProviders);
+        uint32_t numProviders,
+        bool rundownEnabled);
     ~EventPipeSession();
 
     // Determine if the session is valid or not.  Invalid sessions can be detected before they are enabled.
@@ -90,6 +97,32 @@ public:
 
     // Get the session provider for the specified provider if present.
     EventPipeSessionProvider* GetSessionProvider(EventPipeProvider *pProvider);
+
+    void WriteAllBuffersToFile(
+        EventPipeFile &fastSerializableObject,
+        EventPipeConfiguration &configuration,
+        LARGE_INTEGER stopTimeStamp);
+
+    bool WriteEvent(
+        Thread *pThread,
+        EventPipeEvent &event,
+        EventPipeEventPayload &payload,
+        LPCGUID pActivityId,
+        LPCGUID pRelatedActivityId,
+        Thread *pEventThread = nullptr,
+        StackContents *pStack = nullptr);
+
+    EventPipeEventInstance *GetNextEvent();
+
+    // Enable a session in the event pipe.
+    void Enable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
+
+    // Disable a session in the event pipe.
+    void Disable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
+
+#ifdef DEBUG
+    bool IsLockOwnedByCurrentThread() /* const */;
+#endif // DEBUG
 };
 
 #endif // FEATURE_PERFTRACING

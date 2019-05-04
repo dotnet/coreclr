@@ -101,15 +101,7 @@ EventPipeProvider::~EventPipeProvider()
 const SString& EventPipeProvider::GetProviderName() const
 {
     LIMITED_METHOD_CONTRACT;
-
     return m_providerName;
-}
-
-bool EventPipeProvider::Enabled() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return (m_pConfig->Enabled() && m_enabled);
 }
 
 bool EventPipeProvider::EventEnabled(INT64 keywords) const

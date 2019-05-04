@@ -153,8 +153,7 @@ void EventPipeSessionProviderList::AddSessionProvider(EventPipeSessionProvider *
         m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider *>(pProvider));
 }
 
-EventPipeSessionProvider *EventPipeSessionProviderList::GetSessionProvider(
-    EventPipeProvider *pProvider)
+EventPipeSessionProvider *EventPipeSessionProviderList::GetSessionProvider(EventPipeProvider *pProvider)
 {
     CONTRACTL
     {
