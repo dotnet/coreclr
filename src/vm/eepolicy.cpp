@@ -817,14 +817,14 @@ void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource
     Thread *pThread = GetThread();
     EX_TRY
     {
-        PrintToStdErrA("Terminating process due to a ");
+        PrintToStdErrA("\nProcess is terminating due to a ");
         if (exitCode == (UINT)COR_E_FAILFAST)
         {
-            PrintToStdErrA("FailFast.\n");
+            PrintToStdErrA("FailFast.\n\n");
         }
         else
         {
-            PrintToStdErrA("fatal error.\n");
+            PrintToStdErrA("fatal error.\n\n");
         }
 
         if (errorSource != NULL)
