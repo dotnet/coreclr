@@ -45,7 +45,7 @@ void SampleProfiler::Enable(EventPipeProviderCallbackDataQueue* pEventPipeProvid
         MODE_ANY;
         PRECONDITION(s_pSamplingThread == NULL);
         // Synchronization of multiple callers occurs in EventPipe::Enable.
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -105,7 +105,7 @@ void SampleProfiler::Disable()
         GC_TRIGGERS;
         MODE_ANY;
         // Synchronization of multiple callers occurs in EventPipe::Disable.
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 

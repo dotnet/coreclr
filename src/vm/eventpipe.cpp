@@ -907,22 +907,21 @@ EventPipeEventInstance *EventPipe::GetNextEvent()
     return (s_pSession != NULL) ? s_pBufferManager->GetNextEvent() : nullptr;
 }
 
-/* static */ void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)
+void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)
 {
     EventPipeProvider::InvokeCallback(eventPipeProviderCallbackData);
 }
 
 #ifdef DEBUG
-/* static */ bool EventPipe::IsLockOwnedByCurrentThread()
+bool EventPipe::IsLockOwnedByCurrentThread()
 {
     return GetLock()->OwnedByCurrentThread();
 }
 
-/* static */ bool EventPipe::IsBufferManagerLockOwnedByCurrentThread()
+bool EventPipe::IsBufferManagerLockOwnedByCurrentThread()
 {
-    return s_pBufferManager->IsLockOwnedByCurrentThread();
+    return s_pSession->IsLockOwnedByCurrentThread();
 }
 #endif
-
 
 #endif // FEATURE_PERFTRACING

@@ -454,7 +454,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pFile != nullptr);
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -548,7 +548,7 @@ EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(!EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(!EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -633,13 +633,11 @@ void EventPipeBufferManager::SuspendWriteEvent()
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION(EnsureConsistency());
+        // All calls to this method must be synchronized by our caller
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
-
-    _ASSERTE(EnsureConsistency());
-
-    // All calls to this method must be synchronized by our caller
-    _ASSERTE(EventPipe::IsLockOwnedByCurrentThread());
 
     CQuickArrayList<EventPipeThread*> threadList;
     {
@@ -789,6 +787,7 @@ bool EventPipeBufferManager::EnsureConsistency()
 EventPipeBufferList::EventPipeBufferList(EventPipeBufferManager *pManager, EventPipeThread* pThread)
 {
     LIMITED_METHOD_CONTRACT;
+    _ASSERTE(pManager != NULL);
 
     m_pManager = pManager;
     m_pThread = pThread;
@@ -819,13 +818,11 @@ void EventPipeBufferList::InsertTail(EventPipeBuffer *pBuffer)
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pBuffer != NULL);
+        PRECONDITION(EnsureConsistency());
+        // Ensure that the input buffer didn't come from another list that was improperly cleaned up.
+        PRECONDITION((pBuffer->GetNext() == NULL) && (pBuffer->GetPrevious() == NULL));
     }
     CONTRACTL_END;
-
-    _ASSERTE(EnsureConsistency());
-
-    // Ensure that the input buffer didn't come from another list that was improperly cleaned up.
-    _ASSERTE((pBuffer->GetNext() == NULL) && (pBuffer->GetPrevious() == NULL));
 
     // First node in the list.
     if(m_pTailBuffer == NULL)
@@ -905,7 +902,7 @@ unsigned int EventPipeBufferList::GetCount() const
 EventPipeBuffer* EventPipeBufferList::TryGetBuffer(LARGE_INTEGER beforeTimeStamp)
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(EventPipe::IsBufferManagerLockOwnedByCurrentThread());
+    _ASSERTE(m_pManager->IsLockOwnedByCurrentThread());
     /**
      * There are 4 cases we need to handle in this function:
      * 1) There is no buffer in the list, in this case, return nullptr
@@ -962,7 +959,7 @@ void EventPipeBufferList::ConvertBufferToReadOnly(EventPipeBuffer* pNewReadBuffe
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(pNewReadBuffer != nullptr);
-    _ASSERTE(!EventPipe::IsBufferManagerLockOwnedByCurrentThread());
+    _ASSERTE(!m_pManager->IsLockOwnedByCurrentThread());
     {
         SpinLockHolder _slh(m_pThread->GetLock());
         if (m_pThread->GetWriteBuffer() == pNewReadBuffer)

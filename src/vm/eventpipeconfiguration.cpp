@@ -112,7 +112,7 @@ EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &provide
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -153,7 +153,7 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -255,7 +255,7 @@ EventPipeProvider *EventPipeConfiguration::GetProviderNoLock(const SString &prov
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -285,7 +285,7 @@ EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(EventPipeSe
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -301,7 +301,7 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
         MODE_ANY;
         PRECONDITION(pSession != NULL);
         // Lock must be held by EventPipe::Enable.
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -343,9 +343,8 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession, EventPipeProvid
         MODE_ANY;
         // TODO: Multiple session support will require that the session be specified.
         PRECONDITION(pSession != NULL);
-        PRECONDITION(pSession == m_pSession);
         // Lock must be held by EventPipe::Disable.
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -471,7 +470,7 @@ void EventPipeConfiguration::DeleteDeferredProviders()
         GC_TRIGGERS;
         MODE_ANY;
         // Lock must be held by EventPipe::Disable.
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 

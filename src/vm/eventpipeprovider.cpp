@@ -141,7 +141,7 @@ EventPipeProviderCallbackData EventPipeProvider::SetConfiguration(bool providerE
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -203,7 +203,7 @@ void EventPipeProvider::AddEvent(EventPipeEvent &event)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(!EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(!EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -262,7 +262,7 @@ EventPipeProviderCallbackData EventPipeProvider::PrepareCallbackData(LPCWSTR pFi
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -295,7 +295,7 @@ void EventPipeProvider::RefreshAllEvents()
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
