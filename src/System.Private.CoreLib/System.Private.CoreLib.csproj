@@ -26,7 +26,7 @@
     <OutputPath>$(BinDir)IL/</OutputPath>
   </PropertyGroup>
 
-  <!-- Create SR.cs -->
+  <!-- Note that various places in SPCL depend on this resource name i.e. TplEventSource -->
   <ItemGroup Label="Embedded Resources">
     <EmbeddedResource Update="$(MSBuildThisFileDirectory)Resources\Strings.resx">
       <GenerateSource>true</GenerateSource>
