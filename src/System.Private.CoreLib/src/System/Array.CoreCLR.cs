@@ -516,7 +516,7 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool TrySZSort(Array keys, Array? items, int left, int right);
 
-        // if this is an array of value classes and that value class has a default constructor
+        // if this is an array of value classes and that value class has a default constructor 
         // then this calls this default constructor on every element in the value class array.
         // otherwise this is a no-op.  Generally this method is called automatically by the compiler
         [MethodImpl(MethodImplOptions.InternalCall)]

@@ -1530,8 +1530,8 @@ namespace System
                     }
                 }
 #endif
-
-                ArraySortHelper<T>.Default.Sort(array, index, length, comparer);
+                var span = new Span<T>(ref Unsafe.As<byte, T>(ref array.GetRawArrayData()), array.Length);
+                ArraySortHelper<T>.Default.Sort(span, index, length, comparer!);
             }
         }
 
@@ -1564,7 +1564,9 @@ namespace System
                     return;
                 }
 
-                ArraySortHelper<TKey, TValue>.Default.Sort(keys, items, index, length, comparer);
+                var spanKeys = new Span<TKey>(ref Unsafe.As<byte, TKey>(ref keys.GetRawArrayData()), keys.Length);
+                var spanItems = new Span<TValue>(ref Unsafe.As<byte, TValue>(ref items!.GetRawArrayData()), items!.Length); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                ArraySortHelper<TKey, TValue>.Default.Sort(spanKeys, spanItems, index, length, comparer);
             }
         }
 
@@ -1580,7 +1582,8 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
             }
 
-            ArraySortHelper<T>.Sort(array, 0, array.Length, comparison!);
+            var span = new Span<T>(ref Unsafe.As<byte, T>(ref array!.GetRawArrayData()), array!.Length); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+            ArraySortHelper<T>.Sort(span, 0, span.Length, comparison!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
         }
 
         public static bool TrueForAll<T>(T[] array, Predicate<T> match)
