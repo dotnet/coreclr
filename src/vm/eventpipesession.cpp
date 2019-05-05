@@ -5,6 +5,7 @@
 #include "common.h"
 #include "eventpipe.h"
 #include "eventpipebuffermanager.h"
+#include "eventpipefile.h"
 #include "eventpipeprovider.h"
 #include "eventpipesession.h"
 #include "eventpipesessionprovider.h"
@@ -99,16 +100,7 @@ void EventPipeSession::WriteAllBuffersToFile(
     }
     CONTRACTL_END;
 
-    // Force all in-progress writes to either finish or cancel
-    // This is required to ensure we can safely flush and delete the buffers
-    m_pBufferManager->SuspendWriteEvent();
-    {
-        m_pBufferManager->WriteAllBuffersToFile(&fastSerializableObject, configuration, stopTimeStamp);
-    }
-    // Allow WriteEvent to begin accepting work again so that sometime in the future
-    // we can re-enable events and they will be recorded
-    // FIXME: Functions above might throw... Should we have a try catch here?
-    m_pBufferManager->ResumeWriteEvent();
+    m_pBufferManager->WriteAllBuffersToFile(&fastSerializableObject, configuration, stopTimeStamp);
 }
 
 bool EventPipeSession::WriteEvent(
@@ -184,41 +176,67 @@ EventPipeEventInstance *EventPipeSession::GetNextEvent()
 //     }
 // }
 
-// void EventPipeSession::Disable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
-// {
-//     CONTRACTL
-//     {
-//         THROWS;
-//         GC_TRIGGERS;
-//         MODE_ANY;
-//         // TODO: Multiple session support will require that the session be specified.
-//         PRECONDITION(pSession != NULL);
-//         // Lock must be held by EventPipe::Disable.
-//         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
-//     }
-//     CONTRACTL_END;
+const EventPipeProviderConfiguration RundownProviders[] = {
+    {W("Microsoft-Windows-DotNETRuntime"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL},       // Public provider.
+    {W("Microsoft-Windows-DotNETRuntimeRundown"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL} // Rundown provider.
+};
+const uint32_t RundownProvidersSize = sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration);
 
-//     // The provider list should be non-NULL, but can be NULL on shutdown.
-//     if (m_pProviderList != NULL)
-//     {
-//         SListElem<EventPipeProvider *> *pElem = m_pProviderList->GetHead();
-//         while (pElem != NULL)
-//         {
-//             EventPipeProvider *pProvider = pElem->GetValue();
-//             EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->SetConfiguration(
-//                 false /* providerEnabled */,
-//                 0 /* keywords */,
-//                 EventPipeEventLevel::Critical /* level */,
-//                 NULL /* filterData */);
-//             pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
+void EventPipeSession::Disable(
+    EventPipeFile &fastSerializableObject,
+    EventPipeConfiguration &configuration,
+    LARGE_INTEGER stopTimeStamp,
+    EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        // Lock must be held by EventPipe::Disable.
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
 
-//             pElem = m_pProviderList->GetNext(pElem);
-//         }
-//     }
+    // Force all in-progress writes to either finish or cancel
+    // This is required to ensure we can safely flush and delete the buffers
+    m_pBufferManager->SuspendWriteEvent();
+    {
+        m_pBufferManager->WriteAllBuffersToFile(&fastSerializableObject, configuration, stopTimeStamp);
 
-//     m_enabled = false;
-//     m_rundownEnabled = false;
-//     m_pSession = NULL;
-// }
+        if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
+        {
+            // Before closing the file, do rundown. We have to re-enable event writing for this.
+            m_pBufferManager->ResumeWriteEvent();
+
+            // Update provider list with rundown configuration.
+            m_pProviderList->Clear();
+            for (uint32_t i = 0; i < RundownProvidersSize; ++i)
+            {
+                const EventPipeProviderConfiguration &Config = RundownProviders[i];
+                EventPipeSessionProvider *pProvider = new EventPipeSessionProvider(
+                    Config.GetProviderName(),
+                    Config.GetKeywords(),
+                    (EventPipeEventLevel)Config.GetLevel(),
+                    Config.GetFilterData());
+                m_pProviderList->AddSessionProvider(pProvider);
+            }
+
+            // Enable rundown.
+            m_rundownEnabled = true;
+
+            // Ask the runtime to emit rundown events.
+            if (g_fEEStarted && !g_fEEShutDown)
+                ETW::EnumerationLog::EndRundown();
+
+            // Suspend again after rundown session
+            m_pBufferManager->SuspendWriteEvent();
+        }
+    }
+    // Allow WriteEvent to begin accepting work again so that sometime in the future
+    // we can re-enable events and they will be recorded
+    // FIXME: Functions above might throw... Should we have a try catch here?
+    m_pBufferManager->ResumeWriteEvent();
+}
 
 #endif // FEATURE_PERFTRACING

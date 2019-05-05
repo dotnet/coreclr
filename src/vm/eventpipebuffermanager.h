@@ -28,8 +28,6 @@ class EventPipeThread
     thread_local static EventPipeThreadHolder gCurrentEventPipeThreadHolder;
 #endif // !__GNUC__
 
-    EventPipeBufferList * m_pThreadEventBufferList = NULL;
-
     ~EventPipeThread();
 
     // The EventPipeThreadHolder maintains one count while the thread is alive
@@ -217,6 +215,10 @@ public:
     // This function will assert if the list is in an inconsistent state.
     bool EnsureConsistency();
 #endif // _DEBUG
+
+#ifdef DEBUG
+    bool IsBufferManagerLockOwnedByCurrentThread();
+#endif // DEBUG
 };
 
 

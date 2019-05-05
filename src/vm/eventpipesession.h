@@ -33,7 +33,7 @@ private:
     EventPipeBufferManager *const m_pBufferManager;
 
     // True if rundown is enabled.
-    const bool m_rundownEnabled;
+    Volatile<bool> m_rundownEnabled;
 
     // The type of the session.
     // This determines behavior within the system (e.g. policies around which events to drop, etc.)
@@ -51,7 +51,7 @@ public:
         unsigned int circularBufferSizeInMB,
         const EventPipeProviderConfiguration *pProviders,
         uint32_t numProviders,
-        bool rundownEnabled);
+        bool rundownEnabled = false);
     ~EventPipeSession();
 
     // Determine if the session is valid or not.  Invalid sessions can be detected before they are enabled.
@@ -118,7 +118,11 @@ public:
     void Enable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Disable a session in the event pipe.
-    void Disable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
+    void Disable(
+        EventPipeFile &fastSerializableObject,
+        EventPipeConfiguration &configuration,
+        LARGE_INTEGER stopTimeStamp,
+        EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
 #ifdef DEBUG
     bool IsLockOwnedByCurrentThread() /* const */;

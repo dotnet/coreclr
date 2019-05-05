@@ -83,13 +83,10 @@ void EventPipeConfiguration::Initialize()
     }
     CONTRACTL_END;
 
-    EventPipe::RunWithCallbackPostponed(
-        [&](EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
-        {
-            // Create the configuration provider.
-            m_pConfigProvider = CreateProvider(SL(s_configurationProviderName), NULL, NULL, pEventPipeProviderCallbackDataQueue);
-        }
-    );
+    EventPipe::RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
+        // Create the configuration provider.
+        m_pConfigProvider = CreateProvider(SL(s_configurationProviderName), NULL, NULL, pEventPipeProviderCallbackDataQueue);
+    });
 
     // Create the metadata event.
     m_pMetadataEvent = m_pConfigProvider->AddEvent(
@@ -295,7 +292,6 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pSession != NULL);
-        // Lock must be held by EventPipe::Enable.
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -329,22 +325,17 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
     }
 }
 
-void EventPipeConfiguration::Disable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+void EventPipeConfiguration::Disable(EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        // TODO: Multiple session support will require that the session be specified.
-        PRECONDITION(pSession != NULL);
         // Lock must be held by EventPipe::Disable.
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
-
-    if (pSession == NULL)
-        return;
 
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
@@ -405,7 +396,6 @@ EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPip
 
     // Construct the event instance.
     EventPipeEventInstance *pInstance = new EventPipeEventInstance(
-        *EventPipe::s_pSession,
         *m_pMetadataEvent,
         GetCurrentThreadId(),
         pInstancePayload,

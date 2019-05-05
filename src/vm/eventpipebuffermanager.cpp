@@ -108,14 +108,14 @@ void EventPipeThread::SetWriteBuffer(EventPipeBuffer* pNewBuffer)
 EventPipeBufferList* EventPipeThread::GetBufferList()
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(EventPipe::IsBufferManagerLockOwnedByCurrentThread());
+    _ASSERTE(m_pBufferList != nullptr && m_pBufferList->IsBufferManagerLockOwnedByCurrentThread());
     return m_pBufferList;
 }
 
 void EventPipeThread::SetBufferList(EventPipeBufferList* pNewBufferList)
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(EventPipe::IsBufferManagerLockOwnedByCurrentThread());
+    _ASSERTE(m_pBufferList != nullptr && m_pBufferList->IsBufferManagerLockOwnedByCurrentThread());
     m_pBufferList = pNewBufferList;
 }
 
@@ -1083,6 +1083,13 @@ bool EventPipeBufferList::EnsureConsistency()
     return true;
 }
 #endif // _DEBUG
+
+#ifdef DEBUG
+bool EventPipeBufferList::IsBufferManagerLockOwnedByCurrentThread()
+{
+    return m_pManager->IsLockOwnedByCurrentThread();
+}
+#endif
 
 
 #endif // FEATURE_PERFTRACING

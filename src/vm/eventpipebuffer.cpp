@@ -47,7 +47,7 @@ EventPipeBuffer::~EventPipeBuffer()
     }
     CONTRACTL_END;
 
-    // We should never be deleting a buffer that a writer thread might still try to write to 
+    // We should never be deleting a buffer that a writer thread might still try to write to
     _ASSERTE(m_state == EventPipeBufferState::READ_ONLY);
 
     if(m_pBuffer != NULL)
@@ -72,7 +72,7 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
 
     // Calculate the size of the event.
     unsigned int eventSize = sizeof(EventPipeEventInstance) + payload.GetSize();
-    
+
     // Make sure we have enough space to write the event.
     if(m_pCurrent + eventSize > m_pLimit)
     {
@@ -97,7 +97,6 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
         }
 
         EventPipeEventInstance *pInstance = new (m_pCurrent) EventPipeEventInstance(
-            session,
             event,
             (pThread == NULL) ? ::GetCurrentThreadId() : pThread->GetOSThreadId(),
             pDataDest,

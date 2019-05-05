@@ -117,22 +117,8 @@ EventPipeSessionProviderList::~EventPipeSessionProviderList()
     }
     CONTRACTL_END;
 
-    if (m_pProviders != NULL)
-    {
-        SListElem<EventPipeSessionProvider *> *pElem = m_pProviders->GetHead();
-        while (pElem != NULL)
-        {
-            EventPipeSessionProvider *pProvider = pElem->GetValue();
-            delete pProvider;
-
-            SListElem<EventPipeSessionProvider *> *pCurElem = pElem;
-            pElem = m_pProviders->GetNext(pElem);
-            delete pCurElem;
-        }
-
-        delete m_pProviders;
-    }
-
+    Clear();
+    delete m_pProviders;
     delete m_pCatchAllProvider;
 }
 
@@ -198,6 +184,23 @@ bool EventPipeSessionProviderList::IsEmpty() const
     LIMITED_METHOD_CONTRACT;
 
     return (m_pProviders->IsEmpty() && m_pCatchAllProvider == NULL);
+}
+
+void EventPipeSessionProviderList::Clear()
+{
+    if (m_pProviders != NULL)
+    {
+        SListElem<EventPipeSessionProvider *> *pElem = m_pProviders->GetHead();
+        while (pElem != NULL)
+        {
+            EventPipeSessionProvider *pProvider = pElem->GetValue();
+            delete pProvider;
+
+            SListElem<EventPipeSessionProvider *> *pCurElem = pElem;
+            pElem = m_pProviders->GetNext(pElem);
+            delete pCurElem;
+        }
+    }
 }
 
 #endif // FEATURE_PERFTRACING

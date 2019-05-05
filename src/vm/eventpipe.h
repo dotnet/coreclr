@@ -338,7 +338,6 @@ public:
 
 #ifdef DEBUG
     static bool IsLockOwnedByCurrentThread();
-    static bool IsBufferManagerLockOwnedByCurrentThread();
 #endif
 
     template <class T>
@@ -361,7 +360,7 @@ private:
     // The counterpart to WriteEvent which after the payload is constructed
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
-    static void DisableInternal(EventPipeSession &session, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+    static void DisableInternal(EventPipeSession &session, EventPipeFile *pFile, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Enable the specified EventPipe session.
     static EventPipeSessionID Enable(
