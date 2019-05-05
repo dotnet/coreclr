@@ -527,7 +527,7 @@ namespace System.Threading.Tasks
 
             if (obj == null)
             {
-                return AsyncTaskMethodBuilder<TResult>.GetTaskForResult(_result);
+                return AsyncTaskCache<TResult>.GetTaskForResult(_result);
             }
 
             if (obj is Task<TResult> t)
@@ -555,7 +555,7 @@ namespace System.Threading.Tasks
                 {
                     // Get the result of the operation and return a task for it.
                     // If any exception occurred, propagate it
-                    return AsyncTaskMethodBuilder<TResult>.GetTaskForResult(t.GetResult(_token));
+                    return AsyncTaskCache<TResult>.GetTaskForResult(t.GetResult(_token));
 
                     // If status is Faulted or Canceled, GetResult should throw.  But
                     // we can't guarantee every implementation will do the "right thing".

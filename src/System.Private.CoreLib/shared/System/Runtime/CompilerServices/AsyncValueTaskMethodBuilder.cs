@@ -12,25 +12,20 @@ namespace System.Runtime.CompilerServices
     [StructLayout(LayoutKind.Auto)]
     public struct AsyncValueTaskMethodBuilder
     {
-        /// <summary>The <see cref="AsyncTaskMethodBuilder"/> to which most operations are delegated.</summary>
-        private AsyncTaskMethodBuilder _methodBuilder; // mutable struct; do not make it readonly
-        /// <summary>true if completed synchronously and successfully; otherwise, false.</summary>
-        private bool _haveResult;
-        /// <summary>true if the builder should be used for setting/getting the result; otherwise, false.</summary>
-        private bool _useBuilder;
+        /// <summary>The lazily-initialized built task.</summary>
+        private Task<VoidTaskResult> m_task; // Debugger depends on the exact name of this field.
 
         /// <summary>Creates an instance of the <see cref="AsyncValueTaskMethodBuilder"/> struct.</summary>
         /// <returns>The initialized instance.</returns>
-        public static AsyncValueTaskMethodBuilder Create() =>
+        public static AsyncValueTaskMethodBuilder Create()
+        {
 #if PROJECTN
-            // ProjectN's AsyncTaskMethodBuilder.Create() currently does additional debugger-related
-            // work, so we need to delegate to it.
-            new AsyncValueTaskMethodBuilder() { _methodBuilder = AsyncTaskMethodBuilder.Create() };
+            var result = new AsyncValueTaskMethodBuilder();
+            return AsyncMethodBuilderCore.InitalizeTaskIfDebugging(ref result, ref result.m_task!);  // TODO-NULLABLE: Remove ! when nullable attributes are respected
 #else
-            // _methodBuilder should be initialized to AsyncTaskMethodBuilder.Create(), but on coreclr
-            // that Create() is a nop, so we can just return the default here.
-            default;
+            return default;
 #endif
+        }
 
         /// <summary>Begins running the builder with the associated state machine.</summary>
         /// <typeparam name="TStateMachine">The type of the state machine.</typeparam>
@@ -42,41 +37,40 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Associates the builder with the specified state machine.</summary>
         /// <param name="stateMachine">The state machine instance to associate with the builder.</param>
-        public void SetStateMachine(IAsyncStateMachine stateMachine) => _methodBuilder.SetStateMachine(stateMachine);
+        public void SetStateMachine(IAsyncStateMachine stateMachine)
+            => AsyncMethodBuilderCore.SetStateMachine(stateMachine, m_task);
 
         /// <summary>Marks the task as successfully completed.</summary>
         public void SetResult()
         {
-            if (_useBuilder)
+            if (m_task is null)
             {
-                _methodBuilder.SetResult();
+                m_task = System.Threading.Tasks.Task.s_cachedCompleted;
             }
             else
             {
-                _haveResult = true;
+                AsyncMethodBuilderCore.SetExistingTaskResult(m_task, default);
             }
         }
 
         /// <summary>Marks the task as failed and binds the specified exception to the task.</summary>
         /// <param name="exception">The exception to bind to the task.</param>
-        public void SetException(Exception exception) => _methodBuilder.SetException(exception);
+        public void SetException(Exception exception)
+            => AsyncMethodBuilderCore.SetException(ref m_task, exception);
 
         /// <summary>Gets the task for this builder.</summary>
         public ValueTask Task
         {
             get
             {
-                if (_haveResult)
-                {
-                    return default;
-                }
-                else
-                {
-                    _useBuilder = true;
-                    return new ValueTask(_methodBuilder.Task);
-                }
+                return ReferenceEquals(m_task, System.Threading.Tasks.Task.s_cachedCompleted) ? 
+                    default : 
+                    CreateValueTask(ref m_task);
             }
         }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static ValueTask CreateValueTask(ref Task<VoidTaskResult> task) => new ValueTask(task ?? AsyncMethodBuilderCore.InitializeTaskAsPromise(ref task!)); // TODO-NULLABLE: Remove ! when nullable attributes are respected
 
         /// <summary>Schedules the state machine to proceed to the next action when the specified awaiter completes.</summary>
         /// <typeparam name="TAwaiter">The type of the awaiter.</typeparam>
@@ -86,10 +80,7 @@ namespace System.Runtime.CompilerServices
         public void AwaitOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
             where TAwaiter : INotifyCompletion
             where TStateMachine : IAsyncStateMachine
-        {
-            _useBuilder = true;
-            _methodBuilder.AwaitOnCompleted(ref awaiter, ref stateMachine);
-        }
+            => AsyncMethodBuilderCore.AwaitOnCompleted(ref awaiter, ref stateMachine, ref m_task);
 
         /// <summary>Schedules the state machine to proceed to the next action when the specified awaiter completes.</summary>
         /// <typeparam name="TAwaiter">The type of the awaiter.</typeparam>
@@ -99,10 +90,7 @@ namespace System.Runtime.CompilerServices
         public void AwaitUnsafeOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
             where TAwaiter : ICriticalNotifyCompletion
             where TStateMachine : IAsyncStateMachine
-        {
-            _useBuilder = true;
-            _methodBuilder.AwaitUnsafeOnCompleted(ref awaiter, ref stateMachine);
-        }
+            => AsyncMethodBuilderCore.AwaitUnsafeOnCompleted(ref awaiter, ref stateMachine, ref m_task);
     }
 
     /// <summary>Represents a builder for asynchronous methods that returns a <see cref="ValueTask{TResult}"/>.</summary>
@@ -110,27 +98,24 @@ namespace System.Runtime.CompilerServices
     [StructLayout(LayoutKind.Auto)]
     public struct AsyncValueTaskMethodBuilder<TResult>
     {
-        /// <summary>The <see cref="AsyncTaskMethodBuilder{TResult}"/> to which most operations are delegated.</summary>
-        private AsyncTaskMethodBuilder<TResult> _methodBuilder; // mutable struct; do not make it readonly
+        /// <summary>used if <see cref="_result"/> contains the synchronous result for the async method.</summary>
+        private static readonly Task<TResult> s_haveResultSentinel = new Task<TResult>();
+
+        private Task<TResult> m_task; // Debugger depends on the exact name of this field.
         /// <summary>The result for this builder, if it's completed before any awaits occur.</summary>
         private TResult _result;
-        /// <summary>true if <see cref="_result"/> contains the synchronous result for the async method; otherwise, false.</summary>
-        private bool _haveResult;
-        /// <summary>true if the builder should be used for setting/getting the result; otherwise, false.</summary>
-        private bool _useBuilder;
 
         /// <summary>Creates an instance of the <see cref="AsyncValueTaskMethodBuilder{TResult}"/> struct.</summary>
         /// <returns>The initialized instance.</returns>
-        public static AsyncValueTaskMethodBuilder<TResult> Create() =>
+        public static AsyncValueTaskMethodBuilder<TResult> Create()
+        {
 #if PROJECTN
-            // ProjectN's AsyncTaskMethodBuilder<TResult>.Create() currently does additional debugger-related
-            // work, so we need to delegate to it.
-            new AsyncValueTaskMethodBuilder<TResult>() { _methodBuilder = AsyncTaskMethodBuilder<TResult>.Create() };
+            var result = new AsyncValueTaskMethodBuilder<TResult>();
+            return AsyncMethodBuilderCore.InitalizeTaskIfDebugging(ref result, ref result.m_task!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
 #else
-            // _methodBuilder should be initialized to AsyncTaskMethodBuilder<TResult>.Create(), but on coreclr
-            // that Create() is a nop, so we can just return the default here.
-            default;
+            return default;
 #endif
+        }
 
         /// <summary>Begins running the builder with the associated state machine.</summary>
         /// <typeparam name="TStateMachine">The type of the state machine.</typeparam>
@@ -142,43 +127,42 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Associates the builder with the specified state machine.</summary>
         /// <param name="stateMachine">The state machine instance to associate with the builder.</param>
-        public void SetStateMachine(IAsyncStateMachine stateMachine) => _methodBuilder.SetStateMachine(stateMachine);
+        public void SetStateMachine(IAsyncStateMachine stateMachine)
+            => AsyncMethodBuilderCore.SetStateMachine(stateMachine, m_task);
 
         /// <summary>Marks the task as successfully completed.</summary>
         /// <param name="result">The result to use to complete the task.</param>
         public void SetResult(TResult result)
         {
-            if (_useBuilder)
+            if (m_task is null)
             {
-                _methodBuilder.SetResult(result);
+                _result = result;
+                m_task = s_haveResultSentinel;
             }
             else
             {
-                _result = result;
-                _haveResult = true;
+                AsyncMethodBuilderCore.SetExistingTaskResult(m_task, result);
             }
         }
 
         /// <summary>Marks the task as failed and binds the specified exception to the task.</summary>
         /// <param name="exception">The exception to bind to the task.</param>
-        public void SetException(Exception exception) => _methodBuilder.SetException(exception);
+        public void SetException(Exception exception)
+            => AsyncMethodBuilderCore.SetException(ref m_task, exception);
 
         /// <summary>Gets the task for this builder.</summary>
         public ValueTask<TResult> Task
         {
             get
             {
-                if (_haveResult)
-                {
-                    return new ValueTask<TResult>(_result);
-                }
-                else
-                {
-                    _useBuilder = true;
-                    return new ValueTask<TResult>(_methodBuilder.Task);
-                }
+                return ReferenceEquals(s_haveResultSentinel, m_task) ?
+                    new ValueTask<TResult>(_result) :
+                    CreateValueTask(ref m_task);
             }
         }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static ValueTask<TResult> CreateValueTask(ref Task<TResult> task) => new ValueTask<TResult>(task ?? AsyncMethodBuilderCore.InitializeTaskAsPromise(ref task!)); // TODO-NULLABLE: Remove ! when nullable attributes are respected
 
         /// <summary>Schedules the state machine to proceed to the next action when the specified awaiter completes.</summary>
         /// <typeparam name="TAwaiter">The type of the awaiter.</typeparam>
@@ -188,10 +172,7 @@ namespace System.Runtime.CompilerServices
         public void AwaitOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
             where TAwaiter : INotifyCompletion
             where TStateMachine : IAsyncStateMachine
-        {
-            _useBuilder = true;
-            _methodBuilder.AwaitOnCompleted(ref awaiter, ref stateMachine);
-        }
+            => AsyncMethodBuilderCore.AwaitOnCompleted(ref awaiter, ref stateMachine, ref m_task);
 
         /// <summary>Schedules the state machine to proceed to the next action when the specified awaiter completes.</summary>
         /// <typeparam name="TAwaiter">The type of the awaiter.</typeparam>
@@ -201,9 +182,6 @@ namespace System.Runtime.CompilerServices
         public void AwaitUnsafeOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
             where TAwaiter : ICriticalNotifyCompletion 
             where TStateMachine : IAsyncStateMachine
-        {
-            _useBuilder = true;
-            _methodBuilder.AwaitUnsafeOnCompleted(ref awaiter, ref stateMachine);
-        }
+            => AsyncMethodBuilderCore.AwaitUnsafeOnCompleted(ref awaiter, ref stateMachine, ref m_task);
     }
 }

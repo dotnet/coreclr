@@ -1483,8 +1483,11 @@ namespace System.Threading.Tasks
         /// </remarks>
         public static TaskFactory Factory { get; } = new TaskFactory();
 
+        // Is a Task{VoidTaskResult} so it can be shared with AsyncTaskMethodBuilder
+        internal static readonly Task<VoidTaskResult> s_cachedCompleted = new Task<VoidTaskResult>(false, default, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default);
+ 
         /// <summary>Gets a task that's already been completed successfully.</summary>
-        public static Task CompletedTask { get; } = new Task(false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default);
+        public static Task CompletedTask => s_cachedCompleted;
 
         /// <summary>
         /// Provides an event that can be used to wait for completion.
