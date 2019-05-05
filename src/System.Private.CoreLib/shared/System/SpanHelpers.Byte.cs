@@ -111,7 +111,7 @@ namespace System
             IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr lengthToExamine = (IntPtr)length;
 
-            if (Avx2.IsSupported || Sse2.IsSupported)
+            if (Sse2.IsSupported)
             {
                 // Avx2 branch also operates on Sse2 sizes, so check is combined.
                 if (length >= Vector128<byte>.Count * 2)
