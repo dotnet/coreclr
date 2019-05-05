@@ -805,7 +805,7 @@ namespace System
             return Normalization.Normalize(this, normalizationForm);
         }
 
-        private unsafe bool IsAscii()
+        internal unsafe bool IsAscii()
         {
             fixed (char* str = &_firstChar)
             {

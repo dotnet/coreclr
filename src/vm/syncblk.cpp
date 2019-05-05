@@ -2059,27 +2059,12 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
     Object * obj = GetBaseObject ();
     BOOL bVerifyMore = g_pConfig->GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_SYNCBLK;
     //the highest 2 bits have reloaded meaning
-    //for string objects:
-    //         BIT_SBLK_STRING_HAS_NO_HIGH_CHARS   0x80000000
-    //         BIT_SBLK_STRING_HIGH_CHARS_KNOWN    0x40000000
-    //         BIT_SBLK_STRING_HAS_SPECIAL_SORT    0xC0000000
-    //for other objects:
     //         BIT_SBLK_FINALIZER_RUN              0x40000000
-    if (bits & BIT_SBLK_STRING_HIGH_CHAR_MASK)
+    if (obj->GetGCSafeMethodTable () != g_pStringClass)
     {
-        if (obj->GetGCSafeMethodTable () == g_pStringClass)
+        if (bits & BIT_SBLK_FINALIZER_RUN)
         {
-            if (bVerifyMore)
-            {
-                ASSERT_AND_CHECK (((StringObject *)obj)->ValidateHighChars());
-            }
-        }
-        else
-        {
-            if (bits & BIT_SBLK_FINALIZER_RUN)
-            {
-                ASSERT_AND_CHECK (obj->GetGCSafeMethodTable ()->HasFinalizer ());
-            }
+            ASSERT_AND_CHECK (obj->GetGCSafeMethodTable ()->HasFinalizer ());
         }
     }
 
