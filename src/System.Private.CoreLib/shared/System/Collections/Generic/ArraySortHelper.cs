@@ -214,7 +214,7 @@ namespace System.Collections.Generic
 
                 if (depthLimit == 0)
                 {
-                    Heapsort(keys, lo, hi, comparer);
+                    HeapSort(keys, lo, hi, comparer);
                     return;
                 }
                 depthLimit--;
@@ -499,7 +499,7 @@ namespace System.Collections.Generic
 
                 if (depthLimit == 0)
                 {
-                    Heapsort(keys, lo, hi);
+                    HeapSort(keys, lo, hi);
                     return;
                 }
                 depthLimit--;
