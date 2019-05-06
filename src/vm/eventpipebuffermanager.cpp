@@ -106,6 +106,7 @@ void EventPipeThread::SetWriteBuffer(EventPipeBufferManager *pBufferManager, Eve
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(m_lock.OwnedByCurrentThread());
+    _ASSERTE(pBufferManager != nullptr);
 
     EventPipeBuffer *pWriteBuffer = nullptr;
     m_pWriteBuffers->Lookup(pBufferManager, &pWriteBuffer);
@@ -124,7 +125,8 @@ void EventPipeThread::SetWriteBuffer(EventPipeBufferManager *pBufferManager, Eve
 EventPipeBufferList *EventPipeThread::GetBufferList(EventPipeBufferManager *pBufferManager)
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(pBufferManager != nullptr && pBufferManager->IsLockOwnedByCurrentThread());
+    _ASSERTE(pBufferManager != nullptr);
+    _ASSERTE(pBufferManager->IsLockOwnedByCurrentThread());
 
     EventPipeBufferList *pBufferList = nullptr;
     m_pBufferLists->Lookup(pBufferManager, &pBufferList);
@@ -134,12 +136,15 @@ EventPipeBufferList *EventPipeThread::GetBufferList(EventPipeBufferManager *pBuf
 void EventPipeThread::SetBufferList(EventPipeBufferManager *pBufferManager, EventPipeBufferList *pNewBufferList)
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(pBufferManager != nullptr && pBufferManager->IsLockOwnedByCurrentThread());
+    _ASSERTE(pBufferManager != nullptr);
+    _ASSERTE(pBufferManager->IsLockOwnedByCurrentThread());
 
     EventPipeBufferList *pBufferList = nullptr;
-    m_pBufferLists->Lookup(pBufferManager, &pBufferList);
-    if (!pBufferList)
-        m_pBufferLists->Remove(pBufferManager);
+    if (m_pBufferLists->Lookup(pBufferManager, &pBufferList))
+    {
+        if (!pBufferList)
+            m_pBufferLists->Remove(pBufferManager);
+    }
     m_pBufferLists->Add(pBufferManager, pNewBufferList);
 }
 
