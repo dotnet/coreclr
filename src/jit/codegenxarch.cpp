@@ -2330,7 +2330,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
         getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, initReg, frameSize); // restore stack pointer
 
-        lastTouchDelta = 0; // The loop code above actually over-probes: it always probes beyond the final SP we need.
+        lastTouchDelta          = 0; // The loop code above actually over-probes: it always probes beyond the final SP we need.
 
 #endif // _TARGET_UNIX_
 
@@ -2405,11 +2405,10 @@ void CodeGen::genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta X86_ARG
         inst_RV_RV(INS_mov, REG_SPBASE, regTmp, TYP_I_IMPL);
     }
     else
-#else  // !_TARGET_X86_
+#endif // _TARGET_X86_
     {
         inst_RV_IV(INS_sub, REG_SPBASE, -spDelta, EA_PTRSIZE);
     }
-#endif // !_TARGET_X86_
 }
 
 //------------------------------------------------------------------------

@@ -366,6 +366,7 @@ void CodeGen::genLclHeap(GenTree* tree)
     emitAttr    easz            = emitTypeSize(type);
     BasicBlock* endLabel        = nullptr;
     unsigned    stackAdjustment = 0;
+    regNumber   regTmp          = REG_NA;
 
     noway_assert(isFramePointerUsed()); // localloc requires Frame Pointer to be established since SP changes
     noway_assert(genStackLevel == 0);   // Can't have anything on the stack
@@ -395,7 +396,6 @@ void CodeGen::genLclHeap(GenTree* tree)
     }
 
     // Setup the regTmp, if there is one.
-    regNumber regTmp = REG_NA;
     if (tree->AvailableTempRegCount() > 0)
     {
         regTmp = tree->ExtractTempReg();
