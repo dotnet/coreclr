@@ -333,6 +333,12 @@ public:
     // Get next event.
     static EventPipeEventInstance *GetNextEvent();
 
+#ifdef DEBUG
+    static bool IsLockOwnedByCurrentThread();
+    static bool IsBufferManagerLockOwnedByCurrentThread();
+#endif
+
+
     template<class T>
     static void RunWithCallbackPostponed(T f)
     {
@@ -397,7 +403,7 @@ private:
     static EventPipeFile *s_pFile;
     static EventPipeEventSource *s_pEventSource;
     static HANDLE s_fileSwitchTimerHandle;
-    static ULONGLONG s_lastFlushSwitchTime;
+    static ULONGLONG s_lastFlushTime;
 };
 
 struct EventPipeProviderConfiguration

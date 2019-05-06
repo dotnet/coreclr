@@ -84,8 +84,6 @@ void TieredCompilationManager::Init()
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
-
-    CrstHolder holder(&m_lock);
 }
 
 #endif // FEATURE_TIERED_COMPILATION && !DACCESS_COMPILE
@@ -95,7 +93,7 @@ NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimiza
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != NULL);
 
-#if defined(FEATURE_TIERED_COMPILATION) && !defined(DACCESS_COMPILE)
+#ifdef FEATURE_TIERED_COMPILATION
     if (!pMethodDesc->IsEligibleForTieredCompilation())
     {
         // The optimization tier is not used
@@ -109,13 +107,13 @@ NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimiza
         return NativeCodeVersion::OptimizationTier1;
     }
 
-    if (!g_pConfig->TieredCompilation_StartupTier_CallCounting())
+    if (!g_pConfig->TieredCompilation_CallCounting())
     {
         // Call counting is disabled altogether through config, the intention is to remain at the initial tier
         return NativeCodeVersion::OptimizationTier0;
     }
 
-    if (!pMethodDesc->GetCallCounter()->IsTier0CallCountingEnabled(pMethodDesc))
+    if (!pMethodDesc->GetCallCounter()->IsCallCountingEnabled(pMethodDesc))
     {
         // Tier 0 call counting may have been disabled based on information about precompiled code or for other reasons, the
         // intention is to begin at tier 1
@@ -134,7 +132,7 @@ NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimiza
 //
 // currentCallCountLimit is pre-decremented, that is to say the value is <= 0 when the
 //      threshold for promoting to tier 1 is reached.
-void TieredCompilationManager::OnTier0MethodCalled(
+void TieredCompilationManager::OnMethodCalled(
     MethodDesc* pMethodDesc,
     bool isFirstCall,
     int currentCallCountLimit,
@@ -150,7 +148,7 @@ void TieredCompilationManager::OnTier0MethodCalled(
         // Stop call counting when the delay is in effect
         IsTieringDelayActive() ||
         // Initiate the delay on tier 0 activity (when a new eligible method is called the first time)
-        (isFirstCall && g_pConfig->TieredCompilation_StartupTier_CallCountingDelayMs() != 0) ||
+        (isFirstCall && g_pConfig->TieredCompilation_CallCountingDelayMs() != 0) ||
         // Stop call counting when ready for tier 1 promotion
         currentCallCountLimit <= 0;
 
@@ -168,7 +166,7 @@ void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTierPromotion(M
     _ASSERTE(pMethodDesc != nullptr);
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
 
-    if (g_pConfig->TieredCompilation_StartupTier_CallCountingDelayMs() == 0 ||
+    if (g_pConfig->TieredCompilation_CallCountingDelayMs() == 0 ||
         !pMethodDesc->GetCallCounter()->IsCallCountingEnabled(pMethodDesc))
     {
         return;
@@ -314,7 +312,7 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(g_pConfig->TieredCompilation());
-    _ASSERTE(g_pConfig->TieredCompilation_StartupTier_CallCountingDelayMs() != 0);
+    _ASSERTE(g_pConfig->TieredCompilation_CallCountingDelayMs() != 0);
 
     NewHolder<SArray<MethodDesc*>> methodsPendingCountingHolder = new(nothrow) SArray<MethodDesc*>();
     if (methodsPendingCountingHolder == nullptr)
@@ -364,7 +362,7 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
                     &m_tieringDelayTimerHandle,
                     TieringDelayTimerCallback,
                     timerContextHolder,
-                    g_pConfig->TieredCompilation_StartupTier_CallCountingDelayMs(),
+                    g_pConfig->TieredCompilation_CallCountingDelayMs(),
                     (DWORD)-1 /* Period, non-repeating */,
                     0 /* flags */))
             {
@@ -448,7 +446,7 @@ void TieredCompilationManager::TieringDelayTimerCallbackWorker()
         {
             if (ThreadpoolMgr::ChangeTimerQueueTimer(
                     tieringDelayTimerHandle,
-                    g_pConfig->TieredCompilation_StartupTier_CallCountingDelayMs(),
+                    g_pConfig->TieredCompilation_CallCountingDelayMs(),
                     (DWORD)-1 /* Period, non-repeating */))
             {
                 success = true;
@@ -818,8 +816,7 @@ CORJIT_FLAGS TieredCompilationManager::GetJitFlags(NativeCodeVersion nativeCodeV
         return flags;
     }
     
-    if (nativeCodeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0 &&
-        !g_pConfig->TieredCompilation_StartupTier_OptimizeCode())
+    if (nativeCodeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0)
     {
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_TIER0);
     }
