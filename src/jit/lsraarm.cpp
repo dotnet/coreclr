@@ -93,7 +93,11 @@ int LinearScan::BuildLclHeap(GenTree* tree)
         BuildUse(size);
     }
 
-    if (!compiler->codeGen->validImmForInstr(INS_add, compiler->lvaOutgoingArgSpaceSize, INS_FLAGS_DONT_CARE))
+    // If we have an outgoing argument space, we are going to probe that SP change, and we require
+    // a temporary register for doing the probe. Note also that if the outgoing argument space is
+    // large enough that it can't be directly encoded in SUB/ADD instructions, we also need a temp
+    // register to load the large sized constant into a register.
+    if (compiler->lvaOutgoingArgSpaceSize > 0)
     {
         internalIntCount = 1;
     }
