@@ -75,7 +75,7 @@ namespace System.Collections.Generic
             }
         }
 
-        public int BinarySearch(Span<T> array, int index, int length, T value, IComparer<T>? comparer)
+        public int BinarySearch(T[] array, int index, int length, T value, IComparer<T>? comparer)
         {
             try
             {
@@ -115,7 +115,7 @@ namespace System.Collections.Generic
             }
         }
 
-        internal static int InternalBinarySearch(Span<T> array, int index, int length, T value, IComparer<T> comparer)
+        internal static int InternalBinarySearch(T[] array, int index, int length, T value, IComparer<T> comparer)
         {
             Debug.Assert(array != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (array.Length - index >= length), "Check the arguments in the caller!");
@@ -362,7 +362,7 @@ namespace System.Collections.Generic
             }
         }
 
-        public int BinarySearch(Span<T> array, int index, int length, T value, IComparer<T>? comparer)
+        public int BinarySearch(T[] array, int index, int length, T value, IComparer<T>? comparer)
         {
             Debug.Assert(array != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (array.Length - index >= length), "Check the arguments in the caller!");
@@ -389,7 +389,7 @@ namespace System.Collections.Generic
         // This function is called when the user doesn't specify any comparer.
         // Since T is constrained here, we can call IComparable<T>.CompareTo here.
         // We can avoid boxing for value type and casting for reference types.
-        private static int BinarySearch(Span<T> array, int index, int length, T value)
+        private static int BinarySearch(T[] array, int index, int length, T value)
         {
             int lo = index;
             int hi = index + length - 1;
