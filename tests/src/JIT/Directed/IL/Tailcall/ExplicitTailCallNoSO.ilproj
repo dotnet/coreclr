@@ -29,11 +29,20 @@
   <PropertyGroup>
     <CLRTestBatchPreCommands><![CDATA[
 $(CLRTestBatchPreCommands)
+if "%COMPlus_JITMinOpts%" equ "1" (
+  echo Skipping test because COMPlus_JITMinOpts=1
+  exit /b 0
+)
 set COMPlus_TC_QuickJit=1
 set COMPlus_TC_QuickJitForLoops=1
 ]]></CLRTestBatchPreCommands>
     <BashCLRTestPreCommands><![CDATA[
 $(BashCLRTestPreCommands)
+if [[ "$COMPlus_JITMinOpts" == "1" ]]
+then
+  echo "Skipping test because COMPlus_JITMinOpts=1"
+  exit $(GCBashScriptExitCode)
+fi
 export COMPlus_TC_QuickJit=1
 export COMPlus_TC_QuickJitForLoops=1
 ]]></BashCLRTestPreCommands>
