@@ -815,6 +815,28 @@ void QCALLTYPE MemoryNative::Clear(void *dst, size_t length)
 {
     QCALL_CONTRACT;
 
+#if defined(_X86_) || defined(_AMD64_)
+    if (length > 0x100)
+    {
+        // memset ends up calling rep stosb if the hardware claims to support it efficiently. rep stosb is up to 2x slower
+        // on misaligned blocks. Workaround this issue by aligning the blocks passed to memset upfront.
+
+        *(uint64_t*)dst = 0;
+        *((uint64_t*)dst + 1) = 0;
+        *((uint64_t*)dst + 2) = 0;
+        *((uint64_t*)dst + 3) = 0;
+
+        void* end = (uint8_t*)dst + length;
+        *((uint64_t*)end - 1) = 0;
+        *((uint64_t*)end - 2) = 0;
+        *((uint64_t*)end - 3) = 0;
+        *((uint64_t*)end - 4) = 0;
+
+        dst = ALIGN_UP((uint8_t*)dst + 1, 32);
+        length = ALIGN_DOWN((uint8_t*)end - 1, 32) - (uint8_t*)dst;
+    }
+#endif
+
     memset(dst, 0, length);
 }
 
@@ -1235,6 +1257,34 @@ FCIMPL0(INT64, GCInterface::GetAllocatedBytesForCurrentThread)
     currentAllocated = ac->alloc_bytes + ac->alloc_bytes_loh - (ac->alloc_limit - ac->alloc_ptr);
 
     return currentAllocated;
+}
+FCIMPLEND
+
+/*===============================AllocateNewArray===============================
+**Action: Allocates a new array object. Allows passing extra flags
+**Returns: The allocated array.
+**Arguments: elementTypeHandle -> type of the element, 
+**           length -> number of elements, 
+**           zeroingOptional -> whether caller prefers to skip clearing the content of the array, if possible.
+**Exceptions: IDS_EE_ARRAY_DIMENSIONS_EXCEEDED when size is too large. OOM if can't allocate.
+==============================================================================*/
+FCIMPL3(Object*, GCInterface::AllocateNewArray, void* arrayTypeHandle, INT32 length, CLR_BOOL zeroingOptional)
+{
+    CONTRACTL {
+        FCALL_CHECK;
+        PRECONDITION(length >= 0);
+    } CONTRACTL_END;
+
+    OBJECTREF pRet = NULL;
+    TypeHandle arrayType = TypeHandle::FromPtr(arrayTypeHandle);
+
+    HELPER_METHOD_FRAME_BEGIN_RET_0();
+
+    pRet = AllocateSzArray(arrayType, length, zeroingOptional ? GC_ALLOC_ZEROING_OPTIONAL : GC_ALLOC_NO_FLAGS);
+
+    HELPER_METHOD_FRAME_END();
+
+    return OBJECTREFToObject(pRet);
 }
 FCIMPLEND
 
