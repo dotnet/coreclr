@@ -96,6 +96,7 @@ public:
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 
     static bool QCALLTYPE GetNextEvent(
+        UINT64 sessionID,
         EventPipeEventInstanceData *pInstance);
 };
 

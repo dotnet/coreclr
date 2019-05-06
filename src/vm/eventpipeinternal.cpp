@@ -250,7 +250,7 @@ void QCALLTYPE EventPipeInternal::WriteEventData(
     END_QCALL;
 }
 
-bool QCALLTYPE EventPipeInternal::GetNextEvent(EventPipeEventInstanceData *pInstance)
+bool QCALLTYPE EventPipeInternal::GetNextEvent(UINT64 sessionID, EventPipeEventInstanceData *pInstance)
 {
     QCALL_CONTRACT;
 
@@ -259,7 +259,7 @@ bool QCALLTYPE EventPipeInternal::GetNextEvent(EventPipeEventInstanceData *pInst
 
     _ASSERTE(pInstance != NULL);
 
-    pNextInstance = EventPipe::GetNextEvent();
+    pNextInstance = EventPipe::GetNextEvent(sessionID);
     if (pNextInstance)
     {
         pInstance->ProviderID = pNextInstance->GetEvent()->GetProvider();

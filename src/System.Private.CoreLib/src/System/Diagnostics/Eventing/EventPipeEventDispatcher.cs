@@ -162,7 +162,7 @@ namespace System.Diagnostics.Tracing
             while (!m_stopDispatchTask)
             {
                 // Get the next event.
-                while (!m_stopDispatchTask && EventPipeInternal.GetNextEvent(&instanceData))
+                while (!m_stopDispatchTask && EventPipeInternal.GetNextEvent(m_sessionID, &instanceData))
                 {
                     // Filter based on provider.
                     if (instanceData.ProviderID == m_RuntimeProviderID)

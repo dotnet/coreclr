@@ -14,9 +14,11 @@
 
 const WCHAR *EventPipeConfiguration::s_configurationProviderName = W("Microsoft-DotNETCore-EventPipeConfiguration");
 
-EventPipeConfiguration::EventPipeConfiguration()
+EventPipeConfiguration::EventPipeConfiguration(EventPipeSessions *pSessions)
+    : m_pSessions(pSessions)
 {
     STANDARD_VM_CONTRACT;
+    _ASSERTE(pSessions != nullptr);
 
     m_pConfigProvider = NULL;
     m_pProviderList = new SList<SListElem<EventPipeProvider *>>();
@@ -163,18 +165,24 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeSession *pSession, EventP
         m_pProviderList->InsertTail(new SListElem<EventPipeProvider *>(&provider));
     }
 
-    // Set the provider configuration and enable it if it has been requested by a session.
-    if (pSession != NULL)
+    for (EventPipeSessions::Iterator iterator = m_pSessions->Begin();
+         iterator != m_pSessions->End();
+         ++iterator)
     {
-        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(pSession, &provider);
-        if (pSessionProvider != NULL)
+        EventPipeSession *pSession = iterator->Key();
+        // Set the provider configuration and enable it if it has been requested by a session.
+        if (pSession != NULL)
         {
-            EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
-                true /* providerEnabled */,
-                pSessionProvider->GetKeywords(),
-                pSessionProvider->GetLevel(),
-                pSessionProvider->GetFilterData());
-            pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
+            EventPipeSessionProvider *pSessionProvider = GetSessionProvider(pSession, &provider);
+            if (pSessionProvider != NULL)
+            {
+                EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
+                    true /* providerEnabled */,
+                    pSessionProvider->GetKeywords(),
+                    pSessionProvider->GetLevel(),
+                    pSessionProvider->GetFilterData());
+                pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
+            }
         }
     }
 

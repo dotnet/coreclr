@@ -334,7 +334,7 @@ public:
     static bool WalkManagedStackForThread(Thread *pThread, StackContents &stackContents);
 
     // Get next event.
-    static EventPipeEventInstance *GetNextEvent();
+    static EventPipeEventInstance *GetNextEvent(EventPipeSessionID sessionID);
 
 #ifdef DEBUG
     static bool IsLockOwnedByCurrentThread();

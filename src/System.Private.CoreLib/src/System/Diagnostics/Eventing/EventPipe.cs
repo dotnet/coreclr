@@ -242,7 +242,7 @@ namespace System.Diagnostics.Tracing
         internal static extern unsafe bool GetSessionInfo(UInt64 sessionID, EventPipeSessionInfo* pSessionInfo);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern unsafe bool GetNextEvent(EventPipeEventInstanceData* pInstance);
+        internal static extern unsafe bool GetNextEvent(UInt64 sessionID, EventPipeEventInstanceData* pInstance);
     }
 }
 

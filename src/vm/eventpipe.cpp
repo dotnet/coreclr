@@ -172,8 +172,8 @@ void EventPipe::Initialize()
         CrstEventPipe,
         (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN | CRST_HOST_BREAKABLE));
 
-    s_pConfig = new EventPipeConfiguration();
     s_pSessions = new EventPipeSessions();
+    s_pConfig = new EventPipeConfiguration(s_pSessions);
     s_pConfig->Initialize();
 
     s_pEventSource = new EventPipeEventSource();
@@ -381,7 +381,7 @@ void EventPipe::Disable(EventPipeSessionID id)
 
     RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
         EventPipeSession *pSession = reinterpret_cast<EventPipeSession *>(id);
-        EventPipeFile *pFile;
+        EventPipeFile *pFile = nullptr;
         if (!s_pSessions->Lookup(pSession, &pFile))
             return;
         DisableInternal(*pSession, pFile, pEventPipeProviderCallbackDataQueue);
@@ -580,7 +580,8 @@ bool EventPipe::Enabled()
 {
     LIMITED_METHOD_CONTRACT;
 
-    CrstHolder _crst(GetLock());
+    // CrstHolder _crst(GetLock());
+    // FIXME: This is invoked before EventPipe::Initialize!
     return (s_pSessions != NULL) && (s_pSessions->GetCount() > 0);
 }
 
@@ -888,7 +889,7 @@ StackWalkAction EventPipe::StackWalkCallback(CrawlFrame *pCf, StackContents *pDa
     return SWA_CONTINUE;
 }
 
-EventPipeEventInstance *EventPipe::GetNextEvent()
+EventPipeEventInstance *EventPipe::GetNextEvent(EventPipeSessionID sessionID)
 {
     CONTRACTL
     {
@@ -901,8 +902,9 @@ EventPipeEventInstance *EventPipe::GetNextEvent()
 
     // Only fetch the next event if a tracing session exists.
     // The buffer manager is not disposed until the process is shutdown.
-    //  TODO: What is the new context when there are multiple sessions?
-    return (s_pSession != nullptr) ? s_pSession->GetNextEvent() : nullptr;
+    EventPipeSession *pSession = reinterpret_cast<EventPipeSession *>(sessionID);
+    EventPipeFile *pFile = nullptr;
+    return s_pSessions->Lookup(pSession, &pFile) ? pSession->GetNextEvent() : nullptr;
 }
 
 void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)

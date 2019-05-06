@@ -14,19 +14,24 @@
 #include "spinlock.h"
 
 class EventPipeBufferList;
+class EventPipeBufferManager;
 class EventPipeThread;
 
 void ReleaseEventPipeThreadRef(EventPipeThread* pThread);
 void AcquireEventPipeThreadRef(EventPipeThread* pThread);
 typedef Wrapper<EventPipeThread*, AcquireEventPipeThreadRef, ReleaseEventPipeThreadRef> EventPipeThreadHolder;
 
+typedef MapSHashWithRemove<EventPipeBufferManager *, EventPipeBuffer *> EventPipeWriteBuffers;
+typedef MapSHashWithRemove<EventPipeBufferManager *, EventPipeBufferList *> EventPipeBufferLists;
+
 class EventPipeThread
 {
 #ifndef __GNUC__
-    __declspec(thread) static EventPipeThreadHolder gCurrentEventPipeThreadHolder;
-#else // !__GNUC__
-    thread_local static EventPipeThreadHolder gCurrentEventPipeThreadHolder;
+    __declspec(thread) static
+#else  // !__GNUC__
+    thread_local static
 #endif // !__GNUC__
+        EventPipeThreadHolder gCurrentEventPipeThreadHolder;
 
     ~EventPipeThread();
 
@@ -38,11 +43,11 @@ class EventPipeThread
     // this is the one and only buffer this thread is allowed to write to
     // if non-null, it must match the tail of the m_bufferList
     // this pointer is protected by m_lock
-    EventPipeBuffer *m_pWriteBuffer = NULL;
+    EventPipeWriteBuffers *m_pWriteBuffers = nullptr;
 
     // this is a list of buffers that were written to by this thread
     // it is protected by EventPipeBufferManager::m_lock
-    EventPipeBufferList *m_pBufferList = NULL;
+    EventPipeBufferLists *m_pBufferLists = nullptr;
 
     // This lock is designed to have low contention. Normally it is only taken by this thread,
     // but occasionally it may also be taken by another thread which is trying to collect and drain
@@ -50,17 +55,18 @@ class EventPipeThread
     SpinLock m_lock;
 
 public:
-    static EventPipeThread* Get();
-    static void Set(EventPipeThread* pThread);
+    static EventPipeThread *Get();
+    static void Set(EventPipeThread *pThread);
 
     EventPipeThread();
     void AddRef();
     void Release();
-    SpinLock * GetLock();
-    EventPipeBuffer* GetWriteBuffer();
-    void SetWriteBuffer(EventPipeBuffer* pNewBuffer);
-    EventPipeBufferList * GetBufferList();
-    void SetBufferList(EventPipeBufferList * pBufferList);
+    SpinLock *GetLock();
+
+    EventPipeBuffer *GetWriteBuffer(EventPipeBufferManager *pBufferManager);
+    void SetWriteBuffer(EventPipeBufferManager *pBufferManager, EventPipeBuffer *pNewBuffer);
+    EventPipeBufferList *GetBufferList(EventPipeBufferManager *pBufferManager);
+    void SetBufferList(EventPipeBufferManager *pBufferManager, EventPipeBufferList *pBufferList);
 };
 
 class EventPipeBufferManager
