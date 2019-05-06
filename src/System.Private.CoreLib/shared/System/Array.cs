@@ -1482,7 +1482,6 @@ namespace System
             }
         }
 
-
         public static void Sort<T>(T[] array)
         {
             if (array == null)
