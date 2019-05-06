@@ -238,4 +238,62 @@ namespace R2RDump
             return new AllEntriesEnumerator(this);
         }
     }
+
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/nativeformatreader.h">NativeFormat::NativeHashtable</a>
+    /// </summary>
+    struct NativeCuckooFilter
+    {
+        private byte[] _image;
+        private uint _filterStartOffset;
+        private uint _filterEndOffset;
+
+        public NativeCuckooFilter(byte[] image, uint filterStartOffset, uint filterEndOffset)
+        {
+            _image = image;
+            _filterStartOffset = filterStartOffset;
+            _filterEndOffset = filterEndOffset;
+
+            if (((_filterStartOffset & 0xF) != 0) || ((_filterEndOffset & 0xF) != 0))
+            {
+                // Native cuckoo filters must be aligned at 16byte boundaries within the PE file
+                throw new System.BadImageFormatException();
+            }
+        }
+
+        private IEnumerable<UInt16[]> GetBuckets()
+        {
+            int bucket = 0;
+            int offset = _filterStartOffset
+            while (offset < _filterEndOffset)
+            {
+                UInt16[] bucket = new UInt16[8];
+                for (int i = 0; i < bucket.Length; i++)
+                {
+                    bucket[i] = NativeReader.ReadUInt16(_image, ref offset);
+                }
+                yield return bucket;
+            }
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine($"NativeCuckooFilter Size: {(_filterEndOffset - _filterStartOffset) / 16}");
+            int bucket = 0;
+            foreach (UInt16 []bucket in GetBuckets())
+            {
+                sb.Append($"Bucket: {bucket} [");
+                for (int i = 0; i < 8; i++)
+                {
+                    sb.Append($"{bucket[i],4:X} ");
+                }
+                sb.AppendLine("]");
+                bucket++;
+            }
+
+            return sb.ToString();
+        }
+    }
 }

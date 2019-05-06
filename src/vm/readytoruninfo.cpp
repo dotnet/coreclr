@@ -614,6 +614,32 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
         }
     }
 
+    // For format version 2.2 and later, there is an optional profile-data section
+    if (IsImageVersionAtLeast(2, 2))
+    {
+        IMAGE_DATA_DIRECTORY * pProfileDataInfoDir = FindSection(READYTORUN_SECTION_PROFILEDATA_INFO);
+        if (pProfileDataInfoDir != NULL)
+        {
+            CORCOMPILE_METHOD_PROFILE_LIST * pMethodProfileList;
+            pMethodProfileList = (CORCOMPILE_METHOD_PROFILE_LIST *)GetImage()->GetDirectoryData(pProfileDataInfoDir);
+
+            pModule->SetMethodProfileList(pMethodProfileList);  
+        }
+    }
+
+    // For format version 3.1 and later, there is an optional attributes section
+    if (IsImageVersionAtLeast(3,1))
+    {
+        IMAGE_DATA_DIRECTORY *attributesPresenceDataInfoDir = FindSection(READYTORUN_SECTION_ATTRIBUTEPRESENCE);
+        if (attributesPresenceDataInfoDir != NULL)
+        {
+            m_attributesPresence = NativeCuckooFilter(
+                (byte *)pLayout->GetBase(),
+                pLayout->GetVirtualSize(),
+                attributesPresenceDataInfoDir->VirtualAddress,
+                attributesPresenceDataInfoDir->VirtualSize);
+        }
+    }
 }
 
 static bool SigMatchesMethodDesc(MethodDesc* pMD, SigPointer &sig, Module * pModule)
@@ -905,6 +931,28 @@ BOOL ReadyToRunInfo::IsImageVersionAtLeast(int majorVersion, int minorVersion)
 	return (m_pHeader->MajorVersion == majorVersion && m_pHeader->MinorVersion >= minorVersion) ||
 		   (m_pHeader->MajorVersion > majorVersion);
 
+}
+
+static DWORD s_wellKnownAttributeHashes[(DWORD)WellKnownAttribute::Count];
+
+bool ReadyToRunInfo::MayHaveCustomAttribute(WellKnownAttribute attribute, mdToken token)
+{
+    UINT32 hash = 0;
+    UINT16 fingerprint = 0;
+    if (!m_attributesPresence.HashComputationImmaterial())
+    {
+        DWORD wellKnownHash = s_wellKnownAttributeHashes[(DWORD)attribute];
+        if (wellKnownHash == 0)
+        {
+            // TODO, investigate using constexpr to compute string hashes at compile time initially
+            s_wellKnownAttributeHashes[(DWORD)attribute] = wellKnownHash = ComputeNameHashCode(GetWellKnownAttributeName(attribute));
+        }
+
+        hash = CombineTwoValuesIntoHash(wellKnownHash, token);
+        fingerprint = hash >> 16;
+    }
+    
+    return m_attributesPresence.MayExist(hash, fingerprint);
 }
 
 #endif // DACCESS_COMPILE

@@ -10,6 +10,15 @@
 
 #pragma once
 
+#ifndef DACCESS_COMPILE
+
+#if defined(_M_X64) || defined(__x86_64__) || defined(__i386__) || defined(_M_IX86)
+#include "immintrin.h"
+#define USE_INTEL_INTRINSICS
+#endif
+
+#endif // DACCESS_COMPILE
+
 // To reduce differences between C# and C++ versions
 #define byte uint8_t
 #define uint uint32_t
@@ -523,4 +532,89 @@ namespace NativeFormat
             return Enumerator(parser, endOffset, (byte)hashcode);
         }
     };
+
+    class NativeCuckooFilter;
+    typedef DPTR(NativeCuckooFilter) PTR_NativeCuckooFilter;
+
+    class NativeCuckooFilter
+    {
+        PTR_BYTE _base;
+        UInt32 _size;
+
+        UInt32 ComputeFingerprintHash(UInt16 fingerprint)
+        {
+            // As the number of buckets is not reasonably greater than 65536, just use fingerprint as its own hash
+            // This implies that the hash of the entrypoint should be an independent hash function as compared
+            // to the fingerprint
+            return fingerprint;
+        }
+
+    public:
+        NativeCuckooFilter()
+        {
+            _base = NULL;
+            _size = 0;
+        }
+
+        NativeCuckooFilter(PTR_BYTE base_, UInt32 size, UInt32 rvaOfTable, UInt32 filterSize)
+        {
+            if (((rva & 0xF) != 0) || ((filterSize & 0xF) != 0))
+            {
+                // Native cuckoo filters must be aligned at 16byte boundaries within the PE file
+                NativeReader exceptionReader;
+                exceptionReader.ThrowBadImageFormatException();
+            }
+            _base = base_ + rva;
+            _size = filterSize;
+        }
+
+        bool HashComputationImmaterial()
+        {
+            if ((_base == NULL) || (_size == 0))
+                return true;
+            return false;
+        }
+
+        bool MayExist(UInt32 hashcode, UInt16 fingerprint)
+        {
+            if (_base == NULL)
+                return true;
+
+            if (_size == 0)
+                return false; // Empty table means none of the attributes exist
+                        
+            UInt32 bucketCount = _size / 16;
+
+            UInt32 bucketAIndex = hashcode % bucketCount;
+            UInt32 bucketBIndex = bucketAIndex ^ ComputeFingerprintHash(fingerprint);
+
+#if defined(USE_INTEL_INTRINSICS)
+            __m128i bucketA = _mm_loadu_si128(&((__m128*)_base)[bucketAIndex]);
+            __m128i bucketB = _mm_loadu_si128(&((__m128*)_base)[bucketBIndex]);
+            __m128i fingerprint = _mm_set1_epi16(fingerprint);
+            __m128i bucketACompare = _mm_cmpep_epi16(bucketA, fingerprint);
+            __m128i bucketBCompare = _mm_cmpep_epi16(bucketB, fingerprint);
+            __m128i bothCompare = _mm_or_si128(bucketACompare, bucketBCompare);
+            return !!_mm_movemask_epi8(bothCompare);
+#else // Non-intrinsic implementation supporting NativeReader to cross DAC boundary
+            NativeReader reader(_base, _size);
+
+            // Check for existence in bucketA
+            for (int i = 0; i < 8; i++)
+            {
+                if (reader.ReadUInt16(bucketAIndex * 16 + i * sizeof(UInt16)) == fingerprint)
+                    return true;
+            }
+
+            // Check for existence in bucketB
+            for (int i = 0; i < 8; i++)
+            {
+                if (reader.ReadUInt16(bucketBIndex * 16 + i * sizeof(UInt16)) == fingerprint)
+                    return true;
+            }
+
+            return false;
+#endif
+        }
+    }
 }
