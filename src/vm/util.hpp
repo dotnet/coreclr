@@ -1121,6 +1121,7 @@ BOOL EnableARM();
 
 int GetRandomInt(int maxVal);
 
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 class InternalCasingHelper {
 
     private:
@@ -1142,6 +1143,7 @@ class InternalCasingHelper {
     // use for ridiculously long strings.)
     static INT32 InvariantToLowerNoThrow(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn);
 };
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 //
 //

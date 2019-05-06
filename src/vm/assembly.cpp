@@ -1139,6 +1139,7 @@ Module * Assembly::FindModuleByTypeRef(
 
 #ifndef DACCESS_COMPILE
 
+#ifndef CROSSGEN_COMPILE
 Module *Assembly::FindModuleByName(LPCSTR pszModuleName)
 {
     CONTRACT(Module *)
@@ -1166,6 +1167,7 @@ Module *Assembly::FindModuleByName(LPCSTR pszModuleName)
     else
         RETURN m_pManifest->LoadModule(::GetAppDomain(), kFile)->GetModule();
 }
+#endif // CROSSGEN_COMPILE
 
 void Assembly::CacheManifestExportedTypes(AllocMemTracker *pamTracker)
 {

@@ -552,11 +552,15 @@ EEClassHashEntry_t* ClassLoader::InsertValue(EEClassHashTable *pClassHash, EECla
     EEClassHashEntry_t *pCaseInsEntry = NULL;
 
     EEClassHashEntry_t *pEntry = pClassHash->AllocNewEntry(pamTracker);
-   
+
+#ifdef CROSSGEN_COMPILE
+    _ASSERTE(!pClassCaseInsHash);
+#else
     if (pClassCaseInsHash) {
         CreateCanonicallyCasedKey(pszNamespace, pszClassName, &pszLowerCaseNS, &pszLowerCaseName);
         pCaseInsEntry = pClassCaseInsHash->AllocNewEntry(pamTracker);
     }
+#endif
 
 
     {
@@ -1016,7 +1020,6 @@ VOID ClassLoader::PopulateAvailableClassHashTable(Module* pModule,
     pImport->EnumTypeDefClose(&hTypeDefEnum);
 }
 
-
 void ClassLoader::LazyPopulateCaseSensitiveHashTables()
 {
     CONTRACTL
@@ -1065,6 +1068,7 @@ void ClassLoader::LazyPopulateCaseSensitiveHashTables()
     amTracker.SuppressRelease();
 }
 
+#ifndef CROSSGEN_COMPILE
 void ClassLoader::LazyPopulateCaseInsensitiveHashTables()
 {
     CONTRACTL
@@ -1114,6 +1118,7 @@ void ClassLoader::LazyPopulateCaseInsensitiveHashTables()
         }
     }
 }
+#endif // !CROSSGEN_COMPILE
 
 /*static*/
 void DECLSPEC_NORETURN ClassLoader::ThrowTypeLoadException(TypeKey *pKey,
@@ -1508,7 +1513,13 @@ BOOL ClassLoader::FindClassModuleThrowing(
     {
       case nhCaseInsensitive:
       {
-#ifndef DACCESS_COMPILE
+#ifdef DACCESS_COMPILE
+          DacNotImpl();
+          break;
+#elif CROSSGEN_COMPILE
+          _ASSERTE(!"Unexpected");
+          break;
+#else
         // GC-type users should only be loading types through tokens.
 #ifdef _DEBUG_IMPL
         _ASSERTE(!FORBIDGC_LOADER_USE_ENABLED());
@@ -1566,9 +1577,6 @@ BOOL ClassLoader::FindClassModuleThrowing(
         // Substitute the lower case version of the name.
         // The field are will be released when we leave this scope
         pName->SetName(pszLowerNameSpace, pszLowerClassName);
-        break;
-#else
-        DacNotImpl();
         break;
 #endif // #ifndef DACCESS_COMPILE
       }
@@ -1633,11 +1641,15 @@ BOOL ClassLoader::FindClassModuleThrowing(
         {
             _ASSERT(needsToBuildHashtable);
 
+#ifdef CROSSGEN_COMPILE
+            _ASSERT(nhTable != nhCaseInsensitive);
+#else
             if (nhTable == nhCaseInsensitive)
             {
                 LazyPopulateCaseInsensitiveHashTables();
             }
             else
+#endif
             {
                 // Note: This codepath is only valid for R2R scenarios
                 LazyPopulateCaseSensitiveHashTables();
@@ -2129,7 +2141,7 @@ HRESULT ClassLoader::FindTypeDefByExportedType(IMDInternalImport *pCTImport, mdE
     return pTDImport->FindTypeDef(szcNameSpace, szcName, mdTokenNil, mtd);
 }
 
-#ifndef DACCESS_COMPILE
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 VOID ClassLoader::CreateCanonicallyCasedKey(LPCUTF8 pszNameSpace, LPCUTF8 pszName, __out LPUTF8 *ppszOutNameSpace, __out LPUTF8 *ppszOutName)
 {
@@ -2193,7 +2205,7 @@ VOID ClassLoader::CreateCanonicallyCasedKey(LPCUTF8 pszNameSpace, LPCUTF8 pszNam
     }
 }
 
-#endif // #ifndef DACCESS_COMPILE
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 
 //
@@ -4300,10 +4312,14 @@ VOID ClassLoader::AddAvailableClassHaveLock(
         LPUTF8 pszLowerCaseNS = NULL;
         LPUTF8 pszLowerCaseName = NULL;
 
+#ifdef CROSSGEN_COMPILE
+        _ASSERTE(!pClassCaseInsHash);
+#else
         if (pClassCaseInsHash) {
             CreateCanonicallyCasedKey(pszNameSpace, pszName, &pszLowerCaseNS, &pszLowerCaseName);
             pCaseInsEntry = pClassCaseInsHash->AllocNewEntry(pamTracker);
         }
+#endif
 
         EEClassHashEntry_t *pEntry = pClassHash->FindItem(pszNameSpace, pszName, FALSE, NULL);
         if (pEntry) {

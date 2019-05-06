@@ -3250,6 +3250,8 @@ int __cdecl stricmpUTF8(const char* szStr1, const char* szStr2)
 }
 
 #ifndef DACCESS_COMPILE
+
+#ifndef CROSSGEN_COMPILE
 //
 // Casing Table Helpers for use in the EE.
 //
@@ -3281,75 +3283,6 @@ INT32 InternalCasingHelper::InvariantToLowerNoThrow(__out_bcount_opt(cMaxBytes) 
     return InvariantToLowerHelper(szOut, cMaxBytes, szIn, FALSE /*fAllowThrow*/);
 }
 
-static LPCUTF8 Utf8DecodeMultibyteChar(__in_z LPCUTF8 szIn, INT32 *pRet)
-{
-    INT32 result = 0;
-    INT32 bytesToRead;
-
-    // First byte indicates the size of the encoding and the first bits of the code point
-    if ((*szIn & 0xF8) == 0xF0)
-    {
-        result = *szIn++ & 0x07;
-        bytesToRead = 3;
-    }
-    else if ((*szIn & 0xF0) == 0xE0)
-    {
-        result = *szIn++ & 0x0F;
-        bytesToRead = 2;
-    }
-    else if ((*szIn & 0xE0) == 0xC0)
-    {
-        result = *szIn++ & 0x1F;
-        bytesToRead = 1;
-    }
-    else
-    {
-        // Invalid encoding
-        return nullptr;
-    }
-
-    for (; bytesToRead > 0; bytesToRead--, szIn++)
-    {
-        if ((*szIn & 0xC0) != 0x80)
-            return nullptr;
-
-        result = (result << 6) | (*szIn & 0x3F);
-    }
-
-    *pRet = result;
-    return szIn;
-}
-
-UINT16 towlowerinvariant(UINT16 c)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END
-
-#if CROSSGEN_COMPILE
-    assert(!"unreached");
-    return 0;
-#else
-    UINT16 ret;
-
-    EX_TRY
-    {
-        PREPARE_NONVIRTUAL_CALLSITE(METHOD__SYSTEM_CHAR__TO_LOWER_INVARIANT);
-        DECLARE_ARGHOLDER_ARRAY(args, 1);
-        args[ARGNUM_0] = DWORD_TO_ARGHOLDER(c);
-        CALL_MANAGED_METHOD(ret, UINT16, args);
-    }
-    EX_CATCH
-    {
-    }
-    EX_END_CATCH(SwallowAllExceptions)
-
-    return ret;
-#endif
-}
-
 // Convert szIn to lower case in the Invariant locale.
 INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn, BOOL fAllowThrow)
 {
@@ -3368,147 +3301,34 @@ INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) L
 
     INT32 result = 0;
 
-    LPUTF8 szStart = szOut;
-    LPUTF8 szEnd = szOut + cMaxBytes - 1;
-
-    INT32 c;
-
-    if (cMaxBytes != 0 && szOut == NULL)
+    EX_TRY
     {
-        if (fAllowThrow)
-        {
-            COMPlusThrowHR(ERROR_INVALID_PARAMETER);
-        }
-        SetLastError(ERROR_INVALID_PARAMETER);
-        goto Exit;
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__UTF8UTILITIES__TO_LOWER_INVARIANT);
+        DECLARE_ARGHOLDER_ARRAY(args, 3);
+        args[ARGNUM_0] = PTR_TO_ARGHOLDER(szOut);
+        args[ARGNUM_1] = DWORD_TO_ARGHOLDER(cMaxBytes);
+        args[ARGNUM_2] = PTR_TO_ARGHOLDER(szIn);
+        CALL_MANAGED_METHOD(result, UINT32, args);
     }
-
-    if (cMaxBytes) {
-        //Walk the string copying the characters.
-        while (szOut<szEnd && *szIn != 0) {
-            if (((UINT32)(*szIn)) > ((UINT32)0x80))
-            {
-                //Multi-byte code point
-                szIn = Utf8DecodeMultibyteChar(szIn, &c);
-                if (!szIn)
-                {
-                    RaiseException(ERROR_NO_UNICODE_TRANSLATION, EXCEPTION_NONCONTINUABLE, 0, 0);
-                }
-
-                // Convert WCHAR character to lower case
-                // Skip doing this for the supplementary plane characters because we would do the wrong thing anyway
-                // https://github.com/dotnet/coreclr/issues/21168
-                if (c <= 0xFFFF)
-                    c = towlowerinvariant((UINT16)c);
-
-                // Encode back as UTF-8
-                if (c <= 0x7F)
-                {
-                    *szOut++ = c;
-                }
-                else if (c <= 0x7FF && szOut + 1 < szEnd)
-                {
-                    *szOut++ = 0xC0 | (c >> 6);
-                    *szOut++ = 0x80 | (c & 0x3F);
-                }
-                else if (c <= 0xFFFF && szOut + 2 < szEnd)
-                {
-                    *szOut++ = 0xE0 | (c >> 12);
-                    *szOut++ = 0x80 | ((c >> 6) & 0x3F);
-                    *szOut++ = 0x80 | (c & 0x3F);
-                }
-                else if (c <= 0x10FFFF && szOut + 3 < szEnd)
-                {
-                    *szOut++ = 0xF0 | (c >> 18);
-                    *szOut++ = 0x80 | ((c >> 12) & 0x3F);
-                    *szOut++ = 0x80 | ((c >> 6) & 0x3F);
-                    *szOut++ = 0x80 | (c & 0x3F);
-                }
-                else
-                {
-                    assert(c <= 0x10FFFF);
-
-                    // Encoding doesn't fit the provided buffer
-                    szOut = szEnd;
-                }
-            }
-            else
-            {
-                if (*szIn >= 'A' && *szIn <= 'Z')
-                    *szOut++ = *szIn++ | 0x20;
-                else
-                    *szOut++ = *szIn++;
-            }
-        }
-
-        // Check whether we broke out of the loop before reading the last character of output
-        if (*szIn != 0)
-        {
-            if (fAllowThrow) {
-                COMPlusThrowHR(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER));
-            }
-            SetLastError(ERROR_INSUFFICIENT_BUFFER);
-            goto Exit;
-        }
-
-        // We didn't copy the null terminator, so null-terminate
-        *szOut = 0;
-
-        // Make it so that adding result points to the null terminator
-        result = (INT32)(szEnd - szStart);
-        goto Exit;
-    }
-    else
+    EX_CATCH
     {
-        while (*szIn != 0)
-        {
-            if (((UINT32)(*szIn)) > ((UINT32)0x80))
-            {
-                //Multi-byte code point
-                szIn = Utf8DecodeMultibyteChar(szIn, &c);
-                if (!szIn)
-                {
-                    RaiseException(ERROR_NO_UNICODE_TRANSLATION, EXCEPTION_NONCONTINUABLE, 0, 0);
-                }
-
-                // Convert WCHAR character to lower case
-                // Skip doing this for the supplementary plane characters because we would do the wrong thing anyway
-                // https://github.com/dotnet/coreclr/issues/21168
-                if (c <= 0xFFFF)
-                    c = towlowerinvariant((UINT16)c);
-
-                if (c <= 0x7F)
-                {
-                    result += 1;
-                }
-                else if (c <= 0x7FF)
-                {
-                    result += 2;
-                }
-                else if (c <= 0xFFFF)
-                {
-                    result += 3;
-                }
-                else
-                {
-                    assert(c <= 0x10FFFF);
-                    result += 4;
-                }
-            }
-            else
-            {
-                result++;
-                szIn++;
-            }
+        _ASSERTE(!"Unexpected");
+        result = -ERROR_INVALID_FUNCTION;
+    }
+    EX_END_CATCH(SwallowAllExceptions)
+    
+    if (result < 0)
+    {
+        if (fAllowThrow) {
+            COMPlusThrowHR(HRESULT_FROM_WIN32(-result));
         }
-
-        // Null terminator
-        result++;
+        SetLastError(-result);
+        result = 0;
     }
 
-Exit:
     return result;
 }
+#endif // CROSSGEN_COMPILE
 
 //
 //

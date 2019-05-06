@@ -122,6 +122,7 @@
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\Internal\Console.cs" />
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\IsolatedComponentLoadContext.cs" />
+    <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Utf8Utilities.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\UnsafeNativeMethods.cs" />
     <Compile Include="$(BclSourcesRoot)\System\__Canon.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppContext.CoreCLR.cs" />

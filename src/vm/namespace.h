@@ -28,7 +28,8 @@
 #define g_CollectionsGenericNS g_SystemNS ".Collections.Generic"
 
 #define g_InteropServicesNS g_SystemNS ".Runtime.InteropServices"
-#define g_InternalInteropServicesNS  "Internal.Runtime.InteropServices"
+#define g_InternalRuntimeNS "Internal.Runtime"
+#define g_InternalInteropServicesNS g_InternalRuntimeNS ".InteropServices"
 #define g_ReflectionNS      g_SystemNS ".Reflection"
 #define g_ReflectionEmitNS  g_ReflectionNS ".Emit"
 

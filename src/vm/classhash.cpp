@@ -289,7 +289,11 @@ VOID EEClassHashTable::ConstructKeyFromData(PTR_EEClassHashEntry pEntry, // IN  
         {
             CONTRACT_VIOLATION(ThrowsViolation|FaultViolation);
 
-#ifndef DACCESS_COMPILE
+#ifdef DACCESS_COMPILE
+            DacNotImpl();
+#elif CROSSGEN_COMPILE
+            _ASSERTE(!"Unexpected");
+#else
             // We can call the nothrow version here because we fulfilled the requirement of calling
             // InitTables() in the "new" method.
             INT32 iNSLength = InternalCasingHelper::InvariantToLowerNoThrow(NULL, 0, pszNameSpace);
@@ -328,8 +332,6 @@ VOID EEClassHashTable::ConstructKeyFromData(PTR_EEClassHashEntry pEntry, // IN  
             }
             Key[0] = pszOutNameSpace;
             Key[1] = pszOutName;
-#else
-            DacNotImpl();
 #endif // #ifndef DACCESS_COMPILE
         }
     }
@@ -1008,6 +1010,8 @@ void EEClassHashTable::FixupEntry(DataImage *pImage, EEClassHashEntry_t *pEntry,
 }
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 
+#ifndef CROSSGEN_COMPILE
+
 /*===========================MakeCaseInsensitiveTable===========================
 **Action: Creates a case-insensitive lookup table for class names.  We create a 
 **        full path (namespace & class name) in lowercase and then use that as the
@@ -1085,6 +1089,7 @@ EEClassHashTable *EEClassHashTable::MakeCaseInsensitiveTable(Module *pModule, Al
 
     return pCaseInsTable;
 }
+#endif // !CROSSGEN_COMPILE
 #endif // !DACCESS_COMPILE
 
 #ifdef DACCESS_COMPILE
