@@ -11507,9 +11507,9 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
         if (gen_number == 0)
         {
             size_t pad_size = Align (min_obj_size, align_const);
-            make_unused_array (acontext->alloc_ptr, pad_size);
             dprintf (3, ("contigous ac: making min obj gap %Ix->%Ix(%Id)", 
                 acontext->alloc_ptr, (acontext->alloc_ptr + pad_size), pad_size));
+            make_unused_array (acontext->alloc_ptr, pad_size);
             acontext->alloc_ptr += pad_size;
         }
     }
@@ -11576,6 +11576,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
             *(PTR_PTR)clear_start = 0;
         }
         // skip the rest of the object
+        dprintf(3, ("zeroing optional: skipping object at %Ix->%Ix(%Id)", clear_start, obj_end, obj_end - clear_start));
         clear_start = obj_end;
     }
 
@@ -12129,6 +12130,7 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
     add_saved_spinlock_info (true, me_release, mt_clr_large_mem);
     leave_spin_lock (&more_space_lock_loh);
 
+    ((void**) alloc_start)[-1] = 0;     //clear the sync block
     if (!(flags & GC_ALLOC_ZEROING_OPTIONAL))
     {
         memclr(alloc_start + size_to_skip, size_to_clear);
@@ -12278,10 +12280,11 @@ BOOL gc_heap::a_fit_segment_end_p (int gen_number,
 #endif //FEATURE_LOH_COMPACTION
 
     uint8_t* end = heap_segment_committed (seg) - pad;
+    size_t shortage = size - (acontext->alloc_limit - acontext->alloc_ptr);
 
-    if (a_size_fit_p (size, allocated, end, align_const))
+    if (a_size_fit_p (shortage, allocated, end, align_const))
     {
-        limit = limit_from_size (size, 
+        limit = limit_from_size (shortage, 
                                  flags,
                                  (end - allocated), 
                                  gen_number, align_const);
@@ -12290,9 +12293,9 @@ BOOL gc_heap::a_fit_segment_end_p (int gen_number,
 
     end = heap_segment_reserved (seg) - pad;
 
-    if (a_size_fit_p (size, allocated, end, align_const))
+    if (a_size_fit_p (shortage, allocated, end, align_const))
     {
-        limit = limit_from_size (size, 
+        limit = limit_from_size (shortage, 
                                  flags,
                                  (end - allocated), 
                                  gen_number, align_const);
@@ -12327,21 +12330,17 @@ found_fit:
     }
 #endif //BACKGROUND_GC
 
-    uint8_t* old_alloc;
-    old_alloc = allocated;
 #ifdef FEATURE_LOH_COMPACTION
     if (gen_number == (max_generation + 1))
     {
-        make_unused_array (old_alloc, loh_pad);
-        old_alloc += loh_pad;
+        make_unused_array (allocated, loh_pad);
         allocated += loh_pad;
         limit -= loh_pad;
     }
 #endif //FEATURE_LOH_COMPACTION
 
-#if defined (VERIFY_HEAP) && defined (_DEBUG)
-        ((void**) allocated)[-1] = 0;     //clear the sync block
-#endif //VERIFY_HEAP && _DEBUG
+    uint8_t* old_alloc;
+    old_alloc = allocated;
     allocated += limit;
 
     dprintf (3, ("found fit at end of seg: %Ix", old_alloc));
