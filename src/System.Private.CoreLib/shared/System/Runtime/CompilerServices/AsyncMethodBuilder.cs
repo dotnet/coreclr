@@ -308,9 +308,7 @@ namespace System.Runtime.CompilerServices
     {
 #if !PROJECTN
         /// <summary>A cached task for default(TResult).</summary>
-        internal readonly static Task<TResult> s_defaultResultTask = (null != (object)default(TResult)! && typeof(TResult) == typeof(VoidTaskResult)) ?
-            (Task<TResult>)(object)System.Threading.Tasks.Task.s_cachedCompleted : // Non-generic Task
-            AsyncTaskCache.CreateCacheableTask(default(TResult)!); // TODO-NULLABLE-GENERIC
+        internal readonly static Task<TResult> s_defaultResultTask = AsyncTaskCache.CreateCacheableTask(default(TResult)!); // TODO-NULLABLE-GENERIC
 #endif
 
         /// <summary>The lazily-initialized built task.</summary>
