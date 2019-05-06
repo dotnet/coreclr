@@ -297,13 +297,13 @@ jobs:
         readyToRun: true
 
 # Format
-- template: eng/platform-matrix.yml
-  parameters:
-    jobTemplate: format-job.yml
-    platforms:
-    - Windows_NT_x64
-    - Linux_x64
-
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: format-job.yml
+      platforms:
+      - Linux_x64
+      - Windows_NT_x64
 
 # Publish build information to Build Assets Registry
 
