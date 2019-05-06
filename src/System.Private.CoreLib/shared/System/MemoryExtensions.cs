@@ -1663,9 +1663,21 @@ namespace System
 #if CORECLR
                 if (comparer == null || comparer == Comparer<T>.Default)
                 {
-                    if (TrySZSort(array, null, index, index + length - 1))
+                    // Array based
+                    //if (TrySZSort(array, null, index, index + length - 1))
+                    //{
+                    //    return;
+                    //}
+                    unsafe
                     {
-                        return;
+                        ref byte byteRef = ref Unsafe.As<T, byte>(ref array.GetPinnableReference());
+                        fixed (byte* ptr = &byteRef)
+                        {
+                            if (Array.TrySZSort(new IntPtr(ptr), typeof(T), IntPtr.Zero, typeof(T), index, index + length - 1))
+                            {
+                                return;
+                            }
+                        }
                     }
                 }
 #endif
@@ -1690,9 +1702,23 @@ namespace System
 #if CORECLR
                 if (comparer == null || comparer == Comparer<TKey>.Default)
                 {
-                    if (TrySZSort(keys, items, index, index + length - 1))
+                    // Array based
+                    //if (TrySZSort(keys, items, index, index + length - 1))
+                    //{
+                    //    return;
+                    //}
+                    unsafe
                     {
-                        return;
+                        ref byte keysRef = ref Unsafe.As<TKey, byte>(ref keys.GetPinnableReference());
+                        ref byte itemsRef = ref Unsafe.As<TValue, byte>(ref items.GetPinnableReference());
+                        fixed (byte* keysPtr = &keysRef)
+                        fixed (byte* itemsPtr = &itemsRef)
+                        {
+                            if (Array.TrySZSort(new IntPtr(keysPtr), typeof(TKey), new IntPtr(itemsPtr), typeof(TValue), index, index + length - 1))
+                            {
+                                return;
+                            }
+                        }
                     }
                 }
 #endif
