@@ -1243,6 +1243,8 @@ public:
     // can optimize its performance? Eligibility is invariant for the lifetime of a method.
     bool DetermineAndSetIsEligibleForTieredCompilation();
 
+    bool IsJitOptimizationDisabled();
+
 private:
     // This function is not intended to be called in most places, and is named as such to discourage calling it accidentally
     bool Helper_IsEligibleForVersioningWithVtableSlotBackpatch()

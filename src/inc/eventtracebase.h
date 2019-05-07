@@ -31,7 +31,7 @@
 struct EventStructTypeData;
 void InitializeEventTracing();
 
-typedef DWORD NativeCodeVersionId; // keep in sync with codeversion.h
+class PrepareCodeConfig;
 
 // !!!!!!! NOTE !!!!!!!!
 // The flags must match those in the ETW manifest exactly
@@ -582,7 +582,7 @@ namespace ETW
         static VOID SendEventsForNgenMethods(Module *pModule, DWORD dwEventOptions);
         static VOID SendMethodJitStartEvent(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL);
         static VOID SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWORD dwEventOptions, PCODE pNativeCodeStartAddress, ReJITID ilCodeId);
-        static VOID SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, NativeCodeVersionId nativeCodeId = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);
+        static VOID SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, PrepareCodeConfig *pConfig = NULL);
         static VOID SendHelperEvent(ULONGLONG ullHelperStartAddress, ULONG ulHelperSize, LPCWSTR pHelperName);
     public:
         typedef union _MethodStructs
@@ -596,6 +596,7 @@ namespace ETW
                 JitHelperMethod=0x10,
                 ProfilerRejectedPrecompiledCode=0x20,
                 ReadyToRunRejectedPrecompiledCode=0x40,
+                // 0x80 to 0x100 are used for the tier
             }MethodFlags;
 
             typedef enum _MethodExtent
@@ -606,9 +607,22 @@ namespace ETW
 
         }MethodStructs;
 
+        enum class JitOptimizationTier
+        {
+            Unknown, // to identify older runtimes that would send this value
+            MinOptJitted,
+            QuickJitted,
+            Optimized,
+
+            Count
+        };
+
+        static const UINT8 MethodFlagsJitOptimizationTierShift = 7;
+        static const unsigned int MethodFlagsJitOptimizationTierLowMask = 0x7;
+
         static VOID GetR2RGetEntryPoint(MethodDesc *pMethodDesc, PCODE pEntryPoint);
-        static VOID MethodJitting(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL);
-        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, ReJITID ilCodeId = 0, NativeCodeVersionId nativeCodeId = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);
+        static VOID MethodJitting(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature);
+        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, PCODE pNativeCodeStartAddress, PrepareCodeConfig *pConfig);
         static VOID StubInitialized(ULONGLONG ullHelperStartAddress, LPCWSTR pHelperName);
         static VOID StubsInitialized(PVOID *pHelperStartAddresss, PVOID *pHelperNames, LONG ulNoOfHelpers);
         static VOID MethodRestored(MethodDesc * pMethodDesc);
@@ -617,8 +631,8 @@ namespace ETW
 #else // FEATURE_EVENT_TRACE
     public:
         static VOID GetR2RGetEntryPoint(MethodDesc *pMethodDesc, PCODE pEntryPoint) {};
-        static VOID MethodJitting(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL) {};
-        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, ReJITID ilCodeId = 0, NativeCodeVersionId nativeCodeId = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE) {};
+        static VOID MethodJitting(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature);
+        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, PCODE pNativeCodeStartAddress, PrepareCodeConfig *pConfig);
         static VOID StubInitialized(ULONGLONG ullHelperStartAddress, LPCWSTR pHelperName) {};
         static VOID StubsInitialized(PVOID *pHelperStartAddresss, PVOID *pHelperNames, LONG ulNoOfHelpers) {};
         static VOID MethodRestored(MethodDesc * pMethodDesc) {};
@@ -873,6 +887,56 @@ namespace ETW
             DWORD countSymbolBytes, DWORD* pCountSymbolBytesRead) {    return S_OK; }
 #endif // FEATURE_EVENT_TRACE
     };
+
+#define DISABLE_CONSTRUCT_COPY(T) \
+    T() = delete; \
+    T(const T &) = delete; \
+    T &operator =(const T &) = delete
+
+    // Class to wrap all TieredCompilation logic for ETW
+    class TieredCompilationLog
+    {
+    private:
+        static void ValidateSend();
+        static void GetSettings(UINT32 *flagsRef);
+
+    public:
+        class Runtime
+        {
+        public:
+#ifdef FEATURE_EVENT_TRACE
+            static bool IsEnabled();
+            static void SendSettings();
+            static void SendPause();
+            static void SendResume(UINT32 newMethodCount);
+            static void SendBackgroundJitStart(UINT32 pendingMethodCount);
+            static void SendBackgroundJitStop(UINT32 pendingMethodCount, UINT32 jittedMethodCount);
+#else
+            static bool IsEnabled() { return false; }
+            static void SendSettings() {}
+#endif
+
+            DISABLE_CONSTRUCT_COPY(Runtime);
+        };
+
+        class Rundown
+        {
+        public:
+#ifdef FEATURE_EVENT_TRACE
+            static bool IsEnabled();
+            static void SendSettings();
+#else
+            static bool IsEnabled() { return false; }
+            static void SendSettings() {}
+#endif
+
+            DISABLE_CONSTRUCT_COPY(Rundown);
+        };
+
+        DISABLE_CONSTRUCT_COPY(TieredCompilationLog);
+    };
+
+#undef DISABLE_CONSTRUCT_COPY
 };
 
 

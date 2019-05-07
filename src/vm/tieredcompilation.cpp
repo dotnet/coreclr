@@ -63,9 +63,9 @@
 // Called at AppDomain construction
 TieredCompilationManager::TieredCompilationManager() :
     m_lock(CrstTieredCompilation),
+    m_countOfMethodsToOptimize(0),
     m_isAppDomainShuttingDown(FALSE),
     m_countOptimizationThreadsRunning(0),
-    m_optimizationQuantumMs(50),
     m_methodsPendingCountingForTier1(nullptr),
     m_tieringDelayTimerHandle(nullptr),
     m_tier1CallCountingCandidateMethodRecentlyRecorded(false)
@@ -275,6 +275,7 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
         if (pMethodListItem != NULL)
         {
             m_methodsToOptimize.InsertTail(pMethodListItem);
+            ++m_countOfMethodsToOptimize;
         }
 
         LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::AsyncPromoteMethodToTier1 Method=0x%pM (%s::%s), code version id=0x%x queued\n",
@@ -384,6 +385,10 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
     }
 
     timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
+    if (ETW::TieredCompilationLog::Runtime::IsEnabled())
+    {
+        ETW::TieredCompilationLog::Runtime::SendPause();
+    }
     return true;
 }
 
@@ -479,9 +484,25 @@ void TieredCompilationManager::TieringDelayTimerCallbackWorker()
         optimizeMethods = IncrementWorkerThreadCountIfNeeded();
     }
 
-    // Install call counters
     MethodDesc** methods = methodsPendingCountingForTier1->GetElements();
     COUNT_T methodCount = methodsPendingCountingForTier1->GetCount();
+
+    if (ETW::TieredCompilationLog::Runtime::IsEnabled())
+    {
+        // TODO: Avoid scanning the list in the future
+        UINT32 newMethodCount = 0;
+        for (COUNT_T i = 0; i < methodCount; ++i)
+        {
+            MethodDesc *methodDesc = methods[i];
+            if (methodDesc->GetCallCounter()->WasCalledAtMostOnce(methodDesc))
+            {
+                ++newMethodCount;
+            }
+        }
+        ETW::TieredCompilationLog::Runtime::SendResume(newMethodCount);
+    }
+
+    // Install call counters
     for (COUNT_T i = 0; i < methodCount; ++i)
     {
         ResumeCountingCalls(methods[i]);
@@ -601,7 +622,13 @@ void TieredCompilationManager::OptimizeMethods()
     WRAPPER_NO_CONTRACT;
     _ASSERTE(DebugGetWorkerThreadCount() != 0);
 
-    ULONGLONG startTickCount = CLRGetTickCount64();
+    if (ETW::TieredCompilationLog::Runtime::IsEnabled())
+    {
+        ETW::TieredCompilationLog::Runtime::SendBackgroundJitStart(m_countOfMethodsToOptimize);
+    }
+
+    UINT32 jittedMethodCount = 0;
+    DWORD startTickCount = GetTickCount();
     NativeCodeVersion nativeCodeVersion;
     EX_TRY
     {
@@ -624,13 +651,15 @@ void TieredCompilationManager::OptimizeMethods()
                     break;
                 }
             }
+
             OptimizeMethod(nativeCodeVersion);
+            ++jittedMethodCount;
 
             // If we have been running for too long return the thread to the threadpool and queue another event
             // This gives the threadpool a chance to service other requests on this thread before returning to
             // this work.
-            ULONGLONG currentTickCount = CLRGetTickCount64();
-            if (currentTickCount >= startTickCount + m_optimizationQuantumMs)
+            DWORD currentTickCount = GetTickCount();
+            if (currentTickCount - startTickCount >= 50)
             {
                 if (!TryAsyncOptimizeMethods())
                 {
@@ -652,6 +681,11 @@ void TieredCompilationManager::OptimizeMethods()
             GET_EXCEPTION()->GetHR(), nativeCodeVersion.GetMethodDesc());
     }
     EX_END_CATCH(RethrowTerminalExceptions);
+
+    if (ETW::TieredCompilationLog::Runtime::IsEnabled())
+    {
+        ETW::TieredCompilationLog::Runtime::SendBackgroundJitStop(m_countOfMethodsToOptimize, jittedMethodCount);
+    }
 }
 
 // Jit compiles and installs new optimized code for a method.
@@ -760,6 +794,7 @@ NativeCodeVersion TieredCompilationManager::GetNextMethodToOptimize()
     {
         NativeCodeVersion nativeCodeVersion = pElem->GetValue();
         delete pElem;
+        --m_countOfMethodsToOptimize;
         return nativeCodeVersion;
     }
     return NativeCodeVersion();
