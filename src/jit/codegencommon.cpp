@@ -6504,17 +6504,19 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
     if (compiler->gsGlobalSecurityCookieAddr == nullptr)
     {
 #ifdef _TARGET_AMD64_
-        // initReg = #GlobalSecurityCookieVal64; [frame.GSSecurityCookie] = initReg
-        getEmitter()->emitIns_R_I(INS_mov, EA_PTRSIZE, initReg, compiler->gsGlobalSecurityCookieVal);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
-#else
-        //  mov   dword ptr [frame.GSSecurityCookie], #GlobalSecurityCookieVal
-        getEmitter()->emitIns_S_I(INS_str, EA_PTRSIZE, compiler->lvaGSSecurityCookie, 0, compiler->gsGlobalSecurityCookieVal);
+        if ((int)compiler->gsGlobalSecurityCookieVal != compiler->gsGlobalSecurityCookieVal)
+        {
+            // initReg = #GlobalSecurityCookieVal64; [frame.GSSecurityCookie] = initReg
+            getEmitter()->emitIns_R_I(INS_mov, EA_PTRSIZE, initReg, compiler->gsGlobalSecurityCookieVal);
+            getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
+            *pInitRegZeroed = false;
+        }
+        else
 #endif
-
-#ifndef _TARGET_X86_
-        *pInitRegZeroed = false;
-#endif
+        {
+            // mov   dword ptr [frame.GSSecurityCookie], #GlobalSecurityCookieVal
+            getEmitter()->emitIns_S_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, compiler->lvaGSSecurityCookie, 0, (int)compiler->gsGlobalSecurityCookieVal);
+        }
     }
     else
     {
