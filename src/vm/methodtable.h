@@ -2868,6 +2868,10 @@ public:
 
     // Get the MD Import for the metadata for the corresponding type declaration
     IMDInternalImport* GetMDImport();
+
+    HRESULT GetCustomAttribute(WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData)
     
     mdTypeDef GetEnclosingCl();
 

@@ -353,7 +353,7 @@ bool IsOleAutDispImplRequiredForClass(MethodTable *pClass)
     }
 
     // First check for the IDispatchImplType custom attribute first.
-    hr = pClass->GetMDImport()->GetCustomAttributeByName(pClass->GetCl(), INTEROP_IDISPATCHIMPL_TYPE, (const void**)&pVal, &cbVal);
+    hr = pClass->GetCustomAttribute(WellKnownAttribute::IDispatchImpl, (const void**)&pVal, &cbVal);
     if (hr == S_OK)
     {
         CustomAttributeParser cap(pVal, cbVal);
@@ -371,7 +371,7 @@ bool IsOleAutDispImplRequiredForClass(MethodTable *pClass)
         return (bool) (DispImplType == CompatibleImpl);
 
     // Check to see if the assembly has the IDispatchImplType attribute set.
-    hr = pAssembly->GetManifestImport()->GetCustomAttributeByName(pAssembly->GetManifestToken(), INTEROP_IDISPATCHIMPL_TYPE, (const void**)&pVal, &cbVal);
+    hr = pAssembly->GetCustomAttribute(pAssembly->GetManifestToken(), WellKnownAttribute::IDispatchImpl, (const void**)&pVal, &cbVal);
     if (hr == S_OK)
     {
         CustomAttributeParser cap(pVal, cbVal);
