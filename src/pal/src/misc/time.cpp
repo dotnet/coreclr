@@ -31,8 +31,6 @@ Abstract:
 #if HAVE_MACH_ABSOLUTE_TIME
 #include <mach/mach_time.h>
 static mach_timebase_info_data_t s_TimebaseInfo;
-#else
-struct timespec s_Timespec;
 #endif
 
 using namespace CorUnix;
@@ -61,14 +59,6 @@ BOOL TIMEInitialize(void)
     if (result != KERN_SUCCESS)
     {
         ASSERT("mach_timebase_info() failed: %s\n", mach_error_string(result));
-        retval = FALSE;
-    }
-#else
-    int result = clock_getres(CLOCK_MONOTONIC, &s_Timespec);
-
-    if (result != 0)
-    {
-        ASSERT("clock_getres(CLOCK_MONOTONIC) failed: %d\n", result);
         retval = FALSE;
     }
 #endif
@@ -263,17 +253,13 @@ QueryPerformanceFrequency(
         lpFrequency->QuadPart = ((LONGLONG)(tccSecondsToNanoSeconds) * (LONGLONG)(s_TimebaseInfo.denom)) / (LONGLONG)(s_TimebaseInfo.numer);
     }
 #else
-    // use tv_nsec == 0 to indicate that s_Timespec is uninitialised.
-    if (s_Timespec.tv_nsec == 0)
-    {
-        ASSERT("s_Timespec is uninitialized.\n");
-        retval = FALSE;
-    }
-    else
-    {
-        LONGLONG nanosecondsPerTick = ((LONGLONG)(s_Timespec.tv_sec) * (LONGLONG)(tccSecondsToNanoSeconds)) + (LONGLONG)(s_Timespec.tv_nsec);
-        lpFrequency->QuadPart = (LONGLONG)(tccSecondsToNanoSeconds) / nanosecondsPerTick;
-    }
+    // clock_gettime() returns a result in terms of nanoseconds rather than a count. This
+    // means that we need to either always scale the result by the actual resolution (to
+    // get a count) or we need to say the resolution is in terms of nanoseconds. We prefer
+    // the latter since it allows the highest throughput and should minimize error propagated
+    // to the user.
+
+    lpFrequency->QuadPart = (LONGLONG)(tccSecondsToNanoSeconds);
 #endif
 
     LOGEXIT("QueryPerformanceFrequency\n");
