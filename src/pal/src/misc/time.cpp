@@ -320,9 +320,6 @@ GetTickCount64()
 {
     LONGLONG retval = 0;
 
-    LARGE_INTEGER frequency;
-    LARGE_INTEGER performanceCount;
-
 #if HAVE_MACH_ABSOLUTE_TIME
     // use denom == 0 to indicate that s_TimebaseInfo is uninitialised.
     if (s_TimebaseInfo.denom == 0)
