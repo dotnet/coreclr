@@ -194,7 +194,7 @@ namespace Activator
                 string.Empty,
                 string.Empty))
             {
-                foreach (string typename in new[] { "NoRegistrationCallbacks",  "InvalidArgRegistrationCallbacks", "InvalidInstanceRegistrationCallbacks" })
+                foreach (string typename in new[] { "NoRegistrationCallbacks",  "InvalidArgRegistrationCallbacks", "InvalidInstanceRegistrationCallbacks", "MultipleRegistrationCallbacks" })
                 {
                     Console.WriteLine($"Validating {typename}...");
 

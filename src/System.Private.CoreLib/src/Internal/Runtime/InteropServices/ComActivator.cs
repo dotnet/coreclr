@@ -165,6 +165,8 @@ namespace Internal.Runtime.InteropServices
             // Retrieve all the methods.
             MethodInfo[] methods = classType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
 
+            bool calledFunction = false;
+
             // Go through all the methods and check for the custom attribute.
             foreach (MethodInfo method in methods)
             {
@@ -192,6 +194,12 @@ namespace Internal.Runtime.InteropServices
                     throw new InvalidOperationException(SR.Format(msg));
                 }
 
+                if (calledFunction)
+                {
+                    string msg = register ? SR.InvalidOperation_MultipleComRegFunctions : SR.InvalidOperation_MultipleComUnRegFunctions;
+                    throw new InvalidOperationException(SR.Format(msg));
+                }
+
                 // The function is valid so set up the arguments to call it.
                 var objs = new object[1];
                 if (methParams[0].ParameterType == typeof(string))
@@ -207,8 +215,7 @@ namespace Internal.Runtime.InteropServices
 
                 // Invoke the COM register function.
                 method.Invoke(null, objs);
-
-                return;
+                calledFunction = true;
             }
         }
 

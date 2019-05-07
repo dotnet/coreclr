@@ -114,3 +114,24 @@ public class InvalidInstanceRegistrationCallbacks : IValidateRegistrationCallbac
 
     void IValidateRegistrationCallbacks.Reset() => throw new NotImplementedException();
 }
+
+public class MultipleRegistrationCallbacks : IValidateRegistrationCallbacks
+{
+    [ComRegisterFunctionAttribute]
+    public static void RegisterFunction(string t) { }
+
+    [ComUnregisterFunctionAttribute]
+    public static void UnregisterFunction(string t) { }
+
+    [ComRegisterFunctionAttribute]
+    public static void RegisterFunction2(string t) { }
+
+    [ComUnregisterFunctionAttribute]
+    public static void UnregisterFunction2(string t) { }
+
+    bool IValidateRegistrationCallbacks.DidRegister() => throw new NotImplementedException();
+
+    bool IValidateRegistrationCallbacks.DidUnregister() => throw new NotImplementedException();
+
+    void IValidateRegistrationCallbacks.Reset() => throw new NotImplementedException();
+}
