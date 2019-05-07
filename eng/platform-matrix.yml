@@ -77,7 +77,7 @@ jobs:
         containerName: musl_x64_build_image
         helixQueues:
         - ${{ if eq(variables['System.TeamProject'], 'public') }}:
-          - Alpine.38.Amd64
+
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - Alpine.36.Amd64
           - Alpine.38.Amd64
