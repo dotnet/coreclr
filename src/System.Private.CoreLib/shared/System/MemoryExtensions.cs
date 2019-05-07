@@ -1635,52 +1635,28 @@ namespace System
 
         public static void Sort<T>(this Span<T> array, System.Collections.Generic.IComparer<T>? comparer)
         {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Sort<T>(array!, 0, array!.Length, comparer); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+            Sort<T>(array, 0, array.Length, comparer); 
         }
 
         public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items, System.Collections.Generic.IComparer<TKey>? comparer)
         {
-            if (keys == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
-            Sort<TKey, TValue>(keys!, items, 0, keys!.Length, comparer); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+            Sort<TKey, TValue>(keys, items, 0, keys.Length, comparer);
         }
 
         public static void Sort<T>(this Span<T> array, int index, int length, System.Collections.Generic.IComparer<T>? comparer)
         {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if (index < 0)
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (length < 0)
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
-            if (array!.Length - index < length) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+            if (array.Length - index < length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
             if (length > 1)
             {
-#if CORECLR
-                if (comparer == null || comparer == Comparer<T>.Default)
-                {
-                    // Array based
-                    //if (TrySZSort(array, null, index, index + length - 1))
-                    //{
-                    //    return;
-                    //}
-                    unsafe
-                    {
-                        ref byte byteRef = ref Unsafe.As<T, byte>(ref array.GetPinnableReference());
-                        fixed (byte* ptr = &byteRef)
-                        {
-                            if (Array.TrySZSort(new IntPtr(ptr), typeof(T), IntPtr.Zero, typeof(T), index, index + length - 1))
-                            {
-                                return;
-                            }
-                        }
-                    }
-                }
-#endif
+                // Span based Sort does not call `TrySZSort`, but instead
+                // uses the managed generic code only. This means Span based Sort 
+                // might differ in both performance and sorting for equal keys
 
                 ArraySortHelper<T>.Default.Sort(array, index, length, comparer);
             }
@@ -1688,46 +1664,18 @@ namespace System
 
         public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items, int index, int length, System.Collections.Generic.IComparer<TKey>? comparer)
         {
-            if (keys == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
             if (index < 0)
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (length < 0)
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
-            if (keys!.Length - index < length || (items != null && index > items.Length - length)) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+            if (keys.Length - index < length || (index > items.Length - length))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
             if (length > 1)
             {
-#if CORECLR
-                if (comparer == null || comparer == Comparer<TKey>.Default)
-                {
-                    // Array based
-                    //if (TrySZSort(keys, items, index, index + length - 1))
-                    //{
-                    //    return;
-                    //}
-                    unsafe
-                    {
-                        ref byte keysRef = ref Unsafe.As<TKey, byte>(ref keys.GetPinnableReference());
-                        ref byte itemsRef = ref Unsafe.As<TValue, byte>(ref items.GetPinnableReference());
-                        fixed (byte* keysPtr = &keysRef)
-                        fixed (byte* itemsPtr = &itemsRef)
-                        {
-                            if (Array.TrySZSort(new IntPtr(keysPtr), typeof(TKey), new IntPtr(itemsPtr), typeof(TValue), index, index + length - 1))
-                            {
-                                return;
-                            }
-                        }
-                    }
-                }
-#endif
-
-                if (items == null)
-                {
-                    Sort<TKey>(keys, index, length, comparer);
-                    return;
-                }
+                // Span based Sort does not call `TrySZSort`, but instead
+                // uses the managed generic code only. This means Span based Sort 
+                // might differ in both performance and sorting for equal keys
 
                 ArraySortHelper<TKey, TValue>.Default.Sort(keys, items, index, length, comparer);
             }
@@ -1735,11 +1683,6 @@ namespace System
 
         public static void Sort<T>(this Span<T> array, Comparison<T> comparison)
         {
-            if (array == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            }
-
             if (comparison == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
