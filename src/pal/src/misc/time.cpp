@@ -337,18 +337,46 @@ GetTickCount64()
     LARGE_INTEGER frequency;
     LARGE_INTEGER performanceCount;
 
-    if (QueryPerformanceFrequency(&frequency) == FALSE)
+#if HAVE_MACH_ABSOLUTE_TIME
+    // use denom == 0 to indicate that s_TimebaseInfo is uninitialised.
+    if (s_TimebaseInfo.denom == 0)
     {
-        ASSERT("QueryPerformanceFrequency failed.");
-    }
-    else if (QueryPerformanceCounter(&performanceCount) == FALSE)
-    {
-        ASSERT("QueryPerformanceCounter failed.");
+        ASSERT("s_TimebaseInfo is uninitialized.\n");
+        retval = FALSE;
     }
     else
     {
-        retval = (performanceCount.QuadPart * (LONGLONG)(tccSecondsToMillieSeconds)) / frequency.QuadPart;
+        retval = ((LONGLONG)mach_absolute_time() * (LONGLONG)(s_TimebaseInfo.numer)) / ((LONGLONG)(tccMillieSecondsToNanoSeconds) * (LONGLONG)(s_TimebaseInfo.denom));
     }
+#else
+    struct timespec ts;
+
+#if HAVE_CLOCK_MONOTONIC_COARSE
+    // CLOCK_MONOTONIC_COARSE has enough precision for GetTickCount but
+    // doesn't have the same overhead as CLOCK_MONOTONIC. This allows
+    // overall higher throughput. See dotnet/coreclr#2257 for more details.
+
+    const clockid_t clockType = CLOCK_MONOTONIC_COARSE;
+#else
+    const clockid_t clockType = CLOCK_MONOTONIC;
+#endif
+
+    int result = clock_gettime(clockType, &ts);
+
+    if (result != 0)
+    {
+#if HAVE_CLOCK_MONOTONIC_COARSE
+        ASSERT("clock_gettime(CLOCK_MONOTONIC_COARSE) failed: %d\n", result);
+#else
+        ASSERT("clock_gettime(CLOCK_MONOTONIC) failed: %d\n", result);
+#endif
+        retval = FALSE;     
+    }
+    else
+    {
+        retval = ((LONGLONG)(ts.tv_sec) * (LONGLONG)(tccSecondsToMillieSeconds)) + ((LONGLONG)(ts.tv_nsec) / (LONGLONG)(tccMillieSecondsToNanoSeconds));
+    }
+#endif
 
     return (ULONGLONG)(retval);
 }
