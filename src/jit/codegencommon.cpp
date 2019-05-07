@@ -6548,9 +6548,8 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
 
     if (compiler->gsGlobalSecurityCookieAddr == nullptr)
     {
-        //  mov   dword ptr [frame.GSSecurityCookie], #GlobalSecurityCookieVal
-        instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, compiler->gsGlobalSecurityCookieVal,
-                                   compiler->lvaGSSecurityCookie, 0 NOT_X86_ARG(initReg));
+        genSetRegToIcon(initReg, compiler->gsGlobalSecurityCookieVal, TYP_I_IMPL);
+        getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
         *pInitRegZeroed = false;
     }
     else
