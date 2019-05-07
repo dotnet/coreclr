@@ -3021,14 +3021,14 @@ inline void LogContention()
 #define LogContention()
 #endif
 
-LONGLONG ComputeElapsedTimeInNanosecond(LARGE_INTEGER startTime, LARGE_INTEGER endTime)
+double ComputeElapsedTimeInNanosecond(LARGE_INTEGER startTicks, LARGE_INTEGER endTicks)
 {
     static LARGE_INTEGER freq;
     if (freq.QuadPart == 0)
         QueryPerformanceFrequency(&freq);
 
-    const int NsPerSecond = 1000 * 1000 * 1000;
-    LONGLONG elapsedTicks = endTime.QuadPart - startTime.QuadPart;
+    const double NsPerSecond = 1000 * 1000 * 1000;
+    LONGLONG elapsedTicks = endTicks.QuadPart - startTicks.QuadPart;
     return (elapsedTicks * NsPerSecond) / freq.QuadPart;
 }
 
@@ -3049,11 +3049,16 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     // the object associated with this lock.
     _ASSERTE(pCurThread->PreemptiveGCDisabled());
 
-    LARGE_INTEGER startTime;
-    QueryPerformanceCounter(&startTime);
+    BOOLEAN IsContentionKeywordEnabled = ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_CONTENTION_KEYWORD);
+    LARGE_INTEGER startTicks = { {0} };
 
-    // Fire a contention start event for a managed contention
-    FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
+    if (IsContentionKeywordEnabled)
+    {
+        QueryPerformanceCounter(&startTicks);
+
+        // Fire a contention start event for a managed contention
+        FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
+    }
 
     LogContention();
 
@@ -3184,13 +3189,16 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     GCPROTECT_END();
     DecrementTransientPrecious();
 
-    LARGE_INTEGER endTime;
-    QueryPerformanceCounter(&endTime);
+    if (IsContentionKeywordEnabled)
+    {
+        LARGE_INTEGER endTicks;
+        QueryPerformanceCounter(&endTicks);
 
-    double elapsedTimeInNanosecond = (double)ComputeElapsedTimeInNanosecond(startTime, endTime);
+        double elapsedTimeInNanosecond = ComputeElapsedTimeInNanosecond(startTicks, endTicks);
 
-    // Fire a contention end event for a managed contention
-    FireEtwContentionStop_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId(), elapsedTimeInNanosecond);
+        // Fire a contention end event for a managed contention
+        FireEtwContentionStop_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId(), elapsedTimeInNanosecond);
+    }
 
 
     if (ret == WAIT_TIMEOUT)
