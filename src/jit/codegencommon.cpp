@@ -6509,8 +6509,7 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
         getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
 #else
         //  mov   dword ptr [frame.GSSecurityCookie], #GlobalSecurityCookieVal
-        instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, compiler->gsGlobalSecurityCookieVal,
-                                   compiler->lvaGSSecurityCookie, 0, initReg);
+        getEmitter()->emitIns_S_I(INS_str, EA_PTRSIZE, compiler->lvaGSSecurityCookie, 0, compiler->gsGlobalSecurityCookieVal);
 #endif
 
 #ifndef _TARGET_X86_
