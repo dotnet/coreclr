@@ -361,12 +361,13 @@ void CodeGen::genLclHeap(GenTree* tree)
     // Result of localloc will be returned in regCnt.
     // Also it used as temporary register in code generation
     // for storing allocation size
-    regNumber   regCnt          = tree->gtRegNum;
-    var_types   type            = genActualType(size->gtType);
-    emitAttr    easz            = emitTypeSize(type);
-    BasicBlock* endLabel        = nullptr;
-    unsigned    stackAdjustment = 0;
-    regNumber   regTmp          = REG_NA;
+    regNumber      regCnt          = tree->gtRegNum;
+    var_types      type            = genActualType(size->gtType);
+    emitAttr       easz            = emitTypeSize(type);
+    BasicBlock*    endLabel        = nullptr;
+    unsigned       stackAdjustment = 0;
+    regNumber      regTmp          = REG_NA;
+    target_ssize_t lastTouchDelta  = (target_ssize_t)-1;
 
     noway_assert(isFramePointerUsed()); // localloc requires Frame Pointer to be established since SP changes
     noway_assert(genStackLevel == 0);   // Can't have anything on the stack
@@ -400,8 +401,6 @@ void CodeGen::genLclHeap(GenTree* tree)
     {
         regTmp = tree->ExtractTempReg();
     }
-
-    stackAdjustment = 0;
 
     // If we have an outgoing arg area then we must adjust the SP by popping off the
     // outgoing arg area. We will restore it right before we return from this method.
@@ -438,6 +437,8 @@ void CodeGen::genLclHeap(GenTree* tree)
                 pushCount -= 1;
             }
 
+            lastTouchDelta = 0;
+
             goto ALLOC_DONE;
         }
         else if (!compiler->info.compInitMem && (amount < compiler->eeGetPageSize())) // must be < not <=
@@ -447,6 +448,9 @@ void CodeGen::genLclHeap(GenTree* tree)
             // the alloc, not after.
             getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, regCnt, REG_SP, 0);
             inst_RV_IV(INS_sub, REG_SP, amount, EA_PTRSIZE);
+
+            lastTouchDelta = amount;
+
             goto ALLOC_DONE;
         }
 
@@ -482,6 +486,8 @@ void CodeGen::genLclHeap(GenTree* tree)
         assert(genIsValidIntReg(regCnt));
         getEmitter()->emitIns_R_I(INS_sub, EA_PTRSIZE, regCnt, STACK_ALIGN, INS_FLAGS_SET);
         inst_JMP(EJ_ne, loop);
+
+        lastTouchDelta = 0;
     }
     else
     {
@@ -549,15 +555,28 @@ void CodeGen::genLclHeap(GenTree* tree)
 
         // Now just move the final value to SP
         getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_SPBASE, regCnt);
+
+        // lastTouchDelta is dynamic, and can be up to a page. So if we have outgoing arg space,
+        // we're going to assume the worst and probe.
     }
 
 ALLOC_DONE:
-    // Re-adjust SP to allocate out-going arg area. We must probe this adjustment.
-    if (stackAdjustment != 0)
+    // Re-adjust SP to allocate outgoing arg area. We must probe this adjustment.
+    if (stackAdjustment > 0)
     {
         assert((stackAdjustment % STACK_ALIGN) == 0); // This must be true for the stack to remain aligned
-        assert(stackAdjustment > 0);
-        genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)stackAdjustment, regTmp);
+        assert(lastTouchDelta >= -1);
+
+        if ((lastTouchDelta == (target_ssize_t)-1) ||
+            (stackAdjustment + (unsigned)lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES >
+             compiler->eeGetPageSize()))
+        {
+            genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)stackAdjustment, regTmp);
+        }
+        else
+        {
+            genStackPointerConstantAdjustment(-(ssize_t)stackAdjustment);
+        }
 
         // Return the stackalloc'ed address in result register.
         // regCnt = SP + stackAdjustment.

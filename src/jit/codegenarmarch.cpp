@@ -23,6 +23,27 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "emit.h"
 
 //------------------------------------------------------------------------
+// genStackPointerConstantAdjustment: add a specified constant value to the stack pointer.
+// No probe is done.
+//
+// Arguments:
+//    spDelta                 - the value to add to SP. Must be negative or zero.
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genStackPointerConstantAdjustment(ssize_t spDelta)
+{
+    assert(spDelta < 0);
+
+    // We assert that the SP change is less than one page. If it's greater, you should have called a
+    // function that does a probe, which will in turn call this function.
+    assert((target_size_t)(-spDelta) <= compiler->eeGetPageSize());
+
+    inst_RV_IV(INS_sub, REG_SPBASE, -spDelta, EA_PTRSIZE);
+}
+
+//------------------------------------------------------------------------
 // genStackPointerConstantAdjustmentWithProbe: add a specified constant value to the stack pointer,
 // and probe the stack as appropriate. Should only be called as a helper for
 // genStackPointerConstantAdjustmentLoopWithProbe.
@@ -37,11 +58,8 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //
 void CodeGen::genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta ARM_ARG(regNumber regTmp))
 {
-    assert(spDelta < 0);
-    assert((target_size_t)(-spDelta) <= compiler->eeGetPageSize());
-
     getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE ARM_ARG(regTmp) ARM64_ARG(REG_ZR), REG_SP, 0);
-    inst_RV_IV(INS_sub, REG_SPBASE, -spDelta, EA_PTRSIZE);
+    genStackPointerConstantAdjustment(spDelta);
 }
 
 //------------------------------------------------------------------------
@@ -54,9 +72,9 @@ void CodeGen::genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta ARM_ARG
 //    regTmp                  - arm32 only: temporary register to use as target for probe load instruction
 //
 // Return Value:
-//    None.
+//    Offset in bytes from SP to last probed address.
 //
-void CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(ssize_t spDelta ARM_ARG(regNumber regTmp))
+target_ssize_t CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(ssize_t spDelta ARM_ARG(regNumber regTmp))
 {
     assert(spDelta < 0);
 
@@ -83,7 +101,10 @@ void CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(ssize_t spDelta ARM
         // strategy.
 
         getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE ARM_ARG(regTmp) ARM64_ARG(REG_ZR), REG_SP, 0);
+        lastTouchDelta = 0;
     }
+
+    return lastTouchDelta;
 }
 
 //------------------------------------------------------------------------
