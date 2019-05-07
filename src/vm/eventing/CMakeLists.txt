@@ -7,4 +7,6 @@ add_subdirectory(eventpipe)
 
 if(WIN32)
   add_subdirectory(EtwProvider)
+elseif(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_FREEBSD)
+  add_subdirectory(LttngProvider)
 endif()
