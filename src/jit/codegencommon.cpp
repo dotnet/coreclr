@@ -6542,8 +6542,9 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
         getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, initReg, initReg, 0);
         regSet.verifyRegUsed(initReg);
         getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
-        *pInitRegZeroed = false;
     }
+
+    *pInitRegZeroed = false;
 
 #endif
 }
