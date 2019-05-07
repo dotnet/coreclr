@@ -6531,22 +6531,18 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
 
     if (compiler->gsGlobalSecurityCookieAddr == nullptr)
     {
+        // initReg = #GlobalSecurityCookieVal; [frame.GSSecurityCookie] = initReg
         genSetRegToIcon(initReg, compiler->gsGlobalSecurityCookieVal, TYP_I_IMPL);
         getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
         *pInitRegZeroed = false;
     }
     else
     {
-        regNumber reg;
-        // We will just use the initReg since it is an available register
-        reg = initReg;
-
+        instGen_Set_Reg_To_Imm(EA_PTR_DSP_RELOC, initReg, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
+        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, initReg, initReg, 0);
+        regSet.verifyRegUsed(initReg);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
         *pInitRegZeroed = false;
-
-        instGen_Set_Reg_To_Imm(EA_PTR_DSP_RELOC, reg, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
-        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, reg, reg, 0);
-        regSet.verifyRegUsed(reg);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, reg, compiler->lvaGSSecurityCookie, 0);
     }
 
 #endif
