@@ -274,7 +274,9 @@ _install(TARGETS eventpipe DESTINATION lib)
 """)
 
 def generateEventPipeHelperFile(etwmanifest, eventpipe_directory, extern):
-    with open_for_update(os.path.join(eventpipe_directory, "eventpipehelpers.cpp")) as helper:
+    eventpipehelpersPath = os.path.join(eventpipe_directory, "eventpipehelpers.cpp")
+    print(eventpipehelpersPath)
+    with open_for_update(eventpipehelpersPath) as helper:
         helper.write(stdprolog_cpp)
         helper.write("""
 #include "common.h"
@@ -412,6 +414,7 @@ def generateEventPipeImplFiles(
         providerName_File = providerName_File.lower()
         providerPrettyName = providerPrettyName.replace('-', '_')
         eventpipefile = os.path.join(eventpipe_directory, providerName_File + ".cpp")
+        print(eventpipefile)
         with open_for_update(eventpipefile) as eventpipeImpl:
             eventpipeImpl.write(stdprolog_cpp)
 
@@ -468,7 +471,6 @@ bool WriteToBuffer(const T &value, char *&buffer, size_t& offset, size_t& size, 
                     allTemplates,
                     extern,
                     exclusionList) + "\n")
-
 
 def generateEventPipeFiles(
         etwmanifest, intermediate, extern, exclusionList):
