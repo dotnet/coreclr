@@ -11520,8 +11520,9 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
         }
     }
     acontext->alloc_limit = (start + limit_size - aligned_min_obj_size);
-    acontext->alloc_bytes += limit_size - ((gen_number < max_generation + 1) ? aligned_min_obj_size : 0);
-    total_alloc_bytes += limit_size - ((gen_number < max_generation + 1) ? aligned_min_obj_size : 0);
+    size_t added_bytes = limit_size - ((gen_number < max_generation + 1) ? aligned_min_obj_size : 0);
+    acontext->alloc_bytes += added_bytes;
+    total_alloc_bytes     += added_bytes;
 
 #ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
     if (g_fEnableAppDomainMonitoring)
@@ -12132,7 +12133,10 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
         }
     }
 #endif //VERIFY_HEAP
-    
+
+    // TODO: VS are we actually holding the right lock? check  loh vs. soh heap locks
+    total_alloc_bytes += size - Align (min_obj_size, align_const);
+
     dprintf (SPINLOCK_LOG, ("[%d]Lmsl to clear large obj", heap_number));
     add_saved_spinlock_info (true, me_release, mt_clr_large_mem);
     leave_spin_lock (&more_space_lock_loh);
@@ -31260,7 +31264,6 @@ CObjectHeader* gc_heap::allocate_large_object (size_t jsize, uint32_t flags, int
 
     assert ((size_t)(acontext.alloc_limit - acontext.alloc_ptr) == size);
     alloc_bytes += size;
-    total_alloc_bytes += size;
 
     CObjectHeader* obj = (CObjectHeader*)result;
 

@@ -1296,7 +1296,15 @@ FCIMPL1(INT64, GCInterface::GetTotalAllocatedBytes, CLR_BOOL precise)
 
     if (!precise)
     {
-        return GCHeapUtilities::GetGCHeap()->GetTotalAllocatedBytes() - Thread::dead_threads_non_alloc_bytes;
+        // we do not want to suspend the EE for imprecise flavor, 
+        // but dead_threads_non_alloc_bytes is 64bit and may be concurrently updated.
+        // ensure atomic read on 32 bit
+#ifdef _TARGET_64BIT_
+        uint64_t unused_bytes = Thread::dead_threads_non_alloc_bytes;
+#else
+        uint64_t unused_bytes = FastInterlockExchangeAddLong((LONG64*)&Thread::dead_threads_non_alloc_bytes, 0);
+#endif
+        return GCHeapUtilities::GetGCHeap()->GetTotalAllocatedBytes() - unused_bytes;
     }
 
     INT64 allocated;

@@ -35,18 +35,22 @@ public class Test
     {
         long precise = GetTotalAllocatedBytes(true);
         long imprecise = GetTotalAllocatedBytes(false);
+
         if (precise <= 0)
         {
-            throw new Exception($"Api reported zero bytes allocated, this is unlikely. precise = {precise}");
+            throw new Exception($"Bytes allocated is not positive, this is unlikely. precise = {precise}");
         }
+
         if (imprecise < precise)
         {
             throw new Exception($"Imprecise total bytes allocated less than precise, imprecise is required to be a conservative estimate (that estimates high). imprecise = {imprecise}, precise = {precise}");
         }
+
         if (previous > precise)
         {
-            throw new Exception($"Expected more memory to be allocated. previous = {previous}, precise = {precise}");
+            throw new Exception($"Expected more memory to be allocated. previous = {previous}, precise = {precise}, difference = {previous - precise}");
         }
+
         differenceBetweenPreciseAndImprecise = imprecise - precise;
         return precise;
     }
@@ -66,6 +70,16 @@ public class Test
         for (int i = 0; i < 1000; ++i)
         {
             s_stash = new byte[1234];
+            previous = CallGetTotalAllocatedBytes(previous);
+        }
+    }
+
+    public static void TestSingleThreadedLOH()
+    {
+        long previous = 0;
+        for (int i = 0; i < 1000; ++i)
+        {
+            s_stash = new byte[123456];
             previous = CallGetTotalAllocatedBytes(previous);
         }
     }
@@ -115,6 +129,7 @@ public class Test
     public static int Main() 
     {
         TestSingleThreaded();
+        TestSingleThreadedLOH();
         TestAnotherThread();
         return 100;
     }
