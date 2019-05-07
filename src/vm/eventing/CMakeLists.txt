@@ -4,3 +4,7 @@ set(EVENT_MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/../ClrEtwAll.man)
 set(EVENT_EXCLUSIONS ${CMAKE_CURRENT_SOURCE_DIR}/../ClrEtwAllMeta.lst)
 
 add_subdirectory(eventpipe)
+
+if(WIN32)
+  add_subdirectory(EtwProvider)
+endif()
