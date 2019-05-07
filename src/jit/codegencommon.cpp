@@ -6502,9 +6502,9 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
     if (compiler->gsGlobalSecurityCookieAddr == nullptr)
     {
 #ifdef _TARGET_AMD64_
-        // eax = #GlobalSecurityCookieVal64; [frame.GSSecurityCookie] = eax
-        getEmitter()->emitIns_R_I(INS_mov, EA_PTRSIZE, REG_RAX, compiler->gsGlobalSecurityCookieVal);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_RAX, compiler->lvaGSSecurityCookie, 0);
+        // initReg = #GlobalSecurityCookieVal64; [frame.GSSecurityCookie] = initReg
+        getEmitter()->emitIns_R_I(INS_mov, EA_PTRSIZE, initReg, compiler->gsGlobalSecurityCookieVal);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
 #else
         //  mov   dword ptr [frame.GSSecurityCookie], #GlobalSecurityCookieVal
         instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, compiler->gsGlobalSecurityCookieVal,
