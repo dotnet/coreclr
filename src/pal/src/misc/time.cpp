@@ -206,7 +206,7 @@ QueryPerformanceCounter(
 
 #if HAVE_MACH_ABSOLUTE_TIME
     lpPerformanceCount->QuadPart = (LONGLONG)mach_absolute_time();
-#else
+#elif HAVE_CLOCK_MONOTONIC
     struct timespec ts;
     int result = clock_gettime(CLOCK_MONOTONIC, &ts);
 
@@ -220,6 +220,8 @@ QueryPerformanceCounter(
         lpPerformanceCount->QuadPart =
                 ((LONGLONG)(ts.tv_sec) * (LONGLONG)(tccSecondsToNanoSeconds)) + (LONGLONG)(ts.tv_nsec);
     }
+#else
+    #error "The PAL requires either mach_absolute_time() or clock_gettime(CLOCK_MONOTONIC) to be supported."
 #endif
 
     LOGEXIT("QueryPerformanceCounter\n");
@@ -252,7 +254,7 @@ QueryPerformanceFrequency(
 
         lpFrequency->QuadPart = ((LONGLONG)(tccSecondsToNanoSeconds) * (LONGLONG)(s_TimebaseInfo.denom)) / (LONGLONG)(s_TimebaseInfo.numer);
     }
-#else
+#elif HAVE_CLOCK_MONOTONIC
     // clock_gettime() returns a result in terms of nanoseconds rather than a count. This
     // means that we need to either always scale the result by the actual resolution (to
     // get a count) or we need to say the resolution is in terms of nanoseconds. We prefer
@@ -260,6 +262,8 @@ QueryPerformanceFrequency(
     // to the user.
 
     lpFrequency->QuadPart = (LONGLONG)(tccSecondsToNanoSeconds);
+#else
+    #error "The PAL requires either mach_absolute_time() or clock_gettime(CLOCK_MONOTONIC) to be supported."
 #endif
 
     LOGEXIT("QueryPerformanceFrequency\n");
@@ -331,7 +335,7 @@ GetTickCount64()
     {
         retval = ((LONGLONG)mach_absolute_time() * (LONGLONG)(s_TimebaseInfo.numer)) / ((LONGLONG)(tccMillieSecondsToNanoSeconds) * (LONGLONG)(s_TimebaseInfo.denom));
     }
-#else
+#elif HAVE_CLOCK_MONOTONIC || HAVE_CLOCK_MONOTONIC_COARSE
     struct timespec ts;
 
 #if HAVE_CLOCK_MONOTONIC_COARSE
@@ -359,6 +363,8 @@ GetTickCount64()
     {
         retval = ((LONGLONG)(ts.tv_sec) * (LONGLONG)(tccSecondsToMillieSeconds)) + ((LONGLONG)(ts.tv_nsec) / (LONGLONG)(tccMillieSecondsToNanoSeconds));
     }
+#else
+    #error "The PAL requires either mach_absolute_time() or clock_gettime(CLOCK_MONOTONIC) to be supported."
 #endif
 
     return (ULONGLONG)(retval);
