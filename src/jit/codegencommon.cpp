@@ -6548,32 +6548,21 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
 
     if (compiler->gsGlobalSecurityCookieAddr == nullptr)
     {
-#ifdef _TARGET_AMD64_
-        // initReg = #GlobalSecurityCookieVal64; [frame.GSSecurityCookie] = initReg
-        getEmitter()->emitIns_R_I(INS_mov, EA_PTRSIZE, initReg, compiler->gsGlobalSecurityCookieVal);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
-#else
         //  mov   dword ptr [frame.GSSecurityCookie], #GlobalSecurityCookieVal
         instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, compiler->gsGlobalSecurityCookieVal,
                                    compiler->lvaGSSecurityCookie, 0 NOT_X86_ARG(initReg));
-#endif
-
-#ifndef _TARGET_X86_
         *pInitRegZeroed = false;
-#endif
     }
     else
     {
         regNumber reg;
-        // Always use EAX on x86 and x64
-        // On x64, if we're not moving into RAX, and the address isn't RIP relative, we can't encode it.
-        reg = REG_EAX;
+        // We will just use the initReg since it is an available register
+        reg = initReg;
 
         *pInitRegZeroed = false;
 
-        //  mov   reg, dword ptr [compiler->gsGlobalSecurityCookieAddr]
-        //  mov   dword ptr [frame.GSSecurityCookie], reg
-        getEmitter()->emitIns_R_AI(INS_mov, EA_PTR_DSP_RELOC, reg, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
+        instGen_Set_Reg_To_Imm(EA_PTR_DSP_RELOC, reg, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
+        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, reg, reg, 0);
         regSet.verifyRegUsed(reg);
         getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, reg, compiler->lvaGSSecurityCookie, 0);
     }
