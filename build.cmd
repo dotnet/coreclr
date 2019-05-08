@@ -424,11 +424,6 @@ if %__BuildCoreLib% EQU 1 (
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genRuntimeEventSources.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir% || exit /b 1
 )
 
-if %__BuildCrossArchNative% EQU 1 (
-    echo %__MsgPrefix%Laying out dynamically generated EventSource classes
-    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genRuntimeEventSources.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesEventingDir! || exit /b 1
-)
-
 REM =========================================================================================
 REM ===
 REM === Build Cross-Architecture Native Components (if applicable)

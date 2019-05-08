@@ -486,7 +486,6 @@ def generateEtmDummyHeader(sClrEtwAllMan,clretwdummy):
     if not clretwdummy:
         return
 
-    print(' Generating Dummy Event Headers')
     tree           = DOM.parse(sClrEtwAllMan)
 
     incDir = os.path.dirname(os.path.realpath(clretwdummy))
@@ -511,7 +510,6 @@ def generatePlatformIndependentFiles(sClrEtwAllMan, incDir, etmDummyFile, extern
     if not incDir:
         return
 
-    print(' Generating Event Headers')
     if not os.path.exists(incDir):
         os.makedirs(incDir)
 
