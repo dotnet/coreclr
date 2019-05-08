@@ -1160,7 +1160,7 @@ namespace System.Reflection
 
             while (type != (RuntimeType)typeof(object) && type != null)
             {
-                AddCustomAttributes(ref result, type.GetRuntimeModule(), type.MetadataToken, caType, mustBeInheritable, ref result);
+                AddCustomAttributes(ref result, type.GetRuntimeModule(), type.MetadataToken, caType, mustBeInheritable, result);
                 mustBeInheritable = true;
                 type = (type.BaseType as RuntimeType)!;
             }
@@ -1203,7 +1203,7 @@ namespace System.Reflection
 
             while (method != null)
             {
-                AddCustomAttributes(ref result, method.GetRuntimeModule(), method.MetadataToken, caType, mustBeInheritable, ref result);
+                AddCustomAttributes(ref result, method.GetRuntimeModule(), method.MetadataToken, caType, mustBeInheritable, result);
                 mustBeInheritable = true;
                 method = method.GetParentDefinition()!;
             }
@@ -1339,9 +1339,8 @@ namespace System.Reflection
             RuntimeModule decoratedModule, int decoratedMetadataToken, int pcaCount, RuntimeType? attributeFilterType)
         {
             RuntimeType.ListBuilder<object> attributes = new RuntimeType.ListBuilder<object>();
-            RuntimeType.ListBuilder<object> _ = default;
 
-            AddCustomAttributes(ref attributes, decoratedModule, decoratedMetadataToken, attributeFilterType, false, ref _);
+            AddCustomAttributes(ref attributes, decoratedModule, decoratedMetadataToken, attributeFilterType, false, new RuntimeType.ListBuilder<object>());
 
             bool useObjectArray = attributeFilterType == null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters;
             RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : attributeFilterType!;
@@ -1357,7 +1356,9 @@ namespace System.Reflection
         private static void AddCustomAttributes(
             ref RuntimeType.ListBuilder<object> attributes,
             RuntimeModule decoratedModule, int decoratedMetadataToken,
-            RuntimeType? attributeFilterType, bool mustBeInheritable, ref RuntimeType.ListBuilder<object> derivedAttributes)
+            RuntimeType? attributeFilterType, bool mustBeInheritable,
+            // The derivedAttributes list must be passed by value so that it is not modified with the discovered attributes
+            RuntimeType.ListBuilder<object> derivedAttributes)
         {
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
 
