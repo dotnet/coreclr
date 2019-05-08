@@ -6927,20 +6927,27 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
                 pAssemblyBindingContext = pLoadedPEAssembly->GetHostAssembly();
             }
             
-#ifdef FEATURE_COMINTEROP
-            if (AreSameBinderInstance(pAssemblyBindingContext, GetAppDomain()->GetWinRtBinder()))
+            if (fResolvedAssembly)
             {
-                // It is invalid to return an assembly bound to an incompatible binder
-                *ppLoadedAssembly = NULL;
-                SString name;
-                spec.GetFileOrDisplayName(0, name);
-                COMPlusThrowHR(COR_E_INVALIDOPERATION, IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT, name);
-            }
+#ifdef FEATURE_COMINTEROP
+                if (AreSameBinderInstance(pAssemblyBindingContext, GetAppDomain()->GetWinRtBinder()))
+                {
+                    // It is invalid to return an assembly bound to an incompatible binder
+                    *ppLoadedAssembly = NULL;
+                    SString name;
+                    spec.GetFileOrDisplayName(0, name);
+                    COMPlusThrowHR(COR_E_INVALIDOPERATION, IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT, name);
+                }
 #endif // FEATURE_COMINTEROP
 
-            // Get the ICLRPrivAssembly reference to return back to.
-            *ppLoadedAssembly = clr::SafeAddRef(pAssemblyBindingContext);
-            hr = S_OK;
+                // Get the ICLRPrivAssembly reference to return back to.
+                *ppLoadedAssembly = clr::SafeAddRef(pAssemblyBindingContext);
+                hr = S_OK;
+            }
+            else
+            {
+                hr = COR_E_FILENOTFOUND;
+            }
         }
         
         GCPROTECT_END();
