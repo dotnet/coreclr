@@ -189,19 +189,6 @@ generate_event_logging_sources()
 
     echo "Laying out dynamically generated EventSource classes"
     $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genRuntimeEventSources.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir"
-
-    # determine the logging system
-    case $__BuildOS in
-        Linux|FreeBSD)
-            ;;
-        *)
-            echo "Laying out dummy event logging provider"
-            $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genDummyProvider.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventProviderDir"
-            if [[ $? != 0 ]]; then
-                exit 1
-            fi
-            ;;
-    esac
 }
 
 generate_event_logging()

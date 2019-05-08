@@ -118,46 +118,13 @@ def generateDummyFiles(etwmanifest, out_dirname, extern):
     if not os.path.exists(os.path.join(out_dirname, dummy_directory)):
         os.makedirs(os.path.join(out_dirname, dummy_directory))
 
-    # Cmake
-    with open_for_update(os.path.join(out_dirname, "CMakeLists.txt")) as cmake:
-        cmake.write(stdprolog_cmake + "\n")
-        cmake.write("\ncmake_minimum_required(VERSION 2.8.12.2)\n")
-        if extern: cmake.write("\nproject(eventprovider)\n")
-        cmake.write("""
-
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-if(FEATURE_PAL)
-    add_definitions(-DPAL_STDCPP_COMPAT=1)
-    include_directories(${COREPAL_SOURCE_DIR}/inc/rt)
-endif(FEATURE_PAL)
-include_directories(dummy)
-
-""")
-        if extern: cmake.write("add_library")
-        else: cmake.write("add_library_clr")
-        cmake.write("""(eventprovider
-    STATIC\n""")
-
-        for providerNode in tree.getElementsByTagName('provider'):
-            providerName = trimProvName(providerNode.getAttribute('name'))
-            providerName_File = escapeProvFilename(providerName)
-
-            cmake.write('        "%s%s.cpp"\n' % (dummyevntprovPre, providerName_File))
-
-        cmake.write(")")
-        if extern: cmake.write("""
-
-# Install the static eventprovider library
-install(TARGETS eventprovider DESTINATION lib)
-""")
-
     # Dummy Instrumentation
     for providerNode in tree.getElementsByTagName('provider'):
         providerName = trimProvName(providerNode.getAttribute('name'))
         providerName_File = escapeProvFilename(providerName)
 
         dummyevntprov = os.path.join(out_dirname, dummyevntprovPre + providerName_File + ".cpp")
+        print(dummyevntprov)
 
         with open_for_update(dummyevntprov) as impl:
             impl.write(stdprolog_cpp + "\n")
