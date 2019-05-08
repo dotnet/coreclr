@@ -663,7 +663,6 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifdef FEATURE_PERFTRACING
         // Initialize the event pipe.
-        DiagnosticServer::Initialize();
         EventPipe::Initialize();
 #endif // FEATURE_PERFTRACING
 
@@ -999,6 +998,11 @@ void EEStartupHelper(COINITIEE fFlags)
 #endif // CROSSGEN_COMPILE
 
         g_fEEStarted = TRUE;
+#ifndef CROSSGEN_COMPILE
+#ifdef FEATURE_PERFTRACING
+        DiagnosticServer::Initialize();
+#endif
+#endif
         g_EEStartupStatus = S_OK;
         hr = S_OK;
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "===================EEStartup Completed===================");
