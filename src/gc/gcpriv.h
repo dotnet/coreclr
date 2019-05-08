@@ -4581,3 +4581,9 @@ size_t gcard_of (uint8_t* object)
 {
     return (size_t)(object) / card_size;
 }
+
+struct GCCounterData
+{
+    uint64_t timeInGC = 0;
+    uint64_t timeInGCBase = 0;
+};

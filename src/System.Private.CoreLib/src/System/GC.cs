@@ -104,6 +104,9 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern ulong GetSegmentSize();
 
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern int GetPercentTimeInGC();
+
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _AddMemoryPressure(ulong bytesAllocated);
 

@@ -305,6 +305,9 @@ protected:
 
 public:
     Object * NextObj (Object * object);
+
+public:
+    int GetTimeInGC();
 };
 
 #endif  // GCIMPL_H_
