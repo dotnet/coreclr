@@ -57,7 +57,7 @@ template <class TKey_, class TValue_>
         }
         else
         {
-            pStartOfValuesData[entriesInArrayTotal - 1] = (TValue)(usedEntries);
+            pStartOfValuesData[entriesInArrayTotal - 1] = (TValue)((INT_PTR)usedEntries);
             pStartOfValuesData[entriesInArrayTotal - 2] = (TValue)0;
         }
     }

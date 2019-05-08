@@ -8010,12 +8010,12 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
 
 #ifdef PROFILING_SUPPORTED
     {
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         // Need to hold the ReJIT lock between when we check if a method should be inlined and
         // when we report the inlining or there could be a race condition where a method is ReJITted after
         // checking if it has default IL and before we report the inlining.
         CrstHolder ch(&(ReJitManager::s_csGlobalRequest));
-#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#endif // defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
         if (CORProfilerPresent())
         {
@@ -8084,7 +8084,7 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
             }
         }
 
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         // NOTE: this section needs to remain as the last bit of code before the exit block below.
         // If more checks are added after this we will potentially over report inlinings.
 
@@ -8093,7 +8093,7 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
         // We don't want to track the chain of methods, so intentionally use m_pMethodBeingCompiled
         // to just track the methods that pCallee is eventually inlined in
         pCallee->GetModule()->AddInlining(pOrigCaller, pCallee);
-#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#endif // defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     }
 #endif // PROFILING_SUPPORTED
 
