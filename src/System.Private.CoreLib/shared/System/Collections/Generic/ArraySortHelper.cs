@@ -648,7 +648,6 @@ namespace System.Collections.Generic
                 }
                 else
                 {
-                    // TODO: Need to change to TComparer 
                     IntrospectiveSort(keys, values, index, length, comparer);
                 }
             }
@@ -662,7 +661,8 @@ namespace System.Collections.Generic
             }
         }
 
-        private static void SwapIfGreaterWithItems(Span<TKey> keys, Span<TValue> values, IComparer<TKey> comparer, int a, int b)
+        private static void SwapIfGreaterWithItems<TComparer>(Span<TKey> keys, Span<TValue> values, TComparer comparer, int a, int b)
+            where TComparer : IComparer<TKey>
         {
             Debug.Assert(keys != null);
             Debug.Assert(values != null);
@@ -699,7 +699,8 @@ namespace System.Collections.Generic
             }
         }
 
-        internal static void IntrospectiveSort(Span<TKey> keys, Span<TValue> values, int left, int length, IComparer<TKey> comparer)
+        internal static void IntrospectiveSort<TComparer>(Span<TKey> keys, Span<TValue> values, int left, int length, TComparer comparer)
+            where TComparer : IComparer<TKey>
         {
             Debug.Assert(keys != null);
             Debug.Assert(values != null);
@@ -716,7 +717,8 @@ namespace System.Collections.Generic
             IntroSort(keys, values, left, length + left - 1, 2 * IntrospectiveSortUtilities.FloorLog2PlusOne(length), comparer);
         }
 
-        private static void IntroSort(Span<TKey> keys, Span<TValue> values, int lo, int hi, int depthLimit, IComparer<TKey> comparer)
+        private static void IntroSort<TComparer>(Span<TKey> keys, Span<TValue> values, int lo, int hi, int depthLimit, TComparer comparer)
+            where TComparer : IComparer<TKey>
         {
             Debug.Assert(keys != null);
             Debug.Assert(values != null);
@@ -764,7 +766,8 @@ namespace System.Collections.Generic
             }
         }
 
-        private static int PickPivotAndPartition(Span<TKey> keys, Span<TValue> values, int lo, int hi, IComparer<TKey> comparer)
+        private static int PickPivotAndPartition<TComparer>(Span<TKey> keys, Span<TValue> values, int lo, int hi, TComparer comparer)
+            where TComparer : IComparer<TKey>
         {
             Debug.Assert(keys != null);
             Debug.Assert(values != null);
@@ -801,7 +804,8 @@ namespace System.Collections.Generic
             return left;
         }
 
-        private static void Heapsort(Span<TKey> keys, Span<TValue> values, int lo, int hi, IComparer<TKey> comparer)
+        private static void Heapsort<TComparer>(Span<TKey> keys, Span<TValue> values, int lo, int hi, TComparer comparer)
+            where TComparer : IComparer<TKey>
         {
             Debug.Assert(keys != null);
             Debug.Assert(values != null);
@@ -822,7 +826,8 @@ namespace System.Collections.Generic
             }
         }
 
-        private static void DownHeap(Span<TKey> keys, Span<TValue> values, int i, int n, int lo, IComparer<TKey> comparer)
+        private static void DownHeap<TComparer>(Span<TKey> keys, Span<TValue> values, int i, int n, int lo, TComparer comparer)
+            where TComparer : IComparer<TKey>
         {
             Debug.Assert(keys != null);
             Debug.Assert(values != null);
@@ -850,7 +855,8 @@ namespace System.Collections.Generic
             values[lo + i - 1] = dValue;
         }
 
-        private static void InsertionSort(Span<TKey> keys, Span<TValue> values, int lo, int hi, IComparer<TKey> comparer)
+        private static void InsertionSort<TComparer>(Span<TKey> keys, Span<TValue> values, int lo, int hi, TComparer comparer)
+            where TComparer : IComparer<TKey>
         {
             Debug.Assert(keys != null);
             Debug.Assert(values != null);
