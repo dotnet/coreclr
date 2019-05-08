@@ -419,28 +419,12 @@ if NOT DEFINED PYTHON (
     exit /b 1
 )
 
-if %__BuildNative% EQU 1 (
-
-    echo %__MsgPrefix%Laying out dynamically generated files consumed by the native build system
-    echo %__MsgPrefix%Laying out dynamically generated Event test files and etmdummy stub functions
-    "!PYTHON!" -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern --noxplatheader|| exit /b 1
-)
-
 if %__BuildCoreLib% EQU 1 (
-
     echo %__MsgPrefix%Laying out dynamically generated EventSource classes
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genRuntimeEventSources.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir% || exit /b 1
 )
 
 if %__BuildCrossArchNative% EQU 1 (
-
-    set __CrossCompIntermediatesIncDir=%__CrossCompIntermediatesDir%\src\inc
-    set __CrossCompIntermediatesEventingDir=%__CrossCompIntermediatesDir%\eventing
-
-    echo %__MsgPrefix%Laying out dynamically generated files consumed by the crossarch build system
-    echo %__MsgPrefix%Laying out dynamically generated Event test files and etmdummy stub functions
-    "!PYTHON!" -B -Wall  %__SourceDir%\scripts\genEventing.py --inc !__CrossCompIntermediatesIncDir! --dummy !__CrossCompIntermediatesIncDir!\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern || exit /b 1
-
     echo %__MsgPrefix%Laying out dynamically generated EventSource classes
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genRuntimeEventSources.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesEventingDir! || exit /b 1
 )

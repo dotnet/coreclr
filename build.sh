@@ -182,11 +182,6 @@ generate_event_logging_sources()
         __PythonWarningFlags="$__PythonWarningFlags -Werror"
     fi
 
-    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventing.py" --inc $__OutputIncDir --dummy $__OutputIncDir/etmdummy.h --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --testdir "$__OutputEventProviderDir/tests"
-    if [[ $? != 0 ]]; then
-        exit 1
-    fi
-
     echo "Laying out dynamically generated EventSource classes"
     $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genRuntimeEventSources.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir"
 }

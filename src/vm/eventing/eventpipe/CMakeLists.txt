@@ -4,10 +4,6 @@ include(FindPythonInterp)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-if (WIN32)
-  set(NONEXTERN_ARG "--nonextern")
-endif()
-
 execute_process(
   COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/genEventPipe.py --man ${EVENT_MANIFEST} --exc ${EVENT_EXCLUSIONS} --intermediate ${CMAKE_CURRENT_BINARY_DIR} ${NONEXTERN_ARG}
   RESULT_VARIABLE GEN_EVENTPIPE_RESULT
