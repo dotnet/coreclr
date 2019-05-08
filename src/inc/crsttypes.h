@@ -168,7 +168,8 @@ enum CrstType
     CrstVSDIndirectionCellLock = 149,
     CrstWinRTFactoryCache = 150,
     CrstWrapperTemplate = 151,
-    kNumberOfCrstTypes = 152
+    CrstAvailableClassCaseInsensitive = 152,
+    kNumberOfCrstTypes = 153
 };
 
 #endif // __CRST_TYPES_INCLUDED
@@ -331,6 +332,7 @@ int g_rgCrstLevelMap[] =
     3,          // CrstVSDIndirectionCellLock
     3,          // CrstWinRTFactoryCache
     3,          // CrstWrapperTemplate
+    -1,         // CrstAvailableClassCaseInsensitive
 };
 
 // An array mapping CrstType to a stringized name.
@@ -488,6 +490,7 @@ LPCSTR g_rgCrstNameMap[] =
     "CrstVSDIndirectionCellLock",
     "CrstWinRTFactoryCache",
     "CrstWrapperTemplate",
+    "CrstAvailableClassCaseInsensitive",
 };
 
 // Define a special level constant for unordered locks.

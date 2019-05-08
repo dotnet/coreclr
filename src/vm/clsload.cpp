@@ -1083,10 +1083,16 @@ void ClassLoader::LazyPopulateCaseInsensitiveHashTables()
 
     if (!GetAssembly()->GetManifestModule()->IsResource() && GetAssembly()->GetManifestModule()->GetAvailableClassHash() == NULL)
     {
-        // This is a R2R assembly, and a case insensitive type lookup was triggered. 
-        // Construct the case-sensitive table first, since the case-insensitive table 
-        // create piggy-backs on the first.
-        LazyPopulateCaseSensitiveHashTables();
+        CrstHolder ch(&m_AvailableClassLock);
+
+        // Try again under a lock
+        if (GetAssembly()->GetManifestModule()->GetAvailableClassHash() == NULL)
+        {
+            // This is a R2R assembly, and a case insensitive type lookup was triggered. 
+            // Construct the case-sensitive table first, since the case-insensitive table 
+            // create piggy-backs on the first.
+            LazyPopulateCaseSensitiveHashTables();
+        }
     }
 
     // Add any unhashed modules into our hash tables, and try again.
@@ -1629,7 +1635,9 @@ BOOL ClassLoader::FindClassModuleThrowing(
 
     if (pBucket == NULL)
     {
-        AvailableClasses_LockHolder lh(this);
+        CrstExplicitInit* pLock = nhTable == nhCaseSensitive ?
+            &this->m_AvailableClassLock : &this->m_AvailableClassCaseInsensitiveLock;
+        CrstHolder lh(pLock);
 
         // Try again with the lock.  This will protect against another thread reallocating
         // the hash table underneath us
@@ -2346,6 +2354,7 @@ ClassLoader::~ClassLoader()
 
     m_UnresolvedClassLock.Destroy();
     m_AvailableClassLock.Destroy();
+    m_AvailableClassCaseInsensitiveLock.Destroy();
     m_AvailableTypesLock.Destroy();
 }
 
@@ -2414,6 +2423,10 @@ VOID ClassLoader::Init(AllocMemTracker *pamTracker)
     m_AvailableClassLock.Init(
                              CrstAvailableClass,
                              (CrstFlags)(CRST_REENTRANCY | CRST_HOST_BREAKABLE));
+
+    m_AvailableClassCaseInsensitiveLock.Init(
+                            CrstAvailableClassCaseInsensitive,
+                            (CrstFlags)(CRST_REENTRANCY | CRST_HOST_BREAKABLE));
 
     // This lock is taken within the classloader whenever we have to insert a new param. type into the table
     // This lock also needs to be taken for a read operation in a GC_NOTRIGGER scope, thus the ANYMODE flag.
@@ -4197,7 +4210,8 @@ VOID ClassLoader::AddAvailableClassDontHaveLock(Module *pModule,
     _ASSERTE(!pModule->GetAssembly()->IsWinMD());   // WinMD files should never get into this path, otherwise provide szWinRtNamespacePrefix
 #endif
 
-    CrstHolder ch(&m_AvailableClassLock);
+    CrstHolder ch1(&m_AvailableClassCaseInsensitiveLock);
+    CrstHolder ch2(&m_AvailableClassLock);
 
     // R2R pre-computes an export table and tries to avoid populating a class hash at runtime. However the profiler can
     // still add new types on the fly by calling here. If that occurs we fallback to the slower path of creating the
@@ -4406,7 +4420,8 @@ VOID ClassLoader::AddExportedTypeDontHaveLock(Module *pManifestModule,
     }
     CONTRACTL_END
 
-    CrstHolder ch(&m_AvailableClassLock);
+    CrstHolder ch1(&m_AvailableClassCaseInsensitiveLock);
+    CrstHolder ch2(&m_AvailableClassLock);
         
     // R2R pre-computes an export table and tries to avoid populating a class hash at runtime. However the profiler can
     // still add new types on the fly by calling here. If that occurs we fallback to the slower path of creating the

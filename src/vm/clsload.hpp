@@ -545,6 +545,7 @@ private:
     // (indeed thus protects addition of elements to any m_pAvailableClasses in any
     // of the modules managed by this loader)
     CrstExplicitInit        m_AvailableClassLock;
+    CrstExplicitInit        m_AvailableClassCaseInsensitiveLock;
 
     CrstExplicitInit        m_AvailableTypesLock;
 
@@ -930,6 +931,18 @@ public:
     };
 
     friend class AvailableClasses_LockHolder;
+
+    class AvailableClassesCaseInsensitive_LockHolder : public CrstHolder
+    {
+    public:
+        AvailableClassesCaseInsensitive_LockHolder(ClassLoader* classLoader)
+            : CrstHolder(&classLoader->m_AvailableClassCaseInsensitiveLock)
+        {
+            WRAPPER_NO_CONTRACT;
+        }
+    };
+
+    friend class AvailableClassesCaseInsensitive_LockHolder;
 
 private:
     static TypeHandle LoadConstructedTypeThrowing(TypeKey *pKey,

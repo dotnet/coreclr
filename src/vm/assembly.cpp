@@ -1191,7 +1191,8 @@ void Assembly::CacheManifestExportedTypes(AllocMemTracker *pamTracker)
     phEnum.EnumInit(mdtExportedType,
                     mdTokenNil);
 
-    ClassLoader::AvailableClasses_LockHolder lh(m_pClassLoader);
+    ClassLoader::AvailableClassesCaseInsensitive_LockHolder lh1(m_pClassLoader);
+    ClassLoader::AvailableClasses_LockHolder lh2(m_pClassLoader);
 
     for(int i = 0; GetManifestImport()->EnumNext(&phEnum, &mdExportedType); i++)
         m_pClassLoader->AddExportedTypeHaveLock(GetManifestModule(),
