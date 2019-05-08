@@ -23,7 +23,7 @@ foreach(LTTNG_PROVIDER_FILE ${LTTNG_PROVIDER_OUTPUT})
   if ("${LTTNG_PROVIDER_FILE}" MATCHES "/lttng/traceptprov[a-z]+.cpp$")
     list(APPEND TRACEPOINT_PROVIDER_SOURCES ${LTTNG_PROVIDER_FILE})
   else()
-    list(APPEND LTTNG_PROVIDER_SOURCES ${LTTNG_PROVIDER_SOURCES})
+    list(APPEND LTTNG_PROVIDER_SOURCES ${LTTNG_PROVIDER_FILE})
   endif()
 endforeach()
 
@@ -37,6 +37,7 @@ add_library(eventprovider
     STATIC
     ${LTTNG_PROVIDER_SOURCES}
 )
+set_target_properties(eventprovider PROPERTIES LINKER_LANGUAGE CXX)
 
 add_subdirectory(tracepointprovider)
 

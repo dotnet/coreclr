@@ -18,5 +18,7 @@ target_link_libraries(coreclrtraceptprovider
                       ${LTTNG}
 )
 
+set_target_properties(coreclrtraceptprovider PROPERTIES LINKER_LANGUAGE CXX)
+
 # Install the static coreclrtraceptprovider library
 install_clr(coreclrtraceptprovider)
