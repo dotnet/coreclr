@@ -580,7 +580,7 @@ namespace ETW
         static VOID SendEventsForNgenMethods(Module *pModule, DWORD dwEventOptions);
         static VOID SendMethodJitStartEvent(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL);
         static VOID SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWORD dwEventOptions, PCODE pNativeCodeStartAddress, ReJITID ilCodeId);
-        static VOID SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, ReJITID nativeCodeId = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);
+        static VOID SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, NativeCodeVersionId nativeCodeId = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);
         static VOID SendHelperEvent(ULONGLONG ullHelperStartAddress, ULONG ulHelperSize, LPCWSTR pHelperName);
     public:
         typedef union _MethodStructs
@@ -606,7 +606,7 @@ namespace ETW
 
         static VOID GetR2RGetEntryPoint(MethodDesc *pMethodDesc, PCODE pEntryPoint);
         static VOID MethodJitting(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL);
-        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, ReJITID ilCodeId = 0, ReJITID nativeCodeId = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);
+        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, ReJITID ilCodeId = 0, NativeCodeVersionId nativeCodeId = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);
         static VOID StubInitialized(ULONGLONG ullHelperStartAddress, LPCWSTR pHelperName);
         static VOID StubsInitialized(PVOID *pHelperStartAddresss, PVOID *pHelperNames, LONG ulNoOfHelpers);
         static VOID MethodRestored(MethodDesc * pMethodDesc);
@@ -616,7 +616,7 @@ namespace ETW
     public:
         static VOID GetR2RGetEntryPoint(MethodDesc *pMethodDesc, PCODE pEntryPoint) {};
         static VOID MethodJitting(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL) {};
-        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, ReJITID ilCodeId = 0, ReJITID nativeCodeId = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE) {};
+        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, ReJITID ilCodeId = 0, NativeCodeVersionId nativeCodeId = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE) {};
         static VOID StubInitialized(ULONGLONG ullHelperStartAddress, LPCWSTR pHelperName) {};
         static VOID StubsInitialized(PVOID *pHelperStartAddresss, PVOID *pHelperNames, LONG ulNoOfHelpers) {};
         static VOID MethodRestored(MethodDesc * pMethodDesc) {};

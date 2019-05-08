@@ -5227,7 +5227,7 @@ VOID ETW::MethodLog::GetR2RGetEntryPoint(MethodDesc *pMethodDesc, PCODE pEntryPo
 /*******************************************************/
 /* This is called by the runtime when a method is jitted completely */
 /*******************************************************/
-VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, PCODE pNativeCodeStartAddress, ReJITID ilCodeId, ReJITID nativeCodeId, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
+VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, PCODE pNativeCodeStartAddress, ReJITID ilCodeId, NativeCodeVersionId nativeCodeId, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
 {
     CONTRACTL {
         NOTHROW;
@@ -6263,7 +6263,7 @@ VOID ETW::MethodLog::SendMethodJitStartEvent(MethodDesc *pMethodDesc, SString *n
 /****************************************************************************/
 /* This routine is used to send a method load/unload or rundown event                              */
 /****************************************************************************/
-VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, PCODE pNativeCodeStartAddress, ReJITID nativeCodeId, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
+VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, PCODE pNativeCodeStartAddress, NativeCodeVersionId nativeCodeId, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
 {
     CONTRACTL {
         THROWS;
@@ -6833,7 +6833,7 @@ VOID ETW::MethodLog::SendEventsForJitMethodsHelper(LoaderAllocator *pLoaderAlloc
         // This also allows our caller to avoid having to pre-enter the relevant locks.
         // see code:#TableLockHolder
         ReJITID ilCodeId = 0;
-        ReJITID nativeCodeId = 0;
+        NativeCodeVersionId nativeCodeId = 0;
 #ifdef FEATURE_CODE_VERSIONING
         if (fGetCodeIds)
         {
@@ -6956,7 +6956,7 @@ VOID ETW::MethodLog::SendEventsForJitMethods(BaseDomain *pDomainFilter, LoaderAl
         // #TableLockHolder:
         // 
         // A word about ReJitManager::TableLockHolder... As we enumerate through the functions,
-        // we may need to grab their ReJITIDs. The ReJitManager grabs its table Crst in order to
+        // we may need to grab their code IDs. The ReJitManager grabs its table Crst in order to
         // fetch these. However, several other kinds of locks are being taken during this
         // enumeration, such as the SystemDomain lock and the EEJitManager::CodeHeapIterator's
         // lock. In order to avoid lock-leveling issues, we grab the appropriate ReJitManager
