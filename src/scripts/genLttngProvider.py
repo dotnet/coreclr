@@ -479,113 +479,6 @@ def generateLttngFiles(etwmanifest,eventprovider_directory):
     if not os.path.exists(eventprovider_directory + tracepointprovider_directory):
         os.makedirs(eventprovider_directory + tracepointprovider_directory)
 
-#Top level files
-
-    for providerNode in tree.getElementsByTagName('provider'):
-        providerName = providerNode.getAttribute('name')
-        providerName = providerName.replace("Windows-",'')
-        providerName = providerName.replace("Microsoft-",'')
-        providerName_File = providerName.replace('-','')
-        providerName_File = providerName_File.lower()
-        print(os.path.join(eventprovider_directory, "{0}.{1}.cpp".format(lttngevntprovPre, providerName_File)))
-
-    print(os.path.join(eventprovider_directory, "{0}helpers.cpp".format(lttngevntprovPre)))
-
-#TracepointProvider files
-    for providerNode in tree.getElementsByTagName('provider'):
-        providerName = providerNode.getAttribute('name')
-        providerName = providerName.replace("Windows-",'')
-        providerName = providerName.replace("Microsoft-",'')
-        providerName_File = providerName.replace('-','')
-        providerName_File = providerName_File.lower()
-        print(os.path.join(eventprovider_directory, "{0}{1}.cpp".format(lttngevntprovTpPre, providerName_File)))
-
-    with open_for_update(eventprovider_directory + lttng_directory + "/eventprovhelpers.cpp") as helper:
-        helper.write("""
-#include "palrt.h"
-#include "pal.h"
-#include "stdlib.h"
-#include "pal_mstypes.h"
-#include "pal_error.h"
-#include <new>
-#include <memory.h>
-
-#define wcslen PAL_wcslen
-
-bool ResizeBuffer(char *&buffer, size_t& size, size_t currLen, size_t newSize, bool &fixedBuffer)
-{
-    newSize = (size_t)(newSize * 1.5);
-    _ASSERTE(newSize > size); // check for overflow
-
-    if (newSize < 32)
-        newSize = 32;
-
-    // We can't use coreclr includes here so we use std::nothrow
-    // rather than the coreclr version
-    char *newBuffer = new (std::nothrow) char[newSize];
-
-    if (newBuffer == NULL)
-        return false;
-
-    memcpy(newBuffer, buffer, currLen);
-
-    if (!fixedBuffer)
-        delete[] buffer;
-
-    buffer = newBuffer;
-    size = newSize;
-    fixedBuffer = false;
-
-    return true;
-}
-
-bool WriteToBuffer(const BYTE *src, size_t len, char *&buffer, size_t& offset, size_t& size, bool &fixedBuffer)
-{
-    if(!src) return true;
-    if (offset + len > size)
-    {
-        if (!ResizeBuffer(buffer, size, offset, size + len, fixedBuffer))
-            return false;
-    }
-
-    memcpy(buffer + offset, src, len);
-    offset += len;
-    return true;
-}
-
-bool WriteToBuffer(PCWSTR str, char *&buffer, size_t& offset, size_t& size, bool &fixedBuffer)
-{
-    if(!str) return true;
-    size_t byteCount = (wcslen(str) + 1) * sizeof(*str);
-
-    if (offset + byteCount > size)
-    {
-        if (!ResizeBuffer(buffer, size, offset, size + byteCount, fixedBuffer))
-            return false;
-    }
-
-    memcpy(buffer + offset, str, byteCount);
-    offset += byteCount;
-    return true;
-}
-
-bool WriteToBuffer(const char *str, char *&buffer, size_t& offset, size_t& size, bool &fixedBuffer)
-{
-    if(!str) return true;
-    size_t len = strlen(str) + 1;
-    if (offset + len > size)
-    {
-        if (!ResizeBuffer(buffer, size, offset, size + len, fixedBuffer))
-            return false;
-    }
-
-    memcpy(buffer + offset, str, len);
-    offset += len;
-    return true;
-}
-
-""")
-
 # Generate Lttng specific instrumentation
     for providerNode in tree.getElementsByTagName('provider'):
 
@@ -606,6 +499,8 @@ bool WriteToBuffer(const char *str, char *&buffer, size_t& offset, size_t& size,
         eventNodes = providerNode.getElementsByTagName('event')
         allTemplates  = parseTemplateNodes(templateNodes)
 
+        print(os.path.join(eventprovider_directory, "{0}{1}.cpp".format(lttngevntprovPre, providerName_File)))
+        print(os.path.join(eventprovider_directory, "{0}{1}.cpp".format(lttngevntprovTpPre, providerName_File)))
 
         with open_for_update(lttngevntheader) as lttnghdr_file:
             lttnghdr_file.write(stdprolog + "\n")

@@ -4,7 +4,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_definitions(-DPAL_STDCPP_COMPAT=1)
 include_directories(${COREPAL_SOURCE_DIR}/inc/rt)
-include_directories(../lttng/)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/../lttng/)
 add_compile_options(-fPIC)
 
 add_library(coreclrtraceptprovider

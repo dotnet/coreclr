@@ -193,11 +193,6 @@ generate_event_logging_sources()
     # determine the logging system
     case $__BuildOS in
         Linux|FreeBSD)
-            echo "Laying out dynamically generated Event Logging Implementation of Lttng"
-            $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genLttngProvider.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventProviderDir"
-            if [[ $? != 0 ]]; then
-                exit 1
-            fi
             ;;
         *)
             echo "Laying out dummy event logging provider"
