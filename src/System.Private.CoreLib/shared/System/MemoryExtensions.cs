@@ -1608,87 +1608,112 @@ namespace System
             return BinarySearch(span, comparable);
         }
 
+        /// <summary>
+        /// Sorts the elements in the entire <see cref="Span{T}" /> 
+        /// using the <see cref="IComparable" /> implementation of each 
+        /// element of the <see cref= "Span{T}" />
+        /// </summary>
+        /// <param name="span">The <see cref="Span{T}"/> to sort.</param>
+        /// <exception cref = "InvalidOperationException"> 
+        /// One or more elements do not implement the <see cref="IComparable" /> interface.
+        /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<T>(this Span<T> span) => 
+            Sort(span, (IComparer<T>)null!);
 
-        public static void Sort<T>(this Span<T> array)
+        /// <summary>
+        /// Sorts the elements in the entire <see cref="Span{T}" /> 
+        /// using the <typeparamref name="TComparer" />.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<T, TComparer>(this Span<T> span, TComparer comparer)
+            where TComparer : IComparer<T>
         {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Sort<T>(array!, 0, array!.Length, null); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
-        }
-
-        public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items)
-        {
-            if (keys == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
-            Sort<TKey, TValue>(keys!, items, 0, keys!.Length, null); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
-        }
-
-        public static void Sort<T>(this Span<T> array, int index, int length)
-        {
-            Sort<T>(array, index, length, null);
-        }
-
-        public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items, int index, int length)
-        {
-            Sort<TKey, TValue>(keys, items, index, length, null);
-        }
-
-        public static void Sort<T>(this Span<T> array, System.Collections.Generic.IComparer<T>? comparer)
-        {
-            Sort<T>(array, 0, array.Length, comparer); 
-        }
-
-        public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items, System.Collections.Generic.IComparer<TKey>? comparer)
-        {
-            Sort<TKey, TValue>(keys, items, 0, keys.Length, comparer);
-        }
-
-        public static void Sort<T>(this Span<T> array, int index, int length, System.Collections.Generic.IComparer<T>? comparer)
-        {
-            if (index < 0)
-                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
-            if (length < 0)
-                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
-            if (array.Length - index < length)
-                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
-
-            if (length > 1)
+            if (span.Length > 1)
             {
                 // Span based Sort does not call `TrySZSort`, but instead
                 // uses the managed generic code only. This means Span based Sort 
                 // might differ in both performance and sorting for equal keys
 
-                ArraySortHelper<T>.Default.Sort(array, index, length, comparer);
+                // TODO: Add TComparer support
+                ArraySortHelper<T>.Default.Sort<TComparer>(span, 0, span.Length, comparer);
             }
         }
-
-        public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items, int index, int length, System.Collections.Generic.IComparer<TKey>? comparer)
-        {
-            if (index < 0)
-                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
-            if (length < 0)
-                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
-            if (keys.Length - index < length || (index > items.Length - length))
-                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
-
-            if (length > 1)
-            {
-                // Span based Sort does not call `TrySZSort`, but instead
-                // uses the managed generic code only. This means Span based Sort 
-                // might differ in both performance and sorting for equal keys
-
-                ArraySortHelper<TKey, TValue>.Default.Sort(keys, items, index, length, comparer);
-            }
-        }
-
-        public static void Sort<T>(this Span<T> array, Comparison<T> comparison)
+        
+        /// <summary>
+        /// Sorts the elements in the entire <see cref="Span{T}" /> 
+        /// using the <see cref="Comparison{T}" />.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<T>(this Span<T> span, Comparison<T> comparison)
         {
             if (comparison == null)
-            {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
+            if (span.Length > 1)
+            {
+                ArraySortHelper<T>.Sort(span, 0, span.Length, comparison!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             }
+        }
 
-            ArraySortHelper<T>.Sort(array!, 0, array!.Length, comparison!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+        /// <summary>
+        /// Sorts a pair of spans 
+        /// (one contains the keys <see cref="Span{TKey}"/> 
+        /// and the other contains the corresponding items <see cref="Span{TValue}"/>) 
+        /// based on the keys in the first <see cref= "Span{TKey}" /> 
+        /// using the <see cref="IComparable" /> implementation of each 
+        /// element of the <see cref= "Span{TKey}"/>.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items) =>
+            Sort(keys, items, (IComparer<TKey>)null!);
+
+        /// <summary>
+        /// Sorts a pair of spans 
+        /// (one contains the keys <see cref="Span{TKey}"/> 
+        /// and the other contains the corresponding items <see cref="Span{TValue}"/>) 
+        /// based on the keys in the first <see cref= "Span{TKey}" /> 
+        /// using the <typeparamref name="TComparer" />.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<TKey, TValue, TComparer>(this Span<TKey> keys,
+            Span<TValue> items, TComparer comparer)
+            where TComparer : IComparer<TKey>
+        {
+            if (keys.Length != items.Length)
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_SpansMustHaveSameLength);
+
+            if (keys.Length > 1)
+            {
+                // Span based Sort does not call `TrySZSort`, but instead
+                // uses the managed generic code only. This means Span based Sort 
+                // might differ in both performance and sorting for equal keys
+
+                // TODO: Add TComparer support
+                ArraySortHelper<TKey, TValue>.Default.Sort<TComparer>(keys, items, 0, keys.Length, comparer);
+            }
+        }
+
+        /// <summary>
+        /// Sorts a pair of spans 
+        /// (one contains the keys <see cref="Span{TKey}"/> 
+        /// and the other contains the corresponding items <see cref="Span{TValue}"/>) 
+        /// based on the keys in the first <see cref= "Span{TKey}" /> 
+        /// using the <see cref="Comparison{TKey}" />.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<TKey, TValue>(this Span<TKey> keys,
+           Span<TValue> items, Comparison<TKey> comparison)
+        {
+            if (comparison == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
+            if (keys.Length != items.Length))
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_SpansMustHaveSameLength);
+
+            if (keys.Length > 1)
+            {
+                // TODO: This overload is not available in existing Sort code
+                ArraySortHelper<TKey, TValue>.Sort(keys, items, 0, keys.Length, comparison!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+            }
         }
     }
 }
