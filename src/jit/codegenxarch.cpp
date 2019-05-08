@@ -49,6 +49,51 @@ void CodeGen::genSetRegToIcon(regNumber reg, ssize_t val, var_types type, insFla
     }
 }
 
+/*-----------------------------------------------------------------------------
+ *
+ *  Set the "GS" security cookie in the prolog.
+ */
+
+void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
+{
+    assert(compiler->compGeneratingProlog);
+
+    if (!compiler->getNeedsGSSecurityCookie())
+    {
+        return;
+    }
+
+    noway_assert(compiler->gsGlobalSecurityCookieAddr || compiler->gsGlobalSecurityCookieVal);
+
+    if (compiler->gsGlobalSecurityCookieAddr == nullptr)
+    {
+#ifdef _TARGET_AMD64_
+        if ((int)compiler->gsGlobalSecurityCookieVal != compiler->gsGlobalSecurityCookieVal)
+        {
+            // initReg = #GlobalSecurityCookieVal64; [frame.GSSecurityCookie] = initReg
+            genSetRegToIcon(initReg, compiler->gsGlobalSecurityCookieVal, TYP_I_IMPL);
+            getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
+            *pInitRegZeroed = false;
+        }
+        else
+#endif
+        {
+            // mov   dword ptr [frame.GSSecurityCookie], #GlobalSecurityCookieVal
+            getEmitter()->emitIns_S_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, compiler->lvaGSSecurityCookie, 0, (int)compiler->gsGlobalSecurityCookieVal);
+        }
+    }
+    else
+    {
+        // Always use EAX on x86 and x64
+        // On x64, if we're not moving into RAX, and the address isn't RIP relative, we can't encode it.
+        //  mov   eax, dword ptr [compiler->gsGlobalSecurityCookieAddr]
+        //  mov   dword ptr [frame.GSSecurityCookie], eax
+        getEmitter()->emitIns_R_AI(INS_mov, EA_PTR_DSP_RELOC, REG_EAX, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
+        regSet.verifyRegUsed(REG_EAX);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_EAX, compiler->lvaGSSecurityCookie, 0);
+    }
+}
+
 /*****************************************************************************
  *
  *   Generate code to check that the GS cookie wasn't thrashed by a buffer

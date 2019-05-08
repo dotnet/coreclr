@@ -567,6 +567,39 @@ void CodeGen::genSetRegToIcon(regNumber reg, ssize_t val, var_types type, insFla
     instGen_Set_Reg_To_Imm(emitActualTypeSize(type), reg, val, flags);
 }
 
+/*-----------------------------------------------------------------------------
+ *
+ *  Set the "GS" security cookie in the prolog.
+ */
+
+void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
+{
+    assert(compiler->compGeneratingProlog);
+
+    if (!compiler->getNeedsGSSecurityCookie())
+    {
+        return;
+    }
+
+    noway_assert(compiler->gsGlobalSecurityCookieAddr || compiler->gsGlobalSecurityCookieVal);
+
+    if (compiler->gsGlobalSecurityCookieAddr == nullptr)
+    {
+        // initReg = #GlobalSecurityCookieVal; [frame.GSSecurityCookie] = initReg
+        genSetRegToIcon(initReg, compiler->gsGlobalSecurityCookieVal, TYP_I_IMPL);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
+    }
+    else
+    {
+        instGen_Set_Reg_To_Imm(EA_PTR_DSP_RELOC, initReg, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
+        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, initReg, initReg, 0);
+        regSet.verifyRegUsed(initReg);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
+    }
+
+    *pInitRegZeroed = false;
+}
+
 //---------------------------------------------------------------------
 // genIntrinsic - generate code for a given intrinsic
 //
