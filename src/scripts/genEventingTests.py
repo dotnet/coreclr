@@ -78,10 +78,6 @@ def generateClralltestEvents(sClrEtwAllMan):
 
 def generateSanityTest(sClrEtwAllMan,testDir):
 
-    if not testDir:
-        return
-    print('Generating Event Logging Tests')
-
     if not os.path.exists(testDir):
         os.makedirs(testDir)
 
