@@ -18,13 +18,9 @@ namespace Internal.Runtime
                 return -Interop.Errors.ERROR_INVALID_PARAMETER;
             }
 
-            byte* current = inBuffer;
-            while (*current != 0)
-                current++;
-
             return ToLowerInvariant(
                 new Span<byte>(outBuffer, cOutBuffer),
-                new ReadOnlySpan<byte>(inBuffer, (int)(current - inBuffer)));
+                new ReadOnlySpan<byte>(inBuffer, string.strlen(inBuffer)));
         }
 
         private static int ToLowerInvariant(Span<byte> output, ReadOnlySpan<byte> input)
