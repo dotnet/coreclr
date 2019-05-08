@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
-    <!-- This repo version -->
-    <VersionPrefix>3.0.0</VersionPrefix>
+    <!-- The .NET Core product branding version -->
+    <ProductVersion>3.0.0</ProductVersion>
+    <!-- Version numbers for both managed & native binaries -->
+    <MajorVersion>4</MajorVersion>
+    <MinorVersion>6</MinorVersion>
     <PreReleaseVersionLabel>preview6</PreReleaseVersionLabel>
     <!-- Opt-out repo features -->
     <UsingToolXliff>false</UsingToolXliff>
