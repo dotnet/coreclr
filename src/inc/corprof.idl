@@ -727,7 +727,8 @@ typedef enum
     COR_PRF_REJIT_BLOCK_INLINING = 0x1,
 
     // This flag controls whether the runtime will call GetReJITParameters
-    // on methods that are 
+    // on methods that are ReJITted because they inline a method that was requested
+    // for ReJIT
     COR_PRF_REJIT_INLINING_CALLBACKS    = 0x2
 } COR_PRF_REJIT_FLAGS;
 
@@ -3939,12 +3940,20 @@ interface ICorProfilerInfo9 : ICorProfilerInfo8
 
 [
     object,
-    uuid(3f2b07a0-715c-4e06-bc40-b47e615846aa),
+    uuid(2F1B5152-C869-40C9-AA5F-3ABE026BD720),
     pointer_default(unique),
     local
 ]
 interface ICorProfilerInfo10 : ICorProfilerInfo9
 {
+    // Given an ObjectID, fetches all its object references and offsets (if any).
+    HRESULT GetObjectReferences(ObjectID objectId, ULONG32 cNumReferences, ULONG32 *pcNumReferences, ObjectID references[], SIZE_T offsets[]);
+
+    // Given an ObjectID, determines whether it is in a read only segment.
+    HRESULT IsFrozenObject(ObjectID objectId, BOOL *pbFrozen);
+
+    // Gets the value of the configured LOH Threshold.
+    HRESULT GetLOHObjectSizeThreshold(DWORD *pThreshold);
 
     /*
      * This method will ReJIT the methods requested, as well as any inliners
@@ -3962,24 +3971,6 @@ interface ICorProfilerInfo10 : ICorProfilerInfo9
                 [in]                       ULONG       cFunctions,
                 [in, size_is(cFunctions)]  ModuleID    moduleIds[],
                 [in, size_is(cFunctions)]  mdMethodDef methodIds[]);
-};
-
-[
-    object,
-    uuid(2F1B5152-C869-40C9-AA5F-3ABE026BD720),
-    pointer_default(unique),
-    local
-]
-interface ICorProfilerInfo10 : ICorProfilerInfo9
-{
-    // Given an ObjectID, fetches all its object references and offsets (if any).
-    HRESULT GetObjectReferences(ObjectID objectId, ULONG32 cNumReferences, ULONG32 *pcNumReferences, ObjectID references[], SIZE_T offsets[]);
-
-    // Given an ObjectID, determines whether it is in a read only segment.
-    HRESULT IsFrozenObject(ObjectID objectId, BOOL *pbFrozen);
-
-    // Gets the value of the configured LOH Threshold.
-    HRESULT GetLOHObjectSizeThreshold(DWORD *pThreshold);
 }
 
 /*

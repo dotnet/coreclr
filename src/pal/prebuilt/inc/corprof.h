@@ -545,8 +545,10 @@ enum __MIDL___MIDL_itf_corprof_0000_0000_0006
         COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS   = 0x4,
         COR_PRF_HIGH_DISABLE_TIERED_COMPILATION = 0x8,
         COR_PRF_HIGH_BASIC_GC   = 0x10,
+        COR_PRF_HIGH_MONITOR_GC_MOVED_OBJECTS   = 0x20,
         COR_PRF_HIGH_REQUIRE_PROFILE_IMAGE  = 0,
-        COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH = ( ( COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED | COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS )  | COR_PRF_HIGH_BASIC_GC ) ,
+        COR_PRF_HIGH_MONITOR_LARGEOBJECT_ALLOCATED  = 0x40,
+        COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH = ( ( ( ( COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED | COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS )  | COR_PRF_HIGH_BASIC_GC )  | COR_PRF_HIGH_MONITOR_GC_MOVED_OBJECTS )  | COR_PRF_HIGH_MONITOR_LARGEOBJECT_ALLOCATED ) ,
         COR_PRF_HIGH_MONITOR_IMMUTABLE  = COR_PRF_HIGH_DISABLE_TIERED_COMPILATION
     }   COR_PRF_HIGH_MONITOR;
 
@@ -15186,10 +15188,24 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
 
 #if defined(__cplusplus) && !defined(CINTERFACE)
     
-    MIDL_INTERFACE("3f2b07a0-715c-4e06-bc40-b47e615846aa")
+    MIDL_INTERFACE("2F1B5152-C869-40C9-AA5F-3ABE026BD720")
     ICorProfilerInfo10 : public ICorProfilerInfo9
     {
     public:
+        virtual HRESULT STDMETHODCALLTYPE GetObjectReferences( 
+            ObjectID objectId,
+            ULONG32 cNumReferences,
+            ULONG32 *pcNumReferences,
+            ObjectID references[  ],
+            SIZE_T offsets[  ]) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE IsFrozenObject( 
+            ObjectID objectId,
+            BOOL *pbFrozen) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetLOHObjectSizeThreshold( 
+            DWORD *pThreshold) = 0;
+        
         virtual HRESULT STDMETHODCALLTYPE RequestReJITWithInliners( 
             /* [in] */ DWORD dwRejitFlags,
             /* [in] */ ULONG cFunctions,
@@ -15781,6 +15797,23 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
             ULONG32 *pcCodeInfos,
             COR_PRF_CODE_INFO codeInfos[  ]);
         
+        HRESULT ( STDMETHODCALLTYPE *GetObjectReferences )( 
+            ICorProfilerInfo10 * This,
+            ObjectID objectId,
+            ULONG32 cNumReferences,
+            ULONG32 *pcNumReferences,
+            ObjectID references[  ],
+            SIZE_T offsets[  ]);
+        
+        HRESULT ( STDMETHODCALLTYPE *IsFrozenObject )( 
+            ICorProfilerInfo10 * This,
+            ObjectID objectId,
+            BOOL *pbFrozen);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetLOHObjectSizeThreshold )( 
+            ICorProfilerInfo10 * This,
+            DWORD *pThreshold);
+        
         HRESULT ( STDMETHODCALLTYPE *RequestReJITWithInliners )( 
             ICorProfilerInfo10 * This,
             /* [in] */ DWORD dwRejitFlags,
@@ -16089,6 +16122,15 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
 #define ICorProfilerInfo10_GetCodeInfo4(This,pNativeCodeStartAddress,cCodeInfos,pcCodeInfos,codeInfos)  \
     ( (This)->lpVtbl -> GetCodeInfo4(This,pNativeCodeStartAddress,cCodeInfos,pcCodeInfos,codeInfos) ) 
 
+
+#define ICorProfilerInfo10_GetObjectReferences(This,objectId,cNumReferences,pcNumReferences,references,offsets) \
+    ( (This)->lpVtbl -> GetObjectReferences(This,objectId,cNumReferences,pcNumReferences,references,offsets) ) 
+
+#define ICorProfilerInfo10_IsFrozenObject(This,objectId,pbFrozen)   \
+    ( (This)->lpVtbl -> IsFrozenObject(This,objectId,pbFrozen) ) 
+
+#define ICorProfilerInfo10_GetLOHObjectSizeThreshold(This,pThreshold)   \
+    ( (This)->lpVtbl -> GetLOHObjectSizeThreshold(This,pThreshold) ) 
 
 #define ICorProfilerInfo10_RequestReJITWithInliners(This,dwRejitFlags,cFunctions,moduleIds,methodIds)   \
     ( (This)->lpVtbl -> RequestReJITWithInliners(This,dwRejitFlags,cFunctions,moduleIds,methodIds) ) 
