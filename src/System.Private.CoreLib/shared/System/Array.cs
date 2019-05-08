@@ -1577,7 +1577,7 @@ namespace System
 
                 var spanKeys = new Span<TKey>(ref Unsafe.As<byte, TKey>(ref keys.GetRawArrayData()), keys.Length);
                 var spanItems = new Span<TValue>(ref Unsafe.As<byte, TValue>(ref items!.GetRawArrayData()), items!.Length); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
-                ArraySortHelper<TKey, TValue>.Default.Sort(spanKeys, spanItems, index, length, comparer!);
+                ArraySortHelper<TKey, TValue>.Default.Sort(spanKeys, spanItems, index, length, comparer!); // comparer may still be null here
             }
         }
 
