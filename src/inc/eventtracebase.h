@@ -31,6 +31,8 @@
 struct EventStructTypeData;
 void InitializeEventTracing();
 
+typedef DWORD NativeCodeVersionId; // keep in sync with codeversion.h
+
 // !!!!!!! NOTE !!!!!!!!
 // The flags must match those in the ETW manifest exactly
 // !!!!!!! NOTE !!!!!!!!
