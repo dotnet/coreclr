@@ -7,9 +7,9 @@
       <Uri>https://github.com/dotnet/arcade</Uri>
       <Sha>517bf671ea342965d007aa48f5bfd4926e58d582</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19215.12">
+    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19257.7">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>517bf671ea342965d007aa48f5bfd4926e58d582</Sha>
+      <Sha>bda52d7619f9420de46f2c39ffc972864bbcab63</Sha>
     </Dependency>
     <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-preview5.19219.11">
       <Uri>https://github.com/dotnet/corefx</Uri>
