@@ -5745,6 +5745,15 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForBasic(MethodTable
     if (pMT->GetClass()->IsComClassInterface())
         pComMT->m_Flags |= enum_ComClassItf;
 
+#ifdef _DEBUG_0xDEADCA11
+    {
+        // In debug set all the vtable slots to 0xDEADCA11.
+        SLOT *pComVTable = (SLOT*)(pComMT + 1);
+        for (unsigned iComSlots = 0; iComSlots < DEBUG_AssertSlots + cbExtraSlots; iComSlots++)
+            *(pComVTable + iComSlots) = (SLOT)(size_t)0xDEADCA11;
+    }
+#endif
+
     LOG((LF_INTEROP, LL_INFO1000, "---------- end of CreateComMethodTableForBasic %s -----------\n", pMT->GetDebugClassName()));
 
     pComMT.SuppressRelease();
