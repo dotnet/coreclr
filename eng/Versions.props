@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
-    <!-- This repo version -->
-    <VersionPrefix>3.0.0</VersionPrefix>
     <!-- Always use shipping version instead of dummy versions -->
     <DotNetUseShippingVersions>true</DotNetUseShippingVersions>
-    <PreReleaseVersionLabel>preview6</PreReleaseVersionLabel>
+    <!-- The .NET Core product branding version -->
+    <!-- Version numbers for both managed & native binaries.  -->
+    <!-- For now these are managed in <REPO_ROOT>/dir.commmon.props until we fully move versioning to Arcade-->
+    <ProductVersion Condition="'$(ProductVersion)' == ''">3.0.0</ProductVersion>
+    <MajorVersion Condition="'$(MajorVersion)' == ''">4</MajorVersion>
+    <MinorVersion Condition="'$(MinorVersion)' == ''">30</MinorVersion>
+    <PreReleaseVersionLabel Condition="'$(PreReleaseVersionLabel)' == ''">preview6</PreReleaseVersionLabel>
     <!-- Opt-out repo features -->
     <UsingToolXliff>false</UsingToolXliff>
     <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
