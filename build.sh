@@ -168,14 +168,7 @@ restore_optdata()
 generate_event_logging_sources()
 {
     __OutputDir=$1
-    __ConsumingBuildSystem=$2
-
-    __OutputIncDir="$__OutputDir/src/inc"
     __OutputEventingDir="$__OutputDir/Eventing"
-    __OutputEventProviderDir="$__OutputEventingDir/eventprovider"
-
-    echo "Laying out dynamically generated files consumed by $__ConsumingBuildSystem"
-    echo "Laying out dynamically generated Event test files, etmdummy stub functions, and external linkages"
 
     __PythonWarningFlags="-Wall"
     if [[ $__IgnoreWarnings == 0 ]]; then
@@ -189,8 +182,8 @@ generate_event_logging_sources()
 generate_event_logging()
 {
     # Event Logging Infrastructure
-    if [[ $__SkipCoreCLR == 0 || $__SkipMSCorLib == 0 || $__ConfigureOnly == 1 ]]; then
-        generate_event_logging_sources "$__IntermediatesDir" "the native build system"
+    if [[ $__SkipMSCorLib == 0 ]]; then
+        generate_event_logging_sources "$__IntermediatesDir"
     fi
 }
 
