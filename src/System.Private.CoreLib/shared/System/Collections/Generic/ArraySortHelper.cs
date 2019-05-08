@@ -49,7 +49,8 @@ namespace System.Collections.Generic
     {
         #region IArraySortHelper<T> Members
 
-        public void Sort(Span<T> keys, int index, int length, IComparer<T>? comparer)
+        public void Sort<TComparer>(Span<T> keys, int index, int length, TComparer comparer)
+            where TComparer : IComparer<T>
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
@@ -60,10 +61,13 @@ namespace System.Collections.Generic
             {
                 if (comparer == null)
                 {
-                    comparer = Comparer<T>.Default;
+                    IntrospectiveSort(keys, index, length, Comparer<T>.Default.Compare);
                 }
-
-                IntrospectiveSort(keys, index, length, comparer.Compare);
+                else
+                {
+                    // TODO: Need to change to allow TComparer and not changing to Comparison delegate
+                    IntrospectiveSort(keys, index, length, comparer.Compare);
+                }
             }
             catch (IndexOutOfRangeException)
             {
@@ -336,19 +340,21 @@ namespace System.Collections.Generic
 
         #region IArraySortHelper<T> Members
 
-        public void Sort(Span<T> keys, int index, int length, IComparer<T>? comparer)
+        public void Sort<TComparer>(Span<T> keys, int index, int length, TComparer comparer)
+            where TComparer : IComparer<T>
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             try
             {
-                if (comparer == null || comparer == Comparer<T>.Default)
+                if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<T>.Default))
                 {
                     IntrospectiveSort(keys, index, length);
                 }
                 else
                 {
+                    // TODO: Need to change to allow TComparer and not changing to Comparison delegate
                     ArraySortHelper<T>.IntrospectiveSort(keys, index, length, comparer.Compare);
                 }
             }
@@ -625,7 +631,8 @@ namespace System.Collections.Generic
 
     internal partial class ArraySortHelper<TKey, TValue>
     {
-        public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey>? comparer)
+        public void Sort<TComparer>(Span<TKey> keys, Span<TValue> values, int index, int length, TComparer comparer)
+            where TComparer : IComparer<TKey>
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");  // Precondition on interface method
             Debug.Assert(values != null, "Check the arguments in the caller!");
@@ -635,12 +642,15 @@ namespace System.Collections.Generic
             // underlying IComparables, etc) that are bogus.
             try
             {
-                if (comparer == null || comparer == Comparer<TKey>.Default)
+                if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<TKey>.Default))
                 {
-                    comparer = Comparer<TKey>.Default;
+                    IntrospectiveSort(keys, values, index, length, Comparer<TKey>.Default);
                 }
-
-                IntrospectiveSort(keys, values, index, length, comparer);
+                else
+                {
+                    // TODO: Need to change to TComparer 
+                    IntrospectiveSort(keys, values, index, length, comparer);
+                }
             }
             catch (IndexOutOfRangeException)
             {
@@ -872,7 +882,8 @@ namespace System.Collections.Generic
     internal partial class GenericArraySortHelper<TKey, TValue>
         where TKey : IComparable<TKey>
     {
-        public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey>? comparer)
+        public void Sort<TComparer>(Span<TKey> keys, Span<TValue> values, int index, int length, TComparer comparer)
+            where TComparer : IComparer<TKey>
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
@@ -881,12 +892,13 @@ namespace System.Collections.Generic
             // underlying IComparables, etc) that are bogus.
             try
             {
-                if (comparer == null || comparer == Comparer<TKey>.Default)
+                if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<TKey>.Default))
                 {
                     IntrospectiveSort(keys, values, index, length);
                 }
                 else
                 {
+                    // TODO: Need to change to TComparer 
                     ArraySortHelper<TKey, TValue>.IntrospectiveSort(keys, values, index, length, comparer);
                 }
             }

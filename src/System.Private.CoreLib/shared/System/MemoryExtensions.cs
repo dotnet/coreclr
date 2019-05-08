@@ -1706,12 +1706,12 @@ namespace System
         {
             if (comparison == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
-            if (keys.Length != items.Length))
+            if (keys.Length != items.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_SpansMustHaveSameLength);
 
             if (keys.Length > 1)
             {
-                // TODO: This overload is not available in existing Sort code
+                // TODO: This overload is not available in existing Sort code, key/value does not support Comparison for arrays
                 ArraySortHelper<TKey, TValue>.Sort(keys, items, 0, keys.Length, comparison!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
             }
         }
