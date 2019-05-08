@@ -308,6 +308,8 @@ public:
 
 public:
     int GetTimeInGC();
+
+    uint64_t GetGenerationSize(int gen);
 };
 
 #endif  // GCIMPL_H_

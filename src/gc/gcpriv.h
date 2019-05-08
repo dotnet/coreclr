@@ -4586,4 +4586,6 @@ struct GCCounterData
 {
     uint64_t timeInGC = 0;
     uint64_t timeInGCBase = 0;
+    uint64_t lohObjSize = 0;
+    uint64_t generationSizes[NUMBERGENERATIONS];
 };

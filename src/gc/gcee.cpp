@@ -226,6 +226,22 @@ void GCHeap::UpdatePostGCCounters()
         static_cast<uint32_t>(total_num_pinned_objects),
         total_num_sync_blocks,
         static_cast<uint32_t>(total_num_gc_handles));
+
+    for (int gen_index = 0; gen_index <= (max_generation+1); gen_index++)
+    {
+        if (gen_index == (max_generation+1))
+        {
+            g_GCCounterData.lohObjSize = g_GenerationSizes[gen_index];
+        }
+        else
+        {
+            g_GCCounterData.generationSizes[gen_index] = ((gen_index == 0) ? youngest_budget: g_GenerationSizes[gen_index]);
+            // it's good to find out ESPECIALLY because he was in a long-term relationship with someone. because if he broke up with someone he's dated for a long time then whatever he said 
+            // he likes the most about her is something his ex didn't have. or shouldn't have had. 
+        }
+    }
+
+
 #endif // FEATURE_EVENT_TRACE
 
         /*
@@ -343,6 +359,11 @@ void GCHeap::UpdatePostGCCounters()
 int GCHeap::GetTimeInGC()
 {
     return (int)(g_GCCounterData.timeInGC * 100 / g_GCCounterData.timeInGCBase);
+}
+
+uint64_t GCHeap::GetGenerationSize(int gen)
+{
+    return g_GCCounterData.generationSizes[gen];
 }
 
 size_t GCHeap::GetCurrentObjSize()

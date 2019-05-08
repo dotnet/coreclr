@@ -1172,6 +1172,14 @@ FCIMPL0(int, GCInterface::GetPercentTimeInGC)
 }
 FCIMPLEND
 
+FCIMPL1(UINT64, GCInterface::GetGenerationSize, int gen)
+{
+    FCALL_CONTRACT;
+
+    return GCHeapUtilities::GetGCHeap()->GetGenerationSize(gen);
+}
+FCIMPLEND
+
 /*================================GetTotalMemory================================
 **Action: Returns the total number of bytes in use
 **Returns: The total number of bytes in use
