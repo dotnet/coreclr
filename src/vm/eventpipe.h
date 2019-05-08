@@ -267,7 +267,7 @@ private:
     SList<SListElem<EventPipeProviderCallbackData>> list;
 };
 
-typedef MapSHashWithRemove<EventPipeSession *, EventPipeFile *> EventPipeSessions;
+typedef SetSHash<EventPipeSession *, SetSHashTraits<EventPipeSession *>> EventPipeSessions;
 
 class EventPipe
 {
@@ -356,19 +356,23 @@ public:
 
     static void InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData);
 
+    // Get the configuration object.
+    static EventPipeConfiguration *GetConfiguration()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return s_pConfig;
+    }
+
 private:
     // The counterpart to WriteEvent which after the payload is constructed
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
-    static void DisableInternal(EventPipeSession &session, EventPipeFile *pFile, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+    static void DisableInternal(EventPipeSession &session, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Enable the specified EventPipe session.
-    static EventPipeSessionID Enable(
-        LPCWSTR strOutputPath,
+    static EventPipeSessionID EnableInternal(
         EventPipeSession *const pSession,
-        EventPipeSessionType sessionType,
-        IpcStream *const pStream,
-        EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+        EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     static void CreateFlushTimerCallback();
 
@@ -378,14 +382,6 @@ private:
 
     // Callback function for the stack walker.  For each frame walked, this callback is invoked.
     static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
-
-    // Get the configuration object.
-    // This is called directly by the EventPipeProvider constructor to register the new provider.
-    static EventPipeConfiguration *GetConfiguration()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return s_pConfig;
-    }
 
     // Get the event pipe configuration lock.
     static CrstStatic *GetLock()

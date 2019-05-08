@@ -13,6 +13,8 @@
 #ifdef FEATURE_PERFTRACING
 
 EventPipeSession::EventPipeSession(
+    LPCWSTR strOutputPath,
+    IpcStream *const pStream,
     EventPipeSessionType sessionType,
     unsigned int circularBufferSizeInMB,
     const EventPipeProviderConfiguration *pProviders,
@@ -33,6 +35,27 @@ EventPipeSession::EventPipeSession(
     }
     CONTRACTL_END;
 
+    // Create the event pipe file.
+    // A NULL output path means that we should not write the results to a file.
+    // This is used in the EventListener case.
+    m_pFile = nullptr;
+    switch (sessionType)
+    {
+        case EventPipeSessionType::File:
+            if (strOutputPath != nullptr)
+                m_pFile = new EventPipeFile(new FileStreamWriter(SString(strOutputPath)));
+            break;
+
+        case EventPipeSessionType::IpcStream:
+            m_pFile = new EventPipeFile(new IpcStreamWriter(reinterpret_cast<EventPipeSessionID>(this), pStream));
+            CreateFlushTimerCallback();
+            break;
+
+        default:
+            m_pFile = nullptr;
+            break;
+    }
+
     GetSystemTimeAsFileTime(&m_sessionStartTime);
     QueryPerformanceCounter(&m_sessionStartTimeStamp);
 }
@@ -47,11 +70,136 @@ EventPipeSession::~EventPipeSession()
     }
     CONTRACTL_END;
 
+    // TODO: Stop streaming thread? Review synchronization.
+
     delete m_pProviderList;
 
     // FIXME: Verify DeAllocateBuffers is called when destructing the buffer manager.
     m_pBufferManager->DeAllocateBuffers();
     delete m_pBufferManager;
+    delete m_pFile;
+}
+
+bool EventPipeSession::HasIpcStreamingStarted() const
+{
+    return m_pIpcStreamingThread != nullptr ? m_pIpcStreamingThread->HasStarted() : false;
+}
+
+void EventPipeSession::DestroyIpcStreamingThread()
+{
+    if (!m_ipcStreamingEnabled)
+        return;
+
+    if (m_pIpcStreamingThread != nullptr)
+        ::DestroyThread(m_pIpcStreamingThread);
+
+    m_pIpcStreamingThread = nullptr;
+
+    // Signal Disable() that the thread has been destroyed.
+    m_threadShutdownEvent.Set();
+}
+
+static DWORD WINAPI ThreadProc(void *args)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(args != nullptr);
+    }
+    CONTRACTL_END;
+
+    // TODO: Review Andrew's update/PR on SamplerProfiler
+
+    if (args == nullptr)
+        return 1;
+    EventPipeSession *const pEventPipeSession = reinterpret_cast<EventPipeSession *>(args);
+
+    if (pEventPipeSession->HasIpcStreamingStarted())
+    {
+        // TODO: Switch to pre-emptive mode so that this thread doesn't starve the GC?
+        // GCX_PREEMP();
+
+        while (pEventPipeSession->IsIpcStreamingEnabled())
+        {
+            bool fSuccess = false;
+            EventPipe::RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
+                // Make sure that we should actually flush.
+                EventPipeConfiguration *const pConfiguration = EventPipe::GetConfiguration();
+                if (!EventPipe::Enabled() || pConfiguration == nullptr)
+                    fSuccess = false;
+
+                // Get the current time stamp.
+                // WriteAllBuffersToFile will use this to ensure that no events after
+                // the current timestamp are written into the file.
+                LARGE_INTEGER stopTimeStamp;
+                QueryPerformanceCounter(&stopTimeStamp);
+
+                if (pEventPipeSession->GetSessionType() != EventPipeSessionType::IpcStream)
+                    fSuccess = false;
+
+                if (!pEventPipeSession->WriteAllBuffersToFile(*pConfiguration, stopTimeStamp))
+                {
+                    fSuccess = false;
+
+                    EX_TRY
+                    {
+                        pEventPipeSession->Disable(
+                            *pConfiguration,
+                            stopTimeStamp,
+                            pEventPipeProviderCallbackDataQueue);
+                    }
+                    EX_CATCH {}
+                    EX_END_CATCH(SwallowAllExceptions);
+                }
+
+                fSuccess = true;
+            });
+
+            if (!fSuccess)
+                break;
+
+            // Wait until it's time to sample again.
+            const uint32_t PeriodInNanoSeconds = 100000000;
+            const unsigned long NUM_NANOSECONDS_IN_1_MS = 1000000;
+
+            // FIXME: Poors man sleep
+#ifdef FEATURE_PAL
+            PAL_nanosleep(PeriodInNanoSeconds);
+#else //FEATURE_PAL
+            ClrSleepEx(PeriodInNanoSeconds / NUM_NANOSECONDS_IN_1_MS, FALSE);
+#endif //FEATURE_PAL
+        }
+    }
+
+    pEventPipeSession->DestroyIpcStreamingThread();
+    return 0;
+}
+
+void EventPipeSession::CreateIpcStreamingThread()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END
+
+    m_ipcStreamingEnabled = true;
+    m_pIpcStreamingThread = SetupUnstartedThread();
+    if (m_pIpcStreamingThread->CreateNewThread(0, ThreadProc, this))
+    {
+        m_pIpcStreamingThread->SetBackground(TRUE);
+        m_pIpcStreamingThread->StartThread();
+    }
+    else
+    {
+        _ASSERT(!"Unable to create IPC stream flushing thread.");
+    }
+    m_threadShutdownEvent.CreateManualEvent(FALSE);
 }
 
 bool EventPipeSession::IsValid() const
@@ -86,8 +234,7 @@ EventPipeSessionProvider* EventPipeSession::GetSessionProvider(EventPipeProvider
     return m_pProviderList->GetSessionProvider(pProvider);
 }
 
-void EventPipeSession::WriteAllBuffersToFile(
-    EventPipeFile &fastSerializableObject,
+bool EventPipeSession::WriteAllBuffersToFile(
     EventPipeConfiguration &configuration,
     LARGE_INTEGER stopTimeStamp)
 {
@@ -100,7 +247,10 @@ void EventPipeSession::WriteAllBuffersToFile(
     }
     CONTRACTL_END;
 
-    m_pBufferManager->WriteAllBuffersToFile(&fastSerializableObject, configuration, stopTimeStamp);
+    if (m_pFile == nullptr)
+        return true;
+    m_pBufferManager->WriteAllBuffersToFile(m_pFile, configuration, stopTimeStamp);
+    return !m_pFile->HasErrors();
 }
 
 bool EventPipeSession::WriteEvent(
@@ -113,6 +263,15 @@ bool EventPipeSession::WriteEvent(
         StackContents *pStack)
 {
     return m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId);
+}
+
+void EventPipeSession::WriteEvent(
+    EventPipeEventInstance &instance,
+    EventPipeConfiguration &configuration)
+{
+    if (m_pFile == nullptr)
+        return;
+    m_pFile->WriteEvent(instance, configuration);
 }
 
 EventPipeEventInstance *EventPipeSession::GetNextEvent()
@@ -129,12 +288,92 @@ EventPipeEventInstance *EventPipeSession::GetNextEvent()
     return m_pBufferManager->GetNextEvent();
 }
 
-#ifdef DEBUG
-    bool EventPipeSession::IsLockOwnedByCurrentThread()
+//! The keywords below seems to correspond to:
+//!  LoaderKeyword                      (0x00000008)
+//!  JitKeyword                         (0x00000010)
+//!  NgenKeyword                        (0x00000020)
+//!  unused_keyword                     (0x00000100)
+//!  JittedMethodILToNativeMapKeyword   (0x00020000)
+//!  ThreadTransferKeyword              (0x80000000)
+const EventPipeProviderConfiguration RundownProviders[] = {
+    {W("Microsoft-Windows-DotNETRuntime"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL},       // Public provider.
+    {W("Microsoft-Windows-DotNETRuntimeRundown"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL} // Rundown provider.
+};
+const uint32_t RundownProvidersSize = sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration);
+
+void EventPipeSession::Disable(
+    EventPipeConfiguration &configuration,
+    LARGE_INTEGER stopTimeStamp,
+    EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
+{
+    CONTRACTL
     {
-        return m_pBufferManager->IsLockOwnedByCurrentThread();
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        // Lock must be held by EventPipe::Disable.
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
-#endif // DEBUG
+    CONTRACTL_END;
+
+    if (m_pFile == nullptr)
+        return;
+
+    // Disable streaming thread
+    if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
+    {
+        // Reset the event before shutdown.
+        m_threadShutdownEvent.Reset();
+
+        // The sampling thread will watch this value and exit
+        // when profiling is disabled.
+        m_ipcStreamingEnabled = false;
+
+        // Wait for the sampling thread to clean itself up.
+        m_threadShutdownEvent.Wait(INFINITE, FALSE /* bAlertable */);
+        m_threadShutdownEvent.CloseEvent();
+    }
+
+    // Force all in-progress writes to either finish or cancel
+    // This is required to ensure we can safely flush and delete the buffers
+    m_pBufferManager->SuspendWriteEvent();
+    {
+        m_pBufferManager->WriteAllBuffersToFile(m_pFile, configuration, stopTimeStamp);
+
+        if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
+        {
+            // Before closing the file, do rundown. We have to re-enable event writing for this.
+            m_pBufferManager->ResumeWriteEvent();
+
+            // Update provider list with rundown configuration.
+            m_pProviderList->Clear();
+            for (uint32_t i = 0; i < RundownProvidersSize; ++i)
+            {
+                const EventPipeProviderConfiguration &Config = RundownProviders[i];
+                EventPipeSessionProvider *pProvider = new EventPipeSessionProvider(
+                    Config.GetProviderName(),
+                    Config.GetKeywords(),
+                    (EventPipeEventLevel)Config.GetLevel(),
+                    Config.GetFilterData());
+                m_pProviderList->AddSessionProvider(pProvider);
+            }
+
+            // Enable rundown.
+            m_rundownEnabled = true;
+
+            // Ask the runtime to emit rundown events.
+            if (g_fEEStarted && !g_fEEShutDown)
+                ETW::EnumerationLog::EndRundown();
+
+            // Suspend again after rundown session
+            m_pBufferManager->SuspendWriteEvent();
+        }
+    }
+    // Allow WriteEvent to begin accepting work again so that sometime in the future
+    // we can re-enable events and they will be recorded
+    // FIXME: Functions above might throw... Should we have a try catch here?
+    m_pBufferManager->ResumeWriteEvent();
+}
 
 // void EventPipeSession::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
 // {
@@ -176,67 +415,11 @@ EventPipeEventInstance *EventPipeSession::GetNextEvent()
 //     }
 // }
 
-const EventPipeProviderConfiguration RundownProviders[] = {
-    {W("Microsoft-Windows-DotNETRuntime"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL},       // Public provider.
-    {W("Microsoft-Windows-DotNETRuntimeRundown"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL} // Rundown provider.
-};
-const uint32_t RundownProvidersSize = sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration);
-
-void EventPipeSession::Disable(
-    EventPipeFile &fastSerializableObject,
-    EventPipeConfiguration &configuration,
-    LARGE_INTEGER stopTimeStamp,
-    EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
-{
-    CONTRACTL
+#ifdef DEBUG
+    bool EventPipeSession::IsLockOwnedByCurrentThread()
     {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        // Lock must be held by EventPipe::Disable.
-        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+        return m_pBufferManager->IsLockOwnedByCurrentThread();
     }
-    CONTRACTL_END;
-
-    // Force all in-progress writes to either finish or cancel
-    // This is required to ensure we can safely flush and delete the buffers
-    m_pBufferManager->SuspendWriteEvent();
-    {
-        m_pBufferManager->WriteAllBuffersToFile(&fastSerializableObject, configuration, stopTimeStamp);
-
-        if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
-        {
-            // Before closing the file, do rundown. We have to re-enable event writing for this.
-            m_pBufferManager->ResumeWriteEvent();
-
-            // Update provider list with rundown configuration.
-            m_pProviderList->Clear();
-            for (uint32_t i = 0; i < RundownProvidersSize; ++i)
-            {
-                const EventPipeProviderConfiguration &Config = RundownProviders[i];
-                EventPipeSessionProvider *pProvider = new EventPipeSessionProvider(
-                    Config.GetProviderName(),
-                    Config.GetKeywords(),
-                    (EventPipeEventLevel)Config.GetLevel(),
-                    Config.GetFilterData());
-                m_pProviderList->AddSessionProvider(pProvider);
-            }
-
-            // Enable rundown.
-            m_rundownEnabled = true;
-
-            // Ask the runtime to emit rundown events.
-            if (g_fEEStarted && !g_fEEShutDown)
-                ETW::EnumerationLog::EndRundown();
-
-            // Suspend again after rundown session
-            m_pBufferManager->SuspendWriteEvent();
-        }
-    }
-    // Allow WriteEvent to begin accepting work again so that sometime in the future
-    // we can re-enable events and they will be recorded
-    // FIXME: Functions above might throw... Should we have a try catch here?
-    m_pBufferManager->ResumeWriteEvent();
-}
+#endif // DEBUG
 
 #endif // FEATURE_PERFTRACING

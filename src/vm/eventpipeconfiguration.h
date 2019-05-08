@@ -31,7 +31,7 @@ public:
     void DeleteProvider(EventPipeProvider *pProvider);
 
     // Register a provider.
-    bool RegisterProvider(EventPipeSession *pSession, EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+    bool RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Unregister a provider.
     bool UnregisterProvider(EventPipeProvider &provider);

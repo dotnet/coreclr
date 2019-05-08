@@ -114,7 +114,7 @@ EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &provide
     EventPipeProvider *pProvider = new EventPipeProvider(this, providerName, pCallbackFunction, pCallbackData);
 
     // Register the provider with the configuration system.
-    RegisterProvider(NULL, *pProvider, pEventPipeProviderCallbackDataQueue);
+    RegisterProvider(*pProvider, pEventPipeProviderCallbackDataQueue);
 
     return pProvider;
 }
@@ -140,7 +140,7 @@ void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
     delete pProvider;
 }
 
-bool EventPipeConfiguration::RegisterProvider(EventPipeSession *pSession, EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -165,11 +165,11 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeSession *pSession, EventP
         m_pProviderList->InsertTail(new SListElem<EventPipeProvider *>(&provider));
     }
 
-    for (EventPipeSessions::Iterator iterator = m_pSessions->Begin();
+    for (auto iterator = m_pSessions->Begin();
          iterator != m_pSessions->End();
          ++iterator)
     {
-        EventPipeSession *pSession = iterator->Key();
+        EventPipeSession *pSession = *iterator;
         // Set the provider configuration and enable it if it has been requested by a session.
         if (pSession != NULL)
         {

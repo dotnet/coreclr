@@ -7,12 +7,17 @@
 
 #ifdef FEATURE_PERFTRACING
 
+#include "common.h"
+#include "hosting.h"
+#include "threadsuspend.h"
+
 class EventPipeBufferManager;
 class EventPipeEventInstance;
 class EventPipeFile;
 class EventPipeSessionProvider;
 class EventPipeSessionProviderList;
 
+// TODO: Revisit the need of this enum and its usage.
 enum class EventPipeSessionType
 {
     File,
@@ -45,8 +50,20 @@ private:
     // Start timestamp.
     LARGE_INTEGER m_sessionStartTimeStamp;
 
+    // Object used to flush event data (File, IPC stream, etc.).
+    EventPipeFile *m_pFile;
+
+    // Data members used when an IPC streaming thread is used.
+    Volatile<BOOL> m_ipcStreamingEnabled = false;
+    Thread *m_pIpcStreamingThread = nullptr;
+    CLREventStatic m_threadShutdownEvent;
+
+    void CreateIpcStreamingThread();
+
 public:
     EventPipeSession(
+        LPCWSTR strOutputPath,
+        IpcStream *const pStream,
         EventPipeSessionType sessionType,
         unsigned int circularBufferSizeInMB,
         const EventPipeProviderConfiguration *pProviders,
@@ -98,8 +115,7 @@ public:
     // Get the session provider for the specified provider if present.
     EventPipeSessionProvider* GetSessionProvider(EventPipeProvider *pProvider);
 
-    void WriteAllBuffersToFile(
-        EventPipeFile &fastSerializableObject,
+    bool WriteAllBuffersToFile(
         EventPipeConfiguration &configuration,
         LARGE_INTEGER stopTimeStamp);
 
@@ -112,6 +128,10 @@ public:
         Thread *pEventThread = nullptr,
         StackContents *pStack = nullptr);
 
+    void WriteEvent(
+        EventPipeEventInstance &instance,
+        EventPipeConfiguration &configuration);
+
     EventPipeEventInstance *GetNextEvent();
 
     // Enable a session in the event pipe.
@@ -119,10 +139,19 @@ public:
 
     // Disable a session in the event pipe.
     void Disable(
-        EventPipeFile &fastSerializableObject,
         EventPipeConfiguration &configuration,
         LARGE_INTEGER stopTimeStamp,
         EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
+
+    bool HasIpcStreamingStarted() const;
+
+    bool IsIpcStreamingEnabled() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_ipcStreamingEnabled;
+    }
+
+    void DestroyIpcStreamingThread();
 
 #ifdef DEBUG
     bool IsLockOwnedByCurrentThread() /* const */;
