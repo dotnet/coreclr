@@ -12134,7 +12134,9 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
     }
 #endif //VERIFY_HEAP
 
-    // TODO: VS are we actually holding the right lock? check  loh vs. soh heap locks
+    // NB: we are holding `more_space_lock_loh`, but that is enough to make this safe
+    //     as long as `more_space_lock_loh` is always the same as `more_space_lock_soh`
+    assert(more_space_lock_loh == more_space_lock_soh);
     total_alloc_bytes += size - Align (min_obj_size, align_const);
 
     dprintf (SPINLOCK_LOG, ("[%d]Lmsl to clear large obj", heap_number));

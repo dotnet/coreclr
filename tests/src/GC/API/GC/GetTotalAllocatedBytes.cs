@@ -126,11 +126,41 @@ public class Test
         }
     }
 
+    public static void TestConcurrently()
+    {
+        List<Thread> threads = new List<Thread>();
+        ManualResetEventSlim me = new ManualResetEventSlim();
+        for(int i = 0; i < 1000; i++)
+        {
+            Thread thr = new Thread(() =>
+            {
+                me.Wait();
+                long previous = 0;
+                for (int i = 0; i < 2; ++i)
+                {
+                    s_stash = new byte[123456];
+                    previous = CallGetTotalAllocatedBytes(previous);
+                    s_stash = new byte[1234];
+                    previous = CallGetTotalAllocatedBytes(previous);
+                }
+            });
+
+            thr.Start();
+            threads.Add(thr);
+        }
+
+        me.Set();
+
+        foreach (var thr in threads)
+            thr.Join();
+    }
+
     public static int Main() 
     {
         TestSingleThreaded();
         TestSingleThreadedLOH();
         TestAnotherThread();
+        TestConcurrently();
         return 100;
     }
 }
