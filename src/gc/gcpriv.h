@@ -3006,7 +3006,10 @@ public:
     size_t etw_allocation_running_amount[2];
 
     PER_HEAP
-    uint64_t total_alloc_bytes;
+    uint64_t total_alloc_bytes_soh;
+
+    PER_HEAP
+    uint64_t total_alloc_bytes_loh;
 
     PER_HEAP
     int gc_policy;  //sweep, compact, expand
@@ -3014,7 +3017,7 @@ public:
 #ifdef MULTIPLE_HEAPS
     PER_HEAP_ISOLATED
     bool gc_thread_no_affinitize_p;
-
+    
     PER_HEAP_ISOLATED
     GCEvent gc_start_event;
 
