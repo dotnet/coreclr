@@ -101,6 +101,11 @@ inline void ReJitManager::InitStatic()
 {
 }
 
+inline BOOL ReJitManager::IsReJITInlineTrackingEnabled()
+{
+    return FALSE;
+}
+
 #endif // FEATURE_REJIT
 
 
