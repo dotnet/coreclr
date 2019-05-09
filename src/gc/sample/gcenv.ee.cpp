@@ -13,8 +13,6 @@ MethodTable * g_pFreeObjectMethodTable;
 
 EEConfig * g_pConfig;
 
-gc_alloc_context g_global_alloc_context;
-
 bool CLREventStatic::CreateManualEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, TRUE, bInitialState, NULL);
@@ -100,7 +98,11 @@ uint32_t CLREventStatic::Wait(uint32_t dwMilliseconds, bool bAlertable)
     return result;
 }
 
+#ifndef __GNUC__
 __declspec(thread) Thread * pCurrentThread;
+#else // !__GNUC__
+thread_local Thread * pCurrentThread;
+#endif // !__GNUC__
 
 Thread * GetThread()
 {
@@ -251,7 +253,7 @@ void GCToEEInterface::DiagWalkFReachableObjects(void* gcContext)
 {
 }
 
-void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
+void GCToEEInterface::DiagWalkSurvivors(void* gcContext, bool fCompacting)
 {
 }
 

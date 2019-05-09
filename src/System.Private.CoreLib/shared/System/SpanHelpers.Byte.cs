@@ -2,9 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
@@ -292,7 +293,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOperations.TrailingZeroCount(matches);
                         }
                     }
 
@@ -314,7 +315,7 @@ namespace System
                             }
 
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOperations.TrailingZeroCount(matches);
                         } while ((byte*)lengthToExamine > (byte*)offset);
                     }
 
@@ -334,7 +335,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOperations.TrailingZeroCount(matches);
                         }
                     }
 
@@ -366,7 +367,7 @@ namespace System
                         }
 
                         // Find bitflag offset of first match and add to current offset
-                        return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                        return ((int)(byte*)offset) + BitOperations.TrailingZeroCount(matches);
                     }
 
                     if ((int)(byte*)offset < length)
@@ -682,7 +683,7 @@ namespace System
                             }
 
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOperations.TrailingZeroCount(matches);
                         } while ((byte*)lengthToExamine > (byte*)offset);
                     }
 
@@ -706,7 +707,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOperations.TrailingZeroCount(matches);
                         }
                     }
 
@@ -742,7 +743,7 @@ namespace System
                         }
 
                         // Find bitflag offset of first match and add to current offset
-                        return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                        return ((int)(byte*)offset) + BitOperations.TrailingZeroCount(matches);
                     }
 
                     if ((int)(byte*)offset < length)
@@ -923,7 +924,7 @@ namespace System
                             }
 
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOperations.TrailingZeroCount(matches);
                         } while ((byte*)lengthToExamine > (byte*)offset);
                     }
 
@@ -949,7 +950,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                            return ((int)(byte*)offset) + BitOperations.TrailingZeroCount(matches);
                         }
                     }
 
@@ -987,7 +988,7 @@ namespace System
                         }
 
                         // Find bitflag offset of first match and add to current offset
-                        return ((int)(byte*)offset) + BitOps.TrailingZeroCount(matches);
+                        return ((int)(byte*)offset) + BitOperations.TrailingZeroCount(matches);
                     }
 
                     if ((int)(byte*)offset < length)
@@ -1429,7 +1430,7 @@ namespace System
                     // Invert matches to find differences
                     uint differences = ~matches;
                     // Find bitflag offset of first difference and add to current offset
-                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount((int)differences));
+                    offset = (IntPtr)((int)(byte*)offset + BitOperations.TrailingZeroCount((int)differences));
 
                     int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
                     Debug.Assert(result != 0);
@@ -1471,7 +1472,7 @@ namespace System
                     // Invert matches to find differences
                     uint differences = ~matches;
                     // Find bitflag offset of first difference and add to current offset
-                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount((int)differences));
+                    offset = (IntPtr)((int)(byte*)offset + BitOperations.TrailingZeroCount((int)differences));
 
                     int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
                     Debug.Assert(result != 0);
@@ -1514,7 +1515,7 @@ namespace System
                     // Invert matches to find differences
                     uint differences = ~matches;
                     // Find bitflag offset of first difference and add to current offset
-                    offset = (IntPtr)((int)(byte*)offset + BitOps.TrailingZeroCount((int)differences));
+                    offset = (IntPtr)((int)(byte*)offset + BitOperations.TrailingZeroCount((int)differences));
 
                     int result = Unsafe.AddByteOffset(ref first, offset).CompareTo(Unsafe.AddByteOffset(ref second, offset));
                     Debug.Assert(result != 0);
@@ -1605,7 +1606,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int LocateLastFoundByte(ulong match)
         {
-            return 7 - (BitOps.LeadingZeroCount(match) >> 3);
+            return 7 - (BitOperations.LeadingZeroCount(match) >> 3);
         }
 
         private const ulong XorPowerOfTwoToHighByte = (0x07ul |

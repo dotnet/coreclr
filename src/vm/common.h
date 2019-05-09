@@ -75,7 +75,6 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include <objbase.h>
-#include <stddef.h>
 #include <float.h>
 #include <math.h>
 #include <time.h>
@@ -115,11 +114,11 @@
 
 typedef VPTR(class LoaderAllocator)     PTR_LoaderAllocator;
 typedef VPTR(class AppDomain)           PTR_AppDomain;
-typedef VPTR(class AppDomainBaseObject) PTR_AppDomainBaseObject;
 typedef DPTR(class ArrayBase)           PTR_ArrayBase;
 typedef DPTR(class ArrayTypeDesc)       PTR_ArrayTypeDesc;
 typedef DPTR(class Assembly)            PTR_Assembly;
 typedef DPTR(class AssemblyBaseObject)  PTR_AssemblyBaseObject;
+typedef DPTR(class AssemblyLoadContextBaseObject) PTR_AssemblyLoadContextBaseObject;
 typedef DPTR(class AssemblyNameBaseObject) PTR_AssemblyNameBaseObject;
 typedef VPTR(class BaseDomain)          PTR_BaseDomain;
 typedef DPTR(class ClassLoader)         PTR_ClassLoader;
@@ -168,6 +167,9 @@ typedef DPTR(class ReJitManager)        PTR_ReJitManager;
 typedef DPTR(struct ReJitInfo)          PTR_ReJitInfo;
 typedef DPTR(struct SharedReJitInfo)    PTR_SharedReJitInfo;
 typedef DPTR(class StringObject)        PTR_StringObject;
+#ifdef FEATURE_UTF8STRING
+typedef DPTR(class Utf8StringObject)    PTR_Utf8StringObject;
+#endif // FEATURE_UTF8STRING
 typedef DPTR(class TypeHandle)          PTR_TypeHandle;
 typedef VPTR(class VirtualCallStubManager) PTR_VirtualCallStubManager;
 typedef VPTR(class VirtualCallStubManagerManager) PTR_VirtualCallStubManagerManager;
@@ -474,11 +476,6 @@ extern DummyGlobalContract ___contract;
 #undef COMMON_TURNED_FPO_ON
 #undef FPO_ON
 #endif
-
-extern INT64 g_PauseTime;          // Total duration of all pauses in the runtime
-extern Volatile<BOOL> g_IsPaused;   // True if the runtime is Paused for FAS
-extern CLREventStatic g_ClrResumeEvent;  // Event fired when the runtime is resumed after a Pause for FAS
-INT64 AdditionalWait(INT64 sPauseTime, INT64 sTime, INT64 expDuration);
 
 #endif // !_common_h_
 

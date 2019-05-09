@@ -148,14 +148,14 @@ def validate_args(args):
     coreclr_setup_args.verify(args,
                               "diff_root",
                               lambda directory: os.path.isdir(directory) if directory is not None else True,
-                              "Base root is not a valid directory",
+                              "Diff root is not a valid directory",
                               modify_arg=lambda directory: nth_dirname(os.path.abspath(sys.argv[0]), 3) if directory is None else os.path.abspath(directory))
 
     coreclr_setup_args.verify(args,
                               "scratch_root",
-                              lambda directory: os.path.isdir(directory) if directory is not None else True,
-                              "Base root is not a valid directory",
-                              modify_arg=lambda directory: nth_dirname(os.path.abspath(sys.argv[0]), 3) if directory is None else os.path.abspath(directory))
+                              lambda unused: True,
+                              "Error setting scratch_root",
+                              modify_arg=lambda directory: os.path.join(coreclr_setup_args.diff_root, '_', 'pmi') if directory is None else os.path.abspath(directory))
 
     coreclr_setup_args.verify(args,
                               "skip_baseline_build",
@@ -437,7 +437,7 @@ def do_pmi_diffs():
 
     # Download .NET CLI
 
-    log('Downloading .Net CLI')
+    log('Downloading .NET CLI')
 
     dotnetcliUrl = ""
     dotnetcliFilename = ""
@@ -469,12 +469,12 @@ def do_pmi_diffs():
         urlretrieve(dotnetcliUrl, dotnetcliFilename)
 
         if not os.path.isfile(dotnetcliFilename):
-            log('ERROR: Did not download .Net CLI')
+            log('ERROR: Did not download .NET CLI')
             return 1
 
-    # Install .Net CLI
+    # Install .NET CLI
 
-    log('Unpacking .Net CLI')
+    log('Unpacking .NET CLI')
 
     if not testing:
         if Is_windows:
@@ -486,7 +486,7 @@ def do_pmi_diffs():
             tar.close()
 
         if not os.path.isfile(os.path.join(dotnetcliPath, dotnet_tool)):
-            log('ERROR: did not extract .Net CLI from download')
+            log('ERROR: did not extract .NET CLI from download')
             return 1
 
     # Add dotnet CLI to PATH we'll use to spawn processes.

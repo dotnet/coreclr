@@ -155,10 +155,10 @@ inline void GCToEEInterface::DiagWalkFReachableObjects(void* gcContext)
     g_theGCToCLR->DiagWalkFReachableObjects(gcContext);
 }
 
-inline void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
+inline void GCToEEInterface::DiagWalkSurvivors(void* gcContext, bool fCompacting)
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->DiagWalkSurvivors(gcContext);
+    g_theGCToCLR->DiagWalkSurvivors(gcContext, fCompacting);
 }
 
 inline void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
@@ -321,6 +321,14 @@ inline void GCToEEInterface::VerifySyncTableEntry()
 {
     assert(g_theGCToCLR != nullptr);
     g_theGCToCLR->VerifySyncTableEntry();
+}
+
+inline void GCToEEInterface::UpdateGCEventStatus(int publicLevel, int publicKeywords, int privateLevel, int privateKeywords)
+{
+    assert(g_theGCToCLR != nullptr);
+#if defined(__linux__)
+    g_theGCToCLR->UpdateGCEventStatus(publicLevel, publicKeywords, privateLevel, privateKeywords);
+#endif // __linux__
 }
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

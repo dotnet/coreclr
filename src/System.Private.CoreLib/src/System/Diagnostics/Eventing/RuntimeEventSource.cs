@@ -2,9 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Threading;
+#nullable enable
 
+using System.Threading;
 
 namespace System.Diagnostics.Tracing
 {
@@ -15,17 +15,16 @@ namespace System.Diagnostics.Tracing
     internal sealed class RuntimeEventSource : EventSource
     {
         private static RuntimeEventSource s_RuntimeEventSource;
-        private EventCounter[] _counters;
-
-        private enum Counter {
-            GCHeapSize,
-            Gen0GCCount,
-            Gen1GCCount,
-            Gen2GCCount,
-            ExceptionCount
-        }
-
-        private Timer _timer;
+        private PollingCounter? _gcHeapSizeCounter;
+        private IncrementingPollingCounter? _gen0GCCounter;
+        private IncrementingPollingCounter? _gen1GCCounter;
+        private IncrementingPollingCounter? _gen2GCCounter;
+        private IncrementingPollingCounter? _exceptionCounter;
+        private PollingCounter? _cpuTimeCounter;
+        private PollingCounter? _workingSetCounter;
+        private PollingCounter? _threadPoolThreadCounter;
+        private IncrementingPollingCounter? _monitorContentionCounter;
+        private PollingCounter? _threadPoolQueueCounter;
 
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
 
@@ -36,81 +35,28 @@ namespace System.Diagnostics.Tracing
         
         private RuntimeEventSource(): base(new Guid(0x49592C0F, 0x5A05, 0x516D, 0xAA, 0x4B, 0xA6, 0x4E, 0x02, 0x02, 0x6C, 0x89), "System.Runtime", EventSourceSettings.EtwSelfDescribingEventFormat)
         {
-
         }
 
-        protected override void OnEventCommand(System.Diagnostics.Tracing.EventCommandEventArgs command)
+        protected override void OnEventCommand(EventCommandEventArgs command)
         {
             if (command.Command == EventCommand.Enable)
             {
-                if (_counters == null)
-                {
-                    // NOTE: These counters will NOT be disposed on disable command because we may be introducing 
-                    // a race condition by doing that. We still want to create these lazily so that we aren't adding
-                    // overhead by at all times even when counters aren't enabled.
-                    _counters = new EventCounter[] {
-                        // TODO: process info counters
+                // NOTE: These counters will NOT be disposed on disable command because we may be introducing 
+                // a race condition by doing that. We still want to create these lazily so that we aren't adding
+                // overhead by at all times even when counters aren't enabled.
 
-                        // GC info counters
-                        new EventCounter("Total Memory by GC", this),
-                        new EventCounter("Gen 0 GC Count", this),
-                        new EventCounter("Gen 1 GC Count", this),
-                        new EventCounter("Gen 2 GC Count", this),
-
-                        new EventCounter("Exception Count", this)
-                    };
-                }
-
-
-                // Initialize the timer, but don't set it to run.
-                // The timer will be set to run each time PollForTracingCommand is called.
-
-                // TODO: We should not need this timer once we are done settling upon a high-level design for
-                // what EventCounter is capable of doing. Once that decision is made, we should be able to 
-                // get rid of this.
-                if (_timer == null)
-                {
-                    _timer = new Timer(
-                        callback: new TimerCallback(PollForCounterUpdate),
-                        state: null,
-                        dueTime: Timeout.Infinite,
-                        period: Timeout.Infinite,
-                        flowExecutionContext: false);
-                }
-                // Trigger the first poll operation on when this EventSource is enabled
-                PollForCounterUpdate(null);
+                // On disable, PollingCounters will stop polling for values so it should be fine to leave them around.
+                _cpuTimeCounter = _cpuTimeCounter ?? new PollingCounter("cpu-usage", this, () => RuntimeEventSourceHelper.GetCpuUsage()) { DisplayName = "CPU Usage" };
+                _workingSetCounter = _workingSetCounter ?? new PollingCounter("working-set", this, () => (double)(Environment.WorkingSet / 1000000)) { DisplayName = "Working Set" };
+                _gcHeapSizeCounter = _gcHeapSizeCounter ?? new PollingCounter("gc-heap-size", this, () => (double)(GC.GetTotalMemory(false) / 1000000)) { DisplayName = "GC Heap Size" };
+                _gen0GCCounter = _gen0GCCounter ?? new IncrementingPollingCounter("gen-0-gc-count", this, () => GC.CollectionCount(0)) { DisplayName = "Gen 0 GC Count", DisplayRateTimeScale = new TimeSpan(0, 1, 0) };
+                _gen1GCCounter = _gen1GCCounter ?? new IncrementingPollingCounter("gen-1-gc-count", this, () => GC.CollectionCount(1)) { DisplayName = "Gen 1 GC Count", DisplayRateTimeScale = new TimeSpan(0, 1, 0) };
+                _gen2GCCounter = _gen2GCCounter ?? new IncrementingPollingCounter("gen-2-gc-count", this, () => GC.CollectionCount(2)) { DisplayName = "Gen 2 GC Count", DisplayRateTimeScale = new TimeSpan(0, 1, 0) };
+                _exceptionCounter = _exceptionCounter ?? new IncrementingPollingCounter("exception-count", this, () => Exception.GetExceptionCount()) { DisplayName = "Exception Count", DisplayRateTimeScale = new TimeSpan(0, 0, 1) };
+                _threadPoolThreadCounter = _threadPoolThreadCounter ?? new PollingCounter("threadpool-thread-count", this, () => ThreadPool.ThreadCount) { DisplayName = "ThreadPool Thread Count" };
+                _monitorContentionCounter = _monitorContentionCounter ?? new IncrementingPollingCounter("monitor-lock-contention-count", this, () => Monitor.LockContentionCount) { DisplayName = "Monitor Lock Contention Count", DisplayRateTimeScale = new TimeSpan(0, 0, 1) }; 
+                _threadPoolQueueCounter = _threadPoolQueueCounter ?? new PollingCounter("threadpool-queue-length", this, () => ThreadPool.PendingWorkItemCount) { DisplayName = "ThreadPool Queue Length" };
             }
-            else if (command.Command == EventCommand.Disable)
-            {
-                _timer.Change(Timeout.Infinite, Timeout.Infinite);  // disable the timer from running until System.Runtime is re-enabled
-            }
-        }
-
-        public void UpdateAllCounters()
-        {
-            // GC counters
-            _counters[(int)Counter.GCHeapSize].WriteMetric(GC.GetTotalMemory(false));
-            _counters[(int)Counter.Gen0GCCount].WriteMetric(GC.CollectionCount(0));
-            _counters[(int)Counter.Gen1GCCount].WriteMetric(GC.CollectionCount(1));
-            _counters[(int)Counter.Gen2GCCount].WriteMetric(GC.CollectionCount(2));
-            _counters[(int)Counter.ExceptionCount].WriteMetric(Exception.GetExceptionCount());
-        }
-
-        private void PollForCounterUpdate(object state)
-        {
-            // TODO: Need to confirm with vancem about how to do error-handling here. 
-            // This disables to timer from getting rescheduled to run, which may or may not be 
-            // what we eventually want. 
-
-            // Make sure that any transient errors don't cause the listener thread to exit.
-            try
-            {
-                UpdateAllCounters();
-
-                // Schedule the timer to run again.
-                _timer.Change(EnabledPollingIntervalMilliseconds, Timeout.Infinite);
-            }
-            catch { }
         }
     }
 }

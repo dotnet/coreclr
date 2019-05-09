@@ -19,7 +19,6 @@
 #include "dllimportcallback.h"
 #include "dllimport.h"
 #include "eeconfig.h"
-#include "mdaassistants.h"
 #include "cgensys.h"
 #include "asmconstants.h"
 #include "virtualcallstub.h"
@@ -479,7 +478,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
         {
             filledSlots[i] = false;
         }
-        for (int i = 0; i < pShuffleEntryArray->GetCount(); i++)
+        for (unsigned int i = 0; i < pShuffleEntryArray->GetCount(); i++)
         {
             entry = (*pShuffleEntryArray)[i];
 
@@ -487,7 +486,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
             // of the entry that filled it in.
             if (filledSlots[GetNormalizedArgumentSlotIndex(entry.srcofs)])
             {
-                int j;
+                unsigned int j;
                 for (j = i; (*pShuffleEntryArray)[j].dstofs != entry.srcofs; j--)
                     (*pShuffleEntryArray)[j] = (*pShuffleEntryArray)[j - 1];
 
@@ -1188,8 +1187,7 @@ LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
             pUMEntryThunk->LoadTimeInit(
                 pManagedTargetForDiagnostics,
                 objhnd,
-                pUMThunkMarshInfo, pInvokeMeth,
-                GetAppDomain()->GetId());
+                pUMThunkMarshInfo, pInvokeMeth);
 
 #ifdef FEATURE_WINDOWSPHONE
             // Perform the runtime initialization lazily for better startup time. Lazy initialization
@@ -1255,27 +1253,7 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
     // Check if this callback was originally a managed method passed out to unmanaged code.
     //
 
-    UMEntryThunk* pUMEntryThunk = NULL;
-
-#ifdef MDA_SUPPORTED    
-    if (MDA_GET_ASSISTANT(InvalidFunctionPointerInDelegate))
-    {
-        EX_TRY
-        {
-            AVInRuntimeImplOkayHolder AVOkay;
-            pUMEntryThunk = UMEntryThunk::Decode(pCallback);
-        }
-        EX_CATCH
-        {
-            MDA_TRIGGER_ASSISTANT(InvalidFunctionPointerInDelegate, ReportViolation(pCallback));
-        }
-        EX_END_CATCH(SwallowAllExceptions)
-    }
-    else
-#endif // MDA_SUPPORTED
-    {
-        pUMEntryThunk = UMEntryThunk::Decode(pCallback);
-    }
+    UMEntryThunk* pUMEntryThunk = UMEntryThunk::Decode(pCallback);
 
     // Lookup the callsite in the hash, if found, we can map this call back to its managed function.
     // Otherwise, we'll treat this as an unmanaged callsite.
@@ -1301,9 +1279,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         
         pUMEntryThunk = (UMEntryThunk*)pInteropInfo->GetUMEntryThunk();
         _ASSERTE(pUMEntryThunk);
-
-        if (pUMEntryThunk->GetDomainId() != GetAppDomain()->GetId())
-            COMPlusThrow(kNotSupportedException, W("NotSupported_DelegateMarshalToWrongDomain"));
 
         GCPROTECT_END();
         return pDelegate;
@@ -1381,12 +1356,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         MethodDesc *pStubMD = pClass->m_pForwardStubMD;
         _ASSERTE(pStubMD != NULL && pStubMD->IsILStub());
 
-#if defined(MDA_SUPPORTED)
-        if (MDA_GET_ASSISTANT(PInvokeStackImbalance))
-        {
-            pInterceptStub = GenerateStubForMDA(pMD, pStubMD, pCallback, pInterceptStub);
-        }
-#endif // MDA_SUPPORTED
     }
 
     if (pInterceptStub != NULL)
@@ -3506,8 +3475,7 @@ static void TryConstructUnhandledExceptionArgs(OBJECTREF *pThrowable,
     {
         *pOutEventArgs = NULL;      // arguably better than half-constructed object
 
-        // It's not even worth asserting, because these aren't our bugs.  At
-        // some point, a MDA may be warranted.
+        // It's not even worth asserting, because these aren't our bugs.
     }
     EX_END_CATCH(SwallowAllExceptions)
 }
@@ -3574,8 +3542,7 @@ static void InvokeUnhandledSwallowing(OBJECTREF *pDelegate,
     }
     EX_CATCH
     {
-        // It's not even worth asserting, because these aren't our bugs.  At
-        // some point, a MDA may be warranted.
+        // It's not even worth asserting, because these aren't our bugs.
     }
     EX_END_CATCH(SwallowAllExceptions)
 }
@@ -3641,8 +3608,7 @@ void DistributeUnhandledExceptionReliably(OBJECTREF *pDelegate,
     }
     EX_CATCH
     {
-        // It's not even worth asserting, because these aren't our bugs.  At
-        // some point, a MDA may be warranted.
+        // It's not even worth asserting, because these aren't our bugs.
     }
     EX_END_CATCH(SwallowAllExceptions)
 }

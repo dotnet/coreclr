@@ -1726,7 +1726,7 @@ int GetValueFieldOffset(CLRDATA_ADDRESS cdaMT, __in_z LPCWSTR wszFieldName, Dacp
     if (dmtd.ParentMethodTable)
     {
         DWORD retVal = GetValueFieldOffset(dmtd.ParentMethodTable, wszFieldName, pDacpFieldDescData);
-        if (retVal != NOT_FOUND)
+        if (retVal != (DWORD)NOT_FOUND)
         {
             // Return in case of error or success. Fall through for field-not-found.
             return retVal;
@@ -1931,7 +1931,7 @@ CLRDATA_ADDRESS GetAppDomain(CLRDATA_ADDRESS objPtr)
             return NULL;
         }
         
-        DWORD adIndex = (value >> SBLK_APPDOMAIN_SHIFT) & SBLK_MASK_APPDOMAININDEX;
+        DWORD adIndex = 0;
         if ( ((value & BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX) != 0) || adIndex==0)
         {
             // No AppDomainID information. We'll make use of a heuristic.

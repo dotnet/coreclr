@@ -590,6 +590,10 @@ COM_METHOD ProfToEEInterfaceImpl::QueryInterface(REFIID id, void ** pInterface)
     {
         *pInterface = static_cast<ICorProfilerInfo9 *>(this);
     }
+    else if (id == IID_ICorProfilerInfo10)
+    {
+        *pInterface = static_cast<ICorProfilerInfo10 *>(this);
+    }
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown *>(static_cast<ICorProfilerInfo *>(this));
@@ -645,7 +649,7 @@ void __stdcall ProfilerObjectAllocatedCallback(OBJECTREF objref, ClassID classId
     // Notify the profiler of the allocation
 
     {
-        BEGIN_PIN_PROFILER(CORProfilerTrackAllocations());
+        BEGIN_PIN_PROFILER(CORProfilerTrackAllocations() || CORProfilerTrackLargeAllocations());
         // Note that for generic code we always return uninstantiated ClassIDs and FunctionIDs.
         // Thus we strip any instantiations of the ClassID (which is really a type handle) here.
         g_profControlBlock.pProfInterface->ObjectAllocated(
@@ -684,7 +688,7 @@ void __stdcall GarbageCollectionStartedCallback(int generation, BOOL induced)
 
     // Notify the profiler of start of the collection
     {
-        BEGIN_PIN_PROFILER(CORProfilerTrackGC());
+        BEGIN_PIN_PROFILER(CORProfilerTrackGC() || CORProfilerTrackBasicGC());
         BOOL generationCollected[COR_PRF_GC_LARGE_OBJECT_HEAP+1];
         if (generation == COR_PRF_GC_GEN_2)
             generation = COR_PRF_GC_LARGE_OBJECT_HEAP;
@@ -718,7 +722,7 @@ void __stdcall GarbageCollectionFinishedCallback()
 #ifdef PROFILING_SUPPORTED
     // Notify the profiler of end of the collection
     {
-        BEGIN_PIN_PROFILER(CORProfilerTrackGC());
+        BEGIN_PIN_PROFILER(CORProfilerTrackGC() || CORProfilerTrackBasicGC());
         g_profControlBlock.pProfInterface->GarbageCollectionFinished();
         END_PIN_PROFILER();
     }
@@ -858,7 +862,7 @@ void __stdcall UpdateGenerationBounds()
 
 #ifdef PROFILING_SUPPORTED
     // Notify the profiler of start of the collection
-    if (CORProfilerTrackGC())
+    if (CORProfilerTrackGC() || CORProfilerTrackBasicGC())
     {
         // generate a new generation table
         GenerationTable *newGenerationTable = new (nothrow) GenerationTable();
@@ -1073,6 +1077,43 @@ bool SaveContainedObjectRef(Object * pBO, void * context)
     // array.  So "blindly" incrementing (*context) here and using it next time around
     // for the next reference, over and over again, should be safe.
     (*((Object ***)context))++;
+
+    return TRUE;
+}
+
+typedef struct _ObjectRefOffsetTuple
+{
+    Object* pCurObjRef;
+    SIZE_T* pCurObjOffset;
+} ObjectRefOffsetTuple;
+
+//---------------------------------------------------------------------------------------
+//
+// Callback of type walk_fn used by IGCHeap::DiagWalkObject.  Stores each object reference
+// encountered into an array.
+//
+// Arguments:
+//      o - original object
+//      pBO - Object reference encountered in walk
+//      context - Array of locations within the walked object that point to other
+//                objects.  On entry, (*context) points to the next unfilled array
+//                entry.  On exit, that location is filled, and (*context) is incremented
+//                to point to the next entry.
+//
+// Return Value:
+//      Always returns TRUE to object walker so it walks the entire object
+//
+
+bool SaveContainedObjectRef2(Object* o, uint8_t** pBO, void* context)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    auto x = (ObjectRefOffsetTuple*)context;
+    *((Object **)(x->pCurObjRef)) = (Object *)*pBO;
+    *((SIZE_T **)(x->pCurObjOffset)) = (SIZE_T*)((uint8_t*)pBO - (uint8_t*)o);
+
+    x->pCurObjRef++;
+    x->pCurObjOffset++;
 
     return TRUE;
 }
@@ -3113,7 +3154,7 @@ HRESULT ProfToEEInterfaceImpl::GetRVAStaticAddress(ClassID classId,
     //
     // Check that the data is available
     //
-    if (!IsClassOfMethodTableInited(pMethodTable, GetAppDomain()))
+    if (!IsClassOfMethodTableInited(pMethodTable))
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -3170,7 +3211,7 @@ HRESULT ProfToEEInterfaceImpl::GetAppDomainStaticAddress(ClassID classId,
         // Yay!
         EE_THREAD_NOT_REQUIRED;
 
-        // FieldDesc::GetStaticAddress & FieldDesc::GetBaseInDomain take locks
+        // FieldDesc::GetStaticAddress & FieldDesc::GetBase take locks
         CAN_TAKE_LOCK;
 
     }
@@ -3251,7 +3292,7 @@ HRESULT ProfToEEInterfaceImpl::GetAppDomainStaticAddress(ClassID classId,
     //
     // Check that the data is available
     //
-    if (!IsClassOfMethodTableInited(pMethodTable, pAppDomain))
+    if (!IsClassOfMethodTableInited(pMethodTable))
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -3259,7 +3300,7 @@ HRESULT ProfToEEInterfaceImpl::GetAppDomainStaticAddress(ClassID classId,
     //
     // Get the address
     //
-    void *base = (void*)pFieldDesc->GetBaseInDomain(pAppDomain);
+    void *base = (void*)pFieldDesc->GetBase();
 
     if (base == NULL)
     {
@@ -3466,12 +3507,11 @@ HRESULT ProfToEEInterfaceImpl::GetThreadStaticAddress2(ClassID classId,
     // It may seem redundant to try to retrieve the same method table from GetEnclosingMethodTable, but classId 
     // leads to the instantiated method table while GetEnclosingMethodTable returns the uninstantiated one.
     MethodTable *pMethodTable = pFieldDesc->GetEnclosingMethodTable();
-    AppDomain * pAppDomain = (AppDomain *)appDomainId;
 
     //
     // Check that the data is available
     //
-    if (!IsClassOfMethodTableInited(pMethodTable, pAppDomain))
+    if (!IsClassOfMethodTableInited(pMethodTable))
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -6751,6 +6791,148 @@ HRESULT ProfToEEInterfaceImpl::GetCodeInfo4(UINT_PTR pNativeCodeStartAddress,
 }
 
 /*
+ * GetObjectReferences
+ * 
+ * Gets the object references (if any) from the ObjectID.
+ * 
+ * Parameters:
+ *      objectId        - object id of interest
+ *      cNumReferences  - count of references for which the profiler has allocated buffer space
+ *      pcNumReferences - actual count of references
+ *      references      - filled array of object references
+ *
+ * Returns:
+ *   S_OK if successful
+ *
+ */
+HRESULT ProfToEEInterfaceImpl::GetObjectReferences(ObjectID objectId, ULONG32 cNumReferences, ULONG32 *pcNumReferences, ObjectID references[], SIZE_T offsets[])
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        EE_THREAD_NOT_REQUIRED;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach,
+        (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: GetObjectReferences 0x%p.\n",
+        objectId));
+
+    if (cNumReferences > 0 && (pcNumReferences == nullptr || references == nullptr || offsets == nullptr))
+    {
+        return E_INVALIDARG;
+    }
+
+    Object* pBO = (Object*)objectId;
+    MethodTable *pMT = pBO->GetMethodTable();
+
+    if (pMT->ContainsPointersOrCollectible())
+    {
+        if (cNumReferences == 0)
+        {
+            *pcNumReferences = 0;
+            GCHeapUtilities::GetGCHeap()->DiagWalkObject(pBO, &CountContainedObjectRef, (void*)pcNumReferences);
+        }
+        else
+        {
+            ObjectRefOffsetTuple t;
+            t.pCurObjRef = (Object*)references;
+            t.pCurObjOffset = offsets;
+
+            GCHeapUtilities::GetGCHeap()->DiagWalkObject2(pBO, &SaveContainedObjectRef2, (void*)&t);
+        }
+    }
+    else
+    {
+        *pcNumReferences = 0;
+    }
+
+    return S_OK;
+}
+
+/*
+ * IsFrozenObject
+ * 
+ * Determines whether the object is in a read-only segment
+ * 
+ * Parameters:
+ *      objectId        - object id of interest
+ *
+ * Returns:
+ *   S_OK if successful
+ *
+ */
+HRESULT ProfToEEInterfaceImpl::IsFrozenObject(ObjectID objectId, BOOL *pbFrozen)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        EE_THREAD_NOT_REQUIRED;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach,
+        (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: IsFrozenObject 0x%p.\n",
+        objectId));
+
+    *pbFrozen = GCHeapUtilities::GetGCHeap()->IsInFrozenSegment((Object*)objectId) ? TRUE : FALSE;
+
+    return S_OK;
+}
+
+/*
+ * GetLOHObjectSizeThreshold
+ * 
+ * Gets the value of the configured LOH Threshold.
+ * 
+ * Parameters:
+ *      pThreshold        - value of the threshold in bytes
+ *
+ * Returns:
+ *   S_OK if successful
+ *
+ */
+HRESULT ProfToEEInterfaceImpl::GetLOHObjectSizeThreshold(DWORD *pThreshold)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        EE_THREAD_NOT_REQUIRED;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach,
+        (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: GetLOHObjectSizeThreshold\n"));
+
+    if (pThreshold == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    *pThreshold = g_pConfig->GetGCLOHThreshold();
+
+    return S_OK;
+}
+
+/*
  * GetStringLayout
  *
  * This function describes to a profiler the internal layout of a string.
@@ -9661,12 +9843,12 @@ HRESULT ProfToEEInterfaceImpl::ApplyMetaData(
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
 
-    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(kP2EEAllowableAfterAttach, (LF_CORPROF, LL_INFO1000, "**PROF: ApplyMetaData.\n"));
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(kP2EEAllowableAfterAttach | kP2EETriggers, (LF_CORPROF, LL_INFO1000, "**PROF: ApplyMetaData.\n"));
 
     if (moduleId == NULL)
     {

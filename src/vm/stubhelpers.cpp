@@ -705,6 +705,9 @@ FCIMPL4(IUnknown*, StubHelpers::InterfaceMarshaler__ConvertToNative, Object* pOb
     // This is only called in IL stubs which are in CER, so we don't need to worry about ThreadAbort
     HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_1(Frame::FRAME_ATTR_NO_THREAD_ABORT, pObj);
 
+    // We're going to be making some COM calls, better initialize COM.
+    EnsureComStarted();
+
     pIntf = MarshalObjectToInterface(&pObj, pItfMT, pClsMT, dwFlags);
 
     // No exception will be thrown here (including thread abort as it is delayed in IL stubs)
@@ -725,6 +728,9 @@ FCIMPL4(Object*, StubHelpers::InterfaceMarshaler__ConvertToManaged, IUnknown **p
     
     OBJECTREF pObj = NULL;
     HELPER_METHOD_FRAME_BEGIN_RET_1(pObj);
+    
+    // We're going to be making some COM calls, better initialize COM.
+    EnsureComStarted();
 
     UnmarshalObjectFromInterface(&pObj, ppUnk, pItfMT, pClsMT, dwFlags);
 
@@ -893,7 +899,7 @@ FCIMPL2(ReflectClassBaseObject *, StubHelpers::WinRTTypeNameConverter__GetTypeFr
     HELPER_METHOD_FRAME_BEGIN_RET_2(refClass, refString);
 
     bool isPrimitive;
-    TypeHandle th = WinRTTypeNameConverter::GetManagedTypeFromWinRTTypeName(refString->GetBuffer(), &isPrimitive);
+    TypeHandle th = WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(refString->GetBuffer(), /* pLoadBinder */ nullptr, &isPrimitive);
     *pbIsPrimitive = isPrimitive;
     
     refClass = th.GetManagedClassObject();
@@ -985,24 +991,6 @@ FCIMPL2(IInspectable *, StubHelpers::GetOuterInspectable, Object *pThisUNSAFE, M
     return pInsp;
 }
 FCIMPLEND
-
-#ifdef MDA_SUPPORTED
-FCIMPL2(ExceptionObject*, StubHelpers::TriggerExceptionSwallowedMDA, ExceptionObject* pExceptionUNSAFE, PCODE pManagedTarget)
-{
-    FCALL_CONTRACT;
-    OBJECTREF pException = ObjectToOBJECTREF(pExceptionUNSAFE);
-    HELPER_METHOD_FRAME_BEGIN_RET_1(pException);
-
-    // COM-to-CLR stubs use the target method entry point as their stub context
-    MethodDesc * pMD = Entry2MethodDesc(pManagedTarget, NULL);
-
-    MDA_TRIGGER_ASSISTANT(ExceptionSwallowedOnCallFromCom, ReportViolation(pMD, &pException));
-
-    HELPER_METHOD_FRAME_END();
-    return (ExceptionObject*)OBJECTREFToObject(pException);
-}
-FCIMPLEND
-#endif // MDA_SUPPORTED
 
 #endif // FEATURE_COMINTEROP
 
@@ -1145,81 +1133,6 @@ FCIMPL2(void, StubHelpers::ThrowInteropParamException, UINT resID, UINT paramIdx
 FCIMPLEND
 
 #ifdef FEATURE_COMINTEROP
-FCIMPL1(void, StubHelpers::StubRegisterRCW, Object *unsafe_pThis)
-{
-    FCALL_CONTRACT;
-
-    OBJECTREF oref = ObjectToOBJECTREF(unsafe_pThis);
-    HELPER_METHOD_FRAME_BEGIN_1(oref);
-
-#if defined(_DEBUG) && defined(FEATURE_MDA)
-    // Make sure that we only get here because the MDA is turned on.
-    MdaRaceOnRCWCleanup* mda = MDA_GET_ASSISTANT(RaceOnRCWCleanup);
-    _ASSERTE(mda != NULL);
-#endif // _DEBUG
-
-    // RegisterRCW may throw OOM in which case we need to decrement the refcount on the RCW
-    class RCWDecrementUseCountHolder
-    {
-    public:
-        RCW *m_pRCW;
-
-        RCWDecrementUseCountHolder(RCW *pRCW)
-        {
-            LIMITED_METHOD_CONTRACT;
-            m_pRCW = pRCW;
-        }
-
-        ~RCWDecrementUseCountHolder()
-        {
-            WRAPPER_NO_CONTRACT;
-            if (m_pRCW != NULL)
-            {
-                m_pRCW->DecrementUseCount();
-            }
-        }
-    };
-
-    RCWDecrementUseCountHolder holder(oref->GetSyncBlock()->GetInteropInfoNoCreate()->GetRCWAndIncrementUseCount());
-    if (holder.m_pRCW == NULL)
-    {
-        COMPlusThrow(kInvalidComObjectException, IDS_EE_COM_OBJECT_NO_LONGER_HAS_WRAPPER);
-    }
-
-    GET_THREAD()->RegisterRCW(holder.m_pRCW);
-
-    // if we made it here, suppress the DecrementUseCount call
-    holder.m_pRCW = NULL;
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-FCIMPL1(void, StubHelpers::StubUnregisterRCW, Object *unsafe_pThis)
-{
-    FCALL_CONTRACT;
-
-    OBJECTREF oref = ObjectToOBJECTREF(unsafe_pThis);
-    HELPER_METHOD_FRAME_BEGIN_1(oref);
-
-#if defined(_DEBUG) && defined(FEATURE_MDA)
-    // Make sure that we only get here because the MDA is turned on.
-    MdaRaceOnRCWCleanup* mda = MDA_GET_ASSISTANT(RaceOnRCWCleanup);
-    _ASSERTE(mda != NULL);
-#endif // _DEBUG
-
-    RCW *pRCW = GET_THREAD()->UnregisterRCW(INDEBUG(oref->GetSyncBlock()));
-
-    if (pRCW != NULL)
-    {
-        // Thread::RegisterRCW incremented the use count, decrement it now
-        pRCW->DecrementUseCount();
-    }
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
 class COMInterfaceMarshalerCallback : public ICOMInterfaceMarshalerCallback
 {
 public :
@@ -1411,36 +1324,6 @@ FCIMPLEND
 
 
 #endif
-
-#ifdef MDA_SUPPORTED
-NOINLINE static void CheckCollectedDelegateMDAHelper(UMEntryThunk *pEntryThunk)
-{
-    FC_INNER_PROLOG(StubHelpers::CheckCollectedDelegateMDA);
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB(Frame::FRAME_ATTR_EXACT_DEPTH|Frame::FRAME_ATTR_CAPTURE_DEPTH_2);
-
-    CallbackOnCollectedDelegateHelper(pEntryThunk);
-
-    HELPER_METHOD_FRAME_END();
-    FC_INNER_EPILOG();
-}
-
-FCIMPL1(void, StubHelpers::CheckCollectedDelegateMDA, LPVOID pEntryThunk)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(pEntryThunk != NULL);
-    }
-    CONTRACTL_END;
-
-    if (MDA_GET_ASSISTANT(CallbackOnCollectedDelegate) == NULL)
-        return;
-
-    // keep this FCall as fast as possible for the "MDA is off" case
-    FC_INNER_RETURN_VOID(CheckCollectedDelegateMDAHelper((UMEntryThunk *)pEntryThunk));
-}
-FCIMPLEND
-#endif // MDA_SUPPORTED
 
 #ifdef PROFILING_SUPPORTED
 FCIMPL3(SIZE_T, StubHelpers::ProfilerBeginTransitionCallback, SIZE_T pSecretParam, Thread* pThread, Object* unsafe_pThis)
@@ -1840,18 +1723,6 @@ FCIMPL0(void*, StubHelpers::GetStubContextAddr)
 }
 FCIMPLEND
 #endif // _TARGET_64BIT_
-
-#ifdef MDA_SUPPORTED    
-FCIMPL0(void, StubHelpers::TriggerGCForMDA)
-{
-    FCALL_CONTRACT;
-
-    HELPER_METHOD_FRAME_BEGIN_0();
-    TriggerGCForMDAInternal();    
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-#endif // MDA_SUPPORTED
 
 FCIMPL1(DWORD, StubHelpers::CalcVaListSize, VARARGS *varargs)
 {

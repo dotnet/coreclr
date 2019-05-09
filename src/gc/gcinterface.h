@@ -199,6 +199,16 @@ extern uint8_t* g_GCShadowEnd;
 extern uint8_t* g_shadow_lowest_address;
 #endif
 
+/*
+ * GCEventProvider represents one of the two providers that the GC can
+ * fire events from: the default and private providers.
+ */
+enum GCEventProvider
+{
+    GCEventProvider_Default = 0,
+    GCEventProvider_Private = 1
+};
+
 // Event levels corresponding to events that can be fired by the GC.
 enum GCEventLevel
 {
@@ -234,8 +244,6 @@ enum GCEventKeyword
       | GCEventKeyword_GCPrivate
       | GCEventKeyword_GCHandle
       | GCEventKeyword_GCHandlePrivate
-      | GCEventKeyword_GCHeapDump
-      | GCEventKeyword_GCSampledObjectAllocationHigh
       | GCEventKeyword_GCHeapDump
       | GCEventKeyword_GCSampledObjectAllocationHigh
       | GCEventKeyword_GCHeapSurvivalAndMovement
@@ -436,6 +444,7 @@ typedef enum
 } GCHeapType;
 
 typedef bool (* walk_fn)(Object*, void*);
+typedef bool (* walk_fn2)(Object*, uint8_t**, void*);
 typedef void (* gen_walk_fn)(void* context, int generation, uint8_t* range_start, uint8_t* range_end, uint8_t* range_reserved);
 typedef void (* record_surv_fn)(uint8_t* begin, uint8_t* end, ptrdiff_t reloc, void* context, bool compacting_p, bool bgc_p);
 typedef void (* fq_walk_fn)(bool, void*);
@@ -821,6 +830,9 @@ public:
     // Walks an object, invoking a callback on each member.
     virtual void DiagWalkObject(Object* obj, walk_fn fn, void* context) = 0;
 
+    // Walks an object, invoking a callback on each member.
+    virtual void DiagWalkObject2(Object* obj, walk_fn2 fn, void* context) = 0;
+
     // Walk the heap object by object.
     virtual void DiagWalkHeap(walk_fn fn, void* context, int gen_number, bool walk_large_object_heap_p) = 0;
     
@@ -898,10 +910,30 @@ void updateGCShadow(Object** ptr, Object* val);
 #define GC_CALL_CHECK_APP_DOMAIN    0x4
 
 //flags for IGCHeapAlloc(...)
-#define GC_ALLOC_FINALIZE 0x1
-#define GC_ALLOC_CONTAINS_REF 0x2
-#define GC_ALLOC_ALIGN8_BIAS 0x4
-#define GC_ALLOC_ALIGN8 0x8
+enum GC_ALLOC_FLAGS
+{
+    GC_ALLOC_NO_FLAGS           = 0,
+    GC_ALLOC_FINALIZE           = 1,
+    GC_ALLOC_CONTAINS_REF       = 2,
+    GC_ALLOC_ALIGN8_BIAS        = 4,
+    GC_ALLOC_ALIGN8             = 8,
+    GC_ALLOC_ZEROING_OPTIONAL   = 16,
+};
+
+inline GC_ALLOC_FLAGS operator|(GC_ALLOC_FLAGS a, GC_ALLOC_FLAGS b)
+{return (GC_ALLOC_FLAGS)((int)a | (int)b);}
+
+inline GC_ALLOC_FLAGS operator&(GC_ALLOC_FLAGS a, GC_ALLOC_FLAGS b)
+{return (GC_ALLOC_FLAGS)((int)a & (int)b);}
+
+inline GC_ALLOC_FLAGS operator~(GC_ALLOC_FLAGS a)
+{return (GC_ALLOC_FLAGS)(~(int)a);}
+
+inline GC_ALLOC_FLAGS& operator|=(GC_ALLOC_FLAGS& a, GC_ALLOC_FLAGS b)
+{return (GC_ALLOC_FLAGS&)((int&)a |= (int)b);}
+
+inline GC_ALLOC_FLAGS& operator&=(GC_ALLOC_FLAGS& a, GC_ALLOC_FLAGS b)
+{return (GC_ALLOC_FLAGS&)((int&)a &= (int)b);}
 
 #if defined(USE_CHECKED_OBJECTREFS) && !defined(_NOVM)
 #define OBJECTREF_TO_UNCHECKED_OBJECTREF(objref)    (*((_UNCHECKED_OBJECTREF*)&(objref)))

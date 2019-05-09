@@ -36,8 +36,6 @@
 #include "clrtocomcall.h"
 #endif
 
-#include "mdaassistants.h"
-
 #ifdef FEATURE_STACK_SAMPLING
 #include "stacksampler.h"
 #endif
@@ -373,12 +371,12 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     if (pCode == NULL)
     {
 #ifdef FEATURE_TIERED_COMPILATION
-        if (g_pConfig->TieredCompilation_DisableTier0Jit() &&
+        if (!g_pConfig->TieredCompilation_QuickJit() &&
             IsEligibleForTieredCompilation() &&
             pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTier0 &&
-            CallCounter::IsEligibleForTier0CallCounting(this))
+            CallCounter::IsEligibleForCallCounting(this))
         {
-            GetCallCounter()->DisableTier0CallCounting(this);
+            GetCallCounter()->DisableCallCounting(this);
             pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTier1);
         }
 #endif
@@ -740,12 +738,6 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
     ULONG sizeOfCode = 0;
     CORJIT_FLAGS flags;
 
-#ifdef MDA_SUPPORTED 
-    MdaJitCompilationStart* pProbe = MDA_GET_ASSISTANT(JitCompilationStart);
-    if (pProbe)
-        pProbe->NowCompiling(this);
-#endif // MDA_SUPPORTED
-
 #ifdef PROFILING_SUPPORTED 
     {
         BEGIN_PIN_PROFILER(CORProfilerTrackJITInfo());
@@ -819,6 +811,7 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
                 &methodName,
                 &methodSignature,
                 pCode,
+                pConfig->GetCodeVersion().GetILCodeVersionId(),
                 pConfig->GetCodeVersion().GetVersionId(),
                 pConfig->ProfilerRejectedPrecompiledCode(),
                 pConfig->ReadyToRunRejectedPrecompiledCode());
@@ -997,6 +990,21 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
         // Another thread beat us to publishing its copy of the JITted code.
         return pOtherCode;
     }
+
+#ifdef FEATURE_TIERED_COMPILATION
+    if (pFlags->IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER0))
+    {
+        MethodDesc *methodDesc = pConfig->GetMethodDesc();
+        _ASSERTE(methodDesc->IsEligibleForTieredCompilation());
+
+        // Update the tier in the code version. The JIT may have decided to switch from tier 0 to tier 1, in which case call
+        // counting would have been disabled for the method.
+        if (!methodDesc->GetCallCounter()->IsCallCountingEnabled(methodDesc))
+        {
+            pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTier1);
+        }
+    }
+#endif
 
 #if defined(FEATURE_JIT_PITCHING)
     SavePitchingCandidate(this, *pSizeOfCode);
@@ -1234,7 +1242,7 @@ void CreateInstantiatingILStubTargetSig(MethodDesc *pBaseMD,
 
     // Return type
     SigPointer pReturn = msig.GetReturnProps();
-    pReturn.ConvertToInternalExactlyOne(msig.GetModule(), &typeContext, stubSigBuilder, FALSE);
+    pReturn.ConvertToInternalExactlyOne(msig.GetModule(), &typeContext, stubSigBuilder);
 
 #ifndef _TARGET_X86_
     // The hidden context parameter
@@ -2447,7 +2455,7 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
 }
 
 
-#if !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
+#if !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_) && defined(FEATURE_PREJIT)
 
 //==========================================================================================
 // In NGen image, virtual slots inherited from cross-module dependencies point to jump thunks.
@@ -2504,7 +2512,7 @@ EXTERN_C PCODE VirtualMethodFixupWorker(Object * pThisPtr,  CORCOMPILE_VIRTUAL_I
 #endif
     return pCode;
 }
-#endif // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
+#endif // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_) && defined(FEATURE_PREJIT)
 
 #ifdef FEATURE_READYTORUN
 

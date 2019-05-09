@@ -579,7 +579,7 @@ void COMPlusThrowBoot(HRESULT hr);
 //
 // - Can be called with gc enabled or disabled.
 //   This allows a catch-all error path to post a generic catchall error
-//   message w/out bonking more specific error messages posted by inner functions.
+//   message w/out overwriting more specific error messages posted by inner functions.
 //==========================================================================
 VOID DECLSPEC_NORETURN ThrowTypeLoadException(LPCUTF8 pNameSpace, LPCUTF8 pTypeName,
                            LPCWSTR pAssemblyName, LPCUTF8 pMessageArg,
@@ -731,8 +731,6 @@ BOOL IsInFirstFrameOfHandler(Thread *pThread,
 // Handy helper functions
 //==========================================================================
 LONG FilterAccessViolation(PEXCEPTION_POINTERS pExceptionPointers, LPVOID lpvParam);
-
-bool IsContinuableException(Thread *pThread);
 
 bool IsInterceptableException(Thread *pThread);
 

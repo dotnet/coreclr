@@ -19,28 +19,6 @@
 
 #include "appdomain.hpp"
 
-inline DomainAssembly* AppDomain::FindDomainAssembly(Assembly* assembly)
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(assembly));
-    }
-    CONTRACTL_END;
-    return assembly->FindDomainAssembly(this);    
-};
-
-inline BOOL AppDomain::IsRunningIn(Thread* pThread)
-{
-    WRAPPER_NO_CONTRACT;
-    if (IsDefaultDomain()) 
-        return TRUE;
-    return pThread->IsRunningIn(this, NULL)!=NULL;
-}
-
-
-
 inline void AppDomain::AddMemoryPressure()
 {
     STANDARD_VM_CONTRACT;

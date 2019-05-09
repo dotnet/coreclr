@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace System.Buffers
@@ -14,7 +16,7 @@ namespace System.Buffers
         {
             Debug.Assert(bufferSize >= 0);
             uint bits = ((uint)bufferSize - 1) >> 4;
-            return 32 - BitOps.LeadingZeroCount(bits);
+            return 32 - BitOperations.LeadingZeroCount(bits);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

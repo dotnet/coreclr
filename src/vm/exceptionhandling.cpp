@@ -901,7 +901,7 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
     {
         DWORD exceptionCode = pExceptionRecord->ExceptionCode;
 
-        if (exceptionCode == STATUS_UNWIND)
+        if ((NTSTATUS)exceptionCode == STATUS_UNWIND)
             // If exceptionCode is STATUS_UNWIND, RtlUnwind is called with a NULL ExceptionRecord,
             // therefore OS uses a faked ExceptionRecord with STATUS_UNWIND code.  Then we need to
             // look at our saved exception code.
@@ -1839,6 +1839,12 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
             //
             //    Thus, ICF::ExceptionUnwind should not do anything significant. If any of these assumptions
             //    break, then the next best thing will be to make the JIT link/unlink the frame dynamically.
+            //
+            // If the current method executing is from precompiled ReadyToRun code, then the above is no longer
+            // applicable because each PInvoke is wrapped by calls to the JIT_PInvokeBegin and JIT_PInvokeEnd
+            // helpers, which push and pop the ICF to the current thread. Unlike jitted code, the ICF is not
+            // linked during the method prolog, and unlinked at the epilog (it looks more like the X64 case).
+            // In that case, we need to unlink the ICF during unwinding here.
 
             if (fTargetUnwind && (pFrame->GetVTablePtr() == InlinedCallFrame::GetMethodFrameVPtr()))
             {
@@ -1851,9 +1857,21 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
                     ((UINT_PTR)pICF < uCallerSP)) 
                 {
                     pICFForUnwindTarget = pFrame;
+
+                    // When unwinding an exception in ReadyToRun, the JIT_PInvokeEnd helper which unlinks the ICF from 
+                    // the thread will be skipped. This is because unlike jitted code, each pinvoke is wrapped by calls
+                    // to the JIT_PInvokeBegin and JIT_PInvokeEnd helpers, which push and pop the ICF on the thread. The
+                    // ICF is not linked at the method prolog and unlined at the epilog when running R2R code. Since the
+                    // JIT_PInvokeEnd helper will be skipped, we need to unlink the ICF here. If the executing method
+                    // has another pinovoke, it will re-link the ICF again when the JIT_PInvokeBegin helper is called
+
+                    if (ExecutionManager::IsReadyToRunCode(((InlinedCallFrame*)pFrame)->m_pCallerReturnAddress))
+                    {
+                        pICFForUnwindTarget = pICFForUnwindTarget->Next();
+                    }
                 }
             }
-#endif // defined(_TARGET_ARM_)
+#endif // USE_PER_FRAME_PINVOKE_INIT
 
             cfThisFrame.CheckGSCookies();
 
@@ -4693,6 +4711,7 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
 
     _ASSERTE(!"UnwindManagedExceptionPass1: Failed to find a handler. Reached the end of the stack");
     EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+    UNREACHABLE();
 }
 
 VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHardwareException)
@@ -6087,7 +6106,7 @@ void ExceptionTracker::StackRange::CombineWith(StackFrame sfCurrent, StackRange*
         // So in this case, we'll see a sfCurrent that is larger than the previous tracker's high bound and
         // we'll have an empty scan range for the current tracker.  And we'll just need to pre-init the 
         // scanned stack range for the new tracker to the previous tracker's range.  This maintains the 
-        // invariant that the scanned range for nested trackers completely cover the scanned range of thier
+        // invariant that the scanned range for nested trackers completely cover the scanned range of their
         // previous tracker once they "escape" the previous tracker.
         STRESS_LOG3(LF_EH, LL_INFO100, 
             "Initializing current StackRange with previous tracker's StackRange.  sfCurrent: %p, prev low: %p, prev high: %p\n",
@@ -6412,7 +6431,7 @@ bool ExceptionTracker::HasFrameBeenUnwoundByAnyActiveException(CrawlFrame * pCF)
                 // then:
                 //
                 // For case (1) above, sfCurrentEstablisherFrame will be the same as the callerSP of the managed frame.
-                // For case (2) above, sfLastUnwoundEstbalisherFrame would be the same as the managed frame's SP (or upper bound)
+                // For case (2) above, sfLastUnwoundEstablisherFrame would be the same as the managed frame's SP (or upper bound)
                 //
                 // For these scenarios, the frame is considered unwound.
 
@@ -6435,8 +6454,8 @@ bool ExceptionTracker::HasFrameBeenUnwoundByAnyActiveException(CrawlFrame * pCF)
 #else // !STACK_RANGE_BOUNDS_ARE_CALLER_SP
                 // On ARM, if the callerSP of the managed frame is the same as upper bound, then:
                 // 
-                // For case (1), sfCurrentEstablisherFrame will be above the callerSP of the managed frame (since EstbalisherFrame is the caller SP for a given frame on ARM)
-                // For case (2), upper bound will be the same as LastUnwoundEstbalisherFrame.
+                // For case (1), sfCurrentEstablisherFrame will be above the callerSP of the managed frame (since EstablisherFrame is the caller SP for a given frame on ARM)
+                // For case (2), upper bound will be the same as LastUnwoundEstablisherFrame.
                 //
                 // For these scenarios, the frame is considered unwound.
                 if (sfUpperBound == csfToCheck)

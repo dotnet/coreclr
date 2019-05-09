@@ -63,7 +63,7 @@ public:
     static void DiagUpdateGenerationBounds();
     static void DiagGCEnd(size_t index, int gen, int reason, bool fConcurrent);
     static void DiagWalkFReachableObjects(void* gcContext);
-    static void DiagWalkSurvivors(void* gcContext);
+    static void DiagWalkSurvivors(void* gcContext, bool fCompacting);
     static void DiagWalkLOHSurvivors(void* gcContext);
     static void DiagWalkBGCSurvivors(void* gcContext);
     static void StompWriteBarrier(WriteBarrierParameters* args);
@@ -96,6 +96,7 @@ public:
     static void AnalyzeSurvivorsFinished(int condemnedGeneration);
 
     static void VerifySyncTableEntry();
+    static void UpdateGCEventStatus(int publicLevel, int publicKeywords, int privateLevel, int privateKeywords);
 };
 
 #endif // __GCENV_EE_H__

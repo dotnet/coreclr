@@ -169,7 +169,7 @@ NOINLINE ReflectModuleBaseObject* GetRuntimeModuleHelper(LPVOID __me, Module *pM
     if (pModule == NULL)
         return NULL;
     
-    DomainFile * pDomainFile = pModule->FindDomainFile(GetAppDomain());
+    DomainFile * pDomainFile = pModule->GetDomainFile();
 
     OBJECTREF refModule = (pDomainFile != NULL) ? pDomainFile->GetExposedModuleObjectIfExists() : NULL;
 
@@ -247,6 +247,25 @@ FCIMPL1_V(EnregisteredTypeHandle, RuntimeTypeHandle::GetValueInternal, FCALLRunt
         return 0;
 
     return FCALL_RTH_TO_REFLECTCLASS(RTH) ->GetType().AsPtr();
+}
+FCIMPLEND
+
+FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::IsEquivalentTo, ReflectClassBaseObject *rtType1UNSAFE, ReflectClassBaseObject *rtType2UNSAFE)
+{
+    FCALL_CONTRACT;
+
+    REFLECTCLASSBASEREF rtType1 = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(rtType1UNSAFE);
+    REFLECTCLASSBASEREF rtType2 = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(rtType2UNSAFE);
+
+    BOOL areEquivalent = FALSE;
+    HELPER_METHOD_FRAME_BEGIN_RET_2(rtType1, rtType2);
+
+    if (rtType1 != NULL && rtType2 != NULL)
+        areEquivalent = rtType1->GetType().IsEquivalentTo(rtType2->GetType());
+
+    HELPER_METHOD_FRAME_END();
+
+    FC_RETURN_BOOL(areEquivalent);
 }
 FCIMPLEND
 
@@ -365,6 +384,7 @@ FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsWindowsRuntimeObjectType, ReflectClass
 }
 FCIMPLEND
 
+#ifdef FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
 FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsTypeExportedToWindowsRuntime, ReflectClassBaseObject *rtTypeUNSAFE)
 {
     FCALL_CONTRACT;
@@ -382,6 +402,7 @@ FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsTypeExportedToWindowsRuntime, ReflectC
     FC_RETURN_BOOL(isExportedToWinRT);
 }
 FCIMPLEND
+#endif
 #endif // FEATURE_COMINTEROP
 
 NOINLINE static MethodDesc * RestoreMethodHelper(MethodDesc * pMethod, LPVOID __me)
@@ -479,13 +500,10 @@ FCIMPL1(AssemblyBaseObject*, RuntimeTypeHandle::GetAssembly, ReflectClassBaseObj
     if (refType == NULL)
         FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
 
-    DomainFile *pDomainFile = NULL;
-    
-        Module *pModule = refType->GetType().GetAssembly()->GetManifestModule();
+    Module *pModule = refType->GetType().GetAssembly()->GetManifestModule();
+    DomainAssembly *pDomainAssembly = pModule->GetDomainAssembly();
 
-            pDomainFile = pModule->FindDomainFile(GetAppDomain());
-
-    FC_RETURN_ASSEMBLY_OBJECT((DomainAssembly *)pDomainFile, refType);
+    FC_RETURN_ASSEMBLY_OBJECT(pDomainAssembly, refType);
 }
 FCIMPLEND
 
@@ -746,7 +764,7 @@ PTRARRAYREF CopyRuntimeTypeHandles(TypeHandle * prgTH, FixupPointer<TypeHandle> 
     GCPROTECT_BEGIN(refArray);
     TypeHandle thRuntimeType = TypeHandle(MscorlibBinder::GetClass(arrayElemType));
     TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(thRuntimeType, ELEMENT_TYPE_SZARRAY);
-    refArray = (PTRARRAYREF)AllocateArrayEx(arrayHandle, &numTypeHandles, 1);
+    refArray = (PTRARRAYREF)AllocateSzArray(arrayHandle, numTypeHandles);
 
     for (INT32 i = 0; i < numTypeHandles; i++)
     {
@@ -834,7 +852,7 @@ FCIMPL1(PtrArray*, RuntimeTypeHandle::GetInterfaces, ReflectClassBaseObject *pTy
         if (ifaceCount > 0)
         {            
             TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(TypeHandle(g_pRuntimeTypeClass), ELEMENT_TYPE_SZARRAY);
-            refRetVal = (PTRARRAYREF)AllocateArrayEx(arrayHandle, &ifaceCount, 1);
+            refRetVal = (PTRARRAYREF)AllocateSzArray(arrayHandle, ifaceCount);
         
             // populate type array
             UINT i = 0;
@@ -1144,7 +1162,7 @@ MethodDesc* QCALLTYPE RuntimeTypeHandle::GetInterfaceMethodImplementation(Enregi
         // with at least an abstract method. b19897_GetInterfaceMap_Abstract.exe tests this case.
         //@TODO:STUBDISPATCH: Don't need to track down the implementation, just the declaration, and this can
         //@TODO:              be done faster - just need to make a function FindDispatchDecl.
-        DispatchSlot slot(typeHandle.GetMethodTable()->FindDispatchSlotForInterfaceMD(thOwnerOfMD, pMD, TRUE /* throwOnConflict */));
+        DispatchSlot slot(typeHandle.GetMethodTable()->FindDispatchSlotForInterfaceMD(thOwnerOfMD, pMD, FALSE /* throwOnConflict */));
     if (!slot.IsNull())
             pResult = slot.GetMethodDesc();
 
@@ -1394,7 +1412,7 @@ void QCALLTYPE RuntimeTypeHandle::GetTypeByNameUsingCARules(LPCWSTR pwzClassName
 
 void QCALLTYPE RuntimeTypeHandle::GetTypeByName(LPCWSTR pwzClassName, BOOL bThrowOnError, BOOL bIgnoreCase,
                                                 QCall::StackCrawlMarkHandle pStackMark, 
-                                                ICLRPrivBinder * pPrivHostBinder,
+                                                QCall::ObjectHandleOnStack pAssemblyLoadContext,
                                                 BOOL bLoadTypeFromPartialNameHack, QCall::ObjectHandleOnStack retType,
                                                 QCall::ObjectHandleOnStack keepAlive)
 {
@@ -1408,6 +1426,19 @@ void QCALLTYPE RuntimeTypeHandle::GetTypeByName(LPCWSTR pwzClassName, BOOL bThro
             COMPlusThrowArgumentNull(W("className"),W("ArgumentNull_String"));
 
     {
+        ICLRPrivBinder * pPrivHostBinder = NULL;
+
+        if (*pAssemblyLoadContext.m_ppObject != NULL)
+        {
+            GCX_COOP();
+            ASSEMBLYLOADCONTEXTREF * pAssemblyLoadContextRef = reinterpret_cast<ASSEMBLYLOADCONTEXTREF *>(pAssemblyLoadContext.m_ppObject);
+
+            INT_PTR nativeAssemblyLoadContext = (*pAssemblyLoadContextRef)->GetNativeAssemblyLoadContext();
+
+            pPrivHostBinder = reinterpret_cast<ICLRPrivBinder *>(nativeAssemblyLoadContext);
+        }
+
+
         typeHandle = TypeName::GetTypeManaged(pwzClassName, NULL, bThrowOnError, bIgnoreCase, /*bProhibitAsmQualifiedName =*/ FALSE,
                                               SystemDomain::GetCallersAssembly(pStackMark),
                                               bLoadTypeFromPartialNameHack, (OBJECTREF*)keepAlive.m_ppObject,
@@ -1926,7 +1957,7 @@ FCIMPL3(Object *, SignatureNative::GetCustomModifiers, SignatureNative* pSignatu
         MethodTable *pMT = MscorlibBinder::GetClass(CLASS__TYPE);
         TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(TypeHandle(pMT), ELEMENT_TYPE_SZARRAY);
 
-        gc.retVal = (PTRARRAYREF) AllocateArrayEx(arrayHandle, &cMods, 1);
+        gc.retVal = (PTRARRAYREF) AllocateSzArray(arrayHandle, cMods);
 
         while(cMods != 0)
         {
@@ -2076,7 +2107,7 @@ FCIMPL6(void, SignatureNative::GetSignature,
             INT32 nArgs = msig.NumFixedArgs();
             TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(TypeHandle(g_pRuntimeTypeClass), ELEMENT_TYPE_SZARRAY);
 
-            PTRARRAYREF ptrArrayarguments = (PTRARRAYREF) AllocateArrayEx(arrayHandle, &nArgs, 1);
+            PTRARRAYREF ptrArrayarguments = (PTRARRAYREF) AllocateSzArray(arrayHandle, nArgs);
             gc.pSig->SetArgumentArray(ptrArrayarguments);
 
             for (INT32 i = 0; i < nArgs; i++) 
@@ -2472,15 +2503,15 @@ FCIMPL2(RuntimeMethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodOb
             COUNT_T cIL = header.GetCodeSize();
             gc.U1Array  = (U1ARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_U1, cIL);
 
-            SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_IL, gc.U1Array, GetAppDomain());
+            SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_IL, gc.U1Array);
             memcpyNoGCRefs(gc.MethodBodyObj->_IL->GetDataPtr(), pIL, cIL);
 
             // Allocate the array of exception clauses.
             INT32 cEh = (INT32)header.EHCount();
             const COR_ILMETHOD_SECT_EH* ehInfo = header.EH;
-            gc.TempArray = (BASEARRAYREF) AllocateArrayEx(thEHClauseArray, &cEh, 1);
+            gc.TempArray = (BASEARRAYREF) AllocateSzArray(thEHClauseArray, cEh);
 
-            SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_exceptionClauses, gc.TempArray, GetAppDomain());
+            SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_exceptionClauses, gc.TempArray);
             
             for (INT32 i = 0; i < cEh; i++)
             {                    
@@ -2502,7 +2533,7 @@ FCIMPL2(RuntimeMethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodOb
                     gc.EHClauseObj->_filterOffset = ehClause->GetFilterOffset();
                 
                 gc.MethodBodyObj->_exceptionClauses->SetAt(i, (OBJECTREF) gc.EHClauseObj);
-                SetObjectReference((OBJECTREF*)&(gc.EHClauseObj->_methodBody), (OBJECTREF)gc.MethodBodyObj, GetAppDomain());
+                SetObjectReference((OBJECTREF*)&(gc.EHClauseObj->_methodBody), (OBJECTREF)gc.MethodBodyObj);
             }     
            
             if (header.LocalVarSig != NULL)
@@ -2514,8 +2545,8 @@ FCIMPL2(RuntimeMethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodOb
                                 &sigTypeContext, 
                                 MetaSig::sigLocalVars);
                 INT32 cLocals = metaSig.NumFixedArgs();
-                gc.TempArray  = (BASEARRAYREF) AllocateArrayEx(thLocalVariableArray, &cLocals, 1);
-                SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_localVariables, gc.TempArray, GetAppDomain());
+                gc.TempArray  = (BASEARRAYREF) AllocateSzArray(thLocalVariableArray, cLocals);
+                SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_localVariables, gc.TempArray);
 
                 for (INT32 i = 0; i < cLocals; i ++)
                 {
@@ -2539,8 +2570,8 @@ FCIMPL2(RuntimeMethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodOb
             else
             {
                 INT32 cLocals = 0;
-                gc.TempArray  = (BASEARRAYREF) AllocateArrayEx(thLocalVariableArray, &cLocals, 1);
-                SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_localVariables, gc.TempArray, GetAppDomain());
+                gc.TempArray  = (BASEARRAYREF) AllocateSzArray(thLocalVariableArray, cLocals);
+                SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_localVariables, gc.TempArray);
             }
         }
     }
@@ -2727,7 +2758,7 @@ FCIMPL1(ReflectModuleBaseObject*, AssemblyHandle::GetManifestModule, AssemblyBas
         return NULL;
 
     Module *pModule = currentAssembly->GetManifestModule();
-    DomainFile * pDomainFile = pModule->FindDomainFile(GetAppDomain());
+    DomainFile * pDomainFile = pModule->GetDomainFile();
 
 #ifdef _DEBUG
     OBJECTREF orModule;
@@ -2999,7 +3030,7 @@ FCIMPL5(ReflectMethodObject*, ModuleHandle::GetDynamicMethod, ReflectMethodObjec
 
     U1ARRAYREF dataArray = (U1ARRAYREF)sig;
     DWORD sigSize = dataArray->GetNumComponents();
-    NewHolder<BYTE> pSig(new BYTE[sigSize]);
+    NewArrayHolder<BYTE> pSig(new BYTE[sigSize]);
     memcpy(pSig, dataArray->GetDataPtr(), sigSize);
 
     DWORD length = gc.nameRef->GetStringLength();

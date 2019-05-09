@@ -100,7 +100,7 @@ set __BuildManagedTools=1
 set __RestoreOptData=1
 set __GenerateLayout=0
 set __CrossgenAltJit=
-set __SkipRestoreArg=
+set __SkipRestoreArg=/p:RestoreDuringBuild=true
 set __OfficialBuildIdArg=
 set __CrossArch=
 set __SkipNugetPackage=0
@@ -240,7 +240,6 @@ if defined __Priority (
     ) else (
         set __PassThroughArgs=-priority=%__Priority%
     )
-    set __UnprocessedBuildArgs=!__UnprocessedBuildArgs! /p:CLRTestPriorityToBuild=%__Priority%
 )
 
 if defined __BuildAll goto BuildAll
@@ -427,7 +426,7 @@ if %__BuildNative% EQU 1 (
     "!PYTHON!" -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern --noxplatheader|| exit /b 1
 
     echo %__MsgPrefix%Laying out dynamically generated EventPipe Implementation
-    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --exc %__SourceDir%\vm\ClrEtwAllMeta.lst --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
 
     echo %__MsgPrefix%Laying out ETW event logging interface
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
@@ -449,97 +448,13 @@ if %__BuildCrossArchNative% EQU 1 (
     "!PYTHON!" -B -Wall  %__SourceDir%\scripts\genEventing.py --inc !__CrossCompIntermediatesIncDir! --dummy !__CrossCompIntermediatesIncDir!\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern || exit /b 1
 
     echo %__MsgPrefix%Laying out dynamically generated EventPipe Implementation
-    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesEventingDir!\eventpipe --nonextern || exit /b 1
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --exc %__SourceDir%\vm\ClrEtwAllMeta.lst --intermediate !__CrossCompIntermediatesEventingDir!\eventpipe --nonextern || exit /b 1
 
     echo %__MsgPrefix%Laying out dynamically generated EventSource classes
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genRuntimeEventSources.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesEventingDir! || exit /b 1
 
     echo %__MsgPrefix%Laying out ETW event logging interface
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesIncDir! --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
-)
-
-REM =========================================================================================
-REM ===
-REM === Build the CLR VM
-REM ===
-REM =========================================================================================
-
-if %__BuildNative% EQU 1 (
-    REM Scope environment changes start {
-    setlocal
-
-    echo %__MsgPrefix%Commencing build of native components for %__BuildOS%.%__BuildArch%.%__BuildType%
-
-    REM Set the environment for the native build
-    set __VCBuildArch=x86_amd64
-    if /i "%__BuildArch%" == "x86" ( set __VCBuildArch=x86 )
-    if /i "%__BuildArch%" == "arm" (
-        set __VCBuildArch=x86_arm
-
-        REM Make CMake pick the highest installed version in the 10.0.* range
-        set ___SDKVersion="-DCMAKE_SYSTEM_VERSION=10.0"
-    )
-    if /i "%__BuildArch%" == "arm64" (
-        set __VCBuildArch=x86_arm64
-
-        REM Make CMake pick the highest installed version in the 10.0.* range
-        set ___SDKVersion="-DCMAKE_SYSTEM_VERSION=10.0"
-    )
-
-    echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
-    call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
-    @if defined _echo @echo on
-
-    if not defined VSINSTALLDIR (
-        echo %__MsgPrefix%Error: VSINSTALLDIR variable not defined.
-        exit /b 1
-    )
-    if not exist "!VSINSTALLDIR!DIA SDK" goto NoDIA
-
-    if defined __SkipConfigure goto SkipConfigure
-
-    echo %__MsgPrefix%Regenerating the Visual Studio solution
-
-    pushd "%__IntermediatesDir%"
-    set __ExtraCmakeArgs=!___SDKVersion! "-DCLR_CMAKE_TARGET_OS=%__BuildOS%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%"
-    call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
-    @if defined _echo @echo on
-    popd
-
-:SkipConfigure
-    if not exist "%__IntermediatesDir%\install.vcxproj" (
-        echo %__MsgPrefix%Error: failed to generate native component build project!
-        exit /b 1
-    )
-
-    if defined __ConfigureOnly goto SkipNativeBuild
-
-    set __BuildLogRootName=CoreCLR
-    set __BuildLog="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
-    set __BuildWrn="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
-    set __BuildErr="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
-    set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
-    set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
-    set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-    set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
-
-    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-      /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
-      /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
-      /p:UsePartialNGENOptimization=false /maxcpucount %__IntermediatesDir%\install.vcxproj^
-      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% /m:2 %__UnprocessedBuildArgs%
-
-    if not !errorlevel! == 0 (
-        echo %__MsgPrefix%Error: native component build failed. Refer to the build log files for details:
-        echo     !__BuildLog!
-        echo     !__BuildWrn!
-        echo     !__BuildErr!
-        exit /b 1
-    )
-
-:SkipNativeBuild
-    REM } Scope environment changes end
-    endlocal
 )
 
 REM =========================================================================================
@@ -590,12 +505,12 @@ if %__BuildCrossArchNative% EQU 1 (
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
     set __Logging=!_MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+    call %__ProjectDir%\cmake_msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
       /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
       /p:UsePartialNGENOptimization=false /maxcpucount^
       %__CrossCompIntermediatesDir%\install.vcxproj^
-      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__CrossArch% %__CommonMSBuildArgs% /m:2 %__UnprocessedBuildArgs%
+      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__CrossArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
 
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: cross-arch components build failed. Refer to the build log files for details:
@@ -606,6 +521,93 @@ if %__BuildCrossArchNative% EQU 1 (
     )
 
 :SkipCrossCompBuild
+    REM } Scope environment changes end
+    endlocal
+)
+
+REM =========================================================================================
+REM ===
+REM === Build the CLR VM
+REM ===
+REM =========================================================================================
+
+if %__BuildNative% EQU 1 (
+    REM Scope environment changes start {
+    setlocal
+
+    echo %__MsgPrefix%Commencing build of native components for %__BuildOS%.%__BuildArch%.%__BuildType%
+
+    REM Set the environment for the native build
+    set __VCBuildArch=x86_amd64
+    if /i "%__BuildArch%" == "x86" ( set __VCBuildArch=x86 )
+    if /i "%__BuildArch%" == "arm" (
+        set __VCBuildArch=x86_arm
+        REM Make CMake pick the highest installed version in the 10.0.* range
+        set ___SDKVersion="-DCMAKE_SYSTEM_VERSION=10.0"
+        set ___CrossBuildDefine="-DCLR_CMAKE_CROSS_ARCH=1" "-DCLR_CMAKE_CROSS_HOST_ARCH=%__CrossArch%"
+    )
+    if /i "%__BuildArch%" == "arm64" (
+        set __VCBuildArch=x86_arm64
+
+        REM Make CMake pick the highest installed version in the 10.0.* range
+        set ___SDKVersion="-DCMAKE_SYSTEM_VERSION=10.0"
+        set ___CrossBuildDefine="-DCLR_CMAKE_CROSS_ARCH=1" "-DCLR_CMAKE_CROSS_HOST_ARCH=%__CrossArch%"
+    )
+
+    echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
+    call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
+    @if defined _echo @echo on
+
+    if not defined VSINSTALLDIR (
+        echo %__MsgPrefix%Error: VSINSTALLDIR variable not defined.
+        exit /b 1
+    )
+    if not exist "!VSINSTALLDIR!DIA SDK" goto NoDIA
+
+    if defined __SkipConfigure goto SkipConfigure
+
+    echo %__MsgPrefix%Regenerating the Visual Studio solution
+
+    echo Cross Arch Defines !___CrossBuildDefine!
+
+    pushd "%__IntermediatesDir%"
+    set __ExtraCmakeArgs=!___SDKVersion! !___CrossBuildDefine! "-DCLR_CMAKE_TARGET_OS=%__BuildOS%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%"
+    call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
+    @if defined _echo @echo on
+    popd
+
+:SkipConfigure
+    if not exist "%__IntermediatesDir%\install.vcxproj" (
+        echo %__MsgPrefix%Error: failed to generate native component build project!
+        exit /b 1
+    )
+
+    if defined __ConfigureOnly goto SkipNativeBuild
+
+    set __BuildLogRootName=CoreCLR
+    set __BuildLog="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
+    set __BuildWrn="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
+    set __BuildErr="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
+    set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
+    set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
+    set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
+    set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
+
+    call %__ProjectDir%\cmake_msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+      /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+      /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+      /p:UsePartialNGENOptimization=false /maxcpucount %__IntermediatesDir%\install.vcxproj^
+      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
+
+    if not !errorlevel! == 0 (
+        echo %__MsgPrefix%Error: native component build failed. Refer to the build log files for details:
+        echo     !__BuildLog!
+        echo     !__BuildWrn!
+        echo     !__BuildErr!
+        exit /b 1
+    )
+
+:SkipNativeBuild
     REM } Scope environment changes end
     endlocal
 )
@@ -650,15 +652,28 @@ if %__BuildCoreLib% EQU 1 (
         set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
         set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
+        call %__ProjectDir%\dotnet.cmd restore /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+          /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+          /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
+          /p:UsePartialNGENOptimization=false /maxcpucount /p:IncludeRestoreOnlyProjects=true /p:ArcadeBuild=true^
+          %__ProjectDir%\src\build.proj^
+          !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
+        if not !errorlevel! == 0 (
+            echo %__MsgPrefix%Error: Managed Product assemblies restore failed. Refer to the build log files for details:
+            echo     !__BuildLog!
+            echo     !__BuildWrn!
+            echo     !__BuildErr!
+            exit /b 1
+        )
+
         call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
           /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
           /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
-          /p:UsePartialNGENOptimization=false /maxcpucount^
-          %__ProjectDir%\build.proj^
+          /p:UsePartialNGENOptimization=false /maxcpucount /p:DotNetUseShippingVersions=true /p:ArcadeBuild=true^
+          %__ProjectDir%\src\build.proj^
           !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
-
         if not !errorlevel! == 0 (
-            echo %__MsgPrefix%Error: System.Private.CoreLib build failed. Refer to the build log files for details:
+            echo %__MsgPrefix%Error: Managed Product assemblies build failed. Refer to the build log files for details:
             echo     !__BuildLog!
             echo     !__BuildWrn!
             echo     !__BuildErr!
@@ -671,21 +686,31 @@ if %__BuildCoreLib% EQU 1 (
         for /f "tokens=*" %%s in ('call "%__ProjectDir%\dotnet.cmd" msbuild "!IbcMergeProjectFilePath!" /t:DumpIbcMergePackageVersion /nologo') do @(
             set __IbcMergeVersion=%%s
         )
-
-        set IbcMergePath=%__PackagesDir%\microsoft.dotnet.ibcmerge\!__IbcMergeVersion!\lib\net45\ibcmerge.exe
+  
+        set IbcMergePath=%__PackagesDir%\microsoft.dotnet.ibcmerge\!__IbcMergeVersion!\tools\netcoreapp2.0\ibcmerge.dll
         if exist !IbcMergePath! (
             echo %__MsgPrefix%Optimizing using IBC training data
-            set OptimizationDataDir=%__PackagesDir%\optimization.%__BuildOS%-%__BuildArch%.IBC.CoreCLR\!__IbcOptDataVersion!\data\
+            set OptimizationDataDir=%__PackagesDir%\optimization.%__BuildOS%-%__BuildArch%.IBC.CoreCLR\!__IbcOptDataVersion!\data\System.Private.CoreLib.dll\
             set InputAssemblyFile=!OptimizationDataDir!System.Private.CoreLib.dll
             set TargetOptimizationDataFile=!OptimizationDataDir!System.Private.CoreLib.pgo
 
             if exist "!InputAssemblyFile!" (
-                set RawOptimizationDataFile=!OptimizationDataDir!System.Private.CoreLib.ibc
+                set RawOptimizationDataFilePattern=!OptimizationDataDir!*.ibc
+                set RawOptimizationDataFile=
+                for %%x in (!RawOptimizationDataFilePattern!) do @(
+                  if [!RawOptimizationDataFile!] == [] (
+                    set RawOptimizationDataFile="%%x"
+                  ) else (
+                    set RawOptimizationDataFile=!RawOptimizationDataFile! "%%x"
+                  )
+                )
+
+                set IBCMergeCommand=%__ProjectDir%\dotnet.cmd --roll-forward-on-no-candidate-fx 2 "!IbcMergePath!"
 
                 REM Merge the optimization data into the source DLL
-                set NEXTCMD="!IbcMergePath!" -q -f -delete -mo "!InputAssemblyFile!" "!RawOptimizationDataFile!"
+                set NEXTCMD=!IBCMergeCommand! -q -f -delete -mo "!InputAssemblyFile!" !RawOptimizationDataFile!
                 echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
-                !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
+                call !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
                 if NOT !errorlevel! == 0 (
                     echo %__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
                     REM Put it in the same log, helpful for Jenkins
@@ -694,9 +719,9 @@ if %__BuildCoreLib% EQU 1 (
                 )
 
                 REM Verify that the optimization data has been merged
-                set NEXTCMD="!IbcMergePath!" -mi "!InputAssemblyFile!"
+                set NEXTCMD=!IBCMergeCommand! -mi "!InputAssemblyFile!"
                 echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
-                !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
+                call !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
                 if NOT !errorlevel! == 0 (
                     echo %__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
                     REM Put it in the same log, helpful for Jenkins
@@ -713,9 +738,9 @@ if %__BuildCoreLib% EQU 1 (
                 set IBCMergeArguments=-q -f -delete -mo "%__BinDir%\IL\System.Private.CoreLib.dll" -incremental "!TargetOptimizationDataFile!"
 
                 REM Apply optimization data to the compiled assembly
-                set NEXTCMD="!IbcMergePath!" !IBCMergeArguments!
+                set NEXTCMD=!IBCMergeCommand! !IBCMergeArguments!
                 echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
-                !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
+                call !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
                 if NOT !errorlevel! == 0 (
                     echo %__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
                     REM Put it in the same log, helpful for Jenkins
@@ -724,9 +749,9 @@ if %__BuildCoreLib% EQU 1 (
                 )
                 
                 REM Verify that the optimization data has been applied
-                set NEXTCMD="!IbcMergePath!" -mi "%__BinDir%\IL\System.Private.CoreLib.dll"
+                set NEXTCMD=!IBCMergeCommand! -mi "%__BinDir%\IL\System.Private.CoreLib.dll"
                 echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
-                !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
+                call !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
                 if NOT !errorlevel! == 0 (
                     echo %__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
                     REM Put it in the same log, helpful for Jenkins
@@ -740,6 +765,9 @@ if %__BuildCoreLib% EQU 1 (
                 type %__CrossGenCoreLibLog%
                 goto CrossgenFailure
             )
+        ) else (
+          echo Could not find IBCMerge at !IbcMergePath!. Have you restored src/.nuget/optdata/ibcmerge.csproj?
+          goto CrossgenFailure
         )
     )
 
@@ -801,7 +829,7 @@ if %__BuildNativeCoreLib% EQU 1 (
         set COMPlus_ContinueOnAssert=0
     )
 
-    set NEXTCMD="%__CrossgenExe%" %__IbcTuning% /Platform_Assemblies_Paths "%__BinDir%"\IL /out "%__BinDir%\System.Private.CoreLib.dll" "%__BinDir%\IL\System.Private.CoreLib.dll"
+    set NEXTCMD="%__CrossgenExe%" %__IbcTuning% /Platform_Assemblies_Paths "%__BinDir%\IL" /out "%__BinDir%\System.Private.CoreLib.dll" "%__BinDir%\IL\System.Private.CoreLib.dll"
     echo %__MsgPrefix%!NEXTCMD!
     echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
     !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
@@ -849,8 +877,8 @@ if %__BuildPackages% EQU 1 (
     set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
     REM The conditions as to what to build are captured in the builds file.
-    call %__ProjectDir%\msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-      /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+    call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
+      /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
       /p:UsePartialNGENOptimization=false /maxcpucount^
       %__SourceDir%\.nuget\packages.builds^
@@ -877,7 +905,11 @@ REM ============================================================================
 if %__BuildTests% EQU 1 (
     echo %__MsgPrefix%Commencing build of tests for %__BuildOS%.%__BuildArch%.%__BuildType%
 
-    set NEXTCMD=call %__ProjectDir%\build-test.cmd %__BuildArch% %__BuildType% %__UnprocessedBuildArgs%
+    set  __PriorityArg=
+    if defined __Priority (
+        set __PriorityArg=-priority=%__Priority%
+    )
+    set NEXTCMD=call %__ProjectDir%\build-test.cmd %__BuildArch% %__BuildType% !__PriorityArg! %__UnprocessedBuildArgs%
     echo %__MsgPrefix%!NEXTCMD!
     !NEXTCMD!
 
@@ -888,7 +920,7 @@ if %__BuildTests% EQU 1 (
 ) else if %__GenerateLayout% EQU 1 (
     echo %__MsgPrefix%Generating layout for %__BuildOS%.%__BuildArch%.%__BuildType%
 
-    set NEXTCMD=call %__ProjectDir%\tests\runtest.cmd %__BuildArch% %__BuildType% GenerateLayoutOnly %__UnprocessedBuildArgs%
+    set NEXTCMD=call %__ProjectDir%\tests\runtest.cmd %__BuildArch% %__BuildType% GenerateLayoutOnly msbuildargs %__UnprocessedBuildArgs%
     echo %__MsgPrefix%!NEXTCMD!
     !NEXTCMD!
 

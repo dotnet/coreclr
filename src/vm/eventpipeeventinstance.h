@@ -14,6 +14,8 @@
 #include "fastserializableobject.h"
 #include "fastserializer.h"
 
+class EventPipeJsonFile;
+
 class EventPipeEventInstance
 {
     // Declare friends.
@@ -22,6 +24,8 @@ class EventPipeEventInstance
 public:
 
     EventPipeEventInstance(EventPipeSession &session, EventPipeEvent &event, DWORD threadID, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId);
+
+    void EnsureStack(const EventPipeSession &session);
 
     StackContents* GetStack()
     {
@@ -37,7 +41,7 @@ public:
         return m_pEvent;
     }
 
-    const LARGE_INTEGER* const GetTimeStamp() const
+    const LARGE_INTEGER* GetTimeStamp() const
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -65,21 +69,21 @@ public:
         return m_threadID;
     }
 
-    const GUID* const GetActivityId() const
+    const GUID* GetActivityId() const
     {
         LIMITED_METHOD_CONTRACT;
 
         return &m_activityId;
     }
 
-    const GUID* const GetRelatedActivityId() const
+    const GUID* GetRelatedActivityId() const
     {
         LIMITED_METHOD_CONTRACT;
 
         return &m_relatedActivityId;
     }
 
-    const BYTE* const GetData() const
+    const BYTE* GetData() const
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -136,17 +140,6 @@ private:
     // the metadata event is created after the first instance of the event
     // but must be inserted into the file before the first instance of the event.
     void SetTimeStamp(LARGE_INTEGER timeStamp);
-};
-
-// A specific type of event instance for use by the SampleProfiler.
-// This is needed because the SampleProfiler knows how to walk stacks belonging
-// to threads other than the current thread.
-class SampleProfilerEventInstance : public EventPipeEventInstance
-{
-
-public:
-
-    SampleProfilerEventInstance(EventPipeSession &session, EventPipeEvent &event, Thread *pThread, BYTE *pData, unsigned int length);
 };
 
 #endif // FEATURE_PERFTRACING

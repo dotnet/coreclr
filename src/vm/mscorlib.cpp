@@ -62,15 +62,11 @@
 #include "comdependenthandle.h"
 #include "weakreferencenative.h"
 #include "varargsnative.h"
-
-#ifdef MDA_SUPPORTED 
-#include "mdaassistants.h"
-#endif
+#include "mlinfo.h"
 
 #ifdef FEATURE_COMINTEROP
 #include "variant.h"
 #include "oavariant.h"
-#include "registration.h"
 #include "mngstdinterfaces.h"
 #include "extensibleclassfactory.h"
 #endif // FEATURE_COMINTEROP
@@ -85,10 +81,12 @@
 #if defined(FEATURE_EVENTSOURCE_XPLAT)
 #include "nativeeventsource.h"
 #include "eventpipe.h"
+#include "eventpipeinternal.h"
 #endif //defined(FEATURE_EVENTSOURCE_XPLAT)
 
 #ifdef FEATURE_PERFTRACING
 #include "eventpipe.h"
+#include "eventpipeinternal.h"
 #endif //FEATURE_PERFTRACING
 
 #endif // CROSSGEN_MSCORLIB

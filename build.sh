@@ -61,6 +61,7 @@ usage()
     echo "-msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     echo "-numproc - set the number of build processes."
     echo "-portablebuild - pass -portablebuild=false to force a non-portable build."
+    echo "-staticanalyzer - build with clang static analyzer enabled."
     exit 1
 }
 
@@ -150,7 +151,7 @@ restore_optdata()
 
     if [ $__isMSBuildOnNETCoreSupported == 1 ]; then
         # Parse the optdata package versions out of msbuild so that we can pass them on to CMake
-        local DotNetCli="$__ProjectRoot/Tools/dotnetcli/dotnet"
+        local DotNetCli="$__ProjectRoot/.dotnet/dotnet"
         if [ ! -f $DotNetCli ]; then
             source "$__ProjectRoot/init-tools.sh"
             if [ $? != 0 ]; then
@@ -187,7 +188,7 @@ generate_event_logging_sources()
     fi
 
     echo "Laying out dynamically generated EventPipe Implementation"
-    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir/eventpipe"
+    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst" --intermediate "$__OutputEventingDir/eventpipe"
 
     echo "Laying out dynamically generated EventSource classes"
     $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genRuntimeEventSources.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir"
@@ -275,12 +276,17 @@ build_native()
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
 
+        scriptDir="$__ProjectRoot/src/pal/tools"
         if [[ $__GccBuild == 0 ]]; then
-            echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion \"$__ClangMinorVersion\" $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
-            "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion "$__ClangMinorVersion" $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
+            scan_build=
+            if [[ $__StaticAnalyzer == 1 ]]; then
+                scan_build=scan-build
+            fi
+            echo "Invoking \"$scriptDir/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion \"$__ClangMinorVersion\" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $scan_build $generator $extraCmakeArguments $__cmakeargs"
+            source "$scriptDir/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion "$__ClangMinorVersion" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $scan_build $generator "$extraCmakeArguments" "$__cmakeargs"
         else
-            echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-gcc.sh\" \"$__ProjectRoot\" $__GccMajorVersion \"$__GccMinorVersion\" $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
-            "$__ProjectRoot/src/pal/tools/gen-buildsys-gcc.sh" "$__ProjectRoot" "$__GccMajorVersion" "$__CGccMinorVersion" $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
+            echo "Invoking \"$scriptDir/gen-buildsys-gcc.sh\" \"$__ProjectRoot\" $__GccMajorVersion \"$__GccMinorVersion\" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
+            source "$scriptDir/gen-buildsys-gcc.sh" "$__ProjectRoot" "$__GccMajorVersion" "$__CGccMinorVersion" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
         fi
         popd
     fi
@@ -298,6 +304,10 @@ build_native()
 
     # Check that the makefiles were created.
     pushd "$intermediatesForBuild"
+
+    if [ $__StaticAnalyzer == 1 ]; then
+        buildTool="$SCAN_BUILD_COMMAND $buildTool"
+    fi
 
     echo "Executing $buildTool install -j $__NumProc"
 
@@ -377,6 +387,7 @@ isMSBuildOnNETCoreSupported()
 build_CoreLib_ni()
 {
     local __CrossGenExec=$1
+    local __CoreLibILDir=$2
 
     if [ $__PartialNgen == 1 ]; then
         export COMPlus_PartialNGen=1
@@ -386,8 +397,8 @@ build_CoreLib_ni()
         rm $__CrossGenCoreLibLog
     fi
     echo "Generating native image of System.Private.CoreLib.dll for $__BuildOS.$__BuildArch.$__BuildType. Logging to \"$__CrossGenCoreLibLog\"."
-    echo "$__CrossGenExec /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll"
-    $__CrossGenExec /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll >> $__CrossGenCoreLibLog 2>&1
+    echo "$__CrossGenExec /Platform_Assemblies_Paths $__CoreLibILDir $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__CoreLibILDir/System.Private.CoreLib.dll"
+    $__CrossGenExec /Platform_Assemblies_Paths $__CoreLibILDir $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__CoreLibILDir/System.Private.CoreLib.dll >> $__CrossGenCoreLibLog 2>&1
     if [ $? -ne 0 ]; then
         echo "Failed to generate native image for System.Private.CoreLib. Refer to $__CrossGenCoreLibLog"
         exit 1
@@ -429,11 +440,25 @@ build_CoreLib()
         __ExtraBuildArgs="$__ExtraBuildArgs /p:BuildManagedTools=true"
     fi
 
+    $__ProjectRoot/dotnet.sh restore /nologo /verbosity:minimal /clp:Summary \
+                             /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
+                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                             /p:UsePartialNGENOptimization=false /maxcpucount /p:IncludeRestoreOnlyProjects=true /p:ArcadeBuild=true\
+                             $__ProjectDir/src/build.proj \
+                             /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false \
+                             $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
+
+    if [ $? -ne 0 ]; then
+        echo "Failed to restore managed components."
+        exit 1
+    fi
+
     $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
                              /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
                              /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                             /p:UsePartialNGENOptimization=false /maxcpucount \
-                             $__ProjectDir/build.proj \
+                             /p:UsePartialNGENOptimization=false /maxcpucount /p:DotNetUseShippingVersions=true /p:ArcadeBuild=true\
+                             $__ProjectDir/src/build.proj \
                              /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
                              /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false \
                              $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
@@ -448,6 +473,8 @@ build_CoreLib()
         return
     fi
 
+    local __CoreLibILDir=$__BinDir/IL
+
     # The cross build generates a crossgen with the target architecture.
     if [ $__CrossBuild == 0 ]; then
        if [ $__SkipCoreCLR == 1 ]; then
@@ -456,21 +483,24 @@ build_CoreLib()
 
        # The architecture of host pc must be same architecture with target.
        if [[ ( "$__HostArch" == "$__BuildArch" ) ]]; then
-           build_CoreLib_ni "$__BinDir/crossgen"
+           build_CoreLib_ni "$__BinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "x86" ) ]]; then
-           build_CoreLib_ni "$__BinDir/crossgen"
+           build_CoreLib_ni "$__BinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__HostArch" == "arm64" ) && ( "$__BuildArch" == "arm" ) ]]; then
-           build_CoreLib_ni "$__BinDir/crossgen"
+           build_CoreLib_ni "$__BinDir/crossgen" $__CoreLibILDir
        else
            exit 1
        fi
     else
        if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" ) ]]; then
-           build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__CrossArch" == "x64" ) && ( "$__BuildArch" == "arm" ) ]]; then
-           build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "arm64" ) ]]; then
-           build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen" $__CoreLibILDir
+       else
+           # Crossgen not performed, so treat the IL version as the final version
+           cp $__CoreLibILDir/System.Private.CoreLib.dll $__BinDir/System.Private.CoreLib.dll
        fi
     fi
 }
@@ -646,9 +676,10 @@ __msbuildonunsupportedplatform=0
 __PgoOptDataVersion=""
 __IbcOptDataVersion=""
 __BuildManagedTools=1
-__SkipRestoreArg=""
+__SkipRestoreArg="/p:RestoreDuringBuild=true"
 __SignTypeArg=""
 __OfficialBuildIdArg=""
+__StaticAnalyzer=0
 
 # Get the number of processors available to the scheduler
 # Other techniques such as `nproc` only get the number of
@@ -778,8 +809,20 @@ while :; do
             __GccBuild=1
             ;;
 
+        gcc6|-gcc6)
+            __GccMajorVersion=6
+            __GccMinorVersion=
+            __GccBuild=1
+            ;;
+
         gcc7|-gcc7)
             __GccMajorVersion=7
+            __GccMinorVersion=
+            __GccBuild=1
+            ;;
+
+        gcc8|-gcc8)
+            __GccMajorVersion=8
             __GccMinorVersion=
             __GccBuild=1
             ;;
@@ -935,6 +978,10 @@ while :; do
         -officialbuildid=*)
             __Id=$(echo $1| cut -d'=' -f 2)
             __OfficialBuildIdArg="/p:OfficialBuildId=$__Id"
+            ;;
+
+        -staticanalyzer)
+            __StaticAnalyzer=1
             ;;
 
         --)
