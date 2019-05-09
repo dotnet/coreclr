@@ -458,7 +458,7 @@ def generateLttngTpProvider(providerName, eventNodes, allTemplates):
 
 
 
-def generateLttngFiles(etwmanifest,eventprovider_directory):
+def generateLttngFiles(etwmanifest,eventprovider_directory, dryRun):
 
     eventprovider_directory = eventprovider_directory + "/"
     tree                    = DOM.parse(etwmanifest)
@@ -499,12 +499,14 @@ def generateLttngFiles(etwmanifest,eventprovider_directory):
         eventNodes = providerNode.getElementsByTagName('event')
         allTemplates  = parseTemplateNodes(templateNodes)
 
-        print(os.path.join(eventprovider_directory, "{0}{1}.cpp".format(lttngevntprovPre, providerName_File)))
-        print(os.path.join(eventprovider_directory, "{0}{1}.cpp".format(lttngevntprovTpPre, providerName_File)))
-
-        with open_for_update(lttngevntheader) as lttnghdr_file:
-            lttnghdr_file.write(stdprolog + "\n")
-            lttnghdr_file.write("""
+        if dryRun:
+            print(lttngevntheader)
+            print(lttngevntprov)
+            print(lttngevntprovTp)
+        else:
+            with open_for_update(lttngevntheader) as lttnghdr_file:
+                lttnghdr_file.write(stdprolog + "\n")
+                lttnghdr_file.write("""
 #include "palrt.h"
 #include "pal.h"
 
@@ -512,24 +514,24 @@ def generateLttngFiles(etwmanifest,eventprovider_directory):
 
 """)
 
-            lttnghdr_file.write("#define TRACEPOINT_PROVIDER " + providerName + "\n")
-            lttnghdr_file.write("""
+                lttnghdr_file.write("#define TRACEPOINT_PROVIDER " + providerName + "\n")
+                lttnghdr_file.write("""
 
 #undef TRACEPOINT_INCLUDE
 """)
 
-            lttnghdr_file.write("#define TRACEPOINT_INCLUDE \"./" + lttngevntheadershortname + "\"\n\n")
+                lttnghdr_file.write("#define TRACEPOINT_INCLUDE \"./" + lttngevntheadershortname + "\"\n\n")
 
-            lttnghdr_file.write("#if !defined(LTTNG_CORECLR_H" + providerName + ") || defined(TRACEPOINT_HEADER_MULTI_READ)\n\n")
-            lttnghdr_file.write("#define LTTNG_CORECLR_H" + providerName + "\n")
+                lttnghdr_file.write("#if !defined(LTTNG_CORECLR_H" + providerName + ") || defined(TRACEPOINT_HEADER_MULTI_READ)\n\n")
+                lttnghdr_file.write("#define LTTNG_CORECLR_H" + providerName + "\n")
 
-            lttnghdr_file.write("\n#include <lttng/tracepoint.h>\n\n")
+                lttnghdr_file.write("\n#include <lttng/tracepoint.h>\n\n")
 
-            lttnghdr_file.write(generateLttngHeader(providerName,allTemplates,eventNodes) + "\n")
+                lttnghdr_file.write(generateLttngHeader(providerName,allTemplates,eventNodes) + "\n")
 
-        with open_for_update(lttngevntprov) as lttngimpl_file:
-            lttngimpl_file.write(stdprolog + "\n")
-            lttngimpl_file.write("""
+            with open_for_update(lttngevntprov) as lttngimpl_file:
+                lttngimpl_file.write(stdprolog + "\n")
+                lttngimpl_file.write("""
 #define TRACEPOINT_DEFINE
 #define TRACEPOINT_PROBE_DYNAMIC_LINKAGE
 
@@ -541,9 +543,9 @@ def generateLttngFiles(etwmanifest,eventprovider_directory):
 #define PAL_realloc realloc
 #include "pal/stackstring.hpp"
 """)
-            lttngimpl_file.write("#include \"" + lttngevntheadershortname + "\"\n\n")
+                lttngimpl_file.write("#include \"" + lttngevntheadershortname + "\"\n\n")
 
-            lttngimpl_file.write("""#ifndef tracepoint_enabled
+                lttngimpl_file.write("""#ifndef tracepoint_enabled
 #define tracepoint_enabled(provider, name) TRUE
 #define do_tracepoint tracepoint
 #endif
@@ -570,14 +572,14 @@ bool WriteToBuffer(const T &value, char *&buffer, size_t& offset, size_t& size, 
 }
 
 """)
-            lttngimpl_file.write(generateLttngTpProvider(providerName,eventNodes,allTemplates) + "\n")
+                lttngimpl_file.write(generateLttngTpProvider(providerName,eventNodes,allTemplates) + "\n")
 
-        with open_for_update(lttngevntprovTp) as tpimpl_file:
-            tpimpl_file.write(stdprolog + "\n")
+            with open_for_update(lttngevntprovTp) as tpimpl_file:
+                tpimpl_file.write(stdprolog + "\n")
 
-            tpimpl_file.write("\n#define TRACEPOINT_CREATE_PROBES\n")
+                tpimpl_file.write("\n#define TRACEPOINT_CREATE_PROBES\n")
 
-            tpimpl_file.write("#include \"./"+lttngevntheadershortname + "\"\n")
+                tpimpl_file.write("#include \"./"+lttngevntheadershortname + "\"\n")
 
 import argparse
 import sys
@@ -592,6 +594,8 @@ def main(argv):
                                     help='full path to manifest containig the description of events')
     required.add_argument('--intermediate', type=str, required=True,
                                     help='full path to eventprovider  intermediate directory')
+    required.add_argument('--dry-run', action='store_true',
+                                    help='if specified, will output the names of the generated files instead of generating the files' )
     args, unknown = parser.parse_known_args(argv)
     if unknown:
         print('Unknown argument(s): ', ', '.join(unknown))
@@ -599,8 +603,9 @@ def main(argv):
 
     sClrEtwAllMan     = args.man
     intermediate      = args.intermediate
+    dryRun            = args.dry_run
 
-    generateLttngFiles(sClrEtwAllMan,intermediate)
+    generateLttngFiles(sClrEtwAllMan,intermediate, dryRun)
 
 if __name__ == '__main__':
     return_code = main(sys.argv[1:])

@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 2.8.12)
 
 include(FindPythonInterp)
+set (GENERATE_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../scripts/genLttngProvider.py)
+
+set(GENERATE_COMMAND ${PYTHON_EXECUTABLE} ${GENERATE_SCRIPT} --man ${EVENT_MANIFEST} --intermediate ${CMAKE_CURRENT_BINARY_DIR})
 
 execute_process(
-  COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../../../../scripts/genLttngProvider.py --man ${EVENT_MANIFEST} --intermediate ${CMAKE_CURRENT_BINARY_DIR}
+  COMMAND ${GENERATE_COMMAND} --dry-run
   RESULT_VARIABLE GEN_LTTNG_RESULT
   OUTPUT_VARIABLE LTTNG_PROVIDER_OUTPUT
   ERROR_VARIABLE GEN_LTTNG_ERRORS
@@ -27,17 +30,22 @@ foreach(LTTNG_PROVIDER_FILE ${LTTNG_PROVIDER_OUTPUT})
   endif()
 endforeach()
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
 add_definitions(-DPAL_STDCPP_COMPAT=1)
 include_directories(${COREPAL_SOURCE_DIR}/inc/rt)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/lttng)
+
+add_custom_target(lttngprovider_sources
+  ${GENERATE_COMMAND}
+  DEPENDS ${EVENT_MANIFEST} ${GENERATE_SCRIPT})
 
 add_library(eventprovider
     STATIC
     ${LTTNG_PROVIDER_SOURCES}
     eventproviderhelpers.cpp
 )
+
+add_dependencies(eventprovider lttngprovider_sources)
+
 add_subdirectory(tracepointprovider)
 
 # Install the static eventprovider library

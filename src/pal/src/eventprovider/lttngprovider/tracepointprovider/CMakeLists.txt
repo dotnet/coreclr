@@ -12,6 +12,8 @@ add_library(coreclrtraceptprovider
     ${TRACEPOINT_PROVIDER_SOURCES}
 )
 
+add_dependencies(coreclrtraceptprovider lttngprovider_sources)
+
 find_library(LTTNG NAMES lttng-ust)
 
 target_link_libraries(coreclrtraceptprovider

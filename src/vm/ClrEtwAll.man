@@ -2398,10 +2398,10 @@
                            task="GarbageCollection"
                            symbol="GCStart" message="$(string.RuntimePublisher.GCStartEventMessage)"/>
 
-                    <event value="1" version="1" level="win:Informational"  template="GCStart_V1"
+                    <!-- <event value="1" version="1" level="win:Informational"  template="GCStart_V1"
                            keywords="GCKeyword" opcode="win:Start"
                            task="GarbageCollection"
-                           symbol="GCStart_V1" message="$(string.RuntimePublisher.GCStart_V1EventMessage)"/>
+                           symbol="GCStart_V1" message="$(string.RuntimePublisher.GCStart_V1EventMessage)"/> -->
 
                     <event value="1" version="2" level="win:Informational"  template="GCStart_V2"
                            keywords="GCKeyword" opcode="win:Start"
