@@ -394,7 +394,8 @@ public:
         CONTRACTL
         {
             NOTHROW;
-            GC_NOTRIGGER;
+            GC_TRIGGERS;
+            CAN_TAKE_LOCK;
             MODE_ANY;
         }
         CONTRACTL_END;

@@ -630,7 +630,7 @@ HRESULT ReJitManager::UpdateActiveILVersions(
             }
         }
 
-        hr = UpdateActiveILVersion(&mgrToCodeActivationBatch, pModule, rgMethodDefs[i], fIsRevert, static_cast<COR_PRF_REJIT_FLAGS>(flags & COR_PRF_REJIT_INLINING_CALLBACKS));
+        hr = UpdateActiveILVersion(&mgrToCodeActivationBatch, pModule, rgMethodDefs[i], fIsRevert, static_cast<COR_PRF_REJIT_FLAGS>(flags | COR_PRF_REJIT_INLINING_CALLBACKS));
         if (FAILED(hr))
         {
             return hr;
