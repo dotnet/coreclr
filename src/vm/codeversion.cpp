@@ -583,7 +583,7 @@ ILCodeVersion::RejitFlags ILCodeVersionNode::GetRejitState() const
     return static_cast<ILCodeVersion::RejitFlags>(m_rejitState.Load() & ILCodeVersion::kStateMask);
 }
 
-BOOL ILCodeVersionNode::GetSuppressReJITCallback() const
+BOOL ILCodeVersionNode::GetEnableReJITCallback() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
@@ -628,7 +628,7 @@ void ILCodeVersionNode::SetRejitState(ILCodeVersion::RejitFlags newState)
     m_rejitState.Store(static_cast<ILCodeVersion::RejitFlags>(newState | oldNonMaskFlags));
 }
 
-void ILCodeVersionNode::SetSuppressReJITCallback(BOOL state)
+void ILCodeVersionNode::SetEnableReJITCallback(BOOL state)
 {
     LIMITED_METHOD_CONTRACT;
     // We're doing a non thread safe modification to m_rejitState
@@ -813,12 +813,12 @@ ILCodeVersion::RejitFlags ILCodeVersion::GetRejitState() const
     }
 }
 
-BOOL ILCodeVersion::GetSuppressReJITCallback() const
+BOOL ILCodeVersion::GetEnableReJITCallback() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
     if (m_storageKind == StorageKind::Explicit)
     {
-        return AsNode()->GetSuppressReJITCallback();
+        return AsNode()->GetEnableReJITCallback();
     }
     else
     {
@@ -920,7 +920,7 @@ void ILCodeVersion::SetRejitState(RejitFlags newState)
     AsNode()->SetRejitState(newState);
 }
 
-void ILCodeVersion::SetSuppressReJITCallback(BOOL state)
+void ILCodeVersion::SetEnableReJITCallback(BOOL state)
 {
     LIMITED_METHOD_CONTRACT;
     return AsNode()->SetSuppressReJITCallback(state);

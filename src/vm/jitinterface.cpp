@@ -8010,13 +8010,6 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
 
 #ifdef PROFILING_SUPPORTED
     {
-#if defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-        // Need to hold the ReJIT lock between when we check if a method should be inlined and
-        // when we report the inlining or there could be a race condition where a method is ReJITted after
-        // checking if it has default IL and before we report the inlining.
-        CrstHolder ch(&(ReJitManager::s_csGlobalRequest));
-#endif // defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-
         if (CORProfilerPresent())
         {
             // #rejit
@@ -8040,7 +8033,7 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
                 goto exit;
             }
 
-#if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if defined(FEATURE_REJIT) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             if (CORProfilerEnableRejit())
             {
                 CodeVersionManager* pCodeVersionManager = pCallee->GetCodeVersionManager();
@@ -8053,7 +8046,7 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
                     goto exit;
                 }
             }
-#endif // defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#endif // defined(FEATURE_REJIT) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
             // If the profiler wishes to be notified of JIT events and the result from
             // the above tests will cause a function to be inlined, we need to tell the
@@ -8083,17 +8076,6 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
                 END_PIN_PROFILER();
             }
         }
-
-#if defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-        // NOTE: this section needs to remain as the last bit of code before the exit block below.
-        // If more checks are added after this we will potentially over report inlinings.
-
-        // Since we exit early for INLINE_FAIL, it always should be INLINE_PASS at this point.
-        _ASSERTE(result == INLINE_PASS);
-        // We don't want to track the chain of methods, so intentionally use m_pMethodBeingCompiled
-        // to just track the methods that pCallee is eventually inlined in
-        pCallee->GetModule()->AddInlining(pOrigCaller, pCallee);
-#endif // defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     }
 #endif // PROFILING_SUPPORTED
 
@@ -8251,6 +8233,35 @@ void CEEInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
         }
 
     }
+
+
+#if defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    if(inlineResult == INLINE_PASS)
+    {
+        // We don't want to track the chain of methods, so intentionally use m_pMethodBeingCompiled
+        // to just track the methods that pCallee is eventually inlined in
+        MethodDesc *pCallee = GetMethod(inlineeHnd);
+        MethodDesc *pCaller = m_pMethodBeingCompiled;
+        pCallee->GetModule()->AddInlining(pCaller, pCallee);
+
+        if (CORProfilerEnableRejit())
+        {
+            // If ReJIT is enabled, there is a chance that a race happened where the profiler
+            // requested a ReJIT on a method, but before the ReJIT occurred an inlining happened.
+            // If we end up reporting an inlining on a method with non-default IL it means the race
+            // happened and we need to manually request ReJIT for it since it was missed.
+            CodeVersionManager* pCodeVersionManager = pCallee->GetCodeVersionManager();
+            CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+            ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pCallee);
+            if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL())
+            {
+                ModuleID modId = pCaller->GetModule()->GetModuleID();
+                mdMethodDef methodDef = pCaller->GetMemberDef();
+                ReJitManager::RequestReJIT(1, &modId, &methodDef, static_cast<COR_PRF_REJIT_FLAGS>(0));
+            }
+        }
+    }
+#endif // defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
     EE_TO_JIT_TRANSITION();
 }

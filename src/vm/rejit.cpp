@@ -630,7 +630,7 @@ HRESULT ReJitManager::UpdateActiveILVersions(
             }
         }
 
-        hr = UpdateActiveILVersion(&mgrToCodeActivationBatch, pModule, rgMethodDefs[i], fIsRevert, static_cast<COR_PRF_REJIT_FLAGS>(0));
+        hr = UpdateActiveILVersion(&mgrToCodeActivationBatch, pModule, rgMethodDefs[i], fIsRevert, static_cast<COR_PRF_REJIT_FLAGS>(flags & COR_PRF_REJIT_INLINING_CALLBACKS));
         if (FAILED(hr))
         {
             return hr;
@@ -737,6 +737,15 @@ HRESULT ReJitManager::UpdateActiveILVersion(
     BOOL                                fIsRevert,
     COR_PRF_REJIT_FLAGS                 flags)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        CAN_TAKE_LOCK;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     _ASSERTE(pMgrToCodeActivationBatch != NULL);
     _ASSERTE(pModule != NULL);
     _ASSERTE(methodDef != mdTokenNil);
@@ -806,6 +815,15 @@ HRESULT ReJitManager::UpdateNativeInlinerActiveILVersions(
     BOOL                                fIsRevert,
     COR_PRF_REJIT_FLAGS                 flags)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        CAN_TAKE_LOCK;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     _ASSERTE(pMgrToCodeActivationBatch != NULL);
     _ASSERTE(pInlinee != NULL);
     
@@ -866,6 +884,15 @@ HRESULT ReJitManager::UpdateJitInlinerActiveILVersions(
     BOOL                                fIsRevert,
     COR_PRF_REJIT_FLAGS                 flags)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        CAN_TAKE_LOCK;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     _ASSERTE(pMgrToCodeActivationBatch != NULL);
     _ASSERTE(pInlinee != NULL);
 
@@ -952,7 +979,7 @@ HRESULT ReJitManager::BindILVersion(
     // Check if there was there a previous rejit request for this method that hasn't been exposed back
     // to the profiler yet
     ILCodeVersion ilCodeVersion = pCodeVersionManager->GetActiveILCodeVersion(pModule, methodDef);
-    BOOL fSuppressGetParams = (flags & COR_PRF_REJIT_INLINING_CALLBACKS) != COR_PRF_REJIT_INLINING_CALLBACKS;
+    BOOL fDoCallback = (flags & COR_PRF_REJIT_INLINING_CALLBACKS) == COR_PRF_REJIT_INLINING_CALLBACKS;
 
     if (ilCodeVersion.GetRejitState() == ILCodeVersion::kStateRequested)
     {
@@ -968,13 +995,12 @@ HRESULT ReJitManager::BindILVersion(
 
         *pILCodeVersion = ilCodeVersion;
 
-        if (!fSuppressGetParams)
+        if (fDoCallback)
         {
-            // We want to handle the suppression of GetReJITParamters so that it handles duplicates correctly.
             // There could be a case where the method that a profiler requested ReJIT on also ends up in the 
             // inlining graph from a different method. In that case we should override the previous setting,
             // but we should never override a request to get the callback with a request to suppress it.
-            pILCodeVersion->SetSuppressReJITCallback(false);
+            pILCodeVersion->SetEnableReJITCallback(true);
         }
 
         return S_FALSE;
@@ -984,7 +1010,7 @@ HRESULT ReJitManager::BindILVersion(
     // couldn't be reused (and needed to be reverted).  Create a new ILCodeVersion to return
     // to the caller.
     HRESULT hr = pCodeVersionManager->AddILCodeVersion(pModule, methodDef, InterlockedIncrement(reinterpret_cast<LONG*>(&s_GlobalReJitId)), pILCodeVersion);
-    pILCodeVersion->SetSuppressReJITCallback(fSuppressGetParams);
+    pILCodeVersion->SetEnableReJITCallback(fDoCallback);
     return hr;
 }
 
@@ -1066,7 +1092,7 @@ HRESULT ReJitManager::ConfigureILCodeVersion(ILCodeVersion ilCodeVersion)
         HRESULT hr = S_OK;
         ReleaseHolder<ProfilerFunctionControl> pFuncControl = NULL;
 
-        if (!ilCodeVersion.GetSuppressReJITCallback())
+        if (ilCodeVersion.GetEnableReJITCallback())
         {
             // Here's where we give a chance for the rejit requestor to
             // examine and modify the IL & codegen flags before it gets to
@@ -1092,7 +1118,7 @@ HRESULT ReJitManager::ConfigureILCodeVersion(ILCodeVersion ilCodeVersion)
             }
         }
 
-        if (ilCodeVersion.GetSuppressReJITCallback() || FAILED(hr))
+        if (!ilCodeVersion.GetEnableReJITCallback() || FAILED(hr))
         {
             {
                 // Historically on failure we would revert to the kRequested state and fall-back

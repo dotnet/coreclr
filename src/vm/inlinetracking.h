@@ -391,7 +391,13 @@ public:
     template <class VisitFunc>
     void VisitInliners(MethodDesc *inlinee, VisitFunc &func)
     {
-        LIMITED_METHOD_CONTRACT;
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_ANY;
+        }
+        CONTRACTL_END;
 
         GCX_COOP();
         CrstHolder holder(&m_mapCrst);
