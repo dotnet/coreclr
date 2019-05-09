@@ -123,8 +123,7 @@ DLLEXPORT // For Win32 PAL LoadLibrary emulation
     return TRUE;
 }
 
-// Exported via def file
-extern "C" void __stdcall jitStartup(ICorJitHost* host)
+extern "C" DLLEXPORT void __stdcall jitStartup(ICorJitHost* host)
 {
     SetDefaultPaths();
     SetLibName();
@@ -147,8 +146,7 @@ extern "C" void __stdcall jitStartup(ICorJitHost* host)
     pnjitStartup(g_ourJitHost);
 }
 
-// Exported via def file
-extern "C" ICorJitCompiler* __stdcall getJit()
+extern "C" DLLEXPORT ICorJitCompiler* __stdcall getJit()
 {
     DWORD             dwRetVal = 0;
     PgetJit           pngetJit;
@@ -194,8 +192,7 @@ extern "C" ICorJitCompiler* __stdcall getJit()
     return pJitInstance;
 }
 
-// Exported via def file
-extern "C" void __stdcall sxsJitStartup(CoreClrCallbacks const& original_cccallbacks)
+extern "C" DLLEXPORT void __stdcall sxsJitStartup(CoreClrCallbacks const& original_cccallbacks)
 {
     PsxsJitStartup pnsxsJitStartup;
 
