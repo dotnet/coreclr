@@ -923,7 +923,7 @@ void ILCodeVersion::SetRejitState(RejitFlags newState)
 void ILCodeVersion::SetEnableReJITCallback(BOOL state)
 {
     LIMITED_METHOD_CONTRACT;
-    return AsNode()->SetSuppressReJITCallback(state);
+    return AsNode()->SetEnableReJITCallback(state);
 }
 
 void ILCodeVersion::SetIL(COR_ILMETHOD* pIL)
