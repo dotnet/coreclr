@@ -1356,7 +1356,8 @@ HRESULT ReJitManager::GetReJITIDs(PTR_MethodDesc pMD, ULONG cReJitIds, ULONG * p
 HRESULT ReJitManager::RequestReJIT(
     ULONG       cFunctions,
     ModuleID    rgModuleIDs[],
-    mdMethodDef rgMethodDefs[])
+    mdMethodDef rgMethodDefs[],
+    COR_PRF_REJIT_FLAGS flags)
 {
     return E_NOTIMPL;
 }
