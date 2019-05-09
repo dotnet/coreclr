@@ -43,7 +43,9 @@ int LinearScan::BuildLclHeap(GenTree* tree)
     //   Non-const                  No              1
     //
     // If the outgoing argument space is too large to encode in an "add/sub sp, icon"
-    // instruction, we also need a temp (which can be shared).
+    // instruction, we also need a temp (we can use the same temp register needed
+    // for the other cases above, if there are multiple conditions that require a
+    // temp register).
 
     GenTree* size = tree->gtGetOp1();
     int      internalIntCount;

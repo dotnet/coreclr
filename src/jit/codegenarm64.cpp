@@ -2070,15 +2070,17 @@ void CodeGen::genLclHeap(GenTree* tree)
     GenTree* size = tree->gtOp.gtOp1;
     noway_assert((genActualType(size->gtType) == TYP_INT) || (genActualType(size->gtType) == TYP_I_IMPL));
 
-    regNumber      targetReg       = tree->gtRegNum;
-    regNumber      regCnt          = REG_NA;
-    regNumber      pspSymReg       = REG_NA;
-    var_types      type            = genActualType(size->gtType);
-    emitAttr       easz            = emitTypeSize(type);
-    BasicBlock*    endLabel        = nullptr;
-    BasicBlock*    loop            = nullptr;
-    unsigned       stackAdjustment = 0;
-    target_ssize_t lastTouchDelta  = (target_ssize_t)-1;
+    regNumber            targetReg                = tree->gtRegNum;
+    regNumber            regCnt                   = REG_NA;
+    regNumber            pspSymReg                = REG_NA;
+    var_types            type                     = genActualType(size->gtType);
+    emitAttr             easz                     = emitTypeSize(type);
+    BasicBlock*          endLabel                 = nullptr;
+    BasicBlock*          loop                     = nullptr;
+    unsigned             stackAdjustment          = 0;
+    const target_ssize_t ILLEGAL_LAST_TOUCH_DELTA = (target_ssize_t)-1;
+    target_ssize_t       lastTouchDelta =
+        ILLEGAL_LAST_TOUCH_DELTA; // The number of bytes from SP to the last stack address probed.
 
     noway_assert(isFramePointerUsed()); // localloc requires Frame Pointer to be established since SP changes
     noway_assert(genStackLevel == 0);   // Can't have anything on the stack
@@ -2308,12 +2310,12 @@ void CodeGen::genLclHeap(GenTree* tree)
 
 ALLOC_DONE:
     // Re-adjust SP to allocate outgoing arg area. We must probe this adjustment.
-    if (stackAdjustment > 0)
+    if (stackAdjustment != 0)
     {
         assert((stackAdjustment % STACK_ALIGN) == 0); // This must be true for the stack to remain aligned
-        assert(lastTouchDelta >= -1);
+        assert((lastTouchDelta == ILLEGAL_LAST_TOUCH_DELTA) || (lastTouchDelta >= 0));
 
-        if ((lastTouchDelta == (target_ssize_t)-1) ||
+        if ((lastTouchDelta == ILLEGAL_LAST_TOUCH_DELTA) ||
             (stackAdjustment + (unsigned)lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES >
              compiler->eeGetPageSize()))
         {

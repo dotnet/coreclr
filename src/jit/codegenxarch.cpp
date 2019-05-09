@@ -2718,13 +2718,13 @@ void CodeGen::genLclHeap(GenTree* tree)
             goto ALLOC_DONE;
         }
 
-        bool doNoInitLessThanOnePageAlloc =
-            !compiler->info.compInitMem && (amount < compiler->eeGetPageSize()); // must be < not <=
+        bool initMemOrLargeAlloc =
+            compiler->info.compInitMem || (amount >= compiler->eeGetPageSize()); // must be >= not >
 
 #ifdef _TARGET_X86_
         bool needRegCntRegister = true;
 #else  // !_TARGET_X86_
-        bool needRegCntRegister = !doNoInitLessThanOnePageAlloc;
+        bool needRegCntRegister = initMemOrLargeAlloc;
 #endif // !_TARGET_X86_
 
         if (needRegCntRegister)
@@ -2743,9 +2743,9 @@ void CodeGen::genLclHeap(GenTree* tree)
             }
         }
 
-        if (doNoInitLessThanOnePageAlloc)
+        if (!initMemOrLargeAlloc)
         {
-            // Since the size is less than a page, simply adjust ESP.
+            // Since the size is less than a page, and we don't need to zero init memory, simply adjust ESP.
             // ESP might already be in the guard page, so we must touch it BEFORE
             // the alloc, not after.
 
