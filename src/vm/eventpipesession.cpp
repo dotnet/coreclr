@@ -12,6 +12,19 @@
 
 #ifdef FEATURE_PERFTRACING
 
+//! The keywords below seems to correspond to:
+//!  LoaderKeyword                      (0x00000008)
+//!  JitKeyword                         (0x00000010)
+//!  NgenKeyword                        (0x00000020)
+//!  unused_keyword                     (0x00000100)
+//!  JittedMethodILToNativeMapKeyword   (0x00020000)
+//!  ThreadTransferKeyword              (0x80000000)
+const EventPipeProviderConfiguration RundownProviders[] = {
+    {W("Microsoft-Windows-DotNETRuntime"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL},       // Public provider.
+    {W("Microsoft-Windows-DotNETRuntimeRundown"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL} // Rundown provider.
+};
+const uint32_t RundownProvidersSize = sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration);
+
 EventPipeSession::EventPipeSession(
     LPCWSTR strOutputPath,
     IpcStream *const pStream,
@@ -19,7 +32,8 @@ EventPipeSession::EventPipeSession(
     unsigned int circularBufferSizeInMB,
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders,
-    bool rundownEnabled) : m_pProviderList(new EventPipeSessionProviderList(pProviders, numProviders)),
+    bool rundownEnabled) : // m_lock(CrstEventPipe, (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN | CRST_HOST_BREAKABLE)),
+                           m_pProviderList(new EventPipeSessionProviderList(pProviders, numProviders)),
                            m_CircularBufferSizeInBytes(circularBufferSizeInMB * 1024 * 1024),
                            m_pBufferManager(new EventPipeBufferManager()),
                            m_rundownEnabled(rundownEnabled),
@@ -28,10 +42,11 @@ EventPipeSession::EventPipeSession(
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(circularBufferSizeInMB > 0);
         PRECONDITION(numProviders > 0 && pProviders != nullptr);
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -48,7 +63,6 @@ EventPipeSession::EventPipeSession(
 
         case EventPipeSessionType::IpcStream:
             m_pFile = new EventPipeFile(new IpcStreamWriter(reinterpret_cast<EventPipeSessionID>(this), pStream));
-            CreateFlushTimerCallback();
             break;
 
         default:
@@ -71,6 +85,7 @@ EventPipeSession::~EventPipeSession()
     CONTRACTL_END;
 
     // TODO: Stop streaming thread? Review synchronization.
+    // CrstHolder _crst(&m_lock);
 
     delete m_pProviderList;
 
@@ -80,13 +95,16 @@ EventPipeSession::~EventPipeSession()
     delete m_pFile;
 }
 
-bool EventPipeSession::HasIpcStreamingStarted() const
+bool EventPipeSession::HasIpcStreamingStarted()
 {
+    // CrstHolder _crst(&m_lock);
     return m_pIpcStreamingThread != nullptr ? m_pIpcStreamingThread->HasStarted() : false;
 }
 
 void EventPipeSession::DestroyIpcStreamingThread()
 {
+    // CrstHolder _crst(&m_lock);
+
     if (!m_ipcStreamingEnabled)
         return;
 
@@ -114,64 +132,61 @@ static DWORD WINAPI ThreadProc(void *args)
 
     if (args == nullptr)
         return 1;
+
     EventPipeSession *const pEventPipeSession = reinterpret_cast<EventPipeSession *>(args);
+    if (pEventPipeSession->GetSessionType() != EventPipeSessionType::IpcStream)
+        return 1;
 
-    if (pEventPipeSession->HasIpcStreamingStarted())
+    EX_TRY
     {
-        // TODO: Switch to pre-emptive mode so that this thread doesn't starve the GC?
-        // GCX_PREEMP();
-
-        while (pEventPipeSession->IsIpcStreamingEnabled())
+        if (pEventPipeSession->HasIpcStreamingStarted())
         {
-            bool fSuccess = false;
-            EventPipe::RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
-                // Make sure that we should actually flush.
-                EventPipeConfiguration *const pConfiguration = EventPipe::GetConfiguration();
-                if (!EventPipe::Enabled() || pConfiguration == nullptr)
-                    fSuccess = false;
-
-                // Get the current time stamp.
-                // WriteAllBuffersToFile will use this to ensure that no events after
-                // the current timestamp are written into the file.
-                LARGE_INTEGER stopTimeStamp;
-                QueryPerformanceCounter(&stopTimeStamp);
-
-                if (pEventPipeSession->GetSessionType() != EventPipeSessionType::IpcStream)
-                    fSuccess = false;
-
-                if (!pEventPipeSession->WriteAllBuffersToFile(*pConfiguration, stopTimeStamp))
+            bool fSuccess = true;
+            while (pEventPipeSession->IsIpcStreamingEnabled() && fSuccess)
+            {
                 {
-                    fSuccess = false;
+                    // Switch to pre-emptive mode so that this thread doesn't starve the GC
+                    GCX_PREEMP();
+                    EventPipe::RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
+                        // Make sure that we should actually flush.
+                        EventPipeConfiguration *const pConfiguration = EventPipe::GetConfiguration();
+                        if (!EventPipe::Enabled() || pConfiguration == nullptr)
+                            fSuccess = false;
 
-                    EX_TRY
-                    {
-                        pEventPipeSession->Disable(
-                            *pConfiguration,
-                            stopTimeStamp,
-                            pEventPipeProviderCallbackDataQueue);
-                    }
-                    EX_CATCH {}
-                    EX_END_CATCH(SwallowAllExceptions);
+                        // Get the current time stamp.
+                        // WriteAllBuffersToFile will use this to ensure that no events after
+                        // the current timestamp are written into the file.
+                        LARGE_INTEGER stopTimeStamp;
+                        QueryPerformanceCounter(&stopTimeStamp);
+                        if (!pEventPipeSession->WriteAllBuffersToFile(*pConfiguration, stopTimeStamp))
+                        {
+                            fSuccess = false;
+                            pEventPipeSession->Disable(
+                                *pConfiguration,
+                                stopTimeStamp,
+                                pEventPipeProviderCallbackDataQueue);
+                        }
+                    });
                 }
 
-                fSuccess = true;
-            });
+                // Wait until it's time to sample again.
+                const uint32_t PeriodInNanoSeconds = 100000000; // 100 msec.
+                const uint32_t NUM_NANOSECONDS_IN_1_MS = 1000000;
 
-            if (!fSuccess)
-                break;
-
-            // Wait until it's time to sample again.
-            const uint32_t PeriodInNanoSeconds = 100000000;
-            const unsigned long NUM_NANOSECONDS_IN_1_MS = 1000000;
-
-            // FIXME: Poors man sleep
+                // FIXME: Poors man sleep
 #ifdef FEATURE_PAL
-            PAL_nanosleep(PeriodInNanoSeconds);
-#else //FEATURE_PAL
-            ClrSleepEx(PeriodInNanoSeconds / NUM_NANOSECONDS_IN_1_MS, FALSE);
+                PAL_nanosleep(PeriodInNanoSeconds);
+#else  //FEATURE_PAL
+                ClrSleepEx(PeriodInNanoSeconds / NUM_NANOSECONDS_IN_1_MS, FALSE);
 #endif //FEATURE_PAL
+            }
         }
     }
+    EX_CATCH
+    {
+        // TODO: STRESS_LOG ?
+    }
+    EX_END_CATCH(SwallowAllExceptions);
 
     pEventPipeSession->DestroyIpcStreamingThread();
     return 0;
@@ -186,7 +201,7 @@ void EventPipeSession::CreateIpcStreamingThread()
         MODE_ANY;
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
-    CONTRACTL_END
+    CONTRACTL_END;
 
     m_ipcStreamingEnabled = true;
     m_pIpcStreamingThread = SetupUnstartedThread();
@@ -202,9 +217,17 @@ void EventPipeSession::CreateIpcStreamingThread()
     m_threadShutdownEvent.CreateManualEvent(FALSE);
 }
 
-bool EventPipeSession::IsValid() const
+bool EventPipeSession::IsValid()
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
     return (m_pProviderList != nullptr) && (!m_pProviderList->IsEmpty());
 }
 
@@ -218,6 +241,7 @@ void EventPipeSession::AddSessionProvider(EventPipeSessionProvider *pProvider)
     }
     CONTRACTL_END;
 
+    // CrstHolder _crst(&m_lock);
     m_pProviderList->AddSessionProvider(pProvider);
 }
 
@@ -231,6 +255,7 @@ EventPipeSessionProvider* EventPipeSession::GetSessionProvider(EventPipeProvider
     }
     CONTRACTL_END;
 
+    // CrstHolder _crst(&m_lock);
     return m_pProviderList->GetSessionProvider(pProvider);
 }
 
@@ -249,6 +274,8 @@ bool EventPipeSession::WriteAllBuffersToFile(
 
     if (m_pFile == nullptr)
         return true;
+
+    // CrstHolder _crst(&m_lock);
     m_pBufferManager->WriteAllBuffersToFile(m_pFile, configuration, stopTimeStamp);
     return !m_pFile->HasErrors();
 }
@@ -262,6 +289,7 @@ bool EventPipeSession::WriteEvent(
         Thread *pEventThread,
         StackContents *pStack)
 {
+    // CrstHolder _crst(&m_lock);
     return m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId);
 }
 
@@ -271,6 +299,8 @@ void EventPipeSession::WriteEvent(
 {
     if (m_pFile == nullptr)
         return;
+
+    // CrstHolder _crst(&m_lock);
     m_pFile->WriteEvent(instance, configuration);
 }
 
@@ -285,21 +315,25 @@ EventPipeEventInstance *EventPipeSession::GetNextEvent()
     }
     CONTRACTL_END;
 
+    // CrstHolder _crst(&m_lock);
     return m_pBufferManager->GetNextEvent();
 }
 
-//! The keywords below seems to correspond to:
-//!  LoaderKeyword                      (0x00000008)
-//!  JitKeyword                         (0x00000010)
-//!  NgenKeyword                        (0x00000020)
-//!  unused_keyword                     (0x00000100)
-//!  JittedMethodILToNativeMapKeyword   (0x00020000)
-//!  ThreadTransferKeyword              (0x80000000)
-const EventPipeProviderConfiguration RundownProviders[] = {
-    {W("Microsoft-Windows-DotNETRuntime"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL},       // Public provider.
-    {W("Microsoft-Windows-DotNETRuntimeRundown"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL} // Rundown provider.
-};
-const uint32_t RundownProvidersSize = sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration);
+void EventPipeSession::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        // Lock must be held by EventPipe::Enable.
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
+    if (m_SessionType == EventPipeSessionType::IpcStream)
+        CreateIpcStreamingThread();
+}
 
 void EventPipeSession::Disable(
     EventPipeConfiguration &configuration,
@@ -318,6 +352,8 @@ void EventPipeSession::Disable(
 
     if (m_pFile == nullptr)
         return;
+
+    // CrstHolder _crst(&m_lock);
 
     // Disable streaming thread
     if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
@@ -374,52 +410,5 @@ void EventPipeSession::Disable(
     // FIXME: Functions above might throw... Should we have a try catch here?
     m_pBufferManager->ResumeWriteEvent();
 }
-
-// void EventPipeSession::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
-// {
-//     CONTRACTL
-//     {
-//         THROWS;
-//         GC_TRIGGERS;
-//         MODE_ANY;
-//         // Lock must be held by EventPipe::Enable.
-//         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
-//     }
-//     CONTRACTL_END;
-
-//     m_enabled = true;
-
-//     // The provider list should be non-NULL, but can be NULL on shutdown.
-//     if (m_pProviderList != NULL)
-//     {
-//         SListElem<EventPipeProvider *> *pElem = m_pProviderList->GetHead();
-//         while (pElem != NULL)
-//         {
-//             EventPipeProvider *pProvider = pElem->GetValue();
-
-//             // Enable the provider if it has been configured.
-//             EventPipeSessionProvider *pSessionProvider = GetSessionProvider(pProvider);
-//             if (pSessionProvider != NULL)
-//             {
-//                 EventPipeProviderCallbackData eventPipeProviderCallbackData =
-//                     pProvider->SetConfiguration(
-//                         true /* providerEnabled */,
-//                         pSessionProvider->GetKeywords(),
-//                         pSessionProvider->GetLevel(),
-//                         pSessionProvider->GetFilterData());
-//                 pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
-//             }
-
-//             pElem = m_pProviderList->GetNext(pElem);
-//         }
-//     }
-// }
-
-#ifdef DEBUG
-    bool EventPipeSession::IsLockOwnedByCurrentThread()
-    {
-        return m_pBufferManager->IsLockOwnedByCurrentThread();
-    }
-#endif // DEBUG
 
 #endif // FEATURE_PERFTRACING

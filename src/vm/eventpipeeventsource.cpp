@@ -92,6 +92,10 @@ void EventPipeEventSource::Enable(EventPipeSession *pSession)
     }
     CONTRACTL_END;
 
+    if (pSession == nullptr)
+        return;
+
+    // FIXME: Where are these object deallocated? Potential leak?
     EventPipeSessionProvider *pSessionProvider = new EventPipeSessionProvider(
         s_pProviderName,
         static_cast<UINT64>(-1),

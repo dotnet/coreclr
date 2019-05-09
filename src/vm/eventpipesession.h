@@ -28,6 +28,9 @@ enum class EventPipeSessionType
 class EventPipeSession
 {
 private:
+    //
+    // Crst m_lock;
+
     // The set of configurations for each provider in the session.
     EventPipeSessionProviderList *m_pProviderList;
 
@@ -55,8 +58,12 @@ private:
 
     // Data members used when an IPC streaming thread is used.
     Volatile<BOOL> m_ipcStreamingEnabled = false;
+
+    //
     Thread *m_pIpcStreamingThread = nullptr;
-    CLREventStatic m_threadShutdownEvent;
+
+    //
+    CLREvent m_threadShutdownEvent;
 
     void CreateIpcStreamingThread();
 
@@ -70,9 +77,6 @@ public:
         uint32_t numProviders,
         bool rundownEnabled = false);
     ~EventPipeSession();
-
-    // Determine if the session is valid or not.  Invalid sessions can be detected before they are enabled.
-    bool IsValid() const;
 
     // Get the session type.
     EventPipeSessionType GetSessionType() const
@@ -109,6 +113,12 @@ public:
         return m_sessionStartTimeStamp;
     }
 
+    bool IsIpcStreamingEnabled() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_ipcStreamingEnabled;
+    }
+
     // Add a new provider to the session.
     void AddSessionProvider(EventPipeSessionProvider *pProvider);
 
@@ -143,19 +153,12 @@ public:
         LARGE_INTEGER stopTimeStamp,
         EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
-    bool HasIpcStreamingStarted() const;
+    // Determine if the session is valid or not.  Invalid sessions can be detected before they are enabled.
+    bool IsValid() /* This is not const because CrtsHolder does not take a const* */;
 
-    bool IsIpcStreamingEnabled() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_ipcStreamingEnabled;
-    }
+    bool HasIpcStreamingStarted() /* This is not const because CrtsHolder does not take a const* */;
 
     void DestroyIpcStreamingThread();
-
-#ifdef DEBUG
-    bool IsLockOwnedByCurrentThread() /* const */;
-#endif // DEBUG
 };
 
 #endif // FEATURE_PERFTRACING

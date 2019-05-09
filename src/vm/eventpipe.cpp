@@ -211,27 +211,6 @@ void EventPipe::Shutdown()
     // Mark tracing as no longer initialized.
     s_tracingInitialized = false;
 
-    // TODO: Need Crst?
-
-    // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
-    EX_TRY
-    {
-        if (s_pSessions != NULL)
-        {
-            // TODO: Could potentially use: s_pSessions->ForEach
-            for (EventPipeSessions::Iterator iterator = s_pSessions->Begin();
-                 iterator != s_pSessions->End();
-                 ++iterator)
-            {
-                EventPipeSession *pSession = *iterator;
-                Disable(reinterpret_cast<EventPipeSessionID>(pSession));
-                s_pSessions->Remove(pSession); // TODO: Is this valid?
-                delete pSession;
-            }
-        }
-    }
-    EX_CATCH {}
-    EX_END_CATCH(SwallowAllExceptions);
 
     EventPipeConfiguration *pConfig = s_pConfig;
     EventPipeSessions *pSessions = s_pSessions;
@@ -240,14 +219,29 @@ void EventPipe::Shutdown()
     // Flush process write buffers to make sure other threads can see the change.
     s_pConfig = NULL;
     s_pSessions = NULL;
+
+    // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
+    EX_TRY
+    {
+        if (pSessions != NULL)
+        {
+            pSessions->ForEach([=](EventPipeSession *pSession) {
+                Disable(reinterpret_cast<EventPipeSessionID>(pSession));
+                delete pSession;
+            });
+        }
+    }
+    EX_CATCH {}
+    EX_END_CATCH(SwallowAllExceptions);
+
     FlushProcessWriteBuffers();
 
     // Free resources.
     delete pConfig;
     delete pSessions;
+
     delete s_pEventSource;
     s_pEventSource = NULL;
-
 }
 
 EventPipeSessionID EventPipe::Enable(
@@ -327,6 +321,9 @@ EventPipeSessionID EventPipe::EnableInternal(
 
     // Enable tracing.
     s_pConfig->Enable(pSession, pEventPipeProviderCallbackDataQueue);
+
+    // Enable the session.
+    pSession->Enable(pEventPipeProviderCallbackDataQueue);
 
     // Enable the sample profiler
     //  FIXME: What's the story here? SampleProfiler should be enabled only once.

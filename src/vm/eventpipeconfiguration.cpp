@@ -319,6 +319,7 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
             EventPipeSessionProvider *pSessionProvider = GetSessionProvider(pSession, pProvider);
             if (pSessionProvider != NULL)
             {
+                // TODO: With multiple sessions we need to do better than this (combine/union keywords for an existing/already enabled provider).
                 EventPipeProviderCallbackData eventPipeProviderCallbackData =
                     pProvider->SetConfiguration(
                         true /* providerEnabled */,

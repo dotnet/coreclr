@@ -19,8 +19,8 @@ IpcStreamWriter::IpcStreamWriter(uint64_t id, IpcStream *pStream) : _pStream(pSt
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
         PRECONDITION(_pStream != nullptr);
     }
     CONTRACTL_END;
@@ -123,7 +123,7 @@ FastSerializer::FastSerializer(StreamWriter *pStreamWriter) : m_pStreamWriter(pS
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_PREEMPTIVE;
         PRECONDITION(m_pStreamWriter != NULL);
     }

@@ -98,7 +98,7 @@ EventPipeBuffer *EventPipeThread::GetWriteBuffer(EventPipeBufferManager *pBuffer
 
     EventPipeBuffer *pWriteBuffer = nullptr;
     m_pWriteBuffers->Lookup(pBufferManager, &pWriteBuffer);
-    _ASSERTE(pWriteBuffer->GetVolatileState() == EventPipeBufferState::WRITABLE);
+    _ASSERTE((pWriteBuffer == nullptr) || (pWriteBuffer->GetVolatileState() == EventPipeBufferState::WRITABLE));
     return pWriteBuffer;
 }
 
@@ -119,7 +119,17 @@ void EventPipeThread::SetWriteBuffer(EventPipeBufferManager *pBufferManager, Eve
         pWriteBuffer->ConvertToReadOnly();
         m_pWriteBuffers->Remove(pBufferManager);
     }
-    m_pWriteBuffers->Add(pBufferManager, pNewBuffer);
+
+    EX_TRY
+    {
+        // FIXME: This part of the code is in a NOTHROW contract, thus the try/catch.
+        m_pWriteBuffers->Add(pBufferManager, pNewBuffer);
+    }
+    EX_CATCH
+    {
+        // TODO: STRESS_LOG ?
+    }
+    EX_END_CATCH(SwallowAllExceptions);
 }
 
 EventPipeBufferList *EventPipeThread::GetBufferList(EventPipeBufferManager *pBufferManager)
@@ -141,11 +151,18 @@ void EventPipeThread::SetBufferList(EventPipeBufferManager *pBufferManager, Even
 
     EventPipeBufferList *pBufferList = nullptr;
     if (m_pBufferLists->Lookup(pBufferManager, &pBufferList))
+        m_pBufferLists->Remove(pBufferManager);
+
+    EX_TRY
     {
-        if (!pBufferList)
-            m_pBufferLists->Remove(pBufferManager);
+        // FIXME: This part of the code is in a NOTHROW contract, thus the try/catch.
+        m_pBufferLists->Add(pBufferManager, pNewBufferList);
     }
-    m_pBufferLists->Add(pBufferManager, pNewBufferList);
+    EX_CATCH
+    {
+        // TODO: STRESS_LOG ?
+    }
+    EX_END_CATCH(SwallowAllExceptions);
 }
 
 EventPipeBufferManager::EventPipeBufferManager()
@@ -962,7 +979,7 @@ EventPipeBuffer* EventPipeBufferList::TryGetBuffer(LARGE_INTEGER beforeTimeStamp
         // Case 1
         return nullptr;
     }
-    
+
     EventPipeBuffer* candidate = nullptr;
     EventPipeBufferState bufferState = this->m_pHeadBuffer->GetVolatileState();
     if (bufferState != EventPipeBufferState::READ_ONLY)
