@@ -906,7 +906,7 @@ BOOL GetDefaultDllImportSearchPathsAttributeValue(Module *pModule, mdToken token
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(CheckPointer(pImport));
+        PRECONDITION(CheckPointer(pModule));
     }
     CONTRACTL_END;
 
@@ -1673,7 +1673,7 @@ ReadBestFitCustomAttribute(MethodDesc* pMD, BOOL* BestFit, BOOL* ThrowOnUnmappab
     }
     CONTRACTL_END;
     
-    ReadBestFitCustomAttribute(pMD->GetMDImport(),
+    ReadBestFitCustomAttribute(pMD->GetModule(),
         pMD->GetMethodTable()->GetCl(),
         BestFit, ThrowOnUnmappableChar);
 }
@@ -1828,7 +1828,7 @@ namespace
             NOTHROW;
             GC_TRIGGERS;
             MODE_ANY;
-            PRECONDITION(CheckPointer(import));
+            PRECONDITION(CheckPointer(pModule));
             PRECONDITION(CheckPointer(val));
         }
         CONTRACTL_END
@@ -3081,7 +3081,7 @@ void GetComSourceInterfacesForClass(MethodTable *pMT, CQuickArray<MethodTable *>
     for (; pMT != NULL; pMT = pMT->GetParentMethodTable())
     {
         // See if there is any [source] interface at this level of the hierarchy.
-        hr = pMT->GetCustomAttribute(WellKnownAttribute::ComSourceInterface, &pvData, &cbData);
+        hr = pMT->GetCustomAttribute(WellKnownAttribute::ComSourceInterfaces, &pvData, &cbData);
         IfFailThrow(hr);
         if (hr == S_OK && cbData > 2)
         {

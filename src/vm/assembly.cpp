@@ -230,7 +230,7 @@ BOOL Assembly::IsDisabledPrivateReflection()
 
     if (m_isDisabledPrivateReflection == UNINITIALIZED)
     {
-        HRESULT hr = GetManifestModule->GetCustomAttribute(GetManifestToken(), WellKnownAttribute::DisablePrivateReflectionType, NULL, 0);
+        HRESULT hr = GetManifestModule()->GetCustomAttribute(GetManifestToken(), WellKnownAttribute::DisablePrivateReflectionType, NULL, 0);
         IfFailThrow(hr);
 
         if (hr == S_OK)

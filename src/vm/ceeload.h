@@ -1900,7 +1900,7 @@ protected:
                 return S_FALSE;
         }
 
-        return GetMDImport()->GetCustomAttributeByName(GetWellKnownAttributeName(attribute));
+        return GetMDImport()->GetCustomAttributeByName(parentToken, GetWellKnownAttributeName(attribute), ppData, pcbData);
     }
 
     IMDInternalImport *GetMDImport() const

@@ -38,7 +38,7 @@ enum class WellKnownAttribute : DWORD
     CountOfWellKnownAttributes
 };
 
-const char *GetWellKnownAttributeName(WellKnownAttribute attribute)
+inline const char *GetWellKnownAttributeName(WellKnownAttribute attribute)
 {
     switch (attribute)
     {

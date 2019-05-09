@@ -120,7 +120,7 @@ static BOOL GetStaticFieldElementTypeForFieldDef(Module * pModule, IMDInternalIm
 
     // We need to do an extra check to see if this field is ThreadStatic
     HRESULT hr = pModule->GetCustomAttribute((mdToken)field,
-                                                    WellKnownAttribute::TreadStatic,
+                                                    WellKnownAttribute::ThreadStatic,
                                                     NULL, NULL);
     IfFailThrow(hr);
 

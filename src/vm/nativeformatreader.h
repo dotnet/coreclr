@@ -14,6 +14,7 @@
 
 #if defined(_M_X64) || defined(__x86_64__) || defined(__i386__) || defined(_M_IX86)
 #include "immintrin.h"
+#include "emmintrin.h"
 #define USE_INTEL_INTRINSICS
 #endif
 
@@ -558,13 +559,13 @@ namespace NativeFormat
 
         NativeCuckooFilter(PTR_BYTE base_, UInt32 size, UInt32 rvaOfTable, UInt32 filterSize)
         {
-            if (((rva & 0xF) != 0) || ((filterSize & 0xF) != 0))
+            if (((rvaOfTable & 0xF) != 0) || ((filterSize & 0xF) != 0))
             {
                 // Native cuckoo filters must be aligned at 16byte boundaries within the PE file
                 NativeReader exceptionReader;
                 exceptionReader.ThrowBadImageFormatException();
             }
-            _base = base_ + rva;
+            _base = base_ + rvaOfTable;
             _size = filterSize;
         }
 
@@ -589,11 +590,11 @@ namespace NativeFormat
             UInt32 bucketBIndex = bucketAIndex ^ ComputeFingerprintHash(fingerprint);
 
 #if defined(USE_INTEL_INTRINSICS)
-            __m128i bucketA = _mm_loadu_si128(&((__m128*)_base)[bucketAIndex]);
-            __m128i bucketB = _mm_loadu_si128(&((__m128*)_base)[bucketBIndex]);
-            __m128i fingerprint = _mm_set1_epi16(fingerprint);
-            __m128i bucketACompare = _mm_cmpep_epi16(bucketA, fingerprint);
-            __m128i bucketBCompare = _mm_cmpep_epi16(bucketB, fingerprint);
+            __m128i bucketA = _mm_loadu_si128(&((__m128i*)_base)[bucketAIndex]);
+            __m128i bucketB = _mm_loadu_si128(&((__m128i*)_base)[bucketBIndex]);
+            __m128i fingerprintSIMD = _mm_set1_epi16(fingerprint);
+            __m128i bucketACompare = _mm_cmpeq_epi16(bucketA, fingerprintSIMD);
+            __m128i bucketBCompare = _mm_cmpeq_epi16(bucketB, fingerprintSIMD);
             __m128i bothCompare = _mm_or_si128(bucketACompare, bucketBCompare);
             return !!_mm_movemask_epi8(bothCompare);
 #else // Non-intrinsic implementation supporting NativeReader to cross DAC boundary
@@ -616,5 +617,5 @@ namespace NativeFormat
             return false;
 #endif
         }
-    }
+    };
 }

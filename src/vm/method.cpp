@@ -5281,7 +5281,7 @@ BOOL MethodDesc::HasNativeCallableAttribute()
     }
     CONTRACTL_END;
 
-    HRESULT hr = GetCustomAttribute(GetMemberDef(),
+    HRESULT hr = GetModule()->GetCustomAttribute(GetMemberDef(),
         WellKnownAttribute::NativeCallable,
         NULL,
         NULL);

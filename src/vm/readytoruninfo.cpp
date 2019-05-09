@@ -16,6 +16,7 @@
 #include "versionresilienthashcode.h"
 #include "typehashingalgorithms.h"
 #include "method.hpp"
+#include "wellknownattributes.h"
 
 using namespace NativeFormat;
 
@@ -633,11 +634,13 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
         IMAGE_DATA_DIRECTORY *attributesPresenceDataInfoDir = FindSection(READYTORUN_SECTION_ATTRIBUTEPRESENCE);
         if (attributesPresenceDataInfoDir != NULL)
         {
-            m_attributesPresence = NativeCuckooFilter(
+            NativeCuckooFilter newFilter(
                 (byte *)pLayout->GetBase(),
                 pLayout->GetVirtualSize(),
                 attributesPresenceDataInfoDir->VirtualAddress,
-                attributesPresenceDataInfoDir->VirtualSize);
+                attributesPresenceDataInfoDir->Size);
+
+            m_attributesPresence = newFilter;
         }
     }
 }
@@ -933,7 +936,7 @@ BOOL ReadyToRunInfo::IsImageVersionAtLeast(int majorVersion, int minorVersion)
 
 }
 
-static DWORD s_wellKnownAttributeHashes[(DWORD)WellKnownAttribute::Count];
+static DWORD s_wellKnownAttributeHashes[(DWORD)WellKnownAttribute::CountOfWellKnownAttributes];
 
 bool ReadyToRunInfo::MayHaveCustomAttribute(WellKnownAttribute attribute, mdToken token)
 {

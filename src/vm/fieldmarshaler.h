@@ -104,7 +104,6 @@ VOID ParseNativeType(Module*    pModule,
     LayoutRawFieldInfo*         pfwalk,
     PCCOR_SIGNATURE             pNativeType,
     ULONG                       cbNativeType,
-    IMDInternalImport*          pInternalImport,
     mdTypeDef                   cl,
     const SigTypeContext *      pTypeContext,
     BOOL                       *pfDisqualifyFromManagedSequential

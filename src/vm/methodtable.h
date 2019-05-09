@@ -63,6 +63,7 @@ class   ComCallWrapperTemplate;
 class ClassFactoryBase;
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 class ArgDestination;
+enum class WellKnownAttribute : DWORD;
 
 //============================================================================
 // This is the in-memory structure of a class and it will evolve.
@@ -2871,7 +2872,7 @@ public:
 
     HRESULT GetCustomAttribute(WellKnownAttribute attribute,
                                const void  **ppData,
-                               ULONG *pcbData)
+                               ULONG *pcbData);
     
     mdTypeDef GetEnclosingCl();
 

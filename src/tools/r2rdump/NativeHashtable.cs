@@ -245,10 +245,10 @@ namespace R2RDump
     struct NativeCuckooFilter
     {
         private byte[] _image;
-        private uint _filterStartOffset;
-        private uint _filterEndOffset;
+        private int _filterStartOffset;
+        private int _filterEndOffset;
 
-        public NativeCuckooFilter(byte[] image, uint filterStartOffset, uint filterEndOffset)
+        public NativeCuckooFilter(byte[] image, int filterStartOffset, int filterEndOffset)
         {
             _image = image;
             _filterStartOffset = filterStartOffset;
@@ -261,13 +261,12 @@ namespace R2RDump
             }
         }
 
-        private IEnumerable<UInt16[]> GetBuckets()
+        private IEnumerable<ushort[]> GetBuckets()
         {
-            int bucket = 0;
-            int offset = _filterStartOffset
+            int offset = _filterStartOffset;
             while (offset < _filterEndOffset)
             {
-                UInt16[] bucket = new UInt16[8];
+                ushort[] bucket = new ushort[8];
                 for (int i = 0; i < bucket.Length; i++)
                 {
                     bucket[i] = NativeReader.ReadUInt16(_image, ref offset);
@@ -282,12 +281,12 @@ namespace R2RDump
 
             sb.AppendLine($"NativeCuckooFilter Size: {(_filterEndOffset - _filterStartOffset) / 16}");
             int bucket = 0;
-            foreach (UInt16 []bucket in GetBuckets())
+            foreach (ushort [] bucketContents in GetBuckets())
             {
                 sb.Append($"Bucket: {bucket} [");
                 for (int i = 0; i < 8; i++)
                 {
-                    sb.Append($"{bucket[i],4:X} ");
+                    sb.Append($"{bucketContents[i],4:X} ");
                 }
                 sb.AppendLine("]");
                 bucket++;

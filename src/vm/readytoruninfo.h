@@ -14,7 +14,7 @@
 
 #include "nativeformatreader.h"
 #include "inlinetracking.h"
-#include "wellknownattribute.h"
+#include "wellknownattributes.h"
 
 typedef DPTR(struct READYTORUN_SECTION) PTR_READYTORUN_SECTION;
 

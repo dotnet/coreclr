@@ -1422,7 +1422,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
         bmtProp->fIsValueClass = true;
 
         HRESULT hr = GetCustomAttribute(bmtInternal->pType->GetTypeDefToken(),
-                                        WellKnownAttribute::UnsafeValueClass,
+                                        WellKnownAttribute::UnsafeValueType,
                                         NULL, NULL);
         IfFailThrow(hr);
         if (hr == S_OK)

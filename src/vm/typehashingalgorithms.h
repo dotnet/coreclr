@@ -165,7 +165,7 @@ inline static UINT32 XXHash32_MixEmptyState()
 
 inline static UINT32 XXHash32_QueueRound(UINT32 hash, uint queuedValue)
 {
-    return ((UINT32)_rotl((int)(hash + queuedValue * 3266489917U/*Prime3*/), 17))) * 668265263U/*Prime4*/;
+    return ((UINT32)_rotl((int)(hash + queuedValue * 3266489917U/*Prime3*/), 17)) * 668265263U/*Prime4*/;
 }
 
 inline static UINT32 XXHash32_MixFinal(UINT32 hash)
