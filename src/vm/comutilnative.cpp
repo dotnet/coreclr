@@ -1296,14 +1296,11 @@ FCIMPL1(INT64, GCInterface::GetTotalAllocatedBytes, CLR_BOOL precise)
 
     if (!precise)
     {
-        // we do not want to suspend the EE for imprecise flavor, 
-        // but dead_threads_non_alloc_bytes is 64bit and may be concurrently updated.
-        // ensure atomic read on 32 bit
-#ifdef _TARGET_64BIT_
+        // NOTE: we do not want to makre imprecise flavor too slow. 
+        // As it could be noticed we read 64bit values that may be concurrently updated.
+        // Such reads are not guaranteed to be atomic on 32bit and inrare cases we may see torn values resultng in outlier results.
+        // That would be extremely rare and in a context of imprecise helper is not worth additional synchronization.
         uint64_t unused_bytes = Thread::dead_threads_non_alloc_bytes;
-#else
-        uint64_t unused_bytes = FastInterlockExchangeAddLong((LONG64*)&Thread::dead_threads_non_alloc_bytes, 0);
-#endif
         return GCHeapUtilities::GetGCHeap()->GetTotalAllocatedBytes() - unused_bytes;
     }
 
