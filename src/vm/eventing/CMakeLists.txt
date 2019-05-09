@@ -31,10 +31,11 @@ endif()
 
 set(GENEVENTING_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/genEventing.py)
 
-add_custom_target(eventing
-  COMMAND ${PYTHON_EXECUTABLE} ${GENEVENTING_SCRIPT} --man ${EVENT_MANIFEST} --inc ${GENERATED_INCLUDE_DIR} --dummy ${GENERATED_INCLUDE_DIR}/etmdummy.h ${NONEXTERN_ARG} ${NOXPLATHEADER_ARG}
+add_custom_target(eventing_headers
+  ${PYTHON_EXECUTABLE} ${GENEVENTING_SCRIPT} --man ${EVENT_MANIFEST} --inc ${GENERATED_INCLUDE_DIR} --dummy ${GENERATED_INCLUDE_DIR}/etmdummy.h ${NONEXTERN_ARG} ${NOXPLATHEADER_ARG}
   DEPENDS ${EVENT_MANIFEST} ${GENEVENTING_SCRIPT}
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  VERBATIM
 )
 
-add_dependencies(eventing eventprovider)
+add_dependencies(eventing_headers eventprovider)

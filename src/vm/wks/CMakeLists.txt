@@ -46,6 +46,7 @@ if (WIN32)
 endif (WIN32)
 
 add_library_clr(cee_wks ${VM_SOURCES_WKS} ${VM_SOURCES_WKS_ARCH_ASM})
+add_dependencies(cee_wks eventing_headers)
 
 if (WIN32)
 
@@ -100,7 +101,7 @@ if (WIN32)
         DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc
     )
 
-    add_dependencies(cee_wks asmconstants_inc eventing)
+    add_dependencies(cee_wks asmconstants_inc)
 
   endif(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
 
