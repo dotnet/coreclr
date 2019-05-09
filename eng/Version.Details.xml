@@ -7,22 +7,22 @@
       <Uri>https://github.com/dotnet/arcade</Uri>
       <Sha>a7a250e9c13147134543c35fef2fb81f19592edf</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19229.8">
+    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19257.7">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>a7a250e9c13147134543c35fef2fb81f19592edf</Sha>
+      <Sha>bda52d7619f9420de46f2c39ffc972864bbcab63</Sha>
     </Dependency>
     <!-- This dependency should be added, but it causes the github PR legs to not launch. -->
     <!-- Dependency Name="microsoft.dotnet.build.tasks.feed" Version="2.2.0-beta.19229.8">
       <Uri>https://github.com/dotnet/arcade</Uri>
       <Sha>a7a250e9c13147134543c35fef2fb81f19592edf</Sha>
     </Dependency-->
-    <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-preview6.19229.1">
+    <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-preview6.19257.8">
       <Uri>https://github.com/dotnet/corefx</Uri>
-      <Sha>173a2a165316af9a4e211ceab8c8d9692de8a528</Sha>
+      <Sha>2c75f5a09f770f3118e09abc35bdf88c1c7120b0</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.NETCore.Platforms" Version="3.0.0-preview6.19229.1">
+    <Dependency Name="Microsoft.NETCore.Platforms" Version="3.0.0-preview6.19257.8">
       <Uri>https://github.com/dotnet/corefx</Uri>
-      <Sha>173a2a165316af9a4e211ceab8c8d9692de8a528</Sha>
+      <Sha>2c75f5a09f770f3118e09abc35bdf88c1c7120b0</Sha>
     </Dependency>
     <Dependency Name="Microsoft.NETCore.App" Version="3.0.0-preview6-27708-04">
       <Uri>https://github.com/dotnet/core-setup</Uri>
