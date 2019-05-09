@@ -15,18 +15,18 @@ namespace System.Diagnostics
     {
         private Type? _target;
 
-        public DebuggerVisualizerAttribute(string? visualizerTypeName)
+        public DebuggerVisualizerAttribute(string visualizerTypeName)
         {
             VisualizerTypeName = visualizerTypeName;
         }
 
-        public DebuggerVisualizerAttribute(string? visualizerTypeName, string? visualizerObjectSourceTypeName)
+        public DebuggerVisualizerAttribute(string visualizerTypeName, string? visualizerObjectSourceTypeName)
         {
             VisualizerTypeName = visualizerTypeName;
             VisualizerObjectSourceTypeName = visualizerObjectSourceTypeName;
         }
 
-        public DebuggerVisualizerAttribute(string? visualizerTypeName, Type visualizerObjectSource)
+        public DebuggerVisualizerAttribute(string visualizerTypeName, Type visualizerObjectSource)
         {
             if (visualizerObjectSource == null)
             {
@@ -44,7 +44,7 @@ namespace System.Diagnostics
                 throw new ArgumentNullException(nameof(visualizer));
             }
 
-            VisualizerTypeName = visualizer.AssemblyQualifiedName;
+            VisualizerTypeName = visualizer.AssemblyQualifiedName!;
         }
 
         public DebuggerVisualizerAttribute(Type visualizer, Type visualizerObjectSource)
@@ -58,7 +58,7 @@ namespace System.Diagnostics
                 throw new ArgumentNullException(nameof(visualizerObjectSource));
             }
 
-            VisualizerTypeName = visualizer.AssemblyQualifiedName;
+            VisualizerTypeName = visualizer.AssemblyQualifiedName!;
             VisualizerObjectSourceTypeName = visualizerObjectSource.AssemblyQualifiedName;
         }
 
@@ -69,13 +69,13 @@ namespace System.Diagnostics
                 throw new ArgumentNullException(nameof(visualizer));
             }
 
-            VisualizerTypeName = visualizer.AssemblyQualifiedName;
+            VisualizerTypeName = visualizer.AssemblyQualifiedName!;
             VisualizerObjectSourceTypeName = visualizerObjectSourceTypeName;
         }
 
         public string? VisualizerObjectSourceTypeName { get; }
 
-        public string? VisualizerTypeName { get; }
+        public string VisualizerTypeName { get; }
 
         public string? Description { get; set; }
         
