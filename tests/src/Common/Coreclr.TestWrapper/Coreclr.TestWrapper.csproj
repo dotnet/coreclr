@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <Compile Include="CoreclrTestWrapperLib.cs" />
+    <PackageReference Include="Microsoft.NETCore.App.Internal" Version="$(MicrosoftNETCoreAppVersion)" />
   </ItemGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.targets" />
