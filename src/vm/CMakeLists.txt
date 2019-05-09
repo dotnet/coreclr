@@ -58,6 +58,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     debughelp.cpp
     debuginfostore.cpp
     decodemd.cpp
+    diagnosticprotocolhelper.cpp
     disassembler.cpp
     dllimport.cpp
     domainfile.cpp
@@ -351,7 +352,6 @@ set(VM_SOURCES_WKS
     jithelpers.cpp
     managedmdimport.cpp
     marshalnative.cpp
-    mdaassistants.cpp
     methodtablebuilder.cpp
     mlinfo.cpp
     mscorlib.cpp # <DisablePrecompiledHeaders>true</DisablePrecompiledHeaders>
@@ -474,7 +474,6 @@ set(VM_HEADERS_WKS
     invokeutil.h
     managedmdimport.hpp
     marshalnative.h
-    mdaassistants.h
     methodtablebuilder.h
     mlinfo.h
     mscorlib.h
