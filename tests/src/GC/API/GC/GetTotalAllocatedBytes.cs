@@ -130,7 +130,8 @@ public class Test
     {
         List<Thread> threads = new List<Thread>();
         ManualResetEventSlim me = new ManualResetEventSlim();
-        for(int i = 0; i < 500; i++)
+        int threadNum = Environment.ProcessorCount + Environment.ProcessorCount / 2;
+        for (int i = 0; i < threadNum; i++)
         {
             Thread thr = new Thread(() =>
             {
