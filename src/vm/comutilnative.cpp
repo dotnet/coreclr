@@ -1296,7 +1296,7 @@ FCIMPL1(INT64, GCInterface::GetTotalAllocatedBytes, CLR_BOOL precise)
 
     if (!precise)
     {
-        // NOTE: we do not want to makre imprecise flavor too slow. 
+        // NOTE: we do not want to make imprecise flavor too slow. 
         // As it could be noticed we read 64bit values that may be concurrently updated.
         // Such reads are not guaranteed to be atomic on 32bit and inrare cases we may see torn values resultng in outlier results.
         // That would be extremely rare and in a context of imprecise helper is not worth additional synchronization.

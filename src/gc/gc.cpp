@@ -5954,10 +5954,6 @@ void gc_heap::fix_allocation_context (alloc_context* acontext, BOOL for_gc_p,
     {
         // We need to update the alloc_bytes to reflect the portion that we have not used  
         acontext->alloc_bytes -= (acontext->alloc_limit - acontext->alloc_ptr);  
-
-        // we attribute the unspent bytes to the SOH here.
-        // the loh/soh difference really matters only when we hold corresponding locks
-        // here we have exclusive access to the heap, so we can use either counter.
         total_alloc_bytes_soh -= (acontext->alloc_limit - acontext->alloc_ptr);
 
         acontext->alloc_ptr = 0;
@@ -36071,7 +36067,7 @@ uint64_t GCHeap::GetTotalAllocatedBytes()
     }
     return total_alloc_bytes;
 #else
-    return pGenGCHeap->total_alloc_bytes_soh +  pGenGCHeap->total_alloc_bytes_loh;
+    return (pGenGCHeap->total_alloc_bytes_soh +  pGenGCHeap->total_alloc_bytes_loh);
 #endif //MULTIPLE_HEAPS
 }
 
