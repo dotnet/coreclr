@@ -9,6 +9,13 @@
     <PackagesDir>$(CoreclrDir)/packages</PackagesDir>
   </PropertyGroup>
 
+  <!-- Define NuGet properties for scenarios where they aren't set. From the command line.
+       Should match Nuget.config at root. -->
+  <PropertyGroup>
+    <NuGetPackageRoot>$(PackagesDir)</NuGetPackageRoot>
+    <RestorePackagesPath>$(PackagesDir)</RestorePackagesPath>
+  </PropertyGroup>
+
   <!-- Set default Configuration and Platform -->
   <PropertyGroup>
     <BuildArch>$(__BuildArch)</BuildArch>
@@ -33,9 +40,4 @@
 
     <PlatformConfigPathPart>$(BuildOS).$(BuildArch).$(BuildType)</PlatformConfigPathPart>
   </PropertyGroup>
-
-  <PropertyGroup>
-    <RestorePackagesPath>$(PackagesDir)</RestorePackagesPath>
-  </PropertyGroup>
-
 </Project>
