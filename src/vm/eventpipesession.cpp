@@ -290,6 +290,7 @@ bool EventPipeSession::WriteEvent(
         StackContents *pStack)
 {
     // CrstHolder _crst(&m_lock);
+    // TODO: Filter events specific to "this" session.
     return m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId);
 }
 
@@ -378,6 +379,9 @@ void EventPipeSession::Disable(
 
         if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
         {
+            // Enable rundown.
+            m_rundownEnabled = true;
+
             // Before closing the file, do rundown. We have to re-enable event writing for this.
             m_pBufferManager->ResumeWriteEvent();
 
@@ -394,9 +398,6 @@ void EventPipeSession::Disable(
                 m_pProviderList->AddSessionProvider(pProvider);
             }
 
-            // Enable rundown.
-            m_rundownEnabled = true;
-
             // Ask the runtime to emit rundown events.
             if (g_fEEStarted && !g_fEEShutDown)
                 ETW::EnumerationLog::EndRundown();
@@ -408,6 +409,7 @@ void EventPipeSession::Disable(
     // Allow WriteEvent to begin accepting work again so that sometime in the future
     // we can re-enable events and they will be recorded
     // FIXME: Functions above might throw... Should we have a try catch here?
+    // TODO: This might not be necessary because the session will never write events again.
     m_pBufferManager->ResumeWriteEvent();
 }
 

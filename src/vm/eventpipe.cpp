@@ -225,10 +225,12 @@ void EventPipe::Shutdown()
     {
         if (pSessions != NULL)
         {
-            pSessions->ForEach([=](EventPipeSession *pSession) {
+            // On Ubuntu there is a compilation error because ForEach expects an lvalue.
+            auto functor = [=](EventPipeSession *pSession) {
                 Disable(reinterpret_cast<EventPipeSessionID>(pSession));
                 delete pSession;
-            });
+            };
+            pSessions->ForEach(functor);
         }
     }
     EX_CATCH {}
@@ -519,6 +521,7 @@ void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
                     EX_TRY
                     {
                         DisableInternal(*pSession, pEventPipeProviderCallbackDataQueue);
+                        // TODO: Need to remove the session from the list and delete it.
                     }
                     EX_CATCH {}
                     EX_END_CATCH(SwallowAllExceptions);

@@ -375,6 +375,8 @@ EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     }
     CONTRACTL_END;
 
+    // TODO: Per-session tracking.
+
     // The payload of the event should contain:
     // - Metadata ID
     // - GUID ProviderID.
