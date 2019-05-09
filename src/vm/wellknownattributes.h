@@ -96,6 +96,9 @@ inline const char *GetWellKnownAttributeName(WellKnownAttribute attribute)
             return "System.ThreadStaticAttribute";
         case WellKnownAttribute::WinRTMarshalingBehaviorAttribute:
             return "Windows.Foundation.Metadata.MarshalingBehaviorAttribute";
+        case WellKnownAttribute::CountOfWellKnownAttributes:
+        default:
+            break; // Silence compiler warnings
     }
     _ASSERTE(false); // Should not be possible
     return nullptr;
