@@ -81,7 +81,7 @@ def generateSanityTest(sClrEtwAllMan,testDir):
     if not os.path.exists(testDir):
         os.makedirs(testDir)
 
-    test_cpp   = "clralltestevents.cpp"
+    test_cpp   = testDir + "/clralltestevents.cpp"
     testinfo   = testDir + "/testinfo.dat"
 
     with open_for_update(testinfo) as Testinfo:
@@ -99,7 +99,7 @@ Description = This is a sanity test to check that there are no crashes in Xplat 
 """)
 
     #Test.cpp
-    with open_for_update(testDir + "/" + test_cpp) as Test_cpp:
+    with open_for_update(test_cpp) as Test_cpp:
         Test_cpp.write(stdprolog)
         Test_cpp.write("""
 /*=====================================================================

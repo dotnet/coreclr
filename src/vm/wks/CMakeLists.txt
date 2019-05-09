@@ -100,7 +100,7 @@ if (WIN32)
         DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc
     )
 
-    add_dependencies(cee_wks asmconstants_inc)
+    add_dependencies(cee_wks asmconstants_inc eventing)
 
   endif(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
 

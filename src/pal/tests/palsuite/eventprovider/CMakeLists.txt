@@ -11,7 +11,8 @@ include(FindPythonInterp)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clralltestevents.cpp
   COMMAND ${PYTHON_EXECUTABLE} ${TEST_GENERATOR} --testdir "${CMAKE_CURRENT_BINARY_DIR}" --man "${EVENT_MANIFEST}"
-  DEPENDS ${EVENT_MANIFEST}
+  DEPENDS ${EVENT_MANIFEST} ${TEST_GENERATOR}
+  COMMENT "Updating clralltestevents.cpp"
 )
 
 include_directories(${GENERATED_INCLUDE_DIR})
@@ -37,3 +38,4 @@ if(FEATURE_EVENT_TRACE)
 endif(FEATURE_EVENT_TRACE)
 
 target_link_libraries(eventprovidertest  ${EVENT_PROVIDER_DEPENDENCIES} coreclrpal)
+add_dependencies(eventprovidertest eventing)
