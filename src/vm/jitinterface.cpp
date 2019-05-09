@@ -8009,72 +8009,70 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
     }
 
 #ifdef PROFILING_SUPPORTED
+    if (CORProfilerPresent())
     {
-        if (CORProfilerPresent())
+        // #rejit
+        // 
+        // Currently the rejit path is the only path which sets this.
+        // If we get more reasons to set this then we may need to change
+        // the failure reason message or disambiguate them.
+        if (!m_allowInlining)
         {
-            // #rejit
-            // 
-            // Currently the rejit path is the only path which sets this.
-            // If we get more reasons to set this then we may need to change
-            // the failure reason message or disambiguate them.
-            if (!m_allowInlining)
-            {
-                result = INLINE_FAIL;
-                szFailReason = "ReJIT request disabled inlining from caller";
-                goto exit;
-            }
+            result = INLINE_FAIL;
+            szFailReason = "ReJIT request disabled inlining from caller";
+            goto exit;
+        }
 
-            // If the profiler has set a mask preventing inlining, always return
-            // false to the jit.
-            if (CORProfilerDisableInlining())
-            {
-                result = INLINE_FAIL;
-                szFailReason = "Profiler disabled inlining globally";
-                goto exit;
-            }
+        // If the profiler has set a mask preventing inlining, always return
+        // false to the jit.
+        if (CORProfilerDisableInlining())
+        {
+            result = INLINE_FAIL;
+            szFailReason = "Profiler disabled inlining globally";
+            goto exit;
+        }
 
 #if defined(FEATURE_REJIT) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-            if (CORProfilerEnableRejit())
+        if (CORProfilerEnableRejit())
+        {
+            CodeVersionManager* pCodeVersionManager = pCallee->GetCodeVersionManager();
+            CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+            ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pCallee);
+            if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL())
             {
-                CodeVersionManager* pCodeVersionManager = pCallee->GetCodeVersionManager();
-                CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
-                ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pCallee);
-                if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL())
+                result = INLINE_FAIL;
+                szFailReason = "ReJIT methods cannot be inlined.";
+                goto exit;
+            }
+        }
+#endif // defined(FEATURE_REJIT) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+
+        // If the profiler wishes to be notified of JIT events and the result from
+        // the above tests will cause a function to be inlined, we need to tell the
+        // profiler that this inlining is going to take place, and give them a
+        // chance to prevent it.
+        {
+            BEGIN_PIN_PROFILER(CORProfilerTrackJITInfo());
+            if (pCaller->IsILStub() || pCallee->IsILStub())
+            {
+                // do nothing
+            }
+            else
+            {
+                BOOL fShouldInline;
+                HRESULT hr = g_profControlBlock.pProfInterface->JITInlining(
+                    (FunctionID)pCaller,
+                    (FunctionID)pCallee,
+                    &fShouldInline);
+
+                if (SUCCEEDED(hr) && !fShouldInline)
                 {
                     result = INLINE_FAIL;
-                    szFailReason = "ReJIT methods cannot be inlined.";
+                    szFailReason = "Profiler disabled inlining locally";
                     goto exit;
                 }
             }
-#endif // defined(FEATURE_REJIT) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-
-            // If the profiler wishes to be notified of JIT events and the result from
-            // the above tests will cause a function to be inlined, we need to tell the
-            // profiler that this inlining is going to take place, and give them a
-            // chance to prevent it.
-            {
-                BEGIN_PIN_PROFILER(CORProfilerTrackJITInfo());
-                if (pCaller->IsILStub() || pCallee->IsILStub())
-                {
-                    // do nothing
-                }
-                else
-                {
-                    BOOL fShouldInline;
-                    HRESULT hr = g_profControlBlock.pProfInterface->JITInlining(
-                        (FunctionID)pCaller,
-                        (FunctionID)pCallee,
-                        &fShouldInline);
-
-                    if (SUCCEEDED(hr) && !fShouldInline)
-                    {
-                        result = INLINE_FAIL;
-                        szFailReason = "Profiler disabled inlining locally";
-                        goto exit;
-                    }
-                }
-                END_PIN_PROFILER();
-            }
+            END_PIN_PROFILER();
         }
     }
 #endif // PROFILING_SUPPORTED

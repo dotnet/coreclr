@@ -683,7 +683,7 @@ Crst InlineTrackingMap
 End
 
 Crst JitInlineTrackingMap
-    AcquiredBefore ReJITDomainTable ThreadStore
+    AcquiredBefore ReJITDomainTable ThreadStore LoaderAllocator
 End
 
 Crst EventPipe

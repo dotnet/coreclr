@@ -251,7 +251,7 @@ int g_rgCrstLevelMap[] =
     7,          // CrstISymUnmanagedReader
     8,          // CrstJit
     0,          // CrstJitGenericHandleCache
-    12,         // CrstJitInlineTrackingMap
+    15,         // CrstJitInlineTrackingMap
     -1,         // CrstJitPerf
     6,          // CrstJumpStubCache
     0,          // CrstLeafLock
