@@ -2580,6 +2580,15 @@ public:
         return m_State & (Thread::TS_TPWorkerThread | Thread::TS_CompletionPortThread);
     }
 
+    BOOL        IsThreadPoolWorkerThread()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        // thread can't be both a completion thread and a worker thread.
+        _ASSERTE(!(m_State & Thread::TS_CompletionPortThread) || !(m_State & Thread::TS_TPWorkerThread));
+        return m_State & Thread::TS_TPWorkerThread;
+    }
+
     // public suspend functions.  System ones are internal, like for GC.  User ones
     // correspond to suspend/resume calls on the exposed System.Thread object.
     static bool    SysStartSuspendForDebug(AppDomain *pAppDomain);
