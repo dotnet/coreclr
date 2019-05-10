@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12)
 
 include(FindPythonInterp)
-set (GENERATE_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../scripts/genLttngProvider.py)
+set (GENERATE_SCRIPT ${CLR_DIR}/src/scripts/genLttngProvider.py)
 
 set(GENERATE_COMMAND ${PYTHON_EXECUTABLE} ${GENERATE_SCRIPT} --man ${EVENT_MANIFEST} --intermediate ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -23,7 +23,6 @@ set (TRACEPOINT_PROVIDER_SOURCES "")
 set (LTTNG_HEADERS "")
 foreach(LTTNG_PROVIDER_FILE ${LTTNG_PROVIDER_OUTPUT})
   file(TO_CMAKE_PATH ${LTTNG_PROVIDER_FILE} LTTNG_PROVIDER_FILE)
-  set_source_files_properties(${LTTNG_PROVIDER_FILE} PROPERTIES GENERATED ON)
   if ("${LTTNG_PROVIDER_FILE}" MATCHES "/lttng/traceptprov[a-z]+.cpp$")
     list(APPEND TRACEPOINT_PROVIDER_SOURCES ${LTTNG_PROVIDER_FILE})
   elseif("${LTTNG_PROVIDER_FILE}" MATCHES "/lttng/eventprov[a-z]+.cpp$")
