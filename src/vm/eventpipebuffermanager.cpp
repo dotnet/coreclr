@@ -107,16 +107,14 @@ void EventPipeThread::SetWriteBuffer(EventPipeBufferManager *pBufferManager, Eve
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(m_lock.OwnedByCurrentThread());
     _ASSERTE(pBufferManager != nullptr);
+    _ASSERTE((pNewBuffer == nullptr) || pNewBuffer->GetVolatileState() == EventPipeBufferState::WRITABLE);
 
     EventPipeBuffer *pWriteBuffer = nullptr;
-    m_pWriteBuffers->Lookup(pBufferManager, &pWriteBuffer);
-
-    _ASSERTE(pWriteBuffer == nullptr || pWriteBuffer->GetVolatileState() == EventPipeBufferState::WRITABLE);
-    _ASSERTE(pNewBuffer == nullptr || pNewBuffer->GetVolatileState() == EventPipeBufferState::WRITABLE);
-
-    if (pWriteBuffer)
+    if (m_pWriteBuffers->Lookup(pBufferManager, &pWriteBuffer))
     {
-        pWriteBuffer->ConvertToReadOnly();
+        _ASSERTE((pWriteBuffer == nullptr) || (pWriteBuffer->GetVolatileState() == EventPipeBufferState::WRITABLE));
+        if (pWriteBuffer != nullptr)
+            pWriteBuffer->ConvertToReadOnly();
         m_pWriteBuffers->Remove(pBufferManager);
     }
 
