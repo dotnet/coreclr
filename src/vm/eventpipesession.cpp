@@ -362,7 +362,7 @@ void EventPipeSession::Disable(
         // Reset the event before shutdown.
         m_threadShutdownEvent.Reset();
 
-        // The sampling thread will watch this value and exit
+        // The IPC streaming thread will watch this value and exit
         // when profiling is disabled.
         m_ipcStreamingEnabled = false;
 
