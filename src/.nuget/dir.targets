@@ -96,32 +96,51 @@
   <!--
     Creates listings of native files that the IL Linker should keep, and injects them
     into the package build.
+    Do so before GetPackageAssets (instead of GetPackageFiles), to avoid the .txt file getting
+    created for each RID-specific package during the recursive GetPackageFiles call.
   -->
-  <Target Name="GetLinkerNativeIncludes" BeforeTargets="GetPackageFiles">
+  <Target Name="GetLinkerNativeIncludes" BeforeTargets="GetPackageAssets">
     <ItemGroup>
       <LinkerRuntimeFiles Include="@(NativeBinary)" Condition=" '%(NativeBinary.LinkerUsage)' == 'runtime' " />
       <LinkerDiagnosticFiles Include="@(NativeBinary)" Condition=" '%(NativeBinary.LinkerUsage)' == 'diagnostic' " />
     </ItemGroup>
+    <!-- when called for lineup package, the package Id is set to each RID -->
+    <!-- however NativeBinary is still always the osx version. -->
     <PropertyGroup>
-      <LinkerRuntimeList>$(BinDir)linkerruntimefiles.txt</LinkerRuntimeList>
-      <LinkerDiagnosticList>$(BinDir)linkerdiagnosticfiles.txt</LinkerDiagnosticList>
+      <HasLinkerRuntimeFiles Condition=" '@(LinkerRuntimeFiles->Count())' != '0' ">true</HasLinkerRuntimeFiles>
+      <HasLinkerDiagnosticFiles Condition=" '@(LinkerDiagnosticFiles->Count())' != '0' ">true</HasLinkerDiagnosticFiles>
+      <LinkerFileListOutputPath>$(NuspecOutputPath)$(Id)/</LinkerFileListOutputPath>
+      <!--<LinkerFileListOutputPath>$(PackageOutputPath)$(Id)/</LinkerFileListOutputPath>-->
+      <LinkerRuntimeList>$(LinkerFileListOutputPath)linkerruntimefiles.txt</LinkerRuntimeList>
+      <LinkerDiagnosticList>$(LinkerFileListOutputPath)linkerdiagnosticfiles.txt</LinkerDiagnosticList>
     </PropertyGroup>
 
+    <MakeDir Directories="$(LinkerFileListOutputPath)" />
+
     <WriteLinesToFile File="$(LinkerRuntimeList)" Lines="@(LinkerRuntimeFiles->'%(Filename)%(Extension)')"
-                      Condition=" '@(LinkerRuntimeFiles->Count())' != '0' "
+                      Condition=" '$(HasLinkerRuntimeFiles)' == 'true' "
                       Overwrite="true" />
     <WriteLinesToFile File="$(LinkerDiagnosticList)" Lines="@(LinkerDiagnosticFiles->'%(Filename)%(Extension)')"
-                      Condition=" '@(LinkerDiagnosticFiles->Count())' != '0' "
+                      Condition=" '$(HasLinkerDiagnosticFiles)' == 'true' "
                       Overwrite="true" />
 
+<!-->    <ItemGroup Condition=" '$(PackageTargetRuntime)' != '' ">-->
     <ItemGroup>
-      <File Include="$(LinkerRuntimeList);$(LinkerDiagnosticList)"
-            Condition=" Exists('%(Identity)') And '$(PackageTargetRuntime)' != '' ">
+      <PackageFile Include="$(LinkerRuntimeList)"
+            Condition=" '$(HasLinkerRuntimeFiles)' == 'true' ">
         <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
-      </File>
+        <PackageId>$(Id)</PackageId>
+        <PackageVersion>$(PackageVersion)</PackageVersion>
+      </PackageFile>
+      <PackageFile Include="$(LinkerDiagnosticList)"
+            Condition=" '$(HasLinkerDiagnosticFiles)' == 'true' ">
+        <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
+        <PackageId>$(Id)</PackageId>
+        <PackageVersion>$(PackageVersion)</PackageVersion>
+      </PackageFile>
     </ItemGroup>
 
-    <Message Importance="High" Text="file for $(MSBuildProjectName): @(File)" />
+    <Message Importance="High" Text="file for $(MSBuildProjectName): @(PackageFile)" />
   </Target>
 
   <!-- OverrideLicenseUrl is temporary till we update the buildtools to v2 -->  
