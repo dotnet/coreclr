@@ -9,7 +9,7 @@
   </Target>
 
   <PropertyGroup>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultItems>false</EnableDefaultItems>
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
     <GenerateResxSourceOmitGetResourceString>true</GenerateResxSourceOmitGetResourceString>
     <GenerateNeutralResourcesLanguageAttribute>false</GenerateNeutralResourcesLanguageAttribute>
@@ -28,7 +28,7 @@
 
   <!-- Note that various places in SPCL depend on this resource name i.e. TplEventSource -->
   <ItemGroup Label="Embedded Resources">
-    <EmbeddedResource Update="$(MSBuildThisFileDirectory)Resources\Strings.resx">
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\Strings.resx">
       <GenerateSource>true</GenerateSource>
       <ClassName>System.SR</ClassName>
     </EmbeddedResource>
