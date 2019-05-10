@@ -4,8 +4,8 @@ set(SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/clralltestevents.cpp
 )
 
-set(EVENT_MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/../../../../vm/ClrEtwAll.man)
-set(TEST_GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../scripts/genEventingTests.py)
+set(EVENT_MANIFEST ${VM_DIR}/ClrEtwAll.man)
+set(TEST_GENERATOR ${CLR_DIR}/src/scripts/genEventingTests.py)
 
 include(FindPythonInterp)
 
