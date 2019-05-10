@@ -67,6 +67,8 @@ private:
 
     void CreateIpcStreamingThread();
 
+    static DWORD WINAPI ThreadProc(void *args);
+
 public:
     EventPipeSession(
         LPCWSTR strOutputPath,

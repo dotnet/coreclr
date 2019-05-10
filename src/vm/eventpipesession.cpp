@@ -117,7 +117,7 @@ void EventPipeSession::DestroyIpcStreamingThread()
     m_threadShutdownEvent.Set();
 }
 
-static DWORD WINAPI ThreadProc(void *args)
+DWORD WINAPI EventPipeSession::ThreadProc(void *args)
 {
     CONTRACTL
     {
