@@ -293,6 +293,8 @@ $(BatchCopyCoreShimLocalCmds)
 $(BatchLinkerTestLaunchCmds)
 $(BatchCLRTestLaunchCmds)
 
+ECHO Executing Test
+
 if defined RunCrossGen (
   call :TakeLock
 )
