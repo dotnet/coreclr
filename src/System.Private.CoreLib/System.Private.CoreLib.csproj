@@ -24,6 +24,8 @@
 
     <!-- Force System.Private.CoreLib.dll into a special IL output directory -->
     <OutputPath>$(BinDir)IL/</OutputPath>
+    <Configurations>Debug;Release;Checked</Configurations>
+    <Platforms>x64;x86;arm;arm64</Platforms>
   </PropertyGroup>
 
   <!-- Note that various places in SPCL depend on this resource name i.e. TplEventSource -->
@@ -35,7 +37,6 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <AvailablePlatforms>x64,x86,arm,armel,arm64</AvailablePlatforms>
     <Configuration Condition=" '$(Configuration)' == '' ">$(BuildType)</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">$(BuildArch)</Platform>
     <Platform Condition=" '$(Platform)' == 'armel' ">arm</Platform>
