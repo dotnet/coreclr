@@ -20,7 +20,6 @@
 UINT64 QCALLTYPE EventPipeInternal::Enable(
     __in_z LPCWSTR outputFile,
     UINT32 circularBufferSizeInMB,
-    UINT64 profilerSamplingRateInNanoseconds,
     EventPipeProviderConfiguration *pProviders,
     UINT32 numProviders)
 {
@@ -30,7 +29,6 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
 
     // Invalid input!
     if (circularBufferSizeInMB == 0 ||
-        profilerSamplingRateInNanoseconds == 0 ||
         numProviders == 0 ||
         pProviders == nullptr)
     {
@@ -42,7 +40,6 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
         sessionID = EventPipe::Enable(
             outputFile,
             circularBufferSizeInMB,
-            profilerSamplingRateInNanoseconds,
             pProviders,
             numProviders,
             outputFile != NULL ? EventPipeSessionType::File : EventPipeSessionType::Listener,

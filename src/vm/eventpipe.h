@@ -287,7 +287,6 @@ public:
     static EventPipeSessionID Enable(
         LPCWSTR strOutputPath,
         uint32_t circularBufferSizeInMB,
-        uint64_t profilerSamplingRateInNanoseconds,
         const EventPipeProviderConfiguration *pProviders,
         uint32_t numProviders,
         EventPipeSessionType sessionType,

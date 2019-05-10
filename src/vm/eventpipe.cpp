@@ -181,6 +181,11 @@ void EventPipe::Initialize()
     // This calls into auto-generated code to initialize the runtime providers
     // and events so that the EventPipe configuration lock isn't taken at runtime
     InitProvidersAndEvents();
+
+    // Set the sampling rate for the sample profiler.
+    // TODO: Maybe add a way to configure this value with a COMPlus_* var?
+    const unsigned long DefaultProfilerSamplingRateInNanoseconds = 1000000; // 1 msec.
+    SampleProfiler::SetSamplingRate(DefaultProfilerSamplingRateInNanoseconds);
 }
 
 void EventPipe::Shutdown()
@@ -249,7 +254,6 @@ void EventPipe::Shutdown()
 EventPipeSessionID EventPipe::Enable(
     LPCWSTR strOutputPath,
     uint32_t circularBufferSizeInMB,
-    uint64_t profilerSamplingRateInNanoseconds,
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders,
     EventPipeSessionType sessionType,
@@ -261,7 +265,6 @@ EventPipeSessionID EventPipe::Enable(
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(circularBufferSizeInMB > 0);
-        PRECONDITION(profilerSamplingRateInNanoseconds > 0);
         PRECONDITION(numProviders > 0 && pProviders != nullptr);
     }
     CONTRACTL_END;
@@ -274,9 +277,6 @@ EventPipeSessionID EventPipe::Enable(
 
     EventPipeSessionID sessionId;
     RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
-        // FIXME: What's the story here? SampleProfiler should be enabled only once.
-        SampleProfiler::SetSamplingRate(static_cast<unsigned long>(profilerSamplingRateInNanoseconds));
-
         // TODO: Maybe "rundownEnabled" param should be user input.
         EventPipeSession *pSession = new EventPipeSession(
             strOutputPath,
