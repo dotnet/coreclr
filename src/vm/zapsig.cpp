@@ -262,6 +262,10 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
 
     if (fNeedsInstantiation)
     {
+        // Save the current pInfoModule and change it to the module of the type handle 
+        Module *pOrigModule = this->context.pInfoModule;
+        this->context.pInfoModule = pTypeHandleModule;
+
         pSigBuilder->AppendData(pMT->GetNumGenericArgs());
         Instantiation inst = pMT->GetInstantiation();
         for (DWORD i = 0; i < inst.GetNumArgs(); i++)
@@ -271,6 +275,9 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
             if (!this->GetSignatureForTypeHandle(t, pSigBuilder))
                 return FALSE;
         }
+
+        // Restore the saved pInfoModule
+        this->context.pInfoModule = pOrigModule;
     }
     return TRUE;
 }

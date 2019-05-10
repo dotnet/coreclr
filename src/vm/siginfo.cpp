@@ -1403,7 +1403,7 @@ TypeHandle SigPointer::GetTypeHandleThrowing(
 
                 if (typeHnd.IsNull())
                 {
-                    typeHnd = psig.GetTypeHandleThrowing(pOrigModule, 
+                    typeHnd = psig.GetTypeHandleThrowing(pModule,
                                                          pTypeContext, 
                                                          fLoadTypes, 
                                                          argLevel,
