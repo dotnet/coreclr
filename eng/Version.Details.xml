@@ -3,13 +3,13 @@
   <ProductDependencies>
   </ProductDependencies>
   <ToolsetDependencies>
-    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="1.0.0-beta.19258.5">
+    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="1.0.0-beta.19259.9">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>9005cee9510d23535c09bd9b6be7c426e526c067</Sha>
+      <Sha>155080ecb738e189db75f8f2461ebad75d955aa7</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19258.5">
+    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="2.0.0-beta.19259.9">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>9005cee9510d23535c09bd9b6be7c426e526c067</Sha>
+      <Sha>155080ecb738e189db75f8f2461ebad75d955aa7</Sha>
     </Dependency>
     <!-- This dependency should be added, but it causes the github PR legs to not launch. -->
     <!-- Dependency Name="microsoft.dotnet.build.tasks.feed" Version="2.2.0-beta.19229.8">
