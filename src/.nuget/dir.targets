@@ -96,22 +96,20 @@
   <!--
     Creates listings of native files that the IL Linker should keep, and injects them
     into the package build.
-    Do so before GetPackageAssets (instead of GetPackageFiles), to avoid the .txt file getting
-    created for each RID-specific package during the recursive GetPackageFiles call.
-    Oh. GetPackageAssets only runs AFTER the package is created, too late.
+    Happens after GetPackageDependencies. This is essentially just before GetPackageFiles, but
+    avoids creating these text files for ProjectReferences which have GetPackageFiles called
+    recursively.
   -->
   <Target Name="GetLinkerNativeIncludes" AfterTargets="GetPackageDependencies">
     <ItemGroup>
       <LinkerRuntimeFiles Include="@(NativeBinary)" Condition=" '%(NativeBinary.LinkerUsage)' == 'runtime' " />
       <LinkerDiagnosticFiles Include="@(NativeBinary)" Condition=" '%(NativeBinary.LinkerUsage)' == 'diagnostic' " />
     </ItemGroup>
-    <!-- when called for lineup package, the package Id is set to each RID -->
-    <!-- however NativeBinary is still always the osx version. -->
+
     <PropertyGroup>
       <HasLinkerRuntimeFiles Condition=" '@(LinkerRuntimeFiles->Count())' != '0' ">true</HasLinkerRuntimeFiles>
       <HasLinkerDiagnosticFiles Condition=" '@(LinkerDiagnosticFiles->Count())' != '0' ">true</HasLinkerDiagnosticFiles>
       <LinkerFileListOutputPath>$(NuspecOutputPath)$(Id)/</LinkerFileListOutputPath>
-      <!--<LinkerFileListOutputPath>$(PackageOutputPath)$(Id)/</LinkerFileListOutputPath>-->
       <LinkerRuntimeList>$(LinkerFileListOutputPath)linkerruntimefiles.txt</LinkerRuntimeList>
       <LinkerDiagnosticList>$(LinkerFileListOutputPath)linkerdiagnosticfiles.txt</LinkerDiagnosticList>
     </PropertyGroup>
@@ -126,8 +124,7 @@
                       Condition=" '$(HasLinkerDiagnosticFiles)' == 'true' "
                       Overwrite="true" />
 
-<!-->    <ItemGroup Condition=" '$(PackageTargetRuntime)' != '' ">-->
-    <ItemGroup>
+    <ItemGroup Condition=" '$(PackageTargetRuntime)' != '' ">
       <File Include="$(LinkerRuntimeList)"
             Condition=" '$(HasLinkerRuntimeFiles)' == 'true' ">
         <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
@@ -137,8 +134,6 @@
         <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
       </File>
     </ItemGroup>
-
-    <Message Importance="High" Text="file for $(MSBuildProjectName): @(File)" />
   </Target>
 
   <!-- OverrideLicenseUrl is temporary till we update the buildtools to v2 -->  
