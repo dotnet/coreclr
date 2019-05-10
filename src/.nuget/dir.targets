@@ -116,7 +116,8 @@
       <LinkerDiagnosticList>$(LinkerFileListOutputPath)linkerdiagnosticfiles.txt</LinkerDiagnosticList>
     </PropertyGroup>
 
-    <MakeDir Directories="$(LinkerFileListOutputPath)" />
+    <MakeDir Directories="$(LinkerFileListOutputPath)"
+             Condition=" '$(HasLinkerRuntimeFiles)' == 'true' Or '$(HasLinkerDiagnosticFiles)' == 'true' " />
 
     <WriteLinesToFile File="$(LinkerRuntimeList)" Lines="@(LinkerRuntimeFiles->'%(Filename)%(Extension)')"
                       Condition=" '$(HasLinkerRuntimeFiles)' == 'true' "
