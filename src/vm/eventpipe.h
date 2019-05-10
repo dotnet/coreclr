@@ -374,12 +374,6 @@ private:
         EventPipeSession *const pSession,
         EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
-    static void CreateFlushTimerCallback();
-
-    static void DeleteFlushTimerCallback();
-
-    static void WINAPI FlushTimer(PVOID parameter, BOOLEAN timerFired);
-
     // Callback function for the stack walker.  For each frame walked, this callback is invoked.
     static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
 

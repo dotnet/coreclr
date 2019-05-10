@@ -397,9 +397,6 @@ void EventPipe::DisableInternal(EventPipeSession &session, EventPipeProviderCall
         // Disable tracing.
         s_pConfig->Disable(pEventPipeProviderCallbackDataQueue);
 
-        //  TODO: Delete IFF there are not more sessions.
-        DeleteFlushTimerCallback();
-
         LARGE_INTEGER disableTimeStamp;
         QueryPerformanceCounter(&disableTimeStamp);
         session.Disable(*s_pConfig, disableTimeStamp, pEventPipeProviderCallbackDataQueue);
@@ -408,129 +405,6 @@ void EventPipe::DisableInternal(EventPipeSession &session, EventPipeProviderCall
         // Providers can't be deleted during tracing because they may be needed when serializing the file.
         s_pConfig->DeleteDeferredProviders();
     }
-}
-
-void EventPipe::CreateFlushTimerCallback()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(IsLockOwnedByCurrentThread());
-    }
-    CONTRACTL_END
-
-    if (s_fileSwitchTimerHandle != NULL)
-        return;
-
-    NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder = new (nothrow) ThreadpoolMgr::TimerInfoContext();
-    if (timerContextHolder == NULL)
-        return;
-
-    timerContextHolder->TimerId = 0;
-
-    // Initialize the last flush time.
-    s_lastFlushTime = CLRGetTickCount64();
-
-    bool success = false;
-    EX_TRY
-    {
-        if (ThreadpoolMgr::CreateTimerQueueTimer(
-                &s_fileSwitchTimerHandle,
-                FlushTimer,
-                timerContextHolder,
-                100, // DueTime (msec)
-                100, // Period (msec)
-                0 /* flags */))
-        {
-            _ASSERTE(s_fileSwitchTimerHandle != NULL);
-            success = true;
-        }
-    }
-    EX_CATCH
-    {
-    }
-    EX_END_CATCH(RethrowTerminalExceptions);
-
-    if (!success)
-    {
-        _ASSERTE(s_fileSwitchTimerHandle == NULL);
-        return;
-    }
-
-    timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
-}
-
-void EventPipe::DeleteFlushTimerCallback()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(IsLockOwnedByCurrentThread());
-    }
-    CONTRACTL_END
-
-    if (s_pSessions->GetCount() != 0)
-        return;
-    if ((s_fileSwitchTimerHandle != NULL) && (ThreadpoolMgr::DeleteTimerQueueTimer(s_fileSwitchTimerHandle, NULL)))
-        s_fileSwitchTimerHandle = NULL;
-}
-
-void WINAPI EventPipe::FlushTimer(PVOID parameter, BOOLEAN timerFired)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(timerFired);
-    }
-    CONTRACTL_END;
-
-    GCX_PREEMP();
-
-    RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
-        // Make sure that we should actually flush.
-        if (!Enabled())
-            return;
-
-        if (CLRGetTickCount64() > (s_lastFlushTime + 100))
-        {
-            // Get the current time stamp.
-            // WriteAllBuffersToFile will use this to ensure that no events after
-            // the current timestamp are written into the file.
-            LARGE_INTEGER stopTimeStamp;
-            QueryPerformanceCounter(&stopTimeStamp);
-
-            for (EventPipeSessions::Iterator iterator = s_pSessions->Begin();
-                 iterator != s_pSessions->End();
-                 ++iterator)
-            {
-                EventPipeSession *pSession = *iterator;
-
-                if (pSession == nullptr)
-                    continue;
-                if (pSession->GetSessionType() != EventPipeSessionType::IpcStream)
-                    continue;
-
-                if (!pSession->WriteAllBuffersToFile(*s_pConfig, stopTimeStamp))
-                {
-                    EX_TRY
-                    {
-                        DisableInternal(*pSession, pEventPipeProviderCallbackDataQueue);
-                        // TODO: Need to remove the session from the list and delete it.
-                    }
-                    EX_CATCH {}
-                    EX_END_CATCH(SwallowAllExceptions);
-                }
-            }
-
-           s_lastFlushTime = CLRGetTickCount64();
-        }
-    });
 }
 
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
