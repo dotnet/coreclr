@@ -1950,12 +1950,6 @@ void SystemDomain::LazyInitGlobalStringLiteralMap()
         AppDomain* pAppDomain = ::GetAppDomain();
         if (pAppDomain && pAppDomain->IsActive())
         {
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-            if (g_fEnableARM)
-            {
-                sc->pCurrentDomain = pAppDomain;
-            }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
             pAppDomain->EnumStaticGCRefs(fn, sc);
         }
     }

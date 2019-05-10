@@ -19022,10 +19022,6 @@ gc_heap::scan_background_roots (promote_func* fn, int hn, ScanContext *pSC)
 
     pSC->thread_number = hn;
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    pSC->pCurrentDomain = 0;
-#endif
-
     BOOL relocate_p = (fn == &GCHeap::Relocate);
 
     dprintf (3, ("Scanning background mark list"));
@@ -34548,10 +34544,7 @@ void GCHeap::Promote(Object** ppObject, ScanContext* sc, uint32_t flags)
     size_t promoted_size_end = hp->promoted_bytes (thread);
     if (g_fEnableAppDomainMonitoring)
     {
-        if (sc->pCurrentDomain)
-        {
-            GCToEEInterface::RecordSurvivedBytesForHeap((promoted_size_end - promoted_size_begin), thread, sc->pCurrentDomain);
-        }
+        GCToEEInterface::RecordSurvivedBytesForHeap((promoted_size_end - promoted_size_begin), thread);
     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
@@ -36475,23 +36468,6 @@ size_t GCHeap::GetFinalizablePromotedCount()
 #endif //MULTIPLE_HEAPS
 }
 
-bool GCHeap::FinalizeAppDomain(void *pDomain, bool fRunFinalizers)
-{
-#ifdef MULTIPLE_HEAPS
-    bool foundp = false;
-    for (int hn = 0; hn < gc_heap::n_heaps; hn++)
-    {
-        gc_heap* hp = gc_heap::g_heaps [hn];
-        if (hp->finalize_queue->FinalizeAppDomain (pDomain, fRunFinalizers))
-            foundp = true;
-    }
-    return foundp;
-
-#else //MULTIPLE_HEAPS
-    return pGenGCHeap->finalize_queue->FinalizeAppDomain (pDomain, fRunFinalizers);
-#endif //MULTIPLE_HEAPS
-}
-
 bool GCHeap::ShouldRestartFinalizerWatchDog()
 {
     // This condition was historically used as part of the condition to detect finalizer thread timeouts
@@ -36796,88 +36772,6 @@ CFinalize::GetNumberFinalizableObjects()
         (g_fFinalizerRunOnShutDown ? m_Array : SegQueue(FinalizerListSeg));
 }
 
-BOOL
-CFinalize::FinalizeSegForAppDomain (void *pDomain, 
-                                    BOOL fRunFinalizers, 
-                                    unsigned int Seg)
-{
-    BOOL finalizedFound = FALSE;
-    Object** endIndex = SegQueue (Seg);
-    for (Object** i = SegQueueLimit (Seg)-1; i >= endIndex ;i--)
-    {
-        CObjectHeader* obj = (CObjectHeader*)*i;
-
-        // Objects are put into the finalization queue before they are complete (ie their methodtable
-        // may be null) so we must check that the object we found has a method table before checking
-        // if it has the index we are looking for. If the methodtable is null, it can't be from the
-        // unloading domain, so skip it.
-        if (method_table(obj) == NULL)
-        {
-            continue;
-        }
-
-        // does the EE actually want us to finalize this object?
-        if (!GCToEEInterface::ShouldFinalizeObjectForUnload(pDomain, obj))
-        {
-            continue;
-        }
-
-        if (!fRunFinalizers || (obj->GetHeader()->GetBits()) & BIT_SBLK_FINALIZER_RUN)
-        {
-            //remove the object because we don't want to
-            //run the finalizer
-            MoveItem (i, Seg, FreeList);
-            //Reset the bit so it will be put back on the queue
-            //if resurrected and re-registered.
-            obj->GetHeader()->ClrBit (BIT_SBLK_FINALIZER_RUN);
-        }
-        else
-        {
-            if (method_table(obj)->HasCriticalFinalizer())
-            {
-                finalizedFound = TRUE;
-                MoveItem (i, Seg, CriticalFinalizerListSeg);
-            }
-            else
-            {
-                if (GCToEEInterface::AppDomainIsRudeUnload(pDomain))
-                {
-                    MoveItem (i, Seg, FreeList);
-                }
-                else
-                {
-                    finalizedFound = TRUE;
-                    MoveItem (i, Seg, FinalizerListSeg);
-                }
-            }
-        }
-    }
-
-    return finalizedFound;
-}
-
-bool
-CFinalize::FinalizeAppDomain (void *pDomain, bool fRunFinalizers)
-{
-    bool finalizedFound = false;
-
-    unsigned int startSeg = gen_segment (max_generation);
-
-    EnterFinalizeLock();
-
-    for (unsigned int Seg = startSeg; Seg <= gen_segment (0); Seg++)
-    {
-        if (FinalizeSegForAppDomain (pDomain, fRunFinalizers, Seg))
-        {
-            finalizedFound = true;
-        }
-    }
-
-    LeaveFinalizeLock();
-
-    return finalizedFound;
-}
-
 void
 CFinalize::MoveItem (Object** fromIndex,
                      unsigned int fromSeg,
@@ -36925,12 +36819,6 @@ CFinalize::GcScanRoots (promote_func* fn, int hn, ScanContext *pSC)
         Object* o = *po;
         //dprintf (3, ("scan freacheable %Ix", (size_t)o));
         dprintf (3, ("scan f %Ix", (size_t)o));
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        if (g_fEnableAppDomainMonitoring)
-        {
-            pSC->pCurrentDomain = GCToEEInterface::GetAppDomainForObject(o);
-        }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
         (*fn)(po, pSC, 0);
     }
