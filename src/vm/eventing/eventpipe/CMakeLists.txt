@@ -33,6 +33,7 @@ add_custom_command(OUTPUT ${EVENTPIPE_SOURCES}
 
 add_library_clr(eventpipe STATIC ${EVENTPIPE_SOURCES})
 set_target_properties(eventpipe PROPERTIES LINKER_LANGUAGE CXX)
+add_dependencies(eventpipe eventing_headers)
 
 if (NOT WIN32)
   _install(TARGETS eventpipe DESTINATION lib)

@@ -20,13 +20,16 @@ string(REPLACE "\n" ";" LTTNG_PROVIDER_OUTPUT ${LTTNG_PROVIDER_OUTPUT}) # turn t
 
 set (LTTNG_PROVIDER_SOURCES "")
 set (TRACEPOINT_PROVIDER_SOURCES "")
+set (LTTNG_HEADERS "")
 foreach(LTTNG_PROVIDER_FILE ${LTTNG_PROVIDER_OUTPUT})
   file(TO_CMAKE_PATH ${LTTNG_PROVIDER_FILE} LTTNG_PROVIDER_FILE)
   set_source_files_properties(${LTTNG_PROVIDER_FILE} PROPERTIES GENERATED ON)
   if ("${LTTNG_PROVIDER_FILE}" MATCHES "/lttng/traceptprov[a-z]+.cpp$")
     list(APPEND TRACEPOINT_PROVIDER_SOURCES ${LTTNG_PROVIDER_FILE})
-  else()
+  elseif("${LTTNG_PROVIDER_FILE}" MATCHES "/lttng/eventprov[a-z]+.cpp$")
     list(APPEND LTTNG_PROVIDER_SOURCES ${LTTNG_PROVIDER_FILE})
+  else()
+    list(APPEND LTTNG_HEADERS ${LTTNG_PROVIDER_FILE})
   endif()
 endforeach()
 
@@ -34,8 +37,8 @@ add_definitions(-DPAL_STDCPP_COMPAT=1)
 include_directories(${COREPAL_SOURCE_DIR}/inc/rt)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/lttng)
 
-add_custom_target(lttngprovider_sources
-  ${GENERATE_COMMAND}
+add_custom_command(OUTPUT ${LTTNG_PROVIDER_SOURCES} ${TRACEPOINT_PROVIDER_SOURCES} ${LTTNG_HEADERS}
+  COMMAND ${GENERATE_COMMAND}
   DEPENDS ${EVENT_MANIFEST} ${GENERATE_SCRIPT})
 
 add_library(eventprovider
@@ -44,10 +47,22 @@ add_library(eventprovider
     eventproviderhelpers.cpp
 )
 
-add_dependencies(eventprovider lttngprovider_sources)
+add_compile_options(-fPIC)
 
-add_subdirectory(tracepointprovider)
+add_library(coreclrtraceptprovider
+    SHARED
+    ${TRACEPOINT_PROVIDER_SOURCES}
+)
+
+find_library(LTTNG NAMES lttng-ust)
+
+target_link_libraries(coreclrtraceptprovider
+                      ${LTTNG}
+)
+
+set_target_properties(coreclrtraceptprovider PROPERTIES LINKER_LANGUAGE CXX)
 
 # Install the static eventprovider library
 _install(TARGETS eventprovider DESTINATION lib)
-  
+# Install the static coreclrtraceptprovider library
+install_clr(coreclrtraceptprovider)

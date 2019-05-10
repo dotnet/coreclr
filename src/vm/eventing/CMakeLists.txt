@@ -10,12 +10,6 @@ else()
   set(NEED_XPLAT_HEADER ON)
 endif()
 
-add_subdirectory(eventpipe)
-
-if(WIN32)
-  add_subdirectory(EtwProvider)
-endif()
-
 include(FindPythonInterp)
 
 set (EventingHeaders
@@ -39,3 +33,9 @@ add_custom_target(eventing_headers
 )
 
 add_dependencies(eventing_headers eventprovider)
+
+add_subdirectory(eventpipe)
+
+if(WIN32)
+  add_subdirectory(EtwProvider)
+endif()
