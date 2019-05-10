@@ -8,11 +8,14 @@
     <UsingToolXliff>false</UsingToolXliff>
     <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19179.4</MicrosoftDotNetXUnitConsoleRunnerVersion>
+    <!-- corefx -->
     <MicrosoftNetFrameworkReferenceAssembliesVersion>1.0.0-alpha-004</MicrosoftNetFrameworkReferenceAssembliesVersion>
     <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview6.19257.8</MicrosoftPrivateCoreFxNETCoreAppVersion>
     <MicrosoftNETCorePlatformsVersion>3.0.0-preview6.19257.8</MicrosoftNETCorePlatformsVersion>
     <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview6.19257.8</MicrosoftBclAsyncInterfacesVersion>
+    <!-- core-setup -->
     <MicrosoftNETCoreAppVersion>3.0.0-preview6-27709-05</MicrosoftNETCoreAppVersion>
+    <!-- dotnet-optimization -->
     <optimizationIBCCoreCLRVersion>99.99.99-master-20190505.1</optimizationIBCCoreCLRVersion>
     <optimizationPGOCoreCLRVersion>99.99.99-master-20190505.1</optimizationPGOCoreCLRVersion>
   </PropertyGroup>
