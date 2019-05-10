@@ -144,30 +144,26 @@ static DWORD WINAPI ThreadProc(void *args)
             bool fSuccess = true;
             while (pEventPipeSession->IsIpcStreamingEnabled() && fSuccess)
             {
-                {
-                    // Switch to pre-emptive mode so that this thread doesn't starve the GC
-                    GCX_PREEMP();
-                    EventPipe::RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
-                        // Make sure that we should actually flush.
-                        EventPipeConfiguration *const pConfiguration = EventPipe::GetConfiguration();
-                        if (!EventPipe::Enabled() || pConfiguration == nullptr)
-                            fSuccess = false;
+                EventPipe::RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
+                    // Make sure that we should actually flush.
+                    EventPipeConfiguration *const pConfiguration = EventPipe::GetConfiguration();
+                    if (!EventPipe::Enabled() || pConfiguration == nullptr)
+                        fSuccess = false;
 
-                        // Get the current time stamp.
-                        // WriteAllBuffersToFile will use this to ensure that no events after
-                        // the current timestamp are written into the file.
-                        LARGE_INTEGER stopTimeStamp;
-                        QueryPerformanceCounter(&stopTimeStamp);
-                        if (!pEventPipeSession->WriteAllBuffersToFile(*pConfiguration, stopTimeStamp))
-                        {
-                            fSuccess = false;
-                            pEventPipeSession->Disable(
-                                *pConfiguration,
-                                stopTimeStamp,
-                                pEventPipeProviderCallbackDataQueue);
-                        }
-                    });
-                }
+                    // Get the current time stamp.
+                    // WriteAllBuffersToFile will use this to ensure that no events after
+                    // the current timestamp are written into the file.
+                    LARGE_INTEGER stopTimeStamp;
+                    QueryPerformanceCounter(&stopTimeStamp);
+                    if (!pEventPipeSession->WriteAllBuffersToFile(*pConfiguration, stopTimeStamp))
+                    {
+                        fSuccess = false;
+                        pEventPipeSession->Disable(
+                            *pConfiguration,
+                            stopTimeStamp,
+                            pEventPipeProviderCallbackDataQueue);
+                    }
+                });
 
                 // Wait until it's time to sample again.
                 const uint32_t PeriodInNanoSeconds = 100000000; // 100 msec.
