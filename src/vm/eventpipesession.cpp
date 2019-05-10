@@ -34,7 +34,7 @@ EventPipeSession::EventPipeSession(
     uint32_t numProviders,
     bool rundownEnabled) : // m_lock(CrstEventPipe, (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN | CRST_HOST_BREAKABLE)),
                            m_pProviderList(new EventPipeSessionProviderList(pProviders, numProviders)),
-                           m_CircularBufferSizeInBytes(circularBufferSizeInMB * 1024 * 1024),
+                           m_CircularBufferSizeInBytes(static_cast<size_t>(circularBufferSizeInMB) << 20),
                            m_pBufferManager(new EventPipeBufferManager()),
                            m_rundownEnabled(rundownEnabled),
                            m_SessionType(sessionType)
