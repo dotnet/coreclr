@@ -2144,6 +2144,30 @@ HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTH
 }
 
 
+// Represent the value of OVERRIDE_DEFAULT_STACK_SIZE_4KPAGES as passed in the property bag to the host during construction
+static uint32_t s_overrideDefaultStackSize = 0;
+
+void OverrideDefaultStackSize(LPCWSTR valueStr)
+{
+    if (valueStr)
+    {
+        LPWSTR end;
+        errno = 0;
+        unsigned long value = wcstoul(valueStr, &end, 10);
+
+        SIZE_T max4KPages = SIZE_T(1) << (31 - 12);
+
+        if ((errno == ERANGE) || (valueStr == end) || (end == nullptr) || (end[0] != 0) || (value >= max4KPages))
+        {
+            ThrowMessage("OVERRIDE_DEFAULT_STACK_SIZE_4KPAGES value parse error");
+        }
+        else
+        {
+            FastInterlockExchange((int32_t*)&s_overrideDefaultStackSize, (uint32_t) value * 4096);
+        }
+    }
+}
+
 BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
 {
     CONTRACTL
@@ -2160,6 +2184,13 @@ BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
     static SIZE_T ExeSizeOfStackCommit = 0;
 
     static BOOL fSizesGot = FALSE;
+
+    if (s_overrideDefaultStackSize != 0)
+    {
+        ExeSizeOfStackReserve = s_overrideDefaultStackSize;
+        ExeSizeOfStackCommit = s_overrideDefaultStackSize;
+        fSizesGot = TRUE;
+    }
 
 #ifndef FEATURE_PAL
     if (!fSizesGot)
@@ -2205,6 +2236,11 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
     DWORD dwCreationFlags = CREATE_SUSPENDED;
 
     dwCreationFlags |= STACK_SIZE_PARAM_IS_A_RESERVATION;
+
+    if (sizeToCommitOrReserve == 0)
+    {
+        sizeToCommitOrReserve = s_overrideDefaultStackSize;
+    }
 
 #ifndef FEATURE_PAL // the PAL does its own adjustments as necessary
     if (sizeToCommitOrReserve != 0 && sizeToCommitOrReserve <= GetOsPageSize())
