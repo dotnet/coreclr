@@ -168,7 +168,7 @@ public:
             LIMITED_METHOD_CONTRACT;
             Counts result;
 #ifndef DACCESS_COMPILE
-            result.AsLongLong = VolatileLoad(&counts.AsLongLong);
+            result.AsLongLong = VolatileLoadWithoutBarrier(&counts.AsLongLong);
 #else
             result.AsLongLong = 0; //prevents prefast warning for DAC builds
 #endif
@@ -345,6 +345,8 @@ public:
     }
 #endif
 
+    static void WorkerThreadBlocked();
+    static void WorkerThreadUnblocked();
 private:
 
 #ifndef DACCESS_COMPILE
