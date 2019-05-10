@@ -108,12 +108,10 @@ bool ThreadpoolMgr::IsHillClimbingDisabled;
 int ThreadpoolMgr::ThreadAdjustmentInterval;
 
 #define INVALID_HANDLE ((HANDLE) -1)
-#define NEW_THREAD_THRESHOLD            7       // Number of requests outstanding before we start a new thread
+
 #define CP_THREAD_PENDINGIO_WAIT 5000           // polling interval when thread is retired but has a pending io
-#define GATE_THREAD_DELAY 500 /*milliseconds*/
+#define GATE_THREAD_DELAY 100 /*milliseconds*/
 #define GATE_THREAD_DELAY_TOLERANCE 50 /*milliseconds*/
-#define DELAY_BETWEEN_SUSPENDS 5000 + GATE_THREAD_DELAY // time to delay between suspensions
-#define SUSPEND_TIME GATE_THREAD_DELAY+100      // milliseconds to suspend during SuspendProcessing
 
 LONG ThreadpoolMgr::Initialization=0;           // indicator of whether the threadpool is initialized.
 
@@ -703,6 +701,46 @@ INT32 ThreadpoolMgr::GetThreadCount()
     }
 
     return WorkerCounter.DangerousGetDirtyCounts().NumActive + CPThreadCounter.DangerousGetDirtyCounts().NumActive;
+}
+
+// TODO: VS turn Block/Unblock into a holder
+// TODO: VS managed part can be less aggressive when invoking item. 
+//       does it still need to ask for another thread? 
+//       we cant track all the blockings, but is that the job of gatekeeper to handle that?
+void ThreadpoolMgr::WorkerThreadBlocked()
+{
+    WRAPPER_NO_CONTRACT;
+
+    while (true)
+    {
+        // counts volatile read paired with CompareExchangeCounts loop set
+        ThreadCounter::Counts oldCounts = WorkerCounter.DangerousGetDirtyCounts();
+        ThreadCounter::Counts newCounts = oldCounts;
+        newCounts.NumWorking--;
+        newCounts.NumActive--;
+        if (oldCounts == WorkerCounter.CompareExchangeCounts(newCounts, oldCounts))
+        {
+            // TODO: VS do we want to aggressively add a working worker here or just rely on Enqueues and gatekeeper, 
+            //       which should be running if there are requests?
+            break;
+        }
+    }
+}
+
+void ThreadpoolMgr::WorkerThreadUnblocked()
+{
+    WRAPPER_NO_CONTRACT;
+
+    while (true)
+    {
+        // counts volatile read paired with CompareExchangeCounts loop set
+        ThreadCounter::Counts oldCounts = WorkerCounter.DangerousGetDirtyCounts();
+        ThreadCounter::Counts newCounts = oldCounts;
+        newCounts.NumWorking++;
+        newCounts.NumActive++;
+        if (oldCounts == WorkerCounter.CompareExchangeCounts(newCounts, oldCounts))
+            break;
+    }
 }
 
 void QueueUserWorkItemHelp(LPTHREAD_START_ROUTINE Function, PVOID Context)
@@ -2201,33 +2239,6 @@ Exit:
     FireEtwThreadPoolWorkerThreadStop(counts.NumActive, counts.NumRetired, GetClrInstanceId());
 
     return ERROR_SUCCESS;
-}
-
-
-BOOL ThreadpoolMgr::SuspendProcessing()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
-    }
-    CONTRACTL_END;
-
-    BOOL shouldRetire = TRUE;
-    DWORD sleepInterval = SUSPEND_TIME;
-    int oldCpuUtilization = cpuUtilization;
-    for (int i = 0; i < shouldRetire; i++)
-    {
-        __SwitchToThread(sleepInterval, CALLER_LIMITS_SPINNING);
-        if ((cpuUtilization <= (oldCpuUtilization - 4)))
-        {   // if cpu util. dips by 4% or more, then put it back in circulation
-            shouldRetire = FALSE;
-            break;
-        }
-    }
-
-    return shouldRetire;
 }
 
 
@@ -4388,8 +4399,6 @@ BOOL ThreadpoolMgr::SufficientDelaySinceLastDequeue()
 {
     LIMITED_METHOD_CONTRACT;
 
-    #define DEQUEUE_DELAY_THRESHOLD (GATE_THREAD_DELAY * 2)
-
     unsigned delay = GetTickCount() - VolatileLoad(&LastDequeueTime);
     unsigned tooLong;
 
@@ -4399,13 +4408,13 @@ BOOL ThreadpoolMgr::SufficientDelaySinceLastDequeue()
     }
     else       
     {
-        ThreadCounter::Counts counts = WorkerCounter.GetCleanCounts();
+        // we only need MaxWorking, so dirty/torn counts are ok
+        ThreadCounter::Counts counts = WorkerCounter.DangerousGetDirtyCounts();
         unsigned numThreads = counts.MaxWorking;
-        tooLong = numThreads * DEQUEUE_DELAY_THRESHOLD;
+        tooLong = numThreads * GATE_THREAD_DELAY * 2;
     }
 
     return (delay > tooLong);
-
 }
 
 

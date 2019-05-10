@@ -120,7 +120,7 @@ public:
                 //
                 // Note: these are signed rather than unsigned to allow us to detect under/overflow.
                 //  
-                int MaxWorking  : 16;  //Determined by HillClimbing; adjusted elsewhere for timeouts, etc. 
+                int MaxWorking : 16;  //Determined by HillClimbing; adjusted elsewhere for timeouts, etc. 
                 int NumActive  : 16;  //Active means working or waiting on WorkerSemaphore.  These are "warm/hot" threads.
                 int NumWorking : 16;  //Trying to get work from various queues.  Not waiting on either semaphore.
                 int NumRetired : 16;  //Not trying to get work; waiting on RetiredWorkerSemaphore.  These are "cold" threads.
@@ -168,7 +168,7 @@ public:
             LIMITED_METHOD_CONTRACT;
             Counts result;
 #ifndef DACCESS_COMPILE
-            result.AsLongLong = VolatileLoad(&counts.AsLongLong);
+            result.AsLongLong = VolatileLoadWithoutBarrier(&counts.AsLongLong);
 #else
             result.AsLongLong = 0; //prevents prefast warning for DAC builds
 #endif
@@ -345,7 +345,43 @@ public:
     }
 #endif
 
+    // Holder for reporting a worker thread that is temporarily not doing any work.
+    class BlockedWorkerHolder
+    {
+    private:
+        Thread* blocked;
+    public:
+        FORCEINLINE BlockedWorkerHolder(Thread* thread)
+        {
+            // on blocking
+            if (thread != NULL && thread->IsThreadPoolWorkerThread())
+            {
+                ThreadpoolMgr::WorkerThreadBlocked();
+                blocked = thread;
+            }
+            else
+            {
+                blocked = NULL;
+            }
+        }
+
+        FORCEINLINE ~BlockedWorkerHolder() 
+        {
+            // On exit.
+            if (blocked != NULL)
+            {
+                _ASSERTE(GetThread() == blocked && blocked->IsThreadPoolWorkerThread());
+                ThreadpoolMgr::WorkerThreadUnblocked();
+            }
+        }
+    };
+
 private:
+
+    // records that a worker thread is blocked
+    static void WorkerThreadBlocked();
+    // records that a worker thread is unblocked
+    static void WorkerThreadUnblocked();
 
 #ifndef DACCESS_COMPILE
 
