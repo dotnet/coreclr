@@ -16,8 +16,8 @@ EventPipeBlock::EventPipeBlock(unsigned int maxBlockSize) :
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -37,8 +37,8 @@ EventPipeBlock::~EventPipeBlock()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -56,8 +56,8 @@ bool EventPipeBlock::WriteEvent(EventPipeEventInstance &instance)
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -130,8 +130,8 @@ void EventPipeBlock::Clear()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 

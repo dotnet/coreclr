@@ -507,8 +507,8 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, EventPi
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
         PRECONDITION(pFile != nullptr);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }

@@ -19,8 +19,8 @@ IpcStreamWriter::IpcStreamWriter(uint64_t id, IpcStream *pStream) : _pStream(pSt
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
         PRECONDITION(_pStream != nullptr);
     }
     CONTRACTL_END;
@@ -39,7 +39,7 @@ IpcStreamWriter::~IpcStreamWriter()
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -51,7 +51,7 @@ bool IpcStreamWriter::Write(const void *lpBuffer, const uint32_t nBytesToWrite, 
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(lpBuffer != nullptr);
         PRECONDITION(nBytesToWrite > 0);
@@ -90,7 +90,7 @@ FileStreamWriter::~FileStreamWriter()
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -102,7 +102,7 @@ bool FileStreamWriter::Write(const void *lpBuffer, const uint32_t nBytesToWrite,
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(lpBuffer != nullptr);
         PRECONDITION(nBytesToWrite > 0);
@@ -123,7 +123,7 @@ FastSerializer::FastSerializer(StreamWriter *pStreamWriter) : m_pStreamWriter(pS
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(m_pStreamWriter != NULL);
     }
@@ -140,7 +140,7 @@ FastSerializer::~FastSerializer()
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -152,8 +152,8 @@ void FastSerializer::WriteObject(FastSerializableObject *pObject)
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
         PRECONDITION(pObject != NULL);
     }
     CONTRACTL_END;
@@ -173,7 +173,7 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(pBuffer != NULL);
         PRECONDITION(length > 0);
@@ -207,7 +207,7 @@ void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(pObject != NULL);
     }
@@ -240,7 +240,7 @@ void FastSerializer::WriteTag(FastSerializerTags tag, BYTE *payload, unsigned in
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
@@ -258,7 +258,7 @@ void FastSerializer::WriteFileHeader()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
@@ -273,7 +273,7 @@ void FastSerializer::WriteString(const char *strContents, unsigned int length)
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;

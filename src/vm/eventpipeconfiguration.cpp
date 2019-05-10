@@ -30,7 +30,7 @@ EventPipeConfiguration::~EventPipeConfiguration()
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -81,7 +81,7 @@ void EventPipeConfiguration::Initialize()
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -105,7 +105,7 @@ EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &provide
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -125,7 +125,7 @@ void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(pProvider != NULL);
     }
     CONTRACTL_END;
@@ -146,7 +146,7 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -195,7 +195,7 @@ bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -236,8 +236,8 @@ EventPipeProvider *EventPipeConfiguration::GetProvider(const SString &providerNa
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -253,8 +253,8 @@ EventPipeProvider *EventPipeConfiguration::GetProviderNoLock(const SString &prov
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -283,8 +283,8 @@ EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(EventPipeSe
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -298,7 +298,7 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(pSession != NULL);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
@@ -340,7 +340,7 @@ void EventPipeConfiguration::Disable(EventPipeProviderCallbackDataQueue* pEventP
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         // Lock must be held by EventPipe::Disable.
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
@@ -371,11 +371,11 @@ EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     {
         THROWS;
         GC_NOTRIGGER;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
-    // TODO: Per-session tracking.
+    // TODO: Per-session tracking whether event metadata has been emitted.
 
     // The payload of the event should contain:
     // - Metadata ID
@@ -428,7 +428,7 @@ void EventPipeConfiguration::DeleteDeferredProviders()
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         // Lock must be held by EventPipe::Disable.
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }

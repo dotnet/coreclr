@@ -43,7 +43,7 @@ EventPipeSession::EventPipeSession(
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(circularBufferSizeInMB > 0);
         PRECONDITION(numProviders > 0 && pProviders != nullptr);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
@@ -79,8 +79,8 @@ EventPipeSession::~EventPipeSession()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -141,6 +141,8 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
     {
         if (pEventPipeSession->HasIpcStreamingStarted())
         {
+            GCX_PREEMP();
+
             bool fSuccess = true;
             while (pEventPipeSession->IsIpcStreamingEnabled() && fSuccess)
             {
@@ -194,7 +196,7 @@ void EventPipeSession::CreateIpcStreamingThread()
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -218,8 +220,8 @@ bool EventPipeSession::IsValid()
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -232,8 +234,8 @@ void EventPipeSession::AddSessionProvider(EventPipeSessionProvider *pProvider)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -246,8 +248,8 @@ EventPipeSessionProvider* EventPipeSession::GetSessionProvider(EventPipeProvider
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -262,8 +264,8 @@ bool EventPipeSession::WriteAllBuffersToFile(
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -322,7 +324,7 @@ void EventPipeSession::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProv
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         // Lock must be held by EventPipe::Enable.
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
@@ -341,7 +343,7 @@ void EventPipeSession::Disable(
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         // Lock must be held by EventPipe::Disable.
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
