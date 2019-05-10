@@ -220,6 +220,8 @@ void EventPipe::Shutdown()
     s_pConfig = NULL;
     s_pSessions = NULL;
 
+    FlushProcessWriteBuffers();
+
     // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
     EX_TRY
     {
@@ -235,8 +237,6 @@ void EventPipe::Shutdown()
     }
     EX_CATCH {}
     EX_END_CATCH(SwallowAllExceptions);
-
-    FlushProcessWriteBuffers();
 
     // Free resources.
     delete pConfig;
