@@ -93,6 +93,37 @@
     </ItemGroup>
   </Target>
 
+  <!--
+    Creates listings of native files that the IL Linker should keep, and injects them
+    into the package build.
+  -->
+  <Target Name="GetLinkerNativeIncludes" BeforeTargets="GetPackageFiles">
+    <ItemGroup>
+      <LinkerRuntimeFiles Include="@(NativeBinary)" Condition=" '%(NativeBinary.LinkerUsage)' == 'runtime' " />
+      <LinkerDiagnosticFiles Include="@(NativeBinary)" Condition=" '%(NativeBinary.LinkerUsage)' == 'diagnostic' " />
+    </ItemGroup>
+    <PropertyGroup>
+      <LinkerRuntimeList>$(BinDir)linkerruntimefiles.txt</LinkerRuntimeList>
+      <LinkerDiagnosticList>$(BinDir)linkerdiagnosticfiles.txt</LinkerDiagnosticList>
+    </PropertyGroup>
+
+    <WriteLinesToFile File="$(LinkerRuntimeList)" Lines="@(LinkerRuntimeFiles->'%(Filename)%(Extension)')"
+                      Condition=" '@(LinkerRuntimeFiles->Count())' != '0' "
+                      Overwrite="true" />
+    <WriteLinesToFile File="$(LinkerDiagnosticList)" Lines="@(LinkerDiagnosticFiles->'%(Filename)%(Extension)')"
+                      Condition=" '@(LinkerDiagnosticFiles->Count())' != '0' "
+                      Overwrite="true" />
+
+    <ItemGroup>
+      <File Include="$(LinkerRuntimeList);$(LinkerDiagnosticList)"
+            Condition=" Exists('%(Identity)') And '$(PackageTargetRuntime)' != '' ">
+        <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
+      </File>
+    </ItemGroup>
+
+    <Message Importance="High" Text="file for $(MSBuildProjectName): @(File)" />
+  </Target>
+
   <!-- OverrideLicenseUrl is temporary till we update the buildtools to v2 -->  
   <Target Name="OverrideLicenseUrl" BeforeTargets="GenerateNuSpec">
     <PropertyGroup>

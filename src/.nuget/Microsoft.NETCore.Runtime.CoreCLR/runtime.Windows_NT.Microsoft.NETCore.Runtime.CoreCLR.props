@@ -11,13 +11,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <NativeBinary Include="$(BinDir)clretwrc.dll" />
-    <NativeBinary Include="$(BinDir)coreclr.dll" />
+    <NativeBinary Include="$(BinDir)clretwrc.dll" LinkerUsage="diagnostic" />
+    <NativeBinary Include="$(BinDir)coreclr.dll" LinkerUsage="runtime" />
     <NativeBinary Include="$(BinDir)dbgshim.dll" />
-    <NativeBinary Include="$(BinDir)mscordaccore.dll" />
-    <NativeBinary Include="$(BinDir)mscordbi.dll" />
-    <NativeBinary Include="$(BinDir)mscorrc.debug.dll" />
-    <NativeBinary Include="$(BinDir)mscorrc.dll" />
+    <NativeBinary Include="$(BinDir)mscordaccore.dll" LinkerUsage="diagnostic" />
+    <NativeBinary Include="$(BinDir)mscordbi.dll" LinkerUsage="diagnostic" />
+    <NativeBinary Include="$(BinDir)mscorrc.debug.dll" LinkerUsage="diagnostic" />
+    <NativeBinary Include="$(BinDir)mscorrc.dll" LinkerUsage="diagnostic" />
     <NativeBinary Include="$(BinDir)sos.dll" />
     <NativeBinary Include="$(BinDir)Redist\ucrt\DLLs\$(BuildArch)\*.dll" Condition="'$(BuildType)'=='Release' AND '$(BuildArch)' != 'arm64'" />
     <CrossGenBinary Include="$(BinDir)System.Private.CoreLib.dll" />
