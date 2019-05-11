@@ -129,7 +129,7 @@ void EventPipeSession::DestroyIpcStreamingThread()
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_COOPERATIVE;
     }
     CONTRACTL_END;
 
@@ -211,9 +211,9 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
             // TODO: STRESS_LOG ?
         }
         EX_END_CATCH(SwallowAllExceptions);
-
-        pEventPipeSession->DestroyIpcStreamingThread();
     }
+
+    pEventPipeSession->DestroyIpcStreamingThread();
     return 0;
 }
 
