@@ -109,6 +109,20 @@ bool EventPipeSession::HasIpcStreamingStarted()
     return m_pIpcStreamingThread != nullptr ? m_pIpcStreamingThread->HasStarted() : false;
 }
 
+void EventPipeSession::SetThreadShutdownEvent()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
+    // Signal Disable() that the thread has been destroyed.
+    m_threadShutdownEvent.Set();
+}
+
 void EventPipeSession::DestroyIpcStreamingThread()
 {
     CONTRACTL
@@ -124,9 +138,6 @@ void EventPipeSession::DestroyIpcStreamingThread()
     if (m_pIpcStreamingThread != nullptr)
         ::DestroyThread(m_pIpcStreamingThread);
     m_pIpcStreamingThread = nullptr;
-
-    // Signal Disable() that the thread has been destroyed.
-    m_threadShutdownEvent.Set();
 }
 
 static void PlatformSleep()
@@ -162,8 +173,6 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
     }
     CONTRACTL_END;
 
-    // TODO: Review Andrew's update/PR on SamplerProfiler
-
     if (args == nullptr)
         return 1;
 
@@ -171,35 +180,40 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
     if (pEventPipeSession->GetSessionType() != EventPipeSessionType::IpcStream)
         return 1;
 
-    EX_TRY
-    {
-        if (pEventPipeSession->HasIpcStreamingStarted())
-        {
-            GCX_PREEMP();
+    if (!pEventPipeSession->HasIpcStreamingStarted())
+        return 1;
 
+    {
+        GCX_PREEMP();
+        EX_TRY
+        {
             bool fSuccess = true;
-            while (pEventPipeSession->IsIpcStreamingEnabled() && fSuccess)
+            while (pEventPipeSession->IsIpcStreamingEnabled())
             {
                 if (!pEventPipeSession->WriteAllBuffersToFile())
                 {
                     fSuccess = false;
-                    pEventPipeSession->Disable();
-                    // pEventPipeSession->DestroyIpcStreamingThread();
+                    break;
                 }
 
                 // Wait until it's time to sample again.
                 PlatformSleep();
             }
-        }
-    }
-    EX_CATCH
-    {
-        // TODO: STRESS_LOG ?
-    }
-    EX_END_CATCH(SwallowAllExceptions);
 
-    GCX_PREEMP();
-    pEventPipeSession->DestroyIpcStreamingThread();
+            pEventPipeSession->SetThreadShutdownEvent();
+
+            if (!fSuccess)
+                pEventPipeSession->Disable();
+        }
+        EX_CATCH
+        {
+            pEventPipeSession->SetThreadShutdownEvent();
+            // TODO: STRESS_LOG ?
+        }
+        EX_END_CATCH(SwallowAllExceptions);
+
+        pEventPipeSession->DestroyIpcStreamingThread();
+    }
     return 0;
 }
 

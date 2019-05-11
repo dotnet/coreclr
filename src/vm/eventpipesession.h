@@ -69,6 +69,10 @@ private:
 
     static DWORD WINAPI ThreadProc(void *args);
 
+    void DestroyIpcStreamingThread();
+
+    void SetThreadShutdownEvent();
+
 public:
     EventPipeSession(
         LPCWSTR strOutputPath,
@@ -152,8 +156,6 @@ public:
     bool IsValid() /* This is not const because CrtsHolder does not take a const* */;
 
     bool HasIpcStreamingStarted() /* This is not const because CrtsHolder does not take a const* */;
-
-    void DestroyIpcStreamingThread();
 };
 
 #endif // FEATURE_PERFTRACING
