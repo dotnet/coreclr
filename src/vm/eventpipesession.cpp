@@ -97,12 +97,28 @@ EventPipeSession::~EventPipeSession()
 
 bool EventPipeSession::HasIpcStreamingStarted()
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     // CrstHolder _crst(&m_lock);
     return m_pIpcStreamingThread != nullptr ? m_pIpcStreamingThread->HasStarted() : false;
 }
 
 void EventPipeSession::DestroyIpcStreamingThread()
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     // CrstHolder _crst(&m_lock);
 
     if (!m_ipcStreamingEnabled)
@@ -119,6 +135,14 @@ void EventPipeSession::DestroyIpcStreamingThread()
 
 static void PlatformSleep()
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     // Wait until it's time to sample again.
     const uint32_t PeriodInNanoSeconds = 100000000; // 100 msec.
 
@@ -289,6 +313,14 @@ bool EventPipeSession::WriteEvent(
 
 void EventPipeSession::WriteEvent(EventPipeEventInstance &instance)
 {
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     if (m_pFile == nullptr)
         return;
     // CrstHolder _crst(&m_lock);
