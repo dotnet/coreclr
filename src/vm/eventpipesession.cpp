@@ -121,12 +121,8 @@ void EventPipeSession::DestroyIpcStreamingThread()
 
     // CrstHolder _crst(&m_lock);
 
-    if (!m_ipcStreamingEnabled)
-        return;
-
     if (m_pIpcStreamingThread != nullptr)
         ::DestroyThread(m_pIpcStreamingThread);
-
     m_pIpcStreamingThread = nullptr;
 
     // Signal Disable() that the thread has been destroyed.
@@ -202,6 +198,7 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
     }
     EX_END_CATCH(SwallowAllExceptions);
 
+    GCX_PREEMP();
     pEventPipeSession->DestroyIpcStreamingThread();
     return 0;
 }
