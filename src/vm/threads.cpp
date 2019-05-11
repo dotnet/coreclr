@@ -2145,7 +2145,7 @@ HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTH
 
 
 // Represent the value of OVERRIDE_DEFAULT_STACK_SIZE_4KPAGES as passed in the property bag to the host during construction
-static uint32_t s_overrideDefaultStackSize = 0;
+static SIZE_T s_overrideDefaultStackSize = 0;
 
 void OverrideDefaultStackSize(LPCWSTR valueStr)
 {
@@ -2163,7 +2163,7 @@ void OverrideDefaultStackSize(LPCWSTR valueStr)
         }
         else
         {
-            FastInterlockExchange((int32_t*)&s_overrideDefaultStackSize, (uint32_t) value * 4096);
+            s_overrideDefaultStackSize = (SIZE_T) value * 4096;
         }
     }
 }
