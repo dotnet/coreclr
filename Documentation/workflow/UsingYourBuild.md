@@ -141,6 +141,22 @@ Hello World from Core 4.6.26210.0 @BuiltBy: adsitnik-MININT-O513E3V @SrcCode: ht
 The location is C:\coreclr\helloWorld\bin\Debug\netcoreapp3.0\win-x64\publish\System.Private.CoreLib.dll
 ```
 
+### If it's not using your copied binary
+
+Make sure you are running the exe directly. If you use `dotnet run` it will overwrite your custom binaries before executing the app:
+
+```
+.\bin\Debug\netcoreapp3.0\win-x64\publish\HelloWorld.exe
+```
+
+### If you get a consistency check assertion failure
+
+Something like this happens if you copied coreclr.dll but not System.Private.Corelib.dll as well. 
+
+```
+Assert failure(PID 13452 [0x0000348c], Thread: 10784 [0x2a20]): Consistency check failed: AV in clr at this callstack:
+```
+
 ## Using DotNetCli to run your .NET Core Application
 
 If you don't like the idea of copying files manually you can follow [these instructions](UsingDotNetCli.md) to use dotnet cli to do this for you.
