@@ -914,7 +914,7 @@ FCFuncStart(gMonitorFuncs)
     FCFuncElement("ObjPulse", ObjectNative::Pulse)
     FCFuncElement("ObjPulseAll", ObjectNative::PulseAll)
     FCFuncElement("IsEnteredNative", ObjectNative::IsLockHeld)
-    FCFuncElement("get_LockContentionCount", ObjectNative::GetMonitorLockContentionCount)
+    QCFuncElement("GetLockContentionCount", ObjectNative::GetMonitorLockContentionCount)
 FCFuncEnd()
 
 FCFuncStart(gOverlappedFuncs)
