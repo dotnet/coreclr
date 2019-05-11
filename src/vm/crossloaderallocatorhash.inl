@@ -1099,7 +1099,23 @@ LAHASHDEPENDENTHASHTRACKERREF CrossLoaderAllocatorHash<TRAITS>::GetDependentTrac
         {
             gc.dependentTracker = (LAHASHDEPENDENTHASHTRACKERREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__LAHASHDEPENDENTHASHTRACKER));
             gc.GCHeapHashForKeyToValueStore = (GCHEAPHASHOBJECTREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__GCHEAPHASH));
-            OBJECTHANDLE dependentHandle = GetAppDomain()->CreateDependentHandle(pLoaderAllocator->GetExposedObject(), gc.GCHeapHashForKeyToValueStore);
+
+            OBJECTREF exposedObject = pLoaderAllocator->GetExposedObject();
+            if (exposedObject == NULL)
+            {
+                if (m_globalDependentTrackerRootHandle == NULL)
+                {
+                    // Global LoaderAllocator does not have an exposed object, so create a fake one
+                    exposedObject = AllocateObject(MscorlibBinder::GetExistingClass(CLASS__OBJECT));
+                    m_globalDependentTrackerRootHandle = GetAppDomain()->CreateHandle(exposedObject);
+                }
+                else
+                {
+                    exposedObject = ObjectFromHandle(m_globalDependentTrackerRootHandle);
+                }
+            }
+
+            OBJECTHANDLE dependentHandle = GetAppDomain()->CreateDependentHandle(exposedObject, gc.GCHeapHashForKeyToValueStore);
             gc.dependentTracker->Init(dependentHandle, pLoaderAllocator);
             gc.dependentTrackerHash.Add(&pLoaderAllocator, [&gc](PTRARRAYREF arr, INT32 index)
             {
