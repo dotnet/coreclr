@@ -355,12 +355,8 @@ public:
 
     static void InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData);
 
-    // Get the configuration object.
-    static EventPipeConfiguration *GetConfiguration()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return s_pConfig;
-    }
+    // Get the event used to write metadata to the event stream.
+    static EventPipeEventInstance *BuildEventMetadataEvent(EventPipeEventInstance &instance, unsigned int metadataId);
 
 private:
     // The counterpart to WriteEvent which after the payload is constructed

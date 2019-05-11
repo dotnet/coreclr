@@ -127,9 +127,7 @@ public:
     // Get the session provider for the specified provider if present.
     EventPipeSessionProvider* GetSessionProvider(EventPipeProvider *pProvider);
 
-    bool WriteAllBuffersToFile(
-        EventPipeConfiguration &configuration,
-        LARGE_INTEGER stopTimeStamp);
+    bool WriteAllBuffersToFile();
 
     bool WriteEvent(
         Thread *pThread,
@@ -140,9 +138,7 @@ public:
         Thread *pEventThread = nullptr,
         StackContents *pStack = nullptr);
 
-    void WriteEvent(
-        EventPipeEventInstance &instance,
-        EventPipeConfiguration &configuration);
+    void WriteEvent(EventPipeEventInstance &instance);
 
     EventPipeEventInstance *GetNextEvent();
 
@@ -150,10 +146,7 @@ public:
     void Enable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Disable a session in the event pipe.
-    void Disable(
-        EventPipeConfiguration &configuration,
-        LARGE_INTEGER stopTimeStamp,
-        EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
+    void Disable();
 
     // Determine if the session is valid or not.  Invalid sessions can be detected before they are enabled.
     bool IsValid() /* This is not const because CrtsHolder does not take a const* */;

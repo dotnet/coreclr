@@ -117,6 +117,20 @@ void EventPipeSession::DestroyIpcStreamingThread()
     m_threadShutdownEvent.Set();
 }
 
+static void PlatformSleep()
+{
+    // Wait until it's time to sample again.
+    const uint32_t PeriodInNanoSeconds = 100000000; // 100 msec.
+
+    // FIXME: Poors man sleep
+#ifdef FEATURE_PAL
+    PAL_nanosleep(PeriodInNanoSeconds);
+#else  //FEATURE_PAL
+    const uint32_t NUM_NANOSECONDS_IN_1_MS = 1000000;
+    ClrSleepEx(PeriodInNanoSeconds / NUM_NANOSECONDS_IN_1_MS, FALSE);
+#endif //FEATURE_PAL
+}
+
 DWORD WINAPI EventPipeSession::ThreadProc(void *args)
 {
     CONTRACTL
@@ -146,37 +160,15 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
             bool fSuccess = true;
             while (pEventPipeSession->IsIpcStreamingEnabled() && fSuccess)
             {
-                EventPipe::RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
-                    // Make sure that we should actually flush.
-                    EventPipeConfiguration *const pConfiguration = EventPipe::GetConfiguration();
-                    if (!EventPipe::Enabled() || pConfiguration == nullptr)
-                        fSuccess = false;
-
-                    // Get the current time stamp.
-                    // WriteAllBuffersToFile will use this to ensure that no events after
-                    // the current timestamp are written into the file.
-                    LARGE_INTEGER stopTimeStamp;
-                    QueryPerformanceCounter(&stopTimeStamp);
-                    if (!pEventPipeSession->WriteAllBuffersToFile(*pConfiguration, stopTimeStamp))
-                    {
-                        fSuccess = false;
-                        pEventPipeSession->Disable(
-                            *pConfiguration,
-                            stopTimeStamp,
-                            pEventPipeProviderCallbackDataQueue);
-                    }
-                });
+                if (!pEventPipeSession->WriteAllBuffersToFile())
+                {
+                    fSuccess = false;
+                    pEventPipeSession->Disable();
+                    // pEventPipeSession->DestroyIpcStreamingThread();
+                }
 
                 // Wait until it's time to sample again.
-                const uint32_t PeriodInNanoSeconds = 100000000; // 100 msec.
-                const uint32_t NUM_NANOSECONDS_IN_1_MS = 1000000;
-
-                // FIXME: Poors man sleep
-#ifdef FEATURE_PAL
-                PAL_nanosleep(PeriodInNanoSeconds);
-#else  //FEATURE_PAL
-                ClrSleepEx(PeriodInNanoSeconds / NUM_NANOSECONDS_IN_1_MS, FALSE);
-#endif //FEATURE_PAL
+                PlatformSleep();
             }
         }
     }
@@ -257,16 +249,13 @@ EventPipeSessionProvider* EventPipeSession::GetSessionProvider(EventPipeProvider
     return m_pProviderList->GetSessionProvider(pProvider);
 }
 
-bool EventPipeSession::WriteAllBuffersToFile(
-    EventPipeConfiguration &configuration,
-    LARGE_INTEGER stopTimeStamp)
+bool EventPipeSession::WriteAllBuffersToFile()
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -274,7 +263,13 @@ bool EventPipeSession::WriteAllBuffersToFile(
         return true;
 
     // CrstHolder _crst(&m_lock);
-    m_pBufferManager->WriteAllBuffersToFile(m_pFile, configuration, stopTimeStamp);
+
+    // Get the current time stamp.
+    // EventPipeBufferManager::WriteAllBuffersToFile will use this to ensure that no events after
+    // the current timestamp are written into the file.
+    LARGE_INTEGER stopTimeStamp;
+    QueryPerformanceCounter(&stopTimeStamp);
+    m_pBufferManager->WriteAllBuffersToFile(m_pFile, stopTimeStamp);
     return !m_pFile->HasErrors();
 }
 
@@ -292,15 +287,12 @@ bool EventPipeSession::WriteEvent(
     return m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId);
 }
 
-void EventPipeSession::WriteEvent(
-    EventPipeEventInstance &instance,
-    EventPipeConfiguration &configuration)
+void EventPipeSession::WriteEvent(EventPipeEventInstance &instance)
 {
     if (m_pFile == nullptr)
         return;
-
     // CrstHolder _crst(&m_lock);
-    m_pFile->WriteEvent(instance, configuration);
+    m_pFile->WriteEvent(instance);
 }
 
 EventPipeEventInstance *EventPipeSession::GetNextEvent()
@@ -334,10 +326,7 @@ void EventPipeSession::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProv
         CreateIpcStreamingThread();
 }
 
-void EventPipeSession::Disable(
-    EventPipeConfiguration &configuration,
-    LARGE_INTEGER stopTimeStamp,
-    EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
+void EventPipeSession::Disable()
 {
     CONTRACTL
     {
@@ -355,7 +344,11 @@ void EventPipeSession::Disable(
     // CrstHolder _crst(&m_lock);
 
     // Disable streaming thread
-    if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
+    // If g_fProcessDetach is true, the IPC streaming thread probably got
+    // ripped because someone called ExitProcess(). This check is an attempt
+    // to recognize that case and avoid waiting for the (already dead) sampling
+    // profiler thread to tell us it is terminated.
+    if ((!g_fProcessDetach) && (m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
     {
         // Reset the event before shutdown.
         m_threadShutdownEvent.Reset();
@@ -373,7 +366,8 @@ void EventPipeSession::Disable(
     // This is required to ensure we can safely flush and delete the buffers
     m_pBufferManager->SuspendWriteEvent();
     {
-        m_pBufferManager->WriteAllBuffersToFile(m_pFile, configuration, stopTimeStamp);
+        if (!WriteAllBuffersToFile())
+            return; // There were errors writing. Do not bother writing more.
 
         if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
         {

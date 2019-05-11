@@ -502,7 +502,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     return !allocNewBuffer;
 }
 
-void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, EventPipeConfiguration &configuration, LARGE_INTEGER stopTimeStamp)
+void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
 {
     CONTRACTL
     {
@@ -510,7 +510,6 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, EventPi
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(pFile != nullptr);
-        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -582,7 +581,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, EventPi
         }
 
         // Write the oldest event.
-        pFile->WriteEvent(*pOldestInstance, configuration);
+        pFile->WriteEvent(*pOldestInstance);
 
         m_numEventsWritten++;
 

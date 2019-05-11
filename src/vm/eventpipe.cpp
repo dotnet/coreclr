@@ -216,7 +216,6 @@ void EventPipe::Shutdown()
     // Mark tracing as no longer initialized.
     s_tracingInitialized = false;
 
-
     EventPipeConfiguration *pConfig = s_pConfig;
     EventPipeSessions *pSessions = s_pSessions;
 
@@ -397,9 +396,7 @@ void EventPipe::DisableInternal(EventPipeSession &session, EventPipeProviderCall
         // Disable tracing.
         s_pConfig->Disable(pEventPipeProviderCallbackDataQueue);
 
-        LARGE_INTEGER disableTimeStamp;
-        QueryPerformanceCounter(&disableTimeStamp);
-        session.Disable(*s_pConfig, disableTimeStamp, pEventPipeProviderCallbackDataQueue);
+        session.Disable();
 
         // Delete deferred providers.
         // Providers can't be deleted during tracing because they may be needed when serializing the file.
@@ -607,7 +604,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
                 // fail rather than disrupt the caller
                 EX_TRY
                 {
-                    pSession->WriteEvent(instance, *s_pConfig);
+                    pSession->WriteEvent(instance);
                 }
                 EX_CATCH {}
                 EX_END_CATCH(SwallowAllExceptions);
@@ -748,6 +745,20 @@ EventPipeEventInstance *EventPipe::GetNextEvent(EventPipeSessionID sessionID)
 void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)
 {
     EventPipeProvider::InvokeCallback(eventPipeProviderCallbackData);
+}
+
+EventPipeEventInstance *EventPipe::BuildEventMetadataEvent(EventPipeEventInstance &instance, unsigned int metadataId)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
+    CrstHolder _crst(GetLock());
+    return (s_pConfig != nullptr) ? s_pConfig->BuildEventMetadataEvent(instance, metadataId) : nullptr;
 }
 
 #ifdef DEBUG

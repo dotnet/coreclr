@@ -21,7 +21,7 @@ public:
     EventPipeFile(StreamWriter *pStreamWriter);
     ~EventPipeFile();
 
-    void WriteEvent(EventPipeEventInstance &instance, EventPipeConfiguration &configuration);
+    void WriteEvent(EventPipeEventInstance &instance);
     void Flush();
     bool HasErrors() const;
 

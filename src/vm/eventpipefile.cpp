@@ -75,7 +75,7 @@ bool EventPipeFile::HasErrors() const
     return (m_pSerializer == nullptr) || m_pSerializer->HasWriteErrors();
 }
 
-void EventPipeFile::WriteEvent(EventPipeEventInstance &instance, EventPipeConfiguration &configuration)
+void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
 {
     CONTRACTL
     {
@@ -92,7 +92,7 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance, EventPipeConfig
     {
         metadataId = GenerateMetadataId();
 
-        EventPipeEventInstance* pMetadataInstance = configuration.BuildEventMetadataEvent(instance, metadataId);
+        EventPipeEventInstance* pMetadataInstance = EventPipe::BuildEventMetadataEvent(instance, metadataId);
 
         WriteToBlock(*pMetadataInstance, 0); // 0 breaks recursion and represents the metadata event.
 
