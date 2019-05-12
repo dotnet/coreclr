@@ -11,6 +11,8 @@
 
 #include "ceefilegenwriter.h"
 
+#include "holder.h"
+
 #ifndef _MSC_VER
 //cloned definition from ntimage.h that is removed for non MSVC builds
 typedef VOID
@@ -355,7 +357,7 @@ HRESULT Assembler::CreateExportDirectory()
     char*   pDLLName = pENT + L;
 
     // sort the names/ordinals
-    char**  pAlias = new char*[Nentries];
+    NewArrayHolder<char*> pAlias = new char*[Nentries];
     for(i = 0; i < Nentries; i++)
     {
         pEATE = m_EATList.PEEK(i);
@@ -418,7 +420,6 @@ HRESULT Assembler::CreateExportDirectory()
     DWORD fileTimeStamp;
     if (FAILED(hr = m_pCeeFileGen->GetFileTimeStamp(m_pCeeFile,&fileTimeStamp)))
     {
-        delete [] pAlias;
         return hr;
     }
     // Fill in the directory entry.
@@ -440,14 +441,12 @@ HRESULT Assembler::CreateExportDirectory()
         4,
         (void**) &de)))
     {
-        delete [] pAlias;
         return hr;
     }
     // Where did we get that memory?
     ULONG deOffset, deDataOffset;
     if (FAILED(hr = m_pCeeFileGen->GetSectionDataLen(sec, &deDataOffset)))
     {
-        delete [] pAlias;
         return hr;
     }
 
@@ -459,28 +458,24 @@ HRESULT Assembler::CreateExportDirectory()
     if (FAILED(hr = m_pCeeFileGen->AddSectionReloc(sec,deOffset + offsetof(IMAGE_EXPORT_DIRECTORY,Name),
         sec, srRelocAbsolute)))
     {
-        delete [] pAlias;
         return hr;
     }
     exportDirIDD.AddressOfFunctions = VAL32(VAL32(exportDirIDD.AddressOfFunctions) + deDataOffset);
     if (FAILED(hr = m_pCeeFileGen->AddSectionReloc(sec,deOffset + offsetof(IMAGE_EXPORT_DIRECTORY,AddressOfFunctions),
         sec, srRelocAbsolute)))
     {
-        delete [] pAlias;
         return hr;
     }
     exportDirIDD.AddressOfNames = VAL32(VAL32(exportDirIDD.AddressOfNames) + deDataOffset);
     if (FAILED(hr = m_pCeeFileGen->AddSectionReloc(sec,deOffset + offsetof(IMAGE_EXPORT_DIRECTORY,AddressOfNames),
         sec, srRelocAbsolute)))
     {
-        delete [] pAlias;
         return hr;
     }
     exportDirIDD.AddressOfNameOrdinals = VAL32(VAL32(exportDirIDD.AddressOfNameOrdinals) + deDataOffset);
     if (FAILED(hr = m_pCeeFileGen->AddSectionReloc(sec,deOffset + offsetof(IMAGE_EXPORT_DIRECTORY,AddressOfNameOrdinals),
         sec, srRelocAbsolute)))
     {
-        delete [] pAlias;
         return hr;
     }
 
@@ -492,7 +487,6 @@ HRESULT Assembler::CreateExportDirectory()
         if (FAILED(hr = m_pCeeFileGen->AddSectionReloc(sec,exportDirIDD.AddressOfNames+i*sizeof(DWORD),
             sec, srRelocAbsolute)))
         {
-            delete [] pAlias;
             return hr;
         }
     }
@@ -502,14 +496,12 @@ HRESULT Assembler::CreateExportDirectory()
     if (FAILED(hr = m_pCeeFileGen->SetDirectoryEntry(m_pCeeFile, sec, IMAGE_DIRECTORY_ENTRY_EXPORT,
         sizeof(IMAGE_EXPORT_DIRECTORY), deOffset)))
     {
-        delete [] pAlias;
         return hr;
     }
 
     // Copy the debug directory into the section.
     memcpy(de, &exportDirIDD, sizeof(IMAGE_EXPORT_DIRECTORY));
     memcpy(de + sizeof(IMAGE_EXPORT_DIRECTORY), exportDirData, exportDirDataSize);
-    delete [] pAlias;
     delete [] exportDirData;
     return S_OK;
 }
