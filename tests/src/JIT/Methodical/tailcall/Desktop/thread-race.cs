@@ -11,7 +11,7 @@ internal class Repro
     private static volatile Mutex s_myMutex;
     private static volatile int[] s_threadSum;
     private const int FibSeriesMax = 35;
-    private const int FibSeriesMin = 15;
+    private const int FibSeriesMin = 20;
 
     public static int Main()
     {
