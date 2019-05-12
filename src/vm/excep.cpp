@@ -105,7 +105,7 @@ BOOL IsExceptionFromManagedCode(const EXCEPTION_RECORD * pExceptionRecord)
 
 #ifndef DACCESS_COMPILE
 
-#define SZ_UNHANDLED_EXCEPTION W("Unhandled Exception:")
+#define SZ_UNHANDLED_EXCEPTION W("Process is terminating due to an unhandled exception.\n\n")
 #define SZ_UNHANDLED_EXCEPTION_CHARLEN ((sizeof(SZ_UNHANDLED_EXCEPTION) / sizeof(WCHAR)))
 
 
@@ -5251,7 +5251,7 @@ DefaultCatchHandlerExceptionMessageWorker(Thread* pThread,
         }
 
         PrintToStdErrW(buf);
-        PrintToStdErrA(" ");
+        PrintToStdErrA("\n\n");
 
         SString message = GetExceptionMessageWrapper(pThread, throwable);
 
@@ -5448,6 +5448,7 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                     }
 
                     PrintToStdErrW(buf);
+                    PrintToStdErrA("\n\n");
 
                     if (IsOutOfMemory)
                     {

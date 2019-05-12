@@ -830,7 +830,7 @@ void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource
         if (errorSource != NULL)
         {
             PrintToStdErrW(errorSource);
-            PrintToStdErrA("\n");
+            PrintToStdErrA("\n\n");
         }
 
         if (pszMessage != NULL)
@@ -845,7 +845,7 @@ void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource
             PrintToStdErrW((LPCWSTR)exitCodeMessage);
         }
 
-        PrintToStdErrA("\n");
+        PrintToStdErrA("\n\n");
 
         if (pThread && errorSource == NULL)
         {
@@ -854,7 +854,7 @@ void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource
             if (argExceptionString != NULL) {
                 PrintToStdErrA("\n");
                 PrintToStdErrA("Exception details:");
-                PrintToStdErrA("\n");
+                PrintToStdErrA("\n\n");
                 PrintToStdErrW(argExceptionString);
                 PrintToStdErrA("\n");
             }
@@ -1049,7 +1049,7 @@ void DisplayStackOverflowException()
     LIMITED_METHOD_CONTRACT;
     PrintToStdErrA("\n");
 
-    PrintToStdErrA("Process is terminating due to a StackOverflowException.\n");
+    PrintToStdErrA("Process is terminating due to a stack overflow.\n");
 }
 
 void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pExceptionInfo, BOOL fSkipDebugger)
