@@ -11,6 +11,9 @@
 **
 =============================================================================*/
 
+//TODO: VS need to deal with this.
+#nullable disable
+
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
