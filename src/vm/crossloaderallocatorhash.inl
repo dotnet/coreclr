@@ -1108,6 +1108,7 @@ LAHASHDEPENDENTHASHTRACKERREF CrossLoaderAllocatorHash<TRAITS>::GetDependentTrac
                     // Global LoaderAllocator does not have an exposed object, so create a fake one
                     exposedObject = AllocateObject(MscorlibBinder::GetExistingClass(CLASS__OBJECT));
                     m_globalDependentTrackerRootHandle = GetAppDomain()->CreateHandle(exposedObject);
+                    m_pLoaderAllocator->RegisterHandleForCleanup(m_globalDependentTrackerRootHandle);
                 }
                 else
                 {
