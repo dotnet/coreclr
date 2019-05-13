@@ -1969,6 +1969,7 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(code_t code, int var, int dsp)
 
 inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, code_t code, int var, int dsp)
 {
+    assert(id->idIns() != INS_invalid);
     instruction    ins      = id->idIns();
     emitAttr       attrSize = id->idOpSize();
     UNATIVE_OFFSET prefix   = emitGetVexPrefixAdjustedSize(ins, attrSize, code);
@@ -1977,6 +1978,7 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, code_t code, int var
 
 inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, code_t code, int var, int dsp, int val)
 {
+    assert(id->idIns() != INS_invalid);
     instruction    ins       = id->idIns();
     emitAttr       attrSize  = id->idOpSize();
     UNATIVE_OFFSET valSize   = EA_SIZE_IN_BYTES(attrSize);
@@ -2037,8 +2039,9 @@ static bool baseRegisterRequiresDisplacement(regNumber base)
 
 UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
 {
-    emitAttr    attrSize = id->idOpSize();
+    assert(id->idIns() != INS_invalid);
     instruction ins      = id->idIns();
+    emitAttr    attrSize = id->idOpSize();
     /* The displacement field is in an unusual place for calls */
     ssize_t        dsp       = (ins == INS_call) ? emitGetInsCIdisp(id) : emitGetInsAmdAny(id);
     bool           dspInByte = ((signed char)dsp == (ssize_t)dsp);
@@ -2260,6 +2263,7 @@ UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
 
 inline UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code, int val)
 {
+    assert(id->idIns() != INS_invalid);
     instruction    ins       = id->idIns();
     UNATIVE_OFFSET valSize   = EA_SIZE_IN_BYTES(id->idOpSize());
     bool           valInByte = ((signed char)val == val) && (ins != INS_mov) && (ins != INS_test);
@@ -2296,6 +2300,7 @@ inline UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code, int val
 
 inline UNATIVE_OFFSET emitter::emitInsSizeCV(instrDesc* id, code_t code)
 {
+    assert(id->idIns() != INS_invalid);
     instruction ins      = id->idIns();
     emitAttr    attrSize = id->idOpSize();
 
@@ -6522,9 +6527,15 @@ void emitter::emitIns_SIMD_R_R_S_R(
 
 void emitter::emitIns_S(instruction ins, emitAttr attr, int varx, int offs)
 {
+    UNATIVE_OFFSET sz;
     instrDesc*     id  = emitNewInstr(attr);
-    UNATIVE_OFFSET sz  = emitInsSizeSV(id, insCodeMR(ins), varx, offs);
     insFormat      fmt = emitInsModeFormat(ins, IF_SRD);
+
+    id->idIns(ins);
+    id->idInsFmt(fmt);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+
+    sz = emitInsSizeSV(id, insCodeMR(ins), varx, offs);
 
     // 16-bit operand instructions will need a prefix
     if (EA_SIZE(attr) == EA_2BYTE)
@@ -6541,9 +6552,6 @@ void emitter::emitIns_S(instruction ins, emitAttr attr, int varx, int offs)
         sz += emitGetRexPrefixSize(ins);
     }
 
-    id->idIns(ins);
-    id->idInsFmt(fmt);
-    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
     id->idCodeSize(sz);
 
 #ifdef DEBUG
@@ -6557,9 +6565,16 @@ void emitter::emitIns_S(instruction ins, emitAttr attr, int varx, int offs)
 
 void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber ireg, int varx, int offs)
 {
+    UNATIVE_OFFSET sz;
     instrDesc*     id  = emitNewInstr(attr);
-    UNATIVE_OFFSET sz  = emitInsSizeSV(id, insCodeMR(ins), varx, offs);
     insFormat      fmt = emitInsModeFormat(ins, IF_SRD_RRD);
+
+    id->idIns(ins);
+    id->idInsFmt(fmt);
+    id->idReg1(ireg);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+
+    sz = emitInsSizeSV(id, insCodeMR(ins), varx, offs);
 
 #ifdef _TARGET_X86_
     if (attr == EA_1BYTE)
@@ -6582,10 +6597,6 @@ void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber ireg, int va
         sz += emitGetRexPrefixSize(ins);
     }
 
-    id->idIns(ins);
-    id->idInsFmt(fmt);
-    id->idReg1(ireg);
-    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
     id->idCodeSize(sz);
 #ifdef DEBUG
     id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
@@ -6599,14 +6610,27 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber ireg, int va
     emitAttr size = EA_SIZE(attr);
     noway_assert(emitVerifyEncodable(ins, size, ireg));
 
+    UNATIVE_OFFSET sz;
     instrDesc*     id  = emitNewInstr(attr);
-    UNATIVE_OFFSET sz  = emitInsSizeSV(id, insCodeRM(ins), varx, offs);
     insFormat      fmt = emitInsModeFormat(ins, IF_RRD_SRD);
+
+    id->idIns(ins);
+    id->idInsFmt(fmt);
+    id->idReg1(ireg);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+
+    sz = emitInsSizeSV(id, insCodeRM(ins), varx, offs);
 
     // Most 16-bit operand instructions need a prefix
     if (size == EA_2BYTE && ins != INS_movsx && ins != INS_movzx)
     {
         sz++;
+    }
+
+    if (Is4ByteSSEInstruction(ins))
+    {
+        // The 4-Byte SSE instructions require an additional byte.
+        sz += 1;
     }
 
     // VEX prefix
@@ -6620,10 +6644,6 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber ireg, int va
 
     sz += emitAdjustSizeCrc32(ins, attr);
 
-    id->idIns(ins);
-    id->idInsFmt(fmt);
-    id->idReg1(ireg);
-    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
     id->idCodeSize(sz);
 #ifdef DEBUG
     id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
