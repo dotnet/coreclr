@@ -55,7 +55,7 @@ namespace NativeFormat
         {
             _ASSERTE(false);
 
-#ifndef DACCESS_COMPILE
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             // Failfast instead of throwing, to avoid violating NOTHROW contracts of callers
             EEPOLICY_HANDLE_FATAL_ERROR(COR_E_BADIMAGEFORMAT);
 #endif
@@ -542,7 +542,9 @@ namespace NativeFormat
         PTR_BYTE _base;
         UInt32 _size;
 
-        UInt32 ComputeFingerprintHash(UInt16 fingerprint)
+
+    public:
+        static UInt32 ComputeFingerprintHash(UInt16 fingerprint)
         {
             // As the number of buckets is not reasonably greater than 65536, just use fingerprint as its own hash
             // This implies that the hash of the entrypoint should be an independent hash function as compared
@@ -550,7 +552,6 @@ namespace NativeFormat
             return fingerprint;
         }
 
-    public:
         NativeCuckooFilter()
         {
             _base = NULL;
@@ -583,11 +584,15 @@ namespace NativeFormat
 
             if (_size == 0)
                 return false; // Empty table means none of the attributes exist
-                        
+
+            // Fingerprints of 0 don't actually exist. Just use 1, and lose some entropy
+            if (fingerprint == 0)
+                fingerprint = 1;
+
             UInt32 bucketCount = _size / 16;
 
             UInt32 bucketAIndex = hashcode % bucketCount;
-            UInt32 bucketBIndex = bucketAIndex ^ ComputeFingerprintHash(fingerprint);
+            UInt32 bucketBIndex = bucketAIndex ^ ComputeFingerprintHash(fingerprint % bucketCount);
 
 #if defined(USE_INTEL_INTRINSICS)
             __m128i bucketA = _mm_loadu_si128(&((__m128i*)_base)[bucketAIndex]);

@@ -163,7 +163,7 @@ inline static UINT32 XXHash32_MixEmptyState()
     return 374761393U; // Prime5
 }
 
-inline static UINT32 XXHash32_QueueRound(UINT32 hash, uint queuedValue)
+inline static UINT32 XXHash32_QueueRound(UINT32 hash, UINT32 queuedValue)
 {
     return ((UINT32)_rotl((int)(hash + queuedValue * 3266489917U/*Prime3*/), 17)) * 668265263U/*Prime4*/;
 }
