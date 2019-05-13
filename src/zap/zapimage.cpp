@@ -3380,7 +3380,7 @@ void ZapImage::LoadProfileData()
     }
 
 #ifdef CROSSGEN_COMPILE
-    if (m_pRawProfileData == NULL || m_cRawProfileData == 0)
+    if (m_zapper->m_pOpt->m_fPartialNGen && (m_pRawProfileData == NULL || m_cRawProfileData == 0))
     {
         ThrowHR(CLR_E_CROSSGEN_NO_IBC_DATA_FOUND);
     }
