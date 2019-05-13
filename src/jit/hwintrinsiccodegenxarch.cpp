@@ -1775,7 +1775,7 @@ void CodeGen::genSSE41Intrinsic(GenTreeHWIntrinsic* node)
                 // Until we improve the handling of addressing modes in the emitter, we'll create a
                 // temporary GT_IND to generate code with.
                 GenTreeIndir load = indirForm(node->TypeGet(), op1);
-                emit->emitInsLoadInd(ins, emitTypeSize(TYP_SIMD16), node->gtRegNum, &load);
+                emit->emitInsLoadInd(ins, emitTypeSize(TYP_SIMD16), node->GetRegNum(), &load);
             }
             else
             {
@@ -1986,7 +1986,7 @@ void CodeGen::genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node)
                 // Until we improve the handling of addressing modes in the emitter, we'll create a
                 // temporary GT_IND to generate code with.
                 GenTreeIndir load = indirForm(node->TypeGet(), op1);
-                emit->emitInsLoadInd(ins, emitTypeSize(TYP_SIMD32), node->gtRegNum, &load);
+                emit->emitInsLoadInd(ins, emitTypeSize(TYP_SIMD32), node->GetRegNum(), &load);
             }
             else
             {

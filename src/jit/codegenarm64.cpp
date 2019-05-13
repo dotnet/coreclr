@@ -4931,7 +4931,7 @@ void CodeGen::genSIMDIntrinsicUpperSave(GenTreeSIMD* simdNode)
     {
         // This is not a normal spill; we'll spill it to the lclVar location.
         // The localVar must have a stack home.
-        unsigned   varNum = op1->AsLclVarCommon()->gtLclNum;
+        unsigned   varNum = op1->AsLclVarCommon()->GetLclNum();
         LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
         assert(varDsc->lvOnFrame);
         // We want to store this to the upper 8 bytes of this localVar's home.

@@ -1469,7 +1469,7 @@ inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
             if (zeroFieldSeq != nullptr)
             {
                 // Set the zeroFieldSeq in the GT_LCL_FLD node
-                gtLclFld.gtFieldSeq = zeroFieldSeq;
+                AsLclFld()->gtFieldSeq = zeroFieldSeq;
                 // and remove the annotation from the ZeroOffsetFieldMap
                 compiler->GetZeroOffsetFieldMap()->Remove(this);
             }
