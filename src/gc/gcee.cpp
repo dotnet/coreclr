@@ -14,10 +14,10 @@
 
 GCCounterData g_GCCounterData;
 
+#if defined(FEATURE_EVENT_TRACE)
 uint64_t g_TotalTimeInGC = 0;
 uint64_t g_TotalTimeSinceLastGCEnd = 0;
 
-#if defined(FEATURE_EVENT_TRACE)
 size_t g_GenerationSizes[NUMBERGENERATIONS];
 size_t g_GenerationPromotedSizes[NUMBERGENERATIONS];
 #endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
@@ -59,27 +59,9 @@ void GCHeap::UpdatePreGCCounters()
         
 #endif //MULTIPLE_HEAPS
 
-/*
-    GetPerfCounters().m_GC.cbAlloc += allocation_0;
-    GetPerfCounters().m_GC.cbAlloc += allocation_3;
-    GetPerfCounters().m_GC.cbLargeAlloc += allocation_3;
+    g_GCCounterData.cbAlloc += allocation_0;
+    g_GCCounterData.cbAlloc += allocation_3;
 
-
-#ifdef _PREFAST_
-    // prefix complains about us dereferencing hp in wks build even though we only access static members
-    // this way. not sure how to shut it up except for this ugly workaround:
-    PREFIX_ASSUME( hp != NULL);
-#endif //_PREFAST_
-    if (hp->settings.reason == reason_induced IN_STRESS_HEAP( && !hp->settings.stress_induced))
-    {
-        GetPerfCounters().m_GC.cInducedGCs++;
-    }
-
-    GetPerfCounters().m_Security.timeRTchecks = 0;
-    GetPerfCounters().m_Security.timeRTchecksBase = 1; // To avoid divide by zero
-
-#endif //ENABLE_PERF_COUNTERS
-*/
 #ifdef MULTIPLE_HEAPS
         //take the first heap....
     gc_mechanisms *pSettings = &gc_heap::g_heaps[0]->settings;
@@ -195,7 +177,7 @@ void GCHeap::UpdatePostGCCounters()
         }
 #endif //MULTIPLE_HEAPS
     }
-#endif //ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
+#endif //FEATURE_EVENT_TRACE
 
 #ifdef FEATURE_EVENT_TRACE
     g_theGCHeap->DiagDescrGenerations([](void*, int generation, uint8_t* rangeStart, uint8_t* rangeEnd, uint8_t* rangeEndReserved)
@@ -236,15 +218,12 @@ void GCHeap::UpdatePostGCCounters()
         else
         {
             g_GCCounterData.generationSizes[gen_index] = ((gen_index == 0) ? youngest_budget: g_GenerationSizes[gen_index]);
-            // it's good to find out ESPECIALLY because he was in a long-term relationship with someone. because if he broke up with someone he's dated for a long time then whatever he said 
-            // he likes the most about her is something his ex didn't have. or shouldn't have had. 
         }
     }
 
-
 #endif // FEATURE_EVENT_TRACE
 
-        /*
+#ifdef ENABLE_PERF_COUNTERS
     for (int gen_index = 0; gen_index <= (max_generation+1); gen_index++)
     {
         _ASSERTE(FitsIn<size_t>(g_GenerationSizes[gen_index]));
@@ -312,15 +291,21 @@ void GCHeap::UpdatePostGCCounters()
 
         GetPerfCounters().m_GC.cTotalCommittedBytes = committed_mem;
         GetPerfCounters().m_GC.cTotalReservedBytes = reserved_mem;
-
     }
-            */
-/*
-    _ASSERTE(FitsIn<size_t>(HeapInfo.HeapStats.FinalizationPromotedSize));
-    _ASSERTE(FitsIn<size_t>(HeapInfo.HeapStats.FinalizationPromotedCount));
-    GetPerfCounters().m_GC.cbPromotedFinalizationMem = static_cast<size_t>(HeapInfo.HeapStats.FinalizationPromotedSize);
-    GetPerfCounters().m_GC.cSurviveFinalize = static_cast<size_t>(HeapInfo.HeapStats.FinalizationPromotedCount);
-*/   
+
+    GetPerfCounters().m_GC.timeInGC = (uint32_t)g_TotalTimeInGC;
+    GetPerfCounters().m_GC.timeInGCBase = (uint32_t)_timeInGCBase;
+
+    if (!GetPerfCounters().m_GC.cProcessID)
+        GetPerfCounters().m_GC.cProcessID = (size_t)GetCurrentProcessId();
+    
+
+    GetPerfCounters().m_GC.cPinnedObj = total_num_pinned_objects;
+    GetPerfCounters().m_GC.cHandles = total_num_gc_handles;
+    GetPerfCounters().m_GC.cSinkBlocks = total_num_sync_blocks;
+
+#endif // ENABLE_PERF_COUNTERS
+
     // Compute Time in GC
     uint64_t _currentPerfCounterTimer = GCToOSInterface::QueryPerformanceCounter();
 
@@ -330,7 +315,7 @@ void GCHeap::UpdatePostGCCounters()
     if (_timeInGCBase < g_TotalTimeInGC)
         g_TotalTimeInGC = 0;        // isn't likely except on some SMP machines-- perhaps make sure that
                                     //  _timeInGCBase >= g_TotalTimeInGC by setting affinity in GET_CYCLE_COUNT
-                                    
+
     while (_timeInGCBase > UINT_MAX) 
     {
         _timeInGCBase = _timeInGCBase >> 8;
@@ -342,18 +327,6 @@ void GCHeap::UpdatePostGCCounters()
     g_GCCounterData.timeInGCBase = _timeInGCBase;
 
     g_TotalTimeSinceLastGCEnd = _currentPerfCounterTimer;
-    /*
-    GetPerfCounters().m_GC.timeInGC = (uint32_t)g_TotalTimeInGC;
-    GetPerfCounters().m_GC.timeInGCBase = (uint32_t)_timeInGCBase;
-
-    if (!GetPerfCounters().m_GC.cProcessID)
-        GetPerfCounters().m_GC.cProcessID = (size_t)GetCurrentProcessId();
-    
-
-    GetPerfCounters().m_GC.cPinnedObj = total_num_pinned_objects;
-    GetPerfCounters().m_GC.cHandles = total_num_gc_handles;
-    GetPerfCounters().m_GC.cSinkBlocks = total_num_sync_blocks;
-    */
 }
 
 int GCHeap::GetTimeInGC()
