@@ -541,6 +541,8 @@ public:
 
     virtual uint64_t GetGenerationSize(int gen) = 0;
 
+    virtual uint64_t GetTotalAllocated() = 0;
+
     // Returns whether or not the given size is a valid segment size.
     virtual bool IsValidSegmentSize(size_t size) = 0;
 

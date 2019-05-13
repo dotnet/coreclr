@@ -310,6 +310,8 @@ public:
     int GetTimeInGC();
 
     uint64_t GetGenerationSize(int gen);
+
+    uint64_t GetTotalAllocated();
 };
 
 #endif  // GCIMPL_H_

@@ -14,13 +14,11 @@
 
 GCCounterData g_GCCounterData;
 
-#if defined(FEATURE_EVENT_TRACE)
 uint64_t g_TotalTimeInGC = 0;
 uint64_t g_TotalTimeSinceLastGCEnd = 0;
 
 size_t g_GenerationSizes[NUMBERGENERATIONS];
 size_t g_GenerationPromotedSizes[NUMBERGENERATIONS];
-#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 void GCHeap::UpdatePreGCCounters()
 {
@@ -337,6 +335,11 @@ int GCHeap::GetTimeInGC()
 uint64_t GCHeap::GetGenerationSize(int gen)
 {
     return g_GCCounterData.generationSizes[gen];
+}
+
+uint64_t GCHeap::GetTotalAllocated()
+{
+    return g_GCCounterData.cbAlloc;
 }
 
 size_t GCHeap::GetCurrentObjSize()

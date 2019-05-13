@@ -124,6 +124,7 @@ public:
     static FCDECL0(UINT64,  GetSegmentSize);
     static FCDECL0(int,     GetPercentTimeInGC);
     static FCDECL1(UINT64,  GetGenerationSize, int gen);
+    static FCDECL0(UINT64,  GetTotalAllocated);
 
     static 
     INT64 QCALLTYPE GetTotalMemory();
