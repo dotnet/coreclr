@@ -155,6 +155,9 @@ publish/
 *.nuget.dgspec.json
 project.lock.json
 project.assets.json
+.packagesreports/
+.packagesspecs/
+*.nupkg.requires_nupkg_signing
 
 # Windows Azure Build Output
 csx/
