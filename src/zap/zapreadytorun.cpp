@@ -572,7 +572,9 @@ HRESULT ZapImage::ComputeAttributePresenceTable(IMDInternalImport * pMDImport, S
 
     // Buckets have 8 entries
     UINT minTableBucketCount = (countOfEntries / 8) + 1;
-    UINT bucketCount =  ((minTableBucketCount * 10) / 9) + 1; // Initial bucket count is about 90% capacity
+    UINT bucketCount = 1;// ((minTableBucketCount * 10) / 9) + 1; // Initial bucket count is about 90% capacity
+    while (bucketCount < minTableBucketCount)
+        bucketCount *= 2;
 
     // Resize the array.
     bool tryAgainWithBiggerTable = false;
@@ -694,8 +696,11 @@ HRESULT ZapImage::ComputeAttributePresenceTable(IMDInternalImport * pMDImport, S
 
         if (tryAgainWithBiggerTable)
         {
-            // Make bucketCount about 5% bigger
-            bucketCount =  ((bucketCount * 20) / 19) + 1; 
+            // bucket entry kicking path requires bucket counts to be power of two. Due to use of xor to retrieve second hash
+            bucketCount *= 2;
+
+/*            // Make bucketCount about 5% bigger
+            bucketCount =  ((bucketCount * 20) / 19) + 1; */
         }
     } while(tryAgainWithBiggerTable && ((countOfRetries++) < 10));
 
