@@ -742,7 +742,7 @@ HRESULT CorHost2::_CreateAppDomain(
             pwzAppNiPaths = pPropertyValues[i];
         }
         else
-        if (wcscmp(pPropertyNames[i], W("OVERRIDE_DEFAULT_STACK_SIZE_4KPAGES")) == 0)
+        if (wcscmp(pPropertyNames[i], W("OVERRIDE_DEFAULT_STACK_SIZE")) == 0)
         {
             extern void OverrideDefaultStackSize(LPCWSTR value);
             OverrideDefaultStackSize(pPropertyValues[i]);

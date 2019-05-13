@@ -2144,7 +2144,7 @@ HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTH
 }
 
 
-// Represent the value of OVERRIDE_DEFAULT_STACK_SIZE_4KPAGES as passed in the property bag to the host during construction
+// Represent the value of OVERRIDE_DEFAULT_STACK_SIZE as passed in the property bag to the host during construction
 static SIZE_T s_overrideDefaultStackSize = 0;
 
 void OverrideDefaultStackSize(LPCWSTR valueStr)
@@ -2155,15 +2155,21 @@ void OverrideDefaultStackSize(LPCWSTR valueStr)
         errno = 0;
         unsigned long value = wcstoul(valueStr, &end, 10);
 
-        SIZE_T max4KPages = SIZE_T(1) << (31 - 12);
+        SIZE_T minStack = 0x10000;     // 64K - Somewhat arbitrary minimum thread stack size
+        SIZE_T maxStack = 0x80000000;  //  2G - Somewhat arbitrary maximum thread stack size
 
-        if ((errno == ERANGE) || (valueStr == end) || (end == nullptr) || (end[0] != 0) || (value >= max4KPages))
+        if ((errno == ERANGE)                        // Parsed value doesn't fit in an unsigned long
+            || (valueStr == end)                     // No characters parsed
+            || (end == nullptr)                      // Unexpected condition (should never happen)
+            || (end[0] != 0)                         // Unprocessed terminal characters
+            || (value >= maxStack)                   // Too much stack requested
+            || ((value != 0) && (value < minStack))) // Too little stack requested
         {
-            ThrowMessage("OVERRIDE_DEFAULT_STACK_SIZE_4KPAGES value parse error");
+            ThrowHR(E_INVALIDARG);
         }
         else
         {
-            s_overrideDefaultStackSize = (SIZE_T) value * 4096;
+            s_overrideDefaultStackSize = (SIZE_T) value;
         }
     }
 }
