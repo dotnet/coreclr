@@ -16470,7 +16470,7 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
 
                                 JITDUMP("\nSetting lvOverlappingFields to true on V%02u because of struct "
                                         "reinterpretation\n",
-                                        addrChild->AsLclVarCommon()->gtLclNum);
+                                        addrChild->AsLclVarCommon()->GetLclNum());
 
                                 varDsc->lvOverlappingFields = true;
                             }
