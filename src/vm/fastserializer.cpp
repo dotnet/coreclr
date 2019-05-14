@@ -25,14 +25,6 @@ IpcStreamWriter::IpcStreamWriter(uint64_t id, IpcStream *pStream) : _pStream(pSt
 
     if (_pStream == nullptr)
         return;
-
-    uint32_t nBytesWritten = 0;
-    bool fSuccess = _pStream->Write(&id, sizeof(id), nBytesWritten);
-    if (!fSuccess)
-    {
-        delete _pStream;
-        _pStream = nullptr;
-    }
 }
 
 IpcStreamWriter::~IpcStreamWriter()

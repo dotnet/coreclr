@@ -6,6 +6,7 @@
 #include "diagnosticserver.h"
 #include "eventpipeprotocolhelper.h"
 #include "diagnosticprotocolhelper.h"
+#include "diagnosticsprotocol.h"
 
 #ifdef FEATURE_PAL
 #include "pal.h"
@@ -46,24 +47,24 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
             if (pStream == nullptr)
                 continue;
 
-            // TODO: Read operation should happen in a loop.
-            uint32_t nNumberOfBytesRead = 0;
-            MessageHeader header;
-            bool fSuccess = pStream->Read(&header, sizeof(header), nNumberOfBytesRead);
-            if (!fSuccess || nNumberOfBytesRead != sizeof(header))
+            DiagnosticsIpc::IpcMessage message(pStream);
+
+            if (!::strcmp((char *)message.GetHeader().Magic, DOTNET_IPC_V1_MAGIC))
             {
+                DiagnosticsIpc::IpcMessage errorResponse(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownVersion);
+                errorResponse.Send(pStream);
                 delete pStream;
                 continue;
             }
 
-            switch (header.RequestType)
+            switch ((DiagnosticsIpc::DiagnosticServerCommandSet)message.GetHeader().CommandSet)
             {
-            case DiagnosticMessageType::StopEventPipeTracing:
-                EventPipeProtocolHelper::StopTracing(pStream);
+            case DiagnosticsIpc::DiagnosticServerCommandSet::EventPipe:
+                EventPipeProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
 
-            case DiagnosticMessageType::CollectEventPipeTracing:
-                EventPipeProtocolHelper::CollectTracing(pStream);
+            case DiagnosticsIpc::DiagnosticServerCommandSet::Miscellaneous:
+                // TODO
                 break;
 
 #ifdef FEATURE_PAL
@@ -79,7 +80,9 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 #endif // FEATURE_PROFAPI_ATTACH_DETACH
 
             default:
-                STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", header.RequestType);
+                STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
+                DiagnosticsIpc::IpcMessage errorResponse(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommandSet);
+                errorResponse.Send(pStream);
                 delete pStream;
                 break;
             }
