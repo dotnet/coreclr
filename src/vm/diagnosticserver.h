@@ -7,7 +7,6 @@
 
 #ifdef FEATURE_PERFTRACING // This macro should change to something more generic than performance.
 
-#include <stdint.h>
 #include "diagnosticsipc.h"
 
 enum class DiagnosticMessageType : uint32_t
