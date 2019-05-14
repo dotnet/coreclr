@@ -329,6 +329,10 @@ void GCHeap::UpdatePostGCCounters()
 
 int GCHeap::GetTimeInGC()
 {
+    if (g_GCCounterData.timeInGCBase == 0)
+    {
+        return 0;
+    }
     return (int)(g_GCCounterData.timeInGC * 100 / g_GCCounterData.timeInGCBase);
 }
 
