@@ -111,6 +111,9 @@ namespace System
         internal static extern ulong GetGenerationSize(int gen);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern ulong GetLOHSize();
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern ulong GetTotalAllocated();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]

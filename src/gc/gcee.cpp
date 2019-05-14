@@ -341,6 +341,11 @@ uint64_t GCHeap::GetGenerationSize(int gen)
     return g_GCCounterData.generationSizes[gen];
 }
 
+uint64_t GCHeap::GetLOHSize()
+{
+    return g_GCCounterData.lohObjSize;
+}
+
 uint64_t GCHeap::GetTotalAllocated()
 {
     return g_GCCounterData.cbAlloc;

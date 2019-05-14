@@ -1180,6 +1180,14 @@ FCIMPL1(UINT64, GCInterface::GetGenerationSize, int gen)
 }
 FCIMPLEND
 
+FCIMPL0(UINT64, GCInterface::GetLOHSize)
+{
+    FCALL_CONTRACT;
+
+    return GCHeapUtilities::GetGCHeap()->GetLOHSize();
+}
+FCIMPLEND
+
 FCIMPL0(UINT64, GCInterface::GetTotalAllocated)
 {
     FCALL_CONTRACT;

@@ -29,6 +29,7 @@ namespace System.Diagnostics.Tracing
         private PollingCounter? _gen0SizeCounter;
         private PollingCounter? _gen1SizeCounter;
         private PollingCounter? _gen2SizeCounter;
+        private PollingCounter? _lohSizeCounter;
         private IncrementingPollingCounter? _allocRateCounter;
 
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
@@ -65,6 +66,7 @@ namespace System.Diagnostics.Tracing
                 _gen0SizeCounter = _gen0SizeCounter ?? new PollingCounter("gen-0-size", this, () => GC.GetGenerationSize(0)) { DisplayName = "Gen 0 Size" };
                 _gen1SizeCounter = _gen1SizeCounter ?? new PollingCounter("gen-1-size", this, () => GC.GetGenerationSize(1)) { DisplayName = "Gen 1 Size" };
                 _gen2SizeCounter = _gen2SizeCounter ?? new PollingCounter("gen-2-size", this, () => GC.GetGenerationSize(2)) { DisplayName = "Gen 2 Size" };
+                _lohSizeCounter = _lohSizeCounter ?? new PollingCounter("loh-size", this, () => GC.GetLOHSize()) { DisplayName = "LOH Size" };
                 _allocRateCounter = _allocRateCounter ?? new IncrementingPollingCounter("alloc-rate", this, () => GC.GetTotalAllocated()) { DisplayName = "Allocation Rate", DisplayRateTimeScale = new TimeSpan(0, 0, 1) };
             }
         }
