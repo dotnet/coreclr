@@ -196,6 +196,7 @@ jobs:
         helixQueues:
         - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
           - Windows.10.Amd64.Open
+          - "`(Windows.Nano.1803.Amd64.Open`)windows.10.amd64.serverrs4.open@mcr.microsoft.com/dotnet-buildtools/prereqs:nanoserver-1803-helix-amd64-05227e1-20190509225944"
         - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
           - Windows.7.Amd64.Open
           - Windows.81.Amd64.Open
