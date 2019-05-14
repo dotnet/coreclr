@@ -113,7 +113,7 @@ namespace System
         internal static extern ulong GetLOHSize();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern ulong GetTotalAllocated();
+        internal static extern ulong GetTotalAllocation();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _AddMemoryPressure(ulong bytesAllocated);

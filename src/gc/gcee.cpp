@@ -346,7 +346,7 @@ uint64_t GCHeap::GetLOHSize()
     return g_GCCounterData.lohObjSize;
 }
 
-uint64_t GCHeap::GetTotalAllocated()
+uint64_t GCHeap::GetTotalAllocation()
 {
     return g_GCCounterData.cbAlloc;
 }

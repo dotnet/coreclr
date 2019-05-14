@@ -315,7 +315,7 @@ public:
 
     uint64_t GetLOHSize();
 
-    uint64_t GetTotalAllocated();
+    uint64_t GetTotalAllocation();
 };
 
 #endif  // GCIMPL_H_

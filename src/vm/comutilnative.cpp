@@ -1189,11 +1189,11 @@ FCIMPL0(UINT64, GCInterface::GetLOHSize)
 }
 FCIMPLEND
 
-FCIMPL0(UINT64, GCInterface::GetTotalAllocated)
+FCIMPL0(UINT64, GCInterface::GetTotalAllocation)
 {
     FCALL_CONTRACT;
 
-    return GCHeapUtilities::GetGCHeap()->GetTotalAllocated();
+    return GCHeapUtilities::GetGCHeap()->GetTotalAllocation();
 }
 FCIMPLEND
 
