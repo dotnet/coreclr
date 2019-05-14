@@ -52,14 +52,13 @@ static bool TryParseCircularBufferSize(uint8_t*& bufferCursor, uint32_t& bufferL
 
 const EventPipeCollectTracingCommandPayload* EventPipeCollectTracingCommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
 {
-    // TODO(josalem): ensure this is being deleted properly when it falls out of scope completely...
     EventPipeCollectTracingCommandPayload *payload = new (nothrow) EventPipeCollectTracingCommandPayload;
     uint8_t* pBufferCursor = lpBuffer;
     uint32_t bufferLen = BufferSize;
     if (!TryParseCircularBufferSize(pBufferCursor, bufferLen, payload->circularBufferSizeInMB) ||
-        !TryParseString(pBufferCursor, bufferLen, payload->outputPath) || // TODO: Remove. Currently ignored in this scenario.
+        !TryParseString(pBufferCursor, bufferLen, payload->outputPath) ||
         !EventPipeProtocolHelper::TryParseProviderConfiguration(pBufferCursor, bufferLen, payload->providerConfigs))
-        return nullptr; // TODO(josalem): error handling here
+        return nullptr;
 
     return payload;
 }
@@ -173,7 +172,6 @@ void EventPipeProtocolHelper::CollectTracing(DiagnosticsIpc::IpcMessage& message
     const EventPipeCollectTracingCommandPayload* payload = message.TryParsePayload<EventPipeCollectTracingCommandPayload>();
     if (payload == nullptr)
     {
-        // TODO: error handling
         DiagnosticsIpc::IpcMessage errorResponse(EventPipeErrorHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding });
         errorResponse.Send(pStream);
         delete pStream;
@@ -195,11 +193,6 @@ void EventPipeProtocolHelper::CollectTracing(DiagnosticsIpc::IpcMessage& message
         errorMessage.Send(pStream);
         delete pStream;
     }
-
-    DiagnosticsIpc::IpcMessage successMessage(EventPipeSuccessHeader, sessionId);
-    successMessage.Send(pStream);
-    delete pStream;
-    // TODO(josalem): make pStream destructor automatic at out of scope...
 }
 
 #endif // FEATURE_PERFTRACING

@@ -184,7 +184,7 @@ namespace DiagnosticsIpc
         IpcMessage(IpcHeader header, T& payload)
             : m_Header(header), m_Size(0), m_pData(nullptr)
         {
-            FlattenImpl<T>(payload); // TODO: Error checking
+            FlattenImpl<T>(payload);
         };
 
         // Create an incoming IpcMessage from an incoming buffer
@@ -200,7 +200,6 @@ namespace DiagnosticsIpc
 
         ~IpcMessage()
         {
-            // TODO: ensure flattened buffer is dealt with
             delete m_pData;
         };
 
@@ -218,11 +217,11 @@ namespace DiagnosticsIpc
 
             // Then read out payload to buffer
             uint16_t payloadSize = m_Header.Size - sizeof(IpcHeader);
-            // TODO: is PayloadSize valid?
             BYTE* temp_buffer = new (nothrow) BYTE[payloadSize];
             success = pStream->Read(temp_buffer, payloadSize, nBytesRead);
             if (nBytesRead < payloadSize)
             {
+                delete[] temp_buffer;
                 return false;
             }
 
@@ -241,8 +240,7 @@ namespace DiagnosticsIpc
         template <typename T>
         const T* TryParsePayload()
         {
-            if (!IsFlattened())
-                return nullptr;
+            ASSERT(IsFlattened());
             return TryParsePayloadImpl<T>();
         };
 
@@ -251,11 +249,6 @@ namespace DiagnosticsIpc
             return m_pData;
         };
 
-        // TODO: ensure ownership of pointer isn't transfered
-        //const IpcHeader* TryParseHeader()
-        //{
-        //    return reinterpret_cast<const struct IpcHeader*>(GetFlatData());
-        //};
         const IpcHeader GetHeader()
         {
             return m_Header;
@@ -263,9 +256,7 @@ namespace DiagnosticsIpc
 
         bool Send(IpcStream* pStream)
         {
-            // TODO(josalem): Error check the write happened
-            if (!IsFlattened())
-                return false;
+            ASSERT(IsFlattened());
             uint32_t nBytesWritten;
             pStream->Write(m_pData, m_Size, nBytesWritten);
 
@@ -303,11 +294,7 @@ namespace DiagnosticsIpc
 
             S_UINT16 temp_size = S_UINT16(0);
             temp_size += sizeof(struct IpcHeader) + payload.GetSize();
-            if (temp_size.IsOverflow())
-            {
-                // TODO: what should happen here?
-                return false;
-            }
+            ASSERT(!temp_size.IsOverflow());
 
             m_Size = temp_size.Value();
 
@@ -316,7 +303,6 @@ namespace DiagnosticsIpc
 
             if (temp_buffer == NULL)
             {
-                // TODO: Error
                 return false;
             }
 
@@ -342,11 +328,7 @@ namespace DiagnosticsIpc
 
             S_UINT16 temp_size = S_UINT16(0);
             temp_size += sizeof(struct IpcHeader) + sizeof(payload);
-            if (temp_size.IsOverflow())
-            {
-                // TODO: what should happen here?
-                return false;
-            }
+            ASSERT(!temp_size.IsOverflow());
 
             m_Size = temp_size.Value();
 
@@ -355,7 +337,6 @@ namespace DiagnosticsIpc
 
             if (temp_buffer == NULL)
             {
-                // TODO: Error
                 return false;
             }
 

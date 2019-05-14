@@ -49,18 +49,6 @@ struct EventPipeStopTracingCommandPayload
     EventPipeSessionID sessionId;
 };
 
-// Command = 0x0200
-struct EventPipeCollectTracingResponsePayload
-{
-    // TODO
-};
-
-// Command = 0x0200
-struct EventPipeStopTracingResponsePayload
-{
-    // TODO
-};
-
 class EventPipeProtocolHelper
 {
 public:
