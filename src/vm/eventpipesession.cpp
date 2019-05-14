@@ -437,11 +437,8 @@ void EventPipeSession::Disable()
             m_pBufferManager->SuspendWriteEvent();
         }
     }
-    // Allow WriteEvent to begin accepting work again so that sometime in the future
-    // we can re-enable events and they will be recorded
+    // ResumeWriteEvent is not be necessary because the session will never write events again.
     // FIXME: Functions above might throw... Should we have a try catch here?
-    // TODO: This might not be necessary because the session will never write events again.
-    m_pBufferManager->ResumeWriteEvent();
 }
 
 #endif // FEATURE_PERFTRACING
