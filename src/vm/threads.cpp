@@ -2145,33 +2145,45 @@ HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTH
 
 
 // Represent the value of OVERRIDE_DEFAULT_STACK_SIZE as passed in the property bag to the host during construction
-static SIZE_T s_overrideDefaultStackSize = 0;
+static unsigned long s_overrideDefaultStackSizeProperty = 0;
 
-void OverrideDefaultStackSize(LPCWSTR valueStr)
+void ParseOverrideDefaultStackSize(LPCWSTR valueStr)
 {
     if (valueStr)
     {
         LPWSTR end;
         errno = 0;
-        unsigned long value = wcstoul(valueStr, &end, 10);
+        unsigned long value = wcstoul(valueStr, &end, 16); // Base 16 without a prefix
 
-        SIZE_T minStack = 0x10000;     // 64K - Somewhat arbitrary minimum thread stack size
-        SIZE_T maxStack = 0x80000000;  //  2G - Somewhat arbitrary maximum thread stack size
-
-        if ((errno == ERANGE)                        // Parsed value doesn't fit in an unsigned long
-            || (valueStr == end)                     // No characters parsed
-            || (end == nullptr)                      // Unexpected condition (should never happen)
-            || (end[0] != 0)                         // Unprocessed terminal characters
-            || (value >= maxStack)                   // Too much stack requested
-            || ((value != 0) && (value < minStack))) // Too little stack requested
+        if ((errno == ERANGE)     // Parsed value doesn't fit in an unsigned long
+            || (valueStr == end)  // No characters parsed
+            || (end == nullptr)   // Unexpected condition (should never happen)
+            || (end[0] != 0))     // Unprocessed terminal characters
         {
             ThrowHR(E_INVALIDARG);
         }
         else
         {
-            s_overrideDefaultStackSize = (SIZE_T) value;
+            s_overrideDefaultStackSizeProperty = value;
         }
     }
+}
+
+SIZE_T GetOverrideDefaultStackSize()
+{
+    static DWORD s_overrideDefaultStackSizeEnv = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DefaultStackSize);
+
+    uint64_t value = s_overrideDefaultStackSizeEnv ? s_overrideDefaultStackSizeEnv : s_overrideDefaultStackSizeProperty;
+
+    SIZE_T minStack = 0x10000;     // 64K - Somewhat arbitrary minimum thread stack size
+    SIZE_T maxStack = 0x80000000;  //  2G - Somewhat arbitrary maximum thread stack size
+
+    if ((value >= maxStack) || ((value != 0) && (value < minStack)))
+    {
+        ThrowHR(E_INVALIDARG);
+    }
+
+    return (SIZE_T) value;
 }
 
 BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
@@ -2191,11 +2203,16 @@ BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
 
     static BOOL fSizesGot = FALSE;
 
-    if (s_overrideDefaultStackSize != 0)
+    if (!fSizesGot)
     {
-        ExeSizeOfStackReserve = s_overrideDefaultStackSize;
-        ExeSizeOfStackCommit = s_overrideDefaultStackSize;
-        fSizesGot = TRUE;
+        SIZE_T overrideDefaultStackSize = GetOverrideDefaultStackSize();
+
+        if (overrideDefaultStackSize != 0)
+        {
+            ExeSizeOfStackReserve = overrideDefaultStackSize;
+            ExeSizeOfStackCommit = overrideDefaultStackSize;
+            fSizesGot = TRUE;
+        }
     }
 
 #ifndef FEATURE_PAL
@@ -2245,7 +2262,7 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
 
     if (sizeToCommitOrReserve == 0)
     {
-        sizeToCommitOrReserve = s_overrideDefaultStackSize;
+        sizeToCommitOrReserve = GetOverrideDefaultStackSize();
     }
 
 #ifndef FEATURE_PAL // the PAL does its own adjustments as necessary
