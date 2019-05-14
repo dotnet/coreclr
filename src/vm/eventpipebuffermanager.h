@@ -40,12 +40,14 @@ class EventPipeThread
     // exists
     LONG m_refCount;
 
-    // this is the one and only buffer this thread is allowed to write to
-    // if non-null, it must match the tail of the m_bufferList
+    // this is a dictionary of { buffer-manager, buffer } this thread is
+    // allowed to write to if exists or non-null, it must match the tail of the
+    // m_bufferList
     // this pointer is protected by m_lock
     EventPipeWriteBuffers *m_pWriteBuffers = nullptr;
 
-    // this is a list of buffers that were written to by this thread
+    // this is a dictionary of { buffer-manager, list of buffers } that were
+    // written to by this thread
     // it is protected by EventPipeBufferManager::m_lock
     EventPipeBufferLists *m_pBufferLists = nullptr;
 
