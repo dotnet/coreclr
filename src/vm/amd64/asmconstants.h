@@ -254,18 +254,16 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__InterfaceInfo_t__m_pMethodTable
 ASMCONSTANTS_C_ASSERT(SIZEOF__InterfaceInfo_t
                     == sizeof(InterfaceInfo_t));
 
-#define               OFFSETOF__DomainLocalModule__m_pDataBlob   0x030
+#define               OFFSETOF__DomainLocalModule__m_pDataBlob   0x028
 ASMCONSTANTS_C_ASSERT(OFFSETOF__DomainLocalModule__m_pDataBlob  
                     == offsetof(DomainLocalModule, m_pDataBlob));
-
-// If this changes then we can't just test one bit in the assembly code.
 ASMCONSTANTS_C_ASSERT(ClassInitFlags::INITIALIZED_FLAG == 1);
 
 // End for JIT_GetSharedNonGCStaticBaseWorker
 
 // For JIT_GetSharedGCStaticBaseWorker
 
-#define               OFFSETOF__DomainLocalModule__m_pGCStatics 0x020 
+#define               OFFSETOF__DomainLocalModule__m_pGCStatics 0x018
 ASMCONSTANTS_C_ASSERT(OFFSETOF__DomainLocalModule__m_pGCStatics
                     == offsetof(DomainLocalModule, m_pGCStatics));
 

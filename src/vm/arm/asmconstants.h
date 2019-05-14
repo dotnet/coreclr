@@ -176,10 +176,10 @@ ASMCONSTANTS_C_ASSERT(Thread__m_pFrame == offsetof(Thread, m_pFrame));
 #define Thread_m_pFrame Thread__m_pFrame
 
 #ifndef CROSSGEN_COMPILE
-#define               DomainLocalModule__m_pDataBlob                 0x18
+#define               DomainLocalModule__m_pDataBlob                 0x14
 ASMCONSTANTS_C_ASSERT(DomainLocalModule__m_pDataBlob == offsetof(DomainLocalModule, m_pDataBlob));
 
-#define               DomainLocalModule__m_pGCStatics                 0x10
+#define               DomainLocalModule__m_pGCStatics                 0x0c
 ASMCONSTANTS_C_ASSERT(DomainLocalModule__m_pGCStatics == offsetof(DomainLocalModule, m_pGCStatics));
 
 #endif

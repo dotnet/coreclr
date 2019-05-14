@@ -191,18 +191,6 @@ struct DomainLocalModule
         Volatile<DWORD>             m_dwFlags;
     };
     typedef DPTR(DynamicClassInfo) PTR_DynamicClassInfo;
-    
-    inline UMEntryThunk * GetADThunkTable()
-    {
-        LIMITED_METHOD_CONTRACT
-        return m_pADThunkTable;
-    }
-
-    inline void SetADThunkTable(UMEntryThunk* pADThunkTable)
-    {
-        LIMITED_METHOD_CONTRACT
-        InterlockedCompareExchangeT(m_pADThunkTable.GetPointer(), pADThunkTable, NULL);
-    }
 
     // Note the difference between:
     // 
@@ -444,7 +432,6 @@ private:
     PTR_DomainFile           m_pDomainFile;
     VolatilePtr<DynamicClassInfo, PTR_DynamicClassInfo> m_pDynamicClassTable;   // used for generics and reflection.emit in memory
     Volatile<SIZE_T>         m_aDynamicEntries;      // number of entries in dynamic table
-    VolatilePtr<UMEntryThunk> m_pADThunkTable;
     PTR_OBJECTREF            m_pGCStatics;           // Handle to GC statics of the module
 
     // In addition to storing the ModuleIndex in the Module class, we also
