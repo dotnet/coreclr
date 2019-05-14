@@ -10,7 +10,7 @@
 #include "common.h"
 #include "eventpipe.h"
 
-enum class SampleProfilerSampleType
+enum class SampleProfilerSampleType : uint32_t
 {
     Error = 0,
     External = 1,
@@ -39,6 +39,12 @@ public:
     }
 
 private:
+    union SampleProfilerPayload
+    {
+        SampleProfilerSampleType Type;
+        BYTE Rawdata[sizeof(SampleProfilerSampleType)];
+    };
+
     // Iterate through all managed threads and walk all stacks.
     static void WalkManagedThreads();
 
@@ -84,8 +90,8 @@ private:
     // Event payloads.
     // External represents a sample in external or native code.
     // Managed represents a sample in managed code.
-    static BYTE *s_pPayloadExternal;
-    static BYTE *s_pPayloadManaged;
+    static SampleProfilerPayload s_ExternalPayload;
+    static SampleProfilerPayload s_ManagedPayload;
     static const unsigned int c_payloadSize = sizeof(unsigned int);
 
     // Thread shutdown event for synchronization between Disable() and the sampling thread.
@@ -96,6 +102,8 @@ private:
 
     // Whether or not timeBeginPeriod has been used to set the scheduler period
     static bool s_timePeriodIsSet;
+
+    static int32_t s_RefCount;
 };
 
 #endif // FEATURE_PERFTRACING
