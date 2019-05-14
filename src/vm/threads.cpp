@@ -2144,10 +2144,10 @@ HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTH
 }
 
 
-// Represent the value of OVERRIDE_DEFAULT_STACK_SIZE as passed in the property bag to the host during construction
-static unsigned long s_overrideDefaultStackSizeProperty = 0;
+// Represent the value of DEFAULT_STACK_SIZE as passed in the property bag to the host during construction
+static unsigned long s_defaultStackSizeProperty = 0;
 
-void ParseOverrideDefaultStackSize(LPCWSTR valueStr)
+void ParseDefaultStackSize(LPCWSTR valueStr)
 {
     if (valueStr)
     {
@@ -2164,16 +2164,16 @@ void ParseOverrideDefaultStackSize(LPCWSTR valueStr)
         }
         else
         {
-            s_overrideDefaultStackSizeProperty = value;
+            s_defaultStackSizeProperty = value;
         }
     }
 }
 
-SIZE_T GetOverrideDefaultStackSize()
+SIZE_T GetDefaultStackSizeSetting()
 {
-    static DWORD s_overrideDefaultStackSizeEnv = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DefaultStackSize);
+    static DWORD s_defaultStackSizeEnv = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DefaultStackSize);
 
-    uint64_t value = s_overrideDefaultStackSizeEnv ? s_overrideDefaultStackSizeEnv : s_overrideDefaultStackSizeProperty;
+    uint64_t value = s_defaultStackSizeEnv ? s_defaultStackSizeEnv : s_defaultStackSizeProperty;
 
     SIZE_T minStack = 0x10000;     // 64K - Somewhat arbitrary minimum thread stack size
     SIZE_T maxStack = 0x80000000;  //  2G - Somewhat arbitrary maximum thread stack size
@@ -2205,12 +2205,12 @@ BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
 
     if (!fSizesGot)
     {
-        SIZE_T overrideDefaultStackSize = GetOverrideDefaultStackSize();
+        SIZE_T defaultStackSizeSetting = GetDefaultStackSizeSetting();
 
-        if (overrideDefaultStackSize != 0)
+        if (defaultStackSizeSetting != 0)
         {
-            ExeSizeOfStackReserve = overrideDefaultStackSize;
-            ExeSizeOfStackCommit = overrideDefaultStackSize;
+            ExeSizeOfStackReserve = defaultStackSizeSetting;
+            ExeSizeOfStackCommit = defaultStackSizeSetting;
             fSizesGot = TRUE;
         }
     }
@@ -2262,7 +2262,7 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
 
     if (sizeToCommitOrReserve == 0)
     {
-        sizeToCommitOrReserve = GetOverrideDefaultStackSize();
+        sizeToCommitOrReserve = GetDefaultStackSizeSetting();
     }
 
 #ifndef FEATURE_PAL // the PAL does its own adjustments as necessary
