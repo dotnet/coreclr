@@ -783,7 +783,8 @@ FCFuncStart(gGCInterfaceFuncs)
     FCFuncElement("_SuppressFinalize", GCInterface::SuppressFinalize)
     FCFuncElement("_ReRegisterForFinalize", GCInterface::ReRegisterForFinalize)
 
-    FCFuncElement("_GetAllocatedBytesForCurrentThread", GCInterface::GetAllocatedBytesForCurrentThread)
+    FCFuncElement("GetAllocatedBytesForCurrentThread", GCInterface::GetAllocatedBytesForCurrentThread)
+    FCFuncElement("GetTotalAllocatedBytes", GCInterface::GetTotalAllocatedBytes)
 
     FCFuncElement("AllocateNewArray", GCInterface::AllocateNewArray)
 
@@ -1040,19 +1041,11 @@ FCFuncStart(gStubHelperFuncs)
     FCFuncElement("GetCOMIPFromRCW_WinRTDelegate", StubHelpers::GetCOMIPFromRCW_WinRTDelegate)
     FCFuncElement("ShouldCallWinRTInterface", StubHelpers::ShouldCallWinRTInterface)
     FCFuncElement("GetTargetForAmbiguousVariantCall", StubHelpers::GetTargetForAmbiguousVariantCall)
-    FCFuncElement("StubRegisterRCW", StubHelpers::StubRegisterRCW)
-    FCFuncElement("StubUnregisterRCW", StubHelpers::StubUnregisterRCW)
     FCFuncElement("GetDelegateInvokeMethod", StubHelpers::GetDelegateInvokeMethod)
     FCFuncElement("GetWinRTFactoryObject", StubHelpers::GetWinRTFactoryObject)
     FCFuncElement("GetWinRTFactoryReturnValue", StubHelpers::GetWinRTFactoryReturnValue)
     FCFuncElement("GetOuterInspectable", StubHelpers::GetOuterInspectable)
-#ifdef MDA_SUPPORTED
-    FCFuncElement("TriggerExceptionSwallowedMDA", StubHelpers::TriggerExceptionSwallowedMDA)
-#endif
 #endif // FEATURE_COMINTEROP
-#ifdef MDA_SUPPORTED
-    FCFuncElement("CheckCollectedDelegateMDA", StubHelpers::CheckCollectedDelegateMDA)
-#endif // MDA_SUPPORTED
 #ifdef PROFILING_SUPPORTED
     FCFuncElement("ProfilerBeginTransitionCallback", StubHelpers::ProfilerBeginTransitionCallback)
     FCFuncElement("ProfilerEndTransitionCallback", StubHelpers::ProfilerEndTransitionCallback)
@@ -1072,9 +1065,6 @@ FCFuncStart(gStubHelperFuncs)
 #ifdef _TARGET_64BIT_
     FCIntrinsic("GetStubContextAddr", StubHelpers::GetStubContextAddr, CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr)
 #endif // _TARGET_64BIT_
-#ifdef MDA_SUPPORTED
-    FCFuncElement("TriggerGCForMDA", StubHelpers::TriggerGCForMDA)
-#endif // MDA_SUPPORTED
 #ifdef FEATURE_ARRAYSTUB_AS_IL
     FCFuncElement("ArrayTypeCheck", StubHelpers::ArrayTypeCheck)
 #endif //FEATURE_ARRAYSTUB_AS_IL
@@ -1233,9 +1223,6 @@ FCClassElement("LoaderAllocatorScout", "System.Reflection", gLoaderAllocatorFunc
 FCClassElement("Marshal", "System.Runtime.InteropServices", gInteropMarshalFuncs)
 FCClassElement("Math", "System", gMathFuncs)
 FCClassElement("MathF", "System", gMathFFuncs)
-#ifdef MDA_SUPPORTED
-FCClassElement("Mda", "System", gMda)
-#endif
 FCClassElement("MdUtf8String", "System", gMdUtf8String)
 FCClassElement("MetadataImport", "System.Reflection", gMetaDataImport)
 FCClassElement("MissingMemberException", "System",  gMissingMemberExceptionFuncs)

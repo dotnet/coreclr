@@ -9,11 +9,13 @@
     <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19179.4</MicrosoftDotNetXUnitConsoleRunnerVersion>
     <MicrosoftNetFrameworkReferenceAssembliesVersion>1.0.0-alpha-004</MicrosoftNetFrameworkReferenceAssembliesVersion>
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview6.19229.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>3.0.0-preview6.19229.1</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview6.19259.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>3.0.0-preview6.19259.1</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview6.19257.8</MicrosoftBclAsyncInterfacesVersion>
     <MicrosoftNETCoreAppVersion>3.0.0-preview5-27620-01</MicrosoftNETCoreAppVersion>
-    <optimizationIBCCoreCLRVersion>99.99.99-master-20190505.1</optimizationIBCCoreCLRVersion>
-    <optimizationPGOCoreCLRVersion>99.99.99-master-20190505.1</optimizationPGOCoreCLRVersion>
+    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19229.8</MicrosoftDotNetBuildTasksFeedVersion>
+    <optimizationIBCCoreCLRVersion>99.99.99-master-20190509.1</optimizationIBCCoreCLRVersion>
+    <optimizationPGOCoreCLRVersion>99.99.99-master-20190509.1</optimizationPGOCoreCLRVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>

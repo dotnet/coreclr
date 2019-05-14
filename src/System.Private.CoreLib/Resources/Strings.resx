@@ -2839,9 +2839,6 @@
   <data name="MissingField_Name" xml:space="preserve">
     <value>Field '{0}' not found.</value>
   </data>
-  <data name="MissingManifestResource_LooselyLinked" xml:space="preserve">
-    <value>Could not find a manifest resource entry called "{0}" in assembly "{1}". Please check spelling, capitalization, and build rules to ensure "{0}" is being linked into the assembly.</value>
-  </data>
   <data name="MissingManifestResource_MultipleBlobs" xml:space="preserve">
     <value>A case-insensitive lookup for resource file "{0}" in assembly "{1}" found multiple entries. Remove the duplicates or specify the exact case.</value>
   </data>
@@ -3753,5 +3750,23 @@
   </data>
   <data name="Argument_StartupHookAssemblyLoadFailed" xml:space="preserve">
     <value>Startup hook assembly '{0}' failed to load. See inner exception for details.</value>
+  </data>
+  <data name="InvalidOperation_NonStaticComRegFunction" xml:space="preserve">
+    <value>COM register function must be static.</value>
+  </data>
+  <data name="InvalidOperation_NonStaticComUnRegFunction" xml:space="preserve">
+    <value>COM unregister function must be static.</value>
+  </data>
+  <data name="InvalidOperation_InvalidComRegFunctionSig" xml:space="preserve">
+    <value>COM register function must have a System.Type parameter and a void return type.</value>
+  </data>
+  <data name="InvalidOperation_InvalidComUnRegFunctionSig" xml:space="preserve">
+    <value>COM unregister function must have a System.Type parameter and a void return type.</value>
+  </data>
+  <data name="InvalidOperation_MultipleComRegFunctions" xml:space="preserve">
+    <value>Type '{0}' has more than one COM registration function.</value>
+  </data>
+  <data name="InvalidOperation_MultipleComUnRegFunctions" xml:space="preserve">
+    <value>Type '{0}' has more than one COM unregistration function.</value>
   </data>
 </root>
