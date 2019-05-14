@@ -132,24 +132,6 @@ int Silent_PAL_vfprintf(PAL_FILE *stream, const char *format, va_list ap);
 
 
 
-/*++
-Function:
-  PAL_iswlower
-
-See MSDN
-
---*/
-int __cdecl PAL_iswlower( wchar_16 c );
-
-
-/*++
-Function:
-  PAL_iswalpha
-
-See MSDN
-
---*/
-int __cdecl PAL_iswalpha( wchar_16 c );
 
 #if HAVE_COREFOUNDATION
 /*--
