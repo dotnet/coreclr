@@ -3873,9 +3873,6 @@ void emitter::emitIns_C(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE fld
         sz = emitInsSizeCV(id, insCodeMR(ins));
     }
 
-    // Vex prefix size
-    sz += emitGetVexPrefixAdjustedSize(ins, attr, insCodeMR(ins));
-
     if (TakesRexWPrefix(ins, attr))
     {
         // REX.W prefix
@@ -4733,9 +4730,6 @@ void emitter::emitIns_R_C(instruction ins, emitAttr attr, regNumber reg, CORINFO
         }
     }
 
-    // VEX prefix
-    sz += emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
-
     // REX prefix
     if (TakesRexWPrefix(ins, attr) || IsExtendedReg(reg, attr))
     {
@@ -4806,9 +4800,6 @@ void emitter::emitIns_C_R(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE f
         sz += 1;
     }
 
-    // VEX prefix
-    sz += emitGetVexPrefixAdjustedSize(ins, attr, insCodeMR(ins));
-
     // REX prefix
     if (TakesRexWPrefix(ins, attr) || IsExtendedReg(reg, attr))
     {
@@ -4864,9 +4855,6 @@ void emitter::emitIns_C_I(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE f
 
     code_t         code = insCodeMI(ins);
     UNATIVE_OFFSET sz   = emitInsSizeCV(id, code, val);
-
-    // Vex prefix
-    sz += emitGetVexPrefixAdjustedSize(ins, attr, insCodeMI(ins));
 
     // REX prefix, if not already included in "code"
     if (TakesRexWPrefix(ins, attr) && !hasRexPrefix(code))
@@ -6497,9 +6485,6 @@ void emitter::emitIns_S(instruction ins, emitAttr attr, int varx, int offs)
         sz += 1;
     }
 
-    // VEX prefix
-    sz += emitGetVexPrefixAdjustedSize(ins, attr, insCodeMR(ins));
-
     // 64-bit operand instructions will need a REX.W prefix
     if (TakesRexWPrefix(ins, attr))
     {
@@ -6542,9 +6527,6 @@ void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber ireg, int va
         sz++;
     }
 
-    // VEX prefix
-    sz += emitGetVexPrefixAdjustedSize(ins, attr, insCodeMR(ins));
-
     // 64-bit operand instructions will need a REX.W prefix
     if (TakesRexWPrefix(ins, attr) || IsExtendedReg(ireg, attr))
     {
@@ -6580,9 +6562,6 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber ireg, int va
     {
         sz++;
     }
-
-    // VEX prefix
-    sz += emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
 
     // 64-bit operand instructions will need a REX.W prefix
     if (TakesRexWPrefix(ins, attr) || IsExtendedReg(ireg, attr))
@@ -6633,9 +6612,6 @@ void emitter::emitIns_S_I(instruction ins, emitAttr attr, int varx, int offs, in
     id->idIns(ins);
     id->idInsFmt(fmt);
     UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeMI(ins), varx, offs, val);
-
-    // VEX prefix
-    sz += emitGetVexPrefixAdjustedSize(ins, attr, insCodeMI(ins));
 
     // 64-bit operand instructions will need a REX.W prefix
     if (TakesRexWPrefix(ins, attr))
