@@ -314,7 +314,7 @@ void GCHeap::UpdatePostGCCounters()
         g_TotalTimeInGC = 0;        // isn't likely except on some SMP machines-- perhaps make sure that
                                     //  _timeInGCBase >= g_TotalTimeInGC by setting affinity in GET_CYCLE_COUNT
 
-    while (_timeInGCBase > UINT_MAX) 
+    while (_timeInGCBase > 0xffffffff) 
     {
         _timeInGCBase = _timeInGCBase >> 8;
         g_TotalTimeInGC = g_TotalTimeInGC >> 8;
