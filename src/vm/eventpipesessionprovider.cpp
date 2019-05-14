@@ -134,7 +134,7 @@ void EventPipeSessionProviderList::AddSessionProvider(EventPipeSessionProvider *
     CONTRACTL_END;
 
     // TODO: No validation on input. For example, (provider name == null)?
-
+    // FIXME: This pointer is not ours, but we deallocate it later.
     if (pProvider != nullptr)
         m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider *>(pProvider));
 }
@@ -199,8 +199,13 @@ void EventPipeSessionProviderList::Clear()
             SListElem<EventPipeSessionProvider *> *pCurElem = pElem;
             pElem = m_pProviders->GetNext(pElem);
             delete pCurElem;
+
+            // Remove deleted node.
+            m_pProviders->RemoveHead();
         }
     }
+
+    _ASSERTE(m_pProviders->IsEmpty());
 }
 
 #endif // FEATURE_PERFTRACING

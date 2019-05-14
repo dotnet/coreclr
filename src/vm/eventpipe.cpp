@@ -357,7 +357,8 @@ void EventPipe::Disable(EventPipeSessionID id)
         if (!s_pSessions->Contains(pSession))
             return;
         DisableInternal(*pSession, pEventPipeProviderCallbackDataQueue);
-        // TODO: Remove session from map, delete session, delete file.
+        s_pSessions->Remove(pSession);
+        delete pSession;
     });
 }
 

@@ -96,12 +96,11 @@ void EventPipeEventSource::Enable(EventPipeSession *pSession)
         return;
 
     // FIXME: Where are these object deallocated? Potential leak?
-    EventPipeSessionProvider *pSessionProvider = new EventPipeSessionProvider(
+    pSession->AddSessionProvider(new EventPipeSessionProvider(
         s_pProviderName,
         static_cast<UINT64>(-1),
         EventPipeEventLevel::LogAlways,
-        NULL);
-    pSession->AddSessionProvider(pSessionProvider);
+        NULL));
 }
 
 void EventPipeEventSource::SendProcessInfo(LPCWSTR pCommandLine)

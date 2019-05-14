@@ -88,9 +88,6 @@ EventPipeSession::~EventPipeSession()
     // CrstHolder _crst(&m_lock);
 
     delete m_pProviderList;
-
-    // FIXME: Verify DeAllocateBuffers is called when destructing the buffer manager.
-    m_pBufferManager->DeAllocateBuffers();
     delete m_pBufferManager;
     delete m_pFile;
 }
@@ -425,12 +422,11 @@ void EventPipeSession::Disable()
             for (uint32_t i = 0; i < RundownProvidersSize; ++i)
             {
                 const EventPipeProviderConfiguration &Config = RundownProviders[i];
-                EventPipeSessionProvider *pProvider = new EventPipeSessionProvider(
+                m_pProviderList->AddSessionProvider(new EventPipeSessionProvider(
                     Config.GetProviderName(),
                     Config.GetKeywords(),
                     (EventPipeEventLevel)Config.GetLevel(),
-                    Config.GetFilterData());
-                m_pProviderList->AddSessionProvider(pProvider);
+                    Config.GetFilterData()));
             }
 
             // Ask the runtime to emit rundown events.
