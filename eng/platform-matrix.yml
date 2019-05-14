@@ -197,10 +197,10 @@ jobs:
         - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
           - Windows.10.Amd64.Open
         - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-          # TODO: add Windows.10.Nano.Amd64.Open once https://github.com/dotnet/coreclr/issues/21693 has been resolved (see below queue id)
           - Windows.7.Amd64.Open
           - Windows.81.Amd64.Open
           - Windows.10.Amd64.Open
+          - "`(Windows.Nano.1803.Amd64.Open`)windows.10.amd64.serverrs4.open@mcr.microsoft.com/dotnet-buildtools/prereqs:nanoserver-1803-helix-amd64-05227e1-20190509225944"
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - Windows.7.Amd64
           - Windows.81.Amd64
