@@ -955,6 +955,13 @@ unsigned emitter::emitGetVexPrefixAdjustedSize(instruction ins, emitAttr attr, c
 
         return vexPrefixAdjustedSize;
     }
+
+    if (Is4ByteSSEInstruction(ins))
+    {
+        // The 4-Byte SSE instructions require one additional byte
+        return 1;
+    }
+
     return 0;
 }
 
@@ -2854,12 +2861,6 @@ void emitter::emitInsLoadInd(instruction ins, emitAttr attr, regNumber dstReg, G
     id->idReg1(dstReg);
     emitHandleMemOp(mem, id, IF_RWR_ARD, ins);
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
-    if (Is4ByteSSEInstruction(ins))
-    {
-        // The 4-Byte SSE instructions require an additional byte.
-        sz += 1;
-    }
-
     id->idCodeSize(sz);
     dispIns(id);
     emitCurIGsize += sz;
@@ -3916,12 +3917,6 @@ void emitter::emitIns_R_R(instruction ins, emitAttr attr, regNumber reg1, regNum
 
     UNATIVE_OFFSET sz = emitInsSizeRR(ins, reg1, reg2, attr);
 
-    if (Is4ByteSSEInstruction(ins))
-    {
-        // The 4-Byte SSE instructions require one additional byte
-        sz += 1;
-    }
-
     /* Special case: "XCHG" uses a different format */
     insFormat fmt = (ins == INS_xchg) ? IF_RRW_RRW : emitInsModeFormat(ins, IF_RRD_RRD);
 
@@ -4048,12 +4043,6 @@ void emitter::emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTre
     emitHandleMemOp(indir, id, IF_RRW_ARD, ins);
 
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
-    if (Is4ByteSSEInstruction(ins))
-    {
-        // The 4-Byte SSE instructions require an additional byte.
-        sz += 1;
-    }
-
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4074,13 +4063,6 @@ void emitter::emitIns_R_A_I(instruction ins, emitAttr attr, regNumber reg1, GenT
     emitHandleMemOp(indir, id, IF_RRW_ARD_CNS, ins);
 
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins), ival);
-
-    if (Is4ByteSSEInstruction(ins))
-    {
-        // The 4-Byte SSE instructions require two additional bytes
-        sz += 2;
-    }
-
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4102,13 +4084,6 @@ void emitter::emitIns_R_AR_I(instruction ins, emitAttr attr, regNumber reg1, reg
     id->idAddr()->iiaAddrMode.amIndxReg = REG_NA;
 
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins), ival);
-
-    if (Is4ByteSSEInstruction(ins))
-    {
-        // The 4-Byte SSE instructions require an additional byte.
-        sz += 1;
-    }
-
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4135,13 +4110,6 @@ void emitter::emitIns_R_C_I(
     id->idAddr()->iiaFieldHnd = fldHnd;
 
     UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins), ival);
-
-    if (Is4ByteSSEInstruction(ins))
-    {
-        // The 4-Byte SSE instructions require two additional bytes
-        sz += 2;
-    }
-
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4165,13 +4133,6 @@ void emitter::emitIns_R_S_I(instruction ins, emitAttr attr, regNumber reg1, int 
 #endif
 
     UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeRM(ins), varx, offs, ival);
-
-    if (Is4ByteSSEInstruction(ins))
-    {
-        // The 4-Byte SSE instructions require two additional bytes
-        sz += 2;
-    }
-
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -5179,13 +5140,6 @@ void emitter::emitIns_R_AR(instruction ins, emitAttr attr, regNumber ireg, regNu
     assert(emitGetInsAmdAny(id) == disp); // make sure "disp" is stored properly
 
     sz = emitInsSizeAM(id, insCodeRM(ins));
-
-    if (Is4ByteSSEInstruction(ins))
-    {
-        // The 4-Byte SSE instructions require an additional byte.
-        sz += 1;
-    }
-
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -6625,12 +6579,6 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber ireg, int va
     if (size == EA_2BYTE && ins != INS_movsx && ins != INS_movzx)
     {
         sz++;
-    }
-
-    if (Is4ByteSSEInstruction(ins))
-    {
-        // The 4-Byte SSE instructions require an additional byte.
-        sz += 1;
     }
 
     // VEX prefix
