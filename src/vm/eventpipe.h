@@ -242,7 +242,7 @@ public:
     }
 };
 
-typedef UINT64 EventPipeSessionID;
+typedef uint64_t EventPipeSessionID;
 
 struct EventPipeProviderCallbackData
 {
