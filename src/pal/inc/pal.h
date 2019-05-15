@@ -4175,7 +4175,11 @@ PAL_GetCurrentThreadAffinitySet(SIZE_T size, UINT_PTR* data);
 
 typedef int errno_t;
 
+#if defined(__WINT_TYPE__)
+typedef __WINT_TYPE__ wint_t;
+#else
 typedef unsigned int wint_t;
+#endif
 
 #ifndef PAL_STDCPP_COMPAT
 
