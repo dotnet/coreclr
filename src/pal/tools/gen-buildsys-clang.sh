@@ -149,12 +149,7 @@ fi
 
 __currentScriptDir="$script_dir"
 
-if command -v "cmake3" > /dev/null 2>&1
-then
-    cmake_command=$(command -v cmake3)
-else
-    cmake_command=$(command -v cmake)
-fi
+cmake_command=$(command -v cmake3 || command -v cmake)
 
 if [[ "$scan_build" == "ON" ]]; then
     export CCC_CC=$CC

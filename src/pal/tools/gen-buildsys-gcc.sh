@@ -160,11 +160,7 @@ fi
 
 __currentScriptDir="$script_dir"
 
-if command -v "cmake3" > /dev/null 2>&1
-    cmake_command=$(command -v cmake3)
-else
-    cmake_command=$(command -v cmake)
-fi
+cmake_command=$(command -v cmake3 || command -v cmake)
 
 # Include CMAKE_USER_MAKE_RULES_OVERRIDE as uninitialized since it will hold its value in the CMake cache otherwise can cause issues when branch switching
 $cmake_command \
