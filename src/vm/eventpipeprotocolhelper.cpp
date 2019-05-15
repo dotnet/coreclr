@@ -52,6 +52,15 @@ static bool TryParseCircularBufferSize(uint8_t*& bufferCursor, uint32_t& bufferL
 
 const EventPipeCollectTracingCommandPayload* EventPipeCollectTracingCommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(lpBuffer != nullptr);
+    }
+    CONTRACTL_END;
+
     EventPipeCollectTracingCommandPayload *payload = new (nothrow) EventPipeCollectTracingCommandPayload;
     uint8_t* pBufferCursor = lpBuffer;
     uint32_t bufferLen = BufferSize;

@@ -64,12 +64,8 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
                 break;
 
             case DiagnosticsIpc::DiagnosticServerCommandSet::Miscellaneous:
-                // TODO
-                break;
-
 #ifdef FEATURE_PAL
-            case DiagnosticMessageType::GenerateCoreDump:
-                DiagnosticProtocolHelper::GenerateCoreDump(pStream);
+                DiagnosticProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
 #endif
 

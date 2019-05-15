@@ -14,19 +14,57 @@
 
 #ifdef FEATURE_PERFTRACING
 
-static void WriteStatus(uint64_t result, IpcStream* pStream)
+void DiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& message, IpcStream* pStream)
 {
-    uint32_t nBytesWritten = 0;
-    bool fSuccess = pStream->Write(&result, sizeof(result), nBytesWritten);
-    if (fSuccess)
+    CONTRACTL
     {
-        fSuccess = pStream->Flush();
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(pStream != nullptr);
+    }
+    CONTRACTL_END;
+
+    switch ((MiscellaneousCommandId)message.GetHeader().CommandId)
+    {
+    case MiscellaneousCommandId::GenerateCoreDump:
+        DiagnosticProtocolHelper::GenerateCoreDump(message, pStream);
+        break;
+
+    default:
+        STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
+        DiagnosticsIpc::IpcMessage errorResponse(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommandId);
+        errorResponse.Send(pStream);
+        delete pStream;
+        break;
     }
 }
 
 #ifdef FEATURE_PAL
 
-void DiagnosticProtocolHelper::GenerateCoreDump(IpcStream* pStream)
+const GenerateCoreDumpCommandPayload* GenerateCoreDumpCommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(lpBuffer != nullptr);
+    }
+    CONTRACTL_END;
+
+    GenerateCoreDumpCommandPayload* payload = new (nothrow) GenerateCoreDumpCommandPayload;
+    uint8_t* pBufferCursor = lpBuffer;
+    uint32_t bufferLen = BufferSize;
+    if (TryParseString(pBufferCursor, bufferLen, payload->dumpName) &&
+        ::TryParse(pBufferCursor, bufferLen, payload->dumpType) &&
+        ::TryParse(pBufferCursor, bufferLen, payload->diagnostics))
+        return nullptr;
+
+    return payload;
+}
+
+void DiagnosticProtocolHelper::GenerateCoreDump(DiagnosticsIpc::IpcMessage& message, IpcStream* pStream)
 {
     CONTRACTL
     {
@@ -40,55 +78,36 @@ void DiagnosticProtocolHelper::GenerateCoreDump(IpcStream* pStream)
     if (pStream == nullptr)
         return;
 
-    HRESULT hr = S_OK;
-
-    // TODO: Read within a loop.
-    uint8_t buffer[IpcStreamReadBufferSize] { };
-    uint32_t nNumberOfBytesRead = 0;
-    bool fSuccess = pStream->Read(buffer, sizeof(buffer), nNumberOfBytesRead);
-    if (fSuccess)
+    const GenerateCoreDumpCommandPayload* payload = message.TryParsePayload<GenerateCoreDumpCommandPayload>();
+    if (payload == nullptr)
     {
-        // The protocol buffer is defined as:
-        //   string - dumpName (UTF16)
-        //   int - dumpType
-        //   int - diagnostics
-        // returns
-        //   ulong - status
-        LPCWSTR pwszDumpName;
-        INT dumpType;
-        INT diagnostics;
+        DiagnosticsIpc::IpcMessage errorMessage(MiscellaneousErrorHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding });
+        errorMessage.Send(pStream);
+        delete pStream;
+        return;
+    }
 
-        uint8_t *pBufferCursor = buffer;
-        uint32_t bufferLen = nNumberOfBytesRead;
-
-        if (TryParseString(pBufferCursor, bufferLen, pwszDumpName) &&
-            TryParse(pBufferCursor, bufferLen, dumpType) &&
-            TryParse(pBufferCursor, bufferLen, diagnostics))
+    MAKE_UTF8PTR_FROMWIDE_NOTHROW(szDumpName, payload->dumpName);
+    if (szDumpName != nullptr)
+    {
+        if (!PAL_GenerateCoreDump(szDumpName, payload->dumpType, payload->diagnostics))
         {
-            MAKE_UTF8PTR_FROMWIDE_NOTHROW(szDumpName, pwszDumpName);
-            if (szDumpName != nullptr)
-            {
-                if (!PAL_GenerateCoreDump(szDumpName, dumpType, diagnostics))
-                {
-                    hr = E_FAIL;
-                }
-            }
-            else 
-            {
-                hr = E_OUTOFMEMORY;
-            }
-        }
-        else
-        {
-            hr = E_INVALIDARG;
+            DiagnosticsIpc::IpcMessage errorMessage(MiscellaneousErrorHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::BAD });
+            errorMessage.Send(pStream);
+            delete pStream;
+            return;
         }
     }
     else 
     {
-        hr = E_UNEXPECTED;
+        DiagnosticsIpc::IpcMessage errorMessage(MiscellaneousErrorHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::BAD });
+        errorMessage.Send(pStream);
+        delete pStream;
+        return;
     }
 
-    WriteStatus(hr, pStream);
+    DiagnosticsIpc::IpcMessage successMessage(MiscellaneousSuccessHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::OK });
+    successMessage.Send(pStream);
     delete pStream;
 }
 

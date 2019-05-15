@@ -8,15 +8,60 @@
 #ifdef FEATURE_PERFTRACING
 
 #include "common.h"
+#include <diagnosticsprotocol.h>
+
 
 class IpcStream;
+
+// The Miscellaneous command set is 0x01
+enum class MiscellaneousCommandId : uint8_t
+{
+    OK = 0x00,
+    GenerateCoreDump = 0x01,
+    // future
+
+    Error =0xFF,
+};
+
+constexpr DiagnosticsIpc::IpcHeader MiscellaneousErrorHeader =
+{
+    DOTNET_IPC_V1_MAGIC,
+    (uint16_t)20,
+    (uint8_t)DiagnosticsIpc::DiagnosticServerCommandSet::Miscellaneous,
+    (uint8_t)MiscellaneousCommandId::Error,
+    (uint16_t)0x0000
+};
+
+constexpr DiagnosticsIpc::IpcHeader MiscellaneousSuccessHeader =
+{
+    DOTNET_IPC_V1_MAGIC,
+    (uint16_t)20,
+    (uint8_t)DiagnosticsIpc::DiagnosticServerCommandSet::Miscellaneous,
+    (uint8_t)MiscellaneousCommandId::OK,
+    (uint16_t)0x0000
+};
+
+struct GenerateCoreDumpCommandPayload
+{
+    // The protocol buffer is defined as:
+    //   string - dumpName (UTF16)
+    //   int - dumpType
+    //   int - diagnostics
+    // returns
+    //   ulong - status
+    LPCWSTR dumpName;
+    INT dumpType;
+    INT diagnostics;
+    static const GenerateCoreDumpCommandPayload* TryParse(BYTE* lpBuffer, uint16_t& BufferSize);
+};
 
 class DiagnosticProtocolHelper
 {
 public:
     // IPC event handlers.
 #ifdef FEATURE_PAL
-    static void GenerateCoreDump(IpcStream *pStream); // `dotnet-dump collect`
+    static void GenerateCoreDump(DiagnosticsIpc::IpcMessage& message, IpcStream *pStream); // `dotnet-dump collect`
+    static void HandleIpcMessage(DiagnosticsIpc::IpcMessage& message, IpcStream* pStream);
 #endif
 
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH

@@ -9,6 +9,7 @@
 
 #include "clr_std/type_traits"
 #include "new.hpp"
+#include "diagnosticsipc.h"
 //#include "common.h"
 
 #define DOTNET_IPC_V1_MAGIC "DOTNET_IPC_V1"
