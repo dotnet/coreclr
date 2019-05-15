@@ -15,6 +15,9 @@
 #if defined(_M_X64) || defined(__x86_64__) || defined(__i386__) || defined(_M_IX86)
 #include "emmintrin.h"
 #define USE_INTEL_INTRINSICS
+#elif defined(_M_ARM) || defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
+#define USE_ARM_INTRINSICS
+#include "arm_neon.h"
 #endif
 
 #endif // DACCESS_COMPILE
@@ -601,6 +604,16 @@ namespace NativeFormat
             __m128i bucketBCompare = _mm_cmpeq_epi16(bucketB, fingerprintSIMD);
             __m128i bothCompare = _mm_or_si128(bucketACompare, bucketBCompare);
             return !!_mm_movemask_epi8(bothCompare);
+#elif defined(USE_ARM_INTRINSICS)
+            uint16x8_t bucketA = vld1q_u16((uint16_t*)&((uint16x8_t*)_base)[bucketAIndex]);
+            uint16x8_t bucketB = vld1q_u16((uint16_t*)&((uint16x8_t*)_base)[bucketBIndex]);
+            uint16x8_t fingerprintSIMD = vdupq_n_u16(fingerprint);
+            uint16x8_t bucketACompare = vceqq_u16(bucketA, fingerprintSIMD);
+            uint16x8_t bucketBCompare = vceqq_u16(bucketB, fingerprintSIMD);
+            uint16x8_t bothCompare = vorrq_u16(bucketACompare, bucketBCompare);
+            uint64_t bits0Lane = vgetq_lane_u64(bothCompare, 0);
+            uint64_t bits1Lane = vgetq_lane_u64(bothCompare, 1);
+            return !!(bits0Lane | bits1Lane);
 #else // Non-intrinsic implementation supporting NativeReader to cross DAC boundary
             NativeReader reader(_base, _size);
 
