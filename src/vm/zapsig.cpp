@@ -1315,7 +1315,7 @@ BOOL ZapSig::EncodeMethod(
         }
         else
         {
-            _ASSERTE(pInfoModule = pMethod->GetModule());
+            _ASSERTE(pInfoModule == pMethod->GetModule());
         }
 
         if (!ownerType.HasInstantiation())
@@ -1366,10 +1366,40 @@ BOOL ZapSig::EncodeMethod(
         {
             _ASSERTE(pResolvedToken->cbMethodSpec > 1);
 
-            if (*(BYTE*)pResolvedToken->pMethodSpec != (BYTE)IMAGE_CEE_CS_CALLCONV_GENERICINST)
+            // Copy the pResolvedToken->pMethodSpec, inserting ELEMENT_TYPE_MODULE_ZAPSIG in front of each type parameter in needed
+            SigParser sigParser(pResolvedToken->pMethodSpec);
+            BYTE callingConvention;
+            IfFailThrow(sigParser.GetByte(&callingConvention));
+            if (callingConvention != (BYTE)IMAGE_CEE_CS_CALLCONV_GENERICINST)
+            {
                 ThrowHR(COR_E_BADIMAGEFORMAT);
+            }
 
-            pSigBuilder->AppendBlob((PVOID)(((BYTE*)pResolvedToken->pMethodSpec) + 1), pResolvedToken->cbMethodSpec - 1);
+            ULONG numGenArgs;
+            IfFailThrow(sigParser.GetData(&numGenArgs));
+            pSigBuilder->AppendData(numGenArgs);
+
+            DWORD moduleIndex;
+            bool addModuleZapSig = (IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pResolvedToken->tokenScope);
+            if (addModuleZapSig)
+            {
+                moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pResolvedToken->tokenScope);
+            }
+
+            while (numGenArgs != 0)
+            {
+                if (addModuleZapSig)
+                {
+                    pSigBuilder->AppendElementType((CorElementType)ELEMENT_TYPE_MODULE_ZAPSIG);
+                    pSigBuilder->AppendData(moduleIndex);
+                }
+
+                PCCOR_SIGNATURE typeSigStart = sigParser.GetPtr();
+                IfFailThrow(sigParser.SkipExactlyOne());
+                PCCOR_SIGNATURE typeSigEnd = sigParser.GetPtr();
+                pSigBuilder->AppendBlob((PVOID)typeSigStart, typeSigEnd - typeSigStart);
+                numGenArgs--;
+            }
         }
         else
         {
@@ -1396,6 +1426,14 @@ BOOL ZapSig::EncodeMethod(
         if (fEncodeUsingResolvedTokenSpecStreams && pConstrainedResolvedToken->pTypeSpec != NULL)
         {
             _ASSERTE(pConstrainedResolvedToken->cbTypeSpec > 0);
+
+            if (IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pConstrainedResolvedToken->tokenScope)
+            {
+                pSigBuilder->AppendElementType((CorElementType)ELEMENT_TYPE_MODULE_ZAPSIG);
+                DWORD index = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pConstrainedResolvedToken->tokenScope);
+                pSigBuilder->AppendData(index);
+            }
+
             pSigBuilder->AppendBlob((PVOID)pConstrainedResolvedToken->pTypeSpec, pConstrainedResolvedToken->cbTypeSpec);
         }
         else
@@ -1432,7 +1470,7 @@ void ZapSig::EncodeField(
     DWORD fieldFlags = ENCODE_FIELD_SIG_OwnerType;
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    if (IsReadyToRunCompilation())
+    if (IsReadyToRunCompilation() && (!IsLargeVersionBubbleEnabled() || !pField->GetModule()->IsInCurrentVersionBubble()))
     {
         if (pResolvedToken == NULL)
         {

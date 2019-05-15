@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using StackCrawlMark = System.Threading.StackCrawlMark;
@@ -43,20 +42,20 @@ namespace System
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(
+        public static Type? GetType(
             string typeName,
-            Func<AssemblyName, Assembly>? assemblyResolver,
-            Func<Assembly, string, bool, Type>? typeResolver)
+            Func<AssemblyName, Assembly?>? assemblyResolver,
+            Func<Assembly?, string, bool, Type?>? typeResolver)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, false, false, ref stackMark);
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(
+        public static Type? GetType(
             string typeName,
-            Func<AssemblyName, Assembly>? assemblyResolver,
-            Func<Assembly, string, bool, Type>? typeResolver,
+            Func<AssemblyName, Assembly?>? assemblyResolver,
+            Func<Assembly?, string, bool, Type?>? typeResolver,
             bool throwOnError)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -64,10 +63,10 @@ namespace System
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(
+        public static Type? GetType(
             string typeName,
-            Func<AssemblyName, Assembly>? assemblyResolver,
-            Func<Assembly, string, bool, Type>? typeResolver,
+            Func<AssemblyName, Assembly?>? assemblyResolver,
+            Func<Assembly?, string, bool, Type?>? typeResolver,
             bool throwOnError,
             bool ignoreCase)
         {

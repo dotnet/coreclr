@@ -659,6 +659,8 @@ public:
     // Gets the total number of bytes in use.
     virtual size_t GetTotalBytesInUse() = 0;
 
+    virtual uint64_t GetTotalAllocatedBytes() = 0;
+
     // Forces a garbage collection of the given generation. Also used extensively
     // throughout the VM.
     virtual HRESULT GarbageCollect(int generation = -1, bool low_memory_p = false, int mode = collection_blocking) = 0;
@@ -892,10 +894,30 @@ void updateGCShadow(Object** ptr, Object* val);
 #define GC_CALL_PINNED              0x2
 
 //flags for IGCHeapAlloc(...)
-#define GC_ALLOC_FINALIZE 0x1
-#define GC_ALLOC_CONTAINS_REF 0x2
-#define GC_ALLOC_ALIGN8_BIAS 0x4
-#define GC_ALLOC_ALIGN8 0x8
+enum GC_ALLOC_FLAGS
+{
+    GC_ALLOC_NO_FLAGS           = 0,
+    GC_ALLOC_FINALIZE           = 1,
+    GC_ALLOC_CONTAINS_REF       = 2,
+    GC_ALLOC_ALIGN8_BIAS        = 4,
+    GC_ALLOC_ALIGN8             = 8,
+    GC_ALLOC_ZEROING_OPTIONAL   = 16,
+};
+
+inline GC_ALLOC_FLAGS operator|(GC_ALLOC_FLAGS a, GC_ALLOC_FLAGS b)
+{return (GC_ALLOC_FLAGS)((int)a | (int)b);}
+
+inline GC_ALLOC_FLAGS operator&(GC_ALLOC_FLAGS a, GC_ALLOC_FLAGS b)
+{return (GC_ALLOC_FLAGS)((int)a & (int)b);}
+
+inline GC_ALLOC_FLAGS operator~(GC_ALLOC_FLAGS a)
+{return (GC_ALLOC_FLAGS)(~(int)a);}
+
+inline GC_ALLOC_FLAGS& operator|=(GC_ALLOC_FLAGS& a, GC_ALLOC_FLAGS b)
+{return (GC_ALLOC_FLAGS&)((int&)a |= (int)b);}
+
+inline GC_ALLOC_FLAGS& operator&=(GC_ALLOC_FLAGS& a, GC_ALLOC_FLAGS b)
+{return (GC_ALLOC_FLAGS&)((int&)a &= (int)b);}
 
 #if defined(USE_CHECKED_OBJECTREFS) && !defined(_NOVM)
 #define OBJECTREF_TO_UNCHECKED_OBJECTREF(objref)    (*((_UNCHECKED_OBJECTREF*)&(objref)))

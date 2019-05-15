@@ -41,6 +41,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     assembly.cpp
     baseassemblyspec.cpp
     binder.cpp
+    callcounter.cpp
     ceeload.cpp
     class.cpp
     classhash.cpp
@@ -57,6 +58,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     debughelp.cpp
     debuginfostore.cpp
     decodemd.cpp
+    diagnosticprotocolhelper.cpp
     disassembler.cpp
     dllimport.cpp
     domainfile.cpp
@@ -287,7 +289,6 @@ set(VM_SOURCES_WKS
     assemblynative.cpp
     assemblyspec.cpp
     cachelinealloc.cpp
-    callcounter.cpp
     callhelpers.cpp
     callsiteinspect.cpp
     ceemain.cpp
@@ -351,7 +352,6 @@ set(VM_SOURCES_WKS
     jithelpers.cpp
     managedmdimport.cpp
     marshalnative.cpp
-    mdaassistants.cpp
     methodtablebuilder.cpp
     mlinfo.cpp
     mscorlib.cpp # <DisablePrecompiledHeaders>true</DisablePrecompiledHeaders>
@@ -474,7 +474,6 @@ set(VM_HEADERS_WKS
     invokeutil.h
     managedmdimport.hpp
     marshalnative.h
-    mdaassistants.h
     methodtablebuilder.h
     mlinfo.h
     mscorlib.h
@@ -918,5 +917,5 @@ add_subdirectory(dac)
 add_subdirectory(wks)
 
 if(FEATURE_PERFTRACING)
-    add_subdirectory(${GENERATED_EVENTING_DIR}/eventpipe ${CMAKE_CURRENT_BINARY_DIR}/eventpipe)
+    add_subdirectory(eventing)
 endif(FEATURE_PERFTRACING)

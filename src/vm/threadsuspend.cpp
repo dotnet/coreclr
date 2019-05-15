@@ -16,8 +16,6 @@
 #include "finalizerthread.h"
 #include "dbginterface.h"
 
-#include "mdaassistants.h"
-
 // from ntstatus.h
 #define STATUS_SUSPEND_COUNT_EXCEEDED    ((NTSTATUS)0xC000004AL)
 
@@ -1422,14 +1420,6 @@ Thread::UserAbort(ThreadAbortRequester requester,
 
         RaiseTheExceptionInternalOnly(exceptObj, FALSE);
     }
-
-#ifdef MDA_SUPPORTED
-    if (requester != TAR_FuncEval)
-    {
-        // FuncEval abort is always aborting another thread.  No need to trigger MDA.
-        MDA_TRIGGER_ASSISTANT(AsynchronousThreadAbort, ReportViolation(GetThread(), this));
-    }
-#endif
 
     _ASSERTE(this != pCurThread);      // Aborting another thread.
 
@@ -6685,7 +6675,7 @@ retry_for_debugger:
                 }
                 EX_CATCH
                 {
-                    // Bummer... couldn't init the abort event. Its a shame, but not fatal. We'll simply not use it
+                    // Couldn't init the abort event. Its a shame, but not fatal. We'll simply not use it
                     // on this iteration and try again next time.
                     if (pEvent) {
                         _ASSERTE(!pEvent->IsValid());

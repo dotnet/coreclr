@@ -559,6 +559,7 @@ RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPIMaxWaitForTriggerMs, W("ProfAPIMaxWaitF
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPI_DetachMinSleepMs, W("ProfAPI_DetachMinSleepMs"), 0, "The minimum time, in milliseconds, the CLR will wait before checking whether a profiler that is in the process of detaching is ready to be unloaded.")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPI_DetachMaxSleepMs, W("ProfAPI_DetachMaxSleepMs"), 0, "The maximum time, in milliseconds, the CLR will wait before checking whether a profiler that is in the process of detaching is ready to be unloaded.")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPI_RejitOnAttach, W("ProfApi_RejitOnAttach"), 1, "Enables the ability for profilers to rejit methods on attach.")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPI_InliningTracking, W("ProfApi_InliningTracking"), 1, "Enables the runtime's tracking of inlining for profiler ReJIT.")
 CONFIG_DWORD_INFO(INTERNAL_ProfAPI_EnableRejitDiagnostics, W("ProfAPI_EnableRejitDiagnostics"), 0, "Enable extra dumping to stdout of rejit structures")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPI_AttachProfilerMinTimeoutInMs, W("ProfAPI_AttachProfilerMinTimeoutInMs"), 10*1000, "Timeout in ms for the minimum time out value of AttachProfiler")
 CONFIG_DWORD_INFO(INTERNAL_ProfAPIFault, W("ProfAPIFault"), 0, "Test-only bitmask to inject various types of faults in the profapi code")
@@ -601,6 +602,7 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_ThreadSuspendInjection, W("INTERNAL_ThreadSusp
 ///
 /// Thread (miscellaneous)
 ///
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_DefaultStackSize, W("DefaultStackSize"), 0, "Stack size to use for new VM threads when thread is created with default stack size (dwStackSize == 0).")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_Thread_DeadThreadCountThresholdForGCTrigger, W("Thread_DeadThreadCountThresholdForGCTrigger"), 75, "In the heuristics to clean up dead threads, this threshold must be reached before triggering a GC will be considered. Set to 0 to disable triggering a GC based on dead threads.")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_Thread_DeadThreadGCTriggerPeriodMilliseconds, W("Thread_DeadThreadGCTriggerPeriodMilliseconds"), 1000 * 60 * 30, "In the heuristics to clean up dead threads, this much time must have elapsed since the previous max-generation GC before triggering another GC will be considered")
 
@@ -642,13 +644,12 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_HillClimbing_GainExponent,                    
 ///
 #ifdef FEATURE_TIERED_COMPILATION
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TieredCompilation, W("TieredCompilation"), 1, "Enables tiered compilation")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_QuickJit, W("TC_QuickJit"), 0, "For methods that would be jitted, enable using quick JIT when appropriate.")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_StartupTier_CallCountThreshold, W("TC_StartupTier_CallCountThreshold"), 30, "Number of times a method must be called in the startup tier after which it is promoted to the next tier.")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_StartupTier_CallCountingDelayMs, W("TC_StartupTier_CallCountingDelayMs"), 100, "A perpetual delay in milliseconds that is applied call counting in the startup tier and jitting at higher tiers, while there is startup-like activity.")
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_StartupTier_DelaySingleProcMultiplier, W("TC_StartupTier_DelaySingleProcMultiplier"), 10, "Multiplier for TC_StartupTier_CallCountingDelayMs that is applied on a single-processor machine or when the process is affinitized to a single processor.")
-
-RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_StartupTier_CallCounting, W("TC_StartupTier_CallCounting"), 1, "Enabled by default (only activates when TieredCompilation is also enabled). If disabled immediately backpatches prestub, and likely prevents any promotion to higher tiers")
-RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_StartupTier_OptimizeCode, W("TC_StartupTier_OptimizeCode"), 0, "Use optimized codegen (normally used by the optimized tier) in the startup tier")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TC_QuickJit, W("TC_QuickJit"), 1, "For methods that would be jitted, enable using quick JIT when appropriate.")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_QuickJitForLoops, W("TC_QuickJitForLoops"), 0, "When quick JIT is enabled, quick JIT may also be used for methods that contain loops.")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_CallCountThreshold, W("TC_CallCountThreshold"), 30, "Number of times a method must be called in tier 0 after which it is promoted to the next tier.")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_CallCountingDelayMs, W("TC_CallCountingDelayMs"), 100, "A perpetual delay in milliseconds that is applied call counting in tier 0 and jitting at higher tiers, while there is startup-like activity.")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_DelaySingleProcMultiplier, W("TC_DelaySingleProcMultiplier"), 10, "Multiplier for TC_CallCountingDelayMs that is applied on a single-processor machine or when the process is affinitized to a single processor.")
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_CallCounting, W("TC_CallCounting"), 1, "Enabled by default (only activates when TieredCompilation is also enabled). If disabled immediately backpatches prestub, and likely prevents any promotion to higher tiers")
 #endif
 
 ///

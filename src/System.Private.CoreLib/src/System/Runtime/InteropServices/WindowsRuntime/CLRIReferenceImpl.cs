@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections;
 using System.Diagnostics;
 
@@ -104,7 +103,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // IList & ICollection methods.
         // This enables two-way data binding and index access in Jupiter
         //
-        object IList.this[int index]
+        object? IList.this[int index]
         {
             get
             {
@@ -117,12 +116,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        int IList.Add(object value)
+        int IList.Add(object? value)
         {
             return _list.Add(value);
         }
 
-        bool IList.Contains(object value)
+        bool IList.Contains(object? value)
         {
             return _list.Contains(value);
         }
@@ -148,17 +147,17 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        int IList.IndexOf(object value)
+        int IList.IndexOf(object? value)
         {
             return _list.IndexOf(value);
         }
 
-        void IList.Insert(int index, object value)
+        void IList.Insert(int index, object? value)
         {
             _list.Insert(index, value);
         }
 
-        void IList.Remove(object value)
+        void IList.Remove(object? value)
         {
             _list.Remove(value);
         }

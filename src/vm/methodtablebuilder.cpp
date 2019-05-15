@@ -19,7 +19,6 @@
 #include "dllimport.h"
 #include "fieldmarshaler.h"
 #include "encee.h"
-#include "mdaassistants.h"
 #include "ecmakey.h"
 #include "customattribute.h"
 #include "typestring.h"
@@ -2435,7 +2434,7 @@ HRESULT MethodTableBuilder::FindMethodDeclarationForMethodImpl(
         if (TypeFromToken(typeref) == mdtMethodDef)
         {   // If parent is a method def then this is a varags method
             mdTypeDef typeDef;
-            hr = pMDInternalImport->GetParentToken(typeref, &typeDef);
+            IfFailRet(pMDInternalImport->GetParentToken(typeref, &typeDef));
 
             if (TypeFromToken(typeDef) != mdtTypeDef)
             {   // A mdtMethodDef must be parented by a mdtTypeDef
@@ -6959,6 +6958,11 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
 #ifdef FEATURE_TIERED_COMPILATION
     // Keep in-sync with MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
     if (g_pConfig->TieredCompilation() &&
+
+        // Policy - If QuickJit is disabled and the module is not ReadyToRun, the method would be ineligible for tiering
+        // currently to avoid some unnecessary overhead
+        (g_pConfig->TieredCompilation_QuickJit() || GetModule()->IsReadyToRun()) &&
+
         (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED))
     {
         return TRUE;

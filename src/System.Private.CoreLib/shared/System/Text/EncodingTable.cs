@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections;
 using System.Diagnostics;
 using System.Threading;
@@ -34,7 +33,7 @@ namespace System.Text
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
-            object codePageObj;
+            object? codePageObj;
             codePageObj = s_nameToCodePage[name];
 
             if (codePageObj != null)

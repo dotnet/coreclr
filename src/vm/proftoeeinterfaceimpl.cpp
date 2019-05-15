@@ -649,7 +649,7 @@ void __stdcall ProfilerObjectAllocatedCallback(OBJECTREF objref, ClassID classId
     // Notify the profiler of the allocation
 
     {
-        BEGIN_PIN_PROFILER(CORProfilerTrackAllocations());
+        BEGIN_PIN_PROFILER(CORProfilerTrackAllocations() || CORProfilerTrackLargeAllocations());
         // Note that for generic code we always return uninstantiated ClassIDs and FunctionIDs.
         // Thus we strip any instantiations of the ClassID (which is really a type handle) here.
         g_profControlBlock.pProfInterface->ObjectAllocated(
@@ -6790,6 +6790,63 @@ HRESULT ProfToEEInterfaceImpl::GetCodeInfo4(UINT_PTR pNativeCodeStartAddress,
                                     codeInfos);
 }
 
+HRESULT ProfToEEInterfaceImpl::RequestReJITWithInliners(
+            DWORD       dwRejitFlags,
+            ULONG       cFunctions,
+            ModuleID    moduleIds[],
+            mdMethodDef methodIds[])
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        CAN_TAKE_LOCK;
+        PRECONDITION(CheckPointer(moduleIds, NULL_OK));
+        PRECONDITION(CheckPointer(methodIds, NULL_OK));
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EETriggers | kP2EEAllowableAfterAttach,
+        (LF_CORPROF, 
+         LL_INFO1000, 
+         "**PROF: RequestReJITWithInliners.\n"));
+
+    if (!g_profControlBlock.pProfInterface->IsCallback4Supported())
+    {
+        return CORPROF_E_CALLBACK4_REQUIRED;
+    }
+
+    if (!CORProfilerEnableRejit())
+    {
+        return CORPROF_E_REJIT_NOT_ENABLED;
+    }
+
+    if (!ReJitManager::IsReJITInlineTrackingEnabled())
+    {
+        return CORPROF_E_REJIT_INLINING_DISABLED;
+    }
+
+    // Request at least 1 method to reJIT!
+    if ((cFunctions == 0) || (moduleIds == NULL) || (methodIds == NULL))
+    {
+        return E_INVALIDARG;
+    }
+
+    // We only support disabling inlining currently
+    if ((dwRejitFlags & COR_PRF_REJIT_BLOCK_INLINING) != COR_PRF_REJIT_BLOCK_INLINING)
+    {
+        return E_INVALIDARG;
+    }
+
+    // Remember the profiler is doing this, as that means we must never detach it!
+    g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
+    
+    GCX_PREEMP();
+    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, static_cast<COR_PRF_REJIT_FLAGS>(dwRejitFlags));
+}
+
 /*
  * GetObjectReferences
  * 
@@ -6888,6 +6945,46 @@ HRESULT ProfToEEInterfaceImpl::IsFrozenObject(ObjectID objectId, BOOL *pbFrozen)
         objectId));
 
     *pbFrozen = GCHeapUtilities::GetGCHeap()->IsInFrozenSegment((Object*)objectId) ? TRUE : FALSE;
+
+    return S_OK;
+}
+
+/*
+ * GetLOHObjectSizeThreshold
+ * 
+ * Gets the value of the configured LOH Threshold.
+ * 
+ * Parameters:
+ *      pThreshold        - value of the threshold in bytes
+ *
+ * Returns:
+ *   S_OK if successful
+ *
+ */
+HRESULT ProfToEEInterfaceImpl::GetLOHObjectSizeThreshold(DWORD *pThreshold)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        EE_THREAD_NOT_REQUIRED;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach,
+        (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: GetLOHObjectSizeThreshold\n"));
+
+    if (pThreshold == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    *pThreshold = g_pConfig->GetGCLOHThreshold();
 
     return S_OK;
 }
@@ -8605,7 +8702,7 @@ HRESULT ProfToEEInterfaceImpl::RequestReJIT(ULONG       cFunctions,   // in
     g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
     
     GCX_PREEMP();
-    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds);
+    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, static_cast<COR_PRF_REJIT_FLAGS>(0));
 }
 
 HRESULT ProfToEEInterfaceImpl::RequestRevert(ULONG       cFunctions,  // in
@@ -9610,7 +9707,7 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
         return CORPROF_E_DATAINCOMPLETE;
     }
 
-    if (!inlinersModule->HasInlineTrackingMap())
+    if (!inlinersModule->HasNativeOrReadyToRunInlineTrackingMap())
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -9623,14 +9720,14 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
     EX_TRY
     {
         // Trying to use static buffer
-        COUNT_T methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
+        COUNT_T methodsAvailable = inlinersModule->GetNativeOrReadyToRunInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
 
         // If static buffer is not enough, allocate an array.
         if (methodsAvailable > staticBufferSize)
         {
             DWORD dynamicBufferSize = methodsAvailable;
             dynamicBuffer = methodsBuffer = new MethodInModule[dynamicBufferSize];
-            methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
+            methodsAvailable = inlinersModule->GetNativeOrReadyToRunInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
             if (methodsAvailable > dynamicBufferSize)
             {
                 _ASSERTE(!"Ngen image inlining info changed, this shouldn't be possible.");

@@ -4205,19 +4205,6 @@ LONG WatsonLastChance(                  // EXCEPTION_CONTINUE_SEARCH, _CONTINUE_
     switch (tore.GetType())
     {
         case TypeOfReportedError::FatalError:
-            #ifdef MDA_SUPPORTED
-            {
-                MdaFatalExecutionEngineError * pMDA = MDA_GET_ASSISTANT_EX(FatalExecutionEngineError);
-
-                if ((pMDA != NULL) && (pExceptionInfo != NULL) && (pExceptionInfo->ExceptionRecord != NULL))
-                {
-                    TADDR addr = (TADDR) pExceptionInfo->ExceptionRecord->ExceptionAddress;
-                    HRESULT hrError = pExceptionInfo->ExceptionRecord->ExceptionCode;
-                    pMDA->ReportFEEE(addr, hrError);
-                }
-            }
-            #endif // MDA_SUPPORTED
-
             if (pThread != NULL)
             {
                 NotifyDebuggerLastChance(pThread, pExceptionInfo, jitAttachRequested);
@@ -12821,7 +12808,7 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrow(RuntimeExceptionKind reKind, LPCWSTR wsz
 //
 // - Can be called with gc enabled or disabled.
 //   This allows a catch-all error path to post a generic catchall error
-//   message w/out bonking more specific error messages posted by inner functions.
+//   message w/out overwriting more specific error messages posted by inner functions.
 //==========================================================================
 VOID DECLSPEC_NORETURN ThrowTypeLoadException(LPCWSTR pFullTypeName,
                                               LPCWSTR pAssemblyName,
@@ -12960,7 +12947,7 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowArgumentException(LPCWSTR argName, LPCWST
 //
 // - Can be called with gc enabled or disabled.
 //   This allows a catch-all error path to post a generic catchall error
-//   message w/out bonking more specific error messages posted by inner functions.
+//   message w/out overwriting more specific error messages posted by inner functions.
 //==========================================================================
 VOID DECLSPEC_NORETURN ThrowTypeLoadException(LPCUTF8 pszNameSpace,
                                               LPCUTF8 pTypeName,

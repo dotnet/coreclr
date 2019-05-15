@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System;
 using System.Diagnostics;
 using System.Collections;
@@ -46,7 +45,7 @@ namespace System.Diagnostics.Tracing
         private Func<double> _metricProvider;
         private double _lastVal;
 
-        internal override void WritePayload(float intervalSec)
+        internal override void WritePayload(float intervalSec, int pollingIntervalMillisec)
         {
             lock (MyLock)
             {
@@ -65,6 +64,8 @@ namespace System.Diagnostics.Tracing
                 payload.DisplayName = DisplayName ?? "";
                 payload.Count = 1; // NOTE: These dumb-looking statistics is intentional
                 payload.IntervalSec = intervalSec;
+                payload.Series = $"Interval={pollingIntervalMillisec}";  // TODO: This may need to change when we support multi-session
+                payload.CounterType = "Mean";
                 payload.Mean = value;
                 payload.Max = value;
                 payload.Min = value;

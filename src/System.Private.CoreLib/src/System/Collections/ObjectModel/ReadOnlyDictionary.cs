@@ -10,7 +10,6 @@
 ** Purpose: Read-only wrapper for another generic dictionary.
 **
 ===========================================================*/
-#nullable enable
 
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -334,7 +333,7 @@ namespace System.Collections.ObjectModel
             get { return false; }
         }
 
-        object? ICollection.SyncRoot
+        object ICollection.SyncRoot
         {
             get
             {
@@ -349,7 +348,7 @@ namespace System.Collections.ObjectModel
                         Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                     }
                 }
-                return m_syncRoot;
+                return m_syncRoot!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34901
             }
         }
 
@@ -503,7 +502,7 @@ namespace System.Collections.ObjectModel
                 get { return false; }
             }
 
-            object? ICollection.SyncRoot
+            object ICollection.SyncRoot
             {
                 get
                 {
@@ -515,10 +514,10 @@ namespace System.Collections.ObjectModel
                         }
                         else
                         {
-                            Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
+                            Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34901
                         }
                     }
-                    return m_syncRoot;
+                    return m_syncRoot!;
                 }
             }
 
@@ -611,7 +610,7 @@ namespace System.Collections.ObjectModel
                 get { return false; }
             }
 
-            object? ICollection.SyncRoot
+            object ICollection.SyncRoot
             {
                 get
                 {
@@ -626,7 +625,7 @@ namespace System.Collections.ObjectModel
                             Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                         }
                     }
-                    return m_syncRoot;
+                    return m_syncRoot!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34901
                 }
             }
 
