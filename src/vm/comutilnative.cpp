@@ -1169,7 +1169,7 @@ FCIMPL0(int, GCInterface::GetPercentTimeInGC)
 {
     FCALL_CONTRACT;
 
-    return GCHeapUtilities::GetGCHeap()->GetTimeInGC();
+    return GCHeapUtilities::GetGCHeap()->GetLastGCTimeInGC();
 }
 FCIMPLEND
 
@@ -1181,19 +1181,19 @@ FCIMPL1(UINT64, GCInterface::GetGenerationSize, int gen)
 }
 FCIMPLEND
 
-FCIMPL0(UINT64, GCInterface::GetLOHSize)
-{
-    FCALL_CONTRACT;
-
-    return GCHeapUtilities::GetGCHeap()->GetLOHSize();
-}
-FCIMPLEND
-
 FCIMPL0(UINT64, GCInterface::GetTotalAllocation)
 {
     FCALL_CONTRACT;
 
     return GCHeapUtilities::GetGCHeap()->GetTotalAllocation();
+}
+FCIMPLEND
+
+FCIMPL0(UINT64, GCInterface::GetLOHAllocation)
+{
+    FCALL_CONTRACT;
+
+    return GCHeapUtilities::GetGCHeap()->GetLOHAllocation();
 }
 FCIMPLEND
 

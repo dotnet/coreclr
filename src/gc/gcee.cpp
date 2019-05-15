@@ -12,13 +12,16 @@
 
 #ifndef DACCESS_COMPILE
 
-GCCounterData g_GCCounterData;
-
 uint64_t g_TotalTimeInGC = 0;
 uint64_t g_TotalTimeSinceLastGCEnd = 0;
 
+uint32_t g_percentTimeInGCSinceLastGC = 0;
+
 size_t g_GenerationSizes[NUMBERGENERATIONS];
 size_t g_GenerationPromotedSizes[NUMBERGENERATIONS];
+
+uint64_t g_cbAlloc = 0;
+uint64_t g_cbLOHAlloc = 0;
 
 void GCHeap::UpdatePreGCCounters()
 {
@@ -57,8 +60,9 @@ void GCHeap::UpdatePreGCCounters()
         
 #endif //MULTIPLE_HEAPS
 
-    g_GCCounterData.cbAlloc += allocation_0;
-    g_GCCounterData.cbAlloc += allocation_3;
+    g_cbAlloc += allocation_0;
+    g_cbAlloc += allocation_3;
+    g_cbLOHAlloc += allocation_3;
 
 #ifdef MULTIPLE_HEAPS
         //take the first heap....
@@ -207,10 +211,12 @@ void GCHeap::UpdatePostGCCounters()
         total_num_sync_blocks,
         static_cast<uint32_t>(total_num_gc_handles));
 
+    /*
     for (int gen_index = 0; gen_index <= (max_generation+1); gen_index++)
     {
         if (gen_index == (max_generation+1))
         {
+            g_GenerationSizes
             g_GCCounterData.lohObjSize = g_GenerationSizes[gen_index];
         }
         else
@@ -218,91 +224,9 @@ void GCHeap::UpdatePostGCCounters()
             g_GCCounterData.generationSizes[gen_index] = ((gen_index == 0) ? youngest_budget: g_GenerationSizes[gen_index]);
         }
     }
+    */
 
 #endif // FEATURE_EVENT_TRACE
-
-#ifdef ENABLE_PERF_COUNTERS
-    for (int gen_index = 0; gen_index <= (max_generation+1); gen_index++)
-    {
-        _ASSERTE(FitsIn<size_t>(g_GenerationSizes[gen_index]));
-        _ASSERTE(FitsIn<size_t>(g_GenerationPromotedSizes[gen_index]));
-
-        if (gen_index == (max_generation+1))
-        {
-            GetPerfCounters().m_GC.cLrgObjSize = static_cast<size_t>(g_GenerationSizes[gen_index]);
-        }
-        else
-        {
-            GetPerfCounters().m_GC.cGenHeapSize[gen_index] = ((gen_index == 0) ? 
-                                                                youngest_budget : 
-                                                                static_cast<size_t>(g_GenerationSizes[gen_index]));
-        }
-
-        // the perf counters only count the promoted size for gen0 and gen1.
-        if (gen_index < max_generation)
-        {
-            GetPerfCounters().m_GC.cbPromotedMem[gen_index] = static_cast<size_t>(g_GenerationPromotedSizes[gen_index]);
-        }
-
-        if (gen_index <= max_generation)
-        {
-            GetPerfCounters().m_GC.cGenCollections[gen_index] =
-                dd_collection_count (hp1->dynamic_data_of (gen_index));
-        }
-    }
-
-    // Committed and reserved memory 
-    {
-        size_t committed_mem = 0;
-        size_t reserved_mem = 0;
-#ifdef MULTIPLE_HEAPS
-        int hn = 0;
-        for (hn = 0; hn < gc_heap::n_heaps; hn++)
-        {
-            gc_heap* hp = gc_heap::g_heaps [hn];
-#else
-            gc_heap* hp = pGenGCHeap;
-            {
-#endif //MULTIPLE_HEAPS
-                heap_segment* seg = generation_start_segment (hp->generation_of (max_generation));
-                while (seg)
-                {
-                    committed_mem += heap_segment_committed (seg) - heap_segment_mem (seg);
-                    reserved_mem += heap_segment_reserved (seg) - heap_segment_mem (seg);
-                    seg = heap_segment_next (seg);
-                }
-                //same for large segments
-                seg = generation_start_segment (hp->generation_of (max_generation + 1));
-                while (seg)
-                {
-                    committed_mem += heap_segment_committed (seg) - 
-                        heap_segment_mem (seg);
-                    reserved_mem += heap_segment_reserved (seg) - 
-                        heap_segment_mem (seg);
-                    seg = heap_segment_next (seg);
-                }
-#ifdef MULTIPLE_HEAPS
-            }
-#else
-        }
-#endif //MULTIPLE_HEAPS
-
-        GetPerfCounters().m_GC.cTotalCommittedBytes = committed_mem;
-        GetPerfCounters().m_GC.cTotalReservedBytes = reserved_mem;
-    }
-
-    GetPerfCounters().m_GC.timeInGC = (uint32_t)g_TotalTimeInGC;
-    GetPerfCounters().m_GC.timeInGCBase = (uint32_t)_timeInGCBase;
-
-    if (!GetPerfCounters().m_GC.cProcessID)
-        GetPerfCounters().m_GC.cProcessID = (size_t)GetCurrentProcessId();
-    
-
-    GetPerfCounters().m_GC.cPinnedObj = total_num_pinned_objects;
-    GetPerfCounters().m_GC.cHandles = total_num_gc_handles;
-    GetPerfCounters().m_GC.cSinkBlocks = total_num_sync_blocks;
-
-#endif // ENABLE_PERF_COUNTERS
 
     // Compute Time in GC
     uint64_t _currentPerfCounterTimer = GCToOSInterface::QueryPerformanceCounter();
@@ -320,35 +244,30 @@ void GCHeap::UpdatePostGCCounters()
         g_TotalTimeInGC = g_TotalTimeInGC >> 8;
     }
 
-    // Update Total Time    
-    g_GCCounterData.timeInGC = g_TotalTimeInGC;
-    g_GCCounterData.timeInGCBase = _timeInGCBase;
+    // Update percent time spent in GC
+    g_percentTimeInGCSinceLastGC = (int)(g_TotalTimeInGC * 100 / _timeInGCBase);
 
     g_TotalTimeSinceLastGCEnd = _currentPerfCounterTimer;
 }
 
-int GCHeap::GetTimeInGC()
+int GCHeap::GetLastGCTimeInGC()
 {
-    if (g_GCCounterData.timeInGCBase == 0)
-    {
-        return 0;
-    }
-    return (int)(g_GCCounterData.timeInGC * 100 / g_GCCounterData.timeInGCBase);
+    return (int)(g_percentTimeInGCSinceLastGC);
 }
 
 uint64_t GCHeap::GetGenerationSize(int gen)
 {
-    return g_GCCounterData.generationSizes[gen];
-}
-
-uint64_t GCHeap::GetLOHSize()
-{
-    return g_GCCounterData.lohObjSize;
+    return g_GenerationSizes[gen];
 }
 
 uint64_t GCHeap::GetTotalAllocation()
 {
-    return g_GCCounterData.cbAlloc;
+    return g_cbAlloc;
+}
+
+uint64_t GCHeap::GetLOHAllocation()
+{
+    return g_cbLOHAlloc;
 }
 
 size_t GCHeap::GetCurrentObjSize()

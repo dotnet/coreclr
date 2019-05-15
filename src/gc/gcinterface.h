@@ -537,14 +537,6 @@ public:
     ===========================================================================
     */
 
-    virtual int GetTimeInGC() = 0;
-
-    virtual uint64_t GetGenerationSize(int gen) = 0;
-
-    virtual uint64_t GetLOHSize() = 0;
-
-    virtual uint64_t GetTotalAllocation() = 0;
-
     // Returns whether or not the given size is a valid segment size.
     virtual bool IsValidSegmentSize(size_t size) = 0;
 
@@ -698,6 +690,14 @@ public:
 
     // Indicates that an object's finalizer should be run upon the object's collection.
     virtual bool RegisterForFinalization(int gen, Object* obj) = 0;
+
+    virtual int GetLastGCTimeInGC() = 0;
+
+    virtual uint64_t GetGenerationSize(int gen) = 0;
+
+    virtual uint64_t GetTotalAllocation() = 0;
+
+    virtual uint64_t GetLOHAllocation() = 0;
 
     /*
     ===========================================================================

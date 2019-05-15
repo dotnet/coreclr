@@ -309,13 +309,13 @@ public:
     Object * NextObj (Object * object);
 
 public:
-    int GetTimeInGC();
+    int GetLastGCTimeInGC();
 
     uint64_t GetGenerationSize(int gen);
 
-    uint64_t GetLOHSize();
-
     uint64_t GetTotalAllocation();
+
+    uint64_t GetLOHAllocation();
 };
 
 #endif  // GCIMPL_H_
