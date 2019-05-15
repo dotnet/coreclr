@@ -46,7 +46,6 @@ nativeStringResourceTable_mscorrc_debug
 #PAL_IsDebuggerPresent
 #PAL_ProbeMemory
 #PAL_Random
-#PAL_iswspace
 #PAL_memcpy
 #PAL_malloc
 #PAL_realloc
