@@ -1706,7 +1706,7 @@ namespace System.Text
                 // Construct the output for this arg hole.
                 pos++;
                 string? s = null;
-                string itemFormat = null;
+                string? itemFormat = null;
                 
                 if (cf != null)
                 {
