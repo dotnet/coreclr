@@ -185,9 +185,9 @@ if(WIN32)
     add_compile_options(/Zi /FC /Zc:strictStrings)
 elseif (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-g)
-    # We need to add -Wall to CMAKE_CXX_FLAGS since add_comiple_options takes precedence
+    # We need to add -Wall to CMAKE_<LANG>_FLAGS since add_compile_options takes precedence
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-    set (CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         add_compile_options(-Wno-null-conversion)
     else()
