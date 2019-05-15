@@ -958,4 +958,9 @@ bool ReadyToRunInfo::MayHaveCustomAttribute(WellKnownAttribute attribute, mdToke
     return m_attributesPresence.MayExist(hash, fingerprint);
 }
 
+void ReadyToRunInfo::DisableCustomAttributeFilter()
+{
+    m_attributesPresence.DisableFilter();
+}
+
 #endif // DACCESS_COMPILE

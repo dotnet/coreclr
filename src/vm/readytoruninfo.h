@@ -138,6 +138,7 @@ public:
     }
 
     bool MayHaveCustomAttribute(WellKnownAttribute attribute, mdToken token);
+    void DisableCustomAttributeFilter();
 
 private:
     BOOL GetTypeNameFromToken(IMDInternalImport * pImport, mdToken mdType, LPCUTF8 * ppszName, LPCUTF8 * ppszNameSpace);

@@ -1627,6 +1627,7 @@ private:
 #if PROFILING_SUPPORTED_DATA 
     DWORD                   m_dwTypeCount;
     DWORD                   m_dwExportedTypeCount;
+    DWORD                   m_dwCustomAttributeCount;
 #endif // PROFILING_SUPPORTED_DATA
 
 #ifdef FEATURE_PREJIT

@@ -549,6 +549,8 @@ namespace NativeFormat
     {
         PTR_BYTE _base;
         UInt32 _size;
+        LONG _disableFilter;
+        
 
     public:
         static UInt32 ComputeFingerprintHash(UInt16 fingerprint)
@@ -577,6 +579,13 @@ namespace NativeFormat
             _size = filterSize;
         }
 
+        void DisableFilter()
+        {
+            // Set disable filter flag using interlocked to ensure that future
+            // attempts to read the filter will capture the change.
+            InterlockedExchange(&_disableFilter, 1);
+        }
+
         bool HashComputationImmaterial()
         {
             if ((_base == NULL) || (_size == 0))
@@ -586,7 +595,7 @@ namespace NativeFormat
 
         bool MayExist(UInt32 hashcode, UInt16 fingerprint)
         {
-            if (_base == NULL)
+            if ((_base == NULL) || (_disableFilter))
                 return true;
 
             if (_size == 0)
