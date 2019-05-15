@@ -704,12 +704,29 @@ static bool CallerAndCalleeInSystemVersionBubble(MethodDesc* pCaller, MethodDesc
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
-        return pCallee->GetModule()->IsSystem() && IsInSameVersionBubble(pCaller, pCallee);
+        return IsInSameVersionBubble(pCaller, pCallee) && IsInSameVersionBubble(pCaller->GetModule()->GetAssembly(), SystemDomain::SystemAssembly());
 #endif
 
     return false;
 }
 
+BOOL CEEInfo::isInSameVersionBubble(
+        CORINFO_MODULE_HANDLE       currentModule,
+        CORINFO_MODULE_HANDLE       targetModule)
+{
+    LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    if (IsReadyToRunCompilation())
+    {
+        Module* pCurrentModule = (Module*)currentModule;
+        Module* pTargetModule = (Module*)targetModule;
+        return IsInSameVersionBubble(pCurrentModule->GetAssembly(), pTargetModule->GetAssembly());
+    }
+#endif
+
+    return FALSE;
+}
 
 /*********************************************************************/
 CorInfoCanSkipVerificationResult CEEInfo::canSkipVerification(
@@ -10193,7 +10210,9 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
 
     JIT_TO_EE_TRANSITION();
 
-    if (!IsReadyToRunCompilation())
+    if (!IsReadyToRunCompilation() || isInSameVersionBubble(
+        (CORINFO_MODULE_HANDLE)m_pMethodBeingCompiled->GetModule_NoLogging(), 
+        (CORINFO_MODULE_HANDLE)MscorlibBinder::GetModule()))
     {
         InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
 
@@ -13732,6 +13751,10 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 
                 case READYTORUN_HELPER_GSCookie:
                     result = (size_t)GetProcessGSCookie();
+                    break;
+
+                case READYTORUN_HELPER_TrapReturningThreads:
+                    result = (size_t)&g_TrapReturningThreads;
                     break;
 
                 case READYTORUN_HELPER_DelayLoad_MethodCall:

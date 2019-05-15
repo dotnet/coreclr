@@ -2305,6 +2305,11 @@ public:
             CORINFO_MODULE_HANDLE   scope
             ) = 0;
 
+    virtual BOOL isInSameVersionBubble(
+            CORINFO_MODULE_HANDLE   currentModule,
+            CORINFO_MODULE_HANDLE   targetModule
+            ) = 0;
+
     /**********************************************************************************/
     //
     // ICorClassInfo

@@ -111,8 +111,10 @@ HELPER(READYTORUN_HELPER_CheckedWriteBarrier_EBP,   CORINFO_HELP_CHECKED_ASSIGN_
 HELPER(READYTORUN_HELPER_EndCatch,                  CORINFO_HELP_ENDCATCH,                          OPTIMIZEFORSIZE)
 #endif
 
+HELPER(READYTORUN_HELPER_PInvokeFrameInit,          CORINFO_HELP_INIT_PINVOKE_FRAME,                )
 HELPER(READYTORUN_HELPER_PInvokeBegin,              CORINFO_HELP_JIT_PINVOKE_BEGIN,                 )
 HELPER(READYTORUN_HELPER_PInvokeEnd,                CORINFO_HELP_JIT_PINVOKE_END,                   )
+HELPER(READYTORUN_HELPER_StopForGC,                 CORINFO_HELP_STOP_FOR_GC,                       )
 
 
 #undef HELPER

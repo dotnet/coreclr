@@ -561,7 +561,10 @@ namespace R2RDump
                             {
                                 Console.WriteLine($"Warning: Could not parse GC Info for method: {method.SignatureString}");
                             }
-
+                            catch (OverflowException)
+                            {
+                                Console.WriteLine($"Warning: Could not parse GC Info for method: {method.SignatureString}");
+                            }
                         }
                     }
                     else if (Machine == Machine.I386)

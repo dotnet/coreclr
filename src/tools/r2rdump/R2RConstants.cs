@@ -136,6 +136,7 @@ namespace R2RDump
         // Not a real helper - handle to current module passed to delay load helpers.
         READYTORUN_HELPER_Module = 0x01,
         READYTORUN_HELPER_GSCookie = 0x02,
+        READYTORUN_HELPER_TrapReturningThreads = 0x03,
 
         //
         // Delay load helpers
@@ -176,6 +177,8 @@ namespace R2RDump
         // PInvoke helpers
         READYTORUN_HELPER_PInvokeBegin = 0x42,
         READYTORUN_HELPER_PInvokeEnd = 0x43,
+        READYTORUN_HELPER_PInvokeFrameInit = 0x44,
+        READYTORUN_HELPER_StopForGC = 0x45,
 
         // Get string handle lazily
         READYTORUN_HELPER_GetString = 0x50,

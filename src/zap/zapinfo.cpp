@@ -209,7 +209,9 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_READYTORUN);
 #ifndef PLATFORM_UNIX
         // PInvoke Helpers are not yet implemented on non-Windows platforms
-        jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_PINVOKE_HELPERS);
+
+        if (!isInSameVersionBubble(m_currentMethodModule, m_zapper->m_pEECompileInfo->GetLoaderModuleForMscorlib()))
+            jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_PINVOKE_HELPERS);
 #endif
     }
 #endif  // FEATURE_READYTORUN_COMPILER
@@ -1416,6 +1418,12 @@ const void * ZapInfo::getInlinedCallFrameVptr(void **ppIndirection)
 LONG * ZapInfo::getAddrOfCaptureThreadGlobal(void **ppIndirection)
 {
     _ASSERTE(ppIndirection != NULL);
+
+    if (IsReadyToRunCompilation())
+    {
+        *ppIndirection = (LONG *)m_pImage->GetImportTable()->GetHelperImport(READYTORUN_HELPER_TrapReturningThreads);
+        return NULL;
+    }
 
     *ppIndirection = (LONG *) m_pImage->GetInnerPtr(m_pImage->m_pEEInfoTable,
         offsetof(CORCOMPILE_EE_INFO_TABLE, addrOfCaptureThreadGlobal));
@@ -3220,6 +3228,14 @@ BOOL ZapInfo::shouldEnforceCallvirtRestriction(
 {
     return m_zapper->m_pEEJitInfo->shouldEnforceCallvirtRestriction(scopeHnd);
 }
+
+BOOL ZapInfo::isInSameVersionBubble(
+        CORINFO_MODULE_HANDLE currentModule,
+        CORINFO_MODULE_HANDLE targetModule)
+{
+    return m_zapper->m_pEEJitInfo->isInSameVersionBubble(currentModule, targetModule);
+}
+
 
 CORINFO_CLASS_HANDLE ZapInfo::getParentType (
                                 CORINFO_CLASS_HANDLE       cls)

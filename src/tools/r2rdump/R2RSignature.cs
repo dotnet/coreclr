@@ -1226,7 +1226,11 @@ namespace R2RDump
                     break;
 
                 case ReadyToRunHelper.READYTORUN_HELPER_GSCookie:
-                    builder.Append("GC_COOKIE");
+                    builder.Append("GS_COOKIE");
+                    break;
+
+                case ReadyToRunHelper.READYTORUN_HELPER_TrapReturningThreads:
+                    builder.Append("TRAP_RETURNING_THREADS_PTR");
                     break;
 
 
@@ -1321,6 +1325,14 @@ namespace R2RDump
 
                 case ReadyToRunHelper.READYTORUN_HELPER_PInvokeEnd:
                     builder.Append("PINVOKE_END");
+                    break;
+
+                case ReadyToRunHelper.READYTORUN_HELPER_PInvokeFrameInit:
+                    builder.Append("CORINFO_HELP_INIT_PINVOKE_FRAME");
+                    break;
+
+                case ReadyToRunHelper.READYTORUN_HELPER_StopForGC:
+                    builder.Append("CORINFO_HELP_STOP_FOR_GC");
                     break;
 
                 // Get string handle lazily

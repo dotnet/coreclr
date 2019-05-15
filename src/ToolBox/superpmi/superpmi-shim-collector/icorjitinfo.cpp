@@ -525,6 +525,14 @@ BOOL interceptor_ICJI::shouldEnforceCallvirtRestriction(CORINFO_MODULE_HANDLE sc
     return temp;
 }
 
+BOOL interceptor_ICJI::isInSameVersionBubble(CORINFO_MODULE_HANDLE currentModule, CORINFO_MODULE_HANDLE targetModule)
+{
+    mc->cr->AddCall("isInSameVersionBubble");
+    BOOL temp = original_ICorJitInfo->isInSameVersionBubble(currentModule, targetModule);
+    mc->recIsInSameVersionBubble(currentModule, targetModule, temp);
+    return temp;
+}
+
 /**********************************************************************************/
 //
 // ICorClassInfo

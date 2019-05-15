@@ -297,9 +297,9 @@ GenTree* Lowering::LowerNode(GenTree* node)
                 BlockRange().InsertBefore(store, bitcast);
             }
 #endif // _TARGET_AMD64_
-            // TODO-1stClassStructs: Once we remove the requirement that all struct stores
-            // are block stores (GT_STORE_BLK or GT_STORE_OBJ), here is where we would put the local
-            // store under a block store if codegen will require it.
+       // TODO-1stClassStructs: Once we remove the requirement that all struct stores
+       // are block stores (GT_STORE_BLK or GT_STORE_OBJ), here is where we would put the local
+       // store under a block store if codegen will require it.
             if ((node->TypeGet() == TYP_STRUCT) && (node->gtGetOp1()->OperGet() != GT_PHI))
             {
 #if FEATURE_MULTIREG_RET
@@ -715,8 +715,8 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
                 //                 |____ (ICon)        (The actual case constant)
                 GenTree* gtCaseCond = comp->gtNewOperNode(GT_EQ, TYP_INT, comp->gtNewLclvNode(tempLclNum, tempLclType),
                                                           comp->gtNewIconNode(i, tempLclType));
-                GenTree*   gtCaseBranch = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, gtCaseCond);
-                LIR::Range caseRange    = LIR::SeqTree(comp, gtCaseBranch);
+                GenTree* gtCaseBranch = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, gtCaseCond);
+                LIR::Range caseRange  = LIR::SeqTree(comp, gtCaseBranch);
                 currentBBRange->InsertAtEnd(std::move(caseRange));
             }
         }
@@ -858,9 +858,9 @@ bool Lowering::TryLowerSwitchToBitTest(
     // table and/or swap the blocks if it's beneficial.
     //
 
-    BasicBlock* bbCase0  = nullptr;
-    BasicBlock* bbCase1  = jumpTable[0];
-    size_t      bitTable = 1;
+    BasicBlock* bbCase0 = nullptr;
+    BasicBlock* bbCase1 = jumpTable[0];
+    size_t bitTable = 1;
 
     for (unsigned bitIndex = 1; bitIndex < bitCount; bitIndex++)
     {
@@ -921,7 +921,7 @@ bool Lowering::TryLowerSwitchToBitTest(
     if (bbSwitch->bbNext == bbCase0)
     {
         // GenCondition::C generates JC so we jump to bbCase1 when the bit is set
-        bbSwitchCondition    = GenCondition::C;
+        bbSwitchCondition = GenCondition::C;
         bbSwitch->bbJumpDest = bbCase1;
 
         comp->fgAddRefPred(bbCase0, bbSwitch);
@@ -932,7 +932,7 @@ bool Lowering::TryLowerSwitchToBitTest(
         assert(bbSwitch->bbNext == bbCase1);
 
         // GenCondition::NC generates JNC so we jump to bbCase0 when the bit is not set
-        bbSwitchCondition    = GenCondition::NC;
+        bbSwitchCondition = GenCondition::NC;
         bbSwitch->bbJumpDest = bbCase0;
 
         comp->fgAddRefPred(bbCase0, bbSwitch);
@@ -944,8 +944,8 @@ bool Lowering::TryLowerSwitchToBitTest(
     //
 
     var_types bitTableType = (bitCount <= (genTypeSize(TYP_INT) * 8)) ? TYP_INT : TYP_LONG;
-    GenTree*  bitTableIcon = comp->gtNewIconNode(bitTable, bitTableType);
-    GenTree*  bitTest      = comp->gtNewOperNode(GT_BT, TYP_VOID, bitTableIcon, switchValue);
+    GenTree* bitTableIcon = comp->gtNewIconNode(bitTable, bitTableType);
+    GenTree* bitTest = comp->gtNewOperNode(GT_BT, TYP_VOID, bitTableIcon, switchValue);
     bitTest->gtFlags |= GTF_SET_FLAGS;
     GenTreeCC* jcc = new (comp, GT_JCC) GenTreeCC(GT_JCC, bbSwitchCondition);
     jcc->gtFlags |= GTF_USE_FLAGS;
@@ -2247,7 +2247,7 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
     ContainCheckRange(callTargetRange);
     BlockRange().InsertAfter(arg0, std::move(callTargetRange));
 
-    bool               isClosed;
+    bool isClosed;
     LIR::ReadOnlyRange secondArgRange = BlockRange().GetTreeRange(arg0, &isClosed);
     assert(isClosed);
     BlockRange().Remove(std::move(secondArgRange));
@@ -2602,7 +2602,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
 #ifdef _TARGET_XARCH_
                  || IsContainableMemoryOp(castOp)
 #endif
-                     );
+                );
 
             if (removeCast)
             {
@@ -3114,9 +3114,9 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
 #ifdef _TARGET_X86_ // x86 tailcall via helper follows normal calling convention, but with extra stack args.
         const unsigned argNum = 0;
 #else  // !_TARGET_X86_
-        // In case of helper dispatched tail calls, "thisptr" will be the third arg.
-        // The first two args are: real call target and addr of args copy routine.
-        const unsigned argNum  = 2;
+       // In case of helper dispatched tail calls, "thisptr" will be the third arg.
+       // The first two args are: real call target and addr of args copy routine.
+        const unsigned argNum = 2;
 #endif // !_TARGET_X86_
 
         fgArgTabEntry* thisArgTabEntry = comp->gtArgEntryByArgNum(call, argNum);
@@ -3381,7 +3381,7 @@ void Lowering::InsertPInvokeMethodProlog()
 #if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     GenTreeArgList* argList = comp->gtNewArgList(frameAddr);
 #else
-    GenTreeArgList*    argList = comp->gtNewArgList(frameAddr, PhysReg(REG_SECRET_STUB_PARAM));
+    GenTreeArgList* argList = comp->gtNewArgList(frameAddr, PhysReg(REG_SECRET_STUB_PARAM));
 #endif
 
     GenTree* call = comp->gtNewHelperCallNode(CORINFO_HELP_INIT_PINVOKE_FRAME, TYP_I_IMPL, argList);
@@ -3605,6 +3605,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
     }
     else
     {
+#ifndef FEATURE_READYTORUN_COMPILER
         assert(callType == CT_USER_FUNC);
 
         void*                 pEmbedMethodHandle = nullptr;
@@ -3623,6 +3624,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
             // InlinedCallFrame.callSiteTarget = *pEmbedMethodHandle
             src = Ind(AddrGen(pEmbedMethodHandle));
         }
+#endif
     }
 
     if (src != nullptr)
@@ -5591,7 +5593,7 @@ void Lowering::ContainCheckNode(GenTree* node)
 #if FEATURE_ARG_SPLIT
         case GT_PUTARG_SPLIT:
 #endif // FEATURE_ARG_SPLIT
-            // The regNum must have been set by the lowering of the call.
+       // The regNum must have been set by the lowering of the call.
             assert(node->gtRegNum != REG_NA);
             break;
 #ifdef _TARGET_XARCH_

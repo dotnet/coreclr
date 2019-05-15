@@ -5096,6 +5096,31 @@ BOOL MethodContext::repShouldEnforceCallvirtRestriction(CORINFO_MODULE_HANDLE sc
     return temp;
 }
 
+void MethodContext::recIsInSameVersionBubble(CORINFO_MODULE_HANDLE currentModule, CORINFO_MODULE_HANDLE targetModule, BOOL result)
+{
+    if (IsInSameVersionBubble == nullptr)
+        IsInSameVersionBubble = new LightWeightMap<DLDL, BOOL>();
+
+    DLDL key;
+    key.A = (DWORDLONG)currentModule;
+    key.B = (DWORDLONG)targetModule;
+    IsInSameVersionBubble->Add(key, result);
+    DEBUG_REC(dmpIsInSameVersionBubble(key, result));
+}
+void MethodContext::dmpIsInSameVersionBubble(DLDL key, BOOL value)
+{
+    printf("IsInSameVersionBubble module1-%016llX, module2-%016llX, res-%u", key.A, key.B, value);
+}
+BOOL MethodContext::repIsInSameVersionBubble(CORINFO_MODULE_HANDLE currentModule, CORINFO_MODULE_HANDLE targetModule)
+{
+    DLDL key;
+    key.A     = (DWORDLONG)currentModule;
+    key.B     = (DWORDLONG)targetModule;
+    BOOL temp = (BOOL)IsInSameVersionBubble->Get(key);
+    DEBUG_REC(dmpIsInSameVersionBubble(key, temp));
+    return temp;
+}
+
 void MethodContext::recGetMethodSync(CORINFO_METHOD_HANDLE ftn, void** ppIndirection, void* result)
 {
     if (GetMethodSync == nullptr)
