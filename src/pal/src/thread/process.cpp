@@ -1549,7 +1549,8 @@ static uint64_t HashSemaphoreName(uint64_t a, uint64_t b)
 #define HashSemaphoreName(a,b) a,b
 #endif
 
-static const char* PipeNameFormat = "clr-debug-pipe-%d-%llu-%s";
+static const char *const TwoWayNamedPipePrefix = "clr-debug-pipe";
+static const char* IpcNameFormat = "%s-%d-%llu-%s";
 
 class PAL_RuntimeStartupHelper
 {
@@ -2288,14 +2289,16 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
 
 /*++
  Function:
-  PAL_GetTransportPipeName
+  PAL_GetTransportName
 
-  Builds the transport pipe names from the process id.
+  Builds the transport IPC names from the process id.
 --*/
 VOID
 PALAPI
-PAL_GetTransportPipeName(
+PAL_GetTransportName(
+    const unsigned int MAX_TRANSPORT_NAME_LENGTH,
     OUT char *name,
+    IN const char *prefix,
     IN DWORD id,
     IN const char *applicationGroupId,
     IN const char *suffix)
@@ -2305,7 +2308,7 @@ PAL_GetTransportPipeName(
     UINT64 disambiguationKey = 0;
     PathCharString formatBufferString;
     BOOL ret = GetProcessIdDisambiguationKey(id, &disambiguationKey);
-    char *formatBuffer = formatBufferString.OpenStringBuffer(MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH-1);
+    char *formatBuffer = formatBufferString.OpenStringBuffer(MAX_TRANSPORT_NAME_LENGTH-1);
     if (formatBuffer == nullptr)
     {
         ERROR("Out Of Memory");
@@ -2337,9 +2340,9 @@ PAL_GetTransportPipeName(
         }
 
         // Verify the size of the path won't exceed maximum allowed size
-        if (formatBufferString.GetCount() >= MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH)
+        if (formatBufferString.GetCount() >= MAX_TRANSPORT_NAME_LENGTH)
         {
-            ERROR("GetApplicationContainerFolder returned a path that was larger than MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH");
+            ERROR("GetApplicationContainerFolder returned a path that was larger than MAX_TRANSPORT_NAME_LENGTH");
             return;
         }
     }
@@ -2347,27 +2350,50 @@ PAL_GetTransportPipeName(
 #endif // __APPLE__
     {
         // Get a temp file location
-        dwRetVal = ::GetTempPathA(MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, formatBuffer);
+        dwRetVal = ::GetTempPathA(MAX_TRANSPORT_NAME_LENGTH, formatBuffer);
         if (dwRetVal == 0)
         {
             ERROR("GetTempPath failed (0x%08x)", ::GetLastError());
             return;
         }
-        if (dwRetVal > MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH)
+        if (dwRetVal > MAX_TRANSPORT_NAME_LENGTH)
         {
-            ERROR("GetTempPath returned a path that was larger than MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH");
+            ERROR("GetTempPath returned a path that was larger than MAX_TRANSPORT_NAME_LENGTH");
             return;
         }
     }
 
-    if (strncat_s(formatBuffer, MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, PipeNameFormat, strlen(PipeNameFormat)) == STRUNCATE)
+    if (strncat_s(formatBuffer, MAX_TRANSPORT_NAME_LENGTH, IpcNameFormat, strlen(IpcNameFormat)) == STRUNCATE)
     {
-        ERROR("TransportPipeName was larger than MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH");
+        ERROR("TransportPipeName was larger than MAX_TRANSPORT_NAME_LENGTH");
         return;
     }
 
-    int chars = snprintf(name, MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, formatBuffer, id, disambiguationKey, suffix);
-    _ASSERTE(chars > 0 && chars < MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH);
+    int chars = snprintf(name, MAX_TRANSPORT_NAME_LENGTH, formatBuffer, prefix, id, disambiguationKey, suffix);
+    _ASSERTE(chars > 0 && (unsigned int)chars < MAX_TRANSPORT_NAME_LENGTH);
+}
+
+/*++
+ Function:
+  PAL_GetTransportPipeName
+
+  Builds the transport pipe names from the process id.
+--*/
+VOID
+PALAPI
+PAL_GetTransportPipeName(
+    OUT char *name,
+    IN DWORD id,
+    IN const char *applicationGroupId,
+    IN const char *suffix)
+{
+    PAL_GetTransportName(
+        MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH,
+        name,
+        TwoWayNamedPipePrefix,
+        id,
+        applicationGroupId,
+        suffix);
 }
 
 /*++
@@ -2387,10 +2413,10 @@ GetProcessTimes(
 {
     BOOL retval = FALSE;
     struct rusage resUsage;
-    __int64 calcTime;
-    const __int64 SECS_TO_NS = 1000000000; /* 10^9 */
-    const __int64 USECS_TO_NS = 1000;      /* 10^3 */
-
+    UINT64 calcTime;
+    const UINT64 SECS_TO_100NS = 10000000ULL;  // 10^7 
+    const UINT64 USECS_TO_100NS = 10ULL;       // 10
+    const UINT64 EPOCH_DIFF = 11644473600ULL;  // number of seconds from 1 Jan. 1601 00:00 to 1 Jan 1970 00:00 UTC
 
     PERF_ENTRY(GetProcessTimes);
     ENTRY("GetProcessTimes(hProcess=%p, lpExitTime=%p, lpKernelTime=%p,"
@@ -2422,12 +2448,46 @@ GetProcessTimes(
            resUsage.ru_utime.tv_sec, resUsage.ru_utime.tv_usec,
            resUsage.ru_stime.tv_sec, resUsage.ru_stime.tv_usec);
 
+    if (lpCreationTime)
+    {
+        // The IBC profile data uses this, instead of the actual
+        // process creation time we just return the current time
+
+        struct timeval tv;
+        if (gettimeofday(&tv, NULL) == -1)
+        {
+            ASSERT("gettimeofday() failed; errno is %d (%s)\n", errno, strerror(errno));
+
+            // Assign zero to lpCreationTime
+            lpCreationTime->dwLowDateTime = 0;
+            lpCreationTime->dwHighDateTime = 0;
+        }
+        else
+        {
+            calcTime = EPOCH_DIFF;
+            calcTime += (UINT64)tv.tv_sec;
+            calcTime *= SECS_TO_100NS;
+            calcTime += ((UINT64)tv.tv_usec * USECS_TO_100NS);
+            
+            // Assign the time into lpCreationTime
+            lpCreationTime->dwLowDateTime = (DWORD)calcTime;
+            lpCreationTime->dwHighDateTime = (DWORD)(calcTime >> 32);
+        }
+    }
+
+    if (lpExitTime)
+    {
+        // Assign zero to lpExitTime
+        lpExitTime->dwLowDateTime = 0;
+        lpExitTime->dwHighDateTime = 0;
+    }
+
     if (lpUserTime)
     {
         /* Get the time of user mode execution, in 100s of nanoseconds */
-        calcTime = (__int64)resUsage.ru_utime.tv_sec * SECS_TO_NS;
-        calcTime += (__int64)resUsage.ru_utime.tv_usec * USECS_TO_NS;
-        calcTime /= 100; /* Produce the time in 100s of ns */
+        calcTime = (UINT64)resUsage.ru_utime.tv_sec * SECS_TO_100NS;
+        calcTime += (UINT64)resUsage.ru_utime.tv_usec * USECS_TO_100NS;
+
         /* Assign the time into lpUserTime */
         lpUserTime->dwLowDateTime = (DWORD)calcTime;
         lpUserTime->dwHighDateTime = (DWORD)(calcTime >> 32);
@@ -2436,9 +2496,9 @@ GetProcessTimes(
     if (lpKernelTime)
     {
         /* Get the time of kernel mode execution, in 100s of nanoseconds */
-        calcTime = (__int64)resUsage.ru_stime.tv_sec * SECS_TO_NS;
-        calcTime += (__int64)resUsage.ru_stime.tv_usec * USECS_TO_NS;
-        calcTime /= 100; /* Produce the time in 100s of ns */
+        calcTime = (UINT64)resUsage.ru_stime.tv_sec * SECS_TO_100NS;
+        calcTime += (UINT64)resUsage.ru_stime.tv_usec * USECS_TO_100NS;
+
         /* Assign the time into lpUserTime */
         lpKernelTime->dwLowDateTime = (DWORD)calcTime;
         lpKernelTime->dwHighDateTime = (DWORD)(calcTime >> 32);
@@ -2497,6 +2557,12 @@ PAL_GetCPUBusyTime(
         if (dwNumberOfProcessors <= 0)
         {
             return 0;
+        }
+
+        UINT cpuLimit;
+        if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < dwNumberOfProcessors)
+        {
+            dwNumberOfProcessors = cpuLimit;
         }
     }
 
@@ -3140,6 +3206,157 @@ PROCNotifyProcessShutdown()
 
 /*++
 Function
+  PROCBuildCreateDumpCommandLine
+
+Abstract
+  Builds the createdump command line from the arguments.
+
+Return
+  TRUE - succeeds, FALSE - fails
+
+--*/
+BOOL
+PROCBuildCreateDumpCommandLine(
+    const char** argv,
+    char** pprogram,
+    char** ppidarg,
+    char* dumpName,
+    char* dumpType,
+    BOOL diag)
+{
+    if (g_szCoreCLRPath == nullptr)
+    {
+        return FALSE;
+    }
+    const char* DumpGeneratorName = "createdump";
+    int programLen = strlen(g_szCoreCLRPath) + strlen(DumpGeneratorName) + 1;
+    char* program = *pprogram = (char*)InternalMalloc(programLen);
+    if (program == nullptr)
+    {
+        return FALSE;
+    }
+    if (strcpy_s(program, programLen, g_szCoreCLRPath) != SAFECRT_SUCCESS)
+    {
+        return FALSE;
+    }
+    char *last = strrchr(program, '/');
+    if (last != nullptr)
+    {
+        *(last + 1) = '\0';
+    }
+    else
+    {
+        program[0] = '\0';
+    }
+    if (strcat_s(program, programLen, DumpGeneratorName) != SAFECRT_SUCCESS)
+    {
+        return FALSE;
+    }
+    char* pidarg = *ppidarg = (char*)InternalMalloc(128);
+    if (pidarg == nullptr)
+    {
+        return FALSE;
+    }
+    if (sprintf_s(pidarg, 128, "%d", gPID) == -1)
+    {
+        return FALSE;
+    }
+    *argv++ = program;
+
+    if (dumpName != nullptr)
+    {
+        *argv++ = "--name";
+        *argv++ = dumpName;
+    }
+
+    if (dumpType != nullptr)
+    {
+        if (strcmp(dumpType, "1") == 0)
+        {
+            *argv++ = "--normal";
+        }
+        else if (strcmp(dumpType, "2") == 0)
+        {
+            *argv++ = "--withheap";
+        }
+        else if (strcmp(dumpType, "3") == 0)
+        {
+            *argv++ = "--triage";
+        }
+        else if (strcmp(dumpType, "4") == 0)
+        {
+            *argv++ = "--full";
+        }
+    }
+
+    if (diag)
+    {
+        *argv++ = "--diag";
+    }
+
+    *argv++ = pidarg;
+    *argv = nullptr;
+
+    return TRUE;
+}
+
+/*++
+Function:
+  PROCCreateCrashDump
+
+  Creates crash dump of the process. Can be called from the 
+  unhandled native exception handler.
+
+(no return value)
+--*/
+BOOL
+PROCCreateCrashDump(char** argv)
+{
+#if HAVE_PRCTL_H && HAVE_PR_SET_PTRACER
+
+    // Fork the core dump child process.
+    pid_t childpid = fork();
+
+    // If error, write an error to trace log and abort
+    if (childpid == -1)
+    {
+        ERROR("PROCCreateCrashDump: fork() FAILED %d (%s)\n", errno, strerror(errno));
+        return false;
+    }
+    else if (childpid == 0)
+    {
+        // Child process
+        if (execve(argv[0], argv, palEnvironment) == -1)
+        {
+            ERROR("PPROCCreateCrashDump: execve FAILED %d (%s)\n", errno, strerror(errno));
+            return false;
+        }
+    }
+    else
+    {
+        // Gives the child process permission to use /proc/<pid>/mem and ptrace
+        if (prctl(PR_SET_PTRACER, childpid, 0, 0, 0) == -1)
+        {
+            ERROR("PPROCCreateCrashDump: prctl() FAILED %d (%s)\n", errno, strerror(errno));
+            return false;
+        }
+        // Parent waits until the child process is done
+        int wstatus = 0;
+        int result = waitpid(childpid, &wstatus, 0);
+        if (result != childpid)
+        {
+            ERROR("PPROCCreateCrashDump: waitpid FAILED result %d wstatus %d errno %d (%s)\n",
+                result, wstatus, errno, strerror(errno));
+            return false;
+        }
+        return !WIFEXITED(wstatus) || WEXITSTATUS(wstatus) == 0;
+    }
+#endif // HAVE_PRCTL_H && HAVE_PR_SET_PTRACER
+    return true;
+}
+
+/*++
+Function
   PROCAbortInitialize()
 
 Abstract
@@ -3157,84 +3374,73 @@ PROCAbortInitialize()
     char* enabled = getenv("COMPlus_DbgEnableMiniDump");
     if (enabled != nullptr && _stricmp(enabled, "1") == 0)
     {
-        if (g_szCoreCLRPath == nullptr)
-        {
-            return FALSE;
-        }
-        const char* DumpGeneratorName = "createdump";
-        int programLen = strlen(g_szCoreCLRPath) + strlen(DumpGeneratorName) + 1;
-        char* program = (char*)InternalMalloc(programLen);
-        if (program == nullptr)
-        {
-            return FALSE;
-        }
-        if (strcpy_s(program, programLen, g_szCoreCLRPath) != SAFECRT_SUCCESS)
-        {
-            return FALSE;
-        }
-        char *last = strrchr(program, '/');
-        if (last != nullptr)
-        {
-            *(last + 1) = '\0';
-        }
-        else
-        {
-            program[0] = '\0';
-        }
-        if (strcat_s(program, programLen, DumpGeneratorName) != SAFECRT_SUCCESS)
-        {
-            return FALSE;
-        }
-        char* pidarg = (char*)InternalMalloc(128);
-        if (pidarg == nullptr)
-        {
-            return FALSE;
-        }
-        if (sprintf_s(pidarg, 128, "%d", gPID) == -1)
-        {
-            return FALSE;
-        }
-        const char** argv = (const char**)g_argvCreateDump;
-        *argv++ = program;
+        char* dumpName = getenv("COMPlus_DbgMiniDumpName");
+        char* dumpType = getenv("COMPlus_DbgMiniDumpType");
+        char* diagStr = getenv("COMPlus_CreateDumpDiagnostics");
+        BOOL diag = diagStr != nullptr && strcmp(diagStr, "1") == 0;
+        char* program = nullptr; 
+        char* pidarg = nullptr;
 
-        char* envvar = getenv("COMPlus_DbgMiniDumpName");
-        if (envvar != nullptr)
+        if (!PROCBuildCreateDumpCommandLine((const char **)g_argvCreateDump, &program, &pidarg, dumpName, dumpType, diag))
         {
-            *argv++ = "--name";
-            *argv++ = envvar;
+            return FALSE;
         }
-
-        envvar = getenv("COMPlus_DbgMiniDumpType");
-        if (envvar != nullptr)
-        {
-            if (strcmp(envvar, "1") == 0)
-            {
-                *argv++ = "--normal";
-            }
-            else if (strcmp(envvar, "2") == 0)
-            {
-                *argv++ = "--withheap";
-            }
-            else if (strcmp(envvar, "3") == 0)
-            {
-                *argv++ = "--triage";
-            }
-            else if (strcmp(envvar, "4") == 0)
-            {
-                *argv++ = "--full";
-            }
-        }
-
-        envvar = getenv("COMPlus_CreateDumpDiagnostics");
-        if (envvar != nullptr && strcmp(envvar, "1") == 0)
-        {
-            *argv++ = "--diag";
-        }
-
-        *argv++ = pidarg;
-        *argv = nullptr;
     }
     return TRUE;
+}
+
+/*++
+Function:
+  PAL_GenerateCoreDump
+
+Abstract:
+  Public entry point to create a crash dump of the process.
+
+Parameters:
+    dumpName
+    dumpType:
+        Normal = 1,
+        WithHeap = 2,
+        Triage = 3,
+        Full = 4
+    diag
+        true - log createdump diagnostics to console
+
+Return:
+    TRUE success
+    FALSE failed
+--*/
+BOOL
+PAL_GenerateCoreDump(
+    LPCSTR dumpName, 
+    INT dumpType, 
+    BOOL diag)
+{
+    char* argvCreateDump[8] = { nullptr };
+    char dumpTypeStr[16];
+
+    if (dumpType < 1 || dumpType > 4)
+    {
+        return FALSE;
+    }
+    if (_itoa_s(dumpType, dumpTypeStr, sizeof(dumpTypeStr), 10) != 0)
+    {
+        return FALSE;
+    }
+    if (dumpName != nullptr && dumpName[0] == '\0')
+    {
+        dumpName = nullptr;
+    }
+    char* program = nullptr; 
+    char* pidarg = nullptr;
+    BOOL result = PROCBuildCreateDumpCommandLine((const char **)argvCreateDump, &program, &pidarg, (char*)dumpName, dumpTypeStr, diag);
+    if (result)
+    {
+        result = PROCCreateCrashDump(argvCreateDump);
+    }
+    free(program);
+    free(pidarg);
+    return result;
 }
 
 /*++
@@ -3249,44 +3455,11 @@ Function:
 VOID
 PROCCreateCrashDumpIfEnabled()
 {
-#if HAVE_PRCTL_H && HAVE_PR_SET_PTRACER
     // If enabled, launch the create minidump utility and wait until it completes
-    if (g_argvCreateDump[0] == nullptr)
-        return;
-
-    // Fork the core dump child process.
-    pid_t childpid = fork();
-
-    // If error, write an error to trace log and abort
-    if (childpid == -1)
+    if (g_argvCreateDump[0] != nullptr)
     {
-        ERROR("PROCAbort: fork() FAILED %d (%s)\n", errno, strerror(errno));
+        PROCCreateCrashDump(g_argvCreateDump);
     }
-    else if (childpid == 0)
-    {
-        // Child process
-        if (execve(g_argvCreateDump[0], g_argvCreateDump, palEnvironment) == -1)
-        {
-            ERROR("PROCAbort: execve FAILED %d (%s)\n", errno, strerror(errno));
-        }
-    }
-    else
-    {
-        // Gives the child process permission to use /proc/<pid>/mem and ptrace
-        if (prctl(PR_SET_PTRACER, childpid, 0, 0, 0) == -1)
-        {
-            ERROR("PROCAbort: prctl() FAILED %d (%s)\n", errno, strerror(errno));
-        }
-        // Parent waits until the child process is done
-        int wstatus;
-        int result = waitpid(childpid, &wstatus, 0);
-        if (result != childpid)
-        {
-            ERROR("PROCAbort: waitpid FAILED result %d wstatus %d errno %d (%s)\n",
-                result, wstatus, errno, strerror(errno));
-        }
-    }
-#endif // HAVE_PRCTL_H && HAVE_PR_SET_PTRACER
 }
 
 /*++

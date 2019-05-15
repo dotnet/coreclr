@@ -79,6 +79,9 @@ class LoaderHeap;
 class IGCHeap;
 class Object;
 class StringObject;
+#ifdef FEATURE_UTF8STRING
+class Utf8StringObject;
+#endif // FEATURE_UTF8STRING
 class ArrayClass;
 class MethodTable;
 class MethodDesc;
@@ -159,8 +162,7 @@ class OBJECTREF {
 
         class ReflectClassBaseObject* m_asReflectClass;
         class ExecutionContextObject* m_asExecutionContext;
-        class AppDomainBaseObject* m_asAppDomainBase;
-        class PermissionSetObject* m_asPermissionSetObject;
+        class AssemblyLoadContextBaseObject* m_asAssemblyLoadContextBase;
     };
 
     public:
@@ -313,6 +315,10 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref)  ((objref).operator-> ())
 #define ObjectToSTRINGREF(obj)     (STRINGREF(obj))
 #define STRINGREFToObject(objref)  (*( (StringObject**) &(objref) ))
+#ifdef FEATURE_UTF8STRING
+#define ObjectToUTF8STRINGREF(obj)   (UTF8STRINGREF(obj))
+#define UTF8STRINGREFToObject(objref) (*( (Utf8StringObject**) &(objref) ))
+#endif // FEATURE_UTF8STRING
 
 #else   // _DEBUG_IMPL
 
@@ -323,6 +329,10 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref) ((PTR_Object) (objref))
 #define ObjectToSTRINGREF(obj)    ((PTR_StringObject) (obj))
 #define STRINGREFToObject(objref) ((PTR_StringObject) (objref))
+#ifdef FEATURE_UTF8STRING
+#define ObjectToUTF8STRINGREF(obj)    ((PTR_Utf8StringObject) (obj))
+#define UTF8STRINGREFToObject(objref) ((PTR_Utf8StringObject) (objref))
+#endif // FEATURE_UTF8STRING
 
 #endif // _DEBUG_IMPL
 
@@ -363,6 +373,9 @@ GPTR_DECL(MethodTable,      g_pObjectClass);
 GPTR_DECL(MethodTable,      g_pRuntimeTypeClass);
 GPTR_DECL(MethodTable,      g_pCanonMethodTableClass);  // System.__Canon
 GPTR_DECL(MethodTable,      g_pStringClass);
+#ifdef FEATURE_UTF8STRING
+GPTR_DECL(MethodTable,      g_pUtf8StringClass);
+#endif // FEATURE_UTF8STRING
 GPTR_DECL(MethodTable,      g_pArrayClass);
 GPTR_DECL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_DECL(MethodTable,      g_pNullableClass);
@@ -516,10 +529,6 @@ EXTERN BOOL g_fComStarted;
 GVAL_DECL(DWORD, g_fEEShutDown);
 EXTERN DWORD g_fFastExitProcess;
 EXTERN BOOL g_fFatalErrorOccurredOnGCThread;
-#ifndef DACCESS_COMPILE
-EXTERN BOOL g_fSuspendOnShutdown;
-EXTERN BOOL g_fSuspendFinalizerOnShutdown;
-#endif // DACCESS_COMPILE
 EXTERN Volatile<LONG> g_fForbidEnterEE;
 GVAL_DECL(bool, g_fProcessDetach);
 EXTERN bool g_fManagedAttach;
@@ -676,61 +685,6 @@ GVAL_DECL(SIZE_T, g_runtimeVirtualSize);
 #ifndef MAXULONGLONG
 #define MAXULONGLONG                     UI64(0xffffffffffffffff)
 #endif
-
-// #ADID_vs_ADIndex
-// code:ADID is an ID for an appdomain that is sparse and remains unique within the process for the lifetime of the process.
-// Remoting and (I believe) the thread pool use the former as a way of referring to appdomains outside of their normal lifetime safely.
-// Interop also uses ADID to handle issues involving unloaded domains.
-// 
-// code:ADIndex is an ID for an appdomain that's dense and may be reused once the appdomain is unloaded.
-// This is useful for fast array based lookup from a number to an appdomain property.  
-struct ADIndex
-{
-    DWORD m_dwIndex;
-    ADIndex ()
-    : m_dwIndex(0)
-    {}
-    explicit ADIndex (DWORD id)
-    : m_dwIndex(id)
-    {
-        SUPPORTS_DAC;
-    }
-    BOOL operator==(const ADIndex& ad) const
-    {
-        return m_dwIndex == ad.m_dwIndex;
-    }
-    BOOL operator!=(const ADIndex& ad) const
-    {
-        return m_dwIndex != ad.m_dwIndex;
-    }
-};
-
-// An ADID is a number that represents an appdomain.  They are allcoated with code:SystemDomain::GetNewAppDomainId
-// ADIDs are NOT reused today, so they are unique even after the appdomain dies.  
-// 
-// see also code:BaseDomain::m_dwId 
-// see also code:ADIndex
-// see also code:ADIndex#ADID_vs_ADIndex
-struct ADID
-{
-    DWORD m_dwId;
-    ADID ()
-    : m_dwId(0)
-    {LIMITED_METHOD_CONTRACT;}
-    explicit ADID (DWORD id)
-    : m_dwId(id)
-    {LIMITED_METHOD_CONTRACT;}
-    BOOL operator==(const ADID& ad) const
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return m_dwId == ad.m_dwId;
-    }
-    BOOL operator!=(const ADID& ad) const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwId != ad.m_dwId;
-    }
-};
 
 struct TPIndex
 {

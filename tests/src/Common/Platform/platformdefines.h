@@ -27,6 +27,7 @@
 #endif
 
 #include <wchar.h>
+#define static_assert_no_msg(x) static_assert((x), #x)
 
 //
 // types and constants
@@ -147,6 +148,7 @@ typedef int error_t;
 typedef void* LPVOID;
 typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
+typedef double DATE;
 #endif
 
 typedef ULONG_PTR DWORD_PTR;

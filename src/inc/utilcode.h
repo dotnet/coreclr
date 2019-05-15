@@ -1331,10 +1331,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 // Allocate free memory with specific alignment                                   
 //
 LPVOID ClrVirtualAllocAligned(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect, SIZE_T alignment);
-                                   
-//******************************************************************************
-// Returns the number of processors that a process has been configured to run on
-//******************************************************************************
+
 class NumaNodeInfo 
 {
 private:
@@ -1350,9 +1347,15 @@ public: 	// functions
 
     static LPVOID VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T size,
                                      DWORD allocType, DWORD prot, DWORD node);
+#ifndef FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
+#else // !FEATURE_PAL
+    static BOOL GetNumaProcessorNodeEx(USHORT proc_no, PUSHORT node_no);
+#endif // !FEATURE_PAL
 #endif
 };
+
+#ifndef FEATURE_PAL
 
 struct CPU_Group_Info 
 {
@@ -1402,6 +1405,7 @@ public:
     static BOOL GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime);
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
     static void ClearCPUGroupAffinity(GROUP_AFFINITY *gf);
+    static BOOL GetCPUGroupRange(WORD group_number, WORD* group_begin, WORD* group_size);
 #endif
 
 public:
@@ -1412,8 +1416,14 @@ public:
     }
 };
 
-int GetCurrentProcessCpuCount();
 DWORD_PTR GetCurrentProcessCpuMask();
+
+#endif // !FEATURE_PAL
+
+//******************************************************************************
+// Returns the number of processors that a process has been configured to run on
+//******************************************************************************
+int GetCurrentProcessCpuCount();
 
 uint32_t GetOsPageSize();
 
@@ -1889,12 +1899,12 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(iIndex < m_iCount);
-        return ((void *) ((size_t) Ptr() + (iIndex * m_iElemSize)));
+        return (BYTE*) Ptr() + (iIndex * (size_t)m_iElemSize);
     }
-    int Size()
+    size_t Size()
     {
         LIMITED_METHOD_CONTRACT;
-        return (m_iCount * m_iElemSize);
+        return (m_iCount * (size_t)m_iElemSize);
     }
     int Count()
     {
@@ -2398,7 +2408,7 @@ protected:
     HASHENTRY *EntryPtr(ULONG iEntry)
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return (PTR_HASHENTRY(m_pcEntries + (iEntry * m_iEntrySize)));
+        return (PTR_HASHENTRY(m_pcEntries + (iEntry * (size_t)m_iEntrySize)));
     }
 
     ULONG     ItemIndex(HASHENTRY *p)
@@ -2849,7 +2859,7 @@ void CHashTableAndData<MemMgr>::InitFreeChain(
     BYTE* pcPtr;
     _ASSERTE(iEnd > iStart);
 
-    pcPtr = (BYTE*)m_pcEntries + iStart * m_iEntrySize;
+    pcPtr = (BYTE*)m_pcEntries + iStart * (size_t)m_iEntrySize;
     for (++iStart; iStart < iEnd; ++iStart)
     {
         ((FREEHASHENTRY *) pcPtr)->iFree = iStart;
@@ -3107,13 +3117,13 @@ class CClosedHashBase
     BYTE *EntryPtr(int iEntry)
     {
         LIMITED_METHOD_CONTRACT;
-        return (m_rgData + (iEntry * m_iEntrySize));
+        return (m_rgData + (iEntry * (size_t)m_iEntrySize));
     }
 
     BYTE *EntryPtr(int iEntry, BYTE *rgData)
     {
         LIMITED_METHOD_CONTRACT;
-        return (rgData + (iEntry * m_iEntrySize));
+        return (rgData + (iEntry * (size_t)m_iEntrySize));
     }
 
 public:
@@ -4133,12 +4143,6 @@ inline HRESULT FakeCoCreateInstance(REFCLSID   rclsid,
     return FakeCoCreateInstanceEx(rclsid, NULL, riid, ppv, NULL);
 };
 
-HRESULT FakeCoCallDllGetClassObject(REFCLSID       rclsid,
-                               LPCWSTR        wszDllPath,
-                               REFIID riid,
-                               void **        ppv,
-                               HMODULE *      phmodDll);
-
 //*****************************************************************************
 // Gets the directory based on the location of the module. This routine
 // is called at COR setup time. Set is called during EEStartup and by the
@@ -4200,7 +4204,7 @@ void TrimWhiteSpace(__inout_ecount(*pcch)  LPCWSTR *pwsz, __inout LPDWORD pcch);
 HRESULT Utf2Quick(
     LPCUTF8     pStr,                   // The string to convert.
     CQuickArray<WCHAR> &rStr,           // The QuickArray<WCHAR> to convert it into.
-    int         iCurLen);               // Inital characters in the array to leave (default 0).
+    int         iCurLen = 0);           // Initial characters in the array to leave (default 0).
 
 //*****************************************************************************
 //  Extract the movl 64-bit unsigned immediate from an IA64 bundle
@@ -5186,9 +5190,6 @@ HMODULE LoadLocalizedResourceDLLForSDK(_In_z_ LPCWSTR wzResourceDllName, _In_opt
 typedef void* (__cdecl *LocalizedFileHandler)(LPCWSTR);
 void* FindLocalizedFile(_In_z_ LPCWSTR wzResourceDllName, LocalizedFileHandler lfh, _In_opt_z_ LPCWSTR modulePath=NULL);
 
-BOOL IsClrHostedLegacyComObject(REFCLSID rclsid);
-
-
 
 
 // Helper to support termination due to heap corruption
@@ -5215,12 +5216,7 @@ namespace Reg
 #ifdef FEATURE_COMINTEROP
 namespace Com
 {
-    HRESULT FindServerUsingCLSID(REFCLSID rclsid, SString & ssServerName);
-    HRESULT FindServerUsingCLSID(REFCLSID rclsid, __deref_out __deref_out_z LPWSTR* pwszServerName);
     HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, SString & ssInprocServer32Name);
-    HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, __deref_out __deref_out_z LPWSTR* pwszInprocServer32Name);
-    BOOL IsMscoreeInprocServer32(const SString & ssInprocServer32Name);
-    BOOL CLSIDHasMscoreeAsInprocServer32(REFCLSID rclsid);
 }
 #endif // FEATURE_COMINTEROP
 

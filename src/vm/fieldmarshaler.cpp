@@ -56,133 +56,6 @@ static const NFTDataBaseEntry NFTDataBase[] =
     #include "nsenums.h"
 };
 
-
-//=======================================================================
-// This is invoked from the class loader while building the internal structures for a type
-// This function should check if explicit layout metadata exists.
-//
-// Returns:
-//  TRUE    - yes, there's layout metadata
-//  FALSE   - no, there's no layout.
-//  fail    - throws a typeload exception
-//
-// If TRUE,
-//   *pNLType            gets set to nltAnsi or nltUnicode
-//   *pPackingSize       declared packing size
-//   *pfExplicitoffsets  offsets explicit in metadata or computed?
-//=======================================================================
-BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport *pInternalImport, mdTypeDef cl, MethodTable*pParentMT, BYTE *pPackingSize, BYTE *pNLTType, BOOL *pfExplicitOffsets)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(CheckPointer(pInternalImport));
-        PRECONDITION(CheckPointer(pPackingSize));
-        PRECONDITION(CheckPointer(pNLTType));
-        PRECONDITION(CheckPointer(pfExplicitOffsets));
-    }
-    CONTRACTL_END;
-    
-    HRESULT hr;
-    ULONG clFlags;
-#ifdef _DEBUG
-    clFlags = 0xcccccccc;
-#endif
-    
-    if (FAILED(pInternalImport->GetTypeDefProps(cl, &clFlags, NULL)))
-    {
-        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
-    }
-    
-    if (IsTdAutoLayout(clFlags))
-    {
-        // <BUGNUM>workaround for B#104780 - VC fails to set SequentialLayout on some classes
-        // with ClassSize. Too late to fix compiler for V1.
-        //
-        // To compensate, we treat AutoLayout classes as Sequential if they
-        // meet all of the following criteria:
-        //
-        //    - ClassSize present and nonzero.
-        //    - No instance fields declared
-        //    - Base class is System.ValueType.
-        //</BUGNUM>
-        ULONG cbTotalSize = 0;
-        if (SUCCEEDED(pInternalImport->GetClassTotalSize(cl, &cbTotalSize)) && cbTotalSize != 0)
-        {
-            if (pParentMT && pParentMT->IsValueTypeClass())
-            {
-                MDEnumHolder hEnumField(pInternalImport);
-                if (SUCCEEDED(pInternalImport->EnumInit(mdtFieldDef, cl, &hEnumField)))
-                {
-                    ULONG numFields = pInternalImport->EnumGetCount(&hEnumField);
-                    if (numFields == 0)
-                    {
-                        *pfExplicitOffsets = FALSE;
-                        *pNLTType = nltAnsi;
-                        *pPackingSize = 1;
-                        return TRUE;
-                    }
-                }
-            }
-        }
-        
-        return FALSE;
-    }
-    else if (IsTdSequentialLayout(clFlags))
-    {
-        *pfExplicitOffsets = FALSE;
-    }
-    else if (IsTdExplicitLayout(clFlags))
-    {
-        *pfExplicitOffsets = TRUE;
-    }
-    else
-    {
-        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
-    }
-    
-    // We now know this class has seq. or explicit layout. Ensure the parent does too.
-    if (pParentMT && !(pParentMT->IsObjectClass() || pParentMT->IsValueTypeClass()) && !(pParentMT->HasLayout()))
-        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
-
-    if (IsTdAnsiClass(clFlags))
-    {
-        *pNLTType = nltAnsi;
-    }
-    else if (IsTdUnicodeClass(clFlags))
-    {
-        *pNLTType = nltUnicode;
-    }
-    else if (IsTdAutoClass(clFlags))
-    {
-        // We no longer support Win9x so TdAuto always maps to Unicode.
-        *pNLTType = nltUnicode;
-    }
-    else
-    {
-        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
-    }
-
-    DWORD dwPackSize;
-    hr = pInternalImport->GetClassPackSize(cl, &dwPackSize);
-    if (FAILED(hr) || dwPackSize == 0) 
-        dwPackSize = DEFAULT_PACKING_SIZE;
-
-    // This has to be reduced to a BYTE value, so we had better make sure it fits. If
-    // not, we'll throw an exception instead of trying to munge the value to what we
-    // think the user might want.
-    if (!FitsInU1((UINT64)(dwPackSize)))
-    {
-        pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
-    }
-
-    *pPackingSize = (BYTE)dwPackSize;
-    
-    return TRUE;
-}
-
 #ifdef _PREFAST_
 #pragma warning(push)
 #pragma warning(disable:21000) // Suppress PREFast warning about overly large function
@@ -715,12 +588,16 @@ do                                                      \
                 {
                     INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
                 }
+                else if (COMDelegate::IsDelegate(thNestedType.GetMethodTable()))
+                {
+                    INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DELEGATE_TLB_INTERFACE));
+                }
                 else
                 {
                     ItfMarshalInfo itfInfo;
                     if (FAILED(MarshalInfo::TryGetItfMarshalInfo(thNestedType, FALSE, FALSE, &itfInfo)))
                         break;
-
+                        
                     INITFIELDMARSHALER(NFT_INTERFACE, FieldMarshaler_Interface, (itfInfo.thClass.GetMethodTable(), itfInfo.thItf.GetMethodTable(), itfInfo.dwFlags));
                 }
             }
@@ -919,6 +796,16 @@ do                                                      \
                 {
                     INITFIELDMARSHALER(NFT_DELEGATE, FieldMarshaler_Delegate, (thNestedType.GetMethodTable()));
                 }
+#ifdef FEATURE_COMINTEROP
+                else if (ntype == NATIVE_TYPE_IDISPATCH)
+                {
+                    ItfMarshalInfo itfInfo;
+                    if (FAILED(MarshalInfo::TryGetItfMarshalInfo(thNestedType, FALSE, FALSE, &itfInfo)))
+                        break;
+
+                    INITFIELDMARSHALER(NFT_INTERFACE, FieldMarshaler_Interface, (itfInfo.thClass.GetMethodTable(), itfInfo.thItf.GetMethodTable(), itfInfo.dwFlags));
+                }
+#endif // FEATURE_COMINTEROP
                 else
                 {
                     INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DELEGATE));
@@ -1304,7 +1191,7 @@ VOID LayoutUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
             {
                 pCLRValue = *(OBJECTREF*)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
                 pFM->UpdateNative(&pCLRValue, pNativeData + pFM->GetExternalOffset(), ppCleanupWorkListOnStack);
-                SetObjectReferenceUnchecked( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), pCLRValue);
+                SetObjectReference( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), pCLRValue);
             }
 
             // The cleanup work list is not used to clean up the native contents. It is used
@@ -1446,7 +1333,7 @@ VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
             {
                 gc.pOldCLRValue = *(OBJECTREF*)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
                 pFM->UpdateCLR( pNativeData + pFM->GetExternalOffset(), &gc.pCLRValue, &gc.pOldCLRValue );
-                SetObjectReferenceUnchecked( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), gc.pCLRValue );
+                SetObjectReference( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), gc.pCLRValue );
             }
 
             ((BYTE*&)pFM) += MAXFIELDMARSHALERSIZE;
@@ -2939,7 +2826,7 @@ VOID FieldMarshaler_FixedArray::UpdateCLRImpl(const VOID *pNativeValue, OBJECTRE
     CONTRACTL_END;
 
     // Allocate the value class array.
-    *ppProtectedCLRValue = AllocateArrayEx(m_arrayType.GetValue(), (INT32*)&m_numElems, 1);
+    *ppProtectedCLRValue = AllocateSzArray(m_arrayType.GetValue(), (INT32)m_numElems);
 
     // Marshal the contents from the native array to the managed array.
     const OleVariant::Marshaler *pMarshaler = OleVariant::GetMarshalerForVarType(m_vt, TRUE);        

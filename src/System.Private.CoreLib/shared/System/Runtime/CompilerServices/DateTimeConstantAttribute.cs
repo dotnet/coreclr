@@ -14,6 +14,6 @@ namespace System.Runtime.CompilerServices
             _date = new DateTime(ticks);
         }
 
-        public override object Value => _date;
+        public override object? Value => _date; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
     }
 }

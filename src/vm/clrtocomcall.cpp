@@ -24,7 +24,6 @@
 #include "eeconfig.h"
 #include "corhost.h"
 #include "reflectioninvocation.h"
-#include "mdaassistants.h"
 #include "sigbuilder.h"
 #include "callsiteinspect.h"
 
@@ -526,7 +525,7 @@ I4ARRAYREF SetUpWrapperInfo(MethodDesc *pMD)
 
             MarshalInfo Info(msig.GetModule(), msig.GetArgProps(), msig.GetSigTypeContext(), params[iParam],
                              MarshalInfo::MARSHAL_SCENARIO_COMINTEROP, (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                             TRUE, iParam, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, pMD, TRUE
+                             TRUE, iParam, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, TRUE
     #ifdef _DEBUG
                              , pMD->m_pszDebugMethodName, pMD->m_pszDebugClassName, iParam
     #endif

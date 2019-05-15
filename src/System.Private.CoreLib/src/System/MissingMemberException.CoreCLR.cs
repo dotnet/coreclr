@@ -10,6 +10,6 @@ namespace System
     public partial class MissingMemberException : MemberAccessException, ISerializable
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern string FormatSignature(byte[] signature);
+        internal static extern string FormatSignature(byte[]? signature);
     }
 }

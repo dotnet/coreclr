@@ -3,28 +3,27 @@
   <PropertyGroup>
     <!-- This repo version -->
     <VersionPrefix>3.0.0</VersionPrefix>
-    <PreReleaseVersionLabel>preview</PreReleaseVersionLabel>
+    <PreReleaseVersionLabel>preview6</PreReleaseVersionLabel>
     <!-- Opt-out repo features -->
     <UsingToolXliff>false</UsingToolXliff>
     <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
+    <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19179.4</MicrosoftDotNetXUnitConsoleRunnerVersion>
     <MicrosoftNetFrameworkReferenceAssembliesVersion>1.0.0-alpha-004</MicrosoftNetFrameworkReferenceAssembliesVersion>
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview4.19154.9</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>3.0.0-preview4.19154.9</MicrosoftNETCorePlatformsVersion>
-    <MicrosoftNETCoreAppVersion>3.0.0-preview4-27503-9</MicrosoftNETCoreAppVersion>
-    <optimizationIBCCoreCLRVersion>99.99.99-master-20190305.1</optimizationIBCCoreCLRVersion>
-    <optimizationPGOCoreCLRVersion>99.99.99-master-20190305.1</optimizationPGOCoreCLRVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview6.19264.9</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>3.0.0-preview6.19264.9</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview6.19264.9</MicrosoftBclAsyncInterfacesVersion>
+    <MicrosoftNETCoreAppVersion>3.0.0-preview5-27620-01</MicrosoftNETCoreAppVersion>
+    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19229.8</MicrosoftDotNetBuildTasksFeedVersion>
+    <optimizationIBCCoreCLRVersion>99.99.99-master-20190510.1</optimizationIBCCoreCLRVersion>
+    <optimizationPGOCoreCLRVersion>99.99.99-master-20190510.1</optimizationPGOCoreCLRVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>
+    <MicrosoftDotNetXUnitConsoleRunnerPackage>Microsoft.DotNet.XUnitConsoleRunner</MicrosoftDotNetXUnitConsoleRunnerPackage>
     <MicrosoftPrivateCoreFxNETCoreAppPackage>Microsoft.Private.CoreFx.NETCoreApp</MicrosoftPrivateCoreFxNETCoreAppPackage>
     <MicrosoftNETCorePlatformsPackage>Microsoft.NETCore.Platforms</MicrosoftNETCorePlatformsPackage>
     <MicrosoftNETCoreAppPackage>Microsoft.NETCore.App</MicrosoftNETCoreAppPackage>
     <optimizationIBCCoreCLRPackage>optimization.IBC.CoreCLR</optimizationIBCCoreCLRPackage>
     <optimizationPGOCoreCLRPackage>optimization.PGO.CoreCLR</optimizationPGOCoreCLRPackage>
-  </PropertyGroup>
-  <PropertyGroup>
-    <!-- Override signing package version. Current version breaks signing SPC, remove
-         this property group once SignTool supports the scenario. -->
-    <MicrosoftDotNetSignToolVersion>1.0.0-beta.19067.6</MicrosoftDotNetSignToolVersion>
   </PropertyGroup>
 </Project>

@@ -272,6 +272,8 @@ public:
     DWORD         MonitorSpinCount(void)          const {LIMITED_METHOD_CONTRACT;  return dwMonitorSpinCount; }
 
     // Jit-config
+
+    DWORD         JitHostMaxSlabCache(void)         const {LIMITED_METHOD_CONTRACT;  return dwJitHostMaxSlabCache; }
     
     unsigned int  GenOptimizeType(void)             const {LIMITED_METHOD_CONTRACT;  return iJitOptimizeType; }
     bool          JitFramed(void)                   const {LIMITED_METHOD_CONTRACT;  return fJitFramed; }
@@ -281,12 +283,12 @@ public:
     
     // Tiered Compilation config
 #if defined(FEATURE_TIERED_COMPILATION)
-    bool          TieredCompilation(void)           const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
-    bool          TieredCompilation_DisableTier0Jit() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_DisableTier0Jit; }
-    bool          TieredCompilation_CallCounting()  const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation_CallCounting; }
-    bool          TieredCompilation_OptimizeTier0() const {LIMITED_METHOD_CONTRACT; return fTieredCompilation_OptimizeTier0; }
-    DWORD         TieredCompilation_Tier1CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountThreshold; }
-    DWORD         TieredCompilation_Tier1CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountingDelayMs; }
+    bool          TieredCompilation(void)           const { LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
+    bool          TieredCompilation_QuickJit() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_QuickJit; }
+    bool          TieredCompilation_QuickJitForLoops() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_QuickJitForLoops; }
+    bool          TieredCompilation_CallCounting()  const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_CallCounting; }
+    DWORD         TieredCompilation_CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_CallCountThreshold; }
+    DWORD         TieredCompilation_CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_CallCountingDelayMs; }
 #endif
 
 #ifndef CROSSGEN_COMPILE
@@ -504,13 +506,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return fProbeForStackOverflow;
     }
-
-    inline bool AppDomainUnload() const
-    {LIMITED_METHOD_CONTRACT;  return fAppDomainUnload; }
-
-    inline DWORD AppDomainUnloadRetryCount() const
-    {LIMITED_METHOD_CONTRACT;  return dwADURetryCount; }
-    
 
 #ifdef _DEBUG
     inline bool AppDomainLeaks() const
@@ -789,6 +784,8 @@ private: //----------------------------------------------------------------
 
     // Jit-config
 
+    DWORD dwJitHostMaxSlabCache; // max size for jit host slab cache
+
     bool fJitFramed;           // Enable/Disable EBP based frames
     bool fJitAlignLoops;       // Enable/Disable loop alignment
     bool fAddRejitNops;        // Enable/Disable nop padding for rejit.          default is true
@@ -865,10 +862,6 @@ private: //----------------------------------------------------------------
 #ifdef FEATURE_DOUBLE_ALIGNMENT_HINT
     unsigned int DoubleArrayToLargeObjectHeapThreshold;  // double arrays of more than this number of elems go in large object heap
 #endif
-
-    bool   fAppDomainUnload;            // Enable appdomain unloading
-    
-    DWORD  dwADURetryCount;
 
 #ifdef _DEBUG
     bool fExpandAllOnLoad;              // True if we want to load all types/jit all methods in an assembly
@@ -1024,11 +1017,11 @@ private: //----------------------------------------------------------------
 
 #if defined(FEATURE_TIERED_COMPILATION)
     bool fTieredCompilation;
-    bool fTieredCompilation_DisableTier0Jit;
+    bool fTieredCompilation_QuickJit;
+    bool fTieredCompilation_QuickJitForLoops;
     bool fTieredCompilation_CallCounting;
-    bool fTieredCompilation_OptimizeTier0;
-    DWORD tieredCompilation_tier1CallCountThreshold;
-    DWORD tieredCompilation_tier1CallCountingDelayMs;
+    DWORD tieredCompilation_CallCountThreshold;
+    DWORD tieredCompilation_CallCountingDelayMs;
 #endif
 
 #ifndef CROSSGEN_COMPILE
@@ -1151,8 +1144,6 @@ public:
 #define FILE_FORMAT_CHECK(_condition)
 
 #endif
-
-extern BOOL g_CLRPolicyRequested;
 
 // NGENImagesAllowed is the safe way to determine if NGEN Images are allowed to be loaded. (Defined as
 // a macro instead of an inlined function to avoid compilation errors due to dependent

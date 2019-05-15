@@ -35,7 +35,6 @@ class Object;
 #include "notifyexternals.h"
 #include "winrttypenameconverter.h"
 #include "../md/compiler/custattr.h"
-#include "mdaassistants.h"
 #include "olevariant.h"
 #include "interopconverter.h"
 #include "typestring.h"
@@ -241,6 +240,12 @@ IUnknown *ComClassFactory::CreateInstanceFromClassFactory(IClassFactory *pClassF
         else
             ThrowHRMsg(hr, IDS_EE_CREATEINSTANCE_LIC_FAILED);
     }
+
+    // If the activated COM class has a CCW, mark the
+    // CCW as being activated via COM.
+    ComCallWrapper *ccw = GetCCWFromIUnknown(pUnk);
+    if (ccw != NULL)
+        ccw->MarkComActivated();
 
     pUnk.SuppressRelease();
     RETURN pUnk;
@@ -491,27 +496,6 @@ IClassFactory *ComClassFactory::GetIClassFactory()
     else
     {
         // No server name is specified so we use CLSCTX_SERVER.
-
-#ifdef FEATURE_CLASSIC_COMINTEROP
-        // If the CLSID is hosted by the CLR itself, then we do not want to go through the COM registration
-        // entries, as this will trigger our COM activation code that may not activate against this runtime.
-        // In this scenario, we want to get the address of the DllGetClassObject method on this CLR or a DLL
-        // that lives in the same directory as the CLR and use it directly. The code falls back to
-        // CoGetClassObject if we fail on the call to DllGetClassObject, but it might be better to fail outright.
-        if (Clr::Util::Com::CLSIDHasMscoreeAsInprocServer32(m_rclsid))
-        {
-            typedef HRESULT (STDMETHODCALLTYPE *PDllGetClassObject)(REFCLSID rclsid, REFIID riid, LPVOID FAR *ppv); 
-
-            StackSString ssServer;
-            if (FAILED(Clr::Util::Com::FindServerUsingCLSID(m_rclsid, ssServer)))
-            {
-            }
-            else
-            {   
-            }
-        }
-#endif // FEATURE_CLASSIC_COMINTEROP
-
         if (pClassFactory == NULL)
             hr = CoGetClassObject(m_rclsid, CLSCTX_SERVER, NULL, IID_IClassFactory, (void**)&pClassFactory);
     }
@@ -932,7 +916,7 @@ void WinRTClassFactory::Init()
                 IfFailThrow(cap.GetNonNullString(&szFactoryInterfaceName, &cbFactoryInterfaceName));
 
                 StackSString strFactoryInterface(SString::Utf8, szFactoryInterfaceName, cbFactoryInterfaceName);
-                MethodTable *pMTFactoryInterface = GetWinRTType(&strFactoryInterface, /* bThrowIfNotFound = */ TRUE).GetMethodTable();
+                MethodTable *pMTFactoryInterface = LoadWinRTType(&strFactoryInterface, /* bThrowIfNotFound = */ TRUE).GetMethodTable();
 
                 _ASSERTE(pMTFactoryInterface);
                 m_factoryInterfaces.Append(pMTFactoryInterface);
@@ -972,7 +956,7 @@ void WinRTClassFactory::Init()
             
                 // copy the name to a temporary buffer and NULL terminate it
                 StackSString ss(SString::Utf8, szName, cbName);
-                TypeHandle th = GetWinRTType(&ss, /* bThrowIfNotFound = */ TRUE);
+                TypeHandle th = LoadWinRTType(&ss, /* bThrowIfNotFound = */ TRUE);
 
                 MethodTable *pMTStaticInterface = th.GetMethodTable();
                 m_staticInterfaces.Append(pMTStaticInterface);
@@ -2579,41 +2563,6 @@ INT32 RCW::ExternalRelease(OBJECTREF* pObjPROTECTED)
     // do cleanup after releasing the lock
     if (fCleanupWrapper)
     {
-#ifdef MDA_SUPPORTED
-        MdaRaceOnRCWCleanup* mda = MDA_GET_ASSISTANT(RaceOnRCWCleanup);
-        if (mda)
-        {
-            BOOL fIsInUse = FALSE;
-            
-            // Walk the thread tables, looking for this RCW in use.
-            {
-                // Take the threadstore lock
-                ThreadStoreLockHolder tslh;
-            
-                Thread* pThread = NULL;
-            
-                // walk each thread's table
-                while (NULL != (pThread = ThreadStore::GetThreadList(pThread)) )
-                {
-                    if (pThread->RCWIsInUse(pRCW))
-                    {
-                        // found a match!
-                        fIsInUse = TRUE;
-                        break;
-                    }
-                }
-            }
-            
-            // If we found one, bail.
-            if (fIsInUse)
-            {
-                // Cannot decrement the counter if it's in use.
-                ++(pRCW->m_cbRefCount);
-                mda->ReportViolation();
-            }
-        }
-#endif // MDA_SUPPORTED
-        
         // Release all the data associated with the __ComObject.
         ComObject::ReleaseAllData(pRCW->GetExposedObject());
 
@@ -2665,41 +2614,6 @@ void RCW::FinalExternalRelease(OBJECTREF* pObjPROTECTED)
     // do cleanup after releasing the lock
     if (fCleanupWrapper)
     {
-#ifdef MDA_SUPPORTED
-        MdaRaceOnRCWCleanup* mda = MDA_GET_ASSISTANT(RaceOnRCWCleanup);
-        if (mda)
-        {
-            BOOL fIsInUse = FALSE;
-            
-            // Walk the thread tables, looking for this RCW in use.
-            {
-                // Take the threadstore lock
-                ThreadStoreLockHolder tslh;
-            
-                Thread* pThread = NULL;
-            
-                // walk each thread's table
-                while (NULL != (pThread = ThreadStore::GetThreadList(pThread)) )
-                {
-                    if (pThread->RCWIsInUse(pRCW))
-                    {
-                        // found a match!
-                        fIsInUse = TRUE;
-                        break;
-                    }
-                }
-            }
-            
-            // If we found one, bail.
-            if (fIsInUse)
-            {
-                // Cannot zero the counter if it's in use.
-                pRCW->m_cbRefCount = 1;
-                mda->ReportViolation();
-            }
-        }
-#endif // MDA_SUPPORTED
-
         // Release all the data associated with the __ComObject.
         ComObject::ReleaseAllData(pRCW->GetExposedObject());
 
@@ -4049,13 +3963,6 @@ IUnknown* RCW::GetComIPForMethodTableFromCache(MethodTable* pMT)
         }
     }
 
-#ifdef MDA_SUPPORTED
-    if (FAILED(hr))
-    {
-        MDA_TRIGGER_ASSISTANT(FailedQI, ReportAdditionalInfo(hr, this, iid, pMT));
-    }
-#endif
-    
     if (pUnk == NULL)
         RETURN NULL;
 
@@ -4301,10 +4208,6 @@ HRESULT __stdcall RCW::ReleaseAllInterfacesCallBack(LPVOID pData)
             // a pointer to them directly. It will however fail for others since we only
             // have a pointer to a proxy which is no longer attached to the object.
 
-#ifdef MDA_SUPPORTED
-            MDA_TRIGGER_ASSISTANT(DisconnectedContext, ReportViolationCleanup(pWrap->GetWrapperCtxCookie(), pCurrentCtxCookie, hr));     
-#endif
-
             pWrap->ReleaseAllInterfaces();
         }
     }
@@ -4347,10 +4250,6 @@ HRESULT __stdcall RCW::ReleaseAllInterfacesCallBack(LPVOID pData)
                         // the current context. This will work for context agile object's since we have
                         // a pointer to them directly. It will however fail for others since we only
                         // have a pointer to a proxy which is no longer attached to the object.
-
-#ifdef MDA_SUPPORTED
-                        MDA_TRIGGER_ASSISTANT(DisconnectedContext, ReportViolationCleanup(it.GetCtxCookie(), pCurrentCtxCookie, hr));     
-#endif
 
                         // make sure we never try to clean this up again
                         pEntry->Free();

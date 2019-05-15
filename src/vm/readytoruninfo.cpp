@@ -78,7 +78,7 @@ BOOL ReadyToRunInfo::HasHashtableOfTypes()
     return !m_availableTypesHashtable.IsNull();
 }
 
-BOOL ReadyToRunInfo::TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFoundTypeToken)
+BOOL ReadyToRunInfo::TryLookupTypeTokenFromName(const NameHandle *pName, mdToken * pFoundTypeToken)
 {
     CONTRACTL
     {
@@ -513,8 +513,8 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
 
     READYTORUN_HEADER * pHeader = pLayout->GetReadyToRunHeader();
 
-    // Ignore the content if the image major version is higher than the major version currently supported by the runtime
-    if (pHeader->MajorVersion > READYTORUN_MAJOR_VERSION)
+    // Ignore the content if the image major version is higher or lower than the major version currently supported by the runtime
+    if (pHeader->MajorVersion < MINIMUM_READYTORUN_MAJOR_VERSION || pHeader->MajorVersion > READYTORUN_MAJOR_VERSION)
     {
         DoLog("Ready to Run disabled - unsupported header version");
         return NULL;
@@ -672,20 +672,26 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 {
     STANDARD_VM_CONTRACT;
 
+    PCODE pEntryPoint = NULL;
+#ifndef CROSSGEN_COMPILE
+#ifdef PROFILING_SUPPORTED
+    BOOL fShouldSearchCache = TRUE;
+#endif // PROFILING_SUPPORTED
+#endif // CROSSGEN_COMPILE
     mdToken token = pMD->GetMemberDef();
     int rid = RidFromToken(token);
     if (rid == 0)
-        return NULL;
+        goto done;
 
     uint offset;
     if (pMD->HasClassOrMethodInstantiation())
     {
         if (m_instMethodEntryPoints.IsNull())
-            return NULL;
+            goto done;
 
         NativeHashtable::Enumerator lookup = m_instMethodEntryPoints.Lookup(GetVersionResilientMethodHashCode(pMD));
         NativeParser entryParser;
-        offset = -1;
+        offset = (uint)-1;
         while (lookup.GetNext(entryParser))
         {
             PCCOR_SIGNATURE pBlob = (PCCOR_SIGNATURE)entryParser.GetBlob();
@@ -702,18 +708,17 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
             }
         }
 
-        if (offset == -1)
-            return NULL;
+        if (offset == (uint)-1)
+            goto done;
     }
     else
     {
         if (!m_methodDefEntryPoints.TryGetAt(rid - 1, &offset))
-            return NULL;
+            goto done;
     }
 
 #ifndef CROSSGEN_COMPILE
 #ifdef PROFILING_SUPPORTED
-        BOOL fShouldSearchCache = TRUE;
         {
             BEGIN_PIN_PROFILER(CORProfilerTrackCacheSearches());
             g_profControlBlock.pProfInterface->
@@ -723,7 +728,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
         if (!fShouldSearchCache)
         {
             pConfig->SetProfilerRejectedPrecompiledCode();
-            return NULL;
+            goto done;
         }
 #endif // PROFILING_SUPPORTED
 #endif // CROSSGEN_COMPILE
@@ -747,7 +752,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 #ifndef CROSSGEN_COMPILE
                 pConfig->SetReadyToRunRejectedPrecompiledCode();
 #endif // CROSSGEN_COMPILE
-                return NULL;
+                goto done;
             }
         }
 
@@ -759,7 +764,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
     }
 
     _ASSERTE(id < m_nRuntimeFunctions);
-    PCODE pEntryPoint = dac_cast<TADDR>(m_pLayout->GetBase()) + m_pRuntimeFunctions[id].BeginAddress;
+    pEntryPoint = dac_cast<TADDR>(m_pLayout->GetBase()) + m_pRuntimeFunctions[id].BeginAddress;
 
     {
         CrstHolder ch(&m_Crst);
@@ -788,6 +793,11 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
 #endif
     }
 
+done:
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, R2RGetEntryPoint))
+    {
+        ETW::MethodLog::GetR2RGetEntryPoint(pMD, pEntryPoint);
+    }
     return pEntryPoint;
 }
 

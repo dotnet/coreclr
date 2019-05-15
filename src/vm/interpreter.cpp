@@ -1658,7 +1658,7 @@ void Interpreter::JitMethodIfAppropriate(InterpreterMethodInfo* interpMethInfo, 
                                                     &status);
             }
             // This used to be a synchronous jit and could be made so again if desired,
-            // but using ASP.Net MusicStore as an example scenario the performance is
+            // but using ASP .NET MusicStore as an example scenario the performance is
             // better doing the JIT asynchronously. Given the not-on-by-default nature of the
             // interpreter I didn't wring my hands too much trying to determine the ideal
             // policy.
@@ -1775,7 +1775,7 @@ static void MonitorExit(Object* obj, BYTE* pbLockTaken)
 
     if (pbLockTaken != 0) *pbLockTaken = 0;
 
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
+    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID, FALSE));
     
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
@@ -1794,7 +1794,7 @@ static void MonitorExitStatic(AwareLock *lock, BYTE* pbLockTaken)
     if (!lock->Leave())
         COMPlusThrow(kSynchronizationLockException);
 
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
+    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID, FALSE));
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
     }
@@ -4244,7 +4244,7 @@ void Interpreter::StInd_Ref()
     OBJECTREF val = ObjectToOBJECTREF(OpStackGet<Object*>(stackInd1));
     OBJECTREF* ptr = OpStackGet<OBJECTREF*>(stackInd0);
     ThrowOnInvalidPointer(ptr);
-    SetObjectReferenceUnchecked(ptr, val);
+    SetObjectReference(ptr, val);
     m_curStackHt -= 2;
 
 #if INTERP_TRACING
@@ -5555,7 +5555,7 @@ void Interpreter::CpObj()
     else
     {
         OBJECTREF val = *reinterpret_cast<OBJECTREF*>(src);
-        SetObjectReferenceUnchecked(reinterpret_cast<OBJECTREF*>(dest), val);
+        SetObjectReference(reinterpret_cast<OBJECTREF*>(dest), val);
     }
     m_curStackHt -= 2;
     m_ILCodePtr += 5;
@@ -5675,7 +5675,7 @@ void Interpreter::StObj()
         GCX_FORBID();
 
         OBJECTREF val = ObjectToOBJECTREF(OpStackGet<Object*>(valInd));
-        SetObjectReferenceUnchecked(reinterpret_cast<OBJECTREF*>(dest), val);
+        SetObjectReference(reinterpret_cast<OBJECTREF*>(dest), val);
     }
 
     m_curStackHt -= 2;
@@ -5730,7 +5730,7 @@ void Interpreter::InitObj()
     else
     {
         // The ostack entry is an object reference.
-        SetObjectReferenceUnchecked(reinterpret_cast<OBJECTREF*>(dest), NULL);
+        SetObjectReference(reinterpret_cast<OBJECTREF*>(dest), NULL);
     }
     m_curStackHt -= 1;
     m_ILCodePtr += 6;
@@ -5995,7 +5995,7 @@ void Interpreter::NewArr()
         pArrayMT->CheckRunClassInitThrowing();
 
         INT32 size32 = (INT32)sz;
-        Object* newarray = OBJECTREFToObject(AllocateArrayEx(pArrayMT, &size32, 1));
+        Object* newarray = OBJECTREFToObject(AllocateSzArray(pArrayMT, size32));
 
         GCX_FORBID();
         OpStackTypeSet(stkInd, InterpreterType(CORINFO_TYPE_CLASS));
@@ -7231,7 +7231,7 @@ void Interpreter::LdFld(FieldDesc* fldIn)
                 // Large struct case: allocate space on the large struct operand stack.
                 void* destPtr = LargeStructOperandStackPush(sz);
                 OpStackSet<void*>(stackInd, destPtr);
-                CopyValueClass(destPtr, srcPtr, valClsMT, obj->GetAppDomain());
+                CopyValueClass(destPtr, srcPtr, valClsMT);
             }
             else
             {
@@ -7565,7 +7565,7 @@ void Interpreter::StFld()
         else if (valCit == CORINFO_TYPE_CLASS)
         {
             OBJECTREF val = ObjectToOBJECTREF(OpStackGet<Object*>(valInd));
-            SetObjectReferenceUnchecked(reinterpret_cast<OBJECTREF*>(destPtr), val);
+            SetObjectReference(reinterpret_cast<OBJECTREF*>(destPtr), val);
         }
         else
         {
@@ -7831,7 +7831,7 @@ void Interpreter::StSFld()
     }
     else if (valCit == CORINFO_TYPE_CLASS)
     {
-        SetObjectReferenceUnchecked(reinterpret_cast<OBJECTREF*>(dstPtr), ObjectToOBJECTREF(OpStackGet<Object*>(m_curStackHt)));
+        SetObjectReference(reinterpret_cast<OBJECTREF*>(dstPtr), ObjectToOBJECTREF(OpStackGet<Object*>(m_curStackHt)));
     }
     else
     {

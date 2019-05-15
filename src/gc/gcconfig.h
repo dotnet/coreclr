@@ -74,6 +74,7 @@ public:
       "Specifies the name of the GC config log file")                                          \
   BOOL_CONFIG(GCNumaAware,   "GCNumaAware", true, "Enables numa allocations in the GC")        \
   BOOL_CONFIG(GCCpuGroup,    "GCCpuGroup", false, "Enables CPU groups in the GC")              \
+  BOOL_CONFIG(GCLargePages,  "GCLargePages", false, "Enables using Large Pages in the GC")     \
   INT_CONFIG(HeapVerifyLevel, "HeapVerify", HEAPVERIFY_NONE,                                   \
       "When set verifies the integrity of the managed heap on entry and exit of each GC")      \
   INT_CONFIG(LOHCompactionMode, "GCLOHCompact", 0, "Specifies the LOH compaction mode")        \
@@ -95,6 +96,10 @@ public:
       "Specifies the ratio compacting GCs vs sweeping")                                        \
   INT_CONFIG(GCHeapAffinitizeMask, "GCHeapAffinitizeMask", 0,                                  \
       "Specifies processor mask for Server GC threads")                                        \
+  STRING_CONFIG(GCHeapAffinitizeRanges, "GCHeapAffinitizeRanges",                              \
+      "Specifies list of processors for Server GC threads. The format is a comma separated "   \
+      "list of processor numbers or ranges of processor numbers. On Windows, each entry is "   \
+      "prefixed by the CPU group number. Example: Unix - 1,3,5,7-9,12, Windows - 0:1,1:7-9")   \
   INT_CONFIG(GCHighMemPercent, "GCHighMemPercent", 0,                                          \
       "The percent for GC to consider as high memory")                                         \
   INT_CONFIG(GCProvModeStress, "GCProvModeStress", 0,                                          \
@@ -152,5 +157,7 @@ enum HeapVerifyFlags {
 static void Initialize();
 
 };
+
+bool ParseGCHeapAffinitizeRanges(const char* cpu_index_ranges, AffinitySet* config_affinity_set);
 
 #endif // __GCCONFIG_H__

@@ -3,7 +3,7 @@ from genEventing import *
 from genLttngProvider import *
 import os
 import xml.dom.minidom as DOM
-from utilities import open_for_update
+from utilities import open_for_update, parseExclusionList
 
 stdprolog_cpp = """// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
@@ -73,7 +73,7 @@ def generateMethodSignatureWrite(eventName, template, extern):
     return ''.join(sig_pieces)
 
 def generateClrEventPipeWriteEventsImpl(
-        providerName, eventNodes, allTemplates, extern):
+        providerName, eventNodes, allTemplates, extern, exclusionList):
     providerPrettyName = providerName.replace("Windows-", '')
     providerPrettyName = providerPrettyName.replace("Microsoft-", '')
     providerPrettyName = providerPrettyName.replace('-', '_')
@@ -153,8 +153,14 @@ def generateClrEventPipeWriteEventsImpl(
         eventLevel = eventLevel.replace("win:", "EventPipeEventLevel::")
         taskName = eventNode.getAttribute('task')
 
-        initEvent = """    EventPipeEvent%s = EventPipeProvider%s->AddEvent(%s,%s,%s,%s);
-""" % (eventName, providerPrettyName, eventValue, eventKeywordsMask, eventVersion, eventLevel)
+        needStack = "true"
+        for nostackentry in exclusionList.nostack:
+            tokens = nostackentry.split(':')
+            if tokens[2] == eventName:
+                needStack = "false"
+
+        initEvent = """    EventPipeEvent%s = EventPipeProvider%s->AddEvent(%s,%s,%s,%s,%s);
+""" % (eventName, providerPrettyName, eventValue, eventKeywordsMask, eventVersion, eventLevel, needStack)
 
         WriteEventImpl.append(initEvent)
     WriteEventImpl.append("}")
@@ -236,41 +242,14 @@ def generateEventKeywords(eventKeywords):
 
     return mask
 
-
-def generateEventPipeCmakeFile(etwmanifest, eventpipe_directory, extern):
-    tree = DOM.parse(etwmanifest)
-
-    with open_for_update(os.path.join(eventpipe_directory, "CMakeLists.txt")) as cmake_file:
-        cmake_file.write(stdprolog_cmake)
-        cmake_file.write("cmake_minimum_required(VERSION 2.8.12.2)\n")
-        if extern: cmake_file.write("\nproject(eventpipe)\n")
-        cmake_file.write("""
-
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-include_directories(${CLR_DIR}/src/vm)
-
-add_library_clr(eventpipe STATIC
-""")
-        for providerNode in tree.getElementsByTagName('provider'):
-            providerName = providerNode.getAttribute('name')
-            providerName = providerName.replace("Windows-", '')
-            providerName = providerName.replace("Microsoft-", '')
-
-            providerName_File = providerName.replace('-', '')
-            providerName_File = providerName_File.lower()
-
-            cmake_file.write('    "%s/%s.cpp"\n' % (eventpipe_dirname, providerName_File))
-        cmake_file.write('    "%s/eventpipehelpers.cpp"\n)' % (eventpipe_dirname,))
-        if extern: cmake_file.write("""
-
-# Install the static eventpipe library
-_install(TARGETS eventpipe DESTINATION lib)
-""")
-
-def generateEventPipeHelperFile(etwmanifest, eventpipe_directory, extern):
-    with open_for_update(os.path.join(eventpipe_directory, "eventpipehelpers.cpp")) as helper:
-        helper.write(stdprolog_cpp)
-        helper.write("""
+def generateEventPipeHelperFile(etwmanifest, eventpipe_directory, extern, dryRun):
+    eventpipehelpersPath = os.path.join(eventpipe_directory, "eventpipehelpers.cpp")
+    if dryRun:
+        print(eventpipehelpersPath)
+    else:
+        with open_for_update(eventpipehelpersPath) as helper:
+            helper.write(stdprolog_cpp)
+            helper.write("""
 #include "common.h"
 #include <stdlib.h>
 #include <string.h>
@@ -354,37 +333,37 @@ bool WriteToBuffer(const char *str, char *&buffer, size_t& offset, size_t& size,
 
 """)
 
-        tree = DOM.parse(etwmanifest)
+            tree = DOM.parse(etwmanifest)
 
-        for providerNode in tree.getElementsByTagName('provider'):
-            providerName = providerNode.getAttribute('name')
-            providerPrettyName = providerName.replace("Windows-", '')
-            providerPrettyName = providerPrettyName.replace("Microsoft-", '')
-            providerPrettyName = providerPrettyName.replace('-', '_')
+            for providerNode in tree.getElementsByTagName('provider'):
+                providerName = providerNode.getAttribute('name')
+                providerPrettyName = providerName.replace("Windows-", '')
+                providerPrettyName = providerPrettyName.replace("Microsoft-", '')
+                providerPrettyName = providerPrettyName.replace('-', '_')
+                if extern: helper.write(
+                    'extern "C" '
+                )
+                helper.write(
+                    "void Init" +
+                    providerPrettyName +
+                    "();\n\n")
+
             if extern: helper.write(
                 'extern "C" '
             )
-            helper.write(
-                "void Init" +
-                providerPrettyName +
-                "();\n\n")
+            helper.write("void InitProvidersAndEvents()\n{\n")
+            for providerNode in tree.getElementsByTagName('provider'):
+                providerName = providerNode.getAttribute('name')
+                providerPrettyName = providerName.replace("Windows-", '')
+                providerPrettyName = providerPrettyName.replace("Microsoft-", '')
+                providerPrettyName = providerPrettyName.replace('-', '_')
+                helper.write("    Init" + providerPrettyName + "();\n")
+            helper.write("}")
 
-        if extern: helper.write(
-            'extern "C" '
-        )
-        helper.write("void InitProvidersAndEvents()\n{\n")
-        for providerNode in tree.getElementsByTagName('provider'):
-            providerName = providerNode.getAttribute('name')
-            providerPrettyName = providerName.replace("Windows-", '')
-            providerPrettyName = providerPrettyName.replace("Microsoft-", '')
-            providerPrettyName = providerPrettyName.replace('-', '_')
-            helper.write("    Init" + providerPrettyName + "();\n")
-        helper.write("}")
-
-    helper.close()
+        helper.close()
 
 def generateEventPipeImplFiles(
-        etwmanifest, eventpipe_directory, extern):
+        etwmanifest, eventpipe_directory, extern, exclusionList, dryRun):
     tree = DOM.parse(etwmanifest)
 
     # Find the src directory starting with the assumption that
@@ -406,10 +385,13 @@ def generateEventPipeImplFiles(
         providerName_File = providerName_File.lower()
         providerPrettyName = providerPrettyName.replace('-', '_')
         eventpipefile = os.path.join(eventpipe_directory, providerName_File + ".cpp")
-        with open_for_update(eventpipefile) as eventpipeImpl:
-            eventpipeImpl.write(stdprolog_cpp)
+        if dryRun:
+            print(eventpipefile)
+        else:
+            with open_for_update(eventpipefile) as eventpipeImpl:
+                eventpipeImpl.write(stdprolog_cpp)
 
-            header = """
+                header = """
 #include "{root:s}/vm/common.h"
 #include "{root:s}/vm/eventpipeprovider.h"
 #include "{root:s}/vm/eventpipeevent.h"
@@ -440,42 +422,39 @@ bool WriteToBuffer(const T &value, char *&buffer, size_t& offset, size_t& size, 
 
 """.format(root=src_dirname.replace('\\', '/'))
 
-            eventpipeImpl.write(header)
-            eventpipeImpl.write(
-                "const WCHAR* %sName = W(\"%s\");\n" % (
-                    providerPrettyName,
-                    providerName
+                eventpipeImpl.write(header)
+                eventpipeImpl.write(
+                    "const WCHAR* %sName = W(\"%s\");\n" % (
+                        providerPrettyName,
+                        providerName
+                    )
                 )
-            )
-            eventpipeImpl.write(
-                "EventPipeProvider *EventPipeProvider%s = nullptr;\n" % (
-                    providerPrettyName,
+                eventpipeImpl.write(
+                    "EventPipeProvider *EventPipeProvider%s = nullptr;\n" % (
+                        providerPrettyName,
+                    )
                 )
-            )
-            templateNodes = providerNode.getElementsByTagName('template')
-            allTemplates = parseTemplateNodes(templateNodes)
-            eventNodes = providerNode.getElementsByTagName('event')
-            eventpipeImpl.write(
-                generateClrEventPipeWriteEventsImpl(
-                    providerName,
-                    eventNodes,
-                    allTemplates,
-                    extern) + "\n")
-
+                templateNodes = providerNode.getElementsByTagName('template')
+                allTemplates = parseTemplateNodes(templateNodes)
+                eventNodes = providerNode.getElementsByTagName('event')
+                eventpipeImpl.write(
+                    generateClrEventPipeWriteEventsImpl(
+                        providerName,
+                        eventNodes,
+                        allTemplates,
+                        extern,
+                        exclusionList) + "\n")
 
 def generateEventPipeFiles(
-        etwmanifest, intermediate, extern):
+        etwmanifest, intermediate, extern, exclusionList, dryRun):
     eventpipe_directory = os.path.join(intermediate, eventpipe_dirname)
     tree = DOM.parse(etwmanifest)
 
     if not os.path.exists(eventpipe_directory):
         os.makedirs(eventpipe_directory)
 
-    # generate CMake file
-    generateEventPipeCmakeFile(etwmanifest, intermediate, extern)
-
     # generate helper file
-    generateEventPipeHelperFile(etwmanifest, eventpipe_directory, extern)
+    generateEventPipeHelperFile(etwmanifest, eventpipe_directory, extern, dryRun)
 
     # generate all keywords
     for keywordNode in tree.getElementsByTagName('keyword'):
@@ -487,7 +466,9 @@ def generateEventPipeFiles(
     generateEventPipeImplFiles(
         etwmanifest,
         eventpipe_directory,
-        extern
+        extern,
+        exclusionList,
+        dryRun
     )
 
 import argparse
@@ -502,20 +483,26 @@ def main(argv):
     required = parser.add_argument_group('required arguments')
     required.add_argument('--man', type=str, required=True,
                           help='full path to manifest containig the description of events')
+    required.add_argument('--exc',  type=str, required=True,
+                                    help='full path to exclusion list')
     required.add_argument('--intermediate', type=str, required=True,
                           help='full path to eventprovider  intermediate directory')
     required.add_argument('--nonextern', action='store_true',
                           help='if specified, will generate files to be compiled into the CLR rather than extern' )
+    required.add_argument('--dry-run', action='store_true',
+                                    help='if specified, will output the names of the generated files instead of generating the files' )
     args, unknown = parser.parse_known_args(argv)
     if unknown:
         print('Unknown argument(s): ', ', '.join(unknown))
         return 1
 
     sClrEtwAllMan = args.man
+    exclusion_filename = args.exc
     intermediate = args.intermediate
     extern = not args.nonextern
+    dryRun            = args.dry_run
 
-    generateEventPipeFiles(sClrEtwAllMan, intermediate, extern)
+    generateEventPipeFiles(sClrEtwAllMan, intermediate, extern, parseExclusionList(exclusion_filename), dryRun)
 
 if __name__ == '__main__':
     return_code = main(sys.argv[1:])

@@ -22,12 +22,11 @@ class SampleProfiler
 
     // Declare friends.
     friend class EventPipe;
-    friend class SampleProfilerEventInstance;
 
     public:
 
         // Enable profiling.
-        static void Enable();
+        static void Enable(EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
         // Disable profiling.
         static void Disable();

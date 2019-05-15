@@ -286,7 +286,7 @@ public:
 
     virtual HRESULT GetILToNativeMappingIntoArrays(
         MethodDesc * pMethodDesc,
-        PCODE pCode,
+        PCODE pNativeCodeStartAddress,
         USHORT cMapMax,
         USHORT * pcMap,
         UINT ** prguiILOffset,
@@ -342,9 +342,6 @@ public:
     // Allows the debugger to keep an up to date list of special threads
     virtual HRESULT UpdateSpecialThreadList(DWORD cThreadArrayLength,
                                             DWORD *rgdwThreadIDArray) = 0;
-
-    // Updates the pointer for the debugger services
-    virtual void SetIDbgThreadControl(IDebuggerThreadControl *pIDbgThreadControl) = 0;
 
     virtual DWORD GetRCThreadId(void) = 0;
 

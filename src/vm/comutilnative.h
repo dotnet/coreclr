@@ -139,6 +139,9 @@ public:
     static FCDECL2(int,     CollectionCount, INT32 generation, INT32 getSpecialGCCount);
     
     static FCDECL0(INT64,    GetAllocatedBytesForCurrentThread);
+    static FCDECL1(INT64,    GetTotalAllocatedBytes, CLR_BOOL precise);
+
+    static FCDECL3(Object*, AllocateNewArray, void* elementTypeHandle, INT32 length, CLR_BOOL zeroingOptional);
 
 #ifdef FEATURE_BASICFREEZE
     static
