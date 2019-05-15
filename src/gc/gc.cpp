@@ -11516,13 +11516,6 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size,
     acontext->alloc_limit = (start + limit_size - aligned_min_obj_size);
     acontext->alloc_bytes += limit_size - ((gen_number < max_generation + 1) ? aligned_min_obj_size : 0);
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableAppDomainMonitoring)
-    {
-        GCToEEInterface::RecordAllocatedBytesForHeap(limit_size, heap_number);
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
     uint8_t* saved_used = 0;
 
     if (seg)
@@ -12040,13 +12033,6 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
                                  heap_segment* seg)
 {
     make_unused_array (alloc_start, size);
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableAppDomainMonitoring)
-    {
-        GCToEEInterface::RecordAllocatedBytesForHeap(size, heap_number);
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     size_t size_of_array_base = sizeof(ArrayBase);
 
@@ -20228,22 +20214,6 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
     {
         // scan for deleted entries in the syncblk cache
         GCScan::GcWeakPtrScanBySingleThread (condemned_gen_number, max_generation, &sc);
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        if (g_fEnableAppDomainMonitoring)
-        {
-            size_t promoted_all_heaps = 0;
-#ifdef MULTIPLE_HEAPS
-            for (int i = 0; i < n_heaps; i++)
-            {
-                promoted_all_heaps += promoted_bytes (i);
-            }
-#else
-            promoted_all_heaps = promoted_bytes (heap_number);
-#endif //MULTIPLE_HEAPS
-            GCToEEInterface::RecordTotalSurvivedBytes(promoted_all_heaps);
-        }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
 #ifdef MULTIPLE_HEAPS
 
@@ -34531,22 +34501,10 @@ void GCHeap::Promote(Object** ppObject, ScanContext* sc, uint32_t flags)
             hp->pin_object (o, (uint8_t**) ppObject, hp->gc_low, hp->gc_high);
 #endif //STRESS_PINNING
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    size_t promoted_size_begin = hp->promoted_bytes (thread);
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
     if ((o >= hp->gc_low) && (o < hp->gc_high))
     {
         hpt->mark_object_simple (&o THREAD_NUMBER_ARG);
     }
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    size_t promoted_size_end = hp->promoted_bytes (thread);
-    if (g_fEnableAppDomainMonitoring)
-    {
-        GCToEEInterface::RecordSurvivedBytesForHeap((promoted_size_end - promoted_size_begin), thread);
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     STRESS_LOG_ROOT_PROMOTE(ppObject, o, o ? header(o)->GetMethodTable() : NULL);
 }
@@ -35478,13 +35436,6 @@ void gc_heap::do_pre_gc()
 #endif //BACKGROUND_GC
         }
     }
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableAppDomainMonitoring)
-    {
-        GCToEEInterface::ResetTotalSurvivedBytes();
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 }
 
 #ifdef GC_CONFIG_DRIVEN
@@ -35732,13 +35683,6 @@ void gc_heap::do_post_gc()
     }
 
     GCHeap::UpdatePostGCCounters();
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    //if (g_fEnableARM)
-    //{
-    //    SystemDomain::GetADSurvivedBytes();
-    //}
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 #ifdef STRESS_LOG
     STRESS_LOG_GC_END(VolatileLoad(&settings.gc_index),
                       (uint32_t)settings.condemned_generation,
