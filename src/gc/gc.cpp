@@ -2634,6 +2634,10 @@ gen_to_condemn_tuning gc_heap::gen_to_condemn_reasons;
 
 size_t      gc_heap::etw_allocation_running_amount[2];
 
+uint64_t    gc_heap::total_alloc_bytes_soh = 0;
+
+uint64_t    gc_heap::total_alloc_bytes_loh = 0;
+
 int         gc_heap::gc_policy = 0;
 
 size_t      gc_heap::allocation_running_time;
@@ -5950,6 +5954,8 @@ void gc_heap::fix_allocation_context (alloc_context* acontext, BOOL for_gc_p,
     {
         // We need to update the alloc_bytes to reflect the portion that we have not used  
         acontext->alloc_bytes -= (acontext->alloc_limit - acontext->alloc_ptr);  
+        total_alloc_bytes_soh -= (acontext->alloc_limit - acontext->alloc_ptr);
+
         acontext->alloc_ptr = 0;
         acontext->alloc_limit = acontext->alloc_ptr;
     }
@@ -10666,6 +10672,8 @@ gc_heap::init_gc_heap (int  h_number)
 
     etw_allocation_running_amount[0] = 0;
     etw_allocation_running_amount[1] = 0;
+    total_alloc_bytes_soh = 0;
+    total_alloc_bytes_loh = 0;
 
     //needs to be done after the dynamic data has been initialized
 #ifndef MULTIPLE_HEAPS
@@ -11464,6 +11472,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
 {
     bool loh_p = (gen_number > 0);
     GCSpinLock* msl = loh_p ? &more_space_lock_loh : &more_space_lock_soh;
+    uint64_t& total_alloc_bytes = loh_p ? total_alloc_bytes_loh : total_alloc_bytes_soh;
 
     size_t aligned_min_obj_size = Align(min_obj_size, align_const);
 
@@ -11496,6 +11505,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
             // when we are finishing an allocation from a free list
             // we know that the free area was Align(min_obj_size) larger
             acontext->alloc_bytes -= ac_size;
+            total_alloc_bytes -= ac_size;
             size_t free_obj_size = ac_size + aligned_min_obj_size;
             make_unused_array (hole, free_obj_size);
             generation_free_obj_space (generation_of (gen_number)) += free_obj_size;
@@ -11514,7 +11524,9 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
         }
     }
     acontext->alloc_limit = (start + limit_size - aligned_min_obj_size);
-    acontext->alloc_bytes += limit_size - ((gen_number < max_generation + 1) ? aligned_min_obj_size : 0);
+    size_t added_bytes = limit_size - ((gen_number < max_generation + 1) ? aligned_min_obj_size : 0);
+    acontext->alloc_bytes += added_bytes;
+    total_alloc_bytes     += added_bytes;
 
 #ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
     if (g_fEnableAppDomainMonitoring)
@@ -11522,6 +11534,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
         GCToEEInterface::RecordAllocatedBytesForHeap(limit_size, heap_number);
     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
+
 
     uint8_t* saved_used = 0;
 
@@ -12124,7 +12137,9 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
         }
     }
 #endif //VERIFY_HEAP
-    
+
+    total_alloc_bytes_loh += size - Align (min_obj_size, align_const);
+
     dprintf (SPINLOCK_LOG, ("[%d]Lmsl to clear large obj", heap_number));
     add_saved_spinlock_info (true, me_release, mt_clr_large_mem);
     leave_spin_lock (&more_space_lock_loh);
@@ -28062,15 +28077,7 @@ BOOL gc_heap::find_card(uint32_t* card_table,
             {
                 card_word_value = *(++last_card_word);
             } while ((last_card_word < &card_table [card_word_end]) &&
-
-#ifdef _MSC_VER
-                     (card_word_value == (1 << card_word_width)-1)
-#else
-                     // if left shift count >= width of type,
-                     // gcc reports error.
-                     (card_word_value == ~0u)
-#endif // _MSC_VER
-                );
+                     (card_word_value == ~0u /* (1 << card_word_width)-1 */));
             bit_position = 0;
         }
     } while (card_word_value & 1);
@@ -30462,7 +30469,7 @@ size_t gc_heap::joined_youngest_desired (size_t new_allocation)
             uint32_t memory_load = 0;
             get_memory_info (&memory_load);
             settings.exit_memory_load = memory_load;
-            dprintf (2, ("Current emory load: %d", memory_load));
+            dprintf (2, ("Current memory load: %d", memory_load));
 
             size_t final_total = 
                 trim_youngest_desired (memory_load, total_new_allocation, total_min_allocation);
@@ -36039,6 +36046,23 @@ size_t      GCHeap::GetTotalBytesInUse ()
 #endif //MULTIPLE_HEAPS
 }
 
+// Get the total allocated bytes
+uint64_t GCHeap::GetTotalAllocatedBytes()
+{
+#ifdef MULTIPLE_HEAPS
+    uint64_t total_alloc_bytes = 0;
+    for (int i = 0; i < gc_heap::n_heaps; i++)
+    {
+        gc_heap* hp = gc_heap::g_heaps[i];
+        total_alloc_bytes += hp->total_alloc_bytes_soh;
+        total_alloc_bytes += hp->total_alloc_bytes_loh;
+    }
+    return total_alloc_bytes;
+#else
+    return (pGenGCHeap->total_alloc_bytes_soh +  pGenGCHeap->total_alloc_bytes_loh);
+#endif //MULTIPLE_HEAPS
+}
+
 int GCHeap::CollectionCount (int generation, int get_bgc_fgc_count)
 {
     if (get_bgc_fgc_count != 0)
@@ -37386,7 +37410,7 @@ void GCHeap::DiagScanDependentHandles (handle_scan_fn fn, int gen_number, ScanCo
 // Go through and touch (read) each page straddled by a memory block.
 void TouchPages(void * pStart, size_t cb)
 {
-    const uint32_t pagesize = OS_PAGE_SIZE;
+    const size_t pagesize = OS_PAGE_SIZE;
     _ASSERTE(0 == (pagesize & (pagesize-1))); // Must be a power of 2.
     if (cb)
     {
