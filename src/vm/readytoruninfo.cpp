@@ -615,19 +615,6 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
         }
     }
 
-    // For format version 2.2 and later, there is an optional profile-data section
-    if (IsImageVersionAtLeast(2, 2))
-    {
-        IMAGE_DATA_DIRECTORY * pProfileDataInfoDir = FindSection(READYTORUN_SECTION_PROFILEDATA_INFO);
-        if (pProfileDataInfoDir != NULL)
-        {
-            CORCOMPILE_METHOD_PROFILE_LIST * pMethodProfileList;
-            pMethodProfileList = (CORCOMPILE_METHOD_PROFILE_LIST *)GetImage()->GetDirectoryData(pProfileDataInfoDir);
-
-            pModule->SetMethodProfileList(pMethodProfileList);  
-        }
-    }
-
     // For format version 3.1 and later, there is an optional attributes section
     if (IsImageVersionAtLeast(3,1))
     {

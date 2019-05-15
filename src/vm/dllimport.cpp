@@ -4727,7 +4727,7 @@ void NDirect::PopulateNDirectMethodDesc(NDirectMethodDesc* pNMD, PInvokeStaticSi
 // Find the MethodDesc of the predefined IL stub method by either
 // 1) looking at redirected adapter interfaces, OR
 // 2) looking at special attributes for the specific interop scenario (specified by dwStubFlags).
-// Currently only ManagedToNat veComInteropStubAttribute is supported.
+// Currently only ManagedToNativeComInteropStubAttribute is supported.
 // It returns NULL if no such attribute(s) can be found.  
 // But if the attribute is found and is invalid, or something went wrong in the looking up
 // process, an exception will be thrown. If everything goes well, you'll get the MethodDesc
