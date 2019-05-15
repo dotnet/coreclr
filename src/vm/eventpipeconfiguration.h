@@ -25,13 +25,13 @@ public:
     void Initialize();
 
     // Create a new provider.
-    EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+    EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Delete a provider.
     void DeleteProvider(EventPipeProvider *pProvider);
 
     // Register a provider.
-    bool RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+    bool RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Unregister a provider.
     bool UnregisterProvider(EventPipeProvider &provider);
@@ -40,16 +40,29 @@ public:
     EventPipeProvider *GetProvider(const SString &providerID);
 
     // Enable a session in the event pipe.
-    void Enable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+    void Enable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Disable a session in the event pipe.
-    void Disable(EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+    void Disable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Get the event used to write metadata to the event stream.
     EventPipeEventInstance *BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, unsigned int metdataId);
 
     // Delete deferred providers.
     void DeleteDeferredProviders();
+
+    // Create a new session.
+    EventPipeSession *CreateSession(
+        LPCWSTR strOutputPath,
+        IpcStream *const pStream,
+        EventPipeSessionType sessionType,
+        unsigned int circularBufferSizeInMB,
+        const EventPipeProviderConfiguration *pProviders,
+        uint32_t numProviders,
+        bool rundownEnabled = false);
+
+    // Delete a session.
+    void DeleteSession(EventPipeSession *pSession);
 
 private:
     // Get the provider without taking the lock.
