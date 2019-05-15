@@ -184,6 +184,14 @@ namespace DiagnosticsIpc
         IpcMessage(IpcHeader header, T& payload)
             : m_Header(header), m_Size(0), m_pData(nullptr)
         {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+            }
+            CONTRACTL_END;
+
             FlattenImpl<T>(payload);
         };
 
@@ -191,6 +199,14 @@ namespace DiagnosticsIpc
         IpcMessage(::IpcStream* pStream)
             : m_Header(), m_Size(0), m_pData(nullptr)
         {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+            }
+            CONTRACTL_END;
+
             TryParse(pStream);
         };
 
@@ -200,13 +216,88 @@ namespace DiagnosticsIpc
 
         ~IpcMessage()
         {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_ANY;
+            }
+            CONTRACTL_END;
+
             delete m_pData;
+        };
+
+        // Given a buffer, attempt to parse out a given payload type
+        // If a payload type is fixed-size, this will simply return
+        // a pointer to the buffer of data reinterpreted as a const pointer.
+        // Otherwise, your payload type should implment the following static method:
+        // * const T *TryParse(BYTE *lpBuffer)
+        // which this will call if it exists.
+        template <typename T>
+        const T* TryParsePayload()
+        {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+            }
+            CONTRACTL_END;
+
+            ASSERT(IsFlattened());
+            return TryParsePayloadImpl<T>();
+        };
+
+        const IpcHeader GetHeader()
+        {
+            LIMITED_METHOD_CONTRACT;
+
+            return m_Header;
+        };
+
+        bool Send(IpcStream* pStream)
+        {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_ANY;
+                PRECONDITION(pStream != nullptr);
+            }
+            CONTRACTL_END;
+
+            ASSERT(IsFlattened());
+            uint32_t nBytesWritten;
+            pStream->Write(m_pData, m_Size, nBytesWritten);
+
+            return nBytesWritten == m_Size;
+        };
+    private:
+        // Pointer to flattened buffer filled with packet
+        BYTE* m_pData;
+        struct IpcHeader m_Header;
+        uint16_t m_Size;
+
+        bool IsFlattened() const
+        {
+            LIMITED_METHOD_CONTRACT;
+
+            return m_pData != NULL;
         };
 
         // Attempt to populate header and payload from a buffer.
         // Payload is left opaque as a flattened buffer in m_pData
         bool TryParse(::IpcStream* pStream)
         {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+                PRECONDITION(pStream != nullptr);
+            }
+            CONTRACTL_END;
+
             // Read out header first
             uint32_t nBytesRead;
             bool success = pStream->Read(&m_Header, sizeof(IpcHeader), nBytesRead);
@@ -231,57 +322,10 @@ namespace DiagnosticsIpc
             return true;
         };
 
-        // Given a buffer, attempt to parse out a given payload type
-        // If a payload type is fixed-size, this will simply return
-        // a pointer to the buffer of data reinterpreted as a const pointer.
-        // Otherwise, your payload type should implment the following static method:
-        // * const T *TryParse(BYTE *lpBuffer)
-        // which this will call if it exists.
-        template <typename T>
-        const T* TryParsePayload()
-        {
-            ASSERT(IsFlattened());
-            return TryParsePayloadImpl<T>();
-        };
-
-        BYTE* GetFlatData()
-        {
-            return m_pData;
-        };
-
-        const IpcHeader GetHeader()
-        {
-            return m_Header;
-        };
-
-        bool Send(IpcStream* pStream)
-        {
-            ASSERT(IsFlattened());
-            uint32_t nBytesWritten;
-            pStream->Write(m_pData, m_Size, nBytesWritten);
-
-            return nBytesWritten == m_Size;
-        };
-    private:
-        // Pointer to flattened buffer filled with packet
-        BYTE* m_pData;
-        struct IpcHeader m_Header;
-        uint16_t m_Size;
-
-        bool IsFlattened() const
-        {
-            return m_pData != NULL;
-        };
-
         // Create a buffer of the correct size filled with
         // header + payload. Correctly handles flattening of
         // trivial structures, but uses a bool(Flatten)(void*)
         // and uint16_t(GetSize)() when available.
-        template <class T>
-        bool Flatten(T& payload)
-        {
-            return FlattenImpl<T>(payload);
-        };
 
         // Handles the case where the payload structure exposes Flatten
         // and GetSize methods
@@ -289,6 +333,14 @@ namespace DiagnosticsIpc
         enable_if_t<HasFlatten<U>::value&& HasGetSize<U>::value, bool>
             FlattenImpl(U& payload)
         {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+            }
+            CONTRACTL_END;
+
             if (IsFlattened())
                 return true;
 
@@ -323,6 +375,14 @@ namespace DiagnosticsIpc
         // enable_if_t<!HasFlatten<U>::value && !HasGetSize<U>::value, bool>
         bool FlattenImpl(U& payload)
         {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+            }
+            CONTRACTL_END;
+
             if (IsFlattened())
                 return true;
 
@@ -356,6 +416,14 @@ namespace DiagnosticsIpc
         enable_if_t<HasTryParse<U>::value, const U*>
             TryParsePayloadImpl()
         {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_ANY;
+            }
+            CONTRACTL_END;
+
             return U::TryParse(m_pData, m_Size - sizeof(IpcHeader));
         };
 
@@ -363,6 +431,14 @@ namespace DiagnosticsIpc
         // enable_if_t<!HasTryParse<U>::value, const U*>
         const U* TryParsePayloadImpl()
         {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_ANY;
+            }
+            CONTRACTL_END;
+
             return reinterpret_cast<const U*>(m_pData);
         };
     };

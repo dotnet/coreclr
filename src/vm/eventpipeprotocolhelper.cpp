@@ -65,6 +65,15 @@ const EventPipeCollectTracingCommandPayload* EventPipeCollectTracingCommandPaylo
 
 void EventPipeProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& message, IpcStream* pStream)
 {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(pStream != nullptr);
+    }
+    CONTRACTL_END;
+
     switch ((EventPipeCommandId)message.GetHeader().CommandId)
     {
     case EventPipeCommandId::CollectTracing:
