@@ -11572,15 +11572,15 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
 
         case GT_DIV:
             /* Replace "val / dcon" with "val * (1.0 / dcon)" if dcon is a power of two */
-            if ((typ == TYP_FLOAT || typ == TYP_DOUBLE) && tree->gtOp.gtOp2->IsCnsFltOrDbl())
+            if ((typ == TYP_FLOAT || typ == TYP_DOUBLE) && op2->IsCnsFltOrDbl())
             {
-                double op2dVal = tree->gtOp.gtOp2->gtDblCon.gtDconVal;
+                double op2dVal = op2->gtDblCon.gtDconVal;
                 int64_t op2iVal = static_cast<int64_t>(op2dVal);
                 if (op2dVal == op2iVal && isPow2(op2iVal))
                 {
                     oper = GT_MUL;
                     tree->ChangeOper(oper);
-                    tree->gtOp.gtOp2->gtDblCon.gtDconVal = 1.0 / op2dVal;
+                    op2->gtDblCon.gtDconVal = 1.0 / op2dVal;
                 }
             }
 #ifndef _TARGET_64BIT_
