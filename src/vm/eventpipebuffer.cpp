@@ -7,10 +7,11 @@
 #include "eventpipe.h"
 #include "eventpipeeventinstance.h"
 #include "eventpipebuffer.h"
+#include "eventpipebuffermanager.h"
 
 #ifdef FEATURE_PERFTRACING
 
-EventPipeBuffer::EventPipeBuffer(unsigned int bufferSize)
+EventPipeBuffer::EventPipeBuffer(unsigned int bufferSize DEBUG_ARG(EventPipeThread* pWriterThread))
 {
     CONTRACTL
     {
@@ -19,13 +20,18 @@ EventPipeBuffer::EventPipeBuffer(unsigned int bufferSize)
         MODE_ANY;
     }
     CONTRACTL_END;
-
+    m_state = EventPipeBufferState::WRITABLE;
+#ifdef DEBUG
+    m_pWriterThread = pWriterThread;
+#endif
     m_pBuffer = new BYTE[bufferSize];
     memset(m_pBuffer, 0, bufferSize);
     m_pLimit = m_pBuffer + bufferSize;
     m_pCurrent = GetNextAlignedAddress(m_pBuffer);
 
-    m_mostRecentTimeStamp.QuadPart = 0;
+
+    QueryPerformanceCounter(&m_creationTimeStamp);
+    _ASSERTE(m_creationTimeStamp.QuadPart > 0);
     m_pLastPoppedEvent = NULL;
     m_pPrevBuffer = NULL;
     m_pNextBuffer = NULL;
@@ -40,6 +46,9 @@ EventPipeBuffer::~EventPipeBuffer()
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    // We should never be deleting a buffer that a writer thread might still try to write to 
+    _ASSERTE(m_state == EventPipeBufferState::READ_ONLY);
 
     if(m_pBuffer != NULL)
     {
@@ -58,6 +67,9 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
     }
     CONTRACTL_END;
 
+    // We should never try to write to a buffer that isn't expecting to be written to.
+    _ASSERTE(m_state == EventPipeBufferState::WRITABLE);
+
     // Calculate the size of the event.
     unsigned int eventSize = sizeof(EventPipeEventInstance) + payload.GetSize();
     
@@ -75,6 +87,15 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
 
         // Placement-new the EventPipeEventInstance.
         // if pthread is NULL, it's likely we are running in something like a GC thread which is not a Thread object, so it can't have an activity ID set anyway
+
+        StackContents s;
+        memset((void*)&s, 0, sizeof(s));
+        if (event.NeedStack() && !session.RundownEnabled() && pStack == NULL)
+        {
+            EventPipe::WalkManagedStackForCurrentThread(s);
+            pStack = &s;
+        }
+
         EventPipeEventInstance *pInstance = new (m_pCurrent) EventPipeEventInstance(
             session,
             event,
@@ -85,7 +106,7 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
             pRelatedActivityId);
 
         // Copy the stack if a separate stack trace was provided.
-        if(pStack != NULL)
+        if (pStack != NULL)
         {
             StackContents *pInstanceStack = pInstance->GetStack();
             pStack->CopyTo(pInstanceStack);
@@ -96,9 +117,6 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
         {
             payload.CopyData(pDataDest);
         }
-
-        // Save the most recent event timestamp.
-        m_mostRecentTimeStamp = *pInstance->GetTimeStamp();
 
     }
     EX_CATCH
@@ -117,27 +135,11 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
     return success;
 }
 
-LARGE_INTEGER EventPipeBuffer::GetMostRecentTimeStamp() const
+LARGE_INTEGER EventPipeBuffer::GetCreationTimeStamp() const
 {
     LIMITED_METHOD_CONTRACT;
 
-    return m_mostRecentTimeStamp;
-}
-
-void EventPipeBuffer::Clear()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    memset(m_pBuffer, 0, (size_t)(m_pLimit - m_pBuffer));
-    m_pCurrent = GetNextAlignedAddress(m_pBuffer);
-    m_mostRecentTimeStamp.QuadPart = 0;
-    m_pLastPoppedEvent = NULL;
+    return m_creationTimeStamp;
 }
 
 EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent, LARGE_INTEGER beforeTimeStamp)
@@ -149,6 +151,8 @@ EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent,
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    _ASSERTE(m_state == EventPipeBufferState::READ_ONLY);
 
     EventPipeEventInstance *pNextInstance = NULL;
     // If input is NULL, return the first event if there is one.
@@ -219,11 +223,13 @@ EventPipeEventInstance* EventPipeBuffer::PeekNext(LARGE_INTEGER beforeTimeStamp)
     }
     CONTRACTL_END;
 
+    _ASSERTE(m_state == READ_ONLY);
+
     // Get the next event using the last popped event as a marker.
     return GetNext(m_pLastPoppedEvent, beforeTimeStamp);
 }
 
-EventPipeEventInstance* EventPipeBuffer::PopNext(LARGE_INTEGER beforeTimeStamp)
+void EventPipeBuffer::PopNext(EventPipeEventInstance *pNext)
 {
     CONTRACTL
     {
@@ -233,14 +239,25 @@ EventPipeEventInstance* EventPipeBuffer::PopNext(LARGE_INTEGER beforeTimeStamp)
     }
     CONTRACTL_END;
 
-    // Get the next event using the last popped event as a marker.
-    EventPipeEventInstance *pNext = PeekNext(beforeTimeStamp);
+    _ASSERTE(m_state == READ_ONLY);
+
     if(pNext != NULL)
     {
         m_pLastPoppedEvent = pNext;
     }
+}
 
-    return pNext;
+EventPipeBufferState EventPipeBuffer::GetVolatileState()
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_state.Load();
+}
+
+void EventPipeBuffer::ConvertToReadOnly()
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(m_pWriterThread->GetLock()->OwnedByCurrentThread());
+    m_state.Store(EventPipeBufferState::READ_ONLY);
 }
 
 #ifdef _DEBUG

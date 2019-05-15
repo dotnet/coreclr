@@ -10,46 +10,6 @@ using System.Runtime.InteropServices;
 
 namespace System.Reflection
 {
-    internal enum CorElementType : byte
-    {
-        ELEMENT_TYPE_END = 0x00,
-        ELEMENT_TYPE_VOID = 0x01,
-        ELEMENT_TYPE_BOOLEAN = 0x02,
-        ELEMENT_TYPE_CHAR = 0x03,
-        ELEMENT_TYPE_I1 = 0x04,
-        ELEMENT_TYPE_U1 = 0x05,
-        ELEMENT_TYPE_I2 = 0x06,
-        ELEMENT_TYPE_U2 = 0x07,
-        ELEMENT_TYPE_I4 = 0x08,
-        ELEMENT_TYPE_U4 = 0x09,
-        ELEMENT_TYPE_I8 = 0x0A,
-        ELEMENT_TYPE_U8 = 0x0B,
-        ELEMENT_TYPE_R4 = 0x0C,
-        ELEMENT_TYPE_R8 = 0x0D,
-        ELEMENT_TYPE_STRING = 0x0E,
-        ELEMENT_TYPE_PTR = 0x0F,
-        ELEMENT_TYPE_BYREF = 0x10,
-        ELEMENT_TYPE_VALUETYPE = 0x11,
-        ELEMENT_TYPE_CLASS = 0x12,
-        ELEMENT_TYPE_VAR = 0x13,
-        ELEMENT_TYPE_ARRAY = 0x14,
-        ELEMENT_TYPE_GENERICINST = 0x15,
-        ELEMENT_TYPE_TYPEDBYREF = 0x16,
-        ELEMENT_TYPE_I = 0x18,
-        ELEMENT_TYPE_U = 0x19,
-        ELEMENT_TYPE_FNPTR = 0x1B,
-        ELEMENT_TYPE_OBJECT = 0x1C,
-        ELEMENT_TYPE_SZARRAY = 0x1D,
-        ELEMENT_TYPE_MVAR = 0x1E,
-        ELEMENT_TYPE_CMOD_REQD = 0x1F,
-        ELEMENT_TYPE_CMOD_OPT = 0x20,
-        ELEMENT_TYPE_INTERNAL = 0x21,
-        ELEMENT_TYPE_MAX = 0x22,
-        ELEMENT_TYPE_MODIFIER = 0x40,
-        ELEMENT_TYPE_SENTINEL = 0x41,
-        ELEMENT_TYPE_PINNED = 0x45,
-    }
-
     [Flags()]
     internal enum MdSigCallingConvention : byte
     {
@@ -252,7 +212,7 @@ namespace System.Reflection
     internal readonly struct MetadataImport
     {
         private readonly IntPtr m_metadataImport2;
-        private readonly object m_keepalive;
+        private readonly object? m_keepalive;
 
         #region Override methods from Object
         internal static readonly MetadataImport EmptyImport = new MetadataImport((IntPtr)0, null);
@@ -262,7 +222,7 @@ namespace System.Reflection
             return ValueType.GetHashCodeOfPtr(m_metadataImport2);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is MetadataImport))
                 return false;
@@ -278,12 +238,12 @@ namespace System.Reflection
 
         #region Static Members
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void _GetMarshalAs(IntPtr pNativeType, int cNativeType, out int unmanagedType, out int safeArraySubType, out string safeArrayUserDefinedSubType,
-            out int arraySubType, out int sizeParamIndex, out int sizeConst, out string marshalType, out string marshalCookie,
+        private static extern void _GetMarshalAs(IntPtr pNativeType, int cNativeType, out int unmanagedType, out int safeArraySubType, out string? safeArrayUserDefinedSubType,
+            out int arraySubType, out int sizeParamIndex, out int sizeConst, out string? marshalType, out string? marshalCookie,
             out int iidParamIndex);
         internal static void GetMarshalAs(ConstArray nativeType,
-            out UnmanagedType unmanagedType, out VarEnum safeArraySubType, out string safeArrayUserDefinedSubType,
-            out UnmanagedType arraySubType, out int sizeParamIndex, out int sizeConst, out string marshalType, out string marshalCookie,
+            out UnmanagedType unmanagedType, out VarEnum safeArraySubType, out string? safeArrayUserDefinedSubType,
+            out UnmanagedType arraySubType, out int sizeParamIndex, out int sizeConst, out string? marshalType, out string? marshalCookie,
             out int iidParamIndex)
         {
             int _unmanagedType, _safeArraySubType, _arraySubType;
@@ -306,7 +266,7 @@ namespace System.Reflection
         #endregion
 
         #region Constructor
-        internal MetadataImport(IntPtr metadataImport2, object keepalive)
+        internal MetadataImport(IntPtr metadataImport2, object? keepalive)
         {
             m_metadataImport2 = metadataImport2;
             m_keepalive = keepalive;
@@ -353,11 +313,11 @@ namespace System.Reflection
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern string _GetDefaultValue(IntPtr scope, int mdToken, out long value, out int length, out int corElementType);
-        public string GetDefaultValue(int mdToken, out long value, out int length, out CorElementType corElementType)
+        private static extern string? _GetDefaultValue(IntPtr scope, int mdToken, out long value, out int length, out int corElementType);
+        public string? GetDefaultValue(int mdToken, out long value, out int length, out CorElementType corElementType)
         {
             int _corElementType;
-            string stringVal;
+            string? stringVal;
             stringVal = _GetDefaultValue(m_metadataImport2, mdToken, out value, out length, out _corElementType);
             corElementType = (CorElementType)_corElementType;
             return stringVal;
@@ -365,7 +325,7 @@ namespace System.Reflection
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe void _GetUserString(IntPtr scope, int mdToken, void** name, out int length);
-        public unsafe string GetUserString(int mdToken)
+        public unsafe string? GetUserString(int mdToken)
         {
             void* name;
             int length;

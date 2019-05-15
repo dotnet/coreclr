@@ -736,7 +736,7 @@ void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
     assert(m_ranges == nullptr);
     assert(m_lastRange == 0);
 
-    // Flag any crazy-looking requests
+    // Flag any strange-looking requests
     assert(capacity < 100000);
 
     if (rangeStr == nullptr)
@@ -1469,7 +1469,8 @@ void HelperCallProperties::init()
 // The string should be of the form
 // MyAssembly
 // MyAssembly;mscorlib;System
-// MyAssembly;mscorlib System
+//
+// You must use ';' as a separator; whitespace no longer works
 
 AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, HostAllocator alloc) : m_alloc(alloc)
 {
@@ -1481,12 +1482,9 @@ AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, HostAllocator alloc)
     {
         WCHAR curChar = *listWalk;
 
-        if (iswspace(curChar) || curChar == W(';') || curChar == W('\0'))
+        if (curChar == W(';') || curChar == W('\0'))
         {
-            //
-            // Found white-space
-            //
-
+            // Found separator or end of string
             if (nameStart)
             {
                 // Found the end of the current name; add a new assembly name to the list.
@@ -2153,9 +2151,9 @@ const SignedMagic<int32_t>* TryGetSignedMagic(int32_t divisor)
     static const SignedMagic<int32_t> table[]{
         {0x55555556, 0}, // 3
         {},
-        {0x66666667, 1}, // 5
-        {0x2aaaaaab, 0}, // 6
-        {0x92492493, 2}, // 7
+        {0x66666667, 1},          // 5
+        {0x2aaaaaab, 0},          // 6
+        {(int32_t)0x92492493, 2}, // 7
         {},
         {0x38e38e39, 1}, // 9
         {0x66666667, 2}, // 10

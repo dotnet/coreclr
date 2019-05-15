@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -21,9 +18,9 @@ namespace System.Reflection
             ComposedOfNoStaticMembers = 0x8,
         }
 
-        internal static bool IncludeAccessor(MethodInfo associate, bool nonPublic)
+        internal static bool IncludeAccessor(MethodInfo? associate, bool nonPublic)
         {
-            if ((object)associate == null)
+            if (associate is null)
                 return false;
 
             if (nonPublic)
@@ -35,7 +32,7 @@ namespace System.Reflection
             return false;
         }
 
-        private static RuntimeMethodInfo AssignAssociates(
+        private static RuntimeMethodInfo? AssignAssociates(
             int tkMethod,
             RuntimeType declaredType,
             RuntimeType reflectedType)
@@ -48,7 +45,7 @@ namespace System.Reflection
 
             bool isInherited = declaredType != reflectedType;
 
-            IntPtr[] genericArgumentHandles = null;
+            IntPtr[]? genericArgumentHandles = null;
             int genericArgumentCount = 0;
             RuntimeType[] genericArguments = declaredType.GetTypeHandleInternal().GetInstantiationInternal();
             if (genericArguments != null)
@@ -98,7 +95,7 @@ namespace System.Reflection
                 }
             }
 
-            RuntimeMethodInfo associateMethod =
+            RuntimeMethodInfo? associateMethod =
                 RuntimeType.GetMethodBase(reflectedType, associateMethodHandle) as RuntimeMethodInfo;
 
             // suppose a property was mapped to a method not in the derivation hierarchy of the reflectedTypeHandle
@@ -113,12 +110,12 @@ namespace System.Reflection
             int mdPropEvent,
             RuntimeType declaringType,
             RuntimeType reflectedType,
-            out RuntimeMethodInfo addOn,
-            out RuntimeMethodInfo removeOn,
-            out RuntimeMethodInfo fireOn,
-            out RuntimeMethodInfo getter,
-            out RuntimeMethodInfo setter,
-            out MethodInfo[] other,
+            out RuntimeMethodInfo? addOn,
+            out RuntimeMethodInfo? removeOn,
+            out RuntimeMethodInfo? fireOn,
+            out RuntimeMethodInfo? getter,
+            out RuntimeMethodInfo? setter,
+            out MethodInfo[]? other,
             out bool composedOfAllPrivateMethods,
             out BindingFlags bindingFlags)
         {
@@ -131,11 +128,11 @@ namespace System.Reflection
                 Attributes.ComposedOfNoStaticMembers;
 
             while (RuntimeTypeHandle.IsGenericVariable(reflectedType))
-                reflectedType = (RuntimeType)reflectedType.BaseType;
+                reflectedType = (RuntimeType)reflectedType.BaseType!;
 
             bool isInherited = declaringType != reflectedType;
 
-            List<MethodInfo> otherList = null;
+            List<MethodInfo>? otherList = null;
 
             MetadataEnumResult associatesData;
             scope.Enum(MetadataTokenType.MethodDef, mdPropEvent, out associatesData);
@@ -148,7 +145,7 @@ namespace System.Reflection
                 MethodSemanticsAttributes semantics = (MethodSemanticsAttributes)associatesData[i * 2 + 1];
 
                 #region Assign each associate
-                RuntimeMethodInfo associateMethod =
+                RuntimeMethodInfo? associateMethod =
                     AssignAssociates(methodDefToken, declaringType, reflectedType);
 
                 if (associateMethod == null)
@@ -191,7 +188,7 @@ namespace System.Reflection
                     removeOn = associateMethod;
                 else
                 {
-                    if (otherList == null)
+                    if (otherList is null)
                         otherList = new List<MethodInfo>(cAssociates);
                     otherList.Add(associateMethod);
                 }

@@ -163,10 +163,11 @@ void jitShutdown(bool processIsTerminating)
 
 #ifndef FEATURE_MERGE_JIT_AND_ENGINE
 
+extern "C"
 #ifdef FEATURE_PAL
-DLLEXPORT // For Win32 PAL LoadLibrary emulation
+    DLLEXPORT // For Win32 PAL LoadLibrary emulation
 #endif
-    extern "C" BOOL WINAPI
+    BOOL WINAPI
     DllMain(HANDLE hInstance, DWORD dwReason, LPVOID pvReserved)
 {
     if (dwReason == DLL_PROCESS_ATTACH)
@@ -230,7 +231,11 @@ DLLEXPORT ICorJitCompiler* __stdcall getJit()
 // If you are using it more broadly in retail code, you would need to understand the
 // performance implications of accessing TLS.
 
+#ifndef __GNUC__
 __declspec(thread) void* gJitTls = nullptr;
+#else  // !__GNUC__
+thread_local void* gJitTls = nullptr;
+#endif // !__GNUC__
 
 static void* GetJitTls()
 {
@@ -647,10 +652,7 @@ void Compiler::eeSetLVinfo(unsigned                          which,
                            UNATIVE_OFFSET                    startOffs,
                            UNATIVE_OFFSET                    length,
                            unsigned                          varNum,
-                           unsigned                          LVnum,
-                           VarName                           name,
-                           bool                              avail,
-                           const CodeGenInterface::siVarLoc* varLoc)
+                           const CodeGenInterface::siVarLoc& varLoc)
 {
     // ICorDebugInfo::VarLoc and CodeGenInterface::siVarLoc have to overlap
     // This is checked in siInit()
@@ -664,7 +666,7 @@ void Compiler::eeSetLVinfo(unsigned                          which,
         eeVars[which].startOffset = startOffs;
         eeVars[which].endOffset   = startOffs + length;
         eeVars[which].varNumber   = varNum;
-        eeVars[which].loc         = *varLoc;
+        eeVars[which].loc         = varLoc;
     }
 }
 
@@ -912,7 +914,7 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
 void Compiler::eeDispVars(CORINFO_METHOD_HANDLE ftn, ULONG32 cVars, ICorDebugInfo::NativeVarInfo* vars)
 {
     printf("*************** Variable debug info\n");
-    printf("%d vars\n", cVars);
+    printf("%d live ranges\n", cVars);
     for (unsigned i = 0; i < cVars; i++)
     {
         eeDispVar(&vars[i]);

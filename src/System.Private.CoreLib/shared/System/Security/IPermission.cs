@@ -11,8 +11,8 @@ namespace System.Security
     {
         IPermission Copy();
         void Demand();
-        IPermission Intersect(IPermission target);
-        bool IsSubsetOf(IPermission target);
-        IPermission Union(IPermission target);
+        IPermission? Intersect(IPermission? target);
+        bool IsSubsetOf(IPermission? target);
+        IPermission? Union(IPermission? target);
     }
 }

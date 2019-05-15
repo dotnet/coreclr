@@ -266,6 +266,11 @@ FCIMPL1(FC_BOOL_RET, MarshalNative::IsPinnable, Object* obj)
     if (obj->GetMethodTable() == g_pStringClass)
         FC_RETURN_BOOL(TRUE);
 
+#ifdef FEATURE_UTF8STRING
+    if (obj->GetMethodTable() == g_pUtf8StringClass)
+        FC_RETURN_BOOL(TRUE);
+#endif // FEATURE_UTF8STRING
+
     if (obj->GetMethodTable()->IsArray())
     {
         BASEARRAYREF asArray = (BASEARRAYREF)ObjectToOBJECTREF(obj);
@@ -526,6 +531,11 @@ void ValidatePinnedObject(OBJECTREF obj)
 
     if (obj->GetMethodTable() == g_pStringClass)
         return;
+
+#ifdef FEATURE_UTF8STRING
+    if (obj->GetMethodTable() == g_pUtf8StringClass)
+        return;
+#endif // FEATURE_UTF8STRING
 
     if (obj->GetMethodTable()->IsArray())
     {
@@ -1008,6 +1018,28 @@ FCIMPL1(Object*, MarshalNative::GetUniqueObjectForIUnknown, IUnknown* pUnk)
     EnsureComStarted();
 
     GetObjectRefFromComIP(&oref, pUnk, NULL, NULL, ObjFromComIP::UNIQUE_OBJECT);
+
+    HELPER_METHOD_FRAME_END();
+    return OBJECTREFToObject(oref);    
+}
+FCIMPLEND
+
+FCIMPL1(Object*, MarshalNative::GetUniqueObjectForIUnknownWithoutUnboxing, IUnknown* pUnk)
+{
+    FCALL_CONTRACT;
+
+    OBJECTREF oref = NULL;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(oref);
+
+    HRESULT hr = S_OK;
+
+    if(!pUnk)
+        COMPlusThrowArgumentNull(W("pUnk"));
+
+    // Ensure COM is started up.
+    EnsureComStarted();
+
+    GetObjectRefFromComIP(&oref, pUnk, NULL, NULL, ObjFromComIP::UNIQUE_OBJECT | ObjFromComIP::IGNORE_WINRT_AND_SKIP_UNBOXING);
 
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(oref);    

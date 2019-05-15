@@ -321,12 +321,10 @@ function LocateVisualStudio([object]$vsRequirements = $null){
 
 function InitializeBuildTool() {
   if (Test-Path variable:global:_BuildTool) {
-    Write-Host "variable:global:_BuildTool initialized." -ForegroundColor Red
     return $global:_BuildTool
   }
 
   if (-not $msbuildEngine) {
-    Write-Host "-not $msbuildEngine" -ForegroundColor Red
     $msbuildEngine = GetDefaultMSBuildEngine
   }
 
@@ -520,6 +518,10 @@ Create-Directory $TempDir
 Create-Directory $LogDir
 
 if ($ci) {
+  Write-Host "##vso[task.setvariable variable=Artifacts]$ArtifactsDir"
+  Write-Host "##vso[task.setvariable variable=Artifacts.Toolset]$ToolsetDir"
+  Write-Host "##vso[task.setvariable variable=Artifacts.Log]$LogDir"
+
   $env:TEMP = $TempDir
   $env:TMP = $TempDir
 }

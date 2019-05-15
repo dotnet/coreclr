@@ -16,6 +16,14 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT CMAKE_SYSTEM_NAME STREQUAL Free
   set(CMAKE_REQUIRED_DEFINITIONS "-D_BSD_SOURCE -D_SVID_SOURCE -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L")
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ANDROID)
+  set(CMAKE_RT_LIBS rt)
+elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD OR CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+  set(CMAKE_RT_LIBS rt)
+else()
+  set(CMAKE_RT_LIBS "")
+endif()
+
 list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_FILE_OFFSET_BITS=64)
 
 check_include_files(ieeefp.h HAVE_IEEEFP_H)
@@ -42,13 +50,31 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
   check_include_files("libintl.h" HAVE_LIBINTL_H)
 endif()
 
-if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
-  set(CMAKE_REQUIRED_FLAGS "-ldl")
-endif()
-check_include_files(lttng/tracepoint.h HAVE_LTTNG_TRACEPOINT_H)
-if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
-  unset(CMAKE_REQUIRED_FLAGS)
-endif()
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_DL_LIBS})
+
+check_cxx_source_compiles("
+#include <sys/mman.h>
+int main()
+{
+  return VM_FLAGS_SUPERPAGE_SIZE_ANY;
+}
+" HAVE_VM_FLAGS_SUPERPAGE_SIZE_ANY)
+
+check_cxx_source_compiles("
+#include <sys/mman.h>
+int main()
+{
+  return MAP_HUGETLB;
+}
+" HAVE_MAP_HUGETLB)
+
+check_cxx_source_compiles("
+#include <lttng/tracepoint.h>
+int main(int argc, char **argv) {
+  return 0;
+}" HAVE_LTTNG_TRACEPOINT_H)
+
+set(CMAKE_REQUIRED_LIBRARIES)
 
 check_include_files(sys/sysctl.h HAVE_SYS_SYSCTL_H)
 check_include_files(gnu/lib-names.h HAVE_GNU_LIBNAMES_H)
@@ -364,6 +390,8 @@ int main()
 
   exit(ret);
 }" HAVE_WORKING_GETTIMEOFDAY)
+
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_RT_LIBS})
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
@@ -377,6 +405,9 @@ int main()
 
   exit(ret);
 }" HAVE_WORKING_CLOCK_GETTIME)
+set(CMAKE_REQUIRED_LIBRARIES)
+
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_RT_LIBS})
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
@@ -390,9 +421,11 @@ int main()
 
   exit(ret);
 }" HAVE_CLOCK_MONOTONIC)
+set(CMAKE_REQUIRED_LIBRARIES)
 
 check_library_exists(${PTHREAD_LIBRARY} pthread_condattr_setclock "" HAVE_PTHREAD_CONDATTR_SETCLOCK)
 
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_RT_LIBS})
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
@@ -406,6 +439,8 @@ int main()
 
   exit(ret);
 }" HAVE_CLOCK_MONOTONIC_COARSE)
+set(CMAKE_REQUIRED_LIBRARIES)
+
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <mach/mach_time.h>
@@ -418,6 +453,8 @@ int main()
   mach_absolute_time();
   exit(ret);
 }" HAVE_MACH_ABSOLUTE_TIME)
+
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_RT_LIBS})
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
@@ -431,6 +468,8 @@ int main()
 
   exit(ret);
 }" HAVE_CLOCK_THREAD_CPUTIME)
+set(CMAKE_REQUIRED_LIBRARIES)
+
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <sys/types.h>

@@ -471,9 +471,6 @@ public:
     void    EmitObjectValidation(ILCodeStream* pcsEmit, DWORD dwStubFlags);
 #endif // VERIFY_HEAP
     void    EmitLoadStubContext(ILCodeStream* pcsEmit, DWORD dwStubFlags);
-#ifdef MDA_SUPPORTED
-    void    EmitCallGcCollectForMDA(ILCodeStream *pcsEmit, DWORD dwStubFlags);
-#endif // MDA_SUPPORTED    
     void    GenerateInteropParamException(ILCodeStream* pcsEmit);
     void    NeedsCleanupList();
 
@@ -494,6 +491,10 @@ public:
 
     void    SetInteropParamExceptionInfo(UINT resID, UINT paramIdx);
     bool    HasInteropParamExceptionInfo();
+    bool    TargetHasThis()
+    {
+        return m_targetHasThis == TRUE;
+    }
 
     void ClearCode();
 
@@ -556,6 +557,7 @@ protected:
     BOOL                m_fHasCleanupCode;
     BOOL                m_fHasExceptionCleanupCode;
     BOOL                m_fCleanupWorkListIsSetup;
+    BOOL                m_targetHasThis;
     DWORD               m_dwThreadLocalNum;                 // managed-to-native only
     DWORD               m_dwArgMarshalIndexLocalNum;
     DWORD               m_dwCleanupWorkListLocalNum;

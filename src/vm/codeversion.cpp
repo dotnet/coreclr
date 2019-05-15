@@ -47,7 +47,7 @@ bool NativeCodeVersion::operator!=(const NativeCodeVersion & rhs) const { return
 // it is a bug. Corerror.xml has a comment in it reserving this value for our use but it doesn't
 // appear in the public headers.
 
-#define CORPROF_E_RUNTIME_SUSPEND_REQUIRED 0x80131381
+#define CORPROF_E_RUNTIME_SUSPEND_REQUIRED _HRESULT_TYPEDEF_(0x80131381L)
 
 #ifndef DACCESS_COMPILE
 NativeCodeVersionNode::NativeCodeVersionNode(
@@ -580,7 +580,14 @@ ReJITID ILCodeVersionNode::GetVersionId() const
 ILCodeVersion::RejitFlags ILCodeVersionNode::GetRejitState() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    return m_rejitState.Load();
+    return static_cast<ILCodeVersion::RejitFlags>(m_rejitState.Load() & ILCodeVersion::kStateMask);
+}
+
+BOOL ILCodeVersionNode::GetEnableReJITCallback() const
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    return (m_rejitState.Load() & ILCodeVersion::kSuppressParams) == ILCodeVersion::kSuppressParams;
 }
 
 PTR_COR_ILMETHOD ILCodeVersionNode::GetIL() const
@@ -613,7 +620,29 @@ PTR_ILCodeVersionNode ILCodeVersionNode::GetNextILVersionNode() const
 void ILCodeVersionNode::SetRejitState(ILCodeVersion::RejitFlags newState)
 {
     LIMITED_METHOD_CONTRACT;
-    m_rejitState.Store(newState);
+    // We're doing a non thread safe modification to m_rejitState
+    _ASSERTE(LockOwnedByCurrentThread());
+
+    ILCodeVersion::RejitFlags oldNonMaskFlags = 
+        static_cast<ILCodeVersion::RejitFlags>(m_rejitState.Load() & ~ILCodeVersion::kStateMask);
+    m_rejitState.Store(static_cast<ILCodeVersion::RejitFlags>(newState | oldNonMaskFlags));
+}
+
+void ILCodeVersionNode::SetEnableReJITCallback(BOOL state)
+{
+    LIMITED_METHOD_CONTRACT;
+    // We're doing a non thread safe modification to m_rejitState
+    _ASSERTE(LockOwnedByCurrentThread());
+
+    ILCodeVersion::RejitFlags oldFlags = m_rejitState.Load();
+    if (state)
+    {
+        m_rejitState.Store(static_cast<ILCodeVersion::RejitFlags>(oldFlags | ILCodeVersion::kSuppressParams));
+    }
+    else
+    {
+        m_rejitState.Store(static_cast<ILCodeVersion::RejitFlags>(oldFlags & ~ILCodeVersion::kSuppressParams));
+    }
 }
 
 void ILCodeVersionNode::SetIL(COR_ILMETHOD* pIL)
@@ -784,6 +813,19 @@ ILCodeVersion::RejitFlags ILCodeVersion::GetRejitState() const
     }
 }
 
+BOOL ILCodeVersion::GetEnableReJITCallback() const
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+    if (m_storageKind == StorageKind::Explicit)
+    {
+        return AsNode()->GetEnableReJITCallback();
+    }
+    else
+    {
+        return FALSE;
+    }
+}
+
 PTR_COR_ILMETHOD ILCodeVersion::GetIL() const
 {
     CONTRACTL
@@ -876,6 +918,12 @@ void ILCodeVersion::SetRejitState(RejitFlags newState)
 {
     LIMITED_METHOD_CONTRACT;
     AsNode()->SetRejitState(newState);
+}
+
+void ILCodeVersion::SetEnableReJITCallback(BOOL state)
+{
+    LIMITED_METHOD_CONTRACT;
+    return AsNode()->SetEnableReJITCallback(state);
 }
 
 void ILCodeVersion::SetIL(COR_ILMETHOD* pIL)
@@ -1308,7 +1356,7 @@ HRESULT MethodDescVersioningState::JumpStampNativeCode(PCODE pCode /* = NULL */)
     // revert.
     if (GetJumpStampState() == JumpStampNone)
     {
-        for (int i = 0; i < sizeof(m_rgSavedCode); i++)
+        for (unsigned int i = 0; i < sizeof(m_rgSavedCode); i++)
         {
             m_rgSavedCode[i] = *FirstCodeByteAddr(pbCode + i, DebuggerController::GetPatchTable()->GetPatch((CORDB_ADDRESS_TYPE *)(pbCode + i)));
         }
@@ -1413,7 +1461,7 @@ HRESULT MethodDescVersioningState::UpdateJumpTarget(BOOL fEESuspended, PCODE pRe
     // revert.
     if (GetJumpStampState() == JumpStampNone)
     {
-        for (int i = 0; i < sizeof(m_rgSavedCode); i++)
+        for (unsigned int i = 0; i < sizeof(m_rgSavedCode); i++)
         {
             m_rgSavedCode[i] = *FirstCodeByteAddr(pbCode + i, DebuggerController::GetPatchTable()->GetPatch((CORDB_ADDRESS_TYPE *)(pbCode + i)));
         }
@@ -1640,7 +1688,7 @@ HRESULT MethodDescVersioningState::UpdateJumpStampHelper(BYTE* pbCode, INT64 i64
 
         // PERF: we might still want a faster path through here if we aren't debugging that doesn't do
         // all the patch checks
-        for (int i = 0; i < MethodDescVersioningState::JumpStubSize; i++)
+        for (unsigned int i = 0; i < MethodDescVersioningState::JumpStubSize; i++)
         {
             *FirstCodeByteAddr(pbCode + i, DebuggerController::GetPatchTable()->GetPatch(pbCode + i)) = ((BYTE*)&i64NewValue)[i];
         }
@@ -2589,7 +2637,7 @@ void CodeVersionManager::OnAppDomainExit(AppDomain * pAppDomain)
     LIMITED_METHOD_CONTRACT;
     // This would clean up all the allocations we have done and synchronize with any threads that might
     // still be using the data
-    _ASSERTE(!".Net Core shouldn't be doing app domain shutdown - if we start doing so this needs to be implemented");
+    _ASSERTE(!".NET Core shouldn't be doing app domain shutdown - if we start doing so this needs to be implemented");
 }
 #endif
 

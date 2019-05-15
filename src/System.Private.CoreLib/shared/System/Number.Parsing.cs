@@ -274,7 +274,7 @@ namespace System
 
             string decSep;                  // decimal separator from NumberFormatInfo.
             string groupSep;                // group separator from NumberFormatInfo.
-            string currSymbol = null;       // currency symbol from NumberFormatInfo.
+            string? currSymbol = null;       // currency symbol from NumberFormatInfo.
 
             bool parsingCurrency = false;
             if ((styles & NumberStyles.AllowCurrencySymbol) != 0)
@@ -529,7 +529,7 @@ namespace System
             int index = 0;
             int num = value[0];
 
-            // Skip past any whitespace at the beginning.  
+            // Skip past any whitespace at the beginning.
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
                 do
@@ -700,7 +700,7 @@ namespace System
             int index = 0;
             int num = value[0];
 
-            // Skip past any whitespace at the beginning.  
+            // Skip past any whitespace at the beginning.
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
                 do
@@ -944,7 +944,7 @@ namespace System
             int index = 0;
             int num = value[0];
 
-            // Skip past any whitespace at the beginning.  
+            // Skip past any whitespace at the beginning.
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
                 do
@@ -1116,7 +1116,7 @@ namespace System
             int num = value[0];
             uint numValue;
 
-            // Skip past any whitespace at the beginning.  
+            // Skip past any whitespace at the beginning.
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
                 do
@@ -1272,7 +1272,7 @@ namespace System
             int index = 0;
             int num = value[0];
 
-            // Skip past any whitespace at the beginning.  
+            // Skip past any whitespace at the beginning.
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
                 do
@@ -1444,7 +1444,7 @@ namespace System
             int num = value[0];
             uint numValue;
 
-            // Skip past any whitespace at the beginning.  
+            // Skip past any whitespace at the beginning.
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
                 do
@@ -1975,13 +1975,13 @@ namespace System
             number.CheckConsistency();
             double result;
 
-            if (number.Scale > DoubleMaxExponent)
-            {
-                result = double.PositiveInfinity;
-            }
-            else if (number.Scale < DoubleMinExponent)
+            if ((number.DigitsCount == 0) || (number.Scale < DoubleMinExponent))
             {
                 result = 0;
+            }
+            else if (number.Scale > DoubleMaxExponent)
+            {
+                result = double.PositiveInfinity;
             }
             else
             {
@@ -1997,13 +1997,13 @@ namespace System
             number.CheckConsistency();
             float result;
 
-            if (number.Scale > SingleMaxExponent)
-            {
-                result = float.PositiveInfinity;
-            }
-            else if (number.Scale < SingleMinExponent)
+            if ((number.DigitsCount == 0) || (number.Scale < SingleMinExponent))
             {
                 result = 0;
+            }
+            else if (number.Scale > SingleMaxExponent)
+            {
+                result = float.PositiveInfinity;
             }
             else
             {

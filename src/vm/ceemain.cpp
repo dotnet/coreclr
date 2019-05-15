@@ -161,7 +161,6 @@
 #include "syncclean.hpp"
 #include "typeparse.h"
 #include "debuginfostore.h"
-#include "mdaassistants.h"
 #include "eemessagebox.h"
 #include "finalizerthread.h"
 #include "threadsuspend.h"
@@ -215,6 +214,7 @@
 #include "perfmap.h"
 #endif
 
+#include "diagnosticserver.h"
 #include "eventpipe.h"
 
 #ifndef FEATURE_PAL
@@ -255,12 +255,6 @@ HRESULT g_EEStartupStatus = S_OK;
 // the EE is fully able to execute arbitrary managed code.  To ensure the EE is fully started, call EnsureEEStarted rather than just
 // checking this flag.
 Volatile<BOOL> g_fEEStarted = FALSE;
-
-// Flag indicating if the EE should be suspended on shutdown.
-BOOL    g_fSuspendOnShutdown = FALSE;
-
-// Flag indicating if the finalizer thread should be suspended on shutdown.
-BOOL    g_fSuspendFinalizerOnShutdown = FALSE;
 
 // Flag indicating if the EE was started up by COM.
 extern BOOL g_fEEComActivatedStartup;
@@ -463,7 +457,7 @@ void InitializeStartupFlags()
         g_IGCconcurrent = 0;
 
 
-    g_heap_type = (flags & STARTUP_SERVER_GC) == 0 ? GC_HEAP_WKS : GC_HEAP_SVR;
+    g_heap_type = ((flags & STARTUP_SERVER_GC) && GetCurrentProcessCpuCount() > 1) ? GC_HEAP_SVR : GC_HEAP_WKS;
     g_IGCHoardVM = (flags & STARTUP_HOARD_GC_VM) == 0 ? 0 : 1;
 }
 #endif // CROSSGEN_COMPILE
@@ -653,8 +647,9 @@ void EEStartupHelper(COINITIEE fFlags)
         // Need to do this as early as possible. Used by creating object handle
         // table inside Ref_Initialization() before GC is initialized.
         NumaNodeInfo::InitNumaNodeInfo();
+#ifndef FEATURE_PAL
         CPUGroupInfo::EnsureInitialized();
-
+#endif // !FEATURE_PAL
 
         // Initialize global configuration settings based on startup flags
         // This needs to be done before the EE has started
@@ -773,8 +768,9 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-
-#ifdef FEATURE_PREJIT
+        // Cross-process named objects are not supported in PAL
+        // (see CorUnix::InternalCreateEvent - src/pal/src/synchobj/event.cpp.272)
+#if defined(FEATURE_PREJIT) && !defined(FEATURE_PAL)
         // Initialize the sweeper thread.
         if (g_pConfig->GetZapBBInstr() != NULL)
         {
@@ -788,7 +784,7 @@ void EEStartupHelper(COINITIEE fFlags)
             _ASSERTE(hBBSweepThread);
             g_BBSweep.SetBBSweepThreadHandle(hBBSweepThread);
         }
-#endif // FEATURE_PREJIT
+#endif // FEATURE_PREJIT && FEATURE_PAL
 
 #ifdef FEATURE_INTERPRETER
         Interpreter::Initialize();
@@ -874,10 +870,6 @@ void EEStartupHelper(COINITIEE fFlags)
             InitializeDebugger(); // throws on error
         }
 #endif // DEBUGGING_SUPPORTED
-
-#ifdef MDA_SUPPORTED
-        ManagedDebuggingAssistants::EEStartupActivation();
-#endif
 
 #ifdef PROFILING_SUPPORTED
         // Initialize the profiling services.
@@ -1001,6 +993,11 @@ void EEStartupHelper(COINITIEE fFlags)
 #endif // CROSSGEN_COMPILE
 
         g_fEEStarted = TRUE;
+#ifndef CROSSGEN_COMPILE
+#ifdef FEATURE_PERFTRACING
+        DiagnosticServer::Initialize();
+#endif
+#endif
         g_EEStartupStatus = S_OK;
         hr = S_OK;
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "===================EEStartup Completed===================");
@@ -1259,11 +1256,6 @@ static void ExternalShutdownHelper(int exitCode, ShutdownCompleteAction sca)
     if (g_fEEShutDown || !g_fEEStarted)
         return;
 
-    if (HasIllegalReentrancy())
-    {
-        return;
-    }
-    else
     if (!CanRunManagedCode())
     {
         return;
@@ -1454,7 +1446,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     // Used later for a callback.
     CEEInfo ceeInf;
 
-    if(fIsDllUnloading)
+    if (fIsDllUnloading)
     {
         ETW::EnumerationLog::ProcessShutdown();
     }
@@ -1462,6 +1454,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 #ifdef FEATURE_PERFTRACING
     // Shutdown the event pipe.
     EventPipe::Shutdown();
+    DiagnosticServer::Shutdown();
 #endif // FEATURE_PERFTRACING
 
 #if defined(FEATURE_COMINTEROP)
@@ -1509,8 +1502,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         g_pDebugInterface->EarlyHelperThreadDeath();
 #endif // DEBUGGING_SUPPORTED
 
-    BOOL fFinalizeOK = FALSE;
-
     EX_TRY
     {
         ClrFlsSetThreadType(ThreadType_Shutdown);
@@ -1524,20 +1515,17 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         // Indicate the EE is the shut down phase.
         g_fEEShutDown |= ShutDown_Start;
 
-        fFinalizeOK = TRUE;
-
         // Terminate the BBSweep thread
         g_BBSweep.ShutdownBBSweepThread();
 
-        // We perform the final GC only if the user has requested it through the GC class.
-        // We should never do the final GC for a process detach
         if (!g_fProcessDetach && !g_fFastExitProcess)
         {
             g_fEEShutDown |= ShutDown_Finalize1;
-            FinalizerThread::EnableFinalization();
-            fFinalizeOK = FinalizerThread::FinalizerThreadWatchDog();
-        }
 
+            // Wait for the finalizer thread to deliver process exit event
+            GCX_PREEMP();
+            FinalizerThread::RaiseShutdownEvents();
+        }
 
         // Ok.  Let's stop the EE.
         if (!g_fProcessDetach)
@@ -1562,21 +1550,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 
             // This call will convert the ThreadStoreLock into "shutdown" mode, just like the debugger lock above.
             g_fEEShutDown |= ShutDown_Finalize2;
-            if (fFinalizeOK)
-            {
-                fFinalizeOK = FinalizerThread::FinalizerThreadWatchDog();
-            }
-
-            if (!fFinalizeOK)
-            {
-                // One of the calls to FinalizerThreadWatchDog failed due to timeout, so we need to prevent
-                // any thread from running managed code, including the finalizer.
-                ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_SHUTDOWN);
-                g_fSuspendOnShutdown = TRUE;
-                g_fSuspendFinalizerOnShutdown = TRUE;
-                ThreadStore::TrapReturningThreads(TRUE);
-                ThreadSuspend::RestartEE(FALSE, TRUE);
-            }
         }
 
 #ifdef FEATURE_EVENT_TRACE
@@ -1627,18 +1600,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         Interpreter::PrintPostMortemData();
 #endif // FEATURE_INTERPRETER
         
-        FastInterlockExchange((LONG*)&g_fForbidEnterEE, TRUE);
-
-        if (g_fProcessDetach)
-        {
-            ThreadStore::TrapReturningThreads(TRUE);
-        }
-
-        if (!g_fProcessDetach && !fFinalizeOK)
-        {
-            goto lDone;
-        }
-
 #ifdef PROFILING_SUPPORTED
         // If profiling is enabled, then notify of shutdown first so that the
         // profiler can make any last calls it needs to.  Do this only if we
@@ -1757,26 +1718,12 @@ part2:
                 Interpreter::Terminate();
 #endif // FEATURE_INTERPRETER
 
-#ifdef SHOULD_WE_CLEANUP
-                if (!g_fFastExitProcess)
-                {
-                    GCHandleUtilities::GetGCHandleManager()->Shutdown();
-                }
-#endif /* SHOULD_WE_CLEANUP */
-
                 //@TODO: find the right place for this
                 VirtualCallStubManager::UninitStatic();
 
 #ifdef ENABLE_PERF_LOG
                 PerfLog::PerfLogDone();
 #endif //ENABLE_PERF_LOG
-
-                Frame::Term();
-
-                if (!g_fFastExitProcess)
-                {
-                    SystemDomain::DetachEnd();
-                }
 
                 // Unregister our vectored exception and continue handlers from the OS.
                 // This will ensure that if any other DLL unload (after ours) has an exception,
@@ -1817,9 +1764,6 @@ part2:
                 if (!g_fFastExitProcess)
                     StressLog::Terminate(TRUE);
 #endif
-
-                if (g_pConfig != NULL)
-                    g_pConfig->Cleanup();
 
 #ifdef LOGGING
                 ShutdownLogging();
@@ -1906,46 +1850,6 @@ BOOL IsThreadInSTA()
 }
 #endif
 
-static LONG s_ActiveShutdownThreadCount = 0;
-
-// ---------------------------------------------------------------------------
-// Function: EEShutDownProcForSTAThread(LPVOID lpParameter)
-//
-// Parameters:
-//    LPVOID lpParameter: unused
-//
-// Description:
-//    When EEShutDown decides that the shut down logic must occur on another thread,
-//    EEShutDown creates a new thread, and this function acts as the thread proc. See
-//    code:#STAShutDown for details.
-// 
-DWORD WINAPI EEShutDownProcForSTAThread(LPVOID lpParameter)
-{
-    ClrFlsSetThreadType(ThreadType_ShutdownHelper);
-
-    EEShutDownHelper(FALSE);
-    for (int i = 0; i < 10; i ++)
-    {
-        if (s_ActiveShutdownThreadCount)
-        {
-            return 0;
-        }
-        __SwitchToThread(20, CALLER_LIMITS_SPINNING);
-    }
-
-    EPolicyAction action = GetEEPolicy()->GetDefaultAction(OPR_ProcessExit, NULL);
-    if (action < eRudeExitProcess)
-    {
-        action = eRudeExitProcess;
-    }
-
-    UINT exitCode = GetLatchedExitCode();
-    EEPolicy::HandleExitProcessFromEscalation(action, exitCode);
-
-    return 0;
-}
-
-// ---------------------------------------------------------------------------
 // #EEShutDown
 // 
 // Function: EEShutDown(BOOL fIsDllUnloading)
@@ -2023,60 +1927,14 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
 #endif
     }
 
-#ifdef FEATURE_COMINTEROP
-    if (!fIsDllUnloading && CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_FinalizeOnShutdown) && IsThreadInSTA())
-    {
-        // #STAShutDown
-        // 
-        // During shutdown, we may need to release STA interface on the shutdown thread.
-        // It is possible that the shutdown thread may deadlock. During shutdown, all
-        // threads are blocked, except the shutdown thread and finalizer thread. If a
-        // lock is held by one of these suspended threads, it can deadlock the process if
-        // the shutdown thread tries to enter the lock. To mitigate this risk, create
-        // another thread (B) to do shutdown activities (i.e., EEShutDownHelper), while
-        // this thread (A) waits. If B deadlocks, A will time out and immediately return
-        // from EEShutDown. A will then eventually call the OS's ExitProcess, which will
-        // kill the deadlocked thread (and all other threads).
-        // 
-        // Many Windows Forms-based apps will also execute the code below to shift shut
-        // down logic to a separate thread, even if they don't use COM objects. Reason
-        // being that they will typically use a main UI thread to pump all Windows
-        // messages (including messages that facilitate cross-thread COM calls to STA COM
-        // objects), and will set that thread up as an STA thread just in case there are
-        // such cross-thread COM calls to contend with. In fact, when you use VS's
-        // File.New.Project to make a new Windows Forms project, VS will mark Main() with
-        // [STAThread]
-        DWORD thread_id = 0;
-        if (CreateThread(NULL,0,EEShutDownProcForSTAThread,NULL,0,&thread_id))
-        {
-            GCX_PREEMP_NO_DTOR();
-
-            ClrFlsSetThreadType(ThreadType_Shutdown);
-            WaitForEndOfShutdown();
-            FastInterlockIncrement(&s_ActiveShutdownThreadCount);
-            ClrFlsClearThreadType(ThreadType_Shutdown);
-        }
-    }
-    else
-        // Otherwise, this thread calls EEShutDownHelper directly.  First switch to
-        // cooperative mode if this is a managed thread
-#endif
     if (GetThread())
     {
         GCX_COOP();
         EEShutDownHelper(fIsDllUnloading);
-        if (!fIsDllUnloading)
-        {
-            FastInterlockIncrement(&s_ActiveShutdownThreadCount);
-        }
     }
     else
     {
         EEShutDownHelper(fIsDllUnloading);
-        if (!fIsDllUnloading)
-        {
-            FastInterlockIncrement(&s_ActiveShutdownThreadCount);
-        }
     }
 }
 
@@ -2126,7 +1984,7 @@ NOINLINE BOOL CanRunManagedCodeRare(LoaderLockCheck::kind checkKind, HINSTANCE h
 {
     CONTRACTL {
         NOTHROW;
-        if (checkKind == LoaderLockCheck::ForMDA) { GC_TRIGGERS; } else { GC_NOTRIGGER; }; // because of the CustomerDebugProbe
+        GC_NOTRIGGER;
         MODE_ANY;
     } CONTRACTL_END;
 
@@ -2144,39 +2002,6 @@ NOINLINE BOOL CanRunManagedCodeRare(LoaderLockCheck::kind checkKind, HINSTANCE h
     if ((g_fEEShutDown & ShutDown_Finalize2) && !FinalizerThread::IsCurrentThreadFinalizer())
         return FALSE;
 
-#if defined(FEATURE_COMINTEROP) && defined(MDA_SUPPORTED)
-    if ((checkKind == LoaderLockCheck::ForMDA) && (NULL == MDA_GET_ASSISTANT(LoaderLock))) 
-        return TRUE;
-
-    if (checkKind == LoaderLockCheck::None)
-        return TRUE;
-
-    // If we are checking whether the OS loader lock is held by the current thread, then
-    // it better not be.  Note that ShouldCheckLoaderLock is a cached test for whether
-    // we are checking this probe.  So we can call AuxUlibIsDLLSynchronizationHeld before
-    // verifying that the probe is still enabled.
-    //
-    // What's the difference between ignoreLoaderLock & ShouldCheckLoaderLock?
-    // ShouldCheckLoaderLock is a process-wide flag.  In a few places where we
-    // *know* we are in the loader lock but haven't quite reached the dangerous
-    // point, we call CanRunManagedCode suppressing/deferring this check.
-    BOOL IsHeld;
-
-    if (ShouldCheckLoaderLock(FALSE) &&
-        AuxUlibIsDLLSynchronizationHeld(&IsHeld) &&
-        IsHeld)
-    {
-        if (checkKind == LoaderLockCheck::ForMDA)
-        {
-            MDA_TRIGGER_ASSISTANT(LoaderLock, ReportViolation(hInst));
-        }
-        else
-        {
-            return FALSE;
-        }
-    }
-#endif // defined(FEATURE_COMINTEROP) && defined(MDA_SUPPORTED)
-
     return TRUE;
 }
 
@@ -2185,7 +2010,7 @@ BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst /*= 0*/)
 {
     CONTRACTL {
         NOTHROW;
-        if (checkKind == LoaderLockCheck::ForMDA) { GC_TRIGGERS; } else { GC_NOTRIGGER; }; // because of the CustomerDebugProbe
+        GC_NOTRIGGER;
         MODE_ANY;
     } CONTRACTL_END;
 
@@ -2194,11 +2019,7 @@ BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst /*= 0*/)
     if (!g_fForbidEnterEE 
         && (g_pPreallocatedOutOfMemoryException != NULL)
         && !(g_fEEShutDown & ShutDown_Finalize2)
-        && (((checkKind == LoaderLockCheck::ForMDA) 
-#ifdef MDA_SUPPORTED
-             && (NULL == MDA_GET_ASSISTANT(LoaderLock))
-#endif // MDA_SUPPORTED
-            ) || (checkKind == LoaderLockCheck::None)))
+        && ((checkKind == LoaderLockCheck::None)))
     {
         return TRUE;
     }
@@ -2402,11 +2223,7 @@ BOOL STDMETHODCALLTYPE EEDllMain( // TRUE on success, FALSE on error.
 
                 if (g_fEEStarted)
                 {
-                    // GetThread() may be set to NULL for Win9x during shutdown.
-                    Thread *pThread = GetThread();
-                    if (GCHeapUtilities::IsGCInProgress() &&
-                        ( (pThread && (pThread != ThreadSuspend::GetSuspensionThread() ))
-                            || !g_fSuspendOnShutdown))
+                    if (GCHeapUtilities::IsGCInProgress())
                     {
                         g_fEEShutDown |= ShutDown_Phase2;
                         break;
@@ -2745,7 +2562,6 @@ INT32 GetLatchedExitCode (void)
     return LatchedExitCode;
 }
 
-    
 // ---------------------------------------------------------------------------
 // Impl for UtilLoadStringRC Callback: In VM, we let the thread decide culture
 // Return an int uniquely describing which language this thread is using for ui.

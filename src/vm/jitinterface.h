@@ -83,11 +83,9 @@ void getMethodInfoILMethodHeaderHelper(
     );
 
 
-#ifdef FEATURE_PREJIT
 BOOL LoadDynamicInfoEntry(Module *currentModule,
                           RVA fixupRva,
                           SIZE_T *entry);
-#endif // FEATURE_PREJIT
 
 //
 // The legacy x86 monitor helpers do not need a state argument
@@ -167,26 +165,26 @@ EXTERN_C FCDECL_MONHELPER(JIT_MonExitStatic_Portable, AwareLock *lock);
 #ifndef JIT_GetSharedGCStaticBase
 #define JIT_GetSharedGCStaticBase JIT_GetSharedGCStaticBase_Portable
 #endif
-EXTERN_C FCDECL2(void*, JIT_GetSharedGCStaticBase, SIZE_T moduleDomainID, DWORD dwModuleClassID);
-EXTERN_C FCDECL2(void*, JIT_GetSharedGCStaticBase_Portable, SIZE_T moduleDomainID, DWORD dwModuleClassID);
+EXTERN_C FCDECL2(void*, JIT_GetSharedGCStaticBase, DomainLocalModule *pLocalModule, DWORD dwModuleClassID);
+EXTERN_C FCDECL2(void*, JIT_GetSharedGCStaticBase_Portable, DomainLocalModule *pLocalModule, DWORD dwModuleClassID);
 
 #ifndef JIT_GetSharedNonGCStaticBase
 #define JIT_GetSharedNonGCStaticBase JIT_GetSharedNonGCStaticBase_Portable
 #endif
-EXTERN_C FCDECL2(void*, JIT_GetSharedNonGCStaticBase, SIZE_T moduleDomainID, DWORD dwModuleClassID);
-EXTERN_C FCDECL2(void*, JIT_GetSharedNonGCStaticBase_Portable, SIZE_T moduleDomainID, DWORD dwModuleClassID);
+EXTERN_C FCDECL2(void*, JIT_GetSharedNonGCStaticBase, DomainLocalModule *pLocalModule, DWORD dwModuleClassID);
+EXTERN_C FCDECL2(void*, JIT_GetSharedNonGCStaticBase_Portable, DomainLocalModule *pLocalModule, DWORD dwModuleClassID);
 
 #ifndef JIT_GetSharedGCStaticBaseNoCtor
 #define JIT_GetSharedGCStaticBaseNoCtor JIT_GetSharedGCStaticBaseNoCtor_Portable
 #endif
-EXTERN_C FCDECL1(void*, JIT_GetSharedGCStaticBaseNoCtor, SIZE_T moduleDomainID);
-EXTERN_C FCDECL1(void*, JIT_GetSharedGCStaticBaseNoCtor_Portable, SIZE_T moduleDomainID);
+EXTERN_C FCDECL1(void*, JIT_GetSharedGCStaticBaseNoCtor, DomainLocalModule *pLocalModule);
+EXTERN_C FCDECL1(void*, JIT_GetSharedGCStaticBaseNoCtor_Portable, DomainLocalModule *pLocalModule);
 
 #ifndef JIT_GetSharedNonGCStaticBaseNoCtor
 #define JIT_GetSharedNonGCStaticBaseNoCtor JIT_GetSharedNonGCStaticBaseNoCtor_Portable
 #endif
-EXTERN_C FCDECL1(void*, JIT_GetSharedNonGCStaticBaseNoCtor, SIZE_T moduleDomainID);
-EXTERN_C FCDECL1(void*, JIT_GetSharedNonGCStaticBaseNoCtor_Portable, SIZE_T moduleDomainID);
+EXTERN_C FCDECL1(void*, JIT_GetSharedNonGCStaticBaseNoCtor, DomainLocalModule *pLocalModule);
+EXTERN_C FCDECL1(void*, JIT_GetSharedNonGCStaticBaseNoCtor_Portable, DomainLocalModule *pLocalModule);
 
 #ifndef JIT_ChkCastClass
 #define JIT_ChkCastClass JIT_ChkCastClass_Portable
@@ -230,6 +228,11 @@ EXTERN_C FCDECL1(Object*, JIT_NewCrossContext_Portable, CORINFO_CLASS_HANDLE typ
 extern FCDECL1(StringObject*, AllocateString_MP_FastPortable, DWORD stringLength);
 extern FCDECL1(StringObject*, UnframedAllocateString, DWORD stringLength);
 extern FCDECL1(StringObject*, FramedAllocateString, DWORD stringLength);
+
+#ifdef FEATURE_UTF8STRING
+extern FCDECL1(Utf8StringObject*, AllocateUtf8String_MP_FastPortable, DWORD stringLength);
+extern FCDECL1(Utf8StringObject*, FramedAllocateUtf8String, DWORD stringLength);
+#endif // FEATURE_UTF8STRING
 
 extern FCDECL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 extern FCDECL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
@@ -1085,16 +1088,16 @@ public:
     void logSQMLongJitEvent(unsigned mcycles, unsigned msec, unsigned ilSize, unsigned numBasicBlocks, bool minOpts, 
                             CORINFO_METHOD_HANDLE methodHnd);
 
-    HRESULT allocBBProfileBuffer (
-            ULONG                 count,           // The number of basic blocks that we have
-            ProfileBuffer **      profileBuffer
+    HRESULT allocMethodBlockCounts (
+            UINT32                count,           // the count of <ILOffset, ExecutionCount> tuples
+            BlockCounts **        pBlockCounts     // pointer to array of <ILOffset, ExecutionCount> tuples
             );
 
-    HRESULT getBBProfileData(
+    HRESULT getMethodBlockCounts(
             CORINFO_METHOD_HANDLE ftnHnd,
-            ULONG *               count,           // The number of basic blocks that we have
-            ProfileBuffer **      profileBuffer,
-            ULONG *               numRuns
+            UINT32 *              pCount,          // pointer to the count of <ILOffset, ExecutionCount> tuples
+            BlockCounts **        pBlockCounts,    // pointer to array of <ILOffset, ExecutionCount> tuples
+            UINT32 *              pNumRuns
             );
 
     void recordCallSite(
@@ -1292,16 +1295,16 @@ public:
             );
 
 
-    HRESULT allocBBProfileBuffer (
-        ULONG                         count,            // The number of basic blocks that we have
-        ICorJitInfo::ProfileBuffer ** profileBuffer
+    HRESULT allocMethodBlockCounts (
+        UINT32                        count,         // the count of <ILOffset, ExecutionCount> tuples
+        ICorJitInfo::BlockCounts **   pBlockCounts   // pointer to array of <ILOffset, ExecutionCount> tuples
     );
 
-    HRESULT getBBProfileData (
+    HRESULT getMethodBlockCounts(
         CORINFO_METHOD_HANDLE         ftnHnd,
-        ULONG *                       count,            // The number of basic blocks that we have
-        ICorJitInfo::ProfileBuffer ** profileBuffer,
-        ULONG *                       numRuns
+        UINT32 *                      pCount,        // pointer to the count of <ILOffset, ExecutionCount> tuples
+        BlockCounts **                pBlockCounts,  // pointer to array of <ILOffset, ExecutionCount> tuples
+        UINT32 *                      pNumRuns
     );
 
     void recordCallSite(

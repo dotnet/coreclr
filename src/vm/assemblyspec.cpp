@@ -22,7 +22,6 @@
 #include "eeconfig.h"
 #include "strongname.h"
 #include "strongnameholders.h"
-#include "mdaassistants.h"
 #include "eventtrace.h"
 
 #ifdef FEATURE_COMINTEROP
@@ -434,13 +433,6 @@ HRESULT AssemblySpec::InitializeSpec(StackingAllocator* alloc, ASSEMBLYNAMEREF* 
 
     CloneFieldsToStackingAllocator(alloc);
 
-    // Hash for control 
-    // <TODO>@TODO cts, can we use unsafe in this case!!!</TODO>
-    if ((*pName)->GetHashForControl() != NULL)
-        SetHashForControl((*pName)->GetHashForControl()->GetDataPtr(), 
-                          (*pName)->GetHashForControl()->GetNumComponents(), 
-                          (*pName)->GetHashAlgorithmForControl());
-
     // Extract embedded WinRT name, if present.
     ParseEncodedName();
 
@@ -587,7 +579,7 @@ void AssemblySpec::AssemblyNameInit(ASSEMBLYNAMEREF* pAsmName, PEImage* pImageIn
         IfFailThrow(pImageInfo->GetMDImport()->GetAssemblyProps(TokenFromRid(1, mdtAssembly), NULL, NULL, &hashAlgId, NULL, NULL, NULL));
     }
 
-    MethodDescCallSite init(METHOD__ASSEMBLY_NAME__INIT);
+    MethodDescCallSite init(METHOD__ASSEMBLY_NAME__CTOR);
     
     ARG_SLOT MethodArgs[] =
     {
@@ -870,8 +862,18 @@ ICLRPrivBinder* AssemblySpec::GetBindingContextFromParentAssembly(AppDomain *pDo
             // types being referenced from Windows.Foundation.Winmd).
             //
             // If the AssemblySpec does not correspond to WinRT type but our parent assembly binder is a WinRT binder,
-            // then such an assembly will not be found by the binder. In such a case, we reset our binder reference.
+            // then such an assembly will not be found by the binder.
+            // In such a case, the parent binder should be the fallback binder for the WinRT assembly if one exists.
+            ICLRPrivBinder* pParentWinRTBinder = pParentAssemblyBinder;
             pParentAssemblyBinder = NULL;
+            ReleaseHolder<ICLRPrivAssemblyID_WinRT> assembly;
+            if (SUCCEEDED(pParentWinRTBinder->QueryInterface<ICLRPrivAssemblyID_WinRT>(&assembly)))
+            {
+                pParentAssemblyBinder = dac_cast<PTR_CLRPrivAssemblyWinRT>(assembly.GetValue())->GetFallbackBinder();
+
+                // The fallback binder should not be a WinRT binder.
+                _ASSERTE(!AreSameBinderInstance(pWinRTBinder, pParentAssemblyBinder));
+            }
         }
     }
 #endif // defined(FEATURE_COMINTEROP)

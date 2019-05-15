@@ -26,7 +26,6 @@
 #include "clsload.hpp"
 #include "cgensys.h"
 #include "virtualcallstub.h"
-#include "mdaassistants.h"
 #include "dllimport.h"
 #include "gcrefmap.h"
 #include "asmconstants.h"
@@ -310,14 +309,6 @@ void Frame::Init()
 #include "frames.h"
 
 } // void Frame::Init()
-
-// static
-void Frame::Term()
-{
-    LIMITED_METHOD_CONTRACT;
-    delete s_pFrameVTables;
-    s_pFrameVTables = NULL;
-}
 
 #endif // DACCESS_COMPILE
 
@@ -975,15 +966,21 @@ void GCFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 
     PTR_PTR_Object pRefs = dac_cast<PTR_PTR_Object>(m_pObjRefs);
 
-    for (UINT i = 0;i < m_numObjRefs; i++)  {
-
-        LOG((LF_GC, INFO3, "GC Protection Frame Promoting" FMT_ADDR "to",
-             DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i])) ));
+    for (UINT i = 0; i < m_numObjRefs; i++)
+    {
+        auto fromAddress = OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i]);
         if (m_MaybeInterior)
-            PromoteCarefully(fn, pRefs + i, sc, GC_CALL_INTERIOR|CHECK_APP_DOMAIN);
+        {
+            PromoteCarefully(fn, pRefs + i, sc, GC_CALL_INTERIOR | CHECK_APP_DOMAIN);
+        }
         else
+        {
             (*fn)(pRefs + i, sc, 0);
-        LOG((LF_GC, INFO3, FMT_ADDR "\n", DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i])) ));
+        }
+
+        auto toAddress = OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i]);
+        LOG((LF_GC, INFO3, "GC Protection Frame promoted" FMT_ADDR "to" FMT_ADDR "\n",
+            DBG_ADDR(fromAddress), DBG_ADDR(toAddress)));
     }
 }
 

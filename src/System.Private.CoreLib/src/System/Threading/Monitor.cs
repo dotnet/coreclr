@@ -13,8 +13,6 @@
 **
 =============================================================================*/
 
-
-
 using System;
 using System.Runtime;
 using System.Threading;
@@ -22,6 +20,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace System.Threading
 {
@@ -234,5 +233,13 @@ namespace System.Threading
 
             ObjPulseAll(obj);
         }
+
+        /// <summary>
+        /// Gets the number of times there was contention upon trying to take a <see cref="Monitor"/>'s lock so far.
+        /// </summary>
+        public static long LockContentionCount => GetLockContentionCount();
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern long GetLockContentionCount();
     }
 }

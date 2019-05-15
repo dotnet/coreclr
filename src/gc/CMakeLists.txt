@@ -84,7 +84,8 @@ if(WIN32)
   set (GC_LINK_LIBRARIES
     ${STATIC_MT_CRT_LIB}
     ${STATIC_MT_VCRT_LIB}
-    kernel32.lib)
+    kernel32.lib
+    advapi32.lib)
 else()
   set (GC_LINK_LIBRARIES)
 endif(WIN32)
@@ -94,6 +95,7 @@ list(APPEND GC_SOURCES ${GC_HEADERS})
 convert_to_absolute_path(GC_SOURCES ${GC_SOURCES})
 
 add_library_clr(clrgc SHARED ${GC_SOURCES})
+add_dependencies(clrgc eventing_headers)
 target_link_libraries(clrgc ${GC_LINK_LIBRARIES})
 install_clr(clrgc)
 
