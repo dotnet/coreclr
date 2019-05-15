@@ -1,7 +1,7 @@
 # Verify minimum required version
 cmake_minimum_required(VERSION 2.8.12)
 
-if(${CMAKE_VERSION} VERSION_EQUAL 3.0 OR ${CMAKE_VERSION} VERSION_GREATER 3.0)
+if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
     cmake_policy(SET CMP0042 NEW)
 endif()
 
