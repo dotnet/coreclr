@@ -94,28 +94,6 @@ _wtoi(
 }
 
 
-/*--
-Function:
-  PAL_iswspace
-
-See MSDN doc
---*/
-int
-__cdecl
-PAL_iswspace(wchar_16 c)
-{
-    int ret;
-
-    PERF_ENTRY(iswspace);
-    ENTRY("PAL_iswspace (c=%C)\n", c);
-
-    ret = iswspace(c);
-
-    LOGEXIT("PAL_iswspace returns int %d\n", ret);
-    PERF_EXIT(iswspace);
-    return ret;
-}
-
 /*++
 Function:
   _wcsnicmp
@@ -486,7 +464,7 @@ PAL_wcstoul(
     if (res > _UI32_MAX)
     {
         wchar_16 wc = *nptr;
-        while (PAL_iswspace(wc))
+        while (iswspace(wc))
         {
             wc = *nptr++;
         }
@@ -1091,7 +1069,7 @@ PAL_wcstod( const wchar_16 * nptr, wchar_16 **endptr )
     }
 
     /* Eat white space. */
-    while ( PAL_iswspace( *lpStartOfExpression ) )
+    while ( iswspace( *lpStartOfExpression ) )
     {
         lpStartOfExpression++;
     }
@@ -1161,78 +1139,6 @@ PAL_wcstod( const wchar_16 * nptr, wchar_16 **endptr )
 
 /*++
 Function:
-
-    iswxdigit
-    
-See MSDN for more details.
-
-Notes :
-the information in UnicodeData doesn't help us, it doesn't have enough 
-granularity. Results in windows show that only ASCII and "Fullwidth" (>0xFF10)
-numbers and letters are considered as "hex"; other "numbers" 
-(nGeneralCategory==8) aren't.
---*/
-int
-__cdecl
-PAL_iswxdigit( wchar_16 c )
-{
-    UINT nRetVal = 0;
-
-    PERF_ENTRY(iswxdigit);
-    ENTRY("PAL_iswxdigit( c=%d )\n", c);
-    
-    /* ASCII characters */
-    if((c>= 'A' && c<='F') ||        /* uppercase hex letters */
-       (c>= 'a' && c<='f') ||        /* lowercase hex letters */
-       (c>= '0' && c<='9'))          /* digits */
-    {
-        nRetVal = 1;
-    }
-    else
-    /* "fullwidth" characters, whatever that is */
-    if((c>= 0xFF10 && c<=0xFF19) ||  /* digits */
-       (c>= 0xFF21 && c<=0xFF26) ||  /* uppercase hex letters */
-       (c>= 0xFF41 && c<=0xFF46))    /* lowercase hex letters */
-    {
-        nRetVal = 1;
-    }
-    else
-    {
-        nRetVal = 0;
-    }               
-    LOGEXIT("PAL_iswxdigit returning %d\n", nRetVal);
-    PERF_EXIT(iswxdigit);
-    return nRetVal;
-}
-
-
-/*++
-Function:
-
-    iswprint
-     
-See MSDN for more details.
---*/
-int
-__cdecl
-PAL_iswprint( wchar_16 c ) 
-{
-    int ret;
-    
-
-    PERF_ENTRY(iswprint);
-    ENTRY("PAL_iswprint (%#X)\n", c);   
-
-    ret = iswprint(c);
-
-    LOGEXIT("PAL_iswprint returns %d\n", ret);
-    PERF_EXIT(iswprint);
-    return (ret);
-}
-
-
-/*++
-Function:
    PAL_wcscspn
 
 Finds the number of consecutive characters from the start of the string
@@ -1273,94 +1179,3 @@ PAL_wcscspn(const wchar_16 *string, const wchar_16 *strCharSet)
     PERF_EXIT(wcscspn);
     return count;
 }
-
-#if HAVE_COREFOUNDATION
-/*--
-Function:
-  PAL_iswblank
-
-Returns TRUE if c is a Win32 "blank" character.
---*/
-int 
-__cdecl 
-PAL_iswblank(wchar_16 c)
-{
-    int ret;
-    static CFCharacterSetRef sSpaceAndNewlineSet;
-    
-    if (sSpaceAndNewlineSet == NULL)
-    {
-        sSpaceAndNewlineSet = CFCharacterSetGetPredefined(
-                                            kCFCharacterSetWhitespaceAndNewline);
-    }
-    switch (c)
-    {
-        case 0x0085:
-        case 0x1680:
-        case 0x202f:
-        case 0xfeff:
-            // These are blank characters on Windows, but are not part
-            // of the SpaceAndNewline character set in Core Foundation.
-            ret = TRUE;
-            break;
-        case 0x2028:
-        case 0x2029:
-            // These are not blank characters on Windows, but are part
-            // of the SpaceAndNewline character set in Core Foundation.
-            ret = FALSE;
-            break;
-        default:
-            ret = CFCharacterSetIsCharacterMember(sSpaceAndNewlineSet, c);
-            break;
-    }
-    return ret;
-}
-
-/*--
-Function:
-  PAL_iswcntrl
-
-Returns TRUE if c is a control character.
---*/
-int 
-__cdecl 
-PAL_iswcntrl(wchar_16 c)
-{
-    int ret;
-    static CFCharacterSetRef sControlSet;
-    
-    if (sControlSet == NULL)
-    {
-        sControlSet = CFCharacterSetGetPredefined(kCFCharacterSetControl);
-    }
-    ret = CFCharacterSetIsCharacterMember(sControlSet, c);
-    return ret;
-}
-
-/*--
-Function:
-  PAL_iswpunct
-
-Returns TRUE if c is a punctuation character.
---*/
-int 
-__cdecl 
-PAL_iswpunct(wchar_16 c)
-{
-    int ret;
-    static CFCharacterSetRef sPunctuationSet = NULL;
-    static CFCharacterSetRef sSymbolSet = NULL;
-
-    if (sPunctuationSet == NULL)
-    {
-        sPunctuationSet = CFCharacterSetGetPredefined(kCFCharacterSetPunctuation);
-    }
-    if (sSymbolSet == NULL)
-    {
-        sSymbolSet = CFCharacterSetGetPredefined(kCFCharacterSetSymbol);
-    }
-    ret = CFCharacterSetIsCharacterMember(sPunctuationSet, c) ||
-          CFCharacterSetIsCharacterMember(sSymbolSet, c);
-    return ret;
-}
-#endif  // HAVE_COREFOUNDATION

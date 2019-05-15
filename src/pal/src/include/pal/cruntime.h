@@ -133,32 +133,6 @@ int Silent_PAL_vfprintf(PAL_FILE *stream, const char *format, va_list ap);
 
 
 
-#if HAVE_COREFOUNDATION
-/*--
-Function:
-  PAL_iswblank
-
-Returns TRUE if c is a Win32 "blank" character.
---*/
-int __cdecl PAL_iswblank(wchar_16 c);
-
-/*--
-Function:
-  PAL_iswcntrl
-
-Returns TRUE if c is a control character.
---*/
-int __cdecl PAL_iswcntrl(wchar_16 c);
-
-/*--
-Function:
-  PAL_iswcntrl
-
-Returns TRUE if c is a control character.
---*/
-int __cdecl PAL_iswpunct(wchar_16 c);
-#endif  // HAVE_COREFOUNDATION
-
 /*++
 
 struct PAL_FILE.

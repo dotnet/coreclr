@@ -199,6 +199,9 @@ function_name() to call the system's implementation
 #define iswupper DUMMY_iswupper
 #define towupper DUMMY_towupper
 #define towlower DUMMY_towlower
+#define iswprint DUMMY_iswprint
+#define iswspace DUMMY_iswspace
+#define iswxdigit DUMMY_iswxdigit
 #define wint_t DUMMY_wint_t
 #define srand DUMMY_srand
 #define atoi DUMMY_atoi
