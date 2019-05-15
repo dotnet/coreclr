@@ -153,17 +153,14 @@ struct LayoutRawFieldInfo
     ULONG       m_sequence;       // sequence # from metadata
 
 
-    //----- Post v1.0 addition: The LayoutKind.Sequential attribute now affects managed layout as well.
-    //----- So we need to keep a parallel set of layout data for the managed side. The Size and AlignmentReq
-    //----- is redundant since we can figure it out from the sig but since we're already accessing the sig
-    //----- in ParseNativeType, we might as well capture it at that time.
+    // The LayoutKind.Sequential attribute now affects managed layout as well.
+    // So we need to keep a parallel set of layout data for the managed side. The Size and AlignmentReq
+    // is redundant since we can figure it out from the sig but since we're already accessing the sig
+    // in ParseNativeType, we might as well capture it at that time.
     RawFieldPlacementInfo m_managedPlacement;
 
-    // WARNING!
-    // We in-place create a field marshaler in the following
-    // memory, so keep it 8-byte aligned or 
-    // the vtable pointer initialization will cause a 
-    // misaligned memory write on IA64.
+    // This field is needs to be 8-byte aligned
+    // to ensure that the FieldMarshaler vtable pointer is aligned correctly.
     alignas(8) struct
     {
         private:

@@ -3465,7 +3465,7 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
     BYTE LargestAlignmentRequirement = max(1, min(packingSize, parentAlignmentRequirement));
 
     // Start with the size inherited from the parent (if any).
-    unsigned calcTotalSize = parentSize;
+    uint32_t calcTotalSize = parentSize;
 
     LayoutRawFieldInfo* const* pSortWalk;
     ULONG i;
@@ -3485,23 +3485,22 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
 
         BYTE alignmentRequirement = placementInfo->m_alignment;
 
-        if (!(alignmentRequirement == 1 ||
-            alignmentRequirement == 2 ||
-            alignmentRequirement == 4 ||
-            alignmentRequirement == 8 ||
-            alignmentRequirement == 16 ||
-            alignmentRequirement == 32))
-        {
-            COMPlusThrowHR(COR_E_INVALIDPROGRAM, BFA_METADATA_CORRUPT);
-        }
-
         alignmentRequirement = min(alignmentRequirement, packingSize);
 
         LargestAlignmentRequirement = max(LargestAlignmentRequirement, alignmentRequirement);
 
-        // This assert means I forgot to special-case some NFT in the
-        // above switch.
-        _ASSERTE(alignmentRequirement <= 32);
+        switch (alignmentRequirement)
+        {
+        case 1:
+        case 2:
+        case 4:
+        case 8:
+        case 16:
+        case 32:
+            break;
+        default:
+            COMPlusThrowHR(COR_E_INVALIDPROGRAM, BFA_METADATA_CORRUPT);
+        }
 
         if (!fExplicitOffsets)
         {
@@ -3517,7 +3516,7 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
             cbCurOffset += placementInfo->m_size;
         }
 
-        unsigned fieldEnd = placementInfo->m_offset + placementInfo->m_size;
+        uint32_t fieldEnd = placementInfo->m_offset + placementInfo->m_size;
         if (fieldEnd < placementInfo->m_offset)
             COMPlusThrowOM();
 
@@ -3537,17 +3536,20 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
     }
     else
     {
-        // The did not give us an explict size, so lets round up to a good size (for arrays) 
-        while (calcTotalSize % LargestAlignmentRequirement != 0)
+        // There was no class size given in metadata, so let's round up to a multiple of the alignment requirement
+        // to make array allocations of this structure simple to keep aligned.
+        calcTotalSize += (LargestAlignmentRequirement - calcTotalSize % LargestAlignmentRequirement) % LargestAlignmentRequirement;
+
+        if (calcTotalSize % LargestAlignmentRequirement != 0)
         {
-            if (!SafeAddUINT32(&calcTotalSize, 1))
+            if (!SafeAddUINT32(&calcTotalSize, LargestAlignmentRequirement - (calcTotalSize % LargestAlignmentRequirement)))
                 COMPlusThrowOM();
         }
     }
 
     // We'll cap the total native size at a (somewhat) arbitrary limit to ensure
     // that we don't expose some overflow bug later on.
-    if (calcTotalSize >= MAX_SIZE_FOR_INTEROP)
+    if (calcTotalSize >= MAX_SIZE_FOR_INTEROP && calculatingNativeLayout)
         COMPlusThrowOM();
 
     // This is a zero-sized struct - need to record the fact and bump it up to 1.
@@ -3557,15 +3559,6 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
         calcTotalSize = 1;
     }
 
-    if (calculatingNativeLayout)
-    {
-        pEEClassLayoutInfoOut->m_cbNativeSize = calcTotalSize;
-    }
-    else
-    {
-        pEEClassLayoutInfoOut->m_cbManagedSize = calcTotalSize;
-    }
-
     // The packingSize acts as a ceiling on all individual alignment
     // requirements so it follows that the largest alignment requirement
     // is also capped.
@@ -3573,10 +3566,12 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
 
     if (calculatingNativeLayout)
     {
+        pEEClassLayoutInfoOut->m_cbNativeSize = calcTotalSize;
         pEEClassLayoutInfoOut->m_LargestAlignmentRequirementOfAllMembers = LargestAlignmentRequirement;
     }
     else
     {
+        pEEClassLayoutInfoOut->m_cbManagedSize = calcTotalSize;
         pEEClassLayoutInfoOut->m_ManagedLargestAlignmentRequirementOfAllMembers = LargestAlignmentRequirement;
     }
 }
@@ -3926,10 +3921,14 @@ void EEClassLayoutInfo::ParseFieldNativeTypes(
             {
                 hr = pInternalImport->GetFieldMarshal(fd, &pNativeType, &cbNativeType);
                 if (FAILED(hr))
+                {
                     cbNativeType = 0;
+                }
             }
             else
+            {
                 cbNativeType = 0;
+            }
 
             IfFailThrow(pInternalImport->GetSigOfFieldDef(fd, &cbCOMSignature, &pCOMSignature));
 
