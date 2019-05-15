@@ -14,10 +14,16 @@
 
 #if defined(_M_X64) || defined(__x86_64__) || defined(__i386__) || defined(_M_IX86)
 #include "emmintrin.h"
-#define USE_INTEL_INTRINSICS
+#define USE_INTEL_INTRINSICS_FOR_CUCKOO_FILTER
 #elif defined(_M_ARM) || defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
-#define USE_ARM_INTRINSICS
+#define USE_ARM_INTRINSICS_FOR_CUCKOO_FILTER
+
+#if defined(_M_ARM) || defined(__arm__)
 #include "arm_neon.h"
+#else
+#include "arm64_neon.h"
+#endif
+
 #endif
 
 #endif // DACCESS_COMPILE
@@ -596,7 +602,7 @@ namespace NativeFormat
             UInt32 bucketAIndex = hashcode % bucketCount;
             UInt32 bucketBIndex = bucketAIndex ^ ComputeFingerprintHash(fingerprint % bucketCount);
 
-#if defined(USE_INTEL_INTRINSICS)
+#if defined(USE_INTEL_INTRINSICS_FOR_CUCKOO_FILTER)
             __m128i bucketA = _mm_loadu_si128(&((__m128i*)_base)[bucketAIndex]);
             __m128i bucketB = _mm_loadu_si128(&((__m128i*)_base)[bucketBIndex]);
             __m128i fingerprintSIMD = _mm_set1_epi16(fingerprint);
@@ -604,7 +610,7 @@ namespace NativeFormat
             __m128i bucketBCompare = _mm_cmpeq_epi16(bucketB, fingerprintSIMD);
             __m128i bothCompare = _mm_or_si128(bucketACompare, bucketBCompare);
             return !!_mm_movemask_epi8(bothCompare);
-#elif defined(USE_ARM_INTRINSICS)
+#elif defined(USE_ARM_INTRINSICS_FOR_CUCKOO_FILTER)
             uint16x8_t bucketA = vld1q_u16((uint16_t*)&((uint16x8_t*)_base)[bucketAIndex]);
             uint16x8_t bucketB = vld1q_u16((uint16_t*)&((uint16x8_t*)_base)[bucketBIndex]);
             uint16x8_t fingerprintSIMD = vdupq_n_u16(fingerprint);
