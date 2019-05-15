@@ -10,8 +10,8 @@
 
 #ifndef _CODEGEN_H_
 #define _CODEGEN_H_
-#include "compiler.h" // temporary??
 #include "codegeninterface.h"
+#include "compiler.h" // temporary??
 #include "regset.h"
 #include "jitgcinfo.h"
 
@@ -1210,6 +1210,14 @@ protected:
 #endif // _TARGET_ARM64_
 
     void genReturn(GenTree* treeNode);
+
+#if defined(_TARGET_XARCH_)
+    void genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta, bool hideSpChangeFromEmitter, regNumber regTmp);
+    void genStackPointerConstantAdjustmentLoopWithProbe(ssize_t   spDelta,
+                                                        bool      hideSpChangeFromEmitter,
+                                                        regNumber regTmp);
+    void genStackPointerDynamicAdjustmentWithProbe(regNumber regSpDelta, regNumber regTmp);
+#endif // defined(_TARGET_XARCH_)
 
     void genLclHeap(GenTree* tree);
 

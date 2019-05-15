@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -465,7 +464,7 @@ namespace System.Threading
                     {
                         var multi = new MultiElementAsyncLocalValueMap(MultiElementAsyncLocalValueMap.MaxMultiElements);
                         int index = 0;
-                        foreach (KeyValuePair<IAsyncLocal, object> pair in this)
+                        foreach (KeyValuePair<IAsyncLocal, object?> pair in this)
                         {
                             if (!ReferenceEquals(key, pair.Key))
                             {

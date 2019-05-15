@@ -56,7 +56,7 @@ namespace System.Threading
             {
                 if (!_isScheduled)
                 {
-                    List<TimerQueue> timers = s_scheduledTimers;
+                    List<TimerQueue>? timers = s_scheduledTimers;
                     if (timers == null)
                     {
                         timers = InitializeScheduledTimerManager_Locked();
@@ -80,11 +80,11 @@ namespace System.Threading
         private static void TimerThread()
         {
             AutoResetEvent timerEvent = s_timerEvent;
-            List<TimerQueue> timersToFire = s_scheduledTimersToFire;
+            List<TimerQueue> timersToFire = s_scheduledTimersToFire!;
             List<TimerQueue> timers;
             lock (timerEvent)
             {
-                timers = s_scheduledTimers;
+                timers = s_scheduledTimers!;
             }
 
             int shortestWaitDurationMs = Timeout.Infinite;

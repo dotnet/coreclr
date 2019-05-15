@@ -4,9 +4,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Runtime.Loader;
@@ -44,7 +41,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
         public unsafe static int GetActivationFactory(
             char* componentPath,
             [MarshalAs(UnmanagedType.HString)] string typeName,
-            [MarshalAs(UnmanagedType.Interface)] out IActivationFactory activationFactory)
+            [MarshalAs(UnmanagedType.Interface)] out IActivationFactory? activationFactory)
         {
             activationFactory = null;
             try
@@ -54,7 +51,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
                     throw new ArgumentNullException(nameof(typeName));
                 }
 
-                AssemblyLoadContext context = GetALC(Marshal.PtrToStringUni((IntPtr)componentPath));
+                AssemblyLoadContext context = GetALC(Marshal.PtrToStringUni((IntPtr)componentPath)!);
                 
                 Type winRTType = context.LoadTypeForWinRTTypeNameInContext(typeName);
 

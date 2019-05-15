@@ -32,7 +32,7 @@ namespace System.Diagnostics.Tracing
         private Int64 m_timeQPCFrequency;
 
         private bool m_stopDispatchTask;
-        private Task m_dispatchTask = null;
+        private Task? m_dispatchTask = null;
         private object m_dispatchControlLock = new object();
         private Dictionary<EventListener, EventListenerSubscription> m_subscriptions = new Dictionary<EventListener, EventListenerSubscription>();
 

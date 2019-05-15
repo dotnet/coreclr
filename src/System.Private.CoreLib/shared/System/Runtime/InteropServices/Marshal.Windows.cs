@@ -8,22 +8,24 @@ namespace System.Runtime.InteropServices
 {
     public static partial class Marshal
     {
-        public static string PtrToStringAuto(IntPtr ptr, int len)
+        // TODO-NULLABLE: This has different behavior from the other PtrToString(IntPtr, int) functions
+        //                This is due to PtrToStringUTF8 on Unix and is being resolved independently
+        public static string? PtrToStringAuto(IntPtr ptr, int len)
         {
             return PtrToStringUni(ptr, len);
         }
 
-        public static string PtrToStringAuto(IntPtr ptr)
+        public static string? PtrToStringAuto(IntPtr ptr)
         {
             return PtrToStringUni(ptr);
         }
 
-        public static IntPtr StringToHGlobalAuto(string s)
+        public static IntPtr StringToHGlobalAuto(string? s)
         {
             return StringToHGlobalUni(s);
         }
 
-        public static IntPtr StringToCoTaskMemAuto(string s)
+        public static IntPtr StringToCoTaskMemAuto(string? s)
         {
             return StringToCoTaskMemUni(s);
         }

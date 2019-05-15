@@ -17,10 +17,6 @@
 
 typedef DPTR(struct READYTORUN_SECTION) PTR_READYTORUN_SECTION;
 
-#ifndef FEATURE_PREJIT
-typedef DPTR(struct READYTORUN_IMPORT_SECTION) PTR_CORCOMPILE_IMPORT_SECTION;
-#endif
-
 class PrepareCodeConfig;
 
 typedef DPTR(class ReadyToRunInfo) PTR_ReadyToRunInfo;
@@ -62,7 +58,7 @@ public:
     MethodDesc * GetMethodDescForEntryPoint(PCODE entryPoint);
 
     BOOL HasHashtableOfTypes();
-    BOOL TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFoundTypeToken);
+    BOOL TryLookupTypeTokenFromName(const NameHandle *pName, mdToken * pFoundTypeToken);
 
     BOOL SkipTypeValidation()
     {

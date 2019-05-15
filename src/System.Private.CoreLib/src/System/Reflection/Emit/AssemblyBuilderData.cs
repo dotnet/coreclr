@@ -17,7 +17,7 @@ namespace System.Reflection.Emit
 
         public readonly List<ModuleBuilder> _moduleBuilderList;
         public readonly AssemblyBuilderAccess _access;
-        public MethodInfo _entryPointMethod;
+        public MethodInfo? _entryPointMethod;
 
         private readonly InternalAssemblyBuilder _assembly;
 
@@ -31,7 +31,7 @@ namespace System.Reflection.Emit
         /// <summary>
         /// Helper to ensure the type name is unique underneath assemblyBuilder.
         /// </summary>
-        public void CheckTypeNameConflict(string strTypeName, TypeBuilder enclosingType)
+        public void CheckTypeNameConflict(string strTypeName, TypeBuilder? enclosingType)
         {
             for (int i = 0; i < _moduleBuilderList.Count; i++)
             {

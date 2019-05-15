@@ -6,7 +6,7 @@ namespace System.Diagnostics
 {
     public partial class DebugProvider
     {
-        public static void FailCore(string stackTrace, string message, string detailMessage, string errorSource)
+        public static void FailCore(string stackTrace, string? message, string? detailMessage, string errorSource)
         {
             if (s_FailCore != null)
             {
@@ -58,7 +58,7 @@ namespace System.Diagnostics
             // We don't want output from multiple threads to be interleaved.
             lock (s_ForLock)
             {
-                if (message == null || message.Length <= WriteChunkLength)
+                if (message.Length <= WriteChunkLength)
                 {
                     WriteToDebugger(message);
                 }

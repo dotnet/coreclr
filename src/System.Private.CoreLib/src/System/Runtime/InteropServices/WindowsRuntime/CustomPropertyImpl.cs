@@ -2,17 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
 using System.Reflection;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
-using System.StubHelpers;
-using System.Globalization;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -64,14 +54,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public object GetValue(object target)
+        public object? GetValue(object target)
         {
             return InvokeInternal(target, null, true);
         }
 
         // Unlike normal .Net, Jupiter properties can have at most one indexer parameter. A null
         // indexValue here means that the property has an indexer argument and its value is null.
-        public object GetValue(object target, object indexValue)
+        public object? GetValue(object target, object indexValue)
         {
             return InvokeInternal(target, new object[] { indexValue }, true);
         }
@@ -88,7 +78,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             InvokeInternal(target, new object[] { indexValue, value }, false);
         }
 
-        private object InvokeInternal(object target, object[] args, bool getValue)
+        private object? InvokeInternal(object target, object[]? args, bool getValue)
         {
             // Forward to the right object if we are dealing with a proxy
             if (target is IGetProxyTarget proxy)
@@ -102,7 +92,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // Use GetGetMethod/GetSetMethod instead
 
             // We get non-public accessors just so that we can throw the correct exception.
-            MethodInfo accessor = getValue ? m_property.GetGetMethod(true) : m_property.GetSetMethod(true);
+            MethodInfo? accessor = getValue ? m_property.GetGetMethod(true) : m_property.GetSetMethod(true);
 
             if (accessor == null)
                 throw new ArgumentException(getValue ? SR.Arg_GetMethNotFnd : SR.Arg_SetMethNotFnd);
@@ -112,9 +102,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     SR.Format(
                         SR.Arg_MethodAccessException_WithMethodName,
                         accessor,
-                        accessor.DeclaringType.FullName));
+                        accessor.DeclaringType!.FullName));
 
-            RuntimeMethodInfo rtMethod = accessor as RuntimeMethodInfo;
+            RuntimeMethodInfo? rtMethod = accessor as RuntimeMethodInfo;
             if (rtMethod == null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo);
 

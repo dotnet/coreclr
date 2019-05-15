@@ -1267,7 +1267,7 @@ TypeHandle TypeName::GetTypeFromAsm()
         if (cGenericArgs > 0)
         {
             TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(TypeHandle(g_pRuntimeTypeClass), ELEMENT_TYPE_SZARRAY);
-            gc.refGenericArguments = (PTRARRAYREF)AllocateArrayEx(arrayHandle, &cGenericArgs, 1);
+            gc.refGenericArguments = (PTRARRAYREF)AllocateSzArray(arrayHandle, cGenericArgs);
         }
         // Instantiate generic arguments
         for (INT32 i = 0; i < cGenericArgs; i++)
@@ -1391,10 +1391,14 @@ TypeName::GetTypeHaveAssemblyHelper(
         for (COUNT_T i = 0; i < names.GetCount(); i ++)
         {
             // each extra name represents one more level of nesting
-            LPCWSTR wname = names[i]->GetUnicode();
+            StackSString name(*(names[i]));
 
-            MAKE_UTF8PTR_FROMWIDE(name, wname);
-            typeName.SetName(name);
+            // The type name is expected to be lower-cased by the caller for case-insensitive lookups
+            if (bIgnoreCase)
+                name.LowerCase();
+
+            StackScratchBuffer buffer;
+            typeName.SetName(name.GetUTF8(buffer));
 
             // typeName.m_pBucket gets set here if the type is found
             // it will be used in the next iteration to look up the nested type
@@ -1507,20 +1511,23 @@ DomainAssembly * LoadDomainAssembly(
         spec.SetWindowsRuntimeType(*pssOuterTypeName);
     }
 
-    if (pPrivHostBinder)
-    {
-        spec.SetHostBinder(pPrivHostBinder);
-    }
-    else if (pRequestingAssembly && (!pRequestingAssembly->IsCollectible()))
+    if (pRequestingAssembly)
     {
         GCX_PREEMP();
         spec.SetParentAssembly(pRequestingAssembly->GetDomainAssembly());
     }
 
-    // If the requesting assembly has Fallback LoadContext binder available,
-    // then set it up in the AssemblySpec.
-    if (pRequestingAssembly != NULL)
+    // Have we been passed the reference to the binder against which this load should be triggered?
+    // If so, then use it to set the fallback load context binder.
+    if (pPrivHostBinder != NULL)
     {
+        spec.SetFallbackLoadContextBinderForRequestingAssembly(pPrivHostBinder);
+        spec.SetPreferFallbackLoadContextBinder();
+    }
+    else if (pRequestingAssembly != NULL)
+    {
+        // If the requesting assembly has Fallback LoadContext binder available,
+        // then set it up in the AssemblySpec.
         PEFile *pRequestingAssemblyManifestFile = pRequestingAssembly->GetManifestFile();
         spec.SetFallbackLoadContextBinderForRequestingAssembly(pRequestingAssemblyManifestFile->GetFallbackLoadContextBinder());
     }

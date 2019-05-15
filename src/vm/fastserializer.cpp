@@ -12,16 +12,27 @@
 // As a result of work on V3 of Event Pipe (https://github.com/Microsoft/perfview/pull/532) it got removed
 // if you need it, please use git to restore it
 
-IpcStreamWriter::IpcStreamWriter(IpcStream *pStream) : _pStream(pStream)
+IpcStreamWriter::IpcStreamWriter(uint64_t id, IpcStream *pStream) : _pStream(pStream)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(_pStream != nullptr);
     }
     CONTRACTL_END;
+
+    if (_pStream == nullptr)
+        return;
+
+    uint32_t nBytesWritten = 0;
+    bool fSuccess = _pStream->Write(&id, sizeof(id), nBytesWritten);
+    if (!fSuccess)
+    {
+        delete _pStream;
+        _pStream = nullptr;
+    }
 }
 
 IpcStreamWriter::~IpcStreamWriter()
@@ -51,6 +62,8 @@ bool IpcStreamWriter::Write(const void *lpBuffer, const uint32_t nBytesToWrite, 
 
     if (_pStream == nullptr)
         return false;
+    if (lpBuffer == nullptr || nBytesToWrite == 0)
+        return false;
     return _pStream->Write(lpBuffer, nBytesToWrite, nBytesWritten);
 }
 
@@ -60,10 +73,9 @@ FileStreamWriter::FileStreamWriter(const SString &outputFilePath)
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
-
     m_pFileStream = new CFileStream();
     if (FAILED(m_pFileStream->OpenForWrite(outputFilePath)))
     {
@@ -114,13 +126,13 @@ FastSerializer::FastSerializer(StreamWriter *pStreamWriter) : m_pStreamWriter(pS
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(m_pStreamWriter != NULL);
     }
     CONTRACTL_END;
 
     m_writeErrorEncountered = false;
-    m_currentPos = 0;
+    m_requiredPadding = 0;
     WriteFileHeader();
 }
 
@@ -176,21 +188,14 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
     EX_TRY
     {
         uint32_t outCount;
-        m_pStreamWriter->Write(pBuffer, length, outCount);
+        bool fSuccess = m_pStreamWriter->Write(pBuffer, length, outCount);
 
-#ifdef _DEBUG
-        size_t prevPos = m_currentPos;
-#endif
-        m_currentPos += outCount;
+        m_requiredPadding = (ALIGNMENT_SIZE + m_requiredPadding - (outCount % ALIGNMENT_SIZE)) % ALIGNMENT_SIZE;
 
         // This will cause us to stop writing to the file.
         // The file will still remain open until shutdown so that we don't
         // have to take a lock at this level when we touch the file stream.
-        m_writeErrorEncountered = (length != outCount);
-
-#ifdef _DEBUG
-        _ASSERTE(m_writeErrorEncountered || (prevPos < m_currentPos));
-#endif
+        m_writeErrorEncountered = (length != outCount) || !fSuccess;
     }
     EX_CATCH
     {
@@ -256,7 +261,7 @@ void FastSerializer::WriteFileHeader()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 

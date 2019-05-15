@@ -4,7 +4,6 @@
 
 using System;
 
-
 namespace System.Diagnostics.Tracing
 {
     internal sealed class RuntimeEventSourceHelper

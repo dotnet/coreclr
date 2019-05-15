@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections;
 using System.Diagnostics;
 
@@ -51,7 +50,7 @@ namespace System.Globalization
             return true;
         }
 
-        public object Current => GetTextElement();
+        public object? Current => GetTextElement(); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
 
         public string GetTextElement()
         {

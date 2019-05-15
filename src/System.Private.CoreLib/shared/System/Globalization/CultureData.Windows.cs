@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -431,8 +430,7 @@ namespace System.Globalization
             {
                 for (int i = 0; i < array.Length; i++)
                 {
-                    // only returns null when null is passed
-                    array[i] = ReescapeWin32String(array[i])!;
+                    array[i] = ReescapeWin32String(array[i])!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
                 }
             }
 

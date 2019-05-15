@@ -4,7 +4,6 @@
 
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Security;
 
 namespace System.Reflection.Metadata
 {

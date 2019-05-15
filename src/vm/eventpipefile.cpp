@@ -15,7 +15,7 @@ EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter) : FastSerializableObje
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
@@ -66,6 +66,12 @@ EventPipeFile::~EventPipeFile()
     delete m_pSerializer;
 }
 
+bool EventPipeFile::HasErrors() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return (m_pSerializer == nullptr) || m_pSerializer->HasWriteErrors();
+}
+
 void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
 {
     CONTRACTL
@@ -94,6 +100,20 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     }
 
     WriteToBlock(instance, metadataId);
+}
+
+void EventPipeFile::Flush()
+{
+    // Write existing buffer to the stream/file regardless of whether it is full or not.
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+    m_pSerializer->WriteObject(m_pBlock); // we write current block to the disk, whether it's full or not
+    m_pBlock->Clear();
 }
 
 void EventPipeFile::WriteEnd()

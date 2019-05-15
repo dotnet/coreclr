@@ -182,6 +182,37 @@ FCIMPL2(VOID, ThreadPoolNative::CorGetAvailableThreads,DWORD* workerThreads, DWO
 FCIMPLEND
 
 /*****************************************************************************************************/
+FCIMPL0(INT32, ThreadPoolNative::GetThreadCount)
+{
+    FCALL_CONTRACT;
+    return ThreadpoolMgr::GetThreadCount();
+}
+FCIMPLEND
+
+/*****************************************************************************************************/
+INT64 QCALLTYPE ThreadPoolNative::GetCompletedWorkItemCount()
+{
+    QCALL_CONTRACT;
+
+    INT64 result = 0;
+
+    BEGIN_QCALL;
+
+    result = (INT64)Thread::GetTotalThreadPoolCompletionCount();
+
+    END_QCALL;
+    return result;
+}
+
+/*****************************************************************************************************/
+FCIMPL0(INT64, ThreadPoolNative::GetPendingUnmanagedWorkItemCount)
+{
+    FCALL_CONTRACT;
+    return PerAppDomainTPCountList::GetUnmanagedTPCount()->GetNumRequests();
+}
+FCIMPLEND
+
+/*****************************************************************************************************/
 
 FCIMPL0(VOID, ThreadPoolNative::NotifyRequestProgress)
 {
