@@ -49,8 +49,9 @@ namespace System.Collections.Generic
     {
         #region IArraySortHelper<T> Members
 
-        public void Sort<TComparer>(Span<T> keys, int index, int length, TComparer comparer)
-            where TComparer : IComparer<T>
+        //public void Sort<TComparer>(Span<T> keys, int index, int length, TComparer comparer)
+        //    where TComparer : IComparer<T>
+        public void Sort(Span<T> keys, int index, int length, IComparer<T> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
@@ -340,15 +341,17 @@ namespace System.Collections.Generic
 
         #region IArraySortHelper<T> Members
 
-        public void Sort<TComparer>(Span<T> keys, int index, int length, TComparer comparer)
-            where TComparer : IComparer<T>
+        //public void Sort<TComparer>(Span<T> keys, int index, int length, TComparer comparer)
+        //    where TComparer : IComparer<T>
+        public void Sort(Span<T> keys, int index, int length, IComparer<T> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             try
             {
-                if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<T>.Default))
+                if (comparer == null || comparer == Comparer<T>.Default)
+                //if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<T>.Default))
                 {
                     IntrospectiveSort(keys, index, length);
                 }
@@ -631,8 +634,9 @@ namespace System.Collections.Generic
 
     internal partial class ArraySortHelper<TKey, TValue>
     {
-        public void Sort<TComparer>(Span<TKey> keys, Span<TValue> values, int index, int length, TComparer comparer)
-            where TComparer : IComparer<TKey>
+        //public void Sort<TComparer>(Span<TKey> keys, Span<TValue> values, int index, int length, TComparer comparer)
+        //    where TComparer : IComparer<TKey>
+        public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");  // Precondition on interface method
             Debug.Assert(values != null, "Check the arguments in the caller!");
@@ -642,7 +646,8 @@ namespace System.Collections.Generic
             // underlying IComparables, etc) that are bogus.
             try
             {
-                if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<TKey>.Default))
+                if (comparer == null || comparer == Comparer<TKey>.Default)
+                //if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<TKey>.Default))
                 {
                     IntrospectiveSort(keys, values, index, length, Comparer<TKey>.Default);
                 }
@@ -882,8 +887,9 @@ namespace System.Collections.Generic
     internal partial class GenericArraySortHelper<TKey, TValue>
         where TKey : IComparable<TKey>
     {
-        public void Sort<TComparer>(Span<TKey> keys, Span<TValue> values, int index, int length, TComparer comparer)
-            where TComparer : IComparer<TKey>
+        //public void Sort<TComparer>(Span<TKey> keys, Span<TValue> values, int index, int length, TComparer comparer)
+        //    where TComparer : IComparer<TKey>
+        public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
@@ -892,7 +898,8 @@ namespace System.Collections.Generic
             // underlying IComparables, etc) that are bogus.
             try
             {
-                if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<TKey>.Default))
+                if (comparer == null || comparer == Comparer<TKey>.Default)
+                //if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<TKey>.Default))
                 {
                     IntrospectiveSort(keys, values, index, length);
                 }
