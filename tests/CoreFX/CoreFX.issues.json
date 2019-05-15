@@ -1023,10 +1023,6 @@
             "classes": null,
             "methods": [
                 {
-                    "name": "System.Text.Tests.StringBuilderTests.AppendFormat",
-                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/35820"
-                },              
-                {
                     "name": "System.Tests.TimeSpanTests.FromMilliseconds",
                     "reason": "The test will be enabled after https://github.com/dotnet/corefx/pull/37235"
                 },
@@ -1049,6 +1045,10 @@
                 {
                     "name": "System.Tests.TimeSpanTests.NamedDivision",
                     "reason": "The test will be enabled after https://github.com/dotnet/corefx/pull/37235"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.AppendFormat",
+                    "reason": "Temporary disabling till merging the PR https://github.com/dotnet/corefx/pull/35820"
                 },
                 {
                     "name": "System.Text.Tests.StringBuilderTests.Equals",
