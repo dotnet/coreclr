@@ -7154,7 +7154,9 @@ TypeHandle Module::LoadIBCTypeHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG
     }
     EX_CATCH
     {
-        image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
+        if (g_CorCompileVerboseLevel >= CORCOMPILE_VERBOSE)
+            image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
+
         loadedType = TypeHandle();
     }
     EX_END_CATCH(SwallowAllExceptions)
@@ -7211,7 +7213,9 @@ MethodDesc* Module::LoadIBCMethodHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_
     }
     EX_CATCH
     {
-        image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
+        if (g_CorCompileVerboseLevel >= CORCOMPILE_VERBOSE)
+            image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
+
         enclosingType = TypeHandle();
     }
     EX_END_CATCH(SwallowAllExceptions)
