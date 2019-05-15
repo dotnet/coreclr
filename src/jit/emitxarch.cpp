@@ -1747,10 +1747,65 @@ inline UNATIVE_OFFSET emitter::emitInsSize(code_t code)
     return size;
 }
 
-inline UNATIVE_OFFSET emitter::emitInsSizeRM(instruction ins)
+inline UNATIVE_OFFSET emitter::emitInsSizeRR(instrDesc* id, code_t code)
 {
-    return emitInsSize(insCodeRM(ins));
+    assert(id->idIns() != INS_invalid);
+
+    instruction ins  = id->idIns();
+    emitAttr    attr = id->idOpSize();
+
+    UNATIVE_OFFSET sz = emitInsSize(code);
+
+    sz += emitGetVexPrefixAdjustedSize(ins, attr, code);
+    sz += emitAdjustSizeCrc32(ins, attr);
+
+    // Most 16-bit operand instructions will need a prefix.
+    // This refers to 66h size prefix override.
+
+    if ((attr == EA_2BYTE) && (ins != INS_movzx) && (ins != INS_movsx))
+    {
+        sz++;
+    }
+
+    if (TakesRexWPrefix(ins, attr) || IsExtendedReg(id->idReg1(), attr) || IsExtendedReg(id->idReg2(), attr) || (!id->idIsSmallDsc() && (IsExtendedReg(id->idReg3(), attr) || IsExtendedReg(id->idReg4(), attr))))
+    {
+        sz += emitGetRexPrefixSize(ins);
+    }
+
+    return sz;
 }
+
+inline UNATIVE_OFFSET emitter::emitInsSizeRR(instrDesc* id, code_t code, int val)
+{
+    instruction    ins       = id->idIns();
+    UNATIVE_OFFSET valSize   = EA_SIZE_IN_BYTES(id->idOpSize());
+    bool           valInByte = ((signed char)val == val) && (ins != INS_mov) && (ins != INS_test);
+
+#ifdef _TARGET_AMD64_
+    // mov reg, imm64 is the only opcode which takes a full 8 byte immediate
+    // all other opcodes take a sign-extended 4-byte immediate
+    noway_assert(valSize <= sizeof(INT32) || !id->idIsCnsReloc());
+#endif // _TARGET_AMD64_
+
+    if (valSize > sizeof(INT32))
+    {
+        valSize = sizeof(INT32);
+    }
+
+    if (id->idIsCnsReloc())
+    {
+        valInByte = false; // relocs can't be placed in a byte
+        assert(valSize == sizeof(INT32));
+    }
+
+    if (valInByte)
+    {
+        valSize = sizeof(char);
+    }
+
+    return valSize + emitInsSizeRR(id, code);
+}
+
 
 inline UNATIVE_OFFSET emitter::emitInsSizeRR(instruction ins, regNumber reg1, regNumber reg2, emitAttr attr)
 {
@@ -1980,6 +2035,21 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, code_t code, int var
     instruction    ins      = id->idIns();
     emitAttr       attrSize = id->idOpSize();
     UNATIVE_OFFSET prefix   = emitGetVexPrefixAdjustedSize(ins, attrSize, code);
+
+    // Most 16-bit operand instructions need a prefix
+    if (attrSize == EA_2BYTE && ins != INS_movsx && ins != INS_movzx)
+    {
+        prefix++;
+    }
+
+    // 64-bit operand instructions will need a REX.W prefix
+    if (TakesRexWPrefix(ins, attrSize) || IsExtendedReg(id->idReg1(), attrSize) || IsExtendedReg(id->idReg2(), attrSize))
+    {
+        prefix += emitGetRexPrefixSize(ins);
+    }
+
+    prefix += emitAdjustSizeCrc32(ins, attrSize);
+
     return prefix + emitInsSizeSV(code, var, dsp);
 }
 
@@ -2020,6 +2090,20 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, code_t code, int var
     {
         prefix += 1;
     }
+
+    // Most 16-bit operand instructions need a prefix
+    if (attrSize == EA_2BYTE && ins != INS_movsx && ins != INS_movzx)
+    {
+        prefix++;
+    }
+
+    // 64-bit operand instructions will need a REX.W prefix
+    if (TakesRexWPrefix(ins, attrSize) || IsExtendedReg(id->idReg1(), attrSize) || IsExtendedReg(id->idReg2(), attrSize))
+    {
+        prefix += emitGetRexPrefixSize(ins);
+    }
+
+    prefix += emitAdjustSizeCrc32(ins, attrSize);
 
     return prefix + valSize + emitInsSizeSV(code, var, dsp);
 }
@@ -2132,7 +2216,7 @@ UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
         size += emitGetRexPrefixSize(ins);
     }
     else if (IsExtendedReg(reg, EA_PTRSIZE) || IsExtendedReg(rgx, EA_PTRSIZE) ||
-             ((ins != INS_call) && IsExtendedReg(id->idReg1(), attrSize)))
+             ((ins != INS_call) && (IsExtendedReg(id->idReg1(), attrSize) || IsExtendedReg(id->idReg2(), attrSize))))
     {
         // Should have a REX byte
         size += emitGetRexPrefixSize(ins);
@@ -2325,6 +2409,12 @@ inline UNATIVE_OFFSET emitter::emitInsSizeCV(instrDesc* id, code_t code)
     if (attrSize == EA_2BYTE && ins != INS_movzx && ins != INS_movsx)
     {
         size++;
+    }
+
+    // 64-bit operand instructions will need a REX.W prefix
+    if (TakesRexWPrefix(ins, attrSize) || IsExtendedReg(id->idReg1(), attrSize) || IsExtendedReg(id->idReg2(), attrSize))
+    {
+        size += emitGetRexPrefixSize(ins);
     }
 
     return size + emitInsSize(code);
@@ -3935,16 +4025,6 @@ void emitter::emitIns_R_R(instruction ins, emitAttr attr, regNumber reg1, regNum
 
 void emitter::emitIns_R_R_I(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, int ival)
 {
-    // SSE2 version requires 5 bytes and some SSE/AVX version 6 bytes
-    UNATIVE_OFFSET sz = 4;
-    if (IsSSEOrAVXInstruction(ins))
-    {
-        // AVX: 3 byte VEX prefix + 1 byte opcode + 1 byte ModR/M + 1 byte immediate
-        // SSE: 4 byte opcode + 1 byte ModR/M + 1 byte immediate
-        // SSE: 3 byte opcode + 1 byte ModR/M + 1 byte immediate
-        sz = (UseVEXEncoding() || Is4ByteSSEInstruction(ins)) ? 6 : 5;
-    }
-
 #ifdef _TARGET_AMD64_
     // mov reg, imm64 is the only opcode which takes a full 8 byte immediate
     // all other opcodes take a sign-extended 4-byte immediate
@@ -3953,21 +4033,12 @@ void emitter::emitIns_R_R_I(instruction ins, emitAttr attr, regNumber reg1, regN
 
     instrDesc* id = emitNewInstrSC(attr, ival);
 
-    // REX prefix
-    if (IsExtendedReg(reg1, attr) || IsExtendedReg(reg2, attr))
-    {
-        sz += emitGetRexPrefixSize(ins);
-    }
-
-    if ((ins == INS_pextrq || ins == INS_pinsrq) && !UseVEXEncoding())
-    {
-        sz += 1;
-    }
-
     id->idIns(ins);
     id->idInsFmt(IF_RRW_RRW_CNS);
     id->idReg1(reg1);
     id->idReg2(reg2);
+
+    UNATIVE_OFFSET sz = emitInsSizeRR(id, insCodeRM(ins), ival);
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4283,10 +4354,6 @@ void emitter::emitIns_R_R_R(instruction ins, emitAttr attr, regNumber targetReg,
 {
     assert(IsSSEOrAVXInstruction(ins));
     assert(IsThreeOperandAVXInstruction(ins));
-    // Currently vex prefix only use three bytes mode.
-    // size = vex + opcode + ModR/M = 3 + 1 + 1 = 5
-    // TODO-XArch-CQ: We should create function which can calculate all kinds of AVX instructions size in future
-    UNATIVE_OFFSET sz = 5;
 
     instrDesc* id = emitNewInstr(attr);
     id->idIns(ins);
@@ -4295,7 +4362,9 @@ void emitter::emitIns_R_R_R(instruction ins, emitAttr attr, regNumber targetReg,
     id->idReg2(reg1);
     id->idReg3(reg2);
 
+    UNATIVE_OFFSET sz = emitInsSizeRR(id, insCodeRM(ins));
     id->idCodeSize(sz);
+
     dispIns(id);
     emitCurIGsize += sz;
 }
@@ -4413,10 +4482,6 @@ void emitter::emitIns_R_R_R_I(
 {
     assert(IsSSEOrAVXInstruction(ins));
     assert(IsThreeOperandAVXInstruction(ins));
-    // Currently vex prefix only use three bytes mode.
-    // size = vex + opcode + ModR/M + 1-byte-cns = 3 + 1 + 1 + 1 = 6
-    // TODO-XArch-CQ: We should create function which can calculate all kinds of AVX instructions size in future
-    UNATIVE_OFFSET sz = 6;
 
     instrDesc* id = emitNewInstrCns(attr, ival);
     id->idIns(ins);
@@ -4425,7 +4490,9 @@ void emitter::emitIns_R_R_R_I(
     id->idReg2(reg1);
     id->idReg3(reg2);
 
+    UNATIVE_OFFSET sz = emitInsSizeRR(id, insCodeRM(ins), ival);
     id->idCodeSize(sz);
+
     dispIns(id);
     emitCurIGsize += sz;
 }
@@ -4646,10 +4713,6 @@ void emitter::emitIns_R_R_R_R(
 {
     assert(isAvxBlendv(ins));
     assert(UseVEXEncoding());
-    // Currently vex prefix only use three bytes mode.
-    // size = vex + opcode + ModR/M + 1-byte-cns(Reg) = 3 + 1 + 1 + 1 = 6
-    // TODO-XArch-CQ: We should create function which can calculate all kinds of AVX instructions size in future
-    UNATIVE_OFFSET sz = 6;
 
     int        ival = encodeXmmRegAsIval(reg3);
     instrDesc* id   = emitNewInstrCns(attr, ival);
@@ -4661,7 +4724,9 @@ void emitter::emitIns_R_R_R_R(
     id->idReg3(reg2);
     id->idReg4(reg3);
 
+    UNATIVE_OFFSET sz = emitInsSizeRR(id, insCodeRM(ins));
     id->idCodeSize(sz);
+
     dispIns(id);
     emitCurIGsize += sz;
 }
@@ -4692,6 +4757,7 @@ void emitter::emitIns_R_C(instruction ins, emitAttr attr, regNumber reg, CORINFO
         id = emitNewInstrDsp(EA_1BYTE, offs);
         id->idIns(ins);
         id->idInsFmt(IF_RWR_MRD_OFF);
+        id->idReg1(reg);
 
         assert(ins == INS_mov && reg == REG_EAX);
 
@@ -4705,6 +4771,7 @@ void emitter::emitIns_R_C(instruction ins, emitAttr attr, regNumber reg, CORINFO
         id = emitNewInstrDsp(attr, offs);
         id->idIns(ins);
         id->idInsFmt(fmt);
+        id->idReg1(reg);
 
 #ifdef _TARGET_X86_
         // Special case: "mov eax, [addr]" is smaller.
@@ -4730,13 +4797,6 @@ void emitter::emitIns_R_C(instruction ins, emitAttr attr, regNumber reg, CORINFO
         }
     }
 
-    // REX prefix
-    if (TakesRexWPrefix(ins, attr) || IsExtendedReg(reg, attr))
-    {
-        sz += emitGetRexPrefixSize(ins);
-    }
-
-    id->idReg1(reg);
     id->idCodeSize(sz);
 
     id->idAddr()->iiaFieldHnd = fldHnd;
@@ -4774,6 +4834,7 @@ void emitter::emitIns_C_R(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE f
 
     id->idIns(ins);
     id->idInsFmt(fmt);
+    id->idReg1(reg);
 
     UNATIVE_OFFSET sz;
 
@@ -4785,8 +4846,15 @@ void emitter::emitIns_C_R(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE f
     if (ins == INS_mov && reg == REG_EAX)
     {
         sz = 1 + TARGET_POINTER_SIZE;
+
         if (size == EA_2BYTE)
             sz += 1;
+
+        // REX prefix
+        if (TakesRexWPrefix(ins, attr) || IsExtendedReg(reg, attr))
+        {
+            sz += emitGetRexPrefixSize(ins);
+        }
     }
     else
 #endif //_TARGET_X86_
@@ -4800,13 +4868,6 @@ void emitter::emitIns_C_R(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE f
         sz += 1;
     }
 
-    // REX prefix
-    if (TakesRexWPrefix(ins, attr) || IsExtendedReg(reg, attr))
-    {
-        sz += emitGetRexPrefixSize(ins);
-    }
-
-    id->idReg1(reg);
     id->idCodeSize(sz);
 
     id->idAddr()->iiaFieldHnd = fldHnd;
@@ -6521,17 +6582,6 @@ void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber ireg, int va
         assert(isByteReg(ireg));
     }
 #endif
-    // 16-bit operand instructions will need a prefix
-    if (EA_SIZE(attr) == EA_2BYTE)
-    {
-        sz++;
-    }
-
-    // 64-bit operand instructions will need a REX.W prefix
-    if (TakesRexWPrefix(ins, attr) || IsExtendedReg(ireg, attr))
-    {
-        sz += emitGetRexPrefixSize(ins);
-    }
 
     id->idCodeSize(sz);
 #ifdef DEBUG
@@ -6556,21 +6606,6 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber ireg, int va
     id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
 
     sz = emitInsSizeSV(id, insCodeRM(ins), varx, offs);
-
-    // Most 16-bit operand instructions need a prefix
-    if (size == EA_2BYTE && ins != INS_movsx && ins != INS_movzx)
-    {
-        sz++;
-    }
-
-    // 64-bit operand instructions will need a REX.W prefix
-    if (TakesRexWPrefix(ins, attr) || IsExtendedReg(ireg, attr))
-    {
-        sz += emitGetRexPrefixSize(ins);
-    }
-
-    sz += emitAdjustSizeCrc32(ins, attr);
-
     id->idCodeSize(sz);
 #ifdef DEBUG
     id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
