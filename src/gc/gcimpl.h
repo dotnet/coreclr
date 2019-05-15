@@ -308,7 +308,6 @@ protected:
 public:
     Object * NextObj (Object * object);
 
-public:
     int GetLastGCTimeInGC();
 
     uint64_t GetLastGCGenerationSize(int gen);
