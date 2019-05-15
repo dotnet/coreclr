@@ -42,6 +42,22 @@ inline bool isPow2(T i)
     return (i > 0 && ((i - 1) & i) == 0);
 }
 
+inline bool isPow2f(float v)
+{
+    uint32_t i = *(uint32_t*)&v;
+    uint8_t exponent = (uint8_t)(i >> 23);
+    uint32_t mantissa =  i & (((uint32_t)1 << 24) - 1);
+    return !mantissa && exponent && exponent != 127;
+}
+
+inline bool isPow2d(double v)
+{
+    uint64_t i = *(uint64_t*)&v;
+    uint32_t exponent = (uint32_t)(i >> 52);
+    uint64_t mantissa =  i & (((uint64_t)1 << 53) - 1);
+    return !mantissa && exponent && exponent != 1023;
+}
+
 // Adapter for iterators to a type that is compatible with C++11
 // range-based for loops.
 template <typename TIterator>
