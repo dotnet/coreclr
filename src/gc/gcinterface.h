@@ -693,7 +693,7 @@ public:
 
     virtual int GetLastGCTimeInGC() = 0;
 
-    virtual uint64_t GetGenerationSize(int gen) = 0;
+    virtual uint64_t GetLastGCGenerationSize(int gen) = 0;
 
     virtual uint64_t GetTotalAllocation() = 0;
 

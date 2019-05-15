@@ -211,21 +211,6 @@ void GCHeap::UpdatePostGCCounters()
         total_num_sync_blocks,
         static_cast<uint32_t>(total_num_gc_handles));
 
-    /*
-    for (int gen_index = 0; gen_index <= (max_generation+1); gen_index++)
-    {
-        if (gen_index == (max_generation+1))
-        {
-            g_GenerationSizes
-            g_GCCounterData.lohObjSize = g_GenerationSizes[gen_index];
-        }
-        else
-        {
-            g_GCCounterData.generationSizes[gen_index] = ((gen_index == 0) ? youngest_budget: g_GenerationSizes[gen_index]);
-        }
-    }
-    */
-
 #endif // FEATURE_EVENT_TRACE
 
     // Compute Time in GC
@@ -255,7 +240,7 @@ int GCHeap::GetLastGCTimeInGC()
     return (int)(g_percentTimeInGCSinceLastGC);
 }
 
-uint64_t GCHeap::GetGenerationSize(int gen)
+uint64_t GCHeap::GetLastGCGenerationSize(int gen)
 {
     return g_GenerationSizes[gen];
 }

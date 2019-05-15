@@ -1177,7 +1177,7 @@ FCIMPL1(UINT64, GCInterface::GetGenerationSize, int gen)
 {
     FCALL_CONTRACT;
 
-    return GCHeapUtilities::GetGCHeap()->GetGenerationSize(gen);
+    return GCHeapUtilities::GetGCHeap()->GetLastGCGenerationSize(gen);
 }
 FCIMPLEND
 

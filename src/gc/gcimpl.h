@@ -311,7 +311,7 @@ public:
 public:
     int GetLastGCTimeInGC();
 
-    uint64_t GetGenerationSize(int gen);
+    uint64_t GetLastGCGenerationSize(int gen);
 
     uint64_t GetTotalAllocation();
 
