@@ -15,7 +15,7 @@
 #if defined(_M_X64) || defined(__x86_64__) || defined(__i386__) || defined(_M_IX86)
 #include "emmintrin.h"
 #define USE_INTEL_INTRINSICS_FOR_CUCKOO_FILTER
-#elif defined(_M_ARM) || defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
+#elif defined(_M_ARM) || defined(_M_ARM64) // The Mac and Linux build environments are not setup for NEON simd.
 #define USE_ARM_INTRINSICS_FOR_CUCKOO_FILTER
 
 #if defined(_M_ARM) || defined(__arm__)
@@ -549,7 +549,6 @@ namespace NativeFormat
     {
         PTR_BYTE _base;
         UInt32 _size;
-
 
     public:
         static UInt32 ComputeFingerprintHash(UInt16 fingerprint)
