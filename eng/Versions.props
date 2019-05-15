@@ -10,9 +10,9 @@
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19179.4</MicrosoftDotNetXUnitConsoleRunnerVersion>
     <!-- corefx -->
     <MicrosoftNetFrameworkReferenceAssembliesVersion>1.0.0-alpha-004</MicrosoftNetFrameworkReferenceAssembliesVersion>
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview6.19263.9</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>3.0.0-preview6.19263.9</MicrosoftNETCorePlatformsVersion>
-    <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview6.19263.9</MicrosoftBclAsyncInterfacesVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview6.19264.9</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>3.0.0-preview6.19264.9</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview6.19264.9</MicrosoftBclAsyncInterfacesVersion>
     <!-- core-setup -->
     <MicrosoftNETCoreAppVersion>3.0.0-preview6-27714-15</MicrosoftNETCoreAppVersion>
     <!-- dotnet-optimization -->
