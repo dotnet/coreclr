@@ -1,10 +1,6 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildThisFileDirectory)..\..\dir.props" />
-
-  <PropertyGroup>
-    <!-- This property must be set to the same value as $(PackageOutputPath) for the nuspecs and nupkgs to be binplaced to the intended location. -->
-    <OutputPath>$(PackageOutputPath)</OutputPath>
-  </PropertyGroup>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove(Directory.Build.props))" />
+  <Import Project="packaging.props" />
 
   <ItemGroup Condition="'$(__SkipCoreLibBuild)'==''">
     <Project Include="Microsoft.NETCore.Runtime.CoreCLR\Microsoft.NETCore.Runtime.CoreCLR.builds" />
@@ -29,9 +25,19 @@
     <Project Include="Microsoft.NETCore.ILDAsm\Microsoft.NETCore.ILDAsm.builds" />
   </ItemGroup>
 
-  <Import Project="$(ToolsDir)versioning.targets" />
-  <!-- Make sure we create version.txt file since it will be packaged -->
-  <Target Name="EnsureVersionInfoFileExists" BeforeTargets="Build" DependsOnTargets="CreateVersionInfoFile" />
+  <!-- Generate a version.txt file we include in our packages -->
+  <Target Name="GenerateVersionInfoFileForPackages"
+          BeforeTargets="Build"
+          DependsOnTargets="InitializeSourceControlInformationFromSourceControlManager">
+
+    <Error Condition="'$(SourceRevisionId)' == ''" Text="SourceRevisionId is not set, which means the SourceLink targets are not included in the build. Those are needed to produce a correct sha for our build outputs." />
+
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName($(VersionTxtFile)))" />
+    <WriteLinesToFile
+      File="$(VersionTxtFile)"
+      Lines="$(SourceRevisionId)"
+      Overwrite="true" />
+  </Target>
 
   <Import Project="$(MSBuildThisFileDirectory)..\..\dir.traversal.targets" />
 </Project>
