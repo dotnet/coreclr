@@ -408,6 +408,7 @@ void EventPipe::DisableInternal(EventPipeSession &session, EventPipeProviderCall
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
 {
     LIMITED_METHOD_CONTRACT;
+    _ASSERTE(IsLockOwnedByCurrentThread());
 
     if (s_pSessions == nullptr)
         return nullptr;
