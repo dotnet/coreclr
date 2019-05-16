@@ -102,8 +102,7 @@ NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimiza
 
     if (pMethodDesc->RequestedAggressiveOptimization())
     {
-        // Methods flagged with MethodImplOptions.AggressiveOptimization begin at tier 1, as a workaround to cold methods with
-        // hot loops performing poorly (https://github.com/dotnet/coreclr/issues/19751)
+        // Methods flagged with MethodImplOptions.AggressiveOptimization start with and stay at tier 1
         return NativeCodeVersion::OptimizationTier1;
     }
 
@@ -115,9 +114,9 @@ NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimiza
 
     if (!pMethodDesc->GetCallCounter()->IsCallCountingEnabled(pMethodDesc))
     {
-        // Tier 0 call counting may have been disabled based on information about precompiled code or for other reasons, the
-        // intention is to begin at tier 1
-        return NativeCodeVersion::OptimizationTier1;
+        // Tier 0 call counting may have been disabled for several reasons, the intention is to start with and stay at an
+        // optimized tier
+        return NativeCodeVersion::OptimizationTierOptimized;
     }
 #endif
 
@@ -240,7 +239,9 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
         NativeCodeVersionCollection nativeVersions = ilVersion.GetNativeCodeVersions(pMethodDesc);
         for (NativeCodeVersionIterator cur = nativeVersions.Begin(), end = nativeVersions.End(); cur != end; cur++)
         {
-            if (cur->GetOptimizationTier() == NativeCodeVersion::OptimizationTier1)
+            NativeCodeVersion::OptimizationTier optimizationTier = cur->GetOptimizationTier();
+            if (optimizationTier == NativeCodeVersion::OptimizationTier1 ||
+                optimizationTier == NativeCodeVersion::OptimizationTierOptimized)
             {
                 // we've already promoted
                 LOG((LF_TIEREDCOMPILATION, LL_INFO100000, "TieredCompilationManager::AsyncPromoteMethodToTier1 Method=0x%pM (%s::%s) ignoring already promoted method\n",
@@ -613,14 +614,15 @@ void TieredCompilationManager::OptimizeMethodsCallback()
 // on a background thread. Each such method will be jitted with code
 // optimizations enabled and then installed as the active implementation
 // of the method entrypoint.
-// 
-// We need to be carefuly not to work for too long in a single invocation
-// of this method or we could starve the threadpool and force
-// it to create unnecessary additional threads.
 void TieredCompilationManager::OptimizeMethods()
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(DebugGetWorkerThreadCount() != 0);
+
+    // We need to be careful not to work for too long in a single invocation of this method or we could starve the thread pool
+    // and force it to create unnecessary additional threads. We will JIT for a minimum of this quantum, then schedule another
+    // work item to the thread pool and return this thread back to the pool.
+    const DWORD OptimizationQuantumMs = 50;
 
     if (ETW::TieredCompilationLog::Runtime::IsEnabled())
     {
@@ -659,7 +661,7 @@ void TieredCompilationManager::OptimizeMethods()
             // This gives the threadpool a chance to service other requests on this thread before returning to
             // this work.
             DWORD currentTickCount = GetTickCount();
-            if (currentTickCount - startTickCount >= 50)
+            if (currentTickCount - startTickCount >= OptimizationQuantumMs)
             {
                 if (!TryAsyncOptimizeMethods())
                 {
@@ -850,17 +852,25 @@ CORJIT_FLAGS TieredCompilationManager::GetJitFlags(NativeCodeVersion nativeCodeV
 #endif
         return flags;
     }
-    
-    if (nativeCodeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0)
+
+    switch (nativeCodeVersion.GetOptimizationTier())
     {
-        flags.Set(CORJIT_FLAGS::CORJIT_FLAG_TIER0);
-    }
-    else
-    {
-        flags.Set(CORJIT_FLAGS::CORJIT_FLAG_TIER1);
+        case NativeCodeVersion::OptimizationTier0:
+            flags.Set(CORJIT_FLAGS::CORJIT_FLAG_TIER0);
+            break;
+
+        case NativeCodeVersion::OptimizationTier1:
+            flags.Set(CORJIT_FLAGS::CORJIT_FLAG_TIER1);
+            // fall through
+
+        case NativeCodeVersion::OptimizationTierOptimized:
 #ifdef FEATURE_INTERPRETER
-        flags.Set(CORJIT_FLAGS::CORJIT_FLAG_MAKEFINALCODE);
+            flags.Set(CORJIT_FLAGS::CORJIT_FLAG_MAKEFINALCODE);
 #endif
+            break;
+
+        default:
+            UNREACHABLE();
     }
     return flags;
 }

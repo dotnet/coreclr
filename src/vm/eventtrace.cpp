@@ -6340,9 +6340,18 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
             ulMethodFlags |= ETW::MethodLog::MethodStructs::ReadyToRunRejectedPrecompiledCode;
         }
 
-        _ASSERTE(((ulMethodFlags >> MethodFlagsJitOptimizationTierShift) & MethodFlagsJitOptimizationTierLowMask) == 0);
+        if (pConfig->JitSwitchedToMinOpt())
+        {
+            jitOptimizationTier = (int)JitOptimizationTier::MinOptJitted;
+        }
 #ifdef FEATURE_TIERED_COMPILATION
-        if (pMethodDesc->IsEligibleForTieredCompilation())
+        else if (pConfig->JitSwitchedToOptimized())
+        {
+            _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
+            _ASSERTE(pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTierOptimized);
+            jitOptimizationTier = (int)JitOptimizationTier::Optimized;
+        }
+        else if (pMethodDesc->IsEligibleForTieredCompilation())
         {
             switch (pConfig->GetCodeVersion().GetOptimizationTier())
             {
@@ -6351,6 +6360,10 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                     break;
 
                 case NativeCodeVersion::OptimizationTier1:
+                    jitOptimizationTier = (int)JitOptimizationTier::OptimizedTier1;
+                    break;
+
+                case NativeCodeVersion::OptimizationTierOptimized:
                     jitOptimizationTier = (int)JitOptimizationTier::Optimized;
                     break;
 
@@ -6378,6 +6391,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
     }
     static_assert_no_msg((unsigned int)JitOptimizationTier::Count - 1 <= MethodFlagsJitOptimizationTierLowMask);
     _ASSERTE((unsigned int)jitOptimizationTier <= MethodFlagsJitOptimizationTierLowMask);
+    _ASSERTE(((ulMethodFlags >> MethodFlagsJitOptimizationTierShift) & MethodFlagsJitOptimizationTierLowMask) == 0);
     ulMethodFlags |= (unsigned int)jitOptimizationTier << MethodFlagsJitOptimizationTierShift;
 
     // Intentionally set the extent flags (cold vs. hot) only after all the other common
@@ -7386,34 +7400,6 @@ VOID ETW::EnumerationLog::EnumerationHelper(Module *moduleFilter, BaseDomain *do
             }
         }
     }
-}
-
-bool ETW::TieredCompilationLog::Runtime::IsEnabled()
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-    } CONTRACTL_END;
-
-    return
-        ETW_TRACING_CATEGORY_ENABLED(
-            MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context,
-            TRACE_LEVEL_INFORMATION,
-            CLR_TIERED_COMPILATION_KEYWORD);
-}
-
-bool ETW::TieredCompilationLog::Rundown::IsEnabled()
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-    } CONTRACTL_END;
-
-    return
-        ETW_TRACING_CATEGORY_ENABLED(
-            MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context,
-            TRACE_LEVEL_INFORMATION,
-            CLR_TIERED_COMPILATION_RUNDOWN_KEYWORD);
 }
 
 void ETW::TieredCompilationLog::GetSettings(UINT32 *flagsRef)

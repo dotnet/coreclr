@@ -183,4 +183,31 @@ inline void Thread::SetGCSpecial(bool fGCSpecial)
     m_fGCSpecial = fGCSpecial;
 }
 
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+
+inline Thread::CurrentPrepareCodeConfigHolder::CurrentPrepareCodeConfigHolder(Thread *thread, PrepareCodeConfig *config)
+    : m_thread(thread)
+#ifdef _DEBUG
+    , m_config(config)
+#endif
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(thread != nullptr);
+    _ASSERTE(thread == GetThread());
+    _ASSERTE(config != nullptr);
+    _ASSERTE(thread->m_currentPrepareCodeConfig == nullptr);
+
+    thread->m_currentPrepareCodeConfig = config;
+}
+
+inline Thread::CurrentPrepareCodeConfigHolder::~CurrentPrepareCodeConfigHolder()
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(m_thread->m_currentPrepareCodeConfig == m_config);
+
+    m_thread->m_currentPrepareCodeConfig = nullptr;
+}
+
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
+
 #endif

@@ -596,7 +596,7 @@ namespace ETW
                 JitHelperMethod=0x10,
                 ProfilerRejectedPrecompiledCode=0x20,
                 ReadyToRunRejectedPrecompiledCode=0x40,
-                // 0x80 to 0x100 are used for the tier
+                // 0x80 to 0x200 are used for the optimization tier
             }MethodFlags;
 
             typedef enum _MethodExtent
@@ -611,8 +611,9 @@ namespace ETW
         {
             Unknown, // to identify older runtimes that would send this value
             MinOptJitted,
-            QuickJitted,
             Optimized,
+            QuickJitted,
+            OptimizedTier1,
 
             Count
         };

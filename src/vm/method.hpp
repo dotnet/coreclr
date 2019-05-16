@@ -2057,6 +2057,42 @@ public:
     BOOL ReadyToRunRejectedPrecompiledCode();
     void SetProfilerRejectedPrecompiledCode();
     void SetReadyToRunRejectedPrecompiledCode();
+
+#ifndef CROSSGEN_COMPILE
+    bool JitSwitchedToMinOpt() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_jitSwitchedToMinOpt;
+    }
+
+    void SetJitSwitchedToMinOpt()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_TIERED_COMPILATION
+        m_jitSwitchedToOptimized = false;
+#endif
+        m_jitSwitchedToMinOpt = true;
+    }
+
+#ifdef FEATURE_TIERED_COMPILATION
+    bool JitSwitchedToOptimized() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_jitSwitchedToOptimized;
+    }
+
+    void SetJitSwitchedToOptimized()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        if (!m_jitSwitchedToMinOpt)
+        {
+            m_jitSwitchedToOptimized = true;
+        }
+    }
+#endif
+#endif // !CROSSGEN_COMPILE
     
 protected:
     MethodDesc* m_pMethodDesc;
@@ -2065,6 +2101,14 @@ protected:
     BOOL m_mayUsePrecompiledCode;
     BOOL m_ProfilerRejectedPrecompiledCode;
     BOOL m_ReadyToRunRejectedPrecompiledCode;
+
+#ifndef CROSSGEN_COMPILE
+private:
+    bool m_jitSwitchedToMinOpt; // when it wasn't requested
+#ifdef FEATURE_TIERED_COMPILATION
+    bool m_jitSwitchedToOptimized; // when a different tier was requested
+#endif
+#endif // !CROSSGEN_COMPILE
 };
 
 #ifdef FEATURE_CODE_VERSIONING

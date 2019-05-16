@@ -382,8 +382,6 @@
                             <opcode name="Settings" message="$(string.RuntimePublisher.TieredCompilationSettingsOpcodeMessage)" symbol="CLR_TIERED_COMPILATION_SETTINGS_OPCODE" value="11"/>
                             <opcode name="Pause" message="$(string.RuntimePublisher.TieredCompilationPauseOpcodeMessage)" symbol="CLR_TIERED_COMPILATION_PAUSE_OPCODE" value="12"/>
                             <opcode name="Resume" message="$(string.RuntimePublisher.TieredCompilationResumeOpcodeMessage)" symbol="CLR_TIERED_COMPILATION_RESUME_OPCODE" value="13"/>
-                            <opcode name="BackgroundJitStart" message="$(string.RuntimePublisher.TieredCompilationBackgroundJitStartOpcodeMessage)" symbol="CLR_TIERED_COMPILATION_BACKGROUND_JIT_START_OPCODE" value="14"/>
-                            <opcode name="BackgroundJitStop" message="$(string.RuntimePublisher.TieredCompilationBackgroundJitStopOpcodeMessage)" symbol="CLR_TIERED_COMPILATION_BACKGROUND_JIT_STOP_OPCODE" value="15"/>
                         </opcodes>
                     </task>
                 <!--Next available ID is 32-->
@@ -3398,10 +3396,10 @@
                            keywords="TieredCompilationKeyword" task="TieredCompilation" opcode="Resume"
                            symbol="TieredCompilationResume" message="$(string.RuntimePublisher.TieredCompilationResumeEventMessage)"/>
                     <event value="283" version="0" level="win:Informational" template="TieredCompilationBackgroundJitStart"
-                           keywords="TieredCompilationKeyword" task="TieredCompilation" opcode="BackgroundJitStart"
+                           keywords="TieredCompilationKeyword" task="TieredCompilation" opcode="win:Start"
                            symbol="TieredCompilationBackgroundJitStart" message="$(string.RuntimePublisher.TieredCompilationBackgroundJitStartEventMessage)"/>
                     <event value="284" version="0" level="win:Informational" template="TieredCompilationBackgroundJitStop"
-                           keywords="TieredCompilationKeyword" task="TieredCompilation" opcode="BackgroundJitStop"
+                           keywords="TieredCompilationKeyword" task="TieredCompilation" opcode="win:Stop"
                            symbol="TieredCompilationBackgroundJitStop" message="$(string.RuntimePublisher.TieredCompilationBackgroundJitStopEventMessage)"/>
                 </events>
             </provider>
@@ -7214,8 +7212,6 @@
                 <string id="RuntimePublisher.TieredCompilationSettingsOpcodeMessage" value="Settings" />
                 <string id="RuntimePublisher.TieredCompilationPauseOpcodeMessage" value="Pause" />
                 <string id="RuntimePublisher.TieredCompilationResumeOpcodeMessage" value="Resume" />
-                <string id="RuntimePublisher.TieredCompilationBackgroundJitStartOpcodeMessage" value="BackgroundJitStart" />
-                <string id="RuntimePublisher.TieredCompilationBackgroundJitStopOpcodeMessage" value="BackgroundJitStop" />
 
                 <string id="RundownPublisher.MethodDCStartOpcodeMessage" value="DCStart" />
                 <string id="RundownPublisher.MethodDCEndOpcodeMessage" value="DCStop" />

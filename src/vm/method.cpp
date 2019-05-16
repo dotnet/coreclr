@@ -4803,9 +4803,9 @@ bool MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
         // Functional requirement
         CodeVersionManager::IsMethodSupported(this) &&
 
-        // Policy - If quick JIT is disabled for the startup tier and the module is not ReadyToRun, the method would effectively
-        // not be tiered currently, so make the method ineligible for tiering to avoid some unnecessary overhead
-        (g_pConfig->TieredCompilation_QuickJit() || GetModule()->IsReadyToRun()) &&
+        // Policy - If QuickJit is disabled and the module does not have any pregenerated code, the method would effectively not
+        // be tiered currently, so make the method ineligible for tiering to avoid some unnecessary overhead
+        (g_pConfig->TieredCompilation_QuickJit() || GetModule()->HasNativeOrReadyToRunImage()) &&
 
         // Policy - Generating optimized code is not disabled
         !IsJitOptimizationDisabled() &&
@@ -4822,8 +4822,9 @@ bool MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
     return false;
 }
 
-#ifndef CROSSGEN_COMPILE
+#endif // !DACCESS_COMPILE
 
+#ifndef CROSSGEN_COMPILE
 bool MethodDesc::IsJitOptimizationDisabled()
 {
     WRAPPER_NO_CONTRACT;
@@ -4836,6 +4837,10 @@ bool MethodDesc::IsJitOptimizationDisabled()
         CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) ||
         (!IsNoMetadata() && IsMiNoOptimization(GetImplAttrs()));
 }
+#endif
+
+#ifndef DACCESS_COMPILE
+#ifndef CROSSGEN_COMPILE
 
 void MethodDesc::RecordAndBackpatchEntryPointSlot(
     LoaderAllocator *slotLoaderAllocator, // the loader allocator from which the slot's memory is allocated

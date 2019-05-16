@@ -1551,6 +1551,8 @@ Thread::Thread()
 #endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
     m_DeserializationTracker = NULL;
+
+    m_currentPrepareCodeConfig = nullptr;
 }
 
 //--------------------------------------------------------------------
