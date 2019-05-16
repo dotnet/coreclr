@@ -1865,7 +1865,8 @@ void CodeGen::genSIMDIntrinsicBinOp(GenTreeSIMD* simdNode)
 
         // Extract first and third double word results from targetReg
         // targetReg = shuffle(0,0,2,0) of targetReg
-        getEmitter()->emitIns_R_R_I(INS_pshufd, emitActualTypeSize(targetType), targetReg, targetReg, (int8_t)SHUFFLE_XXZX);
+        getEmitter()->emitIns_R_R_I(INS_pshufd, emitActualTypeSize(targetType), targetReg, targetReg,
+                                    (int8_t)SHUFFLE_XXZX);
 
         // pack the results into a single vector
         inst_RV_RV(INS_punpckldq, targetReg, tmpReg, targetType, emitActualTypeSize(targetType));

@@ -1767,7 +1767,8 @@ inline UNATIVE_OFFSET emitter::emitInsSizeRR(instrDesc* id, code_t code)
         sz++;
     }
 
-    if (TakesRexWPrefix(ins, attr) || IsExtendedReg(id->idReg1(), attr) || IsExtendedReg(id->idReg2(), attr) || (!id->idIsSmallDsc() && (IsExtendedReg(id->idReg3(), attr) || IsExtendedReg(id->idReg4(), attr))))
+    if (TakesRexWPrefix(ins, attr) || IsExtendedReg(id->idReg1(), attr) || IsExtendedReg(id->idReg2(), attr) ||
+        (!id->idIsSmallDsc() && (IsExtendedReg(id->idReg3(), attr) || IsExtendedReg(id->idReg4(), attr))))
     {
         sz += emitGetRexPrefixSize(ins);
     }
@@ -1809,7 +1810,6 @@ inline UNATIVE_OFFSET emitter::emitInsSizeRR(instrDesc* id, code_t code, int val
 
     return valSize + emitInsSizeRR(id, code);
 }
-
 
 inline UNATIVE_OFFSET emitter::emitInsSizeRR(instruction ins, regNumber reg1, regNumber reg2, emitAttr attr)
 {
@@ -2047,7 +2047,8 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, code_t code, int var
     }
 
     // 64-bit operand instructions will need a REX.W prefix
-    if (TakesRexWPrefix(ins, attrSize) || IsExtendedReg(id->idReg1(), attrSize) || IsExtendedReg(id->idReg2(), attrSize))
+    if (TakesRexWPrefix(ins, attrSize) || IsExtendedReg(id->idReg1(), attrSize) ||
+        IsExtendedReg(id->idReg2(), attrSize))
     {
         prefix += emitGetRexPrefixSize(ins);
     }
@@ -2106,7 +2107,8 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, code_t code, int var
     }
 
     // 64-bit operand instructions will need a REX.W prefix
-    if (TakesRexWPrefix(ins, attrSize) || IsExtendedReg(id->idReg1(), attrSize) || IsExtendedReg(id->idReg2(), attrSize))
+    if (TakesRexWPrefix(ins, attrSize) || IsExtendedReg(id->idReg1(), attrSize) ||
+        IsExtendedReg(id->idReg2(), attrSize))
     {
         prefix += emitGetRexPrefixSize(ins);
     }
@@ -2424,7 +2426,8 @@ inline UNATIVE_OFFSET emitter::emitInsSizeCV(instrDesc* id, code_t code)
     }
 
     // 64-bit operand instructions will need a REX.W prefix
-    if (TakesRexWPrefix(ins, attrSize) || IsExtendedReg(id->idReg1(), attrSize) || IsExtendedReg(id->idReg2(), attrSize))
+    if (TakesRexWPrefix(ins, attrSize) || IsExtendedReg(id->idReg1(), attrSize) ||
+        IsExtendedReg(id->idReg2(), attrSize))
     {
         size += emitGetRexPrefixSize(ins);
     }
