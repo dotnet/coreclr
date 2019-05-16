@@ -191,7 +191,8 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         add_compile_options(-Wno-null-conversion)
     else()
-        add_compile_options(-Werror=conversion-null)
+        # We need to add -Werror=conversion-null to CMAKE_<LANG>_FLAGS since add_compile_options takes precedence
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=conversion-null")
     endif()
 endif()
 
