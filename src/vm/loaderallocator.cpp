@@ -7,6 +7,7 @@
 #include "stringliteralmap.h"
 #include "virtualcallstub.h"
 #include "threadsuspend.h"
+#include "mlinfo.h"
 #ifndef DACCESS_COMPILE
 #include "comdelegate.h"
 #endif
@@ -639,7 +640,7 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
     
     // Deleting the DomainAssemblies will have created a list of LoaderAllocator's on the AppDomain
     // Call this shutdown function to clean those up.
-    pAppDomain->ShutdownFreeLoaderAllocators(TRUE);
+    pAppDomain->ShutdownFreeLoaderAllocators();
 } // LoaderAllocator::GCLoaderAllocators
         
 //---------------------------------------------------------------------------------------
@@ -686,15 +687,7 @@ BOOL QCALLTYPE LoaderAllocator::Destroy(QCall::LoaderAllocatorHandle pLoaderAllo
         if (pDomainAssembly != NULL)
         {
             Assembly *pAssembly = pDomainAssembly->GetCurrentAssembly();
-
-            //if not fully loaded, it is still domain specific, so just get one from DomainAssembly
-            BaseDomain *pDomain = pAssembly ? pAssembly->Parent() : pDomainAssembly->GetAppDomain();
-
-            // This will probably change for shared code unloading
-            _ASSERTE(pDomain->IsAppDomain());
-
-            AppDomain *pAppDomain = pDomain->AsAppDomain();
-            pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete = pAssembly->GetDomainAssembly(pAppDomain);
+            pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete = pAssembly->GetDomainAssembly();
         }
 
         // Iterate through all references to other loader allocators and decrement their reference
@@ -848,7 +841,7 @@ LOADERHANDLE LoaderAllocator::AllocateHandle(OBJECTREF value)
     else
     {
         OBJECTREF* pRef = GetDomain()->AllocateObjRefPtrsInLargeTable(1);
-        SetObjectReference(pRef, gc.value, GetDomain()->AsAppDomain());
+        SetObjectReference(pRef, gc.value);
         retVal = (((UINT_PTR)pRef) + 1);
     }
 
@@ -932,7 +925,7 @@ OBJECTREF LoaderAllocator::CompareExchangeValueInHandle(LOADERHANDLE handle, OBJ
         gc.previous = *ptr;
         if ((*ptr) == gc.compare)
         {
-            SetObjectReference(ptr, gc.value, GetDomain()->AsAppDomain());
+            SetObjectReference(ptr, gc.value);
         }
     }
     else
@@ -979,7 +972,7 @@ void LoaderAllocator::SetHandleValue(LOADERHANDLE handle, OBJECTREF value)
     if ((((UINT_PTR)handle) & 1) != 0)
     {
         OBJECTREF *ptr = (OBJECTREF *)(((UINT_PTR)handle) - 1);
-        SetObjectReference(ptr, value, GetDomain()->AsAppDomain());
+        SetObjectReference(ptr, value);
     }
     else
     {

@@ -15,10 +15,10 @@ namespace System.Threading
 #endif
     public sealed partial class Thread : CriticalFinalizerObject
     {
-        private static AsyncLocal<IPrincipal> s_asyncLocalPrincipal;
+        private static AsyncLocal<IPrincipal?>? s_asyncLocalPrincipal;
 
         [ThreadStatic]
-        private static Thread t_currentThread;
+        private static Thread? t_currentThread;
 
         public Thread(ThreadStart start)
             : this()
@@ -93,7 +93,7 @@ namespace System.Threading
             SetCultureOnUnstartedThreadNoCheck(value, uiCulture);
         }
 
-        partial void ThreadNameChanged(string value);
+        partial void ThreadNameChanged(string? value);
 
         public CultureInfo CurrentCulture
         {
@@ -131,7 +131,7 @@ namespace System.Threading
             }
         }
 
-        public static IPrincipal CurrentPrincipal
+        public static IPrincipal? CurrentPrincipal
         {
             get
             {
@@ -149,17 +149,17 @@ namespace System.Threading
                     {
                         return;
                     }
-                    Interlocked.CompareExchange(ref s_asyncLocalPrincipal, new AsyncLocal<IPrincipal>(), null);
+                    Interlocked.CompareExchange(ref s_asyncLocalPrincipal, new AsyncLocal<IPrincipal?>(), null);
                 }
-                s_asyncLocalPrincipal.Value = value;
+                s_asyncLocalPrincipal!.Value = value; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
             }
         }
 
         public static Thread CurrentThread => t_currentThread ?? InitializeCurrentThread();
 
-        public ExecutionContext ExecutionContext => ExecutionContext.Capture();
+        public ExecutionContext? ExecutionContext => ExecutionContext.Capture();
 
-        public string Name
+        public string? Name
         {
             get => _name;
             set
@@ -183,7 +183,7 @@ namespace System.Threading
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ThreadAbort);
         }
 
-        public void Abort(object stateInfo)
+        public void Abort(object? stateInfo)
         {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ThreadAbort);
         }
@@ -216,8 +216,8 @@ namespace System.Threading
         public static LocalDataStoreSlot AllocateNamedDataSlot(string name) => LocalDataStore.AllocateNamedSlot(name);
         public static LocalDataStoreSlot GetNamedDataSlot(string name) => LocalDataStore.GetNamedSlot(name);
         public static void FreeNamedDataSlot(string name) => LocalDataStore.FreeNamedSlot(name);
-        public static object GetData(LocalDataStoreSlot slot) => LocalDataStore.GetData(slot);
-        public static void SetData(LocalDataStoreSlot slot, object data) => LocalDataStore.SetData(slot, data);
+        public static object? GetData(LocalDataStoreSlot slot) => LocalDataStore.GetData(slot);
+        public static void SetData(LocalDataStoreSlot slot, object? data) => LocalDataStore.SetData(slot, data);
 
         [Obsolete("The ApartmentState property has been deprecated.  Use GetApartmentState, SetApartmentState or TrySetApartmentState instead.", false)]
         public ApartmentState ApartmentState
@@ -282,7 +282,7 @@ namespace System.Threading
         public static int VolatileRead(ref int address) => Volatile.Read(ref address);
         public static long VolatileRead(ref long address) => Volatile.Read(ref address);
         public static IntPtr VolatileRead(ref IntPtr address) => Volatile.Read(ref address);
-        public static object VolatileRead(ref object address) => Volatile.Read(ref address);
+        public static object? VolatileRead(ref object? address) => Volatile.Read(ref address); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
         [CLSCompliant(false)]
         public static sbyte VolatileRead(ref sbyte address) => Volatile.Read(ref address);
         public static float VolatileRead(ref float address) => Volatile.Read(ref address);
@@ -300,7 +300,7 @@ namespace System.Threading
         public static void VolatileWrite(ref int address, int value) => Volatile.Write(ref address, value);
         public static void VolatileWrite(ref long address, long value) => Volatile.Write(ref address, value);
         public static void VolatileWrite(ref IntPtr address, IntPtr value) => Volatile.Write(ref address, value);
-        public static void VolatileWrite(ref object address, object value) => Volatile.Write(ref address, value);
+        public static void VolatileWrite(ref object? address, object? value) => Volatile.Write(ref address, value);
         [CLSCompliant(false)]
         public static void VolatileWrite(ref sbyte address, sbyte value) => Volatile.Write(ref address, value);
         public static void VolatileWrite(ref float address, float value) => Volatile.Write(ref address, value);
@@ -318,16 +318,16 @@ namespace System.Threading
         /// </summary>
         private static class LocalDataStore
         {
-            private static Dictionary<string, LocalDataStoreSlot> s_nameToSlotMap;
+            private static Dictionary<string, LocalDataStoreSlot>? s_nameToSlotMap;
 
             public static LocalDataStoreSlot AllocateSlot()
             {
-                return new LocalDataStoreSlot(new ThreadLocal<object>());
+                return new LocalDataStoreSlot(new ThreadLocal<object?>());
             }
 
             private static Dictionary<string, LocalDataStoreSlot> EnsureNameToSlotMap()
             {
-                Dictionary<string, LocalDataStoreSlot> nameToSlotMap = s_nameToSlotMap;
+                Dictionary<string, LocalDataStoreSlot>? nameToSlotMap = s_nameToSlotMap;
                 if (nameToSlotMap != null)
                 {
                     return nameToSlotMap;
@@ -372,7 +372,7 @@ namespace System.Threading
                 }
             }
 
-            private static ThreadLocal<object> GetThreadLocal(LocalDataStoreSlot slot)
+            private static ThreadLocal<object?> GetThreadLocal(LocalDataStoreSlot slot)
             {
                 if (slot == null)
                 {
@@ -383,12 +383,12 @@ namespace System.Threading
                 return slot.Data;
             }
 
-            public static object GetData(LocalDataStoreSlot slot)
+            public static object? GetData(LocalDataStoreSlot slot)
             {
                 return GetThreadLocal(slot).Value;
             }
 
-            public static void SetData(LocalDataStoreSlot slot, object value)
+            public static void SetData(LocalDataStoreSlot slot, object? value)
             {
                 GetThreadLocal(slot).Value = value;
             }

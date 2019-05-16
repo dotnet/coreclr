@@ -2,15 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -42,7 +36,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IEnumerable<K> Keys { get }
-        internal IEnumerable<K> Keys<K, V>()
+        internal IEnumerable<K> Keys<K, V>() where K : object
         {
             IMapView<K, V> _this = Unsafe.As<IMapView<K, V>>(this);
             IReadOnlyDictionary<K, V> roDictionary = (IReadOnlyDictionary<K, V>)_this;
@@ -50,7 +44,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IEnumerable<V> Values { get }
-        internal IEnumerable<V> Values<K, V>()
+        internal IEnumerable<V> Values<K, V>() where K : object
         {
             IMapView<K, V> _this = Unsafe.As<IMapView<K, V>>(this);
             IReadOnlyDictionary<K, V> roDictionary = (IReadOnlyDictionary<K, V>)_this;
@@ -58,7 +52,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool ContainsKey(K key)
-        internal bool ContainsKey<K, V>(K key)
+        internal bool ContainsKey<K, V>(K key) where K : object
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
@@ -68,7 +62,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool TryGetValue(TKey key, out TValue value)
-        internal bool TryGetValue<K, V>(K key, out V value)
+        internal bool TryGetValue<K, V>(K key, out V value) where K : object
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
@@ -79,7 +73,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // throw an exception from Lookup.
             if (!_this.HasKey(key))
             {
-                value = default;
+                value = default!; // TODO-NULLABLE-GENERIC
                 return false;
             }
 
@@ -92,7 +86,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 if (HResults.E_BOUNDS == ex.HResult)
                 {
-                    value = default;
+                    value = default!; // TODO-NULLABLE-GENERIC
                     return false;
                 }
                 throw;
@@ -122,7 +116,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
     // Note: One day we may make these return IReadOnlyCollection<T>
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class ReadOnlyDictionaryKeyCollection<TKey, TValue> : IEnumerable<TKey>
+    internal sealed class ReadOnlyDictionaryKeyCollection<TKey, TValue> : IEnumerable<TKey> where TKey : object
     {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
 
@@ -175,7 +169,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }  // public class ReadOnlyDictionaryKeyCollection<TKey, TValue>
 
 
-    internal sealed class ReadOnlyDictionaryKeyEnumerator<TKey, TValue> : IEnumerator<TKey>
+    internal sealed class ReadOnlyDictionaryKeyEnumerator<TKey, TValue> : IEnumerator<TKey> where TKey : object
     {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
         private IEnumerator<KeyValuePair<TKey, TValue>> enumeration;
@@ -199,7 +193,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return enumeration.MoveNext();
         }
 
-        object IEnumerator.Current
+        object? IEnumerator.Current
         {
             get { return ((IEnumerator<TKey>)this).Current; }
         }
@@ -217,7 +211,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
 
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class ReadOnlyDictionaryValueCollection<TKey, TValue> : IEnumerable<TValue>
+    internal sealed class ReadOnlyDictionaryValueCollection<TKey, TValue> : IEnumerable<TValue> where TKey : object
     {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
 
@@ -274,7 +268,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }  // public class ReadOnlyDictionaryValueCollection<TKey, TValue>
 
 
-    internal sealed class ReadOnlyDictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue>
+    internal sealed class ReadOnlyDictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue> where TKey : object
     {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
         private IEnumerator<KeyValuePair<TKey, TValue>> enumeration;
@@ -298,7 +292,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return enumeration.MoveNext();
         }
 
-        object IEnumerator.Current
+        object? IEnumerator.Current
         {
             get { return ((IEnumerator<TValue>)this).Current; }
         }

@@ -33,10 +33,11 @@
 #include "ilstubcache.h"
 #include "classhash.h"
 
-#ifdef FEATURE_PREJIT
 #include "corcompile.h"
-#include "dataimage.h"
 #include <gcinfodecoder.h>
+
+#ifdef FEATURE_PREJIT
+#include "dataimage.h"
 #endif // FEATURE_PREJIT
 
 #ifdef FEATURE_COMINTEROP
@@ -75,14 +76,16 @@ class AppDomain;
 class DynamicMethodTable;
 class CodeVersionManager;
 class TieredCompilationManager;
-#ifdef FEATURE_PREJIT
-class CerNgenRootTable;
-struct MethodContextElement;
-class TypeHandleList;
 class ProfileEmitter;
+#ifdef FEATURE_PREJIT
+class TypeHandleList;
 class TrackingMap;
 struct MethodInModule;
 class PersistentInlineTrackingMapNGen;
+class JITInlineTrackingMap;
+
+extern VerboseLevel g_CorCompileVerboseLevel;
+#endif
 
 // Hash table parameter of available classes (name -> module/class) hash
 #define AVAILABLE_CLASSES_HASH_BUCKETS 1024
@@ -106,9 +109,7 @@ class PersistentInlineTrackingMapNGen;
 #endif
 
 typedef DPTR(PersistentInlineTrackingMapNGen) PTR_PersistentInlineTrackingMapNGen;
-
-extern VerboseLevel g_CorCompileVerboseLevel;
-#endif  // FEATURE_PREJIT
+typedef DPTR(JITInlineTrackingMap) PTR_JITInlineTrackingMap;
 
 //
 // LookupMaps are used to implement RID maps
@@ -1342,7 +1343,7 @@ private:
         // Note that none of these flags survive a prejit save/restore.
 
         MODULE_IS_TENURED           = 0x00000001,   // Set once we know for sure the Module will not be freed until the appdomain itself exits
-        M_CER_ROOT_TABLE_ON_HEAP    = 0x00000002,   // Set when m_pCerNgenRootTable is allocated from heap (at ngen time)
+        // unused                   = 0x00000002,
         CLASSES_FREED               = 0x00000004,
         IS_EDIT_AND_CONTINUE        = 0x00000008,   // is EnC Enabled for this module
 
@@ -1615,11 +1616,7 @@ private:
     PTR_ReadyToRunInfo      m_pReadyToRunInfo;
 #endif
 
-#ifdef FEATURE_PREJIT
-
 private:
-    PTR_NGenLayoutInfo      m_pNGenLayoutInfo;
-
     PTR_ProfilingBlobTable  m_pProfilingBlobTable;   // While performing IBC instrumenting this hashtable is populated with the External defs
     CorProfileData *        m_pProfileData;          // While ngen-ing with IBC optimizations this contains a link to the IBC data for the assembly
 
@@ -1631,6 +1628,9 @@ private:
     DWORD                   m_dwTypeCount;
     DWORD                   m_dwExportedTypeCount;
 #endif // PROFILING_SUPPORTED_DATA
+
+#ifdef FEATURE_PREJIT
+    PTR_NGenLayoutInfo      m_pNGenLayoutInfo;
 
 #if defined(FEATURE_COMINTEROP)
         public:
@@ -1648,12 +1648,11 @@ private:
 
 #endif // defined(FEATURE_COMINTEROP)
 
-#endif // FEATURE_PREJIT
-
     // Module wide static fields information
     ModuleCtorInfo          m_ModuleCtorInfo;
 
-#ifdef FEATURE_PREJIT
+#endif // FEATURE_PREJIT
+
     struct TokenProfileData
     {
         static TokenProfileData *CreateNoThrow(void);
@@ -1681,6 +1680,7 @@ private:
 
     } *m_tokenProfileData;
 
+#ifdef FEATURE_PREJIT
     // Stats for prejit log
     NgenStats                *m_pNgenStats;
 #endif // FEATURE_PREJIT
@@ -1765,24 +1765,11 @@ protected:
     MethodTable *GetGlobalMethodTable();
     bool         NeedsGlobalMethodTable();
 
-    // Only for non-manifest modules
-    DomainModule *GetDomainModule(AppDomain *pDomain);
-    DomainModule *FindDomainModule(AppDomain *pDomain);
-
     // This works for manifest modules too
-    DomainFile *GetDomainFile(AppDomain *pDomain);
-    DomainFile *FindDomainFile(AppDomain *pDomain);
+    DomainFile *GetDomainFile();
 
     // Operates on assembly of module
-    DomainAssembly *GetDomainAssembly(AppDomain *pDomain);
-    DomainAssembly *FindDomainAssembly(AppDomain *pDomain);
-
-    // Versions which rely on the current AppDomain (N/A for DAC builds)
-#ifndef DACCESS_COMPILE
-    DomainModule * GetDomainModule()         { WRAPPER_NO_CONTRACT; return GetDomainModule(GetAppDomain()); }
-    DomainFile * GetDomainFile()             { WRAPPER_NO_CONTRACT; return GetDomainFile(GetAppDomain()); }
-    DomainAssembly * GetDomainAssembly()     { WRAPPER_NO_CONTRACT; return GetDomainAssembly(GetAppDomain()); }
-#endif
+    DomainAssembly *GetDomainAssembly();
 
     void SetDomainFile(DomainFile *pDomainFile);
 
@@ -2181,7 +2168,6 @@ private:
 public:
 
     DomainAssembly * LoadAssembly(
-            AppDomain *   pDomain, 
             mdAssemblyRef kAssemblyRef, 
             LPCUTF8       szWinRtTypeNamespace = NULL,
             LPCUTF8       szWinRtTypeClassName = NULL);
@@ -2538,8 +2524,13 @@ public:
     void NotifyProfilerLoadFinished(HRESULT hr);
 #endif // PROFILING_SUPPORTED
 
-    BOOL HasInlineTrackingMap();
-    COUNT_T GetInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
+    BOOL HasNativeOrReadyToRunInlineTrackingMap();
+    COUNT_T GetNativeOrReadyToRunInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
+#if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    BOOL HasJitInlineTrackingMap();
+    PTR_JITInlineTrackingMap GetJitInlineTrackingMap() { LIMITED_METHOD_CONTRACT; return m_pJitInlinerTrackingMap; }
+    void AddInlining(MethodDesc *inliner, MethodDesc *inlinee);
+#endif // defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 public:
     void NotifyEtwLoadFinished(HRESULT hr);
@@ -2559,13 +2550,15 @@ public:
         m_pDllMain = pMD;
     }
 
+#ifdef FEATURE_PREJIT
     // This data is only valid for NGEN'd modules, and for modules we're creating at NGEN time.
     ModuleCtorInfo* GetZapModuleCtorInfo()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        
+
         return &m_ModuleCtorInfo;
     }
+#endif
 
  private:
 
@@ -2684,9 +2677,6 @@ public:
 
     void AddActiveDependency(Module *pModule, BOOL unconditional);
 
-    // Turn triggers from this module into runtime checks
-    void EnableModuleFailureTriggers(Module *pModule, AppDomain *pDomain);
-
 #ifdef FEATURE_PREJIT
     BOOL IsZappedCode(PCODE code);
     BOOL IsZappedPrecode(PCODE code);
@@ -2734,8 +2724,9 @@ public:
 
     PCCOR_SIGNATURE GetEncodedSig(RVA fixupRva, Module **ppDefiningModule);
     PCCOR_SIGNATURE GetEncodedSigIfLoaded(RVA fixupRva, Module **ppDefiningModule);
+#endif
 
-    BYTE *GetNativeFixupBlobData(RVA fixup);
+    BYTE* GetNativeFixupBlobData(RVA fixup);
 
     IMDInternalImport *GetNativeAssemblyImport(BOOL loadAllowed = TRUE);
     IMDInternalImport *GetNativeAssemblyImportIfLoaded();
@@ -2753,10 +2744,10 @@ public:
                            PEDecoder * pNativeImage);
     void RunEagerFixups();
 
-    IMDInternalImport *GetNativeFixupImport();
     Module *GetModuleFromIndex(DWORD ix);
     Module *GetModuleFromIndexIfLoaded(DWORD ix);
 
+#ifdef FEATURE_PREJIT
     // This is to rebuild stub dispatch maps to module-local values.
     void UpdateStubDispatchTypeTable(DataImage *image);
 
@@ -2863,8 +2854,9 @@ public:
 
         return m_pNGenLayoutInfo->m_VirtualMethodThunks.IsInRange(code);
     }
+#endif // FEATURE_PREJIT
 
-    ICorJitInfo::ProfileBuffer * AllocateProfileBuffer(mdToken _token, DWORD _size, DWORD _ILSize);
+    ICorJitInfo::BlockCounts * AllocateMethodBlockCounts(mdToken _token, DWORD _size, DWORD _ILSize);
     HANDLE OpenMethodProfileDataLogFile(GUID mvid);
     static void ProfileDataAllocateTokenLists(ProfileEmitter * pEmitter, TokenProfileData* pTokenProfileData);
     HRESULT WriteMethodProfileDataLogFile(bool cleanup);
@@ -2882,6 +2874,7 @@ public:
     void LogTokenAccess(mdToken token, SectionFormat format, ULONG flagNum);
     void LogTokenAccess(mdToken token, ULONG flagNum);
 
+#ifdef FEATURE_PREJIT
     BOOL AreTypeSpecsTriaged()
     {
         return m_dwTransientFlags & TYPESPECS_TRIAGED;
@@ -3007,33 +3000,6 @@ public:
     // We need this for the jitted shared case,
     inline MethodTable* GetDynamicClassMT(DWORD dynamicClassID);
 
-    static BOOL IsEncodedModuleIndex(SIZE_T ModuleID)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        
-        // We should never see encoded module index in CoreCLR
-        _ASSERTE((ModuleID&1)==0);
-        return FALSE;
-    }
-
-    static SIZE_T IndexToID(ModuleIndex index)
-    {
-        LIMITED_METHOD_CONTRACT
-            
-        return (index.m_dwIndex << 1) | 1;
-    }
-
-    static ModuleIndex IDToIndex(SIZE_T ModuleID)
-    {
-        LIMITED_METHOD_CONTRACT
-        SUPPORTS_DAC;
-            
-        _ASSERTE(IsEncodedModuleIndex(ModuleID));
-        ModuleIndex index(ModuleID >> 1);
-
-        return index;
-    }
-
     static ModuleIndex AllocateModuleIndex();
     static void FreeModuleIndex(ModuleIndex index);
 
@@ -3061,11 +3027,7 @@ public:
         return offsetof(Module, m_ModuleID);
     }
 
-    PTR_DomainLocalModule   GetDomainLocalModule(AppDomain *pDomain);
-
-#ifndef DACCESS_COMPILE
-    PTR_DomainLocalModule   GetDomainLocalModule()  { WRAPPER_NO_CONTRACT; return GetDomainLocalModule(NULL); };
-#endif
+    PTR_DomainLocalModule   GetDomainLocalModule();
 
 #ifdef FEATURE_PREJIT
     NgenStats *GetNgenStats()
@@ -3083,7 +3045,7 @@ public:
     // Self-initializing accessor for domain-independent IJW thunk heap
     LoaderHeap              *GetDllThunkHeap();
 
-    void            EnumRegularStaticGCRefs        (AppDomain* pAppDomain, promote_func* fn, ScanContext* sc);
+    void            EnumRegularStaticGCRefs        (promote_func* fn, ScanContext* sc);
 
 protected:    
 
@@ -3224,11 +3186,14 @@ private:
     // This is a compressed read only copy of m_inlineTrackingMap, which is being saved to NGEN image.
     PTR_PersistentInlineTrackingMapNGen m_pPersistentInlineTrackingMapNGen;
 
+#if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE)
+    PTR_JITInlineTrackingMap m_pJitInlinerTrackingMap;
+#endif // defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE)
+
 
     LPCSTR               *m_AssemblyRefByNameTable;  // array that maps mdAssemblyRef tokens into their simple name
     DWORD                 m_AssemblyRefByNameCount;  // array size
 
-#if defined(FEATURE_PREJIT)
     // a.dll calls a method in b.dll and that method call a method in c.dll. When ngening
     // a.dll it is possible then method in b.dll can be inlined. When that happens a.ni.dll stores
     // an added native metadata which has information about assemblyRef to c.dll
@@ -3238,10 +3203,9 @@ private:
     // is not called for each fixup
 
     PTR_Assembly           *m_NativeMetadataAssemblyRefMap; 
-#endif // defined(FEATURE_PREJIT)
 
 public:
-#if !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
+#if !defined(DACCESS_COMPILE)
     PTR_Assembly GetNativeMetadataAssemblyRefFromCache(DWORD rid)
     {
         PTR_Assembly * NativeMetadataAssemblyRefMap = VolatileLoadWithoutBarrier(&m_NativeMetadataAssemblyRefMap);
@@ -3254,7 +3218,7 @@ public:
     }
 
     void SetNativeMetadataAssemblyRefInCache(DWORD rid, PTR_Assembly pAssembly);
-#endif // !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
+#endif // !defined(DACCESS_COMPILE)
 };
 
 //
@@ -3465,5 +3429,10 @@ struct VASigCookieEx : public VASigCookie
 {
     const BYTE *m_pArgs;        // pointer to first unfixed unmanaged arg
 };
+
+// Rerieve the full command line for the current process.
+LPCWSTR GetManagedCommandLine();
+// Save the command line for the current process.
+void SaveManagedCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv);
 
 #endif // !CEELOAD_H_

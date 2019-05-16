@@ -573,8 +573,8 @@ bool Compiler::isSingleFloat32Struct(CORINFO_CLASS_HANDLE clsHnd)
 //     of size 'structSize'.
 //     We examine 'clsHnd' to check the GC layout of the struct and
 //     return TYP_REF for structs that simply wrap an object.
-//     If the struct is a one element HFA, we will return the
-//     proper floating point type.
+//     If the struct is a one element HFA/HVA, we will return the
+//     proper floating point or vector type.
 //
 // Arguments:
 //    structSize - the size of the struct type, cannot be zero
@@ -592,13 +592,64 @@ bool Compiler::isSingleFloat32Struct(CORINFO_CLASS_HANDLE clsHnd)
 //    same way as any other 8-byte struct
 //    For ARM32 if we have an HFA struct that wraps a 64-bit double
 //    we will return TYP_DOUBLE.
+//    For vector calling conventions, a vector is considered a "primitive"
+//    type, as it is passed in a single register.
 //
 var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS_HANDLE clsHnd, bool isVarArg)
 {
     assert(structSize != 0);
 
-    var_types useType;
+    var_types useType = TYP_UNKNOWN;
 
+// Start by determining if we have an HFA/HVA with a single element.
+#ifdef FEATURE_HFA
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+    // Arm64 Windows VarArg methods arguments will not classify HFA types, they will need to be treated
+    // as if they are not HFA types.
+    if (!isVarArg)
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+    {
+        switch (structSize)
+        {
+            case 4:
+            case 8:
+#ifdef _TARGET_ARM64_
+            case 16:
+#endif // _TARGET_ARM64_
+            {
+                var_types hfaType;
+#ifdef ARM_SOFTFP
+                // For ARM_SOFTFP, HFA is unsupported so we need to check in another way.
+                // This matters only for size-4 struct because bigger structs would be processed with RetBuf.
+                if (isSingleFloat32Struct(clsHnd))
+                {
+                    hfaType = TYP_FLOAT;
+                }
+#else  // !ARM_SOFTFP
+                hfaType = GetHfaType(clsHnd);
+#endif // ARM_SOFTFP
+                // We're only interested in the case where the struct size is equal to the size of the hfaType.
+                if (varTypeIsValidHfaType(hfaType))
+                {
+                    if (genTypeSize(hfaType) == structSize)
+                    {
+                        useType = hfaType;
+                    }
+                    else
+                    {
+                        return TYP_UNKNOWN;
+                    }
+                }
+            }
+        }
+        if (useType != TYP_UNKNOWN)
+        {
+            return useType;
+        }
+    }
+#endif // FEATURE_HFA
+
+    // Now deal with non-HFA/HVA structs.
     switch (structSize)
     {
         case 1:
@@ -618,15 +669,8 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 
 #ifdef _TARGET_64BIT_
         case 4:
-            if (IsHfa(clsHnd))
-            {
-                // A structSize of 4 with IsHfa, it must be an HFA of one float
-                useType = TYP_FLOAT;
-            }
-            else
-            {
-                useType = TYP_INT;
-            }
+            // We dealt with the one-float HFA above. All other 4-byte structs are handled as INT.
+            useType = TYP_INT;
             break;
 
 #if !defined(_TARGET_XARCH_) || defined(UNIX_AMD64_ABI)
@@ -640,86 +684,13 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 #endif // _TARGET_64BIT_
 
         case TARGET_POINTER_SIZE:
-#ifdef ARM_SOFTFP
-            // For ARM_SOFTFP, HFA is unsupported so we need to check in another way
-            // This matters only for size-4 struct cause bigger structs would be processed with RetBuf
-            if (isSingleFloat32Struct(clsHnd))
-#else // !ARM_SOFTFP
-            if (IsHfa(clsHnd)
-#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-                // Arm64 Windows VarArg methods arguments will not
-                // classify HFA types, they will need to be treated
-                // as if they are not HFA types.
-                && !isVarArg
-#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-                )
-#endif // ARM_SOFTFP
-            {
-#ifdef _TARGET_64BIT_
-                var_types hfaType = GetHfaType(clsHnd);
-
-                // A structSize of 8 with IsHfa, we have two possiblities:
-                // An HFA of one double or an HFA of two floats
-                //
-                // Check and exclude the case of an HFA of two floats
-                if (hfaType == TYP_DOUBLE)
-                {
-                    // We have an HFA of one double
-                    useType = TYP_DOUBLE;
-                }
-                else
-                {
-                    assert(hfaType == TYP_FLOAT);
-
-                    // We have an HFA of two floats
-                    // This should be passed or returned in two FP registers
-                    useType = TYP_UNKNOWN;
-                }
-#else  // a 32BIT target
-                // A structSize of 4 with IsHfa, it must be an HFA of one float
-                useType = TYP_FLOAT;
-#endif // _TARGET_64BIT_
-            }
-            else
-            {
-                BYTE gcPtr = 0;
-                // Check if this pointer-sized struct is wrapping a GC object
-                info.compCompHnd->getClassGClayout(clsHnd, &gcPtr);
-                useType = getJitGCType(gcPtr);
-            }
-            break;
-
-#ifdef _TARGET_ARM_
-        case 8:
-            if (IsHfa(clsHnd))
-            {
-                var_types hfaType = GetHfaType(clsHnd);
-
-                // A structSize of 8 with IsHfa, we have two possiblities:
-                // An HFA of one double or an HFA of two floats
-                //
-                // Check and exclude the case of an HFA of two floats
-                if (hfaType == TYP_DOUBLE)
-                {
-                    // We have an HFA of one double
-                    useType = TYP_DOUBLE;
-                }
-                else
-                {
-                    assert(hfaType == TYP_FLOAT);
-
-                    // We have an HFA of two floats
-                    // This should be passed or returned in two FP registers
-                    useType = TYP_UNKNOWN;
-                }
-            }
-            else
-            {
-                // We don't have an HFA
-                useType = TYP_UNKNOWN;
-            }
-            break;
-#endif // _TARGET_ARM_
+        {
+            BYTE gcPtr = 0;
+            // Check if this pointer-sized struct is wrapping a GC object
+            info.compCompHnd->getClassGClayout(clsHnd, &gcPtr);
+            useType = getJitGCType(gcPtr);
+        }
+        break;
 
         default:
             useType = TYP_UNKNOWN;
@@ -733,7 +704,7 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 // getArgTypeForStruct:
 //     Get the type that is used to pass values of the given struct type.
 //     If you have already retrieved the struct size then it should be
-//     passed as the optional third argument, as this allows us to avoid
+//     passed as the optional fourth argument, as this allows us to avoid
 //     an extra call to getClassSize(clsHnd)
 //
 // Arguments:
@@ -802,11 +773,11 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     else
 #endif // UNIX_AMD64_ABI
 
-        // The largest primitive type is 8 bytes (TYP_DOUBLE)
+        // The largest arg passed in a single register is MAX_PASS_SINGLEREG_BYTES,
         // so we can skip calling getPrimitiveTypeForStruct when we
         // have a struct that is larger than that.
         //
-        if (structSize <= sizeof(double))
+        if (structSize <= MAX_PASS_SINGLEREG_BYTES)
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
@@ -829,14 +800,21 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         //
         if (structSize <= MAX_PASS_MULTIREG_BYTES)
         {
-            // Structs that are HFA's are passed by value in multiple registers
-            if (IsHfa(clsHnd)
+            // Structs that are HFA/HVA's are passed by value in multiple registers.
+            // Arm64 Windows VarArg methods arguments will not classify HFA/HVA types, they will need to be treated
+            // as if they are not HFA/HVA types.
+            var_types hfaType;
 #if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-                && !isVarArg // Arm64 Windows VarArg methods arguments will not
-                             // classify HFA types, they will need to be treated
-                             // as if they are not HFA types.
-#endif                       // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-                )
+            if (isVarArg)
+            {
+                hfaType = TYP_UNDEF;
+            }
+            else
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+            {
+                hfaType = GetHfaType(clsHnd);
+            }
+            if (varTypeIsValidHfaType(hfaType))
             {
                 // HFA's of count one should have been handled by getPrimitiveTypeForStruct
                 assert(GetHfaCount(clsHnd) >= 2);
@@ -851,7 +829,6 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
             {
 
 #ifdef UNIX_AMD64_ABI
-
                 // The case of (structDesc.eightByteCount == 1) should have already been handled
                 if ((structDesc.eightByteCount > 1) || !structDesc.passedInRegisters)
                 {
@@ -1035,10 +1012,10 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     // Check for cases where a small struct is returned in a register
     // via a primitive type.
     //
-    // The largest primitive type is 8 bytes (TYP_DOUBLE)
+    // The largest "primitive type" is MAX_PASS_SINGLEREG_BYTES
     // so we can skip calling getPrimitiveTypeForStruct when we
     // have a struct that is larger than that.
-    if (canReturnInRegister && (useType == TYP_UNKNOWN) && (structSize <= sizeof(double)))
+    if (canReturnInRegister && (useType == TYP_UNKNOWN) && (structSize <= MAX_PASS_SINGLEREG_BYTES))
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
@@ -1070,7 +1047,7 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     // because when HFA are enabled, normally we would use two FP registers to pass or return it
     //
     // But if we don't have support for multiple register return types, we have to change this.
-    // Since we what we have an 8-byte struct (float + float)  we change useType to TYP_I_IMPL
+    // Since what we have is an 8-byte struct (float + float)  we change useType to TYP_I_IMPL
     // so that the struct is returned instead using an 8-byte integer register.
     //
     if ((FEATURE_MULTIREG_RET == 0) && (useType == TYP_UNKNOWN) && (structSize == (2 * sizeof(float))) && IsHfa(clsHnd))
@@ -2270,7 +2247,9 @@ void Compiler::compSetProcessor()
 #ifdef FEATURE_CORECLR
     if (JitConfig.EnableHWIntrinsic())
     {
-        opts.setSupportedISA(InstructionSet_Base);
+        // Dummy ISAs for simplifying the JIT code
+        opts.setSupportedISA(InstructionSet_Vector128);
+        opts.setSupportedISA(InstructionSet_Vector256);
 
         if (JitConfig.EnableSSE())
         {
@@ -2419,6 +2398,9 @@ void Compiler::compSetProcessor()
 #if defined(_TARGET_ARM64_)
     // There is no JitFlag for Base instructions handle manually
     opts.setSupportedISA(InstructionSet_Base);
+    // Dummy ISAs for simplifying the JIT code
+    opts.setSupportedISA(InstructionSet_Vector64);
+    opts.setSupportedISA(InstructionSet_Vector128);
 #define HARDWARE_INTRINSIC_CLASS(flag, jit_config, isa)                                                                \
     if (jitFlags.IsSet(JitFlags::flag) && JitConfig.jit_config())                                                      \
         opts.setSupportedISA(InstructionSet_##isa);
@@ -3200,7 +3182,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
             }
 
             // If we have an assembly name list for disassembly, also check this method's assembly.
-            if (s_pJitDisasmIncludeAssembliesList != nullptr)
+            if (s_pJitDisasmIncludeAssembliesList != nullptr && !s_pJitDisasmIncludeAssembliesList->IsEmpty())
             {
                 const char* assemblyName = info.compCompHnd->getAssemblyName(
                     info.compCompHnd->getModuleAssembly(info.compCompHnd->getClassModule(info.compClassHnd)));
@@ -3481,41 +3463,41 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 #endif
     }
 
-    fgProfileBuffer              = nullptr;
+    fgBlockCounts                = nullptr;
     fgProfileData_ILSizeMismatch = false;
     fgNumProfileRuns             = 0;
     if (jitFlags->IsSet(JitFlags::JIT_FLAG_BBOPT))
     {
         assert(!compIsForInlining());
         HRESULT hr;
-        hr = info.compCompHnd->getBBProfileData(info.compMethodHnd, &fgProfileBufferCount, &fgProfileBuffer,
-                                                &fgNumProfileRuns);
+        hr = info.compCompHnd->getMethodBlockCounts(info.compMethodHnd, &fgBlockCountsCount, &fgBlockCounts,
+                                                    &fgNumProfileRuns);
 
-        // a failed result that also has a non-NULL fgProfileBuffer
+        // a failed result that also has a non-NULL fgBlockCounts
         // indicates that the ILSize for the method no longer matches
         // the ILSize for the method when profile data was collected.
         //
         // We will discard the IBC data in this case
         //
-        if (FAILED(hr) && (fgProfileBuffer != nullptr))
+        if (FAILED(hr) && (fgBlockCounts != nullptr))
         {
             fgProfileData_ILSizeMismatch = true;
-            fgProfileBuffer              = nullptr;
+            fgBlockCounts                = nullptr;
         }
 #ifdef DEBUG
-        // A successful result implies a non-NULL fgProfileBuffer
+        // A successful result implies a non-NULL fgBlockCounts
         //
         if (SUCCEEDED(hr))
         {
-            assert(fgProfileBuffer != nullptr);
+            assert(fgBlockCounts != nullptr);
         }
 
-        // A failed result implies a NULL fgProfileBuffer
+        // A failed result implies a NULL fgBlockCounts
         //   see implementation of Compiler::fgHaveProfileData()
         //
         if (FAILED(hr))
         {
-            assert(fgProfileBuffer == nullptr);
+            assert(fgBlockCounts == nullptr);
         }
 #endif
     }
@@ -4337,9 +4319,9 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
             printf("  ");
         }
         /* { editor brace-matching workaround for following printf */
-        printf("} Jitted Entry %03x at" FMT_ADDR "method %s size %08x%s\n", Compiler::jitTotalMethodCompiled,
+        printf("} Jitted Entry %03x at" FMT_ADDR "method %s size %08x%s%s\n", Compiler::jitTotalMethodCompiled,
                DBG_ADDR(methodCodePtr), info.compFullName, methodCodeSize,
-               isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""));
+               isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""), opts.altJit ? " altjit" : "");
     }
 #endif // DEBUG
 }
@@ -4891,7 +4873,7 @@ void Compiler::ResetOptAnnotations()
         {
             stmt->gtFlags &= ~GTF_STMT_HAS_CSE;
 
-            for (GenTree* tree = stmt->gtStmt.gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 tree->ClearVN();
                 tree->ClearAssertion();
@@ -5489,8 +5471,8 @@ void Compiler::compCompileFinish()
         unsigned profCallCount = 0;
         if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_BBOPT) && fgHaveProfileData())
         {
-            assert(fgProfileBuffer[0].ILOffset == 0);
-            profCallCount = fgProfileBuffer[0].ExecutionCount;
+            assert(fgBlockCounts[0].ILOffset == 0);
+            profCallCount = fgBlockCounts[0].ExecutionCount;
         }
 
         static bool headerPrinted = false;
@@ -5832,6 +5814,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     info.compTotalHotCodeSize  = 0;
     info.compTotalColdCodeSize = 0;
 
+    fgHasBackwardJump = false;
+
 #ifdef DEBUG
     compCurBB = nullptr;
     lvaTable  = nullptr;
@@ -5962,6 +5946,17 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     if (compDonotInline())
     {
         goto _Next;
+    }
+
+#ifdef FEATURE_CORECLR
+    if (fgHasBackwardJump && (info.compFlags & CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS) != 0 && fgCanSwitchToTier1())
+#else // !FEATURE_CORECLR
+    // We may want to use JitConfig value here to support DISABLE_TIER0_FOR_LOOPS
+    if (fgHasBackwardJump && fgCanSwitchToTier1())
+#endif
+    {
+        // Method likely has a loop, switch to the OptimizedTier to avoid spending too much time running slower code
+        fgSwitchToTier1();
     }
 
     compSetOptimizationLevel();
@@ -6925,9 +6920,9 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTree* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->gtNext)
+        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
-            for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 TestLabelAndNum tlAndN;
 
@@ -7156,10 +7151,6 @@ void Compiler::compCallArgStats()
     GenTree* args;
     GenTree* argx;
 
-    BasicBlock* block;
-    GenTree*    stmt;
-    GenTree*    call;
-
     unsigned argNum;
 
     unsigned argDWordNum;
@@ -7178,13 +7169,11 @@ void Compiler::compCallArgStats()
 
     assert(fgStmtListThreaded);
 
-    for (block = fgFirstBB; block; block = block->bbNext)
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
-            assert(stmt->gtOper == GT_STMT);
-
-            for (call = stmt->gtStmt.gtStmtList; call; call = call->gtNext)
+            for (GenTree* call = stmt->gtStmtList; call != nullptr; call = call->gtNext)
             {
                 if (call->gtOper != GT_CALL)
                     continue;
@@ -8814,9 +8803,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
             if (comp->compRationalIRForm)
             {
-                GenTree* tree;
-
-                foreach_treenode_execution_order(tree, stmt)
+                for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
                 {
                     cNodeIR(comp, tree);
                 }

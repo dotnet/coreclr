@@ -13,12 +13,6 @@ namespace System
 {
     internal static partial class SR
     {
-        private static ResourceManager ResourceManager
-        {
-            get;
-            set;
-        }
-
         // This method is used to decide if we need to append the exception message parameters to the message when calling SR.Format. 
         // by default it returns false.
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -28,14 +22,14 @@ namespace System
         }
 
         // Needed for debugger integration
-        internal static string GetResourceString(string resourceKey)
+        internal static string? GetResourceString(string resourceKey)
         {
             return GetResourceString(resourceKey, string.Empty);
         }
 
-        internal static string GetResourceString(string resourceKey, string defaultString)
+        internal static string GetResourceString(string resourceKey, string? defaultString)
         {
-            string resourceString = null;
+            string? resourceString = null;
             try { resourceString = InternalGetResourceString(resourceKey); }
             catch (MissingManifestResourceException) { }
 
@@ -44,20 +38,20 @@ namespace System
                 return defaultString;
             }
 
-            return resourceString;
+            return resourceString!; // only null if missing resource
         }
 
-        private static object _lock = new object();
-        private static List<string> _currentlyLoading;
+        private static readonly object _lock = new object();
+        private static List<string>? _currentlyLoading;
         private static int _infinitelyRecursingCount;
         private static bool _resourceManagerInited = false;
 
-        private static string InternalGetResourceString(string key)
+        private static string? InternalGetResourceString(string? key)
         {
             if (key == null || key.Length == 0)
             {
                 Debug.Fail("SR::GetResourceString with null or empty key.  Bug in caller, or weird recursive loading problem?");
-                return key;
+                return key!;
             }
 
             // We have a somewhat common potential for infinite 
@@ -120,11 +114,7 @@ namespace System
 
                 _currentlyLoading.Add(key); // Push
 
-                if (ResourceManager == null)
-                {
-                    ResourceManager = new ResourceManager(SR.ResourceType);
-                }
-                string s = ResourceManager.GetString(key, null);
+                string? s = ResourceManager.GetString(key, null);
                 _currentlyLoading.RemoveAt(_currentlyLoading.Count - 1); // Pop
 
                 Debug.Assert(s != null, "Managed resource string lookup failed.  Was your resource name misspelled?  Did you rebuild mscorlib after adding a resource to resources.txt?  Debug this w/ cordbg and bug whoever owns the code that called SR.GetResourceString.  Resource name was: \"" + key + "\"");
@@ -135,7 +125,7 @@ namespace System
                 if (lockTaken)
                 {
                     // Backout code - throw away potentially corrupt state
-                    ResourceManager = null;
+                    s_resourceManager = null;
                     _currentlyLoading = null;
                 }
                 throw;
@@ -149,7 +139,7 @@ namespace System
             }
         }
 
-        internal static string Format(IFormatProvider provider, string resourceFormat, params object[] args)
+        internal static string Format(IFormatProvider? provider, string resourceFormat, params object?[]? args)
         {
             if (args != null)
             {
@@ -164,7 +154,7 @@ namespace System
             return resourceFormat;
         }
 
-        internal static string Format(string resourceFormat, params object[] args)
+        internal static string Format(string resourceFormat, params object?[]? args)
         {
             if (args != null)
             {
@@ -179,7 +169,7 @@ namespace System
             return resourceFormat;
         }
 
-        internal static string Format(string resourceFormat, object p1)
+        internal static string Format(string resourceFormat, object? p1)
         {
             if (UsingResourceKeys())
             {
@@ -189,7 +179,7 @@ namespace System
             return string.Format(resourceFormat, p1);
         }
 
-        internal static string Format(string resourceFormat, object p1, object p2)
+        internal static string Format(string resourceFormat, object? p1, object? p2)
         {
             if (UsingResourceKeys())
             {
@@ -199,7 +189,7 @@ namespace System
             return string.Format(resourceFormat, p1, p2);
         }
 
-        internal static string Format(string resourceFormat, object p1, object p2, object p3)
+        internal static string Format(string resourceFormat, object? p1, object? p2, object? p3)
         {
             if (UsingResourceKeys())
             {

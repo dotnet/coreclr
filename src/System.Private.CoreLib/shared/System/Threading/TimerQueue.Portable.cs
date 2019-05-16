@@ -12,8 +12,8 @@ namespace System.Threading
     //
     internal partial class TimerQueue : IThreadPoolWorkItem
     {
-        private static List<TimerQueue> s_scheduledTimers;
-        private static List<TimerQueue> s_scheduledTimersToFire;
+        private static List<TimerQueue>? s_scheduledTimers;
+        private static List<TimerQueue>? s_scheduledTimersToFire;
 
         /// <summary>
         /// This event is used by the timer thread to wait for timer expiration. It is also
@@ -56,7 +56,7 @@ namespace System.Threading
             {
                 if (!_isScheduled)
                 {
-                    List<TimerQueue> timers = s_scheduledTimers;
+                    List<TimerQueue>? timers = s_scheduledTimers;
                     if (timers == null)
                     {
                         timers = InitializeScheduledTimerManager_Locked();
@@ -80,11 +80,11 @@ namespace System.Threading
         private static void TimerThread()
         {
             AutoResetEvent timerEvent = s_timerEvent;
-            List<TimerQueue> timersToFire = s_scheduledTimersToFire;
+            List<TimerQueue> timersToFire = s_scheduledTimersToFire!;
             List<TimerQueue> timers;
             lock (timerEvent)
             {
-                timers = s_scheduledTimers;
+                timers = s_scheduledTimers!;
             }
 
             int shortestWaitDurationMs = Timeout.Infinite;

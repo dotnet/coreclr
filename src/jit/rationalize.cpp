@@ -75,8 +75,8 @@ void copyFlags(GenTree* dst, GenTree* src, unsigned mask)
 void Rationalizer::RewriteSIMDOperand(LIR::Use& use, bool keepBlk)
 {
 #ifdef FEATURE_SIMD
-    // No lowering is needed for non-SIMD nodes, so early out if featureSIMD is not enabled.
-    if (!comp->featureSIMD)
+    // No lowering is needed for non-SIMD nodes, so early out if SIMD types are not supported.
+    if (!comp->supportSIMDTypes())
     {
         return;
     }
@@ -228,10 +228,9 @@ void Rationalizer::RewriteIntrinsicAsUserCall(GenTree** use, ArrayStack<GenTree*
 
 #ifdef DEBUG
 
-void Rationalizer::ValidateStatement(GenTree* tree, BasicBlock* block)
+void Rationalizer::ValidateStatement(GenTreeStmt* stmt, BasicBlock* block)
 {
-    assert(tree->gtOper == GT_STMT);
-    DBEXEC(TRUE, JitTls::GetCompiler()->fgDebugCheckNodeLinks(block, tree));
+    DBEXEC(TRUE, JitTls::GetCompiler()->fgDebugCheckNodeLinks(block, stmt));
 }
 
 // sanity checks that apply to all kinds of IR
@@ -241,11 +240,11 @@ void Rationalizer::SanityCheck()
     BasicBlock* block;
     foreach_block(comp, block)
     {
-        for (GenTree* statement = block->bbTreeList; statement != nullptr; statement = statement->gtNext)
+        for (GenTreeStmt* statement = block->firstStmt(); statement != nullptr; statement = statement->getNextStmt())
         {
             ValidateStatement(statement, block);
 
-            for (GenTree* tree = statement->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = statement->gtStmtList; tree; tree = tree->gtNext)
             {
                 // QMARK nodes should have been removed before this phase.
                 assert(tree->OperGet() != GT_QMARK);
@@ -756,8 +755,8 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::Ge
             break;
 
         case GT_BLK:
-            // We should only see GT_BLK for TYP_STRUCT.
-            assert(node->TypeGet() == TYP_STRUCT);
+            // We should only see GT_BLK for TYP_STRUCT or for InitBlocks.
+            assert((node->TypeGet() == TYP_STRUCT) || use.User()->OperIsInitBlkOp());
             break;
 
         case GT_OBJ:
@@ -772,7 +771,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::Ge
 #ifdef FEATURE_SIMD
         case GT_SIMD:
         {
-            noway_assert(comp->featureSIMD);
+            noway_assert(comp->supportSIMDTypes());
             GenTreeSIMD* simdNode = node->AsSIMD();
             unsigned     simdSize = simdNode->gtSIMDSize;
             var_types    simdType = comp->getSIMDTypeForSize(simdSize);

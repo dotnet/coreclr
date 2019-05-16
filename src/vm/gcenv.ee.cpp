@@ -61,15 +61,9 @@ VOID GCToEEInterface::AfterGcScanRoots (int condemned, int max_gen,
     CONTRACTL_END;
 
 #ifdef FEATURE_COMINTEROP
-    // Go through all the app domains and for each one detach all the *unmarked* RCWs to prevent
+    // Go through all the only app domain and detach all the *unmarked* RCWs to prevent
     // the RCW cache from resurrecting them.
-    UnsafeAppDomainIterator i(TRUE);
-    i.Init();
-
-    while (i.Next())
-    {
-        i.GetDomain()->DetachRCWs();
-    }
+    ::GetAppDomain()->DetachRCWs();
 #endif // FEATURE_COMINTEROP
 }
 
@@ -460,7 +454,9 @@ DWORD WINAPI BackgroundThreadStub(void* arg)
 //
 
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-inline BOOL ShouldTrackMovementForProfilerOrEtw()
+
+// Tracks all surviving objects (moved or otherwise).
+inline bool ShouldTrackSurvivorsForProfilerOrEtw()
 {
 #ifdef GC_PROFILING
     if (CORProfilerTrackGC())
@@ -472,6 +468,16 @@ inline BOOL ShouldTrackMovementForProfilerOrEtw()
         return true;
 #endif
 
+    return false;
+}
+
+// Only tracks surviving objects in compacting GCs (moved or otherwise).
+inline bool ShouldTrackSurvivorsInCompactingGCsForProfiler()
+{
+#ifdef GC_PROFILING
+    if (CORProfilerTrackGCMovedObjects())
+        return true;
+#endif
     return false;
 }
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
@@ -794,10 +800,11 @@ void WalkMovedReferences(uint8_t* begin, uint8_t* end,
                                !fBGC);
 }
 
-void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
+void GCToEEInterface::DiagWalkSurvivors(void* gcContext, bool fCompacting)
 {
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    if (ShouldTrackMovementForProfilerOrEtw())
+    if (ShouldTrackSurvivorsForProfilerOrEtw() ||
+        (fCompacting && ShouldTrackSurvivorsInCompactingGCsForProfiler()))
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
@@ -810,7 +817,7 @@ void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
 void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
 {
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    if (ShouldTrackMovementForProfilerOrEtw())
+    if (ShouldTrackSurvivorsForProfilerOrEtw())
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
@@ -823,7 +830,7 @@ void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
 void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 {
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    if (ShouldTrackMovementForProfilerOrEtw())
+    if (ShouldTrackSurvivorsForProfilerOrEtw())
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
@@ -1006,15 +1013,6 @@ void GCToEEInterface::HandleFatalError(unsigned int exitCode)
     EEPOLICY_HANDLE_FATAL_ERROR(exitCode);
 }
 
-bool GCToEEInterface::ShouldFinalizeObjectForUnload(void* pDomain, Object* obj)
-{
-    // CoreCLR does not have appdomains, so this code path is dead. Other runtimes may
-    // choose to inspect the object being finalized here.
-    // [DESKTOP TODO] Desktop looks for "agile and finalizable" objects and may choose
-    // to move them to a new app domain instead of finalizing them here.
-    return true;
-}
-
 bool GCToEEInterface::EagerFinalized(Object* obj)
 {
     MethodTable* pMT = obj->GetGCSafeMethodTable();
@@ -1034,10 +1032,9 @@ MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
     return g_pFreeObjectMethodTable;
 }
 
-// These are arbitrary, we shouldn't ever be having confrig keys or values
+// This is arbitrary, we shouldn't ever be having config keys
 // longer than these lengths.
 const size_t MaxConfigKeyLength = 255;
-const size_t MaxConfigValueLength = 255;
 
 bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
 {
@@ -1170,8 +1167,17 @@ bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
         return false;
     }
 
+    int charCount = WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */, NULL, 0, nullptr, nullptr);
+    if (charCount == 0)
+    {
+        // this should only happen if the config subsystem gives us a string that's not valid
+        // unicode.
+        CLRConfig::FreeConfigString(out);
+        return false;
+    }
+
     // not allocated on the stack since it escapes this function
-    AStringHolder configResult = new (nothrow) char[MaxConfigValueLength];
+    AStringHolder configResult = new (nothrow) char[charCount];
     if (!configResult)
     {
         CLRConfig::FreeConfigString(out);
@@ -1179,10 +1185,11 @@ bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
     }
 
     if (WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */,
-          configResult.GetValue(), MaxConfigKeyLength, nullptr, nullptr) == 0)
+          configResult.GetValue(), charCount, nullptr, nullptr) == 0)
     {
-        // this should only happen if the config subsystem gives us a string that's not valid
-        // unicode.
+        // this should never happen, the previous call to WideCharToMultiByte that computed the charCount should 
+        // have caught all issues.
+        assert(false);
         CLRConfig::FreeConfigString(out);
         return false;
     }
@@ -1470,37 +1477,6 @@ IGCToCLREventSink* GCToEEInterface::EventSink()
     return &g_gcToClrEventSink;
 }
 
-uint32_t GCToEEInterface::GetDefaultDomainIndex()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return SystemDomain::System()->DefaultDomain()->GetIndex().m_dwIndex;
-}
-
-void *GCToEEInterface::GetAppDomainAtIndex(uint32_t appDomainIndex)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    ADIndex index(appDomainIndex);
-    return static_cast<void *>(SystemDomain::GetAppDomainAtIndex(index));
-}
-
-bool GCToEEInterface::AppDomainCanAccessHandleTable(uint32_t appDomainID)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    ADIndex index(appDomainID);
-    AppDomain *pDomain = SystemDomain::GetAppDomainAtIndex(index);
-    return (pDomain != NULL);
-}
-
-uint32_t GCToEEInterface::GetIndexOfAppDomainBeingUnloaded()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return 0xFFFFFFFF;
-}
-
 uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
 {
     LIMITED_METHOD_CONTRACT;
@@ -1508,13 +1484,6 @@ uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
     return SystemDomain::System()->GetTotalNumSizedRefHandles();
 }
 
-
-bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return false;
-}
 
 bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
 {
@@ -1572,15 +1541,15 @@ void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPub
     // Refer to the comments in src/vm/gcenv.ee.h next to the EXTERN C definitions to see which events are enabled.
 
     // WARNING: To change an event's GC level, perfcollect script needs to be updated simultaneously to reflect it.
-    BOOL keyword_gc_verbose = EventXplatEnabledGCJoin_V2();
-    BOOL keyword_gc_informational = EventXplatEnabledGCStart();
+    BOOL keyword_gc_verbose = EventXplatEnabledGCJoin_V2() || EventPipeEventEnabledGCJoin_V2();
+    BOOL keyword_gc_informational = EventXplatEnabledGCStart() || EventPipeEventEnabledGCStart();
 
-    BOOL keyword_gc_heapsurvival_and_movement_informational = EventXplatEnabledGCGenerationRange();
-    BOOL keyword_gchandle_informational = EventXplatEnabledSetGCHandle();
-    BOOL keyword_gchandle_prv_informational = EventXplatEnabledPrvSetGCHandle();
+    BOOL keyword_gc_heapsurvival_and_movement_informational = EventXplatEnabledGCGenerationRange() || EventPipeEventEnabledGCGenerationRange();
+    BOOL keyword_gchandle_informational = EventXplatEnabledSetGCHandle() || EventPipeEventEnabledSetGCHandle();
+    BOOL keyword_gchandle_prv_informational = EventXplatEnabledPrvSetGCHandle() || EventPipeEventEnabledPrvSetGCHandle();
 
-    BOOL prv_gcprv_informational = EventXplatEnabledBGCBegin();
-    BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime();
+    BOOL prv_gcprv_informational = EventXplatEnabledBGCBegin() || EventPipeEventEnabledBGCBegin();
+    BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime() || EventPipeEventEnabledPinPlugAtGCTime();
 
     int publicProviderLevel = keyword_gc_verbose ? GCEventLevel_Verbose : (keyword_gc_informational ? GCEventLevel_Information : GCEventLevel_None);
     int publicProviderKeywords = (keyword_gc_informational ? GCEventKeyword_GC : GCEventKeyword_None) | 

@@ -10,9 +10,6 @@
 **
 ===========================================================*/
 
-using System;
-using System.Runtime.InteropServices;
-
 namespace System.Diagnostics.SymbolStore
 {
     internal struct SymbolToken
@@ -25,7 +22,7 @@ namespace System.Diagnostics.SymbolStore
 
         public override int GetHashCode() { return m_token; }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is SymbolToken)
                 return Equals((SymbolToken)obj);

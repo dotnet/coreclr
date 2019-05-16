@@ -394,7 +394,7 @@ void Compiler::optValnumCSE_Init()
 //          we return that index.  There currently is a limit on the number of CSEs
 //          that we can have of MAX_CSE_CNT (64)
 //
-unsigned Compiler::optValnumCSE_Index(GenTree* tree, GenTree* stmt)
+unsigned Compiler::optValnumCSE_Index(GenTree* tree, GenTreeStmt* stmt)
 {
     unsigned key;
     unsigned hash;
@@ -611,11 +611,8 @@ unsigned Compiler::optValnumCSE_Locate()
 {
     // Locate CSE candidates and assign them indices
 
-    for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        GenTree* stmt;
-        GenTree* tree;
-
         /* Make the block publicly available */
 
         compCurBB = block;
@@ -625,13 +622,11 @@ unsigned Compiler::optValnumCSE_Locate()
         noway_assert((block->bbFlags & (BBF_VISITED | BBF_MARKED)) == 0);
 
         /* Walk the statement trees in this basic block */
-        for (stmt = block->FirstNonPhiDef(); stmt; stmt = stmt->gtNext)
+        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
-            noway_assert(stmt->gtOper == GT_STMT);
-
             /* We walk the tree in the forwards direction (bottom up) */
             bool stmtHasArrLenCandidate = false;
-            for (tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 if (tree->OperIsCompare() && stmtHasArrLenCandidate)
                 {
@@ -998,11 +993,8 @@ void Compiler::optValnumCSE_Availablity()
 #endif
     EXPSET_TP available_cses = BitVecOps::MakeEmpty(cseTraits);
 
-    for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        GenTree* stmt;
-        GenTree* tree;
-
         // Make the block publicly available
 
         compCurBB = block;
@@ -1015,13 +1007,11 @@ void Compiler::optValnumCSE_Availablity()
 
         // Walk the statement trees in this basic block
 
-        for (stmt = block->FirstNonPhiDef(); stmt; stmt = stmt->gtNext)
+        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
-            noway_assert(stmt->gtOper == GT_STMT);
-
             // We walk the tree in the forwards direction (bottom up)
 
-            for (tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 if (IS_CSE_INDEX(tree->gtCSEnum))
                 {
@@ -1763,7 +1753,12 @@ public:
             canEnregister                  = false;
             GenTree*             value     = candidate->Expr();
             CORINFO_CLASS_HANDLE structHnd = m_pCompiler->gtGetStructHandleIfPresent(candidate->Expr());
-            assert((structHnd != NO_CLASS_HANDLE) || (cseLclVarTyp != TYP_STRUCT));
+            if (structHnd == NO_CLASS_HANDLE)
+            {
+                JITDUMP("Can't determine the struct size, so we can't consider it for CSE promotion\n");
+                return false; //  Do not make this a CSE
+            }
+
             unsigned size = m_pCompiler->info.compCompHnd->getClassSize(structHnd);
             // Note that the slotCount is used to estimate the reference cost, but it may overestimate this
             // because it doesn't take into account that we might use a vector register for struct copies.
@@ -2135,10 +2130,9 @@ public:
         do
         {
             /* Process the next node in the list */
-            GenTree* exp = lst->tslTree;
-            GenTree* stm = lst->tslStmt;
-            noway_assert(stm->gtOper == GT_STMT);
-            BasicBlock* blk = lst->tslBlock;
+            GenTree*     exp  = lst->tslTree;
+            GenTreeStmt* stmt = lst->tslStmt;
+            BasicBlock*  blk  = lst->tslBlock;
 
             /* Advance to the next node in the list */
             lst = lst->tslNext;
@@ -2362,7 +2356,7 @@ public:
                 // If it has a zero-offset field seq, copy annotation to the ref
                 if (hasZeroMapAnnotation)
                 {
-                    m_pCompiler->GetZeroOffsetFieldMap()->Set(ref, fldSeq);
+                    m_pCompiler->fgAddFieldSeqForZeroOffset(ref, fldSeq);
                 }
 
                 /* Create a comma node for the CSE assignment */
@@ -2372,21 +2366,22 @@ public:
                                                // cannot add any new exceptions
             }
 
-            // Walk the statement 'stm' and find the pointer
+            // Walk the statement 'stmt' and find the pointer
             // in the tree is pointing to 'exp'
             //
-            GenTree** link = m_pCompiler->gtFindLink(stm, exp);
+            Compiler::FindLinkData linkData = m_pCompiler->gtFindLink(stmt, exp);
+            GenTree**              link     = linkData.result;
 
 #ifdef DEBUG
             if (link == nullptr)
             {
                 printf("\ngtFindLink failed: stm=");
-                Compiler::printTreeID(stm);
+                Compiler::printTreeID(stmt);
                 printf(", exp=");
                 Compiler::printTreeID(exp);
                 printf("\n");
                 printf("stm =");
-                m_pCompiler->gtDispTree(stm);
+                m_pCompiler->gtDispTree(stmt);
                 printf("\n");
                 printf("exp =");
                 m_pCompiler->gtDispTree(exp);
@@ -2403,13 +2398,13 @@ public:
             // If it has a zero-offset field seq, copy annotation.
             if (hasZeroMapAnnotation)
             {
-                m_pCompiler->GetZeroOffsetFieldMap()->Set(cse, fldSeq);
+                m_pCompiler->fgAddFieldSeqForZeroOffset(cse, fldSeq);
             }
 
             assert(m_pCompiler->fgRemoveRestOfBlock == false);
 
             /* re-morph the statement */
-            m_pCompiler->fgMorphBlockStmt(blk, stm->AsStmt() DEBUGARG("optValnumCSE"));
+            m_pCompiler->fgMorphBlockStmt(blk, stmt DEBUGARG("optValnumCSE"));
 
         } while (lst != nullptr);
     }
@@ -2887,27 +2882,17 @@ void Compiler::optOptimizeCSEs()
 
 void Compiler::optCleanupCSEs()
 {
-    // We must clear the BBF_VISITED and BBF_MARKED flags
-    //
-    for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
+    // We must clear the BBF_VISITED and BBF_MARKED flags.
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        // And clear all the "visited" bits on the block
-        //
+        // And clear all the "visited" bits on the block.
         block->bbFlags &= ~(BBF_VISITED | BBF_MARKED);
 
-        /* Walk the statement trees in this basic block */
-
-        GenTree* stmt;
-
-        // Initialize 'stmt' to the first non-Phi statement
-        stmt = block->FirstNonPhiDef();
-
-        for (; stmt; stmt = stmt->gtNext)
+        // Walk the statement trees in this basic block.
+        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
-            noway_assert(stmt->gtOper == GT_STMT);
-
-            /* We must clear the gtCSEnum field */
-            for (GenTree* tree = stmt->gtStmt.gtStmtExpr; tree; tree = tree->gtPrev)
+            // We must clear the gtCSEnum field.
+            for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
             {
                 tree->gtCSEnum = NO_CSE;
             }
@@ -2929,18 +2914,12 @@ void Compiler::optEnsureClearCSEInfo()
     {
         assert((block->bbFlags & (BBF_VISITED | BBF_MARKED)) == 0);
 
-        /* Walk the statement trees in this basic block */
-
-        GenTree* stmt;
-
         // Initialize 'stmt' to the first non-Phi statement
-        stmt = block->FirstNonPhiDef();
-
-        for (; stmt; stmt = stmt->gtNext)
+        GenTreeStmt* stmt = block->FirstNonPhiDef();
+        // Walk the statement trees in this basic block
+        for (; stmt != nullptr; stmt = stmt->getNextStmt())
         {
-            assert(stmt->gtOper == GT_STMT);
-
-            for (GenTree* tree = stmt->gtStmt.gtStmtExpr; tree; tree = tree->gtPrev)
+            for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
             {
                 assert(tree->gtCSEnum == NO_CSE);
             }

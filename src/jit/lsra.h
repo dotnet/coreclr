@@ -654,10 +654,19 @@ public:
     void insertCopyOrReload(BasicBlock* block, GenTree* tree, unsigned multiRegIdx, RefPosition* refPosition);
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    // Insert code to save and restore the upper half of a vector that lives
-    // in a callee-save register at the point of a call (the upper half is
-    // not preserved).
-    void insertUpperVectorSaveAndReload(GenTree* tree, RefPosition* refPosition, BasicBlock* block);
+    void makeUpperVectorInterval(unsigned varIndex);
+    Interval* getUpperVectorInterval(unsigned varIndex);
+
+    // Save the upper half of a vector that lives in a callee-save register at the point of a call.
+    void insertUpperVectorSave(GenTree*     tree,
+                               RefPosition* refPosition,
+                               Interval*    upperVectorInterval,
+                               BasicBlock*  block);
+    // Restore the upper half of a vector that's been partially spilled prior to a use in 'tree'.
+    void insertUpperVectorRestore(GenTree*     tree,
+                                  RefPosition* refPosition,
+                                  Interval*    upperVectorInterval,
+                                  BasicBlock*  block);
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
     // resolve along one block-block edge
@@ -960,7 +969,7 @@ private:
     void processBlockEndAllocation(BasicBlock* current);
 
     // Record variable locations at start/end of block
-    void processBlockStartLocations(BasicBlock* current, bool allocationPass);
+    void processBlockStartLocations(BasicBlock* current);
     void processBlockEndLocations(BasicBlock* current);
 
 #ifdef _TARGET_ARM_
@@ -989,8 +998,8 @@ private:
     void buildRefPositionsForNode(GenTree* tree, BasicBlock* block, LsraLocation loc);
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    void buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation currentLoc, VARSET_VALARG_TP liveLargeVectors);
-    void buildUpperVectorRestoreRefPositions(GenTree* tree, LsraLocation currentLoc, VARSET_VALARG_TP liveLargeVectors);
+    void buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation currentLoc, regMaskTP fpCalleeKillSet);
+    void buildUpperVectorRestoreRefPosition(Interval* lclVarInterval, LsraLocation currentLoc, GenTree* node);
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
 #if defined(UNIX_AMD64_ABI)
@@ -1286,6 +1295,7 @@ private:
     void dumpRegRecordTitleIfNeeded();
     void dumpRegRecordTitleLines();
     void dumpRegRecords();
+    void dumpNewBlock(BasicBlock* currentBlock, LsraLocation location);
     // An abbreviated RefPosition dump for printing with column-based register state
     void dumpRefPositionShort(RefPosition* refPosition, BasicBlock* currentBlock);
     // Print the number of spaces occupied by a dumpRefPositionShort()
@@ -1307,7 +1317,7 @@ private:
         LSRA_EVENT_START_BB, LSRA_EVENT_END_BB,
 
         // Miscellaneous
-        LSRA_EVENT_FREE_REGS,
+        LSRA_EVENT_FREE_REGS, LSRA_EVENT_UPPER_VECTOR_SAVE, LSRA_EVENT_UPPER_VECTOR_RESTORE,
 
         // Characteristics of the current RefPosition
         LSRA_EVENT_INCREMENT_RANGE_END, // ???
@@ -1395,9 +1405,16 @@ private:
     int compareBlocksForSequencing(BasicBlock* block1, BasicBlock* block2, bool useBlockWeights);
     BasicBlockList* blockSequenceWorkList;
     bool            blockSequencingDone;
+#ifdef DEBUG
+    // LSRA must not change number of blocks and blockEpoch that it initializes at start.
+    unsigned blockEpoch;
+#endif // DEBUG
     void addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* block, BlockSet& predSet);
     void removeFromBlockSequenceWorkList(BasicBlockList* listNode, BasicBlockList* prevNode);
     BasicBlock* getNextCandidateFromWorkList();
+
+    // Indicates whether the allocation pass has been completed.
+    bool allocationPassComplete;
 
     // The bbNum of the block being currently allocated or resolved.
     unsigned int curBBNum;
@@ -1452,15 +1469,15 @@ private:
 #if defined(_TARGET_AMD64_)
     static bool varTypeNeedsPartialCalleeSave(var_types type)
     {
-        return (emitTypeSize(type) == 32);
+        return (type == TYP_SIMD32);
     }
     static const var_types LargeVectorSaveType = TYP_SIMD16;
 #elif defined(_TARGET_ARM64_)
     static bool varTypeNeedsPartialCalleeSave(var_types type)
     {
         // ARM64 ABI FP Callee save registers only require Callee to save lower 8 Bytes
-        // For SIMD types longer then 8 bytes Caller is responsible for saving and restoring Upper bytes.
-        return (emitTypeSize(type) == 16);
+        // For SIMD types longer than 8 bytes Caller is responsible for saving and restoring Upper bytes.
+        return ((type == TYP_SIMD16) || (type == TYP_SIMD12));
     }
     static const var_types LargeVectorSaveType = TYP_DOUBLE;
 #else // !defined(_TARGET_AMD64_) && !defined(_TARGET_ARM64_)
@@ -1526,7 +1543,7 @@ private:
 #endif // !_TARGET_XARCH_
     // This is the main entry point for building the RefPositions for a node.
     // These methods return the number of sources.
-    int BuildNode(GenTree* stmt);
+    int BuildNode(GenTree* tree);
 
     void getTgtPrefOperands(GenTreeOp* tree, bool& prefOp1, bool& prefOp2);
     bool supportsSpecialPutArg();
@@ -1637,6 +1654,10 @@ public:
         , isSpecialPutArg(false)
         , preferCalleeSave(false)
         , isConstant(false)
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+        , isUpperVector(false)
+        , isPartiallySpilled(false)
+#endif
         , physReg(REG_COUNT)
 #ifdef DEBUG
         , intervalIndex(0)
@@ -1707,6 +1728,24 @@ public:
     // able to reuse a constant that's already in a register.
     bool isConstant : 1;
 
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+    // True if this is a special interval for saving the upper half of a large vector.
+    bool isUpperVector : 1;
+    // This is a convenience method to avoid ifdef's everywhere this is used.
+    bool IsUpperVector() const
+    {
+        return isUpperVector;
+    }
+
+    // True if this interval has been partially spilled
+    bool isPartiallySpilled : 1;
+#else
+    bool IsUpperVector() const
+    {
+        return false;
+    }
+#endif
+
     // The register to which it is currently assigned.
     regNumber physReg;
 
@@ -1719,7 +1758,7 @@ public:
     LclVarDsc* getLocalVar(Compiler* comp)
     {
         assert(isLocalVar);
-        return &(comp->lvaTable[this->varNum]);
+        return comp->lvaGetDesc(this->varNum);
     }
 
     // Get the local tracked variable "index" (lvVarIndex), used in bitmasks.
@@ -1897,7 +1936,7 @@ public:
     // Indicates whether this ref position is to be allocated a reg only if profitable. Currently these are the
     // ref positions that lower/codegen has indicated as reg optional and is considered a contained memory operand if
     // no reg is allocated.
-    unsigned char allocRegIfProfitable : 1;
+    unsigned char regOptional : 1;
 
     // Used by RefTypeDef/Use positions of a multi-reg call node.
     // Indicates the position of the register that this ref position refers to.
@@ -2024,33 +2063,43 @@ public:
     // Returns true if it is a reference on a gentree node.
     bool IsActualRef()
     {
-        return (refType == RefTypeDef || refType == RefTypeUse);
-    }
-
-    bool RequiresRegister()
-    {
-        return (IsActualRef()
+        switch (refType)
+        {
+            case RefTypeDef:
+            case RefTypeUse:
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                || refType == RefTypeUpperVectorSaveDef || refType == RefTypeUpperVectorSaveUse
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                ) &&
-               !AllocateIfProfitable();
+            case RefTypeUpperVectorSave:
+            case RefTypeUpperVectorRestore:
+#endif
+                return true;
+
+            // These must always be marked RegOptional.
+            case RefTypeExpUse:
+            case RefTypeParamDef:
+            case RefTypeDummyDef:
+            case RefTypeZeroInit:
+                assert(RegOptional());
+                return false;
+
+            default:
+                return false;
+        }
     }
 
-    void setAllocateIfProfitable(bool val)
+    void setRegOptional(bool val)
     {
-        allocRegIfProfitable = val;
+        regOptional = val;
     }
 
     // Returns true whether this ref position is to be allocated
     // a reg only if it is profitable.
-    bool AllocateIfProfitable()
+    bool RegOptional()
     {
         // TODO-CQ: Right now if a ref position is marked as
         // copyreg or movereg, then it is not treated as
         // 'allocate if profitable'. This is an implementation
         // limitation that needs to be addressed.
-        return allocRegIfProfitable && !copyReg && !moveReg;
+        return regOptional && !copyReg && !moveReg;
     }
 
     void setMultiRegIdx(unsigned idx)

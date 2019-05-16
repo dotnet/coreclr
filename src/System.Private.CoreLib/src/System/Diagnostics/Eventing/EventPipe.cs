@@ -4,8 +4,6 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Security;
-using Microsoft.Win32;
 
 #if FEATURE_PERFTRACING
 
@@ -41,13 +39,13 @@ namespace System.Diagnostics.Tracing
         private uint m_loggingLevel;
 
         [MarshalAs(UnmanagedType.LPWStr)]
-        private readonly string m_filterData;
+        private readonly string? m_filterData;
 
         internal EventPipeProviderConfiguration(
             string providerName,
             ulong keywords,
             uint loggingLevel,
-            string filterData)
+            string? filterData)
         {
             if(string.IsNullOrEmpty(providerName))
             {
@@ -78,7 +76,7 @@ namespace System.Diagnostics.Tracing
             get { return m_loggingLevel; }
         }
 
-        internal string FilterData => m_filterData;
+        internal string? FilterData => m_filterData;
     }
 
     internal sealed class EventPipeConfiguration
@@ -87,7 +85,6 @@ namespace System.Diagnostics.Tracing
         private uint m_circularBufferSizeInMB;
         private List<EventPipeProviderConfiguration> m_providers;
         private TimeSpan m_minTimeBetweenSamples = TimeSpan.FromMilliseconds(1);
-        private ulong m_multiFileTraceLengthInSeconds = 0;
 
         internal EventPipeConfiguration(
             string outputFile,
@@ -116,11 +113,6 @@ namespace System.Diagnostics.Tracing
             get { return m_circularBufferSizeInMB; }
         }
 
-        internal ulong MultiFileTraceLengthInSeconds
-        {
-            get { return m_multiFileTraceLengthInSeconds; }
-        }
-
         internal EventPipeProviderConfiguration[] Providers
         {
             get { return m_providers.ToArray(); }
@@ -137,7 +129,7 @@ namespace System.Diagnostics.Tracing
             EnableProviderWithFilter(providerName, keywords, loggingLevel, null);
         }
 
-        internal void EnableProviderWithFilter(string providerName, ulong keywords, uint loggingLevel, string filterData)
+        internal void EnableProviderWithFilter(string providerName, ulong keywords, uint loggingLevel, string? filterData)
         {
             m_providers.Add(new EventPipeProviderConfiguration(
                 providerName,
@@ -168,11 +160,6 @@ namespace System.Diagnostics.Tracing
 
             m_minTimeBetweenSamples = minTimeBetweenSamples;
         }
-
-        internal void SetMultiFileTraceLength(ulong traceLengthInSeconds)
-        {
-            m_multiFileTraceLengthInSeconds = traceLengthInSeconds;
-        }
     }
 
     internal static class EventPipe
@@ -198,8 +185,7 @@ namespace System.Diagnostics.Tracing
                 configuration.CircularBufferSizeInMB,
                 (ulong)configuration.ProfilerSamplingRateInNanoseconds,
                 providers,
-                (uint)providers.Length,
-                configuration.MultiFileTraceLengthInSeconds);
+                (uint)providers.Length);
         }
 
         internal static void Disable()
@@ -215,12 +201,11 @@ namespace System.Diagnostics.Tracing
         //
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern UInt64 Enable(
-            string outputFile,
+            string? outputFile,
             uint circularBufferSizeInMB,
             ulong profilerSamplingRateInNanoseconds,
             EventPipeProviderConfiguration[] providers,
-            uint numProviders,
-            ulong multiFileTraceLengthInSeconds);
+            uint numProviders);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void Disable(UInt64 sessionID);
@@ -229,7 +214,7 @@ namespace System.Diagnostics.Tracing
         // These PInvokes are used by EventSource to interact with the EventPipe.
         //
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern IntPtr CreateProvider(string providerName, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback callbackFunc);
+        internal static extern IntPtr CreateProvider(string providerName, Interop.Advapi32.EtwEnableCallback callbackFunc);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern unsafe IntPtr DefineEvent(IntPtr provHandle, uint eventID, long keywords, uint eventVersion, uint level, void *pMetadata, uint metadataLength);

@@ -43,21 +43,6 @@ HINSTANCE g_hInst = nullptr;
 
 /*****************************************************************************/
 
-#ifdef DEBUG
-
-JitOptions jitOpts = {
-    nullptr, // methodName
-    nullptr, // className
-    0.1,     // CGknob
-    0,       // testMask
-
-    (JitOptions*)nullptr // lastDummyField.
-};
-
-#endif // DEBUG
-
-/*****************************************************************************/
-
 extern "C" DLLEXPORT void __stdcall jitStartup(ICorJitHost* jitHost)
 {
     if (g_jitInitialized)
@@ -652,10 +637,7 @@ void Compiler::eeSetLVinfo(unsigned                          which,
                            UNATIVE_OFFSET                    startOffs,
                            UNATIVE_OFFSET                    length,
                            unsigned                          varNum,
-                           unsigned                          LVnum,
-                           VarName                           name,
-                           bool                              avail,
-                           const CodeGenInterface::siVarLoc* varLoc)
+                           const CodeGenInterface::siVarLoc& varLoc)
 {
     // ICorDebugInfo::VarLoc and CodeGenInterface::siVarLoc have to overlap
     // This is checked in siInit()
@@ -669,7 +651,7 @@ void Compiler::eeSetLVinfo(unsigned                          which,
         eeVars[which].startOffset = startOffs;
         eeVars[which].endOffset   = startOffs + length;
         eeVars[which].varNumber   = varNum;
-        eeVars[which].loc         = *varLoc;
+        eeVars[which].loc         = varLoc;
     }
 }
 
@@ -917,7 +899,7 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
 void Compiler::eeDispVars(CORINFO_METHOD_HANDLE ftn, ULONG32 cVars, ICorDebugInfo::NativeVarInfo* vars)
 {
     printf("*************** Variable debug info\n");
-    printf("%d vars\n", cVars);
+    printf("%d live ranges\n", cVars);
     for (unsigned i = 0; i < cVars; i++)
     {
         eeDispVar(&vars[i]);

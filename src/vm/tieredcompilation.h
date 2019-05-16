@@ -24,7 +24,7 @@ public:
     TieredCompilationManager();
 #endif
 
-    void Init(ADID appDomainId);
+    void Init();
 
 #endif // FEATURE_TIERED_COMPILATION
 
@@ -34,7 +34,7 @@ public:
 #ifdef FEATURE_TIERED_COMPILATION
 
 public:
-    void OnTier0MethodCalled(MethodDesc* pMethodDesc, bool isFirstCall, int currentCallCountLimit, BOOL* shouldStopCountingCallsRef, BOOL* wasPromotedToNextTierRef);
+    void OnMethodCalled(MethodDesc* pMethodDesc, bool isFirstCall, int currentCallCountLimit, BOOL* shouldStopCountingCallsRef, BOOL* wasPromotedToNextTierRef);
     void OnMethodCallCountingStoppedWithoutTierPromotion(MethodDesc* pMethodDesc);
     void AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc);
     void Shutdown();
@@ -65,7 +65,6 @@ private:
 
     Crst m_lock;
     SList<SListElem<NativeCodeVersion>> m_methodsToOptimize;
-    ADID m_domainId;
     BOOL m_isAppDomainShuttingDown;
     DWORD m_countOptimizationThreadsRunning;
     DWORD m_optimizationQuantumMs;
