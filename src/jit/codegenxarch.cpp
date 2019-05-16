@@ -6951,7 +6951,7 @@ void CodeGen::genCkfinite(GenTree* treeNode)
         {
             inst_RV_RV(ins_Copy(targetType), targetReg, op1->gtRegNum, targetType);
         }
-        inst_RV_RV_IV(INS_shufps, EA_16BYTE, targetReg, targetReg, 0xb1);
+        inst_RV_RV_IV(INS_shufps, EA_16BYTE, targetReg, targetReg, (int8_t)0xb1);
         copyToTmpSrcReg = targetReg;
     }
     else
@@ -6980,7 +6980,7 @@ void CodeGen::genCkfinite(GenTree* treeNode)
     else if (targetType == TYP_DOUBLE)
     {
         // We need to re-shuffle the targetReg to get the correct result.
-        inst_RV_RV_IV(INS_shufps, EA_16BYTE, targetReg, targetReg, 0xb1);
+        inst_RV_RV_IV(INS_shufps, EA_16BYTE, targetReg, targetReg, (int8_t)0xb1);
     }
 
 #endif // !_TARGET_64BIT_
