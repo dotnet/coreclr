@@ -2373,16 +2373,13 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 //
 // Arguments:
 //    spDelta                 - the value to add to SP. Must be negative or zero.
-//    hideSpChangeFromEmitter - x86 only: if true, hide the SP adjustment from the emitter. This requires that
-//                              `regTmp` be valid.
-//    regTmp                  - x86 only: an available temporary register. Will be trashed if hideSpChangeFromEmitter
-//                              is true.
+//    regTmp                  - x86 only: an available temporary register. If not REG_NA, hide the SP
+//                              adjustment from the emitter, using this register.
 //
 // Return Value:
 //    None.
 //
-void CodeGen::genStackPointerConstantAdjustment(ssize_t spDelta X86_ARG(bool hideSpChangeFromEmitter)
-                                                    X86_ARG(regNumber regTmp))
+void CodeGen::genStackPointerConstantAdjustment(ssize_t spDelta, regNumber regTmp)
 {
     assert(spDelta < 0);
 
@@ -2391,14 +2388,13 @@ void CodeGen::genStackPointerConstantAdjustment(ssize_t spDelta X86_ARG(bool hid
     assert((target_size_t)(-spDelta) <= compiler->eeGetPageSize());
 
 #ifdef _TARGET_X86_
-    if (hideSpChangeFromEmitter)
+    if (regTmp != REG_NA)
     {
         // For x86, some cases don't want to use "sub ESP" because we don't want the emitter to track the adjustment
         // to ESP. So do the work in the count register.
         // TODO-CQ: manipulate ESP directly, to share code, reduce #ifdefs, and improve CQ. This would require
         // creating a way to temporarily turn off the emitter's tracking of ESP, maybe marking instrDescs as "don't
         // track".
-        assert(regTmp != REG_NA);
         inst_RV_RV(INS_mov, regTmp, REG_SPBASE, TYP_I_IMPL);
         inst_RV_IV(INS_sub, regTmp, -spDelta, EA_PTRSIZE);
         inst_RV_RV(INS_mov, REG_SPBASE, regTmp, TYP_I_IMPL);
@@ -2418,19 +2414,16 @@ void CodeGen::genStackPointerConstantAdjustment(ssize_t spDelta X86_ARG(bool hid
 // Arguments:
 //    spDelta                 - the value to add to SP. Must be negative or zero. If zero, the probe happens,
 //                              but the stack pointer doesn't move.
-//    hideSpChangeFromEmitter - x86 only: if true, hide the SP adjustment from the emitter. This requires that
-//                              `regTmp` be valid.
-//    regTmp                  - x86 only: an available temporary register. Will be trashed if hideSpChangeFromEmitter
-//                              is true.
+//    regTmp                  - x86 only: an available temporary register. If not REG_NA, hide the SP
+//                              adjustment from the emitter, using this register.
 //
 // Return Value:
 //    None.
 //
-void CodeGen::genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta X86_ARG(bool hideSpChangeFromEmitter)
-                                                             X86_ARG(regNumber regTmp))
+void CodeGen::genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta, regNumber regTmp)
 {
     getEmitter()->emitIns_AR_R(INS_TEST, EA_4BYTE, REG_SPBASE, REG_SPBASE, 0);
-    genStackPointerConstantAdjustment(spDelta X86_ARG(hideSpChangeFromEmitter) X86_ARG(regTmp));
+    genStackPointerConstantAdjustment(spDelta, regTmp);
 }
 
 //------------------------------------------------------------------------
@@ -2444,16 +2437,13 @@ void CodeGen::genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta X86_ARG
 //
 // Arguments:
 //    spDelta                 - the value to add to SP. Must be negative.
-//    hideSpChangeFromEmitter - x86 only: if true, hide the SP adjustment from the emitter. This requires that
-//                              `regTmp` be valid.
-//    regTmp                  - x86 only: an available temporary register. Will be trashed if hideSpChangeFromEmitter
-//                              is true.
+//    regTmp                  - x86 only: an available temporary register. If not REG_NA, hide the SP
+//                              adjustment from the emitter, using this register.
 //
 // Return Value:
 //    Offset in bytes from SP to last probed address.
 //
-target_ssize_t CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(
-    ssize_t spDelta X86_ARG(bool hideSpChangeFromEmitter) X86_ARG(regNumber regTmp))
+target_ssize_t CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(ssize_t spDelta, regNumber regTmp)
 {
     assert(spDelta < 0);
 
@@ -2463,7 +2453,7 @@ target_ssize_t CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(
     do
     {
         ssize_t spOneDelta = -(ssize_t)min((target_size_t)-spRemainingDelta, pageSize);
-        genStackPointerConstantAdjustmentWithProbe(spOneDelta X86_ARG(hideSpChangeFromEmitter) X86_ARG(regTmp));
+        genStackPointerConstantAdjustmentWithProbe(spOneDelta, regTmp);
         spRemainingDelta -= spOneDelta;
     } while (spRemainingDelta < 0);
 
@@ -2496,8 +2486,7 @@ target_ssize_t CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(
 // Arguments:
 //    regSpDelta              - the register value to add to SP. The value in this register must be negative.
 //                              This register might be trashed.
-//    regTmp                  - an available temporary register. Will be trashed. Only used on x86.
-//                              Must be REG_NA on non-x86 platforms.
+//    regTmp                  - an available temporary register. Will be trashed.
 //
 // Return Value:
 //    None.
@@ -2750,8 +2739,7 @@ void CodeGen::genLclHeap(GenTree* tree)
             // the alloc, not after.
 
             assert(amount < compiler->eeGetPageSize()); // must be < not <=
-            lastTouchDelta =
-                genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)amount X86_ARG(true) X86_ARG(regCnt));
+            lastTouchDelta = genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)amount, regCnt);
             goto ALLOC_DONE;
         }
 
@@ -2823,11 +2811,11 @@ ALLOC_DONE:
             (stackAdjustment + (unsigned)lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES >
              compiler->eeGetPageSize()))
         {
-            genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)stackAdjustment X86_ARG(false) X86_ARG(REG_NA));
+            genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)stackAdjustment, REG_NA);
         }
         else
         {
-            genStackPointerConstantAdjustment(-(ssize_t)stackAdjustment X86_ARG(false) X86_ARG(REG_NA));
+            genStackPointerConstantAdjustment(-(ssize_t)stackAdjustment, REG_NA);
         }
     }
 
@@ -7698,7 +7686,7 @@ bool CodeGen::genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk)
         if ((argSize >= ARG_STACK_PROBE_THRESHOLD_BYTES) ||
             compiler->compStressCompile(Compiler::STRESS_GENERIC_VARN, 5))
         {
-            genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)argSize X86_ARG(false) X86_ARG(REG_NA));
+            genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)argSize, REG_NA);
         }
         else
         {

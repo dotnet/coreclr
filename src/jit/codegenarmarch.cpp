@@ -51,14 +51,14 @@ void CodeGen::genStackPointerConstantAdjustment(ssize_t spDelta)
 // Arguments:
 //    spDelta                 - the value to add to SP. Must be negative or zero. If zero, the probe happens,
 //                              but the stack pointer doesn't move.
-//    regTmp                  - arm32 only: temporary register to use as target for probe load instruction
+//    regTmp                  - temporary register to use as target for probe load instruction
 //
 // Return Value:
 //    None.
 //
-void CodeGen::genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta ARM_ARG(regNumber regTmp))
+void CodeGen::genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta, regNumber regTmp)
 {
-    getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE ARM_ARG(regTmp) ARM64_ARG(REG_ZR), REG_SP, 0);
+    getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, regTmp, REG_SP, 0);
     genStackPointerConstantAdjustment(spDelta);
 }
 
@@ -69,12 +69,12 @@ void CodeGen::genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta ARM_ARG
 //
 // Arguments:
 //    spDelta                 - the value to add to SP. Must be negative.
-//    regTmp                  - arm32 only: temporary register to use as target for probe load instruction
+//    regTmp                  - temporary register to use as target for probe load instruction
 //
 // Return Value:
 //    Offset in bytes from SP to last probed address.
 //
-target_ssize_t CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(ssize_t spDelta ARM_ARG(regNumber regTmp))
+target_ssize_t CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(ssize_t spDelta, regNumber regTmp)
 {
     assert(spDelta < 0);
 
@@ -84,7 +84,7 @@ target_ssize_t CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(ssize_t s
     do
     {
         ssize_t spOneDelta = -(ssize_t)min((target_size_t)-spRemainingDelta, pageSize);
-        genStackPointerConstantAdjustmentWithProbe(spOneDelta ARM_ARG(regTmp));
+        genStackPointerConstantAdjustmentWithProbe(spOneDelta, regTmp);
         spRemainingDelta -= spOneDelta;
     } while (spRemainingDelta < 0);
 
@@ -100,7 +100,7 @@ target_ssize_t CodeGen::genStackPointerConstantAdjustmentLoopWithProbe(ssize_t s
         // happen on x86, for example, when we copy an argument to the stack using a "SUB ESP; REP MOV"
         // strategy.
 
-        getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE ARM_ARG(regTmp) ARM64_ARG(REG_ZR), REG_SP, 0);
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, regTmp, REG_SP, 0);
         lastTouchDelta = 0;
     }
 

@@ -2319,7 +2319,7 @@ ALLOC_DONE:
             (stackAdjustment + (unsigned)lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES >
              compiler->eeGetPageSize()))
         {
-            genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)stackAdjustment);
+            genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)stackAdjustment, REG_ZR);
         }
         else
         {
