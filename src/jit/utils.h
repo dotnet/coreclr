@@ -54,7 +54,7 @@ inline bool isPow2d(double v)
 {
     uint64_t i = *(uint64_t*)&v;
     uint32_t exponent = (uint32_t)(i >> 52);
-    uint64_t mantissa =  i & 0x7fffffffffff;
+    uint64_t mantissa =  i & 0x8ffffffffffff;
     return mantissa == 0 && exponent != 0 && exponent != 1023;
 }
 
