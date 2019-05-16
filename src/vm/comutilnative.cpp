@@ -1181,22 +1181,6 @@ FCIMPL1(UINT64, GCInterface::GetGenerationSize, int gen)
 }
 FCIMPLEND
 
-FCIMPL0(UINT64, GCInterface::GetTotalAllocation)
-{
-    FCALL_CONTRACT;
-
-    return GCHeapUtilities::GetGCHeap()->GetTotalAllocation();
-}
-FCIMPLEND
-
-FCIMPL0(UINT64, GCInterface::GetLOHAllocation)
-{
-    FCALL_CONTRACT;
-
-    return GCHeapUtilities::GetGCHeap()->GetLOHAllocation();
-}
-FCIMPLEND
-
 /*================================GetTotalMemory================================
 **Action: Returns the total number of bytes in use
 **Returns: The total number of bytes in use

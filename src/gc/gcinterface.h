@@ -695,10 +695,6 @@ public:
 
     virtual uint64_t GetLastGCGenerationSize(int gen) = 0;
 
-    virtual uint64_t GetTotalAllocation() = 0;
-
-    virtual uint64_t GetLOHAllocation() = 0;
-
     /*
     ===========================================================================
     Miscellaneous routines used by the VM.

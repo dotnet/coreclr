@@ -312,10 +312,6 @@ public:
     int GetLastGCTimeInGC();
 
     uint64_t GetLastGCGenerationSize(int gen);
-
-    uint64_t GetTotalAllocation();
-
-    uint64_t GetLOHAllocation();
 };
 
 #endif  // GCIMPL_H_

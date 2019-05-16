@@ -245,16 +245,6 @@ uint64_t GCHeap::GetLastGCGenerationSize(int gen)
     return g_GenerationSizes[gen];
 }
 
-uint64_t GCHeap::GetTotalAllocation()
-{
-    return g_cbAlloc;
-}
-
-uint64_t GCHeap::GetLOHAllocation()
-{
-    return g_cbLOHAlloc;
-}
-
 size_t GCHeap::GetCurrentObjSize()
 {
     return (totalSurvivedSize + gc_heap::get_total_allocated());

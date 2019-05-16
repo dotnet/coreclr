@@ -124,9 +124,6 @@ public:
     static FCDECL0(UINT64,  GetSegmentSize);
     static FCDECL0(int,     GetPercentTimeInGC);
     static FCDECL1(UINT64,  GetGenerationSize, int gen);
-    static FCDECL0(UINT64,  GetTotalAllocation);
-    static FCDECL0(UINT64,  GetLOHAllocation);
-
     static 
     INT64 QCALLTYPE GetTotalMemory();
 
@@ -144,6 +141,7 @@ public:
     
     static FCDECL0(INT64,    GetAllocatedBytesForCurrentThread);
     static FCDECL1(INT64,    GetTotalAllocatedBytes, CLR_BOOL precise);
+    static FCDECL0(INT64,    GetTotalLOHAllocatedBytes);
 
     static FCDECL3(Object*, AllocateNewArray, void* elementTypeHandle, INT32 length, CLR_BOOL zeroingOptional);
 
