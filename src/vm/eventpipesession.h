@@ -28,8 +28,6 @@ enum class EventPipeSessionType
 class EventPipeSession
 {
 private:
-    //
-    // Crst m_lock;
 
     // The set of configurations for each provider in the session.
     EventPipeSessionProviderList *m_pProviderList;

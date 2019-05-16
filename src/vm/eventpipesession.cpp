@@ -85,8 +85,6 @@ EventPipeSession::~EventPipeSession()
     CONTRACTL_END;
 
     // TODO: Stop streaming thread? Review synchronization.
-    // CrstHolder _crst(&m_lock);
-
     delete m_pProviderList;
     delete m_pBufferManager;
     delete m_pFile;
@@ -102,7 +100,6 @@ bool EventPipeSession::HasIpcStreamingStarted()
     }
     CONTRACTL_END;
 
-    // CrstHolder _crst(&m_lock);
     return m_pIpcStreamingThread != nullptr ? m_pIpcStreamingThread->HasStarted() : false;
 }
 
@@ -129,8 +126,6 @@ void EventPipeSession::DestroyIpcStreamingThread()
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
-
-    // CrstHolder _crst(&m_lock);
 
     if (m_pIpcStreamingThread != nullptr)
         ::DestroyThread(m_pIpcStreamingThread);
@@ -263,7 +258,6 @@ void EventPipeSession::AddSessionProvider(EventPipeSessionProvider *pProvider)
     }
     CONTRACTL_END;
 
-    // CrstHolder _crst(&m_lock);
     m_pProviderList->AddSessionProvider(pProvider);
 }
 
@@ -277,7 +271,6 @@ EventPipeSessionProvider* EventPipeSession::GetSessionProvider(EventPipeProvider
     }
     CONTRACTL_END;
 
-    // CrstHolder _crst(&m_lock);
     return m_pProviderList->GetSessionProvider(pProvider);
 }
 
@@ -293,8 +286,6 @@ bool EventPipeSession::WriteAllBuffersToFile()
 
     if (m_pFile == nullptr)
         return true;
-
-    // CrstHolder _crst(&m_lock);
 
     // Get the current time stamp.
     // EventPipeBufferManager::WriteAllBuffersToFile will use this to ensure that no events after
@@ -314,7 +305,6 @@ bool EventPipeSession::WriteEvent(
         Thread *pEventThread,
         StackContents *pStack)
 {
-    // CrstHolder _crst(&m_lock);
     // TODO: Filter events specific to "this" session.
     return m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId);
 }
@@ -331,7 +321,6 @@ void EventPipeSession::WriteEvent(EventPipeEventInstance &instance)
 
     if (m_pFile == nullptr)
         return;
-    // CrstHolder _crst(&m_lock);
     m_pFile->WriteEvent(instance);
 }
 
@@ -346,7 +335,6 @@ EventPipeEventInstance *EventPipeSession::GetNextEvent()
     }
     CONTRACTL_END;
 
-    // CrstHolder _crst(&m_lock);
     return m_pBufferManager->GetNextEvent();
 }
 
@@ -380,8 +368,6 @@ void EventPipeSession::Disable()
 
     if (m_pFile == nullptr)
         return;
-
-    // CrstHolder _crst(&m_lock);
 
     // Disable streaming thread
     if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
