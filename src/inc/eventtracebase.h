@@ -897,7 +897,6 @@ namespace ETW
     class TieredCompilationLog
     {
     private:
-        static void ValidateSend();
         static void GetSettings(UINT32 *flagsRef);
 
     public:
