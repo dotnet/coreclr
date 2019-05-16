@@ -595,8 +595,6 @@ public:
                                 CORINFO_CLASS_HANDLE cls2);
 
     BOOL shouldEnforceCallvirtRestriction(CORINFO_MODULE_HANDLE scope);
-    BOOL isInSameVersionBubble(CORINFO_MODULE_HANDLE currentModule, CORINFO_MODULE_HANDLE targetModule);
-
     CORINFO_CLASS_HANDLE getParentType(CORINFO_CLASS_HANDLE  cls);
     CorInfoType getChildType (CORINFO_CLASS_HANDLE       clsHnd,
                               CORINFO_CLASS_HANDLE       *clsRet);

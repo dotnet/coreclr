@@ -258,8 +258,6 @@ BOOL isValidStringRef(CORINFO_MODULE_HANDLE module, /* IN  */
 
 BOOL shouldEnforceCallvirtRestriction(CORINFO_MODULE_HANDLE scope);
 
-BOOL isInSameVersionBubble(CORINFO_MODULE_HANDLE currentModule, CORINFO_MODULE_HANDLE targetModule);
-
 /**********************************************************************************/
 //
 // ICorClassInfo

@@ -159,7 +159,6 @@ LWM(TryResolveToken, Agnostic_CORINFO_RESOLVED_TOKENin, TryResolveTokenValue)
 LWM(SatisfiesClassConstraints, DWORDLONG, DWORD)
 LWM(SatisfiesMethodConstraints, DLDL, DWORD)
 LWM(ShouldEnforceCallvirtRestriction, DWORDLONG, DWORD)
-LWM(IsInSameVersionBubble, DLDL, BOOL)
 
 #undef LWM
 #undef DENSELWM

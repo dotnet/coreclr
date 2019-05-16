@@ -710,22 +710,20 @@ static bool CallerAndCalleeInSystemVersionBubble(MethodDesc* pCaller, MethodDesc
     return false;
 }
 
-BOOL CEEInfo::isInSameVersionBubble(
-        CORINFO_MODULE_HANDLE       currentModule,
-        CORINFO_MODULE_HANDLE       targetModule)
+bool IsInSameVersionBubble(CORINFO_MODULE_HANDLE current, CORINFO_MODULE_HANDLE target)
 {
     LIMITED_METHOD_CONTRACT;
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
     {
-        Module* pCurrentModule = (Module*)currentModule;
-        Module* pTargetModule = (Module*)targetModule;
+        Module* pCurrentModule = (Module*)current;
+        Module* pTargetModule = (Module*)target;
         return IsInSameVersionBubble(pCurrentModule->GetAssembly(), pTargetModule->GetAssembly());
     }
 #endif
 
-    return FALSE;
+    return false;
 }
 
 /*********************************************************************/
@@ -10210,9 +10208,7 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
 
     JIT_TO_EE_TRANSITION();
 
-    if (!IsReadyToRunCompilation() || isInSameVersionBubble(
-        (CORINFO_MODULE_HANDLE)m_pMethodBeingCompiled->GetModule_NoLogging(), 
-        (CORINFO_MODULE_HANDLE)MscorlibBinder::GetModule()))
+    if (!IsReadyToRunCompilation() || IsInSameVersionBubble((CORINFO_MODULE_HANDLE)m_pMethodBeingCompiled->GetModule_NoLogging(), (CORINFO_MODULE_HANDLE)MscorlibBinder::GetModule()))
     {
         InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
 

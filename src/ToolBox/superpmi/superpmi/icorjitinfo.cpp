@@ -414,12 +414,6 @@ BOOL MyICJI::shouldEnforceCallvirtRestriction(CORINFO_MODULE_HANDLE scope)
     return jitInstance->mc->repShouldEnforceCallvirtRestriction(scope);
 }
 
-BOOL MyICJI::isInSameVersionBubble(CORINFO_MODULE_HANDLE currentModule, CORINFO_MODULE_HANDLE targetModule)
-{
-    jitInstance->mc->cr->AddCall("isInSameVersionBubble");
-    return jitInstance->mc->repIsInSameVersionBubble(currentModule, targetModule);
-}
-
 /**********************************************************************************/
 //
 // ICorClassInfo

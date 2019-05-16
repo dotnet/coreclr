@@ -831,10 +831,6 @@ public:
     BOOL shouldEnforceCallvirtRestriction(
             CORINFO_MODULE_HANDLE   scope);
 
-    BOOL isInSameVersionBubble(
-            CORINFO_MODULE_HANDLE   currentModule,
-            CORINFO_MODULE_HANDLE   targetModule);
-
     // Check constraints on method type arguments (only).
     // The parent class should be checked separately using satisfiesClassConstraints(parent).
     BOOL satisfiesMethodConstraints(

@@ -22,6 +22,8 @@
 #include "zapreadytorun.h"
 #endif
 
+bool IsInSameVersionBubble(CORINFO_MODULE_HANDLE current, CORINFO_MODULE_HANDLE target);
+
 ZapInfo::ZapInfo(ZapImage * pImage, mdMethodDef md, CORINFO_METHOD_HANDLE handle, CORINFO_MODULE_HANDLE module, unsigned methodProfilingDataFlags)
     : m_pImage(pImage),
     m_currentMethodToken(md),
@@ -210,7 +212,7 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
 #ifndef PLATFORM_UNIX
         // PInvoke Helpers are not yet implemented on non-Windows platforms
 
-        if (!isInSameVersionBubble(m_currentMethodModule, m_zapper->m_pEECompileInfo->GetLoaderModuleForMscorlib()))
+        if(!IsInSameVersionBubble(m_currentMethodModule, m_zapper->m_pEECompileInfo->GetLoaderModuleForMscorlib()))
             jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_PINVOKE_HELPERS);
 #endif
     }
@@ -3228,14 +3230,6 @@ BOOL ZapInfo::shouldEnforceCallvirtRestriction(
 {
     return m_zapper->m_pEEJitInfo->shouldEnforceCallvirtRestriction(scopeHnd);
 }
-
-BOOL ZapInfo::isInSameVersionBubble(
-        CORINFO_MODULE_HANDLE currentModule,
-        CORINFO_MODULE_HANDLE targetModule)
-{
-    return m_zapper->m_pEEJitInfo->isInSameVersionBubble(currentModule, targetModule);
-}
-
 
 CORINFO_CLASS_HANDLE ZapInfo::getParentType (
                                 CORINFO_CLASS_HANDLE       cls)

@@ -1173,10 +1173,6 @@ public:
     void dmpShouldEnforceCallvirtRestriction(DWORDLONG key, DWORD value);
     BOOL repShouldEnforceCallvirtRestriction(CORINFO_MODULE_HANDLE scope);
 
-    void recIsInSameVersionBubble(CORINFO_MODULE_HANDLE currentModule, CORINFO_MODULE_HANDLE targetModule, BOOL result);
-    void dmpIsInSameVersionBubble(DLDL key, BOOL value);
-    BOOL repIsInSameVersionBubble(CORINFO_MODULE_HANDLE currentModule, CORINFO_MODULE_HANDLE targetModule);
-
     void recGetMethodSync(CORINFO_METHOD_HANDLE ftn, void** ppIndirection, void* result);
     void dmpGetMethodSync(DWORDLONG key, DLDL value);
     void* repGetMethodSync(CORINFO_METHOD_HANDLE ftn, void** ppIndirection);
@@ -1356,7 +1352,7 @@ private:
 };
 
 // ********************* Please keep this up-to-date to ease adding more ***************
-// Highest packet number: 175
+// Highest packet number: 174
 // *************************************************************************************
 enum mcPackets
 {
@@ -1510,7 +1506,6 @@ enum mcPackets
     Packet_SatisfiesClassConstraints                     = 110,
     Packet_SatisfiesMethodConstraints                    = 111,
     Packet_ShouldEnforceCallvirtRestriction              = 112,
-    Packet_IsInSameVersionBubble                         = 175, // Added 5/16/2019
 
     PacketCR_AddressMap                        = 113,
     PacketCR_AllocMethodBlockCounts            = 131,
