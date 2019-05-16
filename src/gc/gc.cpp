@@ -5455,10 +5455,10 @@ bool gc_heap::virtual_commit (void* address, size_t size, int h_number, bool* ha
 
         if ((current_total_committed + size) > heap_hard_limit)
         {
-            dprintf (1, ("%Id + %Id = %Id > limit",
+           /* dprintf (1, ("%Id + %Id = %Id > limit",
                 current_total_committed, size,
                 (current_total_committed + size),
-                heap_hard_limit));
+                heap_hard_limit));*/
 
             exceeded_p = true;
         }
@@ -11507,9 +11507,9 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
         if (gen_number == 0)
         {
             size_t pad_size = Align (min_obj_size, align_const);
-            make_unused_array (acontext->alloc_ptr, pad_size);
             dprintf (3, ("contigous ac: making min obj gap %Ix->%Ix(%Id)", 
                 acontext->alloc_ptr, (acontext->alloc_ptr + pad_size), pad_size));
+            make_unused_array (acontext->alloc_ptr, pad_size);
             acontext->alloc_ptr += pad_size;
         }
     }
@@ -11534,14 +11534,19 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     {
         //Sometimes the allocated size is advanced without clearing the
         //memory. Let's catch up here
-        if (heap_segment_used (seg) < (alloc_allocated - plug_skew))
+        uint8_t* old_allocated = alloc_allocated - plug_skew - limit_size;
+        assert (heap_segment_used (seg) >= old_allocated);
+
+        if (heap_segment_used (seg) < old_allocated)
         {
 #ifdef MARK_ARRAY
 #ifndef BACKGROUND_GC
             clear_mark_array (heap_segment_used (seg) + plug_skew, alloc_allocated);
 #endif //BACKGROUND_GC
 #endif //MARK_ARRAY
-            heap_segment_used (seg) = alloc_allocated - plug_skew;
+            // do not bump heap_segment_used to the new alloc_allocated just yet
+            // we will do that after actual cleaning
+            heap_segment_used (seg) = old_allocated;
         }
     }
 #ifdef BACKGROUND_GC
@@ -11576,6 +11581,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
             *(PTR_PTR)clear_start = 0;
         }
         // skip the rest of the object
+        dprintf(3, ("zeroing optional: skipping object at %Ix->%Ix(%Id)", clear_start, obj_end, obj_end - clear_start));
         clear_start = obj_end;
     }
 
@@ -11607,7 +11613,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
                 FATAL_GC_ERROR ();
             }
 
-            dprintf (2, ("clearing memory before used at %Ix for %Id bytes", clear_start, used - clear_start));
+            dprintf (3, ("clearing memory before used at %Ix for %Id bytes", clear_start, used - clear_start));
             memclr (clear_start, used - clear_start);
         }
     }
@@ -11637,8 +11643,12 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
         }
     }
 
+    // TODO: VS comment this out
     // verifying the memory is completely cleared.
-    //verify_mem_cleared (start - plug_skew, limit_size);
+    if (!(flags & GC_ALLOC_ZEROING_OPTIONAL))
+    {
+        verify_mem_cleared(start - plug_skew, limit_size);
+    }
 }
 
 size_t gc_heap::new_allocation_limit (size_t size, size_t physical_limit, int gen_number)
@@ -12129,6 +12139,7 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
     add_saved_spinlock_info (true, me_release, mt_clr_large_mem);
     leave_spin_lock (&more_space_lock_loh);
 
+    ((void**) alloc_start)[-1] = 0;     //clear the sync block
     if (!(flags & GC_ALLOC_ZEROING_OPTIONAL))
     {
         memclr(alloc_start + size_to_skip, size_to_clear);
@@ -12264,8 +12275,8 @@ BOOL gc_heap::a_fit_segment_end_p (int gen_number,
 #endif //BACKGROUND_GC
 
     uint8_t*& allocated = ((gen_number == 0) ?
-                        alloc_allocated : 
-                        heap_segment_allocated(seg));
+                                    alloc_allocated : 
+                                    heap_segment_allocated(seg));
 
     size_t pad = Align (min_obj_size, align_const);
 
@@ -12327,33 +12338,48 @@ found_fit:
     }
 #endif //BACKGROUND_GC
 
-    uint8_t* old_alloc;
-    old_alloc = allocated;
 #ifdef FEATURE_LOH_COMPACTION
     if (gen_number == (max_generation + 1))
     {
-        make_unused_array (old_alloc, loh_pad);
-        old_alloc += loh_pad;
+        make_unused_array (allocated, loh_pad);
         allocated += loh_pad;
         limit -= loh_pad;
     }
 #endif //FEATURE_LOH_COMPACTION
 
-#if defined (VERIFY_HEAP) && defined (_DEBUG)
-        ((void**) allocated)[-1] = 0;     //clear the sync block
-#endif //VERIFY_HEAP && _DEBUG
-    allocated += limit;
+    // dprintf (3, ("found fit at end of seg: %Ix", old_alloc));
 
-    dprintf (3, ("found fit at end of seg: %Ix", old_alloc));
+    uint8_t* old_alloc;
+    old_alloc = allocated;
 
 #ifdef BACKGROUND_GC
     if (cookie != -1)
     {
+        allocated += limit;
         bgc_loh_alloc_clr (old_alloc, limit, acontext, flags, align_const, cookie, TRUE, seg);
     }
     else
 #endif //BACKGROUND_GC
-    {
+    {      
+        //REVIEW: we could do this always, not only ZEROING_OPTIONAL. 
+        //        Right now the new allocation context size is a bit random - it is roughly "allocation quantum + remaining bytes".
+        //        I wonder if that is intentional?    Perhaps... I could see reasons for and against.
+
+        // In a contiguous AC case with GC_ALLOC_ZEROING_OPTIONAL, deduct unspent space from the limit to clear only what is necessary.
+        //if (flags & GC_ALLOC_ZEROING_OPTIONAL &&
+        if (allocated == acontext->alloc_limit || allocated == acontext->alloc_limit + Align (min_obj_size, align_const))
+        {
+            limit -= (allocated - acontext->alloc_ptr);
+
+            // in gen0 add space for an AC continuity divider
+            if (gen_number == 0)
+            {
+                assert(allocated != acontext->alloc_ptr);
+                limit += Align(min_obj_size, align_const);
+            }
+        }
+
+        allocated += limit;
         adjust_limit_clr (old_alloc, limit, size, acontext, flags, seg, align_const, gen_number);
     }
 
@@ -13627,7 +13653,7 @@ ptrdiff_t gc_heap::get_balance_heaps_loh_effective_budget ()
 gc_heap* gc_heap::balance_heaps_loh (alloc_context* acontext, size_t alloc_size)
 {
     const int home_hp_num = heap_select::select_heap(acontext, 0);
-    dprintf (3, ("[h%d] LA: %Id", home_heap, alloc_size));
+     //  dprintf (3, ("[h%d] LA: %Id", home_heap, alloc_size));
     gc_heap* home_hp = GCHeap::GetHeap(home_hp_num)->pGenGCHeap;
     dynamic_data* dd = home_hp->dynamic_data_of (max_generation + 1);
     const ptrdiff_t home_hp_size = home_hp->get_balance_heaps_loh_effective_budget ();
@@ -23499,6 +23525,7 @@ void gc_heap::fix_generation_bounds (int condemned_gen_number,
 #endif //MULTIPLE_HEAPS
     {
         alloc_allocated = heap_segment_plan_allocated(ephemeral_heap_segment);
+        heap_segment_used(ephemeral_heap_segment) = max(heap_segment_used(ephemeral_heap_segment), alloc_allocated - plug_skew);
         //reset the allocated size
         uint8_t* start = generation_allocation_start (youngest_generation);
         MAYBE_UNUSED_VAR(start);
@@ -23685,6 +23712,7 @@ void gc_heap::make_free_lists (int condemned_gen_number)
         //reset the allocated size
         uint8_t* start2 = generation_allocation_start (youngest_generation);
         alloc_allocated = start2 + Align (size (start2));
+        heap_segment_used(ephemeral_heap_segment) = max(heap_segment_used(ephemeral_heap_segment), alloc_allocated - plug_skew);
     }
 
 #ifdef TIME_GC

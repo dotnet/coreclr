@@ -277,6 +277,8 @@ void GCLog (const char *fmt, ... );
 // to do so.
 #define dprintf(l, x)
 
+// #define dprintf(l,x) {if (l==3) {printf ("\n");printf x ; fflush(stdout);}}
+
 #endif //SIMPLE_DPRINTF
 
 #else //DACCESS_COMPILE
