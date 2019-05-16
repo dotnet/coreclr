@@ -4069,6 +4069,8 @@ void emitter::emitIns_R_R_I(instruction ins, emitAttr attr, regNumber reg1, regN
         case INS_extractps:
         case INS_vextractf128:
         case INS_vextracti128:
+        case INS_shld:
+        case INS_shrd:
         {
             code = insCodeMR(ins);
             break;
