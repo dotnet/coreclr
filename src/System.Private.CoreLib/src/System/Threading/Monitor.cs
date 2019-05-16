@@ -13,7 +13,6 @@
 **
 =============================================================================*/
 
-#nullable enable
 using System;
 using System.Runtime;
 using System.Threading;
@@ -232,6 +231,15 @@ namespace System.Threading
             }
 
             ObjPulseAll(obj);
+        }
+
+        /// <summary>
+        /// Gets the number of times there was contention upon trying to take a <see cref="Monitor"/>'s lock so far.
+        /// </summary>
+        public static extern long LockContentionCount
+        {
+            [MethodImpl(MethodImplOptions.InternalCall)]
+            get;
         }
     }
 }

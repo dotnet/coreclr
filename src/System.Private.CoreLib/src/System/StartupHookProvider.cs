@@ -28,7 +28,7 @@ namespace System
             // Initialize tracing before any user code can be called.
             System.Diagnostics.Tracing.EventPipeController.Initialize();
 
-            string startupHooksVariable = (string)AppContext.GetData("STARTUP_HOOKS");
+            string? startupHooksVariable = (string?)AppContext.GetData("STARTUP_HOOKS");
             if (startupHooksVariable == null)
             {
                 return;
@@ -121,7 +121,7 @@ namespace System
             catch (Exception assemblyLoadException)
             {
                 throw new ArgumentException(
-                    SR.Format(SR.Argument_StartupHookAssemblyLoadFailed, startupHook.Path ?? startupHook.AssemblyName.ToString()),
+                    SR.Format(SR.Argument_StartupHookAssemblyLoadFailed, startupHook.Path ?? startupHook.AssemblyName!.ToString()),
                     assemblyLoadException);
             }
 
@@ -129,7 +129,7 @@ namespace System
             Type type = assembly.GetType(StartupHookTypeName, throwOnError: true);
 
             // Look for a static method without any parameters
-            MethodInfo initializeMethod = type.GetMethod(InitializeMethodName,
+            MethodInfo? initializeMethod = type.GetMethod(InitializeMethodName,
                                                          BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
                                                          null, // use default binder
                                                          Type.EmptyTypes, // parameters

@@ -14,7 +14,7 @@ namespace System.Runtime.CompilerServices
     [StructLayout(LayoutKind.Sequential)]
     internal class GCHeapHash
     {
-        Array _data;
+        Array _data = null!;
         int _count;
         int _deletedCount;
     }

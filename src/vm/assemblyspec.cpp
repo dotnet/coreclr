@@ -22,7 +22,6 @@
 #include "eeconfig.h"
 #include "strongname.h"
 #include "strongnameholders.h"
-#include "mdaassistants.h"
 #include "eventtrace.h"
 
 #ifdef FEATURE_COMINTEROP
@@ -434,13 +433,6 @@ HRESULT AssemblySpec::InitializeSpec(StackingAllocator* alloc, ASSEMBLYNAMEREF* 
 
     CloneFieldsToStackingAllocator(alloc);
 
-    // Hash for control 
-    // <TODO>@TODO cts, can we use unsafe in this case!!!</TODO>
-    if ((*pName)->GetHashForControl() != NULL)
-        SetHashForControl((*pName)->GetHashForControl()->GetDataPtr(), 
-                          (*pName)->GetHashForControl()->GetNumComponents(), 
-                          (*pName)->GetHashAlgorithmForControl());
-
     // Extract embedded WinRT name, if present.
     ParseEncodedName();
 
@@ -587,7 +579,7 @@ void AssemblySpec::AssemblyNameInit(ASSEMBLYNAMEREF* pAsmName, PEImage* pImageIn
         IfFailThrow(pImageInfo->GetMDImport()->GetAssemblyProps(TokenFromRid(1, mdtAssembly), NULL, NULL, &hashAlgId, NULL, NULL, NULL));
     }
 
-    MethodDescCallSite init(METHOD__ASSEMBLY_NAME__INIT);
+    MethodDescCallSite init(METHOD__ASSEMBLY_NAME__CTOR);
     
     ARG_SLOT MethodArgs[] =
     {

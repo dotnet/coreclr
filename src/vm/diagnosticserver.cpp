@@ -5,6 +5,7 @@
 #include "common.h"
 #include "diagnosticserver.h"
 #include "eventpipeprotocolhelper.h"
+#include "diagnosticprotocolhelper.h"
 
 #ifdef FEATURE_PAL
 #include "pal.h"
@@ -20,7 +21,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(lpThreadParameter != nullptr);
     }
     CONTRACTL_END;
@@ -57,20 +58,23 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 
             switch (header.RequestType)
             {
-            case DiagnosticMessageType::EnableEventPipe:
-                EventPipeProtocolHelper::EnableFileTracingEventHandler(pStream);
+            case DiagnosticMessageType::StopEventPipeTracing:
+                EventPipeProtocolHelper::StopTracing(pStream);
                 break;
 
-            case DiagnosticMessageType::DisableEventPipe:
-                EventPipeProtocolHelper::DisableFileTracingEventHandler(pStream);
+            case DiagnosticMessageType::CollectEventPipeTracing:
+                EventPipeProtocolHelper::CollectTracing(pStream);
                 break;
 
-            case DiagnosticMessageType::StreamEventPipe:
-                EventPipeProtocolHelper::AttachTracingEventHandler(pStream);
+#ifdef FEATURE_PAL
+            case DiagnosticMessageType::GenerateCoreDump:
+                DiagnosticProtocolHelper::GenerateCoreDump(pStream);
                 break;
+#endif
 
             default:
-                LOG((LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknow request type (%d)\n", header.RequestType));
+                STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", header.RequestType);
+                delete pStream;
                 break;
             }
         }

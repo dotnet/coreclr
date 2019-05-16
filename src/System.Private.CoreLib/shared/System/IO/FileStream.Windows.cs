@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -1374,7 +1373,7 @@ namespace System.IO
                             // Allocate a native overlapped for our reusable overlapped, and set position to read based on the next
                             // desired address stored in the awaitable.  (This position may be 0, if either we're at the beginning or
                             // if the stream isn't seekable.)
-                            readAwaitable._nativeOverlapped = _fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(awaitableOverlapped);
+                            readAwaitable._nativeOverlapped = _fileHandle.ThreadPoolBinding!.AllocateNativeOverlapped(awaitableOverlapped);
                             if (canSeek)
                             {
                                 readAwaitable._nativeOverlapped->OffsetLow = unchecked((int)readAwaitable._position);
@@ -1449,7 +1448,7 @@ namespace System.IO
                             }
                             if (overlapped != null)
                             {
-                                _fileHandle.ThreadPoolBinding.FreeNativeOverlapped(overlapped);
+                                _fileHandle.ThreadPoolBinding!.FreeNativeOverlapped(overlapped);
                             }
                         }
                     }

@@ -56,7 +56,6 @@
 
 #include "appdomain.inl"
 #include "typeparse.h"
-#include "mdaassistants.h"
 #include "threadpoolrequest.h"
 
 #include "nativeoverlapped.h"
@@ -157,7 +156,7 @@ BOOL CompareCLSID(UPTR u1, UPTR u2)
 
 #ifndef CROSSGEN_COMPILE
 // Constructor for the LargeHeapHandleBucket class.
-LargeHeapHandleBucket::LargeHeapHandleBucket(LargeHeapHandleBucket *pNext, DWORD Size, BaseDomain *pDomain, BOOL bCrossAD)
+LargeHeapHandleBucket::LargeHeapHandleBucket(LargeHeapHandleBucket *pNext, DWORD Size, BaseDomain *pDomain)
 : m_pNext(pNext)
 , m_ArraySize(Size)
 , m_CurrentPos(0)
@@ -176,31 +175,8 @@ LargeHeapHandleBucket::LargeHeapHandleBucket(LargeHeapHandleBucket *pNext, DWORD
     PTRARRAYREF HandleArrayObj;
 
     // Allocate the array in the large object heap.
-    if (!bCrossAD) 
-    {
-        OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
-        HandleArrayObj = (PTRARRAYREF)AllocateObjectArray(Size, g_pObjectClass, TRUE);
-    }
-    else 
-    {
-        // During AD creation we don't want to assign the handle array to the currently running AD but
-        // to the AD being created.  Ensure that AllocateArrayEx doesn't set the AD and then set it here.
-        AppDomain *pAD = pDomain->AsAppDomain();
-        _ASSERTE(pAD);
-        _ASSERTE(pAD->IsBeingCreated());
-
-        OBJECTREF array;
-        {
-            OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
-            array = AllocateArrayEx(
-                ClassLoader::LoadArrayTypeThrowing(g_pObjectClass),
-                (INT32 *)(&Size),
-                1,
-                TRUE);
-        }
-
-        HandleArrayObj = (PTRARRAYREF)array;
-    }
+    OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
+    HandleArrayObj = (PTRARRAYREF)AllocateObjectArray(Size, g_pObjectClass, TRUE);
 
     // Retrieve the pointer to the data inside the array. This is legal since the array
     // is located in the large object heap and is guaranteed not to move.
@@ -404,31 +380,19 @@ LargeHeapHandleTable::~LargeHeapHandleTable()
 // Third case:  Releases for use in a string literal entry
 //
 // CrstHolder gch(&(SystemDomain::GetGlobalStringLiteralMap()->m_HashTableCrstGlobal));
-// taken in the AppDomainStringLiteralMap functions below protects the 4 ways that this can happen
+// taken in the AppDomainStringLiteralMap functions below protects the 3 ways that this can happen
 //
 // case 3a)
-//
-// in an appdomain unload case
-//
-// AppDomainStringLiteralMap::~AppDomainStringLiteralMap() takes the lock then
-// leads to calls to
-//     StringLiteralEntry::Release
-//    which leads to
-//        SystemDomain::GetGlobalStringLiteralMapNoCreate()->RemoveStringLiteralEntry(this)
-//        which leads to
-//            m_LargeHeapHandleTable.ReleaseHandles((OBJECTREF*)pObjRef, 1);
-//
-// case 3b)
 //
 // AppDomainStringLiteralMap::GetStringLiteral() can call StringLiteralEntry::Release in some
 // error cases, leading to the same stack as above
 //
-// case 3c)
+// case 3b)
 //
 // AppDomainStringLiteralMap::GetInternedString() can call StringLiteralEntry::Release in some
 // error cases, leading to the same stack as above
 //
-// case 3d)
+// case 3c)
 //
 // The same code paths in 3b and 3c and also end up releasing if an exception is thrown
 // during their processing.  Both these paths use a StringLiteralEntryHolder to assist in cleanup,
@@ -437,7 +401,7 @@ LargeHeapHandleTable::~LargeHeapHandleTable()
 
 
 // Allocate handles from the large heap handle table.
-OBJECTREF* LargeHeapHandleTable::AllocateHandles(DWORD nRequested, BOOL bCrossAD)
+OBJECTREF* LargeHeapHandleTable::AllocateHandles(DWORD nRequested)
 {
     CONTRACTL
     {
@@ -507,7 +471,7 @@ OBJECTREF* LargeHeapHandleTable::AllocateHandles(DWORD nRequested, BOOL bCrossAD
         // We need a block big enough to hold the requested handles
         DWORD NewBucketSize = max(m_NextBucketSize, nRequested);
 
-        m_pHead = new LargeHeapHandleBucket(m_pHead, NewBucketSize, m_pDomain, bCrossAD);
+        m_pHead = new LargeHeapHandleBucket(m_pHead, NewBucketSize, m_pDomain);
 
         m_NextBucketSize = min(m_NextBucketSize * 2, MAX_BUCKETSIZE);
     }
@@ -982,7 +946,7 @@ void AppDomain::ReleaseFiles()
 } // AppDomain::ReleaseFiles
 
 
-OBJECTREF* BaseDomain::AllocateObjRefPtrsInLargeTable(int nRequested, OBJECTREF** ppLazyAllocate, BOOL bCrossAD)
+OBJECTREF* BaseDomain::AllocateObjRefPtrsInLargeTable(int nRequested, OBJECTREF** ppLazyAllocate)
 {
     CONTRACTL
     {
@@ -1016,7 +980,7 @@ OBJECTREF* BaseDomain::AllocateObjRefPtrsInLargeTable(int nRequested, OBJECTREF*
             InitLargeHeapHandleTable();
 
         // Allocate the handles.
-        OBJECTREF* result = m_pLargeHeapHandleTable->AllocateHandles(nRequested, bCrossAD);
+        OBJECTREF* result = m_pLargeHeapHandleTable->AllocateHandles(nRequested);
 
         if (ppLazyAllocate)
         {
@@ -3114,8 +3078,6 @@ void AppDomain::Init()
 
     m_MemoryPressure = 0;
 
-    m_sDomainLocalBlock.Init(this);
-
 #ifndef CROSSGEN_COMPILE
 
 #ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
@@ -3207,11 +3169,7 @@ void AppDomain::Stop()
 #ifdef DEBUGGING_SUPPORTED
     if (IsDebuggerAttached())
         NotifyDebuggerUnload();
-#endif // DEBUGGING_SUPPORTED
 
-    m_pRootAssembly = NULL; // This assembly is in the assembly list;
-
-#ifdef DEBUGGING_SUPPORTED
     if (NULL != g_pDebugInterface)
     {
         // Call the publisher API to delete this appdomain entry from the list
@@ -4427,7 +4385,7 @@ CHECK AppDomain::CheckValidModule(Module * pModule)
     }
     CONTRACTL_END;
 
-    if (pModule->FindDomainFile(this) != NULL)
+    if (pModule->GetDomainFile() != NULL)
         CHECK_OK;
 
     CHECK_OK;
@@ -5240,6 +5198,7 @@ AppDomain::BindHostedPrivAssembly(
 
     // Get the NI PEFile if available.
     PEImageHolder pPEImageNI;
+#ifdef FEATURE_PREJIT
     if (dwAvailableImages & ASSEMBLY_IMAGE_TYPE_NATIVE)
     {
         DWORD dwImageType;
@@ -5250,6 +5209,7 @@ AppDomain::BindHostedPrivAssembly(
 
         pPEImageNI = PEImage::OpenImage(pIResourceNI, MDInternalImport_TrustedNativeImage);
     }
+#endif // FEATURE_PREJIT
     _ASSERTE(pPEImageIL != nullptr);
     
     // Create a PEAssembly using the IL and NI images.
@@ -5368,7 +5328,7 @@ EndTry2:;
                     // Use CoreClr's fusion alternative
                     CoreBindResult bindResult;
 
-                    pSpec->Bind(this, fThrowOnFileNotFound, &bindResult, FALSE /* fNgenExplicitBind */, FALSE /* fExplicitBindToNativeImage */);
+                    pSpec->Bind(this, FALSE /* fThrowOnFileNotFound */, &bindResult, FALSE /* fNgenExplicitBind */, FALSE /* fExplicitBindToNativeImage */);
                     hrBindResult = bindResult.GetHRBindResult();
 
                     if (bindResult.Found()) 
@@ -5408,8 +5368,6 @@ EndTry2:;
                     }
                     else
                     {
-                        _ASSERTE(fThrowOnFileNotFound == FALSE);
-
                         // Don't trigger the resolve event for the CoreLib satellite assembly. A misbehaving resolve event may
                         // return an assembly that does not match, and this can cause recursive resource lookups during error
                         // reporting. The CoreLib satellite assembly is loaded from relative locations based on the culture, see
@@ -5417,16 +5375,17 @@ EndTry2:;
                         if (!pSpec->IsMscorlibSatellite())
                         {
                             // Trigger the resolve event also for non-throw situation.
-                            // However, this code path will behave as if the resolve handler has thrown,
-                            // that is, not trigger an MDA.
-
                             AssemblySpec NewSpec(this);
                             AssemblySpec *pFailedSpec = NULL;
 
                             fForceReThrow = TRUE; // Managed resolve event handler can throw
 
-                            // Purposly ignore return value
-                            PostBindResolveAssembly(pSpec, &NewSpec, hrBindResult, &pFailedSpec);
+                            BOOL fFailure = PostBindResolveAssembly(pSpec, &NewSpec, hrBindResult, &pFailedSpec);
+
+                            if (fFailure && fThrowOnFileNotFound)
+                            {
+                                EEFileLoadException::Throw(pFailedSpec, COR_E_FILENOTFOUND, NULL);
+                            }
                         }
                     }
                 }
@@ -5461,28 +5420,7 @@ EndTry2:;
                     // Only throw this exception if we are the first in the cache
                     if (fFailure)
                     {
-                        //
-                        // If the BindingFailure MDA is enabled, trigger one for this failure
-                        // Note: TryResolveAssembly() can also throw if an AssemblyResolve event subscriber throws
-                        //       and the MDA isn't sent in this case (or for transient failure cases)
-                        //
-#ifdef MDA_SUPPORTED
-                        MdaBindingFailure* pProbe = MDA_GET_ASSISTANT(BindingFailure);
-                        if (pProbe)
-                        {
-                            // Transition to cooperative GC mode before using any OBJECTREFs.
-                            GCX_COOP();
-
-                            OBJECTREF exceptionObj = GET_THROWABLE();
-                            GCPROTECT_BEGIN(exceptionObj)
-                            {
-                                pProbe->BindFailed(pFailedSpec, &exceptionObj);
-                            }
-                            GCPROTECT_END();
-                        }
-#endif
-
-                        // In the same cases as for the MDA, store the failure information for DAC to read
+                        // Store the failure information for DAC to read
                         if (IsDebuggerAttached()) {
                             FailedAssembly *pFailed = new FailedAssembly();
                             pFailed->Initialize(pFailedSpec, ex);
@@ -5491,7 +5429,6 @@ EndTry2:;
 
                         if (!bFileNotFoundException || fThrowOnFileNotFound)
                         {
-
                             // V1.1 App-compatibility workaround. See VSW530166 if you want to whine about it.
                             //
                             // In Everett, if we failed to download an assembly because of a broken network cable,
@@ -6260,64 +6197,6 @@ void DomainLocalModule::PopulateClass(MethodTable *pMT)
 }
 #endif // CROSSGEN_COMPILE
 
-void DomainLocalBlock::EnsureModuleIndex(ModuleIndex index)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-        // Assumes BaseDomain::DomainLocalBlockLockHolder is taken
-        PRECONDITION(m_pDomain->OwnDomainLocalBlockLock());
-    }
-    CONTRACTL_END;
-
-    if (m_aModuleIndices > index.m_dwIndex)
-    {
-        _ASSERTE(m_pModuleSlots != NULL);
-        return;
-    }
-
-    SIZE_T aModuleIndices = max(16, m_aModuleIndices);
-    while (aModuleIndices <= index.m_dwIndex)
-    {
-        aModuleIndices *= 2;
-    }
-
-    PTR_DomainLocalModule* pNewModuleSlots = (PTR_DomainLocalModule*) (void*)m_pDomain->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(PTR_DomainLocalModule)) * S_SIZE_T(aModuleIndices));
-
-    memcpy(pNewModuleSlots, m_pModuleSlots, sizeof(SIZE_T)*m_aModuleIndices);
-
-    // Note: Memory allocated on loader heap is zero filled
-    // memset(pNewModuleSlots + m_aModuleIndices, 0 , (aModuleIndices - m_aModuleIndices)*sizeof(PTR_DomainLocalModule) );
-
-    // Commit new table. The lock-free helpers depend on the order.
-    MemoryBarrier();
-    m_pModuleSlots = pNewModuleSlots;
-    MemoryBarrier();
-    m_aModuleIndices = aModuleIndices;
-
-}
-
-void DomainLocalBlock::SetModuleSlot(ModuleIndex index, PTR_DomainLocalModule pLocalModule)
-{
-    // Need to synchronize with table growth in this domain
-    BaseDomain::DomainLocalBlockLockHolder lh(m_pDomain);
-
-    EnsureModuleIndex(index);
-
-    _ASSERTE(index.m_dwIndex < m_aModuleIndices);
-
-    // We would like this assert here, unfortunately, loading a module in this appdomain can fail
-    // after here  and we will keep the module around and reuse the slot when we retry (if
-    // the failure happened due to a transient error, such as OOM). In that case the slot wont
-    // be null.
-    //_ASSERTE(m_pModuleSlots[index.m_dwIndex] == 0);
-
-    m_pModuleSlots[index.m_dwIndex] = pLocalModule;
-}
-
 #ifndef CROSSGEN_COMPILE
 
 DomainAssembly* AppDomain::RaiseTypeResolveEventThrowing(DomainAssembly* pAssembly, LPCSTR szName, ASSEMBLYREF *pResultingAssemblyRef)
@@ -6889,6 +6768,8 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
             // Initialize the AssemblyName object from the AssemblySpec
             spec.AssemblyNameInit(&_gcRefs.oRefAssemblyName, NULL);
                 
+            bool isSatelliteAssemblyRequest = !spec.IsNeutralCulture();
+
             if (!fInvokedForTPABinder)
             {
                 // Step 2 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName) - Invoke Load method
@@ -6911,9 +6792,9 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
                 {
                     fResolvedAssembly = true;
                 }
-            
+
                 // Step 3 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName)
-                if (!fResolvedAssembly)
+                if (!fResolvedAssembly && !isSatelliteAssemblyRequest)
                 {
                     // If we could not resolve the assembly using Load method, then attempt fallback with TPA Binder.
                     // Since TPA binder cannot fallback to itself, this fallback does not happen for binds within TPA binder.
@@ -6930,16 +6811,41 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
                     }
                 }
             }
-            
-            if (!fResolvedAssembly)
+
+            if (!fResolvedAssembly && isSatelliteAssemblyRequest)
             {
                 // Step 4 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName)
+                //
+                // Attempt to resolve it using the ResolveSatelliteAssembly method.
+                // Finally, setup arguments for invocation
+                BinderMethodID idHAR_ResolveSatelitteAssembly = METHOD__ASSEMBLYLOADCONTEXT__RESOLVESATELLITEASSEMBLY;
+                MethodDescCallSite methResolveSatelitteAssembly(idHAR_ResolveSatelitteAssembly);
+
+                // Setup the arguments for the call
+                ARG_SLOT args[2] =
+                {
+                    PtrToArgSlot(pManagedAssemblyLoadContextToBindWithin), // IntPtr for managed assembly load context instance
+                    ObjToArgSlot(_gcRefs.oRefAssemblyName), // AssemblyName instance
+                };
+
+                // Make the call
+                _gcRefs.oRefLoadedAssembly = (ASSEMBLYREF) methResolveSatelitteAssembly.Call_RetOBJECTREF(args);
+                if (_gcRefs.oRefLoadedAssembly != NULL)
+                {
+                    // Set the flag indicating we found the assembly
+                    fResolvedAssembly = true;
+                }
+            }
+
+            if (!fResolvedAssembly)
+            {
+                // Step 5 (of CLRPrivBinderAssemblyLoadContext::BindUsingAssemblyName)
                 //
                 // If we couldnt resolve the assembly using TPA LoadContext as well, then
                 // attempt to resolve it using the Resolving event.
                 // Finally, setup arguments for invocation
                 BinderMethodID idHAR_ResolveUsingEvent = METHOD__ASSEMBLYLOADCONTEXT__RESOLVEUSINGEVENT;
-                MethodDescCallSite methLoadAssembly(idHAR_ResolveUsingEvent);
+                MethodDescCallSite methResolveUsingEvent(idHAR_ResolveUsingEvent);
                 
                 // Setup the arguments for the call
                 ARG_SLOT args[2] =
@@ -6949,7 +6855,7 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
                 };
 
                 // Make the call
-                _gcRefs.oRefLoadedAssembly = (ASSEMBLYREF) methLoadAssembly.Call_RetOBJECTREF(args);
+                _gcRefs.oRefLoadedAssembly = (ASSEMBLYREF) methResolveUsingEvent.Call_RetOBJECTREF(args);
                 if (_gcRefs.oRefLoadedAssembly != NULL)
                 {
                     // Set the flag indicating we found the assembly
@@ -6995,20 +6901,27 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
                 pAssemblyBindingContext = pLoadedPEAssembly->GetHostAssembly();
             }
             
-#ifdef FEATURE_COMINTEROP
-            if (AreSameBinderInstance(pAssemblyBindingContext, GetAppDomain()->GetWinRtBinder()))
+            if (fResolvedAssembly)
             {
-                // It is invalid to return an assembly bound to an incompatible binder
-                *ppLoadedAssembly = NULL;
-                SString name;
-                spec.GetFileOrDisplayName(0, name);
-                COMPlusThrowHR(COR_E_INVALIDOPERATION, IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT, name);
-            }
+#ifdef FEATURE_COMINTEROP
+                if (AreSameBinderInstance(pAssemblyBindingContext, GetAppDomain()->GetWinRtBinder()))
+                {
+                    // It is invalid to return an assembly bound to an incompatible binder
+                    *ppLoadedAssembly = NULL;
+                    SString name;
+                    spec.GetFileOrDisplayName(0, name);
+                    COMPlusThrowHR(COR_E_INVALIDOPERATION, IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT, name);
+                }
 #endif // FEATURE_COMINTEROP
 
-            // Get the ICLRPrivAssembly reference to return back to.
-            *ppLoadedAssembly = clr::SafeAddRef(pAssemblyBindingContext);
-            hr = S_OK;
+                // Get the ICLRPrivAssembly reference to return back to.
+                *ppLoadedAssembly = clr::SafeAddRef(pAssemblyBindingContext);
+                hr = S_OK;
+            }
+            else
+            {
+                hr = COR_E_FILENOTFOUND;
+            }
         }
         
         GCPROTECT_END();
@@ -7078,28 +6991,6 @@ DomainLocalModule::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 }
 
 void
-DomainLocalBlock::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
-{
-    SUPPORTS_DAC;
-    // Block is contained in AppDomain, don't enum this.
-
-    if (m_pModuleSlots.IsValid())
-    {
-        DacEnumMemoryRegion(dac_cast<TADDR>(m_pModuleSlots),
-                            m_aModuleIndices * sizeof(TADDR));
-
-        for (SIZE_T i = 0; i < m_aModuleIndices; i++)
-        {
-            PTR_DomainLocalModule domMod = m_pModuleSlots[i];
-            if (domMod.IsValid())
-            {
-                domMod->EnumMemoryRegions(flags);
-            }
-        }
-    }
-}
-
-void
 BaseDomain::EnumMemoryRegions(CLRDataEnumMemoryFlags flags,
                               bool enumThis)
 {
@@ -7144,8 +7035,6 @@ AppDomain::EnumMemoryRegions(CLRDataEnumMemoryFlags flags,
     {
         pDomainAssembly->EnumMemoryRegions(flags);
     }
-
-    m_sDomainLocalBlock.EnumMemoryRegions(flags);
 }
 
 void

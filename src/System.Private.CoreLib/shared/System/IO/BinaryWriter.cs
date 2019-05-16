@@ -25,7 +25,7 @@ namespace System.IO
         private bool _leaveOpen;
 
         // Perf optimization stuff
-        private byte[] _largeByteBuffer;  // temp space for writing chars.
+        private byte[]? _largeByteBuffer;  // temp space for writing chars.
         private int _maxChars;   // max # of chars we can put in _largeByteBuffer
         // Size should be around the max number of chars/string * Encoding's max bytes/char
         private const int LargeByteBufferSize = 256;

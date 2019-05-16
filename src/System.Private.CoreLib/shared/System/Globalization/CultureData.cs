@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -11,6 +10,7 @@ using System.Threading;
 namespace System.Globalization
 {
 #if CORERT
+    #pragma warning restore nullable
     using StringStringDictionary = LowLevelDictionary<string, string>;
     using StringCultureDataDictionary = LowLevelDictionary<string, CultureData>;
     using LcidToCultureNameDictionary = LowLevelDictionary<int, string>;

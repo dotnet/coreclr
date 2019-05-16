@@ -11,14 +11,14 @@ namespace System.Reflection
     public abstract partial class MethodBase : MemberInfo
     {
         #region Static Members
-        public static MethodBase GetMethodFromHandle(RuntimeMethodHandle handle)
+        public static MethodBase? GetMethodFromHandle(RuntimeMethodHandle handle)
         {
             if (handle.IsNullHandle())
                 throw new ArgumentException(SR.Argument_InvalidHandle);
 
-            MethodBase m = RuntimeType.GetMethodBase(handle.GetMethodInfo());
+            MethodBase? m = RuntimeType.GetMethodBase(handle.GetMethodInfo());
 
-            Type declaringType = m.DeclaringType;
+            Type? declaringType = m?.DeclaringType;
             if (declaringType != null && declaringType.IsGenericType)
                 throw new ArgumentException(SR.Format(
                     SR.Argument_MethodDeclaringTypeGeneric,
@@ -27,7 +27,7 @@ namespace System.Reflection
             return m;
         }
 
-        public static MethodBase GetMethodFromHandle(RuntimeMethodHandle handle, RuntimeTypeHandle declaringType)
+        public static MethodBase? GetMethodFromHandle(RuntimeMethodHandle handle, RuntimeTypeHandle declaringType)
         {
             if (handle.IsNullHandle())
                 throw new ArgumentException(SR.Argument_InvalidHandle);
@@ -36,7 +36,7 @@ namespace System.Reflection
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static MethodBase GetCurrentMethod()
+        public static MethodBase? GetCurrentMethod()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeMethodInfo.InternalGetCurrentMethod(ref stackMark);
@@ -101,13 +101,13 @@ namespace System.Reflection
             return parameterTypes;
         }
 
-        internal object[] CheckArguments(object[] parameters, Binder binder,
-            BindingFlags invokeAttr, CultureInfo culture, Signature sig)
+        internal object[] CheckArguments(object[] parameters, Binder? binder,
+            BindingFlags invokeAttr, CultureInfo? culture, Signature sig)
         {
             // copy the arguments in a different array so we detach from any user changes 
             object[] copyOfParameters = new object[parameters.Length];
 
-            ParameterInfo[] p = null;
+            ParameterInfo[] p = null!;
             for (int i = 0; i < parameters.Length; i++)
             {
                 object arg = parameters[i];
@@ -119,9 +119,9 @@ namespace System.Reflection
                         p = GetParametersNoCopy();
                     if (p[i].DefaultValue == System.DBNull.Value)
                         throw new ArgumentException(SR.Arg_VarMissNull, nameof(parameters));
-                    arg = p[i].DefaultValue;
+                    arg = p[i].DefaultValue!;
                 }
-                copyOfParameters[i] = argRT.CheckValue(arg, binder, culture, invokeAttr);
+                copyOfParameters[i] = argRT.CheckValue(arg, binder, culture, invokeAttr)!;
             }
 
             return copyOfParameters;

@@ -2,14 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Globalization;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Security;
-
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     // Note this is a copy of the PropertyType enumeration from Windows.Foundation.winmd

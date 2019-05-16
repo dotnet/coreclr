@@ -10,7 +10,6 @@
 //
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-#nullable enable
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -4477,7 +4476,8 @@ namespace System.Threading.Tasks
             // Task is completed. Nothing to do here.
             if (continuationsLocalRef == s_taskCompletionSentinel) return;
 
-            if (!(continuationsLocalRef is List<object?> continuationsLocalListRef))
+            List<object?>? continuationsLocalListRef = continuationsLocalRef as List<object?>;
+            if (continuationsLocalListRef is null)
             {
                 // This is not a list. If we have a single object (the one we want to remove) we try to replace it with an empty list.
                 // Note we cannot go back to a null state, since it will mess up the AddTaskContinuation logic.

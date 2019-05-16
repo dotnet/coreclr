@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 
 namespace System.Threading.Tasks
@@ -683,7 +682,7 @@ namespace System.Threading.Tasks
                     asyncResult.AsyncWaitHandle,
                     delegate
                     {
-                        try { t.InternalRunSynchronously(scheduler, waitForCompletion: false); }
+                        try { t.InternalRunSynchronously(scheduler!, waitForCompletion: false); } // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
                         catch (Exception e) { promise.TrySetException(e); } // catch and log any scheduler exceptions
                     },
                     null,

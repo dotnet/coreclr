@@ -264,6 +264,21 @@ inline BOOL CORProfilerTrackAllocations()
             ((&g_profControlBlock)->dwEventMask & COR_PRF_MONITOR_OBJECT_ALLOCATED));
 }
 
+inline BOOL CORProfilerTrackLargeAllocations()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    return
+            (CORProfilerPresent() &&
+            ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_MONITOR_LARGEOBJECT_ALLOCATED));
+}
+
 inline BOOL CORProfilerEnableRejit()
 {
     CONTRACTL
@@ -739,6 +754,20 @@ inline BOOL CORProfilerTrackBasicGC()
 
     return (CORProfilerPresent() &&
          ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_BASIC_GC));
+}
+
+inline BOOL CORProfilerTrackGCMovedObjects()
+{
+    CONTRACTL 
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    return (CORProfilerPresent() &&
+         ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_MONITOR_GC_MOVED_OBJECTS));
 }
 
 #if defined(PROFILING_SUPPORTED) && !defined(CROSSGEN_COMPILE)

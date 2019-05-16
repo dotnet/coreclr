@@ -244,6 +244,8 @@ public:
     static BOOL GetAvailableThreads(DWORD* AvailableWorkerThreads, 
                                  DWORD* AvailableIOCompletionThreads);
 
+    static INT32 GetThreadCount();
+
     static BOOL QueueUserWorkItem(LPTHREAD_START_ROUTINE Function, 
                                   PVOID Context,
                                   ULONG Flags,
@@ -735,12 +737,22 @@ public:
         {
             LIMITED_METHOD_CONTRACT;
 
+            DWORD processorNumber = 0;
+
+#ifndef FEATURE_PAL
 	        if (CPUGroupInfo::CanEnableGCCPUGroups() && CPUGroupInfo::CanEnableThreadUseAllCpuGroups())
-                return pRecycledListPerProcessor[CPUGroupInfo::CalculateCurrentProcessorNumber()][memType];
+                processorNumber = CPUGroupInfo::CalculateCurrentProcessorNumber();
             else
                 // Turns out GetCurrentProcessorNumber can return a value greater than the number of processors reported by
                 // GetSystemInfo, if we're running in WOW64 on a machine with >32 processors.
-        	    return pRecycledListPerProcessor[GetCurrentProcessorNumber()%NumberOfProcessors][memType];
+        	    processorNumber = GetCurrentProcessorNumber()%NumberOfProcessors;
+#else // !FEATURE_PAL
+            if (PAL_HasGetCurrentProcessorNumber())
+            {
+                processorNumber = GetCurrentProcessorNumber();
+            }
+#endif // !FEATURE_PAL
+            return pRecycledListPerProcessor[processorNumber][memType];
     	}
     };
 
@@ -831,7 +843,7 @@ public:
     static void NotifyWorkItemCompleted()
     {
         WRAPPER_NO_CONTRACT;
-        Thread::IncrementThreadPoolCompletionCount();
+        Thread::IncrementWorkerThreadPoolCompletionCount(GetThread());
         UpdateLastDequeueTime();
     }
 
