@@ -1802,6 +1802,10 @@ inline UNATIVE_OFFSET emitter::emitInsSizeRR(instrDesc* id, code_t code, int val
     {
         valSize = sizeof(char);
     }
+    else
+    {
+        assert(!IsSSEOrAVXInstruction(ins));
+    }
 
     return valSize + emitInsSizeRR(id, code);
 }
@@ -2082,6 +2086,10 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, code_t code, int var
     if (valInByte)
     {
         valSize = sizeof(char);
+    }
+    else
+    {
+        assert(!IsSSEOrAVXInstruction(ins));
     }
 
     // 16-bit operand instructions need a prefix.
@@ -2385,6 +2393,10 @@ inline UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code, int val
     {
         valSize = sizeof(char);
     }
+    else
+    {
+        assert(!IsSSEOrAVXInstruction(ins));
+    }
 
     return valSize + emitInsSizeAM(id, code);
 }
@@ -2441,6 +2453,10 @@ inline UNATIVE_OFFSET emitter::emitInsSizeCV(instrDesc* id, code_t code, int val
     if (valInByte)
     {
         valSize = sizeof(char);
+    }
+    else
+    {
+        assert(!IsSSEOrAVXInstruction(ins));
     }
 
     return valSize + emitInsSizeCV(id, code);
@@ -3766,7 +3782,9 @@ void emitter::emitIns_R_I(instruction ins, emitAttr attr, regNumber reg, ssize_t
             {
                 if (IsSSEOrAVXInstruction(ins))
                 {
-                    sz = 5;
+                    sz = emitInsSize(insCodeMI(ins));
+                    sz += 1;
+                    sz += emitGetVexPrefixAdjustedSize(ins, attr, insCodeMI(ins));
                 }
                 else if (size == EA_1BYTE && reg == REG_EAX && !instrIs3opImul(ins))
                 {
@@ -3779,6 +3797,8 @@ void emitter::emitIns_R_I(instruction ins, emitAttr attr, regNumber reg, ssize_t
             }
             else
             {
+                assert(!IsSSEOrAVXInstruction(ins));
+
                 if (reg == REG_EAX && !instrIs3opImul(ins))
                 {
                     sz = 1;
@@ -3802,9 +3822,6 @@ void emitter::emitIns_R_I(instruction ins, emitAttr attr, regNumber reg, ssize_t
             }
             break;
     }
-
-    // Vex prefix size
-    sz += emitGetVexPrefixSize(ins, attr);
 
     // Do we need a REX prefix for AMD64? We need one if we are using any extended register (REX.R), or if we have a
     // 64-bit sized operand (REX.W). Note that IMUL in our encoding is special, with a "built-in", implicit, target
@@ -4038,7 +4055,37 @@ void emitter::emitIns_R_R_I(instruction ins, emitAttr attr, regNumber reg1, regN
     id->idReg1(reg1);
     id->idReg2(reg2);
 
-    UNATIVE_OFFSET sz = emitInsSizeRR(id, insCodeRM(ins), ival);
+    code_t code = 0;
+
+    switch (ins)
+    {
+        case INS_pextrb:
+        case INS_pextrd:
+        case INS_pextrq:
+        case INS_pextrw_sse41:
+        case INS_extractps:
+        case INS_vextractf128:
+        case INS_vextracti128:
+        {
+            code = insCodeMR(ins);
+            break;
+        }
+
+        case INS_psrldq:
+        case INS_pslldq:
+        {
+            code = insCodeMI(ins);
+            break;
+        }
+
+        default:
+        {
+            code = insCodeRM(ins);
+            break;
+        }
+    }
+
+    UNATIVE_OFFSET sz = emitInsSizeRR(id, code, ival);
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4490,7 +4537,37 @@ void emitter::emitIns_R_R_R_I(
     id->idReg2(reg1);
     id->idReg3(reg2);
 
-    UNATIVE_OFFSET sz = emitInsSizeRR(id, insCodeRM(ins), ival);
+    code_t code = 0;
+
+    switch (ins)
+    {
+        case INS_pextrb:
+        case INS_pextrd:
+        case INS_pextrq:
+        case INS_pextrw_sse41:
+        case INS_extractps:
+        case INS_vextractf128:
+        case INS_vextracti128:
+        {
+            code = insCodeMR(ins);
+            break;
+        }
+
+        case INS_psrldq:
+        case INS_pslldq:
+        {
+            code = insCodeMI(ins);
+            break;
+        }
+
+        default:
+        {
+            code = insCodeRM(ins);
+            break;
+        }
+    }
+
+    UNATIVE_OFFSET sz = emitInsSizeRR(id, code, ival);
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4724,7 +4801,7 @@ void emitter::emitIns_R_R_R_R(
     id->idReg3(reg2);
     id->idReg4(reg3);
 
-    UNATIVE_OFFSET sz = emitInsSizeRR(id, insCodeRM(ins));
+    UNATIVE_OFFSET sz = emitInsSizeRR(id, insCodeRM(ins), ival);
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4913,17 +4990,11 @@ void emitter::emitIns_C_I(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE f
     instrDesc* id = emitNewInstrCnsDsp(attr, val, offs);
     id->idIns(ins);
     id->idInsFmt(fmt);
+    id->idAddr()->iiaFieldHnd = fldHnd;
 
     code_t         code = insCodeMI(ins);
     UNATIVE_OFFSET sz   = emitInsSizeCV(id, code, val);
 
-    // REX prefix, if not already included in "code"
-    if (TakesRexWPrefix(ins, attr) && !hasRexPrefix(code))
-    {
-        sz += emitGetRexPrefixSize(ins);
-    }
-
-    id->idAddr()->iiaFieldHnd = fldHnd;
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -6539,19 +6610,6 @@ void emitter::emitIns_S(instruction ins, emitAttr attr, int varx, int offs)
     id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
 
     sz = emitInsSizeSV(id, insCodeMR(ins), varx, offs);
-
-    // 16-bit operand instructions will need a prefix
-    if (EA_SIZE(attr) == EA_2BYTE)
-    {
-        sz += 1;
-    }
-
-    // 64-bit operand instructions will need a REX.W prefix
-    if (TakesRexWPrefix(ins, attr))
-    {
-        sz += emitGetRexPrefixSize(ins);
-    }
-
     id->idCodeSize(sz);
 
 #ifdef DEBUG
@@ -6646,15 +6704,9 @@ void emitter::emitIns_S_I(instruction ins, emitAttr attr, int varx, int offs, in
     instrDesc* id = emitNewInstrCns(attr, val);
     id->idIns(ins);
     id->idInsFmt(fmt);
-    UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeMI(ins), varx, offs, val);
-
-    // 64-bit operand instructions will need a REX.W prefix
-    if (TakesRexWPrefix(ins, attr))
-    {
-        sz += emitGetRexPrefixSize(ins);
-    }
-
     id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+
+    UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeMI(ins), varx, offs, val);
     id->idCodeSize(sz);
 #ifdef DEBUG
     id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
