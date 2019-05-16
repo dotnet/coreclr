@@ -377,7 +377,7 @@ void EventPipe::DisableInternal(EventPipeSession &session, EventPipeProviderCall
     {
         // Disable the profiler.
         SampleProfiler::Disable();
-        
+
         // Get the managed command line.
         LPCWSTR pCmdLine = GetManagedCommandLine();
 

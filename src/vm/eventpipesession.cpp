@@ -384,12 +384,10 @@ void EventPipeSession::Disable()
     // CrstHolder _crst(&m_lock);
 
     // Disable streaming thread
-    // If g_fProcessDetach is true, the IPC streaming thread probably got
-    // ripped because someone called ExitProcess(). This check is an attempt
-    // to recognize that case and avoid waiting for the (already dead) sampling
-    // profiler thread to tell us it is terminated.
-    if ((!g_fProcessDetach) && (m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
+    if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
     {
+        _ASSERTE(!g_fProcessDetach);
+
         // Reset the event before shutdown.
         m_threadShutdownEvent.Reset();
 
