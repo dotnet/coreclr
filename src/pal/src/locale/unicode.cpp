@@ -167,7 +167,7 @@ ToUpperInvariant( wchar_16 c )
         return c;
     }
 
-    if ( (dataRec.nFlag != LOWER_CASE )
+    if ( dataRec.nFlag != LOWER_CASE )
     {
         LOGEXIT("ToUpperInvariant returns int %d\n", c );
         PERF_EXIT(ToUpperInvariant);
@@ -198,7 +198,7 @@ ToLowerInvariant( wchar_16 c )
         return c;
     }
 
-    if ( (dataRec.nFlag != UPPER_CASE )
+    if ( dataRec.nFlag != UPPER_CASE )
     {
         LOGEXIT("ToLowerInvariant returns int %d\n", c );
         PERF_EXIT(ToLowerInvariant);
