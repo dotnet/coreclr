@@ -152,62 +152,62 @@ BOOL GetUnicodeData(INT nUnicodeValue, UnicodeDataRec *pDataRec)
 
 wchar_16
 __cdecl
-ToUpperInvariant( wchar_16 c )
+PAL_ToUpperInvariant( wchar_16 c )
 {
     UnicodeDataRec dataRec;
 
-    PERF_ENTRY(ToUpperInvariant);
-    ENTRY("ToUpperInvariant (c=%d)\n", c);
+    PERF_ENTRY(PAL_ToUpperInvariant);
+    ENTRY("PAL_ToUpperInvariant (c=%d)\n", c);
 
     if (!GetUnicodeData(c, &dataRec))
     {
         TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
-        LOGEXIT("ToUpperInvariant returns int %d\n", c );
-        PERF_EXIT(ToUpperInvariant);
+        LOGEXIT("PAL_ToUpperInvariant returns int %d\n", c );
+        PERF_EXIT(PAL_ToUpperInvariant);
         return c;
     }
 
     if ( dataRec.nFlag != LOWER_CASE )
     {
-        LOGEXIT("ToUpperInvariant returns int %d\n", c );
-        PERF_EXIT(ToUpperInvariant);
+        LOGEXIT("PAL_ToUpperInvariant returns int %d\n", c );
+        PERF_EXIT(PAL_ToUpperInvariant);
         return c;
     }
     else
     {
-        LOGEXIT("ToUpperInvariant returns int %d\n", dataRec.nOpposingCase );
-        PERF_EXIT(ToUpperInvariant);
+        LOGEXIT("PAL_ToUpperInvariant returns int %d\n", dataRec.nOpposingCase );
+        PERF_EXIT(PAL_ToUpperInvariant);
         return dataRec.nOpposingCase;
     }
 }
 
 wchar_16
 __cdecl
-ToLowerInvariant( wchar_16 c )
+PAL_ToLowerInvariant( wchar_16 c )
 {
     UnicodeDataRec dataRec;
 
-    PERF_ENTRY(ToLowerInvariant);
-    ENTRY("ToLowerInvariant (c=%d)\n", c);
+    PERF_ENTRY(PAL_ToLowerInvariant);
+    ENTRY("PAL_ToLowerInvariant (c=%d)\n", c);
 
     if (!GetUnicodeData(c, &dataRec))
     {
         TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
-        LOGEXIT("ToLowerInvariant returns int %d\n", c );
-        PERF_EXIT(ToLowerInvariant);
+        LOGEXIT("PAL_ToLowerInvariant returns int %d\n", c );
+        PERF_EXIT(PAL_ToLowerInvariant);
         return c;
     }
 
     if ( dataRec.nFlag != UPPER_CASE )
     {
-        LOGEXIT("ToLowerInvariant returns int %d\n", c );
-        PERF_EXIT(ToLowerInvariant);
+        LOGEXIT("PAL_ToLowerInvariant returns int %d\n", c );
+        PERF_EXIT(PAL_ToLowerInvariant);
         return c;
     }
     else
     {
-        LOGEXIT("ToLowerInvariant returns int %d\n", dataRec.nOpposingCase );
-        PERF_EXIT(ToLowerInvariant);
+        LOGEXIT("PAL_ToLowerInvariant returns int %d\n", dataRec.nOpposingCase );
+        PERF_EXIT(PAL_ToLowerInvariant);
         return dataRec.nOpposingCase;
     }
 }

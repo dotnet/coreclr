@@ -106,7 +106,7 @@ static WCHAR MapChar(WCHAR wc, DWORD dwFlags, LocaleID lcid)
 #ifdef SELF_NO_HOST
             toupper(wc);
 #else
-            ToUpperInvariant(wc);
+            PAL_ToUpperInvariant(wc);
 #endif
     }
     else
@@ -116,7 +116,7 @@ static WCHAR MapChar(WCHAR wc, DWORD dwFlags, LocaleID lcid)
 #ifdef SELF_NO_HOST
             tolower(wc);
 #else
-            ToLowerInvariant(wc);
+            PAL_ToLowerInvariant(wc);
 #endif
     }
 #endif // !FEATURE_PAL
