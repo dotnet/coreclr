@@ -195,7 +195,10 @@ void EventPipe::Shutdown()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(s_pSessions != NULL);
+        // These 3 pointers are initialized once on EventPipe::Initialize
+        PRECONDITION(s_pConfig != nullptr);
+        PRECONDITION(s_pEventSource != nullptr);
+        PRECONDITION(s_pSessions != nullptr);
     }
     CONTRACTL_END;
 
@@ -216,38 +219,36 @@ void EventPipe::Shutdown()
     // Mark tracing as no longer initialized.
     s_tracingInitialized = false;
 
-    EventPipeConfiguration *pConfig = s_pConfig;
-    EventPipeSessions *pSessions = s_pSessions;
-
-    // Set the static pointers to NULL so that the rest of the EventPipe knows that they are no longer available.
-    // Flush process write buffers to make sure other threads can see the change.
-    s_pConfig = NULL;
-    s_pSessions = NULL;
-
-    FlushProcessWriteBuffers();
-
     // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
     EX_TRY
     {
-        if (pSessions != NULL)
+        if (s_pSessions != nullptr)
         {
             // On Ubuntu there is a compilation error because ForEach expects an lvalue.
             auto functor = [=](EventPipeSession *pSession) {
                 Disable(reinterpret_cast<EventPipeSessionID>(pSession));
                 delete pSession;
             };
-            pSessions->ForEach(functor);
+            s_pSessions->ForEach(functor);
         }
     }
     EX_CATCH {}
     EX_END_CATCH(SwallowAllExceptions);
 
+    EventPipeConfiguration *pConfig = s_pConfig;
+    EventPipeSessions *pSessions = s_pSessions;
+
+    // Set the static pointers to NULL so that the rest of the EventPipe knows that they are no longer available.
+    // Flush process write buffers to make sure other threads can see the change.
+    s_pConfig = nullptr;
+    s_pSessions = nullptr;
+    FlushProcessWriteBuffers();
+
     // Free resources.
     delete pConfig;
     delete pSessions;
-
     delete s_pEventSource;
-    s_pEventSource = NULL;
+    s_pEventSource = nullptr;
 }
 
 EventPipeSessionID EventPipe::Enable(
@@ -424,10 +425,8 @@ EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
 bool EventPipe::Enabled()
 {
     LIMITED_METHOD_CONTRACT;
-
-    // CrstHolder _crst(GetLock());
     // FIXME: This is invoked before EventPipe::Initialize!
-    return (s_pSessions != NULL) && (s_pSessions->GetCount() > 0);
+    return s_tracingInitialized && (s_pSessions != NULL) && (s_pSessions->GetCount() > 0);
 }
 
 EventPipeProvider *EventPipe::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData)
@@ -763,7 +762,7 @@ EventPipeEventInstance *EventPipe::BuildEventMetadataEvent(EventPipeEventInstanc
     }
     CONTRACTL_END;
 
-    CrstHolder _crst(GetLock());
+    // s_pConfig Gets initialized once on EventPipe::Initialize
     return (s_pConfig != nullptr) ? s_pConfig->BuildEventMetadataEvent(instance, metadataId) : nullptr;
 }
 
