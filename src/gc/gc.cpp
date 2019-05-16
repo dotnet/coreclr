@@ -11536,18 +11536,6 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
         //memory. Let's catch up here
         uint8_t* old_allocated = alloc_allocated - plug_skew - limit_size;
         assert (heap_segment_used (seg) >= old_allocated);
-
-        if (heap_segment_used (seg) < old_allocated)
-        {
-#ifdef MARK_ARRAY
-#ifndef BACKGROUND_GC
-            clear_mark_array (heap_segment_used (seg) + plug_skew, alloc_allocated);
-#endif //BACKGROUND_GC
-#endif //MARK_ARRAY
-            // do not bump heap_segment_used to the new alloc_allocated just yet
-            // we will do that after actual cleaning
-            heap_segment_used (seg) = old_allocated;
-        }
     }
 #ifdef BACKGROUND_GC
     else if (seg)
@@ -11602,6 +11590,12 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
         // we only need to clear [clear_start, used) and only if clear_start < used
         uint8_t* used = heap_segment_used (seg);
         heap_segment_used (seg) = clear_limit;
+
+#ifdef MARK_ARRAY
+#ifndef BACKGROUND_GC
+            clear_mark_array (used + plug_skew, clear_limit + plug_skew);
+#endif //BACKGROUND_GC
+#endif //MARK_ARRAY
 
         add_saved_spinlock_info (loh_p, me_release, mt_clr_mem);
         leave_spin_lock (msl);
