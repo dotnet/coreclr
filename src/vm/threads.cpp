@@ -54,7 +54,7 @@
 #include "eventpipebuffermanager.h"
 #endif // FEATURE_PERFTRACING
 
-
+uint64_t Thread::dead_threads_non_alloc_bytes = 0;
 
 SPTR_IMPL(ThreadStore, ThreadStore, s_pThreadStore);
 CONTEXT *ThreadStore::s_pOSContext = NULL;
@@ -808,13 +808,6 @@ Thread* SetupThread(BOOL fInternal)
         FastInterlockOr((ULONG *) &pThread->m_State, Thread::TS_TPWorkerThread);
     }
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM)
-    {
-        pThread->QueryThreadProcessorUsage();
-    }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 #ifdef FEATURE_EVENT_TRACE
     ETW::ThreadLog::FireThreadCreated(pThread);
 #endif // FEATURE_EVENT_TRACE
@@ -864,15 +857,6 @@ void DestroyThread(Thread *th)
     _ASSERTE (th == GetThread());
 
     _ASSERTE(g_fEEShutDown || th->m_dwLockCount == 0 || th->m_fRudeAborted);
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM)
-    {
-        AppDomain* pDomain = th->GetDomain();
-        pDomain->UpdateProcessorUsage(th->QueryThreadProcessorUsage());
-        FireEtwThreadTerminated((ULONGLONG)th, (ULONGLONG)pDomain, GetClrInstanceId());
-    }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     th->FinishSOWork();
 
@@ -965,14 +949,6 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
     _ASSERTE ((m_State & Thread::TS_Detached) == 0);
 
     _ASSERTE (this == GetThread());
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM && m_pDomain)
-    {
-        m_pDomain->UpdateProcessorUsage(QueryThreadProcessorUsage());
-        FireEtwThreadTerminated((ULONGLONG)this, (ULONGLONG)m_pDomain, GetClrInstanceId());
-    }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     FinishSOWork();
 
@@ -1555,10 +1531,6 @@ Thread::Thread()
     contextHolder.SuppressRelease();
     savedRedirectContextHolder.SuppressRelease();
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    m_ullProcessorUsageBaseline = 0;
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 #ifdef FEATURE_COMINTEROP
     m_uliInitializeSpyCookie.QuadPart = 0ul;
     m_fInitializeSpyRegistered = false;
@@ -1825,12 +1797,6 @@ BOOL Thread::HasStarted(BOOL bRequiresTSL)
 
         ThreadStore::TransferStartedThread(this, bRequiresTSL);
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        if (g_fEnableARM)
-        {
-            QueryThreadProcessorUsage();
-        }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 #ifdef FEATURE_EVENT_TRACE
         ETW::ThreadLog::FireThreadCreated(this);
 #endif // FEATURE_EVENT_TRACE
@@ -2144,6 +2110,48 @@ HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTH
 }
 
 
+// Represent the value of DEFAULT_STACK_SIZE as passed in the property bag to the host during construction
+static unsigned long s_defaultStackSizeProperty = 0;
+
+void ParseDefaultStackSize(LPCWSTR valueStr)
+{
+    if (valueStr)
+    {
+        LPWSTR end;
+        errno = 0;
+        unsigned long value = wcstoul(valueStr, &end, 16); // Base 16 without a prefix
+
+        if ((errno == ERANGE)     // Parsed value doesn't fit in an unsigned long
+            || (valueStr == end)  // No characters parsed
+            || (end == nullptr)   // Unexpected condition (should never happen)
+            || (end[0] != 0))     // Unprocessed terminal characters
+        {
+            ThrowHR(E_INVALIDARG);
+        }
+        else
+        {
+            s_defaultStackSizeProperty = value;
+        }
+    }
+}
+
+SIZE_T GetDefaultStackSizeSetting()
+{
+    static DWORD s_defaultStackSizeEnv = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DefaultStackSize);
+
+    uint64_t value = s_defaultStackSizeEnv ? s_defaultStackSizeEnv : s_defaultStackSizeProperty;
+
+    SIZE_T minStack = 0x10000;     // 64K - Somewhat arbitrary minimum thread stack size
+    SIZE_T maxStack = 0x80000000;  //  2G - Somewhat arbitrary maximum thread stack size
+
+    if ((value >= maxStack) || ((value != 0) && (value < minStack)))
+    {
+        ThrowHR(E_INVALIDARG);
+    }
+
+    return (SIZE_T) value;
+}
+
 BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
 {
     CONTRACTL
@@ -2160,6 +2168,18 @@ BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
     static SIZE_T ExeSizeOfStackCommit = 0;
 
     static BOOL fSizesGot = FALSE;
+
+    if (!fSizesGot)
+    {
+        SIZE_T defaultStackSizeSetting = GetDefaultStackSizeSetting();
+
+        if (defaultStackSizeSetting != 0)
+        {
+            ExeSizeOfStackReserve = defaultStackSizeSetting;
+            ExeSizeOfStackCommit = defaultStackSizeSetting;
+            fSizesGot = TRUE;
+        }
+    }
 
 #ifndef FEATURE_PAL
     if (!fSizesGot)
@@ -2205,6 +2225,11 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
     DWORD dwCreationFlags = CREATE_SUSPENDED;
 
     dwCreationFlags |= STACK_SIZE_PARAM_IS_A_RESERVATION;
+
+    if (sizeToCommitOrReserve == 0)
+    {
+        sizeToCommitOrReserve = GetDefaultStackSizeSetting();
+    }
 
 #ifndef FEATURE_PAL // the PAL does its own adjustments as necessary
     if (sizeToCommitOrReserve != 0 && sizeToCommitOrReserve <= GetOsPageSize())
@@ -2903,6 +2928,9 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
         if (ThisThreadID == CurrentThreadID)
         {
             GCX_COOP();
+            // GetTotalAllocatedBytes reads dead_threads_non_alloc_bytes, but will suspend EE, being in COOP mode we cannot race with that
+            // however, there could be other threads terminating and doing the same Add.
+            FastInterlockExchangeAddLong((LONG64*)&dead_threads_non_alloc_bytes, m_alloc_context.alloc_limit - m_alloc_context.alloc_ptr);
             GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, NULL, NULL);
             m_alloc_context.init();
         }
@@ -2960,6 +2988,7 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
         {
             // We must be holding the ThreadStore lock in order to clean up alloc context.
             // We should never call FixAllocContext during GC.
+            dead_threads_non_alloc_bytes += m_alloc_context.alloc_limit - m_alloc_context.alloc_ptr;
             GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, NULL, NULL);
             m_alloc_context.init();
         }
@@ -7996,12 +8025,13 @@ NOINLINE void Thread::OnIncrementCountOverflow(UINT32 *threadLocalCount, UINT64 
 
 UINT64 Thread::GetTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCount)
 {
-    CONTRACTL
-    {
+    CONTRACTL {
         NOTHROW;
-        MODE_ANY;
+        GC_TRIGGERS;
     }
     CONTRACTL_END;
+
+    _ASSERTE(overflowCount != nullptr);
 
     // enumerate all threads, summing their local counts.
     ThreadStoreLockHolder tsl;
@@ -8019,10 +8049,9 @@ UINT64 Thread::GetTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCoun
 
 UINT64 Thread::GetTotalThreadPoolCompletionCount()
 {
-    CONTRACTL
-    {
+    CONTRACTL {
         NOTHROW;
-        MODE_ANY;
+        GC_TRIGGERS;
     }
     CONTRACTL_END;
 
@@ -8854,56 +8883,6 @@ ThreadStore::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 }
 
 #endif // #ifdef DACCESS_COMPILE
-
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-// For the purposes of tracking resource usage we implement a simple cpu resource usage counter on each
-// thread. Every time QueryThreadProcessorUsage() is invoked it returns the amount of cpu time (a combination
-// of user and kernel mode time) used since the last call to QueryThreadProcessorUsage(). The result is in 100
-// nanosecond units.
-ULONGLONG Thread::QueryThreadProcessorUsage()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // Get current values for the amount of kernel and user time used by this thread over its entire lifetime.
-    FILETIME sCreationTime, sExitTime, sKernelTime, sUserTime;
-    HANDLE hThread = GetThreadHandle();
-    BOOL fResult = GetThreadTimes(hThread,
-                                  &sCreationTime,
-                                  &sExitTime,
-                                  &sKernelTime,
-                                  &sUserTime);
-    if (!fResult)
-    {
-#ifdef _DEBUG
-        ULONG error = GetLastError();
-        printf("GetThreadTimes failed: %d; handle is %p\n", error, hThread);
-        _ASSERTE(FALSE);
-#endif
-        return 0;
-    }
-
-    // Combine the user and kernel times into a single value (FILETIME is just a structure representing an
-    // unsigned int64 in two 32-bit pieces).
-    _ASSERTE(sizeof(FILETIME) == sizeof(UINT64));
-    ULONGLONG ullCurrentUsage = *(ULONGLONG*)&sKernelTime + *(ULONGLONG*)&sUserTime;
-
-    // Store the current processor usage as the new baseline, and retrieve the previous usage.
-    ULONGLONG ullPreviousUsage = VolatileLoad(&m_ullProcessorUsageBaseline);
-    if (ullPreviousUsage >= ullCurrentUsage ||
-        ullPreviousUsage != (ULONGLONG)InterlockedCompareExchange64(
-            (LONGLONG*)&m_ullProcessorUsageBaseline, 
-            (LONGLONG)ullCurrentUsage, 
-            (LONGLONG)ullPreviousUsage))
-    {
-        // another thread beat us to it, and already reported this usage.  
-        return 0; 
-    }
-
-    // The result is the difference between this value and the previous usage value.
-    return ullCurrentUsage - ullPreviousUsage;
-}
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
 OBJECTHANDLE Thread::GetOrCreateDeserializationTracker()
 {

@@ -2238,20 +2238,20 @@ BOOL ZapImage::ShouldCompileMethodDef(mdMethodDef md)
     mdToken tkExtends;
     if (td != mdTypeDefNil)
     {
-        m_pMDImport->GetTypeDefProps(td, NULL, &tkExtends);
+        IfFailThrow(m_pMDImport->GetTypeDefProps(td, NULL, &tkExtends));
         
         mdAssembly tkAssembly;
         DWORD dwAssemblyFlags;
         
-        m_pMDImport->GetAssemblyFromScope(&tkAssembly);
+        IfFailThrow(m_pMDImport->GetAssemblyFromScope(&tkAssembly));
         if (TypeFromToken(tkAssembly) == mdtAssembly)
         {
-            m_pMDImport->GetAssemblyProps(tkAssembly,
+            IfFailThrow(m_pMDImport->GetAssemblyProps(tkAssembly,
                                             NULL, NULL,     // Public Key
                                             NULL,           // Hash Algorithm
                                             NULL,           // Name
                                             NULL,           // MetaData
-                                            &dwAssemblyFlags);
+                                            &dwAssemblyFlags));
             
             if (IsAfContentType_WindowsRuntime(dwAssemblyFlags))
             {
@@ -2259,7 +2259,7 @@ BOOL ZapImage::ShouldCompileMethodDef(mdMethodDef md)
                 {
                     LPCSTR szNameSpace = NULL;
                     LPCSTR szName = NULL;
-                    m_pMDImport->GetNameOfTypeRef(tkExtends, &szNameSpace, &szName);
+                    IfFailThrow(m_pMDImport->GetNameOfTypeRef(tkExtends, &szNameSpace, &szName));
                     
                     if (!strcmp(szNameSpace, "System") && !_stricmp((szName), "Attribute"))
                     {
@@ -3378,6 +3378,13 @@ void ZapImage::LoadProfileData()
             m_zapper->Warning(W("Warning: Invalid profile data was ignored for %s\n"), m_pModuleFileName);
         }
     }
+
+#ifdef CROSSGEN_COMPILE
+    if (m_zapper->m_pOpt->m_fPartialNGen && (m_pRawProfileData == NULL || m_cRawProfileData == 0))
+    {
+        ThrowHR(CLR_E_CROSSGEN_NO_IBC_DATA_FOUND);
+    }
+#endif
 }
 
 // Initializes our form of the profile data stored in the assembly.
@@ -3566,6 +3573,10 @@ void ZapImage::Error(mdToken token, HRESULT hr, UINT resID,  LPCWSTR message)
     if ((resID == IDS_IBC_MISSING_EXTERNAL_TYPE) ||
         (resID == IDS_IBC_MISSING_EXTERNAL_METHOD))
     {
+        // Suppress printing IBC related warnings except in verbose mode.
+        if (m_zapper->m_pOpt->m_ignoreErrors && !m_zapper->m_pOpt->m_verbose)
+            return;
+
         // Supress printing of "The generic type/method specified by the IBC data is not available to this assembly"
         level = CORZAP_LOGLEVEL_INFO;
     }   

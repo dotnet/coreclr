@@ -955,7 +955,7 @@ BOOL CheckIfDisqualifiedFromManagedSequential(CorElementType corElemType, Layout
     // This type may qualify for ManagedSequential. Collect managed size and alignment info.
     if (CorTypeInfo::IsPrimitiveType(corElemType))
     {
-        pRawFieldInfo->m_managedSize = ((UINT32)CorTypeInfo::Size(corElemType)); // Safe cast - no primitive type is larger than 4gb!
+        pRawFieldInfo->m_managedPlacement.m_size = ((UINT32)CorTypeInfo::Size(corElemType)); // Safe cast - no primitive type is larger than 4gb!
 #if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
         switch (corElemType)
         {
@@ -964,26 +964,26 @@ BOOL CheckIfDisqualifiedFromManagedSequential(CorElementType corElemType, Layout
         case ELEMENT_TYPE_U8:
         case ELEMENT_TYPE_R8:
         {
-            pRawFieldInfo->m_managedAlignmentReq = 4;
+            pRawFieldInfo->m_managedPlacement.m_alignment = 4;
             break;
         }
 
         default:
         {
-            pRawFieldInfo->m_managedAlignmentReq = pRawFieldInfo->m_managedSize;
+            pRawFieldInfo->m_managedPlacement.m_alignment = pRawFieldInfo->m_managedPlacement.m_size;
             break;
         }
         }
 #else // _TARGET_X86_ && UNIX_X86_ABI
-        pRawFieldInfo->m_managedAlignmentReq = pRawFieldInfo->m_managedSize;
+        pRawFieldInfo->m_managedPlacement.m_alignment = pRawFieldInfo->m_managedPlacement.m_size;
 #endif
 
         return FALSE;
     }
     else if (corElemType == ELEMENT_TYPE_PTR)
     {
-        pRawFieldInfo->m_managedSize = TARGET_POINTER_SIZE;
-        pRawFieldInfo->m_managedAlignmentReq = TARGET_POINTER_SIZE;
+        pRawFieldInfo->m_managedPlacement.m_size = TARGET_POINTER_SIZE;
+        pRawFieldInfo->m_managedPlacement.m_alignment = TARGET_POINTER_SIZE;
         
         return FALSE;
     }
@@ -997,10 +997,10 @@ BOOL CheckIfDisqualifiedFromManagedSequential(CorElementType corElemType, Layout
             return TRUE;
         }
         
-        pRawFieldInfo->m_managedSize = (pNestedType.GetMethodTable()->GetNumInstanceFieldBytes());
+        pRawFieldInfo->m_managedPlacement.m_size = (pNestedType.GetMethodTable()->GetNumInstanceFieldBytes());
 
         _ASSERTE(pNestedType.GetMethodTable()->HasLayout()); // If it is ManagedSequential(), it also has Layout but doesn't hurt to check before we do a cast!
-        pRawFieldInfo->m_managedAlignmentReq = pNestedType.GetMethodTable()->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
+        pRawFieldInfo->m_managedPlacement.m_alignment = pNestedType.GetMethodTable()->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
         
         return FALSE;
     }
