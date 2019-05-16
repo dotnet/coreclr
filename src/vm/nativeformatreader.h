@@ -551,7 +551,11 @@ namespace NativeFormat
         UInt32 _size;
         LONG _disableFilter;
         
-
+        bool IsPowerOfTwo(UInt32 number)
+        {
+            return (number & (number - 1)) == 0;
+        }
+  
     public:
         static UInt32 ComputeFingerprintHash(UInt16 fingerprint)
         {
@@ -572,6 +576,12 @@ namespace NativeFormat
             if (((rvaOfTable & 0xF) != 0) || ((filterSize & 0xF) != 0))
             {
                 // Native cuckoo filters must be aligned at 16byte boundaries within the PE file
+                NativeReader exceptionReader;
+                exceptionReader.ThrowBadImageFormatException();
+            }
+            if ((filterSize != 0) && !IsPowerOfTwo(filterSize))
+            {
+                // Native cuckoo filters must be power of two in size
                 NativeReader exceptionReader;
                 exceptionReader.ThrowBadImageFormatException();
             }
@@ -606,9 +616,10 @@ namespace NativeFormat
                 fingerprint = 1;
 
             UInt32 bucketCount = _size / 16;
+            UInt32 bucketMask = bucketCount - 1; // filters are power of 2 in size
 
-            UInt32 bucketAIndex = hashcode % bucketCount;
-            UInt32 bucketBIndex = bucketAIndex ^ ComputeFingerprintHash(fingerprint % bucketCount);
+            UInt32 bucketAIndex = hashcode & bucketMask;
+            UInt32 bucketBIndex = bucketAIndex ^ (ComputeFingerprintHash(fingerprint) & bucketMask);
 
 #if defined(USE_INTEL_INTRINSICS_FOR_CUCKOO_FILTER)
             __m128i bucketA = _mm_loadu_si128(&((__m128i*)_base)[bucketAIndex]);

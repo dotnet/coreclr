@@ -572,7 +572,9 @@ HRESULT ZapImage::ComputeAttributePresenceTable(IMDInternalImport * pMDImport, S
 
     // Buckets have 8 entries
     UINT minTableBucketCount = (countOfEntries / 8) + 1;
-    UINT bucketCount = 1;// ((minTableBucketCount * 10) / 9) + 1; // Initial bucket count is about 90% capacity
+    UINT bucketCount = 1;
+
+    // Bucket count must be power of two
     while (bucketCount < minTableBucketCount)
         bucketCount *= 2;
 
@@ -610,9 +612,9 @@ HRESULT ZapImage::ComputeAttributePresenceTable(IMDInternalImport * pMDImport, S
                 fingerprint = 1;
 
             UINT bucketAIndex = hash % bucketCount;
-            UINT bucketBIndex = (bucketAIndex ^ NativeFormat::NativeCuckooFilter::ComputeFingerprintHash(fingerprint % bucketCount));
+            UINT bucketBIndex = (bucketAIndex ^ (NativeFormat::NativeCuckooFilter::ComputeFingerprintHash(fingerprint)  % bucketCount));
 
-            _ASSERTE(bucketAIndex == (bucketBIndex ^ NativeFormat::NativeCuckooFilter::ComputeFingerprintHash(fingerprint % bucketCount)));
+            _ASSERTE(bucketAIndex == (bucketBIndex ^ (NativeFormat::NativeCuckooFilter::ComputeFingerprintHash(fingerprint) % bucketCount)));
 
             if (xorshift128(state) & 1) // Randomly choose which bucket to attempt to fill first
             {
@@ -682,7 +684,7 @@ HRESULT ZapImage::ComputeAttributePresenceTable(IMDInternalImport * pMDImport, S
                 (*table)[(bucketAIndex * 8) + entryIndexInBucket] = temp;
 
                 // Find other bucket
-                bucketAIndex = bucketAIndex ^ NativeFormat::NativeCuckooFilter::ComputeFingerprintHash(fingerprint % bucketCount);
+                bucketAIndex = bucketAIndex ^ (NativeFormat::NativeCuckooFilter::ComputeFingerprintHash(fingerprint) % bucketCount);
                 if (isEmptyEntryInBucket(bucketAIndex))
                 {
                     fillEmptyEntryInBucket(bucketAIndex, fingerprint);
@@ -696,13 +698,10 @@ HRESULT ZapImage::ComputeAttributePresenceTable(IMDInternalImport * pMDImport, S
 
         if (tryAgainWithBiggerTable)
         {
-            // bucket entry kicking path requires bucket counts to be power of two. Due to use of xor to retrieve second hash
+            // bucket entry kicking path requires bucket counts to be power of two in size due to use of xor to retrieve second hash
             bucketCount *= 2;
-
-/*            // Make bucketCount about 5% bigger
-            bucketCount =  ((bucketCount * 20) / 19) + 1; */
         }
-    } while(tryAgainWithBiggerTable && ((countOfRetries++) < 10));
+    } while(tryAgainWithBiggerTable && ((countOfRetries++) < 2));
 
     if (tryAgainWithBiggerTable)
     {
