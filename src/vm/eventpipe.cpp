@@ -373,6 +373,10 @@ void EventPipe::DisableInternal(EventPipeSession &session, EventPipeProviderCall
     }
     CONTRACTL_END;
 
+    // TODO: breaking the lock when doing EventPipe::Disable, otherwise
+    //  disabling session A will be able to block all other sessions from doing
+    //  work for a long time.
+
     if (s_pConfig != nullptr)
     {
         // Disable the profiler.
