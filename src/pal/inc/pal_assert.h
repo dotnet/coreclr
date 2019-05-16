@@ -33,6 +33,21 @@ extern "C" {
 #endif // __cplusplus
 
 #if defined(_DEBUG)
+
+#ifdef __GNUC__
+
+#define _ASSERTE(e) do {                                        \
+        if (!(e)) {                                             \
+            fprintf (stderr,                                    \
+                     "ASSERT FAILED\n"                          \
+                     "\tExpression: %s\n"                       \
+                     "\tLocation:   line %d in %s\n"            \
+                     "\tFunction:   %s\n",                      \
+                     #e, __LINE__, __FILE__, __FUNCTION__);     \
+        }                                                       \
+    }while (0)
+
+#else // __GNUC__
 #define _ASSERTE(e) do {                                        \
         if (!(e)) {                                             \
             fprintf (stderr,                                    \
@@ -46,6 +61,8 @@ extern "C" {
             DebugBreak();                                       \
         }                                                       \
     }while (0)
+#endif // __GNUC__
+
 #else // !DEBUG
 #define _ASSERTE(e) ((void)0)
 #endif
