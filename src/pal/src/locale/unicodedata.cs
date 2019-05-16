@@ -25,7 +25,7 @@ class Program
         Console.WriteLine("//");
         Console.WriteLine();
 
-        Console.WriteLine("static const UnicodeDataRec UnicodeData[] = {");
+        Console.WriteLine("CONST UnicodeDataRec UnicodeData[] = {");
 
         string sourceFileName = args[0];
 

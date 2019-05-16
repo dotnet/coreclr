@@ -8,7 +8,7 @@
 // THIS FILE IS GENERATED. DO NOT HAND EDIT.
 //
 
-static const UnicodeDataRec UnicodeData[] = {
+CONST UnicodeDataRec UnicodeData[] = {
   { 0x41, UPPER_CASE, 0x61 },
   { 0x42, UPPER_CASE, 0x62 },
   { 0x43, UPPER_CASE, 0x63 },
