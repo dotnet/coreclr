@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -105,13 +104,13 @@ namespace System.Runtime.Intrinsics
             {
                 if (typeof(T) == typeof(float))
                 {
-                    Vector256<float> result = Avx.Compare(this.AsSingle(), other.AsSingle(), FloatComparisonMode.EqualOrderedNonSignaling);
+                    Vector256<float> result = Avx.Compare(this.AsSingle(), other.AsSingle(), FloatComparisonMode.OrderedEqualNonSignaling);
                     return Avx.MoveMask(result) == 0b1111_1111; // We have one bit per element
                 }
 
                 if (typeof(T) == typeof(double))
                 {
-                    Vector256<double> result = Avx.Compare(this.AsDouble(), other.AsDouble(), FloatComparisonMode.EqualOrderedNonSignaling);
+                    Vector256<double> result = Avx.Compare(this.AsDouble(), other.AsDouble(), FloatComparisonMode.OrderedEqualNonSignaling);
                     return Avx.MoveMask(result) == 0b1111; // We have one bit per element
                 }
             }

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Threading.Tasks;
@@ -470,14 +469,8 @@ namespace System.Threading
                 }
                 else
                 {
-                    if (
-#if CORECLR
-                        // Don't emit this event during EventPipeController.  This avoids initializing FrameworkEventSource during start-up which is expensive relative to the rest of start-up.
-                        !EventPipeController.Initializing &&
-#endif
-                        FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.ThreadTransfer))
+                    if (FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.ThreadTransfer))
                         FrameworkEventSource.Log.ThreadTransferSendObj(this, 1, string.Empty, true, (int)dueTime, (int)period);
-
                     success = _associatedTimerQueue.UpdateTimer(this, dueTime, period);
                 }
             }
@@ -678,17 +671,6 @@ namespace System.Threading
 
         ~TimerHolder()
         {
-            // If shutdown has started, another thread may be suspended while holding the timer lock.
-            // So we can't safely close the timer.  
-            //
-            // Similarly, we should not close the timer during AD-unload's live-object finalization phase.
-            // A rude abort may have prevented us from releasing the lock.
-            //
-            // Note that in either case, the Timer still won't fire, because ThreadPool threads won't be
-            // allowed to run anymore.
-            if (Environment.HasShutdownStarted)
-                return;
-
             _timer.Close();
         }
 

@@ -332,16 +332,6 @@ typedef long time_t;
 #define _TIME_T_DEFINED
 #endif // !PAL_STDCPP_COMPAT
 
-#define C1_UPPER                  0x0001      /* upper case */
-#define C1_LOWER                  0x0002      /* lower case */
-#define C1_DIGIT                  0x0004      /* decimal digits */
-#define C1_SPACE                  0x0008      /* spacing characters */
-#define C1_PUNCT                  0x0010      /* punctuation characters */
-#define C1_CNTRL                  0x0020      /* control characters */
-#define C1_BLANK                  0x0040      /* blank characters */
-#define C1_XDIGIT                 0x0080      /* other digits */
-#define C1_ALPHA                  0x0100      /* any linguistic character */
-
 #define DLL_PROCESS_ATTACH 1
 #define DLL_THREAD_ATTACH  2
 #define DLL_THREAD_DETACH  3
@@ -449,6 +439,14 @@ VOID
 PALAPI
 PAL_SetShutdownCallback(
     IN PSHUTDOWN_CALLBACK callback);
+
+PALIMPORT
+BOOL
+PALAPI
+PAL_GenerateCoreDump(
+    IN LPCSTR dumpName,
+    IN INT dumpType,
+    IN BOOL diag);
 
 typedef VOID (*PPAL_STARTUP_CALLBACK)(
     char *modulePath,
@@ -2450,6 +2448,11 @@ PALAPI
 PAL_GetLogicalCpuCountFromOS(VOID);
 
 PALIMPORT
+DWORD
+PALAPI
+PAL_GetTotalCpuCount(VOID);
+
+PALIMPORT
 size_t
 PALAPI
 PAL_GetRestrictedPhysicalMemoryLimit(VOID);
@@ -2558,6 +2561,7 @@ SetErrorMode(
 #define MEM_MAPPED                      0x40000
 #define MEM_TOP_DOWN                    0x100000
 #define MEM_WRITE_WATCH                 0x200000
+#define MEM_LARGE_PAGES                 0x20000000
 #define MEM_RESERVE_EXECUTABLE          0x40000000 // reserve memory using executable memory allocator
 
 PALIMPORT
@@ -3995,88 +3999,6 @@ CreatePipe(
 // NUMA related APIs
 //
 
-typedef enum _PROCESSOR_CACHE_TYPE {
-  CacheUnified,
-  CacheInstruction,
-  CacheData,
-  CacheTrace
-} PROCESSOR_CACHE_TYPE;
-
-typedef struct _PROCESSOR_NUMBER {
-  WORD Group;
-  BYTE Number;
-  BYTE Reserved;
-} PROCESSOR_NUMBER, *PPROCESSOR_NUMBER;
-
-typedef enum _LOGICAL_PROCESSOR_RELATIONSHIP {
-  RelationProcessorCore,
-  RelationNumaNode,
-  RelationCache,
-  RelationProcessorPackage,
-  RelationGroup,
-  RelationAll               = 0xffff
-} LOGICAL_PROCESSOR_RELATIONSHIP;
-
-typedef ULONG_PTR KAFFINITY;
-
-#define ANYSIZE_ARRAY 1
-
-typedef struct _GROUP_AFFINITY {
-  KAFFINITY Mask;
-  WORD      Group;
-  WORD      Reserved[3];
-} GROUP_AFFINITY, *PGROUP_AFFINITY;
-
-typedef struct _PROCESSOR_GROUP_INFO {
-  BYTE      MaximumProcessorCount;
-  BYTE      ActiveProcessorCount;
-  BYTE      Reserved[38];
-  KAFFINITY ActiveProcessorMask;
-} PROCESSOR_GROUP_INFO, *PPROCESSOR_GROUP_INFO;
-
-typedef struct _PROCESSOR_RELATIONSHIP {
-  BYTE           Flags;
-  BYTE           EfficiencyClass;
-  BYTE           Reserved[21];
-  WORD           GroupCount;
-  GROUP_AFFINITY GroupMask[ANYSIZE_ARRAY];
-} PROCESSOR_RELATIONSHIP, *PPROCESSOR_RELATIONSHIP;
-
-typedef struct _GROUP_RELATIONSHIP {
-  WORD                 MaximumGroupCount;
-  WORD                 ActiveGroupCount;
-  BYTE                 Reserved[20];
-  PROCESSOR_GROUP_INFO GroupInfo[ANYSIZE_ARRAY];
-} GROUP_RELATIONSHIP, *PGROUP_RELATIONSHIP;
-
-typedef struct _NUMA_NODE_RELATIONSHIP {
-  DWORD          NodeNumber;
-  BYTE           Reserved[20];
-  GROUP_AFFINITY GroupMask;
-} NUMA_NODE_RELATIONSHIP, *PNUMA_NODE_RELATIONSHIP;
-
-typedef struct _CACHE_RELATIONSHIP {
-  BYTE                 Level;
-  BYTE                 Associativity;
-  WORD                 LineSize;
-  DWORD                CacheSize;
-  PROCESSOR_CACHE_TYPE Type;
-  BYTE                 Reserved[20];
-  GROUP_AFFINITY       GroupMask;
-} CACHE_RELATIONSHIP, *PCACHE_RELATIONSHIP;
-
-typedef struct _SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX {
-  LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
-  DWORD                          Size;
-  union {
-    PROCESSOR_RELATIONSHIP Processor;
-    NUMA_NODE_RELATIONSHIP NumaNode;
-    CACHE_RELATIONSHIP     Cache;
-    GROUP_RELATIONSHIP     Group;
-  };
-} SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, *PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX;
-
-
 PALIMPORT
 BOOL
 PALAPI
@@ -4087,10 +4009,7 @@ GetNumaHighestNodeNumber(
 PALIMPORT
 BOOL
 PALAPI
-GetNumaProcessorNodeEx(
-  IN  PPROCESSOR_NUMBER Processor,
-  OUT PUSHORT NodeNumber
-);
+PAL_GetNumaProcessorNode(WORD procNo, WORD* node);
 
 PALIMPORT
 LPVOID
@@ -4107,61 +4026,12 @@ VirtualAllocExNuma(
 PALIMPORT
 BOOL
 PALAPI
-GetLogicalProcessorInformationEx(
-  IN LOGICAL_PROCESSOR_RELATIONSHIP RelationshipType,
-  OUT OPTIONAL PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX Buffer,
-  IN OUT PDWORD ReturnedLength
-);
-
-PALIMPORT
-DWORD_PTR
-PALAPI
-SetThreadAffinityMask(
-  IN HANDLE hThread,
-  IN DWORD_PTR dwThreadAffinityMask
-);
+PAL_SetCurrentThreadAffinity(WORD procNo);
 
 PALIMPORT
 BOOL
 PALAPI
-SetThreadGroupAffinity(
-  IN HANDLE hThread,
-  IN const GROUP_AFFINITY *GroupAffinity,
-  OUT OPTIONAL PGROUP_AFFINITY PreviousGroupAffinity
-);
-
-PALIMPORT
-BOOL
-PALAPI
-GetThreadGroupAffinity(
-  IN HANDLE hThread,
-  OUT PGROUP_AFFINITY GroupAffinity
-);
-
-PALIMPORT
-VOID
-PALAPI
-GetCurrentProcessorNumberEx(
-  OUT PPROCESSOR_NUMBER ProcNumber
-);
-
-PALIMPORT
-BOOL
-PALAPI
-GetProcessAffinityMask(
-  IN HANDLE hProcess,
-  OUT PDWORD_PTR lpProcessAffinityMask,
-  OUT PDWORD_PTR lpSystemAffinityMask
-);
-
-PALIMPORT
-BOOL
-PALAPI
-SetThreadIdealProcessorEx(
-  IN HANDLE hThread,
-  IN PPROCESSOR_NUMBER lpIdealProcessor,
-  OUT PPROCESSOR_NUMBER lpPreviousIdealProcessor
-);
+PAL_GetCurrentThreadAffinitySet(SIZE_T size, UINT_PTR* data);
 
 //
 // The types of events that can be logged.
@@ -4205,14 +4075,6 @@ SetThreadIdealProcessorEx(
 #define wcsncpy       PAL_wcsncpy
 #define wcstok        PAL_wcstok
 #define wcscspn       PAL_wcscspn
-#define iswprint      PAL_iswprint
-#define iswalpha      PAL_iswalpha
-#define iswdigit      PAL_iswdigit
-#define iswspace      PAL_iswspace
-#define iswupper      PAL_iswupper
-#define iswxdigit     PAL_iswxdigit
-#define towlower      PAL_towlower
-#define towupper      PAL_towupper
 #define realloc       PAL_realloc
 #define fopen         PAL_fopen
 #define strtok        PAL_strtok
@@ -4313,6 +4175,12 @@ SetThreadIdealProcessorEx(
 
 typedef int errno_t;
 
+#if defined(__WINT_TYPE__)
+typedef __WINT_TYPE__ wint_t;
+#else
+typedef unsigned int wint_t;
+#endif
+
 #ifndef PAL_STDCPP_COMPAT
 
 typedef struct {
@@ -4380,7 +4248,14 @@ PALIMPORT int __cdecl isupper(int);
 PALIMPORT int __cdecl islower(int);
 PALIMPORT int __cdecl tolower(int);
 PALIMPORT int __cdecl toupper(int);
-
+PALIMPORT int __cdecl iswalpha(wint_t);
+PALIMPORT int __cdecl iswdigit(wint_t);
+PALIMPORT int __cdecl iswupper(wint_t);
+PALIMPORT int __cdecl iswprint(wint_t);
+PALIMPORT int __cdecl iswspace(wint_t);
+PALIMPORT int __cdecl iswxdigit(wint_t);
+PALIMPORT wint_t __cdecl towupper(wint_t);
+PALIMPORT wint_t __cdecl towlower(wint_t);
 #endif // PAL_STDCPP_COMPAT
 
 /* _TRUNCATE */
@@ -4432,14 +4307,6 @@ PALIMPORT LONG __cdecl PAL_wcstol(const WCHAR *, WCHAR **, int);
 PALIMPORT DLLEXPORT ULONG __cdecl PAL_wcstoul(const WCHAR *, WCHAR **, int);
 PALIMPORT size_t __cdecl PAL_wcsspn (const WCHAR *, const WCHAR *);
 PALIMPORT double __cdecl PAL_wcstod(const WCHAR *, WCHAR **);
-PALIMPORT int __cdecl PAL_iswalpha(WCHAR);
-PALIMPORT DLLEXPORT int __cdecl PAL_iswprint(WCHAR);
-PALIMPORT int __cdecl PAL_iswupper(WCHAR);
-PALIMPORT DLLEXPORT int __cdecl PAL_iswspace(WCHAR);
-PALIMPORT int __cdecl PAL_iswdigit(WCHAR);
-PALIMPORT int __cdecl PAL_iswxdigit(WCHAR);
-PALIMPORT WCHAR __cdecl PAL_towlower(WCHAR);
-PALIMPORT WCHAR __cdecl PAL_towupper(WCHAR);
 
 PALIMPORT WCHAR * __cdecl _wcslwr(WCHAR *);
 PALIMPORT DLLEXPORT ULONGLONG _wcstoui64(const WCHAR *, WCHAR **, int);

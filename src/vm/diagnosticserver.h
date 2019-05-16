@@ -15,14 +15,13 @@ enum class DiagnosticMessageType : uint32_t
 {
     ///////////////////////////////////////////////////////////////////////////
     // Debug = 0
+    GenerateCoreDump = 1,           // Initiates core dump generation
 
     ///////////////////////////////////////////////////////////////////////////
-    // EventPipe
-    EnableEventPipe = 1024,
-    DisableEventPipe,
-    StreamEventPipe,
-    AttachEventPipe,
-    DetachEventPipe,
+    // EventPipe = 1024
+    StartEventPipeTracing = 1024,   // To file
+    StopEventPipeTracing,
+    CollectEventPipeTracing,        // To IPC
 
     ///////////////////////////////////////////////////////////////////////////
     // Profiler = 2048

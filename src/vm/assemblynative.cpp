@@ -38,33 +38,36 @@ FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
         AssemblyBaseObject* requestingAssemblyUNSAFE,
         StackCrawlMark* stackMark,
         CLR_BOOL fThrowOnFileNotFound,
-        INT_PTR ptrLoadContextBinder)
+        AssemblyLoadContextBaseObject *assemblyLoadContextUNSAFE)
 {
     FCALL_CONTRACT;
 
     struct _gc
     {
-        ASSEMBLYNAMEREF assemblyName;
-        STRINGREF       codeBase;
-        ASSEMBLYREF     requestingAssembly; 
-        ASSEMBLYREF     rv;
+        ASSEMBLYNAMEREF        assemblyName;
+        STRINGREF              codeBase;
+        ASSEMBLYREF            requestingAssembly;
+        ASSEMBLYREF            rv;
+        ASSEMBLYLOADCONTEXTREF assemblyLoadContext;
     } gc;
 
-    gc.assemblyName    = (ASSEMBLYNAMEREF) assemblyNameUNSAFE;
-    gc.codeBase        = (STRINGREF)       codeBaseUNSAFE;
-    gc.requestingAssembly    = (ASSEMBLYREF)     requestingAssemblyUNSAFE;
-    gc.rv              = NULL;
+    gc.assemblyName        = (ASSEMBLYNAMEREF)        assemblyNameUNSAFE;
+    gc.codeBase            = (STRINGREF)              codeBaseUNSAFE;
+    gc.requestingAssembly  = (ASSEMBLYREF)            requestingAssemblyUNSAFE;
+    gc.rv                  = NULL;
+    gc.assemblyLoadContext = (ASSEMBLYLOADCONTEXTREF) assemblyLoadContextUNSAFE;
 
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
 
     if (gc.assemblyName == NULL)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_AssemblyName"));
 
-    Thread * pThread = GetThread();
-    CheckPointHolder cph(pThread->m_MarshalAlloc.GetCheckpoint()); //hold checkpoint for autorelease
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
     DomainAssembly * pParentAssembly = NULL;
     Assembly * pRefAssembly = NULL;
+
+    INT_PTR ptrLoadContextBinder = (gc.assemblyLoadContext != NULL) ? gc.assemblyLoadContext->GetNativeAssemblyLoadContext() : NULL;
 
     if(gc.assemblyName->GetSimpleName() == NULL)
     {
@@ -74,24 +77,24 @@ FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     else
     {
         // Compute parent assembly
-        if (gc.requestingAssembly == NULL)
-        {
-            pRefAssembly = SystemDomain::GetCallersAssembly(stackMark);
-        }
-        else
+        if (gc.requestingAssembly != NULL)
         {
             pRefAssembly = gc.requestingAssembly->GetAssembly();
+        }
+        else if (ptrLoadContextBinder == NULL)
+        {
+            pRefAssembly = SystemDomain::GetCallersAssembly(stackMark);
         }
         
         if (pRefAssembly)
         {
-            pParentAssembly= pRefAssembly->GetDomainAssembly();
+            pParentAssembly = pRefAssembly->GetDomainAssembly();
         }
     }
 
     // Initialize spec
     AssemblySpec spec;
-    spec.InitializeSpec(&(pThread->m_MarshalAlloc), 
+    spec.InitializeSpec(pStackingAllocator, 
                         &gc.assemblyName,
                         FALSE);
     
@@ -101,7 +104,7 @@ FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     }
     
     if (gc.codeBase != NULL)
-        spec.SetCodeBase(&(pThread->m_MarshalAlloc), &gc.codeBase);
+        spec.SetCodeBase(pStackingAllocator, &gc.codeBase);
 
     if (pParentAssembly != NULL)
         spec.SetParentAssembly(pParentAssembly);
@@ -257,6 +260,7 @@ void QCALLTYPE AssemblyNative::LoadFromPath(INT_PTR ptrNativeAssemblyLoadContext
         }
     }
     
+#ifdef FEATURE_PREJIT
     // Form the PEImage for the NI assembly, if specified
     if (pwzNIPath != NULL)
     {
@@ -277,6 +281,7 @@ void QCALLTYPE AssemblyNative::LoadFromPath(INT_PTR ptrNativeAssemblyLoadContext
                 ThrowHR(COR_E_BADIMAGEFORMAT);
         }
     }
+#endif // FEATURE_PREJIT
     
     Assembly *pLoadedAssembly = AssemblyNative::LoadFromPEImage(pBinderContext, pILImage, pNIImage);
     
@@ -446,7 +451,13 @@ void QCALLTYPE AssemblyNative::LoadTypeForWinRTTypeNameInContext(INT_PTR ptrAsse
 }
 #endif
 
-void QCALLTYPE AssemblyNative::GetType(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType, QCall::ObjectHandleOnStack keepAlive)
+void QCALLTYPE AssemblyNative::GetType(QCall::AssemblyHandle pAssembly,
+                                       LPCWSTR wszName,
+                                       BOOL bThrowOnError,
+                                       BOOL bIgnoreCase,
+                                       QCall::ObjectHandleOnStack retType,
+                                       QCall::ObjectHandleOnStack keepAlive,
+                                       QCall::ObjectHandleOnStack pAssemblyLoadContext)
 {
     CONTRACTL
     {
@@ -464,8 +475,20 @@ void QCALLTYPE AssemblyNative::GetType(QCall::AssemblyHandle pAssembly, LPCWSTR 
 
     BOOL prohibitAsmQualifiedName = TRUE;
 
+    ICLRPrivBinder * pPrivHostBinder = NULL;
+
+    if (*pAssemblyLoadContext.m_ppObject != NULL)
+    {
+        GCX_COOP();
+        ASSEMBLYLOADCONTEXTREF * pAssemblyLoadContextRef = reinterpret_cast<ASSEMBLYLOADCONTEXTREF *>(pAssemblyLoadContext.m_ppObject);
+
+        INT_PTR nativeAssemblyLoadContext = (*pAssemblyLoadContextRef)->GetNativeAssemblyLoadContext();
+
+        pPrivHostBinder = reinterpret_cast<ICLRPrivBinder *>(nativeAssemblyLoadContext);
+    }
+
     // Load the class from this assembly (fail if it is in a different one).
-    retTypeHandle = TypeName::GetTypeManaged(wszName, pAssembly, bThrowOnError, bIgnoreCase, prohibitAsmQualifiedName, NULL, FALSE, (OBJECTREF*)keepAlive.m_ppObject);
+    retTypeHandle = TypeName::GetTypeManaged(wszName, pAssembly, bThrowOnError, bIgnoreCase, prohibitAsmQualifiedName, pAssembly->GetAssembly(), FALSE, (OBJECTREF*)keepAlive.m_ppObject, pPrivHostBinder);
 
     if (!retTypeHandle.IsNull())
     {

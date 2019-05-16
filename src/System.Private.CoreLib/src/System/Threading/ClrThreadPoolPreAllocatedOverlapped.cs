@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 namespace System.Threading
 {
     /// <summary>
@@ -78,12 +77,7 @@ namespace System.Threading
 
         ~PreAllocatedOverlapped()
         {
-            //
-            // During shutdown, don't automatically clean up, because this instance may still be
-            // reachable/usable by other code.
-            //
-            if (!Environment.HasShutdownStarted)
-                Dispose();
+            Dispose();
         }
 
         unsafe void IDeferredDisposable.OnFinalRelease(bool disposed)

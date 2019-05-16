@@ -162,8 +162,7 @@ class OBJECTREF {
 
         class ReflectClassBaseObject* m_asReflectClass;
         class ExecutionContextObject* m_asExecutionContext;
-        class AppDomainBaseObject* m_asAppDomainBase;
-        class PermissionSetObject* m_asPermissionSetObject;
+        class AssemblyLoadContextBaseObject* m_asAssemblyLoadContextBase;
     };
 
     public:
@@ -483,7 +482,6 @@ extern int g_IGCTrimCommit;
 #endif
 
 extern BOOL g_fEnableETW;
-extern BOOL g_fEnableARM;
 
 // Returns a BOOL to indicate if the runtime is active or not
 BOOL IsRuntimeActive(); 
@@ -530,10 +528,6 @@ EXTERN BOOL g_fComStarted;
 GVAL_DECL(DWORD, g_fEEShutDown);
 EXTERN DWORD g_fFastExitProcess;
 EXTERN BOOL g_fFatalErrorOccurredOnGCThread;
-#ifndef DACCESS_COMPILE
-EXTERN BOOL g_fSuspendOnShutdown;
-EXTERN BOOL g_fSuspendFinalizerOnShutdown;
-#endif // DACCESS_COMPILE
 EXTERN Volatile<LONG> g_fForbidEnterEE;
 GVAL_DECL(bool, g_fProcessDetach);
 EXTERN bool g_fManagedAttach;

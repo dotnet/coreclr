@@ -211,6 +211,8 @@ HRESULT EEConfig::Init()
     dwSpinRetryCount = 0xA;
     dwMonitorSpinCount = 0;
 
+    dwJitHostMaxSlabCache = 0;
+
     iJitOptimizeType = OPT_DEFAULT;
     fJitFramed = false;
     fJitAlignLoops = false;
@@ -349,10 +351,10 @@ HRESULT EEConfig::Init()
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = false;
     fTieredCompilation_QuickJit = false;
-    fTieredCompilation_StartupTier_CallCounting = false;
-    fTieredCompilation_StartupTier_OptimizeCode = false;
-    tieredCompilation_StartupTier_CallCountThreshold = 1;
-    tieredCompilation_StartupTier_CallCountingDelayMs = 0;
+    fTieredCompilation_QuickJitForLoops = false;
+    fTieredCompilation_CallCounting = false;
+    tieredCompilation_CallCountThreshold = 1;
+    tieredCompilation_CallCountingDelayMs = 0;
 #endif
 
 #ifndef CROSSGEN_COMPILE
@@ -710,11 +712,6 @@ HRESULT EEConfig::sync()
     iGCLatencyMode = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_GCLatencyMode, iGCLatencyMode);
 #endif
 
-    if (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_ARMEnabled))
-    {
-        g_fEnableARM = TRUE;
-    }
-
     bool gcConcurrentWasForced = false;
     // The CLRConfig value for UNSUPPORTED_gcConcurrent defaults to -1, and treats any
     // positive value as 'forcing' concurrent GC to be on. Because the standard logic
@@ -1003,6 +1000,8 @@ HRESULT EEConfig::sync()
     dwSpinRetryCount = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinRetryCount);
     dwMonitorSpinCount = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Monitor_SpinCount);
 
+    dwJitHostMaxSlabCache = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_JitHostMaxSlabCache);
+
     fJitFramed = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_JitFramed, fJitFramed) != 0);
     fJitAlignLoops = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_JitAlignLoops, fJitAlignLoops) != 0);
     fJitMinOpts = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_JITMinOpts, fJitMinOpts) == 1);
@@ -1203,39 +1202,46 @@ HRESULT EEConfig::sync()
     dwSleepOnExit = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_SleepOnExit);
 
 #if defined(FEATURE_TIERED_COMPILATION)
-    fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation) != 0;
+    fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation);
 
     fTieredCompilation_QuickJit =
         Configuration::GetKnobBooleanValue(
             W("System.Runtime.TieredCompilation.QuickJit"),
-            CLRConfig::UNSUPPORTED_TC_QuickJit) != 0;
+            CLRConfig::EXTERNAL_TC_QuickJit);
+    fTieredCompilation_QuickJitForLoops =
+        Configuration::GetKnobBooleanValue(
+            W("System.Runtime.TieredCompilation.QuickJitForLoops"),
+            CLRConfig::UNSUPPORTED_TC_QuickJitForLoops);
 
-    fTieredCompilation_StartupTier_CallCounting = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_StartupTier_CallCounting) != 0;
-    fTieredCompilation_StartupTier_OptimizeCode = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_StartupTier_OptimizeCode) != 0;
+    fTieredCompilation_CallCounting = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_CallCounting) != 0;
 
-    tieredCompilation_StartupTier_CallCountThreshold =
-        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TC_StartupTier_CallCountThreshold);
-    if (tieredCompilation_StartupTier_CallCountThreshold < 1)
+    tieredCompilation_CallCountThreshold = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_CallCountThreshold);
+    if (tieredCompilation_CallCountThreshold < 1)
     {
-        tieredCompilation_StartupTier_CallCountThreshold = 1;
+        tieredCompilation_CallCountThreshold = 1;
     }
-    else if (tieredCompilation_StartupTier_CallCountThreshold > INT_MAX) // CallCounter uses 'int'
+    else if (tieredCompilation_CallCountThreshold > INT_MAX) // CallCounter uses 'int'
     {
-        tieredCompilation_StartupTier_CallCountThreshold = INT_MAX;
+        tieredCompilation_CallCountThreshold = INT_MAX;
     }
 
-    tieredCompilation_StartupTier_CallCountingDelayMs =
-        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TC_StartupTier_CallCountingDelayMs);
-    if (CPUGroupInfo::HadSingleProcessorAtStartup())
+    tieredCompilation_CallCountingDelayMs = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_CallCountingDelayMs);
+
+#ifndef FEATURE_PAL
+    bool hadSingleProcessorAtStartup = CPUGroupInfo::HadSingleProcessorAtStartup();
+#else // !FEATURE_PAL
+    bool hadSingleProcessorAtStartup = g_SystemInfo.dwNumberOfProcessors == 1;
+#endif // !FEATURE_PAL
+
+    if (hadSingleProcessorAtStartup)
     {
-        DWORD delayMultiplier =
-            CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TC_StartupTier_DelaySingleProcMultiplier);
+        DWORD delayMultiplier = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_DelaySingleProcMultiplier);
         if (delayMultiplier > 1)
         {
-            DWORD newDelay = tieredCompilation_StartupTier_CallCountingDelayMs * delayMultiplier;
-            if (newDelay / delayMultiplier == tieredCompilation_StartupTier_CallCountingDelayMs)
+            DWORD newDelay = tieredCompilation_CallCountingDelayMs * delayMultiplier;
+            if (newDelay / delayMultiplier == tieredCompilation_CallCountingDelayMs)
             {
-                tieredCompilation_StartupTier_CallCountingDelayMs = newDelay;
+                tieredCompilation_CallCountingDelayMs = newDelay;
             }
         }
     }

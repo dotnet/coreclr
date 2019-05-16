@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 
 namespace System.Globalization
@@ -112,7 +111,8 @@ namespace System.Globalization
 
             if (!LoadCalendarDataFromSystem(localeName, calendarId))
             {
-                Debug.Fail("[CalendarData] LoadCalendarDataFromSystem call isn't expected to fail for calendar " + calendarId + " locale " + localeName);
+                // LoadCalendarDataFromSystem sometimes can fail on Linux if the installed ICU package is missing some resources.
+                // The ICU package can miss some resources in some cases like if someone compile and build the ICU package manually or ICU has a regression.
 
                 // Something failed, try invariant for missing parts
                 // This is really not good, but we don't want the callers to crash.

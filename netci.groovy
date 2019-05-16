@@ -154,7 +154,6 @@ class Constants {
                'ilrt',
                'r2r',
                'longgc',
-               'formatting',
                'gcsimulator',
                // 'jitdiff', // jitdiff is currently disabled, until someone spends the effort to make it fully work
                'standalone_gc',
@@ -1267,8 +1266,14 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
     // Check scenario.
     switch (scenario) {
         case 'crossgen_comparison':
-            if (isFlowJob && ((os == 'Ubuntu' && architecture == 'arm') || (os == 'Ubuntu16.04' && architecture == 'arm64')) && (configuration == 'Checked' || configuration == 'Release')) {
-                addPeriodicTriggerHelper(job, '@daily')
+            if (isFlowJob && (configuration == 'Checked' || configuration == 'Release')) {
+                if (os == 'Ubuntu' && architecture == 'arm') {
+                    // Not enough Linux/arm32 hardware for this.
+                    // addPeriodicTriggerHelper(job, '@daily')
+                }
+                if (os == 'Ubuntu16.04' && architecture == 'arm64') {
+                    addPeriodicTriggerHelper(job, '@daily')
+                }
             }
             break
 
@@ -1316,7 +1321,9 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                         if (isFlowJob) {
                             // Currently no push triggers, with limited arm Linux hardware.
                             // TODO: If we have enough machine capacity, add some arm Linux push triggers.
-                            addPeriodicTriggerHelper(job, '@daily')
+
+                            // Duplicated by AzDO
+                            // addPeriodicTriggerHelper(job, '@daily')
                         }
                     }
                     break
@@ -1353,7 +1360,10 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 // arm r2r jobs should only run weekly.
                 else if (architecture == 'arm') {
                     if (isFlowJob) {
-                        addPeriodicTriggerHelper(job, '@weekly')
+                        // Linux arm32 done in AzDO
+                        if (os == 'Windows_NT') {
+                            addPeriodicTriggerHelper(job, '@weekly')
+                        }
                     }
                 }
                 // arm64 r2r jobs should only run weekly.
@@ -1402,7 +1412,10 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 }
                 else if (architecture == 'arm') {
                     if (isFlowJob) {
-                        addPeriodicTriggerHelper(job, '@weekly')
+                        // Linux arm32 duplicated by AzDO
+                        if (os == 'Windows_NT') {
+                            addPeriodicTriggerHelper(job, '@weekly')
+                        }
                     }
                 }
                 else if (architecture == 'arm64') {
@@ -1512,6 +1525,10 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             if (os in bidailyCrossList) {
                 break
             }
+            if ((os == 'Ubuntu') && (architecture == 'arm') && !isCoreFxScenario(scenario)) {
+                // Linux arm32 duplicated by AzDO
+                break
+            }
             // ARM corefx testing uses non-flow jobs to provide the configuration-specific
             // build for the flow job. We don't need cron jobs for these. Note that the
             // Windows ARM jobs depend on a Windows "build only" job that exits the trigger
@@ -1546,6 +1563,10 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             if (os in bidailyCrossList) {
                 break
             }
+            if ((os == 'Ubuntu') && (architecture == 'arm')) {
+                // Linux arm32 duplicated by AzDO
+                break
+            }
             addPeriodicTriggerHelper(job, '@weekly')
             break
         case 'gcstress0xc':
@@ -1563,6 +1584,10 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 break
             }
             if (os in bidailyCrossList) {
+                break
+            }
+            if ((os == 'Ubuntu') && (architecture == 'arm')) {
+                // Linux arm32 duplicated by AzDO
                 break
             }
             addPeriodicTriggerHelper(job, '@weekly')
@@ -1967,7 +1992,8 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
     if (needsTrigger) {
         if (isArm64PrivateJob) {
-            if (isDefaultTrigger) {
+            // ignore isDefaultTrigger to disable Jenkins by default
+            if (false) {
                 Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
             }
             else {
@@ -1975,7 +2001,8 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             }
         }
         else {
-            if (isDefaultTrigger) {
+            // ignore isDefaultTrigger to disable Jenkins by default
+            if (false) {
                 Utilities.addGithubPRTriggerForBranch(job, branch, contextString)
             }
             else {
@@ -2143,8 +2170,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 def workspaceRelativeFxRoot = "_/fx"
                                 def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
                                 def fxBranch = getFxBranch(branch)
+                                def exclusionRspPath = "%WORKSPACE%\\tests\\scripts\\run-corefx-tests-exclusions.txt"
 
-                                buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath}"
+                                buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath} -exclusion_rsp_file ${exclusionRspPath}"
 
                                 // Archive and process (only) the test results
                                 Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
@@ -2377,8 +2405,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             def workspaceRelativeFxRoot = "_/fx"
                             def absoluteFxRoot = "\$WORKSPACE/${workspaceRelativeFxRoot}"
                             def fxBranch = getFxBranch(branch)
+                            def exclusionRspPath = "\$WORKSPACE/tests/scripts/run-corefx-tests-exclusions.txt"
 
-                            buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName}"
+                            buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName} -exclusion_rsp_file ${exclusionRspPath}"
 
                             // Archive and process (only) the test results
                             Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/artifacts/bin/**/testResults.xml", "", /* doNotFailIfNothingArchived */ true, /* archiveOnlyIfSuccessful */ false)
@@ -2963,7 +2992,8 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                 def corefx_runtime_path   = "%WORKSPACE%\\_\\fx\\artifacts\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}"
                 def corefx_tests_dir      = "%WORKSPACE%\\_\\fx\\artifacts\\bin\\tests"
                 def corefx_exclusion_file = "%WORKSPACE%\\tests\\${architecture}\\corefx_test_exclusions.txt"
-                batchFile("call %WORKSPACE%\\tests\\scripts\\run-corefx-tests.bat ${corefx_runtime_path} ${corefx_tests_dir} ${corefx_exclusion_file} ${architecture}")
+                def exclusionRspPath      = "%WORKSPACE%\\tests\\scripts\\run-corefx-tests-exclusions.txt"
+                batchFile("call %WORKSPACE%\\tests\\scripts\\run-corefx-tests.bat ${corefx_runtime_path} ${corefx_tests_dir} ${corefx_exclusion_file} ${architecture} ${exclusionRspPath}")
 
             } else { // !isCoreFxScenario(scenario)
 
@@ -3348,8 +3378,9 @@ python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci
                 shell("tar -czf dasm.${os}.${architecture}.${configuration}.tgz ./_/pmi/asm")
             }
             else if (doCoreFxTesting) {
+                def exclusionRspPath = "\${WORKSPACE}/tests/scripts/run-corefx-tests-exclusions.txt"
                 shell("""\
-\${WORKSPACE}/tests/scripts/run-corefx-tests.sh --test-exclude-file \${WORKSPACE}/tests/${architecture}/corefx_linux_test_exclusions.txt --runtime \${WORKSPACE}/${workspaceRelativeFxRootLinux}/artifacts/bin/testhost/netcoreapp-Linux-Release-${architecture} --arch ${architecture} --corefx-tests \${WORKSPACE}/${workspaceRelativeFxRootLinux}/artifacts/bin --configurationGroup Release""")
+\${WORKSPACE}/tests/scripts/run-corefx-tests.sh --test-exclude-file \${WORKSPACE}/tests/${architecture}/corefx_linux_test_exclusions.txt --runtime \${WORKSPACE}/${workspaceRelativeFxRootLinux}/artifacts/bin/testhost/netcoreapp-Linux-Release-${architecture} --arch ${architecture} --corefx-tests \${WORKSPACE}/${workspaceRelativeFxRootLinux}/artifacts/bin --configurationGroup Release --exclusion-rsp-file ${exclusionRspPath}""")
             }
             else {
                 def runScript = "${dockerCmd}./tests/runtest.sh"

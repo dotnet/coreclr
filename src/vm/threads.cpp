@@ -35,7 +35,6 @@
 
 #include "nativeoverlapped.h"
 
-#include "mdaassistants.h"
 #include "appdomain.inl"
 #include "vmholder.h"
 #include "exceptmacros.h"
@@ -55,7 +54,7 @@
 #include "eventpipebuffermanager.h"
 #endif // FEATURE_PERFTRACING
 
-
+uint64_t Thread::dead_threads_non_alloc_bytes = 0;
 
 SPTR_IMPL(ThreadStore, ThreadStore, s_pThreadStore);
 CONTEXT *ThreadStore::s_pOSContext = NULL;
@@ -83,7 +82,9 @@ PTR_ThreadLocalModule ThreadLocalBlock::GetTLMIfExists(MethodTable* pMT)
 
 BOOL Thread::s_fCleanFinalizedThread = FALSE;
 
-Volatile<LONG> Thread::s_threadPoolCompletionCountOverflow = 0;
+UINT64 Thread::s_workerThreadPoolCompletionCountOverflow = 0;
+UINT64 Thread::s_ioThreadPoolCompletionCountOverflow = 0;
+UINT64 Thread::s_monitorLockContentionCountOverflow = 0;
 
 CrstStatic g_DeadlockAwareCrst;
 
@@ -451,7 +452,7 @@ void Thread::ChooseThreadCPUGroupAffinity()
         GC_TRIGGERS;
     }
     CONTRACTL_END;
-
+#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
@@ -471,6 +472,7 @@ void Thread::ChooseThreadCPUGroupAffinity()
     CPUGroupInfo::SetThreadGroupAffinity(GetThreadHandle(), &groupAffinity, NULL);
     m_wCPUGroup = groupAffinity.Group;
     m_pAffinityMask = groupAffinity.Mask;
+#endif // !FEATURE_PAL
 }
 
 void Thread::ClearThreadCPUGroupAffinity()
@@ -481,7 +483,7 @@ void Thread::ClearThreadCPUGroupAffinity()
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-
+#ifndef FEATURE_PAL
     if (!CPUGroupInfo::CanEnableGCCPUGroups() || !CPUGroupInfo::CanEnableThreadUseAllCpuGroups()) 
          return;
 
@@ -499,6 +501,7 @@ void Thread::ClearThreadCPUGroupAffinity()
 
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
+#endif // !FEATURE_PAL
 }
 
 DWORD Thread::StartThread()
@@ -805,13 +808,6 @@ Thread* SetupThread(BOOL fInternal)
         FastInterlockOr((ULONG *) &pThread->m_State, Thread::TS_TPWorkerThread);
     }
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM)
-    {
-        pThread->QueryThreadProcessorUsage();
-    }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 #ifdef FEATURE_EVENT_TRACE
     ETW::ThreadLog::FireThreadCreated(pThread);
 #endif // FEATURE_EVENT_TRACE
@@ -861,15 +857,6 @@ void DestroyThread(Thread *th)
     _ASSERTE (th == GetThread());
 
     _ASSERTE(g_fEEShutDown || th->m_dwLockCount == 0 || th->m_fRudeAborted);
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM)
-    {
-        AppDomain* pDomain = th->GetDomain();
-        pDomain->UpdateProcessorUsage(th->QueryThreadProcessorUsage());
-        FireEtwThreadTerminated((ULONGLONG)th, (ULONGLONG)pDomain, GetClrInstanceId());
-    }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     th->FinishSOWork();
 
@@ -962,14 +949,6 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
     _ASSERTE ((m_State & Thread::TS_Detached) == 0);
 
     _ASSERTE (this == GetThread());
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM && m_pDomain)
-    {
-        m_pDomain->UpdateProcessorUsage(QueryThreadProcessorUsage());
-        FireEtwThreadTerminated((ULONGLONG)this, (ULONGLONG)m_pDomain, GetClrInstanceId());
-    }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     FinishSOWork();
 
@@ -1398,6 +1377,7 @@ Thread::Thread()
     m_CacheStackBase = 0;
     m_CacheStackLimit = 0;
     m_CacheStackSufficientExecutionLimit = 0;
+    m_CacheStackStackAllocNonRiskyExecutionLimit = 0;
 
     m_LastAllowableStackAddress= 0;
     m_ProbeLimit = 0;
@@ -1526,7 +1506,9 @@ Thread::Thread()
     m_sfEstablisherOfActualHandlerFrame.Clear();
 #endif // WIN64EXCEPTIONS
 
-    m_threadPoolCompletionCount = 0;
+    m_workerThreadPoolCompletionCount = 0;
+    m_ioThreadPoolCompletionCount = 0;
+    m_monitorLockContentionCount = 0;
 
     Thread *pThread = GetThread();
     InitContext();
@@ -1549,10 +1531,6 @@ Thread::Thread()
     contextHolder.SuppressRelease();
     savedRedirectContextHolder.SuppressRelease();
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    m_ullProcessorUsageBaseline = 0;
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 #ifdef FEATURE_COMINTEROP
     m_uliInitializeSpyCookie.QuadPart = 0ul;
     m_fInitializeSpyRegistered = false;
@@ -1561,8 +1539,10 @@ Thread::Thread()
     
     m_fGCSpecial = FALSE;
 
+#ifndef FEATURE_PAL
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
+#endif // !FEATURE_PAL
 
     m_pAllLoggedTypes = NULL;
 
@@ -1817,12 +1797,6 @@ BOOL Thread::HasStarted(BOOL bRequiresTSL)
 
         ThreadStore::TransferStartedThread(this, bRequiresTSL);
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        if (g_fEnableARM)
-        {
-            QueryThreadProcessorUsage();
-        }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 #ifdef FEATURE_EVENT_TRACE
         ETW::ThreadLog::FireThreadCreated(this);
 #endif // FEATURE_EVENT_TRACE
@@ -2136,6 +2110,48 @@ HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTH
 }
 
 
+// Represent the value of DEFAULT_STACK_SIZE as passed in the property bag to the host during construction
+static unsigned long s_defaultStackSizeProperty = 0;
+
+void ParseDefaultStackSize(LPCWSTR valueStr)
+{
+    if (valueStr)
+    {
+        LPWSTR end;
+        errno = 0;
+        unsigned long value = wcstoul(valueStr, &end, 16); // Base 16 without a prefix
+
+        if ((errno == ERANGE)     // Parsed value doesn't fit in an unsigned long
+            || (valueStr == end)  // No characters parsed
+            || (end == nullptr)   // Unexpected condition (should never happen)
+            || (end[0] != 0))     // Unprocessed terminal characters
+        {
+            ThrowHR(E_INVALIDARG);
+        }
+        else
+        {
+            s_defaultStackSizeProperty = value;
+        }
+    }
+}
+
+SIZE_T GetDefaultStackSizeSetting()
+{
+    static DWORD s_defaultStackSizeEnv = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DefaultStackSize);
+
+    uint64_t value = s_defaultStackSizeEnv ? s_defaultStackSizeEnv : s_defaultStackSizeProperty;
+
+    SIZE_T minStack = 0x10000;     // 64K - Somewhat arbitrary minimum thread stack size
+    SIZE_T maxStack = 0x80000000;  //  2G - Somewhat arbitrary maximum thread stack size
+
+    if ((value >= maxStack) || ((value != 0) && (value < minStack)))
+    {
+        ThrowHR(E_INVALIDARG);
+    }
+
+    return (SIZE_T) value;
+}
+
 BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
 {
     CONTRACTL
@@ -2152,6 +2168,18 @@ BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
     static SIZE_T ExeSizeOfStackCommit = 0;
 
     static BOOL fSizesGot = FALSE;
+
+    if (!fSizesGot)
+    {
+        SIZE_T defaultStackSizeSetting = GetDefaultStackSizeSetting();
+
+        if (defaultStackSizeSetting != 0)
+        {
+            ExeSizeOfStackReserve = defaultStackSizeSetting;
+            ExeSizeOfStackCommit = defaultStackSizeSetting;
+            fSizesGot = TRUE;
+        }
+    }
 
 #ifndef FEATURE_PAL
     if (!fSizesGot)
@@ -2197,6 +2225,11 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
     DWORD dwCreationFlags = CREATE_SUSPENDED;
 
     dwCreationFlags |= STACK_SIZE_PARAM_IS_A_RESERVATION;
+
+    if (sizeToCommitOrReserve == 0)
+    {
+        sizeToCommitOrReserve = GetDefaultStackSizeSetting();
+    }
 
 #ifndef FEATURE_PAL // the PAL does its own adjustments as necessary
     if (sizeToCommitOrReserve != 0 && sizeToCommitOrReserve <= GetOsPageSize())
@@ -2895,6 +2928,9 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
         if (ThisThreadID == CurrentThreadID)
         {
             GCX_COOP();
+            // GetTotalAllocatedBytes reads dead_threads_non_alloc_bytes, but will suspend EE, being in COOP mode we cannot race with that
+            // however, there could be other threads terminating and doing the same Add.
+            FastInterlockExchangeAddLong((LONG64*)&dead_threads_non_alloc_bytes, m_alloc_context.alloc_limit - m_alloc_context.alloc_ptr);
             GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, NULL, NULL);
             m_alloc_context.init();
         }
@@ -2952,6 +2988,7 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
         {
             // We must be holding the ThreadStore lock in order to clean up alloc context.
             // We should never call FixAllocContext during GC.
+            dead_threads_non_alloc_bytes += m_alloc_context.alloc_limit - m_alloc_context.alloc_ptr;
             GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, NULL, NULL);
             m_alloc_context.init();
         }
@@ -4763,11 +4800,7 @@ Thread::ApartmentState Thread::GetApartment()
         as = TS_TO_AS(maskedTs);
     }
 
-    if (
-#ifdef MDA_SUPPORTED
-        (NULL == MDA_GET_ASSISTANT(InvalidApartmentStateChange)) &&
-#endif
-        (as != AS_Unknown))
+    if (as != AS_Unknown)
     {
         return as;
     }
@@ -4789,33 +4822,6 @@ Thread::ApartmentState Thread::GetApartmentRare(Thread::ApartmentState as)
     {
         THDTYPE type;
         HRESULT hr = S_OK;
-
-#ifdef MDA_SUPPORTED
-        MdaInvalidApartmentStateChange* pProbe = MDA_GET_ASSISTANT(InvalidApartmentStateChange);
-        if (pProbe)
-        {
-            // Without notifications from OLE32, we cannot know when the apartment state of a
-            // thread changes.  But we have cached this fact and depend on it for all our
-            // blocking and COM Interop behavior to work correctly.  Using the CDH, log that it
-            // is not changing underneath us, on those platforms where it is relatively cheap for
-            // us to do so.
-            if (as != AS_Unknown)
-            {
-                hr = GetCurrentThreadTypeNT5(&type);
-                if (hr == S_OK)
-                {
-                    if (type == THDTYPE_PROCESSMESSAGES && as == AS_InMTA)
-                    {
-                        pProbe->ReportViolation(this, as, FALSE);
-                    }
-                    else if (type == THDTYPE_BLOCKMESSAGES && as == AS_InSTA)
-                    {
-                        pProbe->ReportViolation(this, as, FALSE);
-                    }
-                }
-            }
-        }
-#endif
 
         if (as == AS_Unknown)
         {
@@ -4989,12 +4995,6 @@ Thread::ApartmentState Thread::SetApartment(ApartmentState state, BOOL fFireMDAO
     // MTA.
     if (m_State & TS_InSTA)
     {
-#ifdef MDA_SUPPORTED
-        if (state == AS_InMTA && fFireMDAOnMismatch)
-        {
-            MDA_TRIGGER_ASSISTANT(InvalidApartmentStateChange, ReportViolation(this, state, TRUE));
-        }
-#endif
         return AS_InSTA;
     }
 
@@ -5002,12 +5002,6 @@ Thread::ApartmentState Thread::SetApartment(ApartmentState state, BOOL fFireMDAO
     // STA.
     if (m_State & TS_InMTA)
     {
-#ifdef MDA_SUPPORTED
-        if (state == AS_InSTA && fFireMDAOnMismatch)
-        {
-            MDA_TRIGGER_ASSISTANT(InvalidApartmentStateChange, ReportViolation(this, state, TRUE));
-        }
-#endif
         return AS_InMTA;
     }
 
@@ -5069,19 +5063,14 @@ Thread::ApartmentState Thread::SetApartment(ApartmentState state, BOOL fFireMDAO
         // we can work out what the state is now.  No need to actually do the CoInit --
         // obviously someone else already took care of that.
         FastInterlockOr((ULONG *) &m_State, ((state == AS_InSTA) ? TS_InMTA : TS_InSTA));
-
-#ifdef MDA_SUPPORTED
-        if (fFireMDAOnMismatch)
-        {
-            // Report via the customer debug helper that we failed to set the apartment type
-            // to the specified type.
-            MDA_TRIGGER_ASSISTANT(InvalidApartmentStateChange, ReportViolation(this, state, TRUE));
-        }
-#endif
     }
     else if (hr == E_OUTOFMEMORY)
     {
         COMPlusThrowOM();
+    }
+    else if (hr == E_NOTIMPL)
+    {
+        COMPlusThrow(kPlatformNotSupportedException, IDS_EE_THREAD_APARTMENT_NOT_SUPPORTED, (state == AS_InSTA) ? W("STA") : W("MTA"));
     }
     else
     {
@@ -5209,12 +5198,6 @@ DEBUG_NOINLINE void ThreadStore::Enter()
     ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
     CHECK_ONE_STORE();
     m_Crst.Enter();
-
-    // Threadstore needs special shutdown handling.
-    if (g_fSuspendOnShutdown)
-    {
-        m_Crst.ReleaseAndBlockForShutdownIfNotSpecialThread();
-    }
 }
 
 DEBUG_NOINLINE void ThreadStore::Leave()
@@ -5352,9 +5335,15 @@ BOOL ThreadStore::RemoveThread(Thread *target)
         if (target->IsBackground())
             s_pThreadStore->m_BackgroundThreadCount--;
 
-        FastInterlockExchangeAdd(
-            &Thread::s_threadPoolCompletionCountOverflow,
-            target->m_threadPoolCompletionCount);
+        FastInterlockExchangeAddLong(
+            (LONGLONG *)&Thread::s_workerThreadPoolCompletionCountOverflow,
+            target->m_workerThreadPoolCompletionCount);
+        FastInterlockExchangeAddLong(
+            (LONGLONG *)&Thread::s_ioThreadPoolCompletionCountOverflow,
+            target->m_ioThreadPoolCompletionCount);
+        FastInterlockExchangeAddLong(
+            (LONGLONG *)&Thread::s_monitorLockContentionCountOverflow,
+            target->m_monitorLockContentionCount);
 
         _ASSERTE(s_pThreadStore->m_ThreadCount >= 0);
         _ASSERTE(s_pThreadStore->m_BackgroundThreadCount >= 0);
@@ -6436,6 +6425,20 @@ BOOL Thread::SetStackLimits(SetStackLimitScope scope)
         else
         {
             m_CacheStackSufficientExecutionLimit = reinterpret_cast<UINT_PTR>(m_CacheStackBase);
+        }
+
+        // Compute the limit used by CheckCanUseStackAllocand cache it on the thread. This minimum stack size should
+        // be sufficient to avoid all significant risk of a moderate size stack alloc interfering with application behavior
+        const UINT_PTR StackAllocNonRiskyExecutionStackSize = 512 * 1024;
+        _ASSERTE(m_CacheStackBase >= m_CacheStackLimit);
+        if ((reinterpret_cast<UINT_PTR>(m_CacheStackBase) - reinterpret_cast<UINT_PTR>(m_CacheStackLimit)) >
+            StackAllocNonRiskyExecutionStackSize)
+        {
+            m_CacheStackStackAllocNonRiskyExecutionLimit = reinterpret_cast<UINT_PTR>(m_CacheStackLimit) + StackAllocNonRiskyExecutionStackSize;
+        }
+        else
+        {
+            m_CacheStackStackAllocNonRiskyExecutionLimit = reinterpret_cast<UINT_PTR>(m_CacheStackBase);
         }
     }
 
@@ -8004,40 +8007,68 @@ BOOL ThreadStore::HoldingThreadStore(Thread *pThread)
     }
 }
 
-LONG Thread::GetTotalThreadPoolCompletionCount()
+NOINLINE void Thread::OnIncrementCountOverflow(UINT32 *threadLocalCount, UINT64 *overflowCount)
 {
-    CONTRACTL
-    {
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(threadLocalCount != nullptr);
+    _ASSERTE(overflowCount != nullptr);
+
+    // Increment overflow, accumulate the count for this increment into the overflow count and reset the thread-local count
+
+    // The thread store lock, in coordination with other places that read these values, ensures that both changes
+    // below become visible together
+    ThreadStoreLockHolder tsl;
+
+    *threadLocalCount = 0;
+    InterlockedExchangeAdd64((LONGLONG *)overflowCount, (LONGLONG)UINT32_MAX + 1);
+}
+
+UINT64 Thread::GetTotalCount(SIZE_T threadLocalCountOffset, UINT64 *overflowCount)
+{
+    CONTRACTL {
         NOTHROW;
-        MODE_ANY;
+        GC_TRIGGERS;
     }
     CONTRACTL_END;
 
-    LONG total;
-    if (g_fEEStarted) //make sure we actually have a thread store
+    _ASSERTE(overflowCount != nullptr);
+
+    // enumerate all threads, summing their local counts.
+    ThreadStoreLockHolder tsl;
+
+    UINT64 total = GetOverflowCount(overflowCount);
+
+    Thread *pThread = NULL;
+    while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
     {
-        // make sure up-to-date thread-local counts are visible to us
-        ::FlushProcessWriteBuffers();
-
-        // enumerate all threads, summing their local counts.
-        ThreadStoreLockHolder tsl;
-
-        total = s_threadPoolCompletionCountOverflow.Load();
-
-        Thread *pThread = NULL;
-        while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
-        {
-            total += pThread->m_threadPoolCompletionCount;
-        }
-    }
-    else
-    {
-        total = s_threadPoolCompletionCountOverflow.Load();
+        total += *GetThreadLocalCountRef(pThread, threadLocalCountOffset);
     }
 
     return total;
 }
 
+UINT64 Thread::GetTotalThreadPoolCompletionCount()
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_TRIGGERS;
+    }
+    CONTRACTL_END;
+
+    // enumerate all threads, summing their local counts.
+    ThreadStoreLockHolder tsl;
+
+    UINT64 total = GetWorkerThreadPoolCompletionCountOverflow() + GetIOThreadPoolCompletionCountOverflow();
+
+    Thread *pThread = NULL;
+    while ((pThread = ThreadStore::GetAllThreadList(pThread, 0, 0)) != NULL)
+    {
+        total += pThread->m_workerThreadPoolCompletionCount;
+        total += pThread->m_ioThreadPoolCompletionCount;
+    }
+
+    return total;
+}
 
 INT32 Thread::ResetManagedThreadObject(INT32 nPriority)
 {
@@ -8119,8 +8150,6 @@ void Thread::InternalReset(BOOL fNotFinalizerThread, BOOL fThreadObjectResetNeed
     {
         nPriority = ResetManagedThreadObject(nPriority);
     }
-
-    //m_MarshalAlloc.Collapse(NULL);
 
     if (fResetAbort && IsAbortRequested()) {
         UnmarkThreadForAbort(TAR_ALL);
@@ -8611,55 +8640,6 @@ BOOL dbgOnly_IsSpecialEEThread()
 #endif // _DEBUG
 
 
-// There is an MDA which can detect illegal reentrancy into the CLR.  For instance, if you call managed
-// code from a native vectored exception handler, this might cause a reverse PInvoke to occur.  But if the
-// exception was triggered from code that was executing in cooperative GC mode, we now have GC holes and
-// general corruption.
-#ifdef MDA_SUPPORTED
-NOINLINE BOOL HasIllegalReentrancyRare()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        ENTRY_POINT;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    Thread *pThread = GetThread();
-    if (pThread == NULL || !pThread->PreemptiveGCDisabled())
-        return FALSE;
-
-    BEGIN_ENTRYPOINT_VOIDRET;
-    MDA_TRIGGER_ASSISTANT(Reentrancy, ReportViolation());
-    END_ENTRYPOINT_VOIDRET;
-    return TRUE;
-}
-#endif
-
-// Actually fire the Reentrancy probe, if warranted.
-BOOL HasIllegalReentrancy()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        ENTRY_POINT;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-#ifdef MDA_SUPPORTED
-    if (NULL == MDA_GET_ASSISTANT(Reentrancy))
-        return FALSE;
-    return HasIllegalReentrancyRare();
-#else
-    return FALSE;
-#endif // MDA_SUPPORTED
-}
-
-
 #endif // #ifndef DACCESS_COMPILE
 
 #ifdef DACCESS_COMPILE
@@ -8903,56 +8883,6 @@ ThreadStore::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 }
 
 #endif // #ifdef DACCESS_COMPILE
-
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-// For the purposes of tracking resource usage we implement a simple cpu resource usage counter on each
-// thread. Every time QueryThreadProcessorUsage() is invoked it returns the amount of cpu time (a combination
-// of user and kernel mode time) used since the last call to QueryThreadProcessorUsage(). The result is in 100
-// nanosecond units.
-ULONGLONG Thread::QueryThreadProcessorUsage()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // Get current values for the amount of kernel and user time used by this thread over its entire lifetime.
-    FILETIME sCreationTime, sExitTime, sKernelTime, sUserTime;
-    HANDLE hThread = GetThreadHandle();
-    BOOL fResult = GetThreadTimes(hThread,
-                                  &sCreationTime,
-                                  &sExitTime,
-                                  &sKernelTime,
-                                  &sUserTime);
-    if (!fResult)
-    {
-#ifdef _DEBUG
-        ULONG error = GetLastError();
-        printf("GetThreadTimes failed: %d; handle is %p\n", error, hThread);
-        _ASSERTE(FALSE);
-#endif
-        return 0;
-    }
-
-    // Combine the user and kernel times into a single value (FILETIME is just a structure representing an
-    // unsigned int64 in two 32-bit pieces).
-    _ASSERTE(sizeof(FILETIME) == sizeof(UINT64));
-    ULONGLONG ullCurrentUsage = *(ULONGLONG*)&sKernelTime + *(ULONGLONG*)&sUserTime;
-
-    // Store the current processor usage as the new baseline, and retrieve the previous usage.
-    ULONGLONG ullPreviousUsage = VolatileLoad(&m_ullProcessorUsageBaseline);
-    if (ullPreviousUsage >= ullCurrentUsage ||
-        ullPreviousUsage != (ULONGLONG)InterlockedCompareExchange64(
-            (LONGLONG*)&m_ullProcessorUsageBaseline, 
-            (LONGLONG)ullCurrentUsage, 
-            (LONGLONG)ullPreviousUsage))
-    {
-        // another thread beat us to it, and already reported this usage.  
-        return 0; 
-    }
-
-    // The result is the difference between this value and the previous usage value.
-    return ullCurrentUsage - ullPreviousUsage;
-}
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
 OBJECTHANDLE Thread::GetOrCreateDeserializationTracker()
 {

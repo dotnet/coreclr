@@ -55,14 +55,41 @@
 #include "globals.h"
 #include "cgroup.h"
 
+#if HAVE_NUMA_H
+
+#include <numa.h>
+#include <numaif.h>
+#include <dlfcn.h>
+
+// List of all functions from the numa library that are used
+#define FOR_ALL_NUMA_FUNCTIONS \
+    PER_FUNCTION_BLOCK(mbind) \
+    PER_FUNCTION_BLOCK(numa_available) \
+    PER_FUNCTION_BLOCK(numa_max_node) \
+    PER_FUNCTION_BLOCK(numa_node_of_cpu)
+
+// Declare pointers to all the used numa functions
+#define PER_FUNCTION_BLOCK(fn) extern decltype(fn)* fn##_ptr;
+FOR_ALL_NUMA_FUNCTIONS
+#undef PER_FUNCTION_BLOCK
+
+// Redefine all calls to numa functions as calls through pointers that are set
+// to the functions of libnuma in the initialization.
+#define mbind(...) mbind_ptr(__VA_ARGS__)
+#define numa_available() numa_available_ptr()
+#define numa_max_node() numa_max_node_ptr()
+#define numa_node_of_cpu(...) numa_node_of_cpu_ptr(__VA_ARGS__)
+
+#endif // HAVE_NUMA_H
+
 #if defined(_ARM_) || defined(_ARM64_)
 #define SYSCONF_GET_NUMPROCS _SC_NPROCESSORS_CONF
 #else
 #define SYSCONF_GET_NUMPROCS _SC_NPROCESSORS_ONLN
 #endif
 
-// The cached number of logical CPUs observed.
-static uint32_t g_logicalCpuCount = 0;
+// The cached total number of CPUs that can be used in the OS.
+static uint32_t g_totalCpuCount = 0;
 
 // The cached number of CPUs available for the current process.
 static uint32_t g_currentProcessCpuCount = 0;
@@ -109,6 +136,74 @@ uint32_t g_pageSizeUnixInl = 0;
 
 AffinitySet g_processAffinitySet;
 
+#if HAVE_CPUSET_T
+typedef cpuset_t cpu_set_t;
+#endif
+
+// The highest NUMA node available
+int g_highestNumaNode = 0;
+// Is numa available
+bool g_numaAvailable = false;
+
+void* g_numaHandle = nullptr;
+
+#if HAVE_NUMA_H
+#define PER_FUNCTION_BLOCK(fn) decltype(fn)* fn##_ptr;
+FOR_ALL_NUMA_FUNCTIONS
+#undef PER_FUNCTION_BLOCK
+#endif // HAVE_NUMA_H
+
+
+// Initialize data structures for getting and setting thread affinities to processors and
+// querying NUMA related processor information.
+// On systems with no NUMA support, it behaves as if there was a single NUMA node with
+// a single group of processors.
+void NUMASupportInitialize()
+{
+#if HAVE_NUMA_H
+    g_numaHandle = dlopen("libnuma.so", RTLD_LAZY);
+    if (g_numaHandle == 0)
+    {
+        g_numaHandle = dlopen("libnuma.so.1", RTLD_LAZY);
+    }
+    if (g_numaHandle != 0)
+    {
+        dlsym(g_numaHandle, "numa_allocate_cpumask");
+#define PER_FUNCTION_BLOCK(fn) \
+    fn##_ptr = (decltype(fn)*)dlsym(g_numaHandle, #fn); \
+    if (fn##_ptr == NULL) { fprintf(stderr, "Cannot get symbol " #fn " from libnuma\n"); abort(); }
+FOR_ALL_NUMA_FUNCTIONS
+#undef PER_FUNCTION_BLOCK
+
+        if (numa_available() == -1)
+        {
+            dlclose(g_numaHandle);
+        }
+        else
+        {
+            g_numaAvailable = true;
+            g_highestNumaNode = numa_max_node();
+        }
+    }
+#endif // HAVE_NUMA_H
+    if (!g_numaAvailable)
+    {
+        // No NUMA
+        g_highestNumaNode = 0;
+    }
+}
+
+// Cleanup of the NUMA support data structures
+void NUMASupportCleanup()
+{
+#if HAVE_NUMA_H
+    if (g_numaAvailable)
+    {
+        dlclose(g_numaHandle);
+    }
+#endif // HAVE_NUMA_H
+}
+
 // Initialize the interface implementation
 // Return:
 //  true if it has succeeded, false if it has failed
@@ -125,7 +220,7 @@ bool GCToOSInterface::Initialize()
         return false;
     }
 
-    g_logicalCpuCount = cpuCount;
+    g_totalCpuCount = cpuCount;
 
     //
     // support for FlusProcessWriteBuffers
@@ -194,7 +289,7 @@ bool GCToOSInterface::Initialize()
 
     if (st == 0)
     {
-        for (size_t i = 0; i < g_logicalCpuCount; i++)
+        for (size_t i = 0; i < g_totalCpuCount; i++)
         {
             if (CPU_ISSET(i, &cpuSet))
             {
@@ -212,14 +307,22 @@ bool GCToOSInterface::Initialize()
 
 #else // HAVE_SCHED_GETAFFINITY
 
-    g_currentProcessCpuCount = g_logicalCpuCount;
+    g_currentProcessCpuCount = g_totalCpuCount;
 
-    for (size_t i = 0; i < g_logicalCpuCount; i++)
+    for (size_t i = 0; i < g_totalCpuCount; i++)
     {
         g_processAffinitySet.Add(i);
     }
 
 #endif // HAVE_SCHED_GETAFFINITY
+
+    uint32_t cpuLimit;
+    if (GetCpuLimit(&cpuLimit) && cpuLimit < g_currentProcessCpuCount)
+    {
+        g_currentProcessCpuCount = cpuLimit;
+    }
+
+    NUMASupportInitialize();
 
     return true;
 }
@@ -235,6 +338,7 @@ void GCToOSInterface::Shutdown()
     munmap(g_helperPage, OS_PAGE_SIZE);
 
     CleanupCGroup();
+    NUMASupportCleanup();
 }
 
 // Get numeric id of the current thread if possible on the
@@ -379,7 +483,7 @@ void GCToOSInterface::YieldThread(uint32_t switchCount)
 //  flags     - flags to control special settings like write watching
 // Return:
 //  Starting virtual address of the reserved range
-void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags)
+static void* VirtualReserveInner(size_t size, size_t alignment, uint32_t flags, uint32_t hugePagesFlag = 0)
 {
     assert(!(flags & VirtualReserveFlags::WriteWatch) && "WriteWatch not supported on Unix");
     if (alignment == 0)
@@ -388,7 +492,7 @@ void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t fl
     }
 
     size_t alignedSize = size + (alignment - OS_PAGE_SIZE);
-    void * pRetVal = mmap(nullptr, alignedSize, PROT_NONE, MAP_ANON | MAP_PRIVATE, -1, 0);
+    void * pRetVal = mmap(nullptr, alignedSize, PROT_NONE, MAP_ANON | MAP_PRIVATE | hugePagesFlag, -1, 0);
 
     if (pRetVal != NULL)
     {
@@ -413,6 +517,18 @@ void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t fl
     return pRetVal;
 }
 
+// Reserve virtual memory range.
+// Parameters:
+//  size      - size of the virtual memory range
+//  alignment - requested memory alignment, 0 means no specific alignment requested
+//  flags     - flags to control special settings like write watching
+// Return:
+//  Starting virtual address of the reserved range
+void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags)
+{
+    return VirtualReserveInner(size, alignment, flags);
+}
+
 // Release virtual memory range previously reserved using VirtualReserve
 // Parameters:
 //  address - starting virtual address
@@ -426,6 +542,30 @@ bool GCToOSInterface::VirtualRelease(void* address, size_t size)
     return (ret == 0);
 }
 
+// Commit virtual memory range.
+// Parameters:
+//  size      - size of the virtual memory range
+// Return:
+//  Starting virtual address of the committed range
+void* GCToOSInterface::VirtualReserveAndCommitLargePages(size_t size)
+{
+#if HAVE_MAP_HUGETLB
+    uint32_t largePagesFlag = MAP_HUGETLB;
+#elif HAVE_VM_FLAGS_SUPERPAGE_SIZE_ANY
+    uint32_t largePagesFlag = VM_FLAGS_SUPERPAGE_SIZE_ANY;
+#else
+    uint32_t largePagesFlag = 0;
+#endif
+
+    void* pRetVal = VirtualReserveInner(size, OS_PAGE_SIZE, 0, largePagesFlag);
+    if (VirtualCommit(pRetVal, size, NUMA_NODE_UNDEFINED))
+    {
+        return pRetVal;
+    }
+
+    return nullptr;
+}
+
 // Commit virtual memory range. It must be part of a range reserved using VirtualReserve.
 // Parameters:
 //  address - starting virtual address
@@ -434,8 +574,29 @@ bool GCToOSInterface::VirtualRelease(void* address, size_t size)
 //  true if it has succeeded, false if it has failed
 bool GCToOSInterface::VirtualCommit(void* address, size_t size, uint16_t node)
 {
-    assert(node == NUMA_NODE_UNDEFINED && "Numa allocation is not ported to local GC on unix yet");
-    return mprotect(address, size, PROT_WRITE | PROT_READ) == 0;
+    bool success = mprotect(address, size, PROT_WRITE | PROT_READ) == 0;
+
+#if HAVE_NUMA_H
+    if (success && g_numaAvailable && (node != NUMA_NODE_UNDEFINED))
+    {
+        if ((int)node <= g_highestNumaNode)
+        {
+            int usedNodeMaskBits = g_highestNumaNode + 1;
+            int nodeMaskLength = (usedNodeMaskBits + sizeof(unsigned long) - 1) / sizeof(unsigned long);
+            unsigned long nodeMask[nodeMaskLength];
+            memset(nodeMask, 0, sizeof(nodeMask));
+
+            int index = node / sizeof(unsigned long);
+            nodeMask[index] = ((unsigned long)1) << (node & (sizeof(unsigned long) - 1));
+
+            int st = mbind(address, size, MPOL_PREFERRED, nodeMask, usedNodeMaskBits, 0);
+            assert(st == 0);
+            // If the mbind fails, we still return the allocated memory since the node is just a hint
+        }
+    }
+#endif // HAVE_NUMA_H
+
+    return success;
 }
 
 // Decomit virtual memory range.
@@ -736,18 +897,12 @@ uint32_t GCToOSInterface::GetTotalProcessorCount()
 {
     // Calculated in GCToOSInterface::Initialize using
     // sysconf(_SC_NPROCESSORS_ONLN)
-    return g_logicalCpuCount;
+    return g_totalCpuCount;
 }
 
 bool GCToOSInterface::CanEnableGCNumaAware()
 {
-    return false;
-}
-
-bool GCToOSInterface::GetNumaProcessorNode(uint16_t proc_no, uint16_t *node_no)
-{
-    assert(!"Numa has not been ported to local GC for unix");
-    return false;
+    return g_numaAvailable;
 }
 
 // Get processor number and optionally its NUMA node number for the specified heap number
@@ -762,22 +917,21 @@ bool GCToOSInterface::GetProcessorForHeap(uint16_t heap_number, uint16_t* proc_n
     bool success = false;
 
     uint16_t availableProcNumber = 0;
-    for (size_t procNumber = 0; procNumber < g_logicalCpuCount; procNumber++)
+    for (size_t procNumber = 0; procNumber < g_totalCpuCount; procNumber++)
     {
         if (g_processAffinitySet.Contains(procNumber))
         {
             if (availableProcNumber == heap_number)
             {
                 *proc_no = procNumber;
-
+#if HAVE_NUMA_H
                 if (GCToOSInterface::CanEnableGCNumaAware())
                 {
-                    if (!GCToOSInterface::GetNumaProcessorNode(procNumber, node_no))
-                    {
-                        *node_no = NUMA_NODE_UNDEFINED;
-                    }
+                    int result = numa_node_of_cpu(procNumber);
+                    *node_no = (result >= 0) ? (uint16_t)result : NUMA_NODE_UNDEFINED;
                 }
                 else
+#endif // HAVE_NUMA_H
                 {
                     *node_no = NUMA_NODE_UNDEFINED;
                 }
