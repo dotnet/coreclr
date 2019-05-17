@@ -485,6 +485,7 @@ inline PTR_PEImage PEImage::FindByPath(LPCWSTR pPath)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(CheckPointer(pPath));
         PRECONDITION(s_hashLock.OwnedByCurrentThread());
     }
     CONTRACTL_END;
