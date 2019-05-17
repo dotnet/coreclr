@@ -911,7 +911,8 @@ unsigned emitter::emitGetVexPrefixSize(instruction ins, emitAttr attr)
 }
 
 //------------------------------------------------------------------------
-// emitGetAdjustedSize: Determines any size adjustment needed for a given instruction based on the current configuration.
+// emitGetAdjustedSize: Determines any size adjustment needed for a given instruction based on the current
+// configuration.
 //
 // Arguments:
 //    ins   -- The instruction being emitted
@@ -924,10 +925,13 @@ unsigned emitter::emitGetAdjustedSize(instruction ins, emitAttr attr, code_t cod
     if (IsAVXInstruction(ins))
     {
         // VEX prefix encodes some bytes of the opcode and as a result, overall size of the instruction reduces.
-        // Therefore, to estimate the size adding VEX prefix size and size of instruction opcode bytes will always overstimate.
-        // Instead this routine will adjust the size of VEX prefix based on the number of bytes of opcode it encodes so that
+        // Therefore, to estimate the size adding VEX prefix size and size of instruction opcode bytes will always
+        // overstimate.
+        // Instead this routine will adjust the size of VEX prefix based on the number of bytes of opcode it encodes so
+        // that
         // instruction size estimate will be accurate.
-        // Basically this  will decrease the vexPrefixSize, so that opcodeSize + vexPrefixAdjustedSize will be the right size.
+        // Basically this  will decrease the vexPrefixSize, so that opcodeSize + vexPrefixAdjustedSize will be the right
+        // size.
         //
         // rightOpcodeSize + vexPrefixSize
         //  = (opcodeSize - ExtrabytesSize) + vexPrefixSize
@@ -1798,7 +1802,8 @@ inline UNATIVE_OFFSET emitter::emitInsSizeRR(instrDesc* id, code_t code)
 }
 
 //------------------------------------------------------------------------
-// emitInsSizeRR: Determines the code size for an instruction encoding that does not have any addressing modes and includes an immediate value
+// emitInsSizeRR: Determines the code size for an instruction encoding that does not have any addressing modes and
+// includes an immediate value
 //
 // Arguments:
 //    ins   -- The instruction being emitted
