@@ -372,6 +372,14 @@ private:
     // Callback function for the stack walker.  For each frame walked, this callback is invoked.
     static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
 
+    // Get the configuration object.
+    // This is called directly by the EventPipeProvider constructor to register the new provider.
+    static EventPipeConfiguration *GetConfiguration()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return s_pConfig;
+    }
+
     // Get the event pipe configuration lock.
     static CrstStatic *GetLock()
     {
