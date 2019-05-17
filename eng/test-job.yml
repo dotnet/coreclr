@@ -209,25 +209,24 @@ jobs:
           - jitstressisas_nohwintrinsic
           - jitstressisas_nohwintrinsic_nosimd
           - jitstressisas_nosimd
-        ${{ if and(eq(parameters.testGroup, 'outerloop-jitstressisas'), or(eq(parameters.archType, 'x64'), eq(parameters.archType, 'x86'))) }}:
-          scenarios:
-          - jitstressisas_noaes
-          - jitstressisas_noavx
-          - jitstressisas_noavx2
-          - jitstressisas_nobmi1
-          - jitstressisas_nobmi2
-          - jitstressisas_nofma
-          - jitstressisas_nohwintrinsicx86
-          - jitstressisas_nolzcnt
-          - jitstressisas_nopclmulqdq
-          - jitstressisas_nopopcnt
-          - jitstressisas_nosse
-          - jitstressisas_nosse2
-          - jitstressisas_nosse3
-          - jitstressisas_nosse3_4
-          - jitstressisas_nosse41
-          - jitstressisas_nosse42
-          - jitstressisas_nossse3
+          - ${{ if or(eq(parameters.archType, 'x64'), eq(parameters.archType, 'x86')) }}:
+            - jitstressisas_noaes
+            - jitstressisas_noavx
+            - jitstressisas_noavx2
+            - jitstressisas_nobmi1
+            - jitstressisas_nobmi2
+            - jitstressisas_nofma
+            - jitstressisas_nohwintrinsicx86
+            - jitstressisas_nolzcnt
+            - jitstressisas_nopclmulqdq
+            - jitstressisas_nopopcnt
+            - jitstressisas_nosse
+            - jitstressisas_nosse2
+            - jitstressisas_nosse3
+            - jitstressisas_nosse3_4
+            - jitstressisas_nosse41
+            - jitstressisas_nosse42
+            - jitstressisas_nossse3
         ${{ if eq(parameters.testGroup, 'outerloop-jitstressregs') }}:
           scenarios:
           - jitstressregs1
