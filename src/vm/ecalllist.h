@@ -501,6 +501,7 @@ FCFuncStart(gRuntimeAssemblyFuncs)
     FCFuncElement("GetManifestModule", AssemblyHandle::GetManifestModule)
     FCFuncElement("GetToken", AssemblyHandle::GetToken)
     QCFuncElement("GetIsCollectible", AssemblyNative::GetIsCollectible)
+    FCFuncElement("GetAssemblyCount", AssemblyNative::GetCount)
 FCFuncEnd()
 
 FCFuncStart(gAssemblyExtensionsFuncs)

@@ -778,6 +778,20 @@ BOOL QCALLTYPE AssemblyNative::GetIsCollectible(QCall::AssemblyHandle pAssembly)
     return retVal;
 }
 
+#ifdef FEATURE_EVENT_TRACE
+
+extern uint32_t g_cAssemblies;
+
+FCIMPL0(uint32_t, AssemblyNative::GetCount)
+{
+    FCALL_CONTRACT;
+
+    return g_cAssemblies;
+}
+FCIMPLEND
+
+#endif // FEATURE_EVENT_TRACE
+
 void QCALLTYPE AssemblyNative::GetModule(QCall::AssemblyHandle pAssembly, LPCWSTR wszFileName, QCall::ObjectHandleOnStack retModule)
 {
     QCALL_CONTRACT;

@@ -111,6 +111,8 @@ public:
 
     static BOOL QCALLTYPE GetIsCollectible(QCall::AssemblyHandle pAssembly);
 
+    static FCDECL0(uint32_t, GetCount);
+
     //
     // PEFile QCalls
     // 
