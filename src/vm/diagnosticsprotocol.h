@@ -10,7 +10,6 @@
 #include "clr_std/type_traits"
 #include "new.hpp"
 #include "diagnosticsipc.h"
-//#include "common.h"
 
 #define DOTNET_IPC_V1_MAGIC "DOTNET_IPC_V1"
 
@@ -128,6 +127,24 @@ namespace DiagnosticsIpc
 
     // The Following structs are template, meta-programming to enable
     // users of the IpcMessage class to get free serialization for fixed-size structures.
+    // They check that the template parameter has a member (or static) function that
+    // has a specified signature and returns true or false based on that check.
+    //
+    // std::enable_if (and enable_if_t) act as a compile time flag to enable or
+    // disable a template specialization based on a boolean value.
+    //
+    // The Has* structs can be used as the boolean check in std::enable_if to
+    // enable a specific overload of a function based on whether the template parameter
+    // has that member function.
+    //
+    // These "switches" can be used in a variety of ways, but are used in the function
+    // template parameters below, e.g.,
+    //
+    // template <typename T,
+    //           typename = enable_if_t<HasTryParse<T>::value, const T*> = nullptr>
+    // const T* FnName(...)
+    //
+    // For more details on this pattern, look up "Substitution Failure Is Not An Error" or SFINAE
 
     // recreates the functionality of the same named helper in std::type_traits
     template <bool B, class T = void>
@@ -137,36 +154,30 @@ namespace DiagnosticsIpc
     template <typename T>
     struct HasFlatten
     {
-        using yes = uint16_t;
-        using no  = uint8_t;
         template <typename U, U u> struct Has;
-        template <typename U> static constexpr yes& test(Has<bool (U::*)(void*), &U::Flatten>*);
-        template <typename U> static constexpr no& test(...);
-        static constexpr bool value = sizeof(test<T>(int())) == sizeof(yes);
+        template <typename U> static std::true_type test(Has<bool (U::*)(void*), &U::Flatten>*);
+        template <typename U> static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(nullptr))::value;
     };
 
     // template meta-programming to check for uint16_t(GetSize)() member function
     template <typename T>
     struct HasGetSize
     {
-        using yes = uint16_t;
-        using no  = uint8_t;
         template <typename U, U u> struct Has;
-        template <typename U> static constexpr yes& test(Has<uint16_t(U::*)(), &U::GetSize>*);
-        template <typename U> static constexpr no& test(...);
-        static constexpr bool value = sizeof(test<T>(int())) == sizeof(yes);
+        template <typename U> static std::true_type test(Has<uint16_t(U::*)(), &U::GetSize>*);
+        template <typename U> static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(nullptr))::value;
     };
 
-    // template meta-programming to check for const T*(TryParse)(BYTE*,uint16_t&) member function
+    // template meta-programming to check for a const T*(TryParse)(BYTE*,uint16_t&) static function
     template <typename T>
     struct HasTryParse
     {
-        using yes = uint16_t;
-        using no  = uint8_t;
         template <typename U, U u> struct Has;
-        template <typename U> static constexpr yes& test(Has<const U* (U::*)(BYTE*, uint16_t&), &U::TryParse>*);
-        template <typename U> static constexpr no& test(...);
-        static constexpr bool value = sizeof(test<T>(int())) == sizeof(yes);
+        template <typename U> static std::true_type test(Has<const U* (*)(BYTE*, uint16_t&), &U::TryParse>*);
+        template <typename U> static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(nullptr))::value;
     };
 
     // Encodes the messages sent and received by the Diagnostics Server.
@@ -180,10 +191,10 @@ namespace DiagnosticsIpc
     class IpcMessage
     {
     public:
-        // Create an outgoing IpcMessage from a header and a payload
+        // Create an IpcMessage from a header and a payload
         template <typename T>
         IpcMessage(IpcHeader header, T& payload)
-            : m_Header(header), m_Size(0), m_pData(nullptr)
+            : m_pData(nullptr), m_Header(header), m_Size(0)
         {
             CONTRACTL
             {
@@ -196,9 +207,25 @@ namespace DiagnosticsIpc
             FlattenImpl<T>(payload);
         };
 
-        // Create an incoming IpcMessage from an incoming buffer
+        // Create an IpcMessage from a header and a payload
+        template <typename T>
+        IpcMessage(IpcHeader header, T&& payload)
+            : m_pData(nullptr), m_Header(header), m_Size(0)
+        {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+            }
+            CONTRACTL_END;
+
+            FlattenImpl<T>(payload);
+        };
+
+        // Create an IpcMessage by reading from a stream
         IpcMessage(::IpcStream* pStream)
-            : m_Header(), m_Size(0), m_pData(nullptr)
+            : m_pData(nullptr), m_Header(), m_Size(0)
         {
             CONTRACTL
             {
@@ -307,18 +334,21 @@ namespace DiagnosticsIpc
                 return false;
             }
 
+            m_Size = m_Header.Size;
+
             // Then read out payload to buffer
             uint16_t payloadSize = m_Header.Size - sizeof(IpcHeader);
-            BYTE* temp_buffer = new (nothrow) BYTE[payloadSize];
-            success = pStream->Read(temp_buffer, payloadSize, nBytesRead);
-            if (nBytesRead < payloadSize)
+            if (payloadSize != 0)
             {
-                delete[] temp_buffer;
-                return false;
+                BYTE* temp_buffer = new (nothrow) BYTE[payloadSize];
+                success = pStream->Read(temp_buffer, payloadSize, nBytesRead);
+                if (nBytesRead < payloadSize)
+                {
+                    delete[] temp_buffer;
+                    return false;
+                }
+                m_pData = temp_buffer;
             }
-
-            m_pData = temp_buffer;
-            m_Size = m_Header.Size;
 
             return true;
         };
@@ -330,9 +360,9 @@ namespace DiagnosticsIpc
 
         // Handles the case where the payload structure exposes Flatten
         // and GetSize methods
-        template <typename U>
-        enable_if_t<HasFlatten<U>::value&& HasGetSize<U>::value, bool>
-            FlattenImpl(U& payload)
+        template <typename U,
+                  typename = enable_if_t<HasFlatten<U>::value&& HasGetSize<U>::value, bool>* = nullptr>
+        bool FlattenImpl(U& payload)
         {
             CONTRACTL
             {
@@ -372,8 +402,8 @@ namespace DiagnosticsIpc
         };
 
         // handles the case where we were handed a struct with no Flatten or GetSize method
-        template <typename U>
-        // enable_if_t<!HasFlatten<U>::value && !HasGetSize<U>::value, bool>
+        template <typename U,
+                  typename = enable_if_t<!HasFlatten<U>::value && !HasGetSize<U>::value, bool>* = nullptr>
         bool FlattenImpl(U& payload)
         {
             CONTRACTL
@@ -413,9 +443,9 @@ namespace DiagnosticsIpc
             return true;
         };
 
-        template <typename U>
-        enable_if_t<HasTryParse<U>::value, const U*>
-            TryParsePayloadImpl()
+        template <typename U,
+                  typename enable_if_t<HasTryParse<U>::value, const U*> = nullptr>
+        const U* TryParsePayloadImpl()
         {
             CONTRACTL
             {
@@ -424,12 +454,12 @@ namespace DiagnosticsIpc
                 MODE_ANY;
             }
             CONTRACTL_END;
-
-            return U::TryParse(m_pData, m_Size - sizeof(IpcHeader));
+            uint16_t payloadSize = m_Size - (uint16_t)sizeof(IpcHeader);
+            return U::TryParse(m_pData, payloadSize);
         };
 
-        template <typename U>
-        // enable_if_t<!HasTryParse<U>::value, const U*>
+        template <typename U,
+                  typename enable_if_t<!HasTryParse<U>::value, const U*> = nullptr>
         const U* TryParsePayloadImpl()
         {
             CONTRACTL

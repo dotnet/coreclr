@@ -18,9 +18,9 @@ void DiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& mess
 {
     CONTRACTL
     {
-        NOTHROW;
+        THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(pStream != nullptr);
     }
     CONTRACTL_END;

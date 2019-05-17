@@ -76,7 +76,7 @@ void EventPipeProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& messa
 {
     CONTRACTL
     {
-        NOTHROW;
+        THROWS;
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pStream != nullptr);
