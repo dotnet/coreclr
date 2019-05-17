@@ -47,12 +47,17 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
             if (pStream == nullptr)
                 continue;
 
-            DiagnosticsIpc::IpcMessage message(pStream);
+            DiagnosticsIpc::IpcMessage message;
+            if (!message.Initialize(pStream))
+            {
+                // TODO(josalem)
+            }
 
             if (::strcmp((char *)message.GetHeader().Magic, (char *)DiagnosticsIpc::DotnetIpcMagic_V1.Magic) != 0)
             {
-                DiagnosticsIpc::IpcMessage errorResponse(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownVersion);
-                errorResponse.Send(pStream);
+                DiagnosticsIpc::IpcMessage errorResponse;
+                if (errorResponse.Initialize(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownVersion))
+                    errorResponse.Send(pStream);
                 delete pStream;
                 continue;
             }
@@ -77,8 +82,9 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 
             default:
                 STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
-                DiagnosticsIpc::IpcMessage errorResponse(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommandSet);
-                errorResponse.Send(pStream);
+                DiagnosticsIpc::IpcMessage errorResponse;
+                if (errorResponse.Initialize(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommandSet))
+                    errorResponse.Send(pStream);
                 delete pStream;
                 break;
             }

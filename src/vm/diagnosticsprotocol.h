@@ -202,42 +202,18 @@ namespace DiagnosticsIpc
     class IpcMessage
     {
     public:
-        // Create an IpcMessage from a header and a payload
-        template <typename T>
-        IpcMessage(IpcHeader header, T& payload)
-            : m_pData(nullptr), m_Header(header), m_Size(0)
-        {
-            CONTRACTL
-            {
-                NOTHROW;
-                GC_TRIGGERS;
-                MODE_PREEMPTIVE;
-            }
-            CONTRACTL_END;
 
-            FlattenImpl<T>(payload);
-        };
-
-        // Create an IpcMessage from a header and a payload
-        template <typename T>
-        IpcMessage(IpcHeader header, T&& payload)
-            : m_pData(nullptr), m_Header(header), m_Size(0)
-        {
-            CONTRACTL
-            {
-                NOTHROW;
-                GC_TRIGGERS;
-                MODE_PREEMPTIVE;
-            }
-            CONTRACTL_END;
-
-            FlattenImpl<T>(payload);
-        };
-
-        // Create an IpcMessage by reading from a stream
-        IpcMessage(::IpcStream* pStream)
+        // empty constructor for default values.  Use Initialize.
+        IpcMessage()
             : m_pData(nullptr), m_Header(), m_Size(0)
         {
+            LIMITED_METHOD_CONTRACT;
+        };
+
+        // Initialize an outgoing IpcMessage with a header and payload
+        template <typename T>
+        bool Initialize(IpcHeader header, T& payload)
+        {
             CONTRACTL
             {
                 NOTHROW;
@@ -246,12 +222,54 @@ namespace DiagnosticsIpc
             }
             CONTRACTL_END;
 
-            TryParse(pStream);
+            return FlattenImpl<T>(payload);
         };
 
-        IpcMessage(DiagnosticServerErrorCode errorCode)
-            : IpcMessage(GenericErrorHeader, errorCode)
-        {};
+        // Initialize an outgoing IpcMessage with a header and payload
+        template <typename T>
+        bool Initialize(IpcHeader header, T&& payload)
+        {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+            }
+            CONTRACTL_END;
+
+            return FlattenImpl<T>(payload);
+        };
+
+        // Initialize an outgoing IpcMessage for an error
+        bool Initialize(DiagnosticServerErrorCode error)
+        {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+            }
+            CONTRACTL_END;
+
+            return Initialize(GenericErrorHeader, error);
+        }
+
+        // Initialize an incoming IpcMessage from a stream by parsing
+        // the header and payload.
+        //
+        // If either fail, this returns false, true otherwise
+        bool Initialize(::IpcStream* pStream)
+        {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+            }
+            CONTRACTL_END;
+
+            return TryParse(pStream);
+        }
 
         ~IpcMessage()
         {
@@ -263,15 +281,17 @@ namespace DiagnosticsIpc
             }
             CONTRACTL_END;
 
-            delete m_pData;
+            delete[] m_pData;
         };
 
         // Given a buffer, attempt to parse out a given payload type
         // If a payload type is fixed-size, this will simply return
         // a pointer to the buffer of data reinterpreted as a const pointer.
-        // Otherwise, your payload type should implment the following static method:
-        // * const T *TryParse(BYTE *lpBuffer)
+        // Otherwise, your payload type should implement the following static method:
+        // > const T *TryParse(BYTE *lpBuffer)
         // which this will call if it exists.
+        //
+        // user is expected to check for a nullptr in the error case for non fixed-size payloads
         template <typename T>
         const T* TryParsePayload()
         {
@@ -287,7 +307,7 @@ namespace DiagnosticsIpc
             return TryParsePayloadImpl<T>();
         };
 
-        const IpcHeader GetHeader()
+        const IpcHeader& GetHeader() const
         {
             LIMITED_METHOD_CONTRACT;
 
@@ -307,9 +327,9 @@ namespace DiagnosticsIpc
 
             ASSERT(IsFlattened());
             uint32_t nBytesWritten;
-            pStream->Write(m_pData, m_Size, nBytesWritten);
+            bool success = pStream->Write(m_pData, m_Size, nBytesWritten);
 
-            return nBytesWritten == m_Size;
+            return nBytesWritten == m_Size && success;
         };
     private:
         // Pointer to flattened buffer filled with packet
@@ -340,7 +360,7 @@ namespace DiagnosticsIpc
             // Read out header first
             uint32_t nBytesRead;
             bool success = pStream->Read(&m_Header, sizeof(IpcHeader), nBytesRead);
-            if (nBytesRead < sizeof(IpcHeader) || !success)
+            if (!success || nBytesRead < sizeof(IpcHeader))
             {
                 return false;
             }
@@ -352,8 +372,14 @@ namespace DiagnosticsIpc
             if (payloadSize != 0)
             {
                 BYTE* temp_buffer = new (nothrow) BYTE[payloadSize];
+                if (temp_buffer == nullptr)
+                {
+                    // OOM
+                    return false;
+                }
+
                 success = pStream->Read(temp_buffer, payloadSize, nBytesRead);
-                if (nBytesRead < payloadSize)
+                if (!success || nBytesRead < payloadSize)
                 {
                     delete[] temp_buffer;
                     return false;
@@ -393,12 +419,13 @@ namespace DiagnosticsIpc
             m_Size = temp_size.Value();
 
             BYTE* temp_buffer = new (nothrow) BYTE[m_Size];
-            BYTE* temp_buffer_cursor = temp_buffer;
-
-            if (temp_buffer == NULL)
+            if (temp_buffer == nullptr)
             {
+                // OOM
                 return false;
             }
+
+            BYTE* temp_buffer_cursor = temp_buffer;
 
             m_Header.Size = m_Size;
 
@@ -435,12 +462,13 @@ namespace DiagnosticsIpc
             m_Size = temp_size.Value();
 
             BYTE* temp_buffer = new (nothrow) BYTE[m_Size];
-            BYTE* temp_buffer_cursor = temp_buffer;
-
-            if (temp_buffer == NULL)
+            if (temp_buffer == nullptr)
             {
+                // OOM
                 return false;
             }
+
+            BYTE* temp_buffer_cursor = temp_buffer;
 
             m_Header.Size = m_Size;
 

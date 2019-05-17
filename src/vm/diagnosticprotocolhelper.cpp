@@ -33,8 +33,9 @@ void DiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& mess
 
     default:
         STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
-        DiagnosticsIpc::IpcMessage errorResponse(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommandId);
-        errorResponse.Send(pStream);
+        DiagnosticsIpc::IpcMessage errorResponse;
+        if (errorResponse.Initialize(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommandId))
+            errorResponse.Send(pStream);
         delete pStream;
         break;
     }
@@ -81,8 +82,9 @@ void DiagnosticProtocolHelper::GenerateCoreDump(DiagnosticsIpc::IpcMessage& mess
     const GenerateCoreDumpCommandPayload* payload = message.TryParsePayload<GenerateCoreDumpCommandPayload>();
     if (payload == nullptr)
     {
-        DiagnosticsIpc::IpcMessage errorMessage(MiscellaneousErrorHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding });
-        errorMessage.Send(pStream);
+        DiagnosticsIpc::IpcMessage errorResponse;
+        if (errorResponse.Initialize(MiscellaneousErrorHeader, DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding))
+            errorResponse.Send(pStream);
         delete pStream;
         return;
     }
@@ -92,22 +94,25 @@ void DiagnosticProtocolHelper::GenerateCoreDump(DiagnosticsIpc::IpcMessage& mess
     {
         if (!PAL_GenerateCoreDump(szDumpName, payload->dumpType, payload->diagnostics))
         {
-            DiagnosticsIpc::IpcMessage errorMessage(MiscellaneousErrorHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::BAD });
-            errorMessage.Send(pStream);
+            DiagnosticsIpc::IpcMessage errorResponse;
+            if (errorResponse.Initialize(MiscellaneousErrorHeader, DiagnosticsIpc::DiagnosticServerErrorCode::BAD))
+                errorResponse.Send(pStream);
             delete pStream;
             return;
         }
     }
     else 
     {
-        DiagnosticsIpc::IpcMessage errorMessage(MiscellaneousErrorHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::BAD });
-        errorMessage.Send(pStream);
+        DiagnosticsIpc::IpcMessage errorResponse;
+        if (errorResponse.Initialize(MiscellaneousErrorHeader, DiagnosticsIpc::DiagnosticServerErrorCode::BAD))
+            errorResponse.Send(pStream);
         delete pStream;
         return;
     }
 
-    DiagnosticsIpc::IpcMessage successMessage(MiscellaneousSuccessHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::OK });
-    successMessage.Send(pStream);
+    DiagnosticsIpc::IpcMessage successResponse;
+    if (successResponse.Initialize(MiscellaneousSuccessHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::OK }))
+        successResponse.Send(pStream);
     delete pStream;
 }
 

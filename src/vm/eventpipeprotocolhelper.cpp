@@ -26,19 +26,19 @@ static bool IsNullOrWhiteSpace(LPCWSTR value)
     return true;
 }
 
-constexpr DiagnosticsIpc::IpcHeader EventPipeSuccessHeader =
+const DiagnosticsIpc::IpcHeader EventPipeSuccessHeader =
 {
-    DOTNET_IPC_V1_MAGIC,
-    (uint16_t)20,
+    DiagnosticsIpc::DotnetIpcMagic_V1,
+    (uint16_t)sizeof(DiagnosticsIpc::IpcHeader),
     (uint8_t)DiagnosticsIpc::DiagnosticServerCommandSet::EventPipe,
     (uint8_t)EventPipeCommandId::OK,
     (uint16_t)0x0000
 };
 
-constexpr DiagnosticsIpc::IpcHeader EventPipeErrorHeader =
+const DiagnosticsIpc::IpcHeader EventPipeErrorHeader =
 {
-    DOTNET_IPC_V1_MAGIC,
-    (uint16_t)20,
+    DiagnosticsIpc::DotnetIpcMagic_V1,
+    (uint16_t)sizeof(DiagnosticsIpc::IpcHeader),
     (uint8_t)DiagnosticsIpc::DiagnosticServerCommandSet::EventPipe,
     (uint8_t)EventPipeCommandId::Error,
     (uint16_t)0x0000
@@ -95,8 +95,9 @@ void EventPipeProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& messa
 
     default:
         STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
-        DiagnosticsIpc::IpcMessage errorResponse(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommandId);
-        errorResponse.Send(pStream);
+        DiagnosticsIpc::IpcMessage errorResponse;
+        if (errorResponse.Initialize(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommandId))
+            errorResponse.Send(pStream);
         delete pStream;
         break;
     }
@@ -157,16 +158,18 @@ void EventPipeProtocolHelper::StopTracing(DiagnosticsIpc::IpcMessage& message, I
     const EventPipeStopTracingCommandPayload* payload = message.TryParsePayload<EventPipeStopTracingCommandPayload>();
     if (payload == nullptr)
     {
-        DiagnosticsIpc::IpcMessage errorMessage(EventPipeErrorHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding });
-        errorMessage.Send(pStream);
+        DiagnosticsIpc::IpcMessage errorMessage;
+        if (errorMessage.Initialize(EventPipeErrorHeader, DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding))
+            errorMessage.Send(pStream);
         delete pStream;
         return;
     }
 
     EventPipe::Disable(payload->sessionId);
 
-    DiagnosticsIpc::IpcMessage stopTracingResponse(EventPipeSuccessHeader, payload->sessionId);
-    stopTracingResponse.Send(pStream);
+    DiagnosticsIpc::IpcMessage stopTracingResponse;
+    if (stopTracingResponse.Initialize(EventPipeSuccessHeader, payload->sessionId))
+        stopTracingResponse.Send(pStream);
 
     bool fSuccess = pStream->Flush();
     if (!fSuccess)
@@ -190,8 +193,9 @@ void EventPipeProtocolHelper::CollectTracing(DiagnosticsIpc::IpcMessage& message
     const EventPipeCollectTracingCommandPayload* payload = message.TryParsePayload<EventPipeCollectTracingCommandPayload>();
     if (payload == nullptr)
     {
-        DiagnosticsIpc::IpcMessage errorResponse(EventPipeErrorHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding });
-        errorResponse.Send(pStream);
+        DiagnosticsIpc::IpcMessage errorResponse;
+        if (errorResponse.Initialize(EventPipeErrorHeader, DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding))
+            errorResponse.Send(pStream);
         delete pStream;
         return;
     }
@@ -207,8 +211,9 @@ void EventPipeProtocolHelper::CollectTracing(DiagnosticsIpc::IpcMessage& message
 
     if (sessionId == 0)
     {
-        DiagnosticsIpc::IpcMessage errorMessage(EventPipeErrorHeader, DiagnosticsIpc::ServerErrorPayload{ DiagnosticsIpc::DiagnosticServerErrorCode::BAD });
-        errorMessage.Send(pStream);
+        DiagnosticsIpc::IpcMessage errorResponse;
+        if (errorResponse.Initialize(EventPipeErrorHeader, DiagnosticsIpc::DiagnosticServerErrorCode::BAD))
+            errorResponse.Send(pStream);
         delete pStream;
     }
 }

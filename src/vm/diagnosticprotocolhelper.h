@@ -23,19 +23,19 @@ enum class MiscellaneousCommandId : uint8_t
     Error =0xFF,
 };
 
-constexpr DiagnosticsIpc::IpcHeader MiscellaneousErrorHeader =
+const DiagnosticsIpc::IpcHeader MiscellaneousErrorHeader =
 {
-    DOTNET_IPC_V1_MAGIC,
-    (uint16_t)20,
+    DiagnosticsIpc::DotnetIpcMagic_V1,
+    (uint16_t)sizeof(DiagnosticsIpc::IpcHeader),
     (uint8_t)DiagnosticsIpc::DiagnosticServerCommandSet::Miscellaneous,
     (uint8_t)MiscellaneousCommandId::Error,
     (uint16_t)0x0000
 };
 
-constexpr DiagnosticsIpc::IpcHeader MiscellaneousSuccessHeader =
+const DiagnosticsIpc::IpcHeader MiscellaneousSuccessHeader =
 {
-    DOTNET_IPC_V1_MAGIC,
-    (uint16_t)20,
+    DiagnosticsIpc::DotnetIpcMagic_V1,
+    (uint16_t)sizeof(DiagnosticsIpc::IpcHeader),
     (uint8_t)DiagnosticsIpc::DiagnosticServerCommandSet::Miscellaneous,
     (uint8_t)MiscellaneousCommandId::OK,
     (uint16_t)0x0000
