@@ -143,7 +143,6 @@ jobs:
         - Windows_NT_x86
       ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-arm') }}:
         platforms:
-        - Linux_arm
         - Linux_arm64
         - Windows_NT_arm
         - Windows_NT_arm64
