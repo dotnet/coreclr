@@ -569,6 +569,7 @@ namespace NativeFormat
         {
             _base = NULL;
             _size = 0;
+            _disableFilter = 0;
         }
 
         NativeCuckooFilter(PTR_BYTE base_, UInt32 size, UInt32 rvaOfTable, UInt32 filterSize)
@@ -587,6 +588,7 @@ namespace NativeFormat
             }
             _base = base_ + rvaOfTable;
             _size = filterSize;
+            _disableFilter = 0;
         }
 
         void DisableFilter()

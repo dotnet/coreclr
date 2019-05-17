@@ -713,6 +713,14 @@ HRESULT ZapImage::ComputeAttributePresenceTable(IMDInternalImport * pMDImport, S
 
 void ZapImage::OutputAttributePresenceFilter(IMDInternalImport * pMDImport)
 {
+    // Core library attributes are checked FAR more often than other dlls
+    // attributes, so produce a highly efficient table for determining if they are
+    // present. Other assemblies *MAY* benefit from this feature, but it doesn't show
+    // as useful at this time.
+
+    if (m_hModule != m_zapper->m_pEECompileInfo->GetLoaderModuleForMscorlib())
+        return;
+
     SArray<UINT16> table;
     if (SUCCEEDED(ComputeAttributePresenceTable(pMDImport, &table)))
     {
