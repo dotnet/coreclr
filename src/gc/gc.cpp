@@ -5941,6 +5941,7 @@ void gc_heap::fix_allocation_context (alloc_context* acontext, BOOL for_gc_p,
     else if (for_gc_p)
     {
         alloc_allocated = acontext->alloc_ptr;
+        assert (heap_segment_used (ephemeral_heap_segment) >= alloc_allocated - plug_skew);
         assert (heap_segment_allocated (ephemeral_heap_segment) <=
                 heap_segment_committed (ephemeral_heap_segment));
         alloc_contexts_used ++;
@@ -9195,6 +9196,25 @@ int gc_heap::object_gennum_plan (uint8_t* o)
 #pragma optimize("", on)        // Go back to command line default optimizations
 #endif //_MSC_VER && _TARGET_X86_
 
+void verify_mem_cleared (uint8_t* start, uint8_t* end)
+{
+    size_t size = end - start;
+
+    if (!Aligned (size))
+    {
+        FATAL_GC_ERROR();
+    }
+
+    PTR_PTR curr_ptr = (PTR_PTR) start;
+    for (size_t i = 0; i < size / sizeof(PTR_PTR); i++)
+    {
+        if (*(curr_ptr++) != 0)
+        {
+            FATAL_GC_ERROR();
+        }
+    }
+}
+
 heap_segment* gc_heap::make_heap_segment (uint8_t* new_pages, size_t size, int h_number)
 {
     size_t initial_commit = SEGMENT_INITIAL_COMMIT;
@@ -9214,6 +9234,7 @@ heap_segment* gc_heap::make_heap_segment (uint8_t* new_pages, size_t size, int h
     heap_segment_reserved (new_segment) = new_pages + size;
     heap_segment_committed (new_segment) = (use_large_pages_p ? heap_segment_reserved(new_segment) : (new_pages + initial_commit));
     init_heap_segment (new_segment);
+    verify_mem_cleared(heap_segment_used (new_segment), heap_segment_committed (new_segment));
     dprintf (2, ("Creating heap segment %Ix", (size_t)new_segment));
     return new_segment;
 }
@@ -10589,6 +10610,7 @@ gc_heap::init_gc_heap (int  h_number)
     heap_segment_allocated (seg) = start;
     alloc_allocated = start;
     heap_segment_used (seg) = start - plug_skew;
+    verify_mem_cleared(heap_segment_used (seg), heap_segment_committed (seg));
 
     ephemeral_heap_segment = seg;
 
@@ -10621,6 +10643,7 @@ gc_heap::init_gc_heap (int  h_number)
     make_generation (generation_table [max_generation+1],lseg, heap_segment_mem (lseg), 0);
     heap_segment_allocated (lseg) = heap_segment_mem (lseg) + Align (min_obj_size, get_alignment_constant (FALSE));
     heap_segment_used (lseg) = heap_segment_allocated (lseg) - plug_skew;
+    verify_mem_cleared(heap_segment_used (lseg), heap_segment_committed (lseg));
 
     for (int gen_num = 0; gen_num <= 1 + max_generation; gen_num++)
     {
@@ -11102,23 +11125,6 @@ void gc_heap::adjust_limit (uint8_t* start, size_t limit_size, generation* gen,
     generation_allocation_limit (gen) = (start + limit_size);
 }
 
-void verify_mem_cleared (uint8_t* start, size_t size)
-{
-    if (!Aligned (size))
-    {
-        FATAL_GC_ERROR();
-    }
-
-    PTR_PTR curr_ptr = (PTR_PTR) start;
-    for (size_t i = 0; i < size / sizeof(PTR_PTR); i++)
-    {
-        if (*(curr_ptr++) != 0)
-        {
-            FATAL_GC_ERROR();
-        }
-    }
-}
-
 #if defined (VERIFY_HEAP) && defined (BACKGROUND_GC)
 void gc_heap::set_batch_mark_array_bits (uint8_t* start, uint8_t* end)
 {
@@ -11470,6 +11476,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     if (seg)
     {
         assert (heap_segment_used (seg) <= heap_segment_committed (seg));
+        verify_mem_cleared(heap_segment_used (seg), heap_segment_committed (seg));
     }
 
 #ifdef MULTIPLE_HEAPS
@@ -11589,6 +11596,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     {
         // we only need to clear [clear_start, used) and only if clear_start < used
         uint8_t* used = heap_segment_used (seg);
+        verify_mem_cleared(used, clear_limit);
         heap_segment_used (seg) = clear_limit;
 
 #ifdef MARK_ARRAY
@@ -11596,6 +11604,8 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
             clear_mark_array (used + plug_skew, clear_limit + plug_skew);
 #endif //BACKGROUND_GC
 #endif //MARK_ARRAY
+
+        verify_mem_cleared(heap_segment_used (seg), heap_segment_committed (seg));
 
         add_saved_spinlock_info (loh_p, me_release, mt_clr_mem);
         leave_spin_lock (msl);
@@ -11641,7 +11651,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     // verifying the memory is completely cleared.
     if (!(flags & GC_ALLOC_ZEROING_OPTIONAL))
     {
-        verify_mem_cleared(start - plug_skew, limit_size);
+        verify_mem_cleared(start - plug_skew, start + limit_size - plug_skew);
     }
 }
 
@@ -12107,6 +12117,7 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
             }
             dprintf (2, ("bgc loh: setting used to %Ix", end));
             heap_segment_used (seg) = end;
+            verify_mem_cleared(heap_segment_used (seg), heap_segment_committed (seg));        
         }
 
         dprintf (2, ("bgc loh: used: %Ix, alloc: %Ix, end of alloc: %Ix, clear %Id bytes",
@@ -12337,6 +12348,7 @@ found_fit:
     {
         make_unused_array (allocated, loh_pad);
         allocated += loh_pad;
+        heap_segment_used(seg) = max(heap_segment_used(seg), allocated - plug_skew);
         limit -= loh_pad;
     }
 #endif //FEATURE_LOH_COMPACTION
@@ -16726,6 +16738,7 @@ BOOL gc_heap::expand_soh_with_minimal_gc()
             start += gen_start_size;
         }
         heap_segment_used (ephemeral_heap_segment) = start - plug_skew;
+        verify_mem_cleared(heap_segment_used (ephemeral_heap_segment), heap_segment_committed (ephemeral_heap_segment));
         heap_segment_plan_allocated (ephemeral_heap_segment) = start;
 
         fix_generation_bounds (condemned_gen_number, generation_of (0));
@@ -23520,6 +23533,8 @@ void gc_heap::fix_generation_bounds (int condemned_gen_number,
     {
         alloc_allocated = heap_segment_plan_allocated(ephemeral_heap_segment);
         heap_segment_used(ephemeral_heap_segment) = max(heap_segment_used(ephemeral_heap_segment), alloc_allocated - plug_skew);
+        verify_mem_cleared(heap_segment_used (ephemeral_heap_segment), heap_segment_committed (ephemeral_heap_segment));
+
         //reset the allocated size
         uint8_t* start = generation_allocation_start (youngest_generation);
         MAYBE_UNUSED_VAR(start);
@@ -23707,7 +23722,8 @@ void gc_heap::make_free_lists (int condemned_gen_number)
         uint8_t* start2 = generation_allocation_start (youngest_generation);
         alloc_allocated = start2 + Align (size (start2));
         heap_segment_used(ephemeral_heap_segment) = max(heap_segment_used(ephemeral_heap_segment), alloc_allocated - plug_skew);
-    }
+        verify_mem_cleared(heap_segment_used (ephemeral_heap_segment), heap_segment_committed (ephemeral_heap_segment));
+   }
 
 #ifdef TIME_GC
     finish = GetCycleCount32();
@@ -29924,6 +29940,8 @@ generation* gc_heap::expand_heap (int condemned_generation,
                 fgm_result.set_fgm (fgm_commit_eph_segment, eph_size, FALSE);
                 return consing_gen;
             }
+
+            // TODO: VS why?
             heap_segment_used (new_seg) = heap_segment_committed (new_seg);
         }
 
