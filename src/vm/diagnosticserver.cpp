@@ -49,7 +49,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 
             DiagnosticsIpc::IpcMessage message(pStream);
 
-            if (::strcmp((char *)message.GetHeader().Magic, DOTNET_IPC_V1_MAGIC) != 0)
+            if (::strcmp((char *)message.GetHeader().Magic, (char *)DiagnosticsIpc::DotnetIpcMagic_V1.Magic) != 0)
             {
                 DiagnosticsIpc::IpcMessage errorResponse(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownVersion);
                 errorResponse.Send(pStream);

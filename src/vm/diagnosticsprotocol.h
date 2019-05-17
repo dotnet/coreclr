@@ -91,11 +91,20 @@ namespace DiagnosticsIpc
         BAD = 0xFFFFFFFF,
     };
 
+    struct MagicVersion
+    {
+        uint8_t Magic[14];
+    };
+
     // The header to be associated with every command and response
     // to/from the diagnostics server
     struct IpcHeader
     {
-        uint8_t  Magic[14];  // Magic Version number; a 0 terminated char array
+        union
+        {
+            MagicVersion _magic;
+            uint8_t  Magic[14];  // Magic Version number; a 0 terminated char array
+        };
         uint16_t Size;       // The size of the incoming packet, size = header + payload size
         uint8_t  CommandSet; // The scope of the Command.
         uint8_t  CommandId;  // The command being sent
@@ -107,19 +116,21 @@ namespace DiagnosticsIpc
         DiagnosticServerErrorCode code;
     };
 
-    constexpr IpcHeader GenericSuccessHeader =
+    const MagicVersion DotnetIpcMagic_V1 = { "DOTNET_IPC_V1" };
+
+    const IpcHeader GenericSuccessHeader =
     {
-        DOTNET_IPC_V1_MAGIC,
-        (uint16_t)20,
+        DotnetIpcMagic_V1,
+        (uint16_t)sizeof(IpcHeader),
         (uint8_t)DiagnosticServerCommandSet::Server,
         (uint8_t)DiagnosticServerCommandId::OK,
         (uint16_t)0x0000
     };
 
-    constexpr IpcHeader GenericErrorHeader =
+    const IpcHeader GenericErrorHeader =
     {
-        DOTNET_IPC_V1_MAGIC,
-        (uint16_t)20,
+        DotnetIpcMagic_V1,
+        (uint16_t)sizeof(IpcHeader),
         (uint8_t)DiagnosticServerCommandSet::Server,
         (uint8_t)DiagnosticServerCommandId::Error,
         (uint16_t)0x0000
@@ -361,7 +372,7 @@ namespace DiagnosticsIpc
         // Handles the case where the payload structure exposes Flatten
         // and GetSize methods
         template <typename U,
-                  typename = enable_if_t<HasFlatten<U>::value&& HasGetSize<U>::value, bool>* = nullptr>
+                  typename enable_if_t<HasFlatten<U>::value&& HasGetSize<U>::value, bool>* = nullptr>
         bool FlattenImpl(U& payload)
         {
             CONTRACTL
@@ -403,7 +414,7 @@ namespace DiagnosticsIpc
 
         // handles the case where we were handed a struct with no Flatten or GetSize method
         template <typename U,
-                  typename = enable_if_t<!HasFlatten<U>::value && !HasGetSize<U>::value, bool>* = nullptr>
+                  typename enable_if_t<!HasFlatten<U>::value && !HasGetSize<U>::value, bool>* = nullptr>
         bool FlattenImpl(U& payload)
         {
             CONTRACTL
