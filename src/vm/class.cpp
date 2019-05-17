@@ -3694,6 +3694,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             nativeTypeFlags = ParseNativeTypeFlags::IsAnsi;
 
     ParseFieldNativeTypes(
+        pInternalImport,
         cl,
         phEnumField,
         cTotalFields,
@@ -3707,7 +3708,6 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         DEBUGARG(szNamespace)
         DEBUGARG(szName)
         );
->>>>>>> 6a2c6a4735bcec975ff94ea016ea44f7d592b918
 
     // Now compute the native size of each field
     for (LayoutRawFieldInfo* pfwalk = pInfoArrayOut; pfwalk->m_MD != mdFieldDefNil; pfwalk++)
@@ -3954,7 +3954,6 @@ void EEClassLayoutInfo::ParseFieldNativeTypes(
                 pFieldInfoArrayOut,
                 pNativeType,
                 cbNativeType,
-                pInternalImport,
                 cl,
                 pTypeContext,
                 fDisqualifyFromManagedSequential
