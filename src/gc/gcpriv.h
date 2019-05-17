@@ -3006,12 +3006,18 @@ public:
     size_t etw_allocation_running_amount[2];
 
     PER_HEAP
+    uint64_t total_alloc_bytes_soh;
+
+    PER_HEAP
+    uint64_t total_alloc_bytes_loh;
+
+    PER_HEAP
     int gc_policy;  //sweep, compact, expand
 
 #ifdef MULTIPLE_HEAPS
     PER_HEAP_ISOLATED
     bool gc_thread_no_affinitize_p;
-
+    
     PER_HEAP_ISOLATED
     GCEvent gc_start_event;
 
@@ -3991,10 +3997,6 @@ private:
 
     }
 
-    BOOL FinalizeSegForAppDomain (void *pDomain, 
-                                  BOOL fRunFinalizers, 
-                                  unsigned int Seg);
-
 public:
     ~CFinalize();
     bool Initialize();
@@ -4013,9 +4015,6 @@ public:
     void SetSegForShutDown(BOOL fHasLock);
     size_t GetNumberFinalizableObjects();
     void DiscardNonCriticalObjects();
-
-    //Methods used by the app domain unloading call to finalize objects in an app domain
-    bool FinalizeAppDomain (void *pDomain, bool fRunFinalizers);
 
     void CheckFinalizerObjects();
 };

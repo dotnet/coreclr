@@ -4672,6 +4672,8 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
             return;
         }
 
+        // TODO-CQ: It would be better to simply contain the zero, rather than
+        // generating zero into a register.
         if (varTypeIsSIMD(targetType) && (targetReg != REG_NA) && op1->IsCnsIntOrI())
         {
             // This is only possible for a zero-init.
@@ -4972,7 +4974,7 @@ void CodeGen::genRegCopy(GenTree* treeNode)
 
 #ifdef USING_VARIABLE_LIVE_RANGE
                     // Report the home change for this variable
-                    compiler->getVariableLiveKeeper()->siUpdateVariableLiveRange(varDsc, lcl->gtLclNum);
+                    varLiveKeeper->siUpdateVariableLiveRange(varDsc, lcl->gtLclNum);
 #endif // USING_VARIABLE_LIVE_RANGE
 
                     // The new location is going live
@@ -8485,15 +8487,6 @@ void* CodeGen::genCreateAndStoreGCInfoJIT32(unsigned codeSize,
         }
     }
 
-#ifdef DEBUG
-    if (jitOpts.testMask & 128)
-    {
-        for (unsigned offs = 0; offs < codeSize; offs++)
-        {
-            gcInfo.gcFindPtrsInFrame(infoPtr, codePtr, offs);
-        }
-    }
-#endif // DEBUG
 #endif // DUMP_GC_TABLES
 
     /* Make sure we ended up generating the expected number of bytes */
