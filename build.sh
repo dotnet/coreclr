@@ -434,7 +434,7 @@ build_CoreLib()
     $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
                              /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
                              /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                             /p:UsePartialNGENOptimization=false /maxcpucount /p:DotNetUseShippingVersions=true /p:ArcadeBuild=true\
+                             /p:UsePartialNGENOptimization=false /maxcpucount /p:ArcadeBuild=true\
                              $__ProjectDir/src/build.proj \
                              /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
                              /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir \

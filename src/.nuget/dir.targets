@@ -11,9 +11,6 @@
 
   <Import Project="$(NuGetPackageRoot)\microsoft.dotnet.build.tasks.packaging\$(MicrosoftDotNetBuildTasksPackagingPackageVersion)\build\Microsoft.DotNet.Build.Tasks.Packaging.targets" />
 
-  <Target Name="VerifyVCRedist" BeforeTargets="GetSymbolPackageFiles" Condition="'$(_runtimeOSFamily)' == 'win'">
-    <Error Condition="'$(UniversalCRTSDKDir)' == ''" Text="Unable to find VC Redist binaries - check that UniversalCRTSDKDir environment variable is set" />
-  </Target>
   <!--
     Finds symbol files and injects them into the package build.
   -->
@@ -102,7 +99,4 @@
     </ItemGroup>
   </Target>
 
-
-  <!-- <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory)\.., dir.targets))\dir.targets"
-          Condition="'$(ArcadeBuild)'!='true'"/> -->
 </Project>

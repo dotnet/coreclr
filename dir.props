@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project>
   <Import Project="dir.common.props" />
 
   <PropertyGroup>
@@ -35,12 +35,6 @@
 
     <!-- This name is used to create a GIT repository URL https://github.com/dotnet/$(GitHubRepositoryName) used to find source code for debugging -->
     <GitHubRepositoryName Condition="'$(GitHubRepositoryName)' == ''">coreclr</GitHubRepositoryName>
-
-    <!-- We don't append back slash because this path is used by nuget.exe as output directory and it
-         fails to write packages to it if the path contains the forward slash.
-    -->
-    <PackagesBinDir>$(__PackagesBinDir)</PackagesBinDir>
-    <PackagesBinDir Condition="'$(__PackagesBinDir)'==''">$(BinDir).nuget\</PackagesBinDir>
 
     <ToolsDir Condition="'$(ToolsDir)'==''">$(ProjectDir)Tools\</ToolsDir>
     <DotnetCliPath Condition="'$(DotnetCliPath)'==''">$(ProjectDir).dotnet\</DotnetCliPath>

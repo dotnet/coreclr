@@ -25,7 +25,9 @@
     <Project Include="Microsoft.NETCore.ILDAsm\Microsoft.NETCore.ILDAsm.builds" />
   </ItemGroup>
 
-  <!-- Generate a version.txt file we include in our packages -->
+  <!-- Generate a version.txt file we include in our packages
+       The InitializeSourceControlInformationFromSourceControlManager is part of Microsoft.Build.Tasks.Git
+       and is responsible for setting SourceRevisionId -->
   <Target Name="GenerateVersionInfoFileForPackages"
           BeforeTargets="Build"
           DependsOnTargets="InitializeSourceControlInformationFromSourceControlManager">

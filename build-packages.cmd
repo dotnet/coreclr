@@ -33,11 +33,6 @@ if [!processedArgs!]==[] (
 
 :ArgsDone
 
-call "%__ProjectDir%"\setup_vs_tools.cmd
-
-REM setup_vs_tools.cmd will correctly echo error message.
-if NOT '%ERRORLEVEL%' == '0' exit /b 1
-
 set logFile=%__ProjectDir%bin\Logs\build-packages.binlog
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%~dp0eng\common\build.ps1"^
   -r -b -projects %__ProjectDir%src\.nuget\packages.builds^

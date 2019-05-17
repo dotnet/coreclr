@@ -630,7 +630,7 @@ if %__BuildCoreLib% EQU 1 (
         call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
           /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
           /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
-          /p:UsePartialNGENOptimization=false /maxcpucount /p:DotNetUseShippingVersions=true /p:ArcadeBuild=true^
+          /p:UsePartialNGENOptimization=false /maxcpucount /p:ArcadeBuild=true^
           %__ProjectDir%\src\build.proj^
           !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
         if not !errorlevel! == 0 (
@@ -837,7 +837,7 @@ if %__BuildPackages% EQU 1 (
         -verbosity minimal /nodeReuse:false /bl:!__BuildLog!^
         /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
         /p:UsePartialNGENOptimization=false /p:ArcadeBuild=true^
-        !__Logging! /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
+        /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: Nuget package generation failed. Refer to the build log file for details:
         echo     !__BuildLog!
