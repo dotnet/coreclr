@@ -9,16 +9,16 @@ variables:
 resources:
   containers:
   - container: ubuntu_1404_arm_cross_build_image
-    image: mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-14.04-cross-cfdd435-20190501010458
+    image: mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-14.04-cross-1735d26-20190521133857
 
   - container: ubuntu_1604_arm64_cross_build_image
-    image: mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-cfdd435-20190503204407
+    image: mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-cfdd435-20190520220848
 
   - container: musl_x64_build_image
-    image: mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.6-WithNode-cfdd435-20190502142303
+    image: mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.6-WithNode-cfdd435-20190521001804
 
   - container: musl_arm64_build_image
-    image: mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-alpine-406629a-20190503204407
+    image: mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-cross-arm64-alpine-406629a-20190520220848
 
   - container: centos7_x64_build_image
     image: mcr.microsoft.com/dotnet-buildtools/prereqs:centos-7-3e800f1-20190501005343
