@@ -362,6 +362,22 @@ void EventPipe::Disable(EventPipeSessionID id)
     });
 }
 
+static void LogProcessInformationEvent(EventPipeEventSource &eventSource)
+{
+    // Get the managed command line.
+    LPCWSTR pCmdLine = GetManagedCommandLine();
+
+    // Checkout https://github.com/dotnet/coreclr/pull/24433 for more information about this fall back.
+    if (pCmdLine == nullptr)
+    {
+        // Use the result from GetCommandLineW() instead
+        pCmdLine = GetCommandLineW();
+    }
+
+    // Log the process information event.
+    eventSource.SendProcessInfo(pCmdLine);
+}
+
 void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
@@ -369,6 +385,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(s_pConfig != nullptr);
         PRECONDITION(IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -387,18 +404,9 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     // Disable the profiler.
     SampleProfiler::Disable();
 
-    // Get the managed command line.
-    LPCWSTR pCmdLine = GetManagedCommandLine();
-
-    // Checkout https://github.com/dotnet/coreclr/pull/24433 for more information about this fall back.
-    if (pCmdLine == nullptr)
-    {
-        // Use the result from GetCommandLineW() instead
-        pCmdLine = GetCommandLineW();
-    }
-
     // Log the process information event.
-    s_pEventSource->SendProcessInfo(pCmdLine);
+    // FIXME: Isn't this a global setting and applies to all active sessions?
+    LogProcessInformationEvent(*s_pEventSource);
 
     // Log the runtime information event.
     ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Normal);
