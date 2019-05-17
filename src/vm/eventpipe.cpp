@@ -289,6 +289,8 @@ EventPipeSessionID EventPipe::Enable(
         if (pSession == nullptr)
             return;
         sessionId = EnableInternal(pSession, pEventPipeProviderCallbackDataQueue);
+        if (sessionId == 0)
+            delete pSession;
     });
 
     return sessionId;
