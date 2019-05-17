@@ -616,19 +616,16 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
     }
 
     // For format version 3.1 and later, there is an optional attributes section
-    if (IsImageVersionAtLeast(3,1))
+    IMAGE_DATA_DIRECTORY *attributesPresenceDataInfoDir = FindSection(READYTORUN_SECTION_ATTRIBUTEPRESENCE);
+    if (attributesPresenceDataInfoDir != NULL)
     {
-        IMAGE_DATA_DIRECTORY *attributesPresenceDataInfoDir = FindSection(READYTORUN_SECTION_ATTRIBUTEPRESENCE);
-        if (attributesPresenceDataInfoDir != NULL)
-        {
-            NativeCuckooFilter newFilter(
-                (byte *)pLayout->GetBase(),
-                pLayout->GetVirtualSize(),
-                attributesPresenceDataInfoDir->VirtualAddress,
-                attributesPresenceDataInfoDir->Size);
+        NativeCuckooFilter newFilter(
+            (byte *)pLayout->GetBase(),
+            pLayout->GetVirtualSize(),
+            attributesPresenceDataInfoDir->VirtualAddress,
+            attributesPresenceDataInfoDir->Size);
 
-            m_attributesPresence = newFilter;
-        }
+        m_attributesPresence = newFilter;
     }
 }
 
