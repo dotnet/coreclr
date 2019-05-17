@@ -489,13 +489,13 @@ inline PTR_PEImage PEImage::FindByPath(LPCWSTR pPath)
     }
     CONTRACTL_END;
 
-    int CaseHashHelper(const WCHAR *buffer, COUNT_T count, LocaleID lcid);
+    int CaseHashHelper(const WCHAR *buffer, COUNT_T count);
 
     PEImageLocator locator(pPath);
 #ifdef FEATURE_CASE_SENSITIVE_FILESYSTEM
     DWORD dwHash=path.Hash();
 #else
-    DWORD dwHash = CaseHashHelper(pPath, (COUNT_T) wcslen(pPath), PEImage::GetFileSystemLocale());
+    DWORD dwHash = CaseHashHelper(pPath, (COUNT_T) wcslen(pPath));
 #endif
    return (PEImage *) s_Images->LookupValue(dwHash, &locator);
     
@@ -607,7 +607,7 @@ inline ULONG PEImage::GetIDHash()
 #ifdef FEATURE_CASE_SENSITIVE_FILESYSTEM
     RETURN m_path.Hash();
 #else
-    RETURN m_path.HashCaseInsensitive(PEImage::GetFileSystemLocale());
+    RETURN m_path.HashCaseInsensitive();
 #endif
 }
 
