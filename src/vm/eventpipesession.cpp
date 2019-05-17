@@ -26,13 +26,14 @@ const EventPipeProviderConfiguration RundownProviders[] = {
 const uint32_t RundownProvidersSize = sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration);
 
 EventPipeSession::EventPipeSession(
+    EventPipeSessionID id,
     LPCWSTR strOutputPath,
     IpcStream *const pStream,
     EventPipeSessionType sessionType,
     unsigned int circularBufferSizeInMB,
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders,
-    bool rundownEnabled) : // m_lock(CrstEventPipe, (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN | CRST_HOST_BREAKABLE)),
+    bool rundownEnabled) : m_Id(id),
                            m_pProviderList(new EventPipeSessionProviderList(pProviders, numProviders)),
                            m_CircularBufferSizeInBytes(static_cast<size_t>(circularBufferSizeInMB) << 20),
                            m_pBufferManager(new EventPipeBufferManager()),
@@ -56,18 +57,18 @@ EventPipeSession::EventPipeSession(
     m_pFile = nullptr;
     switch (sessionType)
     {
-        case EventPipeSessionType::File:
-            if (strOutputPath != nullptr)
-                m_pFile = new EventPipeFile(new FileStreamWriter(SString(strOutputPath)));
-            break;
+    case EventPipeSessionType::File:
+        if (strOutputPath != nullptr)
+            m_pFile = new EventPipeFile(new FileStreamWriter(SString(strOutputPath)));
+        break;
 
-        case EventPipeSessionType::IpcStream:
-            m_pFile = new EventPipeFile(new IpcStreamWriter(reinterpret_cast<EventPipeSessionID>(this), pStream));
-            break;
+    case EventPipeSessionType::IpcStream:
+        m_pFile = new EventPipeFile(new IpcStreamWriter(m_Id, pStream));
+        break;
 
-        default:
-            m_pFile = nullptr;
-            break;
+    default:
+        m_pFile = nullptr;
+        break;
     }
 
     GetSystemTimeAsFileTime(&m_sessionStartTime);
@@ -261,7 +262,7 @@ void EventPipeSession::AddSessionProvider(EventPipeSessionProvider *pProvider)
     m_pProviderList->AddSessionProvider(pProvider);
 }
 
-EventPipeSessionProvider* EventPipeSession::GetSessionProvider(EventPipeProvider *pProvider)
+EventPipeSessionProvider *EventPipeSession::GetSessionProvider(EventPipeProvider *pProvider)
 {
     CONTRACTL
     {
@@ -297,13 +298,13 @@ bool EventPipeSession::WriteAllBuffersToFile()
 }
 
 bool EventPipeSession::WriteEvent(
-        Thread *pThread,
-        EventPipeEvent &event,
-        EventPipeEventPayload &payload,
-        LPCGUID pActivityId,
-        LPCGUID pRelatedActivityId,
-        Thread *pEventThread,
-        StackContents *pStack)
+    Thread *pThread,
+    EventPipeEvent &event,
+    EventPipeEventPayload &payload,
+    LPCGUID pActivityId,
+    LPCGUID pRelatedActivityId,
+    Thread *pEventThread,
+    StackContents *pStack)
 {
     // TODO: Filter events specific to "this" session.
     return m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId);
@@ -421,8 +422,6 @@ void EventPipeSession::Disable()
             m_pBufferManager->SuspendWriteEvent();
         }
     }
-    // ResumeWriteEvent is not be necessary because the session will never write events again.
-    // FIXME: Functions above might throw... Should we have a try catch here?
 }
 
 #endif // FEATURE_PERFTRACING

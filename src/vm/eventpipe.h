@@ -267,7 +267,7 @@ private:
     SList<SListElem<EventPipeProviderCallbackData>> list;
 };
 
-typedef SetSHash<EventPipeSession *, SetSHashTraits<EventPipeSession *>> EventPipeSessions;
+typedef MapSHashWithRemove<EventPipeSessionID, EventPipeSession *> EventPipeSessions;
 
 class EventPipe
 {
@@ -362,7 +362,7 @@ private:
     // The counterpart to WriteEvent which after the payload is constructed
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
-    static void DisableInternal(EventPipeSession &session, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+    static void DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Enable the specified EventPipe session.
     static EventPipeSessionID EnableInternal(

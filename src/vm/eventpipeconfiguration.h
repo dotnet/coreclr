@@ -64,7 +64,31 @@ public:
     // Delete a session.
     void DeleteSession(EventPipeSession *pSession);
 
+    bool IsValidId(EventPipeSessionID id)
+    {
+        // Check that a single bit is set.
+        return (id > 0) && ((id & (id - 1)) == 0);
+    }
+
+    bool IsSessionIdValid(EventPipeSessionID id)
+    {
+        // Check that a single bit is set.
+        return IsValidId(id) && (m_activeSessions & id);
+    }
+
 private:
+    // Helper function used to generate a "EventPipeSession ID" (bitmask).
+    EventPipeSessionID GenerateSessionId() const
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        uint64_t id = 1;
+        for (uint64_t i = 0; i < 64; ++i, id <<= i)
+            if ((m_activeSessions & id) == 0)
+                break;
+        return id;
+    }
+
     // Get the provider without taking the lock.
     EventPipeProvider *GetProviderNoLock(const SString &providerID);
 
@@ -86,6 +110,8 @@ private:
     // The provider name for the configuration event pipe provider.
     // This provider is used to emit configuration events.
     const static WCHAR *s_configurationProviderName;
+
+    uint64_t m_activeSessions;
 };
 
 #endif // FEATURE_PERFTRACING

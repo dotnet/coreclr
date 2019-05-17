@@ -43,6 +43,12 @@ private:
     // Metadata length;
     unsigned int m_metadataLength;
 
+    // Active sessions
+    uint64_t m_sessions;
+
+    // Metadata
+    uint64_t m_metadata;
+
     // Refreshes the runtime state for this event.
     // Called by EventPipeProvider when the provider configuration changes.
     void RefreshState();
@@ -51,39 +57,84 @@ private:
     // The provider is responsible for allocating and freeing events.
     EventPipeEvent(EventPipeProvider &provider, INT64 keywords, unsigned int eventID, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata = NULL, unsigned int metadataLength = 0);
 
-  public:
+public:
     ~EventPipeEvent();
 
     // Get the provider associated with this event.
-    EventPipeProvider* GetProvider() const;
+    EventPipeProvider *GetProvider() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pProvider;
+    }
 
     // Get the keywords that enable the event.
-    INT64 GetKeywords() const;
+    INT64 GetKeywords() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_keywords;
+    }
 
     // Get the ID (within the provider) of the event.
-    unsigned int GetEventID() const;
+    unsigned int GetEventID() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_eventID;
+    }
 
     // Get the version of the event.
-    unsigned int GetEventVersion() const;
+    unsigned int GetEventVersion() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_eventVersion;
+    }
 
     // Get the verbosity of the event.
-    EventPipeEventLevel GetLevel() const;
+    EventPipeEventLevel GetLevel() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_level;
+    }
 
     // True if a call stack should be captured when writing the event.
-    bool NeedStack() const;
+    bool NeedStack() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_needStack;
+    }
 
     // True if the event is currently enabled.
-    bool IsEnabled() const;
+    bool IsEnabled() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_enabled;
+    }
 
-    BYTE *GetMetadata() const;
+    BYTE *GetMetadata() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pMetadata;
+    }
 
-    unsigned int GetMetadataLength() const;
+    unsigned int GetMetadataLength() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_metadataLength;
+    }
 
-  private:
+private:
     // used when Metadata is not provided
     BYTE *BuildMinimumMetadata();
 
-    unsigned int GetMinimumMetadataLength();
+    static constexpr uint32_t GetMinimumMetadataLength()
+    {
+        const WCHAR EmptyString[] = W("");
+        return sizeof(m_eventID) +
+               sizeof(EmptyString) + // size of empty unicode string
+               sizeof(m_keywords) +
+               sizeof(m_eventVersion) +
+               sizeof(m_level) +
+               sizeof(uint32_t); // parameter count
+    }
 };
 
 #endif // FEATURE_PERFTRACING

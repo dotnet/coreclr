@@ -15,7 +15,7 @@
 const WCHAR *EventPipeConfiguration::s_configurationProviderName = W("Microsoft-DotNETCore-EventPipeConfiguration");
 
 EventPipeConfiguration::EventPipeConfiguration(EventPipeSessions *pSessions)
-    : m_pSessions(pSessions)
+    : m_pSessions(pSessions), m_activeSessions(0)
 {
     STANDARD_VM_CONTRACT;
     _ASSERTE(pSessions != nullptr);
@@ -169,20 +169,23 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
          iterator != m_pSessions->End();
          ++iterator)
     {
-        EventPipeSession *pSession = *iterator;
+        const EventPipeSessionID Id = iterator->Key();
+        EventPipeSession *const pSession = iterator->Value();
+
+        _ASSERTE(IsSessionIdValid(Id) && (pSession != nullptr));
+        if (!IsSessionIdValid(Id) || pSession == nullptr)
+            continue;
+
         // Set the provider configuration and enable it if it has been requested by a session.
-        if (pSession != NULL)
+        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(pSession, &provider);
+        if (pSessionProvider != NULL)
         {
-            EventPipeSessionProvider *pSessionProvider = GetSessionProvider(pSession, &provider);
-            if (pSessionProvider != NULL)
-            {
-                EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
-                    true /* providerEnabled */,
-                    pSessionProvider->GetKeywords(),
-                    pSessionProvider->GetLevel(),
-                    pSessionProvider->GetFilterData());
-                pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
-            }
+            EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
+                true /* providerEnabled */,
+                pSessionProvider->GetKeywords(),
+                pSessionProvider->GetLevel(),
+                pSessionProvider->GetFilterData());
+            pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
         }
     }
 
@@ -304,25 +307,16 @@ EventPipeSession *EventPipeConfiguration::CreateSession(
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
         PRECONDITION(circularBufferSizeInMB > 0);
         PRECONDITION(numProviders > 0 && pProviders != nullptr);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    // TODO: Generate SessionId
-    EventPipeSessionID sessionId = 1;
-
-    return new EventPipeSession(
-        sessionId,
-        strOutputPath,
-        pStream,
-        sessionType,
-        circularBufferSizeInMB,
-        pProviders,
-        numProviders);
+    const EventPipeSessionID SessionId = GenerateSessionId();
+    return !IsValidId(SessionId) ? nullptr : new EventPipeSession(SessionId, strOutputPath, pStream, sessionType, circularBufferSizeInMB, pProviders, numProviders);
 }
 
 void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
@@ -330,16 +324,19 @@ void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(pSession != NULL);
-        PRECONDITION(m_enabled == false);
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(pSession != nullptr);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    if (pSession != NULL && !m_enabled)
+    if (pSession != nullptr)
+    {
+        // Reset the mask of active sessions.
+        m_activeSessions &= ~pSession->GetId();
         delete pSession;
+    }
 }
 
 void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
@@ -356,6 +353,9 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
 
     if (pSession == NULL)
         return;
+
+    m_activeSessions |= pSession->GetId();
+    _ASSERTE(IsSessionIdValid(pSession->GetId()));
 
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)

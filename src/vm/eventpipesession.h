@@ -29,6 +29,8 @@ class EventPipeSession
 {
 private:
 
+    const EventPipeSessionID m_Id;
+
     // The set of configurations for each provider in the session.
     EventPipeSessionProviderList *m_pProviderList;
 
@@ -73,6 +75,7 @@ private:
 
 public:
     EventPipeSession(
+        EventPipeSessionID id,
         LPCWSTR strOutputPath,
         IpcStream *const pStream,
         EventPipeSessionType sessionType,
@@ -81,6 +84,12 @@ public:
         uint32_t numProviders,
         bool rundownEnabled = false);
     ~EventPipeSession();
+
+    EventPipeSessionID GetId() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_Id;
+    }
 
     // Get the session type.
     EventPipeSessionType GetSessionType() const
