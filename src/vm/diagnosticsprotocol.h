@@ -58,7 +58,7 @@ bool TryParseString(uint8_t *&bufferCursor, uint32_t &bufferLen, const T *&resul
 
 namespace DiagnosticsIpc
 {
-    enum class IpcVersion : uint8_t
+    enum class IpcMagicVersion : uint8_t
     {
         DOTNET_IPC_V1 = 0x01,
         // FUTURE
@@ -66,29 +66,32 @@ namespace DiagnosticsIpc
 
     enum class DiagnosticServerCommandSet : uint8_t
     {
-        // Debug         = 0x00,
+        // Debug      = 0x00,
         Miscellaneous = 0x01,
-        EventPipe = 0x02,
+        EventPipe     = 0x02,
 
-        Server = 0xFF,
+        Server        = 0xFF,
     };
 
     enum class DiagnosticServerCommandId : uint8_t
     {
-        OK = 0x00,
+        OK    = 0x00,
         Error = 0xFF,
     };
 
     enum class DiagnosticServerErrorCode : uint32_t
     {
-        OK = 0x00000000,
-        BadEncoding = 0x00000001,
-        UnknownCommandSet = 0x00000002,
-        UnknownCommandId = 0x00000003,
-        UnknownVersion = 0x00000004,
+        OK               = 0x00000000,
+
+        BadEncoding      = 0x00000001,
+        UnknownCommand   = 0x00000002,
+        UnknownMagic     = 0x00000003,
+        BadInput         = 0x00000004,
+
+        ServerError      = 0x00000005,
         // future
 
-        BAD = 0xFFFFFFFF,
+        UnknownError     = 0xFFFFFFFF,
     };
 
     struct MagicVersion
@@ -109,11 +112,6 @@ namespace DiagnosticsIpc
         uint8_t  CommandSet; // The scope of the Command.
         uint8_t  CommandId;  // The command being sent
         uint16_t Reserved;   // reserved for future use
-    };
-
-    struct ServerErrorPayload
-    {
-        DiagnosticServerErrorCode code;
     };
 
     const MagicVersion DotnetIpcMagic_V1 = { "DOTNET_IPC_V1" };
@@ -331,10 +329,36 @@ namespace DiagnosticsIpc
 
             return nBytesWritten == m_Size && success;
         };
+
+        // Send an Error message across the pipe.
+        // Will return false on failure of any step (init or send).
+        // Regardless of success of this function, the spec
+        // dictates that the connection be closed on error,
+        // so the user is expected to delete the IpcStream
+        // after handling error cases.
+        static bool SendErrorMessage(IpcStream* pStream, DiagnosticServerErrorCode error)
+        {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_TRIGGERS;
+                MODE_PREEMPTIVE;
+                PRECONDITION(pStream != nullptr);
+            }
+            CONTRACTL_END;
+
+            IpcMessage errorMessage;
+            errorMessage.Initialize(error);
+            return errorMessage.Send(pStream);
+        };
     private:
-        // Pointer to flattened buffer filled with packet
+        // Pointer to flattened buffer filled with:
+        // incoming message: payload (could be empty which would be nullptr)
+        // outgoing message: header + payload
         BYTE* m_pData;
+        // header associated with this message
         struct IpcHeader m_Header;
+        // The total size of the message (header + payload)
         uint16_t m_Size;
 
         bool IsFlattened() const

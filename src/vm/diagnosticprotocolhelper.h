@@ -16,29 +16,9 @@ class IpcStream;
 // The Miscellaneous command set is 0x01
 enum class MiscellaneousCommandId : uint8_t
 {
-    OK = 0x00,
+    // reserved      = 0x00,
     GenerateCoreDump = 0x01,
     // future
-
-    Error =0xFF,
-};
-
-const DiagnosticsIpc::IpcHeader MiscellaneousErrorHeader =
-{
-    DiagnosticsIpc::DotnetIpcMagic_V1,
-    (uint16_t)sizeof(DiagnosticsIpc::IpcHeader),
-    (uint8_t)DiagnosticsIpc::DiagnosticServerCommandSet::Miscellaneous,
-    (uint8_t)MiscellaneousCommandId::Error,
-    (uint16_t)0x0000
-};
-
-const DiagnosticsIpc::IpcHeader MiscellaneousSuccessHeader =
-{
-    DiagnosticsIpc::DotnetIpcMagic_V1,
-    (uint16_t)sizeof(DiagnosticsIpc::IpcHeader),
-    (uint8_t)DiagnosticsIpc::DiagnosticServerCommandSet::Miscellaneous,
-    (uint8_t)MiscellaneousCommandId::OK,
-    (uint16_t)0x0000
 };
 
 struct GenerateCoreDumpCommandPayload

@@ -28,17 +28,9 @@ IpcStreamWriter::IpcStreamWriter(uint64_t id, IpcStream *pStream) : _pStream(pSt
     if (_pStream == nullptr)
         return;
 
-    DiagnosticsIpc::IpcHeader EventPipeSuccessHeader =
-    {
-        DOTNET_IPC_V1_MAGIC,
-        (uint16_t)20,
-        (uint8_t)DiagnosticsIpc::DiagnosticServerCommandSet::EventPipe,
-        (uint8_t)EventPipeCommandId::OK,
-        (uint16_t)0x0000
-    };
-
-    DiagnosticsIpc::IpcMessage successMessage(EventPipeSuccessHeader, id);
-    successMessage.Send(pStream);
+    DiagnosticsIpc::IpcMessage successResponse;
+    if (successResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, id))
+        successResponse.Send(pStream);
 }
 
 IpcStreamWriter::~IpcStreamWriter()

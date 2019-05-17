@@ -50,14 +50,14 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
             DiagnosticsIpc::IpcMessage message;
             if (!message.Initialize(pStream))
             {
-                // TODO(josalem)
+                DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding);
+                delete pStream;
+                continue;
             }
 
             if (::strcmp((char *)message.GetHeader().Magic, (char *)DiagnosticsIpc::DotnetIpcMagic_V1.Magic) != 0)
             {
-                DiagnosticsIpc::IpcMessage errorResponse;
-                if (errorResponse.Initialize(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownVersion))
-                    errorResponse.Send(pStream);
+                DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::UnknownMagic);
                 delete pStream;
                 continue;
             }
@@ -82,9 +82,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 
             default:
                 STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
-                DiagnosticsIpc::IpcMessage errorResponse;
-                if (errorResponse.Initialize(DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommandSet))
-                    errorResponse.Send(pStream);
+                DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommand);
                 delete pStream;
                 break;
             }
