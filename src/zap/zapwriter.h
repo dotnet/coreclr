@@ -66,7 +66,14 @@ public:
     ZapNode()
     {
         // All ZapNodes are expected to be allocate from ZapWriter::GetHeap() that returns zero filled memory
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
         _ASSERTE(m_RVA == 0);
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
     }
 
     // This constructor should be used to allocate temporary ZapNodes on the stack only
