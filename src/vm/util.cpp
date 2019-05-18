@@ -1372,35 +1372,6 @@ LONG UtilRegQueryStringValueEx(HKEY hKey,           // handle to key to query
     return result;
 }
 
-BOOL ReportEventCLR(
-     WORD       wType,
-     WORD       wCategory,
-     DWORD      dwEventID,
-     PSID       lpUserSid,
-     SString  * message)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    GCX_PREEMP();
-
-    SString buff;
-    buff.Printf(W(".NET Runtime version %s - %s"), VER_FILEVERSION_STR_L, message ? message->GetUnicode() : NULL);
-
-    DWORD dwRetVal = ClrReportEvent(W(".NET Runtime"),
-                        wType,          // event type 
-                        wCategory,      // category
-                        dwEventID,      // event identifier 
-                        lpUserSid,      // user security identifier
-                        buff.GetUnicode()); // one substitution string 
-
-    // Return BOOLEAN based upon return code
-    return (dwRetVal == ERROR_SUCCESS)?TRUE:FALSE;
-}
-
 // This function checks to see if GetLogicalProcessorInformation API is supported. 
 // On success, this function allocates a SLPI array, sets nEntries to number 
 // of elements in the SLPI array and returns a pointer to the SLPI array after filling it with information. 

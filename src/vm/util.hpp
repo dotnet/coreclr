@@ -359,7 +359,7 @@ void __cdecl VMDebugOutputW(__in LPWSTR format, ...);
 HRESULT VMPostError(                    // Returned error.
     HRESULT     hrRpt,                  // Reported error.
     ...);                               // Error arguments.
-    
+
 //=====================================================================
 // Displays the messaage box or logs the message, corresponding to the last COM+ error occurred
 void VMDumpCOMErrors(HRESULT hrErr);
@@ -378,17 +378,6 @@ LONG UtilRegQueryStringValueEx(HKEY hKey,            // handle to key to query
                                LPDWORD lpReserved,   // reserved
                                LPDWORD lpType,       // address of buffer for value type
                                CQuickWSTR* lpData);// data buffer
-
-//======================================================================
-// Event logging
-
-BOOL ReportEventCLR (
-     IN WORD       wType,       // Event type - warning, error, success, etc
-     IN WORD       wCategory,   // Event category
-     IN DWORD      dwEventID,   // Event identifier (defined in shimr\msg.mc)
-     IN PSID       lpUserSid,   // user's security identifier
-     IN SString  * message      // message to log
-    );
 
 // --------------------------------------------------------------------------------
 // GCX macros

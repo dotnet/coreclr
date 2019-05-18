@@ -31,7 +31,7 @@ SString* TypeName::ToString(SString* pBuf, BOOL bAssemblySpec, BOOL bSignature, 
     TypeNameBuilder tnb(pBuf);
 
     for (COUNT_T i = 0; i < m_names.GetCount(); i ++)
-        tnb.AddName(m_names[i] ? m_names[i]->GetUnicode() : NULL);
+        tnb.AddName(m_names[i]->GetUnicode());
 
     return pBuf;
 }
@@ -180,7 +180,7 @@ void QCALLTYPE TypeName::QGetNames(TypeName * pTypeName, QCall::ObjectHandleOnSt
 
         for (COUNT_T i = 0; i < count; i++)
         {
-            STRINGREF str = StringObject::NewString(names[i] ? names[i]->GetUnicode() : NULL);
+            STRINGREF str = StringObject::NewString(names[i]->GetUnicode());
             pReturnNames->SetAt(i, str);
         }
 
@@ -1226,14 +1226,10 @@ TypeHandle TypeName::GetTypeFromAsm()
             {
                 TypeNameBuilder tnb;
                 for (COUNT_T i = 0; i < GetNames().GetCount(); i ++)
-                {
-                    SString* name = GetNames()[i];
-                    tnb.AddName(name ? name->GetUnicode() : NULL);
-                }
+                    tnb.AddName(GetNames()[i]->GetUnicode());
 
                 StackScratchBuffer bufFullName;
-                SString* tnbSstring = tnb.GetString();
-                DomainAssembly* pDomainAssembly = pDomain->RaiseTypeResolveEventThrowing(pRequestingAssembly?pRequestingAssembly->GetDomainAssembly():NULL,tnbSstring?tnbSstring->GetANSI(bufFullName):NULL, pAsmRef);
+                DomainAssembly* pDomainAssembly = pDomain->RaiseTypeResolveEventThrowing(pRequestingAssembly?pRequestingAssembly->GetDomainAssembly():NULL,tnb.GetString()->GetANSI(bufFullName), pAsmRef);
                 if (pDomainAssembly)
                     th = GetTypeHaveAssembly(pDomainAssembly->GetAssembly(), bThrowIfNotFound, bIgnoreCase, pKeepAlive);
             }
@@ -1325,8 +1321,7 @@ TypeHandle TypeName::GetTypeFromAsm()
     if (th.IsNull() && bThrowIfNotFound)
     {
         StackSString buf;
-        SString* bufString = ToString(&buf);
-        LPCWSTR wszName = bufString->GetUnicode();
+        LPCWSTR wszName = ToString(&buf)->GetUnicode();
         MAKE_UTF8PTR_FROMWIDE(szName, wszName);
 
         if (GetAssembly() && !GetAssembly()->IsEmpty())
