@@ -310,6 +310,12 @@ enum ReadyToRunHelper
     READYTORUN_HELPER_PersonalityRoutineFilterFunclet = 0xF1,
 #endif
 
+    // Synchronized methods
+    READYTORUN_HELPER_MonitorEnter              = 0xF8,
+    READYTORUN_HELPER_MonitorExit               = 0xF9,
+    READYTORUN_HELPER_MonitorEnterStatic        = 0xFA,
+    READYTORUN_HELPER_MonitorExitStatic         = 0xFB,
+
     //
     // Deprecated/legacy
     //
