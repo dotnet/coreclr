@@ -1388,7 +1388,7 @@ BOOL ReportEventCLR(
     GCX_PREEMP();
 
     SString buff;
-    buff.Printf(W(".NET Runtime version %s - %s"), VER_FILEVERSION_STR_L, message->GetUnicode());
+    buff.Printf(W(".NET Runtime version %s - %s"), VER_FILEVERSION_STR_L, message ? message->GetUnicode() : NULL);
 
     DWORD dwRetVal = ClrReportEvent(W(".NET Runtime"),
                         wType,          // event type 

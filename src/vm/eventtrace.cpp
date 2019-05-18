@@ -6230,9 +6230,9 @@ VOID ETW::MethodLog::SendMethodJitStartEvent(MethodDesc *pMethodDesc, SString *n
 
         // fire method information
         /* prepare events args for ETW and ETM */
-        szDtraceOutput1 = (PCWSTR)namespaceOrClassName->GetUnicode();
-        szDtraceOutput2 = (PCWSTR)methodName->GetUnicode();
-        szDtraceOutput3 = (PCWSTR)methodSignature->GetUnicode();
+        szDtraceOutput1 = namespaceOrClassName ? (PCWSTR)namespaceOrClassName->GetUnicode() : NULL;
+        szDtraceOutput2 = methodName ? (PCWSTR)methodName->GetUnicode() : NULL;
+        szDtraceOutput3 = methodSignature ? (PCWSTR)methodSignature->GetUnicode() : NULL;
 
         FireEtwMethodJittingStarted_V1(ullMethodIdentifier, 
                                        ullModuleID, 
@@ -6382,9 +6382,9 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
             methodName = &tMethodName;
             methodSignature = &tMethodSignature;
         }
-        pNamespaceName = (PWCHAR)namespaceOrClassName->GetUnicode();
-        pMethodName = (PWCHAR)methodName->GetUnicode();
-        pMethodSignature = (PWCHAR)methodSignature->GetUnicode();
+        pNamespaceName = namespaceOrClassName ? (PWCHAR)namespaceOrClassName->GetUnicode() : NULL;
+        pMethodName = methodName ? (PWCHAR)methodName->GetUnicode() : NULL;
+        pMethodSignature = methodSignature ? (PWCHAR)methodSignature->GetUnicode() : NULL;
     }
 
     BOOL bFireEventForColdSection = (bHasNativeImage && ullColdMethodStartAddress && ulColdMethodSize);

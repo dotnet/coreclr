@@ -14247,7 +14247,7 @@ Debugger::InsertToMethodInfoList( DebuggerMethodInfo *dmi )
         return (hr);
     }
 
-    DebuggerMethodInfo *dmiPrev = m_pMethodInfos->GetMethodInfo(dmi->m_module, dmi->m_token);
+    DebuggerMethodInfo *dmiPrev = m_pMethodInfos ? m_pMethodInfos->GetMethodInfo(dmi->m_module, dmi->m_token) : NULL;
 
     _ASSERTE((dmiPrev == NULL) || ((dmi->m_token == dmiPrev->m_token) && (dmi->m_module == dmiPrev->m_module)));
 
@@ -14590,7 +14590,7 @@ void Debugger::SendRawLogMessage(
                  pAppDomain);
 
     ipce->FirstLogMessage.iLevel = iLevel;
-    ipce->FirstLogMessage.szCategory.SetString(pCategory->GetUnicode());
+    ipce->FirstLogMessage.szCategory.SetString(pCategory ? pCategory->GetUnicode() : NULL);
     SetLSBufferFromSString(&ipce->FirstLogMessage.szContent, *pMessage);
 
     m_pRCThread->SendIPCEvent();

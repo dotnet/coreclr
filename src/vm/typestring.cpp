@@ -610,7 +610,7 @@ HRESULT TypeNameBuilder::ToString(BSTR* pszStringRepresentation)
     if (m_instNesting)
         return Fail();
 
-    *pszStringRepresentation = SysAllocString(m_pStr->GetUnicode());
+    *pszStringRepresentation = SysAllocString(m_pStr ? m_pStr->GetUnicode() : NULL);
 
     return S_OK;
 }

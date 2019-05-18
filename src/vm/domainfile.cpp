@@ -1084,7 +1084,8 @@ void DomainFile::FinishLoad()
     // This is necessary as on the phone we don't check ngen image dependencies, and thus we can get in a situation 
     // where a winmd is loaded as a dependency of an ngen image, but the type used to build cross module references 
     // in winmd files isn't loaded.
-    if (GetFile()->AsAssembly()->IsWindowsRuntime() && GetFile()->HasHostAssembly())
+    PEFile* peFile = GetFile();
+    if (peFile && peFile->AsAssembly()->IsWindowsRuntime() && peFile->HasHostAssembly())
     {
         IMDInternalImport *pImport = GetFile()->GetPersistentMDImport();
         LPCSTR  szNameSpace;

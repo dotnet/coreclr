@@ -791,7 +791,7 @@ CLRPrivBinderWinRT::GetFileNameListForNamespace(
         if (cFileNames > 0)
         {
             _ASSERTE(cFileNames == 1); //only support mapping to one file in coregen
-            hFileNameList.InsertTail(rgFileNames->GetUnicode());
+            hFileNameList.InsertTail(rgFileNames ? rgFileNames->GetUnicode() : NULL);
             delete rgFileNames;
         }
         

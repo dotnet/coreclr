@@ -684,8 +684,8 @@ void EETypeHashTable::Save(DataImage *image, Module *module, CorProfileData *pro
     // The base class will call us back for every entry to see if it's considered hot. To determine this we
     // have to walk through the profiling data. It's very inefficient for us to do this every time. Instead
     // we'll walk the data once just now and mark each hot entry as we find it.
-    CORBBTPROF_TOKEN_INFO * pTypeProfilingData = profileData->GetTokenFlagsData(TypeProfilingData);
-    DWORD                   cTypeProfilingData = profileData->GetTokenFlagsCount(TypeProfilingData);
+    CORBBTPROF_TOKEN_INFO * pTypeProfilingData = profileData ? profileData->GetTokenFlagsData(TypeProfilingData) : NULL;
+    DWORD                   cTypeProfilingData = profileData ? profileData->GetTokenFlagsCount(TypeProfilingData) : NULL;
 
     for (unsigned int i = 0; i < cTypeProfilingData; i++)
     {
@@ -699,7 +699,7 @@ void EETypeHashTable::Save(DataImage *image, Module *module, CorProfileData *pro
         if ((flags & (1 << ReadTypeHashTable)) == 0)
             continue;
 
-        CORBBTPROF_BLOB_ENTRY *pBlobEntry = profileData->GetBlobStream();
+        CORBBTPROF_BLOB_ENTRY *pBlobEntry = profileData ? profileData->GetBlobStream() : NULL;
         if (pBlobEntry)
         {
             while (pBlobEntry->TypeIsValid())

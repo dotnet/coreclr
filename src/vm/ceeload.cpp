@@ -7688,7 +7688,7 @@ void Module::ExpandAll(DataImage *image)
     // Load all the reported parameterized types and methods
     //
     CorProfileData *  profileData = this->GetProfileData();
-    CORBBTPROF_BLOB_ENTRY *pBlobEntry = profileData->GetBlobStream();
+    CORBBTPROF_BLOB_ENTRY *pBlobEntry = profileData ? profileData->GetBlobStream() : NULL;
     
     if (pBlobEntry != NULL)
     {
@@ -7722,8 +7722,8 @@ void Module::ExpandAll(DataImage *image)
     // Record references to all of the hot methods specifiled by MethodProfilingData array
     // We call MethodReferencedByCompiledCode to indicate that we plan on compiling this method
     //
-    CORBBTPROF_TOKEN_INFO * pMethodProfilingData = profileData->GetTokenFlagsData(MethodProfilingData);
-    DWORD                   cMethodProfilingData = profileData->GetTokenFlagsCount(MethodProfilingData);
+    CORBBTPROF_TOKEN_INFO * pMethodProfilingData = profileData ? profileData->GetTokenFlagsData(MethodProfilingData) : NULL;
+    DWORD                   cMethodProfilingData = profileData ? profileData->GetTokenFlagsCount(MethodProfilingData) : NULL;
     for (unsigned int i = 0; (i < cMethodProfilingData); i++)
     {
         mdToken token = pMethodProfilingData[i].token;
@@ -7920,7 +7920,7 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
         totalBoxedStatics += ppMTTemp->GetNumBoxedRegularStatics();
 
         bool hot = true; // if there's no profiling data, assume the entries are all hot.
-        if (profileData->GetTokenFlagsData(TypeProfilingData))
+        if (profileData && profileData->GetTokenFlagsData(TypeProfilingData))
         {
             if ((profileData->GetTypeProfilingFlagsOfToken(ppMTTemp->GetCl()) & (1 << ReadCCtorInfo)) == 0)
                 hot = false;
@@ -8340,8 +8340,8 @@ void Module::Save(DataImage *image)
         // also be placed together, at least if we don't have any further information to go on.
         // Note we place particular hot items with more care in the Arrange phase.
         //
-        CORBBTPROF_TOKEN_INFO * pTypeProfilingData = profileData->GetTokenFlagsData(TypeProfilingData);
-        DWORD                   cTypeProfilingData = profileData->GetTokenFlagsCount(TypeProfilingData);
+        CORBBTPROF_TOKEN_INFO * pTypeProfilingData = profileData ? profileData->GetTokenFlagsData(TypeProfilingData) : NULL;
+        DWORD                   cTypeProfilingData = profileData ? profileData->GetTokenFlagsCount(TypeProfilingData) : NULL;
 
         for (unsigned int i = 0; i < cTypeProfilingData; i++)
         {
@@ -8365,7 +8365,7 @@ void Module::Save(DataImage *image)
             }
             else  if (TypeFromToken(token) == ibcTypeSpec)
             {
-                CORBBTPROF_BLOB_ENTRY *pBlobEntry = profileData->GetBlobStream();
+                CORBBTPROF_BLOB_ENTRY *pBlobEntry = profileData ? profileData->GetBlobStream() : NULL;
                 if (pBlobEntry)
                 {
                     while (pBlobEntry->TypeIsValid())
@@ -8401,8 +8401,8 @@ void Module::Save(DataImage *image)
             // If we have V1 IBC data then we save the hot
             //  out-of-module generic instantiations here
 
-            CORBBTPROF_TOKEN_INFO * tokens_begin = profileData->GetTokenFlagsData(GenericTypeProfilingData);
-            CORBBTPROF_TOKEN_INFO * tokens_end = tokens_begin + profileData->GetTokenFlagsCount(GenericTypeProfilingData);
+            CORBBTPROF_TOKEN_INFO * tokens_begin = profileData ? profileData->GetTokenFlagsData(GenericTypeProfilingData) : NULL;
+            CORBBTPROF_TOKEN_INFO * tokens_end = tokens_begin + (profileData ? profileData->GetTokenFlagsCount(GenericTypeProfilingData) : 0);
 
             if (tokens_begin != tokens_end)
             {
@@ -9099,8 +9099,8 @@ void Module::Arrange(DataImage *image)
         //
         // Place hot type structues in the order specifiled by TypeProfilingData array
         //
-        CORBBTPROF_TOKEN_INFO * pTypeProfilingData = profileData->GetTokenFlagsData(TypeProfilingData);
-        DWORD                   cTypeProfilingData = profileData->GetTokenFlagsCount(TypeProfilingData);
+        CORBBTPROF_TOKEN_INFO * pTypeProfilingData = profileData ? profileData->GetTokenFlagsData(TypeProfilingData) : NULL;
+        DWORD                   cTypeProfilingData = profileData ? profileData->GetTokenFlagsCount(TypeProfilingData) : NULL;
         for (unsigned int i = 0; (i < cTypeProfilingData); i++)
         {
             CORBBTPROF_TOKEN_INFO * entry = &pTypeProfilingData[i];
@@ -9171,8 +9171,8 @@ void Module::Arrange(DataImage *image)
         //
         // Place hot methods and method data in the order specifiled by MethodProfilingData array
         //
-        CORBBTPROF_TOKEN_INFO * pMethodProfilingData = profileData->GetTokenFlagsData(MethodProfilingData);
-        DWORD                   cMethodProfilingData = profileData->GetTokenFlagsCount(MethodProfilingData);
+        CORBBTPROF_TOKEN_INFO * pMethodProfilingData = profileData ? profileData->GetTokenFlagsData(MethodProfilingData) : NULL;
+        DWORD                   cMethodProfilingData = profileData ? profileData->GetTokenFlagsCount(MethodProfilingData) : NULL;
         for (unsigned int i = 0; (i < cMethodProfilingData); i++)
         {
             mdToken token          = pMethodProfilingData[i].token;
