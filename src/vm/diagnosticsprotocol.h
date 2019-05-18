@@ -118,7 +118,7 @@ namespace DiagnosticsIpc
 
     const IpcHeader GenericSuccessHeader =
     {
-        DotnetIpcMagic_V1,
+        { DotnetIpcMagic_V1 },
         (uint16_t)sizeof(IpcHeader),
         (uint8_t)DiagnosticServerCommandSet::Server,
         (uint8_t)DiagnosticServerCommandId::OK,
@@ -127,7 +127,7 @@ namespace DiagnosticsIpc
 
     const IpcHeader GenericErrorHeader =
     {
-        DotnetIpcMagic_V1,
+        { DotnetIpcMagic_V1 },
         (uint16_t)sizeof(IpcHeader),
         (uint8_t)DiagnosticServerCommandSet::Server,
         (uint8_t)DiagnosticServerCommandId::Error,
