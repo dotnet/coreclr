@@ -155,10 +155,6 @@ namespace DiagnosticsIpc
     //
     // For more details on this pattern, look up "Substitution Failure Is Not An Error" or SFINAE
 
-    // recreates the functionality of the same named helper in std::type_traits
-    template <bool B, class T = void>
-    using enable_if_t = typename std::enable_if<B, T>::type;
-
     // template meta-programming to check for bool(Flatten)(void*) member function
     template <typename T>
     struct HasFlatten
@@ -422,7 +418,7 @@ namespace DiagnosticsIpc
         // Handles the case where the payload structure exposes Flatten
         // and GetSize methods
         template <typename U,
-                  typename enable_if_t<HasFlatten<U>::value&& HasGetSize<U>::value, bool>* = nullptr>
+                  typename std::enable_if<HasFlatten<U>::value&& HasGetSize<U>::value, int>::type = 0>
         bool FlattenImpl(U& payload)
         {
             CONTRACTL
@@ -465,7 +461,7 @@ namespace DiagnosticsIpc
 
         // handles the case where we were handed a struct with no Flatten or GetSize method
         template <typename U,
-                  typename enable_if_t<!HasFlatten<U>::value && !HasGetSize<U>::value, bool>* = nullptr>
+                  typename std::enable_if<!HasFlatten<U>::value && !HasGetSize<U>::value, int>::type = 0>
         bool FlattenImpl(U& payload)
         {
             CONTRACTL
@@ -507,7 +503,7 @@ namespace DiagnosticsIpc
         };
 
         template <typename U,
-                  typename enable_if_t<HasTryParse<U>::value, const U*> = nullptr>
+                  typename std::enable_if<HasTryParse<U>::value, int>::type = 0>
         const U* TryParsePayloadImpl()
         {
             CONTRACTL
@@ -522,7 +518,7 @@ namespace DiagnosticsIpc
         };
 
         template <typename U,
-                  typename enable_if_t<!HasTryParse<U>::value, const U*> = nullptr>
+                  typename std::enable_if<!HasTryParse<U>::value, int>::type = 0>
         const U* TryParsePayloadImpl()
         {
             CONTRACTL
