@@ -879,7 +879,7 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
                     {
                         CV_INFO_PDB70* pCvInfo = (CV_INFO_PDB70*)DacInstantiateTypeByAddressNoReport(taEntryAddr, sizeof(CV_INFO_PDB70), false);
 
-                        if (pCvInfo == NULL || pCvInfo->path == NULL)
+                        if (pCvInfo == NULL)
                         {
                             continue;
                         }

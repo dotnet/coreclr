@@ -17671,10 +17671,6 @@ bool FieldSeqNode::IsConstantIndexFieldSeq()
 
 bool FieldSeqNode::IsPseudoField()
 {
-    if (this == nullptr)
-    {
-        return false;
-    }
     return m_fieldHnd == FieldSeqStore::FirstElemPseudoField || m_fieldHnd == FieldSeqStore::ConstantIndexPseudoField;
 }
 

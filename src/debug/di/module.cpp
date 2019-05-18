@@ -4791,7 +4791,7 @@ int CordbNativeCode::GetCallInstructionLength(BYTE *ip, ULONG32 count)
                      return -1;
                  }
 
-                 WORD displace = -1;
+                 SHORT displace = -1;
 
                  // See: Tables A-15,16,17 in AMD Dev Manual 3 for information
                  //      about how the ModRM/SIB/REX bytes interact.

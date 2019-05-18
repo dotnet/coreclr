@@ -12,4 +12,18 @@ if(NOT WIN32)
   check_have_lto()
 
   check_cxx_compiler_flag(-faligned-new COMPILER_SUPPORTS_F_ALIGNED_NEW)
+
+  # check if compiler is over-sensitive about -Wtautological-constant-out-of-range-compare
+  # this fails to clean compile on clang < v6
+  check_cxx_source_compiles("
+    #include <cassert>
+    enum X : unsigned char { A, B };
+    int main()
+    {
+      X x = X::A;
+      static const char* y[] { \"1\", \"2\", \"3\" };
+      assert(x < sizeof(y)/sizeof(y[0]));
+    }"
+    COMPILER_HAS_ROBUST_TAUTOLOGICAL_COMPARISON_CHECKS
+    FAIL_REGEX ".*Wtautological-constant-out-of-range-compare.*")
 endif(NOT WIN32)

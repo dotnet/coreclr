@@ -1150,7 +1150,7 @@ COM_METHOD SymWriter::GetDebugCVInfo(
     BYTE buf[])       // [optional, out] Buffer for DebugInfo
 {
 
-    if ( m_szPath == NULL || *m_szPath == 0 )
+    if ( *m_szPath == 0 )
         return E_UNEXPECTED;
 
     // We need to change the .ildb extension to .pdb to be

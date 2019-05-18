@@ -464,8 +464,15 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-Wno-unused-private-field)
     # Explicit constructor calls are not supported by clang (this->ClassName::ClassName())
     add_compile_options(-Wno-microsoft)
-    # This warning is caused by comparing 'this' to NULL
-    add_compile_options(-Wno-tautological-compare)
+
+    if (NOT COMPILER_HAS_ROBUST_TAUTOLOGICAL_COMPARISON_CHECKS)
+        # This is a family of warnings that are caused by comparing 'this' to NULL and other forms
+        # of out-of-range comparisons (e.g. Wtautological-constant-out-of-range-compare).
+        # In clang v3.9 to v5.x, these warning are too sensitive for size assertions that we want
+        # to keep. This situation has be improved since clang 6 (tested with clang 6 and 8).
+        add_compile_options(-Wno-tautological-compare)
+    endif()
+
     # There are constants of type BOOL used in a condition. But BOOL is defined as int
     # and so the compiler thinks that there is a mistake.
     add_compile_options(-Wno-constant-logical-operand)
