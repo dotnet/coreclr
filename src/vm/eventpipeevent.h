@@ -43,12 +43,6 @@ private:
     // Metadata length;
     unsigned int m_metadataLength;
 
-    // Active sessions
-    uint64_t m_sessions;
-
-    // Metadata
-    uint64_t m_metadata;
-
     // Refreshes the runtime state for this event.
     // Called by EventPipeProvider when the provider configuration changes.
     void RefreshState();

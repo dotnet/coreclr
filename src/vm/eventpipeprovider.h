@@ -27,7 +27,7 @@ private:
     bool m_enabled;
 
     // Bit vector containing the currently enabled keywords.
-    INT64 m_keywords;
+    INT64 m_keywords; // FIXME: Why is this INT64 and not UINT64?
 
     // The current verbosity of the provider.
     EventPipeEventLevel m_providerLevel;

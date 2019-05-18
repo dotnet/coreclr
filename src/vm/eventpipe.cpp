@@ -332,7 +332,6 @@ EventPipeSessionID EventPipe::EnableInternal(
     pSession->Enable(pEventPipeProviderCallbackDataQueue);
 
     // Enable the sample profiler
-    //  FIXME: What's the story here? SampleProfiler should be enabled only once.
     SampleProfiler::Enable(pEventPipeProviderCallbackDataQueue);
 
     // Return the session ID.
@@ -584,7 +583,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         pActivityId = pThread->GetActivityId();
     }
 
-    // TODO: Do we need to protect this?
+    // FIXME: We do need to protect this.
 
     for (EventPipeSessions::Iterator iterator = s_pSessions->Begin();
          iterator != s_pSessions->End();

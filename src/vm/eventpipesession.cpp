@@ -306,8 +306,21 @@ bool EventPipeSession::WriteEvent(
     Thread *pEventThread,
     StackContents *pStack)
 {
-    // TODO: Filter events specific to "this" session.
-    return m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId);
+    // Filter events specific to "this" session based on Provider, Keywords and Level.
+    auto FilterUnaryFunction = [&](const EventPipeSessionProvider &sessionProvider) {
+        const bool areTheSameProvider = wcscmp(
+            event.GetProvider()->GetProviderName().GetUnicode(),
+            sessionProvider.GetProviderName()) == 0;
+        const bool areKeywordsEnabled = (sessionProvider.GetKeywords() == 0) ||
+            ((sessionProvider.GetKeywords() & event.GetKeywords()) != 0);
+        const bool isRightLevelEnabled = (sessionProvider.GetLevel() == EventPipeEventLevel::LogAlways) ||
+            (sessionProvider.GetLevel() >= event.GetLevel());
+        return areTheSameProvider && areKeywordsEnabled && isRightLevelEnabled;
+    };
+
+    return m_pProviderList->AnyOf(FilterUnaryFunction) ?
+        m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId) :
+        false;
 }
 
 void EventPipeSession::WriteEvent(EventPipeEventInstance &instance)

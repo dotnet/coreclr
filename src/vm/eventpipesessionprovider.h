@@ -65,6 +65,24 @@ public:
     // Clear the list of providers.
     void Clear();
 
+    template <typename Function>
+    bool AnyOf(Function &function)
+    {
+        if (m_pProviders != nullptr)
+        {
+            SListElem<EventPipeSessionProvider *> *pElem = m_pProviders->GetHead();
+            while (pElem != nullptr)
+            {
+                EventPipeSessionProvider *pProvider = pElem->GetValue();
+                if ((pProvider != nullptr) && function(*pProvider))
+                    return true;
+                pElem = m_pProviders->GetNext(pElem);
+            }
+        }
+
+        return false;
+    }
+
     EventPipeSessionProviderList() = delete;
     EventPipeSessionProviderList(const EventPipeSessionProviderList &other) = delete;
     EventPipeSessionProviderList(EventPipeSessionProviderList &&other) = delete;
