@@ -1,4 +1,3 @@
-if(NOT DEFINED CLR_SKIP_BUILD_CROSSGEN)
 include(${CLR_DIR}/crossgen.cmake)
 
 add_precompiled_header(stdafx.h ../stdafx.cpp UTILCODE_CROSSGEN_SOURCES)
@@ -8,4 +7,3 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_dependencies(utilcode_crossgen ${UTILCODE_DEPENDENCIES})
-endif()

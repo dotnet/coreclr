@@ -21,7 +21,9 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(lib)
-add_subdirectory(crossgen)
+if(NOT DEFINED CLR_SKIP_BUILD_CROSSGEN)
+  add_subdirectory(crossgen)
+endif()
 
 if (CLR_CMAKE_PLATFORM_ARCH_I386)
     # On x86, build RyuJIT/ARM32 cross-compiling altjit.

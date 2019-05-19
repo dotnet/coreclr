@@ -1,4 +1,3 @@
-if(NOT DEFINED CLR_SKIP_BUILD_CROSSGEN)
 project(crossgen)
 
 include(${CLR_DIR}/crossgen.cmake)
@@ -75,4 +74,3 @@ add_subdirectory(../../vm/crossgen_mscorlib ../../vm/crossgen_mscorlib)
 
 # add the install targets
 install_clr(crossgen)
-endif()

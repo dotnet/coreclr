@@ -1,4 +1,6 @@
-add_subdirectory(crossgen)
+if(NOT DEFINED CLR_SKIP_BUILD_CROSSGEN)
+  add_subdirectory(crossgen)
+endif()
 if (WIN32 AND NOT CLR_CMAKE_CROSS_ARCH)
   add_subdirectory(GenClrDebugResource)
   add_subdirectory(InjectResource)

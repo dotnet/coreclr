@@ -96,4 +96,6 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(v3binder)
-add_subdirectory(v3binder_crossgen)
+if(NOT DEFINED CLR_SKIP_BUILD_CROSSGEN)
+  add_subdirectory(v3binder_crossgen)
+endif()

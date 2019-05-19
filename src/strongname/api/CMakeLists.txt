@@ -23,4 +23,6 @@ endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(dac)
 add_subdirectory(wks)
-add_subdirectory(crossgen)
+if(NOT DEFINED CLR_SKIP_BUILD_CROSSGEN)
+  add_subdirectory(crossgen)
+endif()

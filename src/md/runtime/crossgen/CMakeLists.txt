@@ -1,4 +1,3 @@
-if(NOT DEFINED CLR_SKIP_BUILD_CROSSGEN)
 include(${CLR_DIR}/crossgen.cmake)
 include(../../md_wks.cmake)
 
@@ -9,4 +8,3 @@ if (WIN32)
 endif (WIN32)
 
 add_library_clr(mdruntime_crossgen ${MDRUNTIME_SOURCES})
-endif()
