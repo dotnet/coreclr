@@ -164,6 +164,24 @@ BYTE *EventPipeEventPayload::GetFlatData()
     return m_pData;
 }
 
+void EventPipeProviderCallbackDataQueue::Enqueue(EventPipeProviderCallbackData *pEventPipeProviderCallbackData)
+{
+    SListElem<EventPipeProviderCallbackData> *listnode = new SListElem<EventPipeProviderCallbackData>(); // throws
+    listnode->m_Value = *pEventPipeProviderCallbackData;
+    list.InsertTail(listnode);
+}
+
+bool EventPipeProviderCallbackDataQueue::TryDequeue(EventPipeProviderCallbackData *pEventPipeProviderCallbackData)
+{
+    if (list.IsEmpty())
+        return false;
+
+    SListElem<EventPipeProviderCallbackData> *listnode = list.RemoveHead();
+    *pEventPipeProviderCallbackData = listnode->m_Value;
+    delete listnode;
+    return true;
+}
+
 void EventPipe::Initialize()
 {
     STANDARD_VM_CONTRACT;

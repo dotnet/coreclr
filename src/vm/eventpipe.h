@@ -257,10 +257,7 @@ struct EventPipeProviderCallbackData
 class EventPipeProviderCallbackDataQueue
 {
 public:
-    EventPipeProviderCallbackDataQueue();
-
     void Enqueue(EventPipeProviderCallbackData* pEventPipeProviderCallbackData);
-
     bool TryDequeue(EventPipeProviderCallbackData* pEventPipeProviderCallbackData);
 
 private:

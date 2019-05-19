@@ -11,29 +11,6 @@
 
 #ifdef FEATURE_PERFTRACING
 
-EventPipeProviderCallbackDataQueue::EventPipeProviderCallbackDataQueue()
-{
-}
-
-void EventPipeProviderCallbackDataQueue::Enqueue(EventPipeProviderCallbackData* pEventPipeProviderCallbackData)
-{
-    SListElem<EventPipeProviderCallbackData>* listnode = new SListElem<EventPipeProviderCallbackData>(); // throws
-    listnode->m_Value = *pEventPipeProviderCallbackData;
-    this->list.InsertTail(listnode);
-}
-
-bool EventPipeProviderCallbackDataQueue::TryDequeue(EventPipeProviderCallbackData* pEventPipeProviderCallbackData)
-{
-    if (this->list.IsEmpty())
-    {
-        return false;
-    }
-    SListElem<EventPipeProviderCallbackData>* listnode = this->list.RemoveHead();
-    *pEventPipeProviderCallbackData = listnode->m_Value;
-    delete listnode;
-    return true;
-}
-
 EventPipeProvider::EventPipeProvider(EventPipeConfiguration *pConfig, const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData)
 {
     CONTRACTL
