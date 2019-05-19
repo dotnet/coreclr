@@ -826,7 +826,7 @@ namespace System.IO
         }
 
         /// <summary>
-        /// Trims any trailing separators beyond the root of the path.
+        /// Trims one trailing directory separator beyond the root of the path.
         /// </summary>
         public static string TrimEndingDirectorySeparator(string path) =>
             EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path.AsSpan()) ?
@@ -834,7 +834,7 @@ namespace System.IO
                 path;
 
         /// <summary>
-        /// Trims any trailing separators beyond the root of the path.
+        /// Trims one trailing directory separator beyond the root of the path.
         /// </summary>
         public static ReadOnlySpan<char> TrimEndingDirectorySeparator(ReadOnlySpan<char> path) =>
             EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path) ?
