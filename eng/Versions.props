@@ -9,9 +9,8 @@
     <!-- Opt-out repo features -->
     <UsingToolXliff>false</UsingToolXliff>
     <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
-
     <!-- Package versions -->
-    <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19179.4</MicrosoftDotNetXUnitConsoleRunnerVersion>
+    <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19264.13</MicrosoftDotNetXUnitConsoleRunnerVersion>
     <!-- arcade -->
     <MicrosoftDotNetBuildTasksPackagingPackageVersion>1.0.0-beta.19229.8</MicrosoftDotNetBuildTasksPackagingPackageVersion>
     <!-- corefx -->
