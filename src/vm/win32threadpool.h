@@ -345,9 +345,43 @@ public:
     }
 #endif
 
-    static void WorkerThreadBlocked();
-    static void WorkerThreadUnblocked();
+    // Holder for reporting a worker thread that is temporarily not doing any work.
+    class BlockedWorkerHolder
+    {
+    private:
+        Thread* blocked;
+    public:
+        FORCEINLINE BlockedWorkerHolder(Thread* thread)
+        {
+            // on blocking
+            if (thread != NULL && thread->IsThreadPoolThread())
+            {
+                ThreadpoolMgr::WorkerThreadBlocked();
+                blocked = thread;
+            }
+            else
+            {
+                blocked = NULL;
+            }
+        }
+
+        FORCEINLINE ~BlockedWorkerHolder() 
+        {
+            // On exit.
+            if (blocked != NULL)
+            {
+                _ASSERTE(GetThread() == blocked && blocked->IsThreadPoolThread());
+                ThreadpoolMgr::WorkerThreadUnblocked();
+            }
+        }
+    };
+
 private:
+
+    // records that a worker thread is blocked
+    static void WorkerThreadBlocked();
+    // records that a worker thread is unblocked
+    static void WorkerThreadUnblocked();
 
 #ifndef DACCESS_COMPILE
 

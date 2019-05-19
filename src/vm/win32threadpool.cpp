@@ -709,6 +709,8 @@ INT32 ThreadpoolMgr::GetThreadCount()
 //       we cant track all the blockings, but is that the job of gatekeeper to handle that?
 void ThreadpoolMgr::WorkerThreadBlocked()
 {
+    WRAPPER_NO_CONTRACT;
+
     while (true)
     {
         // counts volatile read paired with CompareExchangeCounts loop set
@@ -727,6 +729,8 @@ void ThreadpoolMgr::WorkerThreadBlocked()
 
 void ThreadpoolMgr::WorkerThreadUnblocked()
 {
+    WRAPPER_NO_CONTRACT;
+
     while (true)
     {
         // counts volatile read paired with CompareExchangeCounts loop set
