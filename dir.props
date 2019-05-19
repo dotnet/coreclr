@@ -12,10 +12,10 @@
     <DebugType Condition="'$(DebugType)' == ''">Portable</DebugType>
   </PropertyGroup>
 
-  <!-- Version numbers for both managed & native binaries -->
+  <!-- Version numbers for native binaries -->
   <PropertyGroup>
-    <MajorVersion>4</MajorVersion>
-    <MinorVersion>6</MinorVersion>
+    <MajorVersion>$(NativeMajorVersion)</MajorVersion>
+    <MinorVersion>$(NativeMinorVersion)</MinorVersion>
   </PropertyGroup>
 
   <!--
