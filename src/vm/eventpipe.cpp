@@ -411,7 +411,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     //  disabling session A will be able to block all other sessions from doing
     //  work for a long time.
 
-    if (s_pConfig == nullptr)
+    if (s_pConfig == nullptr || !s_pConfig->Enabled())
         return;
 
     EventPipeSession *pSession = nullptr;

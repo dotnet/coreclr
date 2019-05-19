@@ -49,6 +49,13 @@ public:
         const EventPipeSession &session,
         EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
+    // Get the status of the event pipe.
+    bool Enabled() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return (m_activeSessions != 0);
+    }
+
     // Get the event used to write metadata to the event stream.
     EventPipeEventInstance *BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, unsigned int metdataId);
 
