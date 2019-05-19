@@ -16,25 +16,26 @@ EventPipeEvent::EventPipeEvent(
     EventPipeEventLevel level,
     bool needStack,
     BYTE *pMetadata,
-    unsigned int metadataLength)
+    unsigned int metadataLength) : m_pProvider(&provider),
+                                   m_keywords(keywords),
+                                   m_eventID(eventID),
+                                   m_eventVersion(eventVersion),
+                                   m_level(level),
+                                   m_needStack(needStack),
+                                   m_enabled(false),
+                                   m_pMetadata(nullptr),
+                                   m_sessions(0)
 {
     CONTRACTL
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION(&provider != nullptr);
     }
     CONTRACTL_END;
 
-    m_pProvider = &provider;
-    m_keywords = keywords;
-    m_eventID = eventID;
-    m_eventVersion = eventVersion;
-    m_level = level;
-    m_needStack = needStack;
-    m_enabled = false;
-
-    if (pMetadata != NULL)
+    if (pMetadata != nullptr)
     {
         m_pMetadata = new BYTE[metadataLength];
         memcpy(m_pMetadata, pMetadata, metadataLength);
@@ -105,6 +106,29 @@ void EventPipeEvent::RefreshState()
 {
     LIMITED_METHOD_CONTRACT;
     m_enabled = m_pProvider->EventEnabled(m_keywords, m_level);
+}
+
+void EventPipeEvent::RefreshState(
+    uint64_t sessionId,
+    INT64 sessionKeywords,
+    EventPipeEventLevel sessionLevel)
+{
+    LIMITED_METHOD_CONTRACT;
+    RefreshState();
+
+    // If event is enabled, then we need to check if applicable to this session.
+    const bool areKeywordsSet = (m_keywords == 0) || (sessionKeywords == 0) || ((m_keywords & sessionKeywords) != 0);
+    const bool isAppropriateLevel = (sessionLevel == EventPipeEventLevel::LogAlways) || (sessionLevel >= m_level);
+    m_sessions = (m_enabled && areKeywordsSet && isAppropriateLevel) ?
+        (m_sessions | sessionId) : (m_sessions & ~sessionId);
+}
+
+// TODO: Refresh Provider/Events {SessionIds, Keywords, Level} after removing a session.
+void EventPipeEvent::LazyRemoveSession(uint64_t sessionId)
+{
+    LIMITED_METHOD_CONTRACT;
+    if (m_sessions & sessionId)
+        m_sessions &= ~sessionId;
 }
 
 #endif // FEATURE_PERFTRACING

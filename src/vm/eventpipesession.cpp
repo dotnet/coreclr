@@ -12,19 +12,6 @@
 
 #ifdef FEATURE_PERFTRACING
 
-//! The keywords below seems to correspond to:
-//!  LoaderKeyword                      (0x00000008)
-//!  JitKeyword                         (0x00000010)
-//!  NgenKeyword                        (0x00000020)
-//!  unused_keyword                     (0x00000100)
-//!  JittedMethodILToNativeMapKeyword   (0x00020000)
-//!  ThreadTransferKeyword              (0x80000000)
-const EventPipeProviderConfiguration RundownProviders[] = {
-    {W("Microsoft-Windows-DotNETRuntime"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL},       // Public provider.
-    {W("Microsoft-Windows-DotNETRuntimeRundown"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose), NULL} // Rundown provider.
-};
-const uint32_t RundownProvidersSize = sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration);
-
 EventPipeSession::EventPipeSession(
     EventPipeSessionID id,
     LPCWSTR strOutputPath,
@@ -196,12 +183,13 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
             pEventPipeSession->SetThreadShutdownEvent();
 
             if (!fSuccess)
-                pEventPipeSession->Disable();
+                pEventPipeSession->Disable(); // FIXME: We should notify EventPipe itself to remove this session from the list.
         }
         EX_CATCH
         {
             pEventPipeSession->SetThreadShutdownEvent();
             // TODO: STRESS_LOG ?
+            // TODO: Should we notify EventPipe itself to remove this session from the list.
         }
         EX_END_CATCH(SwallowAllExceptions);
     }
@@ -306,19 +294,16 @@ bool EventPipeSession::WriteEvent(
     Thread *pEventThread,
     StackContents *pStack)
 {
-    // Filter events specific to "this" session based on Provider, Keywords and Level.
-    auto FilterUnaryFunction = [&](const EventPipeSessionProvider &sessionProvider) {
-        const bool areTheSameProvider = wcscmp(
-            event.GetProvider()->GetProviderName().GetUnicode(),
-            sessionProvider.GetProviderName()) == 0;
-        const bool areKeywordsEnabled = (sessionProvider.GetKeywords() == 0) ||
-            ((sessionProvider.GetKeywords() & event.GetKeywords()) != 0);
-        const bool isRightLevelEnabled = (sessionProvider.GetLevel() == EventPipeEventLevel::LogAlways) ||
-            (sessionProvider.GetLevel() >= event.GetLevel());
-        return areTheSameProvider && areKeywordsEnabled && isRightLevelEnabled;
-    };
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
 
-    return m_pProviderList->AnyOf(FilterUnaryFunction) ?
+    // Filter events specific to "this" session based on precomputed flag on provider/events.
+    return event.GetListeningSessions() & GetId() ?
         m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId) :
         false;
 }
@@ -352,7 +337,7 @@ EventPipeEventInstance *EventPipeSession::GetNextEvent()
     return m_pBufferManager->GetNextEvent();
 }
 
-void EventPipeSession::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
+void EventPipeSession::Enable()
 {
     CONTRACTL
     {
@@ -366,6 +351,75 @@ void EventPipeSession::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProv
 
     if (m_SessionType == EventPipeSessionType::IpcStream)
         CreateIpcStreamingThread();
+}
+
+void EventPipeSession::EnableRundown()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        // Lock must be held by EventPipe::Enable.
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
+    //! The keywords below seems to correspond to:
+    //!  LoaderKeyword                      (0x00000008)
+    //!  JitKeyword                         (0x00000010)
+    //!  NgenKeyword                        (0x00000020)
+    //!  unused_keyword                     (0x00000100)
+    //!  JittedMethodILToNativeMapKeyword   (0x00020000)
+    //!  ThreadTransferKeyword              (0x80000000)
+    const UINT64 Keywords = 0x80020138;
+    const UINT32 VerboseLoggingLevel = static_cast<UINT32>(EventPipeEventLevel::Verbose);
+    const EventPipeProviderConfiguration RundownProviders[] = {
+        {W("Microsoft-Windows-DotNETRuntime"), Keywords, VerboseLoggingLevel, NULL},       // Public provider.
+        {W("Microsoft-Windows-DotNETRuntimeRundown"), Keywords, VerboseLoggingLevel, NULL} // Rundown provider.
+    };
+    const uint32_t RundownProvidersSize = sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration);
+
+    // Update provider list with rundown configuration.
+    for (uint32_t i = 0; i < RundownProvidersSize; ++i)
+    {
+        const EventPipeProviderConfiguration &Config = RundownProviders[i];
+        m_pProviderList->AddSessionProvider(new EventPipeSessionProvider(
+            Config.GetProviderName(),
+            Config.GetKeywords(),
+            (EventPipeEventLevel)Config.GetLevel(),
+            Config.GetFilterData()));
+    }
+
+    m_rundownEnabled = true;
+}
+
+void EventPipeSession::DisableIpcStreamingThread()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
+    if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
+    {
+        _ASSERTE(!g_fProcessDetach);
+
+        // Reset the event before shutdown.
+        m_threadShutdownEvent.Reset();
+
+        // The IPC streaming thread will watch this value and exit
+        // when profiling is disabled.
+        m_ipcStreamingEnabled = false;
+
+        // Wait for the sampling thread to clean itself up.
+        m_threadShutdownEvent.Wait(INFINITE, FALSE /* bAlertable */);
+        m_threadShutdownEvent.CloseEvent();
+    }
 }
 
 void EventPipeSession::Disable()
@@ -383,49 +437,45 @@ void EventPipeSession::Disable()
     if (m_pFile == nullptr)
         return;
 
-    // Disable streaming thread
-    if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
-    {
-        _ASSERTE(!g_fProcessDetach);
-
-        // Reset the event before shutdown.
-        m_threadShutdownEvent.Reset();
-
-        // The IPC streaming thread will watch this value and exit
-        // when profiling is disabled.
-        m_ipcStreamingEnabled = false;
-
-        // Wait for the sampling thread to clean itself up.
-        m_threadShutdownEvent.Wait(INFINITE, FALSE /* bAlertable */);
-        m_threadShutdownEvent.CloseEvent();
-    }
+    DisableIpcStreamingThread();
 
     // Force all in-progress writes to either finish or cancel
     // This is required to ensure we can safely flush and delete the buffers
     m_pBufferManager->SuspendWriteEvent();
     {
-        if (!WriteAllBuffersToFile())
-            return; // There were errors writing. Do not bother writing more.
+        WriteAllBuffersToFile();
+        m_pProviderList->Clear();
+    }
+    // Allow WriteEvent to begin accepting work again so that sometime in the future
+    // we can re-enable events and they will be recorded
+    m_pBufferManager->ResumeWriteEvent();
+}
+
+void EventPipeSession::DisableRundown()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        // Lock must be held by EventPipe::Disable.
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
+    if (m_pFile == nullptr)
+        return;
+
+    // Force all in-progress writes to either finish or cancel
+    // This is required to ensure we can safely flush and delete the buffers
+    m_pBufferManager->SuspendWriteEvent();
+    {
+        WriteAllBuffersToFile();
 
         if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
         {
-            // Enable rundown.
-            m_rundownEnabled = true;
-
             // Before closing the file, do rundown. We have to re-enable event writing for this.
             m_pBufferManager->ResumeWriteEvent();
-
-            // Update provider list with rundown configuration.
-            m_pProviderList->Clear();
-            for (uint32_t i = 0; i < RundownProvidersSize; ++i)
-            {
-                const EventPipeProviderConfiguration &Config = RundownProviders[i];
-                m_pProviderList->AddSessionProvider(new EventPipeSessionProvider(
-                    Config.GetProviderName(),
-                    Config.GetKeywords(),
-                    (EventPipeEventLevel)Config.GetLevel(),
-                    Config.GetFilterData()));
-            }
 
             // Ask the runtime to emit rundown events.
             if (g_fEEStarted && !g_fEEShutDown)
@@ -435,6 +485,9 @@ void EventPipeSession::Disable()
             m_pBufferManager->SuspendWriteEvent();
         }
     }
+    // Allow WriteEvent to begin accepting work again so that sometime in the future
+    // we can re-enable events and they will be recorded
+    m_pBufferManager->ResumeWriteEvent();
 }
 
 #endif // FEATURE_PERFTRACING

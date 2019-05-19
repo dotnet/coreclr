@@ -17,22 +17,22 @@ class EventPipeEvent
 private:
 
     // The provider that contains the event.
-    EventPipeProvider *m_pProvider;
+    EventPipeProvider *const m_pProvider;
 
     // Bit vector containing the keywords that enable the event.
-    INT64 m_keywords;
+    const INT64 m_keywords;
 
     // The ID (within the provider) of the event.
-    unsigned int m_eventID;
+    const unsigned int m_eventID;
 
     // The version of the event.
-    unsigned int m_eventVersion;
+    const unsigned int m_eventVersion;
 
     // The verbosity of the event.
-    EventPipeEventLevel m_level;
+    const EventPipeEventLevel m_level;
 
     // True if a call stack should be captured when writing the event.
-    bool m_needStack;
+    const bool m_needStack;
 
     // True if the event is current enabled.
     Volatile<bool> m_enabled;
@@ -43,9 +43,17 @@ private:
     // Metadata length;
     unsigned int m_metadataLength;
 
+    // Bit mask of sessions for which this event is enabled.
+    uint64_t m_sessions;
+
     // Refreshes the runtime state for this event.
     // Called by EventPipeProvider when the provider configuration changes.
     void RefreshState();
+    void RefreshState(
+        uint64_t sessionId,
+        INT64 keywords,
+        EventPipeEventLevel providerLevel);
+    void LazyRemoveSession(uint64_t sessionId);
 
     // Only EventPipeProvider can create events.
     // The provider is responsible for allocating and freeing events.
@@ -113,6 +121,12 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_metadataLength;
+    }
+
+    uint64_t GetListeningSessions() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_sessions;
     }
 
 private:

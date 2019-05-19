@@ -73,6 +73,8 @@ private:
 
     void SetThreadShutdownEvent();
 
+    void DisableIpcStreamingThread();
+
 public:
     EventPipeSession(
         EventPipeSessionID id,
@@ -154,10 +156,13 @@ public:
     EventPipeEventInstance *GetNextEvent();
 
     // Enable a session in the event pipe.
-    void Enable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
+    void Enable();
 
     // Disable a session in the event pipe.
     void Disable();
+
+    void EnableRundown();
+    void DisableRundown();
 
     // Determine if the session is valid or not.  Invalid sessions can be detected before they are enabled.
     bool IsValid() /* This is not const because CrtsHolder does not take a const* */;

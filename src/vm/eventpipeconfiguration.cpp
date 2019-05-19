@@ -181,7 +181,7 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
         if (pSessionProvider != NULL)
         {
             EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
-                true /* providerEnabled */,
+                pSession->GetId(),
                 pSessionProvider->GetKeywords(),
                 pSessionProvider->GetLevel(),
                 pSessionProvider->GetFilterData());
@@ -369,7 +369,7 @@ void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProvider
                 // FIXME: With multiple sessions we need to do better than this (combine/union keywords for an existing/already enabled provider).
                 EventPipeProviderCallbackData eventPipeProviderCallbackData =
                     pProvider->SetConfiguration(
-                        true /* providerEnabled */,
+                        session.GetId(),
                         pSessionProvider->GetKeywords(),
                         pSessionProvider->GetLevel(),
                         pSessionProvider->GetFilterData());
@@ -388,10 +388,13 @@ void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeP
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        PRECONDITION((session.GetId() & m_activeSessions) != 0); // Session is enabled.
         // Lock must be held by EventPipe::Disable.
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
+
+    // TODO: m_pSessions->ForEach([=](Iterator pair){});
 
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
@@ -400,12 +403,14 @@ void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeP
         while (pElem != NULL)
         {
             EventPipeProvider *pProvider = pElem->GetValue();
-            EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->SetConfiguration(
-                false /* providerEnabled */,
-                0 /* keywords */,
-                EventPipeEventLevel::Critical /* level */,
-                NULL /* filterData */);
-            pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
+
+            // TODO: if no more sessions: {0, 0, Critical, nullptr}, else {everything but this session}
+            if (pProvider->IsEnabled(session.GetId()))
+            {
+                EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->UnsetConfiguration(
+                    session.GetId());
+                pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
+            }
 
             pElem = m_pProviderList->GetNext(pElem);
         }
@@ -422,7 +427,7 @@ EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     }
     CONTRACTL_END;
 
-    // TODO: Per-session tracking whether event metadata has been emitted.
+    // FIXME: Per-session tracking whether event metadata has been emitted.
 
     // The payload of the event should contain:
     // - Metadata ID

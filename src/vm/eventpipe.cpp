@@ -242,6 +242,8 @@ void EventPipe::Shutdown()
     {
         if (s_pSessions != nullptr)
         {
+            // FIXME: Calling disable here does not seem safe.
+            //  The sessions collection is modified inside Disable.
             for (EventPipeSessions::Iterator iterator = s_pSessions->Begin();
                  iterator != s_pSessions->End();
                  ++iterator)
@@ -347,7 +349,7 @@ EventPipeSessionID EventPipe::EnableInternal(
     s_pConfig->Enable(*pSession, pEventPipeProviderCallbackDataQueue);
 
     // Enable the session.
-    pSession->Enable(pEventPipeProviderCallbackDataQueue);
+    pSession->Enable();
 
     // Enable the sample profiler
     SampleProfiler::Enable(pEventPipeProviderCallbackDataQueue);
@@ -422,24 +424,31 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     SampleProfiler::Disable();
 
     // Log the process information event.
-    // FIXME: Isn't this a global setting and applies to all active sessions?
+    // TODO: Isn't this a global setting and applies to all active sessions?
     LogProcessInformationEvent(*s_pEventSource);
 
     // Log the runtime information event.
     ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Normal);
 
-    // Disable tracing.
+    // Disable pSession tracing.
+    s_pConfig->Disable(*pSession, pEventPipeProviderCallbackDataQueue);
+    pSession->Disable();
+
+    // Do rundown before fully stopping the session.
+    pSession->EnableRundown();
+    s_pConfig->Enable(*pSession, pEventPipeProviderCallbackDataQueue);
+
+    pSession->DisableRundown();
     s_pConfig->Disable(*pSession, pEventPipeProviderCallbackDataQueue);
 
-    pSession->Disable();
+    // Remove the session.
+    s_pSessions->Remove(id);
+    s_pConfig->DeleteSession(pSession);
 
     // Delete deferred providers.
     // Providers can't be deleted during tracing because they may be needed when serializing the file.
     s_pConfig->DeleteDeferredProviders();
 
-    // Remove the session.
-    s_pSessions->Remove(id);
-    s_pConfig->DeleteSession(pSession);
 }
 
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
