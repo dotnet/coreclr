@@ -1,3 +1,4 @@
+if(NOT DEFINED CLR_SKIP_BUILD_CROSSGEN)
 include(${CLR_DIR}/crossgen.cmake)
 
 set(ZAP_SOURCES
@@ -56,3 +57,4 @@ add_library_clr(corzap_crossgen STATIC ${ZAP_SOURCES})
 if(FEATURE_MERGE_JIT_AND_ENGINE)
   target_link_libraries(corzap_crossgen clrjit_crossgen)
 endif(FEATURE_MERGE_JIT_AND_ENGINE)
+endif()

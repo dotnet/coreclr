@@ -1,3 +1,4 @@
+if(NOT DEFINED CLR_SKIP_BUILD_CROSSGEN)
 include(${CLR_DIR}/crossgen.cmake)
 
 set(VM_CROSSGEN_SOURCES
@@ -268,3 +269,4 @@ endif (CLR_CMAKE_PLATFORM_LINUX)
 
 add_library_clr(cee_crossgen ${VM_CROSSGEN_SOURCES})
 add_dependencies(cee_crossgen eventing_headers)
+endif()

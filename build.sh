@@ -859,6 +859,7 @@ while :; do
 
         skipcrossgen|-skipcrossgen)
             __SkipCrossgen=1
+            __cmakeargs="$__cmakeargs -DCLR_SKIP_BUILD_CROSSGEN=1"
             ;;
 
         crossgenonly|-crossgenonly)
@@ -1081,7 +1082,7 @@ if [ $__CrossgenOnly == 1 ]; then
 fi
 
 # Generate nuget packages
-if [ $__SkipNuget != 1 ]; then
+if [[ $__SkipNuget != 1 && $__SkipCrossgen != 1 ]]; then
     generate_NugetPackages
 fi
 
