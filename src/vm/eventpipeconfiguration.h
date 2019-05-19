@@ -40,10 +40,14 @@ public:
     EventPipeProvider *GetProvider(const SString &providerID);
 
     // Enable a session in the event pipe.
-    void Enable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
+    void Enable(
+        EventPipeSession &session,
+        EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Disable a session in the event pipe.
-    void Disable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
+    void Disable(
+        const EventPipeSession &session,
+        EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Get the event used to write metadata to the event stream.
     EventPipeEventInstance *BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, unsigned int metdataId);
@@ -93,7 +97,7 @@ private:
     EventPipeProvider *GetProviderNoLock(const SString &providerID);
 
     // Get the enabled provider.
-    EventPipeSessionProvider *GetSessionProvider(EventPipeSession *pSession, EventPipeProvider *pProvider);
+    EventPipeSessionProvider *GetSessionProvider(EventPipeSession &session, EventPipeProvider *pProvider);
 
     // The list of EventPipe sessions.
     EventPipeSessions *const m_pSessions;

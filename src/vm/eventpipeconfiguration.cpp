@@ -177,7 +177,7 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
             continue;
 
         // Set the provider configuration and enable it if it has been requested by a session.
-        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(pSession, &provider);
+        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(*pSession, &provider);
         if (pSessionProvider != NULL)
         {
             EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
@@ -281,7 +281,7 @@ EventPipeProvider *EventPipeConfiguration::GetProviderNoLock(const SString &prov
     return NULL;
 }
 
-EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(EventPipeSession *pSession, EventPipeProvider *pProvider)
+EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(EventPipeSession &session, EventPipeProvider *pProvider)
 {
     CONTRACTL
     {
@@ -292,7 +292,7 @@ EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(EventPipeSe
     }
     CONTRACTL_END;
 
-    return (pSession != nullptr) ? pSession->GetSessionProvider(pProvider) : nullptr;
+    return session.GetSessionProvider(pProvider);
 }
 
 EventPipeSession *EventPipeConfiguration::CreateSession(
@@ -339,23 +339,20 @@ void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
     }
 }
 
-void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(pSession != NULL);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    if (pSession == NULL)
-        return;
-
-    m_activeSessions |= pSession->GetId();
-    _ASSERTE(IsSessionIdValid(pSession->GetId()));
+    // Add session Id to the "list" of active sessions.
+    m_activeSessions |= session.GetId();
+    _ASSERTE(IsSessionIdValid(session.GetId()));
 
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
@@ -366,7 +363,7 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
             EventPipeProvider *pProvider = pElem->GetValue();
 
             // Enable the provider if it has been configured.
-            EventPipeSessionProvider *pSessionProvider = GetSessionProvider(pSession, pProvider);
+            EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
             if (pSessionProvider != NULL)
             {
                 // TODO: With multiple sessions we need to do better than this (combine/union keywords for an existing/already enabled provider).
@@ -384,7 +381,7 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession, EventPipeProvide
     }
 }
 
-void EventPipeConfiguration::Disable(EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {

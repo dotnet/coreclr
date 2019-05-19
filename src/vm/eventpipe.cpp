@@ -344,7 +344,7 @@ EventPipeSessionID EventPipe::EnableInternal(
     s_pSessions->Add(pSession->GetId(), pSession);
 
     // Enable tracing.
-    s_pConfig->Enable(pSession, pEventPipeProviderCallbackDataQueue);
+    s_pConfig->Enable(*pSession, pEventPipeProviderCallbackDataQueue);
 
     // Enable the session.
     pSession->Enable(pEventPipeProviderCallbackDataQueue);
@@ -429,7 +429,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Normal);
 
     // Disable tracing.
-    s_pConfig->Disable(pEventPipeProviderCallbackDataQueue);
+    s_pConfig->Disable(*pSession, pEventPipeProviderCallbackDataQueue);
 
     pSession->Disable();
 
