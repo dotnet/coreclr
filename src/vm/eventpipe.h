@@ -264,6 +264,7 @@ private:
     SList<SListElem<EventPipeProviderCallbackData>> list;
 };
 
+// TODO: Maybe this could be an array: EventPipeSession *EventPipeSessions[64];
 typedef MapSHashWithRemove<EventPipeSessionID, EventPipeSession *> EventPipeSessions;
 
 class EventPipe

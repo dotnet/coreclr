@@ -68,15 +68,15 @@ public:
     // Delete a session.
     void DeleteSession(EventPipeSession *pSession);
 
+    // Check that a single bit is set.
     bool IsValidId(EventPipeSessionID id)
     {
-        // Check that a single bit is set.
         return (id > 0) && ((id & (id - 1)) == 0);
     }
 
+    // Check that a session Id is enabled.
     bool IsSessionIdValid(EventPipeSessionID id)
     {
-        // Check that a single bit is set.
         return IsValidId(id) && (m_activeSessions & id);
     }
 
