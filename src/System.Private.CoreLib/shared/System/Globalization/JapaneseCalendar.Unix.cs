@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -17,13 +16,13 @@ namespace System.Globalization
                 return null;
             }
 
-            string[] eraNames;
+            string[]? eraNames;
             if (!CalendarData.EnumCalendarInfo("ja-JP", CalendarId.JAPAN, CalendarDataType.EraNames, out eraNames))
             {
                 return null;
             }
 
-            string[] abbrevEnglishEraNames;
+            string[]? abbrevEnglishEraNames;
             if (!CalendarData.EnumCalendarInfo("en", CalendarId.JAPAN, CalendarDataType.AbbrevEraNames, out abbrevEnglishEraNames))
             {
                 return null;
@@ -48,7 +47,7 @@ namespace System.Globalization
                 }
 
                 eras.Add(new EraInfo(i, dt.Year, dt.Month, dt.Day, dt.Year - 1, 1, lastMaxYear - dt.Year + 1,
-                    eraNames[i], GetAbbreviatedEraName(eraNames, i), abbrevEnglishEraNames[i]));
+                    eraNames![i], GetAbbreviatedEraName(eraNames, i), abbrevEnglishEraNames![i]));
 
                 lastMaxYear = dt.Year;
             }

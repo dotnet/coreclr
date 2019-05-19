@@ -7,12 +7,12 @@ namespace System.Reflection.Emit
     public class ParameterBuilder
     {
         // Set the default value of the parameter
-        public virtual void SetConstant(object defaultValue)
+        public virtual void SetConstant(object? defaultValue)
         {
             TypeBuilder.SetConstantValue(
                 _methodBuilder.GetModuleBuilder(),
                 _token.Token,
-                _position == 0 ? _methodBuilder.ReturnType : _methodBuilder.m_parameterTypes[_position - 1],
+                _position == 0 ? _methodBuilder.ReturnType! : _methodBuilder.m_parameterTypes![_position - 1],
                 defaultValue);
         }
 
@@ -50,7 +50,7 @@ namespace System.Reflection.Emit
             MethodBuilder methodBuilder,
             int sequence,
             ParameterAttributes attributes,
-            string paramName)            // can be NULL string
+            string? paramName)            // can be NULL string
         {
             _position = sequence;
             _name = paramName;
@@ -69,7 +69,7 @@ namespace System.Reflection.Emit
             return _token;
         }
 
-        public virtual string Name => _name;
+        public virtual string? Name => _name;
 
         public virtual int Position => _position;
 
@@ -81,7 +81,7 @@ namespace System.Reflection.Emit
 
         public bool IsOptional => (_attributes & ParameterAttributes.Optional) != 0;
 
-        private readonly string _name;
+        private readonly string? _name;
         private readonly int _position;
         private readonly ParameterAttributes _attributes;
         private MethodBuilder _methodBuilder;

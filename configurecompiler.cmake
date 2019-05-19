@@ -323,7 +323,6 @@ endif(WIN32)
 if(CLR_CMAKE_PLATFORM_UNIX)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CLR_ADDITIONAL_LINKER_FLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CLR_ADDITIONAL_LINKER_FLAGS}" )
-    add_compile_options(${CLR_ADDITIONAL_COMPILER_OPTIONS})
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(CLR_CMAKE_PLATFORM_LINUX)
@@ -486,6 +485,9 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-Wno-unused-but-set-variable)
     add_compile_options(-fms-extensions)
     add_compile_options(-Wno-unknown-pragmas)
+    if (COMPILER_SUPPORTS_F_ALIGNED_NEW)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -faligned-new")
+    endif()
   endif()
 
   # Some architectures (e.g., ARM) assume char type is unsigned while CoreCLR assumes char is signed
@@ -515,6 +517,10 @@ if(CLR_CMAKE_PLATFORM_UNIX_ARM)
      add_compile_options(-mfloat-abi=softfp)
    endif(ARM_SOFTFP)
 endif(CLR_CMAKE_PLATFORM_UNIX_ARM)
+
+if(CLR_CMAKE_PLATFORM_UNIX)
+  add_compile_options(${CLR_ADDITIONAL_COMPILER_OPTIONS})
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if (WIN32)
   # Compile options for targeting windows

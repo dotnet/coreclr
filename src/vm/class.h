@@ -72,7 +72,6 @@ class   ArrayMethodDesc;
 class   Assembly;
 class   ClassLoader;
 class   DictionaryLayout;
-class   DomainLocalBlock;
 class   FCallMethodDesc;
 class   EEClass;
 class   EnCFieldDesc;
@@ -97,6 +96,7 @@ class LoadingEntry_LockHolder;
 class   DispatchMapBuilder;
 class LoaderAllocator;
 class ComCallWrapperTemplate;
+enum class ParseNativeTypeFlags : int;
 
 typedef DPTR(DictionaryLayout) PTR_DictionaryLayout;
 typedef DPTR(FieldMarshaler) PTR_FieldMarshaler;
@@ -357,15 +357,14 @@ class EEClassLayoutInfo
        BOOL fExplicitOffsets,       // explicit offsets?
        MethodTable *pParentMT,       // the loaded superclass
        ULONG cTotalFields,              // total number of fields (instance and static)
-       HENUMInternal *phEnumField,  // enumerator for field
+       HENUMInternal *phEnumField,  // enumerator for fields
        Module* pModule,             // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
        const SigTypeContext *pTypeContext,          // Type parameters for NStruct being loaded
        EEClassLayoutInfo *pEEClassLayoutInfoOut,  // caller-allocated structure to fill in.
-       LayoutRawFieldInfo *pInfoArrayOut, // caller-allocated array to fill in.  Needs room for cMember+1 elements
+       LayoutRawFieldInfo *pInfoArrayOut, // caller-allocated array to fill in.  Needs room for cTotalFields+1 elements
        LoaderAllocator * pAllocator,
        AllocMemTracker    *pamTracker
     );
-
 
     friend class ClassLoader;
     friend class EEClass;
@@ -375,12 +374,54 @@ class EEClassLayoutInfo
 #endif
 
     private:
+        static void ParseFieldNativeTypes(
+            IMDInternalImport* pInternalImport,
+            const mdTypeDef cl, // cl of the NStruct being loaded
+            HENUMInternal* phEnumField, // enumerator for fields
+            const ULONG cTotalFields,
+            Module* pModule, // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
+            ParseNativeTypeFlags nativeTypeFlags,
+            const SigTypeContext* pTypeContext, // Type parameters for NStruct being loaded
+            BOOL* fDisqualifyFromManagedSequential,
+            LayoutRawFieldInfo* pFieldInfoArrayOut, // caller-allocated array to fill in.  Needs room for cTotalFields+1 elements
+            EEClassLayoutInfo* pEEClassLayoutInfoOut, // caller-allocated structure to fill in.
+            ULONG* cInstanceFields // [out] number of instance fields
+#ifdef _DEBUG
+            ,
+            LPCUTF8 szNamespace,
+            LPCUTF8 szName
+#endif
+        );
+
+        static void SetOffsetsAndSortFields(
+            IMDInternalImport* pInternalImport,
+            const mdTypeDef cl,
+            LayoutRawFieldInfo* pFieldInfoArray, // An array of LayoutRawFieldInfos.
+            const ULONG cInstanceFields,
+            const BOOL fExplicitOffsets,
+            const UINT32 cbAdjustedParentLayoutNativeSize,
+            Module* pModule, // Module that defines the scope for the type-load
+            LayoutRawFieldInfo** pSortArrayOut // A caller-allocated array to fill in with pointers to elements in pFieldInfoArray in ascending order when sequential layout, and declaration order otherwise.
+        );
+
+        static void CalculateSizeAndFieldOffsets(
+            const UINT32 parentSize,
+            ULONG numInstanceFields,
+            BOOL fExplicitOffsets,
+            LayoutRawFieldInfo* const* pSortedFieldInfoArray, // An array of pointers to LayoutRawFieldInfo's in ascending order when sequential layout.
+            ULONG classSizeInMetadata,
+            BYTE packingSize,
+            BYTE parentAlignmentRequirement,
+            BOOL calculatingNativeLayout,
+            EEClassLayoutInfo* pEEClassLayoutInfoOut // A pointer to a caller-allocated EEClassLayoutInfo that we are filling in.
+        );
+
         // size (in bytes) of fixed portion of NStruct.
         UINT32      m_cbNativeSize;
         UINT32      m_cbManagedSize;
 
     public:
-        // 1,2,4 or 8: this is equal to the largest of the alignment requirements
+        // this is equal to the largest of the alignment requirements
         // of each of the EEClass's members. If the NStruct extends another NStruct,
         // the base NStruct is treated as the first member for the purpose of
         // this calculation.
@@ -414,8 +455,11 @@ class EEClassLayoutInfo
 #endif // UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
             // HFA type of the unmanaged layout
+            // Note that these are not flags, they are discrete values.
             e_R4_HFA                    = 0x10,
             e_R8_HFA                    = 0x20,
+            e_16_HFA                    = 0x30,
+            e_HFATypeFlags              = 0x30,
 #endif
         };
 
@@ -526,15 +570,19 @@ class EEClassLayoutInfo
         bool IsNativeHFA()
         {
             LIMITED_METHOD_CONTRACT;
-            return (m_bFlags & (e_R4_HFA | e_R8_HFA)) != 0;
+            return (m_bFlags & e_HFATypeFlags) != 0;
         }
 
         CorElementType GetNativeHFAType()
         {
             LIMITED_METHOD_CONTRACT;
-            if (IsNativeHFA())                      
-                return (m_bFlags & e_R4_HFA) ? ELEMENT_TYPE_R4 : ELEMENT_TYPE_R8;
-            return ELEMENT_TYPE_END;
+            switch (m_bFlags & e_HFATypeFlags)
+            {
+            case e_R4_HFA: return ELEMENT_TYPE_R4;
+            case e_R8_HFA: return ELEMENT_TYPE_R8;
+            case e_16_HFA: return ELEMENT_TYPE_VALUETYPE;
+            default:       return ELEMENT_TYPE_END;
+            }
         }
 #else // !FEATURE_HFA
         bool IsNativeHFA()
@@ -580,7 +628,15 @@ class EEClassLayoutInfo
         void SetNativeHFAType(CorElementType hfaType)
         {
             LIMITED_METHOD_CONTRACT;
-            m_bFlags |= (hfaType == ELEMENT_TYPE_R4) ? e_R4_HFA : e_R8_HFA;
+            // We should call this at most once.
+            _ASSERTE((m_bFlags & e_HFATypeFlags) == 0);
+            switch (hfaType)
+            {
+            case ELEMENT_TYPE_R4: m_bFlags |= e_R4_HFA; break;
+            case ELEMENT_TYPE_R8: m_bFlags |= e_R8_HFA; break;
+            case ELEMENT_TYPE_VALUETYPE: m_bFlags |= e_16_HFA; break;
+            default: _ASSERTE(!"Invalid HFA Type");
+            }
         }
 #endif
 #ifdef UNIX_AMD64_ABI
@@ -1349,6 +1405,11 @@ public:
         LIMITED_METHOD_CONTRACT;
         m_VMFlags |= (DWORD) VMFLAG_FIXED_ADDRESS_VT_STATICS;
     }
+    void SetHasOnlyAbstractMethods()
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_VMFlags |= (DWORD) VMFLAG_ONLY_ABSTRACT_METHODS;
+    }
 #ifdef FEATURE_COMINTEROP
     void SetSparseForCOMInterop()
     {
@@ -1430,6 +1491,13 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_VMFlags & VMFLAG_FIXED_ADDRESS_VT_STATICS;
     }
+
+    BOOL HasOnlyAbstractMethods()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_VMFlags & VMFLAG_ONLY_ABSTRACT_METHODS;
+    }
+
 #ifdef FEATURE_COMINTEROP
     BOOL IsSparseForCOMInterop()
     {
@@ -1859,7 +1927,7 @@ public:
         // unused                              = 0x00080000,
         VMFLAG_CONTAINS_STACK_PTR              = 0x00100000,
         VMFLAG_PREFER_ALIGN8                   = 0x00200000, // Would like to have 8-byte alignment
-        // unused                              = 0x00400000,
+        VMFLAG_ONLY_ABSTRACT_METHODS           = 0x00400000, // Type only contains abstract methods
 
 #ifdef FEATURE_COMINTEROP
         VMFLAG_SPARSE_FOR_COMINTEROP           = 0x00800000,

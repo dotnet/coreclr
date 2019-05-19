@@ -175,15 +175,11 @@ HRESULT IterateAppDomains(CallbackObject * callbackObj,
     //     < AppDomainCreationFinished issued
     //     < AD NOT available from catch-up enumeration
     //     
-    // The AppDomainIterator constructor parameter m_bActive is set to be TRUE below,
-    // meaning only AppDomains in stage STAGE_ACTIVE or higher will be included
-    // in the iteration.
     //     * AppDomainCreationFinished (with S_OK hrStatus) is issued once the AppDomain
     //         reaches STAGE_ACTIVE.
-    AppDomainIterator appDomainIterator(TRUE);
-    while (appDomainIterator.Next())
+    AppDomain * pAppDomain = ::GetAppDomain();
+    if (pAppDomain->IsActive())
     {
-        AppDomain * pAppDomain = appDomainIterator.GetDomain();
 
         // Of course, the AD could start unloading here, but if it does we're guaranteed
         // the profiler has had a chance to see the Unload callback for the AD, and thus
@@ -311,76 +307,6 @@ HRESULT IterateUnsharedModules(AppDomain * pAppDomain,
 //---------------------------------------------------------------------------------------
 // ProfilerModuleEnum implementation
 //---------------------------------------------------------------------------------------
-
-
-//---------------------------------------------------------------------------------------
-// This is a helper class used by ProfilerModuleEnum when determining which shared
-// modules should be added to the enumerator. See code:ProfilerModuleEnum::Init for how
-// this gets used
-
-class IterateAppDomainsForSharedModule
-{
-public:
-    IterateAppDomainsForSharedModule(CDynArray< ModuleID > * pElements, Module * pModule)
-        : m_pElements(pElements), m_pModule(pModule)
-    {
-        LIMITED_METHOD_CONTRACT;
-    }
-
-    //---------------------------------------------------------------------------------------
-    // Callback passed to IterateAppDomains, that takes the currently iterated AppDomain,
-    // and adds m_pModule to the enumerator if it's loaded into the AppDomain. See
-    // code:ProfilerModuleEnum::Init for how this gets used.
-    // 
-    // Arguments:
-    //      * pAppDomain - Current AppDomain being iterated.
-    //
-    // Return Value:
-    //      * S_OK = the iterator should continue after we return.
-    //      * S_FALSE = we verified m_pModule is loaded into this AppDomain, so no need
-    //          for the iterator to continue with the next AppDomain
-    //      * error indicating a failure
-    //
-    HRESULT AddSharedModuleForAppDomain(AppDomain * pAppDomain)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            MODE_ANY;
-            CANNOT_TAKE_LOCK;
-        }
-        CONTRACTL_END;
-
-        DomainFile * pDomainFile = m_pModule->FindDomainFile(pAppDomain);
-        if ((pDomainFile == NULL) || !pDomainFile->IsAvailableToProfilers())
-        {
-            // This AD doesn't contain a fully loaded DomainFile for m_pModule.  So continue
-            // iterating with the next AD
-            return S_OK;
-        }
-
-        ModuleID * pElement = m_pElements->Append();
-        if (pElement == NULL)
-        {
-            // Stop iteration with error
-            return E_OUTOFMEMORY;
-        }
-
-        // If we're here, we found a fully loaded DomainFile for m_pModule. So add
-        // m_pModule to our array, and no need to look at other other ADs for this
-        // m_pModule.
-        *pElement = (ModuleID) m_pModule;
-        return S_FALSE;
-    }
-
-private:
-    // List of ModuleIDs in the enumerator we're building
-    CDynArray< ModuleID > * m_pElements;    
-
-    // Shared Module we're testing for load status in the iterated ADs.
-    Module * m_pModule;                     
-};
 
 
 //---------------------------------------------------------------------------------------
@@ -532,7 +458,7 @@ HRESULT IterateAppDomainContainingModule::AddAppDomainContainingModule(AppDomain
     }
     CONTRACTL_END;
 
-    DomainFile * pDomainFile = m_pModule->FindDomainFile(pAppDomain);
+    DomainFile * pDomainFile = m_pModule->GetDomainFile();
     if ((pDomainFile != NULL) && (pDomainFile->IsAvailableToProfilers()))
     {
         if (m_index < m_cAppDomainIds)

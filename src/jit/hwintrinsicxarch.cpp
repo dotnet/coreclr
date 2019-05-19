@@ -43,11 +43,14 @@ const HWIntrinsicInfo& HWIntrinsicInfo::lookup(NamedIntrinsic id)
 //
 // Return Value:
 //    The NamedIntrinsic associated with methodName and isa
-NamedIntrinsic HWIntrinsicInfo::lookupId(const char* className, const char* methodName, const char* enclosingClassName)
+NamedIntrinsic HWIntrinsicInfo::lookupId(Compiler*   comp,
+                                         const char* className,
+                                         const char* methodName,
+                                         const char* enclosingClassName)
 {
     // TODO-Throughput: replace sequential search by binary search
-
     InstructionSet isa = lookupIsa(className, enclosingClassName);
+
     if (isa == InstructionSet_ILLEGAL)
     {
         // There are several platform-agnostic intrinsics (e.g., Vector64) that
@@ -55,7 +58,16 @@ NamedIntrinsic HWIntrinsicInfo::lookupId(const char* className, const char* meth
         return NI_Illegal;
     }
 
-    assert(methodName != nullptr);
+    bool isIsaSupported = comp->compSupports(isa) && comp->compSupportsHWIntrinsic(isa);
+
+    if (strcmp(methodName, "get_IsSupported") == 0)
+    {
+        return isIsaSupported ? NI_IsSupported_True : NI_IsSupported_False;
+    }
+    else if (!isIsaSupported)
+    {
+        return NI_Throw_PlatformNotSupportedException;
+    }
 
     for (int i = 0; i < (NI_HW_INTRINSIC_END - NI_HW_INTRINSIC_START - 1); i++)
     {
@@ -762,20 +774,6 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         assert(sizeBytes != 0);
     }
 
-    // This intrinsic is supported if
-    // - the ISA is available on the underlying hardware (compSupports returns true)
-    // - the compiler supports this hardware intrinsics (compSupportsHWIntrinsic returns true)
-    bool issupported = compSupports(isa) && compSupportsHWIntrinsic(isa);
-
-    if (category == HW_Category_IsSupportedProperty)
-    {
-        return gtNewIconNode(issupported);
-    }
-    // - calling to unsupported intrinsics must throw PlatforNotSupportedException
-    else if (!issupported)
-    {
-        return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED, method, sig, mustExpand);
-    }
     // Avoid checking stacktop for 0-op intrinsics
     if (sig->numArgs > 0 && HWIntrinsicInfo::isImmOp(intrinsic, impStackTop().val))
     {
@@ -809,29 +807,6 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         }
     }
 
-    bool isTableDriven = impIsTableDrivenHWIntrinsic(intrinsic, category);
-
-    if (isTableDriven && ((category == HW_Category_MemoryStore) || HWIntrinsicInfo::BaseTypeFromFirstArg(intrinsic) ||
-                          HWIntrinsicInfo::BaseTypeFromSecondArg(intrinsic)))
-    {
-        if (HWIntrinsicInfo::BaseTypeFromFirstArg(intrinsic))
-        {
-            baseType = getBaseTypeOfSIMDType(info.compCompHnd->getArgClass(sig, sig->args));
-        }
-        else
-        {
-            assert((category == HW_Category_MemoryStore) || HWIntrinsicInfo::BaseTypeFromSecondArg(intrinsic));
-            CORINFO_ARG_LIST_HANDLE secondArg      = info.compCompHnd->getArgNext(sig->args);
-            CORINFO_CLASS_HANDLE    secondArgClass = info.compCompHnd->getArgClass(sig, secondArg);
-            baseType                               = getBaseTypeOfSIMDType(secondArgClass);
-
-            if (baseType == TYP_UNKNOWN) // the second argument is not a vector
-            {
-                baseType = JITtype2varType(strip(info.compCompHnd->getArgType(sig, secondArg, &secondArgClass)));
-            }
-        }
-    }
-
     if (HWIntrinsicInfo::IsFloatingPointUsed(intrinsic))
     {
         // Set `compFloatingPointUsed` to cover the scenario where an intrinsic is being on SIMD fields, but
@@ -840,16 +815,48 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
     }
 
     // table-driven importer of simple intrinsics
-    if (isTableDriven)
+    if (impIsTableDrivenHWIntrinsic(intrinsic, category))
     {
+        if ((category == HW_Category_MemoryStore) || HWIntrinsicInfo::BaseTypeFromFirstArg(intrinsic) ||
+            HWIntrinsicInfo::BaseTypeFromSecondArg(intrinsic))
+        {
+            CORINFO_ARG_LIST_HANDLE arg = sig->args;
+
+            if ((category == HW_Category_MemoryStore) || HWIntrinsicInfo::BaseTypeFromSecondArg(intrinsic))
+            {
+                arg = info.compCompHnd->getArgNext(arg);
+            }
+
+            CORINFO_CLASS_HANDLE argClass = info.compCompHnd->getArgClass(sig, arg);
+            baseType                      = getBaseTypeAndSizeOfSIMDType(argClass);
+
+            if (baseType == TYP_UNKNOWN) // the argument is not a vector
+            {
+                CORINFO_CLASS_HANDLE tmpClass;
+                CorInfoType          corInfoType = strip(info.compCompHnd->getArgType(sig, arg, &tmpClass));
+
+                if (corInfoType == CORINFO_TYPE_PTR)
+                {
+                    corInfoType = info.compCompHnd->getChildType(argClass, &tmpClass);
+                }
+
+                baseType = JITtype2varType(corInfoType);
+            }
+
+            assert(baseType != TYP_UNKNOWN);
+        }
+
         unsigned                simdSize = HWIntrinsicInfo::lookupSimdSize(this, intrinsic, sig);
         CORINFO_ARG_LIST_HANDLE argList  = sig->args;
         CORINFO_CLASS_HANDLE    argClass;
         var_types               argType = TYP_UNKNOWN;
 
         assert(numArgs >= 0);
-        assert(HWIntrinsicInfo::lookupIns(intrinsic, baseType) != INS_invalid);
-        assert(simdSize == 32 || simdSize == 16);
+        if ((HWIntrinsicInfo::lookupIns(intrinsic, baseType) == INS_invalid) || ((simdSize != 32) && (simdSize != 16)))
+        {
+            assert(!"Unexpected HW Intrinsic");
+            return nullptr;
+        }
 
         GenTreeHWIntrinsic* retNode = nullptr;
         GenTree*            op1     = nullptr;
@@ -1736,6 +1743,7 @@ GenTree* Compiler::impSSE42Intrinsic(NamedIntrinsic        intrinsic,
     CORINFO_ARG_LIST_HANDLE argList = sig->args;
     CORINFO_CLASS_HANDLE    argClass;
     CorInfoType             corType;
+
     switch (intrinsic)
     {
         case NI_SSE42_Crc32:

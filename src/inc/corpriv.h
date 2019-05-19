@@ -36,12 +36,6 @@ STDAPI MetaDataGetDispenser(            // Return HRESULT
     REFIID      riid,                   // Interface wanted on class factory.
     LPVOID FAR  *ppv);                  // Return interface pointer here.
 
-// Helper function to check whether policy allows accessing the file
-STDAPI RuntimeCheckLocationAccess(LPCWSTR wszLocation);
-STDAPI RuntimeIsNativeImageOptedOut(IAssemblyName* pAssemblyDef);
-
-LocaleID RuntimeGetFileSystemLocale();
-
 BOOL RuntimeFileNotFound(HRESULT hr);
 
 // Helper function to get an Internal interface with an in-memory metadata section
@@ -96,10 +90,7 @@ enum MDInternalImportFlags
     MDInternalImport_TrustedNativeImage = 2, // The image is a native image, and so its format can be trusted
     MDInternalImport_ILMetaData         = 4, // Open the IL metadata, even if this is a native image
     MDInternalImport_TrustedNativeImage_and_IL = MDInternalImport_TrustedNativeImage | MDInternalImport_ILMetaData,
-    MDInternalImport_NativeImageInstall = 0x100, // The image is a native image that is being installed into NIC
 #endif
-    MDInternalImport_CheckLongPath   =8,	// also check long version of the path		
-    MDInternalImport_CheckShortPath   =0x10,    // also check long version of the path		
     MDInternalImport_OnlyLookInCache    =0x20, // Only look in the cache. (If the cache does not have the image already loaded, return NULL)
 };  // enum MDInternalImportFlags
 

@@ -599,7 +599,7 @@ private:
     void OutputManifestMetadataForReadyToRun();
 
     void CopyDebugDirEntry();
-    void CopyWin32VersionResource();
+    void CopyWin32Resources();
 
     void OutputManifestMetadata();
     void OutputTables();
@@ -840,14 +840,15 @@ public:
     }
 
     HRESULT LocateProfileData();
-    HRESULT parseProfileData  ();
+    HRESULT parseProfileData();
     HRESULT convertProfileDataFromV1();
+    HRESULT hashMethodBlockCounts();
+    void hashBBUpdateFlagsAndCompileResult(mdToken token, unsigned methodProfilingDataFlags, CompileStatus compileResult);
+
     void RehydrateBasicBlockSection();
     void RehydrateTokenSection(int sectionFormat, unsigned int flagTable[255]);
     void RehydrateBlobStream();
     HRESULT RehydrateProfileData();
-    HRESULT hashBBProfileData ();
-    void hashBBUpdateFlagsAndCompileResult(mdToken token, unsigned methodProfilingDataFlags, CompileStatus compileResult);
 
     void              LoadProfileData();
     CorProfileData *  NewProfileData();

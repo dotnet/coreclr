@@ -27,7 +27,7 @@ namespace System
     {
         //Do Not change the order of these fields.
         //They are mapped to the native VariantData * data structure.
-        private object m_objref;
+        private object? m_objref;
         private int m_data1;
         private int m_data2;
         private int m_flags;
@@ -265,7 +265,7 @@ namespace System
             m_data2 = 0;
         }
 
-        public Variant(object obj)
+        public Variant(object? obj)
         {
             m_data1 = 0;
             m_data2 = 0;
@@ -365,7 +365,7 @@ namespace System
             }
         }
 
-        public object ToObject()
+        public object? ToObject()
         {
             switch (CVType)
             {
@@ -422,7 +422,7 @@ namespace System
         // managed variants as an intermediate type.
         internal static void MarshalHelperConvertObjectToVariant(object o, ref Variant v)
         {
-            IConvertible ic = o as IConvertible;
+            IConvertible? ic = o as IConvertible;
 
             if (o == null)
             {
@@ -520,7 +520,7 @@ namespace System
 
         // Helper code for marshaling VARIANTS to managed objects (we use
         // managed variants as an intermediate type.
-        internal static object MarshalHelperConvertVariantToObject(ref Variant v)
+        internal static object? MarshalHelperConvertVariantToObject(ref Variant v)
         {
             return v.ToObject();
         }

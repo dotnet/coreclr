@@ -4,6 +4,7 @@
 
 using System.Reflection;
 using System.Globalization;
+using System.Runtime.Loader;
 using System.Runtime.Remoting;
 using System.Threading;
 
@@ -11,7 +12,7 @@ namespace System
 {
     public static partial class Activator
     {
-        public static object CreateInstance(Type type, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
+        public static object? CreateInstance(Type type, BindingFlags bindingAttr, Binder? binder, object?[]? args, CultureInfo? culture, object?[]? activationAttributes)
         {
             if (type is null)
                 throw new ArgumentNullException(nameof(type));
@@ -34,7 +35,7 @@ namespace System
         }
 
         [System.Security.DynamicSecurityMethod]
-        public static ObjectHandle CreateInstance(string assemblyName, string typeName)
+        public static ObjectHandle? CreateInstance(string assemblyName, string typeName)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return CreateInstanceInternal(assemblyName,
@@ -49,7 +50,7 @@ namespace System
         }
 
         [System.Security.DynamicSecurityMethod]
-        public static ObjectHandle CreateInstance(string assemblyName, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
+        public static ObjectHandle? CreateInstance(string assemblyName, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder? binder, object?[]? args, CultureInfo? culture, object?[]? activationAttributes)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return CreateInstanceInternal(assemblyName,
@@ -64,7 +65,7 @@ namespace System
         }
 
         [System.Security.DynamicSecurityMethod]
-        public static ObjectHandle CreateInstance(string assemblyName, string typeName, object[] activationAttributes)
+        public static ObjectHandle? CreateInstance(string assemblyName, string typeName, object?[]? activationAttributes)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return CreateInstanceInternal(assemblyName,
@@ -78,10 +79,10 @@ namespace System
                                           ref stackMark);
         }
 
-        public static object CreateInstance(Type type, bool nonPublic) =>
+        public static object? CreateInstance(Type type, bool nonPublic) =>
             CreateInstance(type, nonPublic, wrapExceptions: true);
 
-        internal static object CreateInstance(Type type, bool nonPublic, bool wrapExceptions)
+        internal static object? CreateInstance(Type type, bool nonPublic, bool wrapExceptions)
         {
             if (type is null)
                 throw new ArgumentNullException(nameof(type));
@@ -92,32 +93,27 @@ namespace System
             throw new ArgumentException(SR.Arg_MustBeType, nameof(type));
         }        
 
-        private static ObjectHandle CreateInstanceInternal(string assemblyString,
+        private static ObjectHandle? CreateInstanceInternal(string assemblyString,
                                                            string typeName,
                                                            bool ignoreCase,
                                                            BindingFlags bindingAttr,
-                                                           Binder binder,
-                                                           object[] args,
-                                                           CultureInfo culture,
-                                                           object[] activationAttributes,
+                                                           Binder? binder,
+                                                           object?[]? args,
+                                                           CultureInfo? culture,
+                                                           object?[]? activationAttributes,
                                                            ref StackCrawlMark stackMark)
         {
-            Type type = null;
-            Assembly assembly = null;
+            Type? type = null;
+            Assembly? assembly = null;
             if (assemblyString == null)
             {
                 assembly = Assembly.GetExecutingAssembly(ref stackMark);
             }
             else
             {
-                RuntimeAssembly assemblyFromResolveEvent;
-                AssemblyName assemblyName = RuntimeAssembly.CreateAssemblyName(assemblyString, out assemblyFromResolveEvent);
-                if (assemblyFromResolveEvent != null)
-                {
-                    // Assembly was resolved via AssemblyResolve event
-                    assembly = assemblyFromResolveEvent;
-                }
-                else if (assemblyName.ContentType == AssemblyContentType.WindowsRuntime)
+                AssemblyName assemblyName = new AssemblyName(assemblyString);
+
+                if (assemblyName.ContentType == AssemblyContentType.WindowsRuntime)
                 {
                     // WinRT type - we have to use Type.GetType
                     type = Type.GetType(typeName + ", " + assemblyString, true /*throwOnError*/, ignoreCase);
@@ -126,16 +122,16 @@ namespace System
                 {
                     // Classic managed type
                     assembly = RuntimeAssembly.InternalLoadAssemblyName(
-                        assemblyName, ref stackMark);
+                        assemblyName, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext);
                 }
             }
 
             if (type == null)
             {                
-                type = assembly.GetType(typeName, throwOnError: true, ignoreCase);
+                type = assembly!.GetType(typeName, throwOnError: true, ignoreCase);
             }
 
-            object o = CreateInstance(type, bindingAttr, binder, args, culture, activationAttributes);
+            object? o = CreateInstance(type, bindingAttr, binder, args, culture, activationAttributes);
 
             return o != null ? new ObjectHandle(o) : null;          
         }

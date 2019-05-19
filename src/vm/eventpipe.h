@@ -20,6 +20,18 @@ class EventPipeProvider;
 class MethodDesc;
 struct EventPipeProviderConfiguration;
 class EventPipeSession;
+class IpcStream;
+enum class EventPipeSessionType;
+
+enum class EventPipeEventLevel
+{
+    LogAlways,
+    Critical,
+    Error,
+    Warning,
+    Informational,
+    Verbose
+};
 
 // EVENT_FILTER_DESCRIPTOR (This type does not exist on non-Windows platforms.)
 //  https://docs.microsoft.com/en-us/windows/desktop/api/evntprov/ns-evntprov-_event_filter_descriptor
@@ -27,6 +39,7 @@ class EventPipeSession;
 //  determines which events are reported and traced. The structure gives the
 //  event provider greater control over the selection of events for reporting
 //  and tracing.
+// TODO: EventFilterDescriptor and EventData (defined below) are the same.
 struct EventFilterDescriptor
 {
     // A pointer to the filter data.
@@ -73,7 +86,15 @@ private:
 
 public:
     // Build this payload with a flat buffer inside
-    EventPipeEventPayload(BYTE *pData, unsigned int length);
+    EventPipeEventPayload(BYTE *pData, unsigned int length) :
+        m_pData(pData),
+        m_pEventData(nullptr),
+        m_eventDataCount(0),
+        m_size(length),
+        m_allocatedData(false)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
 
     // Build this payload to contain an array of EventData objects
     EventPipeEventPayload(EventData *pEventData, unsigned int eventDataCount);
@@ -94,7 +115,6 @@ public:
     bool IsFlattened() const
     {
         LIMITED_METHOD_CONTRACT;
-
         return m_pData != NULL;
     }
 
@@ -102,14 +122,12 @@ public:
     unsigned int GetSize() const
     {
         LIMITED_METHOD_CONTRACT;
-
         return m_size;
     }
 
     EventData *GetEventDataArray() const
     {
         LIMITED_METHOD_CONTRACT;
-
         return m_pEventData;
     }
 };
@@ -136,7 +154,6 @@ public:
     StackContents()
     {
         LIMITED_METHOD_CONTRACT;
-
         Reset();
     }
 
@@ -155,21 +172,18 @@ public:
     void Reset()
     {
         LIMITED_METHOD_CONTRACT;
-
         m_nextAvailableFrame = 0;
     }
 
     bool IsEmpty()
     {
         LIMITED_METHOD_CONTRACT;
-
         return (m_nextAvailableFrame == 0);
     }
 
     unsigned int GetLength()
     {
         LIMITED_METHOD_CONTRACT;
-
         return m_nextAvailableFrame;
     }
 
@@ -218,19 +232,40 @@ public:
     BYTE *GetPointer() const
     {
         LIMITED_METHOD_CONTRACT;
-
         return (BYTE *)m_stackFrames;
     }
 
     unsigned int GetSize() const
     {
         LIMITED_METHOD_CONTRACT;
-
         return (m_nextAvailableFrame * sizeof(UINT_PTR));
     }
 };
 
 typedef UINT64 EventPipeSessionID;
+
+struct EventPipeProviderCallbackData
+{
+    LPCWSTR pFilterData;
+    EventPipeCallback pCallbackFunction;
+    bool enabled;
+    INT64 keywords;
+    EventPipeEventLevel providerLevel;
+    void* pCallbackData;
+};
+
+class EventPipeProviderCallbackDataQueue
+{
+public:
+    EventPipeProviderCallbackDataQueue();
+
+    void Enqueue(EventPipeProviderCallbackData* pEventPipeProviderCallbackData);
+
+    bool TryDequeue(EventPipeProviderCallbackData* pEventPipeProviderCallbackData);
+
+private:
+    SList<SListElem<EventPipeProviderCallbackData>> list;
+};
 
 class EventPipe
 {
@@ -255,7 +290,8 @@ public:
         uint64_t profilerSamplingRateInNanoseconds,
         const EventPipeProviderConfiguration *pProviders,
         uint32_t numProviders,
-        uint64_t multiFileTraceLengthInSeconds);
+        EventPipeSessionType sessionType,
+        IpcStream *const pStream);
 
     // Disable tracing via the event pipe.
     static void Disable(EventPipeSessionID id);
@@ -268,6 +304,8 @@ public:
 
     // Create a provider.
     static EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
+
+    static EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Get a provider.
     static EventPipeProvider *GetProvider(const SString &providerName);
@@ -292,58 +330,80 @@ public:
     // Get the managed call stack for the specified thread.
     static bool WalkManagedStackForThread(Thread *pThread, StackContents &stackContents);
 
-    // Save the command line for the current process.
-    static void SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv);
-
     // Get next event.
     static EventPipeEventInstance *GetNextEvent();
+
+#ifdef DEBUG
+    static bool IsLockOwnedByCurrentThread();
+    static bool IsBufferManagerLockOwnedByCurrentThread();
+#endif
+
+
+    template<class T>
+    static void RunWithCallbackPostponed(T f)
+    {
+        EventPipeProviderCallbackDataQueue eventPipeProviderCallbackDataQueue;
+        EventPipeProviderCallbackData eventPipeProviderCallbackData;
+        {
+            CrstHolder _crst(GetLock());
+            f(&eventPipeProviderCallbackDataQueue);
+        }
+
+        while (eventPipeProviderCallbackDataQueue.TryDequeue(&eventPipeProviderCallbackData))
+        {
+            EventPipe::InvokeCallback(eventPipeProviderCallbackData);
+        }
+    }
+
+    static void InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData);
 
 private:
     // The counterpart to WriteEvent which after the payload is constructed
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
+    static void DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+
     // Enable the specified EventPipe session.
-    static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
+    static EventPipeSessionID Enable(
+        LPCWSTR strOutputPath,
+        EventPipeSession *const pSession,
+        EventPipeSessionType sessionType,
+        IpcStream *const pStream,
+        EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
-    static void CreateFileSwitchTimer();
+    static void CreateFlushTimerCallback();
 
-    static void DeleteFileSwitchTimer();
+    static void DeleteFlushTimerCallback();
 
-    // Performs one polling operation to determine if it is necessary to switch to a new file.
-    // If the polling operation decides it is time, it will perform the switch.
-    // Called directly from the timer when the timer is triggered.
-    static void WINAPI SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired);
-
-    // If event pipe has been configured to write multiple files, switch to the next file.
-    static void SwitchToNextFile();
-
-    // Generate the file path for the next trace file.
-    // This is used when event pipe has been configured to create multiple trace files with a specified maximum length of time.
-    static void GetNextFilePath(EventPipeSession *pSession, SString &nextTraceFilePath);
+    static void WINAPI FlushTimer(PVOID parameter, BOOLEAN timerFired);
 
     // Callback function for the stack walker.  For each frame walked, this callback is invoked.
     static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
 
     // Get the configuration object.
     // This is called directly by the EventPipeProvider constructor to register the new provider.
-    static EventPipeConfiguration *GetConfiguration();
+    static EventPipeConfiguration *GetConfiguration()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return s_pConfig;
+    }
 
     // Get the event pipe configuration lock.
-    static CrstStatic *GetLock();
+    static CrstStatic *GetLock()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return &s_configCrst;
+    }
 
     static CrstStatic s_configCrst;
     static bool s_tracingInitialized;
     static EventPipeConfiguration *s_pConfig;
     static EventPipeSession *s_pSession;
     static EventPipeBufferManager *s_pBufferManager;
-    static LPCWSTR s_pOutputPath;
-    static unsigned long s_nextFileIndex;
     static EventPipeFile *s_pFile;
     static EventPipeEventSource *s_pEventSource;
-    static LPCWSTR s_pCommandLine;
-    const static DWORD FileSwitchTimerPeriodMS = 1000;
     static HANDLE s_fileSwitchTimerHandle;
-    static ULONGLONG s_lastFileSwitchTime;
+    static ULONGLONG s_lastFlushTime;
 };
 
 struct EventPipeProviderConfiguration
