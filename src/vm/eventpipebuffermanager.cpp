@@ -48,8 +48,9 @@ EventPipeThread::EventPipeThread()
 
 EventPipeThread::~EventPipeThread()
 {
-    _ASSERTE(m_pWriteBuffers->GetCount() == 1);
-    _ASSERTE(m_pBufferLists->GetCount() == 1);
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(AllValuesAreNull(*m_pWriteBuffers));
+    _ASSERTE(AllValuesAreNull(*m_pBufferLists));
 
     delete m_pWriteBuffers;
     delete m_pBufferLists;

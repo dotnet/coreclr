@@ -56,6 +56,18 @@ class EventPipeThread
     // buffers from all threads.
     SpinLock m_lock;
 
+#ifdef DEBUG
+    template <typename T>
+    static bool AllValuesAreNull(T &map)
+    {
+        LIMITED_METHOD_CONTRACT;
+        for (T::Iterator iter = map.Begin(); iter != map.End(); ++iter)
+            if (iter->Value() != nullptr)
+                return false;
+        return true;
+    }
+#endif // DEBUG
+
 public:
     static EventPipeThread *Get();
     static void Set(EventPipeThread *pThread);
