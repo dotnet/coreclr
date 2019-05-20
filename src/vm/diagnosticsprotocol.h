@@ -286,6 +286,7 @@ namespace DiagnosticsIpc
         // which this will call if it exists.
         //
         // user is expected to check for a nullptr in the error case for non fixed-size payloads
+        // user owns the memory returned and is expected to free it when finished
         template <typename T>
         const T* TryParsePayload()
         {
@@ -513,6 +514,7 @@ namespace DiagnosticsIpc
                 MODE_ANY;
             }
             CONTRACTL_END;
+
             uint16_t payloadSize = m_Size - (uint16_t)sizeof(IpcHeader);
             return U::TryParse(m_pData, payloadSize);
         };
@@ -529,7 +531,9 @@ namespace DiagnosticsIpc
             }
             CONTRACTL_END;
 
-            return reinterpret_cast<const U*>(m_pData);
+            const U* payload = reinterpret_cast<const U*>(m_pData);
+            m_pData = nullptr;
+            return payload;
         };
     };
 };
