@@ -2147,6 +2147,15 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
     if (flags & CORINFO_CALLINFO_KINDONLY)
         return;
 
+    if (IsReadyToRunCompilation())
+    {
+        if (pResult->thisTransform == CORINFO_BOX_THIS)
+        {
+            // READYTORUN: FUTURE: Optionally create boxing stub at runtime
+            ThrowHR(E_NOTIMPL);
+        }
+    }
+
     // OK, if the EE said we're not doing a stub dispatch then just return the kind to
     // the caller.  No other kinds of virtual calls have extra information attached.
     switch (pResult->kind)
