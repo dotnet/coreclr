@@ -486,7 +486,6 @@ set(VM_HEADERS_WKS
     profilermetadataemitvalidator.h
     profilingenumerators.h
     profilinghelper.h
-    profilinghelper.h
     proftoeeinterfaceimpl.h
     proftoeeinterfaceimpl.inl
     qcall.h

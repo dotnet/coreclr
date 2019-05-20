@@ -16,7 +16,6 @@ enum class DiagnosticMessageType : uint32_t
     ///////////////////////////////////////////////////////////////////////////
     // Debug = 0
     GenerateCoreDump = 1,           // Initiates core dump generation
-    AttachProfiler,
 
     ///////////////////////////////////////////////////////////////////////////
     // EventPipe = 1024
@@ -26,6 +25,7 @@ enum class DiagnosticMessageType : uint32_t
 
     ///////////////////////////////////////////////////////////////////////////
     // Profiler = 2048
+    AttachProfiler = 2048,
 };
 
 //! TODO: Temp class.

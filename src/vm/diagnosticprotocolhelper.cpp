@@ -94,7 +94,7 @@ void DiagnosticProtocolHelper::GenerateCoreDump(IpcStream* pStream)
 
 #endif // FEATURE_PAL
 
-#if defined(FEATURE_PROFAPI_ATTACH_DETACH) && !defined(DACCESS_COMPILE)
+#ifdef FEATURE_PROFAPI_ATTACH_DETACH
 void DiagnosticProtocolHelper::AttachProfiler(IpcStream *pStream)
 {
     CONTRACTL
@@ -114,12 +114,19 @@ void DiagnosticProtocolHelper::AttachProfiler(IpcStream *pStream)
     HRESULT hr = S_OK;
     uint8_t buffer[IpcStreamReadBufferSize] { };
     uint32_t nNumberOfBytesRead = 0;
-    uint32_t dwAttachTimeout;
-    CLSID profilerGuid;
-    uint32_t cbProfilerPath;
-    NewArrayHolder<WCHAR> pwszProfilerPath;
-    uint32_t cbClientData;
-    NewArrayHolder<uint8_t> pClientData;
+    uint32_t dwAttachTimeout = 0;
+    CLSID profilerGuid = { };
+    uint32_t cbProfilerPath = 0;
+    NewArrayHolder<WCHAR> pwszProfilerPath = nullptr;
+    uint32_t cbClientData = 0;
+    NewArrayHolder<uint8_t> pClientData = nullptr;
+
+    uint8_t *pBufferCursor = 0;
+    uint32_t bufferLen = 0;
+    uint32_t pathSize = 0;
+    uint32_t bytesToRead = 0;
+    uint32_t bufferBytesRead = 0;
+    uint8_t *pClientDataCursor = 0;
     
     bool fSuccess = pStream->Read(buffer, sizeof(buffer), nNumberOfBytesRead);
     if (!fSuccess)
@@ -128,8 +135,8 @@ void DiagnosticProtocolHelper::AttachProfiler(IpcStream *pStream)
         goto ErrExit;
     }
 
-    uint8_t *pBufferCursor = buffer;
-    uint32_t bufferLen = nNumberOfBytesRead;
+    pBufferCursor = buffer;
+    bufferLen = nNumberOfBytesRead;
     if (!(TryParse(pBufferCursor, bufferLen, dwAttachTimeout) &&
         TryParse(pBufferCursor, bufferLen, profilerGuid)))
     {
@@ -155,7 +162,7 @@ void DiagnosticProtocolHelper::AttachProfiler(IpcStream *pStream)
         goto ErrExit;
     }
 
-    uint32_t pathSize = cbProfilerPath * sizeof(WCHAR);
+    pathSize = cbProfilerPath * sizeof(WCHAR);
     memcpy(pwszProfilerPath, pBufferCursor, pathSize);
     bufferLen -= pathSize;
     pBufferCursor += pathSize;
@@ -173,15 +180,13 @@ void DiagnosticProtocolHelper::AttachProfiler(IpcStream *pStream)
         goto ErrExit;
     }
 
-    uint32_t bufferBytesRead = 0;
-    uint8_t *pClientDataCursor = pClientData;
+    bufferBytesRead = 0;
+    pClientDataCursor = pClientData;
     // TODO: get rid of this ad-hoc byte[] parsing code
     while (bufferBytesRead < cbClientData)
     {
-        if (bufferLen <= 0)
+        if (bufferLen == 0)
         {
-            _ASSERTE(bufferLen == 0 && "Negative bufferLen means we overran the buffer");
-
             // Client data was bigger than the buffer, need to read more
             fSuccess = pStream->Read(buffer, sizeof(buffer), nNumberOfBytesRead);
             if (!fSuccess)
@@ -194,9 +199,11 @@ void DiagnosticProtocolHelper::AttachProfiler(IpcStream *pStream)
             bufferLen = nNumberOfBytesRead;
         }
 
-        uint32_t bytesToRead = min((cbClientData - bufferBytesRead), bufferLen);
+        bytesToRead = min((cbClientData - bufferBytesRead), bufferLen);
         memcpy(pClientDataCursor, pBufferCursor, bytesToRead);
         pClientDataCursor += bytesToRead;
+        
+        _ASSERTE(bytesToRead <= bufferLen && "bytesToRead > bufferLen means we overran the buffer");
         bufferLen -= bytesToRead;
         bufferBytesRead += bytesToRead;
     }
@@ -208,6 +215,12 @@ void DiagnosticProtocolHelper::AttachProfiler(IpcStream *pStream)
         pClientData = nullptr;
     }
 
+    if (!g_profControlBlock.fProfControlBlockInitialized)
+    {
+        hr = CORPROF_E_RUNTIME_UNINITIALIZED;
+        goto ErrExit;
+    }
+
     hr = ProfilingAPIUtility::LoadProfilerForAttach(&profilerGuid,
                                                     pwszProfilerPath,
                                                     pClientData,
@@ -217,6 +230,6 @@ ErrExit:
     WriteStatus(hr, pStream);
     delete pStream;
 }
-#endif // defined(FEATURE_PROFAPI_ATTACH_DETACH) && !defined(DACCESS_COMPILE)
+#endif // FEATURE_PROFAPI_ATTACH_DETACH
 
 #endif // FEATURE_PERFTRACING

@@ -140,7 +140,6 @@
 
 
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH 
-#include "profilinghelper.inl"
 #include "profdetach.h"
 #endif // FEATURE_PROFAPI_ATTACH_DETACH 
 
