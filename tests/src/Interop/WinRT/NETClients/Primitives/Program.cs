@@ -10,7 +10,7 @@ namespace NetClient
     {
         static int Main(string[] args)
         {
-            if (!TestLibrary.Utilities.IsWinRTSupported || TestLibrary.Utilities.IsWindowsNanoServer)
+            if (!TestLibrary.Utilities.IsWinRTSupported)
             {
                 return 100;
             }
