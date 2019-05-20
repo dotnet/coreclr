@@ -55,9 +55,9 @@ const GenerateCoreDumpCommandPayload* GenerateCoreDumpCommandPayload::TryParse(B
     GenerateCoreDumpCommandPayload* payload = new (nothrow) GenerateCoreDumpCommandPayload;
     uint8_t* pBufferCursor = lpBuffer;
     uint32_t bufferLen = BufferSize;
-    if (TryParseString(pBufferCursor, bufferLen, payload->dumpName) &&
-        ::TryParse(pBufferCursor, bufferLen, payload->dumpType) &&
-        ::TryParse(pBufferCursor, bufferLen, payload->diagnostics))
+    if (!TryParseString(pBufferCursor, bufferLen, payload->dumpName) ||
+        !::TryParse(pBufferCursor, bufferLen, payload->dumpType) ||
+        !::TryParse(pBufferCursor, bufferLen, payload->diagnostics))
     {
         delete payload;
         return nullptr;

@@ -30,8 +30,8 @@ struct GenerateCoreDumpCommandPayload
     // returns
     //   ulong - status
     LPCWSTR dumpName;
-    INT dumpType;
-    INT diagnostics;
+    uint32_t dumpType;
+    uint32_t diagnostics;
     static const GenerateCoreDumpCommandPayload* TryParse(BYTE* lpBuffer, uint16_t& BufferSize);
 };
 
