@@ -36,7 +36,7 @@ public:
         CONTRACTL
         {
             NOTHROW;
-            GC_TRIGGERS;
+            GC_NOTRIGGER;
             MODE_PREEMPTIVE;
             PRECONDITION(pSerializer != NULL);
         }

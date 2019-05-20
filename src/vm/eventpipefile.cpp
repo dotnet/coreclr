@@ -58,7 +58,7 @@ EventPipeFile::~EventPipeFile()
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
@@ -80,8 +80,8 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
@@ -111,8 +111,8 @@ void EventPipeFile::Flush()
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
     }
     CONTRACTL_END;
     m_pSerializer->WriteObject(m_pBlock); // we write current block to the disk, whether it's full or not
@@ -124,8 +124,8 @@ void EventPipeFile::WriteEnd()
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
@@ -143,8 +143,8 @@ void EventPipeFile::WriteToBlock(EventPipeEventInstance &instance, unsigned int 
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
@@ -169,8 +169,8 @@ unsigned int EventPipeFile::GenerateMetadataId()
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
@@ -185,8 +185,8 @@ unsigned int EventPipeFile::GetMetadataId(EventPipeEvent &event)
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
@@ -205,8 +205,8 @@ void EventPipeFile::SaveMetadataId(EventPipeEvent &event, unsigned int metadataI
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
         PRECONDITION(metadataId > 0);
     }
     CONTRACTL_END;

@@ -804,8 +804,8 @@ EventPipeEventInstance *EventPipe::BuildEventMetadataEvent(EventPipeEventInstanc
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
     }
     CONTRACTL_END;
 

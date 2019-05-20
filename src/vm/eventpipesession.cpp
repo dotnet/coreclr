@@ -313,8 +313,8 @@ void EventPipeSession::WriteEvent(EventPipeEventInstance &instance)
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
     }
     CONTRACTL_END;
 

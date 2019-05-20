@@ -423,7 +423,7 @@ EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     {
         THROWS;
         GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
