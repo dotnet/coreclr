@@ -467,26 +467,20 @@ namespace System.Resources
         {
             try
             {
-                string [] manifestResourceNames = assembly.GetManifestResourceNames();
-                if (manifestResourceNames.Length == 0)
-                {
-                    return "[]";
-                }
+                string postfix = "\"";
+                string []? resourceSetNames = assembly.GetManifestResourceNames();
 
-                StringBuilder sb = StringBuilderCache.Acquire();
-                sb.Append('[');
-                sb.Append(manifestResourceNames[0]);
-                for (int i = 1; i < manifestResourceNames.Length; i++)
+                // If we have more than 10 resource sets, we just print the first 10 for the sake of the exception message readability.
+                if (resourceSetNames.Length > 10)
                 {
-                    sb.Append(", ");
-                    sb.Append(manifestResourceNames[i]);
+                    Array.Resize(ref resourceSetNames, 10);
+                    postfix = "\", ...";
                 }
-                sb.Append(']');
-                return StringBuilderCache.GetStringAndRelease(sb);
+                return "\"" + String.Join("\", \"", resourceSetNames!) + postfix;
             }
             catch
             {
-                return "[]";
+                return "\"\"";
             }
         }
 
