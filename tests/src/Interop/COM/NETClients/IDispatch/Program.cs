@@ -159,9 +159,10 @@ namespace NetClient
             CultureInfo newCulture = new CultureInfo("es-ES", false);
             try
             {
+                CultureInfo englishCulture = new CultureInfo("en-US", false);
                 CultureInfo.CurrentCulture = newCulture;
                 int lcid = dispatchTesting.PassThroughLCID();
-                Assert.AreEqual(CultureInfo.CurrentCulture.LCID, lcid);  // CLR->Dispatch LCID marshalling is explicitly hardcoded to en-US instead of passing the current culture.
+                Assert.AreEqual(englishCulture.LCID, lcid);  // CLR->Dispatch LCID marshalling is explicitly hardcoded to en-US instead of passing the current culture.
             }
             finally
             {

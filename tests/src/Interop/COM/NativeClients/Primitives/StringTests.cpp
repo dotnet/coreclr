@@ -415,7 +415,6 @@ namespace
 
         LCID lcid = MAKELCID(MAKELANGID(LANG_SPANISH, SUBLANG_SPANISH_CHILE), SORT_DEFAULT);
 
-        LPWSTR tmp;
         WStr r = GetReversableStrings<WStr>()[0];
         WStr local{ r };
 
@@ -423,6 +422,7 @@ namespace
         WStr expected;
         THROW_IF_FAILED(r.Reverse(expected));
 
+        LPWSTR tmp;
         THROW_IF_FAILED(stringTesting->Reverse_LPWSTR_With_LCID(local, lcid, &tmp));
         actual.Attach(tmp);
         THROW_FAIL_IF_FALSE(expected == actual);

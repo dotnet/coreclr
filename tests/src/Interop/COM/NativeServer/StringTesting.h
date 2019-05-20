@@ -314,7 +314,7 @@ public: // IStringTesting
 
     DEF_FUNC(Reverse_LPWSTR_With_LCID)(
         /*[in]*/ LPWSTR a,
-        /*[in]*/ LCID lcid,
+        /*[in]*/ LCID lcid, // This parameter is only used as a placeholder to check that we've injected it into the correct arg slot.
         /*[out]*/ LPWSTR*  b)
     {
         return Reverse_LPWStr(a, b);
@@ -327,7 +327,6 @@ public: // IStringTesting
         *outLcid = lcidFromCulture;
         return S_OK;
     }
-
 
 public: // IUnknown
     STDMETHOD(QueryInterface)(
