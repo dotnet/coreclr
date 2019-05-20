@@ -133,16 +133,13 @@ private:
     // used when Metadata is not provided
     BYTE *BuildMinimumMetadata();
 
-    static constexpr uint32_t GetMinimumMetadataLength()
-    {
-        const WCHAR EmptyString[] = W("");
-        return sizeof(m_eventID) +
-               sizeof(EmptyString) + // size of empty unicode string
-               sizeof(m_keywords) +
-               sizeof(m_eventVersion) +
-               sizeof(m_level) +
-               sizeof(uint32_t); // parameter count
-    }
+    static const uint32_t MinimumMetadataLength =
+        sizeof(m_eventID) +
+        sizeof(W("")) + // size of empty unicode string
+        sizeof(m_keywords) +
+        sizeof(m_eventVersion) +
+        sizeof(m_level) +
+        sizeof(uint32_t); // parameter count
 };
 
 #endif // FEATURE_PERFTRACING

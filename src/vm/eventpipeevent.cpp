@@ -45,7 +45,7 @@ EventPipeEvent::EventPipeEvent(
     {
         // if metadata is not provided, we have to build the minimum version. It's required by the serialization contract
         m_pMetadata = BuildMinimumMetadata();
-        m_metadataLength = GetMinimumMetadataLength();
+        m_metadataLength = MinimumMetadataLength;
     }
 }
 
@@ -72,9 +72,7 @@ BYTE *EventPipeEvent::BuildMinimumMetadata()
     }
     CONTRACTL_END;
 
-    unsigned int minmumMetadataLength = GetMinimumMetadataLength();
-
-    BYTE *minmumMetadata = new BYTE[minmumMetadataLength];
+    BYTE *minmumMetadata = new BYTE[MinimumMetadataLength];
     BYTE *currentPtr = minmumMetadata;
 
     // the order of fields is defined in coreclr\src\mscorlib\shared\System\Diagnostics\Tracing\EventSource.cs DefineEventPipeEvents method
