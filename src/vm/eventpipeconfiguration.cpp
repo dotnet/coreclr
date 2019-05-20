@@ -30,7 +30,7 @@ EventPipeConfiguration::~EventPipeConfiguration()
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
