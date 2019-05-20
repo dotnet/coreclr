@@ -11,6 +11,8 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
+using Console = Internal.Console;
+
 namespace Internal.Runtime.InteropServices
 {
     public static class ComponentActivator
@@ -90,6 +92,7 @@ namespace Internal.Runtime.InteropServices
             }
             catch (Exception e)
             {
+                Console.WriteLine(e.ToString());
                 return e.HResult;
             }
 

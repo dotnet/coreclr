@@ -6,6 +6,8 @@ using System;
 using System.Reflection;
 using System.Runtime.Loader;
 
+using Console = Internal.Console;
+
 namespace Internal.Runtime.InteropServices
 {
     /// <summary>
@@ -15,19 +17,41 @@ namespace Internal.Runtime.InteropServices
     ///</summary>
     internal sealed class IsolatedComponentLoadContext : AssemblyLoadContext
     {
-        private readonly AssemblyDependencyResolver _resolver;
+        private readonly AssemblyDependencyResolver? _resolver;
+        private readonly string _path;
+        private readonly AssemblyName _assemblyName;
 
         public IsolatedComponentLoadContext(string componentAssemblyPath) : base($"IsolatedComponentLoadContext({componentAssemblyPath})")
         {
-            _resolver = new AssemblyDependencyResolver(componentAssemblyPath);
+            Console.WriteLine("IsolatedComponentLoadContext");
+
+            _path = componentAssemblyPath;
+            _assemblyName = GetAssemblyName(componentAssemblyPath);
+
+            Console.WriteLine(_assemblyName.ToString());
+            try
+            {
+                _resolver = new AssemblyDependencyResolver(componentAssemblyPath);
+            }
+            catch
+            {
+                LoadFromAssemblyPath(componentAssemblyPath);
+            }
         }
 
         protected override Assembly? Load(AssemblyName assemblyName)
         {
-            string? assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
+            Console.WriteLine("IsolatedComponentLoadContext.Load");
+            Console.WriteLine(assemblyName.ToString());
+            string? assemblyPath = _resolver?.ResolveAssemblyToPath(assemblyName);
             if (assemblyPath != null)
             {
                 return LoadFromAssemblyPath(assemblyPath);
+            }
+
+            if (_assemblyName.Name == assemblyName.Name)
+            {
+                return LoadFromAssemblyPath(_path);
             }
 
             return null;
@@ -35,7 +59,7 @@ namespace Internal.Runtime.InteropServices
 
         protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
         {
-            string? libraryPath = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+            string? libraryPath = _resolver?.ResolveUnmanagedDllToPath(unmanagedDllName);
             if (libraryPath != null)
             {
                 return LoadUnmanagedDllFromPath(libraryPath);
