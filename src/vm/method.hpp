@@ -1660,6 +1660,7 @@ public:
         MethodTable** pMT = NULL
         );
 
+    ReturnKind GetReturnKindFromMethodTable(Thread* pThread);
 
     void Destruct();
 
