@@ -5123,7 +5123,7 @@ FARPROC NDirectMethodDesc::FindEntryPointWithMangling(NATIVE_LIBRARY_HANDLE hMod
 #ifndef FEATURE_PAL
     FARPROC pFunc = GetProcAddress(hMod, entryPointName);
 #else
-    FARPROC pFunc = PAL_GetProcAddress(hMod, entryPointName);
+    FARPROC pFunc = PAL_GetProcAddressDirect(hMod, entryPointName);
 #endif
 
 #if defined(_TARGET_X86_)
