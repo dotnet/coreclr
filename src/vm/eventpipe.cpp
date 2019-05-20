@@ -222,14 +222,14 @@ void EventPipe::Shutdown()
 
     if (g_fProcessDetach)
     {
-        // If g_fProcessDetach is true, all threads except this got ripped because someone called ExitProcess(). 
-        // This check is an attempt recognize that case and skip all unsafe cleanup work. 
+        // If g_fProcessDetach is true, all threads except this got ripped because someone called ExitProcess().
+        // This check is an attempt recognize that case and skip all unsafe cleanup work.
 
-        // Since event reading/writing could happen while that ExitProcess happened, the stream is probably 
+        // Since event reading/writing could happen while that ExitProcess happened, the stream is probably
         // screwed anyway. Therefore we do NOT attempt to flush buffer, do rundown. Cleaning up memory at this
-        // point is rather meaningless too since the process is going to terminate soon. Therefore we simply 
+        // point is rather meaningless too since the process is going to terminate soon. Therefore we simply
         // quickly exit here
-        
+
         // TODO: Consider releasing the resources that could last longer than the process (e.g. the files)
         return;
     }
@@ -339,6 +339,9 @@ EventPipeSessionID EventPipe::EnableInternal(
     if (pSession == nullptr || !pSession->IsValid())
         return 0;
 
+    // Register the SampleProfiler the very first time.
+    SampleProfiler::Initialize(pEventPipeProviderCallbackDataQueue);
+
     // Enable the EventPipe EventSource.
     s_pEventSource->Enable(pSession);
 
@@ -348,11 +351,11 @@ EventPipeSessionID EventPipe::EnableInternal(
     // Enable tracing.
     s_pConfig->Enable(*pSession, pEventPipeProviderCallbackDataQueue);
 
-    // Enable the session.
-    pSession->Enable();
-
     // Enable the sample profiler
     SampleProfiler::Enable(pEventPipeProviderCallbackDataQueue);
+
+    // Enable the session.
+    pSession->Enable();
 
     // Return the session ID.
     return pSession->GetId();
@@ -448,7 +451,6 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     // Delete deferred providers.
     // Providers can't be deleted during tracing because they may be needed when serializing the file.
     s_pConfig->DeleteDeferredProviders();
-
 }
 
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)

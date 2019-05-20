@@ -37,6 +37,31 @@ HINSTANCE SampleProfiler::s_hMultimediaLib = NULL;
 typedef MMRESULT(WINAPI *TimePeriodFnPtr)(UINT uPeriod);
 #endif //FEATURE_PAL
 
+void SampleProfiler::Initialize(EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
+    if (s_pEventPipeProvider == nullptr)
+    {
+        s_pEventPipeProvider = EventPipe::CreateProvider(SL(s_providerName), nullptr, nullptr, pEventPipeProviderCallbackDataQueue);
+        // FIXME: This could be NULL.
+
+        s_pThreadTimeEvent = s_pEventPipeProvider->AddEvent(
+            0, /* eventID */
+            0, /* keywords */
+            0, /* eventVersion */
+            EventPipeEventLevel::Informational,
+            false /* NeedStack */);
+    }
+}
+
 void SampleProfiler::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
@@ -44,6 +69,8 @@ void SampleProfiler::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProvid
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(s_pEventPipeProvider != nullptr);
+        PRECONDITION(s_pThreadTimeEvent != nullptr);
         PRECONDITION((s_pSamplingThread == NULL && s_RefCount == 0) || ((s_pSamplingThread != NULL && s_RefCount > 0)));
         // Synchronization of multiple callers occurs in EventPipe::Enable.
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
@@ -58,19 +85,6 @@ void SampleProfiler::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProvid
 #else
     _ASSERTE(!fSuccess);
 #endif
-
-    if (s_pEventPipeProvider == NULL)
-    {
-        s_pEventPipeProvider = EventPipe::CreateProvider(SL(s_providerName), nullptr, nullptr, pEventPipeProviderCallbackDataQueue);
-        // FIXME: This could be NULL.
-
-        s_pThreadTimeEvent = s_pEventPipeProvider->AddEvent(
-            0, /* eventID */
-            0, /* keywords */
-            0, /* eventVersion */
-            EventPipeEventLevel::Informational,
-            false /* NeedStack */);
-    }
 
     // Check to see if the sample profiler event is enabled.  If it is not, do not spin up the sampling thread.
     if (!s_pThreadTimeEvent->IsEnabled())

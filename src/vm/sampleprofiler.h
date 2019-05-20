@@ -23,6 +23,9 @@ class SampleProfiler
     friend class EventPipe;
 
 public:
+    // Initialize the sample profiler.
+    static void Initialize(EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
+
     // Enable profiling.
     static void Enable(EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
