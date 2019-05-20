@@ -31,7 +31,7 @@ extern "C" void DLL_EXPORT ReverseString(LPCWSTR str, LCID lcid, LPWSTR* reverse
     Reverse(str, reversed);
 }
 
-extern "C" bool DLL_EXPORT VerifyValidLCIDPassed(LCID actual, LCID expected)
+extern "C" BOOL DLL_EXPORT VerifyValidLCIDPassed(LCID actual, LCID expected)
 {
     return actual == expected;
 }
