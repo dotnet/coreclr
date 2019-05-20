@@ -312,6 +312,23 @@ public: // IStringTesting
         return S_OK;
     }
 
+    DEF_FUNC(Reverse_LPWSTR_With_LCID)(
+        /*[in]*/ LPWSTR a,
+        /*[in]*/ LCID lcid,
+        /*[out]*/ LPWSTR*  b)
+    {
+        return Reverse_LPWStr(a, b);
+    }
+
+    DEF_FUNC(Pass_Through_LCID)(
+        /*[in]*/ LCID lcidFromCulture,
+        /*[out]*/ LCID* outLcid)
+    {
+        *outLcid = lcidFromCulture;
+        return S_OK;
+    }
+
+
 public: // IUnknown
     STDMETHOD(QueryInterface)(
         /* [in] */ REFIID riid,
