@@ -39,7 +39,7 @@ IpcStreamWriter::~IpcStreamWriter()
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
@@ -90,7 +90,7 @@ FileStreamWriter::~FileStreamWriter()
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
@@ -140,7 +140,7 @@ FastSerializer::~FastSerializer()
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
@@ -153,7 +153,7 @@ void FastSerializer::WriteObject(FastSerializableObject *pObject)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
         PRECONDITION(pObject != NULL);
     }
     CONTRACTL_END;
