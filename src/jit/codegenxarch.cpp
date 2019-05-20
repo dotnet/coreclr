@@ -5579,6 +5579,13 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         instGen(INS_vzeroupper);
     }
 
+    if (callType == CT_HELPER && compiler->info.compFlags & CORINFO_FLG_SYNCH)
+    {
+        fPossibleSyncHelperCall = true;
+        helperNum = compiler->eeGetHelperNum(methHnd);
+        noway_assert(helperNum != CORINFO_HELP_UNDEF);
+    }
+
     if (target != nullptr)
     {
 #ifdef _TARGET_X86_
