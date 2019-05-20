@@ -171,7 +171,7 @@ jobs:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 30
         ${{ if in(parameters.testGroup, 'outerloop-gcstress0x3-gcstress0xc') }}:
-          timeoutPerTestCollectionInMinutes: 240
+          timeoutPerTestCollectionInMinutes: 600
           timeoutPerTestInMinutes: 60
         ${{ if in(parameters.testGroup, 'outerloop-gcstress-extra', 'outerloop-r2r-extra') }}:
           timeoutPerTestCollectionInMinutes: 300
