@@ -317,7 +317,10 @@ build_Tests()
     fi
 
     if [ $__SkipNative != 1 ]; then
+        export CROSSCOMPILEREAL=${CROSSCOMPILE}
+        export CROSSCOMPILE=0
         build_native_projects "$__BuildArch" "${__NativeTestIntermediatesDir}"
+        export CROSSCOMPILE=${CROSSCOMPILEREAL}
 
         if [ $? -ne 0 ]; then
             echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
