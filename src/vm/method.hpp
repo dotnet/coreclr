@@ -2092,6 +2092,20 @@ public:
         }
     }
 #endif
+
+    PrepareCodeConfig *GetNextInSameThread() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_nextInSameThread;
+    }
+
+    void SetNextInSameThread(PrepareCodeConfig *config)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(config == nullptr || m_nextInSameThread == nullptr);
+
+        m_nextInSameThread = config;
+    }
 #endif // !CROSSGEN_COMPILE
     
 protected:
@@ -2108,6 +2122,7 @@ private:
 #ifdef FEATURE_TIERED_COMPILATION
     bool m_jitSwitchedToOptimized; // when a different tier was requested
 #endif
+    PrepareCodeConfig *m_nextInSameThread;
 #endif // !CROSSGEN_COMPILE
 };
 

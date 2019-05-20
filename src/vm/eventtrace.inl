@@ -10,7 +10,7 @@ FORCEINLINE bool ETW::TieredCompilationLog::Runtime::IsEnabled()
 {
     CONTRACTL{
         NOTHROW;
-    GC_NOTRIGGER;
+        GC_NOTRIGGER;
     } CONTRACTL_END;
 
     return
@@ -24,7 +24,7 @@ FORCEINLINE bool ETW::TieredCompilationLog::Rundown::IsEnabled()
 {
     CONTRACTL{
         NOTHROW;
-    GC_NOTRIGGER;
+        GC_NOTRIGGER;
     } CONTRACTL_END;
 
     return

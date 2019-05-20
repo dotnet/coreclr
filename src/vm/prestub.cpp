@@ -1028,10 +1028,11 @@ PrepareCodeConfig::PrepareCodeConfig(NativeCodeVersion codeVersion, BOOL needsMu
     m_mayUsePrecompiledCode(mayUsePrecompiledCode),
     m_ProfilerRejectedPrecompiledCode(FALSE),
     m_ReadyToRunRejectedPrecompiledCode(FALSE),
-    m_jitSwitchedToMinOpt(false)
+    m_jitSwitchedToMinOpt(false),
 #ifdef FEATURE_TIERED_COMPILATION
-    , m_jitSwitchedToOptimized(false)
+    m_jitSwitchedToOptimized(false),
 #endif
+    m_nextInSameThread(nullptr)
 {}
 
 MethodDesc* PrepareCodeConfig::GetMethodDesc()

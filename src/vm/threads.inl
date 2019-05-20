@@ -195,17 +195,23 @@ inline Thread::CurrentPrepareCodeConfigHolder::CurrentPrepareCodeConfigHolder(Th
     _ASSERTE(thread != nullptr);
     _ASSERTE(thread == GetThread());
     _ASSERTE(config != nullptr);
-    _ASSERTE(thread->m_currentPrepareCodeConfig == nullptr);
 
+    PrepareCodeConfig *previousConfig = thread->m_currentPrepareCodeConfig;
+    if (previousConfig != nullptr)
+    {
+        config->SetNextInSameThread(previousConfig);
+    }
     thread->m_currentPrepareCodeConfig = config;
 }
 
 inline Thread::CurrentPrepareCodeConfigHolder::~CurrentPrepareCodeConfigHolder()
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(m_thread->m_currentPrepareCodeConfig == m_config);
 
-    m_thread->m_currentPrepareCodeConfig = nullptr;
+    PrepareCodeConfig *config = m_thread->m_currentPrepareCodeConfig;
+    _ASSERTE(config == m_config);
+    m_thread->m_currentPrepareCodeConfig = config->GetNextInSameThread();
+    config->SetNextInSameThread(nullptr);
 }
 
 #endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
