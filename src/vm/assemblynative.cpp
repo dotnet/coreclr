@@ -782,7 +782,7 @@ BOOL QCALLTYPE AssemblyNative::GetIsCollectible(QCall::AssemblyHandle pAssembly)
 
 extern uint32_t g_cAssemblies;
 
-FCIMPL0(uint32_t, AssemblyNative::GetCount)
+FCIMPL0(uint32_t, AssemblyNative::GetAssemblyCount)
 {
     FCALL_CONTRACT;
 

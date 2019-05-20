@@ -122,6 +122,6 @@ namespace System.Reflection
         internal bool IsRuntimeImplemented() => this is RuntimeAssembly;
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern uint GetCurrentAssemblyCount();
+        internal static extern uint GetAssemblyCount();
     }
 }
