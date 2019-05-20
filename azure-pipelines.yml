@@ -1,0 +1,34 @@
+trigger:
+- release/2.1*
+- release/2.2*
+
+pr:
+- release/2.1*
+- release/2.2*
+
+resources:
+  containers:
+  - container: linux_container
+    image: microsoft/dotnet-buildtools-prereqs:centos-7-d485f41-20173404063424
+  - container: ubuntu_1604_arm64_cross_container
+    image: microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921
+  - container: alpine_36_container
+    image: microsoft/dotnet-buildtools-prereqs:alpine-3.6-WithNode-f4d3fe3-20181213005010
+
+jobs:
+- job: linux_x64_release_build
+  displayName: Linux x64 Release Build
+  pool:
+    vmImage: ubuntu-16.04
+  container: linux_container
+  steps:
+  - checkout: self
+    clean: true
+  - script: ./init-tools.sh
+    displayName: Initialize Tools
+  - script: ./sync.sh -- /p:BuildType=Release
+    displayName: Sync
+  - script: ./build.sh Release x64 skipnuget -skiprestore stripSymbols -- /flp:\"v=diag\"
+    displayName: Build
+  - script: ./build-packages.sh -BuildType=Release -BuildArch=x64 -- /p:OutputRID=linux
+    displayName: Build packages
