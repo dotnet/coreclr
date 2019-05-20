@@ -6,9 +6,9 @@
 
 #ifdef FEATURE_EVENT_TRACE
 
-FORCEINLINE bool ETW::TieredCompilationLog::Runtime::IsEnabled()
+FORCEINLINE bool ETW::CompilationLog::Runtime::IsEnabled()
 {
-    CONTRACTL{
+    CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
     } CONTRACTL_END;
@@ -17,12 +17,12 @@ FORCEINLINE bool ETW::TieredCompilationLog::Runtime::IsEnabled()
         ETW_TRACING_CATEGORY_ENABLED(
             MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context,
             TRACE_LEVEL_INFORMATION,
-            CLR_TIERED_COMPILATION_KEYWORD);
+            CLR_COMPILATION_KEYWORD);
 }
 
-FORCEINLINE bool ETW::TieredCompilationLog::Rundown::IsEnabled()
+FORCEINLINE bool ETW::CompilationLog::Rundown::IsEnabled()
 {
-    CONTRACTL{
+    CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
     } CONTRACTL_END;
@@ -31,7 +31,19 @@ FORCEINLINE bool ETW::TieredCompilationLog::Rundown::IsEnabled()
         ETW_TRACING_CATEGORY_ENABLED(
             MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context,
             TRACE_LEVEL_INFORMATION,
-            CLR_TIERED_COMPILATION_RUNDOWN_KEYWORD);
+            CLR_COMPILATION_RUNDOWN_KEYWORD);
+}
+
+FORCEINLINE bool ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled()
+{
+    WRAPPER_NO_CONTRACT;
+    return CompilationLog::Runtime::IsEnabled();
+}
+
+FORCEINLINE bool ETW::CompilationLog::TieredCompilation::Rundown::IsEnabled()
+{
+    WRAPPER_NO_CONTRACT;
+    return CompilationLog::Rundown::IsEnabled();
 }
 
 #endif // FEATURE_EVENT_TRACE

@@ -1249,9 +1249,9 @@ HRESULT EEConfig::sync()
             }
         }
 
-        if (ETW::TieredCompilationLog::Runtime::IsEnabled())
+        if (ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled())
         {
-            ETW::TieredCompilationLog::Runtime::SendSettings();
+            ETW::CompilationLog::TieredCompilation::Runtime::SendSettings();
         }
     }
 #endif

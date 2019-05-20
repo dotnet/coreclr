@@ -4464,9 +4464,9 @@ extern "C"
                 // Fire the runtime information event
                 ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Callback);
 
-                if (ETW::TieredCompilationLog::Rundown::IsEnabled() && g_pConfig->TieredCompilation())
+                if (ETW::CompilationLog::TieredCompilation::Rundown::IsEnabled() && g_pConfig->TieredCompilation())
                 {
-                    ETW::TieredCompilationLog::Rundown::SendSettings();
+                    ETW::CompilationLog::TieredCompilation::Rundown::SendSettings();
                 }
 
                 // Start and End Method/Module Rundowns
@@ -7402,7 +7402,7 @@ VOID ETW::EnumerationLog::EnumerationHelper(Module *moduleFilter, BaseDomain *do
     }
 }
 
-void ETW::TieredCompilationLog::GetSettings(UINT32 *flagsRef)
+void ETW::CompilationLog::TieredCompilation::GetSettings(UINT32 *flagsRef)
 {
     CONTRACTL {
         NOTHROW;
@@ -7430,7 +7430,7 @@ void ETW::TieredCompilationLog::GetSettings(UINT32 *flagsRef)
     *flagsRef = flags;
 }
 
-void ETW::TieredCompilationLog::Runtime::SendSettings()
+void ETW::CompilationLog::TieredCompilation::Runtime::SendSettings()
 {
     CONTRACTL {
         NOTHROW;
@@ -7445,7 +7445,7 @@ void ETW::TieredCompilationLog::Runtime::SendSettings()
     FireEtwTieredCompilationSettings(GetClrInstanceId(), flags);
 }
 
-void ETW::TieredCompilationLog::Rundown::SendSettings()
+void ETW::CompilationLog::TieredCompilation::Rundown::SendSettings()
 {
     CONTRACTL {
         NOTHROW;
@@ -7460,7 +7460,7 @@ void ETW::TieredCompilationLog::Rundown::SendSettings()
     FireEtwTieredCompilationSettingsDCStart(GetClrInstanceId(), flags);
 }
 
-void ETW::TieredCompilationLog::Runtime::SendPause()
+void ETW::CompilationLog::TieredCompilation::Runtime::SendPause()
 {
     CONTRACTL {
         NOTHROW;
@@ -7472,7 +7472,7 @@ void ETW::TieredCompilationLog::Runtime::SendPause()
     FireEtwTieredCompilationPause(GetClrInstanceId());
 }
 
-void ETW::TieredCompilationLog::Runtime::SendResume(UINT32 newMethodCount)
+void ETW::CompilationLog::TieredCompilation::Runtime::SendResume(UINT32 newMethodCount)
 {
     CONTRACTL {
         NOTHROW;
@@ -7484,7 +7484,7 @@ void ETW::TieredCompilationLog::Runtime::SendResume(UINT32 newMethodCount)
     FireEtwTieredCompilationResume(GetClrInstanceId(), newMethodCount);
 }
 
-void ETW::TieredCompilationLog::Runtime::SendBackgroundJitStart(UINT32 pendingMethodCount)
+void ETW::CompilationLog::TieredCompilation::Runtime::SendBackgroundJitStart(UINT32 pendingMethodCount)
 {
     CONTRACTL {
         NOTHROW;
@@ -7496,7 +7496,7 @@ void ETW::TieredCompilationLog::Runtime::SendBackgroundJitStart(UINT32 pendingMe
     FireEtwTieredCompilationBackgroundJitStart(GetClrInstanceId(), pendingMethodCount);
 }
 
-void ETW::TieredCompilationLog::Runtime::SendBackgroundJitStop(UINT32 pendingMethodCount, UINT32 jittedMethodCount)
+void ETW::CompilationLog::TieredCompilation::Runtime::SendBackgroundJitStop(UINT32 pendingMethodCount, UINT32 jittedMethodCount)
 {
     CONTRACTL {
         NOTHROW;

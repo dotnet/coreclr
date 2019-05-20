@@ -894,26 +894,17 @@ namespace ETW
     T(const T &) = delete; \
     T &operator =(const T &) = delete
 
-    // Class to wrap all TieredCompilation logic for ETW
-    class TieredCompilationLog
+    // Class to wrap all Compilation logic for ETW
+    class CompilationLog
     {
-    private:
-        static void GetSettings(UINT32 *flagsRef);
-
     public:
         class Runtime
         {
         public:
 #ifdef FEATURE_EVENT_TRACE
             static bool IsEnabled();
-            static void SendSettings();
-            static void SendPause();
-            static void SendResume(UINT32 newMethodCount);
-            static void SendBackgroundJitStart(UINT32 pendingMethodCount);
-            static void SendBackgroundJitStop(UINT32 pendingMethodCount, UINT32 jittedMethodCount);
 #else
             static bool IsEnabled() { return false; }
-            static void SendSettings() {}
 #endif
 
             DISABLE_CONSTRUCT_COPY(Runtime);
@@ -924,16 +915,56 @@ namespace ETW
         public:
 #ifdef FEATURE_EVENT_TRACE
             static bool IsEnabled();
-            static void SendSettings();
 #else
             static bool IsEnabled() { return false; }
-            static void SendSettings() {}
 #endif
 
             DISABLE_CONSTRUCT_COPY(Rundown);
         };
 
-        DISABLE_CONSTRUCT_COPY(TieredCompilationLog);
+        // Class to wrap all TieredCompilation logic for ETW
+        class TieredCompilation
+        {
+        private:
+            static void GetSettings(UINT32 *flagsRef);
+
+        public:
+            class Runtime
+            {
+            public:
+#ifdef FEATURE_EVENT_TRACE
+                static bool IsEnabled();
+                static void SendSettings();
+                static void SendPause();
+                static void SendResume(UINT32 newMethodCount);
+                static void SendBackgroundJitStart(UINT32 pendingMethodCount);
+                static void SendBackgroundJitStop(UINT32 pendingMethodCount, UINT32 jittedMethodCount);
+#else
+                static bool IsEnabled() { return false; }
+                static void SendSettings() {}
+#endif
+
+                DISABLE_CONSTRUCT_COPY(Runtime);
+            };
+
+            class Rundown
+            {
+            public:
+#ifdef FEATURE_EVENT_TRACE
+                static bool IsEnabled();
+                static void SendSettings();
+#else
+                static bool IsEnabled() { return false; }
+                static void SendSettings() {}
+#endif
+
+                DISABLE_CONSTRUCT_COPY(Rundown);
+            };
+
+            DISABLE_CONSTRUCT_COPY(TieredCompilation);
+        };
+
+        DISABLE_CONSTRUCT_COPY(CompilationLog);
     };
 
 #undef DISABLE_CONSTRUCT_COPY

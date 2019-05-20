@@ -386,9 +386,9 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
     }
 
     timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
-    if (ETW::TieredCompilationLog::Runtime::IsEnabled())
+    if (ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled())
     {
-        ETW::TieredCompilationLog::Runtime::SendPause();
+        ETW::CompilationLog::TieredCompilation::Runtime::SendPause();
     }
     return true;
 }
@@ -488,7 +488,7 @@ void TieredCompilationManager::TieringDelayTimerCallbackWorker()
     MethodDesc** methods = methodsPendingCountingForTier1->GetElements();
     COUNT_T methodCount = methodsPendingCountingForTier1->GetCount();
 
-    if (ETW::TieredCompilationLog::Runtime::IsEnabled())
+    if (ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled())
     {
         // TODO: Avoid scanning the list in the future
         UINT32 newMethodCount = 0;
@@ -500,7 +500,7 @@ void TieredCompilationManager::TieringDelayTimerCallbackWorker()
                 ++newMethodCount;
             }
         }
-        ETW::TieredCompilationLog::Runtime::SendResume(newMethodCount);
+        ETW::CompilationLog::TieredCompilation::Runtime::SendResume(newMethodCount);
     }
 
     // Install call counters
@@ -624,9 +624,9 @@ void TieredCompilationManager::OptimizeMethods()
     // work item to the thread pool and return this thread back to the pool.
     const DWORD OptimizationQuantumMs = 50;
 
-    if (ETW::TieredCompilationLog::Runtime::IsEnabled())
+    if (ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled())
     {
-        ETW::TieredCompilationLog::Runtime::SendBackgroundJitStart(m_countOfMethodsToOptimize);
+        ETW::CompilationLog::TieredCompilation::Runtime::SendBackgroundJitStart(m_countOfMethodsToOptimize);
     }
 
     UINT32 jittedMethodCount = 0;
@@ -684,9 +684,9 @@ void TieredCompilationManager::OptimizeMethods()
     }
     EX_END_CATCH(RethrowTerminalExceptions);
 
-    if (ETW::TieredCompilationLog::Runtime::IsEnabled())
+    if (ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled())
     {
-        ETW::TieredCompilationLog::Runtime::SendBackgroundJitStop(m_countOfMethodsToOptimize, jittedMethodCount);
+        ETW::CompilationLog::TieredCompilation::Runtime::SendBackgroundJitStop(m_countOfMethodsToOptimize, jittedMethodCount);
     }
 }
 
