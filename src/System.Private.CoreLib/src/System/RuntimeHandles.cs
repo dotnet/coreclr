@@ -449,7 +449,7 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetTypeByNameUsingCARules(string name, RuntimeModule scope, ObjectHandleOnStack type);
+        private static extern void GetTypeByNameUsingCARules(string name, QCallModule scope, ObjectHandleOnStack type);
 
         internal static RuntimeType GetTypeByNameUsingCARules(string name, RuntimeModule scope)
         {
@@ -457,7 +457,7 @@ namespace System
                 throw new ArgumentException(null, nameof(name));
 
             RuntimeType type = null!;
-            GetTypeByNameUsingCARules(name, scope.GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            GetTypeByNameUsingCARules(name, JitHelpers.GetQCallModuleOnStack(ref scope), JitHelpers.GetObjectHandleOnStack(ref type));
 
             return type;
         }
@@ -1269,7 +1269,7 @@ namespace System
             fixed (IntPtr* typeInstArgs = typeInstantiationContextHandles, methodInstArgs = methodInstantiationContextHandles)
             {
                 RuntimeType type = null!;
-                ResolveType(module, typeToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount, JitHelpers.GetObjectHandleOnStack(ref type));
+                ResolveType(JitHelpers.GetQCallModuleOnStack(ref module), typeToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount, JitHelpers.GetObjectHandleOnStack(ref type));
                 GC.KeepAlive(typeInstantiationContext);
                 GC.KeepAlive(methodInstantiationContext);
                 return type;
@@ -1277,7 +1277,7 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void ResolveType(RuntimeModule module,
+        private static extern void ResolveType(QCallModule module,
                                                             int typeToken,
                                                             IntPtr* typeInstArgs,
                                                             int typeInstCount,
@@ -1317,12 +1317,12 @@ namespace System
 
             fixed (IntPtr* typeInstArgs = typeInstantiationContext, methodInstArgs = methodInstantiationContext)
             {
-                return ResolveMethod(module.GetNativeHandle(), methodToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount);
+                return ResolveMethod(JitHelpers.GetQCallModuleOnStack(ref module), methodToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount);
             }
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern RuntimeMethodHandleInternal ResolveMethod(RuntimeModule module,
+        private static extern RuntimeMethodHandleInternal ResolveMethod(QCallModule module,
                                                         int methodToken,
                                                         IntPtr* typeInstArgs,
                                                         int typeInstCount,
@@ -1350,7 +1350,7 @@ namespace System
             fixed (IntPtr* typeInstArgs = typeInstantiationContextHandles, methodInstArgs = methodInstantiationContextHandles)
             {
                 IRuntimeFieldInfo field = null!;
-                ResolveField(module.GetNativeHandle(), fieldToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount, JitHelpers.GetObjectHandleOnStack(ref field));
+                ResolveField(JitHelpers.GetQCallModuleOnStack(ref module), fieldToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount, JitHelpers.GetObjectHandleOnStack(ref field));
                 GC.KeepAlive(typeInstantiationContext);
                 GC.KeepAlive(methodInstantiationContext);
                 return field;
@@ -1358,7 +1358,7 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void ResolveField(RuntimeModule module,
+        private static extern void ResolveField(QCallModule module,
                                                       int fieldToken,
                                                       IntPtr* typeInstArgs,
                                                       int typeInstCount,
@@ -1367,31 +1367,31 @@ namespace System
                                                       ObjectHandleOnStack retField);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern bool _ContainsPropertyMatchingHash(RuntimeModule module, int propertyToken, uint hash);
+        private static extern bool _ContainsPropertyMatchingHash(QCallModule module, int propertyToken, uint hash);
 
         internal static bool ContainsPropertyMatchingHash(RuntimeModule module, int propertyToken, uint hash)
         {
-            return _ContainsPropertyMatchingHash(module.GetNativeHandle(), propertyToken, hash);
+            return _ContainsPropertyMatchingHash(JitHelpers.GetQCallModuleOnStack(ref module), propertyToken, hash);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void GetModuleType(RuntimeModule handle, ObjectHandleOnStack type);
+        internal static extern void GetModuleType(QCallModule handle, ObjectHandleOnStack type);
 
         internal static RuntimeType GetModuleType(RuntimeModule module)
         {
             RuntimeType type = null!;
-            GetModuleType(module.GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            GetModuleType(JitHelpers.GetQCallModuleOnStack(ref module), JitHelpers.GetObjectHandleOnStack(ref type));
             return type;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetPEKind(RuntimeModule handle, out int peKind, out int machine);
+        private static extern void GetPEKind(QCallModule handle, out int peKind, out int machine);
 
         // making this internal, used by Module.GetPEKind
         internal static void GetPEKind(RuntimeModule module, out PortableExecutableKinds peKind, out ImageFileMachine machine)
         {
             int lKind, lMachine;
-            GetPEKind(module.GetNativeHandle(), out lKind, out lMachine);
+            GetPEKind(JitHelpers.GetQCallModuleOnStack(ref module), out lKind, out lMachine);
             peKind = (PortableExecutableKinds)lKind;
             machine = (ImageFileMachine)lMachine;
         }
