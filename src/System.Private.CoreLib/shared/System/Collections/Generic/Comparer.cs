@@ -21,7 +21,7 @@ namespace System.Collections.Generic
             return new ComparisonComparer<T>(comparison);
         }
 
-        public abstract int Compare(T x, T y); // TODO-NULLABLE-GENERIC: x and y must be marked as nullable
+        public abstract int Compare([AllowNull] T x, [AllowNull] T y);
 
         int IComparer.Compare(object? x, object? y)
         {
@@ -58,7 +58,7 @@ namespace System.Collections.Generic
     // Needs to be public to support binary serialization compatibility
     public sealed partial class GenericComparer<T> : Comparer<T> where T : IComparable<T>
     {
-        public override int Compare(T x, T y) // TODO-NULLABLE-GENERIC: x and y must be marked as nullable
+        public override int Compare([AllowNull] T x, [AllowNull] T y)
         {
             if (x != null)
             {
@@ -106,7 +106,7 @@ namespace System.Collections.Generic
     // Needs to be public to support binary serialization compatibility
     public sealed partial class ObjectComparer<T> : Comparer<T>
     {
-        public override int Compare(T x, T y) // TODO-NULLABLE-GENERIC: x and y must be marked as nullable
+        public override int Compare([AllowNull] T x, [AllowNull] T y)
         {
             return System.Collections.Comparer.Default.Compare(x, y);
         }

@@ -195,7 +195,7 @@ namespace System.Threading
         /// could not be found.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ReaderWriterCount? GetThreadRWCount(bool dontAllocate) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+        private ReaderWriterCount? GetThreadRWCount(bool dontAllocate)
         {
             ReaderWriterCount? rwc = t_rwc;
             ReaderWriterCount? empty = null;
@@ -318,7 +318,7 @@ namespace System.Threading
 
                 _spinLock.Enter(EnterSpinLockReason.EnterAnyRead);
 
-                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                lrwc = GetThreadRWCount(dontAllocate: false)!;
 
                 //Check if the reader lock is already acquired. Note, we could
                 //check the presence of a reader by not allocating rwc (But that 
@@ -343,7 +343,7 @@ namespace System.Threading
             else
             {
                 _spinLock.Enter(EnterSpinLockReason.EnterAnyRead);
-                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                lrwc = GetThreadRWCount(dontAllocate: false)!;
                 if (lrwc.readercount > 0)
                 {
                     lrwc.readercount++;
@@ -401,7 +401,7 @@ namespace System.Threading
                     _spinLock.Enter(EnterSpinLockReason.EnterAnyRead);
                     //The per-thread structure may have been recycled as the lock is acquired (due to message pumping), load again.
                     if (IsRwHashEntryChanged(lrwc))
-                        lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                        lrwc = GetThreadRWCount(dontAllocate: false)!;
                     continue;
                 }
 
@@ -410,7 +410,7 @@ namespace System.Threading
                 {
                     LazyCreateEvent(ref _readEvent, EnterLockType.Read);
                     if (IsRwHashEntryChanged(lrwc))
-                        lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                        lrwc = GetThreadRWCount(dontAllocate: false)!;
                     continue;   // since we left the lock, start over. 
                 }
 
@@ -420,7 +420,7 @@ namespace System.Threading
                     return false;
                 }
                 if (IsRwHashEntryChanged(lrwc))
-                    lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                    lrwc = GetThreadRWCount(dontAllocate: false)!;
             }
 
             _spinLock.Exit();
@@ -502,7 +502,7 @@ namespace System.Threading
                 }
                 _spinLock.Enter(enterMyLockReason);
 
-                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                lrwc = GetThreadRWCount(dontAllocate: false)!;
 
                 if (id == _writeLockOwnerId)
                 {
@@ -555,7 +555,7 @@ namespace System.Threading
                         if (lrwc != null)
                         {
                             if (IsRwHashEntryChanged(lrwc))
-                                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                                lrwc = GetThreadRWCount(dontAllocate: false)!;
 
                             if (lrwc.readercount > 0)
                             {
@@ -624,7 +624,7 @@ namespace System.Threading
             {
                 Debug.Assert(lrwc != null, "Initialized based on _fIsReentrant earlier in the method");
                 if (IsRwHashEntryChanged(lrwc))
-                    lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                    lrwc = GetThreadRWCount(dontAllocate: false)!;
                 lrwc.writercount++;
             }
 
@@ -688,7 +688,7 @@ namespace System.Threading
             else
             {
                 _spinLock.Enter(EnterSpinLockReason.EnterAnyRead);
-                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                lrwc = GetThreadRWCount(dontAllocate: false)!;
 
                 if (id == _upgradeLockOwnerId)
                 {
@@ -767,7 +767,7 @@ namespace System.Threading
                 //thread did not grab the entry.
                 Debug.Assert(lrwc != null, "Initialized based on _fIsReentrant earlier in the method");
                 if (IsRwHashEntryChanged(lrwc))
-                    lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                    lrwc = GetThreadRWCount(dontAllocate: false)!;
                 lrwc.upgradecount++;
             }
 
@@ -829,7 +829,7 @@ namespace System.Threading
             else
             {
                 _spinLock.Enter(EnterSpinLockReason.ExitAnyWrite);
-                lrwc = GetThreadRWCount(dontAllocate: false)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                lrwc = GetThreadRWCount(dontAllocate: false)!;
 
                 if (lrwc == null)
                 {
@@ -913,7 +913,7 @@ namespace System.Threading
         /// while holding a spin lock).  If all goes well, reenter the lock and
         /// set 'waitEvent' 
         /// </summary>
-        private void LazyCreateEvent(ref EventWaitHandle? waitEvent, EnterLockType enterLockType) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+        private void LazyCreateEvent([NotNull] ref EventWaitHandle? waitEvent, EnterLockType enterLockType)
         {
 #if DEBUG
             Debug.Assert(_spinLock.IsHeld);

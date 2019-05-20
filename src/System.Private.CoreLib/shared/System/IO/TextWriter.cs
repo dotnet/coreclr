@@ -117,9 +117,10 @@ namespace System.IO
         /// the TextWriter to be readable by a TextReader, only one of the following line
         /// terminator strings should be used: "\r", "\n", or "\r\n".
         /// </remarks>
-        public virtual string? NewLine // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/2384
+        public virtual string NewLine
         {
             get { return CoreNewLineStr; }
+            [AllowNull]
             set
             {
                 if (value == null)
@@ -545,7 +546,7 @@ namespace System.IO
             var tuple = new Tuple<TextWriter, char>(this, value);
             return Task.Factory.StartNew(state =>
             {
-                var t = (Tuple<TextWriter, char>)state!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                var t = (Tuple<TextWriter, char>)state!;
                 t.Item1.Write(t.Item2);
             },
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -556,7 +557,7 @@ namespace System.IO
             var tuple = new Tuple<TextWriter, string?>(this, value);
             return Task.Factory.StartNew(state =>
             {
-                var t = (Tuple<TextWriter, string?>)state!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                var t = (Tuple<TextWriter, string?>)state!;
                 t.Item1.Write(t.Item2);
             },
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -598,7 +599,7 @@ namespace System.IO
             var tuple = new Tuple<TextWriter, char[], int, int>(this, buffer, index, count);
             return Task.Factory.StartNew(state =>
             {
-                var t = (Tuple<TextWriter, char[], int, int>)state!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                var t = (Tuple<TextWriter, char[], int, int>)state!;
                 t.Item1.Write(t.Item2, t.Item3, t.Item4);
             },
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -606,11 +607,11 @@ namespace System.IO
 
         public virtual Task WriteAsync(ReadOnlyMemory<char> buffer, CancellationToken cancellationToken = default) =>
             cancellationToken.IsCancellationRequested ? Task.FromCanceled(cancellationToken) :
-            MemoryMarshal.TryGetArray(buffer, out ArraySegment<char> array) ? // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            MemoryMarshal.TryGetArray(buffer, out ArraySegment<char> array) ?
                 WriteAsync(array.Array!, array.Offset, array.Count) :
                 Task.Factory.StartNew(state =>
                 {
-                    var t = (Tuple<TextWriter, ReadOnlyMemory<char>>)state!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                    var t = (Tuple<TextWriter, ReadOnlyMemory<char>>)state!;
                     t.Item1.Write(t.Item2.Span);
                 }, Tuple.Create(this, buffer), cancellationToken, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
 
@@ -619,7 +620,7 @@ namespace System.IO
             var tuple = new Tuple<TextWriter, char>(this, value);
             return Task.Factory.StartNew(state =>
             {
-                var t = (Tuple<TextWriter, char>)state!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                var t = (Tuple<TextWriter, char>)state!;
                 t.Item1.WriteLine(t.Item2);
             },
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -630,7 +631,7 @@ namespace System.IO
             var tuple = new Tuple<TextWriter, string?>(this, value);
             return Task.Factory.StartNew(state =>
             {
-                var t = (Tuple<TextWriter, string?>)state!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                var t = (Tuple<TextWriter, string?>)state!;
                 t.Item1.WriteLine(t.Item2);
             },
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -673,7 +674,7 @@ namespace System.IO
             var tuple = new Tuple<TextWriter, char[], int, int>(this, buffer, index, count);
             return Task.Factory.StartNew(state =>
             {
-                var t = (Tuple<TextWriter, char[], int, int>)state!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                var t = (Tuple<TextWriter, char[], int, int>)state!;
                 t.Item1.WriteLine(t.Item2, t.Item3, t.Item4);
             },
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -681,11 +682,11 @@ namespace System.IO
 
         public virtual Task WriteLineAsync(ReadOnlyMemory<char> buffer, CancellationToken cancellationToken = default) =>
             cancellationToken.IsCancellationRequested ? Task.FromCanceled(cancellationToken) :
-            MemoryMarshal.TryGetArray(buffer, out ArraySegment<char> array) ? // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            MemoryMarshal.TryGetArray(buffer, out ArraySegment<char> array) ?
                 WriteLineAsync(array.Array!, array.Offset, array.Count) :
                 Task.Factory.StartNew(state =>
                 {
-                    var t = (Tuple<TextWriter, ReadOnlyMemory<char>>)state!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                    var t = (Tuple<TextWriter, ReadOnlyMemory<char>>)state!;
                     t.Item1.WriteLine(t.Item2.Span);
                 }, Tuple.Create(this, buffer), cancellationToken, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
 
@@ -698,7 +699,7 @@ namespace System.IO
         {
             return Task.Factory.StartNew(state =>
             {
-                ((TextWriter)state!).Flush(); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                ((TextWriter)state!).Flush();
             },
             this, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
         }
@@ -766,10 +767,11 @@ namespace System.IO
 
             public override IFormatProvider FormatProvider => _out.FormatProvider;
 
-            public override string? NewLine
+            public override string NewLine
             {
                 [MethodImpl(MethodImplOptions.Synchronized)]
                 get { return _out.NewLine; }
+                [AllowNull]
                 [MethodImpl(MethodImplOptions.Synchronized)]
                 set { _out.NewLine = value; }
             }

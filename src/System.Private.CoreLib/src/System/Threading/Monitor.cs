@@ -52,6 +52,7 @@ namespace System.Threading
             Debug.Assert(lockTaken);
         }
 
+        [DoesNotReturn]
         private static void ThrowLockTakenException()
         {
             throw new ArgumentException(SR.Argument_MustBeFalse, "lockTaken");

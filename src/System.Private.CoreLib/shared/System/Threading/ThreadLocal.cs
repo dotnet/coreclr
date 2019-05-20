@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 // A class that provides a simple, lightweight implementation of thread-local lazy-initialization, where a value is initialized once per accessing 
 // thread; this provides an alternative to using a ThreadStatic static variable and having 
@@ -201,7 +202,7 @@ namespace System.Threading
 
                     // And clear the references from the slot table to the linked slot and the value so that
                     // both can get garbage collected.
-                    slotArray[id].Value!._value = default!; // TODO-NULLABLE-GENERIC
+                    slotArray[id].Value!._value = default!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
                     slotArray[id].Value = null;
                 }
             }
@@ -250,6 +251,7 @@ namespace System.Threading
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public T Value
         {
+            [MaybeNull]
             get
             {
                 LinkedSlotVolatile[]? slotArray = ts_slotArray;
@@ -304,6 +306,7 @@ namespace System.Threading
             }
         }
 
+        [return: MaybeNull]
         private T GetValueSlow()
         {
             // If the object has been disposed, the id will be -1.
@@ -319,7 +322,7 @@ namespace System.Threading
             T value;
             if (_valueFactory == null)
             {
-                value = default!; // TODO-NULLABLE-GENERIC
+                value = default!;
             }
             else
             {
@@ -466,7 +469,7 @@ namespace System.Threading
             {
                 // We can safely read linkedSlot.Value. Even if this ThreadLocal has been disposed in the meantime, the LinkedSlot
                 // objects will never be assigned to another ThreadLocal instance.
-                valueList.Add(linkedSlot._value);
+                valueList.Add(linkedSlot._value!);
             }
 
             return valueList;
@@ -493,7 +496,7 @@ namespace System.Threading
                 {
                     // We can safely read linkedSlot.Value. Even if this ThreadLocal has been disposed in the meantime, the LinkedSlot
                     // objects will never be assigned to another ThreadLocal instance.
-                    yield return linkedSlot._value;
+                    yield return linkedSlot._value!;
                 }
             }
         }
@@ -538,6 +541,7 @@ namespace System.Threading
         /// the value for the current thread in the ThreadLocal mode.</summary>
         internal T ValueForDebugDisplay
         {
+            [MaybeNull]
             get
             {
                 LinkedSlotVolatile[]? slotArray = ts_slotArray;
@@ -545,7 +549,7 @@ namespace System.Threading
 
                 LinkedSlot? slot;
                 if (slotArray == null || id >= slotArray.Length || (slot = slotArray[id].Value) == null || !_initialized)
-                    return default!; // TODO-NULLABLE-GENERIC
+                    return default!;
                 return slot._value;
             }
         }
@@ -671,7 +675,7 @@ namespace System.Threading
             internal volatile LinkedSlotVolatile[]? _slotArray;
 
             // The value for this slot.
-            internal T _value = default!; // TODO-NULLABLE-GENERIC
+            [AllowNull,MaybeNull] internal T _value = default!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
         }
 
         /// <summary>

@@ -99,6 +99,7 @@ namespace System
             return decimal.Abs(value);
         }
 
+        [DoesNotReturn]
         [StackTraceHidden]
         private static void ThrowAbsOverflow()
         {
@@ -984,6 +985,7 @@ namespace System
             return d;
         }
 
+        [DoesNotReturn]
         private static void ThrowMinMaxException<T>(T min, T max)
         {
             throw new ArgumentException(SR.Format(SR.Argument_MinMaxValue, min, max));

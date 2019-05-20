@@ -493,7 +493,7 @@ namespace System
 
                 default:
                     parsed = TryParseRareEnum(rt, value, valueSpan, ignoreCase, throwOnFailure, out object? objectResult);
-                    result = parsed ? (TEnum)objectResult! : default; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34976
+                    result = parsed ? (TEnum)objectResult! : default;
                     return parsed;
             }
         }

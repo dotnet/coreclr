@@ -5,6 +5,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
@@ -328,6 +329,7 @@ namespace System.Reflection
                 throw new MemberAccessException(SR.Access_Void);
         }
 
+        [DoesNotReturn]
         internal void ThrowNoInvokeException()
         {
             CheckCanCreateInstance(DeclaringType!, (CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs);

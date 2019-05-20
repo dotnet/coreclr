@@ -421,10 +421,11 @@ namespace System.Diagnostics.Tracing
             return result;
         }
 
+        [return: MaybeNull]
         public static AttributeType GetCustomAttribute<AttributeType>(PropertyInfo propInfo)
             where AttributeType : Attribute?
         {
-            AttributeType result = null!; // TODO-NULLABLE-GENERIC: re-review
+            AttributeType result = null!;
 #if (ES_BUILD_PCL || ES_BUILD_PN)
             foreach (var attrib in propInfo.GetCustomAttributes<AttributeType>(false))
             {
@@ -441,10 +442,11 @@ namespace System.Diagnostics.Tracing
             return result;
         }
 
+        [return: MaybeNull]
         public static AttributeType GetCustomAttribute<AttributeType>(Type type)
             where AttributeType : Attribute?
         {
-            AttributeType result = null!; // TODO-NULLABLE-GENERIC: re-review
+            AttributeType result = null!;
 #if (ES_BUILD_PCL || ES_BUILD_PN)
             foreach (var attrib in type.GetTypeInfo().GetCustomAttributes<AttributeType>(false))
             {

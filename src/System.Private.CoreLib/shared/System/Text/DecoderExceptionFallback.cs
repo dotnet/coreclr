@@ -4,6 +4,7 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 
 namespace System.Text
@@ -73,6 +74,7 @@ namespace System.Text
             }
         }
 
+        [DoesNotReturn]
         private void Throw(byte[] bytesUnknown, int index)
         {
             bytesUnknown = bytesUnknown ?? Array.Empty<byte>();

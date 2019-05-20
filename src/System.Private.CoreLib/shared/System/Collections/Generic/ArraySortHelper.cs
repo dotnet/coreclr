@@ -38,6 +38,7 @@ namespace System.Collections.Generic
             return result;
         }
 
+        [DoesNotReturn]
         internal static void ThrowOrIgnoreBadComparer(object? comparer)
         {
             throw new ArgumentException(SR.Format(SR.Arg_BogusIComparer, comparer));

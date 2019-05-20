@@ -87,6 +87,7 @@ namespace System.IO
         /// away from paths during normalization, but if we see such a path at this point it should be
         /// normalized and has retained the final characters. (Typically from one of the *Info classes)
         /// </summary>
+        [return: NotNullIfNotNull("path")]
         internal static string? EnsureExtendedPrefixIfNeeded(string? path)
         {
             if (path != null && (path.Length >= MaxShortPath || EndsWithPeriodOrSpace(path)))

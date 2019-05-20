@@ -17,7 +17,7 @@ namespace System
 
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public sealed class Version : ICloneable, IComparable, IComparable<Version?>, IEquatable<Version?>, ISpanFormattable
+    public sealed class Version : ICloneable, IComparable, IComparable<Version?>, IEquatable<Version>, ISpanFormattable
     {
         // AssemblyName depends on the order staying the same
         private readonly int _Major; // Do not rename (binary serialization)
@@ -167,7 +167,9 @@ namespace System
             return Equals(obj as Version);
         }
 
+#pragma warning disable CS8614 // TODO-NULLABLE: Covariant interface arguments (https://github.com/dotnet/roslyn/issues/35817)
         public bool Equals(Version? obj)
+#pragma warning restore CS8614
         {
             return object.ReferenceEquals(obj, this) ||
                 (!(obj is null) &&
@@ -306,7 +308,7 @@ namespace System
         public static Version Parse(ReadOnlySpan<char> input) =>
             ParseVersion(input, throwOnFailure: true)!;
 
-        public static bool TryParse(string? input, out Version? result) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+        public static bool TryParse(string? input, [NotNullWhen(true)] out Version? result)
         {
             if (input == null)
             {

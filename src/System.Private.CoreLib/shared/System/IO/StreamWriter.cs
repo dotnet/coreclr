@@ -56,6 +56,7 @@ namespace System.IO
             }
         }
 
+        [DoesNotReturn]
         private static void ThrowAsyncIOInProgress() =>
             throw new InvalidOperationException(SR.InvalidOperation_AsyncIOInProgress);
 

@@ -5,6 +5,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Security;
 using System.Text;
 using System.Threading;
@@ -418,6 +419,7 @@ namespace System.Reflection
             }
         }
 
+        [DoesNotReturn]
         private void ThrowNoInvokeException()
         {
             // method is on a class that contains stack pointers
@@ -507,7 +509,7 @@ namespace System.Reflection
 
         #region MethodInfo Overrides
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
+#pragma warning disable CS8608 // TODO-NULLABLE: Covariant return types (https://github.com/dotnet/roslyn/issues/23268)
         public override Type ReturnType
         {
             get { return Signature.ReturnType; }

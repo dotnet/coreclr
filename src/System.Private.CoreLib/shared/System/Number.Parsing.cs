@@ -1926,8 +1926,10 @@ namespace System
             Overflow
         }
 
+        [DoesNotReturn]
         internal static void ThrowOverflowOrFormatException(ParsingStatus status, TypeCode type = 0) => throw GetException(status, type);
 
+        [DoesNotReturn]
         internal static void ThrowOverflowException(TypeCode type) => throw GetException(ParsingStatus.Overflow, type);
 
         private static Exception GetException(ParsingStatus status, TypeCode type)

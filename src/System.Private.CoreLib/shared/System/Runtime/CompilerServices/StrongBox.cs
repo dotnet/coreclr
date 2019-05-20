@@ -15,7 +15,7 @@ namespace System.Runtime.CompilerServices
         /// <remarks>This is explicitly exposed as a field instead of a property to enable loading the address of the field.</remarks>
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
-        public T Value = default!; // TODO-NULLABLE-GENERIC
+        [MaybeNull] public T Value = default!;
 
         /// <summary>
         /// Initializes a new StrongBox which can receive a value when used in a reference call.
@@ -41,7 +41,7 @@ namespace System.Runtime.CompilerServices
             }
             set
             {
-                Value = (T)value!; // TODO-NULLABLE-GENERIC
+                Value = (T)value!;
             }
         }
     }

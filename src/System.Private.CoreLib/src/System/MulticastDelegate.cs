@@ -164,7 +164,7 @@ namespace System
             if (a[index] != null)
             {
                 MulticastDelegate d = (MulticastDelegate)o;
-                MulticastDelegate dd = (MulticastDelegate)a[index]!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
+                MulticastDelegate dd = (MulticastDelegate)a[index]!; // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
 
                 if (dd._methodPtr == d._methodPtr &&
                     dd._target == d._target &&
@@ -566,6 +566,7 @@ namespace System
         }
 
         // this should help inlining
+        [DoesNotReturn]
         [System.Diagnostics.DebuggerNonUserCode]
         private void ThrowNullThisInDelegateToInstance()
         {
@@ -577,7 +578,7 @@ namespace System
         {
             if (target == null)
                 ThrowNullThisInDelegateToInstance();
-            this._target = target!; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+            this._target = target!; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
             this._methodPtr = methodPtr;
         }
 
