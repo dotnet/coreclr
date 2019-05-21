@@ -296,8 +296,9 @@ jobs:
       - Linux_musl_x64
       - Linux_x64
       - OSX_x64
-      - Windows_NT_arm
-      - Windows_NT_arm64
+        # No Windows arm/arm64 helix queues defined for processing PRs currently.
+        #- Windows_NT_arm
+        #- Windows_NT_arm64
       - Windows_NT_x64
       - Windows_NT_x86
       jobParameters:
