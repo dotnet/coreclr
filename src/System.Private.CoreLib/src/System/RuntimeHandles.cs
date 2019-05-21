@@ -805,7 +805,7 @@ namespace System
             RuntimeTypeHandle attrTypeHandle,
             IRuntimeMethodInfo attrCtor,
             RuntimeTypeHandle sourceTypeHandle,
-            RuntimeModule sourceModule);
+            QCallModule sourceModule);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern IRuntimeMethodInfo? _GetCurrentMethod(ref StackCrawlMark stackMark);

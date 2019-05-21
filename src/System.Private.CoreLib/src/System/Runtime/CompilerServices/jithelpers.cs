@@ -62,6 +62,17 @@ namespace System.Runtime.CompilerServices
         }
     }
 
+    internal struct QCallAssembly
+    {
+        private IntPtr m_ptr;
+        private IntPtr m_assembly;
+        internal QCallAssembly(IntPtr pObject, System.Reflection.RuntimeAssembly assembly)
+        {
+            m_ptr = pObject;
+            m_assembly = assembly.GetUnderlyingNativeHandle();
+        }
+    }
+
     // Helper class to assist with unsafe pinning of arbitrary objects.
     // It's used by VM code.
     internal class RawData
@@ -103,6 +114,12 @@ namespace System.Runtime.CompilerServices
         internal static QCallModule GetQCallModuleOnStack(ref System.Reflection.Emit.ModuleBuilder module)
         {
             return new QCallModule((IntPtr)Unsafe.AsPointer(ref module), module);
+        }
+
+        // Wraps RuntimeAssembly into a handle. Used to pass RuntimeAssembly to native code wihtout letting it be collected
+        internal static QCallAssembly GetQCallAssemblyOnStack(ref System.Reflection.RuntimeAssembly assembly)
+        {
+            return new QCallAssembly((IntPtr)Unsafe.AsPointer(ref assembly), assembly);
         }
 
         // Wraps StackCrawlMark into a handle. Used to pass StackCrawlMark to QCalls.

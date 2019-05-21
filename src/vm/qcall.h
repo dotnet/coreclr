@@ -239,6 +239,7 @@ public:
 
     struct AssemblyHandle
     {
+        Object ** m_ppObject;
         DomainAssembly * m_pAssembly;
 
         operator DomainAssembly * ()
@@ -256,6 +257,7 @@ public:
 
     struct ModuleHandle
     {
+        Object ** m_ppObject;
         Module * m_pModule;
 
         operator Module * ()
