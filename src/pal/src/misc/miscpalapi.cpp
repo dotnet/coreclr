@@ -226,86 +226,98 @@ PAL_GetPALDirectoryA(
     return bRet;
 }
 
+static
+BOOL
+PAL_RandomFromUrandom(
+        IN OUT LPVOID lpBuffer,
+        IN DWORD dwLength)
+{
+    static BOOL sMissingDevURandom;
+    int rand_des;
+
+    if (sMissingDevURandom)
+    {
+        return FALSE;
+    }
+
+    do
+    {
+        rand_des = open(URANDOM_DEVICE_NAME, O_RDONLY | O_CLOEXEC);
+    } while ((rand_des == -1) && (errno == EINTR));
+
+    if (rand_des == -1)
+    {
+        if (errno == ENOENT)
+        {
+            sMissingDevURandom = TRUE;
+        }
+        else
+        {
+            ASSERT("PAL__open() failed, errno:%d (%s)\n", errno, strerror(errno));
+        }
+
+        return FALSE;
+    }
+
+    DWORD offset = 0;
+    do
+    {
+        ssize_t n = read(rand_des, (BYTE*)lpBuffer + offset , dwLength - offset);
+        if (n == -1)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            ASSERT("read() failed, errno:%d (%s)\n", errno, strerror(errno));
+
+            break;
+        }
+
+        offset += n;
+    }
+    while (offset != dwLength);
+
+    _ASSERTE(offset == dwLength);
+
+    close(rand_des);
+
+    return TRUE;
+}
+
 VOID
 PALAPI
 PAL_Random(
         IN OUT LPVOID lpBuffer,
         IN DWORD dwLength)
 {
-    int rand_des = -1;
     DWORD i;
     long num = 0;
-    static BOOL sMissingDevURandom;
     static BOOL sInitializedMRand;
 
     PERF_ENTRY(PAL_Random);
     ENTRY("PAL_Random(lpBuffer=%p, dwLength=%d)\n", lpBuffer, dwLength);
 
-    if (!sMissingDevURandom)
+    if (!PAL_RandomFromUrandom(lpBuffer, dwLength))
     {
-        do
+        if (!sInitializedMRand)
         {
-            rand_des = open(URANDOM_DEVICE_NAME, O_RDONLY | O_CLOEXEC);
+            srand48(time(NULL));
+            sInitializedMRand = TRUE;
         }
-        while ((rand_des == -1) && (errno == EINTR));
 
-        if (rand_des == -1)
+        // always xor srand48 over the whole buffer to get some randomness
+        // in case /dev/urandom is not really random
+
+        for (i = 0; i < dwLength; i++)
         {
-            if (errno == ENOENT)
-            {
-                sMissingDevURandom = TRUE;
-            }
-            else
-            {
-                ASSERT("PAL__open() failed, errno:%d (%s)\n", errno, strerror(errno));
+            if (i % sizeof(long) == 0) {
+                num = mrand48();
             }
 
-            // Back off and try mrand48.
+            *(((BYTE*)lpBuffer) + i) ^= num;
+            num >>= 8;
         }
-        else
-        {
-            DWORD offset = 0;
-            do
-            {
-                ssize_t n = read(rand_des, (BYTE*)lpBuffer + offset , dwLength - offset);
-                if (n == -1)
-                {
-                    if (errno == EINTR)
-                    {
-                        continue;
-                    }
-                    ASSERT("read() failed, errno:%d (%s)\n", errno, strerror(errno));
-
-                    break;
-                }
-
-                offset += n;
-            }
-            while (offset != dwLength);
-
-            _ASSERTE(offset == dwLength);
-
-            close(rand_des);
-        }
-    }
-
-    if (!sInitializedMRand)
-    {
-        srand48(time(NULL));
-        sInitializedMRand = TRUE;
-    }
-
-    // always xor srand48 over the whole buffer to get some randomness
-    // in case /dev/urandom is not really random
-
-    for (i = 0; i < dwLength; i++)
-    {
-        if (i % sizeof(long) == 0) {
-            num = mrand48();
-        }
-
-        *(((BYTE*)lpBuffer) + i) ^= num;
-        num >>= 8;
     }
 
     LOGEXIT("PAL_Random\n");
