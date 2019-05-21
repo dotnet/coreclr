@@ -85,6 +85,12 @@
   <Target Name="GetTestAssetManifest" 
           Returns="@(TestAssetBlobInfos)">
 
+    <!--
+       Parse the test asset manifest at, e.g.,
+           https://dotnetfeed.blob.core.windows.net/dotnet-core/corefx-tests/4.6.0-preview6.19264.9/Linux.arm64/netcoreapp/corefx-test-assets.xml
+       to figure out the tests to run.
+     -->
+
     <PropertyGroup>
       <_TargetGroup>netcoreapp</_TargetGroup>
       <_AssetManifestPath>$(TestAssetBlobFeedUrl)/corefx-tests/$(MicrosoftPrivateCoreFxNETCoreAppVersion)/$(__BuildOS).$(__BuildArch)/$(_TargetGroup)/corefx-test-assets.xml</_AssetManifestPath>
