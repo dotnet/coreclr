@@ -262,14 +262,18 @@ inline bool IsStructReturnKind(ReturnKind returnKind)
     return returnKind > 3;
 }
 
-inline bool IsPointerReturnKind(ReturnKind returnKind)
+inline bool IsScalarReturnKind(ReturnKind returnKind)
 {
-    bool isScalarReturnType = (returnKind == RT_Scalar)
+    return (returnKind == RT_Scalar)
 #ifdef _TARGET_X86_
         || (returnKind == RT_Float)
 #endif // _TARGET_X86_
         ;
-    return !isScalarReturnType;
+}
+
+inline bool IsPointerReturnKind(ReturnKind returnKind)
+{
+    return !IsScalarReturnKind(returnKind);
 }
 
 // Helpers for combining/extracting individual ReturnKinds from/to Struct ReturnKinds.

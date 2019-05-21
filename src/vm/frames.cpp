@@ -1445,6 +1445,11 @@ void ComPlusMethodFrame::GcScanRoots(promote_func* fn, ScanContext* sc)
     {
         PromoteCarefully(fn, GetReturnObjectPtr(), sc, GC_CALL_INTERIOR | CHECK_APP_DOMAIN);
     }
+    else
+    {
+        _ASSERTE_MSG(!IsStructReturnKind(returnKind), "NYI: We can't promote multiregs struct returns");
+        _ASSERTE_MSG(IsScalarReturnKind(returnKind), "Non-scalar types must be promoted.");
+    }
 }
 #endif // FEATURE_COMINTEROP
 
