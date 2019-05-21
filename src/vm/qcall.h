@@ -273,6 +273,18 @@ public:
         }
     };
 
+    struct TypeHandle
+    {
+        Object ** m_ppObject;
+        PTR_VOID m_pTypeHandle;
+
+        ::TypeHandle AsTypeHandle()
+        {
+            LIMITED_METHOD_CONTRACT;
+            return ::TypeHandle::FromPtr(m_pTypeHandle);
+        }
+    };
+
     struct LoaderAllocatorHandle
     {
         LoaderAllocator * m_pLoaderAllocator;

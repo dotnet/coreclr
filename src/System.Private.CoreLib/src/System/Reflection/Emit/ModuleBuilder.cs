@@ -174,14 +174,14 @@ namespace System.Reflection.Emit
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern int GetMemberRefOfFieldInfo(QCallModule module, int tkType, RuntimeTypeHandle declaringType, int tkField);
+        private static extern int GetMemberRefOfFieldInfo(QCallModule module, int tkType, QCallTypeHandle declaringType, int tkField);
 
         private int GetMemberRefOfFieldInfo(int tkType, RuntimeTypeHandle declaringType, RuntimeFieldInfo runtimeField)
         {
             Debug.Assert(runtimeField != null);
 
             ModuleBuilder thisModule = this;
-            return GetMemberRefOfFieldInfo(JitHelpers.GetQCallModuleOnStack(ref thisModule), tkType, declaringType, runtimeField.MetadataToken);
+            return GetMemberRefOfFieldInfo(JitHelpers.GetQCallModuleOnStack(ref thisModule), tkType, JitHelpers.GetQCallTypeHandleOnStack(ref declaringType), runtimeField.MetadataToken);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]

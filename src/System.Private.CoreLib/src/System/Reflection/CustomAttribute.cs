@@ -1586,7 +1586,12 @@ namespace System.Reflection
                                                     decoratedModule.ModuleHandle.ResolveTypeHandle(tkParent) :
                                                     new RuntimeTypeHandle();
 
-            return RuntimeMethodHandle.IsCAVisibleFromDecoratedType(attributeType.TypeHandle, ctor!, parentTypeHandle, JitHelpers.GetQCallModuleOnStack(ref decoratedModule));
+            RuntimeTypeHandle attributeTypeHandle = attributeType.TypeHandle;
+
+            return RuntimeMethodHandle.IsCAVisibleFromDecoratedType(JitHelpers.GetQCallTypeHandleOnStack(ref attributeTypeHandle),
+                                                                    ctor!,
+                                                                    JitHelpers.GetQCallTypeHandleOnStack(ref parentTypeHandle),
+                                                                    JitHelpers.GetQCallModuleOnStack(ref decoratedModule));
         }
         #endregion
 

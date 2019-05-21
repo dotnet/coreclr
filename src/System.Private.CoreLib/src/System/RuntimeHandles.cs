@@ -78,7 +78,7 @@ namespace System
 
 
         // This is the RuntimeType for the type
-        private RuntimeType m_type;
+        internal RuntimeType m_type;
 
         public override int GetHashCode()
         {
@@ -318,41 +318,48 @@ namespace System
         internal static extern Type[]? GetInterfaces(RuntimeType type);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetConstraints(RuntimeTypeHandle handle, ObjectHandleOnStack types);
+        private static extern void GetConstraints(QCallTypeHandle handle, ObjectHandleOnStack types);
 
         internal Type[] GetConstraints()
         {
             Type[]? types = null;
-            GetConstraints(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref types));
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+
+            GetConstraints(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetObjectHandleOnStack(ref types));
 
             return types!;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern IntPtr GetGCHandle(RuntimeTypeHandle handle, GCHandleType type);
+        private static extern IntPtr GetGCHandle(QCallTypeHandle handle, GCHandleType type);
 
         internal IntPtr GetGCHandle(GCHandleType type)
         {
-            return GetGCHandle(GetNativeHandle(), type);
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            return GetGCHandle(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), type);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int GetNumVirtuals(RuntimeType type);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void VerifyInterfaceIsImplemented(RuntimeTypeHandle handle, RuntimeTypeHandle interfaceHandle);
+        private static extern void VerifyInterfaceIsImplemented(QCallTypeHandle handle, QCallTypeHandle interfaceHandle);
 
         internal void VerifyInterfaceIsImplemented(RuntimeTypeHandle interfaceHandle)
         {
-            VerifyInterfaceIsImplemented(GetNativeHandle(), interfaceHandle.GetNativeHandle());
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            RuntimeTypeHandle nativeInterfaceHandle = interfaceHandle.GetNativeHandle();
+            VerifyInterfaceIsImplemented(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetQCallTypeHandleOnStack(ref nativeInterfaceHandle));
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern RuntimeMethodHandleInternal GetInterfaceMethodImplementation(RuntimeTypeHandle handle, RuntimeTypeHandle interfaceHandle, RuntimeMethodHandleInternal interfaceMethodHandle);
+        private static extern RuntimeMethodHandleInternal GetInterfaceMethodImplementation(QCallTypeHandle handle, QCallTypeHandle interfaceHandle, RuntimeMethodHandleInternal interfaceMethodHandle);
 
         internal RuntimeMethodHandleInternal GetInterfaceMethodImplementation(RuntimeTypeHandle interfaceHandle, RuntimeMethodHandleInternal interfaceMethodHandle)
         {
-            return GetInterfaceMethodImplementation(GetNativeHandle(), interfaceHandle.GetNativeHandle(), interfaceMethodHandle);
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            RuntimeTypeHandle nativeInterfaceHandle = interfaceHandle.GetNativeHandle();
+            return GetInterfaceMethodImplementation(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetQCallTypeHandleOnStack(ref nativeInterfaceHandle), interfaceMethodHandle);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -366,23 +373,24 @@ namespace System
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool _IsVisible(RuntimeTypeHandle typeHandle);
+        private static extern bool _IsVisible(QCallTypeHandle typeHandle);
 
         internal static bool IsVisible(RuntimeType type)
         {
-            return _IsVisible(new RuntimeTypeHandle(type));
+            return _IsVisible(JitHelpers.GetQCallTypeHandleOnStack(ref type));
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool IsValueType(RuntimeType type);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void ConstructName(RuntimeTypeHandle handle, TypeNameFormatFlags formatFlags, StringHandleOnStack retString);
+        private static extern void ConstructName(QCallTypeHandle handle, TypeNameFormatFlags formatFlags, StringHandleOnStack retString);
 
         internal string ConstructName(TypeNameFormatFlags formatFlags)
         {
             string? name = null;
-            ConstructName(GetNativeHandle(), formatFlags, JitHelpers.GetStringHandleOnStack(ref name));
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            ConstructName(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), formatFlags, JitHelpers.GetStringHandleOnStack(ref name));
             return name!;
         }
 
@@ -404,12 +412,13 @@ namespace System
         internal static extern IRuntimeMethodInfo GetDeclaringMethod(RuntimeType type);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetDefaultConstructor(RuntimeTypeHandle handle, ObjectHandleOnStack method);
+        private static extern void GetDefaultConstructor(QCallTypeHandle handle, ObjectHandleOnStack method);
 
         internal IRuntimeMethodInfo? GetDefaultConstructor()
         {
             IRuntimeMethodInfo? ctor = null;
-            GetDefaultConstructor(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref ctor));
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            GetDefaultConstructor(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetObjectHandleOnStack(ref ctor));
             return ctor;
         }
 
@@ -463,24 +472,26 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void GetInstantiation(RuntimeTypeHandle type, ObjectHandleOnStack types, bool fAsRuntimeTypeArray);
+        internal static extern void GetInstantiation(QCallTypeHandle type, ObjectHandleOnStack types, bool fAsRuntimeTypeArray);
 
         internal RuntimeType[] GetInstantiationInternal()
         {
             RuntimeType[] types = null!;
-            GetInstantiation(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref types), true);
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            GetInstantiation(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetObjectHandleOnStack(ref types), true);
             return types;
         }
 
         internal Type[] GetInstantiationPublic()
         {
             Type[] types = null!;
-            GetInstantiation(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref types), false);
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            GetInstantiation(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetObjectHandleOnStack(ref types), false);
             return types;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void Instantiate(RuntimeTypeHandle handle, IntPtr* pInst, int numGenericArgs, ObjectHandleOnStack type);
+        private static extern void Instantiate(QCallTypeHandle handle, IntPtr* pInst, int numGenericArgs, ObjectHandleOnStack type);
 
         internal RuntimeType Instantiate(Type[]? inst)
         {
@@ -491,67 +502,75 @@ namespace System
             fixed (IntPtr* pInst = instHandles)
             {
                 RuntimeType type = null!;
-                Instantiate(GetNativeHandle(), pInst, instCount, JitHelpers.GetObjectHandleOnStack(ref type));
+                RuntimeTypeHandle nativeHandle = GetNativeHandle();
+                Instantiate(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), pInst, instCount, JitHelpers.GetObjectHandleOnStack(ref type));
                 GC.KeepAlive(inst);
                 return type;
             }
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void MakeArray(RuntimeTypeHandle handle, int rank, ObjectHandleOnStack type);
+        private static extern void MakeArray(QCallTypeHandle handle, int rank, ObjectHandleOnStack type);
 
         internal RuntimeType MakeArray(int rank)
         {
             RuntimeType type = null!;
-            MakeArray(GetNativeHandle(), rank, JitHelpers.GetObjectHandleOnStack(ref type));
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            MakeArray(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), rank, JitHelpers.GetObjectHandleOnStack(ref type));
             return type;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void MakeSZArray(RuntimeTypeHandle handle, ObjectHandleOnStack type);
+        private static extern void MakeSZArray(QCallTypeHandle handle, ObjectHandleOnStack type);
 
         internal RuntimeType MakeSZArray()
         {
             RuntimeType type = null!;
-            MakeSZArray(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            MakeSZArray(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetObjectHandleOnStack(ref type));
             return type;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void MakeByRef(RuntimeTypeHandle handle, ObjectHandleOnStack type);
+        private static extern void MakeByRef(QCallTypeHandle handle, ObjectHandleOnStack type);
 
         internal RuntimeType MakeByRef()
         {
             RuntimeType type = null!;
-            MakeByRef(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            MakeByRef(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetObjectHandleOnStack(ref type));
             return type;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void MakePointer(RuntimeTypeHandle handle, ObjectHandleOnStack type);
+        private static extern void MakePointer(QCallTypeHandle handle, ObjectHandleOnStack type);
 
         internal RuntimeType MakePointer()
         {
             RuntimeType type = null!;
-            MakePointer(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            MakePointer(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetObjectHandleOnStack(ref type));
             return type;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern bool IsCollectible(RuntimeTypeHandle handle);
+        internal static extern bool IsCollectible(QCallTypeHandle handle);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool HasInstantiation(RuntimeType type);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetGenericTypeDefinition(RuntimeTypeHandle type, ObjectHandleOnStack retType);
+        private static extern void GetGenericTypeDefinition(QCallTypeHandle type, ObjectHandleOnStack retType);
 
         internal static RuntimeType GetGenericTypeDefinition(RuntimeType type)
         {
             RuntimeType retType = type;
 
             if (HasInstantiation(retType) && !IsGenericTypeDefinition(retType))
-                GetGenericTypeDefinition(retType.GetTypeHandleInternal(), JitHelpers.GetObjectHandleOnStack(ref retType));
+            {
+                RuntimeTypeHandle nativeHandle = retType.GetTypeHandleInternal();
+                GetGenericTypeDefinition(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetObjectHandleOnStack(ref retType));
+            }
 
             return retType;
         }
@@ -802,9 +821,9 @@ namespace System
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern bool IsCAVisibleFromDecoratedType(
-            RuntimeTypeHandle attrTypeHandle,
+            QCallTypeHandle attrTypeHandle,
             IRuntimeMethodInfo attrCtor,
-            RuntimeTypeHandle sourceTypeHandle,
+            QCallTypeHandle sourceTypeHandle,
             QCallModule sourceModule);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
