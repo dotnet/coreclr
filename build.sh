@@ -441,12 +441,18 @@ build_CoreLib()
         exit 1
     fi
 
+    local __CoreLibILDir=$__BinDir/IL
+
     if [ $__SkipCrossgen == 1 ]; then
         echo "Skipping generating native image"
+
+        if [ $__CrossBuild == 1 ]; then
+            # Crossgen not performed, so treat the IL version as the final version
+            cp $__CoreLibILDir/System.Private.CoreLib.dll $__BinDir/System.Private.CoreLib.dll
+        fi
+
         return
     fi
-
-    local __CoreLibILDir=$__BinDir/IL
 
     # The cross build generates a crossgen with the target architecture.
     if [ $__CrossBuild == 0 ]; then
