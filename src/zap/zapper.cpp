@@ -1201,6 +1201,8 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
 
 #endif // _TARGET_X86_
 
+    m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_FEATURE_SIMD);
+
     if (   m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO)
         && m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE)
         && m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_PROF_ENTERLEAVE))

@@ -22,6 +22,7 @@
 #include "ecmakey.h"
 #include "customattribute.h"
 #include "typestring.h"
+#include "compile.h"
 
 //*******************************************************************************
 // Helper functions to sort GCdescs by offset (decending order)
@@ -1517,12 +1518,15 @@ MethodTableBuilder::BuildMethodTableThrowing(
         if (hr == S_OK && (strcmp(nameSpace, "System.Runtime.Intrinsics.X86") == 0))
 #endif
         {
-            if (IsCompilationProcess())
+#ifdef CROSSGEN_COMPILE
+            if (!IsNgenPDBCompilationProcess() &&
+                GetAppDomain()->ToCompilationDomain()->GetTargetModule() != g_pObjectClass->GetModule())
             {
                 // Disable AOT compiling for managed implementation of hardware intrinsics in mscorlib.
                 // We specially treat them here to ensure correct ISA features are set during compilation
                 COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
             }
+#endif
             bmtProp->fIsHardwareIntrinsic = true;
         }
     }
@@ -9548,7 +9552,9 @@ void MethodTableBuilder::CheckForSystemTypes()
                 // These __m128 and __m256 types, among other requirements, are special in that they must always
                 // be aligned properly.
 
-                if (IsCompilationProcess())
+#ifdef CROSSGEN_COMPILE
+                if (!IsNgenPDBCompilationProcess() &&
+                    GetAppDomain()->ToCompilationDomain()->GetTargetModule() != g_pObjectClass->GetModule())
                 {
                     // Disable AOT compiling for the SIMD hardware intrinsic types. These types require special
                     // ABI handling as they represent fundamental data types (__m64, __m128, and __m256) and not
@@ -9558,6 +9564,7 @@ void MethodTableBuilder::CheckForSystemTypes()
                     // and allow them to be used in crossgen/AOT scenarios.
                     COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
                 }
+#endif
 
                 if (strcmp(name, g_Vector64Name) == 0)
                 {
