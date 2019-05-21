@@ -258,7 +258,8 @@ jobs:
           readyToRun: true
           displayNameArgs: R2R
 
-# The ReadyToRun test jobs that are triggered by default from a PR.
+# ReadyToRun test jobs that are triggered by default from a PR.
+
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
   - template: eng/platform-matrix.yml
     parameters:
@@ -273,19 +274,36 @@ jobs:
         readyToRun: true
         testGroup: innerloop
         displayNameArgs: R2R
-  # The CoreFX runs against CoreCLR
+
+#
+# CoreFX test runs against CoreCLR
+#
+
+# PR innerloop checked build
+
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
-      buildConfig: release
+      buildConfig: checked
       platforms:
+      - Linux_arm64
+      - Linux_musl_x64
+      - Linux_musl_arm64
+      - Linux_rhel6_x64
+      - Linux_x64
+      - OSX_x64
       - Windows_NT_x64
+      - Windows_NT_x86
+      - Windows_NT_arm
+      - Windows_NT_arm64
       jobParameters:
-        corefxTests: true
         testGroup: innerloop
+        corefxTests: true
         displayNameArgs: CoreFX
 
-# CI
+# CI (merge) jobs
+
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
   - template: eng/platform-matrix.yml
     parameters:
@@ -310,9 +328,18 @@ jobs:
       - Windows_NT_arm
       - Windows_NT_arm64
       jobParameters:
-        readyToRun: true
         testGroup: outerloop
+        readyToRun: true
         displayNameArgs: R2R
+
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      jobParameters:
+        testGroup: outerloop
+        corefxTests: true
+        displayNameArgs: CoreFX
 
 #
 # Release test builds
@@ -346,6 +373,15 @@ jobs:
         testGroup: outerloop
         readyToRun: true
         displayNameArgs: R2R
+
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: release
+      jobParameters:
+        testGroup: outerloop
+        corefxTests: true
+        displayNameArgs: CoreFX
 
 # Format
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
