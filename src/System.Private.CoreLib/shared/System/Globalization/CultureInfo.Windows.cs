@@ -39,7 +39,7 @@ namespace System.Globalization
             return GetCultureByName(strDefault);
         }
 
-        private static CultureInfo GetUserDefaultUICulture()
+        private unsafe static CultureInfo GetUserDefaultUICulture()
         {
 #if !ENABLE_WINRT
             if (GlobalizationMode.Invariant)
@@ -52,15 +52,18 @@ namespace System.Globalization
             if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, null, ref bufLen))
             {
                 char[] languages = new char[bufLen];
-                if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, languages, ref bufLen))
+                fixed (char* pLanguages = languages)
                 {
-                    int index = 0;
-                    while (languages[index] != (char)0 && index < languages.Length)
+                    if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, pLanguages, ref bufLen))
                     {
-                        index++;
-                    }
+                        int index = 0;
+                        while (languages[index] != (char)0 && index < languages.Length)
+                        {
+                            index++;
+                        }
 
-                    return GetCultureByName(new string(languages, 0, index));
+                        return GetCultureByName(new string(languages, 0, index));
+                    }
                 }
             }
 #endif
