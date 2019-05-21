@@ -5727,20 +5727,6 @@ ReturnKind GetReturnKind(Thread *pThread, EECodeInfo *codeInfo)
 {
     GCInfoToken gcInfoToken = codeInfo->GetGCInfoToken();
     ReturnKind returnKind = codeInfo->GetCodeManager()->GetReturnKind(gcInfoToken);
-
-    MethodDesc* methodDesc = codeInfo->GetMethodDesc();
-    if (!IsValidReturnKind(returnKind))
-    {
-        returnKind = methodDesc->GetReturnKindFromMethodTable(pThread);
-    }
-    else
-    {
-#if !defined(FEATURE_MULTIREG_RETURN) || defined(UNIX_AMD64_ABI)
-         // For ARM64 struct-return, GetReturnKindFromMethodTable() is not supported
-        _ASSERTE(returnKind == methodDesc->GetReturnKindFromMethodTable(pThread));
-#endif // !FEATURE_MULTIREG_RETURN || UNIX_AMD64_ABI
-    }
-
     _ASSERTE(IsValidReturnKind(returnKind));
     return returnKind;
 }
