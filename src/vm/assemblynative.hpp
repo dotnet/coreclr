@@ -111,7 +111,9 @@ public:
 
     static BOOL QCALLTYPE GetIsCollectible(QCall::AssemblyHandle pAssembly);
 
+#ifdef FEATURE_TRACE
     static FCDECL0(uint32_t, GetAssemblyCount);
+#endif // FEATURE_TRACE
 
     //
     // PEFile QCalls
