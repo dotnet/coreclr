@@ -235,12 +235,12 @@ void GCHeap::UpdatePostGCCounters()
     g_TotalTimeSinceLastGCEnd = _currentPerfCounterTimer;
 }
 
-int GCHeap::GetLastGCTimeInGC()
+int GCHeap::GetLastGCPercentTimeInGC()
 {
     return (int)(g_percentTimeInGCSinceLastGC);
 }
 
-uint64_t GCHeap::GetLastGCGenerationSize(int gen)
+size_t GCHeap::GetLastGCGenerationSize(int gen)
 {
     return g_GenerationSizes[gen];
 }

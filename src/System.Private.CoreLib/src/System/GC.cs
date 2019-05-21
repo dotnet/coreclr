@@ -104,13 +104,10 @@ namespace System
         internal static extern ulong GetSegmentSize();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int GetPercentTimeInGC();
+        internal static extern int GetLastGCPercentTimeInGC();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern ulong GetGenerationSize(int gen);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern ulong GetTotalAllocation();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _AddMemoryPressure(ulong bytesAllocated);

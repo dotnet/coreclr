@@ -308,9 +308,9 @@ protected:
 public:
     Object * NextObj (Object * object);
 
-    int GetLastGCTimeInGC();
+    int GetLastGCPercentTimeInGC();
 
-    uint64_t GetLastGCGenerationSize(int gen);
+    size_t GetLastGCGenerationSize(int gen);
 };
 
 #endif  // GCIMPL_H_

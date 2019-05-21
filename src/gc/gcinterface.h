@@ -691,9 +691,9 @@ public:
     // Indicates that an object's finalizer should be run upon the object's collection.
     virtual bool RegisterForFinalization(int gen, Object* obj) = 0;
 
-    virtual int GetLastGCTimeInGC() = 0;
+    virtual int GetLastGCPercentTimeInGC() = 0;
 
-    virtual uint64_t GetLastGCGenerationSize(int gen) = 0;
+    virtual size_t GetLastGCGenerationSize(int gen) = 0;
 
     /*
     ===========================================================================

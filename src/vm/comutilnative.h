@@ -122,7 +122,7 @@ public:
     static FCDECL1(int,     GetGenerationWR, LPVOID handle);
     static FCDECL1(int,     GetGeneration, Object* objUNSAFE);
     static FCDECL0(UINT64,  GetSegmentSize);
-    static FCDECL0(int,     GetPercentTimeInGC);
+    static FCDECL0(int,     GetLastGCPercentTimeInGC);
     static FCDECL1(UINT64,  GetGenerationSize, int gen);
     static 
     INT64 QCALLTYPE GetTotalMemory();
