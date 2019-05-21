@@ -262,6 +262,16 @@ inline bool IsStructReturnKind(ReturnKind returnKind)
     return returnKind > 3;
 }
 
+inline bool IsPointerReturnKind(ReturnKind returnKind)
+{
+    bool isScalarReturnType = (returnKind == RT_Scalar)
+#ifdef _TARGET_X86_
+        || (returnKind == RT_Float)
+#endif // _TARGET_X86_
+        ;
+    return !isScalarReturnType;
+}
+
 // Helpers for combining/extracting individual ReturnKinds from/to Struct ReturnKinds.
 // Encoding is two bits per register
 

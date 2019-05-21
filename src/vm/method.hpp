@@ -1660,7 +1660,11 @@ public:
         MethodTable** pMT = NULL
         );
 
-    ReturnKind GetReturnKindFromMethodTable(Thread* pThread);
+    ReturnKind GetReturnKindFromMethodTable(Thread* pThread
+#ifdef _DEBUG
+        , bool supportStringConstructors = false
+#endif
+    );
 
     void Destruct();
 

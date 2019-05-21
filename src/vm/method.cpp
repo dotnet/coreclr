@@ -1305,7 +1305,11 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
     return(MetaSig::RETNONOBJ);
 }
 
-ReturnKind MethodDesc::GetReturnKindFromMethodTable(Thread* pThread)
+ReturnKind MethodDesc::GetReturnKindFromMethodTable(Thread* pThread
+#ifdef _DEBUG
+    , bool supportStringConstructors
+#endif
+)
 {
 #ifdef _WIN64
     // For simplicity, we don't hijack in funclets, but if you ever change that, 
@@ -1331,7 +1335,7 @@ ReturnKind MethodDesc::GetReturnKindFromMethodTable(Thread* pThread)
 #endif // _TARGET_X86_
 
     MethodTable* pMT = NULL;
-    MetaSig::RETURNTYPE type = ReturnsObject(INDEBUG_COMMA(false) & pMT);
+    MetaSig::RETURNTYPE type = ReturnsObject(INDEBUG_COMMA(supportStringConstructors) & pMT);
     if (type == MetaSig::RETOBJ)
     {
         return RT_Object;
