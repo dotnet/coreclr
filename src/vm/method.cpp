@@ -1213,16 +1213,14 @@ COR_ILMETHOD* MethodDesc::GetILHeader(BOOL fAllowOverrides /*=FALSE*/)
 }
 
 //*******************************************************************************
-MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
-#ifdef _DEBUG
-    bool supportStringConstructors,
-#endif
-    MethodTable** pMT
-    )
+ReturnKind MethodDesc::ReturnsObject(INDEBUG(bool supportStringConstructors))
 {
     CONTRACTL
     {
-        if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
+        if (FORBIDGC_LOADER_USE_ENABLED()) 
+            NOTHROW; 
+        else 
+            THROWS;
         GC_NOTRIGGER;
         FORBID_FAULT;
     }
@@ -1243,7 +1241,7 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_OBJECT:
         case ELEMENT_TYPE_VAR:
-            return(MetaSig::RETOBJ);
+            return RT_Object;
 
 #ifdef ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE
         case ELEMENT_TYPE_VALUETYPE:
@@ -1258,22 +1256,39 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
                     if (!thValueType.IsTypeDesc())
                     {
                         MethodTable * pReturnTypeMT = thValueType.AsMethodTable();
-                        if (pMT != NULL)
-                        {
-                            *pMT = pReturnTypeMT;
-                        }
-
 #ifdef UNIX_AMD64_ABI
                         if (pReturnTypeMT->IsRegPassedStruct())
                         {
-                            return MetaSig::RETVALUETYPE;
+                            // The Multi-reg return case using the classhandle is only implemented for AMD64 SystemV ABI.
+                            // On other platforms, multi-reg return is not supported with GcInfo v1.
+                            // So, the relevant information must be obtained from the GcInfo tables (which requires version2).
+                            EEClass* eeClass = pReturnTypeMT->GetClass();
+                            ReturnKind regKinds[2] = { RT_Unset, RT_Unset };
+                            int orefCount = 0;
+                            for (int i = 0; i < 2; i++)
+                            {
+                                if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerReference)
+                                {
+                                    regKinds[i] = RT_Object;
+                                }
+                                else if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerByRef)
+                                {
+                                    regKinds[i] = RT_ByRef;
+                                }
+                                else
+                                {
+                                    regKinds[i] = RT_Scalar;
+                                }
+                            }
+                            ReturnKind structReturnKind = GetStructReturnKind(regKinds[0], regKinds[1]);
+                            return structReturnKind;
                         }
-#endif // !UNIX_AMD64_ABI
+#endif // UNIX_AMD64_ABI
 
                         if (pReturnTypeMT->ContainsPointers())
                         {
                             _ASSERTE(pReturnTypeMT->GetNumInstanceFieldBytes() == sizeof(void*));
-                            return MetaSig::RETOBJ;
+                            return RT_Object;
                         }
                     }
                 }
@@ -1290,19 +1305,19 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
             if (IsCtor() && GetMethodTable()->HasComponentSize())
             {
                 _ASSERTE(supportStringConstructors);
-                return MetaSig::RETOBJ;
+                return RT_Object;
             }
             break;
 #endif // _DEBUG
 
         case ELEMENT_TYPE_BYREF:
-            return(MetaSig::RETBYREF);
+            return RT_ByRef;
 
         default:
             break;
     }
 
-    return(MetaSig::RETNONOBJ);
+    return RT_Scalar;
 }
 
 ReturnKind MethodDesc::GetReturnKindFromMethodTable(Thread* pThread
@@ -1333,49 +1348,8 @@ ReturnKind MethodDesc::GetReturnKindFromMethodTable(Thread* pThread
         return RT_Float;
     }
 #endif // _TARGET_X86_
-
-    MethodTable* pMT = NULL;
-    MetaSig::RETURNTYPE type = ReturnsObject(INDEBUG_COMMA(supportStringConstructors) & pMT);
-    if (type == MetaSig::RETOBJ)
-    {
-        return RT_Object;
-    }
-
-    if (type == MetaSig::RETBYREF)
-    {
-        return RT_ByRef;
-    }
-
-#ifdef UNIX_AMD64_ABI
-    // The Multi-reg return case using the classhandle is only implemented for AMD64 SystemV ABI.
-    // On other platforms, multi-reg return is not supported with GcInfo v1.
-    // So, the relevant information must be obtained from the GcInfo tables (which requires version2).
-    if (type == MetaSig::RETVALUETYPE)
-    {
-        EEClass* eeClass = pMT->GetClass();
-        ReturnKind regKinds[2] = { RT_Unset, RT_Unset };
-        int orefCount = 0;
-        for (int i = 0; i < 2; i++)
-        {
-            if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerReference)
-            {
-                regKinds[i] = RT_Object;
-            }
-            else if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerByRef)
-            {
-                regKinds[i] = RT_ByRef;
-            }
-            else
-            {
-                regKinds[i] = RT_Scalar;
-            }
-        }
-        ReturnKind structReturnKind = GetStructReturnKind(regKinds[0], regKinds[1]);
-        return structReturnKind;
-    }
-#endif // UNIX_AMD64_ABI
-
-    return RT_Scalar;
+    
+    return ReturnsObject(INDEBUG(supportStringConstructors));
 }
 
 #ifdef FEATURE_COMINTEROP

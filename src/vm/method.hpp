@@ -1653,20 +1653,13 @@ public:
 public:
 
     // does this function return an object reference?
-    MetaSig::RETURNTYPE ReturnsObject(
-#ifdef _DEBUG 
-        bool supportStringConstructors = false,
-#endif
-        MethodTable** pMT = NULL
-        );
+    ReturnKind ReturnsObject(INDEBUG(bool supportStringConstructors = false));
 
     ReturnKind GetReturnKindFromMethodTable(Thread* pThread
 #ifdef _DEBUG
         , bool supportStringConstructors = false
 #endif
     );
-
-    void Destruct();
 
 public:
     // In general you don't want to call GetCallTarget - you want to
